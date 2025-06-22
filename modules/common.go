@@ -3,6 +3,7 @@ package modules
 import (
     "github.com/dop251/goja"
     "github.com/dop251/goja_nodejs/require"
+    "log"
 )
 
 // NativeModule is the interface every sub-module must satisfy.
@@ -52,6 +53,7 @@ func Register(m NativeModule) { // exposed so sub-packages can call it
 // the standard Node-style `require()` mechanism.
 func EnableAll(reg *require.Registry) {
     for _, m := range all {
+        log.Printf("modules: registering native module %s", m.Name())
         reg.RegisterNativeModule(m.Name(), m.Loader)
     }
 } 

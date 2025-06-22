@@ -6,6 +6,11 @@ import (
     "github.com/dop251/goja_nodejs/console"
 
     "github.com/go-go-golems/go-go-goja/modules"
+    // Blank imports ensure module init() functions run so they can register themselves.
+    _ "github.com/go-go-golems/go-go-goja/modules/fs"
+    _ "github.com/go-go-golems/go-go-goja/modules/exec"
+
+    "log"
 )
 
 // New creates a fresh goja.Runtime ready for execution with Node-style
@@ -20,6 +25,8 @@ func New() (*goja.Runtime, *require.RequireModule) {
     // Create a registry and register every known Go-backed module.
     reg := require.NewRegistry()
     modules.EnableAll(reg)
+
+    log.Printf("go-go-goja: native modules enabled")
 
     // Attach the registry to the runtime. The returned object allows
     // programmatic require() calls from Go.
