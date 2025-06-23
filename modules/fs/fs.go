@@ -1,10 +1,10 @@
 package fs
 
 import (
-    "os"
+	"os"
 
-    "github.com/dop251/goja"
-    "github.com/go-go-golems/go-go-goja/modules"
+	"github.com/dop251/goja"
+	"github.com/go-go-golems/go-go-goja/modules"
 )
 
 // m is the concrete implementation of the fs module.
@@ -19,21 +19,21 @@ func (m) Name() string { return "fs" }
 
 // Loader attaches the exported Go functions to the JS `exports` object.
 func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
-    exports := moduleObj.Get("exports").(*goja.Object)
+	exports := moduleObj.Get("exports").(*goja.Object)
 
-    // readFileSync(path) -> string | throws
-    exports.Set("readFileSync", func(path string) (string, error) {
-        b, err := os.ReadFile(path)
-        return string(b), err
-    })
+	// readFileSync(path) -> string | throws
+	_ = exports.Set("readFileSync", func(path string) (string, error) {
+		b, err := os.ReadFile(path)
+		return string(b), err
+	})
 
-    // writeFileSync(path, data) -> void | throws
-    exports.Set("writeFileSync", func(path, data string) error {
-        return os.WriteFile(path, []byte(data), 0o644)
-    })
+	// writeFileSync(path, data) -> void | throws
+	_ = exports.Set("writeFileSync", func(path, data string) error {
+		return os.WriteFile(path, []byte(data), 0o644)
+	})
 }
 
 // Each module registers itself during package initialization.
 func init() {
-    modules.Register(&m{})
-} 
+	modules.Register(&m{})
+}
