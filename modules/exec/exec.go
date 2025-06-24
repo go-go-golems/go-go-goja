@@ -14,6 +14,11 @@ var _ modules.NativeModule = (*m)(nil)
 
 func (m) Name() string { return "exec" }
 
+// Doc returns the documentation for the module.
+func (m) Doc() string {
+	return "The exec module provides a simple way to run external commands."
+}
+
 // Loader attaches the exported Go functions to the JS module.exports object.
 func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
