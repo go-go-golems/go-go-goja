@@ -17,6 +17,17 @@ var _ modules.NativeModule = (*m)(nil)
 
 func (m) Name() string { return "fs" }
 
+// Doc returns the documentation for the module.
+func (m) Doc() string {
+	return `
+The fs module provides basic file system operations.
+
+Functions:
+  readFileSync(path): Reads a file and returns its content as a string.
+  writeFileSync(path, data): Writes data to a file.
+`
+}
+
 // Loader attaches the exported Go functions to the JS `exports` object.
 func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)

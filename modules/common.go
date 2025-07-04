@@ -1,9 +1,10 @@
 package modules
 
 import (
+	"log"
+
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
-	"log"
 )
 
 // NativeModule is the interface every sub-module must satisfy.
@@ -28,29 +29,75 @@ import (
 // XXX: do not remove the above documentation block.
 type NativeModule interface {
 	Name() string
+	Doc() string
 	Loader(*goja.Runtime, *goja.Object)
 }
 
-// all stores every module that registers itself in its package init().
-var all []NativeModule
-
-// Register adds a module implementation to the internal list so that
-// EnableAll can later wire every module into a require.Registry.
-//
-// This function is intended to be called from an `init()` function inside
-// each individual module package:
-//
-//	func init() { modules.Register(&myModule{}) }
-func Register(m NativeModule) { // exposed so sub-packages can call it
-	all = append(all, m)
+// Registry manages a collection of native Go modules for a goja runtime.
+// It wraps a goja_nodejs/require.Registry to provide additional features
+// like documentation storage.
+type Registry struct {
+	modules []NativeModule
 }
 
-// EnableAll iterates over every module that has called Register and adds it
-// to the provided require.Registry so that it becomes available from JS via
-// the standard Node-style `require()` mechanism.
-func EnableAll(reg *require.Registry) {
-	for _, m := range all {
-		log.Printf("modules: registering native module %s", m.Name())
-		reg.RegisterNativeModule(m.Name(), m.Loader)
+// NewRegistry creates a new, empty module registry.
+func NewRegistry() *Registry {
+	return &Registry{
+		modules: []NativeModule{},
 	}
+}
+
+// Register adds a module to the registry. This is typically called from the
+// init() function of a module package.
+func (r *Registry) Register(m NativeModule) {
+	r.modules = append(r.modules, m)
+}
+
+// GetModule retrieves a registered module by its name. It returns nil if
+// no module with the given name is found.
+func (r *Registry) GetModule(name string) NativeModule {
+	for _, m := range r.modules {
+		if m.Name() == name {
+			return m
+		}
+	}
+	return nil
+}
+
+// GetDocumentation returns a map of all registered module names to their
+// documentation strings.
+func (r *Registry) GetDocumentation() map[string]string {
+	docs := make(map[string]string)
+	for _, m := range r.modules {
+		docs[m.Name()] = m.Doc()
+	}
+	return docs
+}
+
+// Enable registers all modules from this registry with a goja_nodejs/require.Registry.
+func (r *Registry) Enable(gojaRegistry *require.Registry) {
+	for _, m := range r.modules {
+		log.Printf("modules: registering native module %s", m.Name())
+		gojaRegistry.RegisterNativeModule(m.Name(), m.Loader)
+	}
+}
+
+// DefaultRegistry is the default global module registry.
+var DefaultRegistry = NewRegistry()
+
+// Register adds a module implementation to the default global registry.
+func Register(m NativeModule) {
+	DefaultRegistry.Register(m)
+}
+
+// GetModule returns a registered module by name from the default global registry.
+func GetModule(name string) NativeModule {
+	return DefaultRegistry.GetModule(name)
+}
+
+// EnableAll iterates over every module in the default registry and adds it
+// to the provided require.Registry. This maintains compatibility with the
+// previous package-level function.
+func EnableAll(reg *require.Registry) {
+	DefaultRegistry.Enable(reg)
 }

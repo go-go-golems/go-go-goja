@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-go-golems/go-go-goja/modules"
 	// Blank imports ensure module init() functions run so they can register themselves.
+	_ "github.com/go-go-golems/go-go-goja/modules/database"
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
 	_ "github.com/go-go-golems/go-go-goja/modules/fs"
 

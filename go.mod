@@ -5,6 +5,7 @@ go 1.24.3
 require (
 	github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
 	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc
+	github.com/mattn/go-sqlite3 v1.14.28
 )
 
 require (
