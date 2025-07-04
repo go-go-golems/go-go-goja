@@ -40,10 +40,18 @@ Functions:
 // Loader exposes the database functions to the JavaScript module.
 func (m *DBModule) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
-	exports.Set("configure", m.Configure)
-	exports.Set("query", m.Query)
-	exports.Set("exec", m.Exec)
-	exports.Set("close", m.Close)
+	if err := exports.Set("configure", m.Configure); err != nil {
+		log.Printf("database: failed to set configure function: %v", err)
+	}
+	if err := exports.Set("query", m.Query); err != nil {
+		log.Printf("database: failed to set query function: %v", err)
+	}
+	if err := exports.Set("exec", m.Exec); err != nil {
+		log.Printf("database: failed to set exec function: %v", err)
+	}
+	if err := exports.Set("close", m.Close); err != nil {
+		log.Printf("database: failed to set close function: %v", err)
+	}
 }
 
 // Configure sets up the database connection.
@@ -96,7 +104,11 @@ func (m *DBModule) Query(query string, args ...interface{}) ([]map[string]interf
 		log.Printf("database: query error: %v", err)
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("database: failed to close rows: %v", err)
+		}
+	}()
 
 	cols, err := rows.Columns()
 	if err != nil {
