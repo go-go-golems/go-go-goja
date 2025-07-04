@@ -45,9 +45,7 @@ tag-patch:
 	git tag $(shell svu patch)
 
 release:
-	git push --tags
-	echo "Sleeping while tags get pushed"
-	sleep 20
+	git push origin --tags
 	GOPROXY=proxy.golang.org go list -m github.com/go-go-golems/go-go-goja@$(shell svu current)
 
 bump-glazed:
