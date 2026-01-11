@@ -1,5 +1,4 @@
-title: "✨ Add: TSX demo bundle"
-description: "Add a TSX-to-HTML demo bundle with a custom JSX runtime and new Makefile targets."
+title: "📝 Docs: record TSX demo implementation"
+description: "Update BUN-006 diary, tasks, and changelog after implementing the TSX demo."
 tests:
-  - "make -C cmd/bun-demo go-run-bun-tsx"
-  - "make -C cmd/bun-demo js-render-tsx"
+  - "not run (docs only)"

@@ -42,7 +42,9 @@ Goals for the TSX example:
 - Compare with tui-ink's webpack + Babel approach and note differences.
 
 ## Example pipeline: TSX to HTML string (Goja-friendly)
-This example uses Preact + `preact-render-to-string` because it is lightweight and works well with server-side rendering. The output is a CommonJS module that exports `renderHtml()` and can be executed via Goja's `require()`.
+This example uses a tiny custom JSX-to-string runtime so the bundle can remain ES5 without extra transpilation. The output is a CommonJS module that exports `renderHtml()` and can be executed via Goja's `require()`.
+
+Note: the current esbuild version in this repo does not downlevel `const` to ES5, so dependencies that ship modern syntax would require an additional Babel or SWC step. The custom runtime avoids that extra pass.
 
 ### Suggested file layout
 ```
@@ -51,22 +53,34 @@ cmd/bun-demo/js/
     tsx/
       App.tsx
       render.tsx
+      entry.tsx
+      runtime.ts
   package.json
   tsconfig.json
 ```
 
+### Implementation in this repo
+The example has been implemented under `cmd/bun-demo/js/src/tsx` with the bundler script wired into `cmd/bun-demo/js/package.json`. The compiled output is copied to `cmd/bun-demo/assets/tsx-bundle.cjs` via `make -C cmd/bun-demo js-bundle-tsx` and can be executed using `make -C cmd/bun-demo go-run-bun-tsx`.
+
 ### TSX component
 `src/tsx/App.tsx`:
 ```tsx
+import { Fragment, jsx } from "./runtime";
+
 export function App(props: { title: string; items: string[] }) {
   return (
     <main>
-      <h1>{props.title}</h1>
-      <ul>
-        {props.items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
+      <header>
+        <h1>{props.title}</h1>
+        <p>Rendered from TSX inside Goja.</p>
+      </header>
+      <section>
+        <ul>
+          {props.items.map(function (item) {
+            return <li key={item}>{item}</li>;
+          })}
+        </ul>
+      </section>
     </main>
   );
 }
@@ -75,11 +89,11 @@ export function App(props: { title: string; items: string[] }) {
 ### Render function
 `src/tsx/render.tsx`:
 ```tsx
-import renderToString from "preact-render-to-string";
+import { Fragment, jsx, renderToString } from "./runtime";
 import { App } from "./App";
 
 export function renderHtml(): string {
-  const html = renderToString(
+  var html = renderToString(
     <App title="Goja TSX Demo" items={["alpha", "beta", "gamma"]} />
   );
 
@@ -92,15 +106,15 @@ export function renderHtml(): string {
 ```json
 {
   "scripts": {
-    "build:tsx": "esbuild src/tsx/render.tsx --bundle --platform=node --format=cjs --target=es5 --jsx=automatic --jsx-import-source=preact --outfile=dist/tsx-bundle.cjs",
-    "render:html": "node -e \"const m = require('./dist/tsx-bundle.cjs'); console.log(m.renderHtml());\""
+    "build:tsx": "esbuild src/tsx/entry.tsx --bundle --platform=node --format=cjs --target=es5 --jsx=transform --jsx-factory=jsx --jsx-fragment=Fragment --outfile=dist/tsx-bundle.cjs",
+    "render:tsx-html": "bun -e \"const m = require('./dist/tsx-bundle.cjs'); console.log(m.renderHtml ? m.renderHtml() : m.run());\""
   }
 }
 ```
 
 Key flags:
-- `--jsx=automatic` uses the JSX runtime, which is compatible with Preact.
-- `--jsx-import-source=preact` selects the Preact JSX runtime.
+- `--jsx=transform` compiles JSX into `jsx()` calls.
+- `--jsx-factory=jsx` and `--jsx-fragment=Fragment` point to the custom runtime.
 - `--format=cjs` produces CommonJS for Goja.
 - `--target=es5` ensures Goja compatibility.
 
@@ -131,14 +145,16 @@ fmt.Println(result.Export())
 This pattern mirrors the existing Goja bundle entrypoints in the bun demo.
 
 ## Alternative output: pre-rendered HTML file
-If you want a build-time HTML artifact, use the `render:html` script to emit HTML and redirect it into a file:
+If you want a build-time HTML artifact, use the `render:tsx-html` script to emit HTML and redirect it into a file:
 
 ```bash
 bun run build:tsx
-bun run render:html > dist/index.html
+bun run render:tsx-html > dist/index.html
 ```
 
 This keeps JS bundling and HTML generation separate from the Go runtime. The Go app can still embed and serve `dist/index.html` as a static asset if needed.
+
+In this repo, `make -C cmd/bun-demo js-render-tsx` writes `cmd/bun-demo/assets/tsx.html` from the bundled output.
 
 ## Comparison with tui-ink
 The tui-ink project uses webpack + Babel to build ES5 JavaScript bundles and then executes them in Goja. It chooses a global variable export instead of CommonJS, which is a different runtime contract.
