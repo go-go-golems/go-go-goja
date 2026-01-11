@@ -1,12 +1,8 @@
-.PHONY: gifs js-install js-bundle js-transpile js-clean go-build go-run-bun
+.PHONY: js-install js-bundle js-transpile js-clean go-build go-run-bun
 
-all: gifs
+all: build
 
 VERSION=v0.1.14
-
-TAPES=$(shell ls doc/vhs/*tape)
-gifs: $(TAPES)
-	for i in $(TAPES); do vhs < $$i; done
 
 JS_DIR=js
 BUN_ASSET_DIR=cmd/bun-demo/assets

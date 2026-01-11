@@ -31,7 +31,7 @@ RelatedFiles:
       Note: Imported research referenced in Step 1
 ExternalSources: []
 Summary: Implementation diary for bun bundling support for go-go-goja.
-LastUpdated: 2026-01-10T19:52:57-05:00
+LastUpdated: 2026-01-10T20:21:05-05:00
 WhatFor: Track research, decisions, and next steps for BUN-001.
 WhenToUse: When reviewing work history or continuing the ticket.
 ---
@@ -134,6 +134,82 @@ I focused on runtime `require()` use cases (conditional loading, plugin patterns
 ### Technical details
 - Files edited:
   - `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/design/01-bun-bundling-design-analysis.md`
+
+## Step 9: Close the ticket
+
+I closed the ticket after completing the CommonJS demo pipeline and documentation updates. The ticket status is now in review to reflect completion and allow final verification.
+
+This keeps the docmgr metadata aligned with the current state of work.
+
+### What I did
+- Closed ticket BUN-001 with status set to `review`.
+
+### Why
+- The implementation and documentation tasks are complete.
+
+### What worked
+- docmgr updated the ticket status and changelog cleanly.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- N/A.
+
+### What was tricky to build
+- N/A.
+
+### What warrants a second pair of eyes
+- Confirm the review status and changelog entry match expectations.
+
+### What should be done in the future
+- N/A.
+
+### Code review instructions
+- Review `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/index.md` and `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/changelog.md` for the closed status entry.
+
+### Technical details
+- Commands run:
+  - `docmgr ticket close --ticket BUN-001 --status review --changelog-entry "Closed ticket after CommonJS bundling demo implementation"`
+
+## Step 10: Install bun dependencies and keep Makefile changes
+
+I ran the bun install step to generate the lockfile for the demo workspace and kept the Makefile state as requested. This ensures the JS workspace has a recorded lockfile and aligns with the current bundling workflow.
+
+No code behavior changed beyond recording dependency state and confirming the existing Makefile layout.
+
+### What I did
+- Ran `make js-install` to generate and confirm `js/bun.lock`.
+- Kept the Makefile changes as-is.
+
+### Why
+- The project should commit the bun lockfile for reproducible installs.
+- You asked to keep the Makefile changes intact.
+
+### What worked
+- bun completed with no changes and produced the lockfile.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- N/A.
+
+### What was tricky to build
+- N/A.
+
+### What warrants a second pair of eyes
+- Confirm the Makefile layout is acceptable without the prior `gifs` target.
+
+### What should be done in the future
+- N/A.
+
+### Code review instructions
+- Review `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/bun.lock` and `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/Makefile`.
+
+### Technical details
+- Commands run:
+  - `make js-install`
 - Commands run:
   - `docmgr task check --ticket BUN-001 --id 5`
  - Commands run:

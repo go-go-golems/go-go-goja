@@ -92,3 +92,29 @@ Step 8: update design doc for embedded bundle layout
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/design/01-bun-bundling-design-analysis.md — Embed path updates
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/02-diary.md — Diary step 8
 
+
+## 2026-01-10
+
+Closed ticket after CommonJS bundling demo implementation
+
+
+## 2026-01-10
+
+Step 9: close ticket and record diary
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/index.md — Ticket status now review
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/02-diary.md — Diary step 9
+
+
+## 2026-01-10
+
+Step 10: run bun install and record bun.lock
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/Makefile — Bundling targets retained
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/bun.lock — Locked JS dependencies
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/02-diary.md — Diary step 10
+
