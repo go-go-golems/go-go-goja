@@ -1,4 +1,5 @@
-title: "📝 Docs: close BUN-003 TS + assets"
-description: "Update analysis, diary, tasks, and changelog after implementing TS + SVG bundling and closing the ticket."
+title: "✨ Demo: show SVG processing output"
+description: "Enhance TS demo output with SVG metrics computed via lodash and update bundled asset." 
 tests:
-  - "not run (docs only)"
+  - "make js-typecheck (pass)"
+  - "make go-run-bun (pass)"
