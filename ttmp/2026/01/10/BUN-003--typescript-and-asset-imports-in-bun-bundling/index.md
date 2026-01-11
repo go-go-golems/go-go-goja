@@ -1,7 +1,7 @@
 ---
 Title: TypeScript and asset imports in bun bundling
 Ticket: BUN-003
-Status: active
+Status: review
 Topics:
     - bun
     - bundling
@@ -12,11 +12,12 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: "Add TS + asset import support to the Goja bundling pipeline." 
-LastUpdated: 2026-01-10T20:41:59-05:00
-WhatFor: "Track work for TypeScript and SVG asset support." 
-WhenToUse: "When reviewing ticket status or docs." 
+Summary: Add TS + asset import support to the Goja bundling pipeline.
+LastUpdated: 2026-01-10T20:50:48.961898429-05:00
+WhatFor: Track work for TypeScript and SVG asset support.
+WhenToUse: When reviewing ticket status or docs.
 ---
+
 
 # TypeScript and asset imports in bun bundling
 

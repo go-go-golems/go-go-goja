@@ -15,3 +15,32 @@ Step 1: create ticket, analysis, testing plan, and tasks
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-003--typescript-and-asset-imports-in-bun-bundling/playbook/01-typescript-asset-import-testing-plan.md — Testing plan
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-003--typescript-and-asset-imports-in-bun-bundling/reference/01-diary.md — Diary step 1
 
+
+## 2026-01-10
+
+Step 2: implement TS + SVG bundling (commit e32e5a1)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/Makefile — Typecheck + esbuild bundling
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/package.json — Build/typecheck scripts
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/src/assets/logo.svg — SVG asset
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/src/main.ts — TS entrypoint
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/src/types/goja-modules.d.ts — Goja module typings
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/tsconfig.json — TS config
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-003--typescript-and-asset-imports-in-bun-bundling/reference/01-diary.md — Diary step 2
+
+
+## 2026-01-10
+
+Closed after adding TS + SVG bundling support
+
+
+## 2026-01-10
+
+Step 3: record ticket closure in diary
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-003--typescript-and-asset-imports-in-bun-bundling/reference/01-diary.md — Diary step 3
+

@@ -1,6 +1,4 @@
-title: "✨ Build: add TypeScript + SVG asset bundling"
-description: "Switch JS bundle to esbuild with SVG loader, add TS config/typings, and update demo entry and assets."
+title: "📝 Docs: close BUN-003 TS + assets"
+description: "Update analysis, diary, tasks, and changelog after implementing TS + SVG bundling and closing the ticket."
 tests:
-  - "make js-typecheck (pass)"
-  - "make js-bundle (pass)"
-  - "make go-run-bun (pass)"
+  - "not run (docs only)"

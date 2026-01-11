@@ -10,13 +10,26 @@ Topics:
 DocType: reference
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: Makefile
+      Note: Make targets for typecheck and bundling
+    - Path: js/package.json
+      Note: Build/typecheck scripts
+    - Path: js/src/assets/logo.svg
+      Note: SVG asset added in Step 2
+    - Path: js/src/main.ts
+      Note: TS demo entry updated in Step 2
+    - Path: js/src/types/goja-modules.d.ts
+      Note: TS module declarations
+    - Path: js/tsconfig.json
+      Note: TS config used for typecheck
 ExternalSources: []
-Summary: "Implementation diary for TypeScript + asset import support."
-LastUpdated: 2026-01-10T20:41:59-05:00
-WhatFor: "Track analysis, tasks, and implementation steps for BUN-003."
-WhenToUse: "When reviewing or continuing the ticket."
+Summary: Implementation diary for TypeScript + asset import support.
+LastUpdated: 2026-01-10T20:50:57-05:00
+WhatFor: Track analysis, tasks, and implementation steps for BUN-003.
+WhenToUse: When reviewing or continuing the ticket.
 ---
+
 
 # Diary
 
@@ -70,3 +83,102 @@ I also added tasks to track the bundling changes, TypeScript scaffolding, and va
   - `docmgr task add --ticket BUN-003 --text "Update js workspace to TypeScript (main.ts, tsconfig, svg typings, asset file)"`
   - `docmgr task add --ticket BUN-003 --text "Switch bundling script to esbuild with svg loader and update Makefile targets"`
   - `docmgr task add --ticket BUN-003 --text "Run typecheck and bundle/run validations; update analysis + playbook + diary"`
+
+## Step 2: Implement TypeScript + SVG bundling and validate
+
+I converted the demo entrypoint to TypeScript, added SVG asset handling, and switched the bundling pipeline to esbuild so we can use loaders. This aligns the build with Goja constraints (CommonJS + ES5) and enables `.svg` imports as raw text.
+
+I validated the flow with typecheck, bundle, and runtime execution. Along the way, I fixed a missing lodash types dependency and adjusted the TS source to avoid `const` with an ES5 target.
+
+**Commit (code):** e32e5a1 — "Build: add TypeScript and SVG asset bundling"
+
+### What I did
+- Replaced `js/src/main.js` with `js/src/main.ts` using TS imports and an SVG asset.
+- Added `js/tsconfig.json` and `js/src/types/goja-modules.d.ts` for module typings.
+- Added `js/src/assets/logo.svg` as a real asset import.
+- Switched `js/package.json` to an esbuild-based build script and added `typescript`, `esbuild`, and `@types/lodash`.
+- Added `js-typecheck` target and updated `js-bundle` to call `bun run build`.
+- Ran typecheck, bundle, and Go demo run; updated the embedded bundle output.
+
+### Why
+- Bun does not expose a loader flag; esbuild provides SVG and TS handling in one step.
+- Goja requires ES5 output and CommonJS externals.
+
+### What worked
+- `make js-typecheck` and `make js-bundle` succeeded after fixes.
+- `make go-run-bun` printed `2026-01-10:5:191`, confirming SVG import and runtime execution.
+
+### What didn't work
+- `make js-typecheck` initially failed with:
+  ```
+  src/main.ts(2,23): error TS7016: Could not find a declaration file for module 'lodash'. '/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/node_modules/lodash/lodash.js' implicitly has an 'any' type.
+    Try `npm i --save-dev @types/lodash` if it exists or add a new declaration (.d.ts) file containing `declare module 'lodash';`
+  ```
+- `make js-bundle` initially failed with:
+  ```
+  ✘ [ERROR] Transforming const to the configured target environment ("es5") is not supported yet
+      src/main.ts:8:2:
+        8 │   const items: Array<{ n: number }> = [{ n: 2 }, { n: 3 }];
+          ╵   ~~~~~
+  ```
+
+### What I learned
+- esbuild can error on `const` when targeting ES5; the demo source should use `var`.
+
+### What was tricky to build
+- Keeping ES5 compatibility while still using modern TS ergonomics and asset imports.
+
+### What warrants a second pair of eyes
+- Confirm `--target=es5` and `--platform=node` meet the project’s compatibility expectations.
+
+### What should be done in the future
+- If ES5 support becomes a constraint, consider documenting permitted TS syntax for demo sources.
+
+### Code review instructions
+- Review `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/src/main.ts`, `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/tsconfig.json`, and `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/src/types/goja-modules.d.ts`.
+- Check `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/Makefile` and `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/package.json` for the updated build pipeline.
+
+### Technical details
+- Commands run:
+  - `make js-install`
+  - `make js-typecheck`
+  - `make js-bundle`
+  - `make go-run-bun`
+  - `docmgr task check --ticket BUN-003 --id 1,2,3,4,5`
+
+## Step 3: Close the ticket
+
+I closed BUN-003 after validating TypeScript compilation, SVG imports, and the Goja demo runtime. The ticket is now in review to reflect completion.
+
+This ensures the docmgr metadata matches the current implementation state.
+
+### What I did
+- Closed ticket BUN-003 with status `review`.
+
+### Why
+- The feature work and validations are complete.
+
+### What worked
+- docmgr updated the ticket status and changelog.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- N/A.
+
+### What was tricky to build
+- N/A.
+
+### What warrants a second pair of eyes
+- Confirm the ticket status and changelog entry match expectations.
+
+### What should be done in the future
+- N/A.
+
+### Code review instructions
+- Review `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-003--typescript-and-asset-imports-in-bun-bundling/index.md` and `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-003--typescript-and-asset-imports-in-bun-bundling/changelog.md`.
+
+### Technical details
+- Commands run:
+  - `docmgr ticket close --ticket BUN-003 --status review --changelog-entry "Closed after adding TS + SVG bundling support"`

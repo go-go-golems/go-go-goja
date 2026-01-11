@@ -10,13 +10,26 @@ Topics:
 DocType: analysis
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: Makefile
+      Note: Bundling targets for TS + SVG
+    - Path: js/package.json
+      Note: esbuild build and typecheck scripts
+    - Path: js/src/assets/logo.svg
+      Note: SVG asset import example
+    - Path: js/src/main.ts
+      Note: TypeScript demo entry
+    - Path: js/src/types/goja-modules.d.ts
+      Note: Module typings for Goja modules
+    - Path: js/tsconfig.json
+      Note: TS compiler settings
 ExternalSources: []
-Summary: "Plan for TypeScript support and SVG asset imports in the Goja bundling pipeline."
-LastUpdated: 2026-01-10T20:41:59-05:00
-WhatFor: "Define the bundler configuration and file layout for TS + asset imports."
-WhenToUse: "When implementing or reviewing TS and asset import support for the demo pipeline."
+Summary: Plan for TypeScript support and SVG asset imports in the Goja bundling pipeline.
+LastUpdated: 2026-01-10T20:47:50-05:00
+WhatFor: Define the bundler configuration and file layout for TS + asset imports.
+WhenToUse: When implementing or reviewing TS and asset import support for the demo pipeline.
 ---
+
 
 # TypeScript and asset import bundling analysis
 
@@ -69,6 +82,7 @@ esbuild src/main.ts \
 - **Large assets**: `.svg` imported as text increases bundle size. Mitigation: keep small demo assets and document limitations.
 - **Type drift**: the Goja module APIs are not typed. Mitigation: maintain minimal `.d.ts` declarations.
 - **Compatibility**: esbuild target might need tuning if packages emit syntax beyond ES5. Mitigation: enforce `--target=es5` and validate Goja execution.
+- **ES5 downleveling**: esbuild may reject `const` when targeting ES5. Mitigation: prefer `var` in demo sources or adjust the target.
 
 ## Validation plan (summary)
 - `bun run build` produces a CJS bundle.
