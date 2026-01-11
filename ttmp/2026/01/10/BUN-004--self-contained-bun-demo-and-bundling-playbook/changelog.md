@@ -16,3 +16,16 @@ Scaffolded ticket, tasks, analysis plan, and diary for demo relocation + playboo
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-004--self-contained-bun-demo-and-bundling-playbook/reference/01-diary.md — Diary step 1
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-004--self-contained-bun-demo-and-bundling-playbook/tasks.md — Initial task list
 
+
+## 2026-01-10
+
+Moved bun demo workspace under cmd/bun-demo, added a local Makefile, and validated bundling via make -C cmd/bun-demo.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/.gitignore — Ignore demo node_modules and dist
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/Makefile — Removed bun demo targets
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/Makefile — Local demo build targets
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/js/package.json — Bun build script now lives under demo
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/js/src/main.ts — Bundled TS entrypoint moved with demo
+

@@ -1,4 +1,4 @@
-title: "🚚 Move: relocate bun demo workspace"
-description: "Move the bun demo JS workspace under cmd/bun-demo, add a local Makefile, update ignores and root Makefile, and refresh the embedded bundle."
+title: "📝 Docs: record bun demo relocation"
+description: "Update the BUN-004 diary, tasks, and changelog after moving the bun demo workspace and validating the build."
 tests:
   - "make -C cmd/bun-demo go-run-bun"

@@ -11,13 +11,22 @@ Topics:
 DocType: reference
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: .gitignore
+      Note: Ignore paths for relocated JS workspace
+    - Path: Makefile
+      Note: Removed bun demo targets
+    - Path: cmd/bun-demo/Makefile
+      Note: Local demo build targets
+    - Path: cmd/bun-demo/js/package.json
+      Note: Bun build config now co-located with demo
 ExternalSources: []
 Summary: ""
 LastUpdated: 2026-01-10T21:16:45.122940517-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Diary
 
@@ -65,3 +74,49 @@ The initial analysis notes capture the new directory layout and the Makefile mov
 
 ### Technical details
 - Ticket created with `docmgr ticket create-ticket --ticket BUN-004 --title "Self-contained bun demo and bundling playbook" --topics bun,bundling,docs,typescript,goja`.
+
+## Step 2: Relocate bun demo workspace and Makefile
+
+I moved the bun demo JS workspace under `cmd/bun-demo`, added a local Makefile for the demo workflow, and updated the ignore rules and root Makefile. This consolidates the demo into a single directory and keeps bundling steps tied to the demo itself.
+
+I also rebuilt and ran the demo from the new location to confirm the bundled output still loads in Goja and prints the expected SVG metrics.
+
+**Commit (code):** 255f4f3 — "Move bun demo workspace under cmd/bun-demo"
+
+### What I did
+- Moved the `js/` workspace to `cmd/bun-demo/js`.
+- Added `cmd/bun-demo/Makefile` with bun install/build/run targets.
+- Removed bun targets from the root `Makefile` and updated `.gitignore`.
+- Ran `make -C cmd/bun-demo go-run-bun` to rebuild and validate output.
+- Recorded commit metadata in a follow-up commit (`6e7e983`) for `.git-commit-message.yaml`.
+
+### Why
+- Keeping the demo assets and tooling under `cmd/bun-demo` makes the sample self-contained and easier to share.
+- The local Makefile reflects the actual demo workflow without relying on root-level targets.
+
+### What worked
+- `make -C cmd/bun-demo go-run-bun` rebuilt the bundle and printed the expected SVG metrics string.
+- The Goja demo continued to load the embedded CommonJS bundle after the move.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The bundling flow remains intact after moving the workspace as long as the asset copy stays inside `cmd/bun-demo`.
+
+### What was tricky to build
+- Ensuring the root Makefile no longer referenced the moved JS workspace while keeping the demo targets intact.
+
+### What warrants a second pair of eyes
+- Confirm the new Makefile layout aligns with the expected repository-wide tooling conventions.
+
+### What should be done in the future
+- N/A
+
+### Code review instructions
+- Start in `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/Makefile` and `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/js/package.json`.
+- Verify the root `Makefile` no longer contains bun demo targets and `.gitignore` now points at `cmd/bun-demo/js`.
+- Run `make -C cmd/bun-demo go-run-bun` to validate the demo output.
+
+### Technical details
+- Build command: `make -C cmd/bun-demo go-run-bun`.
