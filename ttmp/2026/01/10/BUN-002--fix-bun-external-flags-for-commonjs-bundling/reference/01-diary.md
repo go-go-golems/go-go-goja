@@ -10,14 +10,21 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: Makefile
+      Note: Bun target adjusted in Step 2
+    - Path: cmd/bun-demo/assets/bundle.cjs
+      Note: Updated bundle output from Step 2
+    - Path: js/package.json
+      Note: Bun script adjusted in Step 2
     - Path: ttmp/2026/01/10/BUN-002--fix-bun-external-flags-for-commonjs-bundling/analysis/01-bun-external-flag-failure-analysis.md
       Note: Analysis referenced in Step 1
 ExternalSources: []
 Summary: Implementation diary for fixing bun external flags.
-LastUpdated: 2026-01-10T20:30:17-05:00
+LastUpdated: 2026-01-10T20:35:55-05:00
 WhatFor: Track investigation and fixes for bun bundling failures.
 WhenToUse: When reviewing or continuing the ticket.
 ---
+
 
 
 # Diary
@@ -81,3 +88,53 @@ This step captures the exact error output and establishes the plan to correct th
   - `docmgr task add --ticket BUN-002 --text "Diagnose bun --external flag behavior and update Makefile/package.json to use correct syntax"`
   - `docmgr task add --ticket BUN-002 --text "Re-run make js-bundle and make go-run-bun to confirm fix"`
   - `docmgr task add --ticket BUN-002 --text "Update analysis + diary and link related files"`
+
+## Step 2: Fix bun externals and target for CommonJS bundling
+
+I corrected the bun build flags to use the proper `--external=` syntax and switched the target to `node` so bun preserves `require("fs")` instead of stubbing it for browsers. After updating the build scripts, the bundle build succeeded and the demo ran correctly through the embedded CommonJS entrypoint.
+
+This step also captured the intermediate failure where `fs` was stubbed under the browser target, which explained why `writeFileSync` was missing at runtime.
+
+**Commit (code):** 52d88d5 — "Build: fix bun externals for goja demo"
+
+### What I did
+- Updated `Makefile` and `js/package.json` to use `--external=...` flags and `--target=node`.
+- Rebuilt the bundle and copied it into `cmd/bun-demo/assets`.
+- Re-ran `make js-bundle` and `make go-run-bun` to validate the fix.
+- Checked off tasks 1-3.
+
+### Why
+- Bun ignored the esbuild-style external syntax.
+- Browser targeting stubs `fs`, which breaks the native module API surface.
+
+### What worked
+- `make js-bundle` completed and produced a bundle with `require("fs")`.
+- `make go-run-bun` printed a value (`2026-01-10:5`).
+
+### What didn't work
+- Before switching to `--target=node`, `make go-run-bun` failed with:
+  ```
+  run(): TypeError: Object has no member 'writeFileSync' at run (assets/bundle.cjs:5720:19(34))
+  ```
+
+### What I learned
+- Bun stubs Node-style builtins under the browser target even when externalized.
+
+### What was tricky to build
+- Ensuring the generated bundle is kept in sync with the embedded asset file.
+
+### What warrants a second pair of eyes
+- Confirm `--target=node` is acceptable for the broader Goja runtime expectations.
+
+### What should be done in the future
+- Consider documenting when to use `--target=node` vs `--target=browser` in the main design doc.
+
+### Code review instructions
+- Review `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/Makefile`, `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/package.json`, and `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/assets/bundle.cjs`.
+
+### Technical details
+- Commands run:
+  - `cd js && bun build --target=node --format=cjs --outfile=dist/bundle.cjs src/main.js --external=exec --external=database --external=fs`
+  - `make js-bundle`
+  - `make go-run-bun`
+  - `docmgr task check --ticket BUN-002 --id 1,2,3`
