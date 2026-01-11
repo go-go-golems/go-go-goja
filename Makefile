@@ -12,7 +12,7 @@ js-install:
 	cd $(JS_DIR) && bun install
 
 js-bundle: js-install
-	cd $(JS_DIR) && bun build --target=browser --format=cjs --outfile=dist/bundle.cjs src/main.js --external:fs --external:exec --external:database
+	cd $(JS_DIR) && bun build --target=node --format=cjs --outfile=dist/bundle.cjs src/main.js --external=fs --external=exec --external=database
 	mkdir -p $(BUN_ASSET_DIR)
 	cp $(JS_DIR)/dist/bundle.cjs $(BUN_ASSET)
 

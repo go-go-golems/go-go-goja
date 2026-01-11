@@ -3,7 +3,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "build": "bun build --target=browser --format=cjs --outfile=dist/bundle.cjs src/main.js --external:fs --external:exec --external:database"
+    "build": "bun build --target=node --format=cjs --outfile=dist/bundle.cjs src/main.js --external=fs --external=exec --external=database"
   },
   "dependencies": {
     "dayjs": "^1.11.10",
