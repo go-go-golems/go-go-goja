@@ -20,7 +20,7 @@ RelatedFiles:
       Note: Analysis referenced in Step 1
 ExternalSources: []
 Summary: Implementation diary for fixing bun external flags.
-LastUpdated: 2026-01-10T20:35:55-05:00
+LastUpdated: 2026-01-10T20:37:31-05:00
 WhatFor: Track investigation and fixes for bun bundling failures.
 WhenToUse: When reviewing or continuing the ticket.
 ---
@@ -138,3 +138,40 @@ This step also captured the intermediate failure where `fs` was stubbed under th
   - `make js-bundle`
   - `make go-run-bun`
   - `docmgr task check --ticket BUN-002 --id 1,2,3`
+
+## Step 3: Close the ticket
+
+I closed BUN-002 after confirming the CommonJS demo runs with the updated bundling flags. The ticket is now in review status to reflect completion.
+
+This keeps the docmgr metadata aligned with the fix status.
+
+### What I did
+- Closed the ticket with status `review`.
+
+### Why
+- All tasks were completed and validation succeeded.
+
+### What worked
+- docmgr updated the ticket metadata and changelog.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- N/A.
+
+### What was tricky to build
+- N/A.
+
+### What warrants a second pair of eyes
+- Confirm the review status and changelog entry match expectations.
+
+### What should be done in the future
+- N/A.
+
+### Code review instructions
+- Review `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-002--fix-bun-external-flags-for-commonjs-bundling/index.md` and `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-002--fix-bun-external-flags-for-commonjs-bundling/changelog.md`.
+
+### Technical details
+- Commands run:
+  - `docmgr ticket close --ticket BUN-002 --status review --changelog-entry "Closed after fixing bun external flags and validating demo"`

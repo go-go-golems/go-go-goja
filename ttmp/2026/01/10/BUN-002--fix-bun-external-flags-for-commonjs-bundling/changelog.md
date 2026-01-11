@@ -27,3 +27,17 @@ Step 2: fix bun externals and target node (commit 52d88d5)
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-002--fix-bun-external-flags-for-commonjs-bundling/reference/01-diary.md — Diary step 2
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-002--fix-bun-external-flags-for-commonjs-bundling/tasks.md — Tasks 1-3 checked
 
+
+## 2026-01-10
+
+Closed after fixing bun external flags and validating demo
+
+
+## 2026-01-10
+
+Step 3: record ticket closure in diary
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-002--fix-bun-external-flags-for-commonjs-bundling/reference/01-diary.md — Diary step 3
+
