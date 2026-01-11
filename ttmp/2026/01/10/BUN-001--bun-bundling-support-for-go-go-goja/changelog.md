@@ -57,3 +57,14 @@ Step 5: scaffold bun JS workspace (commit 1a930b9)
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/02-diary.md — Diary step 5
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/tasks.md — Task 2 checked
 
+
+## 2026-01-10
+
+Step 6: add bun bundling Makefile targets (commit 3f585f5)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/Makefile — Bun bundling targets
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/02-diary.md — Diary step 6
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/tasks.md — Task 3 checked
+

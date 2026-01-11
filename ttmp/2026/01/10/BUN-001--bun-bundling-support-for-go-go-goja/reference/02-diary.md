@@ -23,7 +23,7 @@ RelatedFiles:
       Note: Imported research referenced in Step 1
 ExternalSources: []
 Summary: Implementation diary for bun bundling support for go-go-goja.
-LastUpdated: 2026-01-10T19:45:20-05:00
+LastUpdated: 2026-01-10T19:47:01-05:00
 WhatFor: Track research, decisions, and next steps for BUN-001.
 WhenToUse: When reviewing work history or continuing the ticket.
 ---
@@ -259,3 +259,44 @@ The entrypoint uses npm packages alongside native modules (`fs`, `exec`) so we c
 ### Technical details
 - Commands run:
   - `docmgr task check --ticket BUN-001 --id 1,2`
+
+## Step 6: Add bun bundling targets to the Makefile
+
+I wired new Makefile targets to install dependencies, build the CommonJS bundle, optionally downlevel it, and run the Go demo. This makes the JS build pipeline explicit and reproducible without altering the existing `build` target.
+
+The targets mirror the design doc (CJS bundling, external native modules, optional ES5 pass) and are designed to compose cleanly with Go builds.
+
+**Commit (code):** 3f585f5 — "Build: add bun bundling targets"
+
+### What I did
+- Added `js-install`, `js-bundle`, `js-transpile`, `js-clean`, `go-build`, and `go-run-bun` to `Makefile`.
+- Marked the Makefile task complete in the ticket.
+
+### Why
+- Provide the exact command sequence the demo needs in a single, repeatable interface.
+- Avoid modifying existing release/build targets while still offering a bundling path.
+
+### What worked
+- The Makefile now captures the bundling and run flow as described in the design doc.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- N/A.
+
+### What was tricky to build
+- Ensuring the bundler external list matches native module names and stays aligned over time.
+
+### What warrants a second pair of eyes
+- Confirm the bundling flags are compatible with the actual bun version used in CI.
+
+### What should be done in the future
+- If we add more native modules, update the `--external` list and consider making it a shared variable.
+
+### Code review instructions
+- Start in `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/Makefile` and review the new targets.
+
+### Technical details
+- Commands run:
+  - `docmgr task check --ticket BUN-001 --id 3`

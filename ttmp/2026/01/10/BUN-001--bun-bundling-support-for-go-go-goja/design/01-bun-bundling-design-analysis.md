@@ -13,6 +13,8 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../../../../../../tmp/package-goja-research.md
       Note: Original research notes imported into reference doc
+    - Path: Makefile
+      Note: Bundling and demo run targets
     - Path: engine/runtime.go
       Note: Existing CommonJS runtime setup and require() integration
     - Path: js/package.json
@@ -29,6 +31,7 @@ LastUpdated: 2026-01-10T19:24:59-05:00
 WhatFor: Define bundling model, build pipeline, and test project layout for Goja.
 WhenToUse: When implementing bun-based packaging for go-go-goja or reviewing the proposed architecture.
 ---
+
 
 
 
