@@ -1,4 +1,4 @@
-.PHONY: js-install js-bundle js-transpile js-clean go-build go-run-bun
+.PHONY: js-install js-typecheck js-bundle js-transpile js-clean go-build go-run-bun
 
 all: build
 
@@ -11,8 +11,11 @@ BUN_ASSET=$(BUN_ASSET_DIR)/bundle.cjs
 js-install:
 	cd $(JS_DIR) && bun install
 
+js-typecheck: js-install
+	cd $(JS_DIR) && bun run typecheck
+
 js-bundle: js-install
-	cd $(JS_DIR) && bun build --target=node --format=cjs --outfile=dist/bundle.cjs src/main.js --external=fs --external=exec --external=database
+	cd $(JS_DIR) && bun run build
 	mkdir -p $(BUN_ASSET_DIR)
 	cp $(JS_DIR)/dist/bundle.cjs $(BUN_ASSET)
 

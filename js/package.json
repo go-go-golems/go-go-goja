@@ -3,10 +3,16 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "build": "bun build --target=node --format=cjs --outfile=dist/bundle.cjs src/main.js --external=fs --external=exec --external=database"
+    "build": "esbuild src/main.ts --bundle --platform=node --format=cjs --target=es5 --loader:.svg=text --outfile=dist/bundle.cjs --external:fs --external:exec --external:database",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "dayjs": "^1.11.10",
     "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.14.202",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.4.5"
   }
 }

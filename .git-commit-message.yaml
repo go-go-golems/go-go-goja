@@ -1,0 +1,6 @@
+title: "✨ Build: add TypeScript + SVG asset bundling"
+description: "Switch JS bundle to esbuild with SVG loader, add TS config/typings, and update demo entry and assets."
+tests:
+  - "make js-typecheck (pass)"
+  - "make js-bundle (pass)"
+  - "make go-run-bun (pass)"
