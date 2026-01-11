@@ -261,6 +261,24 @@ Expected output (example):
 date=2026-01-10 sum=5 svgLen=191 svgTags=4
 ```
 
+## Model B: split bundles in practice
+The split-bundle workflow demonstrates a runtime module graph: `app.js` is bundled, but it still `require()`s `modules/metrics.js` at runtime. This keeps modules decoupled and makes it easier to ship independent bundles while still relying on CommonJS execution in Goja.
+
+The demo uses a separate entrypoint and output directory:
+- `cmd/bun-demo/js/src/split/app.ts` is the entrypoint.
+- `cmd/bun-demo/js/src/split/modules/metrics.ts` is bundled separately and loaded via `require`.
+- Outputs are copied into `cmd/bun-demo/assets-split/`.
+
+Build and run the split demo:
+```bash
+make -C cmd/bun-demo go-run-bun-split
+```
+
+Expected output (example):
+```
+mode=split date=2026-01-10 svgLen=191 svgTags=4 svgCsum=13804
+```
+
 ## Extending for real apps
 Once the pipeline works for the demo, you can scale it to larger projects by treating the JS workspace like any other app repository. The key is to keep the output CommonJS and keep host-provided modules external.
 
@@ -295,7 +313,9 @@ This section summarizes the integration points between Goja and the bundled outp
 - `js-install`: install npm dependencies using Bun.
 - `js-typecheck`: run `tsc --noEmit` for TS validation.
 - `js-bundle`: produce `dist/bundle.cjs` and copy to `assets/bundle.cjs`.
+- `js-bundle-split`: produce `dist-split` outputs and copy to `assets-split`.
 - `go-run-bun`: build the bundle and run the Go demo.
+- `go-run-bun-split`: build the split outputs and run the split demo entrypoint.
 
 ## Testing checklist
 Use this checklist before shipping a new bundle or updating dependencies.
@@ -303,4 +323,5 @@ Use this checklist before shipping a new bundle or updating dependencies.
 - Run `make -C cmd/bun-demo js-typecheck` to ensure TS types are clean.
 - Run `make -C cmd/bun-demo js-bundle` and confirm `assets/bundle.cjs` updates.
 - Run `make -C cmd/bun-demo go-run-bun` and confirm SVG metrics output.
+- Run `make -C cmd/bun-demo go-run-bun-split` and confirm the split demo output.
 - Review `cmd/bun-demo/js/package.json` to ensure native modules remain external.

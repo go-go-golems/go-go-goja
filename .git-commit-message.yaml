@@ -1,4 +1,4 @@
-title: "✨ Add: split bundle demo"
-description: "Add a Model B split-bundle demo with new JS entrypoints, Makefile targets, and Go embed updates."
+title: "📝 Docs: record split demo and playbook update"
+description: "Update BUN-005 diary/tasks/changelog and add Model B notes to the bundling playbook."
 tests:
-  - "make -C cmd/bun-demo go-run-bun-split"
+  - "not run (docs only)"
