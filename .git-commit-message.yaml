@@ -1,4 +1,4 @@
-title: "📝 Docs: record SVG output update"
-description: "Update BUN-003 diary, tasks, playbook, and changelog for SVG output verification."
+title: "📝 Docs: scaffold BUN-004 ticket"
+description: "Create BUN-004 ticket docs, tasks, analysis plan, and diary for the bun demo relocation and playbook work."
 tests:
   - "not run (docs only)"
