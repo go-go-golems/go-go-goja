@@ -68,3 +68,27 @@ Step 6: add bun bundling Makefile targets (commit 3f585f5)
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/02-diary.md — Diary step 6
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/tasks.md — Task 3 checked
 
+
+## 2026-01-10
+
+Step 7: add CommonJS demo runner + embed loader (commit d5fa57d)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/Makefile — Bundle copy to assets
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/assets/bundle.cjs — Embedded bundle placeholder
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/main.go — Embedded demo runner
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/engine/runtime.go — NewWithOptions for custom loaders
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/02-diary.md — Diary step 7
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/tasks.md — Task 4 checked
+
+
+## 2026-01-10
+
+Step 8: update design doc for embedded bundle layout
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/design/01-bun-bundling-design-analysis.md — Embed path updates
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/02-diary.md — Diary step 8
+

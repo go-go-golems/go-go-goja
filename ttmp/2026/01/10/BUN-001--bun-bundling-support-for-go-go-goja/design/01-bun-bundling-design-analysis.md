@@ -15,6 +15,10 @@ RelatedFiles:
       Note: Original research notes imported into reference doc
     - Path: Makefile
       Note: Bundling and demo run targets
+    - Path: cmd/bun-demo/assets/bundle.cjs
+      Note: Embedded bundle placeholder
+    - Path: cmd/bun-demo/main.go
+      Note: Embedded demo runner using require
     - Path: engine/runtime.go
       Note: Existing CommonJS runtime setup and require() integration
     - Path: js/package.json
@@ -27,10 +31,11 @@ RelatedFiles:
       Note: Research summary used for design decisions
 ExternalSources: []
 Summary: Design and analysis for bundling npm-managed JS with bun and running it in Goja.
-LastUpdated: 2026-01-10T19:24:59-05:00
+LastUpdated: 2026-01-10T19:51:24-05:00
 WhatFor: Define bundling model, build pipeline, and test project layout for Goja.
 WhenToUse: When implementing bun-based packaging for go-go-goja or reviewing the proposed architecture.
 ---
+
 
 
 
@@ -115,13 +120,13 @@ function loadPlugin(name) {
 ## Architecture overview
 - JS workspace under `js/` with `package.json`, `bun.lockb`, and `src/`.
 - Entry point at `src/main.ts` (or `src/main.js`).
-- Bundled output in `dist/bundle.cjs`.
-- Go app loads the bundle via `require()` (filesystem or embed-backed loader).
+- Bundled output in `js/dist/bundle.cjs` and copied to `cmd/bun-demo/assets/bundle.cjs` for embedding.
+- Go app loads the bundle via `require()` (embed-backed loader by default).
 - Native modules (`fs`, `exec`, `database`) remain external and are resolved by go-go-goja's registry.
 
 ## Build pipeline (Makefile)
 - `make js-install`: run `bun install` in `js/`.
-- `make js-bundle`: run `bun build --target=browser --format=cjs --outfile=dist/bundle.cjs src/main.ts --external:fs --external:exec --external:database`.
+- `make js-bundle`: run `bun build --target=browser --format=cjs --outfile=dist/bundle.cjs src/main.ts --external:fs --external:exec --external:database` and copy to `cmd/bun-demo/assets/bundle.cjs`.
 - `make js-transpile`: optional downlevel pass if bun output is not ES5 (ex: `bun x esbuild dist/bundle.cjs --target=es5 --format=cjs --outfile=dist/bundle.es5.cjs`).
 - `make go-build`: ensure bundle exists, then `go build ./...`.
 - `make go-run`: build bundle and run the demo.
@@ -178,8 +183,8 @@ internal/runtime/
   runtime.go
 ```
 
-- `main.go` embeds `js/dist/bundle.cjs` or reads it from disk.
-- Use `engine.New()` and `req.Require("./js/dist/bundle.cjs")` to load the CommonJS entrypoint.
+- `main.go` embeds `cmd/bun-demo/assets/bundle.cjs`.
+- Use `engine.NewWithOptions` and `req.Require("./assets/bundle.cjs")` to load the CommonJS entrypoint.
 - Call `run()` from the returned `module.exports` and verify output.
 
 Embedding option: use `require.WithLoader` to read from `embed.FS` instead of disk, so `require()` can load embedded modules.
