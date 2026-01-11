@@ -40,3 +40,17 @@ Added the Bun + TypeScript + asset bundling playbook in pkg/doc and recorded the
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-004--self-contained-bun-demo-and-bundling-playbook/reference/01-diary.md — Diary step 3
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-004--self-contained-bun-demo-and-bundling-playbook/tasks.md — Checked playbook task
 
+
+## 2026-01-10
+
+Ticket closed
+
+
+## 2026-01-10
+
+Recorded ticket closure in the diary after marking BUN-004 complete.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-004--self-contained-bun-demo-and-bundling-playbook/reference/01-diary.md — Diary step 4
+

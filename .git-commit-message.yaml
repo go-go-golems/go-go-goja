@@ -1,4 +1,4 @@
-title: "📝 Docs: record bundling playbook work"
-description: "Update the BUN-004 diary, tasks, and changelog after writing the Bun bundling playbook."
+title: "📝 Docs: close BUN-004 ticket"
+description: "Mark BUN-004 complete and record the closure in the diary and changelog."
 tests:
   - "not run (docs only)"

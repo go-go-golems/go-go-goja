@@ -1,7 +1,7 @@
 ---
 Title: Self-contained bun demo and bundling playbook
 Ticket: BUN-004
-Status: active
+Status: complete
 Topics:
     - bun
     - bundling
@@ -14,10 +14,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-01-10T21:16:36.931010041-05:00
-WhatFor: "Track the relocation of the bun demo assets and the creation of a comprehensive bundling playbook."
-WhenToUse: "Use when working on bun-based bundling demos or the documentation playbook."
+LastUpdated: 2026-01-10T21:46:17.649400311-05:00
+WhatFor: Track the relocation of the bun demo assets and the creation of a comprehensive bundling playbook.
+WhenToUse: Use when working on bun-based bundling demos or the documentation playbook.
 ---
+
 
 # Self-contained bun demo and bundling playbook
 

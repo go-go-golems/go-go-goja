@@ -163,3 +163,41 @@ The playbook now documents the recommended Makefile workflow, CommonJS considera
 
 ### Technical details
 - Document path: `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/pkg/doc/bun-goja-bundling-playbook.md`.
+
+## Step 4: Close the ticket and prep the playbook for sharing
+
+I closed the ticket now that the demo relocation and playbook are complete. This marks the work as done in the ticket index and updates the changelog for traceability.
+
+I also prepared the playbook for export so it can be shared on the reMarkable device.
+
+### What I did
+- Ran `docmgr ticket close --ticket BUN-004` to mark the ticket complete.
+- Confirmed the ticket status and changelog updated.
+
+### Why
+- The remaining tasks were complete, so the ticket needed to be marked done for tracking.
+
+### What worked
+- The ticket status and changelog updated successfully.
+
+### What didn't work
+- N/A
+
+### What I learned
+- Closing the ticket is the cleanest way to capture completion and update the changelog in one step.
+
+### What was tricky to build
+- N/A
+
+### What warrants a second pair of eyes
+- N/A
+
+### What should be done in the future
+- N/A
+
+### Code review instructions
+- Start in `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-004--self-contained-bun-demo-and-bundling-playbook/index.md`.
+- Confirm the ticket status is `complete` and the changelog records the closure.
+
+### Technical details
+- Command: `docmgr ticket close --ticket BUN-004`.
