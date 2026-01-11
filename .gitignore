@@ -19,3 +19,6 @@ dist/
 .env
 .envrc
 .history
+
+# JS demo workspace
+js/node_modules/
