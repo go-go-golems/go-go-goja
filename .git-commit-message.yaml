@@ -1,4 +1,4 @@
-title: "📝 Docs: close BUN-004 ticket"
-description: "Mark BUN-004 complete and record the closure in the diary and changelog."
+title: "📝 Docs: scaffold BUN-005 ticket"
+description: "Create the BUN-005 ticket docs, tasks, analysis plan, and diary for the split-bundle demo."
 tests:
   - "not run (docs only)"
