@@ -1,4 +1,4 @@
-title: "📝 Docs: record bun demo relocation"
-description: "Update the BUN-004 diary, tasks, and changelog after moving the bun demo workspace and validating the build."
+title: "📝 Docs: add bun bundling playbook"
+description: "Add a comprehensive Bun + TypeScript + asset bundling playbook under pkg/doc for Goja integration."
 tests:
-  - "make -C cmd/bun-demo go-run-bun"
+  - "not run (docs only)"
