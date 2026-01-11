@@ -1,4 +1,5 @@
-title: "📝 Docs: add TSX bundling analysis ticket"
-description: "Create BUN-006 analysis, tasks, and diary for the TSX bundling example and tui-ink comparison."
+title: "✨ Add: TSX demo bundle"
+description: "Add a TSX-to-HTML demo bundle with a custom JSX runtime and new Makefile targets."
 tests:
-  - "not run (docs only)"
+  - "make -C cmd/bun-demo go-run-bun-tsx"
+  - "make -C cmd/bun-demo js-render-tsx"
