@@ -13,11 +13,15 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../../../../../../tmp/package-goja-research.md
       Note: Original research notes imported into reference doc
-    - Path: go-go-goja/engine/runtime.go
+    - Path: engine/runtime.go
       Note: Existing CommonJS runtime setup and require() integration
-    - Path: go-go-goja/modules/common.go
+    - Path: js/package.json
+      Note: Demo JS workspace metadata
+    - Path: js/src/main.js
+      Note: CommonJS entrypoint for bundling
+    - Path: modules/common.go
       Note: Native module registry used by require
-    - Path: go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/01-package-goja-research.md
+    - Path: ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/01-package-goja-research.md
       Note: Research summary used for design decisions
 ExternalSources: []
 Summary: Design and analysis for bundling npm-managed JS with bun and running it in Goja.
@@ -25,6 +29,7 @@ LastUpdated: 2026-01-10T19:24:59-05:00
 WhatFor: Define bundling model, build pipeline, and test project layout for Goja.
 WhenToUse: When implementing bun-based packaging for go-go-goja or reviewing the proposed architecture.
 ---
+
 
 
 

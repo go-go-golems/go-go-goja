@@ -23,7 +23,7 @@ RelatedFiles:
       Note: Imported research referenced in Step 1
 ExternalSources: []
 Summary: Implementation diary for bun bundling support for go-go-goja.
-LastUpdated: 2026-01-10T19:43:04-05:00
+LastUpdated: 2026-01-10T19:45:20-05:00
 WhatFor: Track research, decisions, and next steps for BUN-001.
 WhenToUse: When reviewing work history or continuing the ticket.
 ---
@@ -216,3 +216,46 @@ The task list now reflects the CommonJS-first approach and includes the document
   - `docmgr task add --ticket BUN-001 --text "Add Makefile targets for bun install/build/transpile and wire go build/run to the bundle"`
   - `docmgr task add --ticket BUN-001 --text "Implement CommonJS demo runner with go:embed + require loader (engine.NewWithOptions or similar)"`
   - `docmgr task add --ticket BUN-001 --text "Document integration details and update diary as implementation progresses"`
+
+## Step 5: Scaffold the bun JS workspace
+
+I added the initial JS workspace under `js/` with a CommonJS entrypoint and a bun build script. This mirrors the intended developer workflow and gives us a concrete entrypoint for the Go demo runner.
+
+The entrypoint uses npm packages alongside native modules (`fs`, `exec`) so we can validate bundling and `require()` integration in one place.
+
+**Commit (code):** 1a930b9 — "JS: scaffold bun demo workspace"
+
+### What I did
+- Added `js/package.json` with bun build script and dependencies (lodash, dayjs).
+- Added `js/src/main.js` with CommonJS `require()` usage and a `run()` export.
+- Updated `.gitignore` to ignore `js/node_modules/`.
+- Checked off the JS workspace task in the ticket.
+
+### Why
+- Establish the JS side early so the Go integration has a real entrypoint to load.
+- Keep the entrypoint aligned with CommonJS and native module usage.
+
+### What worked
+- The JS scaffold now reflects the intended CJS bundling flow.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- N/A.
+
+### What was tricky to build
+- Keeping the entrypoint ES5-friendly while still using modern npm packages.
+
+### What warrants a second pair of eyes
+- Confirm the entrypoint's native module usage matches the registered module names.
+
+### What should be done in the future
+- Add the bundled output placeholder or ensure build steps always generate `js/dist/bundle.cjs`.
+
+### Code review instructions
+- Start in `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/package.json` and `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/src/main.js`.
+
+### Technical details
+- Commands run:
+  - `docmgr task check --ticket BUN-001 --id 1,2`

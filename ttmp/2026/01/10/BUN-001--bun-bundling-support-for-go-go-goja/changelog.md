@@ -45,3 +45,15 @@ Step 4: add implementation tasks for CommonJS bundling work
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/02-diary.md — Diary step 4
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/tasks.md — Added task list
 
+
+## 2026-01-10
+
+Step 5: scaffold bun JS workspace (commit 1a930b9)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/package.json — Bun demo package metadata
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/src/main.js — CommonJS entrypoint for bundling
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/reference/02-diary.md — Diary step 5
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-001--bun-bundling-support-for-go-go-goja/tasks.md — Task 2 checked
+
