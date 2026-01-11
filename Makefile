@@ -1,4 +1,4 @@
-.PHONY: gifs
+.PHONY: gifs js-install js-bundle js-transpile js-clean go-build go-run-bun
 
 all: gifs
 
@@ -7,6 +7,26 @@ VERSION=v0.1.14
 TAPES=$(shell ls doc/vhs/*tape)
 gifs: $(TAPES)
 	for i in $(TAPES); do vhs < $$i; done
+
+JS_DIR=js
+
+js-install:
+	cd $(JS_DIR) && bun install
+
+js-bundle: js-install
+	cd $(JS_DIR) && bun build --target=browser --format=cjs --outfile=dist/bundle.cjs src/main.js --external:fs --external:exec --external:database
+
+js-transpile: js-bundle
+	cd $(JS_DIR) && bun x esbuild dist/bundle.cjs --target=es5 --format=cjs --outfile=dist/bundle.es5.cjs
+
+js-clean:
+	rm -rf $(JS_DIR)/dist
+
+go-build: js-bundle
+	go build ./...
+
+go-run-bun: js-bundle
+	go run ./cmd/bun-demo
 
 docker-lint:
 	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:latest golangci-lint run -v
@@ -52,4 +72,3 @@ bump-glazed:
 	go get github.com/go-go-golems/glazed@latest
 	go get github.com/go-go-golems/clay@latest
 	go mod tidy
-
