@@ -22,3 +22,4 @@ dist/
 
 # JS demo workspace
 js/node_modules/
+js/dist/

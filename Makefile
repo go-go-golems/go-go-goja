@@ -9,12 +9,16 @@ gifs: $(TAPES)
 	for i in $(TAPES); do vhs < $$i; done
 
 JS_DIR=js
+BUN_ASSET_DIR=cmd/bun-demo/assets
+BUN_ASSET=$(BUN_ASSET_DIR)/bundle.cjs
 
 js-install:
 	cd $(JS_DIR) && bun install
 
 js-bundle: js-install
 	cd $(JS_DIR) && bun build --target=browser --format=cjs --outfile=dist/bundle.cjs src/main.js --external:fs --external:exec --external:database
+	mkdir -p $(BUN_ASSET_DIR)
+	cp $(JS_DIR)/dist/bundle.cjs $(BUN_ASSET)
 
 js-transpile: js-bundle
 	cd $(JS_DIR) && bun x esbuild dist/bundle.cjs --target=es5 --format=cjs --outfile=dist/bundle.es5.cjs

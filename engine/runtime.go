@@ -22,10 +22,16 @@ import (
 // second return value is the require.Module instance so that callers can load
 // entry-point JavaScript files via req.Require(path).
 func New() (*goja.Runtime, *require.RequireModule) {
+	return NewWithOptions()
+}
+
+// NewWithOptions creates a runtime like New, but allows callers to customize
+// the goja_nodejs/require registry (for example, to install a custom loader).
+func NewWithOptions(opts ...require.Option) (*goja.Runtime, *require.RequireModule) {
 	vm := goja.New()
 
 	// Create a registry and register every known Go-backed module.
-	reg := require.NewRegistry()
+	reg := require.NewRegistry(opts...)
 	modules.EnableAll(reg)
 
 	log.Printf("go-go-goja: native modules enabled")
