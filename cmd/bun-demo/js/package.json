@@ -4,6 +4,7 @@
   "type": "commonjs",
   "scripts": {
     "build": "esbuild src/main.ts --bundle --platform=node --format=cjs --target=es5 --loader:.svg=text --outfile=dist/bundle.cjs --external:fs --external:exec --external:database",
+    "build:split": "esbuild src/split/app.ts src/split/modules/metrics.ts --bundle --platform=node --format=cjs --target=es5 --loader:.svg=text --outdir=dist-split --outbase=src/split --external:fs --external:exec --external:database --external:./modules/*",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -14,7 +14,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/engine"
 )
 
-//go:embed assets/bundle.cjs
+//go:embed assets/bundle.cjs assets-split/* assets-split/modules/*
 var bundleFS embed.FS
 
 func embeddedSourceLoader(path string) ([]byte, error) {

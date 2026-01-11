@@ -1,4 +1,4 @@
-title: "📝 Docs: scaffold BUN-005 ticket"
-description: "Create the BUN-005 ticket docs, tasks, analysis plan, and diary for the split-bundle demo."
+title: "✨ Add: split bundle demo"
+description: "Add a Model B split-bundle demo with new JS entrypoints, Makefile targets, and Go embed updates."
 tests:
-  - "not run (docs only)"
+  - "make -C cmd/bun-demo go-run-bun-split"
