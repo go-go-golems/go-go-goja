@@ -1,5 +1,4 @@
-title: "✨ Demo: show SVG processing output"
-description: "Enhance TS demo output with SVG metrics computed via lodash and update bundled asset." 
+title: "📝 Docs: record SVG output update"
+description: "Update BUN-003 diary, tasks, playbook, and changelog for SVG output verification."
 tests:
-  - "make js-typecheck (pass)"
-  - "make go-run-bun (pass)"
+  - "not run (docs only)"

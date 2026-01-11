@@ -58,7 +58,7 @@ Expected: at least one `require("fs")` call.
 ```bash
 make go-run-bun
 ```
-Expected: prints a value like `YYYY-MM-DD:5:<svg-length>` and exits 0.
+Expected: prints a value like `date=YYYY-MM-DD sum=5 svgLen=<len> svgTags=<count> svgCsum=<sum>` and exits 0.
 
 ## Real-world scenarios
 

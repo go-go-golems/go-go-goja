@@ -25,7 +25,7 @@ RelatedFiles:
       Note: TS config used for typecheck
 ExternalSources: []
 Summary: Implementation diary for TypeScript + asset import support.
-LastUpdated: 2026-01-10T20:50:57-05:00
+LastUpdated: 2026-01-10T20:56:44-05:00
 WhatFor: Track analysis, tasks, and implementation steps for BUN-003.
 WhenToUse: When reviewing or continuing the ticket.
 ---
@@ -182,3 +182,55 @@ This ensures the docmgr metadata matches the current implementation state.
 ### Technical details
 - Commands run:
   - `docmgr ticket close --ticket BUN-003 --status review --changelog-entry "Closed after adding TS + SVG bundling support"`
+
+## Step 4: Clarify SVG usage in demo output
+
+I updated the TypeScript demo to emit explicit SVG-related metrics (length, tag count, checksum) so the runtime output proves the asset import worked. This makes it obvious that the bundle contains SVG content and that the code is processing it with lodash before returning.
+
+I also resolved strict TypeScript errors by switching to a `lodash` namespace import and typing the callbacks, then re-ran typecheck and the Goja demo to confirm the new output.
+
+**Commit (code):** fa0501b — "Demo: show SVG processing output"
+
+### What I did
+- Updated `js/src/main.ts` to compute SVG tag count and checksum via lodash and print labeled output.
+- Fixed TS type errors by importing lodash as a namespace and annotating callback params.
+- Re-ran `make js-typecheck` and `make go-run-bun`.
+- Checked off the new demo-output task.
+
+### Why
+- The prior output (`YYYY-MM-DD:5:<len>`) was too opaque to demonstrate SVG usage.
+- TypeScript strict mode needs explicit typing in callbacks.
+
+### What worked
+- Demo now prints: `date=2026-01-10 sum=5 svgLen=191 svgTags=4 svgCsum=13804`.
+
+### What didn't work
+- `make js-typecheck` initially failed with:
+  ```
+  src/main.ts(12,16): error TS2304: Cannot find name 'lodash'.
+  src/main.ts(12,52): error TS7006: Parameter 'ch' implicitly has an 'any' type.
+  src/main.ts(16,18): error TS2304: Cannot find name 'lodash'.
+  src/main.ts(18,15): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+  src/main.ts(18,20): error TS7006: Parameter 'ch' implicitly has an 'any' type.
+  ```
+
+### What I learned
+- TS strict mode requires explicit function parameter types for lodash callbacks.
+
+### What was tricky to build
+- Keeping ES5-compatible output while adding richer string processing.
+
+### What warrants a second pair of eyes
+- Confirm the SVG metrics are meaningful and stable for future regression checks.
+
+### What should be done in the future
+- Consider exposing SVG metadata via a dedicated JSON output if logs become too verbose.
+
+### Code review instructions
+- Review `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/src/main.ts` for the SVG processing logic.
+
+### Technical details
+- Commands run:
+  - `make js-typecheck`
+  - `make go-run-bun`
+  - `docmgr task check --ticket BUN-003 --id 6`

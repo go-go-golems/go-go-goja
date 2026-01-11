@@ -44,3 +44,25 @@ Step 3: record ticket closure in diary
 
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-003--typescript-and-asset-imports-in-bun-bundling/reference/01-diary.md — Diary step 3
 
+
+## 2026-01-10
+
+Step 4: refine demo output to show SVG processing
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/src/main.ts — SVG metrics output
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-003--typescript-and-asset-imports-in-bun-bundling/reference/01-diary.md — Diary step 4
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-003--typescript-and-asset-imports-in-bun-bundling/tasks.md — Task 6 checked
+
+
+## 2026-01-10
+
+Step 4: refine demo output (commit fa0501b)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/assets/bundle.cjs — Updated demo bundle
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/src/main.ts — SVG metrics output
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-003--typescript-and-asset-imports-in-bun-bundling/reference/01-diary.md — Diary step 4
+
