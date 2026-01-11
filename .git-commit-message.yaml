@@ -1,4 +1,4 @@
-title: "📝 Docs: record split demo and playbook update"
-description: "Update BUN-005 diary/tasks/changelog and add Model B notes to the bundling playbook."
+title: "📝 Docs: add TSX bundling analysis ticket"
+description: "Create BUN-006 analysis, tasks, and diary for the TSX bundling example and tui-ink comparison."
 tests:
   - "not run (docs only)"
