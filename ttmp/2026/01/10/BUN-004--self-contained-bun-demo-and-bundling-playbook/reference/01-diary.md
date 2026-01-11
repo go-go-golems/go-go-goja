@@ -20,12 +20,15 @@ RelatedFiles:
       Note: Local demo build targets
     - Path: cmd/bun-demo/js/package.json
       Note: Bun build config now co-located with demo
+    - Path: pkg/doc/bun-goja-bundling-playbook.md
+      Note: Bundling playbook document
 ExternalSources: []
 Summary: ""
 LastUpdated: 2026-01-10T21:16:45.122940517-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Diary
@@ -120,3 +123,43 @@ I also rebuilt and ran the demo from the new location to confirm the bundled out
 
 ### Technical details
 - Build command: `make -C cmd/bun-demo go-run-bun`.
+
+## Step 3: Author the bundling playbook
+
+I wrote the full Bun + TypeScript + asset bundling playbook in `pkg/doc` so users have a single, detailed reference for building CommonJS bundles for Goja. The document walks through the architecture, file layout, build commands, and the Go loader integration.
+
+The playbook now documents the recommended Makefile workflow, CommonJS considerations, and a troubleshooting checklist tailored to the Goja runtime.
+
+**Commit (code):** 768e9c3 — "Docs: add bun bundling playbook"
+
+### What I did
+- Authored the playbook under `pkg/doc/bun-goja-bundling-playbook.md`.
+- Included step-by-step setup, code snippets, and validation instructions aligned with the demo layout.
+
+### Why
+- The project needed a durable, copy/paste-friendly guide that captures the bundling pipeline in one place.
+
+### What worked
+- The playbook covers the full pipeline from Bun install to Goja execution.
+
+### What didn't work
+- N/A
+
+### What I learned
+- Keeping CommonJS output and ES5 targets front-and-center makes the documentation clearer for Goja users.
+
+### What was tricky to build
+- Balancing detailed examples with concise, runnable snippets in a single document.
+
+### What warrants a second pair of eyes
+- Confirm the playbook matches current demo paths and Makefile targets after the relocation.
+
+### What should be done in the future
+- N/A
+
+### Code review instructions
+- Start in `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/pkg/doc/bun-goja-bundling-playbook.md`.
+- Verify the file layout and commands match `cmd/bun-demo/Makefile` and `cmd/bun-demo/js`.
+
+### Technical details
+- Document path: `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/pkg/doc/bun-goja-bundling-playbook.md`.

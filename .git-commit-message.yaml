@@ -1,4 +1,4 @@
-title: "📝 Docs: add bun bundling playbook"
-description: "Add a comprehensive Bun + TypeScript + asset bundling playbook under pkg/doc for Goja integration."
+title: "📝 Docs: record bundling playbook work"
+description: "Update the BUN-004 diary, tasks, and changelog after writing the Bun bundling playbook."
 tests:
   - "not run (docs only)"

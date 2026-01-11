@@ -29,3 +29,14 @@ Moved bun demo workspace under cmd/bun-demo, added a local Makefile, and validat
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/js/package.json — Bun build script now lives under demo
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/js/src/main.ts — Bundled TS entrypoint moved with demo
 
+
+## 2026-01-10
+
+Added the Bun + TypeScript + asset bundling playbook in pkg/doc and recorded the work in the diary.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/pkg/doc/bun-goja-bundling-playbook.md — Full bundling playbook
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-004--self-contained-bun-demo-and-bundling-playbook/reference/01-diary.md — Diary step 3
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-004--self-contained-bun-demo-and-bundling-playbook/tasks.md — Checked playbook task
+
