@@ -31,7 +31,7 @@ RelatedFiles:
       Note: Imported research referenced in Step 1
 ExternalSources: []
 Summary: Implementation diary for bun bundling support for go-go-goja.
-LastUpdated: 2026-01-10T20:21:05-05:00
+LastUpdated: 2026-01-10T20:22:11-05:00
 WhatFor: Track research, decisions, and next steps for BUN-001.
 WhenToUse: When reviewing work history or continuing the ticket.
 ---
@@ -177,6 +177,8 @@ This keeps the docmgr metadata aligned with the current state of work.
 I ran the bun install step to generate the lockfile for the demo workspace and kept the Makefile state as requested. This ensures the JS workspace has a recorded lockfile and aligns with the current bundling workflow.
 
 No code behavior changed beyond recording dependency state and confirming the existing Makefile layout.
+
+**Commit (code):** c4e1f1f — "Build: finalize bun lockfile and ticket close"
 
 ### What I did
 - Ran `make js-install` to generate and confirm `js/bun.lock`.
