@@ -167,3 +167,39 @@ The first attempt used `preact-render-to-string`, but esbuild could not downleve
 
 ### Technical details
 - Build command: `make -C cmd/bun-demo go-run-bun-tsx`.
+
+## Step 4: Close the ticket
+
+I closed the BUN-006 ticket now that the TSX demo is implemented, validated, and documented. This updates the ticket index and changelog to reflect completion.
+
+### What I did
+- Ran `docmgr ticket close --ticket BUN-006`.
+- Verified the ticket status changed to complete.
+
+### Why
+- All tasks were complete and the demo is validated, so the ticket should be marked done.
+
+### What worked
+- The ticket status and changelog updated successfully.
+
+### What didn't work
+- N/A
+
+### What I learned
+- N/A
+
+### What was tricky to build
+- N/A
+
+### What warrants a second pair of eyes
+- N/A
+
+### What should be done in the future
+- N/A
+
+### Code review instructions
+- Start in `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-006--tsx-bundling-example-and-comparison/index.md`.
+- Confirm the ticket status is `complete` and the changelog shows the closure entry.
+
+### Technical details
+- Command: `docmgr ticket close --ticket BUN-006`.

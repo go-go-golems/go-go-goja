@@ -1,4 +1,4 @@
-title: "📝 Docs: record TSX demo implementation"
-description: "Update BUN-006 diary, tasks, and changelog after implementing the TSX demo."
+title: "📝 Docs: close BUN-006 ticket"
+description: "Mark BUN-006 complete and record the closure in the diary and changelog."
 tests:
   - "not run (docs only)"

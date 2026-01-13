@@ -1,7 +1,7 @@
 ---
 Title: TSX bundling example and comparison
 Ticket: BUN-006
-Status: active
+Status: complete
 Topics:
     - bun
     - bundling
@@ -15,10 +15,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-01-10T22:22:26.153144853-05:00
-WhatFor: "Track the TSX bundling example analysis and comparison with tui-ink."
-WhenToUse: "Use when reviewing TSX bundling pipelines for Goja."
+LastUpdated: 2026-01-13T09:21:03.839535245-05:00
+WhatFor: Track the TSX bundling example analysis and comparison with tui-ink.
+WhenToUse: Use when reviewing TSX bundling pipelines for Goja.
 ---
+
 
 # TSX bundling example and comparison
 

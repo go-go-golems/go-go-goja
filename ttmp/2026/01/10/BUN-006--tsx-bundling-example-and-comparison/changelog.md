@@ -36,3 +36,17 @@ Implemented the TSX demo (custom JSX runtime + bundle targets) and validated HTM
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/js/src/tsx/runtime.ts — Custom JSX runtime
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-006--tsx-bundling-example-and-comparison/reference/01-diary.md — Diary step 3
 
+
+## 2026-01-13
+
+Ticket closed
+
+
+## 2026-01-13
+
+Recorded ticket closure in the diary.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-006--tsx-bundling-example-and-comparison/reference/01-diary.md — Diary step 4
+
