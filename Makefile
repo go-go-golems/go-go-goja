@@ -1,12 +1,8 @@
-.PHONY: gifs
+.PHONY: docker-lint lint lintmax gosec govulncheck test build goreleaser tag-major tag-minor tag-patch release bump-glazed
 
-all: gifs
+all: build
 
 VERSION=v0.1.14
-
-TAPES=$(shell ls doc/vhs/*tape)
-gifs: $(TAPES)
-	for i in $(TAPES); do vhs < $$i; done
 
 docker-lint:
 	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:latest golangci-lint run -v
@@ -26,6 +22,7 @@ govulncheck:
 	govulncheck ./...
 
 test:
+	go generate ./...
 	go test ./...
 
 build:
@@ -52,4 +49,3 @@ bump-glazed:
 	go get github.com/go-go-golems/glazed@latest
 	go get github.com/go-go-golems/clay@latest
 	go mod tidy
-

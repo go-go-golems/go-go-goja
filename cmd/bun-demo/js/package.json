@@ -1,0 +1,21 @@
+{
+  "name": "goja-bun-demo",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --platform=node --format=cjs --target=es5 --loader:.svg=text --outfile=dist/bundle.cjs --external:fs --external:exec --external:database",
+    "build:split": "esbuild src/split/app.ts src/split/modules/metrics.ts --bundle --platform=node --format=cjs --target=es5 --loader:.svg=text --outdir=dist-split --outbase=src/split --external:fs --external:exec --external:database --external:./modules/*",
+    "build:tsx": "esbuild src/tsx/entry.tsx --bundle --platform=node --format=cjs --target=es5 --jsx=transform --jsx-factory=jsx --jsx-fragment=Fragment --outfile=dist/tsx-bundle.cjs --external:fs --external:exec --external:database",
+    "render:tsx-html": "node -e \"const m=require('./dist/tsx-bundle.cjs'); const html = (m.renderHtml ? m.renderHtml() : m.run()); console.log(html);\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.10",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.14.202",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.4.5"
+  }
+}
