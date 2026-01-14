@@ -14,10 +14,12 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-01-10T21:53:50.93656525-05:00
-WhatFor: "Track the Model B split-bundle demo and Go embed updates."
-WhenToUse: "Use when working on split bundles or runtime module graphs."
+LastUpdated: 2026-01-14T16:04:43.135029571-05:00
+WhatFor: Track the Model B split-bundle demo and Go embed updates.
+WhenToUse: Use when working on split bundles or runtime module graphs.
 ---
+
+
 
 # Split bundle demo for Goja
 

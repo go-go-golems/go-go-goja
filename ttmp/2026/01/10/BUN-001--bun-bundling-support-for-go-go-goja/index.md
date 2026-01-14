@@ -1,7 +1,7 @@
 ---
 Title: Bun bundling support for go-go-goja
 Ticket: BUN-001
-Status: review
+Status: complete
 Topics:
     - goja
     - bun
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Plan and design for bun-based bundling of JS packages for Goja, with go:embed packaging.
-LastUpdated: 2026-01-10T20:18:10.76475196-05:00
+LastUpdated: 2026-01-14T16:03:32.220656227-05:00
 WhatFor: Track the design and implementation steps for bundling npm-managed JS for Goja.
 WhenToUse: When reviewing ticket status, links, and documentation.
 ---
+
 
 
 # Bun bundling support for go-go-goja

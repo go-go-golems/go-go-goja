@@ -14,20 +14,35 @@ Owners: []
 RelatedFiles:
     - Path: cmd/bun-demo/Makefile
       Note: Split bundle targets
+    - Path: cmd/bun-demo/dagger/main.go
+      Note: Dagger pipeline implementation
+    - Path: cmd/bun-demo/js/package.json
+      Note: Render script moved to Node
     - Path: cmd/bun-demo/js/src/split/app.ts
       Note: Split demo entrypoint
     - Path: cmd/bun-demo/js/src/split/modules/metrics.ts
       Note: Split demo module
     - Path: cmd/bun-demo/main.go
       Note: Embed assets-split
+    - Path: go.mod
+      Note: Dagger SDK dependency
+    - Path: go.sum
+      Note: Dagger SDK checksum updates
     - Path: pkg/doc/bun-goja-bundling-playbook.md
       Note: Model B playbook update
+    - Path: ttmp/2026/01/10/BUN-005--split-bundle-demo-for-goja/analysis/01-split-bundle-demo-plan.md
+      Note: Expanded plan for Dagger migration
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-01-10T21:53:58.634516305-05:00
+LastUpdated: 2026-01-14T16:18:03-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
+
+
+
 
 
 
@@ -158,3 +173,87 @@ I updated the bundling playbook to include the Model B split-bundle workflow, in
 
 ### Technical details
 - Document path: `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/pkg/doc/bun-goja-bundling-playbook.md`.
+
+## Step 4: Plan the Dagger pipeline migration
+
+I revisited the split-bundle plan to include a Dagger Go pipeline that replaces bun-driven Makefile targets. The updated analysis now explains how the pipeline maps to existing build outputs and why the Makefile remains the developer entrypoint.
+
+This step focused on shaping the build workflow before writing code so the Dagger exports stay aligned with `go:embed` expectations and the existing `go-run-bun*` targets keep working.
+
+### What I did
+- Expanded the analysis plan with a Dagger pipeline design and Makefile target mapping.
+- Documented the pipeline symbols, export paths, and the rationale for the sequence of changes.
+
+### Why
+- The pipeline design has to lock down output paths before the Makefile can switch away from bun.
+- A clear plan reduces the risk of mismatched asset paths or broken `go:embed` globs.
+
+### What worked
+- The analysis now captures the detailed Dagger workflow and the file/symbol references reviewers will need.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The Dagger pipeline needs explicit export steps to mirror the old Makefile copies.
+
+### What was tricky to build
+- Nailing the interplay between Makefile targets, Dagger export paths, and embedded assets before touching code.
+
+### What warrants a second pair of eyes
+- Confirm the planned Dagger outputs align with `cmd/bun-demo/main.go` embed patterns.
+
+### What should be done in the future
+- N/A
+
+### Code review instructions
+- Start in `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-005--split-bundle-demo-for-goja/analysis/01-split-bundle-demo-plan.md`.
+- Check the Dagger pipeline section for file paths and symbol names.
+
+### Technical details
+- Plan doc: `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-005--split-bundle-demo-for-goja/analysis/01-split-bundle-demo-plan.md`.
+
+## Step 5: Replace bun Makefile targets with a Dagger pipeline
+
+I implemented the Dagger Go pipeline that builds the demo bundles and updated the Makefile to call it instead of bun. The pipeline runs `npm install` inside a Node container, executes the same build scripts, and exports the resulting assets into `cmd/bun-demo/assets` and `cmd/bun-demo/assets-split`.
+
+This keeps the on-disk artifacts and `go:embed` behavior unchanged while removing bun from the Makefile flow. The TSX render script now uses Node so it can run inside the same container.
+
+### What I did
+- Added `cmd/bun-demo/dagger/main.go` with Cobra commands for `bundle`, `bundle-split`, `bundle-tsx`, `render-tsx`, `typecheck`, and `transpile`.
+- Updated `cmd/bun-demo/Makefile` to call `dagger run -- go run ./dagger ...` for JS build steps.
+- Switched `cmd/bun-demo/js/package.json` `render:tsx-html` to use `node -e` instead of bun.
+- Added Dagger Go SDK dependencies to `go.mod`/`go.sum`.
+
+### Why
+- Dagger provides a reproducible, containerized build without requiring bun on the host.
+- Keeping target names stable minimizes disruption for existing workflows and docs.
+
+### What worked
+- The pipeline encodes the same build outputs as the old Makefile copy steps.
+
+### What didn't work
+- N/A
+
+### What I learned
+- Dagger export helpers are essential to mirror the previous host-side copy steps.
+
+### What was tricky to build
+- Making sure relative paths stay correct when `make -C cmd/bun-demo` drives a Dagger run from a subdirectory.
+
+### What warrants a second pair of eyes
+- Validate the Dagger export paths and Makefile invocation paths are correct when running from repo root vs `cmd/bun-demo`.
+- Confirm the Node-based TSX render step matches the prior bun output.
+
+### What should be done in the future
+- Update `pkg/doc/bun-goja-bundling-playbook.md` to reference the new Dagger-backed Makefile targets.
+
+### Code review instructions
+- Start in `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/dagger/main.go` (pipeline + exports).
+- Review `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/Makefile` for target changes.
+- Check `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/cmd/bun-demo/js/package.json` for the updated render script.
+- Validate dependencies in `/home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/go.mod`.
+
+### Technical details
+- Pipeline uses `node:20.18.1` and a cache volume named `bun-demo-npm-cache`.
+- Export paths: `assets/bundle.cjs`, `assets/tsx-bundle.cjs`, `assets/tsx.html`, `assets-split/**`.

@@ -66,3 +66,8 @@ Step 4: refine demo output (commit fa0501b)
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/js/src/main.ts — SVG metrics output
 - /home/manuel/workspaces/2026-01-10/package-bun-goja-js/go-go-goja/ttmp/2026/01/10/BUN-003--typescript-and-asset-imports-in-bun-bundling/reference/01-diary.md — Diary step 4
 
+
+## 2026-01-14
+
+Ticket closed
+

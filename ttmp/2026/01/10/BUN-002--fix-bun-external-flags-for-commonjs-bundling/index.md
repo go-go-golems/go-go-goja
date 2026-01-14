@@ -1,7 +1,7 @@
 ---
 Title: Fix bun external flags for CommonJS bundling
 Ticket: BUN-002
-Status: review
+Status: complete
 Topics:
     - bun
     - bundling
@@ -12,10 +12,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Fix bun build external flag syntax so native module requires are not resolved by the bundler.
-LastUpdated: 2026-01-10T20:37:26.121369583-05:00
+LastUpdated: 2026-01-14T16:03:35.242959739-05:00
 WhatFor: Track the fix for bun external flags in the CommonJS demo pipeline.
 WhenToUse: When reviewing ticket status or related docs.
 ---
+
 
 
 # Fix bun external flags for CommonJS bundling

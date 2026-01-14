@@ -19,6 +19,7 @@ dist/
 .env
 .envrc
 .history
+.pr-builder/
 
 # JS demo workspace
 cmd/bun-demo/js/node_modules/

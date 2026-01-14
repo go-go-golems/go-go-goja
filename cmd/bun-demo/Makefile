@@ -9,35 +9,30 @@ TSX_BUNDLE=$(BUN_ASSET_DIR)/tsx-bundle.cjs
 TSX_HTML=$(BUN_ASSET_DIR)/tsx.html
 JS_SPLIT_DIST=$(JS_DIR)/dist-split
 BUN_ASSET_SPLIT_DIR=assets-split
+DAGGER?=dagger
+DAGGER_RUN=$(DAGGER) run --
+DAGGER_PIPELINE=$(DAGGER_RUN) go run ./dagger --project-dir .
 
 js-install:
-	cd $(JS_DIR) && bun install
+	$(DAGGER_PIPELINE) deps
 
-js-typecheck: js-install
-	cd $(JS_DIR) && bun run typecheck
+js-typecheck:
+	$(DAGGER_PIPELINE) typecheck
 
-js-bundle: js-install
-	cd $(JS_DIR) && bun run build
-	mkdir -p $(BUN_ASSET_DIR)
-	cp $(JS_DIR)/dist/bundle.cjs $(BUN_ASSET)
+js-bundle:
+	$(DAGGER_PIPELINE) bundle
 
-js-bundle-tsx: js-install
-	cd $(JS_DIR) && bun run build:tsx
-	mkdir -p $(BUN_ASSET_DIR)
-	cp $(JS_DIR)/dist/tsx-bundle.cjs $(TSX_BUNDLE)
+js-bundle-tsx:
+	$(DAGGER_PIPELINE) bundle-tsx
 
-js-render-tsx: js-bundle-tsx
-	cd $(JS_DIR) && bun run render:tsx-html > dist/tsx.html
-	cp $(JS_DIR)/dist/tsx.html $(TSX_HTML)
+js-render-tsx:
+	$(DAGGER_PIPELINE) render-tsx
 
-js-bundle-split: js-install
-	cd $(JS_DIR) && bun run build:split
-	rm -rf $(BUN_ASSET_SPLIT_DIR)
-	mkdir -p $(BUN_ASSET_SPLIT_DIR)
-	cp -R $(JS_SPLIT_DIST)/. $(BUN_ASSET_SPLIT_DIR)
+js-bundle-split:
+	$(DAGGER_PIPELINE) bundle-split
 
-js-transpile: js-bundle
-	cd $(JS_DIR) && bun x esbuild dist/bundle.cjs --target=es5 --format=cjs --outfile=dist/bundle.es5.cjs
+js-transpile:
+	$(DAGGER_PIPELINE) transpile
 
 js-clean:
 	rm -rf $(JS_DIR)/dist

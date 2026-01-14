@@ -14,10 +14,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-01-10T21:46:17.649400311-05:00
+LastUpdated: 2026-01-14T16:03:38.990885074-05:00
 WhatFor: Track the relocation of the bun demo assets and the creation of a comprehensive bundling playbook.
 WhenToUse: Use when working on bun-based bundling demos or the documentation playbook.
 ---
+
 
 
 # Self-contained bun demo and bundling playbook
