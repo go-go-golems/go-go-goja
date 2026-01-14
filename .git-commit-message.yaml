@@ -1,4 +1,0 @@
-title: "📝 Docs: close BUN-006 ticket"
-description: "Mark BUN-006 complete and record the closure in the diary and changelog."
-tests:
-  - "not run (docs only)"
