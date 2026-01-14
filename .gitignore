@@ -20,6 +20,7 @@ dist/
 .envrc
 .history
 .pr-builder/
+.git-commit-message.yaml
 
 # JS demo workspace
 cmd/bun-demo/js/node_modules/
