@@ -17,11 +17,11 @@ func (m) Doc() string {
 	return "Native module providing access to Glazed HelpSystem instances from JavaScript"
 }
 
-func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
 
 	// JS: glazehelp.query(key, dsl) -> []Section (as JS objects)
-	_ = exports.Set("query", func(key, dsl string) (interface{}, error) {
+	modules.SetExport(vm, exports, mod.Name(), "query", func(key, dsl string) (interface{}, error) {
 		hs, err := Get(key)
 		if err != nil {
 			return nil, err
@@ -41,7 +41,7 @@ func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	})
 
 	// JS: glazehelp.section(key, slug) -> Section or null
-	_ = exports.Set("section", func(key, slug string) (interface{}, error) {
+	modules.SetExport(vm, exports, mod.Name(), "section", func(key, slug string) (interface{}, error) {
 		hs, err := Get(key)
 		if err != nil {
 			return nil, err
@@ -61,7 +61,7 @@ func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	})
 
 	// JS: glazehelp.render(key) -> markdown string (top-level page)
-	_ = exports.Set("render", func(key string) (interface{}, error) {
+	modules.SetExport(vm, exports, mod.Name(), "render", func(key string) (interface{}, error) {
 		hs, err := Get(key)
 		if err != nil {
 			return nil, err
@@ -90,7 +90,7 @@ func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	})
 
 	// JS: glazehelp.topics(key) -> []string (distinct topics across all sections)
-	_ = exports.Set("topics", func(key string) (interface{}, error) {
+	modules.SetExport(vm, exports, mod.Name(), "topics", func(key string) (interface{}, error) {
 		hs, err := Get(key)
 		if err != nil {
 			return nil, err
@@ -118,7 +118,7 @@ func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	})
 
 	// JS: glazehelp.keys() -> []string (registered help system keys)
-	_ = exports.Set("keys", func() interface{} {
+	modules.SetExport(vm, exports, mod.Name(), "keys", func() interface{} {
 		return Keys()
 	})
 }

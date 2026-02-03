@@ -6,6 +6,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 
 	"github.com/go-go-golems/go-go-goja/modules"
+	"github.com/go-go-golems/go-go-goja/pkg/calllog"
 	// Blank imports ensure module init() functions run so they can register themselves.
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
@@ -22,12 +23,30 @@ import (
 // second return value is the require.Module instance so that callers can load
 // entry-point JavaScript files via req.Require(path).
 func New() (*goja.Runtime, *require.RequireModule) {
-	return NewWithOptions()
+	return NewWithConfig(DefaultRuntimeConfig())
 }
 
 // NewWithOptions creates a runtime like New, but allows callers to customize
 // the goja_nodejs/require registry (for example, to install a custom loader).
 func NewWithOptions(opts ...require.Option) (*goja.Runtime, *require.RequireModule) {
+	return NewWithConfig(DefaultRuntimeConfig(), opts...)
+}
+
+// NewWithConfig creates a runtime like New, but allows callers to configure
+// call logging through the go-go-goja API.
+func NewWithConfig(cfg RuntimeConfig, opts ...require.Option) (*goja.Runtime, *require.RequireModule) {
+	if cfg.CallLogEnabled {
+		path := cfg.CallLogPath
+		if path == "" {
+			path = calllog.DefaultPath()
+		}
+		if err := calllog.Configure(path); err != nil {
+			log.Printf("go-go-goja: call log setup failed: %v", err)
+		}
+	} else {
+		calllog.Disable()
+	}
+
 	vm := goja.New()
 
 	// Create a registry and register every known Go-backed module.

@@ -40,18 +40,10 @@ Functions:
 // Loader exposes the database functions to the JavaScript module.
 func (m *DBModule) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
-	if err := exports.Set("configure", m.Configure); err != nil {
-		log.Printf("database: failed to set configure function: %v", err)
-	}
-	if err := exports.Set("query", m.Query); err != nil {
-		log.Printf("database: failed to set query function: %v", err)
-	}
-	if err := exports.Set("exec", m.Exec); err != nil {
-		log.Printf("database: failed to set exec function: %v", err)
-	}
-	if err := exports.Set("close", m.Close); err != nil {
-		log.Printf("database: failed to set close function: %v", err)
-	}
+	modules.SetExport(vm, exports, m.Name(), "configure", m.Configure)
+	modules.SetExport(vm, exports, m.Name(), "query", m.Query)
+	modules.SetExport(vm, exports, m.Name(), "exec", m.Exec)
+	modules.SetExport(vm, exports, m.Name(), "close", m.Close)
 }
 
 // Configure sets up the database connection.

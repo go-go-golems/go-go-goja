@@ -20,11 +20,11 @@ func (m) Doc() string {
 }
 
 // Loader attaches the exported Go functions to the JS module.exports object.
-func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
 
 	// run(cmd, args[]) -> string
-	_ = exports.Set("run", func(cmd string, args []string) (string, error) {
+	modules.SetExport(vm, exports, mod.Name(), "run", func(cmd string, args []string) (string, error) {
 		out, err := exec.Command(cmd, args...).CombinedOutput()
 		return string(out), err
 	})

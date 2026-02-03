@@ -12,6 +12,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/calllog"
 )
 
 //go:embed assets/*.cjs assets-split/* assets-split/modules/*
@@ -48,7 +49,7 @@ func main() {
 		log.Fatalf("bundle export 'run' is not a function")
 	}
 
-	result, err := run(goja.Undefined())
+	result, err := calllog.CallJSFunction(vm, *entry, "run", run, goja.Undefined())
 	if err != nil {
 		log.Fatalf("run(): %v", err)
 	}
