@@ -13,7 +13,7 @@
 - [x] Run focused tests: `go test ./pkg/jsparse -count=1`
 - [x] Run focused tests: `go test ./cmd/inspector/... -count=1`
 - [x] Run focused build: `go build ./cmd/inspector`
-- [ ] Validate key UX features manually (source/tree sync, go-to-def, highlight usages, drawer completion)
+- [x] Validate key UX features manually (source/tree sync, go-to-def, highlight usages, drawer completion)
 - [ ] Decide whether to keep standalone command only or integrate with `cmd/repl` as follow-up
 - [ ] Ensure CI/test strategy avoids unrelated bun-demo false negatives during inspector migration
 

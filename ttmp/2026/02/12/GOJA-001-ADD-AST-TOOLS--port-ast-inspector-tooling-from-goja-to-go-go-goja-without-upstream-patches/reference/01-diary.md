@@ -884,3 +884,52 @@ I completed discoverability validation by wiring both new slugs into interactive
 
 ### Technical details
 - Completed task checked off after this step: `26`.
+
+## Step 15: Validate Inspector UX Flows (Task 12)
+
+I validated key inspector UX behaviors with reproducible model-level tests and a pseudo-terminal smoke sequence that exercises real key handling.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 9)
+
+**Assistant interpretation:** Execute task-by-task with explicit validation and commits, including UX feature verification for source/tree sync, go-to-definition, highlight usages, and drawer completion.
+
+**Inferred user intent:** Ensure inspector behavior is proven after the architecture split, not assumed.
+
+**Commit (code):** `443946b` — "test(inspector): cover sync, go-to-def, usages, and drawer completion"
+
+### What I did
+- Added test coverage:
+  - `go-go-goja/cmd/inspector/app/model_test.go`
+- Implemented assertions for:
+  - source -> tree sync and tree -> source sync
+  - go-to-definition jumping to declaration node/cursor
+  - highlight-usages toggle on/off
+  - drawer completion activation and candidate presence
+- Ran a pseudo-terminal smoke interaction:
+  - scripted keys: `j`, `d`, `*`, `i`, `console.`, `Esc`, `q`
+  - command output: `OK: manual smoke key sequence completed`
+- Ran validation:
+  - `GOWORK=off go test ./cmd/inspector/... -count=1`
+  - `GOWORK=off go build ./cmd/inspector`
+  - `make lint`
+- Hook validation also passed during commit:
+  - `go generate ./...`
+  - `go test ./...`
+- Checked task:
+  - `docmgr task check --ticket GOJA-001-ADD-AST-TOOLS --id 12`
+
+### What worked
+- All targeted UX checks passed.
+- Inspector command builds and inspector package tests pass.
+- Full hook checks passed.
+
+### What didn't work
+- Build/test runs produced local artifacts (`inspector` binary), which had to be moved out of tree before commit.
+
+### What I learned
+- Model-level tests are an effective way to validate Bubble Tea interaction logic without relying only on brittle terminal snapshot comparisons.
+
+### Technical details
+- Completed task checked off after this step: `12`.
