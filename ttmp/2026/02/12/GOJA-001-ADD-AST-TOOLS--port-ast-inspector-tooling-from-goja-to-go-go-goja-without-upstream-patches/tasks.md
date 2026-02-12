@@ -30,4 +30,4 @@
 - [x] Uploaded bundled ticket analysis to reMarkable and verified remote presence
 - [x] Add glazed help user-guide entry for cmd/inspector as example consumer of pkg/jsparse
 - [x] Write detailed reference documentation for pkg/jsparse in go-go-goja/pkg/doc
-- [ ] Validate new help entries are discoverable via repl help slugs and document usage
+- [x] Validate new help entries are discoverable via repl help slugs and document usage

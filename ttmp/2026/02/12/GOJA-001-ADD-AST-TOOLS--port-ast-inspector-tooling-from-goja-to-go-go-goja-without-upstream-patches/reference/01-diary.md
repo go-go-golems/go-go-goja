@@ -839,3 +839,48 @@ I added a dedicated reference-style glazed help page for the reusable `pkg/jspar
 
 ### Technical details
 - Completed task checked off after this step: `25`.
+
+## Step 14: Validate Help Discoverability via REPL Slugs
+
+I completed discoverability validation by wiring both new slugs into interactive `:help` output and verifying direct/help rendering paths.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 12)
+
+**Assistant interpretation:** Ensure the newly added help entries are easy to discover from REPL usage, not only by knowing slugs in advance.
+
+**Inferred user intent:** Make documentation operational and findable for real users.
+
+**Commit (code):** `92c2e65` — "feat(repl): surface jsparse help slugs in :help output"
+
+### What I did
+- Updated `go-go-goja/cmd/repl/main.go` help hint list to include:
+  - `repl help jsparse-framework-reference`
+  - `repl help inspector-example-user-guide`
+- Validated:
+  - `GOWORK=off go run ./cmd/repl help jsparse-framework-reference`
+  - `GOWORK=off go run ./cmd/repl help inspector-example-user-guide`
+  - `printf ':help\n:quit\n' | GOWORK=off go run ./cmd/repl`
+  - `GOWORK=off go test ./cmd/repl -count=1`
+  - `GOWORK=off go build ./cmd/repl`
+  - `make lint`
+- Hook-time validation during commit also passed:
+  - `go generate ./...`
+  - `go test ./...`
+- Checked task:
+  - `docmgr task check --ticket GOJA-001-ADD-AST-TOOLS --id 26`
+
+### What worked
+- Both slugs render via direct `repl help <slug>`.
+- Interactive `:help` now advertises both entries.
+- Lint/build/tests passed.
+
+### What didn't work
+- Local binary/database artifacts were produced by run/build commands and had to be moved out of tree before committing.
+
+### What I learned
+- `:help` surfacing is the right discoverability bridge for new glazed docs because it catches users who start in interactive mode.
+
+### Technical details
+- Completed task checked off after this step: `26`.

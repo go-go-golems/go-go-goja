@@ -24,3 +24,4 @@
 - Added reusable `pkg/jsparse` facade APIs (`Analyze` + completion/context helpers) for non-inspector consumers (commit `96ec0a2`)
 - Added glazed help user guide entry `inspector-example-user-guide` for `cmd/inspector` as a `pkg/jsparse` consumer (commit `a1d2b42`)
 - Added glazed help reference entry `jsparse-framework-reference` documenting reusable `pkg/jsparse` APIs and integration patterns (commit `e522c42`)
+- Added REPL discoverability hints for both new help slugs and validated interactive/direct help flows (commit `92c2e65`)
