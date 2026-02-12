@@ -1,3 +1,20 @@
-topics: []
-docTypes: []
-intent: []
+topics:
+    - slug: goja
+      description: Goja JavaScript runtime
+    - slug: analysis
+      description: Analysis-focused documentation
+    - slug: migration
+      description: Migration planning and execution
+    - slug: tooling
+      description: Developer tooling and utilities
+docTypes:
+    - slug: index
+      description: Ticket index documents
+    - slug: reference
+      description: Reference material
+intent:
+    - slug: long-term
+      description: Long-term maintainable documentation
+status:
+    - slug: active
+      description: Active in-progress ticket
