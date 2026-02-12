@@ -933,3 +933,41 @@ I validated key inspector UX behaviors with reproducible model-level tests and a
 
 ### Technical details
 - Completed task checked off after this step: `12`.
+
+## Step 16: Decide Standalone vs REPL Integration Strategy (Task 13)
+
+I resolved the command strategy decision: keep `cmd/inspector` as a standalone example command now, and treat `cmd/repl` integration as optional follow-up work.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 9)
+
+**Assistant interpretation:** Explicitly resolve open architecture decision #13 and record the decision in ticket analysis.
+
+**Inferred user intent:** Keep reusable framework boundaries clear and avoid unnecessary coupling during migration.
+
+**Commit (code):** `c90c867` — "docs(GOJA-001): decide standalone inspector command strategy"
+
+### What I did
+- Updated analysis doc:
+  - `go-go-goja/ttmp/.../reference/02-porting-analysis.md`
+  - added a dated decision log entry confirming standalone `cmd/inspector` strategy
+  - documented rationale and future follow-up path for `repl` integration
+- Ran focused validation:
+  - `GOWORK=off go test ./cmd/inspector/... -count=1`
+  - `GOWORK=off go build ./cmd/inspector`
+- Checked task:
+  - `docmgr task check --ticket GOJA-001-ADD-AST-TOOLS --id 13`
+
+### What worked
+- Decision is now explicit and discoverable in the ticket analysis.
+- Inspector-focused build/tests passed.
+
+### What didn't work
+- Build generated a local `inspector` binary artifact; moved out of tree before commit.
+
+### What I learned
+- Recording architecture decisions directly in the analysis doc avoids ambiguity when follow-up requests revisit integration scope.
+
+### Technical details
+- Completed task checked off after this step: `13`.

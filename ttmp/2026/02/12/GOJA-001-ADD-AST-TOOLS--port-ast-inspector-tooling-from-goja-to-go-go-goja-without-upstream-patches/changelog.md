@@ -26,3 +26,4 @@
 - Added glazed help reference entry `jsparse-framework-reference` documenting reusable `pkg/jsparse` APIs and integration patterns (commit `e522c42`)
 - Added REPL discoverability hints for both new help slugs and validated interactive/direct help flows (commit `92c2e65`)
 - Added inspector UX validation tests and TTY smoke coverage for sync/go-to-def/usages/drawer-completion (commit `443946b`)
+- Recorded final strategy decision to keep `cmd/inspector` standalone now and defer `repl` integration as follow-up (commit `c90c867`)
