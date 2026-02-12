@@ -249,6 +249,16 @@ func (idx *Index) LineColToOffset(line, col int) int {
 	return len(idx.src) + 1
 }
 
+// Source returns the source string used to build this index.
+func (idx *Index) Source() string {
+	return idx.src
+}
+
+// OffsetToLineCol converts a 1-based byte offset to (line, col), both 1-based.
+func (idx *Index) OffsetToLineCol(offset int) (int, int) {
+	return idx.offsetToLineCol(offset)
+}
+
 // excerpt returns a short source snippet for display.
 func (idx *Index) excerpt(start, end int) string {
 	if start < 1 {
