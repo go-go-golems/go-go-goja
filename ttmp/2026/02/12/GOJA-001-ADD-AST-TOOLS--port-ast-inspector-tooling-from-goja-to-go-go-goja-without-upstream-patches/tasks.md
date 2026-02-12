@@ -8,7 +8,7 @@
 - [x] Create command-local inspector app package under `cmd/inspector/app` for TUI/editor code (`model`, `drawer`)
 - [x] Port `cmd/goja-inspector/main.go` into `go-go-goja/cmd/inspector/main.go`
 - [x] Rewrite command and app imports to consume `pkg/jsparse` + `cmd/inspector/app`
-- [ ] Add a reusable analysis facade API in `pkg/jsparse` for non-inspector tooling use cases
+- [x] Add a reusable analysis facade API in `pkg/jsparse` for non-inspector tooling use cases
 - [x] Add tree-sitter dependencies to `go-go-goja/go.mod` and run `go mod tidy`
 - [x] Run focused tests: `go test ./pkg/jsparse -count=1`
 - [x] Run focused tests: `go test ./cmd/inspector/... -count=1`
@@ -28,6 +28,6 @@
 - [x] Revised plan to require split architecture (`pkg/jsparse` reusable framework + command-local inspector example app)
 - [x] Cleaned vocabulary/doctor warnings for this ticket
 - [x] Uploaded bundled ticket analysis to reMarkable and verified remote presence
-- [ ] Add glazed help user-guide entry for cmd/inspector as example consumer of pkg/jsparse
+- [x] Add glazed help user-guide entry for cmd/inspector as example consumer of pkg/jsparse
 - [ ] Write detailed reference documentation for pkg/jsparse in go-go-goja/pkg/doc
 - [ ] Validate new help entries are discoverable via repl help slugs and document usage

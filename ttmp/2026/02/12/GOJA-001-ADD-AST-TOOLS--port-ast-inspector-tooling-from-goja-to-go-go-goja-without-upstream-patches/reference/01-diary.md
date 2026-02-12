@@ -727,3 +727,80 @@ I also resolved cross-package visibility issues by adding a narrow bridge layer 
 
 ### Technical details
 - Completed tasks checked off after this step: `4,5,6,10,11`.
+
+## Step 11: Add Reusable High-Level Analysis Facade
+
+I added a higher-level API in `pkg/jsparse` so other tooling can consume parsing/index/resolution/completion through one entrypoint without importing inspector code.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 9)
+
+**Assistant interpretation:** Implement the reusable framework split fully by adding a public facade API for analysis consumers outside the inspector command.
+
+**Inferred user intent:** Make `pkg/jsparse` directly usable for future dev tools, error reporting, and integration points.
+
+**Commit (code):** `96ec0a2163ebbdce3c2535ffecefaf98088357e3` — "feat(jsparse): add analysis facade API for tooling consumers"
+
+### What I did
+- Added facade API and types:
+  - `go-go-goja/pkg/jsparse/analyze.go`
+  - `go-go-goja/pkg/jsparse/analyze_test.go`
+- Implemented:
+  - `Analyze(...)`
+  - `AnalysisResult.Diagnostics()`
+  - `AnalysisResult.NodeAtOffset(...)`
+  - `AnalysisResult.CompletionContextAt(...)`
+  - `AnalysisResult.CompleteAt(...)`
+- Ran validation:
+  - `GOWORK=off go test ./pkg/jsparse -count=1`
+  - `GOWORK=off go test ./... -count=1`
+  - `make lint`
+
+### What worked
+- New facade API passed focused and full tests.
+- Lint passed with no additional changes.
+
+### What didn't work
+- N/A in this step.
+
+### What I learned
+- A single `Analyze` entrypoint removes repeated boilerplate in command consumers and keeps analysis logic in one public package.
+
+### Technical details
+- Completed task checked off after this step: `7`.
+
+## Step 12: Add Glazed Help User Guide for Inspector Example
+
+I added a dedicated glazed help tutorial page for `cmd/inspector` showing it as an example consumer of `pkg/jsparse`, then validated rendering through the `repl help` interface.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, now add tasks to the ticket to implement all this work and have analysis in go-go-goja, including writing a detailed reference documentation and a user-guide as glazed help entries."
+
+**Assistant interpretation:** Implement the documentation tasks directly in `pkg/doc` and validate discoverability in the actual help command.
+
+**Inferred user intent:** Make the new architecture usable by others through first-class help docs, not only code comments.
+
+**Commit (code):** `a1d2b42` — "docs(help): add inspector example user guide entry"
+
+### What I did
+- Added:
+  - `go-go-goja/pkg/doc/06-inspector-example-user-guide.md`
+- Validated rendering:
+  - `GOWORK=off go run ./cmd/repl help inspector-example-user-guide`
+- Checked task:
+  - `docmgr task check --ticket GOJA-001-ADD-AST-TOOLS --id 24`
+
+### What worked
+- Help page rendered correctly with expected sections and command examples.
+- Ticket task status updated cleanly.
+
+### What didn't work
+- N/A in this step.
+
+### What I learned
+- Keeping inspector docs under `pkg/doc` with explicit slugged references gives a clean bridge from code-level architecture to user-facing guidance.
+
+### Technical details
+- Completed task checked off after this step: `24`.

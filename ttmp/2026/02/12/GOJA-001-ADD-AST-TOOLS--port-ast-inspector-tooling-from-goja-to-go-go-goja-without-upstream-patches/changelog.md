@@ -21,3 +21,5 @@
   - kept `pkg/jsparse` as the reusable public API surface
 - Implemented reusable core extraction in `pkg/jsparse` and stabilized lint/test hooks (commit `6ae8af2`)
 - Implemented command-local inspector app under `cmd/inspector` wired to `pkg/jsparse` public APIs (commit `ca1879c`)
+- Added reusable `pkg/jsparse` facade APIs (`Analyze` + completion/context helpers) for non-inspector consumers (commit `96ec0a2`)
+- Added glazed help user guide entry `inspector-example-user-guide` for `cmd/inspector` as a `pkg/jsparse` consumer (commit `a1d2b42`)
