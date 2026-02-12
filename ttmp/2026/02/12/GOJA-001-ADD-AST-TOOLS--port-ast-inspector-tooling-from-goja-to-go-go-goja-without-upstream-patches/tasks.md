@@ -15,7 +15,7 @@
 - [x] Run focused build: `go build ./cmd/inspector`
 - [x] Validate key UX features manually (source/tree sync, go-to-def, highlight usages, drawer completion)
 - [x] Decide whether to keep standalone command only or integrate with `cmd/repl` as follow-up
-- [ ] Ensure CI/test strategy avoids unrelated bun-demo false negatives during inspector migration
+- [x] Ensure CI/test strategy avoids unrelated bun-demo false negatives during inspector migration
 
 ## DONE
 

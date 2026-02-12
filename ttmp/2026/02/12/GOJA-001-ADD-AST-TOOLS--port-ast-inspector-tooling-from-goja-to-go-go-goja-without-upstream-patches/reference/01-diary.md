@@ -971,3 +971,50 @@ I resolved the command strategy decision: keep `cmd/inspector` as a standalone e
 
 ### Technical details
 - Completed task checked off after this step: `13`.
+
+## Step 17: Add Bun-Demo-Independent Inspector CI/Test Strategy (Task 14)
+
+I implemented a dedicated inspector validation lane so migration checks can pass/fail independently of bun-demo asset generation state.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 9)
+
+**Assistant interpretation:** Make inspector migration verification resilient against unrelated bun-demo failures by adding focused test/build targets and wiring them into CI strategy.
+
+**Inferred user intent:** Avoid false negatives while still retaining full-suite coverage.
+
+**Commit (code):** `5fd439d` — "ci: add bun-demo-independent inspector validation target"
+
+### What I did
+- Added `Makefile` target:
+  - `test-inspector`
+  - runs:
+    - `GOWORK=off go test ./pkg/jsparse -count=1`
+    - `GOWORK=off go test ./cmd/inspector/... -count=1`
+    - `GOWORK=off go build ./cmd/inspector`
+- Updated CI workflow:
+  - `.github/workflows/push.yml`
+  - new `inspector-validation` job running `make test-inspector`
+  - existing full `test` job now depends on `inspector-validation`
+- Updated analysis risk mitigation text:
+  - `go-go-goja/ttmp/.../reference/02-porting-analysis.md`
+  - documented `make test-inspector` as explicit mitigation for bun-demo-related false negatives
+- Ran validation:
+  - `make test-inspector`
+- Checked task:
+  - `docmgr task check --ticket GOJA-001-ADD-AST-TOOLS --id 14`
+
+### What worked
+- Focused inspector checks run and pass independently.
+- CI now has a separate migration-relevant check lane.
+- Ticket tasks reached 100% completion.
+
+### What didn't work
+- Local build produced an `inspector` binary artifact and required moving out of tree before commit.
+
+### What I learned
+- A dedicated target is the simplest stable contract for both local development and CI when unrelated generators/assets exist in the same repo.
+
+### Technical details
+- Completed task checked off after this step: `14` (all tasks complete).

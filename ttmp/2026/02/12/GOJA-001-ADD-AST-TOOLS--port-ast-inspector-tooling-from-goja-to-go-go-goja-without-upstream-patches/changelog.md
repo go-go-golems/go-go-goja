@@ -27,3 +27,4 @@
 - Added REPL discoverability hints for both new help slugs and validated interactive/direct help flows (commit `92c2e65`)
 - Added inspector UX validation tests and TTY smoke coverage for sync/go-to-def/usages/drawer-completion (commit `443946b`)
 - Recorded final strategy decision to keep `cmd/inspector` standalone now and defer `repl` integration as follow-up (commit `c90c867`)
+- Added `make test-inspector` and CI `inspector-validation` job so inspector migration checks are bun-demo independent (commit `5fd439d`)
