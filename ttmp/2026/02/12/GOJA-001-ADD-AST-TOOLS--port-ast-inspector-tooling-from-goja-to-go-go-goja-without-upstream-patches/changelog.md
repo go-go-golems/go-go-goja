@@ -23,3 +23,4 @@
 - Implemented command-local inspector app under `cmd/inspector` wired to `pkg/jsparse` public APIs (commit `ca1879c`)
 - Added reusable `pkg/jsparse` facade APIs (`Analyze` + completion/context helpers) for non-inspector consumers (commit `96ec0a2`)
 - Added glazed help user guide entry `inspector-example-user-guide` for `cmd/inspector` as a `pkg/jsparse` consumer (commit `a1d2b42`)
+- Added glazed help reference entry `jsparse-framework-reference` documenting reusable `pkg/jsparse` APIs and integration patterns (commit `e522c42`)

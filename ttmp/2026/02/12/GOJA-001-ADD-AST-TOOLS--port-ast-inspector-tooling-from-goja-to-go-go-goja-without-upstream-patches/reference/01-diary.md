@@ -804,3 +804,38 @@ I added a dedicated glazed help tutorial page for `cmd/inspector` showing it as 
 
 ### Technical details
 - Completed task checked off after this step: `24`.
+
+## Step 13: Add Detailed `pkg/jsparse` Reference Help Entry
+
+I added a dedicated reference-style glazed help page for the reusable `pkg/jsparse` framework, covering architecture boundaries, core APIs, integration patterns, and troubleshooting.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 12)
+
+**Assistant interpretation:** Add a detailed reusable-framework reference doc in `pkg/doc` to support non-inspector consumers.
+
+**Inferred user intent:** Provide durable in-repo reference documentation for building additional dev tooling on top of `pkg/jsparse`.
+
+**Commit (code):** `e522c42` — "docs(help): add jsparse framework reference entry"
+
+### What I did
+- Added:
+  - `go-go-goja/pkg/doc/05-jsparse-framework-reference.md`
+- Validated rendering:
+  - `GOWORK=off go run ./cmd/repl help jsparse-framework-reference`
+- Checked task:
+  - `docmgr task check --ticket GOJA-001-ADD-AST-TOOLS --id 25`
+
+### What worked
+- Help reference rendered correctly and included the intended API/usage sections.
+- Task update was applied in ticket `tasks.md`.
+
+### What didn't work
+- N/A in this step.
+
+### What I learned
+- A single explicit framework reference page reduces ambiguity between reusable analysis APIs and the command-local inspector UX.
+
+### Technical details
+- Completed task checked off after this step: `25`.
