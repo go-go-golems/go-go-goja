@@ -13,6 +13,14 @@ Owners: []
 RelatedFiles:
     - Path: go-go-goja/go.mod
       Note: Dependency pinning analysis for portability smoke results
+    - Path: go-go-goja/pkg/calllog/calllog.go
+      Note: Pre-existing lint blockers fixed to unblock task commits (commit 6ae8af2)
+    - Path: go-go-goja/pkg/jsparse/completion.go
+      Note: Extracted completion engine and lint fixes (commit 6ae8af2)
+    - Path: go-go-goja/pkg/jsparse/index.go
+      Note: Extracted reusable AST indexing core (commit 6ae8af2)
+    - Path: go-go-goja/pkg/jsparse/resolve.go
+      Note: Extracted reusable lexical resolver (commit 6ae8af2)
     - Path: goja/cmd/goja-inspector/main.go
       Note: Current command entrypoint and import-path migration target
     - Path: goja/internal/inspector/index.go
@@ -27,6 +35,7 @@ LastUpdated: 2026-02-12T16:14:05.087061697-05:00
 WhatFor: Capture exact analysis workflow, commands, failures, and conclusions while preparing the migration plan.
 WhenToUse: Read when reviewing how conclusions were derived or when resuming migration implementation.
 ---
+
 
 
 # Diary
@@ -549,3 +558,83 @@ This change reduces the chance that UI/editor code is perceived as reusable libr
 - Updated target split:
   - reusable framework: `pkg/jsparse`
   - example app: `cmd/inspector` + `cmd/inspector/app`
+
+## Step 9: Implement Reusable `pkg/jsparse` Core and Stabilize Lint/Test
+
+I implemented the first execution block by porting reusable analysis functionality into `go-go-goja/pkg/jsparse` and getting it into a passing build/test/lint state under repository hooks. This completed the core extraction milestone before touching inspector-specific app code.
+
+I also handled a pre-commit blocker caused by existing lint rules and a generated-assets dependency path, then re-ran checks until commit succeeded.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, now add tasks to the ticket to implement all this work and have analysis in go-go-goja, including writing a detailed reference documentation and a user-guide as glazed help entries. \n\nThen, execute tasks one by one, build, test, commit,check off the task then update your diary."
+
+**Assistant interpretation:** Execute the migration tasks incrementally with real code changes and strict workflow discipline: build/test/commit/task-check/diary-update per completed block.
+
+**Inferred user intent:** Ensure this is not just planning; produce auditable implementation progress with reproducible validation at each step.
+
+**Commit (code):** `6ae8af2170cd57f9c4d6537e30e774855a42bb06` — "feat(jsparse): port reusable AST/resolve/completion core"
+
+### What I did
+- Created and ported reusable package:
+  - `go-go-goja/pkg/jsparse/{index,noderecord,resolve,treesitter,completion}.go`
+  - tests: `.../{index,resolve,treesitter,completion}_test.go`
+- Renamed package declarations to `package jsparse`.
+- Added module dependencies with workspace isolation:
+  - `GOWORK=off go mod tidy`
+- Fixed lint failures introduced by extracted code:
+  - added explicit `CompletionArgument`/`CompletionNone` switch handling
+  - removed named return in `offsetToLineCol`
+  - removed unused resolver helpers
+  - added `//exhaustive:ignore` for reflection-kind switch
+- Fixed unrelated pre-existing lint blockers in `pkg/calllog/calllog.go` that prevented any Go-code commit:
+  - checked `rows.Close` return via ignored-defer wrapper
+  - removed unreachable returns after panic sites
+- Ran validation:
+  - `GOWORK=off go test ./pkg/jsparse -count=1`
+  - `GOWORK=off go test ./... -count=1`
+  - `make lint`
+
+### Why
+- `pkg/jsparse` is the required reusable public core; implementing it first enforces layering constraints before app-specific porting.
+- Hook/lint stability is required to make sequential task commits possible.
+
+### What worked
+- Reusable core compiled and tests passed.
+- Full repo tests passed once generated assets existed.
+- Lint passed after targeted fixes.
+- Commit succeeded under pre-commit hooks.
+
+### What didn't work
+- First commit attempt failed due pre-commit lint error:
+  - `pkg/jsparse/index.go:... missing cases in switch of type reflect.Kind (exhaustive)`
+- Initial suppression comment format was wrong (`// exhaustive:ignore`); corrected to `//exhaustive:ignore`.
+- Pre-commit also surfaced existing `pkg/calllog` lint issues that were not part of the port but blocked commit; I fixed them to unblock workflow.
+
+### What I learned
+- In this repo, Go-code commits trigger full lint/test hooks, so unrelated lint debt can block feature progress and must be addressed inline.
+- `GOWORK=off` is essential here to verify `go-go-goja` owns its dependency graph instead of inheriting from workspace neighbor modules.
+
+### What was tricky to build
+- The tricky part was separating true regression from hook-environment side effects. Symptoms looked like a port issue, but blockers included both strict exhaustive linting behavior and unrelated calllog lint debt.
+
+### What warrants a second pair of eyes
+- Review the `//exhaustive:ignore` decision in `pkg/jsparse/index.go` to confirm it matches team lint policy for reflection-based walkers.
+- Review whether `pkg/calllog` fixes should be split to a standalone maintenance commit in future cleanups.
+
+### What should be done in the future
+- Add a repository-level note that hook runs may require generated bun-demo assets before lint/typecheck passes consistently.
+
+### Code review instructions
+- Start with:
+  - `go-go-goja/pkg/jsparse/index.go`
+  - `go-go-goja/pkg/jsparse/resolve.go`
+  - `go-go-goja/pkg/jsparse/completion.go`
+  - `go-go-goja/pkg/calllog/calllog.go`
+- Validate with:
+  - `GOWORK=off go test ./pkg/jsparse -count=1`
+  - `GOWORK=off go test ./... -count=1`
+  - `make lint`
+
+### Technical details
+- Completed tasks checked off after this step: `1,2,3,8,9`.

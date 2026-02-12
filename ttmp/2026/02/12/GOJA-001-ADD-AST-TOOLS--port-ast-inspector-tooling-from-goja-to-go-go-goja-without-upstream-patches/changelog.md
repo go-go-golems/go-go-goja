@@ -19,3 +19,4 @@
 - Updated plan placement for inspector example code:
   - moved from proposed `pkg/inspector` to command-local `cmd/inspector` (`cmd/inspector/app` for UI internals)
   - kept `pkg/jsparse` as the reusable public API surface
+- Implemented reusable core extraction in `pkg/jsparse` and stabilized lint/test hooks (commit `6ae8af2`)
