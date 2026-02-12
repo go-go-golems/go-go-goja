@@ -252,7 +252,7 @@ func ensureColumn(db *sql.DB, table, column, columnType string) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var cid int
@@ -354,7 +354,6 @@ func WrapGoFunction(vm *goja.Runtime, moduleName, funcName string, fn interface{
 				Error:     err.Error(),
 			})
 			panic(vm.NewGoError(err))
-			return goja.Undefined()
 		}
 	}
 
@@ -378,7 +377,6 @@ func WrapGoFunction(vm *goja.Runtime, moduleName, funcName string, fn interface{
 
 		if err != nil {
 			panic(vm.NewGoError(err))
-			return goja.Undefined()
 		}
 
 		return result
