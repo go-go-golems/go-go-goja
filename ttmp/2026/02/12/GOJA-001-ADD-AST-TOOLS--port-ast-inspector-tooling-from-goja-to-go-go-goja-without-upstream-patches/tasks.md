@@ -5,14 +5,14 @@
 - [x] Create reusable `pkg/jsparse` package in `go-go-goja`
 - [x] Move reusable analysis files into `pkg/jsparse` (`index`, `noderecord`, `resolve`, `treesitter`, `completion`)
 - [x] Move reusable tests into `pkg/jsparse` and ensure they are UI-independent
-- [ ] Create command-local inspector app package under `cmd/inspector/app` for TUI/editor code (`model`, `drawer`)
-- [ ] Port `cmd/goja-inspector/main.go` into `go-go-goja/cmd/inspector/main.go`
-- [ ] Rewrite command and app imports to consume `pkg/jsparse` + `cmd/inspector/app`
+- [x] Create command-local inspector app package under `cmd/inspector/app` for TUI/editor code (`model`, `drawer`)
+- [x] Port `cmd/goja-inspector/main.go` into `go-go-goja/cmd/inspector/main.go`
+- [x] Rewrite command and app imports to consume `pkg/jsparse` + `cmd/inspector/app`
 - [ ] Add a reusable analysis facade API in `pkg/jsparse` for non-inspector tooling use cases
 - [x] Add tree-sitter dependencies to `go-go-goja/go.mod` and run `go mod tidy`
 - [x] Run focused tests: `go test ./pkg/jsparse -count=1`
-- [ ] Run focused tests: `go test ./cmd/inspector/... -count=1`
-- [ ] Run focused build: `go build ./cmd/inspector`
+- [x] Run focused tests: `go test ./cmd/inspector/... -count=1`
+- [x] Run focused build: `go build ./cmd/inspector`
 - [ ] Validate key UX features manually (source/tree sync, go-to-def, highlight usages, drawer completion)
 - [ ] Decide whether to keep standalone command only or integrate with `cmd/repl` as follow-up
 - [ ] Ensure CI/test strategy avoids unrelated bun-demo false negatives during inspector migration

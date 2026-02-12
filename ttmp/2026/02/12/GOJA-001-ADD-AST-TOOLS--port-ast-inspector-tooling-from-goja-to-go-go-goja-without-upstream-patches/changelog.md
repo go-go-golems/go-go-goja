@@ -20,3 +20,4 @@
   - moved from proposed `pkg/inspector` to command-local `cmd/inspector` (`cmd/inspector/app` for UI internals)
   - kept `pkg/jsparse` as the reusable public API surface
 - Implemented reusable core extraction in `pkg/jsparse` and stabilized lint/test hooks (commit `6ae8af2`)
+- Implemented command-local inspector app under `cmd/inspector` wired to `pkg/jsparse` public APIs (commit `ca1879c`)
