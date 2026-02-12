@@ -247,7 +247,7 @@ Optional full-suite gate:
 
 2. Risk: false migration failures from unrelated bun-demo setup
 - Symptom: `assets-split/*` missing during full tests
-- Mitigation: use scoped inspector suite or run required generation path first
+- Mitigation: use scoped inspector suite (`make test-inspector`) or run required generation path first
 
 3. Risk: feature regressions in TUI interactions (non-unit behavior)
 - Symptom: keybindings, sync, drawer completion differ
