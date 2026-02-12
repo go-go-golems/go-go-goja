@@ -265,6 +265,12 @@ Optional full-suite gate:
 2. Completion API shape: pull-based `Complete(ctx)` vs precomputed provider object.
 3. Command strategy: keep `cmd/inspector` as standalone example first (recommended), `repl` subcommand later.
 
+### Decision Log
+
+- 2026-02-12: Keep `cmd/inspector` as standalone command for now.
+  - Rationale: preserves clear package boundary (`pkg/jsparse` reusable, inspector UI example-only), reduces coupling into `cmd/repl`, and keeps migration risk focused.
+  - Follow-up: optional `repl` integration can be added later as a separate task if there is demand for inline inspector workflows.
+
 ## Usage Examples
 
 ### Example: Split-first port sequence
