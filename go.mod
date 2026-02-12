@@ -1,6 +1,6 @@
 module github.com/go-go-golems/go-go-goja
 
-go 1.25.5
+go 1.25.7
 
 require (
 	dagger.io/dagger v0.19.9
