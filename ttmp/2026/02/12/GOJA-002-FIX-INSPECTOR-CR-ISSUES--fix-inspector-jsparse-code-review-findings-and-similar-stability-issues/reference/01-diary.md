@@ -130,7 +130,7 @@ Then upload the analysis to remarkable."
 
 **Inferred user intent:** Close review debt rigorously with traceable implementation evidence, while proactively preventing adjacent regressions.
 
-**Commit (code):** N/A (documentation/planning step)
+**Commit (code):** `f89a256` — "docs(GOJA-002): add bug analysis, diary, and execution tasks"
 
 ### What I did
 - Created ticket workspace:

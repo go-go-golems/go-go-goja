@@ -2,7 +2,7 @@
 
 ## TODO
 
-- [ ] Write issue analysis doc covering reported bugs and similar-pattern sweep findings
+- [x] Write issue analysis doc covering reported bugs and similar-pattern sweep findings
 - [ ] Add/extend inspector app regression tests for drawer unresolved-symbol safety (`ctrl+d`, `ctrl+g`)
 - [ ] Fix nil-binding guards in `cmd/inspector/app/model.go` drawer go-to-definition/highlight paths
 - [ ] Run focused validation (`go test ./cmd/inspector/... -count=1`, `go build ./cmd/inspector`) and commit inspector fixes
