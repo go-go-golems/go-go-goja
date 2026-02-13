@@ -56,6 +56,50 @@ func TestInitialParseForEmptySourceProducesProgramAST(t *testing.T) {
 	}
 }
 
+func TestCursorNodeHighlightInitialized(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+
+	if m.cursorNode == nil {
+		t.Fatal("expected cursor node to be resolved")
+	}
+	if m.highlightStartLine < 1 || m.highlightEndLine < 1 {
+		t.Fatalf("expected valid highlight range, got start=%d:%d end=%d:%d",
+			m.highlightStartLine, m.highlightStartCol, m.highlightEndLine, m.highlightEndCol)
+	}
+}
+
+func TestCursorNodeHighlightMovesWithCursor(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+
+	m.moveCursor(0, 6) // on "x"
+	if m.cursorNode == nil || m.cursorNode.Text != "x" {
+		got := "<nil>"
+		if m.cursorNode != nil {
+			got = m.cursorNode.Text
+		}
+		t.Fatalf("expected cursor node text x, got %s", got)
+	}
+
+	m.moveCursor(0, 4) // on "1"
+	if m.cursorNode == nil || m.cursorNode.Text != "1" {
+		got := "<nil>"
+		if m.cursorNode != nil {
+			got = m.cursorNode.Text
+		}
+		t.Fatalf("expected cursor node text 1, got %s", got)
+	}
+}
+
+func TestCursorNodeHighlightEmptySourceIsSafe(t *testing.T) {
+	m := newTestModel(t, "")
+	m.updateCursorNodeHighlight()
+
+	if m.highlightStartLine != 0 || m.highlightStartCol != 0 || m.highlightEndLine != 0 || m.highlightEndCol != 0 {
+		t.Fatalf("expected empty highlight range, got start=%d:%d end=%d:%d",
+			m.highlightStartLine, m.highlightStartCol, m.highlightEndLine, m.highlightEndCol)
+	}
+}
+
 func TestEditToInvalidSourceClearsASTPane(t *testing.T) {
 	m := newTestModel(t, "const obj = {};\nobj")
 	m.cursorRow = 1

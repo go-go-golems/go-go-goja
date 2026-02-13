@@ -47,6 +47,12 @@ type Model struct {
 	tsRoot   *jsparse.TSNode
 	tsSExpr  string
 
+	cursorNode         *jsparse.TSNode
+	highlightStartLine int // 1-based
+	highlightStartCol  int // 1-based
+	highlightEndLine   int // 1-based
+	highlightEndCol    int // 1-based
+
 	astSExpr    string
 	astParseErr error
 
@@ -142,9 +148,13 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "home":
 		m.cursorCol = 0
+		m.ensureCursorVisible()
+		m.updateCursorNodeHighlight()
 		return m, nil
 	case "end":
 		m.cursorCol = len([]rune(m.lines[m.cursorRow]))
+		m.ensureCursorVisible()
+		m.updateCursorNodeHighlight()
 		return m, nil
 	case "enter":
 		m.insertNewline()
@@ -235,12 +245,14 @@ func (m *Model) reparseCST() {
 	if m.tsParser == nil {
 		m.tsRoot = nil
 		m.tsSExpr = "(tree-sitter unavailable)"
+		m.clearCursorNodeHighlight()
 		return
 	}
 
 	m.tsRoot = m.tsParser.Parse([]byte(m.source()))
 	if m.tsRoot == nil {
 		m.tsSExpr = "(no parse)"
+		m.clearCursorNodeHighlight()
 		return
 	}
 
@@ -251,6 +263,7 @@ func (m *Model) reparseCST() {
 		MaxDepth:     80,
 		MaxNodes:     8000,
 	})
+	m.updateCursorNodeHighlight()
 }
 
 func (m *Model) astTextForView() string {
@@ -268,6 +281,7 @@ func (m *Model) moveCursor(dy, dx int) {
 	lineLen := len([]rune(m.lines[m.cursorRow]))
 	m.cursorCol = clamp(m.cursorCol+dx, 0, lineLen)
 	m.ensureCursorVisible()
+	m.updateCursorNodeHighlight()
 }
 
 func (m *Model) ensureCursorVisible() {
@@ -418,6 +432,12 @@ func (m *Model) renderStatus() string {
 	} else {
 		parts = append(parts, "ast: valid")
 	}
+	if m.cursorNode != nil {
+		parts = append(parts, fmt.Sprintf("node: %s (%d:%d-%d:%d)",
+			m.cursorNode.Kind,
+			m.highlightStartLine, m.highlightStartCol,
+			m.highlightEndLine, m.highlightEndCol))
+	}
 
 	return style.Render(strings.Join(parts, " | "))
 }
@@ -448,6 +468,7 @@ func (m *Model) renderEditorPane(width, height int) string {
 	contentHeight := maxInt(1, height-1)
 	gutterWidth := len(fmt.Sprintf("%d", len(m.lines))) + 1
 	cursorStyle := lipgloss.NewStyle().Reverse(true).Bold(true)
+	highlightStyle := lipgloss.NewStyle().Background(lipgloss.Color("236")).Foreground(lipgloss.Color("117"))
 	gutterNormal := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 	gutterCursor := lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true)
 
@@ -470,8 +491,13 @@ func (m *Model) renderEditorPane(width, height int) string {
 		var content strings.Builder
 		for c := 0; c < len(runes); c++ {
 			ch := string(runes[c])
+			lineNo := lineIdx + 1
+			colNo := c + 1
+			isNodeHighlight := inRange(lineNo, colNo, m.highlightStartLine, m.highlightStartCol, m.highlightEndLine, m.highlightEndCol)
 			if lineIdx == m.cursorRow && c == m.cursorCol && m.focus == focusEditor {
 				content.WriteString(cursorStyle.Render(ch))
+			} else if isNodeHighlight {
+				content.WriteString(highlightStyle.Render(ch))
 			} else {
 				content.WriteString(ch)
 			}
@@ -484,6 +510,38 @@ func (m *Model) renderEditorPane(width, height int) string {
 	}
 
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
+}
+
+func (m *Model) clearCursorNodeHighlight() {
+	m.cursorNode = nil
+	m.highlightStartLine = 0
+	m.highlightStartCol = 0
+	m.highlightEndLine = 0
+	m.highlightEndCol = 0
+}
+
+func (m *Model) updateCursorNodeHighlight() {
+	m.clearCursorNodeHighlight()
+	if m.tsRoot == nil {
+		return
+	}
+
+	row := m.cursorRow
+	for _, col := range []int{m.cursorCol, m.cursorCol - 1} {
+		if col < 0 {
+			continue
+		}
+		n := m.tsRoot.NodeAtPosition(row, col)
+		if n == nil {
+			continue
+		}
+		m.cursorNode = n
+		m.highlightStartLine = n.StartRow + 1
+		m.highlightStartCol = n.StartCol + 1
+		m.highlightEndLine = n.EndRow + 1
+		m.highlightEndCol = n.EndCol + 1
+		return
+	}
 }
 
 func (m *Model) renderTextPane(title, body string, scroll, width, height int, focused bool) string {
@@ -546,4 +604,23 @@ func clamp(v, lo, hi int) int {
 		return hi
 	}
 	return v
+}
+
+func inRange(lineNo, colNo, startLine, startCol, endLine, endCol int) bool {
+	if startLine <= 0 || endLine <= 0 {
+		return false
+	}
+	if lineNo > startLine && lineNo < endLine {
+		return true
+	}
+	if lineNo == startLine && lineNo == endLine {
+		return colNo >= startCol && colNo < endCol
+	}
+	if lineNo == startLine {
+		return colNo >= startCol
+	}
+	if lineNo == endLine {
+		return colNo < endCol
+	}
+	return false
 }
