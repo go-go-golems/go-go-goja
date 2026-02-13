@@ -348,6 +348,9 @@ func (r *resolver) collectDeclStatement(stmt ast.Statement) {
 			r.popScope(saved)
 			return
 		}
+		if intoVar, ok := s.Into.(*ast.ForIntoVar); ok {
+			r.collectVarBinding(intoVar.Binding)
+		}
 		r.collectDeclStatement(s.Body)
 	case *ast.ForOfStatement:
 		if decl, ok := s.Into.(*ast.ForDeclaration); ok {
@@ -366,6 +369,9 @@ func (r *resolver) collectDeclStatement(stmt ast.Statement) {
 			r.collectDeclStatement(s.Body)
 			r.popScope(saved)
 			return
+		}
+		if intoVar, ok := s.Into.(*ast.ForIntoVar); ok {
+			r.collectVarBinding(intoVar.Binding)
 		}
 		r.collectDeclStatement(s.Body)
 	case *ast.WhileStatement:
@@ -566,6 +572,7 @@ func (r *resolver) resolveStatement(stmt ast.Statement) {
 		if scopeID >= 0 {
 			r.current = scopeID
 		}
+		r.resolveForInto(s.Into)
 		r.resolveExpression(s.Source)
 		r.resolveStatement(s.Body)
 		if scopeID >= 0 {
@@ -577,6 +584,7 @@ func (r *resolver) resolveStatement(stmt ast.Statement) {
 		if scopeID >= 0 {
 			r.current = scopeID
 		}
+		r.resolveForInto(s.Into)
 		r.resolveExpression(s.Source)
 		r.resolveStatement(s.Body)
 		if scopeID >= 0 {
@@ -653,6 +661,15 @@ func (r *resolver) resolveForInit(init ast.ForLoopInitializer) {
 			if b.Initializer != nil {
 				r.resolveExpression(b.Initializer)
 			}
+		}
+	}
+}
+
+func (r *resolver) resolveForInto(into ast.ForInto) {
+	switch i := into.(type) {
+	case *ast.ForIntoExpression:
+		if i.Expression != nil {
+			r.resolveExpression(i.Expression)
 		}
 	}
 }
@@ -815,9 +832,6 @@ func (r *resolver) resolveFunctionLiteral(fn *ast.FunctionLiteral) {
 		}
 	}
 
-	// Collect declarations in body
-	r.collectDeclarations(fn.Body.List)
-
 	// Resolve parameter default values
 	if fn.ParameterList != nil {
 		for _, param := range fn.ParameterList.List {
@@ -826,6 +840,10 @@ func (r *resolver) resolveFunctionLiteral(fn *ast.FunctionLiteral) {
 			}
 		}
 	}
+
+	// Collect declarations in body after default parameter resolution.
+	// Parameter initializers run before function body var/function bindings are visible.
+	r.collectDeclarations(fn.Body.List)
 
 	// Resolve body
 	r.resolveStatements(fn.Body.List)
@@ -855,6 +873,15 @@ func (r *resolver) resolveArrowFunction(fn *ast.ArrowFunctionLiteral) {
 		if fn.ParameterList.Rest != nil {
 			if bt, ok := fn.ParameterList.Rest.(ast.BindingTarget); ok {
 				r.collectBindingTarget(bt, BindingParameter)
+			}
+		}
+	}
+
+	// Resolve parameter default values before body declarations.
+	if fn.ParameterList != nil {
+		for _, param := range fn.ParameterList.List {
+			if param != nil && param.Initializer != nil {
+				r.resolveExpression(param.Initializer)
 			}
 		}
 	}
