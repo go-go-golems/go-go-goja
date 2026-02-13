@@ -483,6 +483,9 @@ func (m *Model) drawerGoToDefinition() {
 			break
 		}
 	}
+	if binding == nil {
+		return
+	}
 
 	// Jump to declaration in source pane
 	declNode := m.index.Nodes[binding.DeclNodeID]
@@ -533,6 +536,10 @@ func (m *Model) drawerHighlightUsages() {
 			binding = b
 			break
 		}
+	}
+	if binding == nil {
+		m.clearHighlightUsages()
+		return
 	}
 
 	if m.highlightedBinding == binding {

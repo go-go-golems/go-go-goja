@@ -7,6 +7,16 @@ import (
 	"github.com/dop251/goja/parser"
 )
 
+func assertNoPanic(t *testing.T, fn func()) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("unexpected panic: %v", r)
+		}
+	}()
+	fn()
+}
+
 func newTestModel(t *testing.T, src string) Model {
 	t.Helper()
 
@@ -190,5 +200,63 @@ console.log(greeting);
 	}
 	if !foundLog {
 		t.Fatal("expected 'log' in console.* completion items")
+	}
+}
+
+func TestModelDrawerGoToDefinitionUnresolvedDoesNotPanic(t *testing.T) {
+	src := `const known = 1;
+console.log(known);
+`
+	m := newTestModel(t, src)
+
+	for _, ch := range "unknownName" {
+		m.drawer.InsertChar(ch)
+	}
+	m.drawer.Reparse()
+
+	originalSelected := m.selectedNodeID
+	assertNoPanic(t, func() {
+		m.drawerGoToDefinition()
+	})
+
+	if m.selectedNodeID != originalSelected {
+		t.Fatalf("expected selection to stay unchanged for unresolved symbol; got %d want %d", m.selectedNodeID, originalSelected)
+	}
+}
+
+func TestModelDrawerHighlightUsagesUnresolvedClearsWithoutPanic(t *testing.T) {
+	src := `const known = 1;
+console.log(known);
+`
+	m := newTestModel(t, src)
+
+	root := m.index.Resolution.Scopes[m.index.Resolution.RootScopeID]
+	if root == nil {
+		t.Fatal("expected root scope")
+	}
+	b := root.Bindings["known"]
+	if b == nil {
+		t.Fatal("expected binding for known")
+	}
+	m.highlightedBinding = b
+	m.usageHighlights = b.AllUsages()
+	if len(m.usageHighlights) == 0 {
+		t.Fatal("expected pre-existing usage highlights")
+	}
+
+	for _, ch := range "unknownName" {
+		m.drawer.InsertChar(ch)
+	}
+	m.drawer.Reparse()
+
+	assertNoPanic(t, func() {
+		m.drawerHighlightUsages()
+	})
+
+	if m.highlightedBinding != nil {
+		t.Fatal("expected unresolved lookup to clear highlighted binding")
+	}
+	if len(m.usageHighlights) != 0 {
+		t.Fatalf("expected unresolved lookup to clear usage highlights, got %d", len(m.usageHighlights))
 	}
 }
