@@ -14,26 +14,32 @@ RelatedFiles:
       Note: |-
         Target model for mode switching, syntax coloring, and AST selection behavior
         GOJA-003 implementation source
+        Follow-up ctrl keybinding and AST tree widget implementation
     - Path: cmd/ast-parse-editor/app/model_test.go
       Note: |-
         Tests for mode and selection transitions
         GOJA-003 regression tests
+        Follow-up regression tests
     - Path: pkg/jsparse/index.go
       Note: AST node selection and navigation primitives
     - Path: ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/analysis/01-implementation-plan.md
       Note: Detailed implementation blueprint for this ticket
     - Path: ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/changelog.md
-      Note: GOJA-003 changelog entry for commit 1d1a88e
+      Note: |-
+        GOJA-003 changelog entry for commit 1d1a88e
+        Follow-up changelog entry
     - Path: ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/tasks.md
       Note: |-
         Execution checklist for the ticket
         GOJA-003 completed task checklist
+        Follow-up task checklist
 ExternalSources: []
 Summary: Detailed execution diary for syntax highlighting and AST-selection mode implementation work.
-LastUpdated: 2026-02-13T16:35:03-05:00
+LastUpdated: 2026-02-13T16:44:50-05:00
 WhatFor: Preserve concrete implementation and validation history for GOJA-003.
 WhenToUse: Use when reviewing or continuing GOJA-003 development.
 ---
+
 
 
 # Diary
@@ -203,3 +209,87 @@ The implementation keeps insert mode and AST-select mode intentionally separate:
 
 - Commit hash: `1d1a88e`
 - tmux session: `goja003_tests`
+
+## Step 3: Follow-up Keybinding Conflict Fix + AST Tree Widget
+
+I implemented your follow-up feedback in two parts: first, global toggles moved to ctrl-key bindings so insert mode no longer steals normal `m/s` typing; second, AST-select mode now shows an inspector-style expandable AST tree in the right pane.
+
+The tree widget is active when mode is `AST-SELECT`, including expand/collapse markers and pane-local controls for moving selection and toggling expansion.
+
+### Prompt Context
+
+**User prompt (verbatim):** "m/s/etc... you need ctrl- because that conflicts with editor keys"
+
+**Assistant interpretation:** Replace plain-letter control shortcuts with ctrl-based bindings to avoid insert-mode typing conflicts.
+
+**Inferred user intent:** Keep editing ergonomics intact while preserving mode/syntax toggles.
+
+**Commit (code):** `e162ccf` — "ast-parse-editor: add AST tree widget and ctrl mode bindings"
+
+### What I did
+
+- Updated keybindings in:
+  - `go-go-goja/cmd/ast-parse-editor/app/model.go`
+    - `ctrl+t` toggles mode
+    - `ctrl+s` toggles syntax highlighting
+- Added right-pane AST tree widget for AST-select mode:
+  - AST pane now renders expandable tree (`▶`/`▼`) instead of SEXP text when mode is `AST-SELECT`
+  - AST pane controls (while focused): `j/k` move, `h/l` collapse/expand, `space` toggle, `g/G` root/end
+- Added helper logic:
+  - visible-node navigation and selection sync
+  - ensure selected node visibility with scrolling
+  - expand-to-selected behavior
+- Extended tests in:
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+    - `TestInsertModeAllowsTypingMAndS`
+    - `TestASTTreePaneSpaceTogglesExpand`
+  - existing mode/syntax tests now use ctrl bindings.
+- Ran tmux validation:
+  - `tmux new-session -d -s goja_tree_widget "cd ... && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1; echo __EXIT_CODE__$?; exec zsh"`
+  - captured pass with `__EXIT_CODE__0`
+
+### Why
+
+- Plain `m/s` bindings conflicted with normal editing.
+- The user asked for inspector-like tree expand behavior during toggle workflows.
+
+### What worked
+
+- Insert mode now accepts normal `m/s` typing again.
+- AST-select mode displays and interacts with an expandable tree widget.
+- Tests and tmux verification passed.
+
+### What didn't work
+
+- Pre-commit `go generate` Dagger step again timed out on Docker Hub DNS:
+  - `dial tcp: lookup registry-1.docker.io: i/o timeout`
+- Fallback local npm path succeeded; full `go test ./...` hook passed.
+
+### What I learned
+
+- Switching AST pane representation by mode (`SEXP` in insert, tree in AST-select) keeps the UI understandable while reusing existing parser index structures.
+
+### What was tricky to build
+
+- Selection synchronization had to support both editor-driven AST navigation and tree-pane navigation without drifting scroll state.
+
+### What warrants a second pair of eyes
+
+- Confirm `ctrl+s` is reliable in your terminal setup (some terminals reserve it for flow control).
+
+### What should be done in the future
+
+- If `ctrl+s` is intercepted in your shell, add configurable keybinding support.
+
+### Code review instructions
+
+- Review:
+  - `go-go-goja/cmd/ast-parse-editor/app/model.go`
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+- Validate:
+  - `cd go-go-goja && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1`
+
+### Technical details
+
+- Commit hash: `e162ccf`
+- tmux session: `goja_tree_widget`
