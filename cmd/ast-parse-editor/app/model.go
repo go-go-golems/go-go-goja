@@ -74,9 +74,10 @@ type Model struct {
 	width  int
 	height int
 
-	tsParser *jsparse.TSParser
-	tsRoot   *jsparse.TSNode
-	tsSExpr  string
+	tsParser            *jsparse.TSParser
+	tsRoot              *jsparse.TSNode
+	tsSExpr             string
+	tsSExprSelectedLine int
 
 	tsCursorNode         *jsparse.TSNode
 	tsHighlightStartLine int // 1-based
@@ -85,6 +86,7 @@ type Model struct {
 	tsHighlightEndCol    int // 1-based
 
 	astSExpr              string
+	astSExprSelectedLine  int
 	astParseErr           error
 	astIndex              *jsparse.Index
 	astCursorNodeID       jsparse.NodeID
@@ -124,6 +126,8 @@ func NewModel(filename, source string) *Model {
 		selectedASTNodeID:      -1,
 		astCursorNodeID:        -1,
 		usageBindingDeclNodeID: -1,
+		tsSExprSelectedLine:    -1,
+		astSExprSelectedLine:   -1,
 	}
 	m.reparseCST()
 	return m
@@ -154,6 +158,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.updateCursorASTHighlight()
 		} else {
 			m.astSExpr = ""
+			m.astSExprSelectedLine = -1
 			m.astIndex = nil
 			m.selectedASTNodeID = -1
 			m.astCursorNodeID = -1
@@ -167,6 +172,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.updateCursorNodeHighlight()
 		}
+		m.updateTSSExprSelectionLine()
+		m.updateASTSExprSelectionLine()
 		m.astScroll = clamp(m.astScroll, 0, maxInt(0, len(strings.Split(m.astTextForView(), "\n"))-1))
 		return m, nil
 	}
@@ -382,6 +389,7 @@ func (m *Model) reparseCST() {
 	if m.tsParser == nil {
 		m.tsRoot = nil
 		m.tsSExpr = "(tree-sitter unavailable)"
+		m.tsSExprSelectedLine = -1
 		m.syntaxSpans = nil
 		m.clearCursorNodeHighlight()
 		return
@@ -390,6 +398,7 @@ func (m *Model) reparseCST() {
 	m.tsRoot = m.tsParser.Parse([]byte(m.source()))
 	if m.tsRoot == nil {
 		m.tsSExpr = "(no parse)"
+		m.tsSExprSelectedLine = -1
 		m.syntaxSpans = nil
 		m.clearCursorNodeHighlight()
 		return
@@ -407,6 +416,8 @@ func (m *Model) reparseCST() {
 		m.updateCursorNodeHighlight()
 		m.updateCursorASTHighlight()
 	}
+	m.updateTSSExprSelectionLine()
+	m.updateASTSExprSelectionLine()
 }
 
 func (m *Model) astTextForView() string {
@@ -492,6 +503,7 @@ func (m *Model) selectASTNode(id jsparse.NodeID) {
 	m.ensureCursorVisible()
 	m.ensureASTTreeSelectionVisible()
 	m.updateCursorNodeHighlight()
+	m.updateASTSExprSelectionLine()
 }
 
 func (m *Model) astSelectRoot() {
@@ -560,16 +572,19 @@ func (m *Model) updateCursorASTHighlight() {
 	if m.astIndex == nil {
 		m.astCursorNodeID = -1
 		m.clearASTHighlight()
+		m.updateASTSExprSelectionLine()
 		return
 	}
 	n := m.astIndex.NodeAtOffset(m.cursorOffset())
 	if n == nil {
 		m.astCursorNodeID = -1
 		m.clearASTHighlight()
+		m.updateASTSExprSelectionLine()
 		return
 	}
 	m.astCursorNodeID = n.ID
 	m.setASTHighlightFromNode(n)
+	m.updateASTSExprSelectionLine()
 }
 
 func (m *Model) setASTHighlightFromNode(n *jsparse.NodeRecord) {
@@ -849,12 +864,12 @@ func (m *Model) View() string {
 	rightW := m.width - leftW - midW
 
 	editor := m.renderEditorPane(leftW, contentHeight)
-	ts := m.renderTextPane(" TS SEXP ", m.tsSExpr, m.tsScroll, midW, contentHeight, m.focus == focusTSSExpr)
+	ts := m.renderTextPane(" TS SEXP ", m.tsSExpr, m.tsScroll, midW, contentHeight, m.tsSExprSelectedLine, m.focus == focusTSSExpr)
 	ast := ""
 	if m.editorMode == editorModeASTSelect {
 		ast = m.renderASTTreePane(rightW, contentHeight, m.focus == focusASTSExpr)
 	} else {
-		ast = m.renderTextPane(" AST SEXP ", m.astTextForView(), m.astScroll, rightW, contentHeight, m.focus == focusASTSExpr)
+		ast = m.renderTextPane(" AST SEXP ", m.astTextForView(), m.astScroll, rightW, contentHeight, m.astSExprSelectedLine, m.focus == focusASTSExpr)
 	}
 
 	content := lipgloss.JoinHorizontal(lipgloss.Top, editor, ts, ast)
@@ -1054,11 +1069,13 @@ func (m *Model) clearCursorNodeHighlight() {
 	m.tsHighlightStartCol = 0
 	m.tsHighlightEndLine = 0
 	m.tsHighlightEndCol = 0
+	m.tsSExprSelectedLine = -1
 }
 
 func (m *Model) updateCursorNodeHighlight() {
 	m.clearCursorNodeHighlight()
 	if m.tsRoot == nil {
+		m.updateTSSExprSelectionLine()
 		return
 	}
 
@@ -1076,8 +1093,10 @@ func (m *Model) updateCursorNodeHighlight() {
 		m.tsHighlightStartCol = n.StartCol + 1
 		m.tsHighlightEndLine = n.EndRow + 1
 		m.tsHighlightEndCol = n.EndCol + 1
+		m.updateTSSExprSelectionLine()
 		return
 	}
+	m.updateTSSExprSelectionLine()
 }
 
 func (m *Model) rebuildSyntaxSpans() {
@@ -1249,7 +1268,7 @@ func (m *Model) renderASTTreePane(width, height int, focused bool) string {
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 }
 
-func (m *Model) renderTextPane(title, body string, scroll, width, height int, focused bool) string {
+func (m *Model) renderTextPane(title, body string, scroll, width, height, selectedLine int, focused bool) string {
 	var lines []string
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
@@ -1258,6 +1277,9 @@ func (m *Model) renderTextPane(title, body string, scroll, width, height int, fo
 	if focused {
 		headerStyle = headerStyle.Background(lipgloss.Color("33"))
 	}
+	selectedStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("15")).
+		Background(lipgloss.Color("24"))
 
 	header := headerStyle.Render(title) + strings.Repeat("─", maxInt(0, width-len(title)))
 	lines = append(lines, padRight(header, width))
@@ -1272,7 +1294,11 @@ func (m *Model) renderTextPane(title, body string, scroll, width, height int, fo
 			lines = append(lines, strings.Repeat(" ", width))
 			continue
 		}
-		lines = append(lines, padRight(bodyLines[idx], width))
+		line := padRight(bodyLines[idx], width)
+		if idx == selectedLine {
+			line = selectedStyle.Render(line)
+		}
+		lines = append(lines, line)
 	}
 
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
@@ -1328,4 +1354,74 @@ func inRange(lineNo, colNo, startLine, startCol, endLine, endCol int) bool {
 		return colNo < endCol
 	}
 	return false
+}
+
+func (m *Model) updateTSSExprSelectionLine() {
+	m.tsSExprSelectedLine = -1
+	if m.tsCursorNode == nil || strings.TrimSpace(m.tsSExpr) == "" {
+		return
+	}
+
+	marker := fmt.Sprintf(":range (%d %d %d %d)",
+		m.tsCursorNode.StartRow, m.tsCursorNode.StartCol, m.tsCursorNode.EndRow, m.tsCursorNode.EndCol)
+	line := findSExprLine(m.tsSExpr, m.tsCursorNode.Kind, marker)
+	if line < 0 {
+		return
+	}
+	m.tsSExprSelectedLine = line
+	m.ensureTextLineVisible(&m.tsScroll, len(strings.Split(m.tsSExpr, "\n")), line)
+}
+
+func (m *Model) updateASTSExprSelectionLine() {
+	m.astSExprSelectedLine = -1
+	if m.astIndex == nil || m.astCursorNodeID < 0 {
+		return
+	}
+	n := m.astIndex.Nodes[m.astCursorNodeID]
+	if n == nil {
+		return
+	}
+
+	marker := fmt.Sprintf(":span (%d %d)", n.Start, n.End)
+	line := findSExprLine(m.astTextForView(), n.Kind, marker)
+	if line < 0 {
+		return
+	}
+	m.astSExprSelectedLine = line
+	m.ensureTextLineVisible(&m.astScroll, len(strings.Split(m.astTextForView(), "\n")), line)
+}
+
+func findSExprLine(body, kind, marker string) int {
+	lines := strings.Split(body, "\n")
+	kindPrefix := "(" + kind
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, kindPrefix) {
+			continue
+		}
+		if strings.Contains(trimmed, marker) {
+			return i
+		}
+	}
+	for i, line := range lines {
+		if strings.Contains(line, marker) {
+			return i
+		}
+	}
+	return -1
+}
+
+func (m *Model) ensureTextLineVisible(scroll *int, totalLines, line int) {
+	if line < 0 || totalLines <= 0 {
+		return
+	}
+	maxScroll := maxInt(0, totalLines-1)
+	visibleHeight := maxInt(1, m.contentHeight()-1)
+	if line < *scroll {
+		*scroll = line
+	}
+	if line >= *scroll+visibleHeight {
+		*scroll = line - visibleHeight + 1
+	}
+	*scroll = clamp(*scroll, 0, maxScroll)
 }

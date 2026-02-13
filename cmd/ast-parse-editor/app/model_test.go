@@ -106,6 +106,37 @@ func TestCursorNodeHighlightMovesWithCursor(t *testing.T) {
 	}
 }
 
+func TestSExprSelectionLinesTrackCursor(t *testing.T) {
+	src := "const greeting = 'hi';\nconsole.log(greeting);"
+	m := newTestModel(t, src)
+
+	if m.tsSExprSelectedLine < 0 {
+		t.Fatalf("expected initial TS SEXP selection line, got %d", m.tsSExprSelectedLine)
+	}
+	if m.astSExprSelectedLine < 0 {
+		t.Fatalf("expected initial AST SEXP selection line, got %d", m.astSExprSelectedLine)
+	}
+	startTS := m.tsSExprSelectedLine
+	startAST := m.astSExprSelectedLine
+
+	m.cursorRow = 1
+	m.cursorCol = len([]rune("console.log(greet"))
+	m.moveCursor(0, 0)
+
+	if m.tsSExprSelectedLine < 0 {
+		t.Fatalf("expected TS SEXP selection line after move, got %d", m.tsSExprSelectedLine)
+	}
+	if m.astSExprSelectedLine < 0 {
+		t.Fatalf("expected AST SEXP selection line after move, got %d", m.astSExprSelectedLine)
+	}
+	if m.tsSExprSelectedLine == startTS {
+		t.Fatalf("expected TS SEXP selection line to change from %d", startTS)
+	}
+	if m.astSExprSelectedLine == startAST {
+		t.Fatalf("expected AST SEXP selection line to change from %d", startAST)
+	}
+}
+
 func TestCursorNodeHighlightEmptySourceIsSafe(t *testing.T) {
 	m := newTestModel(t, "")
 	m.updateCursorNodeHighlight()
@@ -135,6 +166,9 @@ func TestEditToInvalidSourceClearsASTPane(t *testing.T) {
 	}
 	if m.astSExpr != "" {
 		t.Fatalf("expected AST pane to clear on invalid parse, got: %s", m.astSExpr)
+	}
+	if m.astSExprSelectedLine != -1 {
+		t.Fatalf("expected AST SEXP selection line to clear on invalid parse, got %d", m.astSExprSelectedLine)
 	}
 }
 
