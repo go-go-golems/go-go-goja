@@ -36,7 +36,7 @@ RelatedFiles:
       Note: Task execution checklist updated with Task 1 progress
 ExternalSources: []
 Summary: Step-by-step implementation diary capturing ticket setup, parser architecture analysis, validation commands, and delivery workflow for GOJA-001-AST-PARSE-EDITOR.
-LastUpdated: 2026-02-13T16:22:00-05:00
+LastUpdated: 2026-02-13T16:34:00-05:00
 WhatFor: Preserve the exact analysis workflow and decisions for later review or continuation.
 WhenToUse: Use when reviewing how conclusions were derived and what commands/results support them.
 ---
@@ -520,4 +520,81 @@ I also added model tests for initial parse, invalid transitions, CST updates, an
   - `? github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor [no test files]`
   - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.003s`
   - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.005s`
+  - `__EXIT_CODE__0`
+
+## Step 7: Task 3 Hardening and Regression Coverage
+
+I added deterministic renderer tests and additional state-transition coverage in the new editor model tests. Then I executed focused and broad regression runs in tmux to confirm behavior after Task 2 integration.
+
+This step closes the initial implementation cycle with explicit hardening around determinism, truncation guards, and valid/invalid parse transitions while typing.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue iterating task-by-task with tests and recorded progress.
+
+**Inferred user intent:** Ensure the implementation is not only present but also robust and reproducible.
+
+**Commit (code):** `ff8e43d` — "tests: harden SEXP determinism and parse state transitions"
+
+### What I did
+
+- Extended `pkg/jsparse/sexp_test.go` with:
+  - deterministic output assertions (`CSTToSExpr`, `ASTIndexToSExpr`)
+  - additional node-count truncation test
+- Extended `cmd/ast-parse-editor/app/model_test.go` with:
+  - valid -> invalid -> valid AST parse transition test while typing
+- Ran focused tmux regressions:
+  - `GOWORK=off go test ./pkg/jsparse -run 'TestCSTToSExprDeterministic|TestCSTToSExprTruncatesByNodeCount|TestASTIndexToSExprDeterministic' -count=1`
+  - `GOWORK=off go test ./cmd/ast-parse-editor/app -run 'TestASTParseTransitionsInvalidBackToValid|TestEditToInvalidSourceClearsASTPane|TestStaleASTParseMessageIsIgnored' -count=1`
+- Ran broader tmux regression:
+  - `GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1`
+
+### Why
+
+- These tests directly target the highest-risk areas introduced by Tasks 1 and 2: deterministic rendering and runtime parse state switching.
+
+### What worked
+
+- Focused regression run passed in tmux (`__EXIT_CODE__0`).
+- Broader regression run passed in tmux (`__EXIT_CODE__0`).
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Sequence-gated debounce handling remains stable under rapid source validity transitions in test flow.
+
+### What was tricky to build
+
+- Keeping tests precise without over-coupling to formatting details required assertions on semantic invariants (determinism and parse state) rather than entire large output strings.
+
+### What warrants a second pair of eyes
+
+- Confirm whether you want full golden-file snapshot tests for SEXP output now, or later after UI output conventions are finalized.
+
+### What should be done in the future
+
+- Add optional golden snapshot fixtures once renderer metadata defaults are frozen.
+
+### Code review instructions
+
+- Review:
+  - `go-go-goja/pkg/jsparse/sexp_test.go`
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+- Re-run:
+  - `cd go-go-goja && GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1`
+
+### Technical details
+
+- Focused tmux run output:
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.003s`
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.003s`
+  - `__EXIT_CODE__0`
+- Broad tmux run output:
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.006s`
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.007s`
   - `__EXIT_CODE__0`

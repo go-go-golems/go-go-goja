@@ -57,3 +57,14 @@ Implemented Task 2: added cmd/ast-parse-editor with 3-pane live editor, immediat
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/main.go — New command entrypoint
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/reference/01-diary.md — Step 6 diary update with tmux test run and lint-fix details
 
+
+## 2026-02-13
+
+Implemented Task 3 hardening: deterministic SEXP tests, additional truncation checks, and valid-invalid-valid parse transition coverage (commit ff8e43d).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model_test.go — Added parse transition test and stale message behavior coverage
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/pkg/jsparse/sexp_test.go — Added deterministic and additional truncation coverage for SEXP renderers
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/reference/01-diary.md — Step 7 hardening diary update with tmux regression outputs
+

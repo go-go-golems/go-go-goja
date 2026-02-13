@@ -33,9 +33,9 @@
 
 ## Task 3: Test Coverage and Hardening
 
-- [ ] Add deterministic SEXP golden/assertion tests
-- [ ] Add truncation/depth guard tests
-- [ ] Add parse-error state transition tests (valid <-> invalid while typing)
-- [ ] Run focused regression tests in tmux
-- [ ] Run `GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1`
-- [ ] Commit Task 3 and update diary/changelog
+- [x] Add deterministic SEXP golden/assertion tests
+- [x] Add truncation/depth guard tests
+- [x] Add parse-error state transition tests (valid <-> invalid while typing)
+- [x] Run focused regression tests in tmux
+- [x] Run `GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1`
+- [x] Commit Task 3 and update diary/changelog
