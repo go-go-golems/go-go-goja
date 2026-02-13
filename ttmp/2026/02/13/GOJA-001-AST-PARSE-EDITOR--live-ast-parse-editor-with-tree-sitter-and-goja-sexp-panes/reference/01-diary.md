@@ -19,7 +19,11 @@ RelatedFiles:
         Task 2 model tests for valid/invalid transitions and stale parse handling
         Task 4 model-level empty-source regression coverage
     - Path: cmd/ast-parse-editor/main.go
-      Note: Task 2 command entrypoint added for live 3-pane editor
+      Note: |-
+        Task 2 command entrypoint added for live 3-pane editor
+        Task 5 CLI startup input policy (no-arg/missing-file empty buffer)
+    - Path: cmd/ast-parse-editor/main_test.go
+      Note: Task 5 startup regression/unit tests
     - Path: cmd/inspector/app/drawer.go
       Note: Reviewed while documenting live tree-sitter parse loop
     - Path: cmd/inspector/app/model.go
@@ -39,17 +43,21 @@ RelatedFiles:
     - Path: ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/analysis/01-tree-sitter-ast-live-sexp-editor-analysis.md
       Note: Primary analysis artifact produced during this diary run
     - Path: ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/changelog.md
-      Note: Task 4 changelog entry
+      Note: |-
+        Task 4 changelog entry
+        Task 5 changelog entry
     - Path: ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/tasks.md
       Note: |-
         Task execution checklist updated with Task 1 progress
         Task 4 checklist recorded
+        Task 5 checklist
 ExternalSources: []
 Summary: Step-by-step implementation diary capturing ticket setup, parser architecture analysis, validation commands, and delivery workflow for GOJA-001-AST-PARSE-EDITOR.
-LastUpdated: 2026-02-13T16:05:38-05:00
+LastUpdated: 2026-02-13T16:10:02-05:00
 WhatFor: Preserve the exact analysis workflow and decisions for later review or continuation.
 WhenToUse: Use when reviewing how conclusions were derived and what commands/results support them.
 ---
+
 
 
 
@@ -692,3 +700,98 @@ I fixed this by adding a safe fallback in `ASTToSExpr` and backing it with dedic
 - Behavior change:
   - Before: empty source could surface as `(waiting-for-valid-parse)` due empty AST S-expression
   - After: empty source renders AST pane as `(Program)`
+
+## Step 9: Task 5 CLI Empty-Buffer Startup for Missing/No File
+
+I followed up on CLI startup behavior after reproducing your exact shell commands and confirmed the command still exited early when no path was provided or when the path did not exist. That was a command-entry issue, separate from parser validity.
+
+I updated startup input handling so the editor can be launched with no args or a missing path, both resulting in an editable empty buffer and valid initial AST pane.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 8)
+
+**Assistant interpretation:** Extend the fix to CLI startup so empty editing also works when no file exists yet.
+
+**Inferred user intent:** Use the editor to start new files directly, without pre-creating them on disk.
+
+**Commit (code):** `e3231e6` — "ast-parse-editor: allow opening missing or no file as empty buffer"
+
+### What I did
+
+- Refactored CLI input loading into:
+  - `loadInput(args []string) (filename, source string, err error)` in `go-go-goja/cmd/ast-parse-editor/main.go`
+- Implemented behavior:
+  - `ast-parse-editor` -> starts `untitled.js` with empty source
+  - `ast-parse-editor <missing.js>` -> starts that filename with empty source
+  - `ast-parse-editor <existing.js>` -> loads existing content
+  - multiple args -> usage error
+- Added tests:
+  - `go-go-goja/cmd/ast-parse-editor/main_test.go`
+    - no-arg startup
+    - existing file read
+    - missing file empty startup
+    - multiple-arg usage error
+- Ran tmux tests:
+  - `tmux new-session -d -s goja001_cli_empty "cd ... && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1; echo __EXIT_CODE__$?; exec zsh"`
+- Ran tmux behavior checks matching your shell flow:
+  - `go run ./go-go-goja/cmd/ast-parse-editor`
+  - `go run ./go-go-goja/cmd/ast-parse-editor test.js`
+
+### Why
+
+- Requiring pre-existing files breaks the “edit empty file” workflow and slows iterative usage.
+
+### What worked
+
+- Test run passed:
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor 0.002s`
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.015s`
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.006s`
+  - `__EXIT_CODE__0`
+- Live tmux command checks showed editor opens with:
+  - AST pane `(Program)`
+  - status `ast: valid`
+
+### What didn't work
+
+- Initial quick tmux sanity sessions ended before capture:
+  - `can't find session: goja001_run_noarg`
+  - `can't find session: goja001_run_missing`
+- Fix: reran with delayed teardown (`sleep`) and captured pane output successfully.
+- Pre-commit `go generate` again hit Dagger/Docker Hub DNS timeout:
+  - `dial tcp: lookup registry-1.docker.io: i/o timeout`
+- Hook fallback path succeeded and commit completed.
+
+### What I learned
+
+- Startup UX needed explicit policy independent of parsing internals: missing file is a valid authoring entry point, not an error condition.
+
+### What was tricky to build
+
+- Getting deterministic interactive verification in tmux required keeping sessions alive long enough for capture after launching the TUI.
+
+### What warrants a second pair of eyes
+
+- Confirm whether default no-arg filename `untitled.js` is the preferred label, or if you want a different scratch naming convention.
+
+### What should be done in the future
+
+- If save support is added, tie scratch/default filename behavior to save prompts and on-disk creation semantics.
+
+### Code review instructions
+
+- Review:
+  - `go-go-goja/cmd/ast-parse-editor/main.go`
+  - `go-go-goja/cmd/ast-parse-editor/main_test.go`
+- Validate:
+  - `cd go-go-goja && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1`
+- Manual:
+  - `go run ./go-go-goja/cmd/ast-parse-editor`
+  - `go run ./go-go-goja/cmd/ast-parse-editor test.js`
+
+### Technical details
+
+- Commit hash: `e3231e6`
+- Added symbol: `loadInput`
+- Default filename constant: `untitled.js`

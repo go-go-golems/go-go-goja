@@ -48,3 +48,13 @@
 - [x] Add regression test in `cmd/ast-parse-editor/app/model_test.go`
 - [x] Run `GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1` in tmux
 - [x] Commit Task 4 and update diary/changelog
+
+## Task 5: CLI Empty-Buffer Entry Flow
+
+- [x] Reproduce CLI failure when no argument is provided
+- [x] Reproduce CLI failure when target file path does not exist
+- [x] Allow `ast-parse-editor` to start with no args (`untitled.js`, empty source)
+- [x] Allow `ast-parse-editor <missing.js>` to start with empty source
+- [x] Add unit tests for `loadInput` behavior
+- [x] Run `GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1` in tmux
+- [x] Commit Task 5 and update diary/changelog

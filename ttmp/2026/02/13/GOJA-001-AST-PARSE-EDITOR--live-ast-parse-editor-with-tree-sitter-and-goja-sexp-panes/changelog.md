@@ -80,3 +80,14 @@ Implemented Task 4 empty-source fix: AST pane now renders (Program) for valid em
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/pkg/jsparse/sexp_test.go — Regression test for empty program rendering
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/reference/01-diary.md — Step 8 records commands
 
+
+## 2026-02-13
+
+Implemented Task 5 CLI startup flow: ast-parse-editor now opens an empty buffer for no-arg and missing-file invocations, with loadInput tests and tmux verification (commit e3231e6).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/main.go — loadInput now supports scratch/no-file startup
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/main_test.go — Unit coverage for no-arg
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/reference/01-diary.md — Step 9 records reproduction
+
