@@ -253,3 +253,81 @@ This step completes tasks 2, 3, and 4 from the ticket task list.
 
 ### Technical details
 - Tasks completed in this step: `2`, `3`, `4`.
+
+## Step 3: Fix Resolver Gaps for For-Into Targets and Parameter Defaults
+
+I implemented the resolver-side fixes with test-first validation for each bug class: loop target handling, `for (var ...)` declaration coverage, function default-initializer scope ordering, and arrow default-initializer traversal.
+
+I added failing tests first, confirmed the failures, then patched `resolve.go` and reran package/full validation.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Add resolver regression tests for all reviewed and similar issues, then fix resolver behavior and run full validation before committing.
+
+**Inferred user intent:** Ensure scope/binding data is correct for common loop/default-parameter forms that power go-to-def/usages and diagnostics.
+
+**Commit (code):** `e2e63cf` — "fix(jsparse): resolve for-into targets and param defaults correctly"
+
+### What I did
+- Added regression helpers/tests in `pkg/jsparse/resolve_test.go`:
+  - `TestResolveForInOfExpressionTargets`
+  - `TestResolveForInOfVarDeclarations`
+  - `TestResolveFunctionDefaultInitializersBeforeBodyHoisting`
+  - `TestResolveArrowFunctionDefaultInitializers`
+- Verified failing behavior before fix:
+  - for-into expression target not resolved
+  - `for (var ...)` declaration binding missing
+  - function default initializer incorrectly linking to body var
+  - arrow default initializer identifiers not resolved/unresolved-tracked
+- Patched `pkg/jsparse/resolve.go`:
+  - collect `ForIntoVar` declarations in declaration pass
+  - resolve `ForIntoExpression` targets in `for-in/of` resolve pass
+  - resolve function parameter defaults before body declaration collection
+  - resolve arrow parameter defaults before body resolution
+- Ran validation:
+  - `GOWORK=off go test ./pkg/jsparse -run 'TestResolveForInOfExpressionTargets|TestResolveForInOfVarDeclarations|TestResolveFunctionDefaultInitializersBeforeBodyHoisting|TestResolveArrowFunctionDefaultInitializers' -count=1`
+  - `GOWORK=off go test ./pkg/jsparse -count=1`
+  - `GOWORK=off go test ./... -count=1`
+  - `make lint`
+- Checked off tasks:
+  - `docmgr task check --ticket GOJA-002-FIX-INSPECTOR-CR-ISSUES --id 5,6,7,8,9`
+
+### Why
+- These paths affect correctness of binding/reference data used by navigation and highlighting features.
+- Existing tests did not cover these edge cases, so regressions could recur silently.
+
+### What worked
+- New tests reproduced all targeted defects.
+- Resolver changes fixed the failures without breaking existing jsparse test coverage.
+- Full suite and lint passed after patch.
+
+### What didn't work
+- N/A in this step.
+
+### What I learned
+- The resolver had two independent correctness gaps in `for-in/of`: expression-target resolution and `var` declaration collection.
+- Parameter-default handling must be explicit in both function and arrow resolution paths to keep scope semantics consistent.
+
+### What was tricky to build
+- Constructing stable identifier-node assertions required deterministic occurrence helpers (`nthOccurrence`) to avoid accidental matches when names repeat across declaration/default/body contexts.
+
+### What warrants a second pair of eyes
+- Whether future resolver enhancements should model parameter TDZ/later-parameter access more strictly (currently parameters are pre-bound before default evaluation).
+
+### What should be done in the future
+- Add one more targeted test for mixed `for (x of arr)` with nested scopes and shadowing to pin behavior under shadowed names.
+
+### Code review instructions
+- Review fixes in:
+  - `go-go-goja/pkg/jsparse/resolve.go`
+- Review new regression coverage in:
+  - `go-go-goja/pkg/jsparse/resolve_test.go`
+- Validate with:
+  - `GOWORK=off go test ./pkg/jsparse -count=1`
+  - `GOWORK=off go test ./... -count=1`
+  - `make lint`
+
+### Technical details
+- Tasks completed in this step: `5`, `6`, `7`, `8`, `9`.
