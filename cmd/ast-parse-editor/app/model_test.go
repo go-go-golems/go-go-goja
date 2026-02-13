@@ -1,7 +1,9 @@
 package app
 
 import (
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -399,5 +401,49 @@ func TestFindUsagesToggle(t *testing.T) {
 	}
 	if m.usageBindingDeclNodeID != -1 {
 		t.Fatalf("expected cleared binding id, got %d", m.usageBindingDeclNodeID)
+	}
+}
+
+func TestGoToDefinitionUsesRuneColumnOnMultibyteLine(t *testing.T) {
+	src := "const α = 1; const beta = α;\nconsole.log(beta);"
+	m := newTestModel(t, src)
+
+	m.cursorRow = 1
+	m.cursorCol = len([]rune("console.log(be"))
+	m.moveCursor(0, 0)
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlD})
+	if m.cursorRow != 0 {
+		t.Fatalf("expected declaration row 0, got %d", m.cursorRow)
+	}
+
+	line := m.lines[0]
+	byteIdx := strings.Index(line, "beta")
+	if byteIdx < 0 {
+		t.Fatal("expected declaration identifier beta on first line")
+	}
+	wantRuneCol := utf8.RuneCountInString(line[:byteIdx])
+	if m.cursorCol != wantRuneCol {
+		t.Fatalf("expected rune cursor column %d at declaration, got %d", wantRuneCol, m.cursorCol)
+	}
+}
+
+func TestByteRuneColumnConversions(t *testing.T) {
+	line := "aαβz"
+	if got := runeStartByteCols(line, len([]rune(line))); len(got) != 4 || got[0] != 1 || got[1] != 2 || got[2] != 4 || got[3] != 6 {
+		t.Fatalf("unexpected rune start byte columns: %v", got)
+	}
+
+	if got := byteColToRuneIndex(line, 1); got != 0 {
+		t.Fatalf("expected byte column 1 to map to rune index 0, got %d", got)
+	}
+	if got := byteColToRuneIndex(line, 2); got != 1 {
+		t.Fatalf("expected byte column 2 to map to rune index 1, got %d", got)
+	}
+	if got := byteColToRuneIndex(line, 4); got != 2 {
+		t.Fatalf("expected byte column 4 to map to rune index 2, got %d", got)
+	}
+	if got := byteColToRuneIndex(line, 6); got != 3 {
+		t.Fatalf("expected byte column 6 to map to rune index 3, got %d", got)
 	}
 }

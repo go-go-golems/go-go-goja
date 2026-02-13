@@ -497,8 +497,9 @@ func (m *Model) selectASTNode(id jsparse.NodeID) {
 	m.setASTHighlightFromNode(n)
 	m.cursorRow = clamp(n.StartLine-1, 0, len(m.lines)-1)
 	if m.cursorRow >= 0 && m.cursorRow < len(m.lines) {
-		lineLen := len([]rune(m.lines[m.cursorRow]))
-		m.cursorCol = clamp(n.StartCol-1, 0, lineLen)
+		line := m.lines[m.cursorRow]
+		lineLen := len([]rune(line))
+		m.cursorCol = clamp(byteColToRuneIndex(line, n.StartCol), 0, lineLen)
 	}
 	m.ensureCursorVisible()
 	m.ensureASTTreeSelectionVisible()
@@ -1016,6 +1017,7 @@ func (m *Model) renderEditorPane(width, height int) string {
 
 		raw := m.lines[lineIdx]
 		runes := []rune(raw)
+		byteCols := runeStartByteCols(raw, len(runes))
 		lineNum := fmt.Sprintf("%*d ", gutterWidth, lineIdx+1)
 		gs := gutterNormal
 		if lineIdx == m.cursorRow {
@@ -1027,7 +1029,7 @@ func (m *Model) renderEditorPane(width, height int) string {
 		for c := 0; c < len(runes); c++ {
 			ch := string(runes[c])
 			lineNo := lineIdx + 1
-			colNo := c + 1
+			colNo := byteCols[c]
 			isTSHighlight := inRange(lineNo, colNo, m.tsHighlightStartLine, m.tsHighlightStartCol, m.tsHighlightEndLine, m.tsHighlightEndCol)
 			isASTHighlight := inRange(lineNo, colNo, m.astHighlightStartLine, m.astHighlightStartCol, m.astHighlightEndLine, m.astHighlightEndCol)
 			isUsageHighlight := false
@@ -1354,6 +1356,38 @@ func inRange(lineNo, colNo, startLine, startCol, endLine, endCol int) bool {
 		return colNo < endCol
 	}
 	return false
+}
+
+func byteColToRuneIndex(line string, byteCol int) int {
+	if byteCol <= 1 {
+		return 0
+	}
+	target := byteCol - 1 // 1-based -> 0-based byte index
+	if target > len(line) {
+		target = len(line)
+	}
+
+	runeIdx := 0
+	for i := range line {
+		if i >= target {
+			return runeIdx
+		}
+		runeIdx++
+	}
+	return runeIdx
+}
+
+func runeStartByteCols(line string, runeCount int) []int {
+	cols := make([]int, runeCount)
+	i := 0
+	for byteIdx := range line {
+		if i >= runeCount {
+			break
+		}
+		cols[i] = byteIdx + 1 // 1-based byte column
+		i++
+	}
+	return cols
 }
 
 func (m *Model) updateTSSExprSelectionLine() {
