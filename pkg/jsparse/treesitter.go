@@ -5,6 +5,8 @@ import (
 	tree_sitter_javascript "github.com/tree-sitter/tree-sitter-javascript/bindings/go"
 )
 
+const maxInt = int(^uint(0) >> 1)
+
 // TSNode is a lightweight, owning snapshot of a tree-sitter CST node.
 // Unlike *tree_sitter.Node, TSNode values survive tree reparse/close.
 type TSNode struct {
@@ -74,26 +76,36 @@ func snapshotNode(n *tree_sitter.Node, src []byte, maxDepth int) *TSNode {
 	if n == nil || maxDepth <= 0 {
 		return nil
 	}
+	startPos := n.StartPosition()
+	endPos := n.EndPosition()
 	sn := &TSNode{
 		Kind:      n.Kind(),
-		StartRow:  int(n.StartPosition().Row),
-		StartCol:  int(n.StartPosition().Column),
-		EndRow:    int(n.EndPosition().Row),
-		EndCol:    int(n.EndPosition().Column),
+		StartRow:  uintToClampedInt(startPos.Row),
+		StartCol:  uintToClampedInt(startPos.Column),
+		EndRow:    uintToClampedInt(endPos.Row),
+		EndCol:    uintToClampedInt(endPos.Column),
 		IsError:   n.IsError(),
 		IsMissing: n.IsMissing(),
 	}
-	cc := int(n.ChildCount())
-	if cc == 0 {
+	childCount := n.ChildCount()
+	if childCount == 0 {
 		start := n.StartByte()
 		end := n.EndByte()
-		if int(end) <= len(src) {
-			sn.Text = string(src[start:end])
+		if start <= end && end <= uint(len(src)) {
+			startInt, okStart := uintToInt(start)
+			endInt, okEnd := uintToInt(end)
+			if okStart && okEnd {
+				sn.Text = string(src[startInt:endInt])
+			}
 		}
 	} else {
+		cc, ok := uintToInt(childCount)
+		if !ok {
+			cc = maxInt
+		}
 		sn.Children = make([]*TSNode, 0, cc)
-		for i := 0; i < cc; i++ {
-			child := snapshotNode(n.Child(uint(i)), src, maxDepth-1)
+		for i := uint(0); i < childCount; i++ {
+			child := snapshotNode(n.Child(i), src, maxDepth-1)
 			if child != nil {
 				sn.Children = append(sn.Children, child)
 			}
@@ -155,4 +167,19 @@ func (sn *TSNode) ChildCount() int {
 		return 0
 	}
 	return len(sn.Children)
+}
+
+func uintToInt(v uint) (int, bool) {
+	if v > uint(maxInt) {
+		return 0, false
+	}
+	return int(v), true
+}
+
+func uintToClampedInt(v uint) int {
+	i, ok := uintToInt(v)
+	if !ok {
+		return maxInt
+	}
+	return i
 }

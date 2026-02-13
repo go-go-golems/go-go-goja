@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja/parser"
@@ -17,9 +18,15 @@ func main() {
 	}
 
 	filename := os.Args[1]
+	filename = filepath.Clean(filename)
+	if filename == "." {
+		fmt.Fprintln(os.Stderr, "Error: invalid input file path")
+		os.Exit(1)
+	}
+	// #nosec G304,G703 -- inspector intentionally reads the user-selected source file path.
 	src, err := os.ReadFile(filename)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", filename, err)
+		fmt.Fprintf(os.Stderr, "Error reading input file: %v\n", err)
 		os.Exit(1)
 	}
 

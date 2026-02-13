@@ -15,7 +15,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/calllog"
 )
 
-//go:embed assets/*.cjs assets-split/* assets-split/modules/*
+//go:embed assets/*.cjs assets/tsx.html
 var bundleFS embed.FS
 
 func embeddedSourceLoader(path string) ([]byte, error) {

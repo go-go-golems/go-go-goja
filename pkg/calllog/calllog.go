@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -106,9 +107,14 @@ func New(path string) (*Logger, error) {
 	if path == "" {
 		return nil, errors.New("calllog: path is required")
 	}
+	path = filepath.Clean(path)
+	if path == "." || path == ".." || strings.HasPrefix(path, ".."+string(os.PathSeparator)) {
+		return nil, fmt.Errorf("calllog: invalid sqlite path: %q", path)
+	}
 
 	dir := filepath.Dir(path)
 	if dir != "." {
+		// #nosec G703 -- path is explicit operator configuration after normalization checks.
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return nil, fmt.Errorf("calllog: create dir %s: %w", dir, err)
 		}
