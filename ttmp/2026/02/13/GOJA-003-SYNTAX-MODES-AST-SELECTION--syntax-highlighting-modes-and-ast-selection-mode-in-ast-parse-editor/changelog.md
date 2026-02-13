@@ -47,3 +47,14 @@ Step 5: cursor-synced TS/AST SEXP pane highlighting with line auto-scroll and re
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model.go — SEXP selected-line tracking and pane rendering
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model_test.go — SEXP tracking tests
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/reference/01-diary.md — Step 5 diary details
+
+## 2026-02-13
+
+Step 6: fixed byte-vs-rune column mapping for source highlights and AST cursor jumps on multibyte lines (commit 99ec6d2).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model.go — byte/rune conversion helpers and rendering fixes
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model_test.go — multibyte regression tests
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/reference/01-diary.md — Step 6 diary details
+

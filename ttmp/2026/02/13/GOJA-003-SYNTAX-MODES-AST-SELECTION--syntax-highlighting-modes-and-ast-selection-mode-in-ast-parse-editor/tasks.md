@@ -41,3 +41,11 @@
 - [x] Add regression tests for SEXP line tracking and invalid-parse clearing
 - [x] Run `GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1` in tmux
 - [x] Commit follow-up code and update diary/changelog
+
+## Follow-up: Byte/Rune Column Correctness
+
+- [x] Fix AST-select cursor jump to convert AST byte column to editor rune column
+- [x] Fix source-pane highlight column checks to compare byte columns against byte-based spans
+- [x] Add regression tests for multibyte go-to-definition cursor placement and byte/rune conversion helpers
+- [x] Run `GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1` in tmux
+- [x] Commit follow-up code and update diary/changelog
