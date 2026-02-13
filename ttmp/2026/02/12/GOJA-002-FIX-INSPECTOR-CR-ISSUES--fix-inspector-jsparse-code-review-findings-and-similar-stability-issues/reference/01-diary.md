@@ -331,3 +331,66 @@ I added failing tests first, confirmed the failures, then patched `resolve.go` a
 
 ### Technical details
 - Tasks completed in this step: `5`, `6`, `7`, `8`, `9`.
+
+## Step 4: Final Ticket Bookkeeping and reMarkable Upload
+
+I completed the remaining ticket process tasks by confirming diary/changelog updates were maintained across steps and uploading the GOJA-002 analysis document to reMarkable with dry-run and verification.
+
+This step closes tasks 10 and 11 and leaves the ticket with all tasks complete.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Finish workflow compliance (task checkoffs + diary updates) and upload analysis document to reMarkable.
+
+**Inferred user intent:** Ensure both engineering changes and documentation artifacts are finalized and externally available.
+
+**Commit (code):** N/A (this step records upload and task bookkeeping)
+
+### What I did
+- Verified reMarkable tooling/auth:
+  - `remarquee status`
+  - `remarquee cloud account --non-interactive`
+- Ran upload dry-run:
+  - `remarquee upload md --dry-run .../analysis/01-code-review-bug-analysis.md --remote-dir "/ai/2026/02/12/GOJA-002-FIX-INSPECTOR-CR-ISSUES"`
+- Uploaded analysis document:
+  - `remarquee upload md .../analysis/01-code-review-bug-analysis.md --remote-dir "/ai/2026/02/12/GOJA-002-FIX-INSPECTOR-CR-ISSUES"`
+- Verified remote presence:
+  - `remarquee cloud ls '/ai/2026/02/12/GOJA-002-FIX-INSPECTOR-CR-ISSUES' --long --non-interactive`
+  - confirmed file: `01-code-review-bug-analysis`
+- Checked final tasks:
+  - `docmgr task check --ticket GOJA-002-FIX-INSPECTOR-CR-ISSUES --id 10`
+  - `docmgr task check --ticket GOJA-002-FIX-INSPECTOR-CR-ISSUES --id 11`
+
+### Why
+- User explicitly requested uploading the analysis and maintaining strict task-by-task bookkeeping.
+
+### What worked
+- Upload succeeded and remote verification succeeded.
+- Task list reached 100% complete.
+
+### What didn't work
+- First upload attempt used unsupported `--name` flag for `remarquee upload md`.
+- Resolved by checking `remarquee help upload md` and rerunning with supported flags.
+
+### What I learned
+- `remarquee upload md` in this environment derives the document name from filename and does not expose `--name`.
+
+### What was tricky to build
+- Remote listing initially returned `no matches` on an unquoted path variant; using a quoted full path consistently returned the expected directory/file listing.
+
+### What warrants a second pair of eyes
+- N/A
+
+### What should be done in the future
+- Consider standardizing on `remarquee upload bundle` naming conventions when explicit document titles are needed.
+
+### Code review instructions
+- Verify ticket completion:
+  - `docmgr task list --ticket GOJA-002-FIX-INSPECTOR-CR-ISSUES`
+- Verify uploaded doc path:
+  - `/ai/2026/02/12/GOJA-002-FIX-INSPECTOR-CR-ISSUES/01-code-review-bug-analysis`
+
+### Technical details
+- Tasks completed in this step: `10`, `11`.
