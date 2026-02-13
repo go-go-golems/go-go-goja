@@ -10,36 +10,47 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: .ttmp.yaml
+    - Path: ../../../../../../../.ttmp.yaml
       Note: Docmgr root and vocabulary configuration used during ticket creation
-    - Path: go-go-goja/cmd/ast-parse-editor/app/model.go
+    - Path: cmd/ast-parse-editor/app/model.go
       Note: Task 2 core Bubble Tea model with debounced AST parsing and pane rendering
-    - Path: go-go-goja/cmd/ast-parse-editor/app/model_test.go
-      Note: Task 2 model tests for valid/invalid transitions and stale parse handling
-    - Path: go-go-goja/cmd/ast-parse-editor/main.go
+    - Path: cmd/ast-parse-editor/app/model_test.go
+      Note: |-
+        Task 2 model tests for valid/invalid transitions and stale parse handling
+        Task 4 model-level empty-source regression coverage
+    - Path: cmd/ast-parse-editor/main.go
       Note: Task 2 command entrypoint added for live 3-pane editor
-    - Path: go-go-goja/cmd/inspector/app/drawer.go
+    - Path: cmd/inspector/app/drawer.go
       Note: Reviewed while documenting live tree-sitter parse loop
-    - Path: go-go-goja/cmd/inspector/app/model.go
+    - Path: cmd/inspector/app/model.go
       Note: Reviewed while documenting current live editor interactions
-    - Path: go-go-goja/pkg/jsparse/index.go
+    - Path: pkg/jsparse/index.go
       Note: Reviewed while capturing AST indexing behavior details
-    - Path: go-go-goja/pkg/jsparse/sexp.go
-      Note: Task 1 implementation of reusable CST/AST S-expression renderers (commit a185315)
-    - Path: go-go-goja/pkg/jsparse/sexp_test.go
-      Note: Task 1 unit tests for S-expression renderer behavior and truncation guards
-    - Path: go-go-goja/pkg/jsparse/treesitter.go
+    - Path: pkg/jsparse/sexp.go
+      Note: |-
+        Task 1 implementation of reusable CST/AST S-expression renderers (commit a185315)
+        Task 4 fallback for empty-source AST S-expression (commit 494d238)
+    - Path: pkg/jsparse/sexp_test.go
+      Note: |-
+        Task 1 unit tests for S-expression renderer behavior and truncation guards
+        Task 4 empty-program regression coverage
+    - Path: pkg/jsparse/treesitter.go
       Note: Reviewed while capturing parser behavior details
-    - Path: go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/analysis/01-tree-sitter-ast-live-sexp-editor-analysis.md
+    - Path: ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/analysis/01-tree-sitter-ast-live-sexp-editor-analysis.md
       Note: Primary analysis artifact produced during this diary run
-    - Path: go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/tasks.md
-      Note: Task execution checklist updated with Task 1 progress
+    - Path: ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/changelog.md
+      Note: Task 4 changelog entry
+    - Path: ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/tasks.md
+      Note: |-
+        Task execution checklist updated with Task 1 progress
+        Task 4 checklist recorded
 ExternalSources: []
 Summary: Step-by-step implementation diary capturing ticket setup, parser architecture analysis, validation commands, and delivery workflow for GOJA-001-AST-PARSE-EDITOR.
-LastUpdated: 2026-02-13T16:34:00-05:00
+LastUpdated: 2026-02-13T16:05:38-05:00
 WhatFor: Preserve the exact analysis workflow and decisions for later review or continuation.
 WhenToUse: Use when reviewing how conclusions were derived and what commands/results support them.
 ---
+
 
 
 
@@ -598,3 +609,86 @@ This step closes the initial implementation cycle with explicit hardening around
   - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.006s`
   - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.007s`
   - `__EXIT_CODE__0`
+
+## Step 8: Task 4 Empty-Source AST Validity Fix
+
+I investigated the empty-file behavior and confirmed the parse itself was valid, but the AST S-expression path returned an empty string because the index root ID was `-1` for empty source. That made the AST pane look like it was still waiting, despite successful parsing.
+
+I fixed this by adding a safe fallback in `ASTToSExpr` and backing it with dedicated regression tests in both the reusable renderer package and the editor model package.
+
+### Prompt Context
+
+**User prompt (verbatim):** "allow editing an empty file as well"
+
+**Assistant interpretation:** Ensure the live editor treats an empty JavaScript file as a valid parse state and shows a meaningful AST pane value.
+
+**Inferred user intent:** Remove a practical usability bug where zero-byte files appear broken in the AST pane.
+
+**Commit (code):** `494d238` — "ast-parse-editor: handle valid empty source AST rendering"
+
+### What I did
+
+- Kept and finalized fallback behavior in:
+  - `go-go-goja/pkg/jsparse/sexp.go` (`ASTToSExpr` now returns `(Program)` when rendered output is empty)
+- Added regression tests:
+  - `go-go-goja/pkg/jsparse/sexp_test.go` (`TestASTToSExprHandlesEmptyProgram`)
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go` (`TestInitialParseForEmptySourceProducesProgramAST`)
+- Formatted files:
+  - `gofmt -w pkg/jsparse/sexp.go pkg/jsparse/sexp_test.go cmd/ast-parse-editor/app/model_test.go`
+- Ran tmux validation:
+  - `tmux new-session -d -s goja001_empty "cd ... && GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1; echo __EXIT_CODE__$?; exec zsh"`
+  - `tmux capture-pane -pt goja001_empty:0`
+
+### Why
+
+- Empty source is a valid JavaScript program, so showing a waiting/invalid AST state is incorrect and confusing.
+
+### What worked
+
+- tmux test run passed:
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.005s`
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.003s`
+  - `__EXIT_CODE__0`
+- Pre-commit hooks completed and commit succeeded with the focused fix.
+
+### What didn't work
+
+- First tmux capture attempt failed because the short-lived session ended before capture:
+  - `can't find session: goja001_empty`
+- Fix: reran tmux command with `exec zsh` to keep the session alive for capture.
+- During pre-commit `go generate`, Dagger image resolution timed out:
+  - `dial tcp: lookup registry-1.docker.io: i/o timeout`
+- The hook’s fallback path worked and continued with local npm build, then full `go test ./...` passed.
+
+### What I learned
+
+- For this parser/index pipeline, a valid `*ast.Program` can still map to an empty index root, so `ASTToSExpr` needs a semantic fallback for empty programs.
+
+### What was tricky to build
+
+- The subtle bug was not parser validity; it was downstream rendering behavior of an empty but valid AST. This required fixing renderer semantics rather than parse control flow.
+
+### What warrants a second pair of eyes
+
+- Confirm whether `(Program)` is the preferred canonical empty AST display string, or if you want additional metadata on the empty root.
+
+### What should be done in the future
+
+- If we add file-save support, include a dedicated end-to-end test that launches the editor command against a zero-byte temp file.
+
+### Code review instructions
+
+- Review:
+  - `go-go-goja/pkg/jsparse/sexp.go`
+  - `go-go-goja/pkg/jsparse/sexp_test.go`
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+- Validate:
+  - `cd go-go-goja && GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1`
+
+### Technical details
+
+- Commit hash: `494d238`
+- Focused tmux session: `goja001_empty`
+- Behavior change:
+  - Before: empty source could surface as `(waiting-for-valid-parse)` due empty AST S-expression
+  - After: empty source renders AST pane as `(Program)`

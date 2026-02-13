@@ -68,3 +68,15 @@ Implemented Task 3 hardening: deterministic SEXP tests, additional truncation ch
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/pkg/jsparse/sexp_test.go — Added deterministic and additional truncation coverage for SEXP renderers
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/reference/01-diary.md — Step 7 hardening diary update with tmux regression outputs
 
+
+## 2026-02-13
+
+Implemented Task 4 empty-source fix: AST pane now renders (Program) for valid empty files, with jsparse/model regression tests and tmux verification (commit 494d238).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model_test.go — Regression test for empty-source model initialization
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/pkg/jsparse/sexp.go — ASTToSExpr fallback for valid empty source
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/pkg/jsparse/sexp_test.go — Regression test for empty program rendering
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/reference/01-diary.md — Step 8 records commands
+

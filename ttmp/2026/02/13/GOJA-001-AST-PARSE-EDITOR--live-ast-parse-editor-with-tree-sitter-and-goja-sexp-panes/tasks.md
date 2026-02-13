@@ -39,3 +39,12 @@
 - [x] Run focused regression tests in tmux
 - [x] Run `GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1`
 - [x] Commit Task 3 and update diary/changelog
+
+## Task 4: Empty Source Editing Validity
+
+- [x] Reproduce empty-file AST pane behavior (`(waiting-for-valid-parse)` regression)
+- [x] Make empty source parse render as valid AST S-expression (`(Program)`)
+- [x] Add regression tests in `pkg/jsparse/sexp_test.go`
+- [x] Add regression test in `cmd/ast-parse-editor/app/model_test.go`
+- [x] Run `GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1` in tmux
+- [x] Commit Task 4 and update diary/changelog
