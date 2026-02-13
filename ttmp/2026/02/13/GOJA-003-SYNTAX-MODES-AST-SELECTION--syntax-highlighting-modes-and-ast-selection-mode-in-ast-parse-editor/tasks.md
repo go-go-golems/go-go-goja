@@ -22,3 +22,13 @@
 - [x] Add regression tests for literal `m/s` insertion and tree expand toggle
 - [x] Run `GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1` in tmux
 - [x] Commit follow-up code and update diary/changelog
+
+## Follow-up: Definition/Usages and Dual Cursor Highlights
+
+- [x] Add `ctrl+d` go-to-definition using AST resolution bindings
+- [x] Add `ctrl+g` find-usages toggle and `esc` clear behavior
+- [x] Highlight usage nodes in source and AST tree panes
+- [x] Keep both tree-sitter cursor node and AST cursor node highlights active in insert mode
+- [x] Add regression tests for go-to-definition and usages toggling
+- [x] Run `GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1` in tmux
+- [x] Commit follow-up code and update diary/changelog

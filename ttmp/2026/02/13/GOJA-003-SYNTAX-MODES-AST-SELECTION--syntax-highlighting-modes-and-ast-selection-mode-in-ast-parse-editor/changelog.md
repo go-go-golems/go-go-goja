@@ -26,3 +26,14 @@ Follow-up: switched global toggles to ctrl bindings and added inspector-style ex
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model_test.go — Tests for m/s literal insertion and AST tree expand toggle
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/reference/01-diary.md — Step 3 follow-up diary
 
+
+## 2026-02-13
+
+Follow-up: added go-to-definition (ctrl+d), find-usages toggle (ctrl+g), usage highlighting, and dual tree-sitter/AST cursor highlights in insert mode; added regression tests and tmux validation (commit 9c6489b).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model.go — Symbol navigation
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model_test.go — Regression tests for go-to-definition and find-usages
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/reference/01-diary.md — Step 4 follow-up implementation diary
+

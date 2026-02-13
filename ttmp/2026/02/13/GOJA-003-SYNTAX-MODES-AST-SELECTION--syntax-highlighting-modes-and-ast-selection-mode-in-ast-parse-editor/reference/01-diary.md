@@ -15,11 +15,13 @@ RelatedFiles:
         Target model for mode switching, syntax coloring, and AST selection behavior
         GOJA-003 implementation source
         Follow-up ctrl keybinding and AST tree widget implementation
+        Step 4 go-to-def/usages/dual highlight implementation
     - Path: cmd/ast-parse-editor/app/model_test.go
       Note: |-
         Tests for mode and selection transitions
         GOJA-003 regression tests
         Follow-up regression tests
+        Step 4 regression tests
     - Path: pkg/jsparse/index.go
       Note: AST node selection and navigation primitives
     - Path: ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/analysis/01-implementation-plan.md
@@ -28,17 +30,20 @@ RelatedFiles:
       Note: |-
         GOJA-003 changelog entry for commit 1d1a88e
         Follow-up changelog entry
+        Step 4 changelog entry
     - Path: ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/tasks.md
       Note: |-
         Execution checklist for the ticket
         GOJA-003 completed task checklist
         Follow-up task checklist
+        Step 4 task checklist
 ExternalSources: []
 Summary: Detailed execution diary for syntax highlighting and AST-selection mode implementation work.
-LastUpdated: 2026-02-13T16:44:50-05:00
+LastUpdated: 2026-02-13T17:06:31-05:00
 WhatFor: Preserve concrete implementation and validation history for GOJA-003.
 WhenToUse: Use when reviewing or continuing GOJA-003 development.
 ---
+
 
 
 
@@ -293,3 +298,95 @@ The tree widget is active when mode is `AST-SELECT`, including expand/collapse m
 
 - Commit hash: `e162ccf`
 - tmux session: `goja_tree_widget`
+
+## Step 4: Add Go-To-Definition, Find-Usages, and Dual TS/AST Highlights
+
+I implemented symbol navigation features directly in `ast-parse-editor`: `ctrl+d` now jumps to declaration using AST resolution bindings, and `ctrl+g` toggles usage highlighting (with `esc` clearing highlights). This reuses `jsparse.Resolve` output attached to the AST index during valid parses.
+
+I also completed your second requirement: in insert mode the editor now keeps both tree-sitter cursor-node highlight and AST cursor-node highlight active by default (plus usage overlays when enabled).
+
+### Prompt Context
+
+**User prompt (verbatim):** "Add the find usages / go to definition functionality. By default, also highlight the correct treesitte rand AST parser node (if valid) in edit mode as well.
+
+ Create tasks, work on them individually, commit and check task off, continue writing you diary"
+
+**Assistant interpretation:** Add go-to-definition and find-usages capabilities, and ensure both TS and AST cursor highlights are shown in edit mode; track work with tasks/commits/diary.
+
+**Inferred user intent:** Bring inspector-grade symbol navigation and dual parser observability into the live editor workflow.
+
+**Commit (code):** `9c6489b` — "ast-parse-editor: add go-to-def, usages, and dual TS/AST cursor highlights"
+
+### What I did
+
+- Updated `go-go-goja/cmd/ast-parse-editor/app/model.go`:
+  - AST parse now attaches `Resolution` when index root exists
+  - Added global keys:
+    - `ctrl+d` go-to-definition
+    - `ctrl+g` toggle find-usages
+    - `esc` clear usages
+  - Added dual highlight state:
+    - TS cursor-node highlight range
+    - AST cursor-node highlight range
+  - Added usage highlight state/ranges and rendering overlays in source pane
+  - Added usage highlighting in AST tree pane rows
+  - Updated help/status text for new symbol-navigation controls
+- Updated tests in `go-go-goja/cmd/ast-parse-editor/app/model_test.go`:
+  - adapted TS highlight tests for renamed dual-state fields
+  - `TestGoToDefinitionFromCursor`
+  - `TestFindUsagesToggle`
+- Ran tmux regression:
+  - `GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1`
+  - captured `__EXIT_CODE__0`
+
+### Why
+
+- This ticket follow-up required parity with inspector-like symbol workflows, but within live editing.
+
+### What worked
+
+- Go-to-definition and find-usages are wired to parser resolution and pass tests.
+- Dual TS+AST highlights now coexist in insert mode by default.
+- Source and AST tree panes both reflect usage highlighting when active.
+
+### What didn't work
+
+- Initial implementation panicked on empty source when calling `Resolve`:
+  - `panic: runtime error: index out of range [0] with length 0`
+  - from `pkg/jsparse/resolve.go:123`
+- Root cause:
+  - empty program index has `RootID == -1`; resolution should not run.
+- Fix:
+  - guarded resolve call behind `if astIndex.RootID >= 0`.
+- Pre-commit `go generate` still intermittently hits Docker Hub DNS timeout:
+  - `dial tcp: lookup registry-1.docker.io: i/o timeout`
+- Hook fallback path succeeded and full tests passed.
+
+### What I learned
+
+- `Resolve` assumes a non-empty AST root; empty but valid programs need explicit guard handling.
+
+### What was tricky to build
+
+- Layering visual states (syntax colors, TS highlight, AST highlight, usage highlight, cursor) without losing readability required explicit rendering priority.
+
+### What warrants a second pair of eyes
+
+- Confirm final style hierarchy (usage over dual highlight over syntax) matches your preferred visual semantics.
+
+### What should be done in the future
+
+- Consider a tiny legend in status/help describing the color priority to reduce ambiguity.
+
+### Code review instructions
+
+- Review:
+  - `go-go-goja/cmd/ast-parse-editor/app/model.go`
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+- Validate:
+  - `cd go-go-goja && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1`
+
+### Technical details
+
+- Commit hash: `9c6489b`
+- tmux session: `goja_def_usage`
