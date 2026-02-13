@@ -37,3 +37,13 @@ Follow-up: added go-to-definition (ctrl+d), find-usages toggle (ctrl+g), usage h
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model_test.go — Regression tests for go-to-definition and find-usages
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/reference/01-diary.md — Step 4 follow-up implementation diary
 
+
+## 2026-02-13
+
+Step 5: cursor-synced TS/AST SEXP pane highlighting with line auto-scroll and regression tests (commit 90ca11a).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model.go — SEXP selected-line tracking and pane rendering
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model_test.go — SEXP tracking tests
+- /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/reference/01-diary.md — Step 5 diary details

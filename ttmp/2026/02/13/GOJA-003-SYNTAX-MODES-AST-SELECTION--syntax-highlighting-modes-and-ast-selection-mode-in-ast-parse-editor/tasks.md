@@ -32,3 +32,12 @@
 - [x] Add regression tests for go-to-definition and usages toggling
 - [x] Run `GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1` in tmux
 - [x] Commit follow-up code and update diary/changelog
+
+## Follow-up: Cursor-Synced SEXP Pane Highlighting
+
+- [x] Track selected TS SEXP line from cursor node range metadata
+- [x] Track selected AST SEXP line from AST cursor node span metadata
+- [x] Highlight selected SEXP line in TS/AST SEXP panes and auto-scroll it into view
+- [x] Add regression tests for SEXP line tracking and invalid-parse clearing
+- [x] Run `GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1` in tmux
+- [x] Commit follow-up code and update diary/changelog

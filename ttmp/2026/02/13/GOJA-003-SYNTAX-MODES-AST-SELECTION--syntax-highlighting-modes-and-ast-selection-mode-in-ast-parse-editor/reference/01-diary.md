@@ -16,12 +16,14 @@ RelatedFiles:
         GOJA-003 implementation source
         Follow-up ctrl keybinding and AST tree widget implementation
         Step 4 go-to-def/usages/dual highlight implementation
+        Step 5 cursor-synced SEXP line highlighting
     - Path: cmd/ast-parse-editor/app/model_test.go
       Note: |-
         Tests for mode and selection transitions
         GOJA-003 regression tests
         Follow-up regression tests
         Step 4 regression tests
+        Step 5 SEXP line-tracking regression tests
     - Path: pkg/jsparse/index.go
       Note: AST node selection and navigation primitives
     - Path: ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/analysis/01-implementation-plan.md
@@ -31,15 +33,17 @@ RelatedFiles:
         GOJA-003 changelog entry for commit 1d1a88e
         Follow-up changelog entry
         Step 4 changelog entry
+        Step 5 changelog entry
     - Path: ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/tasks.md
       Note: |-
         Execution checklist for the ticket
         GOJA-003 completed task checklist
         Follow-up task checklist
         Step 4 task checklist
+        Step 5 task checklist
 ExternalSources: []
 Summary: Detailed execution diary for syntax highlighting and AST-selection mode implementation work.
-LastUpdated: 2026-02-13T17:06:31-05:00
+LastUpdated: 2026-02-13T17:23:30-05:00
 WhatFor: Preserve concrete implementation and validation history for GOJA-003.
 WhenToUse: Use when reviewing or continuing GOJA-003 development.
 ---
@@ -390,3 +394,91 @@ I also completed your second requirement: in insert mode the editor now keeps bo
 
 - Commit hash: `9c6489b`
 - tmux session: `goja_def_usage`
+
+## Step 5: Cursor-Synced TS/AST SEXP Line Highlighting
+
+I implemented SEXP-pane line highlighting that follows cursor movement in the editor. The TS SEXP pane now highlights the line whose `:range` matches the current tree-sitter cursor node, and the AST SEXP pane highlights the line whose `:span` matches the current AST cursor node.
+
+I also wired auto-scroll for both SEXP panes so the selected SEXP line stays visible while typing or moving the cursor. This addresses your request to keep the SEXP panes synchronized with cursor movement rather than only the source highlight.
+
+### Prompt Context
+
+**User prompt (verbatim):** "it should also highlight the sexps when i move the cursor."
+
+**Assistant interpretation:** Add cursor-driven highlighting in the TS/AST SEXP panes so the rendered S-expression rows track the currently focused parser nodes.
+
+**Inferred user intent:** Keep editor, parser-node highlight, and SEXP textual representations synchronized for faster live inspection.
+
+**Commit (code):** `90ca11a` — "ast-parse-editor: sync SEXP highlights with cursor"
+
+### What I did
+
+- Updated `go-go-goja/cmd/ast-parse-editor/app/model.go`:
+  - added SEXP line-selection update helpers:
+    - `updateTSSExprSelectionLine()`
+    - `updateASTSExprSelectionLine()`
+  - added SEXP metadata matching helpers:
+    - `findSExprLine(...)` to match `(kind ... :range|:span (...))` lines
+    - `ensureTextLineVisible(...)` to keep selected lines in viewport
+  - updated cursor/AST update paths so selection lines refresh on cursor movement, AST selection changes, parse transitions, and highlight clears
+  - extended `renderTextPane(...)` with `selectedLine` and applied selected-row style
+  - passed selected-line state from `View()` for TS and AST SEXP panes
+- Updated tests in `go-go-goja/cmd/ast-parse-editor/app/model_test.go`:
+  - added `TestSExprSelectionLinesTrackCursor`
+  - extended `TestEditToInvalidSourceClearsASTPane` to assert AST SEXP selection clears (`-1`)
+- Ran tmux regression test:
+  - `tmux new-session -d -s astparse_sexp 'cd ... && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1 | tee /tmp/astparse_sexp_test.log; tmux wait-for -S astparse_sexp_done'`
+  - `tmux wait-for astparse_sexp_done; cat /tmp/astparse_sexp_test.log`
+  - Output: `ok` for `cmd/ast-parse-editor`, `cmd/ast-parse-editor/app`, and `pkg/jsparse`
+
+### Why
+
+- The source pane already tracked TS/AST nodes; SEXP panes needed equivalent synchronization for complete live parse introspection.
+
+### What worked
+
+- TS and AST SEXP rows now track cursor changes in insert mode.
+- Invalid AST states clear AST SEXP selection as expected.
+- tmux regression run passed for target packages.
+- Commit completed with hook validation.
+
+### What didn't work
+
+- Initial status check from the workspace root (not repo root) failed:
+  - `fatal: not a git repository (or any of the parent directories): .git`
+- After tmux test completion, a cleanup command returned:
+  - `can't find session: astparse_sexp`
+  - because the session had already exited naturally.
+- Pre-commit `go generate` continued to show intermittent Docker Hub DNS timeout:
+  - `dial tcp: lookup registry-1.docker.io: i/o timeout`
+  - fallback local npm path succeeded and tests still passed.
+
+### What I learned
+
+- Matching SEXP lines by both node kind and range/span metadata gives stable cursor-to-SEXP mapping without introducing a second parse structure for panes.
+
+### What was tricky to build
+
+- The selection line must update from several paths (cursor move, AST select navigation, parse success/failure, and highlight clear). Missing any path causes stale row highlights. I addressed this by calling the update helpers inside both TS/AST cursor highlight refresh methods and relevant parse-transition branches.
+
+### What warrants a second pair of eyes
+
+- Verify visual contrast of the new selected-row background (`24`) against your terminal theme.
+
+### What should be done in the future
+
+- If needed, add per-pane style tokens or config for selected-row colors to match user theme preferences.
+
+### Code review instructions
+
+- Review:
+  - `go-go-goja/cmd/ast-parse-editor/app/model.go`
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+- Validate:
+  - `cd go-go-goja && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1`
+
+### Technical details
+
+- Commit hash: `90ca11a`
+- tmux session: `astparse_sexp`
+- tmux log: `/tmp/astparse_sexp_test.log`
