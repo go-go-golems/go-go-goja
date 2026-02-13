@@ -148,7 +148,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.editorMode == editorModeASTSelect {
 			if !m.syncASTSelectionFromCursor() {
-				m.updateCursorNodeHighlight()
+				m.astSelectRoot()
 			}
 		}
 		m.astScroll = clamp(m.astScroll, 0, maxInt(0, len(strings.Split(m.astTextForView(), "\n"))-1))
@@ -165,10 +165,10 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "tab":
 		m.focus = (m.focus + 1) % 3
 		return m, nil
-	case "m":
+	case "ctrl+t":
 		m.toggleEditorMode()
 		return m, nil
-	case "s":
+	case "ctrl+s":
 		m.syntaxHighlight = !m.syntaxHighlight
 		return m, nil
 	}
@@ -179,6 +179,9 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case focusTSSExpr:
 		return m.handleScrollKey(msg, &m.tsScroll, m.tsSExpr)
 	case focusASTSExpr:
+		if m.editorMode == editorModeASTSelect {
+			return m.handleASTTreePaneKey(msg)
+		}
 		return m.handleScrollKey(msg, &m.astScroll, m.astTextForView())
 	default:
 		return m, nil
@@ -243,6 +246,30 @@ func (m *Model) handleASTSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.astSelectPrevSibling()
 	case "g":
 		m.astSelectRoot()
+	}
+	return m, nil
+}
+
+func (m *Model) handleASTTreePaneKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.astTreeMoveSelection(-1)
+	case "down", "j":
+		m.astTreeMoveSelection(1)
+	case "pgup":
+		m.astTreeMoveSelection(-10)
+	case "pgdown":
+		m.astTreeMoveSelection(10)
+	case "left", "h":
+		m.astTreeCollapseSelected()
+	case "right", "l":
+		m.astTreeExpandSelected()
+	case " ":
+		m.astTreeToggleSelected()
+	case "g":
+		m.astSelectRoot()
+	case "G":
+		m.astTreeSelectLast()
 	}
 	return m, nil
 }
@@ -364,8 +391,7 @@ func (m *Model) toggleEditorMode() {
 	if m.editorMode == editorModeInsert {
 		m.editorMode = editorModeASTSelect
 		if !m.syncASTSelectionFromCursor() {
-			m.selectedASTNodeID = -1
-			m.updateCursorNodeHighlight()
+			m.astSelectRoot()
 		}
 		return
 	}
@@ -413,6 +439,7 @@ func (m *Model) selectASTNode(id jsparse.NodeID) {
 	if m.astIndex == nil {
 		return
 	}
+	m.astIndex.ExpandTo(id)
 	n := m.astIndex.Nodes[id]
 	if n == nil {
 		return
@@ -428,6 +455,7 @@ func (m *Model) selectASTNode(id jsparse.NodeID) {
 		m.cursorCol = clamp(n.StartCol-1, 0, lineLen)
 	}
 	m.ensureCursorVisible()
+	m.ensureASTTreeSelectionVisible()
 }
 
 func (m *Model) astSelectRoot() {
@@ -489,6 +517,113 @@ func (m *Model) astSelectSibling(step int) {
 		}
 		m.selectASTNode(parent.ChildIDs[j])
 		return
+	}
+}
+
+func (m *Model) astVisibleNodes() []jsparse.NodeID {
+	if m.astIndex == nil || m.astIndex.RootID < 0 {
+		return nil
+	}
+	return m.astIndex.VisibleNodes()
+}
+
+func (m *Model) astTreeSelectionIndex() int {
+	visible := m.astVisibleNodes()
+	for i, id := range visible {
+		if id == m.selectedASTNodeID {
+			return i
+		}
+	}
+	return -1
+}
+
+func (m *Model) astTreeMoveSelection(delta int) {
+	visible := m.astVisibleNodes()
+	if len(visible) == 0 {
+		return
+	}
+	idx := m.astTreeSelectionIndex()
+	if idx < 0 {
+		idx = 0
+	}
+	idx = clamp(idx+delta, 0, len(visible)-1)
+	m.selectASTNode(visible[idx])
+}
+
+func (m *Model) astTreeSelectLast() {
+	visible := m.astVisibleNodes()
+	if len(visible) == 0 {
+		return
+	}
+	m.selectASTNode(visible[len(visible)-1])
+}
+
+func (m *Model) astTreeToggleSelected() {
+	if m.astIndex == nil {
+		return
+	}
+	if m.selectedASTNodeID < 0 {
+		m.astSelectRoot()
+	}
+	m.astIndex.ToggleExpand(m.selectedASTNodeID)
+	m.ensureASTTreeSelectionVisible()
+}
+
+func (m *Model) astTreeExpandSelected() {
+	if m.astIndex == nil || m.selectedASTNodeID < 0 {
+		return
+	}
+	n := m.astIndex.Nodes[m.selectedASTNodeID]
+	if n == nil {
+		return
+	}
+	if n.HasChildren() && !n.Expanded {
+		n.Expanded = true
+		m.ensureASTTreeSelectionVisible()
+		return
+	}
+	if n.HasChildren() && len(n.ChildIDs) > 0 {
+		m.selectASTNode(n.ChildIDs[0])
+	}
+}
+
+func (m *Model) astTreeCollapseSelected() {
+	if m.astIndex == nil || m.selectedASTNodeID < 0 {
+		return
+	}
+	n := m.astIndex.Nodes[m.selectedASTNodeID]
+	if n == nil {
+		return
+	}
+	if n.HasChildren() && n.Expanded {
+		n.Expanded = false
+		m.ensureASTTreeSelectionVisible()
+		return
+	}
+	if n.ParentID >= 0 {
+		m.selectASTNode(n.ParentID)
+	}
+}
+
+func (m *Model) ensureASTTreeSelectionVisible() {
+	visible := m.astVisibleNodes()
+	if len(visible) == 0 {
+		m.astScroll = 0
+		return
+	}
+	idx := m.astTreeSelectionIndex()
+	if idx < 0 {
+		idx = 0
+	}
+	vh := maxInt(1, m.contentHeight()-1)
+	if idx < m.astScroll {
+		m.astScroll = idx
+	}
+	if idx >= m.astScroll+vh {
+		m.astScroll = idx - vh + 1
+	}
+	if m.astScroll < 0 {
+		m.astScroll = 0
 	}
 }
 
@@ -581,7 +716,12 @@ func (m *Model) View() string {
 
 	editor := m.renderEditorPane(leftW, contentHeight)
 	ts := m.renderTextPane(" TS SEXP ", m.tsSExpr, m.tsScroll, midW, contentHeight, m.focus == focusTSSExpr)
-	ast := m.renderTextPane(" AST SEXP ", m.astTextForView(), m.astScroll, rightW, contentHeight, m.focus == focusASTSExpr)
+	ast := ""
+	if m.editorMode == editorModeASTSelect {
+		ast = m.renderASTTreePane(rightW, contentHeight, m.focus == focusASTSExpr)
+	} else {
+		ast = m.renderTextPane(" AST SEXP ", m.astTextForView(), m.astScroll, rightW, contentHeight, m.focus == focusASTSExpr)
+	}
 
 	content := lipgloss.JoinHorizontal(lipgloss.Top, editor, ts, ast)
 	return lipgloss.JoinVertical(lipgloss.Left, header, content, status, help)
@@ -679,7 +819,11 @@ func (m *Model) renderHelp() string {
 	if m.editorMode == editorModeASTSelect {
 		editorKeys = "Editor(AST-SELECT): h/j/k/l navigate AST parent/siblings/child"
 	}
-	return style.Render("Tab:focus pane | m:toggle mode | s:toggle syntax | " + editorKeys + " | TS/AST panes: j/k or arrows to scroll | q:quit")
+	astPaneKeys := "AST pane: j/k scroll"
+	if m.editorMode == editorModeASTSelect {
+		astPaneKeys = "AST TREE pane: j/k move, h/l collapse/expand, space toggle, g/G root/end"
+	}
+	return style.Render("Tab:focus pane | ctrl+t:toggle mode | ctrl+s:toggle syntax | " + editorKeys + " | " + astPaneKeys + " | q:quit")
 }
 
 func (m *Model) renderEditorPane(width, height int) string {
@@ -860,6 +1004,78 @@ func renderSyntaxChar(class syntaxClass, ch string) string {
 	default:
 		return ch
 	}
+}
+
+func (m *Model) renderASTTreePane(width, height int, focused bool) string {
+	var lines []string
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("15")).
+		Background(lipgloss.Color("240"))
+	if focused {
+		headerStyle = headerStyle.Background(lipgloss.Color("33"))
+	}
+
+	title := " AST TREE "
+	header := headerStyle.Render(title) + strings.Repeat("─", maxInt(0, width-len(title)))
+	lines = append(lines, padRight(header, width))
+
+	contentHeight := maxInt(1, height-1)
+	if m.astParseErr != nil {
+		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+		lines = append(lines, padRight(errStyle.Render(fmt.Sprintf(" ⚠ %v", m.astParseErr)), width))
+		contentHeight--
+	}
+	if contentHeight < 1 {
+		contentHeight = 1
+	}
+
+	visible := m.astVisibleNodes()
+	if len(visible) == 0 {
+		lines = append(lines, padRight(" (no AST)", width))
+		for len(lines) < height {
+			lines = append(lines, strings.Repeat(" ", width))
+		}
+		return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
+	}
+
+	start := clamp(m.astScroll, 0, maxInt(0, len(visible)-1))
+	for i := 0; i < contentHeight; i++ {
+		idx := start + i
+		if idx >= len(visible) {
+			lines = append(lines, strings.Repeat(" ", width))
+			continue
+		}
+
+		nodeID := visible[idx]
+		node := m.astIndex.Nodes[nodeID]
+		if node == nil {
+			lines = append(lines, strings.Repeat(" ", width))
+			continue
+		}
+
+		indent := strings.Repeat("  ", node.Depth)
+		expandMarker := " "
+		if node.HasChildren() {
+			if node.Expanded {
+				expandMarker = "▼"
+			} else {
+				expandMarker = "▶"
+			}
+		}
+
+		line := indent + expandMarker + " " + node.DisplayLabel() + fmt.Sprintf(" [%d..%d]", node.Start, node.End)
+		if nodeID == m.selectedASTNodeID {
+			line = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("15")).
+				Background(lipgloss.Color("62")).
+				Bold(true).
+				Render(line)
+		}
+		lines = append(lines, padRight(line, width))
+	}
+
+	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 }
 
 func (m *Model) renderTextPane(title, body string, scroll, width, height int, focused bool) string {

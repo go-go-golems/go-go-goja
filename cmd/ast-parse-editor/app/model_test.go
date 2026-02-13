@@ -214,7 +214,7 @@ func TestModeToggleASTSelectAndBack(t *testing.T) {
 		t.Fatalf("expected insert mode by default, got %v", m.editorMode)
 	}
 
-	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlT})
 	if m.editorMode != editorModeASTSelect {
 		t.Fatalf("expected AST select mode after toggle, got %v", m.editorMode)
 	}
@@ -222,7 +222,7 @@ func TestModeToggleASTSelectAndBack(t *testing.T) {
 		t.Fatal("expected AST node selection in AST select mode")
 	}
 
-	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlT})
 	if m.editorMode != editorModeInsert {
 		t.Fatalf("expected insert mode after second toggle, got %v", m.editorMode)
 	}
@@ -233,7 +233,7 @@ func TestModeToggleASTSelectAndBack(t *testing.T) {
 
 func TestASTSelectNavigationMovesSelection(t *testing.T) {
 	m := newTestModel(t, "function add(a, b) { return a + b; }")
-	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlT})
 	start := m.selectedASTNodeID
 	if start < 0 {
 		t.Fatal("expected initial AST selection")
@@ -260,12 +260,12 @@ func TestSyntaxHighlightToggle(t *testing.T) {
 		t.Fatal("expected syntax highlighting enabled by default")
 	}
 
-	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlS})
 	if m.syntaxHighlight {
 		t.Fatal("expected syntax highlighting to toggle off")
 	}
 
-	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlS})
 	if !m.syntaxHighlight {
 		t.Fatal("expected syntax highlighting to toggle back on")
 	}
@@ -275,10 +275,44 @@ func TestASTSelectModeBlocksTextInsertion(t *testing.T) {
 	m := newTestModel(t, "const x = 1;")
 	before := m.source()
 
-	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlT})
 	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'z'}})
 
 	if got := m.source(); got != before {
 		t.Fatalf("expected source unchanged in AST select mode, got %q want %q", got, before)
+	}
+}
+
+func TestInsertModeAllowsTypingMAndS(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+	m.cursorRow = 0
+	m.cursorCol = len([]rune(m.lines[0]))
+	before := m.source()
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+
+	if got := m.source(); got != before+"ms" {
+		t.Fatalf("expected insert mode to type m/s literals, got %q", got)
+	}
+}
+
+func TestASTTreePaneSpaceTogglesExpand(t *testing.T) {
+	m := newTestModel(t, "function add(a, b) { return a + b; }")
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlT}) // AST-select mode
+	m.astSelectRoot()
+	m.focus = focusASTSExpr
+
+	root := m.astIndex.Nodes[m.astIndex.RootID]
+	if root == nil {
+		t.Fatal("expected AST root node")
+	}
+	before := root.Expanded
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeySpace})
+
+	root = m.astIndex.Nodes[m.astIndex.RootID]
+	if root.Expanded == before {
+		t.Fatalf("expected root expanded state to toggle, still %v", root.Expanded)
 	}
 }
