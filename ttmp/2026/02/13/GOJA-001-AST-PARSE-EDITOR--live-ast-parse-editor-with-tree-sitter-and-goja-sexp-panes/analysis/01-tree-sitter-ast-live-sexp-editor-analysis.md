@@ -10,6 +10,12 @@ DocType: analysis
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: go-go-goja/cmd/ast-parse-editor/app/model.go
+      Note: Implemented Task 2 3-pane model based on analysis design
+    - Path: go-go-goja/cmd/ast-parse-editor/app/model_test.go
+      Note: Implemented Task 2 behavior tests validating analysis assumptions
+    - Path: go-go-goja/cmd/ast-parse-editor/main.go
+      Note: Implemented Task 2 command bootstrap for analysis blueprint
     - Path: go-go-goja/cmd/inspector/app/drawer.go
       Note: Current live editor buffer and CST rendering path
     - Path: go-go-goja/cmd/inspector/app/model.go
@@ -42,6 +48,7 @@ LastUpdated: 2026-02-13T15:56:00-05:00
 WhatFor: Plan and de-risk implementation of a live AST parse editor with LISP S-expression output.
 WhenToUse: Use when implementing or reviewing GOJA-001-AST-PARSE-EDITOR.
 ---
+
 
 
 

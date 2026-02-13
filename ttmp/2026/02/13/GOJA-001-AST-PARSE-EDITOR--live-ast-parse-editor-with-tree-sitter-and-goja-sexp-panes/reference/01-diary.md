@@ -12,6 +12,12 @@ Owners: []
 RelatedFiles:
     - Path: .ttmp.yaml
       Note: Docmgr root and vocabulary configuration used during ticket creation
+    - Path: go-go-goja/cmd/ast-parse-editor/app/model.go
+      Note: Task 2 core Bubble Tea model with debounced AST parsing and pane rendering
+    - Path: go-go-goja/cmd/ast-parse-editor/app/model_test.go
+      Note: Task 2 model tests for valid/invalid transitions and stale parse handling
+    - Path: go-go-goja/cmd/ast-parse-editor/main.go
+      Note: Task 2 command entrypoint added for live 3-pane editor
     - Path: go-go-goja/cmd/inspector/app/drawer.go
       Note: Reviewed while documenting live tree-sitter parse loop
     - Path: go-go-goja/cmd/inspector/app/model.go
@@ -30,10 +36,11 @@ RelatedFiles:
       Note: Task execution checklist updated with Task 1 progress
 ExternalSources: []
 Summary: Step-by-step implementation diary capturing ticket setup, parser architecture analysis, validation commands, and delivery workflow for GOJA-001-AST-PARSE-EDITOR.
-LastUpdated: 2026-02-13T16:06:00-05:00
+LastUpdated: 2026-02-13T16:22:00-05:00
 WhatFor: Preserve the exact analysis workflow and decisions for later review or continuation.
 WhenToUse: Use when reviewing how conclusions were derived and what commands/results support them.
 ---
+
 
 
 # Diary
@@ -429,5 +436,88 @@ I also updated ticket task checkboxes so Task 1 reflects execution state.
 ### Technical details
 
 - tmux test pane output:
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.005s`
+  - `__EXIT_CODE__0`
+
+## Step 6: Task 2 Implementation (`cmd/ast-parse-editor`)
+
+I implemented the new live 3-pane command with an editor pane on the left, tree-sitter SEXP pane in the middle, and valid-only AST SEXP pane on the right. Parsing behavior now updates CST immediately on edit and updates AST via a debounced parse command.
+
+I also added model tests for initial parse, invalid transitions, CST updates, and stale-message handling, then ran tests in tmux.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue implementing tasks sequentially with commits, checkoffs, and tmux-based validation.
+
+**Inferred user intent:** Deliver real code incrementally with operational traceability.
+
+**Commit (code):** `3f03d3f` — "ast-parse-editor: add live 3-pane parsing model"
+
+### What I did
+
+- Added command entrypoint:
+  - `go-go-goja/cmd/ast-parse-editor/main.go`
+- Added app model:
+  - `go-go-goja/cmd/ast-parse-editor/app/model.go`
+- Added tests:
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+- Implemented features:
+  - 3-pane layout rendering
+  - live tree-sitter parse + CST SEXP update on each edit
+  - debounced AST parse command with sequence-based stale message drop
+  - valid-only AST pane rendering (`astSExpr` cleared when parse invalid)
+  - pane focus cycling and per-pane scroll controls
+- Ran tests in tmux:
+  - `tmux new-session -d -s goja001_task2 \"cd ... && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1; echo __EXIT_CODE__$?; sleep 30\"`
+  - `tmux capture-pane -pt goja001_task2:0`
+
+### Why
+
+- A separate `cmd/ast-parse-editor` command allows feature delivery without destabilizing the existing inspector command path.
+
+### What worked
+
+- New model tests passed.
+- Cross-check with `pkg/jsparse` tests still passed in same tmux run.
+- The async debounce + sequence gate cleanly handles stale parse responses.
+
+### What didn't work
+
+- First commit attempt failed pre-commit lint:
+  - `cmd/ast-parse-editor/app/model.go:377:2: missing cases in switch of type app.focusPane: app.focusEditor (exhaustive)`
+- Fix: added explicit `case focusEditor` in `renderHeader` focus switch and recommitted.
+
+### What I learned
+
+- `tea.Tick` is sufficient for debounce semantics in this scenario when combined with a sequence guard on parse results.
+
+### What was tricky to build
+
+- Managing stale parse updates without racey UI behavior required explicit `pendingSeq` checks in `Update`.
+
+### What warrants a second pair of eyes
+
+- UX choice for AST invalid state text (`(parse-error "...")` and clearing prior AST) should be confirmed before polishing.
+
+### What should be done in the future
+
+- Add one end-to-end command smoke test with scripted key events once interaction contracts stabilize.
+
+### Code review instructions
+
+- Start at:
+  - `go-go-goja/cmd/ast-parse-editor/app/model.go`
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+  - `go-go-goja/cmd/ast-parse-editor/main.go`
+- Validate:
+  - `cd go-go-goja && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1`
+
+### Technical details
+
+- tmux test pane output:
+  - `? github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor [no test files]`
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.003s`
   - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.005s`
   - `__EXIT_CODE__0`

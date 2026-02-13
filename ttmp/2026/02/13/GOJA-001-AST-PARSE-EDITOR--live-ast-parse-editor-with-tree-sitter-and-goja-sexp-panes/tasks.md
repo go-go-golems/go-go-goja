@@ -21,15 +21,15 @@
 
 ## Task 2: New Live 3-Pane Editor Command
 
-- [ ] Add `cmd/ast-parse-editor/main.go`
-- [ ] Add `cmd/ast-parse-editor/app/model.go`
-- [ ] Implement 3-pane layout (editor, TS SEXP, AST SEXP)
-- [ ] Implement live tree-sitter parse on each edit
-- [ ] Implement debounced goja AST parse and valid-only AST pane rendering
-- [ ] Add keybindings/help/status for the new command
-- [ ] Add integration tests for command model behavior
-- [ ] Run command-level tests in tmux
-- [ ] Commit Task 2 and update diary/changelog
+- [x] Add `cmd/ast-parse-editor/main.go`
+- [x] Add `cmd/ast-parse-editor/app/model.go`
+- [x] Implement 3-pane layout (editor, TS SEXP, AST SEXP)
+- [x] Implement live tree-sitter parse on each edit
+- [x] Implement debounced goja AST parse and valid-only AST pane rendering
+- [x] Add keybindings/help/status for the new command
+- [x] Add integration tests for command model behavior
+- [x] Run command-level tests in tmux
+- [x] Commit Task 2 and update diary/changelog
 
 ## Task 3: Test Coverage and Hardening
 
