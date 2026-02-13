@@ -31,6 +31,16 @@ func newTestModel(t *testing.T, src string) *Model {
 	return m
 }
 
+func applyKey(t *testing.T, m *Model, msg tea.KeyMsg) *Model {
+	t.Helper()
+	next, cmd := m.Update(msg)
+	nm, ok := next.(*Model)
+	if !ok {
+		t.Fatalf("expected *Model after key update, got %T", next)
+	}
+	return applyCmd(t, nm, cmd)
+}
+
 func TestInitialParseProducesASTSExpr(t *testing.T) {
 	m := newTestModel(t, "const x = 1;")
 
@@ -195,5 +205,80 @@ func TestASTParseTransitionsInvalidBackToValid(t *testing.T) {
 	}
 	if m.astSExpr == "" {
 		t.Fatal("expected AST S-expression after recovery to valid source")
+	}
+}
+
+func TestModeToggleASTSelectAndBack(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+	if m.editorMode != editorModeInsert {
+		t.Fatalf("expected insert mode by default, got %v", m.editorMode)
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	if m.editorMode != editorModeASTSelect {
+		t.Fatalf("expected AST select mode after toggle, got %v", m.editorMode)
+	}
+	if m.selectedASTNodeID < 0 {
+		t.Fatal("expected AST node selection in AST select mode")
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	if m.editorMode != editorModeInsert {
+		t.Fatalf("expected insert mode after second toggle, got %v", m.editorMode)
+	}
+	if m.selectedASTNodeID != -1 {
+		t.Fatalf("expected selected AST node to clear, got %d", m.selectedASTNodeID)
+	}
+}
+
+func TestASTSelectNavigationMovesSelection(t *testing.T) {
+	m := newTestModel(t, "function add(a, b) { return a + b; }")
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	start := m.selectedASTNodeID
+	if start < 0 {
+		t.Fatal("expected initial AST selection")
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	if m.selectedASTNodeID == start {
+		t.Fatalf("expected child navigation to change node, still %d", m.selectedASTNodeID)
+	}
+
+	child := m.selectedASTNodeID
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	if m.selectedASTNodeID != start {
+		t.Fatalf("expected parent navigation to return to start %d, got %d", start, m.selectedASTNodeID)
+	}
+	if child == start {
+		t.Fatal("expected child and parent selections to differ")
+	}
+}
+
+func TestSyntaxHighlightToggle(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+	if !m.syntaxHighlight {
+		t.Fatal("expected syntax highlighting enabled by default")
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	if m.syntaxHighlight {
+		t.Fatal("expected syntax highlighting to toggle off")
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	if !m.syntaxHighlight {
+		t.Fatal("expected syntax highlighting to toggle back on")
+	}
+}
+
+func TestASTSelectModeBlocksTextInsertion(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+	before := m.source()
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'z'}})
+
+	if got := m.source(); got != before {
+		t.Fatalf("expected source unchanged in AST select mode, got %q want %q", got, before)
 	}
 }

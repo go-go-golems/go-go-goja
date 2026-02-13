@@ -20,10 +20,38 @@ const (
 	focusASTSExpr
 )
 
+type editorMode int
+
+const (
+	editorModeInsert editorMode = iota
+	editorModeASTSelect
+)
+
+type syntaxClass int
+
+const (
+	syntaxClassNone syntaxClass = iota
+	syntaxClassKeyword
+	syntaxClassString
+	syntaxClassNumber
+	syntaxClassComment
+	syntaxClassIdentifier
+	syntaxClassOperator
+)
+
+type syntaxSpan struct {
+	startLine int // 1-based
+	startCol  int // 1-based
+	endLine   int // 1-based
+	endCol    int // 1-based
+	class     syntaxClass
+}
+
 type astParsedMsg struct {
 	Seq      uint64
 	ParseErr error
 	ASTSExpr string
+	ASTIndex *jsparse.Index
 }
 
 // Model drives the live 3-pane AST parse editor.
@@ -40,6 +68,9 @@ type Model struct {
 
 	focus focusPane
 
+	editorMode      editorMode
+	syntaxHighlight bool
+
 	width  int
 	height int
 
@@ -55,6 +86,11 @@ type Model struct {
 
 	astSExpr    string
 	astParseErr error
+	astIndex    *jsparse.Index
+
+	selectedASTNodeID jsparse.NodeID
+
+	syntaxSpans []syntaxSpan
 
 	parseSeq      uint64
 	pendingSeq    uint64
@@ -70,11 +106,14 @@ func NewModel(filename, source string) *Model {
 
 	tsParser, _ := jsparse.NewTSParser()
 	m := &Model{
-		filename:      filename,
-		lines:         lines,
-		focus:         focusEditor,
-		tsParser:      tsParser,
-		parseDebounce: 120 * time.Millisecond,
+		filename:          filename,
+		lines:             lines,
+		focus:             focusEditor,
+		editorMode:        editorModeInsert,
+		syntaxHighlight:   true,
+		tsParser:          tsParser,
+		parseDebounce:     120 * time.Millisecond,
+		selectedASTNodeID: -1,
 	}
 	m.reparseCST()
 	return m
@@ -101,8 +140,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.astParseErr = msg.ParseErr
 		if msg.ParseErr == nil {
 			m.astSExpr = msg.ASTSExpr
+			m.astIndex = msg.ASTIndex
 		} else {
 			m.astSExpr = ""
+			m.astIndex = nil
+			m.selectedASTNodeID = -1
+		}
+		if m.editorMode == editorModeASTSelect {
+			if !m.syncASTSelectionFromCursor() {
+				m.updateCursorNodeHighlight()
+			}
 		}
 		m.astScroll = clamp(m.astScroll, 0, maxInt(0, len(strings.Split(m.astTextForView(), "\n"))-1))
 		return m, nil
@@ -117,6 +164,12 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "tab":
 		m.focus = (m.focus + 1) % 3
+		return m, nil
+	case "m":
+		m.toggleEditorMode()
+		return m, nil
+	case "s":
+		m.syntaxHighlight = !m.syntaxHighlight
 		return m, nil
 	}
 
@@ -133,6 +186,10 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) handleEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.editorMode == editorModeASTSelect {
+		return m.handleASTSelectKey(msg)
+	}
+
 	switch msg.String() {
 	case "up":
 		m.moveCursor(-1, 0)
@@ -171,6 +228,22 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.postEdit()
 	}
 
+	return m, nil
+}
+
+func (m *Model) handleASTSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "h", "left":
+		m.astSelectParent()
+	case "l", "right":
+		m.astSelectFirstChild()
+	case "j", "down":
+		m.astSelectNextSibling()
+	case "k", "up":
+		m.astSelectPrevSibling()
+	case "g":
+		m.astSelectRoot()
+	}
 	return m, nil
 }
 
@@ -217,19 +290,25 @@ func parseASTCmd(seq uint64, filename, source string, delay time.Duration) tea.C
 		program, parseErr := parser.ParseFile(nil, filename, source, 0)
 
 		astSExpr := ""
+		var astIndex *jsparse.Index
 		if parseErr == nil && program != nil {
-			astSExpr = jsparse.ASTToSExpr(program, source, &jsparse.SExprOptions{
+			astIndex = jsparse.BuildIndex(program, source)
+			astSExpr = jsparse.ASTIndexToSExpr(astIndex, &jsparse.SExprOptions{
 				IncludeSpan: true,
 				IncludeText: true,
 				MaxDepth:    80,
 				MaxNodes:    8000,
 			})
+			if strings.TrimSpace(astSExpr) == "" {
+				astSExpr = "(Program)"
+			}
 		}
 
 		return astParsedMsg{
 			Seq:      seq,
 			ParseErr: parseErr,
 			ASTSExpr: astSExpr,
+			ASTIndex: astIndex,
 		}
 	}
 
@@ -245,6 +324,7 @@ func (m *Model) reparseCST() {
 	if m.tsParser == nil {
 		m.tsRoot = nil
 		m.tsSExpr = "(tree-sitter unavailable)"
+		m.syntaxSpans = nil
 		m.clearCursorNodeHighlight()
 		return
 	}
@@ -252,6 +332,7 @@ func (m *Model) reparseCST() {
 	m.tsRoot = m.tsParser.Parse([]byte(m.source()))
 	if m.tsRoot == nil {
 		m.tsSExpr = "(no parse)"
+		m.syntaxSpans = nil
 		m.clearCursorNodeHighlight()
 		return
 	}
@@ -263,7 +344,10 @@ func (m *Model) reparseCST() {
 		MaxDepth:     80,
 		MaxNodes:     8000,
 	})
-	m.updateCursorNodeHighlight()
+	m.rebuildSyntaxSpans()
+	if m.editorMode == editorModeInsert {
+		m.updateCursorNodeHighlight()
+	}
 }
 
 func (m *Model) astTextForView() string {
@@ -274,6 +358,138 @@ func (m *Model) astTextForView() string {
 		return "(waiting-for-valid-parse)"
 	}
 	return m.astSExpr
+}
+
+func (m *Model) toggleEditorMode() {
+	if m.editorMode == editorModeInsert {
+		m.editorMode = editorModeASTSelect
+		if !m.syncASTSelectionFromCursor() {
+			m.selectedASTNodeID = -1
+			m.updateCursorNodeHighlight()
+		}
+		return
+	}
+
+	m.editorMode = editorModeInsert
+	m.selectedASTNodeID = -1
+	m.updateCursorNodeHighlight()
+}
+
+func (m *Model) editorModeLabel() string {
+	if m.editorMode == editorModeASTSelect {
+		return "AST-SELECT"
+	}
+	return "INSERT"
+}
+
+func (m *Model) cursorOffset() int {
+	offset := 0
+	for i := 0; i < m.cursorRow && i < len(m.lines); i++ {
+		offset += len(m.lines[i]) + 1
+	}
+	if m.cursorRow < 0 || m.cursorRow >= len(m.lines) {
+		return offset + 1
+	}
+
+	runes := []rune(m.lines[m.cursorRow])
+	col := clamp(m.cursorCol, 0, len(runes))
+	offset += len(string(runes[:col]))
+	return offset + 1
+}
+
+func (m *Model) syncASTSelectionFromCursor() bool {
+	if m.astIndex == nil {
+		return false
+	}
+	n := m.astIndex.NodeAtOffset(m.cursorOffset())
+	if n == nil {
+		return false
+	}
+	m.selectASTNode(n.ID)
+	return true
+}
+
+func (m *Model) selectASTNode(id jsparse.NodeID) {
+	if m.astIndex == nil {
+		return
+	}
+	n := m.astIndex.Nodes[id]
+	if n == nil {
+		return
+	}
+	m.selectedASTNodeID = id
+	m.highlightStartLine = n.StartLine
+	m.highlightStartCol = n.StartCol
+	m.highlightEndLine = n.EndLine
+	m.highlightEndCol = n.EndCol
+	m.cursorRow = clamp(n.StartLine-1, 0, len(m.lines)-1)
+	if m.cursorRow >= 0 && m.cursorRow < len(m.lines) {
+		lineLen := len([]rune(m.lines[m.cursorRow]))
+		m.cursorCol = clamp(n.StartCol-1, 0, lineLen)
+	}
+	m.ensureCursorVisible()
+}
+
+func (m *Model) astSelectRoot() {
+	if m.astIndex == nil || m.astIndex.RootID < 0 {
+		return
+	}
+	m.selectASTNode(m.astIndex.RootID)
+}
+
+func (m *Model) astSelectParent() {
+	if m.astIndex == nil || m.selectedASTNodeID < 0 {
+		return
+	}
+	n := m.astIndex.Nodes[m.selectedASTNodeID]
+	if n == nil || n.ParentID < 0 {
+		return
+	}
+	m.selectASTNode(n.ParentID)
+}
+
+func (m *Model) astSelectFirstChild() {
+	if m.astIndex == nil || m.selectedASTNodeID < 0 {
+		return
+	}
+	n := m.astIndex.Nodes[m.selectedASTNodeID]
+	if n == nil || len(n.ChildIDs) == 0 {
+		return
+	}
+	m.selectASTNode(n.ChildIDs[0])
+}
+
+func (m *Model) astSelectNextSibling() {
+	m.astSelectSibling(1)
+}
+
+func (m *Model) astSelectPrevSibling() {
+	m.astSelectSibling(-1)
+}
+
+func (m *Model) astSelectSibling(step int) {
+	if m.astIndex == nil || m.selectedASTNodeID < 0 {
+		return
+	}
+	n := m.astIndex.Nodes[m.selectedASTNodeID]
+	if n == nil || n.ParentID < 0 {
+		return
+	}
+	parent := m.astIndex.Nodes[n.ParentID]
+	if parent == nil || len(parent.ChildIDs) == 0 {
+		return
+	}
+	for i, childID := range parent.ChildIDs {
+		if childID != m.selectedASTNodeID {
+			continue
+		}
+		j := i + step
+		if j < 0 || j >= len(parent.ChildIDs) {
+			return
+		}
+		m.selectASTNode(parent.ChildIDs[j])
+		return
+	}
 }
 
 func (m *Model) moveCursor(dy, dx int) {
@@ -397,7 +613,7 @@ func (m *Model) renderHeader() string {
 		focus = "AST SEXP"
 	}
 	title := fmt.Sprintf("File: %s", m.filename)
-	mode := fmt.Sprintf("AST PARSE EDITOR [%s]", focus)
+	mode := fmt.Sprintf("AST PARSE EDITOR [%s | %s]", focus, m.editorModeLabel())
 	gap := m.width - len(title) - len(mode) - 2
 	if gap < 1 {
 		gap = 1
@@ -417,6 +633,12 @@ func (m *Model) renderStatus() string {
 		fmt.Sprintf("cursor: %d:%d", m.cursorRow+1, m.cursorCol+1),
 		fmt.Sprintf("lines: %d", len(m.lines)),
 		fmt.Sprintf("seq: %d", m.pendingSeq),
+		fmt.Sprintf("mode: %s", m.editorModeLabel()),
+	}
+	if m.syntaxHighlight {
+		parts = append(parts, "syntax: on")
+	} else {
+		parts = append(parts, "syntax: off")
 	}
 
 	if m.tsRoot != nil && m.tsRoot.HasError() {
@@ -438,6 +660,11 @@ func (m *Model) renderStatus() string {
 			m.highlightStartLine, m.highlightStartCol,
 			m.highlightEndLine, m.highlightEndCol))
 	}
+	if m.selectedASTNodeID >= 0 && m.astIndex != nil {
+		if n := m.astIndex.Nodes[m.selectedASTNodeID]; n != nil {
+			parts = append(parts, fmt.Sprintf("ast-node: %s [%d..%d]", n.Kind, n.Start, n.End))
+		}
+	}
 
 	return style.Render(strings.Join(parts, " | "))
 }
@@ -448,7 +675,11 @@ func (m *Model) renderHelp() string {
 		Width(m.width).
 		Padding(0, 1)
 
-	return style.Render("Tab:focus pane | Editor: type, Enter, Backspace, arrows | TS/AST panes: j/k or arrows to scroll | q:quit")
+	editorKeys := "Editor(INSERT): type, Enter, Backspace, arrows"
+	if m.editorMode == editorModeASTSelect {
+		editorKeys = "Editor(AST-SELECT): h/j/k/l navigate AST parent/siblings/child"
+	}
+	return style.Render("Tab:focus pane | m:toggle mode | s:toggle syntax | " + editorKeys + " | TS/AST panes: j/k or arrows to scroll | q:quit")
 }
 
 func (m *Model) renderEditorPane(width, height int) string {
@@ -468,7 +699,7 @@ func (m *Model) renderEditorPane(width, height int) string {
 	contentHeight := maxInt(1, height-1)
 	gutterWidth := len(fmt.Sprintf("%d", len(m.lines))) + 1
 	cursorStyle := lipgloss.NewStyle().Reverse(true).Bold(true)
-	highlightStyle := lipgloss.NewStyle().Background(lipgloss.Color("236")).Foreground(lipgloss.Color("117"))
+	highlightStyle := lipgloss.NewStyle().Background(lipgloss.Color("238"))
 	gutterNormal := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 	gutterCursor := lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true)
 
@@ -494,12 +725,14 @@ func (m *Model) renderEditorPane(width, height int) string {
 			lineNo := lineIdx + 1
 			colNo := c + 1
 			isNodeHighlight := inRange(lineNo, colNo, m.highlightStartLine, m.highlightStartCol, m.highlightEndLine, m.highlightEndCol)
+			syntaxClass := m.syntaxClassAt(lineNo, colNo)
+			rendered := renderSyntaxChar(syntaxClass, ch)
 			if lineIdx == m.cursorRow && c == m.cursorCol && m.focus == focusEditor {
 				content.WriteString(cursorStyle.Render(ch))
 			} else if isNodeHighlight {
-				content.WriteString(highlightStyle.Render(ch))
+				content.WriteString(highlightStyle.Render(rendered))
 			} else {
-				content.WriteString(ch)
+				content.WriteString(rendered)
 			}
 		}
 		if lineIdx == m.cursorRow && m.cursorCol >= len(runes) && m.focus == focusEditor {
@@ -541,6 +774,91 @@ func (m *Model) updateCursorNodeHighlight() {
 		m.highlightEndLine = n.EndRow + 1
 		m.highlightEndCol = n.EndCol + 1
 		return
+	}
+}
+
+func (m *Model) rebuildSyntaxSpans() {
+	m.syntaxSpans = nil
+	if m.tsRoot == nil {
+		return
+	}
+	m.appendSyntaxSpans(m.tsRoot)
+}
+
+func (m *Model) appendSyntaxSpans(n *jsparse.TSNode) {
+	if n == nil {
+		return
+	}
+	if len(n.Children) == 0 {
+		class := classifySyntaxKind(n.Kind)
+		if class != syntaxClassNone {
+			m.syntaxSpans = append(m.syntaxSpans, syntaxSpan{
+				startLine: n.StartRow + 1,
+				startCol:  n.StartCol + 1,
+				endLine:   n.EndRow + 1,
+				endCol:    n.EndCol + 1,
+				class:     class,
+			})
+		}
+		return
+	}
+	for _, child := range n.Children {
+		m.appendSyntaxSpans(child)
+	}
+}
+
+func classifySyntaxKind(kind string) syntaxClass {
+	switch kind {
+	case "comment":
+		return syntaxClassComment
+	case "string", "string_fragment", "template_string", "template_chars":
+		return syntaxClassString
+	case "number":
+		return syntaxClassNumber
+	case "identifier", "property_identifier":
+		return syntaxClassIdentifier
+	case "const", "let", "var", "function", "return", "if", "else", "for", "while", "do",
+		"switch", "case", "default", "break", "continue", "new", "class", "import", "export",
+		"from", "try", "catch", "finally", "throw", "await", "async", "extends", "this":
+		return syntaxClassKeyword
+	case ".", ",", ";", ":", "=", "==", "===", "!=", "!==", "+", "-", "*", "/", "%", "=>",
+		"&&", "||", "!", ">", "<", ">=", "<=":
+		return syntaxClassOperator
+	default:
+		return syntaxClassNone
+	}
+}
+
+func (m *Model) syntaxClassAt(lineNo, colNo int) syntaxClass {
+	if !m.syntaxHighlight {
+		return syntaxClassNone
+	}
+	for _, span := range m.syntaxSpans {
+		if inRange(lineNo, colNo, span.startLine, span.startCol, span.endLine, span.endCol) {
+			return span.class
+		}
+	}
+	return syntaxClassNone
+}
+
+func renderSyntaxChar(class syntaxClass, ch string) string {
+	switch class {
+	case syntaxClassNone:
+		return ch
+	case syntaxClassKeyword:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("141")).Bold(true).Render(ch)
+	case syntaxClassString:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("114")).Render(ch)
+	case syntaxClassNumber:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render(ch)
+	case syntaxClassComment:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Italic(true).Render(ch)
+	case syntaxClassIdentifier:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("81")).Render(ch)
+	case syntaxClassOperator:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("213")).Render(ch)
+	default:
+		return ch
 	}
 }
 
