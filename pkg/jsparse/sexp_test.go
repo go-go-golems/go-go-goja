@@ -107,3 +107,49 @@ func TestASTToSExprHandlesNilProgram(t *testing.T) {
 		t.Fatalf("expected empty output for nil program, got: %q", out)
 	}
 }
+
+func TestCSTToSExprDeterministic(t *testing.T) {
+	root := &TSNode{
+		Kind: "program",
+		Children: []*TSNode{
+			{Kind: "identifier", Text: "foo"},
+			{Kind: "identifier", Text: "bar"},
+		},
+	}
+
+	a := CSTToSExpr(root, &SExprOptions{IncludeSpan: true, IncludeText: true, IncludeFlags: true})
+	b := CSTToSExpr(root, &SExprOptions{IncludeSpan: true, IncludeText: true, IncludeFlags: true})
+	if a != b {
+		t.Fatalf("expected deterministic CST output:\nA: %s\nB: %s", a, b)
+	}
+}
+
+func TestASTIndexToSExprDeterministic(t *testing.T) {
+	src := `function add(a, b) { return a + b; }`
+	program, err := parser.ParseFile(nil, "test.js", src, 0)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	idx := BuildIndex(program, src)
+
+	a := ASTIndexToSExpr(idx, &SExprOptions{IncludeSpan: true, IncludeText: true})
+	b := ASTIndexToSExpr(idx, &SExprOptions{IncludeSpan: true, IncludeText: true})
+	if a != b {
+		t.Fatalf("expected deterministic AST output:\nA: %s\nB: %s", a, b)
+	}
+}
+
+func TestCSTToSExprTruncatesByNodeCount(t *testing.T) {
+	root := &TSNode{
+		Kind: "program",
+		Children: []*TSNode{
+			{Kind: "identifier", Text: "a"},
+			{Kind: "identifier", Text: "b"},
+			{Kind: "identifier", Text: "c"},
+		},
+	}
+	out := CSTToSExpr(root, &SExprOptions{MaxNodes: 2})
+	if !strings.Contains(out, "(...)") {
+		t.Fatalf("expected node-count truncation marker in output, got: %s", out)
+	}
+}

@@ -103,3 +103,39 @@ func TestStaleASTParseMessageIsIgnored(t *testing.T) {
 		t.Fatalf("expected stale AST message to be ignored, got: %s", nm.astSExpr)
 	}
 }
+
+func TestASTParseTransitionsInvalidBackToValid(t *testing.T) {
+	m := newTestModel(t, "const obj = {};\nobj")
+	m.cursorRow = 1
+	m.cursorCol = len([]rune(m.lines[1]))
+
+	// Make it invalid: obj.
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'.'}})
+	var ok bool
+	m, ok = next.(*Model)
+	if !ok {
+		t.Fatalf("expected *Model after invalidating edit, got %T", next)
+	}
+	m = applyCmd(t, m, cmd)
+	if m.astParseErr == nil {
+		t.Fatal("expected parse error for invalid source")
+	}
+	if m.astSExpr != "" {
+		t.Fatalf("expected cleared AST S-expression on invalid source, got %s", m.astSExpr)
+	}
+
+	// Recover by adding identifier chars: obj.foo
+	next, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f', 'o', 'o'}})
+	m, ok = next.(*Model)
+	if !ok {
+		t.Fatalf("expected *Model after recovery edit, got %T", next)
+	}
+	m = applyCmd(t, m, cmd)
+
+	if m.astParseErr != nil {
+		t.Fatalf("expected recovered valid parse, got %v", m.astParseErr)
+	}
+	if m.astSExpr == "" {
+		t.Fatal("expected AST S-expression after recovery to valid source")
+	}
+}
