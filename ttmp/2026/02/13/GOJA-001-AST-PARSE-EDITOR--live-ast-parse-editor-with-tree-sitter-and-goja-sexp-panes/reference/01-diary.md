@@ -1,0 +1,797 @@
+---
+Title: Diary
+Ticket: GOJA-001-AST-PARSE-EDITOR
+Status: active
+Topics:
+    - goja
+    - analysis
+    - tooling
+DocType: reference
+Intent: long-term
+Owners: []
+RelatedFiles:
+    - Path: ../../../../../../../.ttmp.yaml
+      Note: Docmgr root and vocabulary configuration used during ticket creation
+    - Path: cmd/ast-parse-editor/app/model.go
+      Note: Task 2 core Bubble Tea model with debounced AST parsing and pane rendering
+    - Path: cmd/ast-parse-editor/app/model_test.go
+      Note: |-
+        Task 2 model tests for valid/invalid transitions and stale parse handling
+        Task 4 model-level empty-source regression coverage
+    - Path: cmd/ast-parse-editor/main.go
+      Note: |-
+        Task 2 command entrypoint added for live 3-pane editor
+        Task 5 CLI startup input policy (no-arg/missing-file empty buffer)
+    - Path: cmd/ast-parse-editor/main_test.go
+      Note: Task 5 startup regression/unit tests
+    - Path: cmd/inspector/app/drawer.go
+      Note: Reviewed while documenting live tree-sitter parse loop
+    - Path: cmd/inspector/app/model.go
+      Note: Reviewed while documenting current live editor interactions
+    - Path: pkg/jsparse/index.go
+      Note: Reviewed while capturing AST indexing behavior details
+    - Path: pkg/jsparse/sexp.go
+      Note: |-
+        Task 1 implementation of reusable CST/AST S-expression renderers (commit a185315)
+        Task 4 fallback for empty-source AST S-expression (commit 494d238)
+    - Path: pkg/jsparse/sexp_test.go
+      Note: |-
+        Task 1 unit tests for S-expression renderer behavior and truncation guards
+        Task 4 empty-program regression coverage
+    - Path: pkg/jsparse/treesitter.go
+      Note: Reviewed while capturing parser behavior details
+    - Path: ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/analysis/01-tree-sitter-ast-live-sexp-editor-analysis.md
+      Note: Primary analysis artifact produced during this diary run
+    - Path: ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/changelog.md
+      Note: |-
+        Task 4 changelog entry
+        Task 5 changelog entry
+    - Path: ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/tasks.md
+      Note: |-
+        Task execution checklist updated with Task 1 progress
+        Task 4 checklist recorded
+        Task 5 checklist
+ExternalSources: []
+Summary: Step-by-step implementation diary capturing ticket setup, parser architecture analysis, validation commands, and delivery workflow for GOJA-001-AST-PARSE-EDITOR.
+LastUpdated: 2026-02-13T16:10:02-05:00
+WhatFor: Preserve the exact analysis workflow and decisions for later review or continuation.
+WhenToUse: Use when reviewing how conclusions were derived and what commands/results support them.
+---
+
+
+
+
+
+# Diary
+
+## Goal
+
+Capture a detailed chronological diary for `GOJA-001-AST-PARSE-EDITOR`, including exact commands, findings, tradeoffs, and delivery artifacts.
+
+## Step 1: Ticket + Document Scaffolding
+
+I started by creating the ticket workspace and initial documents before any deep analysis work. This ensured every subsequent finding was stored in the ticket from the beginning.
+
+I also checked the local `docmgr` configuration up front to avoid writing to the wrong docs root.
+
+### Prompt Context
+
+**User prompt (verbatim):**
+
+"Create a new ticket GOJA-001-AST-PARSE-EDITOR and analyze our current tree-sitter + ast parser setup in go-go-goja/ and how to create a LISP SEXP representation of the parse tree while typing live in an editor. So similar to our current inspector, except we have an editor on the left, and as we type, we show a SEXP view of the treesitter parse, and a SEX view of the AST parse if valid in a third pane.
+
+Create a detailed analysis document referencing all the necessary files and stuff, then store the file in the ticket and upload tor emarkable. Also keep a detailed frequent diary as you work."
+
+**Assistant interpretation:** Create the ticket, produce a file-referenced technical analysis, keep a detailed working diary, and upload resulting docs to reMarkable.
+
+**Inferred user intent:** Obtain implementation-ready design output with a full audit trail of how conclusions were derived.
+
+**Commit (code):** N/A (documentation/analysis task)
+
+### What I did
+
+- Verified docs root/config:
+  - `cat .ttmp.yaml`
+  - `docmgr status --summary-only`
+- Created ticket:
+  - `docmgr ticket create-ticket --ticket GOJA-001-AST-PARSE-EDITOR --title "Live AST parse editor with tree-sitter and goja SEXP panes" --topics goja,analysis,tooling`
+- Created docs:
+  - `docmgr doc add --ticket GOJA-001-AST-PARSE-EDITOR --doc-type analysis --title "Tree-sitter + AST live SEXP editor analysis"`
+  - `docmgr doc add --ticket GOJA-001-AST-PARSE-EDITOR --doc-type reference --title "Diary"`
+
+### Why
+
+- Ticket-first setup was required to keep all artifacts in the requested location.
+- Early diary creation was needed to satisfy “frequent detailed diary” during execution.
+
+### What worked
+
+- Ticket and both docs were created successfully under:
+  - `go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes`
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Local `.ttmp.yaml` is already configured to `go-go-goja/ttmp`, so root-level docmgr commands are safe.
+
+### What was tricky to build
+
+- Not technically hard, but sequencing mattered: ticket creation must happen before `doc add` operations.
+
+### What warrants a second pair of eyes
+
+- Confirm ticket title wording is exactly what you want for long-term discoverability.
+
+### What should be done in the future
+
+- Add `analysis` as an explicit vocab docType if stricter vocabulary hygiene is desired.
+
+### Code review instructions
+
+- Validate ticket/doc existence:
+  - `docmgr ticket list --ticket GOJA-001-AST-PARSE-EDITOR`
+  - `docmgr doc list --ticket GOJA-001-AST-PARSE-EDITOR`
+
+### Technical details
+
+- Active docs root during run: `/home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp`
+
+## Step 2: Architecture Mapping of Current Parser Stack
+
+I mapped the current parsing and UI paths in `go-go-goja` with line-level references. The purpose was to identify exactly what is static today and what already updates while typing.
+
+This mapping established clear insertion points for adding CST/AST SEXP generation.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Analyze the current tree-sitter + goja parser setup in `go-go-goja/` with concrete references.
+
+**Inferred user intent:** Build the new design on verified current behavior rather than assumptions.
+
+**Commit (code):** N/A (documentation/analysis task)
+
+### What I did
+
+- Located parser/inspector files and symbols via ripgrep.
+- Reviewed these core files:
+  - `go-go-goja/cmd/inspector/main.go`
+  - `go-go-goja/cmd/inspector/app/model.go`
+  - `go-go-goja/cmd/inspector/app/drawer.go`
+  - `go-go-goja/pkg/jsparse/analyze.go`
+  - `go-go-goja/pkg/jsparse/treesitter.go`
+  - `go-go-goja/pkg/jsparse/index.go`
+  - `go-go-goja/pkg/jsparse/resolve.go`
+  - `go-go-goja/pkg/jsparse/completion.go`
+- Collected numbered references with `nl -ba` for all core files used in the final analysis.
+
+### Why
+
+- The requested analysis explicitly asked for “necessary files and stuff,” which requires concrete code anchors.
+
+### What worked
+
+- Reusable vs UI boundaries are already clean (`pkg/jsparse` vs `cmd/inspector/app`).
+- Existing drawer flow already provides live tree-sitter parse behavior that can be adapted.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Current AST pane is static-at-startup (file parse in `cmd/inspector/main.go`), while live typing behavior exists only in drawer CST/completion.
+- `TSParser.Parse` currently reparses from scratch each time (no incremental `tree.Edit` flow).
+
+### What was tricky to build
+
+- Distinguishing implementation reality from historical naming/comments required checking both source and tests.
+
+### What warrants a second pair of eyes
+
+- Decision whether to implement as a new command (`cmd/ast-parse-editor`) or modify `cmd/inspector` directly.
+
+### What should be done in the future
+
+- If this becomes a permanent feature, add a dedicated public doc page for the SEXP APIs in `pkg/doc/`.
+
+### Code review instructions
+
+- Start with these anchors:
+  - `go-go-goja/cmd/inspector/main.go:35`
+  - `go-go-goja/cmd/inspector/app/model.go:277`
+  - `go-go-goja/cmd/inspector/app/drawer.go:63`
+  - `go-go-goja/pkg/jsparse/treesitter.go:46`
+  - `go-go-goja/pkg/jsparse/analyze.go:31`
+  - `go-go-goja/pkg/jsparse/index.go:31`
+
+### Technical details
+
+- Existing reusable boundary is documented in `go-go-goja/pkg/doc/05-jsparse-framework-reference.md:20-45`.
+
+## Step 3: Validation Experiments + Implementation Blueprint
+
+I validated runtime behavior with tests and then wrote the full design blueprint document. This converted discovery into an implementation-ready plan with data formats, file mapping, and phased delivery.
+
+I also ran focused parser recovery experiments to capture concrete output behavior for invalid code scenarios.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Produce a practical plan for live tree-sitter SEXP and valid-only AST SEXP behavior.
+
+**Inferred user intent:** De-risk implementation before coding by validating assumptions and documenting decisions.
+
+**Commit (code):** N/A (documentation/analysis task)
+
+### What I did
+
+- Ran targeted suite checks:
+  - `cd go-go-goja && GOWORK=off go test ./pkg/jsparse -count=1`
+  - `cd go-go-goja && GOWORK=off go test ./cmd/inspector/... -count=1`
+- Ran focused parser recovery experiment:
+  - `cd go-go-goja && GOWORK=off go test ./pkg/jsparse -run 'TestTSParserErrorRecovery|TestBuildIndexWithParseError' -v -count=1`
+- Wrote analysis doc:
+  - `go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/analysis/01-tree-sitter-ast-live-sexp-editor-analysis.md`
+
+### Why
+
+- The requested behavior required explicit semantics for AST validity and deterministic SEXP generation.
+
+### What worked
+
+- All targeted tests passed.
+- Focused experiments confirmed expected parse recovery behavior in both parsers.
+- Analysis doc now contains implementation phases, proposed APIs, risks, and tests.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Existing stack already contains most primitives needed; main additions are SEXP renderers and a 3-pane editor command.
+- Performance risk is mostly in synchronous goja parse on every keystroke.
+
+### What was tricky to build
+
+- Choosing AST-pane validity semantics: goja can emit partial AST with parse errors, but requirement implies “render AST SEXP only when parse-valid.”
+
+### What warrants a second pair of eyes
+
+- Whether to clear AST pane immediately on parse error or keep last valid AST visible.
+
+### What should be done in the future
+
+- Add deterministic golden tests for SEXP output before UI integration.
+
+### Code review instructions
+
+- Review analysis artifact:
+  - `go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/analysis/01-tree-sitter-ast-live-sexp-editor-analysis.md`
+- Reproduce validation:
+  - `cd go-go-goja && GOWORK=off go test ./pkg/jsparse -count=1`
+  - `cd go-go-goja && GOWORK=off go test ./cmd/inspector/... -count=1`
+  - `cd go-go-goja && GOWORK=off go test ./pkg/jsparse -run 'TestTSParserErrorRecovery|TestBuildIndexWithParseError' -v -count=1`
+
+### Technical details
+
+- Test outputs:
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse`
+  - `ok github.com/go-go-golems/go-go-goja/cmd/inspector/app`
+- Focused experiment outputs:
+  - `Partial AST: 18 nodes`
+  - `Error recovery: ERROR has 2 children, foundIdent=true foundDot=true`
+
+## Step 4: Delivery, Linking, and reMarkable Upload
+
+I completed ticket integration work (`doc relate`, index/tasks/changelog updates), then uploaded the deliverables to reMarkable as a bundled PDF after a dry-run.
+
+This step closed the loop from analysis to final delivery artifact.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Ensure docs are stored in-ticket and uploaded to reMarkable.
+
+**Inferred user intent:** End-to-end completion, not just local documentation.
+
+**Commit (code):** N/A (documentation/analysis task)
+
+### What I did
+
+- Related files to docs:
+  - `docmgr doc relate --doc ...analysis/01-tree-sitter-ast-live-sexp-editor-analysis.md --file-note ...`
+  - `docmgr doc relate --doc ...reference/01-diary.md --file-note ...`
+  - `docmgr doc relate --doc .../index.md --file-note ...`
+- Updated ticket metadata docs:
+  - edited `index.md`
+  - edited `tasks.md`
+  - `docmgr changelog update --ticket GOJA-001-AST-PARSE-EDITOR --entry "..." --file-note "..."`
+- Validated frontmatter:
+  - `docmgr validate frontmatter --doc 2026/02/13/.../analysis/01-tree-sitter-ast-live-sexp-editor-analysis.md`
+  - `docmgr validate frontmatter --doc 2026/02/13/.../reference/01-diary.md`
+  - `docmgr validate frontmatter --doc 2026/02/13/.../index.md`
+- Ran reMarkable workflow:
+  - `remarquee status`
+  - `remarquee upload bundle --dry-run <analysis.md> <diary.md> --name "GOJA-001-AST-PARSE-EDITOR Analysis" --remote-dir "/ai/2026/02/13/GOJA-001-AST-PARSE-EDITOR" --toc-depth 2`
+  - `remarquee upload bundle <analysis.md> <diary.md> --name "GOJA-001-AST-PARSE-EDITOR Analysis" --remote-dir "/ai/2026/02/13/GOJA-001-AST-PARSE-EDITOR" --toc-depth 2`
+  - `remarquee cloud ls /ai/2026/02/13/GOJA-001-AST-PARSE-EDITOR --long --non-interactive`
+
+### Why
+
+- Dry-run before upload reduces risk and verifies bundle composition.
+- Frontmatter and relationships were updated to keep ticket docs queryable and consistent.
+
+### What worked
+
+- Upload succeeded:
+  - `OK: uploaded GOJA-001-AST-PARSE-EDITOR Analysis.pdf -> /ai/2026/02/13/GOJA-001-AST-PARSE-EDITOR`
+- Remote listing confirms presence:
+  - `[f] GOJA-001-AST-PARSE-EDITOR Analysis`
+- Frontmatter validation passed for analysis/diary/index docs.
+
+### What didn't work
+
+- I first ran `docmgr validate frontmatter --doc` with paths prefixed by `go-go-goja/ttmp/...`, causing docs-root duplication and failures:
+  - `Error: open .../go-go-goja/ttmp/go-go-goja/ttmp/...: no such file or directory`
+- Fix: reran validations with docs-root-relative paths (`2026/02/13/...`).
+
+### What I learned
+
+- Using docs-root-relative paths consistently avoids most `docmgr` path mistakes.
+- Bundling analysis + diary into one upload gives a better on-device review package.
+
+### What was tricky to build
+
+- The subtle part was keeping names/paths deterministic across dry-run, upload, and remote verification.
+
+### What warrants a second pair of eyes
+
+- Decide whether subsequent uploads should overwrite the same remote document name or use versioned naming.
+
+### What should be done in the future
+
+- Add a ticket-local upload naming/versioning convention when iterative revisions begin.
+
+### Code review instructions
+
+- Review final docs:
+  - `go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/analysis/01-tree-sitter-ast-live-sexp-editor-analysis.md`
+  - `go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/reference/01-diary.md`
+  - `go-go-goja/ttmp/2026/02/13/GOJA-001-AST-PARSE-EDITOR--live-ast-parse-editor-with-tree-sitter-and-goja-sexp-panes/index.md`
+- Verify remote:
+  - `remarquee cloud ls /ai/2026/02/13/GOJA-001-AST-PARSE-EDITOR --long --non-interactive`
+
+### Technical details
+
+- Uploaded bundle name: `GOJA-001-AST-PARSE-EDITOR Analysis`
+- Remote dir: `/ai/2026/02/13/GOJA-001-AST-PARSE-EDITOR`
+- Included markdown inputs:
+  - `.../analysis/01-tree-sitter-ast-live-sexp-editor-analysis.md`
+  - `.../reference/01-diary.md`
+
+## Step 5: Task 1 Implementation (`pkg/jsparse` SEXP Renderers)
+
+I converted the high-level Task 1 into concrete code by adding reusable S-expression renderers to `pkg/jsparse`, then added dedicated unit tests. After formatting, I ran tests inside tmux as requested and committed the code as an isolated changeset.
+
+I also updated ticket task checkboxes so Task 1 reflects execution state.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, add tasks to the ticket, and then start implementing one yb one. commit when appropriate, check off task, keep a frequent diary. Run in tmux for testing."
+
+**Assistant interpretation:** Break the ticket into executable tasks and begin implementation immediately, with per-task commits, task checkoffs, diary updates, and tmux-based test runs.
+
+**Inferred user intent:** Move from planning docs to iterative engineering execution with traceable progress.
+
+**Commit (code):** `a185315` — "jsparse: add CST/AST S-expression renderers"
+
+### What I did
+
+- Expanded `tasks.md` into Task 1/2/3 execution checklists.
+- Added implementation files:
+  - `go-go-goja/pkg/jsparse/sexp.go`
+  - `go-go-goja/pkg/jsparse/sexp_test.go`
+- Implemented APIs:
+  - `SExprOptions`
+  - `CSTToSExpr`
+  - `ASTIndexToSExpr`
+  - `ASTToSExpr`
+- Formatted code:
+  - `cd go-go-goja && gofmt -w pkg/jsparse/sexp.go pkg/jsparse/sexp_test.go`
+- Ran test in tmux:
+  - `tmux new-session -d -s goja001_task1 \"cd ... && GOWORK=off go test ./pkg/jsparse -count=1; echo __EXIT_CODE__$?; sleep 30\"`
+  - `tmux capture-pane -pt goja001_task1:0`
+- Committed code:
+  - `git add pkg/jsparse/sexp.go pkg/jsparse/sexp_test.go`
+  - `git commit -m \"jsparse: add CST/AST S-expression renderers\"`
+
+### Why
+
+- `pkg/jsparse` is the reusable layer; implementing SEXP there keeps the feature consumable by multiple tools (not only the new editor command).
+
+### What worked
+
+- `go test ./pkg/jsparse` passed in tmux (`__EXIT_CODE__0`).
+- Commit was successfully created with only the two new code files.
+
+### What didn't work
+
+- First tmux capture attempt failed due a lifecycle race:
+  - `can't find pane: goja001-task1`
+- Fix: reran with a session kept alive briefly (`sleep 30`) before capture.
+
+### What I learned
+
+- For short test commands in tmux, keeping the session alive after command completion avoids capture races.
+
+### What was tricky to build
+
+- Balancing default renderer behavior required explicit guardrails: depth and node-count truncation defaults prevent runaway output for large trees.
+
+### What warrants a second pair of eyes
+
+- Confirm whether the current S-expression metadata defaults (`IncludeText=true`, `IncludeFlags=true`) match your expected downstream UI output.
+
+### What should be done in the future
+
+- Add optional golden snapshot tests for SEXP output shape once the final display contract is frozen.
+
+### Code review instructions
+
+- Start at:
+  - `go-go-goja/pkg/jsparse/sexp.go`
+  - `go-go-goja/pkg/jsparse/sexp_test.go`
+- Validate quickly:
+  - `cd go-go-goja && GOWORK=off go test ./pkg/jsparse -count=1`
+
+### Technical details
+
+- tmux test pane output:
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.005s`
+  - `__EXIT_CODE__0`
+
+## Step 6: Task 2 Implementation (`cmd/ast-parse-editor`)
+
+I implemented the new live 3-pane command with an editor pane on the left, tree-sitter SEXP pane in the middle, and valid-only AST SEXP pane on the right. Parsing behavior now updates CST immediately on edit and updates AST via a debounced parse command.
+
+I also added model tests for initial parse, invalid transitions, CST updates, and stale-message handling, then ran tests in tmux.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue implementing tasks sequentially with commits, checkoffs, and tmux-based validation.
+
+**Inferred user intent:** Deliver real code incrementally with operational traceability.
+
+**Commit (code):** `3f03d3f` — "ast-parse-editor: add live 3-pane parsing model"
+
+### What I did
+
+- Added command entrypoint:
+  - `go-go-goja/cmd/ast-parse-editor/main.go`
+- Added app model:
+  - `go-go-goja/cmd/ast-parse-editor/app/model.go`
+- Added tests:
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+- Implemented features:
+  - 3-pane layout rendering
+  - live tree-sitter parse + CST SEXP update on each edit
+  - debounced AST parse command with sequence-based stale message drop
+  - valid-only AST pane rendering (`astSExpr` cleared when parse invalid)
+  - pane focus cycling and per-pane scroll controls
+- Ran tests in tmux:
+  - `tmux new-session -d -s goja001_task2 \"cd ... && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1; echo __EXIT_CODE__$?; sleep 30\"`
+  - `tmux capture-pane -pt goja001_task2:0`
+
+### Why
+
+- A separate `cmd/ast-parse-editor` command allows feature delivery without destabilizing the existing inspector command path.
+
+### What worked
+
+- New model tests passed.
+- Cross-check with `pkg/jsparse` tests still passed in same tmux run.
+- The async debounce + sequence gate cleanly handles stale parse responses.
+
+### What didn't work
+
+- First commit attempt failed pre-commit lint:
+  - `cmd/ast-parse-editor/app/model.go:377:2: missing cases in switch of type app.focusPane: app.focusEditor (exhaustive)`
+- Fix: added explicit `case focusEditor` in `renderHeader` focus switch and recommitted.
+
+### What I learned
+
+- `tea.Tick` is sufficient for debounce semantics in this scenario when combined with a sequence guard on parse results.
+
+### What was tricky to build
+
+- Managing stale parse updates without racey UI behavior required explicit `pendingSeq` checks in `Update`.
+
+### What warrants a second pair of eyes
+
+- UX choice for AST invalid state text (`(parse-error "...")` and clearing prior AST) should be confirmed before polishing.
+
+### What should be done in the future
+
+- Add one end-to-end command smoke test with scripted key events once interaction contracts stabilize.
+
+### Code review instructions
+
+- Start at:
+  - `go-go-goja/cmd/ast-parse-editor/app/model.go`
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+  - `go-go-goja/cmd/ast-parse-editor/main.go`
+- Validate:
+  - `cd go-go-goja && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1`
+
+### Technical details
+
+- tmux test pane output:
+  - `? github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor [no test files]`
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.003s`
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.005s`
+  - `__EXIT_CODE__0`
+
+## Step 7: Task 3 Hardening and Regression Coverage
+
+I added deterministic renderer tests and additional state-transition coverage in the new editor model tests. Then I executed focused and broad regression runs in tmux to confirm behavior after Task 2 integration.
+
+This step closes the initial implementation cycle with explicit hardening around determinism, truncation guards, and valid/invalid parse transitions while typing.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue iterating task-by-task with tests and recorded progress.
+
+**Inferred user intent:** Ensure the implementation is not only present but also robust and reproducible.
+
+**Commit (code):** `ff8e43d` — "tests: harden SEXP determinism and parse state transitions"
+
+### What I did
+
+- Extended `pkg/jsparse/sexp_test.go` with:
+  - deterministic output assertions (`CSTToSExpr`, `ASTIndexToSExpr`)
+  - additional node-count truncation test
+- Extended `cmd/ast-parse-editor/app/model_test.go` with:
+  - valid -> invalid -> valid AST parse transition test while typing
+- Ran focused tmux regressions:
+  - `GOWORK=off go test ./pkg/jsparse -run 'TestCSTToSExprDeterministic|TestCSTToSExprTruncatesByNodeCount|TestASTIndexToSExprDeterministic' -count=1`
+  - `GOWORK=off go test ./cmd/ast-parse-editor/app -run 'TestASTParseTransitionsInvalidBackToValid|TestEditToInvalidSourceClearsASTPane|TestStaleASTParseMessageIsIgnored' -count=1`
+- Ran broader tmux regression:
+  - `GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1`
+
+### Why
+
+- These tests directly target the highest-risk areas introduced by Tasks 1 and 2: deterministic rendering and runtime parse state switching.
+
+### What worked
+
+- Focused regression run passed in tmux (`__EXIT_CODE__0`).
+- Broader regression run passed in tmux (`__EXIT_CODE__0`).
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Sequence-gated debounce handling remains stable under rapid source validity transitions in test flow.
+
+### What was tricky to build
+
+- Keeping tests precise without over-coupling to formatting details required assertions on semantic invariants (determinism and parse state) rather than entire large output strings.
+
+### What warrants a second pair of eyes
+
+- Confirm whether you want full golden-file snapshot tests for SEXP output now, or later after UI output conventions are finalized.
+
+### What should be done in the future
+
+- Add optional golden snapshot fixtures once renderer metadata defaults are frozen.
+
+### Code review instructions
+
+- Review:
+  - `go-go-goja/pkg/jsparse/sexp_test.go`
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+- Re-run:
+  - `cd go-go-goja && GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1`
+
+### Technical details
+
+- Focused tmux run output:
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.003s`
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.003s`
+  - `__EXIT_CODE__0`
+- Broad tmux run output:
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.006s`
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.007s`
+  - `__EXIT_CODE__0`
+
+## Step 8: Task 4 Empty-Source AST Validity Fix
+
+I investigated the empty-file behavior and confirmed the parse itself was valid, but the AST S-expression path returned an empty string because the index root ID was `-1` for empty source. That made the AST pane look like it was still waiting, despite successful parsing.
+
+I fixed this by adding a safe fallback in `ASTToSExpr` and backing it with dedicated regression tests in both the reusable renderer package and the editor model package.
+
+### Prompt Context
+
+**User prompt (verbatim):** "allow editing an empty file as well"
+
+**Assistant interpretation:** Ensure the live editor treats an empty JavaScript file as a valid parse state and shows a meaningful AST pane value.
+
+**Inferred user intent:** Remove a practical usability bug where zero-byte files appear broken in the AST pane.
+
+**Commit (code):** `494d238` — "ast-parse-editor: handle valid empty source AST rendering"
+
+### What I did
+
+- Kept and finalized fallback behavior in:
+  - `go-go-goja/pkg/jsparse/sexp.go` (`ASTToSExpr` now returns `(Program)` when rendered output is empty)
+- Added regression tests:
+  - `go-go-goja/pkg/jsparse/sexp_test.go` (`TestASTToSExprHandlesEmptyProgram`)
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go` (`TestInitialParseForEmptySourceProducesProgramAST`)
+- Formatted files:
+  - `gofmt -w pkg/jsparse/sexp.go pkg/jsparse/sexp_test.go cmd/ast-parse-editor/app/model_test.go`
+- Ran tmux validation:
+  - `tmux new-session -d -s goja001_empty "cd ... && GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1; echo __EXIT_CODE__$?; exec zsh"`
+  - `tmux capture-pane -pt goja001_empty:0`
+
+### Why
+
+- Empty source is a valid JavaScript program, so showing a waiting/invalid AST state is incorrect and confusing.
+
+### What worked
+
+- tmux test run passed:
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.005s`
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.003s`
+  - `__EXIT_CODE__0`
+- Pre-commit hooks completed and commit succeeded with the focused fix.
+
+### What didn't work
+
+- First tmux capture attempt failed because the short-lived session ended before capture:
+  - `can't find session: goja001_empty`
+- Fix: reran tmux command with `exec zsh` to keep the session alive for capture.
+- During pre-commit `go generate`, Dagger image resolution timed out:
+  - `dial tcp: lookup registry-1.docker.io: i/o timeout`
+- The hook’s fallback path worked and continued with local npm build, then full `go test ./...` passed.
+
+### What I learned
+
+- For this parser/index pipeline, a valid `*ast.Program` can still map to an empty index root, so `ASTToSExpr` needs a semantic fallback for empty programs.
+
+### What was tricky to build
+
+- The subtle bug was not parser validity; it was downstream rendering behavior of an empty but valid AST. This required fixing renderer semantics rather than parse control flow.
+
+### What warrants a second pair of eyes
+
+- Confirm whether `(Program)` is the preferred canonical empty AST display string, or if you want additional metadata on the empty root.
+
+### What should be done in the future
+
+- If we add file-save support, include a dedicated end-to-end test that launches the editor command against a zero-byte temp file.
+
+### Code review instructions
+
+- Review:
+  - `go-go-goja/pkg/jsparse/sexp.go`
+  - `go-go-goja/pkg/jsparse/sexp_test.go`
+  - `go-go-goja/cmd/ast-parse-editor/app/model_test.go`
+- Validate:
+  - `cd go-go-goja && GOWORK=off go test ./pkg/jsparse ./cmd/ast-parse-editor/... -count=1`
+
+### Technical details
+
+- Commit hash: `494d238`
+- Focused tmux session: `goja001_empty`
+- Behavior change:
+  - Before: empty source could surface as `(waiting-for-valid-parse)` due empty AST S-expression
+  - After: empty source renders AST pane as `(Program)`
+
+## Step 9: Task 5 CLI Empty-Buffer Startup for Missing/No File
+
+I followed up on CLI startup behavior after reproducing your exact shell commands and confirmed the command still exited early when no path was provided or when the path did not exist. That was a command-entry issue, separate from parser validity.
+
+I updated startup input handling so the editor can be launched with no args or a missing path, both resulting in an editable empty buffer and valid initial AST pane.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 8)
+
+**Assistant interpretation:** Extend the fix to CLI startup so empty editing also works when no file exists yet.
+
+**Inferred user intent:** Use the editor to start new files directly, without pre-creating them on disk.
+
+**Commit (code):** `e3231e6` — "ast-parse-editor: allow opening missing or no file as empty buffer"
+
+### What I did
+
+- Refactored CLI input loading into:
+  - `loadInput(args []string) (filename, source string, err error)` in `go-go-goja/cmd/ast-parse-editor/main.go`
+- Implemented behavior:
+  - `ast-parse-editor` -> starts `untitled.js` with empty source
+  - `ast-parse-editor <missing.js>` -> starts that filename with empty source
+  - `ast-parse-editor <existing.js>` -> loads existing content
+  - multiple args -> usage error
+- Added tests:
+  - `go-go-goja/cmd/ast-parse-editor/main_test.go`
+    - no-arg startup
+    - existing file read
+    - missing file empty startup
+    - multiple-arg usage error
+- Ran tmux tests:
+  - `tmux new-session -d -s goja001_cli_empty "cd ... && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1; echo __EXIT_CODE__$?; exec zsh"`
+- Ran tmux behavior checks matching your shell flow:
+  - `go run ./go-go-goja/cmd/ast-parse-editor`
+  - `go run ./go-go-goja/cmd/ast-parse-editor test.js`
+
+### Why
+
+- Requiring pre-existing files breaks the “edit empty file” workflow and slows iterative usage.
+
+### What worked
+
+- Test run passed:
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor 0.002s`
+  - `ok github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app 0.015s`
+  - `ok github.com/go-go-golems/go-go-goja/pkg/jsparse 0.006s`
+  - `__EXIT_CODE__0`
+- Live tmux command checks showed editor opens with:
+  - AST pane `(Program)`
+  - status `ast: valid`
+
+### What didn't work
+
+- Initial quick tmux sanity sessions ended before capture:
+  - `can't find session: goja001_run_noarg`
+  - `can't find session: goja001_run_missing`
+- Fix: reran with delayed teardown (`sleep`) and captured pane output successfully.
+- Pre-commit `go generate` again hit Dagger/Docker Hub DNS timeout:
+  - `dial tcp: lookup registry-1.docker.io: i/o timeout`
+- Hook fallback path succeeded and commit completed.
+
+### What I learned
+
+- Startup UX needed explicit policy independent of parsing internals: missing file is a valid authoring entry point, not an error condition.
+
+### What was tricky to build
+
+- Getting deterministic interactive verification in tmux required keeping sessions alive long enough for capture after launching the TUI.
+
+### What warrants a second pair of eyes
+
+- Confirm whether default no-arg filename `untitled.js` is the preferred label, or if you want a different scratch naming convention.
+
+### What should be done in the future
+
+- If save support is added, tie scratch/default filename behavior to save prompts and on-disk creation semantics.
+
+### Code review instructions
+
+- Review:
+  - `go-go-goja/cmd/ast-parse-editor/main.go`
+  - `go-go-goja/cmd/ast-parse-editor/main_test.go`
+- Validate:
+  - `cd go-go-goja && GOWORK=off go test ./cmd/ast-parse-editor/... ./pkg/jsparse -count=1`
+- Manual:
+  - `go run ./go-go-goja/cmd/ast-parse-editor`
+  - `go run ./go-go-goja/cmd/ast-parse-editor test.js`
+
+### Technical details
+
+- Commit hash: `e3231e6`
+- Added symbol: `loadInput`
+- Default filename constant: `untitled.js`

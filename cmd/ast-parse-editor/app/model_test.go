@@ -1,0 +1,403 @@
+package app
+
+import (
+	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+func applyCmd(t *testing.T, m *Model, cmd tea.Cmd) *Model {
+	t.Helper()
+	if cmd == nil {
+		return m
+	}
+	msg := cmd()
+	next, nextCmd := m.Update(msg)
+	nm, ok := next.(*Model)
+	if !ok {
+		t.Fatalf("expected *Model, got %T", next)
+	}
+	_ = nextCmd
+	return nm
+}
+
+func newTestModel(t *testing.T, src string) *Model {
+	t.Helper()
+	m := NewModel("test.js", src)
+	m.parseDebounce = 0
+
+	cmd := m.Init()
+	m = applyCmd(t, m, cmd)
+	return m
+}
+
+func applyKey(t *testing.T, m *Model, msg tea.KeyMsg) *Model {
+	t.Helper()
+	next, cmd := m.Update(msg)
+	nm, ok := next.(*Model)
+	if !ok {
+		t.Fatalf("expected *Model after key update, got %T", next)
+	}
+	return applyCmd(t, nm, cmd)
+}
+
+func TestInitialParseProducesASTSExpr(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+
+	if m.astParseErr != nil {
+		t.Fatalf("expected no parse error, got %v", m.astParseErr)
+	}
+	if m.astSExpr == "" {
+		t.Fatal("expected non-empty AST S-expression")
+	}
+}
+
+func TestInitialParseForEmptySourceProducesProgramAST(t *testing.T) {
+	m := newTestModel(t, "")
+
+	if m.astParseErr != nil {
+		t.Fatalf("expected no parse error for empty source, got %v", m.astParseErr)
+	}
+	if m.astSExpr != "(Program)" {
+		t.Fatalf("expected Program AST for empty source, got %q", m.astSExpr)
+	}
+	if m.astTextForView() == "(waiting-for-valid-parse)" {
+		t.Fatal("expected AST pane to show valid parse for empty source")
+	}
+}
+
+func TestCursorNodeHighlightInitialized(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+
+	if m.tsCursorNode == nil {
+		t.Fatal("expected TS cursor node to be resolved")
+	}
+	if m.tsHighlightStartLine < 1 || m.tsHighlightEndLine < 1 {
+		t.Fatalf("expected valid highlight range, got start=%d:%d end=%d:%d",
+			m.tsHighlightStartLine, m.tsHighlightStartCol, m.tsHighlightEndLine, m.tsHighlightEndCol)
+	}
+	if m.astCursorNodeID < 0 {
+		t.Fatal("expected AST cursor node to be resolved in insert mode")
+	}
+}
+
+func TestCursorNodeHighlightMovesWithCursor(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+
+	m.moveCursor(0, 6) // on "x"
+	if m.tsCursorNode == nil || m.tsCursorNode.Text != "x" {
+		got := "<nil>"
+		if m.tsCursorNode != nil {
+			got = m.tsCursorNode.Text
+		}
+		t.Fatalf("expected cursor node text x, got %s", got)
+	}
+	if m.astCursorNodeID < 0 {
+		t.Fatal("expected AST cursor node after move")
+	}
+
+	m.moveCursor(0, 4) // on "1"
+	if m.tsCursorNode == nil || m.tsCursorNode.Text != "1" {
+		got := "<nil>"
+		if m.tsCursorNode != nil {
+			got = m.tsCursorNode.Text
+		}
+		t.Fatalf("expected cursor node text 1, got %s", got)
+	}
+}
+
+func TestSExprSelectionLinesTrackCursor(t *testing.T) {
+	src := "const greeting = 'hi';\nconsole.log(greeting);"
+	m := newTestModel(t, src)
+
+	if m.tsSExprSelectedLine < 0 {
+		t.Fatalf("expected initial TS SEXP selection line, got %d", m.tsSExprSelectedLine)
+	}
+	if m.astSExprSelectedLine < 0 {
+		t.Fatalf("expected initial AST SEXP selection line, got %d", m.astSExprSelectedLine)
+	}
+	startTS := m.tsSExprSelectedLine
+	startAST := m.astSExprSelectedLine
+
+	m.cursorRow = 1
+	m.cursorCol = len([]rune("console.log(greet"))
+	m.moveCursor(0, 0)
+
+	if m.tsSExprSelectedLine < 0 {
+		t.Fatalf("expected TS SEXP selection line after move, got %d", m.tsSExprSelectedLine)
+	}
+	if m.astSExprSelectedLine < 0 {
+		t.Fatalf("expected AST SEXP selection line after move, got %d", m.astSExprSelectedLine)
+	}
+	if m.tsSExprSelectedLine == startTS {
+		t.Fatalf("expected TS SEXP selection line to change from %d", startTS)
+	}
+	if m.astSExprSelectedLine == startAST {
+		t.Fatalf("expected AST SEXP selection line to change from %d", startAST)
+	}
+}
+
+func TestCursorNodeHighlightEmptySourceIsSafe(t *testing.T) {
+	m := newTestModel(t, "")
+	m.updateCursorNodeHighlight()
+
+	if m.tsHighlightStartLine != 0 || m.tsHighlightStartCol != 0 || m.tsHighlightEndLine != 0 || m.tsHighlightEndCol != 0 {
+		t.Fatalf("expected empty highlight range, got start=%d:%d end=%d:%d",
+			m.tsHighlightStartLine, m.tsHighlightStartCol, m.tsHighlightEndLine, m.tsHighlightEndCol)
+	}
+}
+
+func TestEditToInvalidSourceClearsASTPane(t *testing.T) {
+	m := newTestModel(t, "const obj = {};\nobj")
+	m.cursorRow = 1
+	m.cursorCol = len([]rune(m.lines[1]))
+
+	key := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'.'}}
+	next, cmd := m.Update(key)
+	var ok bool
+	m, ok = next.(*Model)
+	if !ok {
+		t.Fatalf("expected *Model after key update, got %T", next)
+	}
+	m = applyCmd(t, m, cmd)
+
+	if m.astParseErr == nil {
+		t.Fatal("expected parse error after typing trailing dot")
+	}
+	if m.astSExpr != "" {
+		t.Fatalf("expected AST pane to clear on invalid parse, got: %s", m.astSExpr)
+	}
+	if m.astSExprSelectedLine != -1 {
+		t.Fatalf("expected AST SEXP selection line to clear on invalid parse, got %d", m.astSExprSelectedLine)
+	}
+}
+
+func TestCSTSExprChangesAfterEdit(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+	old := m.tsSExpr
+	m.cursorRow = 0
+	m.cursorCol = len([]rune(m.lines[0]))
+
+	key := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{';'}}
+	next, cmd := m.Update(key)
+	var ok bool
+	m, ok = next.(*Model)
+	if !ok {
+		t.Fatalf("expected *Model after key update, got %T", next)
+	}
+	m = applyCmd(t, m, cmd)
+
+	if m.tsSExpr == old {
+		t.Fatal("expected CST S-expression to change after edit")
+	}
+}
+
+func TestStaleASTParseMessageIsIgnored(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+	old := m.astSExpr
+	m.pendingSeq = 5
+
+	next, _ := m.Update(astParsedMsg{
+		Seq:      4,
+		ParseErr: nil,
+		ASTSExpr: "(Program stale)",
+	})
+	nm, ok := next.(*Model)
+	if !ok {
+		t.Fatalf("expected *Model, got %T", next)
+	}
+
+	if nm.astSExpr != old {
+		t.Fatalf("expected stale AST message to be ignored, got: %s", nm.astSExpr)
+	}
+}
+
+func TestASTParseTransitionsInvalidBackToValid(t *testing.T) {
+	m := newTestModel(t, "const obj = {};\nobj")
+	m.cursorRow = 1
+	m.cursorCol = len([]rune(m.lines[1]))
+
+	// Make it invalid: obj.
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'.'}})
+	var ok bool
+	m, ok = next.(*Model)
+	if !ok {
+		t.Fatalf("expected *Model after invalidating edit, got %T", next)
+	}
+	m = applyCmd(t, m, cmd)
+	if m.astParseErr == nil {
+		t.Fatal("expected parse error for invalid source")
+	}
+	if m.astSExpr != "" {
+		t.Fatalf("expected cleared AST S-expression on invalid source, got %s", m.astSExpr)
+	}
+
+	// Recover by adding identifier chars: obj.foo
+	next, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f', 'o', 'o'}})
+	m, ok = next.(*Model)
+	if !ok {
+		t.Fatalf("expected *Model after recovery edit, got %T", next)
+	}
+	m = applyCmd(t, m, cmd)
+
+	if m.astParseErr != nil {
+		t.Fatalf("expected recovered valid parse, got %v", m.astParseErr)
+	}
+	if m.astSExpr == "" {
+		t.Fatal("expected AST S-expression after recovery to valid source")
+	}
+}
+
+func TestModeToggleASTSelectAndBack(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+	if m.editorMode != editorModeInsert {
+		t.Fatalf("expected insert mode by default, got %v", m.editorMode)
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlT})
+	if m.editorMode != editorModeASTSelect {
+		t.Fatalf("expected AST select mode after toggle, got %v", m.editorMode)
+	}
+	if m.selectedASTNodeID < 0 {
+		t.Fatal("expected AST node selection in AST select mode")
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlT})
+	if m.editorMode != editorModeInsert {
+		t.Fatalf("expected insert mode after second toggle, got %v", m.editorMode)
+	}
+	if m.selectedASTNodeID != -1 {
+		t.Fatalf("expected selected AST node to clear, got %d", m.selectedASTNodeID)
+	}
+}
+
+func TestASTSelectNavigationMovesSelection(t *testing.T) {
+	m := newTestModel(t, "function add(a, b) { return a + b; }")
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlT})
+	start := m.selectedASTNodeID
+	if start < 0 {
+		t.Fatal("expected initial AST selection")
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	if m.selectedASTNodeID == start {
+		t.Fatalf("expected child navigation to change node, still %d", m.selectedASTNodeID)
+	}
+
+	child := m.selectedASTNodeID
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	if m.selectedASTNodeID != start {
+		t.Fatalf("expected parent navigation to return to start %d, got %d", start, m.selectedASTNodeID)
+	}
+	if child == start {
+		t.Fatal("expected child and parent selections to differ")
+	}
+}
+
+func TestSyntaxHighlightToggle(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+	if !m.syntaxHighlight {
+		t.Fatal("expected syntax highlighting enabled by default")
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlS})
+	if m.syntaxHighlight {
+		t.Fatal("expected syntax highlighting to toggle off")
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlS})
+	if !m.syntaxHighlight {
+		t.Fatal("expected syntax highlighting to toggle back on")
+	}
+}
+
+func TestASTSelectModeBlocksTextInsertion(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+	before := m.source()
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlT})
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'z'}})
+
+	if got := m.source(); got != before {
+		t.Fatalf("expected source unchanged in AST select mode, got %q want %q", got, before)
+	}
+}
+
+func TestInsertModeAllowsTypingMAndS(t *testing.T) {
+	m := newTestModel(t, "const x = 1;")
+	m.cursorRow = 0
+	m.cursorCol = len([]rune(m.lines[0]))
+	before := m.source()
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+
+	if got := m.source(); got != before+"ms" {
+		t.Fatalf("expected insert mode to type m/s literals, got %q", got)
+	}
+}
+
+func TestASTTreePaneSpaceTogglesExpand(t *testing.T) {
+	m := newTestModel(t, "function add(a, b) { return a + b; }")
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlT}) // AST-select mode
+	m.astSelectRoot()
+	m.focus = focusASTSExpr
+
+	root := m.astIndex.Nodes[m.astIndex.RootID]
+	if root == nil {
+		t.Fatal("expected AST root node")
+	}
+	before := root.Expanded
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeySpace})
+
+	root = m.astIndex.Nodes[m.astIndex.RootID]
+	if root.Expanded == before {
+		t.Fatalf("expected root expanded state to toggle, still %v", root.Expanded)
+	}
+}
+
+func TestGoToDefinitionFromCursor(t *testing.T) {
+	src := "const greeting = 'hi';\nconsole.log(greeting);"
+	m := newTestModel(t, src)
+
+	m.cursorRow = 1
+	m.cursorCol = len([]rune("console.log(greet"))
+	m.moveCursor(0, 0)
+
+	beforeRow := m.cursorRow
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlD})
+	if m.cursorRow == beforeRow {
+		t.Fatalf("expected go-to-definition to move cursor from row %d", beforeRow)
+	}
+	if m.cursorRow != 0 {
+		t.Fatalf("expected declaration on row 0, got %d", m.cursorRow)
+	}
+	if m.astCursorNodeID < 0 {
+		t.Fatal("expected AST cursor node after go-to-definition")
+	}
+}
+
+func TestFindUsagesToggle(t *testing.T) {
+	src := "const greeting = 'hi';\nconsole.log(greeting);"
+	m := newTestModel(t, src)
+	m.cursorRow = 1
+	m.cursorCol = len([]rune("console.log(greet"))
+	m.moveCursor(0, 0)
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlG})
+	if len(m.usageHighlightNodeIDs) < 2 {
+		t.Fatalf("expected at least declaration+reference usage highlights, got %d", len(m.usageHighlightNodeIDs))
+	}
+	if m.usageBindingDeclNodeID < 0 {
+		t.Fatal("expected usage binding declaration node id")
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlG})
+	if len(m.usageHighlightNodeIDs) != 0 {
+		t.Fatalf("expected usages to clear on second toggle, got %d", len(m.usageHighlightNodeIDs))
+	}
+	if m.usageBindingDeclNodeID != -1 {
+		t.Fatalf("expected cleared binding id, got %d", m.usageBindingDeclNodeID)
+	}
+}
