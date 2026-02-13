@@ -108,6 +108,18 @@ func TestASTToSExprHandlesNilProgram(t *testing.T) {
 	}
 }
 
+func TestASTToSExprHandlesEmptyProgram(t *testing.T) {
+	program, err := parser.ParseFile(nil, "empty.js", "", 0)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	out := ASTToSExpr(program, "", nil)
+	if out != "(Program)" {
+		t.Fatalf("expected Program fallback for empty source, got: %q", out)
+	}
+}
+
 func TestCSTToSExprDeterministic(t *testing.T) {
 	root := &TSNode{
 		Kind: "program",

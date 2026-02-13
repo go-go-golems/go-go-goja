@@ -42,6 +42,20 @@ func TestInitialParseProducesASTSExpr(t *testing.T) {
 	}
 }
 
+func TestInitialParseForEmptySourceProducesProgramAST(t *testing.T) {
+	m := newTestModel(t, "")
+
+	if m.astParseErr != nil {
+		t.Fatalf("expected no parse error for empty source, got %v", m.astParseErr)
+	}
+	if m.astSExpr != "(Program)" {
+		t.Fatalf("expected Program AST for empty source, got %q", m.astSExpr)
+	}
+	if m.astTextForView() == "(waiting-for-valid-parse)" {
+		t.Fatal("expected AST pane to show valid parse for empty source")
+	}
+}
+
 func TestEditToInvalidSourceClearsASTPane(t *testing.T) {
 	m := newTestModel(t, "const obj = {};\nobj")
 	m.cursorRow = 1

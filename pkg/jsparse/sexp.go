@@ -55,7 +55,13 @@ func ASTToSExpr(program *ast.Program, src string, opts *SExprOptions) string {
 		return ""
 	}
 	idx := BuildIndex(program, src)
-	return ASTIndexToSExpr(idx, opts)
+	out := ASTIndexToSExpr(idx, opts)
+	if strings.TrimSpace(out) == "" {
+		// Empty source can parse to a program with zero-width positions; preserve a
+		// minimal valid AST view so editor panes still show parse success.
+		return "(Program)"
+	}
+	return out
 }
 
 func normalizeSExprOptions(opts *SExprOptions) SExprOptions {
