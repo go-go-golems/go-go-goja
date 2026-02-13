@@ -78,17 +78,25 @@ type Model struct {
 	tsRoot   *jsparse.TSNode
 	tsSExpr  string
 
-	cursorNode         *jsparse.TSNode
-	highlightStartLine int // 1-based
-	highlightStartCol  int // 1-based
-	highlightEndLine   int // 1-based
-	highlightEndCol    int // 1-based
+	tsCursorNode         *jsparse.TSNode
+	tsHighlightStartLine int // 1-based
+	tsHighlightStartCol  int // 1-based
+	tsHighlightEndLine   int // 1-based
+	tsHighlightEndCol    int // 1-based
 
-	astSExpr    string
-	astParseErr error
-	astIndex    *jsparse.Index
+	astSExpr              string
+	astParseErr           error
+	astIndex              *jsparse.Index
+	astCursorNodeID       jsparse.NodeID
+	astHighlightStartLine int
+	astHighlightStartCol  int
+	astHighlightEndLine   int
+	astHighlightEndCol    int
 
-	selectedASTNodeID jsparse.NodeID
+	selectedASTNodeID      jsparse.NodeID
+	usageBindingDeclNodeID jsparse.NodeID
+	usageHighlightNodeIDs  []jsparse.NodeID
+	usageHighlightRanges   []syntaxSpan
 
 	syntaxSpans []syntaxSpan
 
@@ -106,14 +114,16 @@ func NewModel(filename, source string) *Model {
 
 	tsParser, _ := jsparse.NewTSParser()
 	m := &Model{
-		filename:          filename,
-		lines:             lines,
-		focus:             focusEditor,
-		editorMode:        editorModeInsert,
-		syntaxHighlight:   true,
-		tsParser:          tsParser,
-		parseDebounce:     120 * time.Millisecond,
-		selectedASTNodeID: -1,
+		filename:               filename,
+		lines:                  lines,
+		focus:                  focusEditor,
+		editorMode:             editorModeInsert,
+		syntaxHighlight:        true,
+		tsParser:               tsParser,
+		parseDebounce:          120 * time.Millisecond,
+		selectedASTNodeID:      -1,
+		astCursorNodeID:        -1,
+		usageBindingDeclNodeID: -1,
 	}
 	m.reparseCST()
 	return m
@@ -141,15 +151,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.ParseErr == nil {
 			m.astSExpr = msg.ASTSExpr
 			m.astIndex = msg.ASTIndex
+			m.updateCursorASTHighlight()
 		} else {
 			m.astSExpr = ""
 			m.astIndex = nil
 			m.selectedASTNodeID = -1
+			m.astCursorNodeID = -1
+			m.clearASTHighlight()
+			m.clearUsageHighlights()
 		}
 		if m.editorMode == editorModeASTSelect {
 			if !m.syncASTSelectionFromCursor() {
 				m.astSelectRoot()
 			}
+		} else {
+			m.updateCursorNodeHighlight()
 		}
 		m.astScroll = clamp(m.astScroll, 0, maxInt(0, len(strings.Split(m.astTextForView(), "\n"))-1))
 		return m, nil
@@ -170,6 +186,15 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "ctrl+s":
 		m.syntaxHighlight = !m.syntaxHighlight
+		return m, nil
+	case "ctrl+d":
+		m.goToDefinition()
+		return m, nil
+	case "ctrl+g":
+		m.toggleFindUsages()
+		return m, nil
+	case "esc", "escape":
+		m.clearUsageHighlights()
 		return m, nil
 	}
 
@@ -210,11 +235,13 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.cursorCol = 0
 		m.ensureCursorVisible()
 		m.updateCursorNodeHighlight()
+		m.updateCursorASTHighlight()
 		return m, nil
 	case "end":
 		m.cursorCol = len([]rune(m.lines[m.cursorRow]))
 		m.ensureCursorVisible()
 		m.updateCursorNodeHighlight()
+		m.updateCursorASTHighlight()
 		return m, nil
 	case "enter":
 		m.insertNewline()
@@ -296,6 +323,7 @@ func (m *Model) handleScrollKey(msg tea.KeyMsg, scroll *int, content string) (te
 }
 
 func (m *Model) postEdit() tea.Cmd {
+	m.clearUsageHighlights()
 	m.reparseCST()
 	return m.scheduleASTParse()
 }
@@ -320,6 +348,9 @@ func parseASTCmd(seq uint64, filename, source string, delay time.Duration) tea.C
 		var astIndex *jsparse.Index
 		if parseErr == nil && program != nil {
 			astIndex = jsparse.BuildIndex(program, source)
+			if astIndex.RootID >= 0 {
+				astIndex.Resolution = jsparse.Resolve(program, astIndex)
+			}
 			astSExpr = jsparse.ASTIndexToSExpr(astIndex, &jsparse.SExprOptions{
 				IncludeSpan: true,
 				IncludeText: true,
@@ -374,6 +405,7 @@ func (m *Model) reparseCST() {
 	m.rebuildSyntaxSpans()
 	if m.editorMode == editorModeInsert {
 		m.updateCursorNodeHighlight()
+		m.updateCursorASTHighlight()
 	}
 }
 
@@ -398,6 +430,7 @@ func (m *Model) toggleEditorMode() {
 
 	m.editorMode = editorModeInsert
 	m.selectedASTNodeID = -1
+	m.updateCursorASTHighlight()
 	m.updateCursorNodeHighlight()
 }
 
@@ -429,8 +462,12 @@ func (m *Model) syncASTSelectionFromCursor() bool {
 	}
 	n := m.astIndex.NodeAtOffset(m.cursorOffset())
 	if n == nil {
+		m.astCursorNodeID = -1
+		m.clearASTHighlight()
 		return false
 	}
+	m.astCursorNodeID = n.ID
+	m.setASTHighlightFromNode(n)
 	m.selectASTNode(n.ID)
 	return true
 }
@@ -445,10 +482,8 @@ func (m *Model) selectASTNode(id jsparse.NodeID) {
 		return
 	}
 	m.selectedASTNodeID = id
-	m.highlightStartLine = n.StartLine
-	m.highlightStartCol = n.StartCol
-	m.highlightEndLine = n.EndLine
-	m.highlightEndCol = n.EndCol
+	m.astCursorNodeID = id
+	m.setASTHighlightFromNode(n)
 	m.cursorRow = clamp(n.StartLine-1, 0, len(m.lines)-1)
 	if m.cursorRow >= 0 && m.cursorRow < len(m.lines) {
 		lineLen := len([]rune(m.lines[m.cursorRow]))
@@ -456,6 +491,7 @@ func (m *Model) selectASTNode(id jsparse.NodeID) {
 	}
 	m.ensureCursorVisible()
 	m.ensureASTTreeSelectionVisible()
+	m.updateCursorNodeHighlight()
 }
 
 func (m *Model) astSelectRoot() {
@@ -518,6 +554,103 @@ func (m *Model) astSelectSibling(step int) {
 		m.selectASTNode(parent.ChildIDs[j])
 		return
 	}
+}
+
+func (m *Model) updateCursorASTHighlight() {
+	if m.astIndex == nil {
+		m.astCursorNodeID = -1
+		m.clearASTHighlight()
+		return
+	}
+	n := m.astIndex.NodeAtOffset(m.cursorOffset())
+	if n == nil {
+		m.astCursorNodeID = -1
+		m.clearASTHighlight()
+		return
+	}
+	m.astCursorNodeID = n.ID
+	m.setASTHighlightFromNode(n)
+}
+
+func (m *Model) setASTHighlightFromNode(n *jsparse.NodeRecord) {
+	if n == nil {
+		m.clearASTHighlight()
+		return
+	}
+	m.astHighlightStartLine = n.StartLine
+	m.astHighlightStartCol = n.StartCol
+	m.astHighlightEndLine = n.EndLine
+	m.astHighlightEndCol = n.EndCol
+}
+
+func (m *Model) clearASTHighlight() {
+	m.astHighlightStartLine = 0
+	m.astHighlightStartCol = 0
+	m.astHighlightEndLine = 0
+	m.astHighlightEndCol = 0
+}
+
+func (m *Model) activeASTNodeID() jsparse.NodeID {
+	if m.editorMode == editorModeASTSelect && m.selectedASTNodeID >= 0 {
+		return m.selectedASTNodeID
+	}
+	return m.astCursorNodeID
+}
+
+func (m *Model) goToDefinition() {
+	if m.astIndex == nil || m.astIndex.Resolution == nil {
+		return
+	}
+	id := m.activeASTNodeID()
+	if id < 0 {
+		return
+	}
+	b := m.astIndex.Resolution.BindingForNode(id)
+	if b == nil {
+		return
+	}
+	m.selectASTNode(b.DeclNodeID)
+}
+
+func (m *Model) toggleFindUsages() {
+	if m.astIndex == nil || m.astIndex.Resolution == nil {
+		return
+	}
+	id := m.activeASTNodeID()
+	if id < 0 {
+		return
+	}
+	b := m.astIndex.Resolution.BindingForNode(id)
+	if b == nil {
+		m.clearUsageHighlights()
+		return
+	}
+	if m.usageBindingDeclNodeID == b.DeclNodeID {
+		m.clearUsageHighlights()
+		return
+	}
+	m.usageBindingDeclNodeID = b.DeclNodeID
+	m.usageHighlightNodeIDs = b.AllUsages()
+	m.usageHighlightRanges = m.usageHighlightRanges[:0]
+	for _, nid := range m.usageHighlightNodeIDs {
+		n := m.astIndex.Nodes[nid]
+		if n == nil {
+			continue
+		}
+		m.usageHighlightRanges = append(m.usageHighlightRanges, syntaxSpan{
+			startLine: n.StartLine,
+			startCol:  n.StartCol,
+			endLine:   n.EndLine,
+			endCol:    n.EndCol,
+			class:     syntaxClassNone,
+		})
+	}
+}
+
+func (m *Model) clearUsageHighlights() {
+	m.usageBindingDeclNodeID = -1
+	m.usageHighlightNodeIDs = nil
+	m.usageHighlightRanges = nil
 }
 
 func (m *Model) astVisibleNodes() []jsparse.NodeID {
@@ -633,6 +766,7 @@ func (m *Model) moveCursor(dy, dx int) {
 	m.cursorCol = clamp(m.cursorCol+dx, 0, lineLen)
 	m.ensureCursorVisible()
 	m.updateCursorNodeHighlight()
+	m.updateCursorASTHighlight()
 }
 
 func (m *Model) ensureCursorVisible() {
@@ -794,16 +928,24 @@ func (m *Model) renderStatus() string {
 	} else {
 		parts = append(parts, "ast: valid")
 	}
-	if m.cursorNode != nil {
-		parts = append(parts, fmt.Sprintf("node: %s (%d:%d-%d:%d)",
-			m.cursorNode.Kind,
-			m.highlightStartLine, m.highlightStartCol,
-			m.highlightEndLine, m.highlightEndCol))
+	if m.tsCursorNode != nil {
+		parts = append(parts, fmt.Sprintf("ts-node: %s (%d:%d-%d:%d)",
+			m.tsCursorNode.Kind,
+			m.tsHighlightStartLine, m.tsHighlightStartCol,
+			m.tsHighlightEndLine, m.tsHighlightEndCol))
+	}
+	if m.astCursorNodeID >= 0 && m.astIndex != nil {
+		if n := m.astIndex.Nodes[m.astCursorNodeID]; n != nil {
+			parts = append(parts, fmt.Sprintf("ast-cursor: %s [%d..%d]", n.Kind, n.Start, n.End))
+		}
 	}
 	if m.selectedASTNodeID >= 0 && m.astIndex != nil {
 		if n := m.astIndex.Nodes[m.selectedASTNodeID]; n != nil {
 			parts = append(parts, fmt.Sprintf("ast-node: %s [%d..%d]", n.Kind, n.Start, n.End))
 		}
+	}
+	if m.usageBindingDeclNodeID >= 0 {
+		parts = append(parts, fmt.Sprintf("usages: %d", len(m.usageHighlightNodeIDs)))
 	}
 
 	return style.Render(strings.Join(parts, " | "))
@@ -823,7 +965,7 @@ func (m *Model) renderHelp() string {
 	if m.editorMode == editorModeASTSelect {
 		astPaneKeys = "AST TREE pane: j/k move, h/l collapse/expand, space toggle, g/G root/end"
 	}
-	return style.Render("Tab:focus pane | ctrl+t:toggle mode | ctrl+s:toggle syntax | " + editorKeys + " | " + astPaneKeys + " | q:quit")
+	return style.Render("Tab:focus pane | ctrl+t:toggle mode | ctrl+s:toggle syntax | ctrl+d:go-to-def | ctrl+g:usages | esc:clear usages | " + editorKeys + " | " + astPaneKeys + " | q:quit")
 }
 
 func (m *Model) renderEditorPane(width, height int) string {
@@ -843,7 +985,10 @@ func (m *Model) renderEditorPane(width, height int) string {
 	contentHeight := maxInt(1, height-1)
 	gutterWidth := len(fmt.Sprintf("%d", len(m.lines))) + 1
 	cursorStyle := lipgloss.NewStyle().Reverse(true).Bold(true)
-	highlightStyle := lipgloss.NewStyle().Background(lipgloss.Color("238"))
+	tsHighlightStyle := lipgloss.NewStyle().Background(lipgloss.Color("238"))
+	astHighlightStyle := lipgloss.NewStyle().Background(lipgloss.Color("25"))
+	bothHighlightStyle := lipgloss.NewStyle().Background(lipgloss.Color("60")).Bold(true)
+	usageHighlightStyle := lipgloss.NewStyle().Background(lipgloss.Color("58")).Foreground(lipgloss.Color("229")).Bold(true)
 	gutterNormal := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 	gutterCursor := lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true)
 
@@ -868,13 +1013,27 @@ func (m *Model) renderEditorPane(width, height int) string {
 			ch := string(runes[c])
 			lineNo := lineIdx + 1
 			colNo := c + 1
-			isNodeHighlight := inRange(lineNo, colNo, m.highlightStartLine, m.highlightStartCol, m.highlightEndLine, m.highlightEndCol)
+			isTSHighlight := inRange(lineNo, colNo, m.tsHighlightStartLine, m.tsHighlightStartCol, m.tsHighlightEndLine, m.tsHighlightEndCol)
+			isASTHighlight := inRange(lineNo, colNo, m.astHighlightStartLine, m.astHighlightStartCol, m.astHighlightEndLine, m.astHighlightEndCol)
+			isUsageHighlight := false
+			for _, span := range m.usageHighlightRanges {
+				if inRange(lineNo, colNo, span.startLine, span.startCol, span.endLine, span.endCol) {
+					isUsageHighlight = true
+					break
+				}
+			}
 			syntaxClass := m.syntaxClassAt(lineNo, colNo)
 			rendered := renderSyntaxChar(syntaxClass, ch)
 			if lineIdx == m.cursorRow && c == m.cursorCol && m.focus == focusEditor {
 				content.WriteString(cursorStyle.Render(ch))
-			} else if isNodeHighlight {
-				content.WriteString(highlightStyle.Render(rendered))
+			} else if isUsageHighlight {
+				content.WriteString(usageHighlightStyle.Render(rendered))
+			} else if isTSHighlight && isASTHighlight {
+				content.WriteString(bothHighlightStyle.Render(rendered))
+			} else if isASTHighlight {
+				content.WriteString(astHighlightStyle.Render(rendered))
+			} else if isTSHighlight {
+				content.WriteString(tsHighlightStyle.Render(rendered))
 			} else {
 				content.WriteString(rendered)
 			}
@@ -890,11 +1049,11 @@ func (m *Model) renderEditorPane(width, height int) string {
 }
 
 func (m *Model) clearCursorNodeHighlight() {
-	m.cursorNode = nil
-	m.highlightStartLine = 0
-	m.highlightStartCol = 0
-	m.highlightEndLine = 0
-	m.highlightEndCol = 0
+	m.tsCursorNode = nil
+	m.tsHighlightStartLine = 0
+	m.tsHighlightStartCol = 0
+	m.tsHighlightEndLine = 0
+	m.tsHighlightEndCol = 0
 }
 
 func (m *Model) updateCursorNodeHighlight() {
@@ -912,11 +1071,11 @@ func (m *Model) updateCursorNodeHighlight() {
 		if n == nil {
 			continue
 		}
-		m.cursorNode = n
-		m.highlightStartLine = n.StartRow + 1
-		m.highlightStartCol = n.StartCol + 1
-		m.highlightEndLine = n.EndRow + 1
-		m.highlightEndCol = n.EndCol + 1
+		m.tsCursorNode = n
+		m.tsHighlightStartLine = n.StartRow + 1
+		m.tsHighlightStartCol = n.StartCol + 1
+		m.tsHighlightEndLine = n.EndRow + 1
+		m.tsHighlightEndCol = n.EndCol + 1
 		return
 	}
 }
@@ -1065,11 +1224,23 @@ func (m *Model) renderASTTreePane(width, height int, focused bool) string {
 		}
 
 		line := indent + expandMarker + " " + node.DisplayLabel() + fmt.Sprintf(" [%d..%d]", node.Start, node.End)
+		isUsageNode := false
+		for _, uid := range m.usageHighlightNodeIDs {
+			if uid == nodeID {
+				isUsageNode = true
+				break
+			}
+		}
 		if nodeID == m.selectedASTNodeID {
 			line = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("15")).
 				Background(lipgloss.Color("62")).
 				Bold(true).
+				Render(line)
+		} else if isUsageNode {
+			line = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("229")).
+				Background(lipgloss.Color("58")).
 				Render(line)
 		}
 		lines = append(lines, padRight(line, width))

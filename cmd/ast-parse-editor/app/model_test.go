@@ -69,12 +69,15 @@ func TestInitialParseForEmptySourceProducesProgramAST(t *testing.T) {
 func TestCursorNodeHighlightInitialized(t *testing.T) {
 	m := newTestModel(t, "const x = 1;")
 
-	if m.cursorNode == nil {
-		t.Fatal("expected cursor node to be resolved")
+	if m.tsCursorNode == nil {
+		t.Fatal("expected TS cursor node to be resolved")
 	}
-	if m.highlightStartLine < 1 || m.highlightEndLine < 1 {
+	if m.tsHighlightStartLine < 1 || m.tsHighlightEndLine < 1 {
 		t.Fatalf("expected valid highlight range, got start=%d:%d end=%d:%d",
-			m.highlightStartLine, m.highlightStartCol, m.highlightEndLine, m.highlightEndCol)
+			m.tsHighlightStartLine, m.tsHighlightStartCol, m.tsHighlightEndLine, m.tsHighlightEndCol)
+	}
+	if m.astCursorNodeID < 0 {
+		t.Fatal("expected AST cursor node to be resolved in insert mode")
 	}
 }
 
@@ -82,19 +85,22 @@ func TestCursorNodeHighlightMovesWithCursor(t *testing.T) {
 	m := newTestModel(t, "const x = 1;")
 
 	m.moveCursor(0, 6) // on "x"
-	if m.cursorNode == nil || m.cursorNode.Text != "x" {
+	if m.tsCursorNode == nil || m.tsCursorNode.Text != "x" {
 		got := "<nil>"
-		if m.cursorNode != nil {
-			got = m.cursorNode.Text
+		if m.tsCursorNode != nil {
+			got = m.tsCursorNode.Text
 		}
 		t.Fatalf("expected cursor node text x, got %s", got)
 	}
+	if m.astCursorNodeID < 0 {
+		t.Fatal("expected AST cursor node after move")
+	}
 
 	m.moveCursor(0, 4) // on "1"
-	if m.cursorNode == nil || m.cursorNode.Text != "1" {
+	if m.tsCursorNode == nil || m.tsCursorNode.Text != "1" {
 		got := "<nil>"
-		if m.cursorNode != nil {
-			got = m.cursorNode.Text
+		if m.tsCursorNode != nil {
+			got = m.tsCursorNode.Text
 		}
 		t.Fatalf("expected cursor node text 1, got %s", got)
 	}
@@ -104,9 +110,9 @@ func TestCursorNodeHighlightEmptySourceIsSafe(t *testing.T) {
 	m := newTestModel(t, "")
 	m.updateCursorNodeHighlight()
 
-	if m.highlightStartLine != 0 || m.highlightStartCol != 0 || m.highlightEndLine != 0 || m.highlightEndCol != 0 {
+	if m.tsHighlightStartLine != 0 || m.tsHighlightStartCol != 0 || m.tsHighlightEndLine != 0 || m.tsHighlightEndCol != 0 {
 		t.Fatalf("expected empty highlight range, got start=%d:%d end=%d:%d",
-			m.highlightStartLine, m.highlightStartCol, m.highlightEndLine, m.highlightEndCol)
+			m.tsHighlightStartLine, m.tsHighlightStartCol, m.tsHighlightEndLine, m.tsHighlightEndCol)
 	}
 }
 
@@ -314,5 +320,50 @@ func TestASTTreePaneSpaceTogglesExpand(t *testing.T) {
 	root = m.astIndex.Nodes[m.astIndex.RootID]
 	if root.Expanded == before {
 		t.Fatalf("expected root expanded state to toggle, still %v", root.Expanded)
+	}
+}
+
+func TestGoToDefinitionFromCursor(t *testing.T) {
+	src := "const greeting = 'hi';\nconsole.log(greeting);"
+	m := newTestModel(t, src)
+
+	m.cursorRow = 1
+	m.cursorCol = len([]rune("console.log(greet"))
+	m.moveCursor(0, 0)
+
+	beforeRow := m.cursorRow
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlD})
+	if m.cursorRow == beforeRow {
+		t.Fatalf("expected go-to-definition to move cursor from row %d", beforeRow)
+	}
+	if m.cursorRow != 0 {
+		t.Fatalf("expected declaration on row 0, got %d", m.cursorRow)
+	}
+	if m.astCursorNodeID < 0 {
+		t.Fatal("expected AST cursor node after go-to-definition")
+	}
+}
+
+func TestFindUsagesToggle(t *testing.T) {
+	src := "const greeting = 'hi';\nconsole.log(greeting);"
+	m := newTestModel(t, src)
+	m.cursorRow = 1
+	m.cursorCol = len([]rune("console.log(greet"))
+	m.moveCursor(0, 0)
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlG})
+	if len(m.usageHighlightNodeIDs) < 2 {
+		t.Fatalf("expected at least declaration+reference usage highlights, got %d", len(m.usageHighlightNodeIDs))
+	}
+	if m.usageBindingDeclNodeID < 0 {
+		t.Fatal("expected usage binding declaration node id")
+	}
+
+	m = applyKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlG})
+	if len(m.usageHighlightNodeIDs) != 0 {
+		t.Fatalf("expected usages to clear on second toggle, got %d", len(m.usageHighlightNodeIDs))
+	}
+	if m.usageBindingDeclNodeID != -1 {
+		t.Fatalf("expected cleared binding id, got %d", m.usageBindingDeclNodeID)
 	}
 }
