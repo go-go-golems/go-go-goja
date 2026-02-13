@@ -3,9 +3,9 @@
 ## TODO
 
 - [x] Write issue analysis doc covering reported bugs and similar-pattern sweep findings
-- [ ] Add/extend inspector app regression tests for drawer unresolved-symbol safety (`ctrl+d`, `ctrl+g`)
-- [ ] Fix nil-binding guards in `cmd/inspector/app/model.go` drawer go-to-definition/highlight paths
-- [ ] Run focused validation (`go test ./cmd/inspector/... -count=1`, `go build ./cmd/inspector`) and commit inspector fixes
+- [x] Add/extend inspector app regression tests for drawer unresolved-symbol safety (`ctrl+d`, `ctrl+g`)
+- [x] Fix nil-binding guards in `cmd/inspector/app/model.go` drawer go-to-definition/highlight paths
+- [x] Run focused validation (`go test ./cmd/inspector/... -count=1`, `go build ./cmd/inspector`) and commit inspector fixes
 - [ ] Add resolver regression tests for `for-in/for-of` target resolution (`ForIntoExpression`) and `for (var ...)` declaration coverage (`ForIntoVar`)
 - [ ] Fix resolver handling of `ForInStatement`/`ForOfStatement` into-targets and var-declaration collection
 - [ ] Add resolver regression tests for parameter-default initializer scope semantics in function literals and arrow functions

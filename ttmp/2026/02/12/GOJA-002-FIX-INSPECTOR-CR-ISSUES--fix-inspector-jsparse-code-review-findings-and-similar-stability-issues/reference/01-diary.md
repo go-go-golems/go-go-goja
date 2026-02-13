@@ -185,3 +185,71 @@ Then upload the analysis to remarkable."
   - commit
   - check off task
   - update diary/changelog
+
+## Step 2: Fix Drawer Unresolved-Symbol Panics and Add Regression Coverage
+
+I implemented the inspector-side fixes first because they are user-triggerable panics in the TUI path and had straightforward, isolated scope. I added tests that fail on panic, reproduced both crashes, then patched `model.go` with explicit nil guards and revalidated the command.
+
+This step completes tasks 2, 3, and 4 from the ticket task list.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Add targeted regression tests for unresolved drawer symbol actions, fix panic paths, and run focused inspector build/tests before committing.
+
+**Inferred user intent:** Make interactive inspector actions robust to unresolved names typed by users in the drawer.
+
+**Commit (code):** `6463e63` — "fix(inspector): guard unresolved drawer symbol actions"
+
+### What I did
+- Added new regression tests in `cmd/inspector/app/model_test.go`:
+  - `TestModelDrawerGoToDefinitionUnresolvedDoesNotPanic`
+  - `TestModelDrawerHighlightUsagesUnresolvedClearsWithoutPanic`
+- Reproduced failures before fix:
+  - `GOWORK=off go test ./cmd/inspector/app -run 'TestModelDrawerGoToDefinitionUnresolvedDoesNotPanic|TestModelDrawerHighlightUsagesUnresolvedClearsWithoutPanic' -count=1`
+  - both failed with `invalid memory address or nil pointer dereference`
+- Patched `cmd/inspector/app/model.go`:
+  - `drawerGoToDefinition`: bail out when `binding == nil`
+  - `drawerHighlightUsages`: clear highlights and return when `binding == nil`
+- Ran focused validation:
+  - `GOWORK=off go test ./cmd/inspector/... -count=1`
+  - `GOWORK=off go build ./cmd/inspector`
+- Checked off tasks:
+  - `docmgr task check --ticket GOJA-002-FIX-INSPECTOR-CR-ISSUES --id 2,3,4`
+
+### Why
+- These panics were high-priority, directly user-triggerable defects in interactive workflows.
+- Test-first ensures the panic scenarios are locked down against regression.
+
+### What worked
+- Panic regressions were reproduced with targeted tests.
+- Guard changes removed both panics and preserved expected behavior.
+- Focused inspector tests/build passed.
+
+### What didn't work
+- Local build produced an `inspector` binary artifact in repo root; it had to be moved before commit due policy constraints.
+
+### What I learned
+- The drawer-specific binding lookup path needs explicit unresolved handling even when other navigation paths already check binding existence.
+
+### What was tricky to build
+- The main edge case was the "already highlighting one binding, then query unresolved symbol" transition; it required a defined UX behavior. I chose "clear highlights" for deterministic state cleanup.
+
+### What warrants a second pair of eyes
+- Confirm product preference for unresolved `ctrl+g` behavior: clear highlights (current) vs keeping previous highlights.
+
+### What should be done in the future
+- Consider sharing one lookup helper for drawer symbol resolution so both actions (`ctrl+d`, `ctrl+g`) cannot diverge in behavior again.
+
+### Code review instructions
+- Review guards and behavior transitions in:
+  - `go-go-goja/cmd/inspector/app/model.go`
+- Review panic regression coverage in:
+  - `go-go-goja/cmd/inspector/app/model_test.go`
+- Revalidate with:
+  - `GOWORK=off go test ./cmd/inspector/... -count=1`
+  - `GOWORK=off go build ./cmd/inspector`
+
+### Technical details
+- Tasks completed in this step: `2`, `3`, `4`.
