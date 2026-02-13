@@ -1,4 +1,4 @@
-.PHONY: docker-lint lint lintmax gosec govulncheck test build goreleaser tag-major tag-minor tag-patch release bump-glazed
+.PHONY: docker-lint lint lintmax gosec govulncheck test test-inspector build goreleaser tag-major tag-minor tag-patch release bump-glazed
 
 all: build
 
@@ -24,6 +24,11 @@ govulncheck:
 test:
 	go generate ./...
 	go test ./...
+
+test-inspector:
+	GOWORK=off go test ./pkg/jsparse -count=1
+	GOWORK=off go test ./cmd/inspector/... -count=1
+	GOWORK=off go build ./cmd/inspector
 
 build:
 	go generate ./...

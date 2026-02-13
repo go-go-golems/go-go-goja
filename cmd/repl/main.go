@@ -82,6 +82,8 @@ func runInteractiveLoop(vm *goja.Runtime, debug bool) error {
 			fmt.Println("  repl help creating-modules")
 			fmt.Println("  repl help async-patterns")
 			fmt.Println("  repl help repl-usage")
+			fmt.Println("  repl help jsparse-framework-reference")
+			fmt.Println("  repl help inspector-example-user-guide")
 			fmt.Println("\nOtherwise any line is evaluated as JavaScript.")
 			continue
 		}
