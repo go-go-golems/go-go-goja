@@ -121,7 +121,26 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if key.Matches(msg, m.keyMap.Back) {
-		// Esc: clear status or go back
+		// Esc: navigate back in inspect stack, or clear inspect, or clear status
+		if m.inspectObj != nil && len(m.navStack) > 0 {
+			// Pop one level
+			frame := m.navStack[len(m.navStack)-1]
+			m.navStack = m.navStack[:len(m.navStack)-1]
+			if gojaObj, ok := frame.Obj.(*goja.Object); ok {
+				m.inspectObj = gojaObj
+				m.inspectProps = frame.Props
+				m.inspectIdx = frame.Idx
+				m.inspectLabel = frame.Label
+			}
+			return m, nil
+		}
+		if m.inspectObj != nil {
+			// Clear inspect view
+			m.inspectObj = nil
+			m.inspectProps = nil
+			m.inspectLabel = ""
+			return m, nil
+		}
 		m.statusMsg = ""
 		return m, nil
 	}
@@ -141,6 +160,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// If we are in inspect mode and not in REPL, handle inspect-specific navigation
+	if m.inspectObj != nil && m.focus != FocusRepl {
+		return m.handleInspectKey(msg)
+	}
 	//exhaustive:ignore
 	switch m.focus {
 	case FocusGlobals:
@@ -462,4 +485,62 @@ func (m *Model) ensureMembersVisible() {
 	if m.memberIdx >= m.memberScroll+vpHeight {
 		m.memberScroll = m.memberIdx - vpHeight + 1
 	}
+}
+
+func (m Model) handleInspectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if key.Matches(msg, m.keyMap.Down) {
+		if m.inspectIdx < len(m.inspectProps)-1 {
+			m.inspectIdx++
+		}
+		return m, nil
+	}
+	if key.Matches(msg, m.keyMap.Up) {
+		if m.inspectIdx > 0 {
+			m.inspectIdx--
+		}
+		return m, nil
+	}
+	if key.Matches(msg, m.keyMap.Top) {
+		m.inspectIdx = 0
+		return m, nil
+	}
+	if key.Matches(msg, m.keyMap.Bottom) {
+		if len(m.inspectProps) > 0 {
+			m.inspectIdx = len(m.inspectProps) - 1
+		}
+		return m, nil
+	}
+	if key.Matches(msg, m.keyMap.Select) {
+		// Enter: drill into selected property if it's an object
+		if m.inspectIdx < len(m.inspectProps) && m.rtSession != nil {
+			prop := m.inspectProps[m.inspectIdx]
+			if prop.Value != nil && prop.Kind == "object" {
+				if obj, ok := prop.Value.(*goja.Object); ok {
+					// Push current state onto nav stack
+					m.navStack = append(m.navStack, NavFrame{
+						Label: m.inspectLabel,
+						Props: m.inspectProps,
+						Obj:   m.inspectObj,
+						Idx:   m.inspectIdx,
+					})
+					// Navigate into the property
+					m.inspectObj = obj
+					m.inspectProps = runtime.InspectObject(obj, m.rtSession.VM)
+					m.inspectIdx = 0
+					m.inspectLabel = m.inspectLabel + " → " + prop.Name
+				}
+			}
+			// If it's a function, try to jump to source
+			if prop.Kind == "function" && prop.Value != nil {
+				mapping := runtime.MapFunctionToSource(prop.Value, m.rtSession.VM, m.analysis)
+				if mapping != nil {
+					m.sourceTarget = mapping.StartLine - 1
+					m.ensureSourceVisible(m.sourceTarget)
+				}
+			}
+		}
+		return m, nil
+	}
+
+	return m, nil
 }

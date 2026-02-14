@@ -66,6 +66,9 @@ type Model struct {
 	inspectIdx   int
 	inspectLabel string
 
+	// Navigation stack for drill-in inspection
+	navStack []NavFrame
+
 	// UI state
 	focus     FocusPane
 	mode      string

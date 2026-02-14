@@ -126,12 +126,30 @@ func (m Model) renderInspectView(header, status, helpView, repl string, contentH
 		sourceWidth = 20
 	}
 
+	// Breadcrumb bar
+	breadcrumb := ""
+	if len(m.navStack) > 0 {
+		var crumbs []string
+		for _, frame := range m.navStack {
+			crumbs = append(crumbs, frame.Label)
+		}
+		crumbs = append(crumbs, m.inspectLabel)
+		breadcrumb = stylePaneHeaderActive.Render(" Breadcrumb: "+strings.Join(crumbs, " → ")+" ") +
+			styleSeparator.Render(strings.Repeat("─", maxInt(0, m.width-20)))
+		contentHeight-- // breadcrumb takes one line
+	}
+
 	inspectPane := m.renderInspectPane(inspectWidth, contentHeight)
 	sourcePane := m.renderSourcePane(sourceWidth, contentHeight)
 
 	content := lipgloss.JoinHorizontal(lipgloss.Top, inspectPane, sourcePane)
 
-	parts := []string{header, content, repl, status, helpView}
+	var parts []string
+	parts = append(parts, header)
+	if breadcrumb != "" {
+		parts = append(parts, padRight(breadcrumb, m.width))
+	}
+	parts = append(parts, content, repl, status, helpView)
 	if m.cmdActive {
 		parts = append(parts, m.renderCommandLine())
 	}

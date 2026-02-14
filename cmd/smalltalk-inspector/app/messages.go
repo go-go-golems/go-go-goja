@@ -35,6 +35,14 @@ type MsgEvalResult struct {
 	Result runtime.EvalResult
 }
 
+// NavFrame stores the state of one level of object inspection for breadcrumb navigation.
+type NavFrame struct {
+	Label string
+	Props []runtime.PropertyInfo
+	Obj   interface{} // the goja.Object at this level
+	Idx   int         // selected property index
+}
+
 // MsgStatusNotice is a transient status message.
 type MsgStatusNotice struct {
 	Text string
