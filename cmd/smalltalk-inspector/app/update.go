@@ -83,7 +83,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if val != nil && !goja.IsUndefined(val) && !goja.IsNull(val) {
 				if obj, ok := val.(*goja.Object); ok {
 					m.inspectObj = obj
-					m.inspectProps = runtime.InspectObject(obj, m.rtSession.VM)
+					m.inspectProps = buildInspectProps(obj, m.rtSession.VM)
 					m.inspectIdx = 0
 					m.inspectLabel = msg.Result.Expression
 				} else {
@@ -525,7 +525,7 @@ func (m Model) handleInspectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					})
 					// Navigate into the property
 					m.inspectObj = obj
-					m.inspectProps = runtime.InspectObject(obj, m.rtSession.VM)
+					m.inspectProps = buildInspectProps(obj, m.rtSession.VM)
 					m.inspectIdx = 0
 					m.inspectLabel = m.inspectLabel + " → " + prop.Name
 				}
@@ -543,4 +543,30 @@ func (m Model) handleInspectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// buildInspectProps creates property info list including [[Proto]] entry for prototype navigation.
+func buildInspectProps(obj *goja.Object, vm *goja.Runtime) []runtime.PropertyInfo {
+	props := runtime.InspectObject(obj, vm)
+
+	// Add [[Proto]] entry if prototype exists
+	proto := obj.Prototype()
+	if proto != nil {
+		protoName := "<anonymous>"
+		if ctor := proto.Get("constructor"); ctor != nil && !goja.IsUndefined(ctor) {
+			if ctorObj, ok := ctor.(*goja.Object); ok {
+				if n := ctorObj.Get("name"); n != nil && !goja.IsUndefined(n) && n.String() != "" {
+					protoName = n.String() + ".prototype"
+				}
+			}
+		}
+		props = append(props, runtime.PropertyInfo{
+			Name:    "[[Proto]]",
+			Value:   proto,
+			Kind:    "object",
+			Preview: protoName,
+		})
+	}
+
+	return props
 }
