@@ -55,11 +55,12 @@ type Model struct {
 	sourceTarget int // target line to highlight (0-based), -1 = none
 
 	// Runtime
-	rtSession   *runtime.Session
-	replInput   textinput.Model
-	replHistory []string
-	replResult  string
-	replError   string
+	rtSession        *runtime.Session
+	replInput        textinput.Model
+	replHistory      []string
+	replResult       string
+	replError        string
+	replDefinedNames []string // names defined via REPL (const/let/class not on globalObject)
 
 	// Object browser (for REPL results and inspect targets)
 	inspectObj   *goja.Object
@@ -659,6 +660,135 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// refreshRuntimeGlobals merges newly-defined runtime globals into the globals list.
+func (m *Model) refreshRuntimeGlobals() {
+	if m.rtSession == nil {
+		return
+	}
+
+	// Build a set of already-known names
+	known := make(map[string]bool)
+	for _, g := range m.globals {
+		known[g.Name] = true
+	}
+
+	added := false
+
+	// 1. Scan GlobalObject for new var/function names
+	global := m.rtSession.VM.GlobalObject()
+	for _, key := range global.Keys() {
+		if known[key] || isBuiltinGlobal(key) {
+			continue
+		}
+		val := global.Get(key)
+		kind := jsparse.BindingVar
+		if _, ok := goja.AssertFunction(val); ok {
+			kind = jsparse.BindingFunction
+		}
+		m.globals = append(m.globals, GlobalItem{
+			Name: key,
+			Kind: kind,
+		})
+		known[key] = true
+		added = true
+	}
+
+	// 2. Check tracked REPL names (const/let/class from REPL input)
+	for _, name := range m.replDefinedNames {
+		if known[name] {
+			continue
+		}
+		// Verify it actually exists in the runtime
+		val := m.rtSession.GlobalValue(name)
+		if val == nil || goja.IsUndefined(val) {
+			continue
+		}
+		m.globals = append(m.globals, GlobalItem{
+			Name: name,
+			Kind: jsparse.BindingConst,
+		})
+		known[name] = true
+		added = true
+	}
+
+	if added {
+		m.sortGlobals()
+	}
+}
+
+// sortGlobals re-sorts the globals list (classes, functions, values; alphabetical within).
+func (m *Model) sortGlobals() {
+	sortOrder := func(k jsparse.BindingKind) int {
+		//exhaustive:ignore
+		switch k {
+		case jsparse.BindingClass:
+			return 0
+		case jsparse.BindingFunction:
+			return 1
+		default:
+			return 2
+		}
+	}
+	for i := 0; i < len(m.globals); i++ {
+		for j := i + 1; j < len(m.globals); j++ {
+			oi, oj := sortOrder(m.globals[i].Kind), sortOrder(m.globals[j].Kind)
+			if oi > oj || (oi == oj && m.globals[i].Name > m.globals[j].Name) {
+				m.globals[i], m.globals[j] = m.globals[j], m.globals[i]
+			}
+		}
+	}
+}
+
+// extractDeclaredNames parses REPL input for const/let/var/class/function declarations.
+func extractDeclaredNames(expr string) []string {
+	var names []string
+	// Simple pattern matching for common REPL declarations
+	words := strings.Fields(expr)
+	for i := 0; i < len(words)-1; i++ {
+		switch words[i] {
+		case "const", "let", "var":
+			name := strings.TrimRight(words[i+1], "=;,")
+			if name != "" && name != "{" && name != "[" {
+				names = append(names, name)
+			}
+		case "class":
+			name := strings.TrimRight(words[i+1], "{")
+			if name != "" {
+				names = append(names, name)
+			}
+		case "function":
+			name := strings.TrimRight(words[i+1], "(")
+			if name != "" {
+				names = append(names, name)
+			}
+		}
+	}
+	return names
+}
+
+// isBuiltinGlobal returns true if the name is a standard JavaScript/goja builtin.
+func isBuiltinGlobal(name string) bool {
+	builtins := map[string]bool{
+		"Object": true, "Array": true, "Math": true, "JSON": true,
+		"String": true, "Number": true, "Boolean": true, "RegExp": true,
+		"Date": true, "Error": true, "TypeError": true, "RangeError": true,
+		"ReferenceError": true, "SyntaxError": true, "URIError": true, "EvalError": true,
+		"Symbol": true, "Map": true, "Set": true, "WeakMap": true, "WeakSet": true,
+		"Promise": true, "Proxy": true, "Reflect": true, "ArrayBuffer": true,
+		"DataView": true, "Float32Array": true, "Float64Array": true,
+		"Int8Array": true, "Int16Array": true, "Int32Array": true,
+		"Uint8Array": true, "Uint16Array": true, "Uint32Array": true, "Uint8ClampedArray": true,
+		"parseInt": true, "parseFloat": true, "isNaN": true, "isFinite": true,
+		"undefined": true, "NaN": true, "Infinity": true, "eval": true,
+		"encodeURI": true, "encodeURIComponent": true, "decodeURI": true, "decodeURIComponent": true,
+		"escape": true, "unescape": true,
+		"console": true, "globalThis": true, "require": true,
+		"Function": true, "Iterator": true, "AggregateError": true,
+		"SharedArrayBuffer": true, "Atomics": true, "WeakRef": true, "FinalizationRegistry": true,
+	}
+	return builtins[name]
 }
 
 func formatStatus(parts ...string) string {

@@ -115,6 +115,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.replHistory = append(m.replHistory, msg.Result.Expression)
+
+		// Refresh globals list to pick up new REPL-defined names
+		m.refreshRuntimeGlobals()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -443,6 +446,10 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.replError = "no runtime session (load a file first)"
 			return m, nil
 		}
+
+		// Extract declared names for const/let tracking
+		declNames := extractDeclaredNames(expr)
+		m.replDefinedNames = append(m.replDefinedNames, declNames...)
 
 		// Evaluate synchronously (expressions should be fast)
 		result := m.rtSession.EvalWithCapture(expr)
