@@ -6,6 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/dop251/goja"
+	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 )
 
 // View implements tea.Model.
@@ -428,6 +430,17 @@ func (m Model) renderMembersPane(width, height int) string {
 		g := m.globals[m.globalIdx]
 		if g.Extends != "" {
 			protoInfo = fmt.Sprintf("proto: %s → Object", g.Extends)
+		} else if m.rtSession != nil {
+			// Show runtime proto chain names for non-class globals
+			val := m.rtSession.GlobalValue(g.Name)
+			if val != nil && !goja.IsUndefined(val) && !goja.IsNull(val) {
+				if obj, ok := val.(*goja.Object); ok {
+					names := runtime.PrototypeChainNames(obj, m.rtSession.VM)
+					if len(names) > 0 {
+						protoInfo = "proto: " + strings.Join(names, " → ")
+					}
+				}
+			}
 		}
 	}
 	footer := styleProtoChain.Render(" " + protoInfo)

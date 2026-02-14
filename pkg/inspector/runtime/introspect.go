@@ -31,7 +31,7 @@ func InspectObject(obj *goja.Object, vm *goja.Runtime) []PropertyInfo {
 
 	// String-keyed properties
 	for _, key := range obj.GetOwnPropertyNames() {
-		val := obj.Get(key)
+		val := safeGet(obj, key)
 		props = append(props, PropertyInfo{
 			Name:    key,
 			Value:   val,
@@ -137,6 +137,34 @@ func valueKind(val goja.Value, vm *goja.Runtime) string {
 		}
 		return "unknown"
 	}
+}
+
+// PrototypeChainNames returns just the constructor names along the prototype chain.
+// This is cheaper than WalkPrototypeChain since it doesn't enumerate properties.
+func PrototypeChainNames(obj *goja.Object, vm *goja.Runtime) []string {
+	if obj == nil {
+		return nil
+	}
+	var names []string
+	for p := obj.Prototype(); p != nil; p = p.Prototype() {
+		names = append(names, protoName(p, vm))
+	}
+	return names
+}
+
+// safeGet retrieves a property value, recovering from panics caused by
+// strict-mode restrictions on caller/callee/arguments properties.
+func safeGet(obj *goja.Object, key string) goja.Value {
+	var result goja.Value
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				result = nil
+			}
+		}()
+		result = obj.Get(key)
+	}()
+	return result
 }
 
 func protoName(obj *goja.Object, vm *goja.Runtime) string {
