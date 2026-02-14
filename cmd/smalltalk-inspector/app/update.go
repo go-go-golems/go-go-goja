@@ -7,6 +7,8 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/dop251/goja"
+	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 )
 
 // Update implements tea.Model.
@@ -36,8 +38,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sourceScroll = 0
 		m.buildGlobals()
 		m.buildMembers()
-		m.statusMsg = fmt.Sprintf("✓ Loaded %s (%d lines, %d globals)",
-			msg.Filename, len(m.sourceLines), len(m.globals))
+
+		// Initialize runtime session
+		m.rtSession = runtime.NewSession()
+		if err := m.rtSession.Load(msg.Source); err != nil {
+			m.statusMsg = fmt.Sprintf("✓ Loaded %s (%d lines, %d globals) ⚠ runtime: %v",
+				msg.Filename, len(m.sourceLines), len(m.globals), err)
+		} else {
+			m.statusMsg = fmt.Sprintf("✓ Loaded %s (%d lines, %d globals)",
+				msg.Filename, len(m.sourceLines), len(m.globals))
+		}
+
+		// Clear previous REPL state
+		m.replResult = ""
+		m.replError = ""
+		m.inspectObj = nil
+		m.inspectProps = nil
 		return m, nil
 
 	case MsgFileLoadError:
@@ -46,6 +62,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case MsgStatusNotice:
 		m.statusMsg = msg.Text
+		return m, nil
+
+	case MsgEvalResult:
+		if msg.Result.Error != nil {
+			m.replError = msg.Result.Error.Error()
+			m.replResult = ""
+			m.inspectObj = nil
+			m.inspectProps = nil
+			// Check if it's a stack trace we can display
+			if msg.Result.ErrorStack != "" {
+				m.replError = msg.Result.ErrorStack
+			}
+		} else {
+			m.replError = ""
+			val := msg.Result.Value
+			m.replResult = runtime.ValuePreview(val, m.rtSession.VM, 80)
+
+			// If result is an object, set up object inspection
+			if val != nil && !goja.IsUndefined(val) && !goja.IsNull(val) {
+				if obj, ok := val.(*goja.Object); ok {
+					m.inspectObj = obj
+					m.inspectProps = runtime.InspectObject(obj, m.rtSession.VM)
+					m.inspectIdx = 0
+					m.inspectLabel = msg.Result.Expression
+				} else {
+					m.inspectObj = nil
+					m.inspectProps = nil
+				}
+			}
+		}
+		m.replHistory = append(m.replHistory, msg.Result.Expression)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -102,6 +149,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleMembersKey(msg)
 	case FocusSource:
 		return m.handleSourceKey(msg)
+	case FocusRepl:
+		return m.handleReplKey(msg)
 	}
 
 	return m, nil
@@ -112,7 +161,7 @@ func (m *Model) cyclePane(dir int) {
 		return
 	}
 
-	panes := []FocusPane{FocusGlobals, FocusMembers, FocusSource}
+	panes := []FocusPane{FocusGlobals, FocusMembers, FocusSource, FocusRepl}
 	current := 0
 	for i, p := range panes {
 		if p == m.focus {
@@ -122,6 +171,14 @@ func (m *Model) cyclePane(dir int) {
 	}
 	next := (current + dir + len(panes)) % len(panes)
 	m.focus = panes[next]
+
+	// Focus/blur REPL input
+	if m.focus == FocusRepl {
+		m.replInput.Focus()
+	} else {
+		m.replInput.Blur()
+	}
+
 	m.updateMode()
 }
 
@@ -305,6 +362,38 @@ func (m Model) handleSourceKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		expr := strings.TrimSpace(m.replInput.Value())
+		if expr == "" {
+			return m, nil
+		}
+		m.replInput.SetValue("")
+
+		if m.rtSession == nil {
+			m.replError = "no runtime session (load a file first)"
+			return m, nil
+		}
+
+		// Evaluate synchronously (expressions should be fast)
+		result := m.rtSession.EvalWithCapture(expr)
+		return m, func() tea.Msg {
+			return MsgEvalResult{Result: result}
+		}
+	case "esc", "escape":
+		m.focus = FocusGlobals
+		m.replInput.Blur()
+		m.updateMode()
+		return m, nil
+	}
+
+	// Forward all other keys to the textinput
+	var cmd tea.Cmd
+	m.replInput, cmd = m.replInput.Update(msg)
+	return m, cmd
 }
 
 func (m Model) handleCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

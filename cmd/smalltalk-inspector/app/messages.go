@@ -1,6 +1,9 @@
 package app
 
-import "github.com/go-go-golems/go-go-goja/pkg/jsparse"
+import (
+	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+)
 
 // MsgFileLoaded is sent after a successful :load command.
 type MsgFileLoaded struct {
@@ -25,6 +28,11 @@ type MsgGlobalSelected struct {
 type MsgMemberSelected struct {
 	Name      string
 	MemberIdx int
+}
+
+// MsgEvalResult is sent after a successful REPL eval.
+type MsgEvalResult struct {
+	Result runtime.EvalResult
 }
 
 // MsgStatusNotice is a transient status message.

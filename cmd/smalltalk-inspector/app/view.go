@@ -67,6 +67,11 @@ func (m Model) renderLoadedView() string {
 
 	contentHeight := m.contentHeight()
 
+	// If we have an inspect object from REPL, show two-pane layout
+	if m.inspectObj != nil && len(m.inspectProps) > 0 {
+		return m.renderInspectView(header, status, helpView, repl, contentHeight)
+	}
+
 	// Three-pane layout: globals | members | source
 	globalsWidth := m.width / 4
 	membersWidth := m.width / 4
@@ -109,6 +114,82 @@ func (m Model) renderHeader() string {
 	return styleHeader.Width(m.width).Render(
 		title + strings.Repeat(" ", gap) + "[" + focusLabel + "]",
 	)
+}
+
+func (m Model) renderInspectView(header, status, helpView, repl string, contentHeight int) string {
+	inspectWidth := m.width / 2
+	sourceWidth := m.width - inspectWidth
+	if inspectWidth < 20 {
+		inspectWidth = 20
+	}
+	if sourceWidth < 20 {
+		sourceWidth = 20
+	}
+
+	inspectPane := m.renderInspectPane(inspectWidth, contentHeight)
+	sourcePane := m.renderSourcePane(sourceWidth, contentHeight)
+
+	content := lipgloss.JoinHorizontal(lipgloss.Top, inspectPane, sourcePane)
+
+	parts := []string{header, content, repl, status, helpView}
+	if m.cmdActive {
+		parts = append(parts, m.renderCommandLine())
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
+}
+
+func (m Model) renderInspectPane(width, height int) string {
+	var lines []string
+
+	// Header with expression label
+	label := fmt.Sprintf(" REPL Result: %s ", m.inspectLabel)
+	if len(label) > width-2 {
+		label = label[:width-2]
+	}
+	headerLine := stylePaneHeaderActive.Render(label) +
+		styleSeparator.Render(strings.Repeat("─", maxInt(0, width-ansi.StringWidth(label))))
+	lines = append(lines, padRight(headerLine, width))
+
+	contentHeight := height - 1
+	if contentHeight < 1 {
+		contentHeight = 1
+	}
+
+	// Show properties
+	for i, prop := range m.inspectProps {
+		if i >= contentHeight {
+			break
+		}
+
+		marker := "  "
+		if i == m.inspectIdx {
+			marker = styleSelectedMarker.Render("▸ ")
+		}
+
+		icon := memberKindIcon(prop.Kind)
+		var iconStyled string
+		switch prop.Kind {
+		case "function":
+			iconStyled = styleItemFunction.Render(icon)
+		default:
+			iconStyled = styleItemValue.Render(icon)
+		}
+
+		kindLabel := styleGutterNormal.Render(fmt.Sprintf("  %-9s", prop.Kind))
+		name := prop.Name
+		if prop.IsSymbol {
+			name = "[" + name + "]"
+		}
+
+		line := marker + iconStyled + "  " + name + " : " + prop.Preview + kindLabel
+		lines = append(lines, padRight(line, width))
+	}
+
+	for len(lines) < height {
+		lines = append(lines, strings.Repeat(" ", width))
+	}
+
+	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 }
 
 func (m Model) renderGlobalsPane(width, height int) string {
@@ -321,16 +402,37 @@ func (m Model) renderSourcePane(width, height int) string {
 }
 
 func (m Model) renderReplArea() string {
-	sepStyle := styleSeparator
-	separator := sepStyle.Render("─── REPL " + strings.Repeat("─", maxInt(0, m.width-9)))
+	label := " REPL "
+	hStyle := stylePaneHeaderInactive
+	if m.focus == FocusRepl {
+		hStyle = stylePaneHeaderActive
+	}
+	separator := hStyle.Render(label) + styleSeparator.Render(strings.Repeat("─", maxInt(0, m.width-len(label))))
 
-	prompt := styleReplPrompt.Render("» ") + styleEmptyHint.Render("(press : to enter commands)")
-	result := ""
+	// Result/error line
+	var resultLine string
+	if m.replError != "" {
+		// Show first line of error
+		errLines := strings.Split(m.replError, "\n")
+		resultLine = styleReplError.Render("✗ " + errLines[0])
+	} else if m.replResult != "" {
+		resultLine = "→ " + m.replResult
+	} else if len(m.replHistory) > 0 {
+		resultLine = styleEmptyHint.Render("  " + m.replHistory[len(m.replHistory)-1])
+	}
+
+	// Prompt line
+	var promptLine string
+	if m.focus == FocusRepl {
+		promptLine = m.replInput.View()
+	} else {
+		promptLine = styleReplPrompt.Render("» ") + styleEmptyHint.Render("(tab to REPL)")
+	}
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		padRight(separator, m.width),
-		padRight(prompt, m.width),
-		padRight(result, m.width),
+		padRight(resultLine, m.width),
+		padRight(promptLine, m.width),
 	)
 }
 

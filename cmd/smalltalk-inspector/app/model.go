@@ -9,7 +9,9 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/dop251/goja"
 	"github.com/dop251/goja/ast"
+	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
 
@@ -51,6 +53,19 @@ type Model struct {
 	sourceScroll int
 	sourceTarget int // target line to highlight (0-based), -1 = none
 
+	// Runtime
+	rtSession   *runtime.Session
+	replInput   textinput.Model
+	replHistory []string
+	replResult  string
+	replError   string
+
+	// Object browser (for REPL results and inspect targets)
+	inspectObj   *goja.Object
+	inspectProps []runtime.PropertyInfo
+	inspectIdx   int
+	inspectLabel string
+
 	// UI state
 	focus     FocusPane
 	mode      string
@@ -87,6 +102,13 @@ func NewModel(filename string) Model {
 	m.command.CharLimit = 256
 	m.command.Width = 60
 	m.command.Blur()
+
+	m.replInput = textinput.New()
+	m.replInput.Prompt = "» "
+	m.replInput.Placeholder = "evaluate expression..."
+	m.replInput.CharLimit = 512
+	m.replInput.Width = 60
+	m.replInput.Blur()
 
 	return m
 }
