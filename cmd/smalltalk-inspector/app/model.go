@@ -24,11 +24,12 @@ type GlobalItem struct {
 
 // MemberItem represents a member of a selected class/object.
 type MemberItem struct {
-	Name      string
-	Kind      string // "function", "value", "param"
-	Preview   string // short value/signature preview
-	Inherited bool
-	Source    string // from which prototype level
+	Name           string
+	Kind           string // "function", "value", "param"
+	Preview        string // short value/signature preview
+	Inherited      bool
+	Source         string // from which prototype level
+	RuntimeDerived bool   // true if populated from runtime introspection (not AST)
 }
 
 // Model is the top-level bubbletea model for the Smalltalk inspector.
@@ -260,6 +261,8 @@ func (m *Model) buildMembers() {
 		m.buildClassMembers(selected.Name)
 	case jsparse.BindingFunction:
 		m.buildFunctionMembers(selected.Name)
+	default:
+		m.buildValueMembers(selected.Name)
 	}
 }
 
@@ -391,6 +394,56 @@ func (m *Model) buildFunctionMembers(funcName string) {
 	}
 }
 
+// buildValueMembers uses the runtime session to introspect a value-type global.
+func (m *Model) buildValueMembers(name string) {
+	if m.rtSession == nil {
+		return
+	}
+
+	val := m.rtSession.GlobalValue(name)
+	if val == nil || goja.IsUndefined(val) {
+		m.members = append(m.members, MemberItem{
+			Name:           "(value)",
+			Kind:           "value",
+			Preview:        " : undefined",
+			RuntimeDerived: true,
+		})
+		return
+	}
+
+	if goja.IsNull(val) {
+		m.members = append(m.members, MemberItem{
+			Name:           "(value)",
+			Kind:           "value",
+			Preview:        " : null",
+			RuntimeDerived: true,
+		})
+		return
+	}
+
+	// Check if it's an object — show its properties
+	if obj, ok := val.(*goja.Object); ok {
+		props := runtime.InspectObject(obj, m.rtSession.VM)
+		for _, p := range props {
+			m.members = append(m.members, MemberItem{
+				Name:           p.Name,
+				Kind:           p.Kind,
+				Preview:        " : " + p.Preview,
+				RuntimeDerived: true,
+			})
+		}
+		return
+	}
+
+	// Primitive value — show a single entry with the preview
+	m.members = append(m.members, MemberItem{
+		Name:           "(value)",
+		Kind:           "value",
+		Preview:        " : " + runtime.ValuePreview(val, m.rtSession.VM, 40),
+		RuntimeDerived: true,
+	})
+}
+
 func (m *Model) hasMember(name string) bool {
 	for _, mem := range m.members {
 		if mem.Name == name {
@@ -412,6 +465,9 @@ func (m *Model) jumpToSource() {
 		m.jumpToBinding(m.globals[m.globalIdx].Name)
 	} else if m.focus == FocusMembers && len(m.members) > 0 && len(m.globals) > 0 {
 		member := m.members[m.memberIdx]
+		if member.RuntimeDerived {
+			return // no source location for runtime-derived members
+		}
 		global := m.globals[m.globalIdx]
 		m.jumpToMember(global.Name, member)
 	}
