@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja/ast"
+	inspectorcore "github.com/go-go-golems/go-go-goja/pkg/inspector/core"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
@@ -246,22 +247,7 @@ func (m *Model) findClassExtends(className string) string {
 	if m.analysis == nil || m.analysis.Program == nil {
 		return ""
 	}
-	for _, stmt := range m.analysis.Program.Body {
-		cd, ok := stmt.(*ast.ClassDeclaration)
-		if !ok || cd.Class == nil || cd.Class.Name == nil {
-			continue
-		}
-		if string(cd.Class.Name.Name) != className {
-			continue
-		}
-		if cd.Class.SuperClass != nil {
-			if ident, ok := cd.Class.SuperClass.(*ast.Identifier); ok {
-				return string(ident.Name)
-			}
-		}
-		break
-	}
-	return ""
+	return inspectorcore.ClassExtends(m.analysis.Program, className)
 }
 
 // buildMembers builds the member list for the currently selected global.
@@ -296,98 +282,14 @@ func (m *Model) buildClassMembers(className string) {
 	if m.analysis.Program == nil {
 		return
 	}
-
-	for _, stmt := range m.analysis.Program.Body {
-		cd, ok := stmt.(*ast.ClassDeclaration)
-		if !ok || cd.Class == nil || cd.Class.Name == nil {
-			continue
-		}
-		if string(cd.Class.Name.Name) != className {
-			continue
-		}
-
-		for _, elem := range cd.Class.Body {
-			switch e := elem.(type) {
-			case *ast.MethodDefinition:
-				name := astMethodName(e)
-				kind := "function"
-				preview := "()"
-				if e.Body != nil && e.Body.ParameterList != nil {
-					params := astParamNames(e.Body.ParameterList)
-					preview = "(" + strings.Join(params, ", ") + ")"
-				}
-				m.members = append(m.members, MemberItem{
-					Name:    name,
-					Kind:    kind,
-					Preview: preview,
-				})
-			case *ast.FieldDefinition:
-				name := astFieldName(e)
-				m.members = append(m.members, MemberItem{
-					Name: name,
-					Kind: "value",
-				})
-			}
-		}
-
-		// If extends another class, add inherited members
-		if cd.Class.SuperClass != nil {
-			if ident, ok := cd.Class.SuperClass.(*ast.Identifier); ok {
-				superName := string(ident.Name)
-				m.addInheritedMembers(superName, superName)
-			}
-		}
-		break
-	}
-}
-
-// addInheritedMembers adds methods from a parent class.
-func (m *Model) addInheritedMembers(className, source string) {
-	if m.analysis.Program == nil {
-		return
-	}
-
-	for _, stmt := range m.analysis.Program.Body {
-		cd, ok := stmt.(*ast.ClassDeclaration)
-		if !ok || cd.Class == nil || cd.Class.Name == nil {
-			continue
-		}
-		if string(cd.Class.Name.Name) != className {
-			continue
-		}
-
-		for _, elem := range cd.Class.Body {
-			if md, ok := elem.(*ast.MethodDefinition); ok {
-				name := astMethodName(md)
-				if name == "constructor" {
-					continue
-				}
-				if m.hasMember(name) {
-					continue
-				}
-				kind := "function"
-				preview := "()"
-				if md.Body != nil && md.Body.ParameterList != nil {
-					params := astParamNames(md.Body.ParameterList)
-					preview = "(" + strings.Join(params, ", ") + ")"
-				}
-				m.members = append(m.members, MemberItem{
-					Name:      name,
-					Kind:      kind,
-					Preview:   preview,
-					Inherited: true,
-					Source:    source,
-				})
-			}
-		}
-
-		// Recurse into grandparent
-		if cd.Class.SuperClass != nil {
-			if ident, ok := cd.Class.SuperClass.(*ast.Identifier); ok {
-				m.addInheritedMembers(string(ident.Name), string(ident.Name))
-			}
-		}
-		break
+	for _, member := range inspectorcore.BuildClassMembers(m.analysis.Program, className) {
+		m.members = append(m.members, MemberItem{
+			Name:      member.Name,
+			Kind:      member.Kind,
+			Preview:   member.Preview,
+			Inherited: member.Inherited,
+			Source:    member.Source,
+		})
 	}
 }
 
@@ -396,26 +298,11 @@ func (m *Model) buildFunctionMembers(funcName string) {
 	if m.analysis.Program == nil {
 		return
 	}
-
-	for _, stmt := range m.analysis.Program.Body {
-		fd, ok := stmt.(*ast.FunctionDeclaration)
-		if !ok || fd.Function == nil || fd.Function.Name == nil {
-			continue
-		}
-		if string(fd.Function.Name.Name) != funcName {
-			continue
-		}
-
-		if fd.Function.ParameterList != nil {
-			params := astParamNames(fd.Function.ParameterList)
-			for _, p := range params {
-				m.members = append(m.members, MemberItem{
-					Name: p,
-					Kind: "param",
-				})
-			}
-		}
-		break
+	for _, member := range inspectorcore.BuildFunctionMembers(m.analysis.Program, funcName) {
+		m.members = append(m.members, MemberItem{
+			Name: member.Name,
+			Kind: member.Kind,
+		})
 	}
 }
 
@@ -467,15 +354,6 @@ func (m *Model) buildValueMembers(name string) {
 		Preview:        " : " + runtime.ValuePreview(val, m.rtSession.VM, 40),
 		RuntimeDerived: true,
 	})
-}
-
-func (m *Model) hasMember(name string) bool {
-	for _, mem := range m.members {
-		if mem.Name == name {
-			return true
-		}
-	}
-	return false
 }
 
 // jumpToSource sets the source pane to show the declaration of the selected member.
@@ -615,35 +493,6 @@ func astMethodName(md *ast.MethodDefinition) string {
 		return k.Literal
 	}
 	return "<computed>"
-}
-
-func astFieldName(fd *ast.FieldDefinition) string {
-	if fd == nil {
-		return "<unknown>"
-	}
-	switch k := fd.Key.(type) {
-	case *ast.Identifier:
-		return string(k.Name)
-	case *ast.StringLiteral:
-		return k.Literal
-	}
-	return "<computed>"
-}
-
-func astParamNames(pl *ast.ParameterList) []string {
-	var names []string
-	if pl == nil {
-		return names
-	}
-	for _, p := range pl.List {
-		if p == nil || p.Target == nil {
-			continue
-		}
-		if ident, ok := p.Target.(*ast.Identifier); ok {
-			names = append(names, string(ident.Name))
-		}
-	}
-	return names
 }
 
 // rebuildFileSyntaxSpans parses file source with tree-sitter and builds syntax spans.

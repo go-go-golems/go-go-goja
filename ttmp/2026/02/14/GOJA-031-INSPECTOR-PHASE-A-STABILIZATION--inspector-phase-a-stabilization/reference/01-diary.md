@@ -33,3 +33,33 @@ Scope locked for this ticket:
 2. Fix inheritance recursion crash with cycle-safe traversal.
 3. Add regression tests.
 4. Keep UI package focused on orchestration.
+
+## Step 2: Extracted non-UI member analysis into core package and rewired UI
+
+Implemented initial extraction of class/function member analysis from Bubble Tea model into a new UI-independent package:
+
+- `pkg/inspector/core/members.go`
+- `pkg/inspector/core/members_test.go`
+
+Changes made:
+
+1. Added core APIs for:
+   - `ClassExtends`
+   - `BuildClassMembers`
+   - `BuildFunctionMembers`
+2. Moved inheritance/member traversal logic out of `cmd/smalltalk-inspector/app/model.go`.
+3. Rewired UI model methods (`findClassExtends`, `buildClassMembers`, `buildFunctionMembers`) to call core package.
+4. Removed duplicated AST helper functions no longer needed in the UI package.
+
+Validation commands run:
+
+```bash
+cd go-go-goja
+go test ./pkg/inspector/core -count=1
+go test ./cmd/smalltalk-inspector/... -count=1
+go test ./pkg/inspector/... -count=1
+```
+
+Outcome:
+
+- Tests passed for the new core package and existing inspector packages.
