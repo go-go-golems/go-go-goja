@@ -7,6 +7,10 @@ topics:
       description: Migration planning and execution
     - slug: tooling
       description: Developer tooling and utilities
+    - slug: go
+      description: Go language
+    - slug: tui
+      description: Terminal user interfaces
 docTypes:
     - slug: index
       description: Ticket index documents
