@@ -6,7 +6,9 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -60,6 +62,7 @@ type Model struct {
 	sourceCursorCol  int // 0-based
 	sourceScrollY    int // first visible line (0-based)
 	sourceLines      []string
+	sourceViewport   viewport.Model
 	highlightStart   int // 1-based offset or 0 for none
 	highlightEnd     int // 1-based offset exclusive or 0
 
@@ -67,6 +70,7 @@ type Model struct {
 	treeSelectedIdx  int      // index into visibleNodes
 	treeScrollY      int      // first visible row (0-based)
 	treeVisibleNodes []NodeID // cached visible node list
+	treeList         list.Model
 
 	// Selected node
 	selectedNodeID NodeID // -1 for none
@@ -98,6 +102,8 @@ func NewModel(filename, sourceText string, program interface{}, parseErr error, 
 	m.help = help.New()
 	m.help.ShowAll = false
 	m.spinner = spinner.New(spinner.WithSpinner(spinner.Line))
+	m.sourceViewport = viewport.New(0, 0)
+	m.treeList = newTreeListModel()
 	mode_keymap.EnableMode(&m.keyMap, m.uiMode)
 
 	if index != nil {
@@ -239,10 +245,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.sourceCursorLine = 0
 			m.sourceCursorCol = 0
 			m.sourceScrollY = 0
+			m.sourceViewport.SetYOffset(0)
 			m.syncSourceToTree()
 		} else {
 			m.treeSelectedIdx = 0
 			m.treeScrollY = 0
+			m.treeList.Select(0)
 			m.syncTreeToSource()
 		}
 		return m, nil
@@ -256,6 +264,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			if len(m.treeVisibleNodes) > 0 {
 				m.treeSelectedIdx = len(m.treeVisibleNodes) - 1
+				m.treeList.Select(m.treeSelectedIdx)
 				m.ensureTreeSelectionVisible()
 				m.syncTreeToSource()
 			}
@@ -636,9 +645,13 @@ func (m *Model) ensureSourceCursorVisible() {
 	if m.sourceCursorLine >= m.sourceScrollY+vpHeight {
 		m.sourceScrollY = m.sourceCursorLine - vpHeight + 1
 	}
+	m.sourceViewport.SetYOffset(m.sourceScrollY)
 }
 
 func (m *Model) sourceViewportHeight() int {
+	if m.sourceViewport.Height > 0 {
+		return m.sourceViewport.Height
+	}
 	h := m.height - 4 // header + status + help + border
 	if h < 1 {
 		h = 1
@@ -665,20 +678,45 @@ func (m *Model) sourceCursorOffset() int {
 func (m *Model) refreshTreeVisible() {
 	if m.index != nil {
 		m.treeVisibleNodes = m.index.VisibleNodes()
+		m.rebuildTreeListItems()
 	}
+}
+
+func (m *Model) rebuildTreeListItems() {
+	items := make([]list.Item, 0, len(m.treeVisibleNodes))
+	for _, nodeID := range m.treeVisibleNodes {
+		node := m.index.Nodes[nodeID]
+		if node == nil {
+			continue
+		}
+		items = append(items, buildTreeListItem(node, m.usageHighlights, m.index.Resolution))
+	}
+	_ = m.treeList.SetItems(items)
+	if len(items) == 0 {
+		m.treeSelectedIdx = 0
+		return
+	}
+	if m.treeSelectedIdx < 0 {
+		m.treeSelectedIdx = 0
+	}
+	if m.treeSelectedIdx >= len(items) {
+		m.treeSelectedIdx = len(items) - 1
+	}
+	m.treeList.Select(m.treeSelectedIdx)
 }
 
 func (m *Model) treeMoveSelection(delta int) {
 	if len(m.treeVisibleNodes) == 0 {
 		return
 	}
-	m.treeSelectedIdx += delta
+	m.treeSelectedIdx = m.treeList.Index() + delta
 	if m.treeSelectedIdx < 0 {
 		m.treeSelectedIdx = 0
 	}
 	if m.treeSelectedIdx >= len(m.treeVisibleNodes) {
 		m.treeSelectedIdx = len(m.treeVisibleNodes) - 1
 	}
+	m.treeList.Select(m.treeSelectedIdx)
 	m.selectedNodeID = m.treeVisibleNodes[m.treeSelectedIdx]
 	m.ensureTreeSelectionVisible()
 }
@@ -694,6 +732,7 @@ func (m *Model) treeToggleSelected() {
 	if m.treeSelectedIdx >= len(m.treeVisibleNodes) {
 		m.treeSelectedIdx = len(m.treeVisibleNodes) - 1
 	}
+	m.treeList.Select(m.treeSelectedIdx)
 }
 
 func (m *Model) treeExpandSelected() {
@@ -731,16 +770,11 @@ func (m *Model) treeCollapseSelected() {
 }
 
 func (m *Model) ensureTreeSelectionVisible() {
-	vpHeight := m.treeViewportHeight()
-	if vpHeight <= 0 {
+	if len(m.treeVisibleNodes) == 0 {
 		return
 	}
-	if m.treeSelectedIdx < m.treeScrollY {
-		m.treeScrollY = m.treeSelectedIdx
-	}
-	if m.treeSelectedIdx >= m.treeScrollY+vpHeight {
-		m.treeScrollY = m.treeSelectedIdx - vpHeight + 1
-	}
+	m.treeSelectedIdx = m.treeList.Index()
+	m.treeScrollY = m.treeSelectedIdx
 }
 
 func (m *Model) treeViewportHeight() int {
@@ -774,6 +808,7 @@ func (m *Model) syncSourceToTree() {
 				break
 			}
 		}
+		m.treeList.Select(m.treeSelectedIdx)
 		m.ensureTreeSelectionVisible()
 
 		// Set highlight
@@ -953,7 +988,6 @@ func (m Model) renderSourcePane(width, height int) string {
 	var lines []string
 	gutterWidth := len(fmt.Sprintf("%d", len(m.sourceLines))) + 1
 
-	// Pane header
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("15")).
@@ -966,12 +1000,11 @@ func (m Model) renderSourcePane(width, height int) string {
 	headerLine := headerStyle.Render(paneLabel) + strings.Repeat("─", maxInt(0, width-len(paneLabel)))
 	lines = append(lines, padRight(headerLine, width))
 
-	contentHeight := height - 1 // minus pane header
+	contentHeight := height - 1
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
 
-	// Compute highlight range as line/col for character-level precision
 	var hlStartLine, hlStartCol, hlEndLine, hlEndCol int
 	if m.highlightStart > 0 && m.highlightEnd > 0 && m.index != nil {
 		hlStartLine, hlStartCol = m.index.OffsetToLineCol(m.highlightStart)
@@ -984,7 +1017,6 @@ func (m Model) renderSourcePane(width, height int) string {
 	gutterNormal := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 	gutterCursor := lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true)
 
-	// Precompute usage highlight ranges (line/col)
 	type hlRange struct{ startLine, startCol, endLine, endCol int }
 	var usageRanges []hlRange
 	if m.highlightedBinding != nil && m.index != nil {
@@ -999,37 +1031,29 @@ func (m Model) renderSourcePane(width, height int) string {
 		}
 	}
 
-	for i := 0; i < contentHeight; i++ {
-		lineIdx := m.sourceScrollY + i
-		if lineIdx >= len(m.sourceLines) {
-			lines = append(lines, strings.Repeat(" ", width))
-			continue
-		}
-
+	renderedLines := make([]string, 0, len(m.sourceLines))
+	for lineIdx := 0; lineIdx < len(m.sourceLines); lineIdx++ {
 		lineNum := fmt.Sprintf("%*d ", gutterWidth, lineIdx+1)
 		content := m.sourceLines[lineIdx]
-		lineNo := lineIdx + 1 // 1-based
+		lineNo := lineIdx + 1
 
 		isCursorLine := (lineIdx == m.sourceCursorLine)
 		showCursor := isCursorLine && m.focus == FocusSource
 
-		// Render gutter
 		gs := gutterNormal
 		if isCursorLine {
 			gs = gutterCursor
 		}
 		gutter := gs.Render(lineNum)
 
-		// Build content with per-character highlighting and cursor
 		var rendered strings.Builder
 		runes := []rune(content)
 		for col := 0; col < len(runes); col++ {
 			ch := string(runes[col])
-			col1 := col + 1 // 1-based column
+			col1 := col + 1
 
 			isHL := false
 			if hlStartLine > 0 {
-				// Check if this character is within [hlStart, hlEnd)
 				if lineNo > hlStartLine && lineNo < hlEndLine {
 					isHL = true
 				} else if lineNo == hlStartLine && lineNo == hlEndLine {
@@ -1041,7 +1065,6 @@ func (m Model) renderSourcePane(width, height int) string {
 				}
 			}
 
-			// Check usage highlights
 			isUsageHL := false
 			for _, ur := range usageRanges {
 				if lineNo > ur.startLine && lineNo < ur.endLine {
@@ -1062,7 +1085,6 @@ func (m Model) renderSourcePane(width, height int) string {
 			}
 
 			isCursorChar := showCursor && col == m.sourceCursorCol
-
 			if isCursorChar {
 				rendered.WriteString(cursorStyle.Render(ch))
 			} else if isUsageHL {
@@ -1073,16 +1095,19 @@ func (m Model) renderSourcePane(width, height int) string {
 				rendered.WriteString(ch)
 			}
 		}
-
-		// If cursor is at end of line, show a cursor block
 		if showCursor && m.sourceCursorCol >= len(runes) {
 			rendered.WriteString(cursorStyle.Render(" "))
 		}
-
-		lines = append(lines, padRight(gutter+rendered.String(), width))
+		renderedLines = append(renderedLines, padRight(gutter+rendered.String(), width))
 	}
 
-	return lipgloss.NewStyle().Width(width).MaxWidth(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
+	m.sourceViewport.Width = width
+	m.sourceViewport.Height = contentHeight
+	m.sourceViewport.SetContent(strings.Join(renderedLines, "\n"))
+	m.sourceViewport.SetYOffset(m.sourceScrollY)
+
+	lines = append(lines, m.sourceViewport.View())
+	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 }
 
 func (m Model) renderTreePane(width, height int) string {
@@ -1115,84 +1140,14 @@ func (m Model) renderTreePane(width, height int) string {
 	}
 
 	if m.index == nil || len(m.treeVisibleNodes) == 0 {
-		lines = append(lines, " (no AST)")
+		lines = append(lines, padRight(" (no AST)", width))
 		for len(lines) < height {
-			lines = append(lines, "")
+			lines = append(lines, strings.Repeat(" ", width))
 		}
 		return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 	}
-
-	for i := 0; i < contentHeight; i++ {
-		rowIdx := m.treeScrollY + i
-		if rowIdx >= len(m.treeVisibleNodes) {
-			lines = append(lines, strings.Repeat(" ", width))
-			continue
-		}
-
-		nodeID := m.treeVisibleNodes[rowIdx]
-		node := m.index.Nodes[nodeID]
-		if node == nil {
-			lines = append(lines, "")
-			continue
-		}
-
-		// Build tree prefix
-		indent := strings.Repeat("  ", node.Depth)
-		expandMarker := " "
-		if node.HasChildren() {
-			if node.Expanded {
-				expandMarker = "▼"
-			} else {
-				expandMarker = "▶"
-			}
-		}
-
-		label := node.DisplayLabel()
-		span := fmt.Sprintf(" [%d..%d]", node.Start, node.End)
-
-		// Add scope resolution hint for Identifier nodes
-		scopeHint := ""
-		if node.Kind == "Identifier" && m.index.Resolution != nil {
-			if m.index.Resolution.IsDeclaration(nodeID) {
-				b := m.index.Resolution.BindingForNode(nodeID)
-				if b != nil {
-					scopeHint = fmt.Sprintf(" [%s decl]", b.Kind)
-				}
-			} else if m.index.Resolution.IsReference(nodeID) {
-				scopeHint = " [ref]"
-			} else if m.index.Resolution.IsUnresolved(nodeID) {
-				scopeHint = " [global]"
-			}
-		}
-
-		line := indent + expandMarker + " " + label + span + scopeHint
-
-		// Check if this node is part of usage highlights
-		isUsageNode := false
-		for _, uid := range m.usageHighlights {
-			if uid == nodeID {
-				isUsageNode = true
-				break
-			}
-		}
-
-		isSelected := (nodeID == m.selectedNodeID)
-		if isSelected {
-			selStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("15")).
-				Background(lipgloss.Color("62")).
-				Bold(true)
-			line = selStyle.Render(line)
-		} else if isUsageNode {
-			usageTreeStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("229")).
-				Background(lipgloss.Color("58"))
-			line = usageTreeStyle.Render(line)
-		}
-
-		lines = append(lines, padRight(line, width))
-	}
-
+	m.treeList.SetSize(width, contentHeight)
+	lines = append(lines, m.treeList.View())
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 }
 
