@@ -1,6 +1,8 @@
 package core
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/dop251/goja/ast"
@@ -82,6 +84,30 @@ class Child extends Base {}
 	got := ClassExtends(program, "Child")
 	if got != "Base" {
 		t.Fatalf("expected Base, got %q", got)
+	}
+}
+
+func TestBuildClassMembersDepthGuard(t *testing.T) {
+	var b strings.Builder
+	const classCount = 180
+	for i := 0; i < classCount; i++ {
+		name := fmt.Sprintf("C%d", i)
+		if i == 0 {
+			fmt.Fprintf(&b, "class %s { m%d() {} }\n", name, i)
+			continue
+		}
+		parent := fmt.Sprintf("C%d", i-1)
+		fmt.Fprintf(&b, "class %s extends %s { m%d() {} }\n", name, parent, i)
+	}
+
+	program := mustProgram(t, b.String())
+	last := fmt.Sprintf("C%d", classCount-1)
+	members := BuildClassMembers(program, last)
+	if len(members) == 0 {
+		t.Fatal("expected members for deep class chain")
+	}
+	if len(members) > maxInheritanceDepth+1 {
+		t.Fatalf("expected depth-guarded member count <= %d, got %d", maxInheritanceDepth+1, len(members))
 	}
 }
 

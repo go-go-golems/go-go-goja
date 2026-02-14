@@ -8,6 +8,8 @@ import (
 	"github.com/dop251/goja/ast"
 )
 
+const maxInheritanceDepth = 128
+
 // Member describes one member entry returned by AST-based analysis.
 type Member struct {
 	Name      string
@@ -84,7 +86,7 @@ func BuildClassMembers(program *ast.Program, className string) []Member {
 	}
 
 	visited := map[string]bool{className: true}
-	addInheritedMethods(classes, superClassName(root), &members, seenNames, visited)
+	addInheritedMethods(classes, superClassName(root), &members, seenNames, visited, 0)
 
 	return members
 }
@@ -122,8 +124,9 @@ func addInheritedMethods(
 	out *[]Member,
 	seenNames map[string]bool,
 	visited map[string]bool,
+	depth int,
 ) {
-	if className == "" || visited[className] {
+	if className == "" || visited[className] || depth >= maxInheritanceDepth {
 		return
 	}
 	visited[className] = true
@@ -157,7 +160,7 @@ func addInheritedMethods(
 		seenNames[name] = true
 	}
 
-	addInheritedMethods(classes, superClassName(cd), out, seenNames, visited)
+	addInheritedMethods(classes, superClassName(cd), out, seenNames, visited, depth+1)
 }
 
 func indexClasses(program *ast.Program) map[string]*ast.ClassDeclaration {

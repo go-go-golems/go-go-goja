@@ -63,3 +63,22 @@ go test ./pkg/inspector/... -count=1
 Outcome:
 
 - Tests passed for the new core package and existing inspector packages.
+
+## Step 3: Added explicit depth guard + expanded core regression coverage
+
+Implemented a second safety net for inheritance traversal:
+
+1. Added `maxInheritanceDepth` guard in `pkg/inspector/core/members.go`.
+2. Updated recursive traversal to track `depth` and stop once limit is hit.
+3. Added deep-chain regression test in `pkg/inspector/core/members_test.go` to verify traversal remains bounded.
+
+Validation command:
+
+```bash
+cd go-go-goja
+go test ./pkg/inspector/core -count=1
+```
+
+Outcome:
+
+- Core tests pass including self-cycle, indirect-cycle, and deep-chain bounds checks.

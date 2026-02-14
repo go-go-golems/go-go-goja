@@ -25,3 +25,13 @@ Step 2: Extracted class/function member analysis from `cmd/smalltalk-inspector` 
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/core/members.go — New UI-independent member analysis API
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/core/members_test.go — Core package tests for extraction behavior
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/model.go — Rewired to consume core package
+
+
+## 2026-02-14
+
+Step 3: Added depth guard to inherited-member traversal and expanded core regression tests to include deep inheritance chain bounds.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/core/members.go — Added `maxInheritanceDepth`-bounded recursion
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/core/members_test.go — Added deep-chain guard test
