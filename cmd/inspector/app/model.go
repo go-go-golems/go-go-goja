@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
 )
 
 // FocusPane indicates which pane has focus.
@@ -16,6 +20,12 @@ const (
 	FocusSource FocusPane = iota
 	FocusTree
 	FocusDrawer
+)
+
+const (
+	modeSource = "source"
+	modeTree   = "tree"
+	modeDrawer = "drawer"
 )
 
 // SyncOrigin indicates the source of the last sync event.
@@ -40,6 +50,10 @@ type Model struct {
 	syncOrigin SyncOrigin
 	width      int
 	height     int
+	uiMode     string
+	keyMap     KeyMap
+	help       help.Model
+	spinner    spinner.Model
 
 	// Source pane state
 	sourceCursorLine int // 0-based
@@ -78,7 +92,13 @@ func NewModel(filename, sourceText string, program interface{}, parseErr error, 
 		sourceLines:    lines,
 		selectedNodeID: -1,
 		focus:          FocusSource,
+		uiMode:         modeSource,
+		keyMap:         newKeyMap(),
 	}
+	m.help = help.New()
+	m.help.ShowAll = false
+	m.spinner = spinner.New(spinner.WithSpinner(spinner.Line))
+	mode_keymap.EnableMode(&m.keyMap, m.uiMode)
 
 	if index != nil {
 		m.selectedNodeID = index.RootID
@@ -92,17 +112,22 @@ func NewModel(filename, sourceText string, program interface{}, parseErr error, 
 
 // Init implements tea.Model.
 func (m Model) Init() tea.Cmd {
-	return nil
+	return m.spinner.Tick
 }
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.help.Width = msg.Width
 		return m, nil
 	}
 	return m, nil
@@ -114,11 +139,11 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleDrawerKey(msg)
 	}
 
-	switch msg.String() {
-	case "q", "ctrl+c":
+	if key.Matches(msg, m.keyMap.Quit) {
 		return m, tea.Quit
+	}
 
-	case "tab":
+	if key.Matches(msg, m.keyMap.NextPane) {
 		if m.drawerOpen {
 			switch m.focus {
 			case FocusSource:
@@ -135,22 +160,28 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.focus = FocusSource
 			}
 		}
+		m.updateInteractionMode()
 		return m, nil
+	}
 
-	case "i":
+	if key.Matches(msg, m.keyMap.OpenDrawer) {
 		if m.focus != FocusDrawer {
 			m.drawerOpen = true
 			m.focus = FocusDrawer
+			m.updateInteractionMode()
 		}
 		return m, nil
+	}
 
-	case "y":
+	if key.Matches(msg, m.keyMap.Yank) {
 		// Yank selected node's source text to drawer
 		if m.index != nil && m.focus != FocusDrawer {
 			m.yankToDrawer()
 		}
 		return m, nil
+	}
 
+	switch msg.String() {
 	case "j", "down":
 		if m.focus == FocusSource {
 			m.sourceMoveCursor(1, 0)
@@ -275,16 +306,19 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // --- Drawer key handling ---
 
 func (m Model) handleDrawerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	key := msg.String()
+	keyStr := msg.String()
 
-	switch key {
-	case "ctrl+c":
+	if key.Matches(msg, m.keyMap.Quit) {
 		return m, tea.Quit
+	}
+
+	switch keyStr {
 	case "q":
 		// In drawer, q types a character (not quit)
 	case "tab":
 		// Tab cycles focus
 		m.focus = FocusSource
+		m.updateInteractionMode()
 		return m, nil
 	case "esc", "escape":
 		if m.drawer.completionActive {
@@ -292,6 +326,7 @@ func (m Model) handleDrawerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.drawerOpen = false
 			m.focus = FocusSource
+			m.updateInteractionMode()
 		}
 		return m, nil
 	case "enter":
@@ -374,6 +409,20 @@ func (m Model) handleDrawerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m *Model) updateInteractionMode() {
+	switch m.focus {
+	case FocusSource:
+		m.uiMode = modeSource
+	case FocusTree:
+		m.uiMode = modeTree
+	case FocusDrawer:
+		m.uiMode = modeDrawer
+	default:
+		m.uiMode = modeSource
+	}
+	mode_keymap.EnableMode(&m.keyMap, m.uiMode)
 }
 
 func (m *Model) triggerDrawerCompletion() {
@@ -1190,6 +1239,9 @@ func (m Model) renderStatusBar() string {
 	if m.highlightedBinding != nil {
 		parts = append(parts, fmt.Sprintf("★ %d usages of '%s'", len(m.usageHighlights), m.highlightedBinding.Name))
 	}
+	if m.drawer != nil && m.drawer.completionActive {
+		parts = append(parts, m.spinner.View()+" completing")
+	}
 
 	if m.focus == FocusDrawer && m.drawer != nil {
 		parts = append(parts, m.drawer.CursorInfo())
@@ -1205,11 +1257,7 @@ func (m Model) renderHelp() string {
 		Foreground(lipgloss.Color("244")).
 		Width(m.width).
 		Padding(0, 1)
-
-	if m.focus == FocusDrawer {
-		return style.Render("Tab:pane │ .:complete │ C-n:complete │ ↑/↓/Enter:popup │ C-d:go-to-def │ C-g:usages │ Esc:close │ C-↑/↓:resize")
-	}
-	return style.Render("Tab:pane │ i:drawer │ j/k:move │ h/l:left/right │ Space:toggle │ Enter:jump │ d:go-to-def │ *:usages │ Esc:clear │ q:quit")
+	return style.Render(m.help.View(m.keyMap))
 }
 
 // truncateAnsi truncates a string that may contain ANSI escape sequences
