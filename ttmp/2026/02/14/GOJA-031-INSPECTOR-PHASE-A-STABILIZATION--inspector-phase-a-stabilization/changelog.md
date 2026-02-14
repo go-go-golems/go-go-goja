@@ -35,3 +35,13 @@ Step 3: Added depth guard to inherited-member traversal and expanded core regres
 
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/core/members.go — Added `maxInheritanceDepth`-bounded recursion
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/core/members_test.go — Added deep-chain guard test
+
+
+## 2026-02-14
+
+Step 4: Added command-level regression tests for cyclic inheritance input and validated all relevant test suites.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/model_members_test.go — New command-level no-panic regressions
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-031-INSPECTOR-PHASE-A-STABILIZATION--inspector-phase-a-stabilization/reference/01-diary.md — Updated with command outputs and commit trace

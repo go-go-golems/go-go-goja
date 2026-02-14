@@ -82,3 +82,32 @@ go test ./pkg/inspector/core -count=1
 Outcome:
 
 - Core tests pass including self-cycle, indirect-cycle, and deep-chain bounds checks.
+
+## Step 4: Added command-level regression tests and ran full validation suite
+
+Added Bubble Tea command package regression tests:
+
+- `cmd/smalltalk-inspector/app/model_members_test.go`
+  - `TestBuildMembersSelfExtendsNoPanic`
+  - `TestBuildMembersIndirectCycleNoPanic`
+
+These tests exercise the UI-facing `buildMembers()` path directly so the previous stack-overflow class of bugs cannot silently re-enter through integration changes.
+
+Validation commands:
+
+```bash
+cd go-go-goja
+go test ./cmd/smalltalk-inspector/... -count=1
+go test ./pkg/inspector/... -count=1
+go test ./... -count=1
+```
+
+Outcome:
+
+- All tests passed.
+
+## Commit Trace (so far)
+
+1. `cc6fd92` — docs(GOJA-031): plan/tasks/diary scaffold
+2. `cd5227a` — inspector: extract member analysis into `pkg/inspector/core`
+3. `6d04d4b` — inspector/core: add bounded inheritance traversal safeguards
