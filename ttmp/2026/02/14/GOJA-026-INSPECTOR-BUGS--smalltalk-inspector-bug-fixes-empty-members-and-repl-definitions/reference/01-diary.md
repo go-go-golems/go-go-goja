@@ -176,3 +176,94 @@ The Bug 2 fix plan required understanding goja's scoping semantics deeply. The n
 - `BindingKind` values: Var=0, Let=1, Const=2, Function=3, Class=4
 - Fix execution order: Bug 6 → Bug 4 → Bug 1 → Bug 5 → Bug 3 → Bug 2
 - Total files to change: 3 (update.go, model.go, view.go)
+
+## Step 3: Implementation — All 6 Bugs Fixed
+
+Executed the 6-step fix plan in order. Each step was built, lint-checked, tested in tmux, and committed individually. One surprise: Bug 5 (proto chain footer) initially caused a panic — `WalkPrototypeChain` calls `InspectObject` which enumerates all properties, and accessing `caller`/`callee`/`arguments` on strict-mode functions panics in goja. Fixed by adding `safeGet()` with panic recovery and a new lightweight `PrototypeChainNames()` that only walks constructor names without touching properties.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, implement, add tasks, then task by task, build, commit, update diary."
+
+**Assistant interpretation:** Execute the fix plan, one commit per bug, with build/lint/test verification.
+
+**Inferred user intent:** Get all bugs fixed with clean, reviewable commits.
+
+**Commits (code):**
+- `1c98cff` — Bug 6: clear navStack on new REPL eval
+- `37bf79e` — Bug 4: init runtime session before buildMembers
+- `e8cb4ca` — Bug 1: runtime introspection for value globals
+- `ca664ee` — Bug 5: runtime proto chain in footer + safeGet
+- `d9fa290` — Bug 3: Enter on value globals opens inspect view
+- `0ee1ee2` — Bug 2: refresh globals after REPL eval
+
+### What I did
+
+1. **Bug 6** (`1c98cff`): Added `m.navStack = nil` in both error and success branches of MsgEvalResult handler.
+
+2. **Bug 4** (`37bf79e`): Reordered MsgFileLoaded handler to create rtSession before calling buildGlobals/buildMembers.
+
+3. **Bug 1** (`e8cb4ca`): Added `buildValueMembers()` that uses `runtime.InspectObject()` for object globals and `runtime.ValuePreview()` for primitives. Added `RuntimeDerived bool` to `MemberItem` to skip AST source jumps.
+
+4. **Bug 5** (`ca664ee`): Added `PrototypeChainNames()` (lightweight, no property enumeration) and `safeGet()` (panic recovery for strict-mode properties). Members footer now shows runtime proto chain for all globals.
+
+5. **Bug 3** (`d9fa290`): Modified `handleGlobalsKey` Select handler to trigger `EvalWithCapture` for non-class/non-function globals, opening the inspect view with `[[Proto]]` navigation.
+
+6. **Bug 2** (`0ee1ee2`): Added `refreshRuntimeGlobals()` (two-source merge: GlobalObject scan + REPL name tracking), `extractDeclaredNames()` (pattern matching for const/let/var/class/function), `isBuiltinGlobal()` (comprehensive filter), `sortGlobals()` (maintains display order). Called after every REPL eval.
+
+### Why
+
+All 6 bugs blocked usability of the inspector for non-class globals and REPL-driven workflows — the core use case for a Smalltalk-style inspector.
+
+### What worked
+
+- All fixes were surgical — no regressions in existing tests (11 pass)
+- The `safeGet()` approach cleanly handles the strict-mode panic without changing the API
+- The two-source merge for Bug 2 correctly picks up both `var` (via GlobalObject) and `const` (via REPL input parsing) definitions
+- The `RuntimeDerived` flag cleanly separates static and runtime member behavior
+
+### What didn't work
+
+- **Bug 5 initial attempt**: Using `WalkPrototypeChain` in the view footer caused a panic: `TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions`. The function walks prototypes and calls `InspectObject` which enumerates ALL properties, hitting restricted ones on Function.prototype. Fixed by creating `PrototypeChainNames()` (walks only constructor names) and `safeGet()` (recover from panics).
+
+### What I learned
+
+- goja panics (not errors) when accessing `caller`/`callee`/`arguments` on strict-mode functions — need defensive `recover()` in any code that enumerates arbitrary object properties
+- The `GlobalObject().Keys()` approach for Bug 2 only catches `var`/`function` — `const`/`let` require separate tracking via input parsing
+- The `MemberItem.RuntimeDerived` flag is a clean extension point for distinguishing static vs dynamic data
+
+### What was tricky to build
+
+- The `safeGet()` function needed a closure-based approach instead of named returns to satisfy the `nonamedreturns` linter
+- The `extractDeclaredNames()` regex/split approach is intentionally simple — it handles `const x = 1` and `function foo()` but won't catch destructuring (`const {a, b} = obj`). This is acceptable for REPL one-liners.
+- The `isBuiltinGlobal()` filter list needed to be comprehensive — missing entries would pollute the globals list with `Object`, `Array`, etc.
+
+### What warrants a second pair of eyes
+
+- The `isBuiltinGlobal` list may be incomplete for some goja-specific builtins
+- `extractDeclaredNames` won't catch destructuring patterns
+- `safeGet` uses `recover()` — confirm it doesn't mask real bugs
+
+### What should be done in the future
+
+- Consider caching proto chain names to avoid re-walking on every render
+- Consider full AST parsing of REPL input for better name extraction
+- Add unit tests for `extractDeclaredNames` and `isBuiltinGlobal`
+
+### Code review instructions
+
+- Start: `git log --oneline -6` shows all 6 commits in order
+- Test: `go run ./cmd/smalltalk-inspector ./testdata/inspector-test.js`
+  - Navigate to `settings` → members show `theme`, `fontSize`, `lineNumbers`
+  - Navigate to `myCircle` → members show `color`, `visible`, `radius`; footer shows `proto: Circle → Shape → Object`
+  - Enter on `myCircle` → inspect view with `[[Proto]]`
+  - Tab to REPL → `var z = 99` → `z` appears in globals
+  - `const w = {x:1}` → `w` appears, navigate to it → shows `x : 1`
+- All tests: `go test ./... -count=1` (11 tests pass)
+
+### Technical details
+
+- Files changed: `update.go` (4 commits), `model.go` (2 commits), `view.go` (1 commit), `introspect.go` (1 commit)
+- New functions: `buildValueMembers()`, `refreshRuntimeGlobals()`, `sortGlobals()`, `extractDeclaredNames()`, `isBuiltinGlobal()`, `PrototypeChainNames()`, `safeGet()`
+- New field: `MemberItem.RuntimeDerived bool`, `Model.replDefinedNames []string`
+- Panic found + fixed: strict-mode `caller`/`callee`/`arguments` access in `InspectObject` via `safeGet()`
