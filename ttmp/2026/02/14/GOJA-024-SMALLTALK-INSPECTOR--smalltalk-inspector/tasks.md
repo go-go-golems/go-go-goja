@@ -17,11 +17,11 @@
 
 - [x] Phase 3 error inspection: implement exception capture and stack frame list (source jump + locals/object drill-in entry points)
 - [x] Phase 3 tests: add focused tests for pane sync, inspect navigation, REPL eval behavior, descriptor/symbol rendering, and stack/source jump mapping
-- [ ] Phase 3 polish/docs: update `reference/02-smalltalk-goja-inspector-interface-and-component-design.md`, `reference/01-diary.md`, and `changelog.md` with final decisions and reviewer guidance
+- [x] Phase 3 polish/docs: update `reference/02-smalltalk-goja-inspector-interface-and-component-design.md`, `reference/01-diary.md`, and `changelog.md` with final decisions and reviewer guidance
 
 ## Developer Handoff Checklist
 
 - [x] Confirm `go test ./cmd/inspector/... -count=1` still passes (no regression in existing inspector)
 - [x] Confirm new code path compiles/runs via `go run ./cmd/smalltalk-inspector <file.js>`
 - [x] Ensure reusable components are imported/adapted rather than duplicated from `cmd/inspector/app`
-- [ ] Record each meaningful milestone in diary + changelog with exact commands and outcomes
+- [x] Record each meaningful milestone in diary + changelog with exact commands and outcomes
