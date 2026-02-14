@@ -116,6 +116,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.replHistory = append(m.replHistory, msg.Result.Expression)
 
+		// Track REPL expression as source
+		m.appendReplSource(msg.Result.Expression)
+
 		// Refresh globals list to pick up new REPL-defined names
 		m.refreshRuntimeGlobals()
 		return m, nil
@@ -164,6 +167,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.inspectObj = nil
 			m.inspectProps = nil
 			m.inspectLabel = ""
+			m.showingReplSrc = false
 			return m, nil
 		}
 		m.statusMsg = ""
@@ -584,8 +588,16 @@ func (m Model) handleInspectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if prop.Kind == "function" && prop.Value != nil {
 				mapping := runtime.MapFunctionToSource(prop.Value, m.rtSession.VM, m.analysis)
 				if mapping != nil {
+					// Found in file AST — show file source
+					m.showingReplSrc = false
 					m.sourceTarget = mapping.StartLine - 1
 					m.ensureSourceVisible(m.sourceTarget)
+				} else {
+					// Not in file — show function source via toString()
+					fnSrc := getFunctionSource(prop.Value)
+					if fnSrc != "" {
+						m.showReplFunctionSource(prop.Name, fnSrc)
+					}
 				}
 			}
 		}

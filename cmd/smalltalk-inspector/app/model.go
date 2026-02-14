@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,6 +54,11 @@ type Model struct {
 	sourceLines  []string
 	sourceScroll int
 	sourceTarget int // target line to highlight (0-based), -1 = none
+
+	// REPL source tracking
+	replSourceLines []string // accumulated REPL expressions as source lines
+	replSourceLog   []replSourceEntry
+	showingReplSrc  bool // true when source pane shows REPL source instead of file
 
 	// Runtime
 	rtSession        *runtime.Session
@@ -457,6 +463,7 @@ func (m *Model) hasMember(name string) bool {
 // jumpToSource sets the source pane to show the declaration of the selected member.
 func (m *Model) jumpToSource() {
 	m.sourceTarget = -1
+	m.showingReplSrc = false
 
 	if m.analysis == nil || m.analysis.Index == nil {
 		return
@@ -619,6 +626,87 @@ func astParamNames(pl *ast.ParameterList) []string {
 		}
 	}
 	return names
+}
+
+// replSourceEntry tracks where a REPL expression lives in the accumulated source buffer.
+type replSourceEntry struct {
+	Expression string
+	StartLine  int // 0-based index into replSourceLines
+	EndLine    int // exclusive
+}
+
+// appendReplSource adds a REPL expression to the source log and returns the start line.
+func (m *Model) appendReplSource(expr string) int {
+	startLine := len(m.replSourceLines)
+
+	// Add a separator comment showing the REPL expression number
+	m.replSourceLines = append(m.replSourceLines,
+		fmt.Sprintf("// ─── REPL [%d] ───", len(m.replSourceLog)+1))
+
+	// Add the expression lines
+	exprLines := strings.Split(expr, "\n")
+	m.replSourceLines = append(m.replSourceLines, exprLines...)
+	m.replSourceLines = append(m.replSourceLines, "")
+
+	endLine := len(m.replSourceLines)
+	m.replSourceLog = append(m.replSourceLog, replSourceEntry{
+		Expression: expr,
+		StartLine:  startLine,
+		EndLine:    endLine,
+	})
+
+	return startLine + 1 // +1 to skip the separator, point at actual code
+}
+
+// showReplFunctionSource switches the source pane to show a REPL-defined function's source.
+func (m *Model) showReplFunctionSource(name, fnSrc string) {
+	// Check if this expression is already in the REPL source log
+	for _, entry := range m.replSourceLog {
+		if strings.Contains(entry.Expression, fnSrc) || strings.Contains(entry.Expression, name) {
+			// Found in REPL log — show REPL source at this entry
+			m.showingReplSrc = true
+			m.sourceTarget = entry.StartLine + 1 // point at the code, skip separator
+			m.ensureReplSourceVisible(m.sourceTarget)
+			return
+		}
+	}
+
+	// Not found in log — create a temporary display from toString()
+	m.showingReplSrc = true
+	startLine := len(m.replSourceLines)
+	m.replSourceLines = append(m.replSourceLines,
+		fmt.Sprintf("// ─── %s (runtime) ───", name))
+	m.replSourceLines = append(m.replSourceLines, strings.Split(fnSrc, "\n")...)
+	m.replSourceLines = append(m.replSourceLines, "")
+	m.sourceTarget = startLine + 1
+	m.ensureReplSourceVisible(m.sourceTarget)
+}
+
+func (m *Model) ensureReplSourceVisible(targetLine int) {
+	vpHeight := m.sourceViewportHeight()
+	if vpHeight <= 0 {
+		return
+	}
+	m.sourceScroll = targetLine - vpHeight/2
+	if m.sourceScroll < 0 {
+		m.sourceScroll = 0
+	}
+	maxScroll := len(m.replSourceLines) - vpHeight
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if m.sourceScroll > maxScroll {
+		m.sourceScroll = maxScroll
+	}
+}
+
+// getFunctionSource returns the source text of a runtime function.
+// goja's Value.String() returns the source for function values.
+func getFunctionSource(val goja.Value) string {
+	if _, ok := goja.AssertFunction(val); !ok {
+		return ""
+	}
+	return val.String()
 }
 
 // kindIcon returns a display icon for binding kinds.

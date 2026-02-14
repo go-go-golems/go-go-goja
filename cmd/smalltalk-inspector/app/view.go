@@ -452,9 +452,17 @@ func (m Model) renderMembersPane(width, height int) string {
 func (m Model) renderSourcePane(width, height int) string {
 	var lines []string
 
+	// Determine which source to display
+	srcLines := m.sourceLines
+	headerSuffix := ""
+	if m.showingReplSrc && len(m.replSourceLines) > 0 {
+		srcLines = m.replSourceLines
+		headerSuffix = " (REPL)"
+	}
+
 	// Header
-	label := " Source "
-	if m.focus == FocusMembers && len(m.members) > 0 && m.memberIdx < len(m.members) {
+	label := " Source" + headerSuffix + " "
+	if !m.showingReplSrc && m.focus == FocusMembers && len(m.members) > 0 && m.memberIdx < len(m.members) {
 		label = fmt.Sprintf(" Source: %s ", m.members[m.memberIdx].Name)
 	}
 	hStyle := stylePaneHeaderInactive
@@ -469,7 +477,7 @@ func (m Model) renderSourcePane(width, height int) string {
 		contentHeight = 1
 	}
 
-	if len(m.sourceLines) == 0 {
+	if len(srcLines) == 0 {
 		lines = append(lines, padRight(styleEmptyHint.Render(" (no source)"), width))
 		for len(lines) < height {
 			lines = append(lines, strings.Repeat(" ", width))
@@ -477,12 +485,12 @@ func (m Model) renderSourcePane(width, height int) string {
 		return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 	}
 
-	gutterWidth := len(fmt.Sprintf("%d", len(m.sourceLines))) + 1
+	gutterWidth := len(fmt.Sprintf("%d", len(srcLines))) + 1
 
-	endIdx := minInt(m.sourceScroll+contentHeight, len(m.sourceLines))
+	endIdx := minInt(m.sourceScroll+contentHeight, len(srcLines))
 	for lineIdx := m.sourceScroll; lineIdx < endIdx; lineIdx++ {
 		lineNum := fmt.Sprintf("%*d ", gutterWidth, lineIdx+1)
-		content := m.sourceLines[lineIdx]
+		content := srcLines[lineIdx]
 
 		isTarget := lineIdx == m.sourceTarget
 		gs := styleGutterNormal
