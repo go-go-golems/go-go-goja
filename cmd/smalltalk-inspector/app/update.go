@@ -36,14 +36,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.focus = FocusGlobals
 		m.sourceTarget = -1
 		m.sourceScroll = 0
+
+		// Initialize runtime session BEFORE building globals/members
+		// so buildValueMembers() can use it for runtime introspection.
+		m.rtSession = runtime.NewSession()
+		rtErr := m.rtSession.Load(msg.Source)
+
 		m.buildGlobals()
 		m.buildMembers()
 
-		// Initialize runtime session
-		m.rtSession = runtime.NewSession()
-		if err := m.rtSession.Load(msg.Source); err != nil {
+		if rtErr != nil {
 			m.statusMsg = fmt.Sprintf("✓ Loaded %s (%d lines, %d globals) ⚠ runtime: %v",
-				msg.Filename, len(m.sourceLines), len(m.globals), err)
+				msg.Filename, len(m.sourceLines), len(m.globals), rtErr)
 		} else {
 			m.statusMsg = fmt.Sprintf("✓ Loaded %s (%d lines, %d globals)",
 				msg.Filename, len(m.sourceLines), len(m.globals))
