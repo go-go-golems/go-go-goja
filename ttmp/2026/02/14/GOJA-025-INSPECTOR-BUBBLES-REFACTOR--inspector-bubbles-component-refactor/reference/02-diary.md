@@ -264,3 +264,57 @@ The command mode currently supports `drawer`, `clear`, `help`, and `quit` as lig
   - `3339aa86b12bbe450ebb01e184241fe2ff47a541`
   - `13d7bbfcecd801d6bd75743826ac5e360f13062b`
   - `8e1e1ce4b5c2f4caf3e202fb521bf3b4d2919f99`
+
+## Step 5: Task 5 Completion (Docs/Tasks/Changelog Commit)
+
+I finalized the ticket documentation layer by updating the index, design guide, diary, changelog, and task checklist, then committed the entire GOJA-025 ticket workspace in one focused docs commit.
+
+This locks in commit-level traceability and leaves the ticket with zero open tasks.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Complete final documentation bookkeeping as a dedicated committed step.
+
+**Inferred user intent:** Ensure every task, including documentation and diary updates, is actually executed and committed.
+
+**Commit (code):** `9725df9e5523ecb82f9d36b9ca081f11ade91573` — "docs: add GOJA-025 refactor guide, diary, and completed tasks"
+
+### What I did
+- Committed ticket docs/files:
+  - `index.md`
+  - `tasks.md`
+  - `changelog.md`
+  - `reference/01-inspector-refactor-design-guide.md`
+  - `reference/02-diary.md`
+  - `README.md`
+- Verified task list now has 0 open tasks.
+
+### Why
+- Needed an explicit final commit for Task 5 and complete auditability.
+
+### What worked
+- Commit completed without lint/test hooks (docs-only staged files).
+
+### What didn't work
+- N/A.
+
+### What I learned
+- Keeping docs commit separate from code commits makes review and rollback cleaner.
+
+### What was tricky to build
+- Ensuring diary/changelog/task status remained consistent after multiple staged code commits and separate docs commit.
+
+### What warrants a second pair of eyes
+- Final consistency check between changelog entries and diary step list.
+
+### What should be done in the future
+- Keep “docs closure commit” as a standard final step for ticketed refactors.
+
+### Code review instructions
+- Open `tasks.md` and confirm all tasks checked.
+- Compare commits in diary against `git log --oneline`.
+
+### Technical details
+- Docs commit hash: `9725df9e5523ecb82f9d36b9ca081f11ade91573`
