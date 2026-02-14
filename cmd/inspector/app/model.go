@@ -8,6 +8,8 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -56,6 +58,9 @@ type Model struct {
 	keyMap     KeyMap
 	help       help.Model
 	spinner    spinner.Model
+	command    textinput.Model
+	commandOn  bool
+	commandMsg string
 
 	// Source pane state
 	sourceCursorLine int // 0-based
@@ -71,6 +76,7 @@ type Model struct {
 	treeScrollY      int      // first visible row (0-based)
 	treeVisibleNodes []NodeID // cached visible node list
 	treeList         list.Model
+	metaTable        table.Model
 
 	// Selected node
 	selectedNodeID NodeID // -1 for none
@@ -104,6 +110,21 @@ func NewModel(filename, sourceText string, program interface{}, parseErr error, 
 	m.spinner = spinner.New(spinner.WithSpinner(spinner.Line))
 	m.sourceViewport = viewport.New(0, 0)
 	m.treeList = newTreeListModel()
+	m.command = textinput.New()
+	m.command.Prompt = ":"
+	m.command.Placeholder = "drawer | clear | help | quit"
+	m.command.CharLimit = 120
+	m.command.Width = 60
+	m.command.Blur()
+	m.metaTable = table.New(
+		table.WithColumns([]table.Column{
+			{Title: "Field", Width: 16},
+			{Title: "Value", Width: 40},
+		}),
+		table.WithRows(nil),
+		table.WithFocused(false),
+		table.WithHeight(5),
+	)
 	mode_keymap.EnableMode(&m.keyMap, m.uiMode)
 
 	if index != nil {
@@ -134,12 +155,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.help.Width = msg.Width
+		m.command.Width = maxInt(16, msg.Width-4)
 		return m, nil
 	}
 	return m, nil
 }
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.commandOn {
+		return m.handleCommandInput(msg)
+	}
+
 	// Drawer-focused keys
 	if m.focus == FocusDrawer {
 		return m.handleDrawerKey(msg)
@@ -176,6 +202,13 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.focus = FocusDrawer
 			m.updateInteractionMode()
 		}
+		return m, nil
+	}
+
+	if key.Matches(msg, m.keyMap.Command) {
+		m.commandOn = true
+		m.command.SetValue("")
+		m.command.Focus()
 		return m, nil
 	}
 
@@ -310,6 +343,56 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m Model) handleCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "escape":
+		m.commandOn = false
+		m.command.Blur()
+		m.command.SetValue("")
+		return m, nil
+	case "enter":
+		cmd := strings.TrimSpace(m.command.Value())
+		m.commandOn = false
+		m.command.Blur()
+		m.command.SetValue("")
+		m.executeCommand(cmd)
+		if cmd == "quit" || cmd == "q" {
+			return m, tea.Quit
+		}
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.command, cmd = m.command.Update(msg)
+	return m, cmd
+}
+
+func (m *Model) executeCommand(cmd string) {
+	switch cmd {
+	case "":
+		m.commandMsg = ""
+	case "drawer":
+		m.drawerOpen = true
+		m.focus = FocusDrawer
+		m.updateInteractionMode()
+		m.commandMsg = "opened drawer"
+	case "clear":
+		m.clearHighlightUsages()
+		m.commandMsg = "cleared usage highlights"
+	case "help":
+		m.help.ShowAll = !m.help.ShowAll
+		if m.help.ShowAll {
+			m.commandMsg = "help: full"
+		} else {
+			m.commandMsg = "help: short"
+		}
+	case "q", "quit":
+		m.commandMsg = "quitting"
+	default:
+		m.commandMsg = fmt.Sprintf("unknown command: %s", cmd)
+	}
 }
 
 // --- Drawer key handling ---
@@ -924,13 +1007,17 @@ func (m Model) View() string {
 	headerHeight := 1
 	statusHeight := 1
 	helpHeight := 1
+	commandHeight := 0
+	if m.commandOn {
+		commandHeight = 1
+	}
 	drawerHeight := 0
 	separatorHeight := 0
 	if m.drawerOpen && m.drawer != nil {
 		drawerHeight = m.drawer.height
 		separatorHeight = 1
 	}
-	contentHeight := m.height - headerHeight - statusHeight - helpHeight - drawerHeight - separatorHeight
+	contentHeight := m.height - headerHeight - statusHeight - helpHeight - commandHeight - drawerHeight - separatorHeight
 	if contentHeight < 3 {
 		contentHeight = 3
 	}
@@ -950,9 +1037,15 @@ func (m Model) View() string {
 		sepStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 		separator := sepStyle.Render(strings.Repeat("─", m.width))
 		drawerView := m.drawer.Render(m.width, drawerHeight, m.focus == FocusDrawer)
+		if m.commandOn {
+			return lipgloss.JoinVertical(lipgloss.Left, header, content, separator, drawerView, status, help, m.renderCommandLine())
+		}
 		return lipgloss.JoinVertical(lipgloss.Left, header, content, separator, drawerView, status, help)
 	}
 
+	if m.commandOn {
+		return lipgloss.JoinVertical(lipgloss.Left, header, content, status, help, m.renderCommandLine())
+	}
 	return lipgloss.JoinVertical(lipgloss.Left, header, content, status, help)
 }
 
@@ -1146,9 +1239,54 @@ func (m Model) renderTreePane(width, height int) string {
 		}
 		return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 	}
-	m.treeList.SetSize(width, contentHeight)
+
+	metaHeight := 5
+	if contentHeight <= metaHeight+2 {
+		metaHeight = 3
+	}
+	treeHeight := contentHeight - metaHeight - 1
+	if treeHeight < 1 {
+		treeHeight = 1
+		metaHeight = maxInt(2, contentHeight-treeHeight)
+	}
+
+	m.treeList.SetSize(width, treeHeight)
 	lines = append(lines, m.treeList.View())
+	lines = append(lines, padRight(strings.Repeat("─", width), width))
+
+	meta := m.metaTable
+	meta.SetWidth(width)
+	meta.SetHeight(metaHeight)
+	meta.SetRows(m.selectedMetaRows())
+	lines = append(lines, meta.View())
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
+}
+
+func (m Model) selectedMetaRows() []table.Row {
+	rows := []table.Row{{"Focus", m.uiMode}}
+	if m.selectedNodeID < 0 || m.index == nil {
+		return rows
+	}
+	n := m.index.Nodes[m.selectedNodeID]
+	if n == nil {
+		return rows
+	}
+
+	rows = append(rows,
+		table.Row{"Node", n.Kind},
+		table.Row{"Span", fmt.Sprintf("[%d..%d]", n.Start, n.End)},
+		table.Row{"Lines", fmt.Sprintf("%d:%d → %d:%d", n.StartLine, n.StartCol, n.EndLine, n.EndCol)},
+	)
+	if m.index.Resolution != nil {
+		if b := m.index.Resolution.BindingForNode(m.selectedNodeID); b != nil {
+			rows = append(rows, table.Row{"Binding", fmt.Sprintf("%s (%s)", b.Name, b.Kind)})
+			rows = append(rows, table.Row{"Usages", fmt.Sprintf("%d", len(b.AllUsages()))})
+		}
+	}
+	if m.highlightedBinding != nil {
+		rows = append(rows, table.Row{"Highlight", m.highlightedBinding.Name})
+	}
+	return rows
 }
 
 func (m Model) renderStatusBar() string {
@@ -1213,6 +1351,19 @@ func (m Model) renderHelp() string {
 		Width(m.width).
 		Padding(0, 1)
 	return style.Render(m.help.View(m.keyMap))
+}
+
+func (m Model) renderCommandLine() string {
+	style := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252")).
+		Background(lipgloss.Color("235")).
+		Width(m.width).
+		Padding(0, 1)
+	input := m.command.View()
+	if m.commandMsg != "" {
+		input = input + " │ " + m.commandMsg
+	}
+	return style.Render(input)
 }
 
 // truncateAnsi truncates a string that may contain ANSI escape sequences

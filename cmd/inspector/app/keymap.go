@@ -9,6 +9,7 @@ type KeyMap struct {
 
 	NextPane   key.Binding `keymap-mode:"*"`
 	OpenDrawer key.Binding `keymap-mode:"source,tree"`
+	Command    key.Binding `keymap-mode:"source,tree"`
 	Close      key.Binding `keymap-mode:"*"`
 
 	Yank key.Binding `keymap-mode:"source,tree"`
@@ -44,6 +45,10 @@ func newKeyMap() KeyMap {
 		OpenDrawer: key.NewBinding(
 			key.WithKeys("i"),
 			key.WithHelp("i", "drawer"),
+		),
+		Command: key.NewBinding(
+			key.WithKeys(":"),
+			key.WithHelp(":", "command"),
 		),
 		Close: key.NewBinding(
 			key.WithKeys("esc"),
@@ -117,12 +122,12 @@ func newKeyMap() KeyMap {
 }
 
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.NextPane, k.OpenDrawer, k.GoToDef, k.FindUsage, k.Close, k.Quit}
+	return []key.Binding{k.NextPane, k.OpenDrawer, k.Command, k.GoToDef, k.Close, k.Quit}
 }
 
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.NextPane, k.OpenDrawer, k.Close, k.Quit},
+		{k.NextPane, k.OpenDrawer, k.Command, k.Close, k.Quit},
 		{k.Up, k.Down, k.Left, k.Right, k.Top, k.Bottom, k.HalfUp, k.HalfDown},
 		{k.Toggle, k.Apply, k.Yank, k.GoToDef, k.FindUsage, k.Complete},
 		{k.DrawGrow, k.DrawShrink},
