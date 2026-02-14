@@ -69,6 +69,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.replResult = ""
 			m.inspectObj = nil
 			m.inspectProps = nil
+			m.navStack = nil
 
 			// Parse exception for stack trace display
 			if ex, ok := msg.Result.Error.(*goja.Exception); ok {
@@ -91,6 +92,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.replError = ""
 			m.errorInfo = nil
 			m.showingError = false
+			m.navStack = nil
 			val := msg.Result.Value
 			m.replResult = runtime.ValuePreview(val, m.rtSession.VM, 80)
 
