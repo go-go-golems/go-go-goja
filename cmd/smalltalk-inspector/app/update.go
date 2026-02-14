@@ -32,6 +32,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.source = msg.Source
 		m.analysis = msg.Analysis
 		m.sourceLines = strings.Split(msg.Source, "\n")
+		m.rebuildFileSyntaxSpans(msg.Source)
 		m.loaded = true
 		m.mode = modeGlobals
 		m.focus = FocusGlobals

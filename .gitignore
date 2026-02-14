@@ -26,3 +26,4 @@ dist/
 cmd/bun-demo/js/node_modules/
 cmd/bun-demo/js/dist/
 cmd/bun-demo/js/dist-split/
+sinspect.log

@@ -55,6 +55,11 @@ type Model struct {
 	sourceScroll int
 	sourceTarget int // target line to highlight (0-based), -1 = none
 
+	// Syntax highlighting
+	tsParser        *jsparse.TSParser
+	fileSyntaxSpans []jsparse.SyntaxSpan // spans for file source
+	replSyntaxSpans []jsparse.SyntaxSpan // spans for REPL source
+
 	// REPL source tracking
 	replSourceLines []string // accumulated REPL expressions as source lines
 	replSourceLog   []replSourceEntry
@@ -126,7 +131,20 @@ func NewModel(filename string) Model {
 	m.replInput.Width = 60
 	m.replInput.Blur()
 
+	// Initialize tree-sitter parser for syntax highlighting
+	if parser, err := jsparse.NewTSParser(); err == nil {
+		m.tsParser = parser
+	}
+
 	return m
+}
+
+// Close releases resources (tree-sitter parser).
+func (m *Model) Close() {
+	if m.tsParser != nil {
+		m.tsParser.Close()
+		m.tsParser = nil
+	}
 }
 
 // Init implements tea.Model.
@@ -628,6 +646,27 @@ func astParamNames(pl *ast.ParameterList) []string {
 	return names
 }
 
+// rebuildFileSyntaxSpans parses file source with tree-sitter and builds syntax spans.
+func (m *Model) rebuildFileSyntaxSpans(source string) {
+	m.fileSyntaxSpans = nil
+	if m.tsParser == nil {
+		return
+	}
+	root := m.tsParser.Parse([]byte(source))
+	m.fileSyntaxSpans = jsparse.BuildSyntaxSpans(root)
+}
+
+// rebuildReplSyntaxSpans parses accumulated REPL source with tree-sitter and builds syntax spans.
+func (m *Model) rebuildReplSyntaxSpans() {
+	m.replSyntaxSpans = nil
+	if m.tsParser == nil || len(m.replSourceLines) == 0 {
+		return
+	}
+	src := strings.Join(m.replSourceLines, "\n")
+	root := m.tsParser.Parse([]byte(src))
+	m.replSyntaxSpans = jsparse.BuildSyntaxSpans(root)
+}
+
 // replSourceEntry tracks where a REPL expression lives in the accumulated source buffer.
 type replSourceEntry struct {
 	Expression string
@@ -654,6 +693,9 @@ func (m *Model) appendReplSource(expr string) int {
 		StartLine:  startLine,
 		EndLine:    endLine,
 	})
+
+	// Rebuild syntax spans for REPL source
+	m.rebuildReplSyntaxSpans()
 
 	return startLine + 1 // +1 to skip the separator, point at actual code
 }

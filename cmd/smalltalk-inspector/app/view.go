@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
 
 // View implements tea.Model.
@@ -485,6 +486,14 @@ func (m Model) renderSourcePane(width, height int) string {
 		return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 	}
 
+	// Select the right syntax spans
+	var syntaxSpans []jsparse.SyntaxSpan
+	if m.showingReplSrc {
+		syntaxSpans = m.replSyntaxSpans
+	} else {
+		syntaxSpans = m.fileSyntaxSpans
+	}
+
 	gutterWidth := len(fmt.Sprintf("%d", len(srcLines))) + 1
 
 	endIdx := minInt(m.sourceScroll+contentHeight, len(srcLines))
@@ -501,6 +510,8 @@ func (m Model) renderSourcePane(width, height int) string {
 
 		if isTarget {
 			content = styleSourceHL.Render(content)
+		} else if len(syntaxSpans) > 0 {
+			content = renderSyntaxLine(content, lineIdx+1, syntaxSpans)
 		}
 
 		line := gutter + content
@@ -512,6 +523,21 @@ func (m Model) renderSourcePane(width, height int) string {
 	}
 
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
+}
+
+// renderSyntaxLine applies syntax highlighting to a single source line.
+// lineNo is 1-based to match SyntaxSpan coordinates.
+func renderSyntaxLine(line string, lineNo int, spans []jsparse.SyntaxSpan) string {
+	if len(spans) == 0 || len(line) == 0 {
+		return line
+	}
+	var b strings.Builder
+	for colIdx, ch := range line {
+		colNo := colIdx + 1 // 1-based
+		class := jsparse.SyntaxClassAt(spans, lineNo, colNo)
+		b.WriteString(jsparse.RenderSyntaxChar(class, string(ch)))
+	}
+	return b.String()
 }
 
 func (m Model) renderReplArea() string {
