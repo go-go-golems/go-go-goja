@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
 
 // Update implements tea.Model.
@@ -296,7 +297,23 @@ func (m Model) handleGlobalsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.Select) {
-		// Enter: move focus to members
+		if len(m.globals) == 0 || m.globalIdx >= len(m.globals) {
+			return m, nil
+		}
+		selected := m.globals[m.globalIdx]
+
+		// For value-type globals, trigger runtime inspection
+		if selected.Kind != jsparse.BindingClass && selected.Kind != jsparse.BindingFunction {
+			if m.rtSession != nil {
+				result := m.rtSession.EvalWithCapture(selected.Name)
+				return m, func() tea.Msg {
+					return MsgEvalResult{Result: result}
+				}
+			}
+			return m, nil
+		}
+
+		// For class/function, move focus to members pane
 		if len(m.members) > 0 {
 			m.focus = FocusMembers
 			m.updateMode()
