@@ -11,6 +11,10 @@ topics:
       description: Go language
     - slug: tui
       description: Terminal user interfaces
+    - slug: inspector
+      description: Inspector tooling and workflows
+    - slug: refactor
+      description: Codebase refactor and cleanup work
 docTypes:
     - slug: index
       description: Ticket index documents

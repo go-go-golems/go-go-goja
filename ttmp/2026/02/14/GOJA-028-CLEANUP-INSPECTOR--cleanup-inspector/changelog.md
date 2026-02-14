@@ -1,0 +1,49 @@
+# Changelog
+
+## 2026-02-14
+
+- Initial workspace created
+
+
+## 2026-02-14
+
+Step 1: Inventoried GOJA-024 through GOJA-027 tickets and commit history, then mapped all implementation files changed since the pre-ticket baseline.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/index.md — Baseline design ticket context
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-025-INSPECTOR-BUBBLES-REFACTOR--inspector-bubbles-component-refactor/reference/01-inspector-refactor-design-guide.md — Reusable component baseline context
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-026-INSPECTOR-BUGS--smalltalk-inspector-bug-fixes-empty-members-and-repl-definitions/reference/02-bug-report.md — Bug-fix wave context
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-027-SYNTAX-HIGHLIGHT--syntax-highlighting-for-smalltalk-inspector-source-pane/index.md — Syntax-highlighting ticket context
+
+
+## 2026-02-14
+
+Step 2: Validated the current codebase with tests/vet and reproduced a critical stack-overflow crash for self-referential inheritance during member-building recursion.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/model.go — Recursion path (`addInheritedMembers`) responsible for stack overflow
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/update.go — Runtime behavior and state transition review
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/view.go — Rendering and scrolling behavior review
+
+
+## 2026-02-14
+
+Step 3: Authored comprehensive cleanup review document with severity-ranked findings, architecture map, reuse/refactor opportunities, and phased remediation roadmap.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/reference/01-inspector-cleanup-review.md — Primary review deliverable
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/tasks.md — Cleanup backlog derived from findings
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/index.md — Ticket overview and navigation links
+
+
+## 2026-02-14
+
+Step 4: Validated frontmatter and doctor checks for GOJA-028, then added missing topic vocabulary entries (`inspector`, `refactor`) so the ticket passes hygiene checks.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/vocabulary.yaml — Added topics `inspector` and `refactor`
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/index.md — Topic metadata validated successfully
