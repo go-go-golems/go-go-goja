@@ -267,3 +267,46 @@ All 6 bugs blocked usability of the inspector for non-class globals and REPL-dri
 - New functions: `buildValueMembers()`, `refreshRuntimeGlobals()`, `sortGlobals()`, `extractDeclaredNames()`, `isBuiltinGlobal()`, `PrototypeChainNames()`, `safeGet()`
 - New field: `MemberItem.RuntimeDerived bool`, `Model.replDefinedNames []string`
 - Panic found + fixed: strict-mode `caller`/`callee`/`arguments` access in `InspectObject` via `safeGet()`
+
+## Step 4: REPL Source Tracking
+
+Added the ability to show REPL-defined function source in the source pane. When a user defines `Rectangle.prototype.yolo = () => { return "YOLO" }` in the REPL and then inspects `Rectangle.prototype`, selecting the `yolo` function switches the source pane to "Source (REPL)" showing the original REPL expression.
+
+### Prompt Context
+
+**User prompt (verbatim):** "When doing an eval / setting a value over the REPL, say Rectangle.prototype.yolo = () => { return \"YOLO\" }, can we register that as the source for that symbol? Currently it seems to have none."
+
+**Assistant interpretation:** Track REPL expressions as source text so that REPL-defined functions show their source in the source pane.
+
+**Inferred user intent:** Complete the Smalltalk-style "living code" experience where every function, even REPL-defined ones, has visible source.
+
+**Commit (code):** `62b1290` — "smalltalk-inspector: track REPL expressions as source for functions"
+
+### What I did
+
+1. Added `replSourceLines`, `replSourceLog`, `showingReplSrc` to Model
+2. `appendReplSource()` appends each REPL expression to a virtual source buffer with `// ─── REPL [N] ───` separators
+3. `showReplFunctionSource()` searches the REPL log for the expression that defined a function, or falls back to `getFunctionSource()` (which uses goja's `Value.String()` to get function source text)
+4. Modified `handleInspectKey` Enter handler: when `MapFunctionToSource` returns nil (not in file AST), call `showReplFunctionSource` instead
+5. Modified `renderSourcePane` to use `replSourceLines` when `showingReplSrc` is true, with header showing "(REPL)" suffix
+6. `jumpToSource()` and Esc-from-inspect reset `showingReplSrc` to return to file source
+
+### What worked
+
+- goja's `Value.String()` returns full function source text for any function, including arrow functions
+- The REPL log search matches expressions containing the function name to find the original REPL input
+- Source pane header clearly distinguishes "(REPL)" source from file source
+
+### What was tricky to build
+
+- Getting the right fallback chain: file AST lookup → REPL log search → function toString()
+- Ensuring `showingReplSrc` is properly reset on all exit paths (Esc, new eval, file source jump)
+
+### What warrants a second pair of eyes
+
+- The REPL log search uses `strings.Contains` which could give false positives for common names
+- `MapFunctionToSource` has a pre-existing issue matching by name only (e.g. `area` could match Circle or Rectangle) — separate bug, not addressed here
+
+### Code review instructions
+
+- Test: REPL → `Rectangle.prototype.yolo = () => { return "YOLO" }` → `Rectangle.prototype` → navigate to `yolo` → Enter → source pane shows "(REPL)" with the expression
