@@ -99,3 +99,80 @@ The bug report's suggested fixes are straightforward but need to consider:
 - Root cause location: `cmd/smalltalk-inspector/app/update.go` lines 73-104 (`MsgEvalResult`)
 - Root cause location: `cmd/smalltalk-inspector/app/update.go` lines 218-224 (`handleGlobalsKey` Enter)
 - Runtime introspection APIs available: `runtime.Session.GlobalValue()`, `runtime.InspectObject()`, `runtime.ValuePreview()`
+
+## Step 2: Root-Cause Analysis and Fix Plan
+
+Deep-dived into the codebase to understand the architectural gap and discovered 3 additional bugs beyond the original 3. All six bugs stem from the same root cause: the globals/members display layer only uses static AST data from jsparse and doesn't bridge to the runtime session. Wrote a detailed fix plan with an ordered 6-step execution strategy.
+
+The most significant discovery was the ES6 `const`/`let` vs `var` semantics in goja: `GlobalObject().Keys()` only returns `var` and `function` declarations — `const` and `let` are lexical scope variables not present on the global object. This means Bug 2 (refreshing globals after REPL eval) requires a two-pronged approach: scan the global object for `var`/`function`, AND parse REPL input to extract `const`/`let`/`class` names.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, Now make a plan on how to address and fix these issues, and analyze if there are similar ones."
+
+**Assistant interpretation:** Audit the codebase for related bugs, then produce a prioritized fix plan.
+
+**Inferred user intent:** Get a comprehensive fix strategy before committing to implementation.
+
+### What I did
+
+1. Re-read all source files: model.go, update.go, view.go, session.go, introspect.go
+2. Traced every code path that touches globals/members/source to find static-only assumptions
+3. Found Bug 4: init ordering — rtSession created after buildMembers() → runtime fallback would be nil
+4. Found Bug 5: proto footer — renderMembersPane only uses `g.Extends` (static)
+5. Found Bug 6: navStack leak — REPL eval replaces inspectObj but doesn't clear navStack
+6. Wrote a goja probe script to test `GlobalObject().Keys()` behavior for const/let/var
+7. Verified `vm.Get(name)` works for all binding types but `GlobalObject().Get(name)` only works for var/function
+8. Designed a 6-step fix plan with execution order, risk assessment, and test matrix
+9. Added 3 new tasks for the newly discovered bugs
+
+### Why
+
+The user asked to analyze for similar issues before planning fixes. A thorough audit prevents fixing Bug 1 only to discover Bug 4 (init ordering) blocks it, or fixing Bug 2 with a naive GlobalObject scan that misses const/let.
+
+### What worked
+
+- Tracing the `MsgFileLoaded` handler revealed the init ordering bug clearly
+- The goja probe script definitively proved the const/let limitation
+- Reading view.go showed the proto footer was static-only (easy to miss)
+
+### What didn't work
+
+N/A — this was analysis only.
+
+### What I learned
+
+- ES6 lexical scoping applies even in goja: `const`/`let` bindings are NOT on `globalThis`
+- `goja.Runtime.Get(name)` works for all binding types (including const/let)
+- `goja.Runtime.GlobalObject()` only has `var` and `function` declarations
+- The inspector architecture has a clean split but the two halves (jsparse static + runtime dynamic) were never bridged for the globals/members display
+
+### What was tricky to build
+
+The Bug 2 fix plan required understanding goja's scoping semantics deeply. The naive approach (just enumerate GlobalObject after each eval) would silently miss `const`/`let` definitions. The two-source merge strategy (GlobalObject scan + REPL input parsing) handles both cases but adds complexity.
+
+### What warrants a second pair of eyes
+
+- The builtin globals filter list for Bug 2 — missing entries would cause `Object`, `Array`, etc. to appear in the globals list after REPL eval
+- Whether caching the runtime proto chain for Bug 5 is needed, or if `WalkPrototypeChain` on every render is fast enough
+- The fix plan suggests adding `RuntimeDerived bool` to MemberItem — confirm this doesn't break the sort/display logic in view.go
+
+### What should be done in the future
+
+- Consider a unified "binding source" enum (static/runtime/repl) instead of just RuntimeDerived bool
+- Consider making buildGlobals() itself runtime-aware from the start (merge static+runtime on load)
+
+### Code review instructions
+
+- Read `design/01-fix-plan.md` for the full plan with code sketches
+- Review the 6-step execution order and verify dependencies are correct
+- Check the builtin globals filter list for completeness
+- Verify the test matrix covers all edge cases
+
+### Technical details
+
+- `goja.GlobalObject().Keys()` returns ONLY var and function names, NOT const/let
+- `goja.Runtime.Get(name)` returns values for ALL binding types
+- `BindingKind` values: Var=0, Let=1, Const=2, Function=3, Class=4
+- Fix execution order: Bug 6 → Bug 4 → Bug 1 → Bug 5 → Bug 3 → Bug 2
+- Total files to change: 3 (update.go, model.go, view.go)
