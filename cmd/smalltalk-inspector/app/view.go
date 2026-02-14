@@ -67,6 +67,11 @@ func (m Model) renderLoadedView() string {
 
 	contentHeight := m.contentHeight()
 
+	// If we have an error with stack trace, show error view
+	if m.showingError && m.errorInfo != nil {
+		return m.renderErrorView(header, status, helpView, repl, contentHeight)
+	}
+
 	// If we have an inspect object from REPL, show two-pane layout
 	if m.inspectObj != nil && len(m.inspectProps) > 0 {
 		return m.renderInspectView(header, status, helpView, repl, contentHeight)
@@ -114,6 +119,75 @@ func (m Model) renderHeader() string {
 	return styleHeader.Width(m.width).Render(
 		title + strings.Repeat(" ", gap) + "[" + focusLabel + "]",
 	)
+}
+
+func (m Model) renderErrorView(header, status, helpView, repl string, contentHeight int) string {
+	stackWidth := m.width / 2
+	sourceWidth := m.width - stackWidth
+	if stackWidth < 20 {
+		stackWidth = 20
+	}
+	if sourceWidth < 20 {
+		sourceWidth = 20
+	}
+
+	// Error banner
+	errorBanner := styleReplError.Render(" ✗ " + m.errorInfo.Message + " ")
+	bannerLine := errorBanner + styleSeparator.Render(strings.Repeat("─", maxInt(0, m.width-ansi.StringWidth(errorBanner))))
+	contentHeight-- // banner takes one line
+
+	stackPane := m.renderStackPane(stackWidth, contentHeight)
+	sourcePane := m.renderSourcePane(sourceWidth, contentHeight)
+
+	content := lipgloss.JoinHorizontal(lipgloss.Top, stackPane, sourcePane)
+
+	parts := []string{header, padRight(bannerLine, m.width), content, repl, status, helpView}
+	if m.cmdActive {
+		parts = append(parts, m.renderCommandLine())
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
+}
+
+func (m Model) renderStackPane(width, height int) string {
+	var lines []string
+
+	label := " Call Stack "
+	headerLine := stylePaneHeaderActive.Render(label) +
+		styleSeparator.Render(strings.Repeat("─", maxInt(0, width-ansi.StringWidth(label))))
+	lines = append(lines, padRight(headerLine, width))
+
+	contentHeight := height - 1
+	if contentHeight < 1 {
+		contentHeight = 1
+	}
+
+	if m.errorInfo == nil || len(m.errorInfo.Frames) == 0 {
+		lines = append(lines, padRight(styleEmptyHint.Render(" (no stack frames)"), width))
+		for len(lines) < height {
+			lines = append(lines, strings.Repeat(" ", width))
+		}
+		return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
+	}
+
+	for i, frame := range m.errorInfo.Frames {
+		if i >= contentHeight {
+			break
+		}
+		marker := "  "
+		if i == m.stackIdx {
+			marker = styleSelectedMarker.Render("▸ ")
+		}
+
+		line := fmt.Sprintf("%s#%d  %-16s  %s:%d:%d",
+			marker, i, frame.FunctionName, frame.FileName, frame.Line, frame.Column)
+		lines = append(lines, padRight(line, width))
+	}
+
+	for len(lines) < height {
+		lines = append(lines, strings.Repeat(" ", width))
+	}
+
+	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 }
 
 func (m Model) renderInspectView(header, status, helpView, repl string, contentHeight int) string {

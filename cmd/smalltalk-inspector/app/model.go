@@ -69,6 +69,11 @@ type Model struct {
 	// Navigation stack for drill-in inspection
 	navStack []NavFrame
 
+	// Error/stack trace state
+	errorInfo    *runtime.ErrorInfo
+	stackIdx     int
+	showingError bool
+
 	// UI state
 	focus     FocusPane
 	mode      string

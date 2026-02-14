@@ -66,16 +66,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case MsgEvalResult:
 		if msg.Result.Error != nil {
-			m.replError = msg.Result.Error.Error()
 			m.replResult = ""
 			m.inspectObj = nil
 			m.inspectProps = nil
-			// Check if it's a stack trace we can display
-			if msg.Result.ErrorStack != "" {
-				m.replError = msg.Result.ErrorStack
+
+			// Parse exception for stack trace display
+			if ex, ok := msg.Result.Error.(*goja.Exception); ok {
+				info := runtime.ParseException(ex)
+				m.errorInfo = &info
+				m.stackIdx = 0
+				m.showingError = true
+				m.replError = info.Message
+				// Jump source to first frame
+				if len(info.Frames) > 0 {
+					m.sourceTarget = info.Frames[0].Line - 1
+					m.ensureSourceVisible(m.sourceTarget)
+				}
+			} else {
+				m.replError = msg.Result.Error.Error()
+				m.errorInfo = nil
+				m.showingError = false
 			}
 		} else {
 			m.replError = ""
+			m.errorInfo = nil
+			m.showingError = false
 			val := msg.Result.Value
 			m.replResult = runtime.ValuePreview(val, m.rtSession.VM, 80)
 
@@ -158,6 +173,11 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Pane-specific keys
 	if !m.loaded {
 		return m, nil
+	}
+
+	// If we are showing an error stack trace, handle stack navigation
+	if m.showingError && m.errorInfo != nil && m.focus != FocusRepl {
+		return m.handleStackKey(msg)
 	}
 
 	// If we are in inspect mode and not in REPL, handle inspect-specific navigation
@@ -569,4 +589,36 @@ func buildInspectProps(obj *goja.Object, vm *goja.Runtime) []runtime.PropertyInf
 	}
 
 	return props
+}
+
+func (m Model) handleStackKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if key.Matches(msg, m.keyMap.Down) {
+		if m.errorInfo != nil && m.stackIdx < len(m.errorInfo.Frames)-1 {
+			m.stackIdx++
+			frame := m.errorInfo.Frames[m.stackIdx]
+			m.sourceTarget = frame.Line - 1
+			m.ensureSourceVisible(m.sourceTarget)
+		}
+		return m, nil
+	}
+	if key.Matches(msg, m.keyMap.Up) {
+		if m.stackIdx > 0 {
+			m.stackIdx--
+			if m.errorInfo != nil && m.stackIdx < len(m.errorInfo.Frames) {
+				frame := m.errorInfo.Frames[m.stackIdx]
+				m.sourceTarget = frame.Line - 1
+				m.ensureSourceVisible(m.sourceTarget)
+			}
+		}
+		return m, nil
+	}
+	if key.Matches(msg, m.keyMap.Back) {
+		// Clear error view
+		m.showingError = false
+		m.errorInfo = nil
+		m.sourceTarget = -1
+		return m, nil
+	}
+
+	return m, nil
 }
