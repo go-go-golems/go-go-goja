@@ -14,31 +14,25 @@ import (
 	"github.com/dop251/goja"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
 	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
-	inspectoranalysis "github.com/go-go-golems/go-go-goja/pkg/inspector/analysis"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+	"github.com/go-go-golems/go-go-goja/pkg/inspectorapi"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
 
 // GlobalItem is the app-facing alias for reusable inspector global binding data.
-type GlobalItem = inspectoranalysis.GlobalBinding
+type GlobalItem = inspectorapi.Global
 
 // MemberItem represents a member of a selected class/object.
-type MemberItem struct {
-	Name           string
-	Kind           string // "function", "value", "param"
-	Preview        string // short value/signature preview
-	Inherited      bool
-	Source         string // from which prototype level
-	RuntimeDerived bool   // true if populated from runtime introspection (not AST)
-}
+type MemberItem = inspectorapi.Member
 
 // Model is the top-level bubbletea model for the Smalltalk inspector.
 type Model struct {
 	// Data
-	filename string
-	source   string
-	analysis *jsparse.AnalysisResult
-	session  *inspectoranalysis.Session
+	filename         string
+	source           string
+	analysis         *jsparse.AnalysisResult
+	documentID       inspectorapi.DocumentID
+	inspectorService *inspectorapi.Service
 
 	// Global scope items
 	globals      []GlobalItem
@@ -70,7 +64,7 @@ type Model struct {
 	replHistory  []string
 	replResult   string
 	replError    string
-	replDeclared []inspectoranalysis.DeclaredBinding
+	replDeclared []inspectorapi.DeclaredBinding
 
 	// Object browser (for REPL results and inspect targets)
 	inspectObj   *goja.Object
@@ -108,13 +102,14 @@ type Model struct {
 // NewModel creates a new Smalltalk inspector model.
 func NewModel(filename string) Model {
 	m := Model{
-		filename:     filename,
-		focus:        FocusGlobals,
-		mode:         modeEmpty,
-		globalIdx:    0,
-		memberIdx:    0,
-		sourceTarget: -1,
-		keyMap:       newKeyMap(),
+		filename:         filename,
+		focus:            FocusGlobals,
+		mode:             modeEmpty,
+		globalIdx:        0,
+		memberIdx:        0,
+		sourceTarget:     -1,
+		keyMap:           newKeyMap(),
+		inspectorService: inspectorapi.NewService(),
 	}
 	m.help = help.New()
 	m.help.ShowAll = false
@@ -190,11 +185,17 @@ func loadFile(filename string) tea.Msg {
 // buildGlobals extracts global bindings from the analysis result.
 func (m *Model) buildGlobals() {
 	m.globals = nil
-	if m.session == nil {
+	if m.inspectorService == nil || m.documentID == "" {
 		return
 	}
 
-	m.globals = append(m.globals, m.session.Globals()...)
+	resp, err := m.inspectorService.ListGlobals(inspectorapi.ListGlobalsRequest{
+		DocumentID: m.documentID,
+	})
+	if err != nil {
+		return
+	}
+	m.globals = append(m.globals, resp.Globals...)
 
 	m.globalIdx = 0
 	m.globalScroll = 0
@@ -212,92 +213,18 @@ func (m *Model) buildMembers() {
 
 	selected := m.globals[m.globalIdx]
 
-	if m.session == nil {
+	if m.inspectorService == nil || m.documentID == "" {
 		return
 	}
 
-	//exhaustive:ignore
-	switch selected.Kind {
-	case jsparse.BindingClass:
-		m.buildClassMembers(selected.Name)
-	case jsparse.BindingFunction:
-		m.buildFunctionMembers(selected.Name)
-	default:
-		m.buildValueMembers(selected.Name)
-	}
-}
-
-// buildClassMembers extracts methods and properties from a class declaration.
-func (m *Model) buildClassMembers(className string) {
-	for _, member := range m.session.ClassMembers(className) {
-		m.members = append(m.members, MemberItem{
-			Name:      member.Name,
-			Kind:      member.Kind,
-			Preview:   member.Preview,
-			Inherited: member.Inherited,
-			Source:    member.Source,
-		})
-	}
-}
-
-// buildFunctionMembers shows parameters for a selected function.
-func (m *Model) buildFunctionMembers(funcName string) {
-	for _, member := range m.session.FunctionMembers(funcName) {
-		m.members = append(m.members, MemberItem{
-			Name: member.Name,
-			Kind: member.Kind,
-		})
-	}
-}
-
-// buildValueMembers uses the runtime session to introspect a value-type global.
-func (m *Model) buildValueMembers(name string) {
-	if m.rtSession == nil {
+	resp, err := m.inspectorService.ListMembers(inspectorapi.ListMembersRequest{
+		DocumentID: m.documentID,
+		GlobalName: selected.Name,
+	}, m.rtSession)
+	if err != nil {
 		return
 	}
-
-	val := m.rtSession.GlobalValue(name)
-	if val == nil || goja.IsUndefined(val) {
-		m.members = append(m.members, MemberItem{
-			Name:           "(value)",
-			Kind:           "value",
-			Preview:        " : undefined",
-			RuntimeDerived: true,
-		})
-		return
-	}
-
-	if goja.IsNull(val) {
-		m.members = append(m.members, MemberItem{
-			Name:           "(value)",
-			Kind:           "value",
-			Preview:        " : null",
-			RuntimeDerived: true,
-		})
-		return
-	}
-
-	// Check if it's an object — show its properties
-	if obj, ok := val.(*goja.Object); ok {
-		props := runtime.InspectObject(obj, m.rtSession.VM)
-		for _, p := range props {
-			m.members = append(m.members, MemberItem{
-				Name:           p.Name,
-				Kind:           p.Kind,
-				Preview:        " : " + p.Preview,
-				RuntimeDerived: true,
-			})
-		}
-		return
-	}
-
-	// Primitive value — show a single entry with the preview
-	m.members = append(m.members, MemberItem{
-		Name:           "(value)",
-		Kind:           "value",
-		Preview:        " : " + runtime.ValuePreview(val, m.rtSession.VM, 40),
-		RuntimeDerived: true,
-	})
+	m.members = append(m.members, resp.Members...)
 }
 
 // jumpToSource sets the source pane to show the declaration of the selected member.
@@ -305,7 +232,7 @@ func (m *Model) jumpToSource() {
 	m.sourceTarget = -1
 	m.showingReplSrc = false
 
-	if m.session == nil {
+	if m.inspectorService == nil || m.documentID == "" {
 		return
 	}
 
@@ -322,11 +249,14 @@ func (m *Model) jumpToSource() {
 }
 
 func (m *Model) jumpToBinding(name string) {
-	line, ok := m.session.BindingDeclLine(name)
-	if !ok {
+	resp, err := m.inspectorService.BindingDeclarationLine(inspectorapi.BindingDeclarationRequest{
+		DocumentID: m.documentID,
+		Name:       name,
+	})
+	if err != nil || !resp.Found {
 		return
 	}
-	m.sourceTarget = line - 1
+	m.sourceTarget = resp.Line - 1
 	m.ensureSourceVisible(m.sourceTarget)
 }
 
@@ -335,11 +265,16 @@ func (m *Model) jumpToMember(className string, member MemberItem) {
 	if member.Inherited && member.Source != "" {
 		sourceClass = member.Source
 	}
-	line, ok := m.session.MemberDeclLine(className, sourceClass, member.Name)
-	if !ok {
+	resp, err := m.inspectorService.MemberDeclarationLine(inspectorapi.MemberDeclarationRequest{
+		DocumentID:  m.documentID,
+		ClassName:   className,
+		SourceClass: sourceClass,
+		MemberName:  member.Name,
+	})
+	if err != nil || !resp.Found {
 		return
 	}
-	m.sourceTarget = line - 1
+	m.sourceTarget = resp.Line - 1
 	m.ensureSourceVisible(m.sourceTarget)
 }
 
@@ -531,15 +466,17 @@ func memberKindIcon(k string) string {
 
 // refreshRuntimeGlobals merges newly-defined runtime globals into the globals list.
 func (m *Model) refreshRuntimeGlobals() {
-	if m.rtSession == nil {
+	if m.inspectorService == nil || m.documentID == "" || m.rtSession == nil {
 		return
 	}
 
-	runtimeKinds := runtime.RuntimeGlobalKinds(m.rtSession.VM)
-	hasRuntimeValue := func(name string) bool {
-		val := m.rtSession.GlobalValue(name)
-		return val != nil && !goja.IsUndefined(val)
+	resp, err := m.inspectorService.MergeRuntimeGlobals(inspectorapi.MergeRuntimeGlobalsRequest{
+		DocumentID: m.documentID,
+		Existing:   m.globals,
+		Declared:   m.replDeclared,
+	}, m.rtSession)
+	if err != nil {
+		return
 	}
-
-	m.globals = inspectoranalysis.MergeGlobals(m.globals, runtimeKinds, m.replDeclared, hasRuntimeValue)
+	m.globals = resp.Globals
 }

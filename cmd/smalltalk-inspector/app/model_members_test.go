@@ -3,8 +3,8 @@ package app
 import (
 	"testing"
 
-	inspectoranalysis "github.com/go-go-golems/go-go-goja/pkg/inspector/analysis"
 	inspectorruntime "github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+	"github.com/go-go-golems/go-go-goja/pkg/inspectorapi"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
 
@@ -128,7 +128,15 @@ func modelFromSource(t *testing.T, source string) Model {
 		t.Fatalf("parse error: %v", a.ParseErr)
 	}
 	m.analysis = a
-	m.session = inspectoranalysis.NewSessionFromResult(a)
+	resp, err := m.inspectorService.OpenDocumentFromAnalysis(inspectorapi.OpenDocumentFromAnalysisRequest{
+		Filename: "test.js",
+		Source:   source,
+		Analysis: a,
+	})
+	if err != nil {
+		t.Fatalf("open document: %v", err)
+	}
+	m.documentID = resp.DocumentID
 	m.buildGlobals()
 	return m
 }

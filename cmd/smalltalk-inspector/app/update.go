@@ -10,8 +10,8 @@ import (
 	"github.com/dop251/goja"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
 	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
-	inspectoranalysis "github.com/go-go-golems/go-go-goja/pkg/inspector/analysis"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+	"github.com/go-go-golems/go-go-goja/pkg/inspectorapi"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
 
@@ -33,8 +33,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case MsgFileLoaded:
 		m.filename = msg.Filename
 		m.source = msg.Source
-		m.analysis = msg.Analysis
-		m.session = inspectoranalysis.NewSessionFromResult(msg.Analysis)
+		openResp, openErr := m.inspectorService.OpenDocumentFromAnalysis(inspectorapi.OpenDocumentFromAnalysisRequest{
+			Filename: msg.Filename,
+			Source:   msg.Source,
+			Analysis: msg.Analysis,
+		})
+		if openErr != nil {
+			m.statusMsg = fmt.Sprintf("✗ Error opening analysis session for %s: %v", msg.Filename, openErr)
+			return m, nil
+		}
+		m.documentID = openResp.DocumentID
+		m.analysis = openResp.Analysis
 		m.sourceLines = strings.Split(msg.Source, "\n")
 		m.rebuildFileSyntaxSpans(msg.Source)
 		m.loaded = true
@@ -468,7 +477,7 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 		// Parser-backed declaration extraction for REPL-defined bindings.
-		declared := inspectoranalysis.DeclaredBindingsFromSource(expr)
+		declared := inspectorapi.DeclaredBindingsFromSource(expr)
 		m.replDeclared = append(m.replDeclared, declared...)
 
 		// Evaluate synchronously (expressions should be fast)
