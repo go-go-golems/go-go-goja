@@ -58,3 +58,8 @@ Step 6: fixed byte-vs-rune column mapping for source highlights and AST cursor j
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/cmd/ast-parse-editor/app/model_test.go — multibyte regression tests
 - /home/manuel/workspaces/2026-02-13/ast-parse-editor/go-go-goja/ttmp/2026/02/13/GOJA-003-SYNTAX-MODES-AST-SELECTION--syntax-highlighting-modes-and-ast-selection-mode-in-ast-parse-editor/reference/01-diary.md — Step 6 diary details
 
+
+## 2026-02-14
+
+Ticket closed
+

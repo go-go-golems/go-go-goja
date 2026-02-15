@@ -1,7 +1,7 @@
 ---
 Title: Smalltalk Inspector Analysis Session Integration
 Ticket: GOJA-032-ANALYSIS-INTEGRATION
-Status: active
+Status: complete
 Topics:
     - go
     - goja
@@ -13,11 +13,12 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: Execution ticket for extracting GOJA-028 task #13 into a dedicated implementation stream that integrates pkg/inspector/analysis with smalltalk-inspector.
-LastUpdated: 2026-02-15T00:45:00Z
+Summary: 'Execution ticket for extracting GOJA-028 task #13 into a dedicated implementation stream that integrates pkg/inspector/analysis with smalltalk-inspector.'
+LastUpdated: 2026-02-15T09:18:30.686187497-05:00
 WhatFor: Isolate analysis-layer integration work from broader cleanup tasks and provide a clear implementation path.
 WhenToUse: Use when implementing, reviewing, or tracking analysis-session integration in smalltalk-inspector.
 ---
+
 
 # Smalltalk Inspector Analysis Session Integration
 

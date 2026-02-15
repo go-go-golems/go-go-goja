@@ -14,9 +14,9 @@
 - [ ] Expand correctness tests (multiline strings/comments/template literals/operator cases)
 - [ ] Add benchmark + profile comparison report (before/after)
 - [ ] Validate behavior in both file-source and REPL-source views
-- [ ] Document final algorithm choice and follow-up opportunities
+- [x] Document final algorithm choice and follow-up opportunities
 
 ## Research Spike (Optional but Recommended)
 
-- [ ] Run a 1-2 day algorithm research spike (tree-sitter highlight architecture, interval indexing, cache invalidation patterns)
-- [ ] Produce short recommendation memo and feed decisions back into implementation plan
+- [x] Run a 1-2 day algorithm research spike (tree-sitter highlight architecture, interval indexing, cache invalidation patterns)
+- [x] Produce short recommendation memo and feed decisions back into implementation plan

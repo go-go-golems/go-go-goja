@@ -1,7 +1,7 @@
 ---
 Title: Syntax highlighting for smalltalk-inspector source pane
 Ticket: GOJA-027-SYNTAX-HIGHLIGHT
-Status: active
+Status: complete
 Topics:
     - inspector
     - ui
@@ -11,10 +11,12 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-02-14T17:22:13.060128481-05:00
+LastUpdated: 2026-02-15T09:18:45.422997427-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
 
 # Syntax highlighting for smalltalk-inspector source pane
 

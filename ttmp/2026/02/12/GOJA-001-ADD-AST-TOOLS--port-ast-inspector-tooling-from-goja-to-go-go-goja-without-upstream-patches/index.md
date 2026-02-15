@@ -1,7 +1,7 @@
 ---
 Title: Port AST inspector tooling from goja to go-go-goja without upstream patches
 Ticket: GOJA-001-ADD-AST-TOOLS
-Status: active
+Status: complete
 Topics:
     - goja
     - analysis
@@ -12,11 +12,12 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: "Analysis ticket for extracting a reusable JS parsing/completion framework plus inspector-specific tooling in go-go-goja."
-LastUpdated: 2026-02-12T16:13:54.828262977-05:00
-WhatFor: "Track analysis, decisions, and execution plan for inspector migration."
-WhenToUse: "Read this first to understand ticket status and jump to detailed docs."
+Summary: Analysis ticket for extracting a reusable JS parsing/completion framework plus inspector-specific tooling in go-go-goja.
+LastUpdated: 2026-02-15T00:21:24.834440312-05:00
+WhatFor: Track analysis, decisions, and execution plan for inspector migration.
+WhenToUse: Read this first to understand ticket status and jump to detailed docs.
 ---
+
 
 # Port AST inspector tooling from goja to go-go-goja without upstream patches
 

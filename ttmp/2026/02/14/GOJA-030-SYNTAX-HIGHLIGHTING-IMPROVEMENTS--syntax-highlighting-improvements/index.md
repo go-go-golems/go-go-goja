@@ -12,22 +12,25 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: go-go-goja/ttmp/2026/02/14/GOJA-030-SYNTAX-HIGHLIGHTING-IMPROVEMENTS--syntax-highlighting-improvements/design/01-syntax-highlighting-implementation-plan.md
-      Note: Primary implementation plan for highlighting upgrades
-    - Path: go-go-goja/pkg/jsparse/highlight.go
-      Note: Current highlight span/lookup implementation target
-    - Path: go-go-goja/cmd/smalltalk-inspector/app/view.go
-      Note: Current render hot path using syntax spans
-    - Path: go-go-goja/cmd/smalltalk-inspector/app/model.go
+    - Path: cmd/smalltalk-inspector/app/model.go
       Note: Current syntax-span rebuild and REPL source tracking flow
-    - Path: go-go-goja/ttmp/2026/02/14/GOJA-027-SYNTAX-HIGHLIGHT--syntax-highlighting-for-smalltalk-inspector-source-pane/tasks.md
+    - Path: cmd/smalltalk-inspector/app/view.go
+      Note: Current render hot path using syntax spans
+    - Path: pkg/jsparse/highlight.go
+      Note: Current highlight span/lookup implementation target
+    - Path: ttmp/2026/02/14/GOJA-027-SYNTAX-HIGHLIGHT--syntax-highlighting-for-smalltalk-inspector-source-pane/tasks.md
       Note: Original feature ticket context and carry-over work
+    - Path: ttmp/2026/02/14/GOJA-030-SYNTAX-HIGHLIGHTING-IMPROVEMENTS--syntax-highlighting-improvements/design/01-syntax-highlighting-implementation-plan.md
+      Note: Primary implementation plan for highlighting upgrades
+    - Path: ttmp/2026/02/14/GOJA-030-SYNTAX-HIGHLIGHTING-IMPROVEMENTS--syntax-highlighting-improvements/design/02-syntax-highlighting-algorithm-research.md
+      Note: Deep algorithm research and recommendation memo used to drive implementation tasks
 ExternalSources: []
 Summary: Execution ticket for syntax-highlighting algorithm and performance improvements in smalltalk-inspector.
 LastUpdated: 2026-02-14T19:03:00Z
 WhatFor: Plan and track benchmark-driven optimization and correctness hardening of highlighting.
 WhenToUse: Use as entrypoint when implementing GOJA-030.
 ---
+
 
 # Syntax Highlighting Improvements
 

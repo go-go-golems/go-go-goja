@@ -18,15 +18,17 @@ RelatedFiles:
       Note: Span rebuild flow for file and REPL source
     - Path: go-go-goja/cmd/smalltalk-inspector/app/view.go
       Note: Current per-character syntax rendering path
-    - Path: go-go-goja/pkg/jsparse/treesitter_parser.go
+    - Path: go-go-goja/pkg/jsparse/treesitter.go
       Note: Parser baseline used for syntax spans
     - Path: go-go-goja/ttmp/2026/02/14/GOJA-027-SYNTAX-HIGHLIGHT--syntax-highlighting-for-smalltalk-inspector-source-pane/tasks.md
       Note: Original highlighting feature implementation context
     - Path: go-go-goja/ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/reference/01-inspector-cleanup-review.md
       Note: Performance findings motivating this ticket
+    - Path: go-go-goja/ttmp/2026/02/14/GOJA-030-SYNTAX-HIGHLIGHTING-IMPROVEMENTS--syntax-highlighting-improvements/design/02-syntax-highlighting-algorithm-research.md
+      Note: Detailed 6+ page algorithm research and recommendation memo
 ExternalSources: []
 Summary: Detailed plan to improve highlighting correctness and performance with measurable benchmarks and incremental algorithm upgrades.
-LastUpdated: 2026-02-14T19:02:00Z
+LastUpdated: 2026-02-15T15:18:00Z
 WhatFor: Provide a concrete implementation and benchmarking roadmap for upgrading current tree-sitter span rendering.
 WhenToUse: Use as the execution guide for GOJA-030.
 ---
@@ -36,6 +38,21 @@ WhenToUse: Use as the execution guide for GOJA-030.
 ## Goal
 
 Improve syntax highlighting performance and correctness for source panes (file + REPL) without regressing visual quality.
+
+## Research Update (2026-02-15)
+
+The algorithm research spike has been completed and documented in:
+
+- `design/02-syntax-highlighting-algorithm-research.md`
+
+Confirmed decisions fed back into this plan:
+
+1. Keep tree-sitter parsing and kind-based class mapping in the near term.
+2. Prioritize per-line span indexing first.
+3. Move to segment-based rendering second.
+4. Add cache + invalidation with explicit source-version keys.
+5. Keep Bubble Tea `viewport`; optimize line generation pipeline feeding it.
+6. Fix REPL runtime fallback append path to rebuild/invalidate syntax artifacts immediately.
 
 ## Current Behavior Summary
 

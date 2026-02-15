@@ -57,3 +57,14 @@ Cross-ticket update: GOJA-028 task #13 (analysis-layer integration) has been exe
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/15/GOJA-032-ANALYSIS-INTEGRATION--smalltalk-inspector-analysis-session-integration/design/01-implementation-guide-integrate-pkg-inspector-analysis-into-smalltalk-inspector.md — Execution plan and architecture for the extracted task
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/15/GOJA-032-ANALYSIS-INTEGRATION--smalltalk-inspector-analysis-session-integration/tasks.md — Task-level execution tracking for the extracted work
 
+
+## 2026-02-15
+
+Backlog reconciliation update: marked completed cleanup items delivered via GOJA-029/031/032 and closed GOJA-027 hygiene gap after doctor validation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-027-SYNTAX-HIGHLIGHT--syntax-highlighting-for-smalltalk-inspector-source-pane/changelog.md — GOJA-027 closure and hygiene validation
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-027-SYNTAX-HIGHLIGHT--syntax-highlighting-for-smalltalk-inspector-source-pane/tasks.md — Final GOJA-027 task completion
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/tasks.md — Reconciled completed-vs-open backlog tasks
+

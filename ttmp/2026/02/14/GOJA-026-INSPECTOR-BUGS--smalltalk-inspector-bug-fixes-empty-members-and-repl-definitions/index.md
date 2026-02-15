@@ -1,7 +1,7 @@
 ---
 Title: 'Smalltalk Inspector Bug Fixes: Empty Members and REPL Definitions'
 Ticket: GOJA-026-INSPECTOR-BUGS
-Status: active
+Status: complete
 Topics:
     - smalltalk-inspector
     - bugs
@@ -22,10 +22,11 @@ RelatedFiles:
       Note: Test fixture for reproduction
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-02-14T16:07:14.390891718-05:00
+LastUpdated: 2026-02-14T20:00:08.62088923-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Smalltalk Inspector Bug Fixes: Empty Members and REPL Definitions
