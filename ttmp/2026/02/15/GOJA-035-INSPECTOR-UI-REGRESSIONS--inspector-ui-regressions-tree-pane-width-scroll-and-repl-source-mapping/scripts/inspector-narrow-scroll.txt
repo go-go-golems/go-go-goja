@@ -1,0 +1,22 @@
+  6       }
+  7     }                                     ▶ BinaryExpression <
+  8   }
+  9 };
+ 10                                           ▶ UnaryExpression ++
+ 11 function makeMonsterFunctionWithExtr
+ 12   const localBindingWithLongName = p
+ 13   return {                          │     ▶ BlockStatement
+ 14     localBindingWithLongName,       │
+ 15     nested: {
+ 16       desc: "another very long descr
+ 17     }
+ 18   };
+ 19 }                                   ────────────────────────────────────────
+ 20                                      Field             Value
+ 21 for (let i = 0; i < 80; i++) {       Focus             tree
+                                         Node              BlockStatement
+                                         Span              [893..970]
+                                         Lines             21:30 → 23:2
+ ✓ parse ok │ nodes: 68 │ selected: BlockStatement [893..970] (21:30 → 23:2) │
+ cursor: 21:30
+ tab next pane • i drawer • : command • d/ctrl+d go to def • esc close/clear …

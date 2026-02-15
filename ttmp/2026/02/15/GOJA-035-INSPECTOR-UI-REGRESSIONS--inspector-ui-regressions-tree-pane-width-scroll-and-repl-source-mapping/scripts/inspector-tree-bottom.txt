@@ -1,0 +1,30 @@
+ 65     case "circle":
+ 66       return new Circle(color, args[0] || 1);          ▼ LexicalDeclaration const
+ 67     case "rectangle":
+ 68       return new Rectangle(color, args[0] || 1, arg
+ 69     default:                                             ▶ Binding
+ 70       return new Shape(color);
+ 71   }
+ 72 }                                                      ▼ FunctionDeclaration "main"
+ 73
+ 74 function totalArea(shapes) {
+ 75   let sum = 0;                                     │     ▶ FunctionLiteral "main"
+ 76   for (const s of shapes) {                        │
+ 77     if (typeof s.area === "function") {
+ 78       sum += s.area();
+ 79     }
+ 80   }
+ 81   return sum;
+ 82 }
+ 83
+ 84 const myCircle = new Circle("red", 5);
+ 85 const myRect = new Rectangle("blue", 3, 4);
+ 86 const shapes = [myCircle, myRect];
+ 87                                                    ───────────────────────────────────────────────────────
+ 88 function main() {                                   Field             Value
+                                                        Focus             tree
+                                                        Node              FunctionLiteral
+                                                        Span              [1603..1792]
+                                                        Lines             88:1 → 92:2
+ ✓ parse ok │ nodes: 332 │ selected: FunctionLiteral [1603..1792] (88:1 → 92:2) │ cursor: 88:1
+ tab next pane • i drawer • : command • d/ctrl+d go to def • esc close/clear • q/ctrl+c quit

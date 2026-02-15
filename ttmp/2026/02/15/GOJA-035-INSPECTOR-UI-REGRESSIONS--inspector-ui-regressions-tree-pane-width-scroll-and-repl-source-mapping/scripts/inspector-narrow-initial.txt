@@ -1,0 +1,22 @@
+  4       deeplyNestedPropertyWithVerbos    ▼ LexicalDeclaration const
+  5         message: "this is a ridiculo
+  6       }
+  7     }                                     ▶ Binding
+  8   }
+  9 };
+ 10                                         ▼ FunctionDeclaration "makeMonsterF…
+ 11 function makeMonsterFunctionWithExtr
+ 12   const localBindingWithLongName = p
+ 13   return {                                ▶ FunctionLiteral "makeMonsterFun…
+ 14     localBindingWithLongName,
+ 15     nested: {
+ 16       desc: "another very long descr    ▼ ForStatement
+ 17     }
+ 18   };                                ────────────────────────────────────────
+                                         Field             Value
+                                         Focus             source
+                                         Node              Program
+                                         Span              [1..970]
+                                         Lines             1:1 → 23:2
+ ✓ parse ok │ nodes: 68 │ selected: Program [1..970] (1:1 → 23:2) │ cursor: 1:1
+ tab next pane • i drawer • : command • d/ctrl+d go to def • esc close/clear …
