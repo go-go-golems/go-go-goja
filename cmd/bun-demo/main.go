@@ -12,7 +12,6 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/engine"
-	"github.com/go-go-golems/go-go-goja/pkg/calllog"
 )
 
 //go:embed assets/*.cjs assets/tsx.html
@@ -49,7 +48,7 @@ func main() {
 		log.Fatalf("bundle export 'run' is not a function")
 	}
 
-	result, err := calllog.CallJSFunction(vm, *entry, "run", run, goja.Undefined())
+	result, err := run(goja.Undefined())
 	if err != nil {
 		log.Fatalf("run(): %v", err)
 	}

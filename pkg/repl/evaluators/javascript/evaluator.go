@@ -65,7 +65,6 @@ type Evaluator struct {
 // Config holds configuration for the JavaScript evaluator
 type Config struct {
 	EnableModules     bool
-	EnableCallLog     bool
 	EnableConsoleLog  bool
 	EnableNodeModules bool
 	CustomModules     map[string]interface{}
@@ -77,7 +76,6 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		EnableModules:     true,
-		EnableCallLog:     false,
 		EnableConsoleLog:  true,
 		EnableNodeModules: true,
 		CustomModules:     make(map[string]interface{}),
@@ -93,9 +91,7 @@ func New(config Config) (*Evaluator, error) {
 		runtime = config.Runtime
 	} else if config.EnableModules {
 		// Create runtime with module support using go-go-goja engine
-		runtimeCfg := ggjengine.DefaultRuntimeConfig()
-		runtimeCfg.CallLogEnabled = config.EnableCallLog
-		runtime, _ = ggjengine.NewWithConfig(runtimeCfg)
+		runtime, _ = ggjengine.NewWithConfig(ggjengine.DefaultRuntimeConfig())
 	} else {
 		// Create basic runtime without modules
 		runtime = goja.New()
