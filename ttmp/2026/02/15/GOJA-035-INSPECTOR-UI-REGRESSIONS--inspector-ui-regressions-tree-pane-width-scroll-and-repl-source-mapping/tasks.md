@@ -1,5 +1,12 @@
 # Tasks
 
+## TODO (Follow-up Findings)
+
+- [x] Fix drawer lexical binding resolution to avoid nondeterministic scope-map lookups (`cmd/inspector/app/model.go`) and add shadowing tests.
+- [x] Guard globals half-page navigation when list is empty (`cmd/smalltalk-inspector/app/update.go`) and add regression test.
+- [x] Disambiguate runtime method source mapping by candidate source matching (`pkg/inspector/runtime/function_map.go`) and add ambiguity test.
+- [x] Run targeted + full test suite and record outcomes in ticket changelog/diary.
+
 ## Done
 
 - [x] Reproduce both regressions in tmux and capture evidence logs in `scripts/`.

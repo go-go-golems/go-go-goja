@@ -15,3 +15,15 @@
 - Added tree UX tests: `TestTreePaneWidthKeepsTreeCompact` and `TestBuildTreeListItemClampsTitle`.
 - Validated with:
   - `go test ./cmd/smalltalk-inspector/app ./cmd/inspector/app -count=1`
+- Follow-up review fixes:
+  - deterministic drawer lexical binding resolution for shadowed identifiers
+  - globals half-page navigation guard for empty lists
+  - runtime method source mapping disambiguation by normalized source snippets
+- Added follow-up regression tests:
+  - `TestModelDrawerGoToDefinitionUsesLexicalScope`
+  - `TestModelDrawerHighlightUsagesUsesLexicalScope`
+  - `TestGlobalsHalfPageNavigationNoopWhenEmpty`
+  - `TestMapFunctionToSourceDisambiguatesSameMethodNameAcrossClasses`
+- Validation rerun:
+  - `go test ./cmd/inspector/app ./cmd/smalltalk-inspector/app ./pkg/inspector/runtime -count=1`
+  - `go test ./... -count=1`

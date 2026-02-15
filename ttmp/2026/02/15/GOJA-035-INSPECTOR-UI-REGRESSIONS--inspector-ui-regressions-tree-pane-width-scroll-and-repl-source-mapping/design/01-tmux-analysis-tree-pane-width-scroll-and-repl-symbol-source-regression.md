@@ -158,3 +158,51 @@ Observations:
 - Enter on REPL-defined function keeps REPL source context visible.
 - Tree pane no longer dominates layout at typical tmux widths.
 - Long tree labels are clamped and easier to scan; scrolling remains stable.
+
+## Follow-up Findings (2026-02-15 Code Review)
+
+Additional correctness findings were reported after the initial GOJA-035 fixes.
+
+### F1: Drawer symbol resolution is nondeterministic for shadowed names
+
+Where:
+- `cmd/inspector/app/model.go` (`drawerGoToDefinition`, `drawerHighlightUsages`)
+
+Issue:
+- Binding lookup iterated `Resolution.Scopes` map and selected the first matching name.
+- For shadowed identifiers, map iteration order can pick the wrong declaration.
+
+Impact:
+- Drawer go-to-definition and usage highlighting can jump to incorrect declarations.
+
+Fix direction:
+- Resolve bindings using lexical scope chain from a deterministic context offset (selected node / source cursor), with deterministic fallback ordering.
+
+### F2: Half-page globals navigation can set negative index on empty list
+
+Where:
+- `cmd/smalltalk-inspector/app/update.go` (`handleGlobalsKey`, half-page down path)
+
+Issue:
+- `len(m.globals)-1` is `-1` when globals are empty, which can write `m.globalIdx = -1`.
+
+Impact:
+- Subsequent list rendering/selection can panic once globals are repopulated.
+
+Fix direction:
+- Guard half-page up/down actions when globals list is empty.
+
+### F3: Method function-to-source mapping ambiguous across classes
+
+Where:
+- `pkg/inspector/runtime/function_map.go` (`MapFunctionToSource`)
+
+Issue:
+- Class method mapping selected first method with matching name.
+- Multiple classes with same method name could map incorrectly.
+
+Impact:
+- Inspecting a runtime method can jump to the wrong class source location.
+
+Fix direction:
+- Collect all same-name candidates and disambiguate using normalized runtime function source text against candidate source snippets, then deterministic fallback.

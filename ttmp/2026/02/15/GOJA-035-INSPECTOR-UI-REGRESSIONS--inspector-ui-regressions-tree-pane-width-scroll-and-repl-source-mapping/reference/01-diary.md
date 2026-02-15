@@ -329,3 +329,97 @@ I also ran the full repository test suite to verify no collateral regressions.
 - Commits:
   - `4f647f6` code + tests
   - `319d273` ticket docs + captures
+
+## Step 5: Address Post-merge Code Review Findings
+
+A new review batch flagged three correctness issues after the initial GOJA-035 fixes. I treated them as follow-up tasks in the same ticket, then implemented each with dedicated regression tests before rerunning targeted and full suites.
+
+The fixes focused on determinism and safety: lexical scope-aware drawer binding resolution, guarding empty-list paging in smalltalk globals, and reducing ambiguous method mapping by disambiguating same-name candidates with normalized source matching.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go-go-goja/cmd/inspector/app/model.go\n\nLines 622 to 624 in 151d7b8\n for _, scope := range m.index.Resolution.Scopes { \n \tif b, ok := scope.Bindings[name]; ok { \n \t\tbinding = b \n\nP1 Badge Resolve drawer bindings using lexical scope\n\nThis lookup takes the first matching name from m.index.Resolution.Scopes, which is a map, so shadowed identifiers can resolve to an arbitrary binding depending on iteration order. In files that reuse names across scopes (for example a local x shadowing a global x), drawer go-to-definition and usage highlighting can jump to the wrong declaration non-deterministically, which makes navigation unreliable.\nℹ️ About Codex in GitHub\n\n\n\n---\n\n\ncmd/smalltalk-inspector/app/update.go\nComment on lines +330 to +332\n\tif key.Matches(msg, m.keyMap.HalfDown) {\n\t\tm.globalIdx = inspectorui.MinInt(m.globalIdx+m.listViewportHeight()/2, len(m.globals)-1)\n\t\tm.ensureGlobalsVisible()\n@chatgpt-codex-connector\nchatgpt-codex-connector bot\n27 minutes ago\n\nP1 Badge Guard half-page down when globals are empty\n\nWhen m.globals is empty, len(m.globals)-1 becomes -1, so this assignment can set m.globalIdx negative. If runtime globals are later added (for example after a REPL declaration), render paths that index m.globals[m.globalIdx] can panic due to the stale -1 index, causing a crash after normal key usage.\n\nUseful? React with 👍 / 👎.\n@wesen\n\n\n---\n\n\npkg/inspector/runtime/function_map.go\nComment on lines +70 to +72\n\t\t\t\t\t\tname := methodKeyName(md)\n\t\t\t\t\t\tif name == funcName {\n\t\t\t\t\t\t\toffset := int(md.Idx0())\n@chatgpt-codex-connector\nchatgpt-codex-connector bot\n27 minutes ago\n\nP2 Badge Disambiguate method source mapping beyond name match\n\nMethod mapping currently returns the first class method whose key matches funcName, without verifying which class/object the runtime function came from. If multiple classes implement the same method name, selecting a function property in the inspector can jump to the wrong class method source, which produces incorrect navigation results.\n\nUseful? React with 👍 / 👎.\n@wesen\n\n\n---\n\nAdd analysis and tasks to the bug fixing ticket, then fix them"
+
+**Assistant interpretation:** Add these three findings to GOJA-035 documentation/tasks, then implement and validate the fixes with tests.
+
+**Inferred user intent:** Eliminate correctness risks left after the initial UI regression pass and keep ticket records current.
+
+**Commit (code):** pending
+
+### What I did
+
+- Ticket docs:
+  - Added follow-up findings section to the analysis doc.
+  - Added follow-up TODO tasks in `tasks.md`, then checked them off after implementation.
+- `cmd/inspector/app/model.go`:
+  - Replaced nondeterministic map-scan lookup with lexical resolution:
+    - `resolveDrawerBinding`
+    - `drawerContextOffset`
+    - `innermostScopeAtOffset`
+    - `scopeDepth`
+  - Added deterministic sorted-scope fallback when no context scope matches.
+- `cmd/smalltalk-inspector/app/update.go`:
+  - Added empty-list guards for globals half-page up/down.
+- `pkg/inspector/runtime/function_map.go`:
+  - Added candidate collection + disambiguation for same-name methods using normalized source snippets and deterministic fallback by source offset.
+- Tests:
+  - `cmd/inspector/app/model_test.go`:
+    - `TestModelDrawerGoToDefinitionUsesLexicalScope`
+    - `TestModelDrawerHighlightUsagesUsesLexicalScope`
+  - `cmd/smalltalk-inspector/app/navigation_mode_test.go`:
+    - `TestGlobalsHalfPageNavigationNoopWhenEmpty`
+  - `pkg/inspector/runtime/function_map_test.go`:
+    - `TestMapFunctionToSourceDisambiguatesSameMethodNameAcrossClasses`
+
+### Why
+
+- Drawer navigation and usage highlighting must be deterministic under lexical shadowing.
+- Empty-list navigation must never create invalid selection state.
+- Method mapping must avoid first-match ambiguity when multiple classes define the same method name.
+
+### What worked
+
+- Targeted tests for affected packages passed.
+- Full suite passed after changes.
+
+### What didn't work
+
+- Initial drawer shadowing test used a brittle string occurrence count and produced a nil binding in test setup.
+- Reworked test to anchor on `return x;` offset directly.
+
+### What I learned
+
+- Resolution data already had enough span/scope metadata to do proper lexical lookup without touching parser internals.
+- Source normalization gives a practical disambiguation layer for runtime function mapping.
+
+### What was tricky to build
+
+- Choosing robust drawer context for lookup in absence of a formal “current lexical scope” attached to drawer content.
+- Making fallback deterministic without reintroducing wrong-priority resolution.
+
+### What warrants a second pair of eyes
+
+- Whether drawer context should eventually include explicit “reference source offset” from UI state instead of inferred node/cursor offsets.
+- Whether function mapping should incorporate receiver/prototype identity in a future API revision.
+
+### What should be done in the future
+
+- Consider extracting lexical binding lookup into shared inspector API so both UI and non-UI adapters reuse the same deterministic policy.
+
+### Code review instructions
+
+- Primary files:
+  - `cmd/inspector/app/model.go`
+  - `cmd/smalltalk-inspector/app/update.go`
+  - `pkg/inspector/runtime/function_map.go`
+- New/updated tests:
+  - `cmd/inspector/app/model_test.go`
+  - `cmd/smalltalk-inspector/app/navigation_mode_test.go`
+  - `pkg/inspector/runtime/function_map_test.go`
+- Validation:
+  - `go test ./cmd/inspector/app ./cmd/smalltalk-inspector/app ./pkg/inspector/runtime -count=1`
+  - `go test ./... -count=1`
+
+### Technical details
+
+- Follow-up tasks tracked in `tasks.md` under `TODO (Follow-up Findings)`.
