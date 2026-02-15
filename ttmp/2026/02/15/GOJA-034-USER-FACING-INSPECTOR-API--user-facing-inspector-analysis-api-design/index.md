@@ -14,6 +14,10 @@ Owners: []
 RelatedFiles:
     - Path: go-go-goja/ttmp/2026/02/15/GOJA-034-USER-FACING-INSPECTOR-API--user-facing-inspector-analysis-api-design/design/01-user-facing-inspector-api-analysis-and-design-guide.md
       Note: Primary 8+ page onboarding, analysis, and API design document
+    - Path: go-go-goja/ttmp/2026/02/15/GOJA-034-USER-FACING-INSPECTOR-API--user-facing-inspector-analysis-api-design/design/02-hybrid-implementation-plan-clean-cutover.md
+      Note: Phase-A execution plan for hybrid service-layer implementation with clean cutover
+    - Path: go-go-goja/ttmp/2026/02/15/GOJA-034-USER-FACING-INSPECTOR-API--user-facing-inspector-analysis-api-design/reference/01-diary.md
+      Note: Implementation diary for execution and validation tracking
     - Path: go-go-goja/pkg/inspector/analysis
       Note: Existing high-level analysis helpers to be wrapped by user-facing service layer
     - Path: go-go-goja/pkg/inspector/runtime
@@ -45,6 +49,7 @@ This ticket defines how to expose extracted inspector functionality as a clean u
 Current status: **active**
 
 Progress: design and brainstorming guide delivered (8+ pages), ready for implementation ticket(s).
+Progress update: phase-A implementation plan and execution task breakdown added.
 
 ## Topics
 
