@@ -28,7 +28,7 @@ RelatedFiles:
       Note: Extracted tree row shaping primitives for reusable API endpoints
 ExternalSources: []
 Summary: Ticket for designing a stable user-facing API over extracted analysis and inspection functionality.
-LastUpdated: 2026-02-15T11:10:00-05:00
+LastUpdated: 2026-02-15T11:32:00-05:00
 WhatFor: Track architecture decisions and contracts for a reusable inspector service layer.
 WhenToUse: Use when implementing shared APIs for TUI, CLI, REST, and future LSP adapters.
 ---
@@ -48,8 +48,7 @@ This ticket defines how to expose extracted inspector functionality as a clean u
 
 Current status: **active**
 
-Progress: design and brainstorming guide delivered (8+ pages), ready for implementation ticket(s).
-Progress update: phase-A implementation plan and execution task breakdown added.
+Progress: design and brainstorming guide delivered (8+ pages), phase-A implementation plan authored, and first hybrid cutover slice completed in code (`pkg/inspectorapi` + smalltalk static flow migration).
 
 ## Topics
 
