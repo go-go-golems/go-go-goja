@@ -257,3 +257,75 @@ This keeps list/table components in place while improving readability in tmux.
 
 - Validation command:
   - `go test ./cmd/smalltalk-inspector/app ./cmd/inspector/app -count=1`
+
+## Step 4: Finalize Ticket Artifacts and Validation Record
+
+After code changes landed, I consolidated ticket artifacts so another developer can re-run the reproductions and understand exactly what changed. I included raw tmux captures, a repro script, an analysis document with verbatim excerpts, and a fully checked-off task list.
+
+I also ran the full repository test suite to verify no collateral regressions.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Complete the ticket workflow, not just code changes.
+
+**Inferred user intent:** Ensure the bugfix is documented, reproducible, and maintainable for follow-on work.
+**Commit (code):** 319d273 — "docs(goja-035): add analysis tasks diary and tmux repro artifacts"
+
+### What I did
+
+- Wrote `design/01-tmux-analysis-tree-pane-width-scroll-and-repl-symbol-source-regression.md`.
+- Replaced placeholder tasks with completed implementation checklist in `tasks.md`.
+- Updated `changelog.md` and `index.md` with status and key links.
+- Added and validated `scripts/repro-tmux-goja-035.sh`.
+- Ran full validation:
+  - `go test ./... -count=1`
+
+### Why
+
+- Ticket needs durable context, not only source changes.
+- Raw tmux artifacts provide a baseline for future UI tuning discussions.
+
+### What worked
+
+- Repro script generated expected capture files.
+- Full test suite passed.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- Keeping capture artifacts in-ticket significantly reduces ambiguity in terminal UI bug reports.
+
+### What was tricky to build
+
+- Balancing enough detail for future debugging without overwhelming the ticket with narrative noise.
+
+### What warrants a second pair of eyes
+
+- Whether to keep all raw captures long-term or archive older pre-fix artifacts after follow-up stabilization.
+
+### What should be done in the future
+
+- Optionally add a compact playbook that compares pre-fix and post-fix captures side by side.
+
+### Code review instructions
+
+- Read `design/01-tmux-analysis-tree-pane-width-scroll-and-repl-symbol-source-regression.md`.
+- Review diffs in:
+  - `cmd/smalltalk-inspector/app/model.go`
+  - `cmd/smalltalk-inspector/app/update.go`
+  - `cmd/inspector/app/model.go`
+  - `cmd/inspector/app/tree_list.go`
+- Validate with:
+  - `go test ./... -count=1`
+  - `ttmp/.../GOJA-035.../scripts/repro-tmux-goja-035.sh /tmp/goja-035-verify`
+
+### Technical details
+
+- Commits:
+  - `4f647f6` code + tests
+  - `319d273` ticket docs + captures
