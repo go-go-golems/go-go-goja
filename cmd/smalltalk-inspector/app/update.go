@@ -9,6 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextbar"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextpanel"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/suggest"
 	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/inspectorapi"
@@ -28,6 +31,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.help.Width = msg.Width
 		m.command.Width = inspectorui.MaxInt(16, msg.Width-4)
+		m.replInput.Width = inspectorui.MaxInt(16, msg.Width-4)
+		m.replTextarea.SetWidth(inspectorui.MaxInt(16, msg.Width-4))
+		replHeight := 3
+		if msg.Height < 12 {
+			replHeight = 2
+		}
+		if msg.Height < 8 {
+			replHeight = 1
+		}
+		m.replTextarea.SetHeight(replHeight)
+		m.commandPalette.SetSize(msg.Width, msg.Height)
 		return m, nil
 
 	case MsgFileLoaded:
@@ -56,6 +70,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// so buildValueMembers() can use it for runtime introspection.
 		m.rtSession = runtime.NewSession()
 		rtErr := m.rtSession.Load(msg.Source)
+		m.setupReplWidgetsForRuntime()
 
 		m.buildGlobals()
 		m.buildMembers()
@@ -139,14 +154,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.updateMode()
 		}
-		m.replHistory = append(m.replHistory, msg.Result.Expression)
+		if m.replHistory != nil {
+			output := m.replResult
+			if msg.Result.Error != nil {
+				output = m.replError
+			}
+			m.replHistory.Add(msg.Result.Expression, output, msg.Result.Error != nil)
+		}
 
 		// Track REPL expression as source with parser-backed declarations.
 		m.appendReplSource(msg.Result.Expression, inspectorapi.DeclaredBindingsFromSource(msg.Result.Expression))
+		m.recordReplAssistDeclarations(msg.Result.Expression)
 
 		// Refresh globals list to pick up new REPL-defined names
 		m.refreshRuntimeGlobals()
 		return m, nil
+
+	case MsgCommandPaletteExec:
+		return m.executePaletteCommand(msg.Command)
+
+	case suggest.DebounceMsg:
+		return m, m.handleReplSuggestDebounce(msg)
+	case suggest.ResultMsg:
+		return m, m.handleReplSuggestResult(msg)
+	case contextbar.DebounceMsg:
+		return m, m.handleReplContextBarDebounce(msg)
+	case contextbar.ResultMsg:
+		return m, m.handleReplContextBarResult(msg)
+	case contextpanel.DebounceMsg:
+		return m, m.handleReplContextPanelDebounce(msg)
+	case contextpanel.ResultMsg:
+		return m, m.handleReplContextPanelResult(msg)
 
 	case tea.KeyMsg:
 		return m.handleKey(msg)
@@ -161,15 +199,19 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleCommandInput(msg)
 	}
 
+	if m.commandPalette.IsVisible() {
+		var cmd tea.Cmd
+		m.commandPalette, cmd = m.commandPalette.Update(msg)
+		return m, cmd
+	}
+
 	// Global bindings
 	if key.Matches(msg, m.keyMap.Quit) {
 		return m, tea.Quit
 	}
 
 	if key.Matches(msg, m.keyMap.Command) {
-		m.cmdActive = true
-		m.command.SetValue("")
-		m.command.Focus()
+		m.commandPalette.Show()
 		return m, nil
 	}
 
@@ -256,14 +298,16 @@ func (m *Model) cyclePane(dir int) {
 	next := (current + dir + len(panes)) % len(panes)
 	m.focus = panes[next]
 
-	// Focus/blur REPL input
-	if m.focus == FocusRepl {
-		m.replInput.Focus()
-	} else {
-		m.replInput.Blur()
-	}
-
+	m.updatePaneFocusState()
 	m.updateMode()
+}
+
+func (m *Model) updatePaneFocusState() {
+	if m.focus == FocusRepl {
+		_ = m.focusReplBuffer()
+		return
+	}
+	m.blurReplBuffers()
 }
 
 func (m *Model) updateMode() {
@@ -475,13 +519,58 @@ func (m Model) handleSourceKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "enter":
-		expr := strings.TrimSpace(m.replInput.Value())
+	if handled, cmd := m.handleReplHelpDrawerKeys(msg); handled {
+		return m, cmd
+	}
+
+	if !m.replMultiline && m.handleReplSuggestionNavigation(msg) {
+		return m, nil
+	}
+
+	if !m.replMultiline && key.Matches(msg, m.keyMap.CompletionTrigger) {
+		return m, m.triggerReplCompletionShortcut(msg)
+	}
+
+	if !m.replMultiline && key.Matches(msg, m.keyMap.Up) {
+		if m.replHistory != nil {
+			if !m.replHistory.IsNavigating() {
+				m.replDraft = m.replBufferValue()
+			}
+			next := m.replHistory.NavigateUp()
+			m.setReplBufferValue(next)
+		}
+		return m, nil
+	}
+	if !m.replMultiline && key.Matches(msg, m.keyMap.Down) {
+		if m.replHistory != nil {
+			next := m.replHistory.NavigateDown()
+			if next == "" && !m.replHistory.IsNavigating() {
+				next = m.replDraft
+				m.replDraft = ""
+			}
+			m.setReplBufferValue(next)
+		}
+		return m, nil
+	}
+
+	submit := msg.String() == "enter"
+	if m.replMultiline {
+		submit = msg.String() == "ctrl+s" || msg.String() == "ctrl+enter" || msg.String() == "alt+enter"
+	}
+
+	if submit {
+		expr := strings.TrimSpace(m.replBufferValue())
 		if expr == "" {
 			return m, nil
 		}
-		m.replInput.SetValue("")
+		if m.replSuggestWidget != nil {
+			m.replSuggestWidget.Hide()
+		}
+		m.setReplBufferValue("")
+		if m.replHistory != nil {
+			m.replHistory.ResetNavigation()
+		}
+		m.replDraft = ""
 
 		if m.rtSession == nil {
 			m.replError = "no runtime session (load a file first)"
@@ -492,22 +581,41 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		declared := inspectorapi.DeclaredBindingsFromSource(expr)
 		m.replDeclared = append(m.replDeclared, declared...)
 
-		// Evaluate synchronously (expressions should be fast)
+		// Evaluate synchronously (expressions should be fast).
 		result := m.rtSession.EvalWithCapture(expr)
 		return m, func() tea.Msg {
 			return MsgEvalResult{Result: result}
 		}
+	}
+
+	switch msg.String() {
 	case "esc", "escape":
+		if m.replSuggestWidget != nil {
+			m.replSuggestWidget.Hide()
+		}
+		if m.replContextBarWidget != nil {
+			m.replContextBarWidget.Hide()
+		}
 		m.focus = FocusGlobals
-		m.replInput.Blur()
+		m.blurReplBuffers()
 		m.updateMode()
 		return m, nil
 	}
 
-	// Forward all other keys to the textinput
+	// Forward all other keys to the active input widget.
+	if m.replHistory != nil && m.replHistory.IsNavigating() {
+		m.replHistory.ResetNavigation()
+	}
+	m.replDraft = ""
+	prevValue := m.replBufferValue()
+	prevCursor := m.replCursorByte()
 	var cmd tea.Cmd
-	m.replInput, cmd = m.replInput.Update(msg)
-	return m, cmd
+	if m.replMultiline {
+		m.replTextarea, cmd = m.replTextarea.Update(msg)
+	} else {
+		m.replInput, cmd = m.replInput.Update(msg)
+	}
+	return m, tea.Batch(cmd, m.scheduleReplWidgetDebounce(prevValue, prevCursor))
 }
 
 func (m Model) handleCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

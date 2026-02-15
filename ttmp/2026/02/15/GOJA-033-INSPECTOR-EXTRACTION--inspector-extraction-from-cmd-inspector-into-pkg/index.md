@@ -1,7 +1,7 @@
 ---
 Title: Inspector Extraction from cmd/inspector into pkg
 Ticket: GOJA-033-INSPECTOR-EXTRACTION
-Status: active
+Status: complete
 Topics:
     - go
     - goja
@@ -22,10 +22,11 @@ RelatedFiles:
       Note: cmd adapter now consuming extracted tree helper
 ExternalSources: []
 Summary: Extraction ticket that moved old inspector tree/sync domain logic into reusable pkg helpers with regression coverage.
-LastUpdated: 2026-02-15T10:58:00-05:00
+LastUpdated: 2026-02-15T15:20:04.974656937-05:00
 WhatFor: Track GOJA-033 extraction implementation and handoff context for the later API/packaging pass.
 WhenToUse: Use when reviewing what was extracted from cmd/inspector and what remains deferred.
 ---
+
 
 # Inspector Extraction from cmd/inspector into pkg
 

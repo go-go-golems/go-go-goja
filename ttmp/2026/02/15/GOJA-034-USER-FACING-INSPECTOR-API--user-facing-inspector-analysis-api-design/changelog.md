@@ -33,3 +33,8 @@
     - `glazed/pkg/doc/topics/01-help-system.md`
     - `glazed/pkg/doc/topics/how-to-write-good-documentation-pages.md`
     - `glazed/pkg/doc/topics/14-writing-help-entries.md`
+
+## 2026-02-15
+
+Closed under GOJA-036 consolidation; follow-up architecture and migration work tracked in GOJA-036-MOVE-JS-BOBATEA
+

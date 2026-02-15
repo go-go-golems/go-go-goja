@@ -1,0 +1,416 @@
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/diff/json-dir/main.go:156:	writeValidJSON(filepath.Join(beforeDir, "app.json"), map[string]any{"name": "svc", "replicas": 1, "env": map[string]any{"LOG_LEVEL": "info"}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/diff/json-dir/main.go:157:	writeValidJSON(filepath.Join(afterDir, "app.json"), map[string]any{"name": "svc", "replicas": 2, "env": map[string]any{"LOG_LEVEL": "debug"}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/diff/json-dir/main.go:163:// (removed) createIfMissing was replaced by writeValidJSON
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/diff/advanced-showcase/main.go:398:			for replica := 1; replica <= 5; replica++ {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/diff/advanced-showcase/main.go:400:				serviceName := fmt.Sprintf("%s-%s-%02d", serviceType, env, replica)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:15:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:23:	ModeREPL = "repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:69:func (e *SimpleEvaluator) EvaluateStream(ctx context.Context, code string, emit func(repl.Event)) error {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:72:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": fmt.Sprintf("Error: %v", err)}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:75:	emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": out}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:92:	repl       *repl.Model
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:167:	config := repl.Config{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:178:	replModel := repl.NewModel(evaluator, config, bus.Publisher)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:187:		repl:             replModel,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:207:		m.repl.Init(),
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:264:		updatedModel, cmd := m.repl.Update(msg)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:265:		if replModel, ok := updatedModel.(*repl.Model); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:266:			m.repl = replModel
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:342:	replView := m.repl.View()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:348:		replView,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/embedded-in-app/main.go:446:	repl.RegisterReplToTimelineTransformer(bus)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/main.go:12:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/main.go:45:func (e *MathEvaluator) EvaluateStream(ctx context.Context, code string, emit func(repl.Event)) error {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/main.go:48:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": fmt.Sprintf("Error: %v", err)}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/main.go:51:	emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": out}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/main.go:97:	config := repl.DefaultConfig()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/main.go:106:	repl.RegisterReplToTimelineTransformer(bus)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/main.go:109:	model := repl.NewModel(evaluator, config, bus.Publisher)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:15:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:49:func (e *GenericEvaluator) EvaluateStream(_ context.Context, code string, emit func(repl.Event)) error {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:52:		emit(repl.Event{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:53:			Kind:  repl.EventResultMarkdown,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:59:	emit(repl.Event{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:60:		Kind:  repl.EventResultMarkdown,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:66:func (e *GenericEvaluator) CompleteInput(_ context.Context, req repl.CompletionRequest) (repl.CompletionResult, error) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:71:	case repl.CompletionReasonDebounce:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:73:	case repl.CompletionReasonShortcut:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:75:	case repl.CompletionReasonManual:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:80:		return repl.CompletionResult{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:101:	return repl.CompletionResult{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:109:func (e *GenericEvaluator) GetHelpBar(_ context.Context, req repl.HelpBarRequest) (repl.HelpBarPayload, error) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:113:		return repl.HelpBarPayload{Show: false}, nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:118:	case repl.HelpBarReasonDebounce:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:120:			return repl.HelpBarPayload{Show: false}, nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:122:	case repl.HelpBarReasonShortcut:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:124:	case repl.HelpBarReasonManual:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:130:		return repl.HelpBarPayload{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:146:		return repl.HelpBarPayload{Show: false}, nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:152:			return repl.HelpBarPayload{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:161:	return repl.HelpBarPayload{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:169:func (e *GenericEvaluator) GetHelpDrawer(_ context.Context, req repl.HelpDrawerRequest) (repl.HelpDrawerDocument, error) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:174:		return repl.HelpDrawerDocument{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:184:		return repl.HelpDrawerDocument{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:201:		return repl.HelpDrawerDocument{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:211:	return repl.HelpDrawerDocument{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:257:	config := repl.DefaultConfig()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:271:	repl.RegisterReplToTimelineTransformer(bus)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/autocomplete-generic/main.go:273:	model := repl.NewModel(evaluator, config, bus.Publisher)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/basic-usage/main.go:12:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/basic-usage/main.go:22:func (e *EchoEvaluator) EvaluateStream(ctx context.Context, code string, emit func(repl.Event)) error {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/basic-usage/main.go:25:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": "Empty input"}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/basic-usage/main.go:29:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": fmt.Sprintf("Number: %d (hex: 0x%x)", num, num)}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/basic-usage/main.go:33:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": "Hello there! 👋"}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/basic-usage/main.go:36:	emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": fmt.Sprintf("You said: %s", code)}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/basic-usage/main.go:54:	config := repl.DefaultConfig()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/basic-usage/main.go:64:	repl.RegisterReplToTimelineTransformer(bus)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/basic-usage/main.go:66:	model := repl.NewModel(evaluator, config, bus.Publisher)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:13:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:29:func (e *ThemeDemo) EvaluateStream(ctx context.Context, code string, emit func(repl.Event)) error {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:33:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": "Empty input"}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:40:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": "🌈 Rainbow colors! 🌈"}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:43:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": "Red, Green, Blue, Yellow, Magenta, Cyan"}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:46:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": "This is a demonstration of themed output!\nTry different themes to see the styling change."}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:51:	emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": fmt.Sprintf("Current theme: %s | You said: %s", e.currentTheme, code)}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:75:	repl         *repl.Model
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:81:func NewThemeSwitcherApp(model *repl.Model, evaluator *ThemeDemo) *ThemeSwitcherApp {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:83:		repl:         model,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:92:	return app.repl.Init()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:139:	updatedModel, cmd := app.repl.Update(msg)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:140:	if replModel, ok := updatedModel.(*repl.Model); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:141:		app.repl = replModel
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:147:	view := app.repl.View()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:168:	config := repl.Config{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:180:	repl.RegisterReplToTimelineTransformer(bus)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-theme/main.go:182:	model := repl.NewModel(evaluator, config, bus.Publisher)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:15:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:51:func (e *AdvancedCalculatorEvaluator) EvaluateStream(ctx context.Context, code string, emit func(repl.Event)) error {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:54:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": "Empty expression"}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:65:			emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": fmt.Sprintf("Error: %v", err)}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:68:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": out}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:74:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": e.showVariables()}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:79:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": e.showFunctions()}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:84:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": e.showHistory()}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:91:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": fmt.Sprintf("Error: %v", err)}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:95:	emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": fmt.Sprintf("%.6g", result)}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:295:	config := repl.Config{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:309:	repl.RegisterReplToTimelineTransformer(bus)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/repl/custom-evaluator/main.go:311:	model := repl.NewModel(evaluator, config, bus.Publisher)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/js-repl/main.go:13:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/js-repl/main.go:14:	jsrepl "github.com/go-go-golems/bobatea/pkg/repl/evaluators/javascript"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/js-repl/main.go:48:	evaluator, err := jsrepl.NewWithDefaults()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/js-repl/main.go:53:	config := repl.DefaultConfig()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/js-repl/main.go:54:	config.Title = "JavaScript REPL (jsparse autocomplete + help bar + help drawer)"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/js-repl/main.go:67:	repl.RegisterReplToTimelineTransformer(bus)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/examples/js-repl/main.go:69:	model := repl.NewModel(evaluator, config, bus.Publisher)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:17:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:28:func (d DemoEvaluator) EvaluateStream(ctx context.Context, code string, emit func(repl.Event)) error {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:41:			emit(repl.Event{Kind: repl.EventStderr, Props: map[string]any{"append": err.Error() + "\n", "is_error": true}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:50:		coalesce := func(ch <-chan string, kind repl.EventKind, extra map[string]any) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:62:				emit(repl.Event{Kind: kind, Props: props})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:88:		go func() { defer wg.Done(); coalesce(outCh, repl.EventStdout, map[string]any{}) }()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:89:		go func() { defer wg.Done(); coalesce(errCh, repl.EventStderr, map[string]any{"is_error": true}) }()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:104:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": md}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:112:	emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": md}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:189:	cfg := repl.Config{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:204:	repl.RegisterReplToTimelineTransformer(bus)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/cmd/repl-timeline-demo/main.go:207:	m := repl.NewModel(evaluator, cfg, bus.Publisher)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/chat/user_messages.go:10:// - Text input manipulation (append, prepend, replace)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model_help.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/chat/model.go:71:	// Timeline controller replaces conversation view rendering
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/chat/model.go:993:		// If selecting, request copy from selected entity model; else copy last assistant reply
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/chat/model.go:1038:		m.replaceInputText(msg_.Text)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/chat/model.go:1072:func (m *model) replaceInputText(text string) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/helpdrawer_overlay.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model_timeline_bus.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model_timeline_bus.go:24:		// Optionally still publish the semantic input event to repl.events? We skip to avoid duplicate UI entities.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model_timeline_bus.go:26:			log.Trace().Str("turn_id", turnID).Interface("event", e).Msg("publishing repl event")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model_timeline_bus.go:39:	log.Trace().Str("turn_id", turnID).Interface("event", e).Msg("publishing repl event")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/help_drawer_model_test.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:20:	replaceFrom int
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:21:	replaceTo   int
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:73:func (w *Widget) ReplaceFrom() int                            { return w.replaceFrom }
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:74:func (w *Widget) SetReplaceFrom(replaceFrom int)              { w.replaceFrom = replaceFrom }
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:75:func (w *Widget) ReplaceTo() int                              { return w.replaceTo }
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:76:func (w *Widget) SetReplaceTo(replaceTo int)                  { w.replaceTo = replaceTo }
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:209:	w.replaceFrom = clampInt(msg.Result.ReplaceFrom, 0, w.lastInputLen)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:210:	w.replaceTo = clampInt(msg.Result.ReplaceTo, w.replaceFrom, w.lastInputLen)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:268:	from := clampInt(w.replaceFrom, 0, len(input))
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:269:	to := clampInt(w.replaceTo, from, len(input))
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:279:	w.replaceFrom = 0
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/suggest/widget.go:280:	w.replaceTo = 0
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_overlay.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/commandpalette/model.go:60:// SetCommands replaces all commands in the palette.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/autocomplete_types.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/config.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/config.go:74:	HelpDrawerDockAboveRepl HelpDrawerDock = "above-repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/config.go:97:	// Supported values: above-repl, right, left, bottom.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_overlay_test.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/completion_model.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/completion_model.go:19:	replaceFrom int
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/completion_model.go:20:	replaceTo   int
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/completion_model.go:92:	w.SetReplaceFrom(m.completion.replaceFrom)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/completion_model.go:93:	w.SetReplaceTo(m.completion.replaceTo)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/completion_model.go:119:	m.completion.replaceFrom = w.ReplaceFrom()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/completion_model.go:120:	m.completion.replaceTo = w.ReplaceTo()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_model_test.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/textarea/textarea.go:211:	// If promptFunc is set, it replaces Prompt as a generator for
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/js_help_bar_integration_test.go:1:package repl_test
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/js_help_bar_integration_test.go:9:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/js_help_bar_integration_test.go:10:	jsrepl "github.com/go-go-golems/bobatea/pkg/repl/evaluators/javascript"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/js_help_bar_integration_test.go:16:	evaluator, err := jsrepl.NewWithDefaults()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/js_help_bar_integration_test.go:22:	cfg := repl.DefaultConfig()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/js_help_bar_integration_test.go:28:	model := repl.NewModel(evaluator, cfg, bus.Publisher)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/js_help_bar_integration_test.go:38:	evaluator, err := jsrepl.NewWithDefaults()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/js_help_bar_integration_test.go:44:	cfg := repl.DefaultConfig()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/js_help_bar_integration_test.go:50:	model := repl.NewModel(evaluator, cfg, bus.Publisher)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/js_help_bar_integration_test.go:59:func typeAndDrain(t *testing.T, model *repl.Model, text string) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/js_help_bar_integration_test.go:67:func drainModelCmds(model *repl.Model, cmd tea.Cmd) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/history_alias.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/history_alias.go:11:// NewHistory keeps backward-compatible constructor usage inside repl.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/tui/widgets/contextpanel/types.go:22:	DockAboveRepl Dock = "above-repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/bridge.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/helpdrawer_model.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/sparkline/sparkline.go:135:// SetData replaces all data with new values.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/help_bar_types.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:9:	EventInput          EventKind = "repl_input"           // recommended to be emitted by REPL shell
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:10:	EventResultMarkdown EventKind = "repl_result_markdown" // props: markdown|string in "markdown" or "text"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:11:	EventStdout         EventKind = "repl_stdout"          // props: append|string or text
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:12:	EventStderr         EventKind = "repl_stderr"          // props: append|string or text, is_error=true
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:13:	EventLog            EventKind = "repl_log"             // props: level, message, metadata(optional), fields(optional)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:14:	EventStructuredLog  EventKind = "repl_structured_log"  // props: level, message(optional), data|metadata|fields
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:15:	EventToolCalls      EventKind = "repl_tool_calls"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:16:	EventProgress       EventKind = "repl_progress"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:17:	EventPerf           EventKind = "repl_perf"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:18:	EventTable          EventKind = "repl_table"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:19:	EventDiff           EventKind = "repl_diff"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:20:	EventShellCmd       EventKind = "repl_shell_cmd"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluator.go:21:	EventInspector      EventKind = "repl_inspector"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/wm_transformer.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/wm_transformer.go:15:// replEventMsg is the envelope published by the REPL model.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/wm_transformer.go:16:type replEventMsg struct {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/wm_transformer.go:28:// RegisterReplToTimelineTransformer subscribes to repl.events and publishes timeline lifecycle messages to ui.entities.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/wm_transformer.go:44:	bus.AddHandler("repl-to-ui", eventbus.TopicReplEvents, func(msg *message.Message) error {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/wm_transformer.go:46:		var in replEventMsg
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/messages.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model.go:201:	log.Trace().Interface("msg", msg).Interface("type", fmt.Sprintf("%T", msg)).Msg("updating repl model")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model.go:273:	log.Trace().Interface("msg", msg).Msg("updating repl model default case")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model.go:340:		lipglossv2.NewLayer(base).X(0).Y(0).Z(0).ID("repl-base"),
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/help_bar_model_test.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:1:package javascript
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:9:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:169:		script := "invalid javascript syntax {"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:365:		result, err := evaluator.CompleteInput(ctx, repl.CompletionRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:368:			Reason:     repl.CompletionReasonShortcut,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:378:		result, err := evaluator.CompleteInput(ctx, repl.CompletionRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:381:			Reason:     repl.CompletionReasonDebounce,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:391:		input := "const fs = require(\"fs\");\nfs.re"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:392:		result, err := evaluator.CompleteInput(ctx, repl.CompletionRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:395:			Reason:     repl.CompletionReasonShortcut,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:406:		result, err := evaluator.CompleteInput(ctx, repl.CompletionRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:409:			Reason:     repl.CompletionReasonShortcut,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:421:		result, err := evaluator.CompleteInput(ctx, repl.CompletionRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:424:			Reason:     repl.CompletionReasonShortcut,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:433:		result, err := evaluator.CompleteInput(ctx, repl.CompletionRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:436:			Reason:     repl.CompletionReasonShortcut,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:447:		result, err := evaluator.CompleteInput(ctx, repl.CompletionRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:450:			Reason:     repl.CompletionReasonShortcut,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:464:	reqs := []repl.CompletionRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:465:		{Input: ".co", CursorByte: len(".co"), Reason: repl.CompletionReasonDebounce},
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:466:		{Input: "console.lo", CursorByte: len("console.lo"), Reason: repl.CompletionReasonShortcut, Shortcut: "tab"},
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:467:		{Input: "const fs = require(\"fs\"); fs.re", CursorByte: len("const fs = require(\"fs\"); fs.re"), Reason: repl.CompletionReasonDebounce},
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:468:		{Input: "zzz", CursorByte: len("zzz"), Reason: repl.CompletionReasonShortcut, Shortcut: "tab"},
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:475:			go func(request repl.CompletionRequest) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:492:		payload, helpErr := evaluator.GetHelpBar(ctx, repl.HelpBarRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:495:			Reason:     repl.HelpBarReasonDebounce,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:504:		payload, helpErr := evaluator.GetHelpBar(ctx, repl.HelpBarRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:507:			Reason:     repl.HelpBarReasonDebounce,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:516:		input := "const fs = require(\"fs\");\nfs.re"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:517:		payload, helpErr := evaluator.GetHelpBar(ctx, repl.HelpBarRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:520:			Reason:     repl.HelpBarReasonDebounce,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:532:		payload, helpErr := evaluator.GetHelpBar(ctx, repl.HelpBarRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:535:			Reason:     repl.HelpBarReasonManual,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:545:		payload, helpErr := evaluator.GetHelpBar(ctx, repl.HelpBarRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:548:			Reason:     repl.HelpBarReasonDebounce,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:563:		doc, helpErr := evaluator.GetHelpDrawer(ctx, repl.HelpDrawerRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:567:			Trigger:    repl.HelpDrawerTriggerTyping,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:579:		doc, helpErr := evaluator.GetHelpDrawer(ctx, repl.HelpDrawerRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:583:			Trigger:    repl.HelpDrawerTriggerToggleOpen,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:592:		input := "const fs = require(\"fs\");\nfs.re"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:593:		doc, helpErr := evaluator.GetHelpDrawer(ctx, repl.HelpDrawerRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:597:			Trigger:    repl.HelpDrawerTriggerManualRefresh,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:601:		assert.Contains(t, doc.Markdown, "require() Aliases")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator_test.go:606:func hasSuggestion(result repl.CompletionResult, label string) bool {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/example_test.go:1:package javascript_test
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/example_test.go:8:	"github.com/go-go-golems/bobatea/pkg/repl/evaluators/javascript"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/example_test.go:13:	evaluator, err := javascript.NewWithDefaults()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/example_test.go:59:	config := javascript.Config{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/example_test.go:71:	evaluator, err := javascript.New(config)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/example_test.go:97:	evaluator, err := javascript.NewWithDefaults()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/eventbus/eventbus.go:14:	TopicReplEvents = "repl.events"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model_async_provider.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/help_drawer_types.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/example_evaluator.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model_layout.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/repl_test.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/keymap.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_model.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_model.go:96:			ID:          "repl.clear-input",
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_model.go:99:			Category:    "repl",
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_model.go:108:			ID:          "repl.clear-history",
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_model.go:122:			ID:          "repl.toggle-help",
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_model.go:133:			ID:          "repl.toggle-focus",
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_model.go:136:			Category:    "repl",
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_model.go:153:			ID:          "repl.quit",
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_model.go:156:			Category:    "repl",
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/autocomplete_model_test.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/autocomplete_model_test.go:189:	m.completion.replaceFrom = 0
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/autocomplete_model_test.go:190:	m.completion.replaceTo = 4
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model_messages.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/config_normalize.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/helpbar_model.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/styles.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/timeline/renderers/text_model.go:56:		// replace content
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/model_input.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:1:package javascript
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:10:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:12:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:13:	ggjengine "github.com/go-go-golems/go-go-goja/engine"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:14:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:56:	runtime            *goja.Runtime
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:58:	tsParser           *jsparse.TSParser
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:61:	runtimeDeclaredIDs map[string]jsparse.CompletionCandidate
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:87:	var runtime *goja.Runtime
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:90:		// Create runtime with module support using go-go-goja engine
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:96:		runtime = goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:101:		runtimeDeclaredIDs: map[string]jsparse.CompletionCandidate{},
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:104:	if parser, parserErr := jsparse.NewTSParser(); parserErr == nil {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:135:	err := consoleObj.Set("log", func(call goja.FunctionCall) goja.Value {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:141:		return goja.Undefined()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:148:	err = consoleObj.Set("error", func(call goja.FunctionCall) goja.Value {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:154:		return goja.Undefined()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:160:	err = consoleObj.Set("warn", func(call goja.FunctionCall) goja.Value {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:166:		return goja.Undefined()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:199:	if result != nil && !goja.IsUndefined(result) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:211:func (e *Evaluator) EvaluateStream(ctx context.Context, code string, emit func(repl.Event)) error {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:214:		emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": fmt.Sprintf("Error: %v", err)}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:217:	emit(repl.Event{Kind: repl.EventResultMarkdown, Props: map[string]any{"markdown": out}})
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:221:// CompleteInput resolves JavaScript completions using jsparse CST + resolver primitives.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:222:func (e *Evaluator) CompleteInput(_ context.Context, req repl.CompletionRequest) (repl.CompletionResult, error) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:224:		return repl.CompletionResult{Show: false}, nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:230:		return repl.CompletionResult{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:241:		return repl.CompletionResult{Show: false}, nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:244:	analysis := jsparse.Analyze("repl-input.js", input, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:247:	if ctx.Kind == jsparse.CompletionNone {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:248:		return repl.CompletionResult{Show: false}, nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:252:	candidates := jsparse.AugmentREPLCandidates(
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:256:		jsparse.ResolveCandidates(ctx, analysis.Index, root),
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:261:		return repl.CompletionResult{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:268:	replaceFrom := clampCursor(cursor-len(ctx.PartialText), len(input))
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:269:	replaceTo := cursor
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:270:	if replaceFrom > replaceTo {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:271:		replaceFrom = replaceTo
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:302:	if req.Reason == repl.CompletionReasonDebounce {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:303:		if ctx.Kind == jsparse.CompletionIdentifier && len(ctx.PartialText) == 0 {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:308:	return repl.CompletionResult{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:311:		ReplaceFrom: replaceFrom,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:312:		ReplaceTo:   replaceTo,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:317:func (e *Evaluator) GetHelpBar(_ context.Context, req repl.HelpBarRequest) (repl.HelpBarPayload, error) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:319:		return repl.HelpBarPayload{Show: false}, nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:324:		return repl.HelpBarPayload{Show: false}, nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:332:		return repl.HelpBarPayload{Show: false}, nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:335:	analysis := jsparse.Analyze("repl-input.js", input, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:341:	if token == "" && ctx.Kind == jsparse.CompletionNone {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:342:		return repl.HelpBarPayload{Show: false}, nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:344:	if req.Reason == repl.HelpBarReasonDebounce && ctx.Kind == jsparse.CompletionIdentifier && len(strings.TrimSpace(ctx.PartialText)) < 2 {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:345:		return repl.HelpBarPayload{Show: false}, nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:348:	aliases := jsparse.ExtractRequireAliases(input)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:349:	candidates := []jsparse.CompletionCandidate{}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:350:	if ctx.Kind != jsparse.CompletionNone {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:351:		candidates = jsparse.ResolveCandidates(ctx, analysis.Index, root)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:352:		if ctx.Kind == jsparse.CompletionProperty {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:354:				candidates = append(candidates, jsparse.FilterCandidatesByPrefix(jsparse.NodeModuleCandidates(moduleName), ctx.PartialText)...)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:358:	candidates = jsparse.DedupeAndSortCandidates(candidates)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:368:func (e *Evaluator) GetHelpDrawer(ctx context.Context, req repl.HelpDrawerRequest) (repl.HelpDrawerDocument, error) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:371:		return repl.HelpDrawerDocument{}, ctx.Err()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:375:	doc := repl.HelpDrawerDocument{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:387:		doc.Diagnostics = []string{"jsparse parser not available"}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:402:	analysis := jsparse.Analyze("repl-input.js", input, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:409:	aliases := jsparse.ExtractRequireAliases(input)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:410:	candidates := []jsparse.CompletionCandidate{}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:411:	if completionCtx.Kind != jsparse.CompletionNone {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:412:		candidates = jsparse.ResolveCandidates(completionCtx, analysis.Index, root)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:413:		if completionCtx.Kind == jsparse.CompletionProperty {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:417:					jsparse.FilterCandidatesByPrefix(jsparse.NodeModuleCandidates(moduleName), completionCtx.PartialText)...,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:422:	candidates = jsparse.DedupeAndSortCandidates(candidates)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:444:		md.WriteString("```javascript\n")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:456:	if completionCtx.Kind == jsparse.CompletionProperty {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:493:		md.WriteString("\n### require() Aliases\n")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:533:func (e *Evaluator) GetRuntime() *goja.Runtime {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:584:	e.runtimeDeclaredIDs = map[string]jsparse.CompletionCandidate{}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:640:	candidates := jsparse.ExtractTopLevelBindingCandidates(code)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:654:func (e *Evaluator) runtimeIdentifierHints() []jsparse.CompletionCandidate {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:660:	out := make([]jsparse.CompletionCandidate, 0, len(e.runtimeDeclaredIDs))
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:668:	ctx jsparse.CompletionContext,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:669:	candidates []jsparse.CompletionCandidate,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:671:) (repl.HelpBarPayload, bool) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:673:	case jsparse.CompletionProperty:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:676:			return repl.HelpBarPayload{}, false
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:686:		exact := jsparse.FindExactCandidate(candidates, ctx.PartialText)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:700:	case jsparse.CompletionIdentifier:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:701:		exact := jsparse.FindExactCandidate(candidates, ctx.PartialText)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:721:	case jsparse.CompletionNone, jsparse.CompletionArgument:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:722:		return repl.HelpBarPayload{}, false
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:725:	return repl.HelpBarPayload{}, false
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:728:func (e *Evaluator) helpBarFromTokenFallback(token string) repl.HelpBarPayload {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:730:		return repl.HelpBarPayload{Show: false}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:735:		return repl.HelpBarPayload{Show: false}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:744:	return repl.HelpBarPayload{Show: false}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:784:	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:788:	if _, ok := goja.AssertFunction(v); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:791:		if n := obj.Get("name"); n != nil && !goja.IsUndefined(n) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:796:		if l := obj.Get("length"); l != nil && !goja.IsUndefined(l) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:849:func makeHelpBarPayload(text, kind string) repl.HelpBarPayload {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:850:	return repl.HelpBarPayload{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:858:func describeHelpDrawerTrigger(trigger repl.HelpDrawerTrigger) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:860:	case repl.HelpDrawerTriggerToggleOpen:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:862:	case repl.HelpDrawerTriggerManualRefresh:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:864:	case repl.HelpDrawerTriggerTyping:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:871:func describeCompletionKind(kind jsparse.CompletionKind) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:873:	case jsparse.CompletionIdentifier:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:875:	case jsparse.CompletionProperty:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:877:	case jsparse.CompletionArgument:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:879:	case jsparse.CompletionNone:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:896:	tempRuntime := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:912:		// These are typical modules available through go-go-goja
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:941:		help.WriteString("- Module system support (require())\n")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:956:		help.WriteString("  const db = require('database');\n")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/evaluators/javascript/evaluator.go:963:var _ repl.Evaluator = (*Evaluator)(nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/command_palette_types.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/pkg/repl/completion_overlay.go:1:package repl
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_jsparse_completion.go:8:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_jsparse_completion.go:61:	analysis := jsparse.Analyze(tc.name+".js", source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_jsparse_completion.go:62:	parser, err := jsparse.NewTSParser()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_jsparse_completion.go:77:		fmt.Printf("goja parse error: %v\n", analysis.ParseErr)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_jsparse_completion.go:79:		fmt.Println("goja parse error: <nil>")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_jsparse_completion.go:107:func completionKindName(k jsparse.CompletionKind) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_jsparse_completion.go:109:	case jsparse.CompletionNone:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_jsparse_completion.go:111:	case jsparse.CompletionProperty:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_jsparse_completion.go:113:	case jsparse.CompletionIdentifier:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_jsparse_completion.go:115:	case jsparse.CompletionArgument:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_repl_evaluator_capabilities.go:8:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_repl_evaluator_capabilities.go:9:	"github.com/go-go-golems/bobatea/pkg/repl/evaluators/javascript"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_repl_evaluator_capabilities.go:25:	jsEval, err := javascript.NewWithDefaults()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_repl_evaluator_capabilities.go:30:	var asInterface repl.Evaluator = jsEval
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_repl_evaluator_capabilities.go:32:	fmt.Println("repl.Evaluator method surface:")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_repl_evaluator_capabilities.go:33:	printInterfaceMethods((*repl.Evaluator)(nil))
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-001-IMPROVE-REPL-ANALYSIS--improve-repl-analysis/scripts/probe_repl_evaluator_capabilities.go:36:	fmt.Println("javascript.Evaluator method surface:")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-009-JS-REPL-AUTOCOMPLETE-RUNTIME-SYMBOLS--js-repl-autocomplete-missing-runtime-defined-functions/scripts/probe_runtime_defined_completion.go:9:	"github.com/go-go-golems/bobatea/pkg/repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-009-JS-REPL-AUTOCOMPLETE-RUNTIME-SYMBOLS--js-repl-autocomplete-missing-runtime-defined-functions/scripts/probe_runtime_defined_completion.go:10:	jsrepl "github.com/go-go-golems/bobatea/pkg/repl/evaluators/javascript"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-009-JS-REPL-AUTOCOMPLETE-RUNTIME-SYMBOLS--js-repl-autocomplete-missing-runtime-defined-functions/scripts/probe_runtime_defined_completion.go:15:	e, err := jsrepl.NewWithDefaults()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-009-JS-REPL-AUTOCOMPLETE-RUNTIME-SYMBOLS--js-repl-autocomplete-missing-runtime-defined-functions/scripts/probe_runtime_defined_completion.go:30:		res, cErr := e.CompleteInput(ctx, repl.CompletionRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-009-JS-REPL-AUTOCOMPLETE-RUNTIME-SYMBOLS--js-repl-autocomplete-missing-runtime-defined-functions/scripts/probe_runtime_defined_completion.go:33:			Reason:     repl.CompletionReasonShortcut,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-009-JS-REPL-AUTOCOMPLETE-RUNTIME-SYMBOLS--js-repl-autocomplete-missing-runtime-defined-functions/scripts/probe_runtime_defined_completion.go:58:	help, err := e.GetHelpBar(ctx, repl.HelpBarRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/bobatea/ttmp/2026/02/13/BOBA-009-JS-REPL-AUTOCOMPLETE-RUNTIME-SYMBOLS--js-repl-autocomplete-missing-runtime-defined-functions/scripts/probe_runtime_defined_completion.go:61:		Reason:     repl.HelpBarReasonManual,

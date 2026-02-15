@@ -6,7 +6,6 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 
 	"github.com/go-go-golems/go-go-goja/modules"
-	"github.com/go-go-golems/go-go-goja/pkg/calllog"
 	// Blank imports ensure module init() functions run so they can register themselves.
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
@@ -32,20 +31,9 @@ func NewWithOptions(opts ...require.Option) (*goja.Runtime, *require.RequireModu
 	return NewWithConfig(DefaultRuntimeConfig(), opts...)
 }
 
-// NewWithConfig creates a runtime like New, but allows callers to configure
-// call logging through the go-go-goja API.
+// NewWithConfig creates a runtime like New and accepts runtime configuration.
 func NewWithConfig(cfg RuntimeConfig, opts ...require.Option) (*goja.Runtime, *require.RequireModule) {
-	if cfg.CallLogEnabled {
-		path := cfg.CallLogPath
-		if path == "" {
-			path = calllog.DefaultPath()
-		}
-		if err := calllog.Configure(path); err != nil {
-			log.Printf("go-go-goja: call log setup failed: %v", err)
-		}
-	} else {
-		calllog.Disable()
-	}
+	_ = cfg
 
 	vm := goja.New()
 

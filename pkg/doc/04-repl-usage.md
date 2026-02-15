@@ -9,6 +9,7 @@ Topics:
 - console
 Commands:
 - repl
+- js-repl
 IsTopLevel: true
 IsTemplate: false
 ShowPerDefault: true
@@ -24,7 +25,7 @@ The REPL accepts any valid JavaScript expression and immediately evaluates it wi
 ### Starting the REPL
 
 ```bash
-# Interactive mode
+# Lightweight line REPL / script runner
 go run ./cmd/repl
 
 # With debug logging
@@ -32,6 +33,9 @@ go run ./cmd/repl --debug
 
 # Run a script file
 go run ./cmd/repl path/to/script.js
+
+# Rich Bobatea-based JS REPL with completion/help widgets
+go run ./cmd/js-repl
 ```
 
 ### Basic JavaScript Evaluation

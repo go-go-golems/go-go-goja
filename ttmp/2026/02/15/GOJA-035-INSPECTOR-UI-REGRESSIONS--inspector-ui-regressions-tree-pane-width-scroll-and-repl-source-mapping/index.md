@@ -1,7 +1,7 @@
 ---
 Title: 'Inspector UI regressions: tree pane width/scroll and REPL source mapping'
 Ticket: GOJA-035-INSPECTOR-UI-REGRESSIONS
-Status: active
+Status: complete
 Topics:
     - go
     - goja
@@ -22,10 +22,11 @@ RelatedFiles:
       Note: REPL source append pipeline.
 ExternalSources: []
 Summary: Ticket workspace for fixing inspector tree pane UX issues and REPL source-window regression.
-LastUpdated: 2026-02-15T17:44:00Z
+LastUpdated: 2026-02-15T15:20:04.956662591-05:00
 WhatFor: Track analysis, implementation, and validation of GOJA-035 bugfix work.
 WhenToUse: Use when reviewing or extending these UI fixes.
 ---
+
 
 # Inspector UI regressions: tree pane width/scroll and REPL source mapping
 

@@ -81,3 +81,8 @@ Extracted reusable REPL/global merge logic into pkg/inspector (analysis + runtim
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/analysis/repl_declarations.go — Parser-backed declaration extraction reusable by CLI/LSP
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/runtime/globals.go — Runtime global classification primitives
 
+
+## 2026-02-15
+
+Closed under GOJA-036 consolidation; follow-up architecture and migration work tracked in GOJA-036-MOVE-JS-BOBATEA
+

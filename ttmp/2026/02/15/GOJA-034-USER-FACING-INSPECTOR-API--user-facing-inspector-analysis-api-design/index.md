@@ -1,7 +1,7 @@
 ---
 Title: User-Facing Inspector Analysis API Design
 Ticket: GOJA-034-USER-FACING-INSPECTOR-API
-Status: active
+Status: complete
 Topics:
     - go
     - goja
@@ -30,10 +30,11 @@ RelatedFiles:
       Note: Glazed-compliant help entry documenting the new hybrid service layer
 ExternalSources: []
 Summary: Ticket for designing a stable user-facing API over extracted analysis and inspection functionality.
-LastUpdated: 2026-02-15T11:44:00-05:00
+LastUpdated: 2026-02-15T15:20:04.97408035-05:00
 WhatFor: Track architecture decisions and contracts for a reusable inspector service layer.
 WhenToUse: Use when implementing shared APIs for TUI, CLI, REST, and future LSP adapters.
 ---
+
 
 # User-Facing Inspector Analysis API Design
 
