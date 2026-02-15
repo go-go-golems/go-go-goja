@@ -14,3 +14,4 @@
 - [x] Add/adjust tests for new facade and smalltalk cutover behavior
 - [x] Run validation suite (`go test ./pkg/inspectorapi/...`, `go test ./cmd/smalltalk-inspector/...`, `go test ./...`)
 - [x] Update GOJA-034 changelog/index/diary/tasks with commit-linked progress
+- [x] Write Glazed-guideline help documentation page for `pkg/inspectorapi` in `pkg/doc`

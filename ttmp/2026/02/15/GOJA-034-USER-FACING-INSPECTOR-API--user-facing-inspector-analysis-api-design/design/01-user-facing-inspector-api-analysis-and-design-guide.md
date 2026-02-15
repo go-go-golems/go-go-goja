@@ -20,6 +20,8 @@ RelatedFiles:
         Adapter layer examples used in migration section
     - Path: internal/inspectorui/listpane.go
       Note: Reused viewport/list utility behavior in UI layer
+    - Path: pkg/doc/07-inspectorapi-hybrid-service-guide.md
+      Note: Help-system-facing documentation derived from hybrid API design
     - Path: pkg/inspector/analysis/globals_merge.go
       Note: Static+runtime global merge strategy
     - Path: pkg/inspector/analysis/repl_declarations.go
@@ -66,6 +68,7 @@ LastUpdated: 2026-02-15T11:09:00-05:00
 WhatFor: Help new and existing developers converge on a clean public API and packaging strategy for analysis/inspection features.
 WhenToUse: Read before designing new CLI/REST/LSP adapters or restructuring inspector service boundaries.
 ---
+
 
 
 # User-Facing Inspector API Analysis and Design Guide

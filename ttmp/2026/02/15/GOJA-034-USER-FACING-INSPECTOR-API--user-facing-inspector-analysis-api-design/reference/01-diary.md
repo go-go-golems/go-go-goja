@@ -12,24 +12,27 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: go-go-goja/pkg/inspectorapi/contracts.go
-      Note: New hybrid facade contracts and request/response DTOs
-    - Path: go-go-goja/pkg/inspectorapi/service.go
-      Note: Service implementation for document lifecycle and inspector use cases
-    - Path: go-go-goja/pkg/inspectorapi/service_test.go
-      Note: Regression tests for phase-A service behavior
-    - Path: go-go-goja/cmd/smalltalk-inspector/app/model.go
+    - Path: cmd/smalltalk-inspector/app/model.go
       Note: Smalltalk static-flow cutover to inspectorapi service
-    - Path: go-go-goja/cmd/smalltalk-inspector/app/update.go
-      Note: File load and REPL declaration flow switched to inspectorapi
-    - Path: go-go-goja/cmd/smalltalk-inspector/app/model_members_test.go
+    - Path: cmd/smalltalk-inspector/app/model_members_test.go
       Note: Updated tests for service-backed model setup
+    - Path: cmd/smalltalk-inspector/app/update.go
+      Note: File load and REPL declaration flow switched to inspectorapi
+    - Path: pkg/doc/07-inspectorapi-hybrid-service-guide.md
+      Note: New Glazed-compliant user-facing help page documented in Step 3
+    - Path: pkg/inspectorapi/contracts.go
+      Note: New hybrid facade contracts and request/response DTOs
+    - Path: pkg/inspectorapi/service.go
+      Note: Service implementation for document lifecycle and inspector use cases
+    - Path: pkg/inspectorapi/service_test.go
+      Note: Regression tests for phase-A service behavior
 ExternalSources: []
 Summary: Implementation diary for GOJA-034 hybrid API plan and phase-A cutover.
-LastUpdated: 2026-02-15T11:33:00-05:00
+LastUpdated: 2026-02-15T11:46:00-05:00
 WhatFor: Track implementation steps, decisions, regressions, and validation for GOJA-034.
 WhenToUse: Use when reviewing or continuing GOJA-034 implementation work.
 ---
+
 
 # Diary
 
@@ -208,3 +211,79 @@ Smalltalk inspector static orchestration was migrated from adapter-local `inspec
   - `SyncSourceToTree`
   - `SyncTreeToSource`
   - `DeclaredBindingsFromSource` (package-level helper).
+
+## Step 3: Author Glazed-Compliant Help Documentation for inspectorapi
+
+This step produced user-facing documentation for the hybrid service layer in the repository help-doc system (`pkg/doc`). The page was written against the same rules used by Glazed help entries, including strict frontmatter, section-intro paragraphs, troubleshooting table, and `See Also` references.
+
+The content targets new contributors who need both conceptual orientation and practical integration steps for `pkg/inspectorapi`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Now write a great documentation for it, following the glazed writing guidelines glazed/pkg/doc/topics/01-help-system.md and glazed/pkg/doc/topics/how-to-write-good-documentation-pages.md and glazed/pkg/doc/topics/14-writing-help-entries.md"
+
+**Assistant interpretation:** Write a high-quality help page for the new hybrid inspector API and align structure/style with the specific Glazed guideline topics.
+
+**Inferred user intent:** Ensure this new architecture is documented in the same quality and discoverability model as existing Glazed CLI help pages.
+
+### What I did
+
+- Located and reviewed guideline docs from the pinned Glazed version in `go.mod` (`v0.7.13`):
+  - `.../glazed@v0.7.13/pkg/doc/topics/01-help-system.md`
+  - `.../glazed@v0.7.13/pkg/doc/topics/how-to-write-good-documentation-pages.md`
+  - `.../glazed@v0.7.13/pkg/doc/topics/14-writing-help-entries.md`
+- Added new help page:
+  - `pkg/doc/07-inspectorapi-hybrid-service-guide.md`
+- Ensured page follows key conventions:
+  - YAML frontmatter with Glazed metadata fields,
+  - no top-level `#` title in body,
+  - section-opening explanatory paragraphs,
+  - practical code examples and migration checklist,
+  - troubleshooting table,
+  - `See Also` with `glaze help <slug>` references.
+
+### Why
+
+- `pkg/inspectorapi` is now a primary integration boundary and needs first-class help-system documentation, not only ticket docs.
+- Keeping docs in `pkg/doc` makes content discoverable through existing help loading via `pkg/doc/doc.go`.
+
+### What worked
+
+- Existing `pkg/doc` structure already matched Glazed help conventions, so adding one new section required no loader changes.
+- The guideline-driven format naturally aligned with this repository’s prior help pages.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The most important style constraints for help usability here are:
+  - strong opening paragraph per section,
+  - concise metadata,
+  - explicit troubleshooting and cross-links.
+
+### What was tricky to build
+
+- Balancing reference depth and practical onboarding in one page required careful section ordering. The final structure starts with intent/architecture, then workflows/API surface, then migration/testing/ops guidance.
+
+### What warrants a second pair of eyes
+
+- Verify command tags and topic tags in frontmatter are exactly what maintainers want for discoverability and filtering.
+
+### What should be done in the future
+
+- Add companion Example/Application help entries demonstrating:
+  - a minimal non-TUI CLI consumer,
+  - a thin REST adapter over `pkg/inspectorapi`.
+
+### Code review instructions
+
+- Review content and frontmatter in:
+  - `pkg/doc/07-inspectorapi-hybrid-service-guide.md`
+- Optionally validate load path by reviewing:
+  - `pkg/doc/doc.go`
+
+### Technical details
+
+- The new page was intentionally authored as `SectionType: GeneralTopic` and `IsTopLevel: true` to keep it visible during early adoption.

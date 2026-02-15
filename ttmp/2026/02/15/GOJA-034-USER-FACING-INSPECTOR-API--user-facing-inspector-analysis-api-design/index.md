@@ -26,9 +26,11 @@ RelatedFiles:
       Note: Extracted source/tree sync primitives for reusable API endpoints
     - Path: go-go-goja/pkg/inspector/tree
       Note: Extracted tree row shaping primitives for reusable API endpoints
+    - Path: go-go-goja/pkg/doc/07-inspectorapi-hybrid-service-guide.md
+      Note: Glazed-compliant help entry documenting the new hybrid service layer
 ExternalSources: []
 Summary: Ticket for designing a stable user-facing API over extracted analysis and inspection functionality.
-LastUpdated: 2026-02-15T11:32:00-05:00
+LastUpdated: 2026-02-15T11:44:00-05:00
 WhatFor: Track architecture decisions and contracts for a reusable inspector service layer.
 WhenToUse: Use when implementing shared APIs for TUI, CLI, REST, and future LSP adapters.
 ---

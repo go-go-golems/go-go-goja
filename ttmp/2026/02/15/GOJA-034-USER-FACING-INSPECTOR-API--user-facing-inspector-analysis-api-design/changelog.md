@@ -27,3 +27,9 @@
     - `go test ./pkg/inspectorapi/... -count=1`
     - `go test ./cmd/smalltalk-inspector/... -count=1`
     - `go test ./... -count=1`
+- Added Glazed-style help documentation for the new hybrid API layer:
+  - `pkg/doc/07-inspectorapi-hybrid-service-guide.md`
+  - Frontmatter + section structure aligned with:
+    - `glazed/pkg/doc/topics/01-help-system.md`
+    - `glazed/pkg/doc/topics/how-to-write-good-documentation-pages.md`
+    - `glazed/pkg/doc/topics/14-writing-help-entries.md`
