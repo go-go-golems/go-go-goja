@@ -68,3 +68,16 @@ Backlog reconciliation update: marked completed cleanup items delivered via GOJA
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-027-SYNTAX-HIGHLIGHT--syntax-highlighting-for-smalltalk-inspector-source-pane/tasks.md — Final GOJA-027 task completion
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/tasks.md — Reconciled completed-vs-open backlog tasks
 
+
+## 2026-02-15
+
+Extracted reusable REPL/global merge logic into pkg/inspector (analysis + runtime), rewired smalltalk-inspector to consume pkg APIs, fixed REPL fallback syntax-span rebuild path, and audited cmd/inspector salvage opportunities.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/model.go — Fallback syntax span rebuild and pkg API adoption
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/update.go — Parser-backed REPL declaration tracking
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/analysis/globals_merge.go — General merge/sort policy for globals
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/analysis/repl_declarations.go — Parser-backed declaration extraction reusable by CLI/LSP
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/runtime/globals.go — Runtime global classification primitives
+

@@ -12,15 +12,23 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: go-go-goja/ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/reference/01-inspector-cleanup-review.md
-      Note: Main review output produced in this execution
-    - Path: go-go-goja/cmd/smalltalk-inspector/app/model.go
+    - Path: cmd/inspector/app/model.go
+      Note: Audited for salvageable reusable patterns
+    - Path: cmd/smalltalk-inspector/app/model.go
       Note: Critical crash path identified during review
-    - Path: go-go-goja/cmd/smalltalk-inspector/app/update.go
+    - Path: cmd/smalltalk-inspector/app/update.go
       Note: Interaction-state logic reviewed for cleanup risks
-    - Path: go-go-goja/cmd/smalltalk-inspector/app/view.go
+    - Path: cmd/smalltalk-inspector/app/view.go
       Note: Rendering/scrolling behavior analyzed in depth
-    - Path: go-go-goja/ttmp/vocabulary.yaml
+    - Path: pkg/inspector/analysis/globals_merge.go
+      Note: Extracted globals merge/sort policy for reuse
+    - Path: pkg/inspector/analysis/repl_declarations.go
+      Note: Extracted parser-backed REPL declaration analysis
+    - Path: pkg/inspector/runtime/globals.go
+      Note: Extracted runtime global enumeration helpers
+    - Path: ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/reference/01-inspector-cleanup-review.md
+      Note: Main review output produced in this execution
+    - Path: ttmp/vocabulary.yaml
       Note: Added topic entries to satisfy doctor checks
 ExternalSources: []
 Summary: Execution diary for GOJA-028 review work, including inventory, validation, crash reproduction, and deliverable publication steps.
@@ -28,6 +36,7 @@ LastUpdated: 2026-02-14T18:52:00Z
 WhatFor: Preserve command-level traceability and review workflow context for the cleanup ticket.
 WhenToUse: Use when auditing how GOJA-028 findings were produced or reproducing the analysis workflow.
 ---
+
 
 # Diary
 
@@ -136,3 +145,63 @@ docmgr doctor --ticket GOJA-028-CLEANUP-INSPECTOR --stale-after 30
 Final doctor status:
 
 - GOJA-028 checks passed.
+
+## Step 9: Extracted general-purpose REPL/runtime merge logic into pkg and audited old inspector salvage
+
+Implemented a targeted extraction pass focused only on logic that is genuinely reusable outside Bubble Tea (including possible LSP/CLI/REST integration), and deliberately avoided moving TUI-specific behavior. The main goals were:
+
+1. remove heuristic REPL declaration parsing from UI layer,
+2. centralize runtime global discovery and merge policy in `pkg/`,
+3. fix REPL fallback syntax invalidation gap,
+4. audit `cmd/inspector` for additional salvageable components.
+
+Code changes made:
+
+- Added parser-backed declaration extraction:
+  - `pkg/inspector/analysis/repl_declarations.go`
+- Added reusable globals merge/sort policy:
+  - `pkg/inspector/analysis/globals_merge.go`
+- Added runtime global discovery helpers:
+  - `pkg/inspector/runtime/globals.go`
+- Rewired app layer to use the new pkg APIs:
+  - `cmd/smalltalk-inspector/app/model.go`
+  - `cmd/smalltalk-inspector/app/update.go`
+- Fixed fallback path to rebuild REPL syntax spans after runtime `toString()` append:
+  - `cmd/smalltalk-inspector/app/model.go`
+
+Added tests:
+
+- `pkg/inspector/analysis/repl_declarations_test.go`
+- `pkg/inspector/analysis/globals_merge_test.go`
+- `pkg/inspector/runtime/globals_test.go`
+
+Validation:
+
+```bash
+go test ./pkg/inspector/... -count=1
+go test ./cmd/smalltalk-inspector/... -count=1
+go test ./... -count=1
+```
+
+All passed.
+
+### Old inspector salvage audit (`cmd/inspector`)
+
+Reviewed old inspector architecture and identified components worth salvaging next:
+
+1. Tree list + metadata table composition model (`bubbles/list` + `bubbles/table`) for hierarchical inspectors.
+2. Drawer/editor split model (`drawer.go`) with completion popup interaction patterns.
+3. Mode-keymap state machine patterns (already partially reused) for multi-pane navigation.
+4. Cursor/source-to-tree sync logic (`syncSourceToTree`, `syncTreeToSource`) useful as a generic cross-pane synchronization pattern.
+5. Status/help/command-line composition strategy for consistent inspector UX scaffolding.
+
+Items **not** generally salvageable (or not worth immediate extraction):
+
+1. Styling/layout specifics tightly coupled to old inspector visual design.
+2. JS-parse bridge details that duplicate newer `pkg/inspector/*` abstractions.
+3. Highly app-specific drawer behavior that doesn’t translate to LSP/server contexts.
+
+Key decision:
+
+- Keep extraction scope focused on domain/runtime logic first (now in `pkg/inspector/*`).
+- Treat old-inspector UI salvage as a separate componentization pass, not mixed with core logic extraction.
