@@ -27,3 +27,16 @@ Step 2: Added analysis-session APIs for globals/members/source-jump metadata and
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/analysis/smalltalk_session_test.go — Unit tests for sorting/membership/decl-line lookups
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/15/GOJA-032-ANALYSIS-INTEGRATION--smalltalk-inspector-analysis-session-integration/reference/01-diary.md — Recorded Step 1 implementation diary
 
+
+## 2026-02-15
+
+Step 3: Migrated smalltalk static-analysis callsites (globals/members/jumps/status parse check) to analysis session APIs.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/model.go — Moved globals/members/jump static-analysis access to session methods
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/model_members_test.go — Test fixture setup now initializes analysis session
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/update.go — Initialized analysis session during file load
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/view.go — Status parse-error check now uses analysis session
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/15/GOJA-032-ANALYSIS-INTEGRATION--smalltalk-inspector-analysis-session-integration/reference/01-diary.md — Recorded Step 2 diary
+

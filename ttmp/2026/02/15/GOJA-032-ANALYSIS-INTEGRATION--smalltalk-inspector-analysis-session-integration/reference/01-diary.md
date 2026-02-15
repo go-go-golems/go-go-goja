@@ -12,6 +12,14 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/smalltalk-inspector/app/model.go
+      Note: Session-backed static-analysis migration
+    - Path: cmd/smalltalk-inspector/app/model_members_test.go
+      Note: Updated tests for session-backed model
+    - Path: cmd/smalltalk-inspector/app/update.go
+      Note: Session initialization in load path
+    - Path: cmd/smalltalk-inspector/app/view.go
+      Note: Session-backed parse-error status wiring
     - Path: pkg/inspector/analysis/session.go
       Note: Root-scope helper introduced for session API layering
     - Path: pkg/inspector/analysis/smalltalk_session.go
@@ -24,6 +32,7 @@ LastUpdated: 2026-02-15T05:50:00Z
 WhatFor: Track implementation progress, rationale, validation outputs, and review handoff notes.
 WhenToUse: Use while executing GOJA-032 tasks and when reviewing integration decisions.
 ---
+
 
 
 # Diary
@@ -106,3 +115,83 @@ I validated this slice with package tests before moving on to model integration.
 ### Technical details
 
 - `MemberDeclLine(...)` accepts both `className` and optional `sourceClass` to support inherited-member jump behavior without forcing UI AST traversal.
+
+## Step 2: Migrate smalltalk model callsites to analysis session
+
+Migrated smalltalk-inspector static-analysis callsites from direct `AnalysisResult` graph traversal to `analysis.Session` methods. This includes globals construction, class/function member population, and source jump resolution for bindings/members.
+
+Runtime paths were intentionally left intact; only static-analysis access routes changed in this slice.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue execution and progress GOJA-032 in incremental, committed slices.
+
+**Inferred user intent:** Keep moving through the implementation plan with concrete, validated milestones.
+
+### What I did
+
+- Added `session *analysis.Session` field to smalltalk model.
+- Initialized session on file-load (`NewSessionFromResult`) in update path.
+- Replaced direct static-analysis access in model methods:
+  - `buildGlobals`
+  - `buildMembers`
+  - `buildClassMembers`
+  - `buildFunctionMembers`
+  - `jumpToBinding`
+  - `jumpToMember`
+- Updated status rendering to use `session.ParseError()`.
+- Updated model tests (`model_members_test.go`) to initialize the analysis session.
+- Removed now-obsolete AST helper and direct raw graph reads for migrated paths.
+- Ran:
+  - `go test ./pkg/inspector/analysis -count=1`
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+
+### Why
+
+- This is the core integration work required by GOJA-032 to decouple UI from `Resolution.Scopes` and `Index.Nodes`.
+
+### What worked
+
+- Migration compiled cleanly and focused tests passed.
+- `cmd/smalltalk-inspector` no longer directly reads `Resolution.Scopes` / `Index.Nodes` for globals/members/jumps.
+
+### What didn't work
+
+- N/A in this slice.
+
+### What I learned
+
+- The new session API was sufficient to replace all targeted static-analysis callsites without touching runtime inspection logic.
+
+### What was tricky to build
+
+- Preserving existing jump semantics for inherited members required carrying `member.Source` through `MemberDeclLine(...)` instead of flattening lookup to a single class name.
+
+### What warrants a second pair of eyes
+
+- Verify member jump behavior for class fields/computed members still matches intended behavior after delegation.
+
+### What should be done in the future
+
+- Run full-repo regression pass and close remaining GOJA-032 tasks.
+- Add GOJA-028 cross-reference/handoff update.
+
+### Code review instructions
+
+- Start with:
+  - `cmd/smalltalk-inspector/app/model.go`
+  - `cmd/smalltalk-inspector/app/update.go`
+  - `cmd/smalltalk-inspector/app/view.go`
+- Then verify test adjustments:
+  - `cmd/smalltalk-inspector/app/model_members_test.go`
+- Validate with:
+  - `go test ./pkg/inspector/analysis -count=1`
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+
+### Technical details
+
+- Direct `m.analysis` remains only for runtime function-to-source mapping in inspect flow; static-analysis UI traversal now goes through `m.session`.

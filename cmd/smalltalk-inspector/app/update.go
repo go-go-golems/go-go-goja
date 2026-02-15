@@ -10,6 +10,7 @@ import (
 	"github.com/dop251/goja"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
 	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
+	inspectoranalysis "github.com/go-go-golems/go-go-goja/pkg/inspector/analysis"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
@@ -33,6 +34,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.filename = msg.Filename
 		m.source = msg.Source
 		m.analysis = msg.Analysis
+		m.session = inspectoranalysis.NewSessionFromResult(msg.Analysis)
 		m.sourceLines = strings.Split(msg.Source, "\n")
 		m.rebuildFileSyntaxSpans(msg.Source)
 		m.loaded = true

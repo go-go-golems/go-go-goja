@@ -583,7 +583,7 @@ func (m Model) renderStatusBar() string {
 	var parts []string
 
 	if m.loaded {
-		if m.analysis != nil && m.analysis.ParseErr != nil {
+		if m.session != nil && m.session.ParseError() != nil {
 			parts = append(parts, styleReplError.Render("⚠ parse error"))
 		} else {
 			parts = append(parts, "✓ parse ok")

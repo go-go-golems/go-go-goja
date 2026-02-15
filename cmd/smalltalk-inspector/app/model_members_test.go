@@ -3,6 +3,7 @@ package app
 import (
 	"testing"
 
+	inspectoranalysis "github.com/go-go-golems/go-go-goja/pkg/inspector/analysis"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
 
@@ -55,6 +56,7 @@ func modelFromSource(t *testing.T, source string) Model {
 		t.Fatalf("parse error: %v", a.ParseErr)
 	}
 	m.analysis = a
+	m.session = inspectoranalysis.NewSessionFromResult(a)
 	m.buildGlobals()
 	return m
 }

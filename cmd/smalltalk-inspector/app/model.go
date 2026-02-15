@@ -12,10 +12,9 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
-	"github.com/dop251/goja/ast"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
 	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
-	inspectorcore "github.com/go-go-golems/go-go-goja/pkg/inspector/core"
+	inspectoranalysis "github.com/go-go-golems/go-go-goja/pkg/inspector/analysis"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
@@ -43,6 +42,7 @@ type Model struct {
 	filename string
 	source   string
 	analysis *jsparse.AnalysisResult
+	session  *inspectoranalysis.Session
 
 	// Global scope items
 	globals      []GlobalItem
@@ -194,69 +194,21 @@ func loadFile(filename string) tea.Msg {
 // buildGlobals extracts global bindings from the analysis result.
 func (m *Model) buildGlobals() {
 	m.globals = nil
-	if m.analysis == nil || m.analysis.Resolution == nil {
+	if m.session == nil {
 		return
 	}
 
-	rootScope := m.analysis.Resolution.Scopes[m.analysis.Resolution.RootScopeID]
-	if rootScope == nil {
-		return
-	}
-
-	// Collect entries
-	type entry struct {
-		name    string
-		binding *jsparse.BindingRecord
-	}
-	var entries []entry
-	for name, b := range rootScope.Bindings {
-		entries = append(entries, entry{name, b})
-	}
-	// Sort: classes first, then functions, then values; within each, alphabetical
-	sortOrder := func(k jsparse.BindingKind) int {
-		//exhaustive:ignore
-		switch k {
-		case jsparse.BindingClass:
-			return 0
-		case jsparse.BindingFunction:
-			return 1
-		default:
-			return 2
-		}
-	}
-	for i := 0; i < len(entries); i++ {
-		for j := i + 1; j < len(entries); j++ {
-			oi, oj := sortOrder(entries[i].binding.Kind), sortOrder(entries[j].binding.Kind)
-			if oi > oj || (oi == oj && entries[i].name > entries[j].name) {
-				entries[i], entries[j] = entries[j], entries[i]
-			}
-		}
-	}
-
-	for _, e := range entries {
+	for _, g := range m.session.Globals() {
 		gi := GlobalItem{
-			Name: e.name,
-			Kind: e.binding.Kind,
+			Name:    g.Name,
+			Kind:    g.Kind,
+			Extends: g.Extends,
 		}
-
-		// Try to find extends info for classes
-		if e.binding.Kind == jsparse.BindingClass {
-			gi.Extends = m.findClassExtends(e.name)
-		}
-
 		m.globals = append(m.globals, gi)
 	}
 
 	m.globalIdx = 0
 	m.globalScroll = 0
-}
-
-// findClassExtends tries to find the "extends" name for a class declaration.
-func (m *Model) findClassExtends(className string) string {
-	if m.analysis == nil || m.analysis.Program == nil {
-		return ""
-	}
-	return inspectorcore.ClassExtends(m.analysis.Program, className)
 }
 
 // buildMembers builds the member list for the currently selected global.
@@ -271,7 +223,7 @@ func (m *Model) buildMembers() {
 
 	selected := m.globals[m.globalIdx]
 
-	if m.analysis == nil || m.analysis.Resolution == nil || m.analysis.Index == nil {
+	if m.session == nil {
 		return
 	}
 
@@ -288,10 +240,7 @@ func (m *Model) buildMembers() {
 
 // buildClassMembers extracts methods and properties from a class declaration.
 func (m *Model) buildClassMembers(className string) {
-	if m.analysis.Program == nil {
-		return
-	}
-	for _, member := range inspectorcore.BuildClassMembers(m.analysis.Program, className) {
+	for _, member := range m.session.ClassMembers(className) {
 		m.members = append(m.members, MemberItem{
 			Name:      member.Name,
 			Kind:      member.Kind,
@@ -304,10 +253,7 @@ func (m *Model) buildClassMembers(className string) {
 
 // buildFunctionMembers shows parameters for a selected function.
 func (m *Model) buildFunctionMembers(funcName string) {
-	if m.analysis.Program == nil {
-		return
-	}
-	for _, member := range inspectorcore.BuildFunctionMembers(m.analysis.Program, funcName) {
+	for _, member := range m.session.FunctionMembers(funcName) {
 		m.members = append(m.members, MemberItem{
 			Name: member.Name,
 			Kind: member.Kind,
@@ -370,7 +316,7 @@ func (m *Model) jumpToSource() {
 	m.sourceTarget = -1
 	m.showingReplSrc = false
 
-	if m.analysis == nil || m.analysis.Index == nil {
+	if m.session == nil {
 		return
 	}
 
@@ -387,59 +333,25 @@ func (m *Model) jumpToSource() {
 }
 
 func (m *Model) jumpToBinding(name string) {
-	if m.analysis.Resolution == nil {
-		return
-	}
-	rootScope := m.analysis.Resolution.Scopes[m.analysis.Resolution.RootScopeID]
-	if rootScope == nil {
-		return
-	}
-	b, ok := rootScope.Bindings[name]
+	line, ok := m.session.BindingDeclLine(name)
 	if !ok {
 		return
 	}
-	declNode := m.analysis.Index.Nodes[b.DeclNodeID]
-	if declNode == nil {
-		return
-	}
-	m.sourceTarget = declNode.StartLine - 1
+	m.sourceTarget = line - 1
 	m.ensureSourceVisible(m.sourceTarget)
 }
 
 func (m *Model) jumpToMember(className string, member MemberItem) {
-	if m.analysis.Program == nil {
+	sourceClass := ""
+	if member.Inherited && member.Source != "" {
+		sourceClass = member.Source
+	}
+	line, ok := m.session.MemberDeclLine(className, sourceClass, member.Name)
+	if !ok {
 		return
 	}
-
-	searchClass := className
-	if member.Inherited && member.Source != "" {
-		searchClass = member.Source
-	}
-
-	for _, stmt := range m.analysis.Program.Body {
-		cd, ok := stmt.(*ast.ClassDeclaration)
-		if !ok || cd.Class == nil || cd.Class.Name == nil {
-			continue
-		}
-		if string(cd.Class.Name.Name) != searchClass {
-			continue
-		}
-
-		for _, elem := range cd.Class.Body {
-			if md, ok := elem.(*ast.MethodDefinition); ok {
-				if astMethodName(md) == member.Name {
-					offset := int(md.Idx0())
-					if m.analysis.Index != nil {
-						l, _ := m.analysis.Index.OffsetToLineCol(offset)
-						m.sourceTarget = l - 1
-						m.ensureSourceVisible(m.sourceTarget)
-					}
-					return
-				}
-			}
-		}
-		break
-	}
+	m.sourceTarget = line - 1
+	m.ensureSourceVisible(m.sourceTarget)
 }
 
 func (m *Model) ensureSourceVisible(targetLine int) {
@@ -507,21 +419,6 @@ func (m *Model) listViewportHeight() int {
 		h = 1
 	}
 	return h
-}
-
-// AST helper functions
-
-func astMethodName(md *ast.MethodDefinition) string {
-	if md == nil {
-		return "<unknown>"
-	}
-	switch k := md.Key.(type) {
-	case *ast.Identifier:
-		return string(k.Name)
-	case *ast.StringLiteral:
-		return k.Literal
-	}
-	return "<computed>"
 }
 
 // rebuildFileSyntaxSpans parses file source with tree-sitter and builds syntax spans.
