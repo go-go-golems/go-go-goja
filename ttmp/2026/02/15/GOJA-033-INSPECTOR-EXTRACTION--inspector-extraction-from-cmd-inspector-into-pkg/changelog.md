@@ -11,3 +11,8 @@
   - `go test ./pkg/inspector/... -count=1`
   - `go test ./cmd/inspector/... -count=1`
   - `go test ./... -count=1`
+
+## 2026-02-15
+
+Closed under GOJA-036 consolidation; follow-up architecture and migration work tracked in GOJA-036-MOVE-JS-BOBATEA
+

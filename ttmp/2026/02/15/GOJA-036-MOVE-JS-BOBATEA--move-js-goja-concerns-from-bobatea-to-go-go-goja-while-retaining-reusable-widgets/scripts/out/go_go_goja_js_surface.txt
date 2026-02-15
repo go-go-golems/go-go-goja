@@ -1,0 +1,593 @@
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/fs/fs.go:6:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/fs/fs.go:7:	"github.com/go-go-golems/go-go-goja/modules"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/fs/fs.go:32:func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/fs/fs.go:33:	exports := moduleObj.Get("exports").(*goja.Object)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/exports.go:6:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/exports.go:7:	"github.com/go-go-golems/go-go-goja/pkg/calllog"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/exports.go:11:func SetExport(vm *goja.Runtime, exports *goja.Object, moduleName, name string, fn interface{}) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/exec/exec.go:6:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/exec/exec.go:7:	"github.com/go-go-golems/go-go-goja/modules"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/exec/exec.go:23:func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/exec/exec.go:24:	exports := moduleObj.Get("exports").(*goja.Object)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/glazehelp.go:4:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/glazehelp.go:6:	"github.com/go-go-golems/go-go-goja/modules"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/glazehelp.go:20:func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/glazehelp.go:21:	exports := moduleObj.Get("exports").(*goja.Object)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/glazehelp_test.go:7:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/glazehelp_test.go:8:	"github.com/dop251/goja_nodejs/require"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/glazehelp_test.go:11:	"github.com/go-go-golems/go-go-goja/modules"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/glazehelp_test.go:39:	// Setup goja runtime with require
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/glazehelp_test.go:40:	vm := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/glazehelp_test.go:177:	// Setup goja runtime
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/glazehelp_test.go:178:	vm := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/glazehelp/registry.go:16:// If a system with this key already exists, it will be replaced.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/common.go:6:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/common.go:7:	"github.com/dop251/goja_nodejs/require"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/common.go:11:// A module exposes a name and a loader that is compatible with goja_nodejs.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/common.go:15:// See the goja_nodejs documentation for the expectations around this API.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/common.go:27:// See ttmp/2025-06-21/01-goja-initial-plan.md for an architectural overview.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/common.go:33:	Loader(*goja.Runtime, *goja.Object)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/common.go:36:// Registry manages a collection of native Go modules for a goja runtime.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/common.go:37:// It wraps a goja_nodejs/require.Registry to provide additional features
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/common.go:77:// Enable registers all modules from this registry with a goja_nodejs/require.Registry.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/common.go:78:func (r *Registry) Enable(gojaRegistry *require.Registry) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/common.go:81:		gojaRegistry.RegisterNativeModule(m.Name(), m.Loader)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/database/database.go:9:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/database/database.go:10:	"github.com/go-go-golems/go-go-goja/modules"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/database/database.go:14:// DBModule provides a database connection for a goja runtime.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/database/database.go:41:func (m *DBModule) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/modules/database/database.go:42:	exports := moduleObj.Get("exports").(*goja.Object)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/main.go:9:	"github.com/dop251/goja/parser"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/main.go:10:	"github.com/go-go-golems/go-go-goja/cmd/inspector/app"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/main.go:11:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/main.go:16:		fmt.Fprintf(os.Stderr, "Usage: goja-inspector <file.js>\n")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/main.go:39:	var index *jsparse.Index
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/main.go:41:		index = jsparse.BuildIndex(program, sourceText)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/main.go:42:		index.Resolution = jsparse.Resolve(program, index)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:4:	"github.com/dop251/goja/ast"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:5:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:8:type NodeID = jsparse.NodeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:9:type NodeRecord = jsparse.NodeRecord
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:10:type Index = jsparse.Index
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:11:type Resolution = jsparse.Resolution
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:12:type BindingRecord = jsparse.BindingRecord
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:13:type ScopeID = jsparse.ScopeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:15:type CompletionContext = jsparse.CompletionContext
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:16:type CompletionKind = jsparse.CompletionKind
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:17:type CompletionCandidate = jsparse.CompletionCandidate
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:18:type CandidateKind = jsparse.CandidateKind
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:20:type TSNode = jsparse.TSNode
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:21:type TSParser = jsparse.TSParser
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:24:	CompletionNone       = jsparse.CompletionNone
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:25:	CompletionProperty   = jsparse.CompletionProperty
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:26:	CompletionIdentifier = jsparse.CompletionIdentifier
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:27:	CompletionArgument   = jsparse.CompletionArgument
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:31:	return jsparse.NewTSParser()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:35:	return jsparse.BuildIndex(program, src)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:39:	return jsparse.Resolve(program, idx)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:43:	return jsparse.ExtractCompletionContext(root, source, cursorRow, cursorCol)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:46:func ResolveCandidates(ctx CompletionContext, gojaIndex *Index, drawerRoot ...*TSNode) []CompletionCandidate {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:47:	return jsparse.ResolveCandidates(ctx, gojaIndex, drawerRoot...)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/jsparse_bridge.go:51:	return jsparse.ExtractDrawerBindings(root)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/drawer_test.go:6:	"github.com/dop251/goja/parser"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/drawer_test.go:10:	// Build a goja index from sample JS
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/tree_list.go:7:	inspectortree "github.com/go-go-golems/go-go-goja/pkg/inspector/tree"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/model.go:19:	inspectornav "github.com/go-go-golems/go-go-goja/pkg/inspector/navigation"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/drawer.go:28:	// Reference to file-level goja index (for scope lookups)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/drawer.go:29:	gojaIndex *Index
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/drawer.go:39:func NewDrawer(gojaIndex *Index) *Drawer {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/drawer.go:47:		gojaIndex: gojaIndex,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/drawer.go:280:						// Overlay: replace part of the line with popup content
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/model_test.go:7:	"github.com/dop251/goja/parser"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/main.go:9:	"github.com/go-go-golems/go-go-goja/cmd/ast-parse-editor/app"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:11:	"github.com/dop251/goja/parser"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:12:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:54:	ASTIndex *jsparse.Index
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:77:	tsParser            *jsparse.TSParser
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:78:	tsRoot              *jsparse.TSNode
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:82:	tsCursorNode         *jsparse.TSNode
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:91:	astIndex              *jsparse.Index
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:92:	astCursorNodeID       jsparse.NodeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:98:	selectedASTNodeID      jsparse.NodeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:99:	usageBindingDeclNodeID jsparse.NodeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:100:	usageHighlightNodeIDs  []jsparse.NodeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:117:	tsParser, _ := jsparse.NewTSParser()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:355:		var astIndex *jsparse.Index
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:357:			astIndex = jsparse.BuildIndex(program, source)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:359:				astIndex.Resolution = jsparse.Resolve(program, astIndex)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:361:			astSExpr = jsparse.ASTIndexToSExpr(astIndex, &jsparse.SExprOptions{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:407:	m.tsSExpr = jsparse.CSTToSExpr(m.tsRoot, &jsparse.SExprOptions{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:486:func (m *Model) selectASTNode(id jsparse.NodeID) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:591:func (m *Model) setASTHighlightFromNode(n *jsparse.NodeRecord) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:609:func (m *Model) activeASTNodeID() jsparse.NodeID {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:672:func (m *Model) astVisibleNodes() []jsparse.NodeID {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/ast-parse-editor/app/model.go:1112:func (m *Model) appendSyntaxSpans(n *jsparse.TSNode) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/main.go:8:	"github.com/go-go-golems/go-go-goja/cmd/smalltalk-inspector/app"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/bun-demo/main.go:12:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/bun-demo/main.go:13:	"github.com/dop251/goja_nodejs/require"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/bun-demo/main.go:14:	"github.com/go-go-golems/go-go-goja/engine"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/bun-demo/main.go:15:	"github.com/go-go-golems/go-go-goja/pkg/calllog"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/bun-demo/main.go:47:	run, ok := goja.AssertFunction(runVal)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/bun-demo/main.go:52:	result, err := calllog.CallJSFunction(vm, *entry, "run", run, goja.Undefined())
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/bun-demo/main.go:57:	if !goja.IsUndefined(result) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/core/members_test.go:8:	"github.com/dop251/goja/ast"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/core/members_test.go:9:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/core/members_test.go:116:	a := jsparse.Analyze("test.js", source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/core/members.go:8:	"github.com/dop251/goja/ast"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/core/members.go:47:// existing smalltalk-inspector semantics.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/resolve_test.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/resolve_test.go:7:	"github.com/dop251/goja/parser"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion_test.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion_test.go:7:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion_test.go:60:	r := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion_test.go:83:	r := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion_test.go:109:	r := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion_test.go:135:	r := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion_test.go:170:	r := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion_test.go:197:	r := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/sexp.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/sexp.go:7:	"github.com/dop251/goja/ast"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/sexp.go:41:// ASTIndexToSExpr renders an indexed goja AST as a LISP S-expression string.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:10:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:12:	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:13:	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:14:	"github.com/go-go-golems/go-go-goja/pkg/inspectorapi"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:15:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:36:		openResp, openErr := m.inspectorService.OpenDocumentFromAnalysis(inspectorapi.OpenDocumentFromAnalysisRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:72:		m.replResult = ""
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:73:		m.replError = ""
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:91:			m.replResult = ""
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:97:			if ex, ok := msg.Result.Error.(*goja.Exception); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:102:				m.replError = info.Message
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:112:				m.replError = msg.Result.Error.Error()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:118:			m.replError = ""
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:123:			m.replResult = runtime.ValuePreview(val, m.rtSession.VM, 80)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:126:			if val != nil && !goja.IsUndefined(val) && !goja.IsNull(val) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:127:				if obj, ok := val.(*goja.Object); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:142:		m.replHistory = append(m.replHistory, msg.Result.Expression)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:145:		m.appendReplSource(msg.Result.Expression, inspectorapi.DeclaredBindingsFromSource(msg.Result.Expression))
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:182:			if gojaObj, ok := frame.Obj.(*goja.Object); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:183:				m.inspectObj = gojaObj
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:261:		m.replInput.Focus()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:263:		m.replInput.Blur()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:357:		if selected.Kind != jsparse.BindingClass && selected.Kind != jsparse.BindingFunction {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:480:		expr := strings.TrimSpace(m.replInput.Value())
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:484:		m.replInput.SetValue("")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:487:			m.replError = "no runtime session (load a file first)"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:492:		declared := inspectorapi.DeclaredBindingsFromSource(expr)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:493:		m.replDeclared = append(m.replDeclared, declared...)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:502:		m.replInput.Blur()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:509:	m.replInput, cmd = m.replInput.Update(msg)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:633:				if obj, ok := prop.Value.(*goja.Object); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:674:func buildInspectProps(obj *goja.Object, vm *goja.Runtime) []runtime.PropertyInfo {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:681:		if ctor := proto.Get("constructor"); ctor != nil && !goja.IsUndefined(ctor) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:682:			if ctorObj, ok := ctor.(*goja.Object); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:683:				if n := ctorObj.Get("name"); n != nil && !goja.IsUndefined(n) && n.String() != "" {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/sexp_test.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/sexp_test.go:7:	"github.com/dop251/goja/parser"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model_members_test.go:6:	inspectorruntime "github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model_members_test.go:7:	"github.com/go-go-golems/go-go-goja/pkg/inspectorapi"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model_members_test.go:8:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model_members_test.go:130:	m.appendReplSource(expr, inspectorapi.DeclaredBindingsFromSource(expr))
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model_members_test.go:154:	a := jsparse.Analyze("test.js", source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model_members_test.go:159:	resp, err := m.inspectorService.OpenDocumentFromAnalysis(inspectorapi.OpenDocumentFromAnalysisRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/treesitter.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/treesitter.go:5:	tree_sitter_javascript "github.com/tree-sitter/tree-sitter-javascript/bindings/go"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/treesitter.go:35:	lang := tree_sitter.NewLanguage(tree_sitter_javascript.Language())
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/resolve.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/resolve.go:4:	"github.com/dop251/goja/ast"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/resolve.go:5:	"github.com/dop251/goja/token"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/resolve.go:6:	"github.com/dop251/goja/unistring"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/keymap.go:23:	modeRepl    = "repl"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/keymap.go:36:	Up       key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/keymap.go:37:	Down     key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/keymap.go:38:	Top      key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/keymap.go:39:	Bottom   key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/keymap.go:40:	HalfDown key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/keymap.go:41:	HalfUp   key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/keymap.go:43:	Select key.Binding `keymap-mode:"globals,members,repl,inspect"`
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/analyze_test.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:15:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:22:	defaultCallLogDB  = "goja-calllog.sqlite"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:52:// - GOJA_CALLLOG_DB sets the sqlite path (default: goja-calllog.sqlite)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:74:// Configure replaces the default logger with one using the provided path.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:285:// ArgsToJSON converts goja arguments into a JSON array string for logging.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:286:func ArgsToJSON(args []goja.Value) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:311:// ValueToJSON converts a goja.Value into a JSON string.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:312:func ValueToJSON(val goja.Value) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:324:func exportValue(val goja.Value) interface{} {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:326:	case val == nil || goja.IsUndefined(val) || goja.IsNull(val):
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:343:func isFunctionValue(val goja.Value) bool {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:344:	_, ok := goja.AssertFunction(val)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:348:// WrapGoFunction returns a goja-compatible function that logs JS->Go calls.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:349:func WrapGoFunction(vm *goja.Runtime, moduleName, funcName string, fn interface{}) func(goja.FunctionCall) goja.Value {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:351:	callable, ok := goja.AssertFunction(original)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:353:		return func(call goja.FunctionCall) goja.Value {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:366:	return func(call goja.FunctionCall) goja.Value {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/calllog/calllog.go:393:func CallJSFunction(vm *goja.Runtime, moduleName, funcName string, fn goja.Callable, this goja.Value, args ...goja.Value) (goja.Value, error) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/noderecord.go:2:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:6:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:11:		{Name: "A", Kind: jsparse.BindingClass},
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:12:		{Name: "f", Kind: jsparse.BindingFunction},
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:14:	runtimeKinds := map[string]jsparse.BindingKind{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:15:		"x": jsparse.BindingVar,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:16:		"f": jsparse.BindingFunction, // duplicate
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:19:		{Name: "K", Kind: jsparse.BindingClass},
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:20:		{Name: "x", Kind: jsparse.BindingLet}, // duplicate (already runtime)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:21:		{Name: "missing", Kind: jsparse.BindingConst},
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:31:	seen := map[string]jsparse.BindingKind{}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:35:	if seen["A"] != jsparse.BindingClass {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:38:	if seen["f"] != jsparse.BindingFunction {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:41:	if seen["x"] != jsparse.BindingVar {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge_test.go:44:	if seen["K"] != jsparse.BindingClass {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/treesitter_test.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/navigation_mode_test.go:8:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/navigation_mode_test.go:9:	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/navigation_mode_test.go:17:	m.inspectObj = goja.New().NewObject()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/navigation_mode_test.go:134:	m.inspectObj = goja.New().NewObject()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:258:		{Label: "replace", Kind: CandidateMethod, Detail: "method"},
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:296:func ResolveCandidates(ctx CompletionContext, gojaIndex *Index, drawerRoot ...*TSNode) []CompletionCandidate {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:305:		candidates = resolvePropertyCandidates(ctx, gojaIndex)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:307:		candidates = resolveIdentifierCandidates(ctx, gojaIndex)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:333:func resolvePropertyCandidates(ctx CompletionContext, gojaIndex *Index) []CompletionCandidate {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:343:	// Look up the binding in goja's scope resolver
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:344:	if gojaIndex != nil && gojaIndex.Resolution != nil {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:345:		globalScope := gojaIndex.Resolution.Scopes[gojaIndex.Resolution.RootScopeID]
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:349:				props := extractObjectPropertiesFromBinding(gojaIndex, binding)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:369:func resolveIdentifierCandidates(ctx CompletionContext, gojaIndex *Index) []CompletionCandidate {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:373:	if gojaIndex != nil && gojaIndex.Resolution != nil {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:374:		globalScope := gojaIndex.Resolution.Scopes[gojaIndex.Resolution.RootScopeID]
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:451:func extractObjectPropertiesFromBinding(gojaIndex *Index, binding *BindingRecord) []string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:456:	declNode := gojaIndex.Nodes[binding.DeclNodeID]
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:462:	parent := gojaIndex.Nodes[declNode.ParentID]
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:470:		child := gojaIndex.Nodes[childID]
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:475:			props = append(props, extractPropertyNamesFromObjLit(gojaIndex, childID)...)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:488:func extractPropertyNamesFromObjLit(gojaIndex *Index, objID NodeID) []string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:489:	objNode := gojaIndex.Nodes[objID]
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:495:		child := gojaIndex.Nodes[childID]
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion.go:501:			propChild := gojaIndex.Nodes[propChildID]
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/index_test.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/index_test.go:6:	"github.com/dop251/goja/parser"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/smalltalk_session.go:6:	"github.com/dop251/goja/ast"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/smalltalk_session.go:7:	inspectorcore "github.com/go-go-golems/go-go-goja/pkg/inspector/core"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/smalltalk_session.go:8:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/smalltalk_session.go:14:	Kind    jsparse.BindingKind
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/smalltalk_session.go:35:func (s *Session) Index() *jsparse.Index {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/smalltalk_session.go:56:		if program != nil && b.Kind == jsparse.BindingClass {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/smalltalk_session.go:157:func bindingSortOrder(k jsparse.BindingKind) int {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/smalltalk_session.go:160:	case jsparse.BindingClass:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/smalltalk_session.go:162:	case jsparse.BindingFunction:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/analyze.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/analyze.go:4:	"github.com/dop251/goja/ast"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/analyze.go:5:	"github.com/dop251/goja/parser"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations_test.go:6:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations_test.go:18:	got := map[string]jsparse.BindingKind{}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations_test.go:23:	tests := map[string]jsparse.BindingKind{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations_test.go:24:		"c": jsparse.BindingConst,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations_test.go:25:		"l": jsparse.BindingLet,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations_test.go:26:		"v": jsparse.BindingVar,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations_test.go:27:		"f": jsparse.BindingFunction,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations_test.go:28:		"K": jsparse.BindingClass,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/highlight.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion_test.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/completion_test.go:6:	"github.com/dop251/goja/parser"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/xref.go:4:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/xref.go:11:	NodeID  jsparse.NodeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/xref.go:16:func CrossReferences(res *jsparse.Resolution, idx *jsparse.Index, bindingName string) []XRefEntry {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/xref.go:22:	var binding *jsparse.BindingRecord
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/xref.go:37:func CrossReferencesForBinding(binding *jsparse.BindingRecord, idx *jsparse.Index) []XRefEntry {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/xref.go:64:func findEnclosingContext(idx *jsparse.Index, nodeID jsparse.NodeID) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/index.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/index.go:9:	"github.com/dop251/goja/ast"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/index.go:10:	"github.com/dop251/goja/file"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:14:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:16:	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:17:	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:18:	"github.com/go-go-golems/go-go-goja/pkg/inspectorapi"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:19:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:23:type GlobalItem = inspectorapi.Global
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:26:type MemberItem = inspectorapi.Member
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:33:	analysis         *jsparse.AnalysisResult
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:34:	documentID       inspectorapi.DocumentID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:35:	inspectorService *inspectorapi.Service
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:52:	tsParser        *jsparse.TSParser
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:53:	fileSyntaxSpans []jsparse.SyntaxSpan // spans for file source
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:54:	replSyntaxSpans []jsparse.SyntaxSpan // spans for REPL source
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:57:	replSourceLines []string // accumulated REPL expressions as source lines
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:58:	replSourceLog   []replSourceEntry
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:63:	replInput    textinput.Model
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:64:	replHistory  []string
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:65:	replResult   string
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:66:	replError    string
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:67:	replDeclared []inspectorapi.DeclaredBinding
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:70:	inspectObj   *goja.Object
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:112:		inspectorService: inspectorapi.NewService(),
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:127:	m.replInput = textinput.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:128:	m.replInput.Prompt = "» "
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:129:	m.replInput.Placeholder = "evaluate expression..."
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:130:	m.replInput.CharLimit = 512
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:131:	m.replInput.Width = 60
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:132:	m.replInput.Blur()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:135:	if parser, err := jsparse.NewTSParser(); err == nil {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:176:	analysis := jsparse.Analyze(filename, sourceText, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:192:	resp, err := m.inspectorService.ListGlobals(inspectorapi.ListGlobalsRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:220:	resp, err := m.inspectorService.ListMembers(inspectorapi.ListMembersRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:252:	resp, err := m.inspectorService.BindingDeclarationLine(inspectorapi.BindingDeclarationRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:272:	resp, err := m.inspectorService.MemberDeclarationLine(inspectorapi.MemberDeclarationRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:296:	if m.showingReplSrc && len(m.replSourceLines) > 0 {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:297:		return m.replSourceLines
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:359:	m.fileSyntaxSpans = jsparse.BuildSyntaxSpans(root)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:364:	m.replSyntaxSpans = nil
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:365:	if m.tsParser == nil || len(m.replSourceLines) == 0 {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:368:	src := strings.Join(m.replSourceLines, "\n")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:370:	m.replSyntaxSpans = jsparse.BuildSyntaxSpans(root)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:373:// replSourceEntry tracks where a REPL expression lives in the accumulated source buffer.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:374:type replSourceEntry struct {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:376:	StartLine  int // 0-based index into replSourceLines
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:382:func (m *Model) appendReplSource(expr string, declared []inspectorapi.DeclaredBinding) int {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:383:	startLine := len(m.replSourceLines)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:386:	m.replSourceLines = append(m.replSourceLines,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:387:		fmt.Sprintf("// ─── REPL [%d] ───", len(m.replSourceLog)+1))
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:391:	m.replSourceLines = append(m.replSourceLines, exprLines...)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:392:	m.replSourceLines = append(m.replSourceLines, "")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:394:	endLine := len(m.replSourceLines)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:402:	m.replSourceLog = append(m.replSourceLog, replSourceEntry{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:418:	for _, entry := range m.replSourceLog {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:430:	startLine := len(m.replSourceLines)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:431:	m.replSourceLines = append(m.replSourceLines,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:433:	m.replSourceLines = append(m.replSourceLines, strings.Split(fnSrc, "\n")...)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:434:	m.replSourceLines = append(m.replSourceLines, "")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:448:	for i := len(m.replSourceLog) - 1; i >= 0; i-- {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:449:		entry := m.replSourceLog[i]
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:462:// goja's Value.String() returns the source for function values.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:463:func getFunctionSource(val goja.Value) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:464:	if _, ok := goja.AssertFunction(val); !ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:471:func kindIcon(k jsparse.BindingKind) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:474:	case jsparse.BindingClass:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:476:	case jsparse.BindingFunction:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:503:	resp, err := m.inspectorService.MergeRuntimeGlobals(inspectorapi.MergeRuntimeGlobalsRequest{
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:506:		Declared:   m.replDeclared,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations.go:6:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations.go:12:	Kind jsparse.BindingKind
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations.go:16:// It is parser-backed (jsparse) and therefore safer than token/word heuristics.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/repl_declarations.go:18:	result := jsparse.Analyze("<repl>", source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/tree/rows.go:8:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/tree/rows.go:13:	NodeID      jsparse.NodeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/tree/rows.go:19:func BuildRowsFromIndex(idx *jsparse.Index, usageHighlights []jsparse.NodeID) []Row {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/tree/rows.go:36:func BuildRow(node *jsparse.NodeRecord, usageHighlights []jsparse.NodeID, res *jsparse.Resolution) Row {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:1:package jsparse
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:8:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:92:	analysis := Analyze("repl-eval.js", source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:146:	runtime *goja.Runtime,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:220:func runtimeIdentifierCandidates(runtime *goja.Runtime, partial string, hints []CompletionCandidate) []CompletionCandidate {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:264:func runtimePropertyCandidates(runtime *goja.Runtime, baseExpr, partial string) []CompletionCandidate {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:275:	if !ok || v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:373:func safeToObject(runtime *goja.Runtime, value goja.Value) (*goja.Object, bool) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:375:	var obj *goja.Object
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:385:func safeRuntimeGet(runtime *goja.Runtime, name string) (goja.Value, bool) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:390:	var value goja.Value
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/jsparse/repl_completion.go:403:func safeObjectKeys(obj *goja.Object) []string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/session.go:1:// Package analysis provides reusable helpers for working with jsparse analysis results
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/session.go:6:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/session.go:11:	Result *jsparse.AnalysisResult
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/session.go:16:	result := jsparse.Analyze(filename, source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/session.go:21:func NewSessionFromResult(result *jsparse.AnalysisResult) *Session {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/session.go:26:func (s *Session) GlobalBindings() map[string]*jsparse.BindingRecord {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/session.go:34:func (s *Session) rootScope() *jsparse.ScopeRecord {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/tree/rows_test.go:7:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/tree/rows_test.go:12:	res := jsparse.Analyze("test.js", src, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/tree/rows_test.go:28:	res := jsparse.Analyze("test.js", src, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/tree/rows_test.go:33:	var target jsparse.NodeID = -1
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/tree/rows_test.go:44:	row := BuildRow(res.Index.Nodes[target], []jsparse.NodeID{target}, res.Resolution)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/tree/rows_test.go:52:	res := jsparse.Analyze("test.js", src, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:9:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:10:	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:11:	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:12:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:32:	repl := m.renderReplArea()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:35:	bodyHeight := m.height - 4 // header + status + help + repl separator
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:59:	parts := []string{header, body, repl, status, helpView}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:70:	repl := m.renderReplArea()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:76:		return m.renderErrorView(header, status, helpView, repl, contentHeight)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:81:		return m.renderInspectView(header, status, helpView, repl, contentHeight)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:104:	parts := []string{header, content, repl, status, helpView}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:112:	title := "goja-inspector"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:128:func (m Model) renderErrorView(header, status, helpView, repl string, contentHeight int) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:148:	parts := []string{header, inspectorui.PadRight(bannerLine, m.width), content, repl, status, helpView}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:195:func (m Model) renderInspectView(header, status, helpView, repl string, contentHeight int) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:228:	parts = append(parts, content, repl, status, helpView)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:441:			if val != nil && !goja.IsUndefined(val) && !goja.IsNull(val) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:442:				if obj, ok := val.(*goja.Object); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:487:		var syntaxSpans []jsparse.SyntaxSpan
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:489:			syntaxSpans = m.replSyntaxSpans
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:534:func renderSyntaxLine(line string, lineNo int, spans []jsparse.SyntaxSpan) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:541:		class := jsparse.SyntaxClassAt(spans, lineNo, colNo)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:542:		b.WriteString(jsparse.RenderSyntaxChar(class, string(ch)))
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:557:	if m.replError != "" {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:559:		errLines := strings.Split(m.replError, "\n")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:561:	} else if m.replResult != "" {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:562:		resultLine = "→ " + m.replResult
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:563:	} else if len(m.replHistory) > 0 {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:564:		resultLine = styleEmptyHint.Render("  " + m.replHistory[len(m.replHistory)-1])
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/view.go:570:		promptLine = m.replInput.View()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/method_symbols.go:4:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/method_symbols.go:10:	Kind       jsparse.BindingKind
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/method_symbols.go:17:func MethodSymbols(res *jsparse.Resolution, idx *jsparse.Index, startOffset, endOffset int) []MethodSymbol {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/method_symbols.go:25:		if scope.Kind == jsparse.ScopeGlobal {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge.go:6:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/analysis/globals_merge.go:25:	runtimeKinds map[string]jsparse.BindingKind,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/messages.go:4:	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/messages.go:5:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/messages.go:12:	Analysis *jsparse.AnalysisResult
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/messages.go:42:	Obj   interface{} // the goja.Object at this level
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:6:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:12:	Value    goja.Value
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:25:func InspectObject(obj *goja.Object, vm *goja.Runtime) []PropertyInfo {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:59:func WalkPrototypeChain(obj *goja.Object, vm *goja.Runtime) []PrototypeLevel {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:86:func GetDescriptor(obj *goja.Object, vm *goja.Runtime, key string) (*Descriptor, error) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:95:	callable, ok := goja.AssertFunction(fn)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:103:	if goja.IsNull(result) || goja.IsUndefined(result) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:116:func valueKind(val goja.Value, vm *goja.Runtime) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:117:	if val == nil || goja.IsUndefined(val) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:120:	if goja.IsNull(val) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:123:	if _, ok := goja.AssertFunction(val); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:135:		if _, ok := val.(*goja.Object); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:144:func PrototypeChainNames(obj *goja.Object, vm *goja.Runtime) []string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:157:func safeGet(obj *goja.Object, key string) goja.Value {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:158:	var result goja.Value
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:170:func protoName(obj *goja.Object, vm *goja.Runtime) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:172:	if ctor == nil || goja.IsUndefined(ctor) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:175:	ctorObj, ok := ctor.(*goja.Object)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/introspect.go:180:	if name == nil || goja.IsUndefined(name) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:1:package inspectorapi
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:8:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:9:	inspectoranalysis "github.com/go-go-golems/go-go-goja/pkg/inspector/analysis"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:10:	inspectorcore "github.com/go-go-golems/go-go-goja/pkg/inspector/core"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:11:	inspectornavigation "github.com/go-go-golems/go-go-goja/pkg/inspector/navigation"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:12:	inspectorruntime "github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:13:	inspectortree "github.com/go-go-golems/go-go-goja/pkg/inspector/tree"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:14:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:22:	analysis *jsparse.AnalysisResult
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:40:	result := jsparse.Analyze(req.Filename, req.Source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:56:		result = jsparse.Analyze(req.Filename, req.Source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:89:	result := jsparse.Analyze(filename, req.Source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:114:func (s *Service) Analysis(documentID DocumentID) (*jsparse.AnalysisResult, error) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:147:	case jsparse.BindingClass:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:150:	case jsparse.BindingFunction:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:209:		return val != nil && !goja.IsUndefined(val)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:348:	if val == nil || goja.IsUndefined(val) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:351:	if goja.IsNull(val) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service.go:354:	if obj, ok := val.(*goja.Object); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service_test.go:1:package inspectorapi
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service_test.go:6:	inspectorruntime "github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service_test.go:101:	if err := rt.Load(`const replAdded = 1`); err != nil {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service_test.go:102:		t.Fatalf("runtime load repl: %v", err)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service_test.go:113:	declared := DeclaredBindingsFromSource(`const replAdded = 1`)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service_test.go:124:		if g.Name == "replAdded" {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/service_test.go:130:		t.Fatalf("expected merged globals to include replAdded")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/navigation/sync_test.go:7:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/navigation/sync_test.go:10:func testIndexAndLines(t *testing.T, src string) (*jsparse.Index, []string) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/navigation/sync_test.go:12:	res := jsparse.Analyze("test.js", src, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/navigation/sync_test.go:57:	visible := []jsparse.NodeID{10, 20, 30}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals.go:4:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals.go:5:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals.go:27:// IsBuiltinGlobal reports whether a name is a standard JavaScript/goja builtin.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals.go:34:func BindingKindFromValue(val goja.Value) jsparse.BindingKind {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals.go:35:	if _, ok := goja.AssertFunction(val); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals.go:36:		return jsparse.BindingFunction
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals.go:38:	return jsparse.BindingVar
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals.go:42:func RuntimeGlobalKinds(vm *goja.Runtime) map[string]jsparse.BindingKind {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals.go:46:	out := map[string]jsparse.BindingKind{}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:10:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:13:	"github.com/go-go-golems/go-go-goja/engine"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:14:	"github.com/go-go-golems/go-go-goja/modules/glazehelp"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:15:	"github.com/go-go-golems/go-go-goja/pkg/doc"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:20:	Use:   "repl [script.js]",
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:22:	Long: `A JavaScript runtime environment powered by goja with native Go module support.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:52:func runInteractiveLoop(vm *goja.Runtime, debug bool) error {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:54:	fmt.Println("goja> type JS code (:help for help)")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:80:			fmt.Println("  repl help")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:81:			fmt.Println("  repl help introduction")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:82:			fmt.Println("  repl help creating-modules")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:83:			fmt.Println("  repl help async-patterns")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:84:			fmt.Println("  repl help repl-usage")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:85:			fmt.Println("  repl help jsparse-framework-reference")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:86:			fmt.Println("  repl help inspector-example-user-guide")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/repl/main.go:101:		if val != nil && !goja.IsUndefined(val) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:1:package inspectorapi
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:6:	inspectornavigation "github.com/go-go-golems/go-go-goja/pkg/inspector/navigation"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:7:	inspectortree "github.com/go-go-golems/go-go-goja/pkg/inspector/tree"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:8:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:15:	ErrDocumentNotFound = errors.New("inspectorapi: document not found")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:16:	ErrGlobalNotFound   = errors.New("inspectorapi: global not found")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:22:	Kind    jsparse.BindingKind
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:39:	Kind jsparse.BindingKind
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:52:	Analysis *jsparse.AnalysisResult
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:58:	Analysis    *jsparse.AnalysisResult
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:59:	Diagnostics []jsparse.Diagnostic
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:70:	Analysis    *jsparse.AnalysisResult
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:71:	Diagnostics []jsparse.Diagnostic
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspectorapi/contracts.go:141:	UsageHighlights []jsparse.NodeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map_test.go:6:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map_test.go:7:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map_test.go:22:	analysis := jsparse.Analyze("test.js", source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map_test.go:63:	analysis := jsparse.Analyze("test.js", source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map_test.go:92:	analysis := jsparse.Analyze("test.js", source, nil)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map_test.go:97:	vm := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/navigation/sync.go:4:import "github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/navigation/sync.go:8:	NodeID         jsparse.NodeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/navigation/sync.go:15:	NodeID         jsparse.NodeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/navigation/sync.go:45:	idx *jsparse.Index,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/navigation/sync.go:65:func FindVisibleNodeIndex(visibleIDs []jsparse.NodeID, target jsparse.NodeID) int {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/navigation/sync.go:76:	idx *jsparse.Index,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/navigation/sync.go:77:	visibleIDs []jsparse.NodeID,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/errors.go:8:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/errors.go:19:// ErrorInfo holds parsed information from a goja exception.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/errors.go:26:// ParseException extracts structured error info from a goja Exception.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/errors.go:27:func ParseException(ex *goja.Exception) ErrorInfo {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/errors.go:46:// stackLineRe matches goja stack trace lines like:
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session_test.go:6:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session_test.go:163:	ex, ok := result.Error.(*goja.Exception)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session_test.go:165:		t.Fatalf("expected *goja.Exception, got %T", result.Error)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals_test.go:6:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals_test.go:7:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals_test.go:11:	vm := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals_test.go:21:	if kinds["fn"] != jsparse.BindingFunction {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/globals_test.go:24:	if kinds["x"] != jsparse.BindingVar {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map.go:7:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map.go:8:	"github.com/dop251/goja/ast"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map.go:9:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map.go:20:	NodeID    jsparse.NodeID
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map.go:25:func MapFunctionToSource(val goja.Value, vm *goja.Runtime, analysis *jsparse.AnalysisResult) *FunctionSourceMapping {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map.go:31:	_, ok := goja.AssertFunction(val)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map.go:37:	if nameVal == nil || goja.IsUndefined(nameVal) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map.go:143:	analysis *jsparse.AnalysisResult,
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/function_map.go:153:	nodeID := jsparse.NodeID(-1)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:1:// Package runtime provides helpers for introspecting goja runtime values
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:9:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:12:// Session owns a goja.Runtime and provides load/eval/inspect helpers.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:14:	VM *goja.Runtime
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:19:	return &Session{VM: goja.New()}
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:29:func (s *Session) Eval(expr string) (goja.Value, error) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:36:	Value      goja.Value
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:50:		if ex, ok := err.(*goja.Exception); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:58:func (s *Session) GlobalValue(name string) goja.Value {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:63:func ValuePreview(val goja.Value, vm *goja.Runtime, maxLen int) string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:64:	if val == nil || goja.IsUndefined(val) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:67:	if goja.IsNull(val) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:88:	if _, ok := goja.AssertFunction(val); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:91:		if n := obj.Get("name"); n != nil && !goja.IsUndefined(n) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/pkg/inspector/runtime/session.go:101:	if obj, ok := val.(*goja.Object); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:4:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:5:	"github.com/dop251/goja_nodejs/console"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:6:	"github.com/dop251/goja_nodejs/require"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:8:	"github.com/go-go-golems/go-go-goja/modules"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:9:	"github.com/go-go-golems/go-go-goja/pkg/calllog"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:11:	_ "github.com/go-go-golems/go-go-goja/modules/database"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:12:	_ "github.com/go-go-golems/go-go-goja/modules/exec"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:13:	_ "github.com/go-go-golems/go-go-goja/modules/fs"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:14:	_ "github.com/go-go-golems/go-go-goja/modules/glazehelp"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:19:// New creates a fresh goja.Runtime ready for execution with Node-style
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:22:// The returned *goja.Runtime can be used directly with RunString/run etc. The
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:25:func New() (*goja.Runtime, *require.RequireModule) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:30:// the goja_nodejs/require registry (for example, to install a custom loader).
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:31:func NewWithOptions(opts ...require.Option) (*goja.Runtime, *require.RequireModule) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:36:// call logging through the go-go-goja API.
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:37:func NewWithConfig(cfg RuntimeConfig, opts ...require.Option) (*goja.Runtime, *require.RequireModule) {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:44:			log.Printf("go-go-goja: call log setup failed: %v", err)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:50:	vm := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/engine/runtime.go:56:	log.Printf("go-go-goja: native modules enabled")
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/goja-runtime-probe.go:10:	"github.com/dop251/goja"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/goja-runtime-probe.go:14:	vm := goja.New()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/goja-runtime-probe.go:16:	vm.Set("captureStack", func(call goja.FunctionCall) goja.Value {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/goja-runtime-probe.go:23:		return goja.Undefined()
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/goja-runtime-probe.go:92:	mainFn, ok := goja.AssertFunction(vm.Get("main"))
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/goja-runtime-probe.go:97:	v, err := mainFn(goja.Undefined())
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/goja-runtime-probe.go:112:		if ctorObj, ok := ctor.(*goja.Object); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/goja-runtime-probe.go:136:		if ex, ok := err.(*goja.Exception); ok {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/goja-runtime-probe.go:148:func symbolStrings(syms []*goja.Symbol) []string {
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/jsparse-index-probe.go:10:	"github.com/dop251/goja/parser"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/jsparse-index-probe.go:11:	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/jsparse-index-probe.go:41:	idx := jsparse.BuildIndex(program, source)
+/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/ttmp/2026/02/14/GOJA-024-SMALLTALK-INSPECTOR--smalltalk-inspector/scripts/jsparse-index-probe.go:42:	res := jsparse.Resolve(program, idx)
