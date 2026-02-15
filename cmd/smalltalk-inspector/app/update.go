@@ -141,8 +141,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.replHistory = append(m.replHistory, msg.Result.Expression)
 
-		// Track REPL expression as source
-		m.appendReplSource(msg.Result.Expression)
+		// Track REPL expression as source with parser-backed declarations.
+		m.appendReplSource(msg.Result.Expression, inspectorapi.DeclaredBindingsFromSource(msg.Result.Expression))
 
 		// Refresh globals list to pick up new REPL-defined names
 		m.refreshRuntimeGlobals()

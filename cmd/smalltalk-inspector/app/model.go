@@ -254,6 +254,10 @@ func (m *Model) jumpToBinding(name string) {
 		Name:       name,
 	})
 	if err != nil || !resp.Found {
+		// Fallback for REPL-defined symbols that have no file-backed declaration.
+		if m.showReplSourceForBinding(name) {
+			return
+		}
 		return
 	}
 	m.sourceTarget = resp.Line - 1
@@ -371,10 +375,11 @@ type replSourceEntry struct {
 	Expression string
 	StartLine  int // 0-based index into replSourceLines
 	EndLine    int // exclusive
+	Declared   map[string]struct{}
 }
 
 // appendReplSource adds a REPL expression to the source log and returns the start line.
-func (m *Model) appendReplSource(expr string) int {
+func (m *Model) appendReplSource(expr string, declared []inspectorapi.DeclaredBinding) int {
 	startLine := len(m.replSourceLines)
 
 	// Add a separator comment showing the REPL expression number
@@ -387,10 +392,18 @@ func (m *Model) appendReplSource(expr string) int {
 	m.replSourceLines = append(m.replSourceLines, "")
 
 	endLine := len(m.replSourceLines)
+	declaredSet := make(map[string]struct{}, len(declared))
+	for _, d := range declared {
+		if d.Name == "" {
+			continue
+		}
+		declaredSet[d.Name] = struct{}{}
+	}
 	m.replSourceLog = append(m.replSourceLog, replSourceEntry{
 		Expression: expr,
 		StartLine:  startLine,
 		EndLine:    endLine,
+		Declared:   declaredSet,
 	})
 
 	// Rebuild syntax spans for REPL source
@@ -426,6 +439,23 @@ func (m *Model) showReplFunctionSource(name, fnSrc string) {
 
 func (m *Model) ensureReplSourceVisible(targetLine int) {
 	m.ensureSourceVisible(targetLine)
+}
+
+func (m *Model) showReplSourceForBinding(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i := len(m.replSourceLog) - 1; i >= 0; i-- {
+		entry := m.replSourceLog[i]
+		if _, ok := entry.Declared[name]; !ok {
+			continue
+		}
+		m.showingReplSrc = true
+		m.sourceTarget = entry.StartLine + 1 // point at the code, skip separator
+		m.ensureReplSourceVisible(m.sourceTarget)
+		return true
+	}
+	return false
 }
 
 // getFunctionSource returns the source text of a runtime function.

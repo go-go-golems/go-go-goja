@@ -120,6 +120,34 @@ class Foo {
 	}
 }
 
+func TestJumpToBindingFallsBackToReplSource(t *testing.T) {
+	src := `
+const fromFile = 1
+`
+	m := modelFromSource(t, src)
+	expr := "const zzzReplFn = function zzzReplFn(value) { return value + 42; }"
+
+	m.appendReplSource(expr, inspectorapi.DeclaredBindingsFromSource(expr))
+	m.jumpToBinding("zzzReplFn")
+
+	if !m.showingReplSrc {
+		t.Fatal("expected jumpToBinding to switch source pane to REPL source")
+	}
+	if m.sourceTarget < 0 {
+		t.Fatalf("expected sourceTarget on REPL fallback, got %d", m.sourceTarget)
+	}
+	lines := m.activeSourceLines()
+	if len(lines) == 0 {
+		t.Fatal("expected REPL source lines to be available")
+	}
+	if m.sourceTarget >= len(lines) {
+		t.Fatalf("sourceTarget %d out of range for %d lines", m.sourceTarget, len(lines))
+	}
+	if lines[m.sourceTarget] != expr {
+		t.Fatalf("expected REPL line %q, got %q", expr, lines[m.sourceTarget])
+	}
+}
+
 func modelFromSource(t *testing.T, source string) Model {
 	t.Helper()
 	m := NewModel("")

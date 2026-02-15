@@ -157,6 +157,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.help.Width = msg.Width
 		m.command.Width = maxInt(16, msg.Width-4)
+		m.rebuildTreeListItems()
 		return m, nil
 	}
 	return m, nil
@@ -753,13 +754,14 @@ func (m *Model) refreshTreeVisible() {
 }
 
 func (m *Model) rebuildTreeListItems() {
+	maxTitleWidth := m.treePaneWidth() - 4
 	items := make([]list.Item, 0, len(m.treeVisibleNodes))
 	for _, nodeID := range m.treeVisibleNodes {
 		node := m.index.Nodes[nodeID]
 		if node == nil {
 			continue
 		}
-		items = append(items, buildTreeListItem(node, m.usageHighlights, m.index.Resolution))
+		items = append(items, buildTreeListItem(node, m.usageHighlights, m.index.Resolution, maxTitleWidth))
 	}
 	_ = m.treeList.SetItems(items)
 	if len(items) == 0 {
@@ -853,6 +855,28 @@ func (m *Model) treeViewportHeight() int {
 		h = 1
 	}
 	return h
+}
+
+func (m *Model) treePaneWidth() int {
+	if m.width <= 0 {
+		return 40
+	}
+
+	leftWidth := (m.width * 3) / 5
+	rightWidth := m.width - leftWidth
+
+	if rightWidth < 28 {
+		rightWidth = 28
+		leftWidth = m.width - rightWidth
+	}
+	if leftWidth < 30 {
+		leftWidth = 30
+		rightWidth = m.width - leftWidth
+	}
+	if rightWidth < 16 {
+		rightWidth = 16
+	}
+	return rightWidth
 }
 
 // --- Sync methods ---
@@ -1003,8 +1027,8 @@ func (m Model) View() string {
 		contentHeight = 3
 	}
 
-	leftWidth := m.width / 2
-	rightWidth := m.width - leftWidth
+	rightWidth := m.treePaneWidth()
+	leftWidth := m.width - rightWidth
 
 	header := m.renderHeader()
 	leftPane := m.renderSourcePane(leftWidth, contentHeight)
@@ -1221,9 +1245,9 @@ func (m Model) renderTreePane(width, height int) string {
 		return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 	}
 
-	metaHeight := 5
+	metaHeight := 4
 	if contentHeight <= metaHeight+2 {
-		metaHeight = 3
+		metaHeight = 2
 	}
 	treeHeight := contentHeight - metaHeight - 1
 	if treeHeight < 1 {

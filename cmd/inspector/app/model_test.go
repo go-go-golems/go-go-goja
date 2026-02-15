@@ -290,3 +290,29 @@ console.log(known);
 		t.Fatalf("expected unresolved lookup to clear usage highlights, got %d", len(m.usageHighlights))
 	}
 }
+
+func TestTreePaneWidthKeepsTreeCompact(t *testing.T) {
+	m := Model{width: 100}
+	if got := m.treePaneWidth(); got != 40 {
+		t.Fatalf("treePaneWidth(100) = %d, want 40", got)
+	}
+
+	m.width = 60
+	if got := m.treePaneWidth(); got != 28 {
+		t.Fatalf("treePaneWidth(60) = %d, want 28", got)
+	}
+}
+
+func TestBuildTreeListItemClampsTitle(t *testing.T) {
+	node := &NodeRecord{
+		ID:       1,
+		Kind:     "Identifier",
+		Label:    "veryLongBindingNameThatShouldBeClampedInTreeRows",
+		Depth:    0,
+		Expanded: false,
+	}
+	item := buildTreeListItem(node, nil, nil, 16)
+	if len([]rune(item.title)) > 16 {
+		t.Fatalf("expected title to be clamped to 16 runes, got %q", item.title)
+	}
+}
