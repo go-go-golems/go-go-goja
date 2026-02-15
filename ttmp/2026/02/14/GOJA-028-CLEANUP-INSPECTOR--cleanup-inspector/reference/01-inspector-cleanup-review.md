@@ -44,12 +44,16 @@ RelatedFiles:
       Note: Bug-fix sequencing and rationale
 ExternalSources: []
 Summary: Deep technical review of inspector work from GOJA-024 through GOJA-027, including architecture analysis, severity-ranked findings, and cleanup/refactor roadmap.
-LastUpdated: 2026-02-14T18:45:00Z
+LastUpdated: 2026-02-15T17:10:00Z
 WhatFor: Give implementers and maintainers a concrete, evidence-backed cleanup plan and architecture guide for the smalltalk-inspector code path.
 WhenToUse: Use before further feature work on smalltalk-inspector or when planning refactors/shared component extraction.
 ---
 
 # Inspector Cleanup Review (GOJA-024 to GOJA-027)
+
+## Historical Status (Updated 2026-02-15)
+
+This review is a historical snapshot from the pre-`pkg/inspectorapi` cutover phase. Several findings were intentionally resolved by later tickets (notably GOJA-029, GOJA-030, GOJA-034) that moved adapter orchestration into `pkg/inspectorapi` and integrated extracted inspector packages.
 
 ## Findings First (Severity-Ordered)
 
@@ -122,9 +126,9 @@ WhenToUse: Use before further feature work on smalltalk-inspector or when planni
     - no removal path for deleted bindings.
     Impact: global list can drift from actual runtime semantics over long sessions.
 
-12. **`pkg/inspector/analysis` is currently not integrated into the smalltalk-inspector path**  
-    Where: `go-go-goja/pkg/inspector/analysis/*.go` (implemented), no references from `go-go-goja/cmd/smalltalk-inspector/app`  
-    Impact: new abstractions exist but no production usage; architecture intent not yet realized.
+12. **`pkg/inspector/analysis` was not integrated in the reviewed snapshot (now superseded)**  
+    Where at review time: `go-go-goja/pkg/inspector/analysis/*.go` with no references from `go-go-goja/cmd/smalltalk-inspector/app`  
+    Status at update time (2026-02-15): superseded by the `pkg/inspectorapi` cutover and subsequent integration work.
 
 ### Low Findings
 

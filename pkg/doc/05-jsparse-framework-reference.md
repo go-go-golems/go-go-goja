@@ -17,7 +17,7 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-`pkg/jsparse` is the reusable analysis framework extracted from the inspector prototype. It provides parser-facing data structures and helper APIs that other tools can build on: static diagnostics, dev tooling, completion endpoints, and source-to-AST mapping workflows.
+`pkg/jsparse` is the reusable low-level analysis framework extracted from the inspector prototype. It provides parser-facing data structures and helper APIs that other tools can build on: static diagnostics, dev tooling, completion endpoints, and source-to-AST mapping workflows.
 
 ## Import Path
 
@@ -42,7 +42,21 @@ Tool-specific (`cmd/inspector/app`):
 - pane synchronization UX
 - interactive drawer controls
 
-This boundary is the key contract: new tools should depend on `pkg/jsparse`, not inspector internals.
+This boundary is the key contract: parser-centric features should depend on `pkg/jsparse`, not inspector command internals.
+
+For user-facing workflow orchestration (document lifecycle, runtime merge, tree sync wrappers), prefer `pkg/inspectorapi` on top of `pkg/jsparse`.
+
+## When to Use `pkg/jsparse` vs `pkg/inspectorapi`
+
+Use `pkg/jsparse` when you need:
+- low-level parser/index/resolution primitives
+- custom completion heuristics and CST traversal logic
+- direct control over parse and index lifecycle
+
+Use `pkg/inspectorapi` when you need:
+- adapter-facing workflows for CLI/REST/LSP surfaces
+- session/document lifecycle and typed request/response contracts
+- a stable high-level facade that already composes `pkg/jsparse` + inspector packages
 
 ## Why Two Parsers
 
@@ -274,6 +288,7 @@ if errList, ok := res.ParseErr.(parser.ErrorList); ok && len(errList) > 0 {
 
 ## See Also
 
-- `inspector-example-user-guide` (`./06-inspector-example-user-guide.md`)
-- `repl-usage` (`./04-repl-usage.md`)
-- `async-patterns` (`./03-async-patterns.md`)
+- `glaze help inspectorapi-hybrid-service-guide`
+- `glaze help inspector-example-user-guide`
+- `glaze help repl-usage`
+- `glaze help async-patterns`

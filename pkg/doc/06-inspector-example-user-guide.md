@@ -1,7 +1,7 @@
 ---
 Title: Inspector Example User Guide
 Slug: inspector-example-user-guide
-Short: How to use cmd/inspector as an example consumer of pkg/jsparse
+Short: How to use cmd/inspector as an example consumer of pkg/jsparse and when to prefer pkg/inspectorapi
 Topics:
 - inspector
 - javascript
@@ -17,6 +17,8 @@ SectionType: Tutorial
 ---
 
 `cmd/inspector` is an example application that demonstrates how to consume the public `pkg/jsparse` APIs in a real terminal UX. Treat this command as a reference implementation, not as the reusable API layer itself.
+
+For production adapters and multi-surface integrations (CLI + REST + LSP), prefer orchestrating through `pkg/inspectorapi` and keep `pkg/jsparse` for lower-level parser/index operations.
 
 ## When to Use This Guide
 
@@ -45,6 +47,7 @@ go run ./cmd/inspector ../goja/testdata/sample.js
 - `cmd/inspector/main.go`: parses input file, builds `jsparse` analysis, launches TUI model
 - `cmd/inspector/app/`: UI and interaction logic only
 - `pkg/jsparse`: parser/index/resolution/completion framework
+- `pkg/inspectorapi`: user-facing orchestration layer for adapter-ready workflows
 
 This split makes it straightforward to replace the TUI while keeping analysis behavior stable.
 
@@ -75,7 +78,7 @@ root := ts.Parse([]byte(source))
 candidates := res.CompleteAt(root, row, col)
 ```
 
-From there, choose your own output surface (CLI JSON, HTTP API, LSP, logs).
+From there, choose your own output surface (CLI JSON, HTTP API, LSP, logs). If you are building a full adapter rather than a focused parser experiment, route the workflow through `pkg/inspectorapi`.
 
 ## Validation Checklist
 
@@ -102,6 +105,7 @@ GOWORK=off go test ./... -count=1
 
 ## See Also
 
-- `jsparse-framework-reference`
-- `repl-usage`
-- `creating-modules`
+- `glaze help jsparse-framework-reference`
+- `glaze help inspectorapi-hybrid-service-guide`
+- `glaze help repl-usage`
+- `glaze help creating-modules`

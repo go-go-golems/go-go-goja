@@ -12,6 +12,12 @@ created: 2026-02-14T13:10:00-05:00
 
 # Fix Plan — Smalltalk Inspector Bugs
 
+## Historical Status (Updated 2026-02-15)
+
+This document captures the tactical fix plan used during GOJA-026. It is preserved for implementation history, but parts of the orchestration guidance are superseded by later architectural work that introduced `pkg/inspectorapi` and extracted reusable inspector packages.
+
+Use this page to understand why fixes were made, not as the primary integration guide for current code.
+
 ## Overview
 
 Analysis uncovered **6 bugs** (3 original + 3 found during analysis). They share a common root cause: **the globals/members layer is static-only** and doesn't leverage the runtime session. The fix strategy is to bridge runtime introspection into the existing static data structures, preserving the Smalltalk-style class browser for classes while adding runtime-aware display for everything else.
