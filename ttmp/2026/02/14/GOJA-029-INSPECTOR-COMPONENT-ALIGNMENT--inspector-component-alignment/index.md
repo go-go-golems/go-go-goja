@@ -14,6 +14,8 @@ Owners: []
 RelatedFiles:
     - Path: go-go-goja/ttmp/2026/02/14/GOJA-029-INSPECTOR-COMPONENT-ALIGNMENT--inspector-component-alignment/design/01-component-alignment-implementation-plan.md
       Note: Primary implementation plan for this ticket
+    - Path: go-go-goja/ttmp/2026/02/14/GOJA-029-INSPECTOR-COMPONENT-ALIGNMENT--inspector-component-alignment/reference/01-diary.md
+      Note: Step-by-step implementation diary
     - Path: go-go-goja/cmd/smalltalk-inspector/app/model.go
       Note: Current monolithic state/model logic targeted for alignment
     - Path: go-go-goja/cmd/smalltalk-inspector/app/update.go
@@ -40,6 +42,7 @@ This ticket addresses GOJA-028 finding #5 by aligning `cmd/smalltalk-inspector` 
 ## Key Links
 
 - Implementation plan: `design/01-component-alignment-implementation-plan.md`
+- Diary: `reference/01-diary.md`
 - Tasks: `tasks.md`
 - Changelog: `changelog.md`
 

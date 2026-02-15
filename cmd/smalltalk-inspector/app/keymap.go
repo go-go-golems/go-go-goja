@@ -21,25 +21,27 @@ const (
 	modeMembers = "members"
 	modeSource  = "source"
 	modeRepl    = "repl"
+	modeInspect = "inspect"
+	modeStack   = "stack"
 )
 
 // KeyMap defines key bindings for the smalltalk inspector.
 type KeyMap struct {
-	Quit    key.Binding
-	Command key.Binding
+	Quit    key.Binding `keymap-mode:"*"`
+	Command key.Binding `keymap-mode:"*"`
 
-	NextPane key.Binding
-	PrevPane key.Binding
+	NextPane key.Binding `keymap-mode:"*"`
+	PrevPane key.Binding `keymap-mode:"*"`
 
-	Up       key.Binding
-	Down     key.Binding
-	Top      key.Binding
-	Bottom   key.Binding
-	HalfDown key.Binding
-	HalfUp   key.Binding
+	Up       key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
+	Down     key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
+	Top      key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
+	Bottom   key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
+	HalfDown key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
+	HalfUp   key.Binding `keymap-mode:"globals,members,source,repl,inspect,stack"`
 
-	Select key.Binding
-	Back   key.Binding
+	Select key.Binding `keymap-mode:"globals,members,repl,inspect"`
+	Back   key.Binding `keymap-mode:"*"`
 }
 
 func newKeyMap() KeyMap {

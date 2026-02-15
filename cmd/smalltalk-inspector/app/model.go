@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja/ast"
+	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
 	inspectorcore "github.com/go-go-golems/go-go-goja/pkg/inspector/core"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
@@ -136,6 +137,7 @@ func NewModel(filename string) Model {
 	if parser, err := jsparse.NewTSParser(); err == nil {
 		m.tsParser = parser
 	}
+	mode_keymap.EnableMode(&m.keyMap, m.mode)
 
 	return m
 }

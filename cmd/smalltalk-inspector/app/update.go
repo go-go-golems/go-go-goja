@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
+	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
@@ -34,10 +35,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sourceLines = strings.Split(msg.Source, "\n")
 		m.rebuildFileSyntaxSpans(msg.Source)
 		m.loaded = true
-		m.mode = modeGlobals
 		m.focus = FocusGlobals
 		m.sourceTarget = -1
 		m.sourceScroll = 0
+		m.updateMode()
 
 		// Initialize runtime session BEFORE building globals/members
 		// so buildValueMembers() can use it for runtime introspection.
@@ -60,6 +61,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.replError = ""
 		m.inspectObj = nil
 		m.inspectProps = nil
+		m.updateMode()
 		return m, nil
 
 	case MsgFileLoadError:
@@ -89,10 +91,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.sourceTarget = info.Frames[0].Line - 1
 					m.ensureSourceVisible(m.sourceTarget)
 				}
+				m.updateMode()
 			} else {
 				m.replError = msg.Result.Error.Error()
 				m.errorInfo = nil
 				m.showingError = false
+				m.updateMode()
 			}
 		} else {
 			m.replError = ""
@@ -114,6 +118,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.inspectProps = nil
 				}
 			}
+			m.updateMode()
 		}
 		m.replHistory = append(m.replHistory, msg.Result.Expression)
 
@@ -169,6 +174,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.inspectProps = nil
 			m.inspectLabel = ""
 			m.showingReplSrc = false
+			m.updateMode()
 			return m, nil
 		}
 		m.statusMsg = ""
@@ -241,6 +247,16 @@ func (m *Model) cyclePane(dir int) {
 }
 
 func (m *Model) updateMode() {
+	if m.showingError && m.errorInfo != nil && m.focus != FocusRepl {
+		m.mode = modeStack
+		mode_keymap.EnableMode(&m.keyMap, m.mode)
+		return
+	}
+	if m.inspectObj != nil && m.focus != FocusRepl {
+		m.mode = modeInspect
+		mode_keymap.EnableMode(&m.keyMap, m.mode)
+		return
+	}
 	switch m.focus {
 	case FocusGlobals:
 		m.mode = modeGlobals
@@ -253,6 +269,7 @@ func (m *Model) updateMode() {
 	default:
 		m.mode = modeEmpty
 	}
+	mode_keymap.EnableMode(&m.keyMap, m.mode)
 }
 
 func (m Model) handleGlobalsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
