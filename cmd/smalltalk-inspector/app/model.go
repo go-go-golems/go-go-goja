@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
+	"github.com/go-go-golems/bobatea/pkg/commandpalette"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
 	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextbar"
 	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextpanel"
@@ -102,6 +103,7 @@ type Model struct {
 	help            help.Model
 	spinner         spinner.Model
 	command         textinput.Model
+	commandPalette  commandpalette.Model
 	sourceViewport  viewport.Model
 	inspectViewport viewport.Model
 	stackViewport   viewport.Model
@@ -129,6 +131,9 @@ func NewModel(filename string) Model {
 	m.command.CharLimit = 256
 	m.command.Width = 60
 	m.command.Blur()
+	m.commandPalette = commandpalette.New()
+	m.commandPalette.SetMaxVisible(10)
+	m.setupCommandPaletteCommands()
 	m.sourceViewport = viewport.New(0, 0)
 	m.inspectViewport = viewport.New(0, 0)
 	m.stackViewport = viewport.New(0, 0)

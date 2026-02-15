@@ -31,6 +31,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.help.Width = msg.Width
 		m.command.Width = inspectorui.MaxInt(16, msg.Width-4)
+		m.commandPalette.SetSize(msg.Width, msg.Height)
 		return m, nil
 
 	case MsgFileLoaded:
@@ -153,6 +154,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshRuntimeGlobals()
 		return m, nil
 
+	case MsgCommandPaletteExec:
+		return m.executePaletteCommand(msg.Command)
+
 	case suggest.DebounceMsg:
 		return m, m.handleReplSuggestDebounce(msg)
 	case suggest.ResultMsg:
@@ -179,15 +183,19 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleCommandInput(msg)
 	}
 
+	if m.commandPalette.IsVisible() {
+		var cmd tea.Cmd
+		m.commandPalette, cmd = m.commandPalette.Update(msg)
+		return m, cmd
+	}
+
 	// Global bindings
 	if key.Matches(msg, m.keyMap.Quit) {
 		return m, tea.Quit
 	}
 
 	if key.Matches(msg, m.keyMap.Command) {
-		m.cmdActive = true
-		m.command.SetValue("")
-		m.command.Focus()
+		m.commandPalette.Show()
 		return m, nil
 	}
 

@@ -24,7 +24,8 @@ func (m Model) View() string {
 	} else {
 		out = m.renderLoadedView()
 	}
-	return m.applyReplWidgetOverlays(out)
+	out = m.applyReplWidgetOverlays(out)
+	return m.applyCommandPaletteOverlay(out)
 }
 
 func (m Model) renderEmptyView() string {
