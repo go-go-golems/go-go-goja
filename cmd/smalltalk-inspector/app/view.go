@@ -54,7 +54,7 @@ func (m Model) renderEmptyView() string {
 		lines = append(lines, "")
 	}
 
-	body := strings.Join(lines[:minInt(len(lines), bodyHeight)], "\n")
+	body := strings.Join(lines[:inspectorui.MinInt(len(lines), bodyHeight)], "\n")
 
 	parts := []string{header, body, repl, status, helpView}
 	if m.cmdActive {
@@ -137,7 +137,7 @@ func (m Model) renderErrorView(header, status, helpView, repl string, contentHei
 
 	// Error banner
 	errorBanner := styleReplError.Render(" ✗ " + m.errorInfo.Message + " ")
-	bannerLine := errorBanner + styleSeparator.Render(strings.Repeat("─", maxInt(0, m.width-ansi.StringWidth(errorBanner))))
+	bannerLine := errorBanner + styleSeparator.Render(strings.Repeat("─", inspectorui.MaxInt(0, m.width-ansi.StringWidth(errorBanner))))
 	contentHeight-- // banner takes one line
 
 	stackPane := m.renderStackPane(stackWidth, contentHeight)
@@ -145,7 +145,7 @@ func (m Model) renderErrorView(header, status, helpView, repl string, contentHei
 
 	content := lipgloss.JoinHorizontal(lipgloss.Top, stackPane, sourcePane)
 
-	parts := []string{header, padRight(bannerLine, m.width), content, repl, status, helpView}
+	parts := []string{header, inspectorui.PadRight(bannerLine, m.width), content, repl, status, helpView}
 	if m.cmdActive {
 		parts = append(parts, m.renderCommandLine())
 	}
@@ -155,7 +155,7 @@ func (m Model) renderErrorView(header, status, helpView, repl string, contentHei
 func (m Model) renderStackPane(width, height int) string {
 	label := " Call Stack "
 	headerLine := stylePaneHeaderActive.Render(label) +
-		styleSeparator.Render(strings.Repeat("─", maxInt(0, width-ansi.StringWidth(label))))
+		styleSeparator.Render(strings.Repeat("─", inspectorui.MaxInt(0, width-ansi.StringWidth(label))))
 
 	contentHeight := height - 1
 	if contentHeight < 1 {
@@ -164,7 +164,7 @@ func (m Model) renderStackPane(width, height int) string {
 
 	var rows []string
 	if m.errorInfo == nil || len(m.errorInfo.Frames) == 0 {
-		rows = append(rows, padRight(styleEmptyHint.Render(" (no stack frames)"), width))
+		rows = append(rows, inspectorui.PadRight(styleEmptyHint.Render(" (no stack frames)"), width))
 	} else {
 		for i, frame := range m.errorInfo.Frames {
 			marker := "  "
@@ -174,7 +174,7 @@ func (m Model) renderStackPane(width, height int) string {
 
 			line := fmt.Sprintf("%s#%d  %-16s  %s:%d:%d",
 				marker, i, frame.FunctionName, frame.FileName, frame.Line, frame.Column)
-			rows = append(rows, padRight(line, width))
+			rows = append(rows, inspectorui.PadRight(line, width))
 		}
 	}
 
@@ -186,7 +186,7 @@ func (m Model) renderStackPane(width, height int) string {
 	body := lipgloss.NewStyle().Width(width).Height(contentHeight).Render(vp.View())
 	pane := lipgloss.JoinVertical(
 		lipgloss.Left,
-		padRight(headerLine, width),
+		inspectorui.PadRight(headerLine, width),
 		body,
 	)
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(pane)
@@ -211,7 +211,7 @@ func (m Model) renderInspectView(header, status, helpView, repl string, contentH
 		}
 		crumbs = append(crumbs, m.inspectLabel)
 		breadcrumb = stylePaneHeaderActive.Render(" Breadcrumb: "+strings.Join(crumbs, " → ")+" ") +
-			styleSeparator.Render(strings.Repeat("─", maxInt(0, m.width-20)))
+			styleSeparator.Render(strings.Repeat("─", inspectorui.MaxInt(0, m.width-20)))
 		contentHeight-- // breadcrumb takes one line
 	}
 
@@ -223,7 +223,7 @@ func (m Model) renderInspectView(header, status, helpView, repl string, contentH
 	var parts []string
 	parts = append(parts, header)
 	if breadcrumb != "" {
-		parts = append(parts, padRight(breadcrumb, m.width))
+		parts = append(parts, inspectorui.PadRight(breadcrumb, m.width))
 	}
 	parts = append(parts, content, repl, status, helpView)
 	if m.cmdActive {
@@ -239,7 +239,7 @@ func (m Model) renderInspectPane(width, height int) string {
 		label = label[:width-2]
 	}
 	headerLine := stylePaneHeaderActive.Render(label) +
-		styleSeparator.Render(strings.Repeat("─", maxInt(0, width-ansi.StringWidth(label))))
+		styleSeparator.Render(strings.Repeat("─", inspectorui.MaxInt(0, width-ansi.StringWidth(label))))
 
 	contentHeight := height - 1
 	if contentHeight < 1 {
@@ -270,11 +270,11 @@ func (m Model) renderInspectPane(width, height int) string {
 		}
 
 		line := marker + iconStyled + "  " + name + " : " + prop.Preview + kindLabel
-		rows = append(rows, padRight(line, width))
+		rows = append(rows, inspectorui.PadRight(line, width))
 	}
 
 	if len(rows) == 0 {
-		rows = append(rows, padRight(styleEmptyHint.Render(" (no properties)"), width))
+		rows = append(rows, inspectorui.PadRight(styleEmptyHint.Render(" (no properties)"), width))
 	}
 
 	vp := m.inspectViewport
@@ -285,7 +285,7 @@ func (m Model) renderInspectPane(width, height int) string {
 	body := lipgloss.NewStyle().Width(width).Height(contentHeight).Render(vp.View())
 	pane := lipgloss.JoinVertical(
 		lipgloss.Left,
-		padRight(headerLine, width),
+		inspectorui.PadRight(headerLine, width),
 		body,
 	)
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(pane)
@@ -300,8 +300,8 @@ func (m Model) renderGlobalsPane(width, height int) string {
 	if m.focus == FocusGlobals {
 		hStyle = stylePaneHeaderActive
 	}
-	headerLine := hStyle.Render(label) + styleSeparator.Render(strings.Repeat("─", maxInt(0, width-ansi.StringWidth(label))))
-	lines = append(lines, padRight(headerLine, width))
+	headerLine := hStyle.Render(label) + styleSeparator.Render(strings.Repeat("─", inspectorui.MaxInt(0, width-ansi.StringWidth(label))))
+	lines = append(lines, inspectorui.PadRight(headerLine, width))
 
 	contentHeight := height - 2 // header + footer
 	if contentHeight < 1 {
@@ -309,7 +309,7 @@ func (m Model) renderGlobalsPane(width, height int) string {
 	}
 
 	if len(m.globals) == 0 {
-		lines = append(lines, padRight(styleEmptyHint.Render(" (no globals)"), width))
+		lines = append(lines, inspectorui.PadRight(styleEmptyHint.Render(" (no globals)"), width))
 		for len(lines) < height-1 {
 			lines = append(lines, strings.Repeat(" ", width))
 		}
@@ -341,7 +341,7 @@ func (m Model) renderGlobalsPane(width, height int) string {
 			}
 
 			line := marker + iconStyled + "  " + name + ext
-			lines = append(lines, padRight(line, width))
+			lines = append(lines, inspectorui.PadRight(line, width))
 		}
 		for len(lines) < height-1 {
 			lines = append(lines, strings.Repeat(" ", width))
@@ -349,7 +349,7 @@ func (m Model) renderGlobalsPane(width, height int) string {
 	}
 
 	footer := fmt.Sprintf(" %d bindings", len(m.globals))
-	lines = append(lines, padRight(styleGutterNormal.Render(footer), width))
+	lines = append(lines, inspectorui.PadRight(styleGutterNormal.Render(footer), width))
 
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 }
@@ -366,8 +366,8 @@ func (m Model) renderMembersPane(width, height int) string {
 	if m.focus == FocusMembers {
 		hStyle = stylePaneHeaderActive
 	}
-	headerLine := hStyle.Render(label) + styleSeparator.Render(strings.Repeat("─", maxInt(0, width-ansi.StringWidth(label))))
-	lines = append(lines, padRight(headerLine, width))
+	headerLine := hStyle.Render(label) + styleSeparator.Render(strings.Repeat("─", inspectorui.MaxInt(0, width-ansi.StringWidth(label))))
+	lines = append(lines, inspectorui.PadRight(headerLine, width))
 
 	contentHeight := height - 2
 	if contentHeight < 1 {
@@ -379,7 +379,7 @@ func (m Model) renderMembersPane(width, height int) string {
 		if len(m.globals) > 0 {
 			hint = " (no members)"
 		}
-		lines = append(lines, padRight(styleEmptyHint.Render(hint), width))
+		lines = append(lines, inspectorui.PadRight(styleEmptyHint.Render(hint), width))
 		for len(lines) < height-1 {
 			lines = append(lines, strings.Repeat(" ", width))
 		}
@@ -396,7 +396,7 @@ func (m Model) renderMembersPane(width, height int) string {
 			if mem.Inherited && !lastInherited && rendered < contentHeight {
 				if rendered > 0 {
 					inhHeader := styleInheritedHeader.Render(fmt.Sprintf(" ── inherited (%s) ", mem.Source))
-					lines = append(lines, padRight(inhHeader, width))
+					lines = append(lines, inspectorui.PadRight(inhHeader, width))
 					rendered++
 					if rendered >= contentHeight {
 						break
@@ -420,7 +420,7 @@ func (m Model) renderMembersPane(width, height int) string {
 			}
 
 			line := marker + iconStyled + "  " + mem.Name + mem.Preview
-			lines = append(lines, padRight(line, width))
+			lines = append(lines, inspectorui.PadRight(line, width))
 			rendered++
 		}
 
@@ -449,7 +449,7 @@ func (m Model) renderMembersPane(width, height int) string {
 		}
 	}
 	footer := styleProtoChain.Render(" " + protoInfo)
-	lines = append(lines, padRight(footer, width))
+	lines = append(lines, inspectorui.PadRight(footer, width))
 
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 }
@@ -471,7 +471,7 @@ func (m Model) renderSourcePane(width, height int) string {
 	if m.focus == FocusSource {
 		hStyle = stylePaneHeaderActive
 	}
-	headerLine := hStyle.Render(label) + styleSeparator.Render(strings.Repeat("─", maxInt(0, width-ansi.StringWidth(label))))
+	headerLine := hStyle.Render(label) + styleSeparator.Render(strings.Repeat("─", inspectorui.MaxInt(0, width-ansi.StringWidth(label))))
 
 	contentHeight := height - 1
 	if contentHeight < 1 {
@@ -481,7 +481,7 @@ func (m Model) renderSourcePane(width, height int) string {
 	var rows []string
 
 	if len(srcLines) == 0 {
-		rows = append(rows, padRight(styleEmptyHint.Render(" (no source)"), width))
+		rows = append(rows, inspectorui.PadRight(styleEmptyHint.Render(" (no source)"), width))
 	} else {
 		// Select the right syntax spans
 		var syntaxSpans []jsparse.SyntaxSpan
@@ -511,7 +511,7 @@ func (m Model) renderSourcePane(width, height int) string {
 			}
 
 			line := gutter + content
-			rows = append(rows, padRight(line, width))
+			rows = append(rows, inspectorui.PadRight(line, width))
 		}
 	}
 
@@ -523,7 +523,7 @@ func (m Model) renderSourcePane(width, height int) string {
 	body := lipgloss.NewStyle().Width(width).Height(contentHeight).Render(vp.View())
 	pane := lipgloss.JoinVertical(
 		lipgloss.Left,
-		padRight(headerLine, width),
+		inspectorui.PadRight(headerLine, width),
 		body,
 	)
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(pane)
@@ -550,7 +550,7 @@ func (m Model) renderReplArea() string {
 	if m.focus == FocusRepl {
 		hStyle = stylePaneHeaderActive
 	}
-	separator := hStyle.Render(label) + styleSeparator.Render(strings.Repeat("─", maxInt(0, m.width-len(label))))
+	separator := hStyle.Render(label) + styleSeparator.Render(strings.Repeat("─", inspectorui.MaxInt(0, m.width-len(label))))
 
 	// Result/error line
 	var resultLine string
@@ -573,9 +573,9 @@ func (m Model) renderReplArea() string {
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left,
-		padRight(separator, m.width),
-		padRight(resultLine, m.width),
-		padRight(promptLine, m.width),
+		inspectorui.PadRight(separator, m.width),
+		inspectorui.PadRight(resultLine, m.width),
+		inspectorui.PadRight(promptLine, m.width),
 	)
 }
 
@@ -598,7 +598,7 @@ func (m Model) renderStatusBar() string {
 		parts = append(parts, m.statusMsg)
 	}
 
-	return styleStatus.Width(m.width).Render(formatStatus(parts...))
+	return styleStatus.Width(m.width).Render(inspectorui.FormatStatus(parts...))
 }
 
 func (m Model) renderHelp() string {
@@ -607,13 +607,4 @@ func (m Model) renderHelp() string {
 
 func (m Model) renderCommandLine() string {
 	return styleCommandLine.Width(m.width).Render(m.command.View())
-}
-
-// padRight pads a (possibly ANSI-styled) string to exactly the given visible width.
-func padRight(s string, width int) string {
-	w := ansi.StringWidth(s)
-	if w >= width {
-		return ansi.Truncate(s, width, "")
-	}
-	return s + strings.Repeat(" ", width-w)
 }

@@ -19,31 +19,39 @@ RelatedFiles:
         Initial mode activation at model construction
         Viewport model fields and pane height helpers
         Source viewport state and active-source helper in Step 4
+        Removal of duplicated utility functions
     - Path: cmd/smalltalk-inspector/app/update.go
       Note: |-
         Mode update + mode-keymap activation logic
         Mode transitions and selected-row visibility synchronization
         Globals/members visibility wiring to shared helper
         Source key handling migration to viewport offset
+        Utility callsite rewiring
     - Path: cmd/smalltalk-inspector/app/view.go
       Note: |-
         Viewport-backed inspect/stack rendering
         Globals/members visible window migration
         Viewport-backed source pane rendering
+        Status/padding callsite rewiring
     - Path: internal/inspectorui/listpane.go
       Note: Shared list pane helper added in Step 3
     - Path: internal/inspectorui/listpane_test.go
       Note: Listpane invariants test coverage
+    - Path: internal/inspectorui/util.go
+      Note: Shared utility helper extraction in Step 5
+    - Path: internal/inspectorui/util_test.go
+      Note: Utility helper test coverage
     - Path: internal/inspectorui/viewportpane.go
       Note: |-
         Viewport row visibility utility introduced in Step 2
         Shared viewport offset clamp helper
 ExternalSources: []
 Summary: Execution diary for GOJA-029 component alignment implementation.
-LastUpdated: 2026-02-15T00:30:00Z
+LastUpdated: 2026-02-15T00:45:00Z
 WhatFor: Track step-by-step migration progress and verification outputs.
 WhenToUse: Use while implementing and reviewing GOJA-029.
 ---
+
 
 
 
@@ -299,3 +307,81 @@ I kept jump-to-source behavior by setting a centered target offset first and the
 ### Technical details
 
 - Jump-to-target keeps centering intent by seeding `sourceViewport.YOffset` with `targetLine - viewportHeight/2` before applying shared row-visibility constraints.
+
+## Step 5: Shared utility consolidation (`PadRight`, min/max, status formatting)
+
+This slice completed the helper-consolidation part of GOJA-029 by moving common integer/layout/status helpers out of the app package into `internal/inspectorui`. The app now consumes shared helpers instead of private package-level utility functions.
+
+The migration was mechanical but broad, so I added focused unit tests for the new utility helpers to reduce the chance of subtle regressions in truncation/joining behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Continue GOJA-029 task-by-task and commit each completed slice with diary updates.
+
+**Inferred user intent:** Finish the cleanup ticket with reusable shared primitives and clear auditability.
+
+### What I did
+
+- Added `internal/inspectorui/util.go`:
+  - `MaxInt`, `MinInt`
+  - `PadRight` (ANSI-width aware)
+  - `FormatStatus`
+- Added `internal/inspectorui/util_test.go` covering utility behavior.
+- Rewired app usage in:
+  - `cmd/smalltalk-inspector/app/update.go` for `MinInt/MaxInt` callsites.
+  - `cmd/smalltalk-inspector/app/view.go` for `PadRight` and `FormatStatus`.
+- Removed now-duplicated local helper functions from:
+  - `cmd/smalltalk-inspector/app/model.go` (`maxInt`, `minInt`, `formatStatus`)
+  - `cmd/smalltalk-inspector/app/view.go` (`padRight`)
+- Ran:
+  - `go test ./internal/inspectorui -count=1`
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+
+### Why
+
+- GOJA-029 task 9 explicitly targets duplicated utility logic.
+- Shared utility functions reduce drift and make upcoming component extraction cleaner.
+
+### What worked
+
+- Utility extraction was successful with no behavior regressions in targeted tests.
+- Shared helpers are now used consistently from `internal/inspectorui`.
+
+### What didn't work
+
+- A broad text replacement temporarily produced an invalid function declaration (`func inspectorui.PadRight(...)` in `view.go`); corrected by removing the stale local function block.
+
+### What I learned
+
+- Even straightforward helper extraction benefits from explicit unit tests, especially for output-formatting helpers used across many render paths.
+
+### What was tricky to build
+
+- The migration touched many render callsites; care was needed to ensure all helper references moved together so no stale local utility symbols remained.
+
+### What warrants a second pair of eyes
+
+- Verify status-line and ANSI padding still render correctly in narrow terminals and mixed-style output.
+
+### What should be done in the future
+
+- Implement task 10 interaction tests (navigation visibility + mode-keymap behavior), then close done-criteria tasks.
+
+### Code review instructions
+
+- Review `go-go-goja/internal/inspectorui/util.go` + `go-go-goja/internal/inspectorui/util_test.go`.
+- Then review callsite rewiring in:
+  - `go-go-goja/cmd/smalltalk-inspector/app/update.go`
+  - `go-go-goja/cmd/smalltalk-inspector/app/view.go`
+  - `go-go-goja/cmd/smalltalk-inspector/app/model.go`
+- Validate with:
+  - `go test ./internal/inspectorui -count=1`
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+
+### Technical details
+
+- `PadRight` remains ANSI-width aware and truncation-safe by centralizing the previous view-level implementation.

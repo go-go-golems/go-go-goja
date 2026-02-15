@@ -642,20 +642,6 @@ func memberKindIcon(k string) string {
 	}
 }
 
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // refreshRuntimeGlobals merges newly-defined runtime globals into the globals list.
 func (m *Model) refreshRuntimeGlobals() {
 	if m.rtSession == nil {
@@ -783,14 +769,4 @@ func isBuiltinGlobal(name string) bool {
 		"SharedArrayBuffer": true, "Atomics": true, "WeakRef": true, "FinalizationRegistry": true,
 	}
 	return builtins[name]
-}
-
-func formatStatus(parts ...string) string {
-	var nonEmpty []string
-	for _, p := range parts {
-		if p != "" {
-			nonEmpty = append(nonEmpty, p)
-		}
-	}
-	return strings.Join(nonEmpty, " │ ")
 }

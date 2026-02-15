@@ -26,7 +26,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.help.Width = msg.Width
-		m.command.Width = maxInt(16, msg.Width-4)
+		m.command.Width = inspectorui.MaxInt(16, msg.Width-4)
 		return m, nil
 
 	case MsgFileLoaded:
@@ -317,14 +317,14 @@ func (m Model) handleGlobalsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.HalfDown) {
-		m.globalIdx = minInt(m.globalIdx+m.listViewportHeight()/2, len(m.globals)-1)
+		m.globalIdx = inspectorui.MinInt(m.globalIdx+m.listViewportHeight()/2, len(m.globals)-1)
 		m.ensureGlobalsVisible()
 		m.buildMembers()
 		m.jumpToSource()
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.HalfUp) {
-		m.globalIdx = maxInt(m.globalIdx-m.listViewportHeight()/2, 0)
+		m.globalIdx = inspectorui.MaxInt(m.globalIdx-m.listViewportHeight()/2, 0)
 		m.ensureGlobalsVisible()
 		m.buildMembers()
 		m.jumpToSource()
@@ -390,13 +390,13 @@ func (m Model) handleMembersKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.HalfDown) {
-		m.memberIdx = minInt(m.memberIdx+m.listViewportHeight()/2, len(m.members)-1)
+		m.memberIdx = inspectorui.MinInt(m.memberIdx+m.listViewportHeight()/2, len(m.members)-1)
 		m.ensureMembersVisible()
 		m.jumpToSource()
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.HalfUp) {
-		m.memberIdx = maxInt(m.memberIdx-m.listViewportHeight()/2, 0)
+		m.memberIdx = inspectorui.MaxInt(m.memberIdx-m.listViewportHeight()/2, 0)
 		m.ensureMembersVisible()
 		m.jumpToSource()
 		return m, nil
