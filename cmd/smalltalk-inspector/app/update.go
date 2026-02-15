@@ -467,9 +467,9 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Extract declared names for const/let tracking
-		declNames := extractDeclaredNames(expr)
-		m.replDefinedNames = append(m.replDefinedNames, declNames...)
+		// Parser-backed declaration extraction for REPL-defined bindings.
+		declared := inspectoranalysis.DeclaredBindingsFromSource(expr)
+		m.replDeclared = append(m.replDeclared, declared...)
 
 		// Evaluate synchronously (expressions should be fast)
 		result := m.rtSession.EvalWithCapture(expr)
