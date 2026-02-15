@@ -7,6 +7,16 @@ topics:
       description: Migration planning and execution
     - slug: tooling
       description: Developer tooling and utilities
+    - slug: go
+      description: Go language
+    - slug: tui
+      description: Terminal user interfaces
+    - slug: inspector
+      description: Inspector tooling and workflows
+    - slug: refactor
+      description: Codebase refactor and cleanup work
+    - slug: ui
+      description: User interface work
 docTypes:
     - slug: index
       description: Ticket index documents
@@ -18,3 +28,5 @@ intent:
 status:
     - slug: active
       description: Active in-progress ticket
+    - slug: complete
+      description: Completed ticket

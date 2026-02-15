@@ -10,6 +10,7 @@ type NodeRecord = jsparse.NodeRecord
 type Index = jsparse.Index
 type Resolution = jsparse.Resolution
 type BindingRecord = jsparse.BindingRecord
+type ScopeID = jsparse.ScopeID
 
 type CompletionContext = jsparse.CompletionContext
 type CompletionKind = jsparse.CompletionKind

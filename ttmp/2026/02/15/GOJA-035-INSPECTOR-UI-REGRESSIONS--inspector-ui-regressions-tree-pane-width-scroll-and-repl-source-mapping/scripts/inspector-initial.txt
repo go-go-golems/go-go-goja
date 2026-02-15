@@ -1,0 +1,30 @@
+  8   theme: "dark",
+  9   fontSize: 14,
+ 10   lineNumbers: true,                                   ▼ LexicalDeclaration const
+ 11 };
+ 12
+ 13 class Shape {                                            ▶ Binding
+ 14   constructor(color) {
+ 15     this.color = color;
+ 16     this.visible = true;                               ▼ LexicalDeclaration const
+ 17   }
+ 18
+ 19   describe() {                                           ▶ Binding
+ 20     return `A ${this.color} shape`;
+ 21   }
+ 22                                                        ▼ ClassDeclaration "Shape"
+ 23   hide() {
+ 24     this.visible = false;
+ 25   }                                                      ▶ ClassLiteral "Shape"
+ 26 }
+
+                                                           ▼ ClassDeclaration "Circle"
+
+                                                       ───────────────────────────────────────────────────────
+                                                        Field             Value
+                                                        Focus             source
+                                                        Node              Program
+                                                        Span              [161..1792]
+                                                        Lines             4:1 → 92:2
+ ✓ parse ok │ nodes: 332 │ selected: Program [161..1792] (4:1 → 92:2) │ cursor: 1:1
+ tab next pane • i drawer • : command • d/ctrl+d go to def • esc close/clear • q/ctrl+c quit

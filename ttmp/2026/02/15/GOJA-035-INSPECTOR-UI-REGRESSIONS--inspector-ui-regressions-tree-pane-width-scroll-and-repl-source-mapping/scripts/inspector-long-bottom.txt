@@ -1,0 +1,24 @@
+  2   deeplyNestedPropertyWithVerboseNameOne: {       ▶ BinaryExpression <
+  3     deeplyNestedPropertyWithVerboseNameTwo:
+  4       deeplyNestedPropertyWithVerboseNameThr
+  5         message: "this is a ridiculously lon      ▶ UnaryExpression ++
+  6       }
+  7     }
+  8   }                                         │     ▶ BlockStatement
+  9 };                                          │
+ 10
+ 11 function makeMonsterFunctionWithExtraLongNam
+ 12   const localBindingWithLongName = parameter
+ 13   return {
+ 14     localBindingWithLongName,
+ 15     nested: {
+ 16       desc: "another very long descriptor to
+ 17     }
+ 18   };                                        ────────────────────────────────────────────────
+ 19 }                                            Field             Value
+ 20                                              Focus             tree
+ 21 for (let i = 0; i < 80; i++) {               Node              BlockStatement
+                                                 Span              [893..970]
+                                                 Lines             21:30 → 23:2
+ ✓ parse ok │ nodes: 68 │ selected: BlockStatement [893..970] (21:30 → 23:2) │ cursor: 21:30
+ tab next pane • i drawer • : command • d/ctrl+d go to def • esc close/clear • q/ctrl+c quit

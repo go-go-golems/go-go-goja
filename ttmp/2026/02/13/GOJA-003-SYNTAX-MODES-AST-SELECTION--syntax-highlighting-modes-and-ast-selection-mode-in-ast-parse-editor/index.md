@@ -1,7 +1,7 @@
 ---
 Title: Syntax highlighting modes and AST selection mode in AST parse editor
 Ticket: GOJA-003-SYNTAX-MODES-AST-SELECTION
-Status: active
+Status: complete
 Topics:
     - goja
     - tooling
@@ -12,10 +12,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-02-13T16:25:48.834704166-05:00
+LastUpdated: 2026-02-14T20:00:09.025181979-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Syntax highlighting modes and AST selection mode in AST parse editor
 

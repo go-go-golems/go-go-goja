@@ -1,7 +1,7 @@
 ---
 Title: Live AST parse editor with tree-sitter and goja SEXP panes
 Ticket: GOJA-001-AST-PARSE-EDITOR
-Status: active
+Status: complete
 Topics:
     - goja
     - analysis
@@ -16,10 +16,11 @@ RelatedFiles:
       Note: Detailed diary of commands
 ExternalSources: []
 Summary: Ticket index for analysis and delivery artifacts for a live tree-sitter + goja AST SEXP editor design.
-LastUpdated: 2026-02-13T15:56:00-05:00
+LastUpdated: 2026-02-14T20:00:09.291765527-05:00
 WhatFor: Central navigation for GOJA-001-AST-PARSE-EDITOR docs and outcomes.
 WhenToUse: Use to quickly locate the analysis, diary, tasks, changelog, and upload destination.
 ---
+
 
 
 # Live AST parse editor with tree-sitter and goja SEXP panes

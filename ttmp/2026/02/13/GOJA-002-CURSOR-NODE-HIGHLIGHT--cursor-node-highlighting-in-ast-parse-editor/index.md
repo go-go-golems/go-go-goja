@@ -1,7 +1,7 @@
 ---
 Title: Cursor node highlighting in AST parse editor
 Ticket: GOJA-002-CURSOR-NODE-HIGHLIGHT
-Status: active
+Status: complete
 Topics:
     - goja
     - tooling
@@ -12,10 +12,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-02-13T16:25:48.75092543-05:00
+LastUpdated: 2026-02-14T20:00:09.178470739-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Cursor node highlighting in AST parse editor
 

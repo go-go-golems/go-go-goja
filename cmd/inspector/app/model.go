@@ -2,11 +2,21 @@ package app
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
+	inspectornav "github.com/go-go-golems/go-go-goja/pkg/inspector/navigation"
 )
 
 // FocusPane indicates which pane has focus.
@@ -16,6 +26,12 @@ const (
 	FocusSource FocusPane = iota
 	FocusTree
 	FocusDrawer
+)
+
+const (
+	modeSource = "source"
+	modeTree   = "tree"
+	modeDrawer = "drawer"
 )
 
 // SyncOrigin indicates the source of the last sync event.
@@ -40,12 +56,20 @@ type Model struct {
 	syncOrigin SyncOrigin
 	width      int
 	height     int
+	uiMode     string
+	keyMap     KeyMap
+	help       help.Model
+	spinner    spinner.Model
+	command    textinput.Model
+	commandOn  bool
+	commandMsg string
 
 	// Source pane state
 	sourceCursorLine int // 0-based
 	sourceCursorCol  int // 0-based
 	sourceScrollY    int // first visible line (0-based)
 	sourceLines      []string
+	sourceViewport   viewport.Model
 	highlightStart   int // 1-based offset or 0 for none
 	highlightEnd     int // 1-based offset exclusive or 0
 
@@ -53,6 +77,8 @@ type Model struct {
 	treeSelectedIdx  int      // index into visibleNodes
 	treeScrollY      int      // first visible row (0-based)
 	treeVisibleNodes []NodeID // cached visible node list
+	treeList         list.Model
+	metaTable        table.Model
 
 	// Selected node
 	selectedNodeID NodeID // -1 for none
@@ -78,7 +104,30 @@ func NewModel(filename, sourceText string, program interface{}, parseErr error, 
 		sourceLines:    lines,
 		selectedNodeID: -1,
 		focus:          FocusSource,
+		uiMode:         modeSource,
+		keyMap:         newKeyMap(),
 	}
+	m.help = help.New()
+	m.help.ShowAll = false
+	m.spinner = spinner.New(spinner.WithSpinner(spinner.Line))
+	m.sourceViewport = viewport.New(0, 0)
+	m.treeList = newTreeListModel()
+	m.command = textinput.New()
+	m.command.Prompt = ":"
+	m.command.Placeholder = "drawer | clear | help | quit"
+	m.command.CharLimit = 120
+	m.command.Width = 60
+	m.command.Blur()
+	m.metaTable = table.New(
+		table.WithColumns([]table.Column{
+			{Title: "Field", Width: 16},
+			{Title: "Value", Width: 40},
+		}),
+		table.WithRows(nil),
+		table.WithFocused(false),
+		table.WithHeight(5),
+	)
+	mode_keymap.EnableMode(&m.keyMap, m.uiMode)
 
 	if index != nil {
 		m.selectedNodeID = index.RootID
@@ -92,33 +141,44 @@ func NewModel(filename, sourceText string, program interface{}, parseErr error, 
 
 // Init implements tea.Model.
 func (m Model) Init() tea.Cmd {
-	return nil
+	return m.spinner.Tick
 }
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.help.Width = msg.Width
+		m.command.Width = maxInt(16, msg.Width-4)
+		m.rebuildTreeListItems()
 		return m, nil
 	}
 	return m, nil
 }
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.commandOn {
+		return m.handleCommandInput(msg)
+	}
+
 	// Drawer-focused keys
 	if m.focus == FocusDrawer {
 		return m.handleDrawerKey(msg)
 	}
 
-	switch msg.String() {
-	case "q", "ctrl+c":
+	if key.Matches(msg, m.keyMap.Quit) {
 		return m, tea.Quit
+	}
 
-	case "tab":
+	if key.Matches(msg, m.keyMap.NextPane) {
 		if m.drawerOpen {
 			switch m.focus {
 			case FocusSource:
@@ -135,22 +195,35 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.focus = FocusSource
 			}
 		}
+		m.updateInteractionMode()
 		return m, nil
+	}
 
-	case "i":
+	if key.Matches(msg, m.keyMap.OpenDrawer) {
 		if m.focus != FocusDrawer {
 			m.drawerOpen = true
 			m.focus = FocusDrawer
+			m.updateInteractionMode()
 		}
 		return m, nil
+	}
 
-	case "y":
+	if key.Matches(msg, m.keyMap.Command) {
+		m.commandOn = true
+		m.command.SetValue("")
+		m.command.Focus()
+		return m, nil
+	}
+
+	if key.Matches(msg, m.keyMap.Yank) {
 		// Yank selected node's source text to drawer
 		if m.index != nil && m.focus != FocusDrawer {
 			m.yankToDrawer()
 		}
 		return m, nil
+	}
 
+	switch msg.String() {
 	case "j", "down":
 		if m.focus == FocusSource {
 			m.sourceMoveCursor(1, 0)
@@ -208,10 +281,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.sourceCursorLine = 0
 			m.sourceCursorCol = 0
 			m.sourceScrollY = 0
+			m.sourceViewport.SetYOffset(0)
 			m.syncSourceToTree()
 		} else {
 			m.treeSelectedIdx = 0
 			m.treeScrollY = 0
+			m.treeList.Select(0)
 			m.syncTreeToSource()
 		}
 		return m, nil
@@ -225,6 +300,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			if len(m.treeVisibleNodes) > 0 {
 				m.treeSelectedIdx = len(m.treeVisibleNodes) - 1
+				m.treeList.Select(m.treeSelectedIdx)
 				m.ensureTreeSelectionVisible()
 				m.syncTreeToSource()
 			}
@@ -272,19 +348,72 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) handleCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "escape":
+		m.commandOn = false
+		m.command.Blur()
+		m.command.SetValue("")
+		return m, nil
+	case "enter":
+		cmd := strings.TrimSpace(m.command.Value())
+		m.commandOn = false
+		m.command.Blur()
+		m.command.SetValue("")
+		m.executeCommand(cmd)
+		if cmd == "quit" || cmd == "q" {
+			return m, tea.Quit
+		}
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.command, cmd = m.command.Update(msg)
+	return m, cmd
+}
+
+func (m *Model) executeCommand(cmd string) {
+	switch cmd {
+	case "":
+		m.commandMsg = ""
+	case "drawer":
+		m.drawerOpen = true
+		m.focus = FocusDrawer
+		m.updateInteractionMode()
+		m.commandMsg = "opened drawer"
+	case "clear":
+		m.clearHighlightUsages()
+		m.commandMsg = "cleared usage highlights"
+	case "help":
+		m.help.ShowAll = !m.help.ShowAll
+		if m.help.ShowAll {
+			m.commandMsg = "help: full"
+		} else {
+			m.commandMsg = "help: short"
+		}
+	case "q", "quit":
+		m.commandMsg = "quitting"
+	default:
+		m.commandMsg = fmt.Sprintf("unknown command: %s", cmd)
+	}
+}
+
 // --- Drawer key handling ---
 
 func (m Model) handleDrawerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	key := msg.String()
+	keyStr := msg.String()
 
-	switch key {
-	case "ctrl+c":
+	if key.Matches(msg, m.keyMap.Quit) {
 		return m, tea.Quit
+	}
+
+	switch keyStr {
 	case "q":
 		// In drawer, q types a character (not quit)
 	case "tab":
 		// Tab cycles focus
 		m.focus = FocusSource
+		m.updateInteractionMode()
 		return m, nil
 	case "esc", "escape":
 		if m.drawer.completionActive {
@@ -292,6 +421,7 @@ func (m Model) handleDrawerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.drawerOpen = false
 			m.focus = FocusSource
+			m.updateInteractionMode()
 		}
 		return m, nil
 	case "enter":
@@ -374,6 +504,20 @@ func (m Model) handleDrawerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m *Model) updateInteractionMode() {
+	switch m.focus {
+	case FocusSource:
+		m.uiMode = modeSource
+	case FocusTree:
+		m.uiMode = modeTree
+	case FocusDrawer:
+		m.uiMode = modeDrawer
+	default:
+		m.uiMode = modeSource
+	}
+	mode_keymap.EnableMode(&m.keyMap, m.uiMode)
 }
 
 func (m *Model) triggerDrawerCompletion() {
@@ -475,14 +619,7 @@ func (m *Model) drawerGoToDefinition() {
 	}
 
 	name := node.Text
-	// Look up in ALL scopes (not just global)
-	var binding *BindingRecord
-	for _, scope := range m.index.Resolution.Scopes {
-		if b, ok := scope.Bindings[name]; ok {
-			binding = b
-			break
-		}
-	}
+	binding := m.resolveDrawerBinding(name)
 	if binding == nil {
 		return
 	}
@@ -530,13 +667,7 @@ func (m *Model) drawerHighlightUsages() {
 	}
 
 	name := node.Text
-	var binding *BindingRecord
-	for _, scope := range m.index.Resolution.Scopes {
-		if b, ok := scope.Bindings[name]; ok {
-			binding = b
-			break
-		}
-	}
+	binding := m.resolveDrawerBinding(name)
 	if binding == nil {
 		m.clearHighlightUsages()
 		return
@@ -548,6 +679,107 @@ func (m *Model) drawerHighlightUsages() {
 		m.highlightedBinding = binding
 		m.usageHighlights = binding.AllUsages()
 	}
+}
+
+func (m *Model) resolveDrawerBinding(name string) *BindingRecord {
+	if name == "" || m.index == nil || m.index.Resolution == nil {
+		return nil
+	}
+
+	offset := m.drawerContextOffset()
+	if offset > 0 {
+		if scopeID, ok := m.innermostScopeAtOffset(offset); ok {
+			for sid := scopeID; sid >= 0; {
+				scope := m.index.Resolution.Scopes[sid]
+				if scope == nil {
+					break
+				}
+				if b, ok := scope.Bindings[name]; ok {
+					return b
+				}
+				sid = scope.ParentID
+			}
+		}
+	}
+
+	// Deterministic fallback for cases where we cannot infer a valid context offset.
+	scopeIDs := make([]int, 0, len(m.index.Resolution.Scopes))
+	for scopeID := range m.index.Resolution.Scopes {
+		scopeIDs = append(scopeIDs, int(scopeID))
+	}
+	sort.Ints(scopeIDs)
+	for _, sid := range scopeIDs {
+		scope := m.index.Resolution.Scopes[ScopeID(sid)]
+		if scope == nil {
+			continue
+		}
+		if b, ok := scope.Bindings[name]; ok {
+			return b
+		}
+	}
+
+	return nil
+}
+
+func (m *Model) drawerContextOffset() int {
+	if m.index == nil {
+		return 0
+	}
+	if node := m.index.Nodes[m.selectedNodeID]; node != nil {
+		return node.Start
+	}
+	if m.sourceCursorLine < 0 || m.sourceCursorCol < 0 {
+		return 0
+	}
+	return m.index.LineColToOffset(m.sourceCursorLine+1, m.sourceCursorCol+1)
+}
+
+func (m *Model) innermostScopeAtOffset(offset int) (ScopeID, bool) {
+	if m.index == nil || m.index.Resolution == nil {
+		return -1, false
+	}
+
+	bestID := ScopeID(-1)
+	bestSpan := 0
+	bestDepth := -1
+
+	for id, scope := range m.index.Resolution.Scopes {
+		if scope == nil {
+			continue
+		}
+		if scope.Start > offset || offset >= scope.End {
+			continue
+		}
+
+		span := scope.End - scope.Start
+		depth := m.scopeDepth(id)
+		if bestID < 0 || span < bestSpan || (span == bestSpan && depth > bestDepth) {
+			bestID = id
+			bestSpan = span
+			bestDepth = depth
+		}
+	}
+
+	if bestID < 0 {
+		return -1, false
+	}
+	return bestID, true
+}
+
+func (m *Model) scopeDepth(id ScopeID) int {
+	if m.index == nil || m.index.Resolution == nil {
+		return 0
+	}
+	depth := 0
+	for sid := id; sid >= 0; {
+		scope := m.index.Resolution.Scopes[sid]
+		if scope == nil {
+			break
+		}
+		depth++
+		sid = scope.ParentID
+	}
+	return depth
 }
 
 // --- Source pane methods ---
@@ -587,9 +819,13 @@ func (m *Model) ensureSourceCursorVisible() {
 	if m.sourceCursorLine >= m.sourceScrollY+vpHeight {
 		m.sourceScrollY = m.sourceCursorLine - vpHeight + 1
 	}
+	m.sourceViewport.SetYOffset(m.sourceScrollY)
 }
 
 func (m *Model) sourceViewportHeight() int {
+	if m.sourceViewport.Height > 0 {
+		return m.sourceViewport.Height
+	}
 	h := m.height - 4 // header + status + help + border
 	if h < 1 {
 		h = 1
@@ -597,39 +833,51 @@ func (m *Model) sourceViewportHeight() int {
 	return h
 }
 
-// sourceCursorOffset returns the 1-based byte offset for the current cursor position.
-func (m *Model) sourceCursorOffset() int {
-	offset := 0
-	for i := 0; i < m.sourceCursorLine && i < len(m.sourceLines); i++ {
-		offset += len(m.sourceLines[i]) + 1 // +1 for \n
-	}
-	col := m.sourceCursorCol
-	if m.sourceCursorLine < len(m.sourceLines) && col > len(m.sourceLines[m.sourceCursorLine]) {
-		col = len(m.sourceLines[m.sourceCursorLine])
-	}
-	offset += col
-	return offset + 1 // 1-based
-}
-
 // --- Tree pane methods ---
 
 func (m *Model) refreshTreeVisible() {
 	if m.index != nil {
 		m.treeVisibleNodes = m.index.VisibleNodes()
+		m.rebuildTreeListItems()
 	}
+}
+
+func (m *Model) rebuildTreeListItems() {
+	maxTitleWidth := m.treePaneWidth() - 4
+	items := make([]list.Item, 0, len(m.treeVisibleNodes))
+	for _, nodeID := range m.treeVisibleNodes {
+		node := m.index.Nodes[nodeID]
+		if node == nil {
+			continue
+		}
+		items = append(items, buildTreeListItem(node, m.usageHighlights, m.index.Resolution, maxTitleWidth))
+	}
+	_ = m.treeList.SetItems(items)
+	if len(items) == 0 {
+		m.treeSelectedIdx = 0
+		return
+	}
+	if m.treeSelectedIdx < 0 {
+		m.treeSelectedIdx = 0
+	}
+	if m.treeSelectedIdx >= len(items) {
+		m.treeSelectedIdx = len(items) - 1
+	}
+	m.treeList.Select(m.treeSelectedIdx)
 }
 
 func (m *Model) treeMoveSelection(delta int) {
 	if len(m.treeVisibleNodes) == 0 {
 		return
 	}
-	m.treeSelectedIdx += delta
+	m.treeSelectedIdx = m.treeList.Index() + delta
 	if m.treeSelectedIdx < 0 {
 		m.treeSelectedIdx = 0
 	}
 	if m.treeSelectedIdx >= len(m.treeVisibleNodes) {
 		m.treeSelectedIdx = len(m.treeVisibleNodes) - 1
 	}
+	m.treeList.Select(m.treeSelectedIdx)
 	m.selectedNodeID = m.treeVisibleNodes[m.treeSelectedIdx]
 	m.ensureTreeSelectionVisible()
 }
@@ -645,6 +893,7 @@ func (m *Model) treeToggleSelected() {
 	if m.treeSelectedIdx >= len(m.treeVisibleNodes) {
 		m.treeSelectedIdx = len(m.treeVisibleNodes) - 1
 	}
+	m.treeList.Select(m.treeSelectedIdx)
 }
 
 func (m *Model) treeExpandSelected() {
@@ -682,16 +931,11 @@ func (m *Model) treeCollapseSelected() {
 }
 
 func (m *Model) ensureTreeSelectionVisible() {
-	vpHeight := m.treeViewportHeight()
-	if vpHeight <= 0 {
+	if len(m.treeVisibleNodes) == 0 {
 		return
 	}
-	if m.treeSelectedIdx < m.treeScrollY {
-		m.treeScrollY = m.treeSelectedIdx
-	}
-	if m.treeSelectedIdx >= m.treeScrollY+vpHeight {
-		m.treeScrollY = m.treeSelectedIdx - vpHeight + 1
-	}
+	m.treeSelectedIdx = m.treeList.Index()
+	m.treeScrollY = m.treeSelectedIdx
 }
 
 func (m *Model) treeViewportHeight() int {
@@ -702,54 +946,71 @@ func (m *Model) treeViewportHeight() int {
 	return h
 }
 
+func (m *Model) treePaneWidth() int {
+	if m.width <= 0 {
+		return 40
+	}
+
+	leftWidth := (m.width * 3) / 5
+	rightWidth := m.width - leftWidth
+
+	if rightWidth < 28 {
+		rightWidth = 28
+		leftWidth = m.width - rightWidth
+	}
+	if leftWidth < 30 {
+		leftWidth = 30
+		rightWidth = m.width - leftWidth
+	}
+	if rightWidth < 16 {
+		rightWidth = 16
+	}
+	return rightWidth
+}
+
 // --- Sync methods ---
 
 func (m *Model) syncSourceToTree() {
 	if m.index == nil {
 		return
 	}
-	offset := m.sourceCursorOffset()
-	best := m.index.NodeAtOffset(offset)
-	if best != nil {
-		m.selectedNodeID = best.ID
-		m.syncOrigin = SyncFromSource
-
-		// Ensure ancestors are expanded so node is visible
-		m.index.ExpandTo(best.ID)
-		m.refreshTreeVisible()
-
-		// Find the node in visible list
-		for i, vid := range m.treeVisibleNodes {
-			if vid == best.ID {
-				m.treeSelectedIdx = i
-				break
-			}
-		}
-		m.ensureTreeSelectionVisible()
-
-		// Set highlight
-		m.highlightStart = best.Start
-		m.highlightEnd = best.End
+	selection, ok := inspectornav.SelectionAtSourceCursor(m.index, m.sourceLines, m.sourceCursorLine, m.sourceCursorCol)
+	if !ok {
+		return
 	}
+
+	m.selectedNodeID = selection.NodeID
+	m.syncOrigin = SyncFromSource
+
+	// Ensure ancestors are expanded so node is visible.
+	m.index.ExpandTo(selection.NodeID)
+	m.refreshTreeVisible()
+
+	visibleIdx := inspectornav.FindVisibleNodeIndex(m.treeVisibleNodes, selection.NodeID)
+	if visibleIdx >= 0 {
+		m.treeSelectedIdx = visibleIdx
+		m.treeList.Select(m.treeSelectedIdx)
+		m.ensureTreeSelectionVisible()
+	}
+
+	m.highlightStart = selection.HighlightStart
+	m.highlightEnd = selection.HighlightEnd
 }
 
 func (m *Model) syncTreeToSource() {
-	if m.index == nil || len(m.treeVisibleNodes) == 0 {
+	selection, ok := inspectornav.SelectionFromVisibleTree(m.index, m.treeVisibleNodes, m.treeSelectedIdx)
+	if !ok {
 		return
 	}
-	id := m.treeVisibleNodes[m.treeSelectedIdx]
-	m.selectedNodeID = id
-	n := m.index.Nodes[id]
-	if n == nil {
-		return
-	}
+
+	m.selectedNodeID = selection.NodeID
 	m.syncOrigin = SyncFromTree
 
 	// Move source cursor to start of selected node
-	m.highlightStart = n.Start
-	m.highlightEnd = n.End
-	m.sourceCursorLine = n.StartLine - 1
-	m.sourceCursorCol = n.StartCol - 1
+	m.highlightStart = selection.HighlightStart
+	m.highlightEnd = selection.HighlightEnd
+	m.sourceCursorLine = selection.CursorLine
+	m.sourceCursorCol = selection.CursorCol
 	m.ensureSourceCursorVisible()
 }
 
@@ -840,19 +1101,23 @@ func (m Model) View() string {
 	headerHeight := 1
 	statusHeight := 1
 	helpHeight := 1
+	commandHeight := 0
+	if m.commandOn {
+		commandHeight = 1
+	}
 	drawerHeight := 0
 	separatorHeight := 0
 	if m.drawerOpen && m.drawer != nil {
 		drawerHeight = m.drawer.height
 		separatorHeight = 1
 	}
-	contentHeight := m.height - headerHeight - statusHeight - helpHeight - drawerHeight - separatorHeight
+	contentHeight := m.height - headerHeight - statusHeight - helpHeight - commandHeight - drawerHeight - separatorHeight
 	if contentHeight < 3 {
 		contentHeight = 3
 	}
 
-	leftWidth := m.width / 2
-	rightWidth := m.width - leftWidth
+	rightWidth := m.treePaneWidth()
+	leftWidth := m.width - rightWidth
 
 	header := m.renderHeader()
 	leftPane := m.renderSourcePane(leftWidth, contentHeight)
@@ -866,9 +1131,15 @@ func (m Model) View() string {
 		sepStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 		separator := sepStyle.Render(strings.Repeat("─", m.width))
 		drawerView := m.drawer.Render(m.width, drawerHeight, m.focus == FocusDrawer)
+		if m.commandOn {
+			return lipgloss.JoinVertical(lipgloss.Left, header, content, separator, drawerView, status, help, m.renderCommandLine())
+		}
 		return lipgloss.JoinVertical(lipgloss.Left, header, content, separator, drawerView, status, help)
 	}
 
+	if m.commandOn {
+		return lipgloss.JoinVertical(lipgloss.Left, header, content, status, help, m.renderCommandLine())
+	}
 	return lipgloss.JoinVertical(lipgloss.Left, header, content, status, help)
 }
 
@@ -904,7 +1175,6 @@ func (m Model) renderSourcePane(width, height int) string {
 	var lines []string
 	gutterWidth := len(fmt.Sprintf("%d", len(m.sourceLines))) + 1
 
-	// Pane header
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("15")).
@@ -917,12 +1187,11 @@ func (m Model) renderSourcePane(width, height int) string {
 	headerLine := headerStyle.Render(paneLabel) + strings.Repeat("─", maxInt(0, width-len(paneLabel)))
 	lines = append(lines, padRight(headerLine, width))
 
-	contentHeight := height - 1 // minus pane header
+	contentHeight := height - 1
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
 
-	// Compute highlight range as line/col for character-level precision
 	var hlStartLine, hlStartCol, hlEndLine, hlEndCol int
 	if m.highlightStart > 0 && m.highlightEnd > 0 && m.index != nil {
 		hlStartLine, hlStartCol = m.index.OffsetToLineCol(m.highlightStart)
@@ -935,7 +1204,6 @@ func (m Model) renderSourcePane(width, height int) string {
 	gutterNormal := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 	gutterCursor := lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true)
 
-	// Precompute usage highlight ranges (line/col)
 	type hlRange struct{ startLine, startCol, endLine, endCol int }
 	var usageRanges []hlRange
 	if m.highlightedBinding != nil && m.index != nil {
@@ -950,37 +1218,29 @@ func (m Model) renderSourcePane(width, height int) string {
 		}
 	}
 
-	for i := 0; i < contentHeight; i++ {
-		lineIdx := m.sourceScrollY + i
-		if lineIdx >= len(m.sourceLines) {
-			lines = append(lines, strings.Repeat(" ", width))
-			continue
-		}
-
+	renderedLines := make([]string, 0, len(m.sourceLines))
+	for lineIdx := 0; lineIdx < len(m.sourceLines); lineIdx++ {
 		lineNum := fmt.Sprintf("%*d ", gutterWidth, lineIdx+1)
 		content := m.sourceLines[lineIdx]
-		lineNo := lineIdx + 1 // 1-based
+		lineNo := lineIdx + 1
 
 		isCursorLine := (lineIdx == m.sourceCursorLine)
 		showCursor := isCursorLine && m.focus == FocusSource
 
-		// Render gutter
 		gs := gutterNormal
 		if isCursorLine {
 			gs = gutterCursor
 		}
 		gutter := gs.Render(lineNum)
 
-		// Build content with per-character highlighting and cursor
 		var rendered strings.Builder
 		runes := []rune(content)
 		for col := 0; col < len(runes); col++ {
 			ch := string(runes[col])
-			col1 := col + 1 // 1-based column
+			col1 := col + 1
 
 			isHL := false
 			if hlStartLine > 0 {
-				// Check if this character is within [hlStart, hlEnd)
 				if lineNo > hlStartLine && lineNo < hlEndLine {
 					isHL = true
 				} else if lineNo == hlStartLine && lineNo == hlEndLine {
@@ -992,7 +1252,6 @@ func (m Model) renderSourcePane(width, height int) string {
 				}
 			}
 
-			// Check usage highlights
 			isUsageHL := false
 			for _, ur := range usageRanges {
 				if lineNo > ur.startLine && lineNo < ur.endLine {
@@ -1013,7 +1272,6 @@ func (m Model) renderSourcePane(width, height int) string {
 			}
 
 			isCursorChar := showCursor && col == m.sourceCursorCol
-
 			if isCursorChar {
 				rendered.WriteString(cursorStyle.Render(ch))
 			} else if isUsageHL {
@@ -1024,16 +1282,19 @@ func (m Model) renderSourcePane(width, height int) string {
 				rendered.WriteString(ch)
 			}
 		}
-
-		// If cursor is at end of line, show a cursor block
 		if showCursor && m.sourceCursorCol >= len(runes) {
 			rendered.WriteString(cursorStyle.Render(" "))
 		}
-
-		lines = append(lines, padRight(gutter+rendered.String(), width))
+		renderedLines = append(renderedLines, padRight(gutter+rendered.String(), width))
 	}
 
-	return lipgloss.NewStyle().Width(width).MaxWidth(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
+	m.sourceViewport.Width = width
+	m.sourceViewport.Height = contentHeight
+	m.sourceViewport.SetContent(strings.Join(renderedLines, "\n"))
+	m.sourceViewport.SetYOffset(m.sourceScrollY)
+
+	lines = append(lines, m.sourceViewport.View())
+	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 }
 
 func (m Model) renderTreePane(width, height int) string {
@@ -1066,85 +1327,60 @@ func (m Model) renderTreePane(width, height int) string {
 	}
 
 	if m.index == nil || len(m.treeVisibleNodes) == 0 {
-		lines = append(lines, " (no AST)")
+		lines = append(lines, padRight(" (no AST)", width))
 		for len(lines) < height {
-			lines = append(lines, "")
+			lines = append(lines, strings.Repeat(" ", width))
 		}
 		return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 	}
 
-	for i := 0; i < contentHeight; i++ {
-		rowIdx := m.treeScrollY + i
-		if rowIdx >= len(m.treeVisibleNodes) {
-			lines = append(lines, strings.Repeat(" ", width))
-			continue
-		}
-
-		nodeID := m.treeVisibleNodes[rowIdx]
-		node := m.index.Nodes[nodeID]
-		if node == nil {
-			lines = append(lines, "")
-			continue
-		}
-
-		// Build tree prefix
-		indent := strings.Repeat("  ", node.Depth)
-		expandMarker := " "
-		if node.HasChildren() {
-			if node.Expanded {
-				expandMarker = "▼"
-			} else {
-				expandMarker = "▶"
-			}
-		}
-
-		label := node.DisplayLabel()
-		span := fmt.Sprintf(" [%d..%d]", node.Start, node.End)
-
-		// Add scope resolution hint for Identifier nodes
-		scopeHint := ""
-		if node.Kind == "Identifier" && m.index.Resolution != nil {
-			if m.index.Resolution.IsDeclaration(nodeID) {
-				b := m.index.Resolution.BindingForNode(nodeID)
-				if b != nil {
-					scopeHint = fmt.Sprintf(" [%s decl]", b.Kind)
-				}
-			} else if m.index.Resolution.IsReference(nodeID) {
-				scopeHint = " [ref]"
-			} else if m.index.Resolution.IsUnresolved(nodeID) {
-				scopeHint = " [global]"
-			}
-		}
-
-		line := indent + expandMarker + " " + label + span + scopeHint
-
-		// Check if this node is part of usage highlights
-		isUsageNode := false
-		for _, uid := range m.usageHighlights {
-			if uid == nodeID {
-				isUsageNode = true
-				break
-			}
-		}
-
-		isSelected := (nodeID == m.selectedNodeID)
-		if isSelected {
-			selStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("15")).
-				Background(lipgloss.Color("62")).
-				Bold(true)
-			line = selStyle.Render(line)
-		} else if isUsageNode {
-			usageTreeStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("229")).
-				Background(lipgloss.Color("58"))
-			line = usageTreeStyle.Render(line)
-		}
-
-		lines = append(lines, padRight(line, width))
+	metaHeight := 4
+	if contentHeight <= metaHeight+2 {
+		metaHeight = 2
+	}
+	treeHeight := contentHeight - metaHeight - 1
+	if treeHeight < 1 {
+		treeHeight = 1
+		metaHeight = maxInt(2, contentHeight-treeHeight)
 	}
 
+	m.treeList.SetSize(width, treeHeight)
+	lines = append(lines, m.treeList.View())
+	lines = append(lines, padRight(strings.Repeat("─", width), width))
+
+	meta := m.metaTable
+	meta.SetWidth(width)
+	meta.SetHeight(metaHeight)
+	meta.SetRows(m.selectedMetaRows())
+	lines = append(lines, meta.View())
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
+}
+
+func (m Model) selectedMetaRows() []table.Row {
+	rows := []table.Row{{"Focus", m.uiMode}}
+	if m.selectedNodeID < 0 || m.index == nil {
+		return rows
+	}
+	n := m.index.Nodes[m.selectedNodeID]
+	if n == nil {
+		return rows
+	}
+
+	rows = append(rows,
+		table.Row{"Node", n.Kind},
+		table.Row{"Span", fmt.Sprintf("[%d..%d]", n.Start, n.End)},
+		table.Row{"Lines", fmt.Sprintf("%d:%d → %d:%d", n.StartLine, n.StartCol, n.EndLine, n.EndCol)},
+	)
+	if m.index.Resolution != nil {
+		if b := m.index.Resolution.BindingForNode(m.selectedNodeID); b != nil {
+			rows = append(rows, table.Row{"Binding", fmt.Sprintf("%s (%s)", b.Name, b.Kind)})
+			rows = append(rows, table.Row{"Usages", fmt.Sprintf("%d", len(b.AllUsages()))})
+		}
+	}
+	if m.highlightedBinding != nil {
+		rows = append(rows, table.Row{"Highlight", m.highlightedBinding.Name})
+	}
+	return rows
 }
 
 func (m Model) renderStatusBar() string {
@@ -1190,6 +1426,9 @@ func (m Model) renderStatusBar() string {
 	if m.highlightedBinding != nil {
 		parts = append(parts, fmt.Sprintf("★ %d usages of '%s'", len(m.usageHighlights), m.highlightedBinding.Name))
 	}
+	if m.drawer != nil && m.drawer.completionActive {
+		parts = append(parts, m.spinner.View()+" completing")
+	}
 
 	if m.focus == FocusDrawer && m.drawer != nil {
 		parts = append(parts, m.drawer.CursorInfo())
@@ -1205,11 +1444,20 @@ func (m Model) renderHelp() string {
 		Foreground(lipgloss.Color("244")).
 		Width(m.width).
 		Padding(0, 1)
+	return style.Render(m.help.View(m.keyMap))
+}
 
-	if m.focus == FocusDrawer {
-		return style.Render("Tab:pane │ .:complete │ C-n:complete │ ↑/↓/Enter:popup │ C-d:go-to-def │ C-g:usages │ Esc:close │ C-↑/↓:resize")
+func (m Model) renderCommandLine() string {
+	style := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252")).
+		Background(lipgloss.Color("235")).
+		Width(m.width).
+		Padding(0, 1)
+	input := m.command.View()
+	if m.commandMsg != "" {
+		input = input + " │ " + m.commandMsg
 	}
-	return style.Render("Tab:pane │ i:drawer │ j/k:move │ h/l:left/right │ Space:toggle │ Enter:jump │ d:go-to-def │ *:usages │ Esc:clear │ q:quit")
+	return style.Render(input)
 }
 
 // truncateAnsi truncates a string that may contain ANSI escape sequences

@@ -1,0 +1,24 @@
+  5         message: "this is a ridiculously lon
+  6       }
+  7     }                                             ▶ Binding
+  8   }
+  9 };
+ 10                                                 ▼ FunctionDeclaration "makeMonsterFunctionW…
+ 11 function makeMonsterFunctionWithExtraLongNam
+ 12   const localBindingWithLongName = parameter
+ 13   return {                                        ▶ FunctionLiteral "makeMonsterFunctionWit…
+ 14     localBindingWithLongName,
+ 15     nested: {
+ 16       desc: "another very long descriptor to    ▼ ForStatement
+ 17     }
+ 18   };
+ 19 }                                                 ▶ ForLoopInitializerLexicalDecl
+ 20
+                                                ────────────────────────────────────────────────
+                                                 Field             Value
+                                                 Focus             source
+                                                 Node              Program
+                                                 Span              [1..970]
+                                                 Lines             1:1 → 23:2
+ ✓ parse ok │ nodes: 68 │ selected: Program [1..970] (1:1 → 23:2) │ cursor: 1:1
+ tab next pane • i drawer • : command • d/ctrl+d go to def • esc close/clear • q/ctrl+c quit

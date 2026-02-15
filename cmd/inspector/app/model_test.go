@@ -173,6 +173,36 @@ const doubled = value + value;
 	}
 }
 
+func TestModelTreeListItemIncludesUsageHint(t *testing.T) {
+	src := `const value = 1;
+const doubled = value + value;
+`
+	m := newTestModel(t, src)
+
+	usageID := nodeAtOccurrence(t, m.index, src, "value", 2)
+	m.selectedNodeID = usageID
+	m.index.ExpandTo(usageID)
+	m.refreshTreeVisible()
+	m.toggleHighlightUsages()
+	m.rebuildTreeListItems()
+
+	found := false
+	for _, item := range m.treeList.Items() {
+		row, ok := item.(treeListItem)
+		if !ok || row.id != usageID {
+			continue
+		}
+		if !strings.Contains(row.description, "★usage") {
+			t.Fatalf("expected usage hint in tree row, got %q", row.description)
+		}
+		found = true
+		break
+	}
+	if !found {
+		t.Fatalf("usage node %d not found in visible tree rows", usageID)
+	}
+}
+
 func TestModelDrawerCompletion(t *testing.T) {
 	src := `const greeting = "hello";
 console.log(greeting);
@@ -258,5 +288,208 @@ console.log(known);
 	}
 	if len(m.usageHighlights) != 0 {
 		t.Fatalf("expected unresolved lookup to clear usage highlights, got %d", len(m.usageHighlights))
+	}
+}
+
+func TestModelDrawerGoToDefinitionUsesLexicalScope(t *testing.T) {
+	src := `const x = 1;
+function f() {
+  const x = 2;
+  return x;
+}
+console.log(x);
+`
+	m := newTestModel(t, src)
+
+	usePos := strings.Index(src, "return x;")
+	if usePos < 0 {
+		t.Fatal("inner usage marker not found")
+	}
+	innerUseNode := m.index.NodeAtOffset(usePos + len("return ") + 1)
+	if innerUseNode == nil {
+		t.Fatal("expected AST node at inner usage position")
+	}
+	innerUseID := innerUseNode.ID
+	innerBinding := m.index.Resolution.BindingForNode(innerUseID)
+	if innerBinding == nil {
+		t.Fatal("expected binding for inner x usage")
+	}
+
+	m.selectedNodeID = innerUseID
+	for _, ch := range "x" {
+		m.drawer.InsertChar(ch)
+	}
+	m.drawer.Reparse()
+
+	m.drawerGoToDefinition()
+
+	if m.selectedNodeID != innerBinding.DeclNodeID {
+		t.Fatalf("expected go-to-def to jump to inner binding %d, got %d", innerBinding.DeclNodeID, m.selectedNodeID)
+	}
+}
+
+func TestModelDrawerHighlightUsagesUsesLexicalScope(t *testing.T) {
+	src := `const x = 1;
+function f() {
+  const x = 2;
+  return x;
+}
+console.log(x);
+`
+	m := newTestModel(t, src)
+
+	usePos := strings.Index(src, "return x;")
+	if usePos < 0 {
+		t.Fatal("inner usage marker not found")
+	}
+	innerUseNode := m.index.NodeAtOffset(usePos + len("return ") + 1)
+	if innerUseNode == nil {
+		t.Fatal("expected AST node at inner usage position")
+	}
+	innerUseID := innerUseNode.ID
+	innerBinding := m.index.Resolution.BindingForNode(innerUseID)
+	if innerBinding == nil {
+		t.Fatal("expected binding for inner x usage")
+	}
+
+	m.selectedNodeID = innerUseID
+	for _, ch := range "x" {
+		m.drawer.InsertChar(ch)
+	}
+	m.drawer.Reparse()
+
+	m.drawerHighlightUsages()
+
+	if m.highlightedBinding != innerBinding {
+		t.Fatalf("expected inner binding to be highlighted, got %+v", m.highlightedBinding)
+	}
+	if len(m.usageHighlights) != len(innerBinding.AllUsages()) {
+		t.Fatalf("expected %d usage highlights, got %d", len(innerBinding.AllUsages()), len(m.usageHighlights))
+	}
+}
+
+func TestModelDrawerGoToDefinitionUsesLexicalScopeAtGlobalUsage(t *testing.T) {
+	src := `const x = 1;
+function f() {
+  const x = 2;
+  return x;
+}
+console.log(x);
+`
+	m := newTestModel(t, src)
+
+	globalUsePos := strings.Index(src, "console.log(x);")
+	if globalUsePos < 0 {
+		t.Fatal("global usage marker not found")
+	}
+	globalUseNode := m.index.NodeAtOffset(globalUsePos + len("console.log(") + 1)
+	if globalUseNode == nil {
+		t.Fatal("expected AST node at global usage position")
+	}
+	globalUseID := globalUseNode.ID
+	globalBinding := m.index.Resolution.BindingForNode(globalUseID)
+	if globalBinding == nil {
+		t.Fatal("expected binding for global x usage")
+	}
+
+	innerUsePos := strings.Index(src, "return x;")
+	if innerUsePos < 0 {
+		t.Fatal("inner usage marker not found")
+	}
+	innerUseNode := m.index.NodeAtOffset(innerUsePos + len("return ") + 1)
+	if innerUseNode == nil {
+		t.Fatal("expected AST node at inner usage position")
+	}
+	innerBinding := m.index.Resolution.BindingForNode(innerUseNode.ID)
+	if innerBinding == nil {
+		t.Fatal("expected binding for inner x usage")
+	}
+
+	m.selectedNodeID = globalUseID
+	for _, ch := range "x" {
+		m.drawer.InsertChar(ch)
+	}
+	m.drawer.Reparse()
+
+	m.drawerGoToDefinition()
+
+	if m.selectedNodeID != globalBinding.DeclNodeID {
+		t.Fatalf("expected go-to-def to jump to global binding %d, got %d", globalBinding.DeclNodeID, m.selectedNodeID)
+	}
+	if m.selectedNodeID == innerBinding.DeclNodeID {
+		t.Fatalf("go-to-def incorrectly jumped to shadowed inner binding %d", innerBinding.DeclNodeID)
+	}
+}
+
+func TestResolveDrawerBindingDeterministicWithoutContext(t *testing.T) {
+	src := `const x = 1;
+function f() {
+  const x = 2;
+  return x;
+}
+console.log(x);
+`
+	m := newTestModel(t, src)
+
+	globalUsePos := strings.Index(src, "console.log(x);")
+	if globalUsePos < 0 {
+		t.Fatal("global usage marker not found")
+	}
+	globalUseNode := m.index.NodeAtOffset(globalUsePos + len("console.log(") + 1)
+	if globalUseNode == nil {
+		t.Fatal("expected AST node at global usage position")
+	}
+	globalBinding := m.index.Resolution.BindingForNode(globalUseNode.ID)
+	if globalBinding == nil {
+		t.Fatal("expected binding for global x usage")
+	}
+
+	// Remove both selected-node and cursor context to force deterministic fallback.
+	m.selectedNodeID = NodeID(-1)
+	m.sourceCursorLine = -1
+	m.sourceCursorCol = -1
+
+	first := m.resolveDrawerBinding("x")
+	if first == nil {
+		t.Fatal("expected fallback binding for x")
+	}
+	if first.DeclNodeID != globalBinding.DeclNodeID {
+		t.Fatalf("fallback resolved decl %d, want global decl %d", first.DeclNodeID, globalBinding.DeclNodeID)
+	}
+
+	for i := 0; i < 10; i++ {
+		got := m.resolveDrawerBinding("x")
+		if got == nil {
+			t.Fatal("expected fallback binding for x")
+		}
+		if got.DeclNodeID != first.DeclNodeID {
+			t.Fatalf("fallback resolution changed across attempts: got decl %d, first decl %d", got.DeclNodeID, first.DeclNodeID)
+		}
+	}
+}
+
+func TestTreePaneWidthKeepsTreeCompact(t *testing.T) {
+	m := Model{width: 100}
+	if got := m.treePaneWidth(); got != 40 {
+		t.Fatalf("treePaneWidth(100) = %d, want 40", got)
+	}
+
+	m.width = 60
+	if got := m.treePaneWidth(); got != 28 {
+		t.Fatalf("treePaneWidth(60) = %d, want 28", got)
+	}
+}
+
+func TestBuildTreeListItemClampsTitle(t *testing.T) {
+	node := &NodeRecord{
+		ID:       1,
+		Kind:     "Identifier",
+		Label:    "veryLongBindingNameThatShouldBeClampedInTreeRows",
+		Depth:    0,
+		Expanded: false,
+	}
+	item := buildTreeListItem(node, nil, nil, 16)
+	if len([]rune(item.title)) > 16 {
+		t.Fatalf("expected title to be clamped to 16 runes, got %q", item.title)
 	}
 }
