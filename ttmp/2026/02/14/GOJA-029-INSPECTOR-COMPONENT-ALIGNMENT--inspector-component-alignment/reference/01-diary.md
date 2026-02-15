@@ -18,27 +18,33 @@ RelatedFiles:
       Note: |-
         Initial mode activation at model construction
         Viewport model fields and pane height helpers
+        Source viewport state and active-source helper in Step 4
     - Path: cmd/smalltalk-inspector/app/update.go
       Note: |-
         Mode update + mode-keymap activation logic
         Mode transitions and selected-row visibility synchronization
         Globals/members visibility wiring to shared helper
+        Source key handling migration to viewport offset
     - Path: cmd/smalltalk-inspector/app/view.go
       Note: |-
         Viewport-backed inspect/stack rendering
         Globals/members visible window migration
+        Viewport-backed source pane rendering
     - Path: internal/inspectorui/listpane.go
       Note: Shared list pane helper added in Step 3
     - Path: internal/inspectorui/listpane_test.go
       Note: Listpane invariants test coverage
     - Path: internal/inspectorui/viewportpane.go
-      Note: Viewport row visibility utility introduced in Step 2
+      Note: |-
+        Viewport row visibility utility introduced in Step 2
+        Shared viewport offset clamp helper
 ExternalSources: []
 Summary: Execution diary for GOJA-029 component alignment implementation.
-LastUpdated: 2026-02-15T00:15:00Z
+LastUpdated: 2026-02-15T00:30:00Z
 WhatFor: Track step-by-step migration progress and verification outputs.
 WhenToUse: Use while implementing and reviewing GOJA-029.
 ---
+
 
 
 
@@ -213,3 +219,83 @@ I also added unit tests for the new list helper to lock down window/scroll invar
 ### Technical details
 
 - This step intentionally keeps `globalScroll/memberScroll` as scalar model fields while moving the shared behavior into `internal/inspectorui`; full component-object extraction can remain incremental.
+
+## Step 4: Source pane migration to shared viewport model
+
+This step migrated the source pane from manual `sourceScroll` window math to a dedicated `viewport.Model`, aligning it with the inspect/stack viewport pattern. The source view now renders full line content into a viewport body and relies on shared `internal/inspectorui` viewport helpers for offset clamping/visibility.
+
+I kept jump-to-source behavior by setting a centered target offset first and then applying row-visibility constraints, so existing navigation still lands near the target line while respecting pane boundaries.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Continue implementing remaining GOJA-029 tasks one-by-one and commit each slice.
+
+**Inferred user intent:** Complete refactor scope with reusable primitives and stable behavior.
+
+### What I did
+
+- Updated `cmd/smalltalk-inspector/app/model.go`:
+  - added `sourceViewport viewport.Model`,
+  - removed `sourceScroll`,
+  - introduced `activeSourceLines()` helper,
+  - rewired source visibility methods to use viewport-based behavior.
+- Updated `cmd/smalltalk-inspector/app/update.go`:
+  - migrated `handleSourceKey` scrolling controls to `sourceViewport.YOffset`,
+  - used shared `inspectorui.ClampYOffset` for bounds enforcement,
+  - reset source viewport offset on file load.
+- Updated `cmd/smalltalk-inspector/app/view.go`:
+  - refactored `renderSourcePane` to generate full row content and render through viewport body.
+- Updated `internal/inspectorui/viewportpane.go`:
+  - added reusable `ClampYOffset` helper and reused it from `EnsureRowVisible`.
+- Ran:
+  - `go test ./internal/inspectorui -count=1`
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+
+### Why
+
+- GOJA-029 task 8 requires source pane migration to shared viewport helpers.
+- This removes another custom scroll path and reduces divergence across panes.
+
+### What worked
+
+- Source pane behavior remained stable while now sharing viewport primitives with other panes.
+- Targeted test commands passed after migration.
+
+### What didn't work
+
+- N/A in this slice; no failing tests or blocked commands.
+
+### What I learned
+
+- Rendering the full source row set into a viewport simplifies key handling and avoids repeated start/end window bookkeeping logic.
+
+### What was tricky to build
+
+- Source pane has mixed formatting concerns (line numbers, target highlight, syntax spans), so migration needed to preserve per-line rendering semantics while changing only scroll ownership.
+
+### What warrants a second pair of eyes
+
+- Confirm source-scroll behavior remains intuitive when switching between file and REPL source modes repeatedly.
+
+### What should be done in the future
+
+- Consolidate remaining duplicated helpers (`padRight`, `minInt/maxInt`, status composition) for task 9.
+- Add/expand interaction tests for visibility/mode behavior (task 10) and then close done-criteria items.
+
+### Code review instructions
+
+- Review `go-go-goja/cmd/smalltalk-inspector/app/model.go` for source viewport state and active-source selection.
+- Review `go-go-goja/cmd/smalltalk-inspector/app/update.go` `handleSourceKey` migration.
+- Review `go-go-goja/cmd/smalltalk-inspector/app/view.go` `renderSourcePane` viewport rendering.
+- Review `go-go-goja/internal/inspectorui/viewportpane.go` `ClampYOffset`.
+- Validate with:
+  - `go test ./internal/inspectorui -count=1`
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+
+### Technical details
+
+- Jump-to-target keeps centering intent by seeding `sourceViewport.YOffset` with `targetLine - viewportHeight/2` before applying shared row-visibility constraints.

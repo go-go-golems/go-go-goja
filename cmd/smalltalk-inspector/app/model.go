@@ -14,6 +14,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja/ast"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
+	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
 	inspectorcore "github.com/go-go-golems/go-go-goja/pkg/inspector/core"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
@@ -55,7 +56,6 @@ type Model struct {
 
 	// Source pane
 	sourceLines  []string
-	sourceScroll int
 	sourceTarget int // target line to highlight (0-based), -1 = none
 
 	// Syntax highlighting
@@ -103,6 +103,7 @@ type Model struct {
 	help            help.Model
 	spinner         spinner.Model
 	command         textinput.Model
+	sourceViewport  viewport.Model
 	inspectViewport viewport.Model
 	stackViewport   viewport.Model
 	cmdActive       bool
@@ -128,6 +129,7 @@ func NewModel(filename string) Model {
 	m.command.CharLimit = 256
 	m.command.Width = 60
 	m.command.Blur()
+	m.sourceViewport = viewport.New(0, 0)
 	m.inspectViewport = viewport.New(0, 0)
 	m.stackViewport = viewport.New(0, 0)
 
@@ -441,21 +443,20 @@ func (m *Model) jumpToMember(className string, member MemberItem) {
 }
 
 func (m *Model) ensureSourceVisible(targetLine int) {
-	vpHeight := m.sourceViewportHeight()
-	if vpHeight <= 0 {
-		return
+	m.sourceViewport.YOffset = targetLine - m.sourceViewportHeight()/2
+	inspectorui.EnsureRowVisible(
+		&m.sourceViewport,
+		targetLine,
+		len(m.activeSourceLines()),
+		m.sourceViewportHeight(),
+	)
+}
+
+func (m *Model) activeSourceLines() []string {
+	if m.showingReplSrc && len(m.replSourceLines) > 0 {
+		return m.replSourceLines
 	}
-	m.sourceScroll = targetLine - vpHeight/2
-	if m.sourceScroll < 0 {
-		m.sourceScroll = 0
-	}
-	maxScroll := len(m.sourceLines) - vpHeight
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
-	if m.sourceScroll > maxScroll {
-		m.sourceScroll = maxScroll
-	}
+	return m.sourceLines
 }
 
 func (m *Model) sourceViewportHeight() int {
@@ -602,21 +603,7 @@ func (m *Model) showReplFunctionSource(name, fnSrc string) {
 }
 
 func (m *Model) ensureReplSourceVisible(targetLine int) {
-	vpHeight := m.sourceViewportHeight()
-	if vpHeight <= 0 {
-		return
-	}
-	m.sourceScroll = targetLine - vpHeight/2
-	if m.sourceScroll < 0 {
-		m.sourceScroll = 0
-	}
-	maxScroll := len(m.replSourceLines) - vpHeight
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
-	if m.sourceScroll > maxScroll {
-		m.sourceScroll = maxScroll
-	}
+	m.ensureSourceVisible(targetLine)
 }
 
 // getFunctionSource returns the source text of a runtime function.

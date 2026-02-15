@@ -455,13 +455,10 @@ func (m Model) renderMembersPane(width, height int) string {
 }
 
 func (m Model) renderSourcePane(width, height int) string {
-	var lines []string
-
 	// Determine which source to display
-	srcLines := m.sourceLines
+	srcLines := m.activeSourceLines()
 	headerSuffix := ""
-	if m.showingReplSrc && len(m.replSourceLines) > 0 {
-		srcLines = m.replSourceLines
+	if m.showingReplSrc && len(srcLines) > 0 {
 		headerSuffix = " (REPL)"
 	}
 
@@ -475,58 +472,61 @@ func (m Model) renderSourcePane(width, height int) string {
 		hStyle = stylePaneHeaderActive
 	}
 	headerLine := hStyle.Render(label) + styleSeparator.Render(strings.Repeat("─", maxInt(0, width-ansi.StringWidth(label))))
-	lines = append(lines, padRight(headerLine, width))
 
 	contentHeight := height - 1
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
 
+	var rows []string
+
 	if len(srcLines) == 0 {
-		lines = append(lines, padRight(styleEmptyHint.Render(" (no source)"), width))
-		for len(lines) < height {
-			lines = append(lines, strings.Repeat(" ", width))
-		}
-		return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
-	}
-
-	// Select the right syntax spans
-	var syntaxSpans []jsparse.SyntaxSpan
-	if m.showingReplSrc {
-		syntaxSpans = m.replSyntaxSpans
+		rows = append(rows, padRight(styleEmptyHint.Render(" (no source)"), width))
 	} else {
-		syntaxSpans = m.fileSyntaxSpans
-	}
-
-	gutterWidth := len(fmt.Sprintf("%d", len(srcLines))) + 1
-
-	endIdx := minInt(m.sourceScroll+contentHeight, len(srcLines))
-	for lineIdx := m.sourceScroll; lineIdx < endIdx; lineIdx++ {
-		lineNum := fmt.Sprintf("%*d ", gutterWidth, lineIdx+1)
-		content := srcLines[lineIdx]
-
-		isTarget := lineIdx == m.sourceTarget
-		gs := styleGutterNormal
-		if isTarget {
-			gs = styleGutterCursor
-		}
-		gutter := gs.Render(lineNum)
-
-		if isTarget {
-			content = styleSourceHL.Render(content)
-		} else if len(syntaxSpans) > 0 {
-			content = renderSyntaxLine(content, lineIdx+1, syntaxSpans)
+		// Select the right syntax spans
+		var syntaxSpans []jsparse.SyntaxSpan
+		if m.showingReplSrc {
+			syntaxSpans = m.replSyntaxSpans
+		} else {
+			syntaxSpans = m.fileSyntaxSpans
 		}
 
-		line := gutter + content
-		lines = append(lines, padRight(line, width))
+		gutterWidth := len(fmt.Sprintf("%d", len(srcLines))) + 1
+
+		for lineIdx := range srcLines {
+			lineNum := fmt.Sprintf("%*d ", gutterWidth, lineIdx+1)
+			content := srcLines[lineIdx]
+
+			isTarget := lineIdx == m.sourceTarget
+			gs := styleGutterNormal
+			if isTarget {
+				gs = styleGutterCursor
+			}
+			gutter := gs.Render(lineNum)
+
+			if isTarget {
+				content = styleSourceHL.Render(content)
+			} else if len(syntaxSpans) > 0 {
+				content = renderSyntaxLine(content, lineIdx+1, syntaxSpans)
+			}
+
+			line := gutter + content
+			rows = append(rows, padRight(line, width))
+		}
 	}
 
-	for len(lines) < height {
-		lines = append(lines, strings.Repeat(" ", width))
-	}
+	vp := m.sourceViewport
+	vp.Width = width
+	vp.Height = contentHeight
+	vp.SetContent(strings.Join(rows, "\n"))
 
-	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
+	body := lipgloss.NewStyle().Width(width).Height(contentHeight).Render(vp.View())
+	pane := lipgloss.JoinVertical(
+		lipgloss.Left,
+		padRight(headerLine, width),
+		body,
+	)
+	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(pane)
 }
 
 // renderSyntaxLine applies syntax highlighting to a single source line.

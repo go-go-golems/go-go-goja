@@ -38,7 +38,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loaded = true
 		m.focus = FocusGlobals
 		m.sourceTarget = -1
-		m.sourceScroll = 0
+		m.sourceViewport.YOffset = 0
 		m.updateMode()
 
 		// Initialize runtime session BEFORE building globals/members
@@ -412,52 +412,39 @@ func (m Model) handleMembersKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleSourceKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	vpHeight := m.sourceViewportHeight()
+	totalRows := len(m.activeSourceLines())
+	clamp := func() {
+		inspectorui.ClampYOffset(&m.sourceViewport, totalRows, vpHeight)
+	}
+
 	if key.Matches(msg, m.keyMap.Down) {
-		m.sourceScroll++
-		maxScroll := len(m.sourceLines) - m.sourceViewportHeight()
-		if maxScroll < 0 {
-			maxScroll = 0
-		}
-		if m.sourceScroll > maxScroll {
-			m.sourceScroll = maxScroll
-		}
+		m.sourceViewport.YOffset++
+		clamp()
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.Up) {
-		m.sourceScroll--
-		if m.sourceScroll < 0 {
-			m.sourceScroll = 0
-		}
+		m.sourceViewport.YOffset--
+		clamp()
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.Top) {
-		m.sourceScroll = 0
+		m.sourceViewport.YOffset = 0
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.Bottom) {
-		maxScroll := len(m.sourceLines) - m.sourceViewportHeight()
-		if maxScroll < 0 {
-			maxScroll = 0
-		}
-		m.sourceScroll = maxScroll
+		m.sourceViewport.YOffset = totalRows - vpHeight
+		clamp()
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.HalfDown) {
-		m.sourceScroll += m.sourceViewportHeight() / 2
-		maxScroll := len(m.sourceLines) - m.sourceViewportHeight()
-		if maxScroll < 0 {
-			maxScroll = 0
-		}
-		if m.sourceScroll > maxScroll {
-			m.sourceScroll = maxScroll
-		}
+		m.sourceViewport.YOffset += vpHeight / 2
+		clamp()
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.HalfUp) {
-		m.sourceScroll -= m.sourceViewportHeight() / 2
-		if m.sourceScroll < 0 {
-			m.sourceScroll = 0
-		}
+		m.sourceViewport.YOffset -= vpHeight / 2
+		clamp()
 		return m, nil
 	}
 

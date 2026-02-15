@@ -51,3 +51,16 @@ Step 4: Extracted reusable listpane helper for globals/members scroll windows an
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/internal/inspectorui/listpane_test.go — Unit tests for listpane helper invariants
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-029-INSPECTOR-COMPONENT-ALIGNMENT--inspector-component-alignment/reference/01-diary.md — Recorded Step 3 implementation diary
 
+
+## 2026-02-14
+
+Step 5: Migrated source pane to viewport-backed scrolling and added shared viewport offset clamping helper.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/model.go — Added source viewport state and active-source helper
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/update.go — Source key handling now drives source viewport offset
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/view.go — Source pane now renders via viewport body
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/internal/inspectorui/viewportpane.go — Added shared viewport offset clamping
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-029-INSPECTOR-COMPONENT-ALIGNMENT--inspector-component-alignment/reference/01-diary.md — Recorded Step 4 implementation diary
+
