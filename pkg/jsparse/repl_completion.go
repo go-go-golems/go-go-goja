@@ -232,8 +232,10 @@ func runtimeIdentifierCandidates(runtime *goja.Runtime, partial string, hints []
 		if prefix != "" && !strings.HasPrefix(strings.ToLower(key), prefix) {
 			continue
 		}
-		if candidate, ok := runtimeIdentifierFromName(runtime, key); ok {
-			merged[key] = candidate
+		merged[key] = CompletionCandidate{
+			Label:  key,
+			Kind:   CandidateVariable,
+			Detail: "runtime global",
 		}
 	}
 
@@ -248,12 +250,12 @@ func runtimeIdentifierCandidates(runtime *goja.Runtime, partial string, hints []
 		if _, exists := merged[name]; exists {
 			continue
 		}
-		if candidate, ok := runtimeIdentifierFromName(runtime, name); ok {
-			if strings.TrimSpace(candidate.Detail) == "" {
-				candidate.Detail = "runtime symbol"
-			}
-			merged[name] = candidate
+		candidate := hint
+		candidate.Label = name
+		if strings.TrimSpace(candidate.Detail) == "" {
+			candidate.Detail = "runtime symbol"
 		}
+		merged[name] = candidate
 	}
 
 	return mapToSortedCandidates(merged)
@@ -269,8 +271,8 @@ func runtimePropertyCandidates(runtime *goja.Runtime, baseExpr, partial string) 
 		return nil
 	}
 
-	v := runtime.Get(baseExpr)
-	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+	v, ok := safeRuntimeGet(runtime, baseExpr)
+	if !ok || v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
 		return nil
 	}
 
@@ -296,25 +298,6 @@ func runtimePropertyCandidates(runtime *goja.Runtime, baseExpr, partial string) 
 	}
 
 	return mapToSortedCandidates(seen)
-}
-
-func runtimeIdentifierFromName(runtime *goja.Runtime, name string) (CompletionCandidate, bool) {
-	v := runtime.Get(name)
-	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
-		return CompletionCandidate{}, false
-	}
-	if _, ok := goja.AssertFunction(v); ok {
-		return CompletionCandidate{
-			Label:  name,
-			Kind:   CandidateFunction,
-			Detail: "runtime function",
-		}, true
-	}
-	return CompletionCandidate{
-		Label:  name,
-		Kind:   CandidateVariable,
-		Detail: "runtime global",
-	}, true
 }
 
 type rankedCandidate struct {
@@ -397,6 +380,24 @@ func safeToObject(runtime *goja.Runtime, value goja.Value) (*goja.Object, bool) 
 	}()
 	obj = value.ToObject(runtime)
 	return obj, ok
+}
+
+func safeRuntimeGet(runtime *goja.Runtime, name string) (goja.Value, bool) {
+	if runtime == nil {
+		return nil, false
+	}
+	ok := true
+	var value goja.Value
+	func() {
+		defer func() {
+			if recover() != nil {
+				value = nil
+				ok = false
+			}
+		}()
+		value = runtime.Get(name)
+	}()
+	return value, ok
 }
 
 func safeObjectKeys(obj *goja.Object) []string {

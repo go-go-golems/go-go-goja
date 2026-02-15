@@ -130,3 +130,89 @@ func TestAugmentREPLCandidatesKeepsStaticPriorityOnDuplicates(t *testing.T) {
 		t.Fatalf("expected static detail to win dedupe, got %q", got[0].Detail)
 	}
 }
+
+func TestAugmentREPLCandidatesIdentifierDoesNotExecuteThrowingGetter(t *testing.T) {
+	r := goja.New()
+	_, err := r.RunString(`
+let getterHits = 0;
+Object.defineProperty(globalThis, "boom", {
+	enumerable: true,
+	get() {
+		getterHits++;
+		throw new Error("boom");
+	},
+});
+`)
+	if err != nil {
+		t.Fatalf("run snippet: %v", err)
+	}
+
+	ctx := CompletionContext{
+		Kind:        CompletionIdentifier,
+		PartialText: "bo",
+	}
+	got := AugmentREPLCandidates(r, "", ctx, nil, nil)
+	labels := make([]string, 0, len(got))
+	for _, c := range got {
+		labels = append(labels, c.Label)
+	}
+	if !slices.Contains(labels, "boom") {
+		t.Fatalf("expected boom candidate, got %v", labels)
+	}
+
+	hits := r.Get("getterHits")
+	if hits.ToInteger() != 0 {
+		t.Fatalf("expected getter not to execute during identifier completion, got %d hits", hits.ToInteger())
+	}
+}
+
+func TestAugmentREPLCandidatesIdentifierKeepsUndefinedAndNullHints(t *testing.T) {
+	r := goja.New()
+	snippet := `
+let foo;
+const nilish = null;
+`
+	if _, err := r.RunString(snippet); err != nil {
+		t.Fatalf("run snippet: %v", err)
+	}
+
+	hints := ExtractTopLevelBindingCandidates(snippet)
+	ctx := CompletionContext{
+		Kind: CompletionIdentifier,
+	}
+	got := AugmentREPLCandidates(r, "", ctx, nil, hints)
+	labels := make([]string, 0, len(got))
+	for _, c := range got {
+		labels = append(labels, c.Label)
+	}
+	if !slices.Contains(labels, "foo") {
+		t.Fatalf("expected undefined lexical foo to remain in completions, got %v", labels)
+	}
+	if !slices.Contains(labels, "nilish") {
+		t.Fatalf("expected null lexical nilish to remain in completions, got %v", labels)
+	}
+}
+
+func TestAugmentREPLCandidatesPropertyHandlesThrowingBaseGetter(t *testing.T) {
+	r := goja.New()
+	_, err := r.RunString(`
+Object.defineProperty(globalThis, "boom", {
+	enumerable: true,
+	get() {
+		throw new Error("boom");
+	},
+});
+`)
+	if err != nil {
+		t.Fatalf("run snippet: %v", err)
+	}
+
+	ctx := CompletionContext{
+		Kind:     CompletionProperty,
+		BaseExpr: "boom",
+	}
+	got := AugmentREPLCandidates(r, "", ctx, nil, nil)
+	if len(got) != 0 {
+		t.Fatalf("expected no property candidates when base getter throws, got %v", got)
+	}
+}
