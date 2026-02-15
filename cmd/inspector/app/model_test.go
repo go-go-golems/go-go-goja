@@ -173,6 +173,36 @@ const doubled = value + value;
 	}
 }
 
+func TestModelTreeListItemIncludesUsageHint(t *testing.T) {
+	src := `const value = 1;
+const doubled = value + value;
+`
+	m := newTestModel(t, src)
+
+	usageID := nodeAtOccurrence(t, m.index, src, "value", 2)
+	m.selectedNodeID = usageID
+	m.index.ExpandTo(usageID)
+	m.refreshTreeVisible()
+	m.toggleHighlightUsages()
+	m.rebuildTreeListItems()
+
+	found := false
+	for _, item := range m.treeList.Items() {
+		row, ok := item.(treeListItem)
+		if !ok || row.id != usageID {
+			continue
+		}
+		if !strings.Contains(row.description, "★usage") {
+			t.Fatalf("expected usage hint in tree row, got %q", row.description)
+		}
+		found = true
+		break
+	}
+	if !found {
+		t.Fatalf("usage node %d not found in visible tree rows", usageID)
+	}
+}
+
 func TestModelDrawerCompletion(t *testing.T) {
 	src := `const greeting = "hello";
 console.log(greeting);

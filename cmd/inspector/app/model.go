@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
+	inspectornav "github.com/go-go-golems/go-go-goja/pkg/inspector/navigation"
 )
 
 // FocusPane indicates which pane has focus.
@@ -742,20 +743,6 @@ func (m *Model) sourceViewportHeight() int {
 	return h
 }
 
-// sourceCursorOffset returns the 1-based byte offset for the current cursor position.
-func (m *Model) sourceCursorOffset() int {
-	offset := 0
-	for i := 0; i < m.sourceCursorLine && i < len(m.sourceLines); i++ {
-		offset += len(m.sourceLines[i]) + 1 // +1 for \n
-	}
-	col := m.sourceCursorCol
-	if m.sourceCursorLine < len(m.sourceLines) && col > len(m.sourceLines[m.sourceCursorLine]) {
-		col = len(m.sourceLines[m.sourceCursorLine])
-	}
-	offset += col
-	return offset + 1 // 1-based
-}
-
 // --- Tree pane methods ---
 
 func (m *Model) refreshTreeVisible() {
@@ -874,49 +861,43 @@ func (m *Model) syncSourceToTree() {
 	if m.index == nil {
 		return
 	}
-	offset := m.sourceCursorOffset()
-	best := m.index.NodeAtOffset(offset)
-	if best != nil {
-		m.selectedNodeID = best.ID
-		m.syncOrigin = SyncFromSource
+	selection, ok := inspectornav.SelectionAtSourceCursor(m.index, m.sourceLines, m.sourceCursorLine, m.sourceCursorCol)
+	if !ok {
+		return
+	}
 
-		// Ensure ancestors are expanded so node is visible
-		m.index.ExpandTo(best.ID)
-		m.refreshTreeVisible()
+	m.selectedNodeID = selection.NodeID
+	m.syncOrigin = SyncFromSource
 
-		// Find the node in visible list
-		for i, vid := range m.treeVisibleNodes {
-			if vid == best.ID {
-				m.treeSelectedIdx = i
-				break
-			}
-		}
+	// Ensure ancestors are expanded so node is visible.
+	m.index.ExpandTo(selection.NodeID)
+	m.refreshTreeVisible()
+
+	visibleIdx := inspectornav.FindVisibleNodeIndex(m.treeVisibleNodes, selection.NodeID)
+	if visibleIdx >= 0 {
+		m.treeSelectedIdx = visibleIdx
 		m.treeList.Select(m.treeSelectedIdx)
 		m.ensureTreeSelectionVisible()
-
-		// Set highlight
-		m.highlightStart = best.Start
-		m.highlightEnd = best.End
 	}
+
+	m.highlightStart = selection.HighlightStart
+	m.highlightEnd = selection.HighlightEnd
 }
 
 func (m *Model) syncTreeToSource() {
-	if m.index == nil || len(m.treeVisibleNodes) == 0 {
+	selection, ok := inspectornav.SelectionFromVisibleTree(m.index, m.treeVisibleNodes, m.treeSelectedIdx)
+	if !ok {
 		return
 	}
-	id := m.treeVisibleNodes[m.treeSelectedIdx]
-	m.selectedNodeID = id
-	n := m.index.Nodes[id]
-	if n == nil {
-		return
-	}
+
+	m.selectedNodeID = selection.NodeID
 	m.syncOrigin = SyncFromTree
 
 	// Move source cursor to start of selected node
-	m.highlightStart = n.Start
-	m.highlightEnd = n.End
-	m.sourceCursorLine = n.StartLine - 1
-	m.sourceCursorCol = n.StartCol - 1
+	m.highlightStart = selection.HighlightStart
+	m.highlightEnd = selection.HighlightEnd
+	m.sourceCursorLine = selection.CursorLine
+	m.sourceCursorCol = selection.CursorCol
 	m.ensureSourceCursorVisible()
 }
 

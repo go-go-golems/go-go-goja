@@ -1,10 +1,8 @@
 package app
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/charmbracelet/bubbles/list"
+	inspectortree "github.com/go-go-golems/go-go-goja/pkg/inspector/tree"
 )
 
 type treeListItem struct {
@@ -37,48 +35,10 @@ func newTreeListModel() list.Model {
 }
 
 func buildTreeListItem(node *NodeRecord, usageHighlights []NodeID, res *Resolution) treeListItem {
-	if node == nil {
-		return treeListItem{}
-	}
-
-	indent := strings.Repeat("  ", node.Depth)
-	expandMarker := " "
-	if node.HasChildren() {
-		if node.Expanded {
-			expandMarker = "▼"
-		} else {
-			expandMarker = "▶"
-		}
-	}
-
-	scopeHint := ""
-	if res != nil && node.Kind == "Identifier" {
-		if res.IsDeclaration(node.ID) {
-			if b := res.BindingForNode(node.ID); b != nil {
-				scopeHint = fmt.Sprintf(" [%s decl]", b.Kind)
-			}
-		} else if res.IsReference(node.ID) {
-			scopeHint = " [ref]"
-		} else if res.IsUnresolved(node.ID) {
-			scopeHint = " [global]"
-		}
-	}
-
-	isUsage := false
-	for _, id := range usageHighlights {
-		if id == node.ID {
-			isUsage = true
-			break
-		}
-	}
-	usageHint := ""
-	if isUsage {
-		usageHint = " ★usage"
-	}
-
+	row := inspectortree.BuildRow(node, usageHighlights, res)
 	return treeListItem{
-		id:          node.ID,
-		title:       indent + expandMarker + " " + node.DisplayLabel(),
-		description: fmt.Sprintf("[%d..%d]%s%s", node.Start, node.End, scopeHint, usageHint),
+		id:          row.NodeID,
+		title:       row.Title,
+		description: row.Description,
 	}
 }
