@@ -24,12 +24,15 @@ RelatedFiles:
       Note: Primary implementation plan for highlighting upgrades
     - Path: ttmp/2026/02/14/GOJA-030-SYNTAX-HIGHLIGHTING-IMPROVEMENTS--syntax-highlighting-improvements/design/02-syntax-highlighting-algorithm-research.md
       Note: Deep algorithm research and recommendation memo used to drive implementation tasks
+    - Path: ttmp/2026/02/14/GOJA-030-SYNTAX-HIGHLIGHTING-IMPROVEMENTS--syntax-highlighting-improvements/design/03-intern-research-guide-f-and-g.md
+      Note: Intern handoff guide for deep F/G research execution
 ExternalSources: []
 Summary: Execution ticket for syntax-highlighting algorithm and performance improvements in smalltalk-inspector.
 LastUpdated: 2026-02-14T19:03:00Z
 WhatFor: Plan and track benchmark-driven optimization and correctness hardening of highlighting.
 WhenToUse: Use as entrypoint when implementing GOJA-030.
 ---
+
 
 
 # Syntax Highlighting Improvements
