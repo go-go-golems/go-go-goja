@@ -13,10 +13,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextbar"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextpanel"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/suggest"
 	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/inspectorapi"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+	jsadapter "github.com/go-go-golems/go-go-goja/pkg/repl/adapters/bobatea"
 )
 
 // GlobalItem is the app-facing alias for reusable inspector global binding data.
@@ -65,6 +69,11 @@ type Model struct {
 	replResult   string
 	replError    string
 	replDeclared []inspectorapi.DeclaredBinding
+	replAssist   *jsadapter.JavaScriptEvaluator
+
+	replSuggestWidget      *suggest.Widget
+	replContextBarWidget   *contextbar.Widget
+	replContextPanelWidget *contextpanel.Widget
 
 	// Object browser (for REPL results and inspect targets)
 	inspectObj   *goja.Object

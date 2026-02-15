@@ -9,6 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextbar"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextpanel"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/suggest"
 	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/inspectorapi"
@@ -56,6 +59,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// so buildValueMembers() can use it for runtime introspection.
 		m.rtSession = runtime.NewSession()
 		rtErr := m.rtSession.Load(msg.Source)
+		m.setupReplWidgetsForRuntime()
 
 		m.buildGlobals()
 		m.buildMembers()
@@ -143,10 +147,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Track REPL expression as source with parser-backed declarations.
 		m.appendReplSource(msg.Result.Expression, inspectorapi.DeclaredBindingsFromSource(msg.Result.Expression))
+		m.recordReplAssistDeclarations(msg.Result.Expression)
 
 		// Refresh globals list to pick up new REPL-defined names
 		m.refreshRuntimeGlobals()
 		return m, nil
+
+	case suggest.DebounceMsg:
+		return m, m.handleReplSuggestDebounce(msg)
+	case suggest.ResultMsg:
+		return m, m.handleReplSuggestResult(msg)
+	case contextbar.DebounceMsg:
+		return m, m.handleReplContextBarDebounce(msg)
+	case contextbar.ResultMsg:
+		return m, m.handleReplContextBarResult(msg)
+	case contextpanel.DebounceMsg:
+		return m, m.handleReplContextPanelDebounce(msg)
+	case contextpanel.ResultMsg:
+		return m, m.handleReplContextPanelResult(msg)
 
 	case tea.KeyMsg:
 		return m.handleKey(msg)
@@ -475,11 +493,26 @@ func (m Model) handleSourceKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if handled, cmd := m.handleReplHelpDrawerKeys(msg); handled {
+		return m, cmd
+	}
+
+	if m.handleReplSuggestionNavigation(msg) {
+		return m, nil
+	}
+
+	if key.Matches(msg, m.keyMap.CompletionTrigger) {
+		return m, m.triggerReplCompletionShortcut(msg)
+	}
+
 	switch msg.String() {
 	case "enter":
 		expr := strings.TrimSpace(m.replInput.Value())
 		if expr == "" {
 			return m, nil
+		}
+		if m.replSuggestWidget != nil {
+			m.replSuggestWidget.Hide()
 		}
 		m.replInput.SetValue("")
 
@@ -498,6 +531,12 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return MsgEvalResult{Result: result}
 		}
 	case "esc", "escape":
+		if m.replSuggestWidget != nil {
+			m.replSuggestWidget.Hide()
+		}
+		if m.replContextBarWidget != nil {
+			m.replContextBarWidget.Hide()
+		}
 		m.focus = FocusGlobals
 		m.replInput.Blur()
 		m.updateMode()
@@ -505,9 +544,11 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Forward all other keys to the textinput
+	prevValue := m.replInput.Value()
+	prevCursor := m.replInput.Position()
 	var cmd tea.Cmd
 	m.replInput, cmd = m.replInput.Update(msg)
-	return m, cmd
+	return m, tea.Batch(cmd, m.scheduleReplWidgetDebounce(prevValue, prevCursor))
 }
 
 func (m Model) handleCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

@@ -18,11 +18,13 @@ func (m Model) View() string {
 		return "Initializing..."
 	}
 
+	var out string
 	if !m.loaded {
-		return m.renderEmptyView()
+		out = m.renderEmptyView()
+	} else {
+		out = m.renderLoadedView()
 	}
-
-	return m.renderLoadedView()
+	return m.applyReplWidgetOverlays(out)
 }
 
 func (m Model) renderEmptyView() string {
@@ -560,6 +562,8 @@ func (m Model) renderReplArea() string {
 		resultLine = styleReplError.Render("✗ " + errLines[0])
 	} else if m.replResult != "" {
 		resultLine = "→ " + m.replResult
+	} else if ctx := strings.TrimSpace(m.renderReplContextBar()); ctx != "" {
+		resultLine = ctx
 	} else if len(m.replHistory) > 0 {
 		resultLine = styleEmptyHint.Render("  " + m.replHistory[len(m.replHistory)-1])
 	}
