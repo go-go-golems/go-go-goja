@@ -151,6 +151,25 @@ func TestUpdateModePrecedenceAndReplOverride(t *testing.T) {
 	}
 }
 
+func TestGlobalsHalfPageNavigationNoopWhenEmpty(t *testing.T) {
+	m := NewModel("")
+	m.loaded = true
+	m.width = 120
+	m.height = 16
+	m.focus = FocusGlobals
+	m.updateMode()
+
+	m = updateWithKey(t, m, keyType(tea.KeyCtrlD))
+	if m.globalIdx != 0 {
+		t.Fatalf("globalIdx after half-down on empty globals = %d, want 0", m.globalIdx)
+	}
+
+	m = updateWithKey(t, m, keyType(tea.KeyCtrlU))
+	if m.globalIdx != 0 {
+		t.Fatalf("globalIdx after half-up on empty globals = %d, want 0", m.globalIdx)
+	}
+}
+
 func updateWithKey(t *testing.T, m Model, msg tea.KeyMsg) Model {
 	t.Helper()
 	next, _ := m.Update(msg)

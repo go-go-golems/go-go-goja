@@ -328,6 +328,9 @@ func (m Model) handleGlobalsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.HalfDown) {
+		if len(m.globals) == 0 {
+			return m, nil
+		}
 		m.globalIdx = inspectorui.MinInt(m.globalIdx+m.listViewportHeight()/2, len(m.globals)-1)
 		m.ensureGlobalsVisible()
 		m.buildMembers()
@@ -335,6 +338,9 @@ func (m Model) handleGlobalsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.HalfUp) {
+		if len(m.globals) == 0 {
+			return m, nil
+		}
 		m.globalIdx = inspectorui.MaxInt(m.globalIdx-m.listViewportHeight()/2, 0)
 		m.ensureGlobalsVisible()
 		m.buildMembers()

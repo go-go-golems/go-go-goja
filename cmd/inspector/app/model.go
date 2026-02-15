@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -618,14 +619,7 @@ func (m *Model) drawerGoToDefinition() {
 	}
 
 	name := node.Text
-	// Look up in ALL scopes (not just global)
-	var binding *BindingRecord
-	for _, scope := range m.index.Resolution.Scopes {
-		if b, ok := scope.Bindings[name]; ok {
-			binding = b
-			break
-		}
-	}
+	binding := m.resolveDrawerBinding(name)
 	if binding == nil {
 		return
 	}
@@ -673,13 +667,7 @@ func (m *Model) drawerHighlightUsages() {
 	}
 
 	name := node.Text
-	var binding *BindingRecord
-	for _, scope := range m.index.Resolution.Scopes {
-		if b, ok := scope.Bindings[name]; ok {
-			binding = b
-			break
-		}
-	}
+	binding := m.resolveDrawerBinding(name)
 	if binding == nil {
 		m.clearHighlightUsages()
 		return
@@ -691,6 +679,107 @@ func (m *Model) drawerHighlightUsages() {
 		m.highlightedBinding = binding
 		m.usageHighlights = binding.AllUsages()
 	}
+}
+
+func (m *Model) resolveDrawerBinding(name string) *BindingRecord {
+	if name == "" || m.index == nil || m.index.Resolution == nil {
+		return nil
+	}
+
+	offset := m.drawerContextOffset()
+	if offset > 0 {
+		if scopeID, ok := m.innermostScopeAtOffset(offset); ok {
+			for sid := scopeID; sid >= 0; {
+				scope := m.index.Resolution.Scopes[sid]
+				if scope == nil {
+					break
+				}
+				if b, ok := scope.Bindings[name]; ok {
+					return b
+				}
+				sid = scope.ParentID
+			}
+		}
+	}
+
+	// Deterministic fallback for cases where we cannot infer a valid context offset.
+	scopeIDs := make([]int, 0, len(m.index.Resolution.Scopes))
+	for scopeID := range m.index.Resolution.Scopes {
+		scopeIDs = append(scopeIDs, int(scopeID))
+	}
+	sort.Ints(scopeIDs)
+	for _, sid := range scopeIDs {
+		scope := m.index.Resolution.Scopes[ScopeID(sid)]
+		if scope == nil {
+			continue
+		}
+		if b, ok := scope.Bindings[name]; ok {
+			return b
+		}
+	}
+
+	return nil
+}
+
+func (m *Model) drawerContextOffset() int {
+	if m.index == nil {
+		return 0
+	}
+	if node := m.index.Nodes[m.selectedNodeID]; node != nil {
+		return node.Start
+	}
+	if m.sourceCursorLine < 0 || m.sourceCursorCol < 0 {
+		return 0
+	}
+	return m.index.LineColToOffset(m.sourceCursorLine+1, m.sourceCursorCol+1)
+}
+
+func (m *Model) innermostScopeAtOffset(offset int) (ScopeID, bool) {
+	if m.index == nil || m.index.Resolution == nil {
+		return -1, false
+	}
+
+	bestID := ScopeID(-1)
+	bestSpan := 0
+	bestDepth := -1
+
+	for id, scope := range m.index.Resolution.Scopes {
+		if scope == nil {
+			continue
+		}
+		if scope.Start > offset || offset >= scope.End {
+			continue
+		}
+
+		span := scope.End - scope.Start
+		depth := m.scopeDepth(id)
+		if bestID < 0 || span < bestSpan || (span == bestSpan && depth > bestDepth) {
+			bestID = id
+			bestSpan = span
+			bestDepth = depth
+		}
+	}
+
+	if bestID < 0 {
+		return -1, false
+	}
+	return bestID, true
+}
+
+func (m *Model) scopeDepth(id ScopeID) int {
+	if m.index == nil || m.index.Resolution == nil {
+		return 0
+	}
+	depth := 0
+	for sid := id; sid >= 0; {
+		scope := m.index.Resolution.Scopes[sid]
+		if scope == nil {
+			break
+		}
+		depth++
+		sid = scope.ParentID
+	}
+	return depth
 }
 
 // --- Source pane methods ---

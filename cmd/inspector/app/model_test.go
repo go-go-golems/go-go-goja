@@ -291,6 +291,83 @@ console.log(known);
 	}
 }
 
+func TestModelDrawerGoToDefinitionUsesLexicalScope(t *testing.T) {
+	src := `const x = 1;
+function f() {
+  const x = 2;
+  return x;
+}
+console.log(x);
+`
+	m := newTestModel(t, src)
+
+	usePos := strings.Index(src, "return x;")
+	if usePos < 0 {
+		t.Fatal("inner usage marker not found")
+	}
+	innerUseNode := m.index.NodeAtOffset(usePos + len("return ") + 1)
+	if innerUseNode == nil {
+		t.Fatal("expected AST node at inner usage position")
+	}
+	innerUseID := innerUseNode.ID
+	innerBinding := m.index.Resolution.BindingForNode(innerUseID)
+	if innerBinding == nil {
+		t.Fatal("expected binding for inner x usage")
+	}
+
+	m.selectedNodeID = innerUseID
+	for _, ch := range "x" {
+		m.drawer.InsertChar(ch)
+	}
+	m.drawer.Reparse()
+
+	m.drawerGoToDefinition()
+
+	if m.selectedNodeID != innerBinding.DeclNodeID {
+		t.Fatalf("expected go-to-def to jump to inner binding %d, got %d", innerBinding.DeclNodeID, m.selectedNodeID)
+	}
+}
+
+func TestModelDrawerHighlightUsagesUsesLexicalScope(t *testing.T) {
+	src := `const x = 1;
+function f() {
+  const x = 2;
+  return x;
+}
+console.log(x);
+`
+	m := newTestModel(t, src)
+
+	usePos := strings.Index(src, "return x;")
+	if usePos < 0 {
+		t.Fatal("inner usage marker not found")
+	}
+	innerUseNode := m.index.NodeAtOffset(usePos + len("return ") + 1)
+	if innerUseNode == nil {
+		t.Fatal("expected AST node at inner usage position")
+	}
+	innerUseID := innerUseNode.ID
+	innerBinding := m.index.Resolution.BindingForNode(innerUseID)
+	if innerBinding == nil {
+		t.Fatal("expected binding for inner x usage")
+	}
+
+	m.selectedNodeID = innerUseID
+	for _, ch := range "x" {
+		m.drawer.InsertChar(ch)
+	}
+	m.drawer.Reparse()
+
+	m.drawerHighlightUsages()
+
+	if m.highlightedBinding != innerBinding {
+		t.Fatalf("expected inner binding to be highlighted, got %+v", m.highlightedBinding)
+	}
+	if len(m.usageHighlights) != len(innerBinding.AllUsages()) {
+		t.Fatalf("expected %d usage highlights, got %d", len(innerBinding.AllUsages()), len(m.usageHighlights))
+	}
+}
+
 func TestTreePaneWidthKeepsTreeCompact(t *testing.T) {
 	m := Model{width: 100}
 	if got := m.treePaneWidth(); got != 40 {
