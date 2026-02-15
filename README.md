@@ -1,7 +1,7 @@
 # go-go-goja
 
 `go-go-goja` is a Go + JavaScript tooling workspace centered on:
-- goja native module execution (`cmd/repl`, `modules/*`, `engine`)
+- goja native module execution (`cmd/repl`, `cmd/js-repl`, `modules/*`, `engine`)
 - JavaScript parsing/indexing/completion (`pkg/jsparse`)
 - inspector domain primitives (`pkg/inspector/*`)
 - user-facing inspector orchestration (`pkg/inspectorapi`)
@@ -13,6 +13,7 @@ From repo root:
 
 ```bash
 go run ./cmd/repl testdata/hello.js
+go run ./cmd/js-repl
 go run ./cmd/inspector ../goja/testdata/sample.js
 go run ./cmd/smalltalk-inspector ../goja/testdata/sample.js
 ```
@@ -23,6 +24,7 @@ go run ./cmd/smalltalk-inspector ../goja/testdata/sample.js
 go-go-goja/
 ├── cmd/
 │   ├── repl/                  # goja runtime REPL + script runner
+│   ├── js-repl/               # Bobatea-powered JS REPL with completion/help widgets
 │   ├── inspector/             # jsparse-oriented AST inspector example
 │   └── smalltalk-inspector/   # Smalltalk-style object inspector UI
 ├── engine/                    # runtime bootstrap helpers (goja + require)
