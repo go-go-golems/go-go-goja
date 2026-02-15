@@ -24,12 +24,16 @@ func NewSessionFromResult(result *jsparse.AnalysisResult) *Session {
 
 // GlobalBindings returns the top-level bindings from the root scope.
 func (s *Session) GlobalBindings() map[string]*jsparse.BindingRecord {
-	if s.Result == nil || s.Result.Resolution == nil {
-		return nil
-	}
-	rootScope := s.Result.Resolution.Scopes[s.Result.Resolution.RootScopeID]
+	rootScope := s.rootScope()
 	if rootScope == nil {
 		return nil
 	}
 	return rootScope.Bindings
+}
+
+func (s *Session) rootScope() *jsparse.ScopeRecord {
+	if s == nil || s.Result == nil || s.Result.Resolution == nil {
+		return nil
+	}
+	return s.Result.Resolution.Scopes[s.Result.Resolution.RootScopeID]
 }
