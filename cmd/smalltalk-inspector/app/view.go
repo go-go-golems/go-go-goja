@@ -565,8 +565,11 @@ func (m Model) renderReplArea() string {
 		resultLine = "→ " + m.replResult
 	} else if ctx := strings.TrimSpace(m.renderReplContextBar()); ctx != "" {
 		resultLine = ctx
-	} else if len(m.replHistory) > 0 {
-		resultLine = styleEmptyHint.Render("  " + m.replHistory[len(m.replHistory)-1])
+	} else if m.replHistory != nil {
+		entries := m.replHistory.GetAll()
+		if len(entries) > 0 {
+			resultLine = styleEmptyHint.Render("  " + entries[len(entries)-1])
+		}
 	}
 
 	// Prompt line

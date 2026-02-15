@@ -14,6 +14,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/bobatea/pkg/commandpalette"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
+	"github.com/go-go-golems/bobatea/pkg/tui/inputhistory"
 	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextbar"
 	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextpanel"
 	"github.com/go-go-golems/bobatea/pkg/tui/widgets/suggest"
@@ -66,7 +67,8 @@ type Model struct {
 	// Runtime
 	rtSession    *runtime.Session
 	replInput    textinput.Model
-	replHistory  []string
+	replHistory  *inputhistory.History
+	replDraft    string
 	replResult   string
 	replError    string
 	replDeclared []inspectorapi.DeclaredBinding
@@ -144,6 +146,7 @@ func NewModel(filename string) Model {
 	m.replInput.CharLimit = 512
 	m.replInput.Width = 60
 	m.replInput.Blur()
+	m.replHistory = inputhistory.NewHistory(500)
 
 	// Initialize tree-sitter parser for syntax highlighting
 	if parser, err := jsparse.NewTSParser(); err == nil {

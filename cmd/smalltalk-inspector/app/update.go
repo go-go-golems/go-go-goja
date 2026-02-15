@@ -144,7 +144,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.updateMode()
 		}
-		m.replHistory = append(m.replHistory, msg.Result.Expression)
+		if m.replHistory != nil {
+			output := m.replResult
+			if msg.Result.Error != nil {
+				output = m.replError
+			}
+			m.replHistory.Add(msg.Result.Expression, output, msg.Result.Error != nil)
+		}
 
 		// Track REPL expression as source with parser-backed declarations.
 		m.appendReplSource(msg.Result.Expression, inspectorapi.DeclaredBindingsFromSource(msg.Result.Expression))
@@ -513,6 +519,30 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.triggerReplCompletionShortcut(msg)
 	}
 
+	if key.Matches(msg, m.keyMap.Up) {
+		if m.replHistory != nil {
+			if !m.replHistory.IsNavigating() {
+				m.replDraft = m.replInput.Value()
+			}
+			next := m.replHistory.NavigateUp()
+			m.replInput.SetValue(next)
+			m.replInput.SetCursor(len(next))
+		}
+		return m, nil
+	}
+	if key.Matches(msg, m.keyMap.Down) {
+		if m.replHistory != nil {
+			next := m.replHistory.NavigateDown()
+			if next == "" && !m.replHistory.IsNavigating() {
+				next = m.replDraft
+				m.replDraft = ""
+			}
+			m.replInput.SetValue(next)
+			m.replInput.SetCursor(len(next))
+		}
+		return m, nil
+	}
+
 	switch msg.String() {
 	case "enter":
 		expr := strings.TrimSpace(m.replInput.Value())
@@ -523,6 +553,10 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.replSuggestWidget.Hide()
 		}
 		m.replInput.SetValue("")
+		if m.replHistory != nil {
+			m.replHistory.ResetNavigation()
+		}
+		m.replDraft = ""
 
 		if m.rtSession == nil {
 			m.replError = "no runtime session (load a file first)"
@@ -552,6 +586,10 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Forward all other keys to the textinput
+	if m.replHistory != nil && m.replHistory.IsNavigating() {
+		m.replHistory.ResetNavigation()
+	}
+	m.replDraft = ""
 	prevValue := m.replInput.Value()
 	prevCursor := m.replInput.Position()
 	var cmd tea.Cmd
