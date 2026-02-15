@@ -1,7 +1,7 @@
 ---
 Title: Move JS/Goja concerns from bobatea to go-go-goja while retaining reusable widgets
 Ticket: GOJA-036-MOVE-JS-BOBATEA
-Status: active
+Status: complete
 Topics:
     - goja
     - bobatea
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-02-15T15:07:56.65662812-05:00
+LastUpdated: 2026-02-15T16:35:53.426133131-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Move JS/Goja concerns from bobatea to go-go-goja while retaining reusable widgets
 

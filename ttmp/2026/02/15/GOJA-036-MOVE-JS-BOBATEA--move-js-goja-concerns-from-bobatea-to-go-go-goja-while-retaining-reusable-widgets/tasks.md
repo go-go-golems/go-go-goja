@@ -13,4 +13,4 @@
 - [x] Integrate bobatea contextbar widget into smalltalk-inspector REPL pane
 - [x] Integrate bobatea contextpanel widget into smalltalk-inspector REPL pane
 - [x] Run cross-repo regression tests and manual smoke runs
-- [ ] Finalize diary/changelog/task checkoffs and commit code/docs in logical chunks
+- [x] Finalize diary/changelog/task checkoffs and commit code/docs in logical chunks

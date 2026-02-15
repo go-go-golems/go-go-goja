@@ -1017,3 +1017,68 @@ Smoke checks used timeout-driven PTY/script launches for interactive TUIs so sta
   - `cmd/repl`: pass
   - `cmd/js-repl`: startup/render pass, timeout stop expected
   - `cmd/smalltalk-inspector`: startup/render pass, timeout stop expected
+
+## Step 14: Finalize Task Bookkeeping, Commits, and Ticket State
+
+I finalized GOJA-036 execution by checking all tasks complete, committing code/docs in logical chunks across both repos, and preparing the ticket for closure. This step records the concrete commit trail so review can proceed by phase.
+
+The remaining untracked calllog SQLite files in go-go-goja are runtime artifacts from smoke runs and were intentionally left out of commits.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Finish execution with disciplined commits and complete task checklist/diary traceability.
+
+**Inferred user intent:** End with production-quality execution hygiene and audit-ready artifacts.
+
+**Commit (code):**
+- `3887f9f` — "refactor(repl): remove js evaluator from bobatea and retire js example"
+- `bd599f3` — "feat(repl): move js evaluator ownership to go-go-goja with js-repl command"
+- `5925608` — "feat(inspector): add bobatea repl widgets to smalltalk-inspector repl pane"
+- `fc5df87` — "docs(ttmp): record GOJA-036 execution and close GOJA-024/028/033/034/035"
+
+### What I did
+- Checked off final GOJA-036 task (12) after commits and docs updates.
+- Related newly implemented files to GOJA-036 analysis/diary docs.
+- Updated GOJA-036 changelog with implementation summary + related files.
+- Validated GOJA-036 doc hygiene:
+  - `docmgr doctor --ticket GOJA-036-MOVE-JS-BOBATEA --stale-after 30`
+  - frontmatter validation for analysis + diary
+- Committed code/docs in logical chunks listed above.
+
+### Why
+- The user explicitly requested sequential implementation with task checkoffs, frequent diary updates, and commits when appropriate.
+
+### What worked
+- Task list now fully complete (`12/12` checked).
+- Commits are separated by architectural concern (bobatea boundary cleanup, go-go-goja ownership move, inspector integration, docs lifecycle updates).
+
+### What didn't work
+- Attempted cleanup command for runtime-generated sqlite artifacts was blocked by tool policy; artifacts were excluded from commits instead.
+
+### What I learned
+- Commit hooks on go-go-goja trigger expensive `go generate` + fallback build behavior via Dagger/Node image pull; this is noisy but non-blocking with fallback path.
+
+### What was tricky to build
+- Keeping commits logically scoped while also preserving pre-existing uncommitted doc updates required explicit path-based staging across two repos.
+
+### What warrants a second pair of eyes
+- Review whether GOJA-036 should be closed immediately after this step or held open for additional manual UX validation in larger terminals.
+
+### What should be done in the future
+- Add CI-friendly smoke checks for `cmd/js-repl` and `cmd/smalltalk-inspector` startup to avoid reliance on ad hoc timeout/script probes.
+
+### Code review instructions
+- Review commits in order:
+  - `3887f9f` (bobatea)
+  - `bd599f3` (go-go-goja)
+  - `5925608` (go-go-goja)
+  - `fc5df87` (go-go-goja docs)
+- Re-run cross-repo tests:
+  - `go test ./... -count=1` in `bobatea`
+  - `go test ./... -count=1` in `go-go-goja`
+
+### Technical details
+- GOJA-036 tasks now all checked complete in:
+  - `go-go-goja/ttmp/2026/02/15/GOJA-036-MOVE-JS-BOBATEA--move-js-goja-concerns-from-bobatea-to-go-go-goja-while-retaining-reusable-widgets/tasks.md`
