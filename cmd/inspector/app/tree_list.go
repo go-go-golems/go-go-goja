@@ -20,6 +20,7 @@ func (i treeListItem) FilterValue() string { return i.title + " " + i.descriptio
 func newTreeListModel() list.Model {
 	delegate := list.NewDefaultDelegate()
 	delegate.SetHeight(1)
+	delegate.SetSpacing(0)
 	delegate.ShowDescription = false
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
