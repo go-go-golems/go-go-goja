@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja/ast"
@@ -98,11 +99,13 @@ type Model struct {
 	statusMsg string
 
 	// Components
-	keyMap    KeyMap
-	help      help.Model
-	spinner   spinner.Model
-	command   textinput.Model
-	cmdActive bool
+	keyMap          KeyMap
+	help            help.Model
+	spinner         spinner.Model
+	command         textinput.Model
+	inspectViewport viewport.Model
+	stackViewport   viewport.Model
+	cmdActive       bool
 }
 
 // NewModel creates a new Smalltalk inspector model.
@@ -125,6 +128,8 @@ func NewModel(filename string) Model {
 	m.command.CharLimit = 256
 	m.command.Width = 60
 	m.command.Blur()
+	m.inspectViewport = viewport.New(0, 0)
+	m.stackViewport = viewport.New(0, 0)
 
 	m.replInput = textinput.New()
 	m.replInput.Prompt = "» "
@@ -455,6 +460,27 @@ func (m *Model) ensureSourceVisible(targetLine int) {
 
 func (m *Model) sourceViewportHeight() int {
 	h := m.contentHeight() - 1
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+func (m *Model) inspectPaneViewportHeight() int {
+	h := m.contentHeight()
+	if len(m.navStack) > 0 {
+		h-- // breadcrumb line
+	}
+	h-- // pane header
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+func (m *Model) stackPaneViewportHeight() int {
+	h := m.contentHeight() - 1 // error banner line
+	h--                        // pane header
 	if h < 1 {
 		h = 1
 	}

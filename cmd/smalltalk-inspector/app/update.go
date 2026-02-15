@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
+	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
@@ -61,6 +62,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.replError = ""
 		m.inspectObj = nil
 		m.inspectProps = nil
+		m.inspectViewport.YOffset = 0
+		m.stackViewport.YOffset = 0
 		m.updateMode()
 		return m, nil
 
@@ -86,6 +89,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.stackIdx = 0
 				m.showingError = true
 				m.replError = info.Message
+				m.stackViewport.YOffset = 0
+				m.ensureStackVisible()
 				// Jump source to first frame
 				if len(info.Frames) > 0 {
 					m.sourceTarget = info.Frames[0].Line - 1
@@ -112,10 +117,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.inspectObj = obj
 					m.inspectProps = buildInspectProps(obj, m.rtSession.VM)
 					m.inspectIdx = 0
+					m.inspectViewport.YOffset = 0
+					m.ensureInspectVisible()
 					m.inspectLabel = msg.Result.Expression
 				} else {
 					m.inspectObj = nil
 					m.inspectProps = nil
+					m.inspectViewport.YOffset = 0
 				}
 			}
 			m.updateMode()
@@ -174,6 +182,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.inspectProps = nil
 			m.inspectLabel = ""
 			m.showingReplSrc = false
+			m.inspectViewport.YOffset = 0
 			m.updateMode()
 			return m, nil
 		}
@@ -559,26 +568,52 @@ func (m *Model) ensureMembersVisible() {
 	}
 }
 
+func (m *Model) ensureInspectVisible() {
+	inspectorui.EnsureRowVisible(
+		&m.inspectViewport,
+		m.inspectIdx,
+		len(m.inspectProps),
+		m.inspectPaneViewportHeight(),
+	)
+}
+
+func (m *Model) ensureStackVisible() {
+	total := 0
+	if m.errorInfo != nil {
+		total = len(m.errorInfo.Frames)
+	}
+	inspectorui.EnsureRowVisible(
+		&m.stackViewport,
+		m.stackIdx,
+		total,
+		m.stackPaneViewportHeight(),
+	)
+}
+
 func (m Model) handleInspectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if key.Matches(msg, m.keyMap.Down) {
 		if m.inspectIdx < len(m.inspectProps)-1 {
 			m.inspectIdx++
+			m.ensureInspectVisible()
 		}
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.Up) {
 		if m.inspectIdx > 0 {
 			m.inspectIdx--
+			m.ensureInspectVisible()
 		}
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.Top) {
 		m.inspectIdx = 0
+		m.ensureInspectVisible()
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.Bottom) {
 		if len(m.inspectProps) > 0 {
 			m.inspectIdx = len(m.inspectProps) - 1
+			m.ensureInspectVisible()
 		}
 		return m, nil
 	}
@@ -599,6 +634,8 @@ func (m Model) handleInspectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.inspectObj = obj
 					m.inspectProps = buildInspectProps(obj, m.rtSession.VM)
 					m.inspectIdx = 0
+					m.inspectViewport.YOffset = 0
+					m.ensureInspectVisible()
 					m.inspectLabel = m.inspectLabel + " → " + prop.Name
 				}
 			}
@@ -655,6 +692,7 @@ func (m Model) handleStackKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if key.Matches(msg, m.keyMap.Down) {
 		if m.errorInfo != nil && m.stackIdx < len(m.errorInfo.Frames)-1 {
 			m.stackIdx++
+			m.ensureStackVisible()
 			frame := m.errorInfo.Frames[m.stackIdx]
 			m.sourceTarget = frame.Line - 1
 			m.ensureSourceVisible(m.sourceTarget)
@@ -664,6 +702,7 @@ func (m Model) handleStackKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if key.Matches(msg, m.keyMap.Up) {
 		if m.stackIdx > 0 {
 			m.stackIdx--
+			m.ensureStackVisible()
 			if m.errorInfo != nil && m.stackIdx < len(m.errorInfo.Frames) {
 				frame := m.errorInfo.Frames[m.stackIdx]
 				m.sourceTarget = frame.Line - 1
@@ -677,6 +716,8 @@ func (m Model) handleStackKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.showingError = false
 		m.errorInfo = nil
 		m.sourceTarget = -1
+		m.stackViewport.YOffset = 0
+		m.updateMode()
 		return m, nil
 	}
 

@@ -152,45 +152,43 @@ func (m Model) renderErrorView(header, status, helpView, repl string, contentHei
 }
 
 func (m Model) renderStackPane(width, height int) string {
-	var lines []string
-
 	label := " Call Stack "
 	headerLine := stylePaneHeaderActive.Render(label) +
 		styleSeparator.Render(strings.Repeat("─", maxInt(0, width-ansi.StringWidth(label))))
-	lines = append(lines, padRight(headerLine, width))
 
 	contentHeight := height - 1
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
 
+	var rows []string
 	if m.errorInfo == nil || len(m.errorInfo.Frames) == 0 {
-		lines = append(lines, padRight(styleEmptyHint.Render(" (no stack frames)"), width))
-		for len(lines) < height {
-			lines = append(lines, strings.Repeat(" ", width))
+		rows = append(rows, padRight(styleEmptyHint.Render(" (no stack frames)"), width))
+	} else {
+		for i, frame := range m.errorInfo.Frames {
+			marker := "  "
+			if i == m.stackIdx {
+				marker = styleSelectedMarker.Render("▸ ")
+			}
+
+			line := fmt.Sprintf("%s#%d  %-16s  %s:%d:%d",
+				marker, i, frame.FunctionName, frame.FileName, frame.Line, frame.Column)
+			rows = append(rows, padRight(line, width))
 		}
-		return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
 	}
 
-	for i, frame := range m.errorInfo.Frames {
-		if i >= contentHeight {
-			break
-		}
-		marker := "  "
-		if i == m.stackIdx {
-			marker = styleSelectedMarker.Render("▸ ")
-		}
+	vp := m.stackViewport
+	vp.Width = width
+	vp.Height = contentHeight
+	vp.SetContent(strings.Join(rows, "\n"))
 
-		line := fmt.Sprintf("%s#%d  %-16s  %s:%d:%d",
-			marker, i, frame.FunctionName, frame.FileName, frame.Line, frame.Column)
-		lines = append(lines, padRight(line, width))
-	}
-
-	for len(lines) < height {
-		lines = append(lines, strings.Repeat(" ", width))
-	}
-
-	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
+	body := lipgloss.NewStyle().Width(width).Height(contentHeight).Render(vp.View())
+	pane := lipgloss.JoinVertical(
+		lipgloss.Left,
+		padRight(headerLine, width),
+		body,
+	)
+	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(pane)
 }
 
 func (m Model) renderInspectView(header, status, helpView, repl string, contentHeight int) string {
@@ -234,8 +232,6 @@ func (m Model) renderInspectView(header, status, helpView, repl string, contentH
 }
 
 func (m Model) renderInspectPane(width, height int) string {
-	var lines []string
-
 	// Header with expression label
 	label := fmt.Sprintf(" REPL Result: %s ", m.inspectLabel)
 	if len(label) > width-2 {
@@ -243,19 +239,15 @@ func (m Model) renderInspectPane(width, height int) string {
 	}
 	headerLine := stylePaneHeaderActive.Render(label) +
 		styleSeparator.Render(strings.Repeat("─", maxInt(0, width-ansi.StringWidth(label))))
-	lines = append(lines, padRight(headerLine, width))
 
 	contentHeight := height - 1
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
 
+	var rows []string
 	// Show properties
 	for i, prop := range m.inspectProps {
-		if i >= contentHeight {
-			break
-		}
-
 		marker := "  "
 		if i == m.inspectIdx {
 			marker = styleSelectedMarker.Render("▸ ")
@@ -277,14 +269,25 @@ func (m Model) renderInspectPane(width, height int) string {
 		}
 
 		line := marker + iconStyled + "  " + name + " : " + prop.Preview + kindLabel
-		lines = append(lines, padRight(line, width))
+		rows = append(rows, padRight(line, width))
 	}
 
-	for len(lines) < height {
-		lines = append(lines, strings.Repeat(" ", width))
+	if len(rows) == 0 {
+		rows = append(rows, padRight(styleEmptyHint.Render(" (no properties)"), width))
 	}
 
-	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(strings.Join(lines, "\n"))
+	vp := m.inspectViewport
+	vp.Width = width
+	vp.Height = contentHeight
+	vp.SetContent(strings.Join(rows, "\n"))
+
+	body := lipgloss.NewStyle().Width(width).Height(contentHeight).Render(vp.View())
+	pane := lipgloss.JoinVertical(
+		lipgloss.Left,
+		padRight(headerLine, width),
+		body,
+	)
+	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(pane)
 }
 
 func (m Model) renderGlobalsPane(width, height int) string {

@@ -12,18 +12,27 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: go-go-goja/cmd/smalltalk-inspector/app/keymap.go
+    - Path: cmd/smalltalk-inspector/app/keymap.go
       Note: Mode tag alignment for key bindings
-    - Path: go-go-goja/cmd/smalltalk-inspector/app/update.go
-      Note: Mode update + mode-keymap activation logic
-    - Path: go-go-goja/cmd/smalltalk-inspector/app/model.go
-      Note: Initial mode activation at model construction
+    - Path: cmd/smalltalk-inspector/app/model.go
+      Note: |-
+        Initial mode activation at model construction
+        Viewport model fields and pane height helpers
+    - Path: cmd/smalltalk-inspector/app/update.go
+      Note: |-
+        Mode update + mode-keymap activation logic
+        Mode transitions and selected-row visibility synchronization
+    - Path: cmd/smalltalk-inspector/app/view.go
+      Note: Viewport-backed inspect/stack rendering
+    - Path: internal/inspectorui/viewportpane.go
+      Note: Viewport row visibility utility introduced in Step 2
 ExternalSources: []
 Summary: Execution diary for GOJA-029 component alignment implementation.
-LastUpdated: 2026-02-14T19:30:00Z
+LastUpdated: 2026-02-15T00:00:00Z
 WhatFor: Track step-by-step migration progress and verification outputs.
 WhenToUse: Use while implementing and reviewing GOJA-029.
 ---
+
 
 # Diary
 
@@ -48,3 +57,78 @@ go test ./cmd/inspector/... -count=1
 ```
 
 Result: both test commands passed.
+
+## Step 2: Viewport pane extraction + inspect/stack visibility scrolling
+
+Continued GOJA-029 by extracting a reusable viewport row-visibility helper and migrating the inspect/stack panes to render through `bubbles/viewport`. This removes the previous fixed-window truncation behavior and gives both panes proper scrolling that tracks the selected row.
+
+I validated this against the user’s note that upstream `go-go-goja` changed recently by running targeted and full regression test passes after formatting. The update path kept the mode-keymap behavior from Step 1 intact while adding viewport offset resets on mode transitions and repl/eval state changes.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, continue . I updated go-go-goja with some changes, in case some things break now, but that's fine."
+
+**Assistant interpretation:** Continue the in-progress GOJA-029 implementation slice and absorb any breakage introduced by recent upstream changes.
+
+**Inferred user intent:** Keep execution momentum, complete the next ticket tasks, and ensure stability despite concurrent code movement.
+
+### What I did
+
+- Added `internal/inspectorui/viewportpane.go` with `EnsureRowVisible` to centralize selected-row visibility logic for viewport-backed panes.
+- Extended `cmd/smalltalk-inspector/app/model.go` with dedicated `inspectViewport` and `stackViewport` models and pane-specific viewport height helpers.
+- Updated `cmd/smalltalk-inspector/app/update.go` to:
+  - reset inspect/stack viewport offsets when entering/leaving relevant states,
+  - call `ensureInspectVisible` and `ensureStackVisible` on navigation and state transitions,
+  - preserve source jump behavior from stack selection.
+- Updated `cmd/smalltalk-inspector/app/view.go` to render inspect/stack pane bodies via viewport content instead of clipping rows to `contentHeight`.
+- Ran:
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+  - `go test ./... -count=1`
+
+### Why
+
+- GOJA-029 includes finding #3 (selected row visibility) and calls for reusable viewport primitives.
+- Existing pane rendering cut off data at pane height and did not maintain scroll position relative to selection.
+
+### What worked
+
+- All targeted and full tests passed after migration.
+- Inspect and stack navigation now keep the selected row visible by adjusting viewport offsets explicitly.
+- State-reset paths now avoid stale viewport offsets when panes are reopened with new content.
+
+### What didn't work
+
+- N/A in this slice; no command/test failures were observed.
+
+### What I learned
+
+- The simplest robust migration path was to keep rendering ownership in view functions while treating viewport offset/height as update-time state, coordinated by a small helper in `internal/inspectorui`.
+
+### What was tricky to build
+
+- Offsets had to be reset in multiple lifecycle points (file load, eval result transitions, inspect clear, stack close) to prevent stale scroll context from a previous object/error session.
+- Height clamping had to match pane-specific layout overhead (headers, breadcrumb, error banner) to avoid off-by-one visibility glitches.
+
+### What warrants a second pair of eyes
+
+- Confirm that inspect-stack mode transitions do not accidentally regress when future panes share the same viewport utility.
+- Validate real terminal behavior for very narrow widths and large stack/property sets (wrapping interactions vs. single-line rows).
+
+### What should be done in the future
+
+- Add explicit UI tests for visibility behavior (task 10 / done-criteria coverage still open).
+- Continue with list/source pane helper extraction and utility consolidation to finish GOJA-029 scope.
+
+### Code review instructions
+
+- Start with `go-go-goja/internal/inspectorui/viewportpane.go` and verify `EnsureRowVisible` invariants.
+- Then review `go-go-goja/cmd/smalltalk-inspector/app/update.go` (`ensureInspectVisible`, `ensureStackVisible`, transition reset points) and `go-go-goja/cmd/smalltalk-inspector/app/view.go` pane rendering migration.
+- Validate with:
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+  - `go test ./... -count=1`
+
+### Technical details
+
+- Viewport migration only changed inspect/stack panes in this slice; source pane and list-pane extraction remain pending per GOJA-029 tasks.
