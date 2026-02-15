@@ -47,3 +47,13 @@ Step 4: Validated frontmatter and doctor checks for GOJA-028, then added missing
 
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/vocabulary.yaml — Added topics `inspector` and `refactor`
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/index.md — Topic metadata validated successfully
+
+## 2026-02-15
+
+Cross-ticket update: GOJA-028 task #13 (analysis-layer integration) has been executed in GOJA-032-ANALYSIS-INTEGRATION with implementation guide, staged refactor commits, and regression validation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/15/GOJA-032-ANALYSIS-INTEGRATION--smalltalk-inspector-analysis-session-integration/design/01-implementation-guide-integrate-pkg-inspector-analysis-into-smalltalk-inspector.md — Execution plan and architecture for the extracted task
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/15/GOJA-032-ANALYSIS-INTEGRATION--smalltalk-inspector-analysis-session-integration/tasks.md — Task-level execution tracking for the extracted work
+

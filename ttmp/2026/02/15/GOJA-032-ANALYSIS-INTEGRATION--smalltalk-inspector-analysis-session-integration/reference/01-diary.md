@@ -15,7 +15,9 @@ RelatedFiles:
     - Path: cmd/smalltalk-inspector/app/model.go
       Note: Session-backed static-analysis migration
     - Path: cmd/smalltalk-inspector/app/model_members_test.go
-      Note: Updated tests for session-backed model
+      Note: |-
+        Updated tests for session-backed model
+        Mixed runtime/static behavior and jump tests for final verification
     - Path: cmd/smalltalk-inspector/app/update.go
       Note: Session initialization in load path
     - Path: cmd/smalltalk-inspector/app/view.go
@@ -26,12 +28,15 @@ RelatedFiles:
       Note: New analysis-session integration methods
     - Path: pkg/inspector/analysis/smalltalk_session_test.go
       Note: API behavior tests for GOJA-032 phase 1
+    - Path: ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/changelog.md
+      Note: GOJA-028 cross-ticket handoff entry
 ExternalSources: []
 Summary: Execution diary for GOJA-032 implementation slices.
 LastUpdated: 2026-02-15T05:50:00Z
 WhatFor: Track implementation progress, rationale, validation outputs, and review handoff notes.
 WhenToUse: Use while executing GOJA-032 tasks and when reviewing integration decisions.
 ---
+
 
 
 
@@ -195,3 +200,74 @@ Runtime paths were intentionally left intact; only static-analysis access routes
 ### Technical details
 
 - Direct `m.analysis` remains only for runtime function-to-source mapping in inspect flow; static-analysis UI traversal now goes through `m.session`.
+
+## Step 3: Runtime-compat verification, full regression, and GOJA-028 cross-reference
+
+Added targeted tests for mixed static/runtime behavior and jump semantics, then ran full regression. After verification, I updated GOJA-028 changelog to explicitly point task #13 execution to GOJA-032 as the extracted implementation ticket.
+
+This closes all remaining GOJA-032 tasks except bookkeeping finalization for this step.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Continue executing the ticket and finish remaining tasks with commits and diary updates.
+
+**Inferred user intent:** Complete the integration ticket end-to-end with explicit validation and documentation traceability.
+
+### What I did
+
+- Added tests in `cmd/smalltalk-inspector/app/model_members_test.go` for:
+  - runtime-derived value member behavior (`buildValueMembers` path),
+  - session-backed binding/member source jumps.
+- Ran verification suite:
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+  - `go test ./pkg/inspector/analysis -count=1`
+  - `go test ./... -count=1`
+- Added GOJA-028 cross-reference changelog entry indicating task `#13` execution in GOJA-032.
+
+### Why
+
+- GOJA-032 required proof that runtime-only behavior remained stable and that full regression remained clean.
+- GOJA-028 backlog needed an explicit cross-ticket handoff/completion note.
+
+### What worked
+
+- All tests passed across focused and full-repo runs.
+- Cross-ticket handoff note is now recorded in GOJA-028 changelog.
+
+### What didn't work
+
+- N/A in this slice.
+
+### What I learned
+
+- Session migration can preserve runtime behavior cleanly when static-analysis and runtime concerns are kept separated in model methods and tests.
+
+### What was tricky to build
+
+- Ensuring test coverage hit both static-analysis-backed and runtime-derived member flows without introducing brittle UI-render assertions.
+
+### What warrants a second pair of eyes
+
+- Confirm there are no desired further opportunities to reduce remaining `m.analysis` usage (currently retained for runtime function mapping only).
+
+### What should be done in the future
+
+- If desired, close GOJA-032 after commit.
+- Optionally back-propagate task status updates into GOJA-028 task list items tied to this extraction.
+
+### Code review instructions
+
+- Start with new tests in `cmd/smalltalk-inspector/app/model_members_test.go`.
+- Review cross-ticket documentation update in `ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/changelog.md`.
+- Re-run:
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+  - `go test ./pkg/inspector/analysis -count=1`
+  - `go test ./... -count=1`
+
+### Technical details
+
+- GOJA-032 now verifies both static analysis integration and runtime-member continuity with tests instead of relying only on manual behavior checks.

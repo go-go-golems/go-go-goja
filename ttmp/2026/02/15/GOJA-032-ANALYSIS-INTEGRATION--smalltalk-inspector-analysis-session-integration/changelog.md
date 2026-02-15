@@ -40,3 +40,14 @@ Step 3: Migrated smalltalk static-analysis callsites (globals/members/jumps/stat
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/view.go — Status parse-error check now uses analysis session
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/15/GOJA-032-ANALYSIS-INTEGRATION--smalltalk-inspector-analysis-session-integration/reference/01-diary.md — Recorded Step 2 diary
 
+
+## 2026-02-15
+
+Step 4: Added mixed static/runtime behavior tests, ran full regression suite, and linked GOJA-028 task #13 execution handoff to GOJA-032.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/model_members_test.go — Added runtime-derived and session-backed jump behavior tests
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-028-CLEANUP-INSPECTOR--cleanup-inspector/changelog.md — Cross-ticket handoff note for extracted task #13
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/15/GOJA-032-ANALYSIS-INTEGRATION--smalltalk-inspector-analysis-session-integration/reference/01-diary.md — Recorded Step 3 completion diary
+
