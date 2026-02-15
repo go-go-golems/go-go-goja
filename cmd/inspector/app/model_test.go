@@ -368,6 +368,106 @@ console.log(x);
 	}
 }
 
+func TestModelDrawerGoToDefinitionUsesLexicalScopeAtGlobalUsage(t *testing.T) {
+	src := `const x = 1;
+function f() {
+  const x = 2;
+  return x;
+}
+console.log(x);
+`
+	m := newTestModel(t, src)
+
+	globalUsePos := strings.Index(src, "console.log(x);")
+	if globalUsePos < 0 {
+		t.Fatal("global usage marker not found")
+	}
+	globalUseNode := m.index.NodeAtOffset(globalUsePos + len("console.log(") + 1)
+	if globalUseNode == nil {
+		t.Fatal("expected AST node at global usage position")
+	}
+	globalUseID := globalUseNode.ID
+	globalBinding := m.index.Resolution.BindingForNode(globalUseID)
+	if globalBinding == nil {
+		t.Fatal("expected binding for global x usage")
+	}
+
+	innerUsePos := strings.Index(src, "return x;")
+	if innerUsePos < 0 {
+		t.Fatal("inner usage marker not found")
+	}
+	innerUseNode := m.index.NodeAtOffset(innerUsePos + len("return ") + 1)
+	if innerUseNode == nil {
+		t.Fatal("expected AST node at inner usage position")
+	}
+	innerBinding := m.index.Resolution.BindingForNode(innerUseNode.ID)
+	if innerBinding == nil {
+		t.Fatal("expected binding for inner x usage")
+	}
+
+	m.selectedNodeID = globalUseID
+	for _, ch := range "x" {
+		m.drawer.InsertChar(ch)
+	}
+	m.drawer.Reparse()
+
+	m.drawerGoToDefinition()
+
+	if m.selectedNodeID != globalBinding.DeclNodeID {
+		t.Fatalf("expected go-to-def to jump to global binding %d, got %d", globalBinding.DeclNodeID, m.selectedNodeID)
+	}
+	if m.selectedNodeID == innerBinding.DeclNodeID {
+		t.Fatalf("go-to-def incorrectly jumped to shadowed inner binding %d", innerBinding.DeclNodeID)
+	}
+}
+
+func TestResolveDrawerBindingDeterministicWithoutContext(t *testing.T) {
+	src := `const x = 1;
+function f() {
+  const x = 2;
+  return x;
+}
+console.log(x);
+`
+	m := newTestModel(t, src)
+
+	globalUsePos := strings.Index(src, "console.log(x);")
+	if globalUsePos < 0 {
+		t.Fatal("global usage marker not found")
+	}
+	globalUseNode := m.index.NodeAtOffset(globalUsePos + len("console.log(") + 1)
+	if globalUseNode == nil {
+		t.Fatal("expected AST node at global usage position")
+	}
+	globalBinding := m.index.Resolution.BindingForNode(globalUseNode.ID)
+	if globalBinding == nil {
+		t.Fatal("expected binding for global x usage")
+	}
+
+	// Remove both selected-node and cursor context to force deterministic fallback.
+	m.selectedNodeID = NodeID(-1)
+	m.sourceCursorLine = -1
+	m.sourceCursorCol = -1
+
+	first := m.resolveDrawerBinding("x")
+	if first == nil {
+		t.Fatal("expected fallback binding for x")
+	}
+	if first.DeclNodeID != globalBinding.DeclNodeID {
+		t.Fatalf("fallback resolved decl %d, want global decl %d", first.DeclNodeID, globalBinding.DeclNodeID)
+	}
+
+	for i := 0; i < 10; i++ {
+		got := m.resolveDrawerBinding("x")
+		if got == nil {
+			t.Fatal("expected fallback binding for x")
+		}
+		if got.DeclNodeID != first.DeclNodeID {
+			t.Fatalf("fallback resolution changed across attempts: got decl %d, first decl %d", got.DeclNodeID, first.DeclNodeID)
+		}
+	}
+}
+
 func TestTreePaneWidthKeepsTreeCompact(t *testing.T) {
 	m := Model{width: 100}
 	if got := m.treePaneWidth(); got != 40 {

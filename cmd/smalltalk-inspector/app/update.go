@@ -407,12 +407,18 @@ func (m Model) handleMembersKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.HalfDown) {
+		if len(m.members) == 0 {
+			return m, nil
+		}
 		m.memberIdx = inspectorui.MinInt(m.memberIdx+m.listViewportHeight()/2, len(m.members)-1)
 		m.ensureMembersVisible()
 		m.jumpToSource()
 		return m, nil
 	}
 	if key.Matches(msg, m.keyMap.HalfUp) {
+		if len(m.members) == 0 {
+			return m, nil
+		}
 		m.memberIdx = inspectorui.MaxInt(m.memberIdx-m.listViewportHeight()/2, 0)
 		m.ensureMembersVisible()
 		m.jumpToSource()

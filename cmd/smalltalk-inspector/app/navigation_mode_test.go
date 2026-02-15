@@ -170,6 +170,25 @@ func TestGlobalsHalfPageNavigationNoopWhenEmpty(t *testing.T) {
 	}
 }
 
+func TestMembersHalfPageNavigationNoopWhenEmpty(t *testing.T) {
+	m := NewModel("")
+	m.loaded = true
+	m.width = 120
+	m.height = 16
+	m.focus = FocusMembers
+	m.updateMode()
+
+	m = updateWithKey(t, m, keyType(tea.KeyCtrlD))
+	if m.memberIdx != 0 {
+		t.Fatalf("memberIdx after half-down on empty members = %d, want 0", m.memberIdx)
+	}
+
+	m = updateWithKey(t, m, keyType(tea.KeyCtrlU))
+	if m.memberIdx != 0 {
+		t.Fatalf("memberIdx after half-up on empty members = %d, want 0", m.memberIdx)
+	}
+}
+
 func updateWithKey(t *testing.T, m Model, msg tea.KeyMsg) Model {
 	t.Helper()
 	next, _ := m.Update(msg)
