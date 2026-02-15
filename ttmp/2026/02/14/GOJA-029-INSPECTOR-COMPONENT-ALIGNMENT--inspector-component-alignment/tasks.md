@@ -7,7 +7,7 @@
 
 - [x] Baseline: capture current interaction behavior and test outputs before refactor
 - [x] Implement mode-keymap alignment for smalltalk-inspector key handling and help wiring
-- [ ] Extract reusable list pane helper and migrate globals/members panes
+- [x] Extract reusable list pane helper and migrate globals/members panes
 - [x] Extract reusable viewport pane helper and migrate inspect/stack panes
 - [x] Ensure inspect/stack selected row visibility with explicit scroll offsets
 - [ ] Migrate source pane to shared viewport helper where feasible

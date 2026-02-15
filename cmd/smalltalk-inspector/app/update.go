@@ -549,23 +549,21 @@ func (m Model) executeCommand(input string) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) ensureGlobalsVisible() {
-	vpHeight := m.listViewportHeight()
-	if m.globalIdx < m.globalScroll {
-		m.globalScroll = m.globalIdx
-	}
-	if m.globalIdx >= m.globalScroll+vpHeight {
-		m.globalScroll = m.globalIdx - vpHeight + 1
-	}
+	inspectorui.EnsureSelectionVisible(
+		&m.globalScroll,
+		m.globalIdx,
+		len(m.globals),
+		m.listViewportHeight(),
+	)
 }
 
 func (m *Model) ensureMembersVisible() {
-	vpHeight := m.listViewportHeight()
-	if m.memberIdx < m.memberScroll {
-		m.memberScroll = m.memberIdx
-	}
-	if m.memberIdx >= m.memberScroll+vpHeight {
-		m.memberScroll = m.memberIdx - vpHeight + 1
-	}
+	inspectorui.EnsureSelectionVisible(
+		&m.memberScroll,
+		m.memberIdx,
+		len(m.members),
+		m.listViewportHeight(),
+	)
 }
 
 func (m *Model) ensureInspectVisible() {

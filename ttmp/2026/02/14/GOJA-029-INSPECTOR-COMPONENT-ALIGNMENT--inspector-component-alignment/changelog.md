@@ -38,3 +38,16 @@ Step 3: Migrated inspect/stack panes to viewport-backed rendering, added reusabl
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/internal/inspectorui/viewportpane.go — Reusable viewport row visibility helper
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-029-INSPECTOR-COMPONENT-ALIGNMENT--inspector-component-alignment/reference/01-diary.md — Recorded Step 2 implementation diary
 
+
+## 2026-02-14
+
+Step 4: Extracted reusable listpane helper for globals/members scroll windows and added listpane unit tests.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/update.go — Globals/members visibility now uses shared listpane helper
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/view.go — Globals/members render window now derived from shared helper
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/internal/inspectorui/listpane.go — Shared list pane selection visibility and visible-range logic
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/internal/inspectorui/listpane_test.go — Unit tests for listpane helper invariants
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-029-INSPECTOR-COMPONENT-ALIGNMENT--inspector-component-alignment/reference/01-diary.md — Recorded Step 3 implementation diary
+

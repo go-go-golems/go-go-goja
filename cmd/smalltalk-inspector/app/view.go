@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/dop251/goja"
+	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
@@ -313,8 +314,8 @@ func (m Model) renderGlobalsPane(width, height int) string {
 			lines = append(lines, strings.Repeat(" ", width))
 		}
 	} else {
-		endIdx := minInt(m.globalScroll+contentHeight, len(m.globals))
-		for i := m.globalScroll; i < endIdx; i++ {
+		start, end := inspectorui.VisibleRange(m.globalScroll, len(m.globals), contentHeight)
+		for i := start; i < end; i++ {
 			g := m.globals[i]
 			marker := "  "
 			if i == m.globalIdx {
@@ -386,9 +387,9 @@ func (m Model) renderMembersPane(width, height int) string {
 		// Show members with own/inherited separation
 		lastInherited := false
 		rendered := 0
-		endIdx := minInt(m.memberScroll+contentHeight, len(m.members))
+		start, end := inspectorui.VisibleRange(m.memberScroll, len(m.members), contentHeight)
 
-		for i := m.memberScroll; i < endIdx; i++ {
+		for i := start; i < end; i++ {
 			mem := m.members[i]
 
 			// Insert inherited section header

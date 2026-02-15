@@ -22,16 +22,24 @@ RelatedFiles:
       Note: |-
         Mode update + mode-keymap activation logic
         Mode transitions and selected-row visibility synchronization
+        Globals/members visibility wiring to shared helper
     - Path: cmd/smalltalk-inspector/app/view.go
-      Note: Viewport-backed inspect/stack rendering
+      Note: |-
+        Viewport-backed inspect/stack rendering
+        Globals/members visible window migration
+    - Path: internal/inspectorui/listpane.go
+      Note: Shared list pane helper added in Step 3
+    - Path: internal/inspectorui/listpane_test.go
+      Note: Listpane invariants test coverage
     - Path: internal/inspectorui/viewportpane.go
       Note: Viewport row visibility utility introduced in Step 2
 ExternalSources: []
 Summary: Execution diary for GOJA-029 component alignment implementation.
-LastUpdated: 2026-02-15T00:00:00Z
+LastUpdated: 2026-02-15T00:15:00Z
 WhatFor: Track step-by-step migration progress and verification outputs.
 WhenToUse: Use while implementing and reviewing GOJA-029.
 ---
+
 
 
 # Diary
@@ -132,3 +140,76 @@ I validated this against the user’s note that upstream `go-go-goja` changed re
 ### Technical details
 
 - Viewport migration only changed inspect/stack panes in this slice; source pane and list-pane extraction remain pending per GOJA-029 tasks.
+
+## Step 3: Reusable listpane helper for globals/members
+
+This step extracted duplicated list scrolling math into a reusable helper and migrated globals/members panes to use it. The goal was to reduce drift between pane implementations while preserving existing render semantics, including inherited-member separators and footer behavior.
+
+I also added unit tests for the new list helper to lock down window/scroll invariants before continuing with source-pane and utility consolidation tasks.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Continue working through GOJA-029 tasks in order, implementing each slice with commits and diary updates.
+
+**Inferred user intent:** Complete the refactor incrementally with traceable steps and low regression risk.
+
+### What I did
+
+- Added `internal/inspectorui/listpane.go`:
+  - `EnsureSelectionVisible(scroll *int, selected, totalRows, viewportHeight int)`
+  - `VisibleRange(scroll, totalRows, viewportHeight int) (start, end int)`
+- Updated `cmd/smalltalk-inspector/app/update.go`:
+  - rewired `ensureGlobalsVisible` and `ensureMembersVisible` to call `inspectorui.EnsureSelectionVisible`.
+- Updated `cmd/smalltalk-inspector/app/view.go`:
+  - rewired globals/members row-window selection to `inspectorui.VisibleRange`.
+- Added `internal/inspectorui/listpane_test.go` covering scroll clamping and window calculation behavior.
+- Ran:
+  - `go test ./internal/inspectorui -count=1`
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+
+### Why
+
+- GOJA-029 phase 2 explicitly calls for shared list pane abstractions.
+- Globals/members panes had duplicated manual math for visibility and clipping; this step centralizes that behavior.
+
+### What worked
+
+- Existing pane behavior stayed intact while replacing local window math with shared helpers.
+- New helper tests pass and provide a stable foundation for further pane migration.
+
+### What didn't work
+
+- Initial patch attempt for `view.go` failed due import/context drift; reapplied with an exact-file-context patch.
+
+### What I learned
+
+- A thin helper API (`EnsureSelectionVisible` + `VisibleRange`) is enough to reduce duplication without introducing a heavyweight component object yet.
+
+### What was tricky to build
+
+- Members pane has mixed content rows (member entries plus inherited section headers), so migration had to preserve the current rendering flow and only replace start/end window derivation, not row composition semantics.
+
+### What warrants a second pair of eyes
+
+- Verify that list window behavior is still intuitive when inherited section boundaries cross viewport edges.
+
+### What should be done in the future
+
+- Continue with source pane migration to shared viewport helper (task 8).
+- Follow with utility consolidation (task 9) and pane-level behavior tests (task 10).
+
+### Code review instructions
+
+- Review `go-go-goja/internal/inspectorui/listpane.go` and `go-go-goja/internal/inspectorui/listpane_test.go` first.
+- Then inspect `go-go-goja/cmd/smalltalk-inspector/app/update.go` and `go-go-goja/cmd/smalltalk-inspector/app/view.go` for usage integration.
+- Validate with:
+  - `go test ./internal/inspectorui -count=1`
+  - `go test ./cmd/smalltalk-inspector/... -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+
+### Technical details
+
+- This step intentionally keeps `globalScroll/memberScroll` as scalar model fields while moving the shared behavior into `internal/inspectorui`; full component-object extraction can remain incremental.
