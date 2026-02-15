@@ -78,3 +78,14 @@ Step 6: Consolidated duplicated layout/status utility helpers into internal insp
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/internal/inspectorui/util_test.go — Utility helper tests
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-029-INSPECTOR-COMPONENT-ALIGNMENT--inspector-component-alignment/reference/01-diary.md — Recorded Step 5 implementation diary
 
+
+## 2026-02-14
+
+Step 7: Added navigation/mode visibility tests for smalltalk-inspector and completed all GOJA-029 tasks with full regression validation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/cmd/smalltalk-inspector/app/navigation_mode_test.go — New pane navigation and mode behavior tests
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-029-INSPECTOR-COMPONENT-ALIGNMENT--inspector-component-alignment/reference/01-diary.md — Recorded Step 6 completion diary
+- /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/ttmp/2026/02/14/GOJA-029-INSPECTOR-COMPONENT-ALIGNMENT--inspector-component-alignment/tasks.md — All remaining tasks checked complete
+

@@ -20,6 +20,8 @@ RelatedFiles:
         Viewport model fields and pane height helpers
         Source viewport state and active-source helper in Step 4
         Removal of duplicated utility functions
+    - Path: cmd/smalltalk-inspector/app/navigation_mode_test.go
+      Note: Step 6 navigation/mode behavior coverage
     - Path: cmd/smalltalk-inspector/app/update.go
       Note: |-
         Mode update + mode-keymap activation logic
@@ -45,12 +47,15 @@ RelatedFiles:
       Note: |-
         Viewport row visibility utility introduced in Step 2
         Shared viewport offset clamp helper
+    - Path: ttmp/2026/02/14/GOJA-029-INSPECTOR-COMPONENT-ALIGNMENT--inspector-component-alignment/tasks.md
+      Note: Final GOJA-029 completion state
 ExternalSources: []
 Summary: Execution diary for GOJA-029 component alignment implementation.
-LastUpdated: 2026-02-15T00:45:00Z
+LastUpdated: 2026-02-15T01:00:00Z
 WhatFor: Track step-by-step migration progress and verification outputs.
 WhenToUse: Use while implementing and reviewing GOJA-029.
 ---
+
 
 
 
@@ -385,3 +390,76 @@ The migration was mechanical but broad, so I added focused unit tests for the ne
 ### Technical details
 
 - `PadRight` remains ANSI-width aware and truncation-safe by centralizing the previous view-level implementation.
+
+## Step 6: Navigation/mode visibility tests + GOJA-029 completion
+
+This final slice added focused tests for pane navigation visibility and mode precedence/dispatch behavior in smalltalk-inspector. With this, the ticket now has explicit coverage for the finding #3 class of visibility issues and mode behavior that had previously been exercised only manually.
+
+I also ran a full `go test ./... -count=1` pass and checked all remaining GOJA-029 tasks/done criteria, completing the ticket scope.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Continue through remaining GOJA-029 tasks and complete them end-to-end.
+
+**Inferred user intent:** Finish the refactor ticket with implementation, tests, and documentation all in sync.
+
+### What I did
+
+- Added `cmd/smalltalk-inspector/app/navigation_mode_test.go` covering:
+  - inspect pane selected-row visibility while navigating down,
+  - stack pane visibility + source-target synchronization,
+  - source pane viewport offset clamping/top-bottom/half-page controls,
+  - mode precedence (`stack` > `inspect` > focus mode) and REPL override behavior.
+- Ran:
+  - `go test ./cmd/smalltalk-inspector/app -count=1`
+  - `go test ./internal/inspectorui -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+  - `go test ./... -count=1`
+- Checked GOJA-029 tasks: `10,13,14,15` (all remaining items).
+
+### Why
+
+- GOJA-029 required explicit test coverage for navigation visibility and mode-specific behavior.
+- Done criteria required no regression in `cmd/inspector` and explicit visibility coverage.
+
+### What worked
+
+- New tests pass and directly exercise the behavior that motivated the cleanup ticket.
+- Full repository test pass succeeded.
+- GOJA-029 tasks are now fully checked complete.
+
+### What didn't work
+
+- N/A in this slice; no failing commands/tests.
+
+### What I learned
+
+- Lightweight integration-style model tests provide strong confidence for interactive TUI behavior without requiring fragile snapshot assertions.
+
+### What was tricky to build
+
+- Writing stable key-input tests required constructing the right `tea.KeyMsg` variants (`KeyRunes`, `KeyCtrlD`) so bindings match exactly as they do in runtime interaction.
+
+### What warrants a second pair of eyes
+
+- Optional: verify expected feel of keyboard interactions manually in a real terminal session after the refactor (especially mixed source/inspect/stack transitions).
+
+### What should be done in the future
+
+- Consider closing GOJA-029 if no additional scope is desired.
+- If follow-up cleanup is needed, it should target cross-command abstraction reuse beyond smalltalk-inspector.
+
+### Code review instructions
+
+- Start with `go-go-goja/cmd/smalltalk-inspector/app/navigation_mode_test.go`.
+- Validate full state with:
+  - `go test ./cmd/smalltalk-inspector/app -count=1`
+  - `go test ./internal/inspectorui -count=1`
+  - `go test ./cmd/inspector/... -count=1`
+  - `go test ./... -count=1`
+
+### Technical details
+
+- Tests intentionally assert internal model invariants (selected index, viewport offsets, mode strings, source target) rather than brittle full-render output strings.

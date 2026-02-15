@@ -12,12 +12,12 @@
 - [x] Ensure inspect/stack selected row visibility with explicit scroll offsets
 - [x] Migrate source pane to shared viewport helper where feasible
 - [x] Consolidate duplicated helper logic (`padRight`, min/max, status formatting) into shared utilities
-- [ ] Add/expand tests for pane navigation, visibility, and mode-specific key behavior
+- [x] Add/expand tests for pane navigation, visibility, and mode-specific key behavior
 - [x] Run full regression suite (`cmd/inspector`, `cmd/smalltalk-inspector`, `pkg/inspector`, full repo)
 - [x] Update docs/changelog with migration notes and residual follow-ups
 
 ## Done Criteria
 
-- [ ] Smalltalk inspector uses shared component primitives for key mode/list/viewport/status
-- [ ] Finding #3 visibility issue is resolved and covered by tests
-- [ ] No regression in existing `cmd/inspector` behavior
+- [x] Smalltalk inspector uses shared component primitives for key mode/list/viewport/status
+- [x] Finding #3 visibility issue is resolved and covered by tests
+- [x] No regression in existing `cmd/inspector` behavior
