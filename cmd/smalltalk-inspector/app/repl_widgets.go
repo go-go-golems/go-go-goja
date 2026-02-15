@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/go-go-golems/bobatea/pkg/overlay"
@@ -58,35 +57,35 @@ func (p replContextPanelProvider) GetContextPanel(ctx context.Context, req conte
 }
 
 type replInputBufferAdapter struct {
-	input *textinput.Model
+	model *Model
 }
 
 func (a replInputBufferAdapter) Value() string {
-	if a.input == nil {
+	if a.model == nil {
 		return ""
 	}
-	return a.input.Value()
+	return a.model.replBufferValue()
 }
 
 func (a replInputBufferAdapter) CursorByte() int {
-	if a.input == nil {
+	if a.model == nil {
 		return 0
 	}
-	return a.input.Position()
+	return a.model.replCursorByte()
 }
 
 func (a replInputBufferAdapter) SetValue(value string) {
-	if a.input == nil {
+	if a.model == nil {
 		return
 	}
-	a.input.SetValue(value)
+	a.model.setReplBufferValue(value)
 }
 
 func (a replInputBufferAdapter) SetCursorByte(cursor int) {
-	if a.input == nil {
+	if a.model == nil || a.model.replMultiline {
 		return
 	}
-	a.input.SetCursor(cursor)
+	a.model.replInput.SetCursor(cursor)
 }
 
 func (m *Model) setupReplWidgetsForRuntime() {
@@ -149,8 +148,8 @@ func (m *Model) scheduleReplWidgetDebounce(prevValue string, prevCursor int) tea
 		return nil
 	}
 
-	value := m.replInput.Value()
-	cursor := m.replInput.Position()
+	value := m.replBufferValue()
+	cursor := m.replCursorByte()
 
 	var cmds []tea.Cmd
 	if m.replSuggestWidget != nil {
@@ -179,7 +178,7 @@ func (m *Model) handleReplSuggestDebounce(msg suggest.DebounceMsg) tea.Cmd {
 	if m.replSuggestWidget == nil {
 		return nil
 	}
-	return m.replSuggestWidget.HandleDebounce(context.Background(), msg, m.replInput.Value(), m.replInput.Position())
+	return m.replSuggestWidget.HandleDebounce(context.Background(), msg, m.replBufferValue(), m.replCursorByte())
 }
 
 func (m *Model) handleReplSuggestResult(msg suggest.ResultMsg) tea.Cmd {
@@ -194,7 +193,7 @@ func (m *Model) handleReplContextBarDebounce(msg contextbar.DebounceMsg) tea.Cmd
 	if m.replContextBarWidget == nil {
 		return nil
 	}
-	return m.replContextBarWidget.HandleDebounce(context.Background(), msg, m.replInput.Value(), m.replInput.Position())
+	return m.replContextBarWidget.HandleDebounce(context.Background(), msg, m.replBufferValue(), m.replCursorByte())
 }
 
 func (m *Model) handleReplContextBarResult(msg contextbar.ResultMsg) tea.Cmd {
@@ -209,7 +208,7 @@ func (m *Model) handleReplContextPanelDebounce(msg contextpanel.DebounceMsg) tea
 	if m.replContextPanelWidget == nil {
 		return nil
 	}
-	return m.replContextPanelWidget.HandleDebounce(context.Background(), msg, m.replInput.Value(), m.replInput.Position())
+	return m.replContextPanelWidget.HandleDebounce(context.Background(), msg, m.replBufferValue(), m.replCursorByte())
 }
 
 func (m *Model) handleReplContextPanelResult(msg contextpanel.ResultMsg) tea.Cmd {
@@ -221,20 +220,20 @@ func (m *Model) handleReplContextPanelResult(msg contextpanel.ResultMsg) tea.Cmd
 }
 
 func (m *Model) triggerReplCompletionShortcut(msg tea.KeyMsg) tea.Cmd {
-	if m.replSuggestWidget == nil {
+	if m.replMultiline || m.replSuggestWidget == nil {
 		return nil
 	}
 	if !key.Matches(msg, m.keyMap.CompletionTrigger) {
 		return nil
 	}
-	return m.replSuggestWidget.TriggerShortcut(context.Background(), m.replInput.Value(), m.replInput.Position(), msg.String())
+	return m.replSuggestWidget.TriggerShortcut(context.Background(), m.replBufferValue(), m.replCursorByte(), msg.String())
 }
 
 func (m *Model) handleReplSuggestionNavigation(msg tea.KeyMsg) bool {
-	if m.replSuggestWidget == nil || !m.replSuggestWidget.Visible() {
+	if m.replMultiline || m.replSuggestWidget == nil || !m.replSuggestWidget.Visible() {
 		return false
 	}
-	buf := replInputBufferAdapter{input: &m.replInput}
+	buf := replInputBufferAdapter{model: m}
 
 	switch {
 	case key.Matches(msg, m.keyMap.CompletionCancel):
@@ -261,9 +260,9 @@ func (m *Model) handleReplHelpDrawerKeys(msg tea.KeyMsg) (bool, tea.Cmd) {
 
 	switch {
 	case key.Matches(msg, m.keyMap.HelpDrawerToggle):
-		return true, m.replContextPanelWidget.Toggle(context.Background(), m.replInput.Value(), m.replInput.Position())
+		return true, m.replContextPanelWidget.Toggle(context.Background(), m.replBufferValue(), m.replCursorByte())
 	case m.replContextPanelWidget.Visible() && key.Matches(msg, m.keyMap.HelpDrawerRefresh):
-		return true, m.replContextPanelWidget.RequestNow(context.Background(), m.replInput.Value(), m.replInput.Position(), contextpanel.TriggerManualRefresh)
+		return true, m.replContextPanelWidget.RequestNow(context.Background(), m.replBufferValue(), m.replCursorByte(), contextpanel.TriggerManualRefresh)
 	case m.replContextPanelWidget.Visible() && key.Matches(msg, m.keyMap.HelpDrawerPin):
 		m.replContextPanelWidget.TogglePin()
 		return true, nil
@@ -312,7 +311,7 @@ func (m Model) applyReplWidgetOverlays(base string) string {
 		}
 	}
 
-	if m.focus == FocusRepl && m.replSuggestWidget != nil && m.replSuggestWidget.Visible() {
+	if m.focus == FocusRepl && !m.replMultiline && m.replSuggestWidget != nil && m.replSuggestWidget.Visible() {
 		popupStyle := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(colorMuted)

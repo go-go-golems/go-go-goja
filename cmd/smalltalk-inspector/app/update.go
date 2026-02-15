@@ -31,6 +31,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.help.Width = msg.Width
 		m.command.Width = inspectorui.MaxInt(16, msg.Width-4)
+		m.replInput.Width = inspectorui.MaxInt(16, msg.Width-4)
+		m.replTextarea.SetWidth(inspectorui.MaxInt(16, msg.Width-4))
+		replHeight := 3
+		if msg.Height < 12 {
+			replHeight = 2
+		}
+		if msg.Height < 8 {
+			replHeight = 1
+		}
+		m.replTextarea.SetHeight(replHeight)
 		m.commandPalette.SetSize(msg.Width, msg.Height)
 		return m, nil
 
@@ -288,14 +298,16 @@ func (m *Model) cyclePane(dir int) {
 	next := (current + dir + len(panes)) % len(panes)
 	m.focus = panes[next]
 
-	// Focus/blur REPL input
-	if m.focus == FocusRepl {
-		m.replInput.Focus()
-	} else {
-		m.replInput.Blur()
-	}
-
+	m.updatePaneFocusState()
 	m.updateMode()
+}
+
+func (m *Model) updatePaneFocusState() {
+	if m.focus == FocusRepl {
+		_ = m.focusReplBuffer()
+		return
+	}
+	m.blurReplBuffers()
 }
 
 func (m *Model) updateMode() {
@@ -511,48 +523,50 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	if m.handleReplSuggestionNavigation(msg) {
+	if !m.replMultiline && m.handleReplSuggestionNavigation(msg) {
 		return m, nil
 	}
 
-	if key.Matches(msg, m.keyMap.CompletionTrigger) {
+	if !m.replMultiline && key.Matches(msg, m.keyMap.CompletionTrigger) {
 		return m, m.triggerReplCompletionShortcut(msg)
 	}
 
-	if key.Matches(msg, m.keyMap.Up) {
+	if !m.replMultiline && key.Matches(msg, m.keyMap.Up) {
 		if m.replHistory != nil {
 			if !m.replHistory.IsNavigating() {
-				m.replDraft = m.replInput.Value()
+				m.replDraft = m.replBufferValue()
 			}
 			next := m.replHistory.NavigateUp()
-			m.replInput.SetValue(next)
-			m.replInput.SetCursor(len(next))
+			m.setReplBufferValue(next)
 		}
 		return m, nil
 	}
-	if key.Matches(msg, m.keyMap.Down) {
+	if !m.replMultiline && key.Matches(msg, m.keyMap.Down) {
 		if m.replHistory != nil {
 			next := m.replHistory.NavigateDown()
 			if next == "" && !m.replHistory.IsNavigating() {
 				next = m.replDraft
 				m.replDraft = ""
 			}
-			m.replInput.SetValue(next)
-			m.replInput.SetCursor(len(next))
+			m.setReplBufferValue(next)
 		}
 		return m, nil
 	}
 
-	switch msg.String() {
-	case "enter":
-		expr := strings.TrimSpace(m.replInput.Value())
+	submit := msg.String() == "enter"
+	if m.replMultiline {
+		submit = msg.String() == "ctrl+s" || msg.String() == "ctrl+enter" || msg.String() == "alt+enter"
+	}
+
+	if submit {
+		expr := strings.TrimSpace(m.replBufferValue())
 		if expr == "" {
 			return m, nil
 		}
 		if m.replSuggestWidget != nil {
 			m.replSuggestWidget.Hide()
 		}
-		m.replInput.SetValue("")
+		m.setReplBufferValue("")
 		if m.replHistory != nil {
 			m.replHistory.ResetNavigation()
 		}
@@ -567,11 +581,14 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		declared := inspectorapi.DeclaredBindingsFromSource(expr)
 		m.replDeclared = append(m.replDeclared, declared...)
 
-		// Evaluate synchronously (expressions should be fast)
+		// Evaluate synchronously (expressions should be fast).
 		result := m.rtSession.EvalWithCapture(expr)
 		return m, func() tea.Msg {
 			return MsgEvalResult{Result: result}
 		}
+	}
+
+	switch msg.String() {
 	case "esc", "escape":
 		if m.replSuggestWidget != nil {
 			m.replSuggestWidget.Hide()
@@ -580,20 +597,24 @@ func (m Model) handleReplKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.replContextBarWidget.Hide()
 		}
 		m.focus = FocusGlobals
-		m.replInput.Blur()
+		m.blurReplBuffers()
 		m.updateMode()
 		return m, nil
 	}
 
-	// Forward all other keys to the textinput
+	// Forward all other keys to the active input widget.
 	if m.replHistory != nil && m.replHistory.IsNavigating() {
 		m.replHistory.ResetNavigation()
 	}
 	m.replDraft = ""
-	prevValue := m.replInput.Value()
-	prevCursor := m.replInput.Position()
+	prevValue := m.replBufferValue()
+	prevCursor := m.replCursorByte()
 	var cmd tea.Cmd
-	m.replInput, cmd = m.replInput.Update(msg)
+	if m.replMultiline {
+		m.replTextarea, cmd = m.replTextarea.Update(msg)
+	} else {
+		m.replInput, cmd = m.replInput.Update(msg)
+	}
 	return m, tea.Batch(cmd, m.scheduleReplWidgetDebounce(prevValue, prevCursor))
 }
 

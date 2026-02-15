@@ -21,6 +21,9 @@ func (m *Model) setupCommandPaletteCommands() {
 		{Name: "focus-members", Description: "focus members pane", Action: func() tea.Cmd { return commandPaletteCmd("focus-members") }},
 		{Name: "focus-source", Description: "focus source pane", Action: func() tea.Cmd { return commandPaletteCmd("focus-source") }},
 		{Name: "focus-repl", Description: "focus repl pane", Action: func() tea.Cmd { return commandPaletteCmd("focus-repl") }},
+		{Name: "repl-singleline", Description: "use single-line repl input", Action: func() tea.Cmd { return commandPaletteCmd("repl-singleline") }},
+		{Name: "repl-multiline", Description: "use multiline repl input (textarea)", Action: func() tea.Cmd { return commandPaletteCmd("repl-multiline") }},
+		{Name: "repl-toggle-multiline", Description: "toggle repl multiline mode", Action: func() tea.Cmd { return commandPaletteCmd("repl-toggle-multiline") }},
 		{Name: "clear-status", Description: "clear status line", Action: func() tea.Cmd { return commandPaletteCmd("clear-status") }},
 		{Name: "quit", Description: "quit inspector", Action: func() tea.Cmd { return commandPaletteCmd("quit") }},
 	}
@@ -58,23 +61,39 @@ func (m Model) executePaletteCommand(name string) (Model, tea.Cmd) {
 		return m, nil
 	case "focus-globals":
 		m.focus = FocusGlobals
-		m.replInput.Blur()
+		m.blurReplBuffers()
 		m.updateMode()
 		return m, nil
 	case "focus-members":
 		m.focus = FocusMembers
-		m.replInput.Blur()
+		m.blurReplBuffers()
 		m.updateMode()
 		return m, nil
 	case "focus-source":
 		m.focus = FocusSource
-		m.replInput.Blur()
+		m.blurReplBuffers()
 		m.updateMode()
 		return m, nil
 	case "focus-repl":
 		m.focus = FocusRepl
-		m.replInput.Focus()
+		_ = m.focusReplBuffer()
 		m.updateMode()
+		return m, nil
+	case "repl-singleline":
+		m.setReplMultiline(false)
+		m.statusMsg = "REPL input mode: single-line"
+		return m, nil
+	case "repl-multiline":
+		m.setReplMultiline(true)
+		m.statusMsg = "REPL input mode: multiline (submit with ctrl+s)"
+		return m, nil
+	case "repl-toggle-multiline":
+		m.setReplMultiline(!m.replMultiline)
+		if m.replMultiline {
+			m.statusMsg = "REPL input mode: multiline (submit with ctrl+s)"
+		} else {
+			m.statusMsg = "REPL input mode: single-line"
+		}
 		return m, nil
 	case "clear-status":
 		m.statusMsg = ""

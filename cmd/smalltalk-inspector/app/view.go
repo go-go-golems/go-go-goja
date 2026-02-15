@@ -39,7 +39,7 @@ func (m Model) renderEmptyView() string {
 	if m.cmdActive {
 		bodyHeight--
 	}
-	bodyHeight -= 3 // REPL
+	bodyHeight -= m.replAreaHeight()
 	if bodyHeight < 1 {
 		bodyHeight = 1
 	}
@@ -549,6 +549,9 @@ func renderSyntaxLine(line string, lineNo int, spans []jsparse.SyntaxSpan) strin
 
 func (m Model) renderReplArea() string {
 	label := " REPL "
+	if m.replMultiline {
+		label = " REPL (multi) "
+	}
 	hStyle := stylePaneHeaderInactive
 	if m.focus == FocusRepl {
 		hStyle = stylePaneHeaderActive
@@ -572,19 +575,39 @@ func (m Model) renderReplArea() string {
 		}
 	}
 
-	// Prompt line
-	var promptLine string
+	// Prompt area
+	var promptBlock string
 	if m.focus == FocusRepl {
-		promptLine = m.replInput.View()
+		if m.replMultiline {
+			promptBlock = m.replTextarea.View()
+		} else {
+			promptBlock = m.replInput.View()
+		}
 	} else {
-		promptLine = styleReplPrompt.Render("» ") + styleEmptyHint.Render("(tab to REPL)")
+		hint := "(tab to REPL)"
+		if m.replMultiline {
+			hint = "(tab to REPL, ctrl+s eval)"
+		}
+		promptBlock = styleReplPrompt.Render("» ") + styleEmptyHint.Render(hint)
+	}
+
+	if promptBlock == "" {
+		promptBlock = " "
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		inspectorui.PadRight(separator, m.width),
 		inspectorui.PadRight(resultLine, m.width),
-		inspectorui.PadRight(promptLine, m.width),
+		padMultilineToWidth(promptBlock, m.width),
 	)
+}
+
+func padMultilineToWidth(s string, width int) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = inspectorui.PadRight(line, width)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m Model) renderStatusBar() string {
