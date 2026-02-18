@@ -24,3 +24,13 @@ Implemented redesigned UI: new serve_format.go with fmtNs/fmtBytes/shortBench/pr
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_format.go — New formatting utilities and data preparation
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_format_test.go — Unit tests for formatting
 
+
+## 2026-02-18
+
+Implemented realtime streaming feedback during benchmark runs: background run tracking per phase, 1-second polling progress display with elapsed time, benchmark result count, live output tail, and automatic transition to final report on completion. Concurrent runs guarded.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_streaming.go — Background run state
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_streaming_test.go — Tests for elapsed formatting
+

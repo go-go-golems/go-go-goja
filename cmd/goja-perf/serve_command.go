@@ -7,7 +7,6 @@ import (
 	"html/template"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -121,7 +120,8 @@ func (c *serveCommand) Run(ctx context.Context, vals *values.Values) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", app.handleIndex)
 	mux.HandleFunc("/api/report/", app.handleReport)
-	mux.HandleFunc("/api/run/", app.handleRun)
+	mux.HandleFunc("/api/run/", app.handleRunStreaming)
+	mux.HandleFunc("/api/run-status/", app.handleRunStatus)
 
 	addr := fmt.Sprintf("%s:%d", settings.Host, settings.Port)
 	fmt.Printf("goja-perf web UI: http://%s\n", addr)
@@ -142,6 +142,7 @@ func (c *serveCommand) Run(ctx context.Context, vals *values.Values) error {
 type perfWebApp struct {
 	repoRoot string
 	phases   map[string]phaseConfig
+	runs     map[string]*runState
 	mu       sync.Mutex
 }
 
@@ -176,57 +177,6 @@ func (a *perfWebApp) handleReport(w http.ResponseWriter, r *http.Request) {
 	view.Results = report.Results
 	view.Tasks = prepareTasks(report.Results)
 	a.renderFragment(w, view)
-}
-
-func (a *perfWebApp) handleRun(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	phaseID := strings.TrimPrefix(r.URL.Path, "/api/run/")
-	cfg, ok := a.phases[phaseID]
-	if !ok {
-		http.Error(w, "unknown phase", http.StatusNotFound)
-		return
-	}
-
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	view := reportViewData{Phase: cfg.ID, Title: cfg.Title, ReportPath: cfg.OutputFile}
-	out, runErr := a.runPhaseCommand(r.Context(), cfg)
-	if runErr != nil {
-		view.HasError = true
-		view.Error = fmt.Sprintf("Run failed: %v", runErr)
-		view.RunOutput = out
-		a.renderFragment(w, view)
-		return
-	}
-
-	report, err := a.loadReport(cfg)
-	if err != nil {
-		view.HasError = true
-		view.Error = fmt.Sprintf("Run succeeded, but report could not be loaded: %v", err)
-		view.RunOutput = out
-		a.renderFragment(w, view)
-		return
-	}
-
-	view.HasReport = true
-	view.UpdatedAt = report.GeneratedAt
-	view.Summary = report.Summary
-	view.Results = report.Results
-	view.Tasks = prepareTasks(report.Results)
-	view.RunOutput = out
-	a.renderFragment(w, view)
-}
-
-func (a *perfWebApp) runPhaseCommand(ctx context.Context, cfg phaseConfig) (string, error) {
-	args := []string{"run", "./cmd/goja-perf", cfg.ID + "-run", "--output-file", cfg.OutputFile, "--output-dir", cfg.OutputDir}
-	cmd := exec.CommandContext(ctx, "go", args...)
-	cmd.Dir = a.repoRoot
-	out, err := cmd.CombinedOutput()
-	return string(out), err
 }
 
 func (a *perfWebApp) loadReport(cfg phaseConfig) (*phase1RunReport, error) {
@@ -349,13 +299,7 @@ const indexTemplate = `<!doctype html>
       htmx.ajax('GET', '/api/report/' + currentPhase, '#report-content');
     }
     function runPhase() {
-      var btn = document.getElementById('btn-run');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="loading-spinner"></span> Running\u2026';
-      htmx.ajax('POST', '/api/run/' + currentPhase, {target: '#report-content'}).then(function() {
-        btn.disabled = false;
-        btn.innerHTML = '\u25B6 Run';
-      });
+      htmx.ajax('POST', '/api/run/' + currentPhase, {target: '#report-content'});
     }
     function toggleTask(id) {
       var el = document.getElementById('task-body-' + id);
