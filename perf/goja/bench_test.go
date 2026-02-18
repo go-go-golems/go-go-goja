@@ -61,6 +61,16 @@ func BenchmarkRuntimeSpawn(b *testing.B) {
 		}
 	})
 
+	b.Run("EngineFactory_NoCallLog", func(b *testing.B) {
+		factory := engine.NewFactory(engine.WithCallLogDisabled())
+		for i := 0; i < b.N; i++ {
+			vm, req := factory.NewRuntime()
+			if vm == nil || req == nil {
+				b.Fatal("nil runtime or require module")
+			}
+		}
+	})
+
 	b.Run("EngineNew_WithCallLog", func(b *testing.B) {
 		callLogPath := filepath.Join(b.TempDir(), "goja-calllog.sqlite")
 		b.Cleanup(calllog.Disable)

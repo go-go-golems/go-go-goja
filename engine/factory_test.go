@@ -1,0 +1,93 @@
+package engine
+
+import (
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/require"
+
+	"github.com/go-go-golems/go-go-goja/modules"
+	"github.com/go-go-golems/go-go-goja/pkg/calllog"
+)
+
+func TestFactoryWithRequireOptions(t *testing.T) {
+	loader := func(path string) ([]byte, error) {
+		trimmed := strings.TrimPrefix(path, "./")
+		if trimmed == "entry.js" {
+			return []byte("module.exports = { ok: 42 };"), nil
+		}
+		return nil, require.ModuleFileDoesNotExistError
+	}
+
+	factory := NewFactory(WithRequireOptions(require.WithLoader(loader)))
+	vm, req := factory.NewRuntime()
+	val, err := req.Require("./entry.js")
+	if err != nil {
+		t.Fatalf("require entry.js: %v", err)
+	}
+
+	obj := val.ToObject(vm)
+	if got := obj.Get("ok").ToInteger(); got != 42 {
+		t.Fatalf("ok = %d, want 42", got)
+	}
+}
+
+func TestFactoryDefaultDisablesRuntimeCallLog(t *testing.T) {
+	defaultPath := filepath.Join(t.TempDir(), "default.sqlite")
+	if err := calllog.Configure(defaultPath); err != nil {
+		t.Fatalf("configure default logger: %v", err)
+	}
+	t.Cleanup(calllog.Disable)
+
+	factory := NewFactory()
+	vm, _ := factory.NewRuntime()
+	exports := vm.NewObject()
+	modules.SetExport(vm, exports, "bench", "noop", func() int {
+		return 42
+	})
+	fn, ok := goja.AssertFunction(exports.Get("noop"))
+	if !ok {
+		t.Fatal("noop is not callable")
+	}
+	if _, err := fn(goja.Undefined()); err != nil {
+		t.Fatalf("invoke noop: %v", err)
+	}
+
+	if got := countRows(t, defaultPath); got != 0 {
+		t.Fatalf("default logger rows = %d, want 0", got)
+	}
+}
+
+func TestFactoryWithCallLogUsesRuntimeLogger(t *testing.T) {
+	defaultPath := filepath.Join(t.TempDir(), "default.sqlite")
+	if err := calllog.Configure(defaultPath); err != nil {
+		t.Fatalf("configure default logger: %v", err)
+	}
+	t.Cleanup(calllog.Disable)
+
+	runtimePath := filepath.Join(t.TempDir(), "runtime.sqlite")
+	factory := NewFactory(WithCallLog(runtimePath))
+	vm, _ := factory.NewRuntime()
+	defer calllog.ReleaseRuntimeLogger(vm)
+
+	exports := vm.NewObject()
+	modules.SetExport(vm, exports, "bench", "noop", func() int {
+		return 42
+	})
+	fn, ok := goja.AssertFunction(exports.Get("noop"))
+	if !ok {
+		t.Fatal("noop is not callable")
+	}
+	if _, err := fn(goja.Undefined()); err != nil {
+		t.Fatalf("invoke noop: %v", err)
+	}
+
+	if got := countRows(t, runtimePath); got != 1 {
+		t.Fatalf("runtime logger rows = %d, want 1", got)
+	}
+	if got := countRows(t, defaultPath); got != 0 {
+		t.Fatalf("default logger rows = %d, want 0", got)
+	}
+}

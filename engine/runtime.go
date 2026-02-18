@@ -2,10 +2,8 @@ package engine
 
 import (
 	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/require"
 
-	"github.com/go-go-golems/go-go-goja/modules"
 	"github.com/go-go-golems/go-go-goja/pkg/calllog"
 	// Blank imports ensure module init() functions run so they can register themselves.
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
@@ -49,30 +47,7 @@ func NewWithConfig(cfg RuntimeConfig, opts ...require.Option) (*goja.Runtime, *r
 
 // Open creates a fresh runtime using option-driven configuration.
 func Open(opts ...Option) (*goja.Runtime, *require.RequireModule) {
-	settings := defaultOpenSettings()
-	for _, opt := range opts {
-		if opt != nil {
-			opt(&settings)
-		}
-	}
-
-	vm := goja.New()
-	configureRuntimeCallLog(vm, settings)
-
-	// Create a registry and register every known Go-backed module.
-	reg := require.NewRegistry(settings.requireOptions...)
-	modules.EnableAll(reg)
-
-	log.Printf("go-go-goja: native modules enabled")
-
-	// Attach the registry to the runtime. The returned object allows
-	// programmatic require() calls from Go.
-	reqMod := reg.Enable(vm)
-
-	// Expose the global `console` object so that JS code can use console.log & friends.
-	console.Enable(vm)
-
-	return vm, reqMod
+	return NewFactory(opts...).NewRuntime()
 }
 
 func configureRuntimeCallLog(vm *goja.Runtime, settings openSettings) {
