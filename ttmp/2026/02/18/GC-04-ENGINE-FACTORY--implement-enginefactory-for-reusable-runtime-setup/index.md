@@ -10,18 +10,27 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: engine/factory.go
+      Note: Core EngineFactory implementation
+    - Path: engine/factory_test.go
+      Note: Factory correctness tests
     - Path: engine/options.go
       Note: Existing Open options API to integrate with Factory
     - Path: engine/runtime.go
       Note: Current runtime creation flow to be split into reusable bootstrap
+    - Path: perf/goja/bench_test.go
+      Note: Spawn benchmark comparison includes EngineFactory
     - Path: pkg/calllog/calllog.go
       Note: Runtime-scoped calllog behavior Factory must preserve
+    - Path: ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/runtime-spawn-enginefactory-bench.txt
+      Note: Recorded benchmark output
 ExternalSources: []
 Summary: Plan ticket for introducing EngineFactory to optimize repeated runtime creation while preserving option-driven configuration and calllog scoping.
 LastUpdated: 2026-02-18T10:16:27.02490808-05:00
 WhatFor: Define design and implementation work for EngineFactory.
 WhenToUse: Use when planning or reviewing EngineFactory implementation work.
 ---
+
 
 # Implement EngineFactory for reusable runtime setup
 

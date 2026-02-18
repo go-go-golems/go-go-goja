@@ -10,18 +10,23 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: engine/runtime.go
-      Note: Existing Open constructor implementation
     - Path: engine/options.go
       Note: Option model that factory should reuse
+    - Path: engine/runtime.go
+      Note: Existing Open constructor implementation
+    - Path: perf/goja/README.md
+      Note: Implementation plan references benchmark scope update
     - Path: pkg/calllog/calllog.go
       Note: Runtime logger binding behavior
+    - Path: pkg/doc/bun-goja-bundling-playbook.md
+      Note: Implementation plan references factory usage docs
 ExternalSources: []
 Summary: Implementation plan for adding EngineFactory with measurable runtime spawn improvements.
-LastUpdated: 2026-02-18T10:16:32.500000000-05:00
+LastUpdated: 2026-02-18T10:16:32.5-05:00
 WhatFor: Sequence implementation work for EngineFactory.
 WhenToUse: Use while implementing and validating EngineFactory.
 ---
+
 
 # Implementation Plan
 
@@ -62,13 +67,16 @@ factory := engine.NewFactory(
   engine.WithCallLogDisabled(),
 )
 
-vm, req, err := factory.NewRuntime()
-if err != nil {
-  panic(err)
-}
+vm, req := factory.NewRuntime()
 _ = vm
 _ = req
 ```
+
+## Current Outcome
+
+- Implemented in commit `b93a0fa892f563bcf6a19bb6453fd4f2d6535560`.
+- Benchmark artifact captured at:
+  - `ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/runtime-spawn-enginefactory-bench.txt`
 
 ## Related
 

@@ -48,7 +48,7 @@ type Factory struct {
 }
 
 func NewFactory(opts ...Option) *Factory
-func (f *Factory) NewRuntime() (*goja.Runtime, *require.RequireModule, error)
+func (f *Factory) NewRuntime() (*goja.Runtime, *require.RequireModule)
 ```
 
 ### Design constraints
@@ -73,10 +73,7 @@ vm, req := engine.Open(engine.WithCallLogDisabled())
 
 // High-throughput path uses factory
 factory := engine.NewFactory(engine.WithCallLogDisabled())
-vm2, req2, err := factory.NewRuntime()
-if err != nil {
-  panic(err)
-}
+vm2, req2 := factory.NewRuntime()
 _ = vm
 _ = req
 _ = vm2
