@@ -72,7 +72,29 @@ WhenToUse: Reference during code review or future maintenance.
   designed for the UI. The existing GC-04 YAML could be converted to this format.
 
 ### How to verify
-1. `go test ./cmd/goja-perf/ -v` — all tests pass
+1. `go test ./cmd/goja-perf/ -v` — all 21 tests pass
 2. `go run ./cmd/goja-perf serve` then open http://127.0.0.1:8090
 3. Click "Profiles" tab — should show comparison card + artifact table
 4. Click "View" on any SVG — should open flamegraph in new tab
+
+## Entry 2: Validation and commit (2026-02-18 ~16:45 EST)
+
+### What happened
+- First commit attempt caught by errcheck linter: `f.Close()` error not checked.
+  Fixed with `defer func() { _ = f.Close() }()`.
+- Created real `profiles.yaml` manifest in the GJ-01 phase output directory
+  pointing to the 6 existing GC-04 SVG flamegraphs.
+- All 7 tasks (F1-F7) checked off.
+
+### Files created
+- `cmd/goja-perf/serve_profiles.go` — 340 lines: types, handlers, template
+- `cmd/goja-perf/serve_profiles_test.go` — 190 lines: 7 test functions
+- `ttmp/.../GJ-01-PERF/.../profiles.yaml` — manifest with 6 artifacts, 1 comparison
+- This diary
+
+### Files modified
+- `cmd/goja-perf/serve_command.go` — added routes, sub-nav toggle, CSS, JS
+
+### Test count: 21 total (7 format + 2 shutdown + 5 streaming + 7 profiles)
+
+### Commit: 235d077
