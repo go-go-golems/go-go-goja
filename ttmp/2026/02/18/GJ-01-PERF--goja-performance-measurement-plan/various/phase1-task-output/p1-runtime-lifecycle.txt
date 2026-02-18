@@ -2,26 +2,27 @@ goos: linux
 goarch: amd64
 pkg: github.com/go-go-golems/go-go-goja/perf/goja
 cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
-BenchmarkRuntimeSpawn/GojaNew-8     	  270342	       899.5 ns/op	    1760 B/op	       8 allocs/op
-BenchmarkRuntimeSpawn/GojaNew-8     	  244654	      1086 ns/op	    1760 B/op	       8 allocs/op
-BenchmarkRuntimeSpawn/GojaNew-8     	  242676	       958.2 ns/op	    1760 B/op	       8 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   12526	     18808 ns/op	   11928 B/op	     140 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   12097	     21133 ns/op	   11928 B/op	     140 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   10000	     21409 ns/op	   11928 B/op	     140 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	    1124	    210807 ns/op	   17742 B/op	     321 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	    1047	    234460 ns/op	   17677 B/op	     321 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	     802	    253157 ns/op	   17649 B/op	     321 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	    6528	     35552 ns/op	   14320 B/op	     189 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	   10000	     41006 ns/op	   14320 B/op	     189 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	    7521	     38122 ns/op	   14320 B/op	     189 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	    8998	     29459 ns/op	   12216 B/op	     146 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	    8785	     32406 ns/op	   12216 B/op	     146 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	   10000	     31581 ns/op	   12216 B/op	     146 allocs/op
-BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   37155	      6342 ns/op	    3328 B/op	      41 allocs/op
-BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   49232	      6108 ns/op	    3328 B/op	      41 allocs/op
-BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   38904	      5750 ns/op	    3328 B/op	      41 allocs/op
-BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	 1216893	       200.5 ns/op	      32 B/op	       1 allocs/op
-BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	 1474664	       146.9 ns/op	      32 B/op	       1 allocs/op
-BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	 1753952	       118.2 ns/op	      32 B/op	       1 allocs/op
+BenchmarkRuntimeSpawn/GojaNew-8     	  248725	      1129 ns/op	    1760 B/op	       8 allocs/op
+BenchmarkRuntimeSpawn/GojaNew-8     	  224350	      1242 ns/op	    1760 B/op	       8 allocs/op
+BenchmarkRuntimeSpawn/GojaNew-8     	  282044	      1206 ns/op	    1760 B/op	       8 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   10000	     25255 ns/op	   12149 B/op	     145 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   11060	     29692 ns/op	   12133 B/op	     145 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   11803	     21462 ns/op	   12147 B/op	     145 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	     590	    381684 ns/op	   19080 B/op	     328 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	     897	    262527 ns/op	   18606 B/op	     328 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	--- FAIL: BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8
+    testing.go:1369: TempDir RemoveAll cleanup: open /tmp: too many open files
+BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	    9466	     23006 ns/op	   14547 B/op	     194 allocs/op
+BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	    7627	     32531 ns/op	   14548 B/op	     194 allocs/op
+BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	   10202	     27745 ns/op	   14548 B/op	     194 allocs/op
+BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	   12363	     18711 ns/op	   12443 B/op	     151 allocs/op
+BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	   12820	     18623 ns/op	   12441 B/op	     151 allocs/op
+BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	   12712	     21159 ns/op	   12437 B/op	     151 allocs/op
+BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   53896	      4000 ns/op	    3328 B/op	      41 allocs/op
+BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   56521	      4171 ns/op	    3328 B/op	      41 allocs/op
+BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   65359	      3800 ns/op	    3328 B/op	      41 allocs/op
+BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	 2391565	        97.35 ns/op	      32 B/op	       1 allocs/op
+BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	 2599214	        93.36 ns/op	      32 B/op	       1 allocs/op
+BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	 2257720	       112.0 ns/op	      32 B/op	       1 allocs/op
 PASS
-ok  	github.com/go-go-golems/go-go-goja/perf/goja	7.062s
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	32.666s
