@@ -10,18 +10,25 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/goja-perf/phase1_run_command.go
+      Note: Diary step records benchmark execution command
+    - Path: cmd/goja-perf/phase1_tasks_command.go
+      Note: Diary step records flag-definition command implementation
     - Path: engine/runtime.go
       Note: Diary describes runtime behavior discovered during analysis
     - Path: perf/goja/bench_test.go
       Note: Records benchmark implementation details discussed in diary
     - Path: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/01-goja-performance-benchmark-plan.md
       Note: Diary references the finalized benchmark plan
+    - Path: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-run-results.yaml
+      Note: Diary references structured phase-1 output
 ExternalSources: []
 Summary: Step-by-step implementation diary for GJ-01-PERF benchmark planning and harness creation.
 LastUpdated: 2026-02-18T13:50:00-05:00
 WhatFor: Record decisions, experiments, failures, and validation commands for Goja performance benchmark planning.
 WhenToUse: Use when reviewing how the benchmark plan and harness were derived.
 ---
+
 
 
 # Diary
@@ -397,3 +404,161 @@ I used the safe workflow (status check, dry-run, upload, remote listing verifica
 
 - Remote destination used: `/ai/2026/02/18/GJ-01-PERF`
 - Uploaded document name: `GJ-01-PERF Goja Performance Plan`
+
+## Step 6: Incremental Commit Baseline and Default Calllog Change
+
+I began this round by honoring the “commit as you go” requirement and creating a baseline commit that captured the existing benchmark foundation plus the default calllog behavior change. This reset the working tree and made subsequent phase-1 command work easy to isolate.
+
+This commit also locked the new default behavior with a test so the setting does not regress.
+
+### Prompt Context
+
+**User prompt (verbatim):** "commit as you go, keep a diary. 
+
+Now add tasks for phase 1 and run it, use glazed for building the commands, and provide structured result data as YAML (don't use glazed structured data, just the command / flag definitions).
+
+THen implement them one by one, committing at opportune moments, keeping a detailed diary as you go"
+
+**Assistant interpretation:** Work in incremental commits, keep a detailed diary, define and execute phase-1 through Glazed-based commands, and output YAML task/results.
+
+**Inferred user intent:** Turn phase-1 from design-only into an executable, reproducible command workflow with traceable commits and docs.
+
+**Commit (code):** 039a49f959ebbec004cb4da6f90da760a1388fb8 — "feat(perf): add goja benchmark foundation and ticket docs"
+
+### What I did
+
+- Committed benchmark foundation and docs already prepared in the repository.
+- Included calllog default switch and guard test in this commit set:
+  - `engine/config.go`
+  - `engine/config_test.go`
+
+### Why
+
+- Needed a clean baseline commit before implementing phase-1 runner commands.
+- Ensured requested calllog default was persisted before continuing.
+
+### What worked
+
+- Pre-commit hooks (`lint`, `test`) passed.
+- Commit landed with benchmark harness + ticket workspace + default calllog disable behavior.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- Capturing the baseline first reduced ambiguity while implementing the new command runner.
+
+### What was tricky to build
+
+- Coordinating a large baseline commit while preserving a clear narrative for later phase-1 incremental changes.
+
+### What warrants a second pair of eyes
+
+- Whether baseline commit scope should be split further if reviewers prefer tighter commit granularity.
+
+### What should be done in the future
+
+- Continue keeping functional/code commits separate from docs-only diary/changelog commits.
+
+### Code review instructions
+
+- Start with:
+  - `engine/config.go`
+  - `engine/config_test.go`
+  - `perf/goja/bench_test.go`
+- Validate by rerunning:
+  - `go test ./engine ./perf/goja`
+
+### Technical details
+
+- Pre-commit output showed Docker image resolution timeout in dagger path, then successful local npm fallback, followed by passing `go test ./...`.
+
+## Step 7: Glazed Phase-1 Commands, YAML Definitions, and YAML Run Results
+
+I added a new Glazed-based CLI (`cmd/goja-perf`) that defines phase-1 benchmark tasks and executes them, while outputting plain YAML rather than Glazed structured output. This directly implements your requested command/flag-definition workflow.
+
+I also ran the full phase-1 task set and persisted both structured YAML outputs and per-task raw benchmark logs in the ticket artifact directory.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 6)
+
+**Assistant interpretation:** Build command-driven phase-1 execution in Glazed style, output YAML task definitions/results, and run the tasks now.
+
+**Inferred user intent:** Make phase-1 execution reproducible and inspectable without relying on manual shell choreography.
+
+**Commit (code):** deb40211326e13fc503c3ef6311353a78828a530 — "feat(perf): add glazed phase-1 runner and YAML benchmark reports"
+
+### What I did
+
+- Added new command package:
+  - `cmd/goja-perf/main.go`
+  - `cmd/goja-perf/phase1_types.go`
+  - `cmd/goja-perf/phase1_tasks_command.go`
+  - `cmd/goja-perf/phase1_run_command.go`
+- Added/updated ticket task checklist for explicit phase-1 execution tracking.
+- Ran and persisted outputs:
+  - `go run ./cmd/goja-perf phase1-tasks ...`
+  - `go run ./cmd/goja-perf phase1-run ...`
+- Stored artifacts:
+  - `.../various/phase1-task-definitions.yaml`
+  - `.../various/phase1-run-results.yaml`
+  - `.../various/phase1-task-output/p1-runtime-lifecycle.txt`
+  - `.../various/phase1-task-output/p1-loading-require.txt`
+  - `.../various/phase1-task-output/p1-boundary-calls.txt`
+
+### Why
+
+- User explicitly requested Glazed command authoring with YAML output based on command/flag definitions.
+- Persisted artifacts make results auditable and reusable.
+
+### What worked
+
+- Command compiles and runs.
+- Phase-1 execution succeeded with 3/3 tasks passing.
+- YAML report includes plan, per-task result, and summary metrics.
+
+### What didn't work
+
+- First implementation included Glazed output sections and collided on `output-file` flag.
+- Error observed:
+  - `Flag 'output-file' ... already exists`
+- Resolution:
+  - Removed Glazed output sections and kept only Glazed command/flag definitions (BareCommand path), matching user requirement.
+- One interactive run was interrupted and rerun successfully.
+
+### What I learned
+
+- For this use case, Glazed command definitions with manual YAML marshalling is the right fit; adding output sections creates unnecessary flag namespace collisions.
+
+### What was tricky to build
+
+- Maintaining the constraint “use Glazed for command/flag definitions, but not Glazed structured output” required explicitly avoiding `settings.NewGlazedSchema()` sections while still decoding values through Glazed.
+
+### What warrants a second pair of eyes
+
+- Whether to keep generated raw benchmark `.txt` artifacts committed or keep only YAML summaries.
+
+### What should be done in the future
+
+- Add Phase-2 commands that reuse the same runner shape for payload-size sweeps and value-conversion benchmarks.
+
+### Code review instructions
+
+- Review command definitions and execution logic in:
+  - `cmd/goja-perf/phase1_tasks_command.go`
+  - `cmd/goja-perf/phase1_run_command.go`
+  - `cmd/goja-perf/phase1_types.go`
+- Verify command behavior:
+  - `go run ./cmd/goja-perf phase1-tasks`
+  - `go run ./cmd/goja-perf phase1-run`
+
+### Technical details
+
+- Final phase-1 summary in YAML:
+  - `total_tasks: 3`
+  - `successful_tasks: 3`
+  - `failed_tasks: 0`
+  - `total_duration_ms: 29473`
