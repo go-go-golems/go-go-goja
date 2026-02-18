@@ -1,0 +1,42 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkPayloadSweep/tiny/GoDirect-8         	295335104	         1.039 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPayloadSweep/tiny/GoDirect-8         	291645391	         1.051 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPayloadSweep/tiny/GoDirect-8         	247998818	         1.403 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPayloadSweep/tiny/JS_vm_Set-8        	   86754	      3180 ns/op	     824 B/op	      14 allocs/op
+BenchmarkPayloadSweep/tiny/JS_vm_Set-8        	   60109	      4393 ns/op	     824 B/op	      14 allocs/op
+BenchmarkPayloadSweep/tiny/JS_vm_Set-8        	   93169	      3493 ns/op	     824 B/op	      14 allocs/op
+BenchmarkPayloadSweep/tiny/JS_module_SetExport-8         	   35545	      8055 ns/op	    1729 B/op	      33 allocs/op
+BenchmarkPayloadSweep/tiny/JS_module_SetExport-8         	   42103	      7310 ns/op	    1729 B/op	      33 allocs/op
+BenchmarkPayloadSweep/tiny/JS_module_SetExport-8         	   45534	      7659 ns/op	    1729 B/op	      33 allocs/op
+BenchmarkPayloadSweep/tiny/GojaAssertFunction-8          	   82286	      3871 ns/op	    1184 B/op	      15 allocs/op
+BenchmarkPayloadSweep/tiny/GojaAssertFunction-8          	   78453	      4104 ns/op	    1184 B/op	      15 allocs/op
+BenchmarkPayloadSweep/tiny/GojaAssertFunction-8          	   62174	      4776 ns/op	    1184 B/op	      15 allocs/op
+BenchmarkPayloadSweep/medium/GoDirect-8                  	233706123	         1.296 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPayloadSweep/medium/GoDirect-8                  	280804483	         1.051 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPayloadSweep/medium/GoDirect-8                  	338316646	         1.181 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPayloadSweep/medium/JS_vm_Set-8                 	   38397	      7808 ns/op	    2976 B/op	      38 allocs/op
+BenchmarkPayloadSweep/medium/JS_vm_Set-8                 	   38574	      7338 ns/op	    2976 B/op	      38 allocs/op
+BenchmarkPayloadSweep/medium/JS_vm_Set-8                 	   39184	      7810 ns/op	    2976 B/op	      38 allocs/op
+BenchmarkPayloadSweep/medium/JS_module_SetExport-8       	   10000	     28256 ns/op	    7761 B/op	     118 allocs/op
+BenchmarkPayloadSweep/medium/JS_module_SetExport-8       	   12486	     25595 ns/op	    7760 B/op	     118 allocs/op
+BenchmarkPayloadSweep/medium/JS_module_SetExport-8       	   10000	     28447 ns/op	    7760 B/op	     118 allocs/op
+BenchmarkPayloadSweep/medium/GojaAssertFunction-8        	   42427	      6188 ns/op	    2432 B/op	      37 allocs/op
+BenchmarkPayloadSweep/medium/GojaAssertFunction-8        	   47990	      6571 ns/op	    2432 B/op	      37 allocs/op
+BenchmarkPayloadSweep/medium/GojaAssertFunction-8        	   39108	      8204 ns/op	    2432 B/op	      37 allocs/op
+BenchmarkPayloadSweep/large/GoDirect-8                   	304516431	         0.9224 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPayloadSweep/large/GoDirect-8                   	370061504	         0.9519 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPayloadSweep/large/GoDirect-8                   	306498189	         0.9518 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPayloadSweep/large/JS_vm_Set-8                  	    2090	    132268 ns/op	   50726 B/op	     783 allocs/op
+BenchmarkPayloadSweep/large/JS_vm_Set-8                  	    2254	    118978 ns/op	   50719 B/op	     783 allocs/op
+BenchmarkPayloadSweep/large/JS_vm_Set-8                  	    2120	    140558 ns/op	   50725 B/op	     783 allocs/op
+BenchmarkPayloadSweep/large/JS_module_SetExport-8        	     729	    409244 ns/op	  131945 B/op	    2335 allocs/op
+BenchmarkPayloadSweep/large/JS_module_SetExport-8        	     566	    443107 ns/op	  131956 B/op	    2337 allocs/op
+BenchmarkPayloadSweep/large/JS_module_SetExport-8        	     732	    430575 ns/op	  131746 B/op	    2335 allocs/op
+BenchmarkPayloadSweep/large/GojaAssertFunction-8         	   80034	      4070 ns/op	    1280 B/op	      18 allocs/op
+BenchmarkPayloadSweep/large/GojaAssertFunction-8         	   92128	      3194 ns/op	    1280 B/op	      18 allocs/op
+BenchmarkPayloadSweep/large/GojaAssertFunction-8         	   92521	      4271 ns/op	    1280 B/op	      18 allocs/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	14.432s

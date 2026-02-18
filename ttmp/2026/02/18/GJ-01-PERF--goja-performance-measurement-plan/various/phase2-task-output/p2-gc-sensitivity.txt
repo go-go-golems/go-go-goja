@@ -1,0 +1,15 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8         	     780	    830782 ns/op	  197005 B/op	    2038 allocs/op
+BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8         	     460	    737881 ns/op	  197015 B/op	    2038 allocs/op
+BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8         	     622	    557930 ns/op	  197026 B/op	    2038 allocs/op
+BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8        	     806	    512443 ns/op	  173018 B/op	    1717 allocs/op
+BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8        	     900	    546721 ns/op	  173015 B/op	    1717 allocs/op
+BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8        	     670	    461395 ns/op	  173024 B/op	    1717 allocs/op
+BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8         	     613	    453635 ns/op	  173029 B/op	    1717 allocs/op
+BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8         	     655	    575745 ns/op	  173026 B/op	    1717 allocs/op
+BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8         	     580	    472830 ns/op	  173030 B/op	    1717 allocs/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	5.220s

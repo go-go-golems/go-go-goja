@@ -1,0 +1,21 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkValueConversion/ToValue_Primitive_Int-8         	35539178	        10.42 ns/op	       0 B/op	       0 allocs/op
+BenchmarkValueConversion/ToValue_Primitive_Int-8         	32904968	        10.73 ns/op	       0 B/op	       0 allocs/op
+BenchmarkValueConversion/ToValue_Primitive_Int-8         	25379443	        11.26 ns/op	       0 B/op	       0 allocs/op
+BenchmarkValueConversion/ToValue_Map20-8                 	  688140	       385.0 ns/op	     208 B/op	       3 allocs/op
+BenchmarkValueConversion/ToValue_Map20-8                 	 1068679	       315.6 ns/op	     208 B/op	       3 allocs/op
+BenchmarkValueConversion/ToValue_Map20-8                 	  793110	       327.1 ns/op	     208 B/op	       3 allocs/op
+BenchmarkValueConversion/ToValue_Nested-8                	  691491	       443.3 ns/op	     208 B/op	       3 allocs/op
+BenchmarkValueConversion/ToValue_Nested-8                	  895206	       434.5 ns/op	     208 B/op	       3 allocs/op
+BenchmarkValueConversion/ToValue_Nested-8                	  763747	       405.9 ns/op	     208 B/op	       3 allocs/op
+BenchmarkValueConversion/Export_Map20-8                  	 6711626	        37.69 ns/op	       8 B/op	       1 allocs/op
+BenchmarkValueConversion/Export_Map20-8                  	 8987332	        36.80 ns/op	       8 B/op	       1 allocs/op
+BenchmarkValueConversion/Export_Map20-8                  	 7167955	        48.55 ns/op	       8 B/op	       1 allocs/op
+BenchmarkValueConversion/ExportTo_Struct-8               	   76900	      3947 ns/op	    1136 B/op	      17 allocs/op
+BenchmarkValueConversion/ExportTo_Struct-8               	   74635	      3938 ns/op	    1136 B/op	      17 allocs/op
+BenchmarkValueConversion/ExportTo_Struct-8               	   67180	      4731 ns/op	    1136 B/op	      17 allocs/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	6.382s

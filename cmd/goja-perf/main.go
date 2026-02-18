@@ -51,6 +51,41 @@ func main() {
 	root.AddCommand(phase1TasksCobra)
 	root.AddCommand(phase1RunCobra)
 
+	phase2TasksCmd, err := newPhase2TasksCommand()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	phase2TasksCobra, err := cli.BuildCobraCommand(phase2TasksCmd,
+		cli.WithParserConfig(cli.CobraParserConfig{
+			ShortHelpSections: []string{schema.DefaultSlug},
+			MiddlewaresFunc:   cli.CobraCommandDefaultMiddlewares,
+		}),
+	)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	phase2RunCmd, err := newPhase2RunCommand()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	phase2RunCobra, err := cli.BuildCobraCommand(phase2RunCmd,
+		cli.WithParserConfig(cli.CobraParserConfig{
+			ShortHelpSections: []string{schema.DefaultSlug},
+			MiddlewaresFunc:   cli.CobraCommandDefaultMiddlewares,
+		}),
+	)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	root.AddCommand(phase2TasksCobra)
+	root.AddCommand(phase2RunCobra)
+
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}

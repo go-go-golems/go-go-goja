@@ -1,0 +1,215 @@
+phase: phase-2
+generated_at: "2026-02-18T14:08:12Z"
+repo_root: .
+plan:
+    - id: p2-value-conversion
+      title: Value Conversion
+      description: Measure Runtime.ToValue / Value.Export / ExportTo conversion overhead.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkValueConversion$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      flags:
+        bench: ^BenchmarkValueConversion$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 250ms
+        count: "3"
+        run: ^$
+        timeout: 20m
+    - id: p2-payload-sweep
+      title: Payload Sweep
+      description: Measure boundary-call behavior across tiny/medium/large payloads.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkPayloadSweep$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      flags:
+        bench: ^BenchmarkPayloadSweep$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 250ms
+        count: "3"
+        run: ^$
+        timeout: 20m
+    - id: p2-gc-sensitivity
+      title: GC Sensitivity
+      description: Measure runtime spawn/reuse behavior under allocation-heavy scripts.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkGCSensitivity$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      flags:
+        bench: ^BenchmarkGCSensitivity$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 250ms
+        count: "3"
+        run: ^$
+        timeout: 20m
+results:
+    - id: p2-value-conversion
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkValueConversion$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      output_file: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-task-output/p2-value-conversion.txt
+      duration_ms: 7834
+      success: true
+      exit_code: 0
+      benchmark_lines:
+        - "BenchmarkValueConversion/ToValue_Primitive_Int-8         \t35539178\t        10.42 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkValueConversion/ToValue_Primitive_Int-8         \t32904968\t        10.73 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkValueConversion/ToValue_Primitive_Int-8         \t25379443\t        11.26 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkValueConversion/ToValue_Map20-8                 \t  688140\t       385.0 ns/op\t     208 B/op\t       3 allocs/op"
+        - "BenchmarkValueConversion/ToValue_Map20-8                 \t 1068679\t       315.6 ns/op\t     208 B/op\t       3 allocs/op"
+        - "BenchmarkValueConversion/ToValue_Map20-8                 \t  793110\t       327.1 ns/op\t     208 B/op\t       3 allocs/op"
+        - "BenchmarkValueConversion/ToValue_Nested-8                \t  691491\t       443.3 ns/op\t     208 B/op\t       3 allocs/op"
+        - "BenchmarkValueConversion/ToValue_Nested-8                \t  895206\t       434.5 ns/op\t     208 B/op\t       3 allocs/op"
+        - "BenchmarkValueConversion/ToValue_Nested-8                \t  763747\t       405.9 ns/op\t     208 B/op\t       3 allocs/op"
+        - "BenchmarkValueConversion/Export_Map20-8                  \t 6711626\t        37.69 ns/op\t       8 B/op\t       1 allocs/op"
+        - "BenchmarkValueConversion/Export_Map20-8                  \t 8987332\t        36.80 ns/op\t       8 B/op\t       1 allocs/op"
+        - "BenchmarkValueConversion/Export_Map20-8                  \t 7167955\t        48.55 ns/op\t       8 B/op\t       1 allocs/op"
+        - "BenchmarkValueConversion/ExportTo_Struct-8               \t   76900\t      3947 ns/op\t    1136 B/op\t      17 allocs/op"
+        - "BenchmarkValueConversion/ExportTo_Struct-8               \t   74635\t      3938 ns/op\t    1136 B/op\t      17 allocs/op"
+        - "BenchmarkValueConversion/ExportTo_Struct-8               \t   67180\t      4731 ns/op\t    1136 B/op\t      17 allocs/op"
+        - PASS
+    - id: p2-payload-sweep
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkPayloadSweep$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      output_file: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-task-output/p2-payload-sweep.txt
+      duration_ms: 15788
+      success: true
+      exit_code: 0
+      benchmark_lines:
+        - "BenchmarkPayloadSweep/tiny/GoDirect-8         \t295335104\t         1.039 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkPayloadSweep/tiny/GoDirect-8         \t291645391\t         1.051 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkPayloadSweep/tiny/GoDirect-8         \t247998818\t         1.403 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkPayloadSweep/tiny/JS_vm_Set-8        \t   86754\t      3180 ns/op\t     824 B/op\t      14 allocs/op"
+        - "BenchmarkPayloadSweep/tiny/JS_vm_Set-8        \t   60109\t      4393 ns/op\t     824 B/op\t      14 allocs/op"
+        - "BenchmarkPayloadSweep/tiny/JS_vm_Set-8        \t   93169\t      3493 ns/op\t     824 B/op\t      14 allocs/op"
+        - "BenchmarkPayloadSweep/tiny/JS_module_SetExport-8         \t   35545\t      8055 ns/op\t    1729 B/op\t      33 allocs/op"
+        - "BenchmarkPayloadSweep/tiny/JS_module_SetExport-8         \t   42103\t      7310 ns/op\t    1729 B/op\t      33 allocs/op"
+        - "BenchmarkPayloadSweep/tiny/JS_module_SetExport-8         \t   45534\t      7659 ns/op\t    1729 B/op\t      33 allocs/op"
+        - "BenchmarkPayloadSweep/tiny/GojaAssertFunction-8          \t   82286\t      3871 ns/op\t    1184 B/op\t      15 allocs/op"
+        - "BenchmarkPayloadSweep/tiny/GojaAssertFunction-8          \t   78453\t      4104 ns/op\t    1184 B/op\t      15 allocs/op"
+        - "BenchmarkPayloadSweep/tiny/GojaAssertFunction-8          \t   62174\t      4776 ns/op\t    1184 B/op\t      15 allocs/op"
+        - "BenchmarkPayloadSweep/medium/GoDirect-8                  \t233706123\t         1.296 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkPayloadSweep/medium/GoDirect-8                  \t280804483\t         1.051 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkPayloadSweep/medium/GoDirect-8                  \t338316646\t         1.181 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkPayloadSweep/medium/JS_vm_Set-8                 \t   38397\t      7808 ns/op\t    2976 B/op\t      38 allocs/op"
+        - "BenchmarkPayloadSweep/medium/JS_vm_Set-8                 \t   38574\t      7338 ns/op\t    2976 B/op\t      38 allocs/op"
+        - "BenchmarkPayloadSweep/medium/JS_vm_Set-8                 \t   39184\t      7810 ns/op\t    2976 B/op\t      38 allocs/op"
+        - "BenchmarkPayloadSweep/medium/JS_module_SetExport-8       \t   10000\t     28256 ns/op\t    7761 B/op\t     118 allocs/op"
+        - "BenchmarkPayloadSweep/medium/JS_module_SetExport-8       \t   12486\t     25595 ns/op\t    7760 B/op\t     118 allocs/op"
+        - "BenchmarkPayloadSweep/medium/JS_module_SetExport-8       \t   10000\t     28447 ns/op\t    7760 B/op\t     118 allocs/op"
+        - "BenchmarkPayloadSweep/medium/GojaAssertFunction-8        \t   42427\t      6188 ns/op\t    2432 B/op\t      37 allocs/op"
+        - "BenchmarkPayloadSweep/medium/GojaAssertFunction-8        \t   47990\t      6571 ns/op\t    2432 B/op\t      37 allocs/op"
+        - "BenchmarkPayloadSweep/medium/GojaAssertFunction-8        \t   39108\t      8204 ns/op\t    2432 B/op\t      37 allocs/op"
+        - "BenchmarkPayloadSweep/large/GoDirect-8                   \t304516431\t         0.9224 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkPayloadSweep/large/GoDirect-8                   \t370061504\t         0.9519 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkPayloadSweep/large/GoDirect-8                   \t306498189\t         0.9518 ns/op\t       0 B/op\t       0 allocs/op"
+        - "BenchmarkPayloadSweep/large/JS_vm_Set-8                  \t    2090\t    132268 ns/op\t   50726 B/op\t     783 allocs/op"
+        - "BenchmarkPayloadSweep/large/JS_vm_Set-8                  \t    2254\t    118978 ns/op\t   50719 B/op\t     783 allocs/op"
+        - "BenchmarkPayloadSweep/large/JS_vm_Set-8                  \t    2120\t    140558 ns/op\t   50725 B/op\t     783 allocs/op"
+        - "BenchmarkPayloadSweep/large/JS_module_SetExport-8        \t     729\t    409244 ns/op\t  131945 B/op\t    2335 allocs/op"
+        - "BenchmarkPayloadSweep/large/JS_module_SetExport-8        \t     566\t    443107 ns/op\t  131956 B/op\t    2337 allocs/op"
+        - "BenchmarkPayloadSweep/large/JS_module_SetExport-8        \t     732\t    430575 ns/op\t  131746 B/op\t    2335 allocs/op"
+        - "BenchmarkPayloadSweep/large/GojaAssertFunction-8         \t   80034\t      4070 ns/op\t    1280 B/op\t      18 allocs/op"
+        - "BenchmarkPayloadSweep/large/GojaAssertFunction-8         \t   92128\t      3194 ns/op\t    1280 B/op\t      18 allocs/op"
+        - "BenchmarkPayloadSweep/large/GojaAssertFunction-8         \t   92521\t      4271 ns/op\t    1280 B/op\t      18 allocs/op"
+        - PASS
+    - id: p2-gc-sensitivity
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkGCSensitivity$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      output_file: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-task-output/p2-gc-sensitivity.txt
+      duration_ms: 6458
+      success: true
+      exit_code: 0
+      benchmark_lines:
+        - "BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8         \t     780\t    830782 ns/op\t  197005 B/op\t    2038 allocs/op"
+        - "BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8         \t     460\t    737881 ns/op\t  197015 B/op\t    2038 allocs/op"
+        - "BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8         \t     622\t    557930 ns/op\t  197026 B/op\t    2038 allocs/op"
+        - "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8        \t     806\t    512443 ns/op\t  173018 B/op\t    1717 allocs/op"
+        - "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8        \t     900\t    546721 ns/op\t  173015 B/op\t    1717 allocs/op"
+        - "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8        \t     670\t    461395 ns/op\t  173024 B/op\t    1717 allocs/op"
+        - "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8         \t     613\t    453635 ns/op\t  173029 B/op\t    1717 allocs/op"
+        - "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8         \t     655\t    575745 ns/op\t  173026 B/op\t    1717 allocs/op"
+        - "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8         \t     580\t    472830 ns/op\t  173030 B/op\t    1717 allocs/op"
+        - PASS
+summary:
+    total_tasks: 3
+    successful_tasks: 3
+    failed_tasks: 0
+    total_duration_ms: 30080
+    total_duration_seconds: "30.080"
