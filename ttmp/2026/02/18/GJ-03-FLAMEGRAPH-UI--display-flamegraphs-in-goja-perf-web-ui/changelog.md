@@ -20,3 +20,13 @@
 ## 2026-02-18
 
 - Initial workspace created
+
+## 2026-02-18
+
+Implemented flamegraph profile browsing: data model, manifest loading, safe artifact serving, Profiles sub-nav tab, comparison cards, artifact table, 7 tests
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_profiles.go — Profile manifest types
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_profiles_test.go — Tests for manifest parsing
+

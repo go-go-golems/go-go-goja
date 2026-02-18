@@ -122,6 +122,8 @@ func (c *serveCommand) Run(ctx context.Context, vals *values.Values) error {
 	mux.HandleFunc("/api/report/", app.handleReport)
 	mux.HandleFunc("/api/run/", app.handleRunStreaming)
 	mux.HandleFunc("/api/run-status/", app.handleRunStatus)
+	mux.HandleFunc("/api/profiles/", app.handleProfiles)
+	mux.HandleFunc("/api/profile-artifact/", app.handleProfileArtifact)
 
 	addr := fmt.Sprintf("%s:%d", settings.Host, settings.Port)
 	fmt.Printf("goja-perf web UI: http://%s\n", addr)
@@ -258,6 +260,16 @@ const indexTemplate = `<!doctype html>
     .summary-bar { display: flex; gap: 20px; padding: 8px 0;
       font-size: 0.88rem; color: #495057; flex-wrap: wrap; }
     .summary-bar strong { color: #212529; }
+    .profile-card {
+      border: 1px solid #dee2e6; border-radius: 8px; padding: 12px 16px;
+      background: #fff; min-width: 200px; flex: 1;
+    }
+    .profile-card.diff { border-color: #dc3545; border-style: dashed; }
+    .sub-nav { display: flex; gap: 4px; margin-bottom: 12px; }
+    .sub-nav-btn { border: 1px solid #dee2e6; background: #fff; padding: 4px 16px;
+      border-radius: 6px; cursor: pointer; font-size: 0.88rem; color: #495057; }
+    .sub-nav-btn.active { background: #0d6efd; color: #fff; border-color: #0d6efd; }
+    .sub-nav-btn:hover { border-color: #0d6efd; }
   </style>
 </head>
 <body>
@@ -278,6 +290,13 @@ const indexTemplate = `<!doctype html>
         </div>
       </div>
 
+      <div class="sub-nav">
+        <button class="sub-nav-btn active" id="subnav-benchmarks"
+                onclick="switchSubNav('benchmarks')">Benchmarks</button>
+        <button class="sub-nav-btn" id="subnav-profiles"
+                onclick="switchSubNav('profiles')">Profiles</button>
+      </div>
+
       <div id="report-content"
            hx-get="/api/report/phase1"
            hx-trigger="load"
@@ -289,16 +308,33 @@ const indexTemplate = `<!doctype html>
 
   <script>
     let currentPhase = 'phase1';
+    let currentSubNav = 'benchmarks';
     function switchPhase(phase) {
       currentPhase = phase;
       document.querySelectorAll('.phase-tab').forEach(function(t) { t.classList.remove('active'); });
       document.getElementById('tab-' + phase).classList.add('active');
-      htmx.ajax('GET', '/api/report/' + phase, '#report-content');
+      loadCurrentView();
+    }
+    function switchSubNav(view) {
+      currentSubNav = view;
+      document.querySelectorAll('.sub-nav-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.getElementById('subnav-' + view).classList.add('active');
+      loadCurrentView();
+    }
+    function loadCurrentView() {
+      if (currentSubNav === 'profiles') {
+        htmx.ajax('GET', '/api/profiles/' + currentPhase, '#report-content');
+      } else {
+        htmx.ajax('GET', '/api/report/' + currentPhase, '#report-content');
+      }
     }
     function refreshPhase() {
-      htmx.ajax('GET', '/api/report/' + currentPhase, '#report-content');
+      loadCurrentView();
     }
     function runPhase() {
+      currentSubNav = 'benchmarks';
+      document.querySelectorAll('.sub-nav-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.getElementById('subnav-benchmarks').classList.add('active');
       htmx.ajax('POST', '/api/run/' + currentPhase, {target: '#report-content'});
     }
     function toggleTask(id) {
