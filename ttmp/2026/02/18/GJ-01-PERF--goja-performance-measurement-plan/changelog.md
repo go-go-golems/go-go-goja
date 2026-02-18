@@ -113,3 +113,18 @@ Added browser dashboard command (goja-perf serve) for running phase tests and vi
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_command.go — Dashboard tables for “what this task measures” and structured metric summaries
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-run-results.yaml — Structured phase-1 results with benchmark descriptions and summaries
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-run-results.yaml — Structured phase-2 results with benchmark descriptions and summaries
+
+
+## 2026-02-18
+
+- Uploaded refreshed ticket bundle to reMarkable:
+  - `GJ-01-PERF Goja Performance Plan (structured tables update).pdf`
+  - destination: `/ai/2026/02/18/GJ-01-PERF`
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/index.md — Included in reMarkable bundle
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/tasks.md — Included in reMarkable bundle
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/changelog.md — Included in reMarkable bundle
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/01-goja-performance-benchmark-plan.md — Included in reMarkable bundle
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/02-diary.md — Included in reMarkable bundle

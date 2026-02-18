@@ -831,3 +831,76 @@ I also updated the web fragment to present two explicit tables per task: one tab
   - `What this task measures` (`BenchmarkDefinitions`)
   - `Structured results` (`Summaries` with metric avg/min/max)
 - No dependency on `.txt` files for normal report rendering path; raw text remains as per-task artifact for deep debugging.
+
+## Step 11: Upload Updated Structured-Table Bundle to reMarkable
+
+After landing the structured output/table improvements, I uploaded a refreshed ticket bundle to reMarkable so the device copy reflects the newest YAML/report UX changes. I kept the prior file intact and used a new document name to avoid overwriting existing annotations.
+
+This preserved the original upload while still delivering an updated package for review on-device.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Ensure final deliverables, including latest structured reporting changes, are available on reMarkable.
+
+**Inferred user intent:** Keep reMarkable in sync with the latest implementation and documentation state.
+
+**Commit (code):** N/A (upload + docs bookkeeping only)
+
+### What I did
+
+- Verified tool and prepared safe upload flow:
+  - `remarquee status`
+  - `remarquee upload bundle --dry-run ... --name "GJ-01-PERF Goja Performance Plan" --remote-dir "/ai/2026/02/18/GJ-01-PERF" --toc-depth 2`
+- Attempted upload with existing name:
+  - Received skip (already exists, no overwrite).
+- Uploaded with a new name:
+  - `remarquee upload bundle ... --name "GJ-01-PERF Goja Performance Plan (structured tables update)" --remote-dir "/ai/2026/02/18/GJ-01-PERF" --toc-depth 2`
+- Verified destination contents:
+  - `remarquee cloud ls /ai/2026/02/18/GJ-01-PERF --long --non-interactive`
+
+### Why
+
+- Avoid clobbering an existing file and potential annotations while still delivering updated content.
+
+### What worked
+
+- Upload succeeded:
+  - `OK: uploaded GJ-01-PERF Goja Performance Plan (structured tables update).pdf -> /ai/2026/02/18/GJ-01-PERF`
+- Remote listing confirms both original and updated files exist.
+
+### What didn't work
+
+- Initial upload with original name was skipped:
+  - `SKIP: GJ-01-PERF Goja Performance Plan already exists in /ai/2026/02/18/GJ-01-PERF (use --force to overwrite)`
+- Resolution:
+  - Uploaded with a new name instead of forcing overwrite.
+
+### What I learned
+
+- For iterative doc deliveries, naming with a short change suffix avoids accidental overwrite and preserves existing review artifacts.
+
+### What was tricky to build
+
+- Balancing “upload latest” with annotation safety. Avoiding `--force` by default keeps remote state safer when collaborator notes may already exist.
+
+### What warrants a second pair of eyes
+
+- Whether future workflow should standardize versioned naming (`v1`, `v2`, etc.) for all reMarkable uploads.
+
+### What should be done in the future
+
+- Add a short upload naming convention to the ticket README for predictable document revisions.
+
+### Code review instructions
+
+- Verify remote files:
+  - `remarquee cloud ls /ai/2026/02/18/GJ-01-PERF --long --non-interactive`
+
+### Technical details
+
+- Uploaded filename:
+  - `GJ-01-PERF Goja Performance Plan (structured tables update).pdf`
+- Remote folder:
+  - `/ai/2026/02/18/GJ-01-PERF`
