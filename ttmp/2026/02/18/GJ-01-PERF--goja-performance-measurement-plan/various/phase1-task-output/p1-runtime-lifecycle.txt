@@ -2,26 +2,26 @@ goos: linux
 goarch: amd64
 pkg: github.com/go-go-golems/go-go-goja/perf/goja
 cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
-BenchmarkRuntimeSpawn/GojaNew-8     	  217708	      1707 ns/op	    1760 B/op	       8 allocs/op
-BenchmarkRuntimeSpawn/GojaNew-8     	  226978	      1667 ns/op	    1760 B/op	       8 allocs/op
-BenchmarkRuntimeSpawn/GojaNew-8     	  165823	      1322 ns/op	    1760 B/op	       8 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   10000	     23265 ns/op	   11928 B/op	     140 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	    9469	     24464 ns/op	   11928 B/op	     140 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   10000	     24481 ns/op	   11928 B/op	     140 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	    1062	    212207 ns/op	   17688 B/op	     321 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	     870	    292732 ns/op	   17658 B/op	     321 allocs/op
-BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	    1166	    282292 ns/op	   17645 B/op	     320 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	   10000	     29107 ns/op	   14320 B/op	     189 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	   10000	     41092 ns/op	   14320 B/op	     189 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	    9195	     31944 ns/op	   14320 B/op	     189 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	   10000	     22280 ns/op	   12216 B/op	     146 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	   10000	     20801 ns/op	   12216 B/op	     146 allocs/op
-BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	   10399	     22080 ns/op	   12216 B/op	     146 allocs/op
-BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   36726	      5716 ns/op	    3328 B/op	      41 allocs/op
-BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   33009	      8833 ns/op	    3328 B/op	      41 allocs/op
-BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   31945	      7184 ns/op	    3328 B/op	      41 allocs/op
-BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	  825736	       245.5 ns/op	      32 B/op	       1 allocs/op
-BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	 1662034	       129.7 ns/op	      32 B/op	       1 allocs/op
-BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	 1953114	       148.6 ns/op	      32 B/op	       1 allocs/op
+BenchmarkRuntimeSpawn/GojaNew-8     	  270342	       899.5 ns/op	    1760 B/op	       8 allocs/op
+BenchmarkRuntimeSpawn/GojaNew-8     	  244654	      1086 ns/op	    1760 B/op	       8 allocs/op
+BenchmarkRuntimeSpawn/GojaNew-8     	  242676	       958.2 ns/op	    1760 B/op	       8 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   12526	     18808 ns/op	   11928 B/op	     140 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   12097	     21133 ns/op	   11928 B/op	     140 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   10000	     21409 ns/op	   11928 B/op	     140 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	    1124	    210807 ns/op	   17742 B/op	     321 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	    1047	    234460 ns/op	   17677 B/op	     321 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	     802	    253157 ns/op	   17649 B/op	     321 allocs/op
+BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	    6528	     35552 ns/op	   14320 B/op	     189 allocs/op
+BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	   10000	     41006 ns/op	   14320 B/op	     189 allocs/op
+BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	    7521	     38122 ns/op	   14320 B/op	     189 allocs/op
+BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	    8998	     29459 ns/op	   12216 B/op	     146 allocs/op
+BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	    8785	     32406 ns/op	   12216 B/op	     146 allocs/op
+BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	   10000	     31581 ns/op	   12216 B/op	     146 allocs/op
+BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   37155	      6342 ns/op	    3328 B/op	      41 allocs/op
+BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   49232	      6108 ns/op	    3328 B/op	      41 allocs/op
+BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  	   38904	      5750 ns/op	    3328 B/op	      41 allocs/op
+BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	 1216893	       200.5 ns/op	      32 B/op	       1 allocs/op
+BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	 1474664	       146.9 ns/op	      32 B/op	       1 allocs/op
+BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 	 1753952	       118.2 ns/op	      32 B/op	       1 allocs/op
 PASS
-ok  	github.com/go-go-golems/go-go-goja/perf/goja	7.557s
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	7.062s

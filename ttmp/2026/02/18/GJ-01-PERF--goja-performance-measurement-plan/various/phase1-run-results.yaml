@@ -1,5 +1,5 @@
 phase: phase-1
-generated_at: "2026-02-18T13:49:25Z"
+generated_at: "2026-02-18T14:28:26Z"
 repo_root: .
 plan:
     - id: p1-runtime-lifecycle
@@ -28,6 +28,13 @@ plan:
         count: "3"
         run: ^$
         timeout: 15m
+      benchmarks:
+        - name: BenchmarkRuntimeSpawn
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+        - name: BenchmarkRuntimeSpawnAndExecute
+          description: Measure cost of creating a runtime and immediately executing one script/program.
+        - name: BenchmarkRuntimeReuse
+          description: Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram.
     - id: p1-loading-require
       title: Loading and Require
       description: Measure JS compile/load cost and require cold/warm behavior.
@@ -54,6 +61,11 @@ plan:
         count: "3"
         run: ^$
         timeout: 15m
+      benchmarks:
+        - name: BenchmarkJSLoading
+          description: Measure compile/run costs across small, medium, and large scripts.
+        - name: BenchmarkRequireLoading
+          description: Measure module loading overhead in cold runtime and warm cached runtime paths.
     - id: p1-boundary-calls
       title: Go/JS Boundary Calls
       description: Measure JS->Go and Go->JS call overhead and logging mode deltas.
@@ -80,8 +92,22 @@ plan:
         count: "3"
         run: ^$
         timeout: 15m
+      benchmarks:
+        - name: BenchmarkJSCallingGo
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+        - name: BenchmarkGoCallingJS
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
 results:
     - id: p1-runtime-lifecycle
+      task_title: Runtime Lifecycle
+      task_description: Measure VM spawn and spawn+execute/reuse behavior.
+      benchmark_definitions:
+        - name: BenchmarkRuntimeSpawn
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+        - name: BenchmarkRuntimeSpawnAndExecute
+          description: Measure cost of creating a runtime and immediately executing one script/program.
+        - name: BenchmarkRuntimeReuse
+          description: Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram.
       command: go
       args:
         - test
@@ -98,33 +124,299 @@ results:
         - -timeout
         - 15m
       output_file: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-task-output/p1-runtime-lifecycle.txt
-      duration_ms: 8648
+      duration_ms: 8172
       success: true
       exit_code: 0
-      benchmark_lines:
-        - "BenchmarkRuntimeSpawn/GojaNew-8     \t  217708\t      1707 ns/op\t    1760 B/op\t       8 allocs/op"
-        - "BenchmarkRuntimeSpawn/GojaNew-8     \t  226978\t      1667 ns/op\t    1760 B/op\t       8 allocs/op"
-        - "BenchmarkRuntimeSpawn/GojaNew-8     \t  165823\t      1322 ns/op\t    1760 B/op\t       8 allocs/op"
-        - "BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         \t   10000\t     23265 ns/op\t   11928 B/op\t     140 allocs/op"
-        - "BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         \t    9469\t     24464 ns/op\t   11928 B/op\t     140 allocs/op"
-        - "BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         \t   10000\t     24481 ns/op\t   11928 B/op\t     140 allocs/op"
-        - "BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       \t    1062\t    212207 ns/op\t   17688 B/op\t     321 allocs/op"
-        - "BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       \t     870\t    292732 ns/op\t   17658 B/op\t     321 allocs/op"
-        - "BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       \t    1166\t    282292 ns/op\t   17645 B/op\t     320 allocs/op"
-        - "BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         \t   10000\t     29107 ns/op\t   14320 B/op\t     189 allocs/op"
-        - "BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         \t   10000\t     41092 ns/op\t   14320 B/op\t     189 allocs/op"
-        - "BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         \t    9195\t     31944 ns/op\t   14320 B/op\t     189 allocs/op"
-        - "BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        \t   10000\t     22280 ns/op\t   12216 B/op\t     146 allocs/op"
-        - "BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        \t   10000\t     20801 ns/op\t   12216 B/op\t     146 allocs/op"
-        - "BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        \t   10399\t     22080 ns/op\t   12216 B/op\t     146 allocs/op"
-        - "BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  \t   36726\t      5716 ns/op\t    3328 B/op\t      41 allocs/op"
-        - "BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  \t   33009\t      8833 ns/op\t    3328 B/op\t      41 allocs/op"
-        - "BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  \t   31945\t      7184 ns/op\t    3328 B/op\t      41 allocs/op"
-        - "BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 \t  825736\t       245.5 ns/op\t      32 B/op\t       1 allocs/op"
-        - "BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 \t 1662034\t       129.7 ns/op\t      32 B/op\t       1 allocs/op"
-        - "BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 \t 1953114\t       148.6 ns/op\t      32 B/op\t       1 allocs/op"
-        - PASS
+      samples:
+        - benchmark: BenchmarkRuntimeSpawn/GojaNew-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          iterations: 270342
+          metrics:
+            B/op: 1760
+            allocs/op: 8
+            ns/op: 899.5
+          raw_line: "BenchmarkRuntimeSpawn/GojaNew-8     \t  270342\t       899.5 ns/op\t    1760 B/op\t       8 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawn/GojaNew-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          iterations: 244654
+          metrics:
+            B/op: 1760
+            allocs/op: 8
+            ns/op: 1086
+          raw_line: "BenchmarkRuntimeSpawn/GojaNew-8     \t  244654\t      1086 ns/op\t    1760 B/op\t       8 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawn/GojaNew-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          iterations: 242676
+          metrics:
+            B/op: 1760
+            allocs/op: 8
+            ns/op: 958.2
+          raw_line: "BenchmarkRuntimeSpawn/GojaNew-8     \t  242676\t       958.2 ns/op\t    1760 B/op\t       8 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          iterations: 12526
+          metrics:
+            B/op: 11928
+            allocs/op: 140
+            ns/op: 18808
+          raw_line: "BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         \t   12526\t     18808 ns/op\t   11928 B/op\t     140 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          iterations: 12097
+          metrics:
+            B/op: 11928
+            allocs/op: 140
+            ns/op: 21133
+          raw_line: "BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         \t   12097\t     21133 ns/op\t   11928 B/op\t     140 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          iterations: 10000
+          metrics:
+            B/op: 11928
+            allocs/op: 140
+            ns/op: 21409
+          raw_line: "BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         \t   10000\t     21409 ns/op\t   11928 B/op\t     140 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          iterations: 1124
+          metrics:
+            B/op: 17742
+            allocs/op: 321
+            ns/op: 210807
+          raw_line: "BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       \t    1124\t    210807 ns/op\t   17742 B/op\t     321 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          iterations: 1047
+          metrics:
+            B/op: 17677
+            allocs/op: 321
+            ns/op: 234460
+          raw_line: "BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       \t    1047\t    234460 ns/op\t   17677 B/op\t     321 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          iterations: 802
+          metrics:
+            B/op: 17649
+            allocs/op: 321
+            ns/op: 253157
+          raw_line: "BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       \t     802\t    253157 ns/op\t   17649 B/op\t     321 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8
+          description: Measure cost of creating a runtime and immediately executing one script/program.
+          iterations: 6528
+          metrics:
+            B/op: 14320
+            allocs/op: 189
+            ns/op: 35552
+          raw_line: "BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         \t    6528\t     35552 ns/op\t   14320 B/op\t     189 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8
+          description: Measure cost of creating a runtime and immediately executing one script/program.
+          iterations: 10000
+          metrics:
+            B/op: 14320
+            allocs/op: 189
+            ns/op: 41006
+          raw_line: "BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         \t   10000\t     41006 ns/op\t   14320 B/op\t     189 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8
+          description: Measure cost of creating a runtime and immediately executing one script/program.
+          iterations: 7521
+          metrics:
+            B/op: 14320
+            allocs/op: 189
+            ns/op: 38122
+          raw_line: "BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         \t    7521\t     38122 ns/op\t   14320 B/op\t     189 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8
+          description: Measure cost of creating a runtime and immediately executing one script/program.
+          iterations: 8998
+          metrics:
+            B/op: 12216
+            allocs/op: 146
+            ns/op: 29459
+          raw_line: "BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        \t    8998\t     29459 ns/op\t   12216 B/op\t     146 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8
+          description: Measure cost of creating a runtime and immediately executing one script/program.
+          iterations: 8785
+          metrics:
+            B/op: 12216
+            allocs/op: 146
+            ns/op: 32406
+          raw_line: "BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        \t    8785\t     32406 ns/op\t   12216 B/op\t     146 allocs/op"
+        - benchmark: BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8
+          description: Measure cost of creating a runtime and immediately executing one script/program.
+          iterations: 10000
+          metrics:
+            B/op: 12216
+            allocs/op: 146
+            ns/op: 31581
+          raw_line: "BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        \t   10000\t     31581 ns/op\t   12216 B/op\t     146 allocs/op"
+        - benchmark: BenchmarkRuntimeReuse/RunString_ReusedRuntime-8
+          description: Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram.
+          iterations: 37155
+          metrics:
+            B/op: 3328
+            allocs/op: 41
+            ns/op: 6342
+          raw_line: "BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  \t   37155\t      6342 ns/op\t    3328 B/op\t      41 allocs/op"
+        - benchmark: BenchmarkRuntimeReuse/RunString_ReusedRuntime-8
+          description: Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram.
+          iterations: 49232
+          metrics:
+            B/op: 3328
+            allocs/op: 41
+            ns/op: 6108
+          raw_line: "BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  \t   49232\t      6108 ns/op\t    3328 B/op\t      41 allocs/op"
+        - benchmark: BenchmarkRuntimeReuse/RunString_ReusedRuntime-8
+          description: Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram.
+          iterations: 38904
+          metrics:
+            B/op: 3328
+            allocs/op: 41
+            ns/op: 5750
+          raw_line: "BenchmarkRuntimeReuse/RunString_ReusedRuntime-8                  \t   38904\t      5750 ns/op\t    3328 B/op\t      41 allocs/op"
+        - benchmark: BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8
+          description: Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram.
+          iterations: 1216893
+          metrics:
+            B/op: 32
+            allocs/op: 1
+            ns/op: 200.5
+          raw_line: "BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 \t 1216893\t       200.5 ns/op\t      32 B/op\t       1 allocs/op"
+        - benchmark: BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8
+          description: Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram.
+          iterations: 1474664
+          metrics:
+            B/op: 32
+            allocs/op: 1
+            ns/op: 146.9
+          raw_line: "BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 \t 1474664\t       146.9 ns/op\t      32 B/op\t       1 allocs/op"
+        - benchmark: BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8
+          description: Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram.
+          iterations: 1753952
+          metrics:
+            B/op: 32
+            allocs/op: 1
+            ns/op: 118.2
+          raw_line: "BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8                 \t 1753952\t       118.2 ns/op\t      32 B/op\t       1 allocs/op"
+      summaries:
+        - benchmark: BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8
+          description: Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 32
+              min: 32
+              max: 32
+            - metric: allocs/op
+              avg: 1
+              min: 1
+              max: 1
+            - metric: ns/op
+              avg: 155.2
+              min: 118.2
+              max: 200.5
+        - benchmark: BenchmarkRuntimeReuse/RunString_ReusedRuntime-8
+          description: Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 3328
+              min: 3328
+              max: 3328
+            - metric: allocs/op
+              avg: 41
+              min: 41
+              max: 41
+            - metric: ns/op
+              avg: 6066.666666666667
+              min: 5750
+              max: 6342
+        - benchmark: BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 11928
+              min: 11928
+              max: 11928
+            - metric: allocs/op
+              avg: 140
+              min: 140
+              max: 140
+            - metric: ns/op
+              avg: 20450
+              min: 18808
+              max: 21409
+        - benchmark: BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 17689.333333333332
+              min: 17649
+              max: 17742
+            - metric: allocs/op
+              avg: 321
+              min: 321
+              max: 321
+            - metric: ns/op
+              avg: 232808
+              min: 210807
+              max: 253157
+        - benchmark: BenchmarkRuntimeSpawn/GojaNew-8
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 1760
+              min: 1760
+              max: 1760
+            - metric: allocs/op
+              avg: 8
+              min: 8
+              max: 8
+            - metric: ns/op
+              avg: 981.2333333333332
+              min: 899.5
+              max: 1086
+        - benchmark: BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8
+          description: Measure cost of creating a runtime and immediately executing one script/program.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 12216
+              min: 12216
+              max: 12216
+            - metric: allocs/op
+              avg: 146
+              min: 146
+              max: 146
+            - metric: ns/op
+              avg: 31148.666666666668
+              min: 29459
+              max: 32406
+        - benchmark: BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8
+          description: Measure cost of creating a runtime and immediately executing one script/program.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 14320
+              min: 14320
+              max: 14320
+            - metric: allocs/op
+              avg: 189
+              min: 189
+              max: 189
+            - metric: ns/op
+              avg: 38226.666666666664
+              min: 35552
+              max: 41006
     - id: p1-loading-require
+      task_title: Loading and Require
+      task_description: Measure JS compile/load cost and require cold/warm behavior.
+      benchmark_definitions:
+        - name: BenchmarkJSLoading
+          description: Measure compile/run costs across small, medium, and large scripts.
+        - name: BenchmarkRequireLoading
+          description: Measure module loading overhead in cold runtime and warm cached runtime paths.
       command: go
       args:
         - test
@@ -141,45 +433,459 @@ results:
         - -timeout
         - 15m
       output_file: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-task-output/p1-loading-require.txt
-      duration_ms: 12146
+      duration_ms: 14265
       success: true
       exit_code: 0
-      benchmark_lines:
-        - "BenchmarkJSLoading/Compile_small-8         \t    2755\t     75957 ns/op\t   33728 B/op\t     503 allocs/op"
-        - "BenchmarkJSLoading/Compile_small-8         \t    3184\t     78643 ns/op\t   33728 B/op\t     503 allocs/op"
-        - "BenchmarkJSLoading/Compile_small-8         \t    4687\t     77151 ns/op\t   33728 B/op\t     503 allocs/op"
-        - "BenchmarkJSLoading/RunString_FreshRuntime_small-8         \t    2778\t    121450 ns/op\t   47472 B/op\t     680 allocs/op"
-        - "BenchmarkJSLoading/RunString_FreshRuntime_small-8         \t    3079\t    100362 ns/op\t   47472 B/op\t     680 allocs/op"
-        - "BenchmarkJSLoading/RunString_FreshRuntime_small-8         \t    2084\t    125814 ns/op\t   47474 B/op\t     680 allocs/op"
-        - "BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8       \t   24008\t      9124 ns/op\t    1681 B/op\t      35 allocs/op"
-        - "BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8       \t   22750\t      8968 ns/op\t    1682 B/op\t      35 allocs/op"
-        - "BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8       \t   35986\t      8401 ns/op\t    1681 B/op\t      35 allocs/op"
-        - "BenchmarkJSLoading/Compile_medium-8                       \t     171\t   1833162 ns/op\t  495050 B/op\t    7235 allocs/op"
-        - "BenchmarkJSLoading/Compile_medium-8                       \t     153\t   1432898 ns/op\t  495050 B/op\t    7235 allocs/op"
-        - "BenchmarkJSLoading/Compile_medium-8                       \t     162\t   1466818 ns/op\t  495049 B/op\t    7235 allocs/op"
-        - "BenchmarkJSLoading/RunString_FreshRuntime_medium-8        \t     100\t   2471662 ns/op\t  535556 B/op\t    8358 allocs/op"
-        - "BenchmarkJSLoading/RunString_FreshRuntime_medium-8        \t     156\t   1703320 ns/op\t  535557 B/op\t    8358 allocs/op"
-        - "BenchmarkJSLoading/RunString_FreshRuntime_medium-8        \t     164\t   1782131 ns/op\t  535554 B/op\t    8358 allocs/op"
-        - "BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8      \t    1747\t    184906 ns/op\t   28738 B/op\t     985 allocs/op"
-        - "BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8      \t    1915\t    163584 ns/op\t   28713 B/op\t     984 allocs/op"
-        - "BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8      \t    2174\t    165101 ns/op\t   28681 B/op\t     984 allocs/op"
-        - "BenchmarkJSLoading/Compile_large-8                        \t      33\t  10303476 ns/op\t 4443612 B/op\t   57429 allocs/op"
-        - "BenchmarkJSLoading/Compile_large-8                        \t      12\t  18449924 ns/op\t 4443624 B/op\t   57429 allocs/op"
-        - "BenchmarkJSLoading/Compile_large-8                        \t      27\t  11118936 ns/op\t 4443613 B/op\t   57429 allocs/op"
-        - "BenchmarkJSLoading/RunString_FreshRuntime_large-8         \t      28\t  12066369 ns/op\t 4684826 B/op\t   65720 allocs/op"
-        - "BenchmarkJSLoading/RunString_FreshRuntime_large-8         \t      19\t  11851096 ns/op\t 4684832 B/op\t   65720 allocs/op"
-        - "BenchmarkJSLoading/RunString_FreshRuntime_large-8         \t      31\t  10765255 ns/op\t 4684821 B/op\t   65720 allocs/op"
-        - "BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8       \t     182\t   1480097 ns/op\t  253637 B/op\t    8465 allocs/op"
-        - "BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8       \t     190\t   1159812 ns/op\t  252604 B/op\t    8452 allocs/op"
-        - "BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8       \t     192\t   1322285 ns/op\t  252361 B/op\t    8448 allocs/op"
-        - "BenchmarkRequireLoading/ColdRequire_NewRuntime-8          \t    3410\t    105377 ns/op\t   34344 B/op\t     491 allocs/op"
-        - "BenchmarkRequireLoading/ColdRequire_NewRuntime-8          \t    2182\t    140981 ns/op\t   34344 B/op\t     491 allocs/op"
-        - "BenchmarkRequireLoading/ColdRequire_NewRuntime-8          \t    1882\t    111537 ns/op\t   34344 B/op\t     491 allocs/op"
-        - "BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8       \t  192831\t      1572 ns/op\t     552 B/op\t      10 allocs/op"
-        - "BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8       \t  146118\t      1773 ns/op\t     552 B/op\t      10 allocs/op"
-        - "BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8       \t  122925\t      2182 ns/op\t     552 B/op\t      10 allocs/op"
-        - PASS
+      samples:
+        - benchmark: BenchmarkJSLoading/Compile_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 2198
+          metrics:
+            B/op: 33728
+            allocs/op: 503
+            ns/op: 102962
+          raw_line: "BenchmarkJSLoading/Compile_small-8         \t    2198\t    102962 ns/op\t   33728 B/op\t     503 allocs/op"
+        - benchmark: BenchmarkJSLoading/Compile_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 3038
+          metrics:
+            B/op: 33728
+            allocs/op: 503
+            ns/op: 83633
+          raw_line: "BenchmarkJSLoading/Compile_small-8         \t    3038\t     83633 ns/op\t   33728 B/op\t     503 allocs/op"
+        - benchmark: BenchmarkJSLoading/Compile_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 2962
+          metrics:
+            B/op: 33728
+            allocs/op: 503
+            ns/op: 91612
+          raw_line: "BenchmarkJSLoading/Compile_small-8         \t    2962\t     91612 ns/op\t   33728 B/op\t     503 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 2019
+          metrics:
+            B/op: 47472
+            allocs/op: 680
+            ns/op: 114526
+          raw_line: "BenchmarkJSLoading/RunString_FreshRuntime_small-8         \t    2019\t    114526 ns/op\t   47472 B/op\t     680 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 2584
+          metrics:
+            B/op: 47472
+            allocs/op: 680
+            ns/op: 122619
+          raw_line: "BenchmarkJSLoading/RunString_FreshRuntime_small-8         \t    2584\t    122619 ns/op\t   47472 B/op\t     680 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 2136
+          metrics:
+            B/op: 47472
+            allocs/op: 680
+            ns/op: 139544
+          raw_line: "BenchmarkJSLoading/RunString_FreshRuntime_small-8         \t    2136\t    139544 ns/op\t   47472 B/op\t     680 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 24943
+          metrics:
+            B/op: 1681
+            allocs/op: 35
+            ns/op: 9926
+          raw_line: "BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8       \t   24943\t      9926 ns/op\t    1681 B/op\t      35 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 24106
+          metrics:
+            B/op: 1681
+            allocs/op: 35
+            ns/op: 10571
+          raw_line: "BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8       \t   24106\t     10571 ns/op\t    1681 B/op\t      35 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 30218
+          metrics:
+            B/op: 1681
+            allocs/op: 35
+            ns/op: 7832
+          raw_line: "BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8       \t   30218\t      7832 ns/op\t    1681 B/op\t      35 allocs/op"
+        - benchmark: BenchmarkJSLoading/Compile_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 268
+          metrics:
+            B/op: 495050
+            allocs/op: 7235
+            ns/op: 1.037406e+06
+          raw_line: "BenchmarkJSLoading/Compile_medium-8                       \t     268\t   1037406 ns/op\t  495050 B/op\t    7235 allocs/op"
+        - benchmark: BenchmarkJSLoading/Compile_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 243
+          metrics:
+            B/op: 495051
+            allocs/op: 7235
+            ns/op: 1.141252e+06
+          raw_line: "BenchmarkJSLoading/Compile_medium-8                       \t     243\t   1141252 ns/op\t  495051 B/op\t    7235 allocs/op"
+        - benchmark: BenchmarkJSLoading/Compile_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 254
+          metrics:
+            B/op: 495049
+            allocs/op: 7235
+            ns/op: 1.107046e+06
+          raw_line: "BenchmarkJSLoading/Compile_medium-8                       \t     254\t   1107046 ns/op\t  495049 B/op\t    7235 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 202
+          metrics:
+            B/op: 535554
+            allocs/op: 8358
+            ns/op: 1.238045e+06
+          raw_line: "BenchmarkJSLoading/RunString_FreshRuntime_medium-8        \t     202\t   1238045 ns/op\t  535554 B/op\t    8358 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 210
+          metrics:
+            B/op: 535555
+            allocs/op: 8358
+            ns/op: 1.302999e+06
+          raw_line: "BenchmarkJSLoading/RunString_FreshRuntime_medium-8        \t     210\t   1302999 ns/op\t  535555 B/op\t    8358 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 146
+          metrics:
+            B/op: 535557
+            allocs/op: 8358
+            ns/op: 1.817829e+06
+          raw_line: "BenchmarkJSLoading/RunString_FreshRuntime_medium-8        \t     146\t   1817829 ns/op\t  535557 B/op\t    8358 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 1449
+          metrics:
+            B/op: 28798
+            allocs/op: 986
+            ns/op: 153136
+          raw_line: "BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8      \t    1449\t    153136 ns/op\t   28798 B/op\t     986 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 1574
+          metrics:
+            B/op: 28770
+            allocs/op: 985
+            ns/op: 179484
+          raw_line: "BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8      \t    1574\t    179484 ns/op\t   28770 B/op\t     985 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 2056
+          metrics:
+            B/op: 28694
+            allocs/op: 984
+            ns/op: 170379
+          raw_line: "BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8      \t    2056\t    170379 ns/op\t   28694 B/op\t     984 allocs/op"
+        - benchmark: BenchmarkJSLoading/Compile_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 37
+          metrics:
+            B/op: 4.443612e+06
+            allocs/op: 57429
+            ns/op: 1.4167951e+07
+          raw_line: "BenchmarkJSLoading/Compile_large-8                        \t      37\t  14167951 ns/op\t 4443612 B/op\t   57429 allocs/op"
+        - benchmark: BenchmarkJSLoading/Compile_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 20
+          metrics:
+            B/op: 4.443601e+06
+            allocs/op: 57429
+            ns/op: 1.2369561e+07
+          raw_line: "BenchmarkJSLoading/Compile_large-8                        \t      20\t  12369561 ns/op\t 4443601 B/op\t   57429 allocs/op"
+        - benchmark: BenchmarkJSLoading/Compile_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 27
+          metrics:
+            B/op: 4.443613e+06
+            allocs/op: 57429
+            ns/op: 9.881755e+06
+          raw_line: "BenchmarkJSLoading/Compile_large-8                        \t      27\t   9881755 ns/op\t 4443613 B/op\t   57429 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 21
+          metrics:
+            B/op: 4.684815e+06
+            allocs/op: 65720
+            ns/op: 9.613457e+06
+          raw_line: "BenchmarkJSLoading/RunString_FreshRuntime_large-8         \t      21\t   9613457 ns/op\t 4684815 B/op\t   65720 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 22
+          metrics:
+            B/op: 4.684824e+06
+            allocs/op: 65720
+            ns/op: 9.843827e+06
+          raw_line: "BenchmarkJSLoading/RunString_FreshRuntime_large-8         \t      22\t   9843827 ns/op\t 4684824 B/op\t   65720 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 25
+          metrics:
+            B/op: 4.68484e+06
+            allocs/op: 65720
+            ns/op: 1.1286758e+07
+          raw_line: "BenchmarkJSLoading/RunString_FreshRuntime_large-8         \t      25\t  11286758 ns/op\t 4684840 B/op\t   65720 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 188
+          metrics:
+            B/op: 252855
+            allocs/op: 8455
+            ns/op: 1.210538e+06
+          raw_line: "BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8       \t     188\t   1210538 ns/op\t  252855 B/op\t    8455 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 218
+          metrics:
+            B/op: 249592
+            allocs/op: 8413
+            ns/op: 1.796993e+06
+          raw_line: "BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8       \t     218\t   1796993 ns/op\t  249592 B/op\t    8413 allocs/op"
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          iterations: 181
+          metrics:
+            B/op: 253771
+            allocs/op: 8467
+            ns/op: 1.425341e+06
+          raw_line: "BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8       \t     181\t   1425341 ns/op\t  253771 B/op\t    8467 allocs/op"
+        - benchmark: BenchmarkRequireLoading/ColdRequire_NewRuntime-8
+          description: Measure module loading overhead in cold runtime and warm cached runtime paths.
+          iterations: 2469
+          metrics:
+            B/op: 34344
+            allocs/op: 491
+            ns/op: 128834
+          raw_line: "BenchmarkRequireLoading/ColdRequire_NewRuntime-8          \t    2469\t    128834 ns/op\t   34344 B/op\t     491 allocs/op"
+        - benchmark: BenchmarkRequireLoading/ColdRequire_NewRuntime-8
+          description: Measure module loading overhead in cold runtime and warm cached runtime paths.
+          iterations: 2121
+          metrics:
+            B/op: 34344
+            allocs/op: 491
+            ns/op: 104430
+          raw_line: "BenchmarkRequireLoading/ColdRequire_NewRuntime-8          \t    2121\t    104430 ns/op\t   34344 B/op\t     491 allocs/op"
+        - benchmark: BenchmarkRequireLoading/ColdRequire_NewRuntime-8
+          description: Measure module loading overhead in cold runtime and warm cached runtime paths.
+          iterations: 2360
+          metrics:
+            B/op: 34344
+            allocs/op: 491
+            ns/op: 95664
+          raw_line: "BenchmarkRequireLoading/ColdRequire_NewRuntime-8          \t    2360\t     95664 ns/op\t   34344 B/op\t     491 allocs/op"
+        - benchmark: BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8
+          description: Measure module loading overhead in cold runtime and warm cached runtime paths.
+          iterations: 214412
+          metrics:
+            B/op: 552
+            allocs/op: 10
+            ns/op: 1880
+          raw_line: "BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8       \t  214412\t      1880 ns/op\t     552 B/op\t      10 allocs/op"
+        - benchmark: BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8
+          description: Measure module loading overhead in cold runtime and warm cached runtime paths.
+          iterations: 161948
+          metrics:
+            B/op: 552
+            allocs/op: 10
+            ns/op: 1589
+          raw_line: "BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8       \t  161948\t      1589 ns/op\t     552 B/op\t      10 allocs/op"
+        - benchmark: BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8
+          description: Measure module loading overhead in cold runtime and warm cached runtime paths.
+          iterations: 223485
+          metrics:
+            B/op: 552
+            allocs/op: 10
+            ns/op: 1310
+          raw_line: "BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8       \t  223485\t      1310 ns/op\t     552 B/op\t      10 allocs/op"
+      summaries:
+        - benchmark: BenchmarkJSLoading/Compile_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 4.443608666666667e+06
+              min: 4.443601e+06
+              max: 4.443613e+06
+            - metric: allocs/op
+              avg: 57429
+              min: 57429
+              max: 57429
+            - metric: ns/op
+              avg: 1.2139755666666666e+07
+              min: 9.881755e+06
+              max: 1.4167951e+07
+        - benchmark: BenchmarkJSLoading/Compile_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 495050
+              min: 495049
+              max: 495051
+            - metric: allocs/op
+              avg: 7235
+              min: 7235
+              max: 7235
+            - metric: ns/op
+              avg: 1.0952346666666667e+06
+              min: 1.037406e+06
+              max: 1.141252e+06
+        - benchmark: BenchmarkJSLoading/Compile_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 33728
+              min: 33728
+              max: 33728
+            - metric: allocs/op
+              avg: 503
+              min: 503
+              max: 503
+            - metric: ns/op
+              avg: 92735.66666666667
+              min: 83633
+              max: 102962
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 252072.66666666666
+              min: 249592
+              max: 253771
+            - metric: allocs/op
+              avg: 8445
+              min: 8413
+              max: 8467
+            - metric: ns/op
+              avg: 1.477624e+06
+              min: 1.210538e+06
+              max: 1.796993e+06
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 28754
+              min: 28694
+              max: 28798
+            - metric: allocs/op
+              avg: 985
+              min: 984
+              max: 986
+            - metric: ns/op
+              avg: 167666.33333333334
+              min: 153136
+              max: 179484
+        - benchmark: BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 1681
+              min: 1681
+              max: 1681
+            - metric: allocs/op
+              avg: 35
+              min: 35
+              max: 35
+            - metric: ns/op
+              avg: 9443
+              min: 7832
+              max: 10571
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_large-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 4.684826333333333e+06
+              min: 4.684815e+06
+              max: 4.68484e+06
+            - metric: allocs/op
+              avg: 65720
+              min: 65720
+              max: 65720
+            - metric: ns/op
+              avg: 1.0248014e+07
+              min: 9.613457e+06
+              max: 1.1286758e+07
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_medium-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 535555.3333333334
+              min: 535554
+              max: 535557
+            - metric: allocs/op
+              avg: 8358
+              min: 8358
+              max: 8358
+            - metric: ns/op
+              avg: 1.4529576666666667e+06
+              min: 1.238045e+06
+              max: 1.817829e+06
+        - benchmark: BenchmarkJSLoading/RunString_FreshRuntime_small-8
+          description: Measure compile/run costs across small, medium, and large scripts.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 47472
+              min: 47472
+              max: 47472
+            - metric: allocs/op
+              avg: 680
+              min: 680
+              max: 680
+            - metric: ns/op
+              avg: 125563
+              min: 114526
+              max: 139544
+        - benchmark: BenchmarkRequireLoading/ColdRequire_NewRuntime-8
+          description: Measure module loading overhead in cold runtime and warm cached runtime paths.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 34344
+              min: 34344
+              max: 34344
+            - metric: allocs/op
+              avg: 491
+              min: 491
+              max: 491
+            - metric: ns/op
+              avg: 109642.66666666667
+              min: 95664
+              max: 128834
+        - benchmark: BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8
+          description: Measure module loading overhead in cold runtime and warm cached runtime paths.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 552
+              min: 552
+              max: 552
+            - metric: allocs/op
+              avg: 10
+              min: 10
+              max: 10
+            - metric: ns/op
+              avg: 1593
+              min: 1310
+              max: 1880
     - id: p1-boundary-calls
+      task_title: Go/JS Boundary Calls
+      task_description: Measure JS->Go and Go->JS call overhead and logging mode deltas.
+      benchmark_definitions:
+        - name: BenchmarkJSCallingGo
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+        - name: BenchmarkGoCallingJS
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
       command: go
       args:
         - test
@@ -196,35 +902,294 @@ results:
         - -timeout
         - 15m
       output_file: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-task-output/p1-boundary-calls.txt
-      duration_ms: 8679
+      duration_ms: 7805
       success: true
       exit_code: 0
-      benchmark_lines:
-        - "BenchmarkJSCallingGo/GoDirect-8         \t493409061\t         0.4242 ns/op\t       0 B/op\t       0 allocs/op"
-        - "BenchmarkJSCallingGo/GoDirect-8         \t576040239\t         0.4240 ns/op\t       0 B/op\t       0 allocs/op"
-        - "BenchmarkJSCallingGo/GoDirect-8         \t625334113\t         0.8150 ns/op\t       0 B/op\t       0 allocs/op"
-        - "BenchmarkJSCallingGo/JS_vm_Set-8        \t  209694\t      1536 ns/op\t     352 B/op\t      12 allocs/op"
-        - "BenchmarkJSCallingGo/JS_vm_Set-8        \t  160468\t      1931 ns/op\t     352 B/op\t      12 allocs/op"
-        - "BenchmarkJSCallingGo/JS_vm_Set-8        \t  170260\t      2034 ns/op\t     352 B/op\t      12 allocs/op"
-        - "BenchmarkJSCallingGo/JS_module_SetExport-8         \t   82104\t      3364 ns/op\t     440 B/op\t      18 allocs/op"
-        - "BenchmarkJSCallingGo/JS_module_SetExport-8         \t   83877\t      3371 ns/op\t     440 B/op\t      18 allocs/op"
-        - "BenchmarkJSCallingGo/JS_module_SetExport-8         \t  109587\t      3465 ns/op\t     440 B/op\t      18 allocs/op"
-        - "BenchmarkGoCallingJS/GoDirect-8                    \t762361024\t         0.2985 ns/op\t       0 B/op\t       0 allocs/op"
-        - "BenchmarkGoCallingJS/GoDirect-8                    \t811930258\t         0.2999 ns/op\t       0 B/op\t       0 allocs/op"
-        - "BenchmarkGoCallingJS/GoDirect-8                    \t818917596\t         0.3163 ns/op\t       0 B/op\t       0 allocs/op"
-        - "BenchmarkGoCallingJS/GojaAssertFunction-8          \t  937369\t       457.4 ns/op\t     160 B/op\t       2 allocs/op"
-        - "BenchmarkGoCallingJS/GojaAssertFunction-8          \t  883035\t       461.7 ns/op\t     160 B/op\t       2 allocs/op"
-        - "BenchmarkGoCallingJS/GojaAssertFunction-8          \t  445016\t       481.3 ns/op\t     160 B/op\t       2 allocs/op"
-        - "BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8         \t  164397\t      1522 ns/op\t     248 B/op\t       8 allocs/op"
-        - "BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8         \t  171982\t      1952 ns/op\t     248 B/op\t       8 allocs/op"
-        - "BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8         \t  203940\t      1490 ns/op\t     248 B/op\t       8 allocs/op"
-        - "BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8     \t    4263\t     51178 ns/op\t     971 B/op\t      25 allocs/op"
-        - "BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8     \t    5332\t     40105 ns/op\t     970 B/op\t      25 allocs/op"
-        - "BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8     \t    4888\t     48828 ns/op\t     970 B/op\t      25 allocs/op"
-        - PASS
+      samples:
+        - benchmark: BenchmarkJSCallingGo/GoDirect-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          iterations: 654832908
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.3344
+          raw_line: "BenchmarkJSCallingGo/GoDirect-8         \t654832908\t         0.3344 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkJSCallingGo/GoDirect-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          iterations: 732345148
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.3696
+          raw_line: "BenchmarkJSCallingGo/GoDirect-8         \t732345148\t         0.3696 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkJSCallingGo/GoDirect-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          iterations: 576963714
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.426
+          raw_line: "BenchmarkJSCallingGo/GoDirect-8         \t576963714\t         0.4260 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkJSCallingGo/JS_vm_Set-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          iterations: 141448
+          metrics:
+            B/op: 352
+            allocs/op: 12
+            ns/op: 1552
+          raw_line: "BenchmarkJSCallingGo/JS_vm_Set-8        \t  141448\t      1552 ns/op\t     352 B/op\t      12 allocs/op"
+        - benchmark: BenchmarkJSCallingGo/JS_vm_Set-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          iterations: 139915
+          metrics:
+            B/op: 352
+            allocs/op: 12
+            ns/op: 1704
+          raw_line: "BenchmarkJSCallingGo/JS_vm_Set-8        \t  139915\t      1704 ns/op\t     352 B/op\t      12 allocs/op"
+        - benchmark: BenchmarkJSCallingGo/JS_vm_Set-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          iterations: 198591
+          metrics:
+            B/op: 352
+            allocs/op: 12
+            ns/op: 1569
+          raw_line: "BenchmarkJSCallingGo/JS_vm_Set-8        \t  198591\t      1569 ns/op\t     352 B/op\t      12 allocs/op"
+        - benchmark: BenchmarkJSCallingGo/JS_module_SetExport-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          iterations: 62469
+          metrics:
+            B/op: 440
+            allocs/op: 18
+            ns/op: 4154
+          raw_line: "BenchmarkJSCallingGo/JS_module_SetExport-8         \t   62469\t      4154 ns/op\t     440 B/op\t      18 allocs/op"
+        - benchmark: BenchmarkJSCallingGo/JS_module_SetExport-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          iterations: 90390
+          metrics:
+            B/op: 440
+            allocs/op: 18
+            ns/op: 3670
+          raw_line: "BenchmarkJSCallingGo/JS_module_SetExport-8         \t   90390\t      3670 ns/op\t     440 B/op\t      18 allocs/op"
+        - benchmark: BenchmarkJSCallingGo/JS_module_SetExport-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          iterations: 51199
+          metrics:
+            B/op: 440
+            allocs/op: 18
+            ns/op: 4209
+          raw_line: "BenchmarkJSCallingGo/JS_module_SetExport-8         \t   51199\t      4209 ns/op\t     440 B/op\t      18 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/GoDirect-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 600997504
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.4291
+          raw_line: "BenchmarkGoCallingJS/GoDirect-8                    \t600997504\t         0.4291 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/GoDirect-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 583482457
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.4021
+          raw_line: "BenchmarkGoCallingJS/GoDirect-8                    \t583482457\t         0.4021 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/GoDirect-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 613354766
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.3983
+          raw_line: "BenchmarkGoCallingJS/GoDirect-8                    \t613354766\t         0.3983 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/GojaAssertFunction-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 728130
+          metrics:
+            B/op: 160
+            allocs/op: 2
+            ns/op: 428.1
+          raw_line: "BenchmarkGoCallingJS/GojaAssertFunction-8          \t  728130\t       428.1 ns/op\t     160 B/op\t       2 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/GojaAssertFunction-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 872697
+          metrics:
+            B/op: 160
+            allocs/op: 2
+            ns/op: 395.6
+          raw_line: "BenchmarkGoCallingJS/GojaAssertFunction-8          \t  872697\t       395.6 ns/op\t     160 B/op\t       2 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/GojaAssertFunction-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 580472
+          metrics:
+            B/op: 160
+            allocs/op: 2
+            ns/op: 445.7
+          raw_line: "BenchmarkGoCallingJS/GojaAssertFunction-8          \t  580472\t       445.7 ns/op\t     160 B/op\t       2 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 109461
+          metrics:
+            B/op: 248
+            allocs/op: 8
+            ns/op: 2046
+          raw_line: "BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8         \t  109461\t      2046 ns/op\t     248 B/op\t       8 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 175602
+          metrics:
+            B/op: 248
+            allocs/op: 8
+            ns/op: 2184
+          raw_line: "BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8         \t  175602\t      2184 ns/op\t     248 B/op\t       8 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 115250
+          metrics:
+            B/op: 248
+            allocs/op: 8
+            ns/op: 1830
+          raw_line: "BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8         \t  115250\t      1830 ns/op\t     248 B/op\t       8 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 4996
+          metrics:
+            B/op: 970
+            allocs/op: 25
+            ns/op: 64028
+          raw_line: "BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8     \t    4996\t     64028 ns/op\t     970 B/op\t      25 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 2654
+          metrics:
+            B/op: 972
+            allocs/op: 25
+            ns/op: 79019
+          raw_line: "BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8     \t    2654\t     79019 ns/op\t     972 B/op\t      25 allocs/op"
+        - benchmark: BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          iterations: 3022
+          metrics:
+            B/op: 971
+            allocs/op: 25
+            ns/op: 70605
+          raw_line: "BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8     \t    3022\t     70605 ns/op\t     971 B/op\t      25 allocs/op"
+      summaries:
+        - benchmark: BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 248
+              min: 248
+              max: 248
+            - metric: allocs/op
+              avg: 8
+              min: 8
+              max: 8
+            - metric: ns/op
+              avg: 2020
+              min: 1830
+              max: 2184
+        - benchmark: BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 971
+              min: 970
+              max: 972
+            - metric: allocs/op
+              avg: 25
+              min: 25
+              max: 25
+            - metric: ns/op
+              avg: 71217.33333333333
+              min: 64028
+              max: 79019
+        - benchmark: BenchmarkGoCallingJS/GoDirect-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: allocs/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: ns/op
+              avg: 0.40983333333333327
+              min: 0.3983
+              max: 0.4291
+        - benchmark: BenchmarkGoCallingJS/GojaAssertFunction-8
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 160
+              min: 160
+              max: 160
+            - metric: allocs/op
+              avg: 2
+              min: 2
+              max: 2
+            - metric: ns/op
+              avg: 423.1333333333334
+              min: 395.6
+              max: 445.7
+        - benchmark: BenchmarkJSCallingGo/GoDirect-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: allocs/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: ns/op
+              avg: 0.37666666666666665
+              min: 0.3344
+              max: 0.426
+        - benchmark: BenchmarkJSCallingGo/JS_module_SetExport-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 440
+              min: 440
+              max: 440
+            - metric: allocs/op
+              avg: 18
+              min: 18
+              max: 18
+            - metric: ns/op
+              avg: 4011
+              min: 3670
+              max: 4209
+        - benchmark: BenchmarkJSCallingGo/JS_vm_Set-8
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 352
+              min: 352
+              max: 352
+            - metric: allocs/op
+              avg: 12
+              min: 12
+              max: 12
+            - metric: ns/op
+              avg: 1608.3333333333333
+              min: 1552
+              max: 1704
 summary:
     total_tasks: 3
     successful_tasks: 3
     failed_tasks: 0
-    total_duration_ms: 29473
-    total_duration_seconds: "29.473"
+    total_duration_ms: 30242
+    total_duration_seconds: "30.242"

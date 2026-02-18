@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -131,30 +133,136 @@ func runPhase1Task(ctx context.Context, settings phase1CommandSettings, task pha
 	}
 
 	result := phase1TaskResult{
-		ID:             task.ID,
-		Command:        task.Command,
-		Args:           task.Args,
-		OutputFile:     outputFile,
-		DurationMS:     duration.Milliseconds(),
-		Success:        success,
-		ExitCode:       exitCode,
-		BenchmarkLines: extractBenchmarkLines(string(output)),
-		Error:          errorMessage,
+		ID:                   task.ID,
+		TaskTitle:            task.Title,
+		TaskDescription:      task.Description,
+		BenchmarkDefinitions: task.Benchmarks,
+		Command:              task.Command,
+		Args:                 task.Args,
+		OutputFile:           outputFile,
+		DurationMS:           duration.Milliseconds(),
+		Success:              success,
+		ExitCode:             exitCode,
+		Samples:              parseBenchmarkSamples(string(output), task.Benchmarks),
+		Error:                errorMessage,
 	}
+	result.Summaries = summarizeBenchmarkSamples(result.Samples)
 
 	return result
 }
 
-func extractBenchmarkLines(output string) []string {
-	lines := []string{}
+func parseBenchmarkSamples(output string, definitions []benchmarkDefinition) []benchmarkSample {
+	samples := []benchmarkSample{}
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "Benchmark") || strings.HasPrefix(line, "PASS") || strings.HasPrefix(line, "ok\t") || strings.HasPrefix(line, "FAIL") {
-			lines = append(lines, line)
+		if !strings.HasPrefix(line, "Benchmark") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 4 {
+			continue
+		}
+
+		iterations, err := strconv.ParseInt(fields[1], 10, 64)
+		if err != nil {
+			continue
+		}
+
+		metrics := map[string]float64{}
+		for i := 2; i+1 < len(fields); i += 2 {
+			value, err := strconv.ParseFloat(fields[i], 64)
+			if err != nil {
+				continue
+			}
+			metric := fields[i+1]
+			metrics[metric] = value
+		}
+
+		samples = append(samples, benchmarkSample{
+			Benchmark:   fields[0],
+			Description: lookupBenchmarkDescription(fields[0], definitions),
+			Iterations:  iterations,
+			Metrics:     metrics,
+			RawLine:     line,
+		})
+	}
+	return samples
+}
+
+func summarizeBenchmarkSamples(samples []benchmarkSample) []benchmarkSummary {
+	byName := map[string][]benchmarkSample{}
+	for _, sample := range samples {
+		byName[sample.Benchmark] = append(byName[sample.Benchmark], sample)
+	}
+
+	names := make([]string, 0, len(byName))
+	for name := range byName {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	out := make([]benchmarkSummary, 0, len(names))
+	for _, name := range names {
+		group := byName[name]
+		metricsByName := map[string][]float64{}
+		for _, sample := range group {
+			for metric, value := range sample.Metrics {
+				metricsByName[metric] = append(metricsByName[metric], value)
+			}
+		}
+
+		metricNames := make([]string, 0, len(metricsByName))
+		for metric := range metricsByName {
+			metricNames = append(metricNames, metric)
+		}
+		sort.Strings(metricNames)
+
+		metricStats := make([]benchmarkMetricStat, 0, len(metricNames))
+		for _, metric := range metricNames {
+			values := metricsByName[metric]
+			if len(values) == 0 {
+				continue
+			}
+			minValue := values[0]
+			maxValue := values[0]
+			sum := 0.0
+			for _, value := range values {
+				if value < minValue {
+					minValue = value
+				}
+				if value > maxValue {
+					maxValue = value
+				}
+				sum += value
+			}
+			metricStats = append(metricStats, benchmarkMetricStat{
+				Metric: metric,
+				Avg:    sum / float64(len(values)),
+				Min:    minValue,
+				Max:    maxValue,
+			})
+		}
+
+		out = append(out, benchmarkSummary{
+			Benchmark:   name,
+			Description: group[0].Description,
+			Runs:        len(group),
+			Metrics:     metricStats,
+		})
+	}
+
+	return out
+}
+
+func lookupBenchmarkDescription(benchmarkName string, defs []benchmarkDefinition) string {
+	for _, def := range defs {
+		if benchmarkName == def.Name || strings.HasPrefix(benchmarkName, def.Name+"/") {
+			return def.Description
 		}
 	}
-	return lines
+	return ""
 }
 
 func summarizePhase1Results(results []phase1TaskResult) phase1RunSummary {

@@ -1,5 +1,5 @@
 phase: phase-2
-generated_at: "2026-02-18T14:08:07Z"
+generated_at: "2026-02-18T14:29:03Z"
 tasks:
     - id: p2-value-conversion
       title: Value Conversion
@@ -27,6 +27,9 @@ tasks:
         count: "3"
         run: ^$
         timeout: 20m
+      benchmarks:
+        - name: BenchmarkValueConversion
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
     - id: p2-payload-sweep
       title: Payload Sweep
       description: Measure boundary-call behavior across tiny/medium/large payloads.
@@ -53,6 +56,9 @@ tasks:
         count: "3"
         run: ^$
         timeout: 20m
+      benchmarks:
+        - name: BenchmarkPayloadSweep
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
     - id: p2-gc-sensitivity
       title: GC Sensitivity
       description: Measure runtime spawn/reuse behavior under allocation-heavy scripts.
@@ -79,3 +85,6 @@ tasks:
         count: "3"
         run: ^$
         timeout: 20m
+      benchmarks:
+        - name: BenchmarkGCSensitivity
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.

@@ -17,12 +17,13 @@ const (
 )
 
 type phase1Task struct {
-	ID          string            `yaml:"id"`
-	Title       string            `yaml:"title"`
-	Description string            `yaml:"description"`
-	Command     string            `yaml:"command"`
-	Args        []string          `yaml:"args"`
-	Flags       map[string]string `yaml:"flags"`
+	ID          string                `yaml:"id"`
+	Title       string                `yaml:"title"`
+	Description string                `yaml:"description"`
+	Command     string                `yaml:"command"`
+	Args        []string              `yaml:"args"`
+	Flags       map[string]string     `yaml:"flags"`
+	Benchmarks  []benchmarkDefinition `yaml:"benchmarks"`
 }
 
 type phase1Plan struct {
@@ -40,15 +41,19 @@ type phase1RunSummary struct {
 }
 
 type phase1TaskResult struct {
-	ID             string   `yaml:"id"`
-	Command        string   `yaml:"command"`
-	Args           []string `yaml:"args"`
-	OutputFile     string   `yaml:"output_file"`
-	DurationMS     int64    `yaml:"duration_ms"`
-	Success        bool     `yaml:"success"`
-	ExitCode       int      `yaml:"exit_code"`
-	BenchmarkLines []string `yaml:"benchmark_lines"`
-	Error          string   `yaml:"error,omitempty"`
+	ID                   string                `yaml:"id"`
+	TaskTitle            string                `yaml:"task_title"`
+	TaskDescription      string                `yaml:"task_description"`
+	BenchmarkDefinitions []benchmarkDefinition `yaml:"benchmark_definitions"`
+	Command              string                `yaml:"command"`
+	Args                 []string              `yaml:"args"`
+	OutputFile           string                `yaml:"output_file,omitempty"`
+	DurationMS           int64                 `yaml:"duration_ms"`
+	Success              bool                  `yaml:"success"`
+	ExitCode             int                   `yaml:"exit_code"`
+	Samples              []benchmarkSample     `yaml:"samples"`
+	Summaries            []benchmarkSummary    `yaml:"summaries"`
+	Error                string                `yaml:"error,omitempty"`
 }
 
 type phase1RunReport struct {
@@ -70,6 +75,33 @@ type phase1CommandSettings struct {
 	OutputFile string `glazed:"output-file"`
 	OutputDir  string `glazed:"output-dir"`
 	FailFast   bool   `glazed:"fail-fast"`
+}
+
+type benchmarkDefinition struct {
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+}
+
+type benchmarkSample struct {
+	Benchmark   string             `yaml:"benchmark"`
+	Description string             `yaml:"description,omitempty"`
+	Iterations  int64              `yaml:"iterations"`
+	Metrics     map[string]float64 `yaml:"metrics"`
+	RawLine     string             `yaml:"raw_line"`
+}
+
+type benchmarkSummary struct {
+	Benchmark   string                `yaml:"benchmark"`
+	Description string                `yaml:"description,omitempty"`
+	Runs        int                   `yaml:"runs"`
+	Metrics     []benchmarkMetricStat `yaml:"metrics"`
+}
+
+type benchmarkMetricStat struct {
+	Metric string  `yaml:"metric"`
+	Avg    float64 `yaml:"avg"`
+	Min    float64 `yaml:"min"`
+	Max    float64 `yaml:"max"`
 }
 
 func buildPhase1Tasks(settings phase1CommandSettings) []phase1Task {
@@ -109,6 +141,11 @@ func buildPhase1Tasks(settings phase1CommandSettings) []phase1Task {
 			Command:     "go",
 			Args:        makeArgs("^(BenchmarkRuntimeSpawn|BenchmarkRuntimeSpawnAndExecute|BenchmarkRuntimeReuse)$"),
 			Flags:       makeFlags("^(BenchmarkRuntimeSpawn|BenchmarkRuntimeSpawnAndExecute|BenchmarkRuntimeReuse)$"),
+			Benchmarks: []benchmarkDefinition{
+				{Name: "BenchmarkRuntimeSpawn", Description: "Compare runtime creation costs, including calllog-enabled and calllog-disabled modes."},
+				{Name: "BenchmarkRuntimeSpawnAndExecute", Description: "Measure cost of creating a runtime and immediately executing one script/program."},
+				{Name: "BenchmarkRuntimeReuse", Description: "Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram."},
+			},
 		},
 		{
 			ID:          "p1-loading-require",
@@ -117,6 +154,10 @@ func buildPhase1Tasks(settings phase1CommandSettings) []phase1Task {
 			Command:     "go",
 			Args:        makeArgs("^(BenchmarkJSLoading|BenchmarkRequireLoading)$"),
 			Flags:       makeFlags("^(BenchmarkJSLoading|BenchmarkRequireLoading)$"),
+			Benchmarks: []benchmarkDefinition{
+				{Name: "BenchmarkJSLoading", Description: "Measure compile/run costs across small, medium, and large scripts."},
+				{Name: "BenchmarkRequireLoading", Description: "Measure module loading overhead in cold runtime and warm cached runtime paths."},
+			},
 		},
 		{
 			ID:          "p1-boundary-calls",
@@ -125,6 +166,10 @@ func buildPhase1Tasks(settings phase1CommandSettings) []phase1Task {
 			Command:     "go",
 			Args:        makeArgs("^(BenchmarkJSCallingGo|BenchmarkGoCallingJS)$"),
 			Flags:       makeFlags("^(BenchmarkJSCallingGo|BenchmarkGoCallingJS)$"),
+			Benchmarks: []benchmarkDefinition{
+				{Name: "BenchmarkJSCallingGo", Description: "Compare direct Go baseline against calls crossing JS->Go boundary."},
+				{Name: "BenchmarkGoCallingJS", Description: "Compare direct Go baseline against Go->JS calls with/without calllog wrappers."},
+			},
 		},
 	}
 }

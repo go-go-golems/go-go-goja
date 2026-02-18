@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -64,7 +65,7 @@ func newServeCommand() (*serveCommand, error) {
 		cmds.WithLong(`Start a small local web app so you can:
 - trigger phase-1 and phase-2 benchmark runs
 - inspect generated YAML summaries
-- inspect benchmark lines per task
+- inspect structured benchmark metrics rendered as tables
 
 This command uses Glazed for command/flag definitions only.`),
 		cmds.WithFlags(
@@ -234,7 +235,11 @@ func (a *perfWebApp) loadReport(cfg phaseConfig) (*phase1RunReport, error) {
 }
 
 func (a *perfWebApp) renderFragment(w http.ResponseWriter, data reportViewData) {
-	tmpl := template.Must(template.New("fragment").Parse(fragmentTemplate))
+	tmpl := template.Must(template.New("fragment").Funcs(template.FuncMap{
+		"fmtFloat": func(v float64) string {
+			return strconv.FormatFloat(v, 'f', 3, 64)
+		},
+	}).Parse(fragmentTemplate))
 	buf := &bytes.Buffer{}
 	if err := tmpl.Execute(buf, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -332,12 +337,67 @@ const fragmentTemplate = `<div>
     </ul>
 
     {{range .Results}}
-      <details class="mb-2">
-        <summary><strong>{{.ID}}</strong> — success={{.Success}} — {{.DurationMS}} ms</summary>
-        <div class="small text-muted">output: {{.OutputFile}}</div>
-        <pre class="small mt-2">{{range .BenchmarkLines}}{{.}}
-{{end}}</pre>
-      </details>
+      <div class="border rounded p-2 mb-3 bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+          <strong>{{.TaskTitle}}</strong>
+          <span class="badge {{if .Success}}text-bg-success{{else}}text-bg-danger{{end}}">{{if .Success}}success{{else}}failed{{end}}</span>
+        </div>
+        <div class="small text-muted">{{.ID}} • {{.DurationMS}} ms • exit={{.ExitCode}}</div>
+        <p class="small mt-2 mb-2">{{.TaskDescription}}</p>
+
+        {{if .BenchmarkDefinitions}}
+        <div class="small fw-semibold mt-2">What this task measures</div>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle mb-2">
+            <thead class="table-light"><tr><th>Benchmark</th><th>Description</th></tr></thead>
+            <tbody>
+              {{range .BenchmarkDefinitions}}
+              <tr><td><code>{{.Name}}</code></td><td>{{.Description}}</td></tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+        {{end}}
+
+        {{if .Summaries}}
+        <div class="small fw-semibold mt-2">Structured results</div>
+        <div class="table-responsive">
+          <table class="table table-sm table-striped table-bordered align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Benchmark</th>
+                <th>What it does</th>
+                <th>Runs</th>
+                <th>Metric</th>
+                <th>Avg</th>
+                <th>Min</th>
+                <th>Max</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Summaries}}
+                {{$bench := .Benchmark}}
+                {{$description := .Description}}
+                {{$runs := .Runs}}
+                {{range .Metrics}}
+                  <tr>
+                    <td><code>{{$bench}}</code></td>
+                    <td>{{$description}}</td>
+                    <td>{{$runs}}</td>
+                    <td><code>{{.Metric}}</code></td>
+                    <td>{{fmtFloat .Avg}}</td>
+                    <td>{{fmtFloat .Min}}</td>
+                    <td>{{fmtFloat .Max}}</td>
+                  </tr>
+                {{end}}
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+        {{else}}
+        <div class="small text-muted">No structured benchmark rows parsed.</div>
+        {{end}}
+      </div>
     {{end}}
   {{else if not .HasError}}
     <div class="text-muted">No report yet. Click Run.</div>

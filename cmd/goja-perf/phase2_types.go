@@ -23,13 +23,40 @@ type phase2CommandSettings = phase1CommandSettings
 
 func buildPhase2Tasks(settings phase2CommandSettings) []phase2Task {
 	return []phase2Task{
-		newTaskFromExpression(settings, "p2-value-conversion", "Value Conversion", "Measure Runtime.ToValue / Value.Export / ExportTo conversion overhead.", "^BenchmarkValueConversion$"),
-		newTaskFromExpression(settings, "p2-payload-sweep", "Payload Sweep", "Measure boundary-call behavior across tiny/medium/large payloads.", "^BenchmarkPayloadSweep$"),
-		newTaskFromExpression(settings, "p2-gc-sensitivity", "GC Sensitivity", "Measure runtime spawn/reuse behavior under allocation-heavy scripts.", "^BenchmarkGCSensitivity$"),
+		newTaskFromExpression(
+			settings,
+			"p2-value-conversion",
+			"Value Conversion",
+			"Measure Runtime.ToValue / Value.Export / ExportTo conversion overhead.",
+			"^BenchmarkValueConversion$",
+			[]benchmarkDefinition{
+				{Name: "BenchmarkValueConversion", Description: "Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths."},
+			},
+		),
+		newTaskFromExpression(
+			settings,
+			"p2-payload-sweep",
+			"Payload Sweep",
+			"Measure boundary-call behavior across tiny/medium/large payloads.",
+			"^BenchmarkPayloadSweep$",
+			[]benchmarkDefinition{
+				{Name: "BenchmarkPayloadSweep", Description: "Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies."},
+			},
+		),
+		newTaskFromExpression(
+			settings,
+			"p2-gc-sensitivity",
+			"GC Sensitivity",
+			"Measure runtime spawn/reuse behavior under allocation-heavy scripts.",
+			"^BenchmarkGCSensitivity$",
+			[]benchmarkDefinition{
+				{Name: "BenchmarkGCSensitivity", Description: "Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure."},
+			},
+		),
 	}
 }
 
-func newTaskFromExpression(settings phase2CommandSettings, id, title, description, benchExpr string) phase2Task {
+func newTaskFromExpression(settings phase2CommandSettings, id, title, description, benchExpr string, defs []benchmarkDefinition) phase2Task {
 	return phase2Task{
 		ID:          id,
 		Title:       title,
@@ -37,6 +64,7 @@ func newTaskFromExpression(settings phase2CommandSettings, id, title, descriptio
 		Command:     "go",
 		Args:        makeGoTestArgs(settings, benchExpr),
 		Flags:       makeGoTestFlags(settings, benchExpr),
+		Benchmarks:  defs,
 	}
 }
 
