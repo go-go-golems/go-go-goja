@@ -14,20 +14,27 @@ RelatedFiles:
       Note: Diary step records benchmark execution command
     - Path: cmd/goja-perf/phase1_tasks_command.go
       Note: Diary step records flag-definition command implementation
+    - Path: cmd/goja-perf/phase2_types.go
+      Note: Diary references phase-2 task wiring
     - Path: engine/runtime.go
       Note: Diary describes runtime behavior discovered during analysis
     - Path: perf/goja/bench_test.go
       Note: Records benchmark implementation details discussed in diary
+    - Path: perf/goja/phase2_bench_test.go
+      Note: Diary records implementation and execution of phase-2 benchmarks
     - Path: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/01-goja-performance-benchmark-plan.md
       Note: Diary references the finalized benchmark plan
     - Path: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-run-results.yaml
       Note: Diary references structured phase-1 output
+    - Path: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-run-results.yaml
+      Note: Diary references phase-2 output summary
 ExternalSources: []
 Summary: Step-by-step implementation diary for GJ-01-PERF benchmark planning and harness creation.
 LastUpdated: 2026-02-18T13:50:00-05:00
 WhatFor: Record decisions, experiments, failures, and validation commands for Goja performance benchmark planning.
 WhenToUse: Use when reviewing how the benchmark plan and harness were derived.
 ---
+
 
 
 
@@ -562,3 +569,96 @@ I also ran the full phase-1 task set and persisted both structured YAML outputs 
   - `successful_tasks: 3`
   - `failed_tasks: 0`
   - `total_duration_ms: 29473`
+
+## Step 8: Phase-2 Tasks and Command/Benchmark Build-Out
+
+I added a full Phase-2 execution track, including task checklist entries, new benchmark suites, and new `goja-perf` commands to define and run phase-2 tasks. This extends the phase-based workflow from “foundation + phase-1” into the next depth layer.
+
+I also executed phase-2 commands and persisted YAML artifacts and raw command output files under ticket artifacts.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Add tasks with phase 2 a nd build them too"
+
+**Assistant interpretation:** Add explicit phase-2 tasks in ticket tracking and implement/build the corresponding command + benchmark infrastructure.
+
+**Inferred user intent:** Continue the same operational pattern used for phase-1, now for phase-2, with runnable outputs and maintained history.
+
+**Commit (code):** 549f6ddef623642388bc8354f909536577eb0c04 — "feat(perf): add phase-2 benchmarks and glazed runner tasks"
+
+### What I did
+
+- Added phase-2 task checklist section in `tasks.md`.
+- Implemented phase-2 benchmark suites in `perf/goja/phase2_bench_test.go`:
+  - `BenchmarkValueConversion`
+  - `BenchmarkPayloadSweep`
+  - `BenchmarkGCSensitivity`
+- Added phase-2 command definitions and runner wiring:
+  - `cmd/goja-perf/phase2_types.go`
+  - `cmd/goja-perf/phase2_tasks_command.go`
+  - `cmd/goja-perf/phase2_run_command.go`
+  - `cmd/goja-perf/main.go` updated to register `phase2-*` commands
+- Executed:
+  - `go run ./cmd/goja-perf phase2-tasks ...`
+  - `go run ./cmd/goja-perf phase2-run ...`
+- Persisted artifacts:
+  - `.../various/phase2-task-definitions.yaml`
+  - `.../various/phase2-run-results.yaml`
+  - `.../various/phase2-task-output/p2-value-conversion.txt`
+  - `.../various/phase2-task-output/p2-payload-sweep.txt`
+  - `.../various/phase2-task-output/p2-gc-sensitivity.txt`
+
+### Why
+
+- User asked for phase-2 tasks and to build them.
+- Benchmark plan already identified phase-2 domains (payload sweeps, value conversion, GC sensitivity), so this step operationalizes that plan.
+
+### What worked
+
+- `cmd/goja-perf` compiled with new phase2 commands.
+- `phase2-tasks` produced command/flag definition YAML.
+- `phase2-run` executed all 3 tasks successfully and produced structured YAML report.
+- Pre-commit lint+test hooks passed on final commit.
+
+### What didn't work
+
+- First commit attempt failed lint due unused type alias in `phase2_types.go`:
+  - `type phase2RunSummary is unused (unused)`
+- Resolution:
+  - removed unused alias and recommitted.
+
+### What I learned
+
+- Phase runner logic was reusable enough to add phase2 quickly with minimal command-shape divergence.
+
+### What was tricky to build
+
+- Balancing reuse and clarity in phase2 typing. I reused phase1 report/task structures via type aliases, then removed one alias that introduced lint noise.
+
+### What warrants a second pair of eyes
+
+- Benchmark semantics of `BenchmarkPayloadSweep` large-case sub-benchmarks, especially interpretation when script-side object traversal work dominates pure bridge overhead.
+
+### What should be done in the future
+
+- Add separate “bridge-only minimal compute” payload benchmark variant to isolate crossing cost from object traversal cost.
+
+### Code review instructions
+
+- Review new phase2 command files first:
+  - `cmd/goja-perf/phase2_tasks_command.go`
+  - `cmd/goja-perf/phase2_run_command.go`
+  - `cmd/goja-perf/phase2_types.go`
+- Then benchmark suite:
+  - `perf/goja/phase2_bench_test.go`
+- Validate run flow:
+  - `go run ./cmd/goja-perf phase2-tasks`
+  - `go run ./cmd/goja-perf phase2-run`
+
+### Technical details
+
+- Phase-2 summary from YAML report:
+  - `total_tasks: 3`
+  - `successful_tasks: 3`
+  - `failed_tasks: 0`
+  - `total_duration_ms: 30080`

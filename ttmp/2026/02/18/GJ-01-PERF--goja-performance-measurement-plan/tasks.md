@@ -30,4 +30,4 @@
 - [x] P2-T3 Emit phase-2 task definitions as YAML (command + flags only)
 - [x] P2-T4 Execute phase-2 benchmark task set via the new command
 - [x] P2-T5 Persist phase-2 run results as YAML under ticket artifacts
-- [ ] P2-T6 Record detailed diary entries and changelog updates with commit hashes
+- [x] P2-T6 Record detailed diary entries and changelog updates with commit hashes

@@ -24,6 +24,10 @@ RelatedFiles:
       Note: Command/flag definitions exported as YAML
     - Path: cmd/goja-perf/phase1_types.go
       Note: Shared task/report schemas for phase-1 commands
+    - Path: cmd/goja-perf/phase2_run_command.go
+      Note: Phase-2 YAML run/report command
+    - Path: cmd/goja-perf/phase2_tasks_command.go
+      Note: Phase-2 YAML task definitions command
     - Path: engine/runtime.go
       Note: Runtime bootstrap path and calllog mode behavior
     - Path: modules/exports.go
@@ -32,18 +36,25 @@ RelatedFiles:
       Note: Benchmark execution and comparison runbook
     - Path: perf/goja/bench_test.go
       Note: Primary benchmark harness implemented for this ticket
+    - Path: perf/goja/phase2_bench_test.go
+      Note: Phase-2 benchmark suites for payload
     - Path: pkg/calllog/calllog.go
       Note: Call logging wrappers and bridge serialization overhead
     - Path: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-run-results.yaml
       Note: Generated phase-1 execution report
     - Path: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-task-definitions.yaml
       Note: Generated phase-1 task plan
+    - Path: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-run-results.yaml
+      Note: Generated phase-2 run report
+    - Path: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-task-definitions.yaml
+      Note: Generated phase-2 command plan
 ExternalSources: []
 Summary: Implementation plan and benchmark architecture for measuring Goja and go-go-goja performance.
 LastUpdated: 2026-02-18T13:45:00-05:00
 WhatFor: Design and operate repeatable Goja performance measurement across runtime lifecycle, JS loading, and Go<->JS boundary calls.
 WhenToUse: Use when adding or interpreting go-go-goja Goja benchmarks or planning perf regressions checks.
 ---
+
 
 
 
