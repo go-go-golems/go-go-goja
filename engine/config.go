@@ -8,9 +8,9 @@ type RuntimeConfig struct {
 	CallLogPath string
 }
 
-// DefaultRuntimeConfig enables call logging to the default sqlite path.
+// DefaultRuntimeConfig keeps call logging disabled unless explicitly enabled.
 func DefaultRuntimeConfig() RuntimeConfig {
 	return RuntimeConfig{
-		CallLogEnabled: true,
+		CallLogEnabled: false,
 	}
 }
