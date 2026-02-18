@@ -12,8 +12,14 @@ Owners: []
 RelatedFiles:
     - Path: cmd/goja-perf/serve_command.go
       Note: Serve command currently hangs on Ctrl-C
+    - Path: cmd/goja-perf/serve_shutdown.go
+      Note: Graceful server shutdown helper
+    - Path: cmd/goja-perf/serve_shutdown_test.go
+      Note: Ctrl-C shutdown behavior tests
     - Path: engine/config.go
       Note: Legacy config shape feeding calllog behavior
+    - Path: engine/options.go
+      Note: Unified option API for runtime opening
     - Path: engine/runtime.go
       Note: Current engine constructor surface to be refactored
     - Path: pkg/calllog/calllog.go
@@ -24,6 +30,7 @@ LastUpdated: 2026-02-18T10:03:33.027841216-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Cleanup Engine calllog and options API
