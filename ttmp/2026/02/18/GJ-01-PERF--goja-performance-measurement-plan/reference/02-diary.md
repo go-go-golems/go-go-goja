@@ -16,6 +16,8 @@ RelatedFiles:
       Note: Diary step records flag-definition command implementation
     - Path: cmd/goja-perf/phase2_types.go
       Note: Diary references phase-2 task wiring
+    - Path: cmd/goja-perf/serve_command.go
+      Note: Diary step for browser dashboard implementation
     - Path: engine/runtime.go
       Note: Diary describes runtime behavior discovered during analysis
     - Path: perf/goja/bench_test.go
@@ -34,6 +36,7 @@ LastUpdated: 2026-02-18T13:50:00-05:00
 WhatFor: Record decisions, experiments, failures, and validation commands for Goja performance benchmark planning.
 WhenToUse: Use when reviewing how the benchmark plan and harness were derived.
 ---
+
 
 
 
@@ -662,3 +665,79 @@ I also executed phase-2 commands and persisted YAML artifacts and raw command ou
   - `successful_tasks: 3`
   - `failed_tasks: 0`
   - `total_duration_ms: 30080`
+
+## Step 9: Browser Dashboard App for Running Phases and Viewing Reports
+
+I added a small built-in web app exposed via `goja-perf serve` so you can trigger phase runs and inspect report summaries from a browser. The app is intentionally minimal and uses server-rendered HTML fragments with HTMX.
+
+This keeps the workflow simple: one command starts the dashboard, and the existing phase runner commands remain the execution backend.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Now add a little app so I can run the tests and see the reports in my web browser."
+
+**Assistant interpretation:** Build a small local HTTP UI that can run phase benchmark commands and display generated report data.
+
+**Inferred user intent:** Avoid manual CLI-only operation and provide a quick visual control panel for phase execution and result inspection.
+
+**Commit (code):** 6e0d57021a837da98d3330893ce53ccea7994ba9 — "feat(perf-ui): add local browser dashboard for phase runs"
+
+### What I did
+
+- Added a new `serve` subcommand in `cmd/goja-perf/serve_command.go`.
+- Wired `serve` into `cmd/goja-perf/main.go`.
+- Implemented endpoints:
+  - `/` (dashboard page)
+  - `/api/report/phase1`, `/api/report/phase2` (render report fragments)
+  - `/api/run/phase1`, `/api/run/phase2` (execute phase runs and render updated fragments)
+- Implemented run backend by invoking:
+  - `go run ./cmd/goja-perf phase1-run ...`
+  - `go run ./cmd/goja-perf phase2-run ...`
+- Added in-page controls (Bootstrap + HTMX) for Run/Refresh per phase.
+
+### Why
+
+- User requested browser-based operation for running tests and viewing reports.
+- Reusing existing phase runner commands avoids duplicating benchmark orchestration logic.
+
+### What worked
+
+- Server starts and serves dashboard HTML.
+- Manual smoke check returned expected HTML from `/`.
+- Existing phase report YAML model renders correctly in fragment view.
+
+### What didn't work
+
+- N/A for implementation flow.
+
+### What I learned
+
+- HTMX server-rendered fragments are enough for this local utility; no SPA complexity needed.
+
+### What was tricky to build
+
+- Maintaining deterministic paths for report artifacts while allowing server execution from a configurable repo root. Resolved by normalizing `repo-root` to absolute path and joining configured phase output paths.
+
+### What warrants a second pair of eyes
+
+- Whether command output shown in failure details should be truncated for large outputs.
+
+### What should be done in the future
+
+- Optional: add “open raw task output” links in UI for each phase task result.
+
+### Code review instructions
+
+- Review server command + handlers:
+  - `cmd/goja-perf/serve_command.go`
+- Review command registration:
+  - `cmd/goja-perf/main.go`
+- Validate manually:
+  - `go run ./cmd/goja-perf serve --port 8090`
+  - open `http://127.0.0.1:8090`
+
+### Technical details
+
+- Smoke command used:
+  - `go run ./cmd/goja-perf serve --port 8091`
+  - `curl http://127.0.0.1:8091/`

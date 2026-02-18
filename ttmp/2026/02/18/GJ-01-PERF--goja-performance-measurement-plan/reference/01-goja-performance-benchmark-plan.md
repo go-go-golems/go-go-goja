@@ -28,6 +28,8 @@ RelatedFiles:
       Note: Phase-2 YAML run/report command
     - Path: cmd/goja-perf/phase2_tasks_command.go
       Note: Phase-2 YAML task definitions command
+    - Path: cmd/goja-perf/serve_command.go
+      Note: Browser dashboard for running phases and viewing summaries
     - Path: engine/runtime.go
       Note: Runtime bootstrap path and calllog mode behavior
     - Path: modules/exports.go
@@ -54,6 +56,7 @@ LastUpdated: 2026-02-18T13:45:00-05:00
 WhatFor: Design and operate repeatable Goja performance measurement across runtime lifecycle, JS loading, and Go<->JS boundary calls.
 WhenToUse: Use when adding or interpreting go-go-goja Goja benchmarks or planning perf regressions checks.
 ---
+
 
 
 

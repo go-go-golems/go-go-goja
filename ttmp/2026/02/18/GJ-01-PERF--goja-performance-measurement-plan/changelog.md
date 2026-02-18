@@ -80,3 +80,22 @@ Implemented phase-2 benchmark suites and executed phase-2 task runner with YAML 
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/perf/goja/phase2_bench_test.go — Phase-2 benchmark implementation
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-run-results.yaml — Phase-2 structured results
 
+
+## 2026-02-18
+
+- Commit `6e0d57021a837da98d3330893ce53ccea7994ba9`: added `goja-perf serve` browser dashboard to run phase commands and view report summaries.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_command.go — Local HTTP UI and phase run/report handlers
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/main.go — Registered serve subcommand
+
+## 2026-02-18
+
+Added browser dashboard command (goja-perf serve) for running phase tests and viewing report summaries.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_command.go — Serve command and handlers
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/02-diary.md — Detailed app implementation diary step
+

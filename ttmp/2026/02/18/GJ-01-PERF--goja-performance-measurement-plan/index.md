@@ -12,6 +12,8 @@ Owners: []
 RelatedFiles:
     - Path: cmd/goja-perf/main.go
       Note: New phase-1 command surface
+    - Path: cmd/goja-perf/serve_command.go
+      Note: Ticket-level browser app entrypoint for phase execution
     - Path: perf/goja/README.md
       Note: How to execute and compare benchmark runs
     - Path: perf/goja/bench_test.go
@@ -32,6 +34,7 @@ LastUpdated: 2026-02-18T13:45:00-05:00
 WhatFor: Track benchmark design, implementation, and operationalization for Goja performance testing.
 WhenToUse: Use as entry point for all GJ-01-PERF artifacts.
 ---
+
 
 
 

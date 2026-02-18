@@ -8,6 +8,7 @@
 - [x] Implement initial benchmark suites in `perf/goja/bench_test.go`
 - [x] Write implementation plan and investigation diary
 - [x] Upload bundled ticket deliverable to reMarkable
+- [x] Add browser dashboard app to run phases and inspect reports
 
 ## Next
 
