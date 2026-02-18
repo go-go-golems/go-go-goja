@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
@@ -78,7 +80,7 @@ This command uses Glazed for command/flag definitions only.`),
 	return &serveCommand{CommandDescription: desc}, nil
 }
 
-func (c *serveCommand) Run(_ context.Context, vals *values.Values) error {
+func (c *serveCommand) Run(ctx context.Context, vals *values.Values) error {
 	settings := serveSettings{}
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
@@ -131,7 +133,10 @@ func (c *serveCommand) Run(_ context.Context, vals *values.Values) error {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	return srv.ListenAndServe()
+	runCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	return runServerUntilCanceled(runCtx, srv)
 }
 
 type perfWebApp struct {
