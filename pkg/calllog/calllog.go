@@ -45,7 +45,14 @@ var (
 	defaultOnce     sync.Once
 	defaultLogger   = &Logger{}
 	defaultLoggerMu sync.RWMutex
+	runtimeLoggers  sync.Map // map[*goja.Runtime]runtimeLoggerBinding
 )
+
+type runtimeLoggerBinding struct {
+	logger   *Logger
+	owned    bool
+	disabled bool
+}
 
 // ConfigureFromEnv initializes the default logger using environment variables.
 //
@@ -99,6 +106,59 @@ func Disable() {
 
 	if old != nil {
 		_ = old.Close()
+	}
+}
+
+// BindRuntimeLogger binds a runtime-specific logger. This binding does not
+// transfer ownership of the logger to calllog.
+func BindRuntimeLogger(vm *goja.Runtime, logger *Logger) {
+	setRuntimeLoggerBinding(vm, runtimeLoggerBinding{
+		logger: logger,
+		owned:  false,
+	})
+}
+
+// BindOwnedRuntimeLogger binds a runtime-specific logger and transfers
+// ownership to calllog runtime lifecycle cleanup.
+func BindOwnedRuntimeLogger(vm *goja.Runtime, logger *Logger) {
+	setRuntimeLoggerBinding(vm, runtimeLoggerBinding{
+		logger: logger,
+		owned:  true,
+	})
+}
+
+// DisableRuntimeLogger disables call logging for a specific runtime, including
+// fallback to any default logger.
+func DisableRuntimeLogger(vm *goja.Runtime) {
+	setRuntimeLoggerBinding(vm, runtimeLoggerBinding{
+		disabled: true,
+	})
+}
+
+// ClearRuntimeLogger removes any runtime-specific logger binding.
+func ClearRuntimeLogger(vm *goja.Runtime) {
+	if vm == nil {
+		return
+	}
+	runtimeLoggers.Delete(vm)
+}
+
+// ReleaseRuntimeLogger removes runtime-specific bindings and closes the logger
+// if the runtime owned it.
+func ReleaseRuntimeLogger(vm *goja.Runtime) {
+	if vm == nil {
+		return
+	}
+	raw, ok := runtimeLoggers.LoadAndDelete(vm)
+	if !ok {
+		return
+	}
+	binding, ok := raw.(runtimeLoggerBinding)
+	if !ok {
+		return
+	}
+	if binding.owned && binding.logger != nil {
+		_ = binding.logger.Close()
 	}
 }
 
@@ -246,6 +306,41 @@ func (l *Logger) Log(entry Entry) {
 	}
 }
 
+func setRuntimeLoggerBinding(vm *goja.Runtime, binding runtimeLoggerBinding) {
+	if vm == nil {
+		return
+	}
+	runtimeLoggers.Store(vm, binding)
+}
+
+func loggerForRuntime(vm *goja.Runtime) *Logger {
+	if vm != nil {
+		if raw, ok := runtimeLoggers.Load(vm); ok {
+			if binding, ok := raw.(runtimeLoggerBinding); ok {
+				if binding.disabled {
+					return nil
+				}
+				if binding.logger != nil {
+					return binding.logger
+				}
+			}
+		}
+	}
+
+	defaultLoggerMu.RLock()
+	logger := defaultLogger
+	defaultLoggerMu.RUnlock()
+	return logger
+}
+
+func logForRuntime(vm *goja.Runtime, entry Entry) {
+	logger := loggerForRuntime(vm)
+	if logger == nil {
+		return
+	}
+	logger.Log(entry)
+}
+
 func nullable(value string) interface{} {
 	if value == "" {
 		return nil
@@ -352,7 +447,7 @@ func WrapGoFunction(vm *goja.Runtime, moduleName, funcName string, fn interface{
 	if !ok {
 		return func(call goja.FunctionCall) goja.Value {
 			err := fmt.Errorf("calllog: %s.%s is not callable", moduleName, funcName)
-			Log(Entry{
+			logForRuntime(vm, Entry{
 				Direction: "js->go",
 				Module:    moduleName,
 				Function:  funcName,
@@ -379,7 +474,7 @@ func WrapGoFunction(vm *goja.Runtime, moduleName, funcName string, fn interface{
 		if err != nil {
 			entry.Error = err.Error()
 		}
-		Log(entry)
+		logForRuntime(vm, entry)
 
 		if err != nil {
 			panic(vm.NewGoError(err))
@@ -406,7 +501,7 @@ func CallJSFunction(vm *goja.Runtime, moduleName, funcName string, fn goja.Calla
 	if err != nil {
 		entry.Error = err.Error()
 	}
-	Log(entry)
+	logForRuntime(vm, entry)
 
 	return result, err
 }
