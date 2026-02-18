@@ -29,3 +29,37 @@
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/perf/goja/README.md — Benchmark scope now includes EngineFactory path
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/pkg/doc/bun-goja-bundling-playbook.md — Added factory usage example for repeated runtime creation
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/runtime-spawn-enginefactory-bench.txt — Recorded benchmark output
+
+## 2026-02-18
+
+- Captured side-by-side CPU and allocation profiles for:
+  - `BenchmarkRuntimeSpawn/EngineNew_NoCallLog`
+  - `BenchmarkRuntimeSpawn/EngineFactory_NoCallLog`
+- Generated SVG flamegraph-style call graphs and diff graph.
+- Added head-to-head benchmark sample sets (default CPU, `-cpu=1`, and `GOGC=off`) for variability analysis.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_new_cpu.svg — CPU call graph for EngineNew path
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_cpu.svg — CPU call graph for EngineFactory path
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/cpu_diff.svg — Differential CPU graph (factory minus new baseline)
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/alloc_diff_top.txt — Allocation delta summary
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/runtime_spawn_headtohead.txt — Multi-sample comparison run
+
+## 2026-02-18
+
+- Added controlled head-to-head benchmark comparison for runtime spawn paths using
+  `benchstat` (`-cpu=1`, `-count=12`, `-benchtime=300ms`).
+- Generated fresh 5-second CPU/memory profiles for both paths and produced
+  additional SVG callgraph outputs and diff summaries.
+- Added a structured YAML summary of benchmark and profiling outcomes.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/runtime_spawn_engine_new_cpu1_count12.txt — Baseline benchmark samples
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/runtime_spawn_engine_factory_cpu1_count12.txt — Factory benchmark samples
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/runtime_spawn_enginefactory_vs_new_benchstat_cpu1_count12.txt — Statistical delta report
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_new_cpu_5s.svg — 5s CPU callgraph for EngineNew
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_cpu_5s.svg — 5s CPU callgraph for EngineFactory
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/cpu_diff_5s.svg — 5s differential CPU callgraph
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/runtime_spawn_profile_summary.yaml — Structured profile/benchmark summary

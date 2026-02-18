@@ -1,0 +1,75 @@
+File: goja.test
+Build ID: d78a0faa7df9923b954d3f38003009d269644754
+Type: alloc_objects
+Time: 2026-02-18 15:08:01 EST
+Showing nodes accounting for -15836937, 28.61% of 55349574 total
+Dropped 106 nodes (cum <= 276747)
+      flat  flat%   sum%        cum   cum%
+  -2992867  5.41%  5.41%   -3817206  6.90%  github.com/go-go-golems/go-go-goja/modules.(*Registry).Enable
+  -1806070  3.26%  8.67%   -1806070  3.26%  github.com/dop251/goja.(*baseObject)._put
+  -1463704  2.64% 11.31%   -1463704  2.64%  github.com/dop251/goja.(*baseObject).init (inline)
+  -1146897  2.07% 13.39%   -1146897  2.07%  github.com/dop251/goja.stringValueFromRaw (inline)
+  -1119289  2.02% 15.41%   -1119289  2.02%  github.com/dop251/goja.(*baseObject).setOwnStr
+   -824339  1.49% 16.90%    -824339  1.49%  github.com/dop251/goja_nodejs/require.(*Registry).RegisterNativeModule
+   -818206  1.48% 18.38%   -5344125  9.66%  github.com/dop251/goja.(*Runtime).newNativeFunc
+   -759165  1.37% 19.75%   -4879493  8.82%  github.com/go-go-golems/go-go-goja/engine.NewFactory
+   -557068  1.01% 20.75%   -6748527 12.19%  github.com/dop251/goja_nodejs/console.Require.requireWithPrinter.func1 (inline)
+   -454119  0.82% 21.58%    -891045  1.61%  github.com/dop251/goja.newBaseObjectObj (inline)
+   -426005  0.77% 22.34%    -426005  0.77%  github.com/dop251/goja.valueProp (inline)
+   -409612  0.74% 23.08%    -409612  0.74%  github.com/go-go-golems/go-go-goja/engine.WithRequireOptions (inline)
+   -327685  0.59% 23.68%  -55242839 99.81%  github.com/go-go-golems/go-go-goja/engine.NewWithConfig
+   -303122  0.55% 24.22%    -303122  0.55%  github.com/dop251/goja_nodejs/require.NewRegistry (inline)
+   -283997  0.51% 24.74%    -283997  0.51%  github.com/dop251/goja.AssertFunction
+   -251233  0.45% 25.19%   -1860526  3.36%  github.com/dop251/goja_nodejs/require.(*Registry).Enable
+   -251232  0.45% 25.65%   -1142277  2.06%  github.com/dop251/goja.(*Runtime).newBaseObject (inline)
+   -229380  0.41% 26.06%   -7770990 14.04%  github.com/dop251/goja_nodejs/require.Require
+   -219308   0.4% 26.46%   -7454226 13.47%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadNative
+   -214846  0.39% 26.84%    -481100  0.87%  github.com/dop251/goja.(*Runtime).init
+   -207540  0.37% 27.22%    -404171  0.73%  github.com/dop251/goja.(*Runtime).getFunctionPrototype
+   -152920  0.28% 27.50%    -152920  0.28%  github.com/dop251/goja_nodejs/console.(*Console).log (inline)
+   -152159  0.27% 27.77%    -152159  0.27%  github.com/dop251/goja.(*vm).pushTryFrame (inline)
+   -142015  0.26% 28.03%    -196631  0.36%  github.com/dop251/goja.(*Runtime).newTemplatedFuncObject (inline)
+    -98305  0.18% 28.20%   -5442430  9.83%  github.com/dop251/goja.(*Runtime).toValue
+    -98305  0.18% 28.38%    -777065  1.40%  github.com/dop251/goja_nodejs/util.Require
+    -57912   0.1% 28.49%    -539012  0.97%  github.com/dop251/goja.New (inline)
+    -36868 0.067% 28.55%    -266254  0.48%  github.com/dop251/goja.(*Runtime).newTemplatedObject (inline)
+    -32769 0.059% 28.61%    -128898  0.23%  github.com/go-go-golems/go-go-goja/pkg/calllog.setRuntimeLoggerBinding
+         0     0% 28.61%   -5054967  9.13%  github.com/dop251/goja.(*Object).Set (inline)
+         0     0% 28.61%   -1142277  2.06%  github.com/dop251/goja.(*Runtime).NewObject (inline)
+         0     0% 28.61%   -1609293  2.91%  github.com/dop251/goja.(*Runtime).Set
+         0     0% 28.61%   -1543753  2.79%  github.com/dop251/goja.(*Runtime).Set.func1
+         0     0% 28.61%   -5442430  9.83%  github.com/dop251/goja.(*Runtime).ToValue (partial-inline)
+         0     0% 28.61%   -7323152 13.23%  github.com/dop251/goja.(*Runtime).runWrapped
+         0     0% 28.61%   -6664260 12.04%  github.com/dop251/goja.(*Runtime).try (inline)
+         0     0% 28.61%   -4121748  7.45%  github.com/dop251/goja.(*baseFuncObject).init
+         0     0% 28.61%   -1196077  2.16%  github.com/dop251/goja.(*baseObject)._putProp
+         0     0% 28.61%    -128808  0.23%  github.com/dop251/goja.(*templatedObject).setOwnStr
+         0     0% 28.61%   -8932445 16.14%  github.com/dop251/goja.(*vm).try
+         0     0% 28.61%   -7323152 13.23%  github.com/dop251/goja.AssertFunction.func1
+         0     0% 28.61%   -7323152 13.23%  github.com/dop251/goja.AssertFunction.func1.1
+         0     0% 28.61%   -7770990 14.04%  github.com/dop251/goja_nodejs/console.Enable
+         0     0% 28.61%   -6748527 12.19%  github.com/dop251/goja_nodejs/console.Require
+         0     0% 28.61%    -470174  0.85%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func11
+         0     0% 28.61%   -1155684  2.09%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func3
+         0     0% 28.61%   -1069764  1.93%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func5
+         0     0% 28.61%    -639219  1.15%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func7
+         0     0% 28.61%    -444951   0.8%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func9
+         0     0% 28.61%   -7323152 13.23%  github.com/dop251/goja_nodejs/require.(*RequireModule).Require
+         0     0% 28.61%   -1738692  3.14%  github.com/dop251/goja_nodejs/require.(*RequireModule).createModuleObject
+         0     0% 28.61%    -509796  0.92%  github.com/dop251/goja_nodejs/require.(*RequireModule).createModuleObject.(*Object).Set.func1
+         0     0% 28.61%   -7323152 13.23%  github.com/dop251/goja_nodejs/require.(*RequireModule).require
+         0     0% 28.61%   -7323152 13.23%  github.com/dop251/goja_nodejs/require.(*RequireModule).resolve
+         0     0% 28.61%    -678760  1.23%  github.com/dop251/goja_nodejs/util.Require.(*Object).Set.func1
+         0     0% 28.61%  -10299426 18.61%  github.com/go-go-golems/go-go-goja/engine.(*Factory).NewRuntime
+         0     0% 28.61%  -54505542 98.48%  github.com/go-go-golems/go-go-goja/engine.Open
+         0     0% 28.61%    -128898  0.23%  github.com/go-go-golems/go-go-goja/engine.configureRuntimeCallLog
+         0     0% 28.61%   -3817206  6.90%  github.com/go-go-golems/go-go-goja/modules.EnableAll (inline)
+         0     0% 28.61%  -55242839 99.81%  github.com/go-go-golems/go-go-goja/perf/goja_test.BenchmarkRuntimeSpawn.func2
+         0     0% 28.61%   39326623 71.05%  github.com/go-go-golems/go-go-goja/perf/goja_test.BenchmarkRuntimeSpawn.func3
+         0     0% 28.61%  -55242839 99.81%  github.com/go-go-golems/go-go-goja/perf/goja_test.newRuntimeNoCallLog
+         0     0% 28.61%    -128898  0.23%  github.com/go-go-golems/go-go-goja/pkg/calllog.DisableRuntimeLogger (inline)
+         0     0% 28.61%     -96129  0.17%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Store (inline)
+         0     0% 28.61%     -96129  0.17%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+         0     0% 28.61%     -96129  0.17%  sync.(*Map).Store (inline)
+         0     0% 28.61%  -15916216 28.76%  testing.(*B).launch
+         0     0% 28.61%  -15917035 28.76%  testing.(*B).runN

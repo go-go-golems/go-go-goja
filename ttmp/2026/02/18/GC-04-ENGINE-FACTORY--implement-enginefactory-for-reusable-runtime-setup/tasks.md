@@ -14,3 +14,4 @@
 - [x] F5 Add tests for correctness, calllog isolation, and require option behavior
 - [x] F6 Add benchmarks comparing `engine.Open(...)` vs `EngineFactory.NewRuntime()`
 - [x] F7 Update docs/examples to include factory usage
+- [x] F8 Profile performance gains and generate flamegraph-style artifacts

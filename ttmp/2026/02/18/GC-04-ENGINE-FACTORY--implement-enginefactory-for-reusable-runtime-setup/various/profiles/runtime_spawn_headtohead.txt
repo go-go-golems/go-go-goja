@@ -1,0 +1,26 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   13873	     17313 ns/op	   12198 B/op	     146 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   16380	     15008 ns/op	   12214 B/op	     146 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   19176	     11677 ns/op	   12220 B/op	     146 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   20583	     17448 ns/op	   12220 B/op	     146 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   11305	     22282 ns/op	   12217 B/op	     146 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   11936	     20403 ns/op	   12211 B/op	     146 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   11808	     21930 ns/op	   12210 B/op	     146 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   10299	     24132 ns/op	   12205 B/op	     146 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   11547	     25783 ns/op	   12203 B/op	     146 allocs/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   12056	     21511 ns/op	   12202 B/op	     146 allocs/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	   13479	     17829 ns/op	   11559 B/op	     131 allocs/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	   14335	     19386 ns/op	   11557 B/op	     131 allocs/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	   14443	     19540 ns/op	   11558 B/op	     131 allocs/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	    8420	     25613 ns/op	   11556 B/op	     131 allocs/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	    6188	     34479 ns/op	   11558 B/op	     131 allocs/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	    9957	     32159 ns/op	   11557 B/op	     131 allocs/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	    9362	     21397 ns/op	   11557 B/op	     131 allocs/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	   10570	     24853 ns/op	   11556 B/op	     131 allocs/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	    9464	     22321 ns/op	   11557 B/op	     131 allocs/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	   15664	     15923 ns/op	   11558 B/op	     131 allocs/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	66.521s

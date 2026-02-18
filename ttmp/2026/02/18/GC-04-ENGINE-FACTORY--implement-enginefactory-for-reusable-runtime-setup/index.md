@@ -45,6 +45,7 @@ than rebuilding all setup on every `engine.Open()` call.
 
 - Implementation plan: `reference/01-implementation-plan.md`
 - Design plan: `reference/02-design-plan.md`
+- Diary: `reference/03-diary.md`
 - Tasks: `tasks.md`
 - Changelog: `changelog.md`
 

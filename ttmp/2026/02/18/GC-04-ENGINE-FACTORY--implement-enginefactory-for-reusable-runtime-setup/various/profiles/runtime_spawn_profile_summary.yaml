@@ -1,0 +1,66 @@
+generated_at: "2026-02-18T15:12:00-05:00"
+ticket: "GC-04-ENGINE-FACTORY"
+scope:
+  benchmark: "BenchmarkRuntimeSpawn"
+  baseline_case: "EngineNew_NoCallLog"
+  candidate_case: "EngineFactory_NoCallLog"
+environment:
+  go_version: "go1.25.7"
+  goos: "linux"
+  goarch: "amd64"
+  cpu: "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz"
+benchmark_runs:
+  controlled_head_to_head:
+    command_baseline: "go test ./perf/goja -run '^$' -bench '^BenchmarkRuntimeSpawn/EngineNew_NoCallLog$' -benchmem -cpu=1 -count=12 -benchtime=300ms"
+    command_candidate: "go test ./perf/goja -run '^$' -bench '^BenchmarkRuntimeSpawn/EngineFactory_NoCallLog$' -benchmem -cpu=1 -count=12 -benchtime=300ms"
+    analysis_command: "/home/manuel/go/bin/benchstat runtime_spawn_engine_new_cpu1_count12.norm.txt runtime_spawn_engine_factory_cpu1_count12.norm.txt"
+    results:
+      sec_per_op:
+        baseline: "17.40us ±88%"
+        candidate: "15.71us ±62%"
+        delta: "~"
+        p_value: "0.114"
+        significant: false
+      bytes_per_op:
+        baseline: "11.91 KiB ±0%"
+        candidate: "11.29 KiB ±0%"
+        delta: "-5.24%"
+        p_value: "0.000"
+        significant: true
+      allocs_per_op:
+        baseline: "146.0 ±0%"
+        candidate: "131.0 ±0%"
+        delta: "-10.27%"
+        p_value: "0.000"
+        significant: true
+  long_sample_profiles:
+    command_baseline: "go test ./perf/goja -run '^$' -bench '^BenchmarkRuntimeSpawn/EngineNew_NoCallLog$' -benchmem -count=1 -benchtime=5s -cpuprofile engine_new_cpu_5s.pprof -memprofile engine_new_mem_5s.pprof"
+    command_candidate: "go test ./perf/goja -run '^$' -bench '^BenchmarkRuntimeSpawn/EngineFactory_NoCallLog$' -benchmem -count=1 -benchtime=5s -cpuprofile engine_factory_cpu_5s.pprof -memprofile engine_factory_mem_5s.pprof"
+    benchmark_lines:
+      baseline: "BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8 384044 22960 ns/op 12205 B/op 146 allocs/op"
+      candidate: "BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8 302860 28055 ns/op 11567 B/op 131 allocs/op"
+profiles:
+  flamegraph_style_svg:
+    - path: "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_new_cpu_5s.svg"
+      description: "CPU callgraph SVG for EngineNew path"
+    - path: "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_cpu_5s.svg"
+      description: "CPU callgraph SVG for EngineFactory path"
+    - path: "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/cpu_diff_5s.svg"
+      description: "Differential CPU callgraph SVG (candidate minus baseline)"
+  raw_pprof:
+    - "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_new_cpu_5s.pprof"
+    - "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_cpu_5s.pprof"
+    - "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_new_mem_5s.pprof"
+    - "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_mem_5s.pprof"
+  top_reports:
+    - "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_new_cpu_top_5s.txt"
+    - "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_cpu_top_5s.txt"
+    - "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/cpu_diff_top_5s.txt"
+    - "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/alloc_diff_top_5s.txt"
+observations:
+  - "Allocation savings are stable and statistically significant in controlled samples."
+  - "Wall-time improvements are not statistically significant in controlled samples."
+  - "CPU profiles for both variants are dominated by goja object setup, require native module loading, and GC work."
+how_to_open_interactive_flamegraph:
+  - "go tool pprof -http=:0 ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_new_cpu_5s.pprof"
+  - "go tool pprof -http=:0 ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_cpu_5s.pprof"

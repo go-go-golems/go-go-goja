@@ -77,6 +77,40 @@ _ = req
 - Implemented in commit `b93a0fa892f563bcf6a19bb6453fd4f2d6535560`.
 - Benchmark artifact captured at:
   - `ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/runtime-spawn-enginefactory-bench.txt`
+- Profiling artifacts captured at:
+  - `ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_new_cpu.svg`
+  - `ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_cpu.svg`
+  - `ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/cpu_diff.svg`
+  - `ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/alloc_diff_top.txt`
+  - `ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_new_cpu_5s.svg`
+  - `ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_cpu_5s.svg`
+  - `ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/cpu_diff_5s.svg`
+  - `ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/runtime_spawn_profile_summary.yaml`
+
+### Profiling Summary
+
+- Controlled `benchstat` run (`-cpu=1`, `-count=12`, `-benchtime=300ms`) showed:
+  - `17.40us` -> `15.71us` sec/op (`~`, `p=0.114`, not statistically significant)
+  - `11.91 KiB/op` -> `11.29 KiB/op` (`-5.24%`, `p=0.000`)
+  - `146 allocs/op` -> `131 allocs/op` (`-10.27%`, `p=0.000`)
+- Single long benchmark sample (`-benchtime=5s`) still shows noisy wall-time
+  behavior, while preserving the allocation improvement trend:
+  - EngineNew: `12205 B/op`, `146 allocs/op`
+  - EngineFactory: `11567 B/op`, `131 allocs/op`
+- CPU top profiles indicate both paths are dominated by:
+  - Goja object/native function setup
+  - `require` native module load path during `console.Enable`
+  - GC scanning/marking under allocation pressure
+
+### Flamegraph Note
+
+- Generated artifacts are SVG callgraph visualizations from `go tool pprof`.
+- For an interactive flamegraph-style view, run:
+
+```bash
+go tool pprof -http=:0 \
+  ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_cpu_5s.pprof
+```
 
 ## Related
 
