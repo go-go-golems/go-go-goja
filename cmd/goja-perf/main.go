@@ -86,6 +86,23 @@ func main() {
 	root.AddCommand(phase2TasksCobra)
 	root.AddCommand(phase2RunCobra)
 
+	serveCmd, err := newServeCommand()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	serveCobra, err := cli.BuildCobraCommand(serveCmd,
+		cli.WithParserConfig(cli.CobraParserConfig{
+			ShortHelpSections: []string{schema.DefaultSlug},
+			MiddlewaresFunc:   cli.CobraCommandDefaultMiddlewares,
+		}),
+	)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	root.AddCommand(serveCobra)
+
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}
