@@ -99,3 +99,17 @@ Added browser dashboard command (goja-perf serve) for running phase tests and vi
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_command.go — Serve command and handlers
 - /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/02-diary.md — Detailed app implementation diary step
 
+
+## 2026-02-18
+
+- Commit `08153e1f1f149eedac570855a6e2207dc3ef873e`: enriched structured benchmark reporting with task/benchmark descriptions and rendered structured table output in the web dashboard.
+- Regenerated phase-1 and phase-2 task/run YAML artifacts with updated benchmark explanation fields and summary metrics.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase1_types.go — Added benchmark definition metadata to task/result schemas
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase1_run_command.go — Structured benchmark sample parsing and summary stats
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase2_types.go — Added phase-2 benchmark definitions
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_command.go — Dashboard tables for “what this task measures” and structured metric summaries
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-run-results.yaml — Structured phase-1 results with benchmark descriptions and summaries
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-run-results.yaml — Structured phase-2 results with benchmark descriptions and summaries

@@ -741,3 +741,93 @@ This keeps the workflow simple: one command starts the dashboard, and the existi
 - Smoke command used:
   - `go run ./cmd/goja-perf serve --port 8091`
   - `curl http://127.0.0.1:8091/`
+
+## Step 10: Structured Benchmark Explanations in YAML and Web Tables
+
+I extended the report model so each task/result carries benchmark definitions and per-benchmark descriptions in structured fields, then regenerated both phase outputs. This makes the YAML self-explanatory without reading raw benchmark text first.
+
+I also updated the web fragment to present two explicit tables per task: one table describing what each benchmark measures and one table for structured metric summaries (avg/min/max) sourced from YAML. The webview now avoids relying on raw `.txt` outputs for normal viewing.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Add more information about what each test does in the yaml output / in the webview, so that I understand what is going on. Render the results as tables and use the structured output not the txt if possible."
+
+**Assistant interpretation:** Enrich benchmark report schema/content with clear test explanations and ensure browser output uses structured YAML data rendered as tables.
+
+**Inferred user intent:** Make benchmark execution results interpretable at a glance without digging into raw benchmark output text.
+
+**Commit (code):** 08153e1f1f149eedac570855a6e2207dc3ef873e — "feat(perf-ui): enrich structured benchmark descriptions and tables"
+
+### What I did
+
+- Added benchmark description metadata to task/result structures in:
+  - `cmd/goja-perf/phase1_types.go`
+  - `cmd/goja-perf/phase2_types.go`
+- Kept structured parsing pipeline in `cmd/goja-perf/phase1_run_command.go` and fixed lint blocker by renaming local variables `min/max` to `minValue/maxValue`.
+- Updated `cmd/goja-perf/serve_command.go` structured results table to include a `What it does` column sourced from result summaries.
+- Regenerated artifacts:
+  - `phase1-task-definitions.yaml`
+  - `phase1-run-results.yaml`
+  - `phase2-task-definitions.yaml`
+  - `phase2-run-results.yaml`
+  - raw task output files for both phases
+- Validated with:
+  - `go test ./cmd/goja-perf ./perf/goja -run '^$'`
+  - `go run ./cmd/goja-perf serve --port 8093`
+  - `curl -s http://127.0.0.1:8093/api/report/phase1 | rg "What it does|Structured results|What this task measures"`
+
+### Why
+
+- The prior output had benchmark numbers but not enough “what this benchmark is for” context in the rendered metric table.
+- User explicitly requested table rendering and structured-data-first display.
+
+### What worked
+
+- YAML output now includes task-level and benchmark-level descriptions in both plan and results.
+- Webview renders benchmark explanation table + structured metric table from YAML.
+- Phase-1 and phase-2 runners still execute cleanly and produce parseable structured summaries.
+
+### What didn't work
+
+- A commit attempt initially failed in pre-commit lint:
+  - `cmd/goja-perf/phase1_run_command.go:228:4 variable min has same name as predeclared identifier (predeclared)`
+  - `cmd/goja-perf/phase1_run_command.go:229:4 variable max has same name as predeclared identifier (predeclared)`
+- Resolution:
+  - Renamed locals to `minValue` and `maxValue`, reran checks, then recommitted.
+
+### What I learned
+
+- Parsing benchmark samples into structured summaries is sufficient for dashboarding; raw lines are useful as diagnostics but should not be the primary UX path.
+
+### What was tricky to build
+
+- Avoiding schema/UI drift while preserving backward-compatible task execution. The solution was to centralize description metadata in task definitions and propagate it into parsed samples/summaries so both YAML and HTML can rely on the same source.
+
+### What warrants a second pair of eyes
+
+- Whether report size growth from detailed `samples` entries is acceptable long-term, or if raw sample retention should be toggleable.
+
+### What should be done in the future
+
+- Consider adding a compact mode (`--samples=none|summary|full`) for run reports to reduce YAML size while keeping summary tables intact.
+
+### Code review instructions
+
+- Start with schema changes:
+  - `cmd/goja-perf/phase1_types.go`
+  - `cmd/goja-perf/phase2_types.go`
+- Review summary parsing and lint fix:
+  - `cmd/goja-perf/phase1_run_command.go`
+- Review dashboard rendering:
+  - `cmd/goja-perf/serve_command.go`
+- Validate:
+  - `go run ./cmd/goja-perf phase1-run`
+  - `go run ./cmd/goja-perf phase2-run`
+  - `go run ./cmd/goja-perf serve --port 8090`
+
+### Technical details
+
+- Web fragment now renders these table sections from structured data:
+  - `What this task measures` (`BenchmarkDefinitions`)
+  - `Structured results` (`Summaries` with metric avg/min/max)
+- No dependency on `.txt` files for normal report rendering path; raw text remains as per-task artifact for deep debugging.

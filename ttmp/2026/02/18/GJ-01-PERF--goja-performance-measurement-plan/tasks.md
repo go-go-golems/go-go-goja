@@ -9,6 +9,7 @@
 - [x] Write implementation plan and investigation diary
 - [x] Upload bundled ticket deliverable to reMarkable
 - [x] Add browser dashboard app to run phases and inspect reports
+- [x] Enrich YAML/web report with benchmark explanations and structured result tables
 
 ## Next
 
