@@ -1,0 +1,27 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkJSCallingGo/GoDirect-8         	493409061	         0.4242 ns/op	       0 B/op	       0 allocs/op
+BenchmarkJSCallingGo/GoDirect-8         	576040239	         0.4240 ns/op	       0 B/op	       0 allocs/op
+BenchmarkJSCallingGo/GoDirect-8         	625334113	         0.8150 ns/op	       0 B/op	       0 allocs/op
+BenchmarkJSCallingGo/JS_vm_Set-8        	  209694	      1536 ns/op	     352 B/op	      12 allocs/op
+BenchmarkJSCallingGo/JS_vm_Set-8        	  160468	      1931 ns/op	     352 B/op	      12 allocs/op
+BenchmarkJSCallingGo/JS_vm_Set-8        	  170260	      2034 ns/op	     352 B/op	      12 allocs/op
+BenchmarkJSCallingGo/JS_module_SetExport-8         	   82104	      3364 ns/op	     440 B/op	      18 allocs/op
+BenchmarkJSCallingGo/JS_module_SetExport-8         	   83877	      3371 ns/op	     440 B/op	      18 allocs/op
+BenchmarkJSCallingGo/JS_module_SetExport-8         	  109587	      3465 ns/op	     440 B/op	      18 allocs/op
+BenchmarkGoCallingJS/GoDirect-8                    	762361024	         0.2985 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGoCallingJS/GoDirect-8                    	811930258	         0.2999 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGoCallingJS/GoDirect-8                    	818917596	         0.3163 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGoCallingJS/GojaAssertFunction-8          	  937369	       457.4 ns/op	     160 B/op	       2 allocs/op
+BenchmarkGoCallingJS/GojaAssertFunction-8          	  883035	       461.7 ns/op	     160 B/op	       2 allocs/op
+BenchmarkGoCallingJS/GojaAssertFunction-8          	  445016	       481.3 ns/op	     160 B/op	       2 allocs/op
+BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8         	  164397	      1522 ns/op	     248 B/op	       8 allocs/op
+BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8         	  171982	      1952 ns/op	     248 B/op	       8 allocs/op
+BenchmarkGoCallingJS/CallLogCallJSFunction_NoLogger-8         	  203940	      1490 ns/op	     248 B/op	       8 allocs/op
+BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8     	    4263	     51178 ns/op	     971 B/op	      25 allocs/op
+BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8     	    5332	     40105 ns/op	     970 B/op	      25 allocs/op
+BenchmarkGoCallingJS/CallLogCallJSFunction_SqliteLogger-8     	    4888	     48828 ns/op	     970 B/op	      25 allocs/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	7.413s

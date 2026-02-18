@@ -1,0 +1,81 @@
+phase: phase-1
+generated_at: "2026-02-18T13:47:46Z"
+tasks:
+    - id: p1-runtime-lifecycle
+      title: Runtime Lifecycle
+      description: Measure VM spawn and spawn+execute/reuse behavior.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^(BenchmarkRuntimeSpawn|BenchmarkRuntimeSpawnAndExecute|BenchmarkRuntimeReuse)$
+        - -count
+        - "3"
+        - -benchtime
+        - 200ms
+        - -benchmem
+        - -timeout
+        - 15m
+      flags:
+        bench: ^(BenchmarkRuntimeSpawn|BenchmarkRuntimeSpawnAndExecute|BenchmarkRuntimeReuse)$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 200ms
+        count: "3"
+        run: ^$
+        timeout: 15m
+    - id: p1-loading-require
+      title: Loading and Require
+      description: Measure JS compile/load cost and require cold/warm behavior.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^(BenchmarkJSLoading|BenchmarkRequireLoading)$
+        - -count
+        - "3"
+        - -benchtime
+        - 200ms
+        - -benchmem
+        - -timeout
+        - 15m
+      flags:
+        bench: ^(BenchmarkJSLoading|BenchmarkRequireLoading)$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 200ms
+        count: "3"
+        run: ^$
+        timeout: 15m
+    - id: p1-boundary-calls
+      title: Go/JS Boundary Calls
+      description: Measure JS->Go and Go->JS call overhead and logging mode deltas.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^(BenchmarkJSCallingGo|BenchmarkGoCallingJS)$
+        - -count
+        - "3"
+        - -benchtime
+        - 200ms
+        - -benchmem
+        - -timeout
+        - 15m
+      flags:
+        bench: ^(BenchmarkJSCallingGo|BenchmarkGoCallingJS)$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 200ms
+        count: "3"
+        run: ^$
+        timeout: 15m
