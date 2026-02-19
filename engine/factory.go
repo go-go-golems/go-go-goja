@@ -40,7 +40,6 @@ func NewFactory(opts ...Option) *Factory {
 // preconfigured bootstrap state.
 func (f *Factory) NewRuntime() (*goja.Runtime, *require.RequireModule) {
 	vm := goja.New()
-	configureRuntimeCallLog(vm, f.settings)
 	reqMod := f.registry.Enable(vm)
 	console.Enable(vm)
 	return vm, reqMod

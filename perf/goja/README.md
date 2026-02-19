@@ -11,7 +11,7 @@ The current suites cover:
 - repeated spawn + execute patterns
 - JS loading cost (compile, run-string, run-program)
 - JS -> Go call overhead (direct baseline vs `vm.Set` vs `modules.SetExport`)
-- Go -> JS call overhead (direct baseline vs `goja.AssertFunction` vs `calllog.CallJSFunction`)
+- Go -> JS call overhead (direct baseline vs `goja.AssertFunction`)
 - `require()` loading behavior (cold runtime vs warm cached runtime)
 
 ## Run
@@ -28,5 +28,4 @@ benchstat /tmp/goja-perf-old.txt /tmp/goja-perf-new.txt
 
 ## Notes
 
-- Benchmarks deliberately include call logging modes; `engine.New()` now defaults to call logging disabled, but explicit enabled-mode benchmarks are still important for opt-in deployments.
 - For stable numbers, run on a quiet machine, pin CPU governor where possible, and keep Go/toolchain constant across runs.

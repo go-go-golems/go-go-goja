@@ -72,7 +72,7 @@ func fmtCount(n float64) string {
 
 // shortBench extracts the short sub-case name from a full benchmark name.
 // "BenchmarkRuntimeSpawn/GojaNew-8" → "GojaNew"
-// "BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8" → "EngineNew_NoCallLog"
+// "BenchmarkRuntimeSpawn/EngineNew-8" → "EngineNew"
 func shortBench(name string) string {
 	// Take the part after the last "/"
 	if i := strings.LastIndex(name, "/"); i >= 0 {

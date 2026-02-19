@@ -82,8 +82,8 @@ func TestShortBench(t *testing.T) {
 		want  string
 	}{
 		{"BenchmarkRuntimeSpawn/GojaNew-8", "GojaNew"},
-		{"BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8", "EngineNew_NoCallLog"},
-		{"BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8", "EngineNew_WithCallLog"},
+		{"BenchmarkRuntimeSpawn/EngineNew-8", "EngineNew"},
+		{"BenchmarkRuntimeSpawn/EngineFactory-8", "EngineFactory"},
 		{"BenchmarkRuntimeReuse/RunProgram_ReusedRuntime-8", "RunProgram_ReusedRuntime"},
 		{"BenchmarkJSCallingGo/GoDirect-8", "GoDirect"},
 		{"BenchmarkValueConversion/ToValue_Primitive_Int-8", "ToValue_Primitive_Int"},
@@ -109,8 +109,8 @@ func TestFmtTPS(t *testing.T) {
 		{155, "6.5M ops/s"},    // RunProgram_ReusedRuntime
 		{981, "1.0M ops/s"},    // GojaNew
 		{6067, "164.8K ops/s"}, // RunString_ReusedRuntime
-		{20450, "48.9K ops/s"}, // EngineNew_NoCallLog
-		{232808, "4.3K ops/s"}, // EngineNew_WithCallLog
+		{20450, "48.9K ops/s"}, // EngineNew
+		{232808, "4.3K ops/s"}, // EngineFactory
 		{1037406, "964 ops/s"}, // Compile_medium
 		{1e9, "1 ops/s"},       // 1 second per op
 		{2e9, "0.5 ops/s"},     // 2 seconds per op

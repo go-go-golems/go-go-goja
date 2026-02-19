@@ -9,12 +9,10 @@ import (
 	"github.com/dop251/goja"
 
 	"github.com/go-go-golems/go-go-goja/modules"
-	"github.com/go-go-golems/go-go-goja/pkg/calllog"
 )
 
 func BenchmarkValueConversion(b *testing.B) {
 	silenceBenchLogs()
-	calllog.Disable()
 
 	vm := goja.New()
 	mapPayload := makeMapPayload(20)
@@ -74,7 +72,6 @@ func BenchmarkValueConversion(b *testing.B) {
 
 func BenchmarkPayloadSweep(b *testing.B) {
 	silenceBenchLogs()
-	calllog.Disable()
 
 	payloads := []struct {
 		name      string
@@ -185,14 +182,13 @@ func BenchmarkPayloadSweep(b *testing.B) {
 
 func BenchmarkGCSensitivity(b *testing.B) {
 	silenceBenchLogs()
-	calllog.Disable()
 
 	b.ReportAllocs()
 
 	b.Run("SpawnAndDiscardRuntime", func(b *testing.B) {
 		const script = `(() => { let a=[]; for (let i=0;i<128;i++) { a.push({i, s:"abcd", n:[1,2,3,4]}); } return a.length; })()`
 		for i := 0; i < b.N; i++ {
-			vm, _ := newRuntimeNoCallLog(b)
+			vm, _ := newRuntime(b)
 			v, err := vm.RunString(script)
 			if err != nil {
 				b.Fatal(err)
@@ -204,7 +200,7 @@ func BenchmarkGCSensitivity(b *testing.B) {
 	})
 
 	b.Run("ReuseRuntime_AllocHeavy", func(b *testing.B) {
-		vm, _ := newRuntimeNoCallLog(b)
+		vm, _ := newRuntime(b)
 		prg := compile(b, "gc-heavy.js", `(() => { let a=[]; for (let i=0;i<128;i++) { a.push({i, s:"abcd", n:[1,2,3,4]}); } return a.length; })()`)
 		for i := 0; i < b.N; i++ {
 			v, err := vm.RunProgram(prg)
@@ -218,7 +214,7 @@ func BenchmarkGCSensitivity(b *testing.B) {
 	})
 
 	b.Run("ReuseRuntime_AllocHeavy_WithPeriodicGC", func(b *testing.B) {
-		vm, _ := newRuntimeNoCallLog(b)
+		vm, _ := newRuntime(b)
 		prg := compile(b, "gc-heavy-periodic.js", `(() => { let a=[]; for (let i=0;i<128;i++) { a.push({i, s:"abcd", n:[1,2,3,4]}); } return a.length; })()`)
 		for i := 0; i < b.N; i++ {
 			v, err := vm.RunProgram(prg)

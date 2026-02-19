@@ -15,7 +15,7 @@ artifacts:
     description: "CPU callgraph SVG"
     phase: "phase1"
     task_id: "p1-runtime-lifecycle"
-    benchmark: "BenchmarkRuntimeSpawn/EngineNew_NoCallLog"
+    benchmark: "BenchmarkRuntimeSpawn/EngineNew"
     kind: "flamegraph_svg"
     rel_path: "profiles/engine_new.svg"
     mime: "image/svg+xml"

@@ -31,7 +31,7 @@ func TestBuildProgressView(t *testing.T) {
 		"goarch: amd64",
 		"pkg: github.com/go-go-golems/go-go-goja/perf/goja",
 		"BenchmarkRuntimeSpawn/GojaNew-8         	  270342	       899.5 ns/op	    1760 B/op	       8 allocs/op",
-		"BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8 	   12526	     18808 ns/op	   11928 B/op	     140 allocs/op",
+		"BenchmarkRuntimeSpawn/EngineNew-8 	   12526	     18808 ns/op	   11928 B/op	     140 allocs/op",
 		"some other line",
 	}
 

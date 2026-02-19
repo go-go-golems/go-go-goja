@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/modules"
-	"github.com/go-go-golems/go-go-goja/pkg/calllog"
 )
 
 var silenceLogsOnce sync.Once
@@ -25,9 +23,9 @@ func silenceBenchLogs() {
 	})
 }
 
-func newRuntimeNoCallLog(tb testing.TB, opts ...require.Option) (*goja.Runtime, *require.RequireModule) {
+func newRuntime(tb testing.TB, opts ...require.Option) (*goja.Runtime, *require.RequireModule) {
 	tb.Helper()
-	vm, req := engine.NewWithConfig(engine.RuntimeConfig{CallLogEnabled: false}, opts...)
+	vm, req := engine.NewWithOptions(opts...)
 	return vm, req
 }
 
@@ -52,34 +50,19 @@ func BenchmarkRuntimeSpawn(b *testing.B) {
 		}
 	})
 
-	b.Run("EngineNew_NoCallLog", func(b *testing.B) {
+	b.Run("EngineNew", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			vm, req := newRuntimeNoCallLog(b)
+			vm, req := newRuntime(b)
 			if vm == nil || req == nil {
 				b.Fatal("nil runtime or require module")
 			}
 		}
 	})
 
-	b.Run("EngineFactory_NoCallLog", func(b *testing.B) {
-		factory := engine.NewFactory(engine.WithCallLogDisabled())
+	b.Run("EngineFactory", func(b *testing.B) {
+		factory := engine.NewFactory()
 		for i := 0; i < b.N; i++ {
 			vm, req := factory.NewRuntime()
-			if vm == nil || req == nil {
-				b.Fatal("nil runtime or require module")
-			}
-		}
-	})
-
-	b.Run("EngineNew_WithCallLog", func(b *testing.B) {
-		callLogPath := filepath.Join(b.TempDir(), "goja-calllog.sqlite")
-		b.Cleanup(calllog.Disable)
-
-		for i := 0; i < b.N; i++ {
-			vm, req := engine.NewWithConfig(engine.RuntimeConfig{
-				CallLogEnabled: true,
-				CallLogPath:    callLogPath,
-			})
 			if vm == nil || req == nil {
 				b.Fatal("nil runtime or require module")
 			}
@@ -89,7 +72,6 @@ func BenchmarkRuntimeSpawn(b *testing.B) {
 
 func BenchmarkRuntimeSpawnAndExecute(b *testing.B) {
 	silenceBenchLogs()
-	calllog.Disable()
 
 	const script = "var n = 41; n + 1;"
 	prg := compile(b, "runtime-spawn.js", script)
@@ -98,7 +80,7 @@ func BenchmarkRuntimeSpawnAndExecute(b *testing.B) {
 
 	b.Run("RunString_FreshRuntime", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			vm, _ := newRuntimeNoCallLog(b)
+			vm, _ := newRuntime(b)
 			v, err := vm.RunString(script)
 			if err != nil {
 				b.Fatal(err)
@@ -111,7 +93,7 @@ func BenchmarkRuntimeSpawnAndExecute(b *testing.B) {
 
 	b.Run("RunProgram_FreshRuntime", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			vm, _ := newRuntimeNoCallLog(b)
+			vm, _ := newRuntime(b)
 			v, err := vm.RunProgram(prg)
 			if err != nil {
 				b.Fatal(err)
@@ -125,11 +107,10 @@ func BenchmarkRuntimeSpawnAndExecute(b *testing.B) {
 
 func BenchmarkRuntimeReuse(b *testing.B) {
 	silenceBenchLogs()
-	calllog.Disable()
 
 	const script = "(40 + 2)"
 	prg := compile(b, "runtime-reuse.js", script)
-	vm, _ := newRuntimeNoCallLog(b)
+	vm, _ := newRuntime(b)
 
 	b.ReportAllocs()
 
@@ -160,7 +141,6 @@ func BenchmarkRuntimeReuse(b *testing.B) {
 
 func BenchmarkJSLoading(b *testing.B) {
 	silenceBenchLogs()
-	calllog.Disable()
 
 	scripts := []struct {
 		name string
@@ -185,7 +165,7 @@ func BenchmarkJSLoading(b *testing.B) {
 		b.Run(fmt.Sprintf("RunString_FreshRuntime_%s", tc.name), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				vm, _ := newRuntimeNoCallLog(b)
+				vm, _ := newRuntime(b)
 				if _, err := vm.RunString(tc.src); err != nil {
 					b.Fatal(err)
 				}
@@ -194,7 +174,7 @@ func BenchmarkJSLoading(b *testing.B) {
 
 		b.Run(fmt.Sprintf("RunProgram_ReusedRuntime_%s", tc.name), func(b *testing.B) {
 			b.ReportAllocs()
-			vm, _ := newRuntimeNoCallLog(b)
+			vm, _ := newRuntime(b)
 			prg := compile(b, tc.name+".js", tc.src)
 			for i := 0; i < b.N; i++ {
 				if _, err := vm.RunProgram(prg); err != nil {
@@ -207,7 +187,6 @@ func BenchmarkJSLoading(b *testing.B) {
 
 func BenchmarkJSCallingGo(b *testing.B) {
 	silenceBenchLogs()
-	calllog.Disable()
 
 	nativeAdd := func(a, b int) int {
 		return a + b
@@ -294,40 +273,8 @@ func BenchmarkGoCallingJS(b *testing.B) {
 	})
 
 	b.Run("GojaAssertFunction", func(b *testing.B) {
-		calllog.Disable()
 		for i := 0; i < b.N; i++ {
 			result, err := addFn(thisVal, a, c)
-			if err != nil {
-				b.Fatal(err)
-			}
-			if got := result.ToInteger(); got != 42 {
-				b.Fatalf("unexpected result: %d", got)
-			}
-		}
-	})
-
-	b.Run("CallLogCallJSFunction_NoLogger", func(b *testing.B) {
-		calllog.Disable()
-		for i := 0; i < b.N; i++ {
-			result, err := calllog.CallJSFunction(vm, "bench", "add", addFn, thisVal, a, c)
-			if err != nil {
-				b.Fatal(err)
-			}
-			if got := result.ToInteger(); got != 42 {
-				b.Fatalf("unexpected result: %d", got)
-			}
-		}
-	})
-
-	b.Run("CallLogCallJSFunction_SqliteLogger", func(b *testing.B) {
-		callLogPath := filepath.Join(b.TempDir(), "bridge-calllog.sqlite")
-		if err := calllog.Configure(callLogPath); err != nil {
-			b.Fatal(err)
-		}
-		b.Cleanup(calllog.Disable)
-
-		for i := 0; i < b.N; i++ {
-			result, err := calllog.CallJSFunction(vm, "bench", "add", addFn, thisVal, a, c)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -340,7 +287,6 @@ func BenchmarkGoCallingJS(b *testing.B) {
 
 func BenchmarkRequireLoading(b *testing.B) {
 	silenceBenchLogs()
-	calllog.Disable()
 
 	loader := sourceLoader(map[string]string{
 		"entry.js": `
@@ -358,7 +304,7 @@ func BenchmarkRequireLoading(b *testing.B) {
 
 	b.Run("ColdRequire_NewRuntime", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			vm, req := newRuntimeNoCallLog(b, require.WithLoader(loader))
+			vm, req := newRuntime(b, require.WithLoader(loader))
 			mod, err := req.Require("./entry.js")
 			if err != nil {
 				b.Fatal(err)
@@ -379,7 +325,7 @@ func BenchmarkRequireLoading(b *testing.B) {
 	})
 
 	b.Run("WarmRequire_ReusedRuntime", func(b *testing.B) {
-		vm, req := newRuntimeNoCallLog(b, require.WithLoader(loader))
+		vm, req := newRuntime(b, require.WithLoader(loader))
 		for i := 0; i < b.N; i++ {
 			mod, err := req.Require("./entry.js")
 			if err != nil {

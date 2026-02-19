@@ -87,7 +87,6 @@ use a reusable factory to reduce setup overhead:
 ```go
 factory := engine.NewFactory(
     engine.WithRequireOptions(require.WithLoader(embeddedSourceLoader)),
-    engine.WithCallLogDisabled(),
 )
 
 vm, req := factory.NewRuntime()

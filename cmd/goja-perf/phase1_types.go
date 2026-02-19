@@ -142,7 +142,7 @@ func buildPhase1Tasks(settings phase1CommandSettings) []phase1Task {
 			Args:        makeArgs("^(BenchmarkRuntimeSpawn|BenchmarkRuntimeSpawnAndExecute|BenchmarkRuntimeReuse)$"),
 			Flags:       makeFlags("^(BenchmarkRuntimeSpawn|BenchmarkRuntimeSpawnAndExecute|BenchmarkRuntimeReuse)$"),
 			Benchmarks: []benchmarkDefinition{
-				{Name: "BenchmarkRuntimeSpawn", Description: "Compare runtime creation costs, including calllog-enabled and calllog-disabled modes."},
+				{Name: "BenchmarkRuntimeSpawn", Description: "Compare runtime creation costs across direct and engine-managed runtime creation paths."},
 				{Name: "BenchmarkRuntimeSpawnAndExecute", Description: "Measure cost of creating a runtime and immediately executing one script/program."},
 				{Name: "BenchmarkRuntimeReuse", Description: "Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram."},
 			},
@@ -168,7 +168,7 @@ func buildPhase1Tasks(settings phase1CommandSettings) []phase1Task {
 			Flags:       makeFlags("^(BenchmarkJSCallingGo|BenchmarkGoCallingJS)$"),
 			Benchmarks: []benchmarkDefinition{
 				{Name: "BenchmarkJSCallingGo", Description: "Compare direct Go baseline against calls crossing JS->Go boundary."},
-				{Name: "BenchmarkGoCallingJS", Description: "Compare direct Go baseline against Go->JS calls with/without calllog wrappers."},
+				{Name: "BenchmarkGoCallingJS", Description: "Compare direct Go baseline against Go->JS calls through goja callable functions."},
 			},
 		},
 	}

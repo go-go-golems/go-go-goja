@@ -4,15 +4,11 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 
-	"github.com/go-go-golems/go-go-goja/pkg/calllog"
 	// Blank imports ensure module init() functions run so they can register themselves.
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
 	_ "github.com/go-go-golems/go-go-goja/modules/fs"
 	_ "github.com/go-go-golems/go-go-goja/modules/glazehelp"
-
-	"log"
-	goRuntime "runtime"
 )
 
 // New creates a fresh goja.Runtime ready for execution with Node-style
@@ -31,46 +27,14 @@ func NewWithOptions(opts ...require.Option) (*goja.Runtime, *require.RequireModu
 	return Open(WithRequireOptions(opts...))
 }
 
-// NewWithConfig creates a runtime like New, but allows callers to configure
-// call logging through the go-go-goja API.
+// NewWithConfig creates a runtime like New while accepting a RuntimeConfig for
+// API compatibility.
 func NewWithConfig(cfg RuntimeConfig, opts ...require.Option) (*goja.Runtime, *require.RequireModule) {
-	openOpts := []Option{
-		WithRequireOptions(opts...),
-	}
-	if cfg.CallLogEnabled {
-		openOpts = append(openOpts, WithCallLog(cfg.CallLogPath))
-	} else {
-		openOpts = append(openOpts, WithCallLogDisabled())
-	}
-	return Open(openOpts...)
+	_ = cfg
+	return Open(WithRequireOptions(opts...))
 }
 
 // Open creates a fresh runtime using option-driven configuration.
 func Open(opts ...Option) (*goja.Runtime, *require.RequireModule) {
 	return NewFactory(opts...).NewRuntime()
-}
-
-func configureRuntimeCallLog(vm *goja.Runtime, settings openSettings) {
-	switch settings.callLogMode {
-	case callLogModeEnabled:
-		path := settings.callLogPath
-		if path == "" {
-			path = calllog.DefaultPath()
-		}
-		logger, err := calllog.New(path)
-		if err != nil {
-			log.Printf("go-go-goja: call log setup failed: %v", err)
-			calllog.DisableRuntimeLogger(vm)
-			break
-		}
-		calllog.BindOwnedRuntimeLogger(vm, logger)
-	case callLogModeDisabled:
-		fallthrough
-	default:
-		calllog.DisableRuntimeLogger(vm)
-	}
-
-	goRuntime.SetFinalizer(vm, func(r *goja.Runtime) {
-		calllog.ReleaseRuntimeLogger(r)
-	})
 }
