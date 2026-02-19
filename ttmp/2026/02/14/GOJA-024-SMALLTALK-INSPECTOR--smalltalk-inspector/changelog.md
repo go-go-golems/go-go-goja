@@ -94,3 +94,8 @@ Phase 2+3 implementation: added REPL eval, object browser, breadcrumb navigation
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/runtime/introspect.go — Object/prototype/descriptor inspection
 - /home/manuel/workspaces/2026-02-14/smalltalk-inspector/go-go-goja/pkg/inspector/runtime/session.go — Runtime session with eval/capture
 
+
+## 2026-02-15
+
+Closed under GOJA-036 consolidation; follow-up architecture and migration work tracked in GOJA-036-MOVE-JS-BOBATEA
+

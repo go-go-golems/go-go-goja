@@ -6,7 +6,7 @@ This directory contains benchmark suites focused on `go-go-goja` runtime behavio
 
 The current suites cover:
 
-- runtime lifecycle cost (`goja.New`, `engine.NewWithConfig`)
+- runtime lifecycle cost (`goja.New`, `engine.New`)
 - runtime lifecycle cost with reusable bootstrap (`engine.NewFactory(...).NewRuntime()`)
 - repeated spawn + execute patterns
 - JS loading cost (compile, run-string, run-program)

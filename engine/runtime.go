@@ -27,13 +27,6 @@ func NewWithOptions(opts ...require.Option) (*goja.Runtime, *require.RequireModu
 	return Open(WithRequireOptions(opts...))
 }
 
-// NewWithConfig creates a runtime like New while accepting a RuntimeConfig for
-// API compatibility.
-func NewWithConfig(cfg RuntimeConfig, opts ...require.Option) (*goja.Runtime, *require.RequireModule) {
-	_ = cfg
-	return Open(WithRequireOptions(opts...))
-}
-
 // Open creates a fresh runtime using option-driven configuration.
 func Open(opts ...Option) (*goja.Runtime, *require.RequireModule) {
 	return NewFactory(opts...).NewRuntime()

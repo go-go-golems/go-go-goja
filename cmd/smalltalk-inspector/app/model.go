@@ -12,11 +12,18 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dop251/goja"
+	"github.com/go-go-golems/bobatea/pkg/commandpalette"
 	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
+	"github.com/go-go-golems/bobatea/pkg/textarea"
+	"github.com/go-go-golems/bobatea/pkg/tui/inputhistory"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextbar"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextpanel"
+	"github.com/go-go-golems/bobatea/pkg/tui/widgets/suggest"
 	"github.com/go-go-golems/go-go-goja/internal/inspectorui"
 	"github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/inspectorapi"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+	jsadapter "github.com/go-go-golems/go-go-goja/pkg/repl/adapters/bobatea"
 )
 
 // GlobalItem is the app-facing alias for reusable inspector global binding data.
@@ -59,12 +66,20 @@ type Model struct {
 	showingReplSrc  bool // true when source pane shows REPL source instead of file
 
 	// Runtime
-	rtSession    *runtime.Session
-	replInput    textinput.Model
-	replHistory  []string
-	replResult   string
-	replError    string
-	replDeclared []inspectorapi.DeclaredBinding
+	rtSession     *runtime.Session
+	replInput     textinput.Model
+	replTextarea  textarea.Model
+	replMultiline bool
+	replHistory   *inputhistory.History
+	replDraft     string
+	replResult    string
+	replError     string
+	replDeclared  []inspectorapi.DeclaredBinding
+	replAssist    *jsadapter.JavaScriptEvaluator
+
+	replSuggestWidget      *suggest.Widget
+	replContextBarWidget   *contextbar.Widget
+	replContextPanelWidget *contextpanel.Widget
 
 	// Object browser (for REPL results and inspect targets)
 	inspectObj   *goja.Object
@@ -93,6 +108,7 @@ type Model struct {
 	help            help.Model
 	spinner         spinner.Model
 	command         textinput.Model
+	commandPalette  commandpalette.Model
 	sourceViewport  viewport.Model
 	inspectViewport viewport.Model
 	stackViewport   viewport.Model
@@ -120,6 +136,9 @@ func NewModel(filename string) Model {
 	m.command.CharLimit = 256
 	m.command.Width = 60
 	m.command.Blur()
+	m.commandPalette = commandpalette.New()
+	m.commandPalette.SetMaxVisible(10)
+	m.setupCommandPaletteCommands()
 	m.sourceViewport = viewport.New(0, 0)
 	m.inspectViewport = viewport.New(0, 0)
 	m.stackViewport = viewport.New(0, 0)
@@ -130,6 +149,15 @@ func NewModel(filename string) Model {
 	m.replInput.CharLimit = 512
 	m.replInput.Width = 60
 	m.replInput.Blur()
+	m.replTextarea = textarea.New()
+	m.replTextarea.Prompt = "» "
+	m.replTextarea.Placeholder = "evaluate expression... (enter newline, ctrl+s eval)"
+	m.replTextarea.ShowLineNumbers = false
+	m.replTextarea.CharLimit = 4096
+	m.replTextarea.SetWidth(60)
+	m.replTextarea.SetHeight(3)
+	m.replTextarea.Blur()
+	m.replHistory = inputhistory.NewHistory(500)
 
 	// Initialize tree-sitter parser for syntax highlighting
 	if parser, err := jsparse.NewTSParser(); err == nil {
@@ -333,12 +361,134 @@ func (m *Model) contentHeight() int {
 	if m.cmdActive {
 		overhead++
 	}
-	overhead += 3 // REPL area
+	overhead += m.replAreaHeight()
 	h := m.height - overhead
 	if h < 3 {
 		h = 3
 	}
 	return h
+}
+
+func (m *Model) replPromptHeight() int {
+	if m.replMultiline {
+		h := m.replTextarea.Height()
+		if h < 1 {
+			return 1
+		}
+		return h
+	}
+	return 1
+}
+
+func (m *Model) replAreaHeight() int {
+	// Separator + result + prompt area.
+	return 2 + m.replPromptHeight()
+}
+
+func (m *Model) replBufferValue() string {
+	if m.replMultiline {
+		return m.replTextarea.Value()
+	}
+	return m.replInput.Value()
+}
+
+func (m *Model) replCursorByte() int {
+	if !m.replMultiline {
+		return m.replInput.Position()
+	}
+
+	value := m.replTextarea.Value()
+	if value == "" {
+		return 0
+	}
+
+	line := m.replTextarea.Line()
+	lines := strings.Split(value, "\n")
+	if line < 0 {
+		line = 0
+	}
+	if line >= len(lines) {
+		return len(value)
+	}
+
+	info := m.replTextarea.LineInfo()
+	col := info.StartColumn + info.ColumnOffset
+	if col < 0 {
+		col = 0
+	}
+	lineRunes := []rune(lines[line])
+	if col > len(lineRunes) {
+		col = len(lineRunes)
+	}
+
+	offset := 0
+	for i := 0; i < line; i++ {
+		offset += len(lines[i]) + 1 // include newline between lines
+	}
+	offset += len(string(lineRunes[:col]))
+	if offset < 0 {
+		return 0
+	}
+	if offset > len(value) {
+		return len(value)
+	}
+	return offset
+}
+
+func (m *Model) setReplBufferValue(value string) {
+	if m.replMultiline {
+		m.replTextarea.SetValue(value)
+		m.replTextarea.CursorEnd()
+		return
+	}
+	m.replInput.SetValue(value)
+	m.replInput.SetCursor(len(value))
+}
+
+func (m *Model) focusReplBuffer() tea.Cmd {
+	if m.replMultiline {
+		return m.replTextarea.Focus()
+	}
+	m.replInput.Focus()
+	return nil
+}
+
+func (m *Model) blurReplBuffers() {
+	m.replInput.Blur()
+	m.replTextarea.Blur()
+}
+
+func (m *Model) setReplMultiline(enabled bool) {
+	if m.replMultiline == enabled {
+		return
+	}
+
+	if enabled {
+		value := m.replInput.Value()
+		m.replTextarea.SetValue(value)
+		m.replTextarea.CursorEnd()
+		m.replInput.Blur()
+		m.replMultiline = true
+		if m.focus == FocusRepl {
+			m.replTextarea.Focus()
+		}
+	} else {
+		value := strings.ReplaceAll(m.replTextarea.Value(), "\n", " ")
+		m.replInput.SetValue(value)
+		m.replInput.SetCursor(len(value))
+		m.replTextarea.Blur()
+		m.replMultiline = false
+		if m.focus == FocusRepl {
+			m.replInput.Focus()
+		}
+	}
+
+	if m.replSuggestWidget != nil {
+		m.replSuggestWidget.Hide()
+	}
+	if m.replContextPanelWidget != nil && m.replContextPanelWidget.Visible() {
+		m.replContextPanelWidget.SetVisible(false)
+	}
 }
 
 func (m *Model) listViewportHeight() int {

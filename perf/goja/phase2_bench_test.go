@@ -137,7 +137,7 @@ func BenchmarkPayloadSweep(b *testing.B) {
 			b.Run("JS_module_SetExport", func(b *testing.B) {
 				vm := goja.New()
 				exports := vm.NewObject()
-				modules.SetExport(vm, exports, "bench", "consume", consumeGo)
+				modules.SetExport(exports, "bench", "consume", consumeGo)
 				if err := vm.Set("bench", exports); err != nil {
 					b.Fatal(err)
 				}

@@ -24,7 +24,7 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
 
 	// run(cmd, args[]) -> string
-	modules.SetExport(vm, exports, mod.Name(), "run", func(cmd string, args []string) (string, error) {
+	modules.SetExport(exports, mod.Name(), "run", func(cmd string, args []string) (string, error) {
 		out, err := exec.Command(cmd, args...).CombinedOutput()
 		return string(out), err
 	})

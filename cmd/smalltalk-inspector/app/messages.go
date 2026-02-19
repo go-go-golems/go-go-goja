@@ -47,3 +47,8 @@ type NavFrame struct {
 type MsgStatusNotice struct {
 	Text string
 }
+
+// MsgCommandPaletteExec triggers a command selected from the command palette.
+type MsgCommandPaletteExec struct {
+	Command string
+}

@@ -17,6 +17,12 @@ topics:
       description: Codebase refactor and cleanup work
     - slug: ui
       description: User interface work
+    - slug: architecture
+      description: Architecture and design structure work
+    - slug: bobatea
+      description: Bobatea reusable TUI components and frameworks
+    - slug: repl
+      description: Read-eval-print loop interfaces and behavior
 docTypes:
     - slug: index
       description: Ticket index documents

@@ -1,0 +1,4 @@
+import_path	site
+github.com/go-go-golems/bobatea/pkg/mode-keymap	/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/inspector/app/model.go:18:	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
+github.com/go-go-golems/bobatea/pkg/mode-keymap	/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/update.go:11:	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
+github.com/go-go-golems/bobatea/pkg/mode-keymap	/home/manuel/workspaces/2026-02-15/use-bobatea-goja/go-go-goja/cmd/smalltalk-inspector/app/model.go:15:	mode_keymap "github.com/go-go-golems/bobatea/pkg/mode-keymap"
