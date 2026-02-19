@@ -1,6 +1,9 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -123,5 +126,33 @@ func TestIsRunning_NoRun(t *testing.T) {
 	}
 	if app.isRunning("phase1") {
 		t.Error("should not be running before any run")
+	}
+}
+
+func TestHandleRunStatus_NoRunFallsBackToReport(t *testing.T) {
+	app := &perfWebApp{
+		repoRoot: t.TempDir(),
+		phases: map[string]phaseConfig{
+			"phase1": {
+				ID:         "phase1",
+				Title:      "Phase 1",
+				OutputFile: "missing-report.yaml",
+			},
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/run-status/phase1", nil)
+	rec := httptest.NewRecorder()
+	app.handleRunStatus(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, "unknown phase") {
+		t.Fatalf("unexpected unknown phase response: %s", body)
+	}
+	if !strings.Contains(body, "Report not available yet") {
+		t.Fatalf("expected report fallback message, got: %s", body)
 	}
 }

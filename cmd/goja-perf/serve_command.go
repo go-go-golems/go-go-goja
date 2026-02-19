@@ -159,6 +159,10 @@ func (a *perfWebApp) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 func (a *perfWebApp) handleReport(w http.ResponseWriter, r *http.Request) {
 	phaseID := strings.TrimPrefix(r.URL.Path, "/api/report/")
+	a.renderReportForPhase(w, phaseID)
+}
+
+func (a *perfWebApp) renderReportForPhase(w http.ResponseWriter, phaseID string) {
 	cfg, ok := a.phases[phaseID]
 	if !ok {
 		http.Error(w, "unknown phase", http.StatusNotFound)

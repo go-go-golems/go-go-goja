@@ -237,7 +237,7 @@ func (a *perfWebApp) handleRunStatus(w http.ResponseWriter, r *http.Request) {
 	rs := a.getRunState(phaseID)
 	if rs == nil {
 		// No run ever started — show the report
-		a.handleReport(w, r)
+		a.renderReportForPhase(w, phaseID)
 		return
 	}
 
