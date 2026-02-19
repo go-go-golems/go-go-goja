@@ -1,0 +1,7 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	  384044	     22960 ns/op	   12205 B/op	     146 allocs/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	12.534s

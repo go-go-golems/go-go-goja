@@ -1,0 +1,188 @@
+File: goja.test
+Build ID: d78a0faa7df9923b954d3f38003009d269644754
+Type: alloc_objects
+Time: 2026-02-18 15:08:01 EST
+Showing nodes accounting for 0, 0% of 55349574 total
+      flat  flat%   sum%        cum   cum%
+  -2992867  5.41%  5.41%   -3817206  6.90%  github.com/go-go-golems/go-go-goja/modules.(*Registry).Enable
+    921481  1.66%  3.74%    1737855  3.14%  github.com/dop251/goja.(*Runtime).newNativeFunc
+   -824339  1.49%  5.23%    -824339  1.49%  github.com/dop251/goja_nodejs/require.(*Registry).RegisterNativeModule
+    763471  1.38%  3.85%     763471  1.38%  github.com/dop251/goja.(*baseObject)._put
+   -759165  1.37%  5.22%   -4879493  8.82%  github.com/go-go-golems/go-go-goja/engine.NewFactory
+    487947  0.88%  4.34%     487947  0.88%  github.com/dop251/goja_nodejs/console.(*Console).log (inline)
+    451400  0.82%  3.53%     451400  0.82%  github.com/dop251/goja.(*baseObject).setOwnStr
+   -448973  0.81%  4.34%    -448973  0.81%  github.com/dop251/goja.stringValueFromRaw (inline)
+   -409612  0.74%  5.08%    -409612  0.74%  github.com/go-go-golems/go-go-goja/engine.WithRequireOptions (inline)
+    390461  0.71%  4.37%     390461  0.71%  github.com/dop251/goja.valueProp (inline)
+    336033  0.61%  3.77%     336033  0.61%  github.com/dop251/goja.(*baseObject).init (inline)
+   -327685  0.59%  4.36%  -55242839 99.81%  github.com/go-go-golems/go-go-goja/engine.NewWithConfig
+   -303122  0.55%  4.91%    -303122  0.55%  github.com/dop251/goja_nodejs/require.NewRegistry (inline)
+    302873  0.55%  4.36%     513262  0.93%  path.Join
+    297355  0.54%  3.82%    4802454  8.68%  github.com/dop251/goja_nodejs/require.Require
+    236405  0.43%  3.39%     239668  0.43%  github.com/dop251/goja.(*Runtime).newTemplatedObject (inline)
+    236014  0.43%  2.97%     315099  0.57%  github.com/dop251/goja.(*Runtime).newBaseObject (inline)
+    228654  0.41%  2.55%    3605490  6.51%  github.com/dop251/goja_nodejs/console.Require.requireWithPrinter.func1 (inline)
+    210953  0.38%  2.17%     210953  0.38%  github.com/dop251/goja.(*vm).pushTryFrame (inline)
+    210389  0.38%  1.79%     210389  0.38%  path.(*lazybuf).append (inline)
+    191400  0.35%  1.45%    1929255  3.49%  github.com/dop251/goja.(*Runtime).toValue
+    181138  0.33%  1.12%     136053  0.25%  github.com/dop251/goja_nodejs/require.(*Registry).Enable
+    157566  0.28%  0.84%     397234  0.72%  github.com/dop251/goja.(*Runtime).init
+    138725  0.25%  0.58%     748363  1.35%  github.com/dop251/goja_nodejs/util.Require
+    135249  0.24%  0.34%    4311556  7.79%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadNative
+   -119748  0.22%  0.56%     -89573  0.16%  github.com/dop251/goja.(*Runtime).getFunctionPrototype
+     91872  0.17%  0.39%      91872  0.17%  os.newFile
+     87655  0.16%  0.23%      87655  0.16%  github.com/dop251/goja.(*templatedObject).materialisePropNames (inline)
+     69780  0.13%  0.11%     467014  0.84%  github.com/dop251/goja.New (inline)
+     61658  0.11% 0.0054%      61658  0.11%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+     59410  0.11%  0.11%      98922  0.18%  github.com/go-go-golems/go-go-goja/pkg/calllog.setRuntimeLoggerBinding
+     45936 0.083%   0.2%      45936 0.083%  encoding/xml.(*Decoder).name
+    -38185 0.069%  0.13%     -38185 0.069%  github.com/dop251/goja.AssertFunction
+    -32768 0.059% 0.068%     -32768 0.059%  runtime.(*timers).addHeap
+    -29339 0.053% 0.014%      30175 0.055%  github.com/dop251/goja.(*Runtime).newTemplatedFuncObject (inline)
+     28805 0.052% 0.067%      28728 0.052%  encoding/xml.NewDecoder
+    -24016 0.043% 0.023%      21920  0.04%  encoding/xml.(*Decoder).rawToken
+    -22146  0.04% 0.017%     -22146  0.04%  internal/sync.newIndirectNode[go.shape.interface {},go.shape.interface {}] (inline)
+     11484 0.021% 0.0039%      11484 0.021%  encoding/xml.(*Decoder).push (inline)
+     -8192 0.015% 0.011%      25212 0.046%  encoding/xml.(*Decoder).Token
+      6817 0.012% 0.0014%      79085  0.14%  github.com/dop251/goja.newBaseObjectObj (inline)
+      4594 0.0083% 0.0097%      -7183 0.013%  regexp.compile
+     -4096 0.0074% 0.0023%      -4096 0.0074%  regexp.mergeRuneSets.func2 (inline)
+     -4096 0.0074% 0.0051%      -6896 0.012%  regexp/syntax.parse
+     -2800 0.0051%  0.01%      -2800 0.0051%  regexp/syntax.(*parser).newRegexp (inline)
+      2293 0.0041% 0.006%      37306 0.067%  github.com/alecthomas/chroma/v2.(*Style).UnmarshalXML
+      2195 0.004% 0.0021%       2184 0.0039%  runtime/pprof.(*profileBuilder).emitLocation
+       878 0.0016% 0.00047%        878 0.0016%  runtime/pprof.allFrames
+      -819 0.0015% 0.0019%      -4915 0.0089%  regexp.makeOnePass
+       566 0.001% 0.00092%        566 0.001%  runtime.allocm
+       412 0.00074% 0.00018%        412 0.00074%  runtime.gcBgMarkWorker
+       320 0.00058% 0.0004%        320 0.00058%  github.com/alecthomas/chroma/v2.add
+      -171 0.00031% 9e-05%       -171 0.00031%  golang.org/x/text/unicode/rangetable.Merge
+        94 0.00017% 0.00026%         94 0.00017%  regexp/syntax.(*compiler).inst (inline)
+       -77 0.00014% 0.00012%        -77 0.00014%  bufio.NewReaderSize (inline)
+       -43 7.8e-05% 4.3e-05%        -43 7.8e-05%  runtime/pprof.(*protobuf).string (inline)
+       -16 2.9e-05% 1.4e-05%        -16 2.9e-05%  regexp.(*bitState).reset
+        -8 1.4e-05%     0%        -12 2.2e-05%  compress/flate.(*compressor).init
+         8 1.4e-05% 1.4e-05%          8 1.4e-05%  golang.org/x/net/html.map.init.1
+        -5 9e-06% 5.4e-06%         -5 9e-06%  runtime/pprof.StartCPUProfile
+        -4 7.2e-06% 1.8e-06%         -4 7.2e-06%  compress/flate.newDeflateFast (inline)
+         1 1.8e-06%     0%        -11 2e-05%  compress/flate.NewWriter (inline)
+         0     0%     0%        -77 0.00014%  bufio.NewReader (inline)
+         0     0%     0%        -11 2e-05%  compress/gzip.(*Writer).Write
+         0     0%     0%      29114 0.053%  encoding/xml.(*Decoder).Decode (inline)
+         0     0%     0%      27505  0.05%  encoding/xml.(*Decoder).DecodeElement
+         0     0%     0%      45936 0.083%  encoding/xml.(*Decoder).nsname
+         0     0%     0%      11484 0.021%  encoding/xml.(*Decoder).pushElement (inline)
+         0     0%     0%        -77 0.00014%  encoding/xml.(*Decoder).switchToReader (inline)
+         0     0%     0%      27505  0.05%  encoding/xml.(*Decoder).unmarshal
+         0     0%     0%      37306 0.067%  encoding/xml.(*Decoder).unmarshalInterface
+         0     0%     0%      -4681 0.0085%  github.com/Masterminds/semver.init.1
+         0     0%     0%        320 0.00058%  github.com/alecthomas/chroma/v2.(*LexerRegistry).Register
+         0     0%     0%      27247 0.049%  github.com/alecthomas/chroma/v2.MustNewXMLLexer (inline)
+         0     0%     0%      27247 0.049%  github.com/alecthomas/chroma/v2.NewXMLLexer
+         0     0%     0%      28986 0.052%  github.com/alecthomas/chroma/v2.NewXMLStyle
+         0     0%     0%      27247 0.049%  github.com/alecthomas/chroma/v2.fastUnmarshalConfig
+         0     0%     0%      27567  0.05%  github.com/alecthomas/chroma/v2/lexers.init
+         0     0%     0%      16083 0.029%  github.com/alecthomas/chroma/v2/lexers.init.func1 (inline)
+         0     0%     0%      28986 0.052%  github.com/alecthomas/chroma/v2/styles.init
+         0     0%     0%      28986 0.052%  github.com/alecthomas/chroma/v2/styles.init.func1 (inline)
+         0     0%     0%    2532948  4.58%  github.com/dop251/goja.(*Object).Set (inline)
+         0     0%     0%     315099  0.57%  github.com/dop251/goja.(*Runtime).NewObject (inline)
+         0     0%     0%     -45085 0.081%  github.com/dop251/goja.(*Runtime).Set
+         0     0%     0%     -98066  0.18%  github.com/dop251/goja.(*Runtime).Set.func1
+         0     0%     0%    1929255  3.49%  github.com/dop251/goja.(*Runtime).ToValue (partial-inline)
+         0     0%     0%    4745503  8.57%  github.com/dop251/goja.(*Runtime).runWrapped
+         0     0%     0%    2487863  4.49%  github.com/dop251/goja.(*Runtime).try (inline)
+         0     0%     0%     905947  1.64%  github.com/dop251/goja.(*baseFuncObject).init
+         0     0%     0%     450010  0.81%  github.com/dop251/goja.(*baseObject)._putProp
+         0     0%     0%     137057  0.25%  github.com/dop251/goja.(*templatedObject).setOwnStr
+         0     0%     0%    4700418  8.49%  github.com/dop251/goja.(*vm).try
+         0     0%     0%    4745503  8.57%  github.com/dop251/goja.AssertFunction.func1
+         0     0%     0%    4745503  8.57%  github.com/dop251/goja.AssertFunction.func1.1
+         0     0%     0%       -171 0.00031%  github.com/dop251/goja/parser.init
+         0     0%     0%    4802454  8.68%  github.com/dop251/goja_nodejs/console.Enable
+         0     0%     0%    3605490  6.51%  github.com/dop251/goja_nodejs/console.Require
+         0     0%     0%     762141  1.38%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func11
+         0     0%     0%      46246 0.084%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func3
+         0     0%     0%     -37740 0.068%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func5
+         0     0%     0%     445188   0.8%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func7
+         0     0%     0%     545671  0.99%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func9
+         0     0%     0%    4745503  8.57%  github.com/dop251/goja_nodejs/require.(*RequireModule).Require
+         0     0%     0%     476903  0.86%  github.com/dop251/goja_nodejs/require.(*RequireModule).createModuleObject
+         0     0%     0%       3832 0.0069%  github.com/dop251/goja_nodejs/require.(*RequireModule).createModuleObject.(*Object).Set.func1
+         0     0%     0%    4745503  8.57%  github.com/dop251/goja_nodejs/require.(*RequireModule).require
+         0     0%     0%    4745503  8.57%  github.com/dop251/goja_nodejs/require.(*RequireModule).resolve
+         0     0%     0%     609638  1.10%  github.com/dop251/goja_nodejs/util.Require.(*Object).Set.func1
+         0     0%     0%    5504443  9.94%  github.com/go-go-golems/go-go-goja/engine.(*Factory).NewRuntime
+         0     0%     0%  -54505542 98.48%  github.com/go-go-golems/go-go-goja/engine.Open
+         0     0%     0%      98922  0.18%  github.com/go-go-golems/go-go-goja/engine.configureRuntimeCallLog
+         0     0%     0%   -3817206  6.90%  github.com/go-go-golems/go-go-goja/modules.EnableAll (inline)
+         0     0%     0%       -819 0.0015%  github.com/go-go-golems/go-go-goja/perf/goja_test.BenchmarkRuntimeSpawn
+         0     0%     0%  -55242839 99.81%  github.com/go-go-golems/go-go-goja/perf/goja_test.BenchmarkRuntimeSpawn.func2
+         0     0%     0%   55130492 99.60%  github.com/go-go-golems/go-go-goja/perf/goja_test.BenchmarkRuntimeSpawn.func3
+         0     0%     0%  -55242839 99.81%  github.com/go-go-golems/go-go-goja/perf/goja_test.newRuntimeNoCallLog
+         0     0%     0%      98922  0.18%  github.com/go-go-golems/go-go-goja/pkg/calllog.DisableRuntimeLogger (inline)
+         0     0%     0%      -4112 0.0074%  github.com/gorilla/css/scanner.init.0
+         0     0%     0%       4594 0.0083%  github.com/microcosm-cc/bluemonday.init
+         0     0%     0%       2000 0.0036%  github.com/microcosm-cc/bluemonday/css.init
+         0     0%     0%      -4096 0.0074%  github.com/yuin/goldmark/parser.init
+         0     0%     0%          8 1.4e-05%  golang.org/x/net/html.init
+         0     0%     0%      39512 0.071%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Store (inline)
+         0     0%     0%      39512 0.071%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+         0     0%     0%     -22146  0.04%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).expand
+         0     0%     0%         -5 9e-06%  main.main
+         0     0%     0%      91872  0.17%  os.Open (inline)
+         0     0%     0%      91872  0.17%  os.OpenFile
+         0     0%     0%      91872  0.17%  os.ReadFile
+         0     0%     0%      91872  0.17%  os.openFileNolog
+         0     0%     0%     210389  0.38%  path.Clean
+         0     0%     0%        -16 2.9e-05%  regexp.(*Regexp).MatchString (inline)
+         0     0%     0%        -16 2.9e-05%  regexp.(*Regexp).backtrack
+         0     0%     0%        -16 2.9e-05%  regexp.(*Regexp).doExecute
+         0     0%     0%        -16 2.9e-05%  regexp.(*Regexp).doMatch (inline)
+         0     0%     0%      -7183 0.013%  regexp.Compile (inline)
+         0     0%     0%      -6364 0.011%  regexp.MustCompile
+         0     0%     0%      -4915 0.0089%  regexp.compileOnePass
+         0     0%     0%      -4096 0.0074%  regexp.makeOnePass.func1
+         0     0%     0%      -4096 0.0074%  regexp.mergeRuneSets
+         0     0%     0%         94 0.00017%  regexp/syntax.(*compiler).compile
+         0     0%     0%         94 0.00017%  regexp/syntax.(*compiler).rune
+         0     0%     0%      -4681 0.0085%  regexp/syntax.(*parser).literal
+         0     0%     0%       6562 0.012%  regexp/syntax.(*parser).parseClass
+         0     0%     0%         34 6.1e-05%  regexp/syntax.Compile
+         0     0%     0%      -6896 0.012%  regexp/syntax.Parse (inline)
+         0     0%     0%     -32768 0.059%  runtime.(*scavengerState).sleep
+         0     0%     0%     -32768 0.059%  runtime.(*timer).maybeAdd
+         0     0%     0%     -32768 0.059%  runtime.(*timer).modify
+         0     0%     0%     -32768 0.059%  runtime.(*timer).reset (inline)
+         0     0%     0%     -32768 0.059%  runtime.bgscavenge
+         0     0%     0%      50095 0.091%  runtime.doInit (inline)
+         0     0%     0%      50095 0.091%  runtime.doInit1
+         0     0%     0%      50090  0.09%  runtime.main
+         0     0%     0%        463 0.00084%  runtime.mcall
+         0     0%     0%        103 0.00019%  runtime.mstart
+         0     0%     0%        103 0.00019%  runtime.mstart0
+         0     0%     0%        103 0.00019%  runtime.mstart1
+         0     0%     0%        566 0.001%  runtime.newm
+         0     0%     0%        463 0.00084%  runtime.park_m
+         0     0%     0%        566 0.001%  runtime.resetspinning
+         0     0%     0%        566 0.001%  runtime.schedule
+         0     0%     0%        566 0.001%  runtime.startm
+         0     0%     0%        566 0.001%  runtime.wakep
+         0     0%     0%       3062 0.0055%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         0     0%     0%       3019 0.0055%  runtime/pprof.(*profileBuilder).build
+         0     0%     0%        -11 2e-05%  runtime/pprof.(*profileBuilder).flush
+         0     0%     0%      91872  0.17%  runtime/pprof.(*profileBuilder).readMapping
+         0     0%     0%        -43 7.8e-05%  runtime/pprof.(*protobuf).strings
+         0     0%     0%      91872  0.17%  runtime/pprof.newProfileBuilder
+         0     0%     0%      94891  0.17%  runtime/pprof.profileWriter
+         0     0%     0%      39512 0.071%  sync.(*Map).Store (inline)
+         0     0%     0%       -819 0.0015%  testing.(*B).Run
+         0     0%     0%    -112347   0.2%  testing.(*B).launch
+         0     0%     0%       -819 0.0015%  testing.(*B).run1.func1
+         0     0%     0%    -113166   0.2%  testing.(*B).runN
+         0     0%     0%         -5 9e-06%  testing.(*M).Run
+         0     0%     0%         -5 9e-06%  testing.(*M).before
+         0     0%     0%       -819 0.0015%  testing.(*matcher).fullName
+         0     0%     0%       -819 0.0015%  testing.simpleMatch.matches
+         0     0%     0%       -819 0.0015%  testing/internal/testdeps.TestDeps.MatchString
+         0     0%     0%         -5 9e-06%  testing/internal/testdeps.TestDeps.StartCPUProfile

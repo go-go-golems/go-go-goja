@@ -1,0 +1,79 @@
+generated_at: "2026-02-18T17:08:00-05:00"
+ticket: "GJ-04-REQUIRE-HOTPATH"
+scope:
+  benchmark: "BenchmarkRequireLoading"
+  cases:
+    - "ColdRequire_NewRuntime"
+    - "WarmRequire_ReusedRuntime"
+environment:
+  go_version: "go1.25.7"
+  goos: "linux"
+  goarch: "amd64"
+  cpu: "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz"
+controlled_comparison:
+  command_cold: "go test ./perf/goja -run '^$' -bench '^BenchmarkRequireLoading/ColdRequire_NewRuntime$' -benchmem -cpu=1 -count=8 -benchtime=250ms"
+  command_warm: "go test ./perf/goja -run '^$' -bench '^BenchmarkRequireLoading/WarmRequire_ReusedRuntime$' -benchmem -cpu=1 -count=8 -benchtime=250ms"
+  benchstat:
+    sec_per_op:
+      cold: "69.094us ±173%"
+      warm: "1.051us ±11%"
+      delta: "-98.48%"
+      p_value: "0.000"
+      significant: true
+    bytes_per_op:
+      cold: "34655 B/op ±0%"
+      warm: "552 B/op ±0%"
+      delta: "-98.41%"
+      p_value: "0.000"
+      significant: true
+    allocs_per_op:
+      cold: "500 allocs/op ±0%"
+      warm: "10 allocs/op ±0%"
+      delta: "-98.00%"
+      p_value: "0.000"
+      significant: true
+single_long_sample:
+  command: "go test ./perf/goja -run '^$' -bench '^BenchmarkRequireLoading/(ColdRequire_NewRuntime|WarmRequire_ReusedRuntime)$' -benchmem -count=1 -benchtime=5s"
+  cold_line: "BenchmarkRequireLoading/ColdRequire_NewRuntime-8 104092 52560 ns/op 34665 B/op 500 allocs/op"
+  warm_line: "BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8 3761002 1688 ns/op 552 B/op 10 allocs/op"
+profiles:
+  cold_cpu_pprof: "ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_cold_cpu_5s.pprof"
+  warm_cpu_pprof: "ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_warm_cpu_5s.pprof"
+  cold_mem_pprof: "ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_cold_mem_5s.pprof"
+  warm_mem_pprof: "ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_warm_mem_5s.pprof"
+  svgs:
+    - "ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_cold_cpu_5s.svg"
+    - "ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_warm_cpu_5s.svg"
+    - "ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_cold_warm_cpu_diff_5s.svg"
+profile_signals:
+  cold_cpu:
+    notable_require_stacks:
+      - "goja_nodejs/require.(*RequireModule).Require cum=33.44%"
+      - "goja_nodejs/require.(*RequireModule).resolve cum=33.21%"
+      - "goja_nodejs/require.(*RequireModule).loadModuleFile cum=25.29%"
+      - "goja_nodejs/require.(*Registry).getCompiledSource cum=18.45%"
+    focused_view_require_console_share: "31.90% of total CPU samples pass through require/console focus filter"
+    focused_view_parser_share: "9.61% of total CPU samples pass through parser focus filter"
+  cold_alloc:
+    notable_require_parser_alloc_stacks:
+      - "goja_nodejs/require.(*RequireModule).loadModuleFile cum=66.23%"
+      - "goja_nodejs/require.(*Registry).getCompiledSource cum=53.90%"
+      - "goja/parser.ParseFile cum=20.84%"
+      - "goja.Parse cum=21.07%"
+runtime_spawn_context:
+  benchmark_line: "BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8 368274 14525 ns/op 12205 B/op 146 allocs/op"
+  cpu_profile: "ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/runtime_spawn_engine_new_cpu_5s.pprof"
+  mem_profile: "ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/runtime_spawn_engine_new_mem_5s.pprof"
+  focus_require_console:
+    cpu_sample_share: "20.81% of total CPU samples"
+    alloc_sample_share: "84.95% of total alloc_objects samples"
+    notes:
+      - "CPU focus includes require/native/console work plus downstream runtime/GC on those call paths."
+      - "Allocation focus strongly indicates most spawn allocations pass through require/console/bootstrap stack."
+initial_conclusion:
+  verdict: "require path is a major culprit for cold runtime+require cost, but not the only cost center"
+  confidence: "high for cold-vs-warm require delta, medium for total runtime spawn share attribution"
+  notes:
+    - "Cold-to-warm delta is near two orders of magnitude in time and allocations."
+    - "Profiles indicate cold require triggers module source compilation/parsing and high allocation pressure."
+    - "GC and general runtime allocation work remain visible contributors in cold path profiles."

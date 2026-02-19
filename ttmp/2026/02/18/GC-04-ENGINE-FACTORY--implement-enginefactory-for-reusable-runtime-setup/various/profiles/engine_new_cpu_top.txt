@@ -1,0 +1,120 @@
+File: goja.test
+Build ID: d78a0faa7df9923b954d3f38003009d269644754
+Type: cpu
+Time: 2026-02-18 14:50:42 EST
+Duration: 10.59s, Total samples = 24.79s (233.98%)
+Showing nodes accounting for 21.71s, 87.58% of 24.79s total
+Dropped 209 nodes (cum <= 0.12s)
+      flat  flat%   sum%        cum   cum%
+     5.03s 20.29% 20.29%     14.64s 59.06%  runtime.scanobject
+     2.15s  8.67% 28.96%      3.55s 14.32%  runtime.findObject
+     1.09s  4.40% 33.36%      1.23s  4.96%  runtime.(*mspan).heapBitsSmallForAddr
+     1.07s  4.32% 37.68%      1.07s  4.32%  runtime.(*mspan).base (inline)
+     1.03s  4.15% 41.83%      1.05s  4.24%  runtime.spanOf (inline)
+     0.79s  3.19% 45.02%      0.79s  3.19%  runtime.memclrNoHeapPointers
+     0.79s  3.19% 48.20%      0.79s  3.19%  runtime.typePointers.nextFast (inline)
+     0.78s  3.15% 51.35%     15.74s 63.49%  runtime.gcDrain
+     0.70s  2.82% 54.18%      0.88s  3.55%  runtime.typePointers.next
+     0.66s  2.66% 56.84%      2.54s 10.25%  runtime.greyobject
+     0.55s  2.22% 59.06%      0.58s  2.34%  runtime.spanOfUnchecked (inline)
+     0.54s  2.18% 61.23%      0.54s  2.18%  runtime.heapSetTypeSmallHeader (inline)
+     0.47s  1.90% 63.13%      0.47s  1.90%  runtime.nextFreeFast (inline)
+     0.44s  1.77% 64.91%      0.48s  1.94%  runtime.(*mspan).writeHeapBitsSmall
+     0.42s  1.69% 66.60%      0.42s  1.69%  runtime.(*gcBits).bitp (inline)
+     0.34s  1.37% 67.97%      3.03s 12.22%  runtime.mallocgcSmallScanNoHeader
+     0.29s  1.17% 69.14%      0.37s  1.49%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+     0.27s  1.09% 70.23%      0.27s  1.09%  internal/runtime/maps.(*ctrlGroup).setEmpty (inline)
+     0.27s  1.09% 71.32%      1.51s  6.09%  runtime.(*mspan).typePointersOfUnchecked
+     0.27s  1.09% 72.41%      4.03s 16.26%  runtime.mallocgc
+     0.23s  0.93% 73.34%      0.23s  0.93%  runtime.(*gcWork).tryGetObjFast (inline)
+     0.23s  0.93% 74.26%      0.23s  0.93%  runtime.(*mspan).divideByElemSize (inline)
+     0.20s  0.81% 75.07%      0.20s  0.81%  runtime.pageIndexOf (inline)
+     0.17s  0.69% 75.76%      0.17s  0.69%  github.com/dop251/goja/unistring.Scan
+     0.16s  0.65% 76.40%      0.16s  0.65%  runtime.(*gcWork).putObjFast (inline)
+     0.14s  0.56% 76.97%      0.15s  0.61%  runtime.(*spanSet).push
+     0.13s  0.52% 77.49%      0.13s  0.52%  aeshashbody
+     0.13s  0.52% 78.02%      2.34s  9.44%  github.com/dop251/goja.(*Runtime).newNativeFunc
+     0.12s  0.48% 78.50%      0.19s  0.77%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr
+     0.12s  0.48% 78.98%      0.31s  1.25%  runtime.(*sweepLocked).sweep
+     0.11s  0.44% 79.43%      1.17s  4.72%  runtime.growslice
+     0.09s  0.36% 79.79%      0.27s  1.09%  runtime.mapaccess1_faststr
+     0.09s  0.36% 80.15%      1.52s  6.13%  runtime.mapassign_faststr
+     0.09s  0.36% 80.52%      2.06s  8.31%  runtime.newobject
+     0.08s  0.32% 80.84%      0.48s  1.94%  internal/runtime/maps.NewEmptyMap (inline)
+     0.07s  0.28% 81.12%      2.83s 11.42%  github.com/dop251/goja.(*Runtime).toValue
+     0.07s  0.28% 81.40%      0.33s  1.33%  github.com/dop251/goja.(*vm).pushTryFrame (inline)
+     0.07s  0.28% 81.69%      0.15s  0.61%  internal/runtime/maps.(*Map).putSlotSmallFastStr
+     0.06s  0.24% 81.93%      5.09s 20.53%  github.com/dop251/goja.(*Runtime).runWrapped
+     0.06s  0.24% 82.17%      0.23s  0.93%  github.com/dop251/goja.valueProp (inline)
+     0.06s  0.24% 82.41%      0.48s  1.94%  runtime.sweepone
+     0.06s  0.24% 82.65%      0.14s  0.56%  runtime.wbBufFlush1
+     0.05s   0.2% 82.86%      1.04s  4.20%  github.com/dop251/goja.(*baseObject).setOwnStr
+     0.05s   0.2% 83.06%      7.61s 30.70%  github.com/go-go-golems/go-go-goja/engine.(*Factory).NewRuntime
+     0.05s   0.2% 83.26%      0.47s  1.90%  runtime.(*mspan).markBitsForIndex (inline)
+     0.05s   0.2% 83.46%      0.13s  0.52%  runtime.bulkBarrierPreWrite
+     0.04s  0.16% 83.62%      0.28s  1.13%  github.com/dop251/goja.(*Runtime).init
+     0.04s  0.16% 83.78%      1.78s  7.18%  github.com/dop251/goja.(*baseFuncObject).init
+     0.04s  0.16% 83.95%      0.21s  0.85%  github.com/dop251/goja_nodejs/require.(*Registry).RegisterNativeModule
+     0.04s  0.16% 84.11%      1.08s  4.36%  runtime.(*mcentral).cacheSpan
+     0.04s  0.16% 84.27%      0.22s  0.89%  runtime.(*mheap).allocSpan
+     0.04s  0.16% 84.43%      0.64s  2.58%  runtime.mallocgcSmallScanHeader
+     0.04s  0.16% 84.59%      0.22s  0.89%  runtime.tracebackPCs
+     0.03s  0.12% 84.71%      0.15s  0.61%  github.com/dop251/goja.(*Runtime).newTemplatedObject (inline)
+     0.03s  0.12% 84.83%      1.14s  4.60%  github.com/dop251/goja.(*baseObject)._put
+     0.03s  0.12% 84.95%      6.23s 25.13%  github.com/dop251/goja.(*vm).try
+     0.03s  0.12% 85.07%      5.03s 20.29%  github.com/dop251/goja.AssertFunction.func1.1
+     0.03s  0.12% 85.20%      0.19s  0.77%  github.com/dop251/goja/unistring.NewFromString
+     0.03s  0.12% 85.32%      4.89s 19.73%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadNative
+     0.03s  0.12% 85.44%         5s 20.17%  github.com/dop251/goja_nodejs/require.(*RequireModule).require
+     0.03s  0.12% 85.56%      0.13s  0.52%  runtime.(*mheap).initSpan
+     0.03s  0.12% 85.68%      0.25s  1.01%  runtime.convTstring
+     0.02s 0.081% 85.76%      2.85s 11.50%  github.com/dop251/goja.(*Runtime).ToValue (partial-inline)
+     0.02s 0.081% 85.84%      0.42s  1.69%  github.com/dop251/goja.(*Runtime).newBaseObject (inline)
+     0.02s 0.081% 85.92%      4.78s 19.28%  github.com/dop251/goja.(*Runtime).try (inline)
+     0.02s 0.081% 86.00%      5.10s 20.57%  github.com/dop251/goja.AssertFunction.func1
+     0.02s 0.081% 86.08%      0.27s  1.09%  github.com/dop251/goja.newBaseObjectObj (inline)
+     0.02s 0.081% 86.16%      4.97s 20.05%  github.com/dop251/goja_nodejs/require.(*RequireModule).resolve
+     0.02s 0.081% 86.24%      5.25s 21.18%  github.com/dop251/goja_nodejs/require.Require
+     0.02s 0.081% 86.33%      0.39s  1.57%  github.com/go-go-golems/go-go-goja/modules.(*Registry).Enable
+     0.02s 0.081% 86.41%      1.18s  4.76%  internal/runtime/maps.(*Map).growToSmall
+     0.02s 0.081% 86.49%      1.25s  5.04%  runtime.(*mcache).nextFree
+     0.02s 0.081% 86.57%      1.22s  4.92%  runtime.(*mcache).refill
+     0.02s 0.081% 86.65%      0.50s  2.02%  runtime.heapSetTypeNoHeader (inline)
+     0.02s 0.081% 86.73%      0.79s  3.19%  runtime.markrootSpans
+     0.01s  0.04% 86.77%      3.60s 14.52%  github.com/dop251/goja.(*Object).Set (inline)
+     0.01s  0.04% 86.81%      1.20s  4.84%  github.com/dop251/goja.(*Runtime).Set
+     0.01s  0.04% 86.85%      0.16s  0.65%  github.com/dop251/goja.(*templatedObject).getOwnPropStr
+     0.01s  0.04% 86.89%      0.53s  2.14%  github.com/dop251/goja.New (inline)
+     0.01s  0.04% 86.93%      0.13s  0.52%  github.com/dop251/goja_nodejs/console.(*Console).log (inline)
+     0.01s  0.04% 86.97%      5.33s 21.50%  github.com/dop251/goja_nodejs/console.Enable
+     0.01s  0.04% 87.01%      0.39s  1.57%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func9
+     0.01s  0.04% 87.05%      4.16s 16.78%  github.com/dop251/goja_nodejs/console.Require.requireWithPrinter.func1 (inline)
+     0.01s  0.04% 87.09%      4.99s 20.13%  github.com/dop251/goja_nodejs/require.(*RequireModule).Require
+     0.01s  0.04% 87.13%      0.35s  1.41%  github.com/dop251/goja_nodejs/require.(*RequireModule).createModuleObject.(*Object).Set.func1
+     0.01s  0.04% 87.17%      8.16s 32.92%  github.com/go-go-golems/go-go-goja/engine.NewWithConfig
+     0.01s  0.04% 87.21%      8.11s 32.71%  github.com/go-go-golems/go-go-goja/engine.Open
+     0.01s  0.04% 87.25%      8.36s 33.72%  github.com/go-go-golems/go-go-goja/perf/goja_test.newRuntimeNoCallLog
+     0.01s  0.04% 87.29%      0.42s  1.69%  github.com/go-go-golems/go-go-goja/pkg/calllog.setRuntimeLoggerBinding
+     0.01s  0.04% 87.33%      0.89s  3.59%  internal/runtime/maps.newarray
+     0.01s  0.04% 87.37%      0.24s  0.97%  runtime.(*mheap).alloc.func1
+     0.01s  0.04% 87.41%      0.24s  0.97%  runtime.(*mspan).objIndex (inline)
+     0.01s  0.04% 87.45%      0.49s  1.98%  runtime.makemap_small
+     0.01s  0.04% 87.49%     16.43s 66.28%  runtime.systemstack
+     0.01s  0.04% 87.54%      0.15s  0.61%  runtime.wbBufFlush
+     0.01s  0.04% 87.58%      0.19s  0.77%  testing.(*common).Helper
+         0     0% 87.58%      0.42s  1.69%  github.com/dop251/goja.(*Runtime).NewObject (inline)
+         0     0% 87.58%      1.15s  4.64%  github.com/dop251/goja.(*Runtime).Set.func1
+         0     0% 87.58%      0.13s  0.52%  github.com/dop251/goja.(*Runtime).getFunctionPrototype
+         0     0% 87.58%      0.53s  2.14%  github.com/dop251/goja.(*baseObject)._putProp
+         0     0% 87.58%      0.41s  1.65%  github.com/dop251/goja.(*baseObject).init (inline)
+         0     0% 87.58%      0.47s  1.90%  github.com/dop251/goja.(*templatedObject).materialisePropNames (inline)
+         0     0% 87.58%      0.67s  2.70%  github.com/dop251/goja.(*templatedObject).setOwnStr
+         0     0% 87.58%      4.16s 16.78%  github.com/dop251/goja_nodejs/console.Require
+         0     0% 87.58%      0.51s  2.06%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func11
+         0     0% 87.58%      0.46s  1.86%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func3
+         0     0% 87.58%      0.50s  2.02%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func5
+         0     0% 87.58%      0.57s  2.30%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func7
+         0     0% 87.58%      1.22s  4.92%  github.com/dop251/goja_nodejs/require.(*Registry).Enable
+         0     0% 87.58%      1.01s  4.07%  github.com/dop251/goja_nodejs/require.(*RequireModule).createModuleObject
+         0     0% 87.58%      0.54s  2.18%  github.com/dop251/goja_nodejs/util.Require
+         0     0% 87.58%      0.47s  1.90%  github.com/dop251/goja_nodejs/util.Require.(*Object).Set.func1

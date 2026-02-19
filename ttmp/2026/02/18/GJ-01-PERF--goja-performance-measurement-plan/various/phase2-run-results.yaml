@@ -1,0 +1,979 @@
+phase: phase-2
+generated_at: "2026-02-18T14:29:07Z"
+repo_root: .
+plan:
+    - id: p2-value-conversion
+      title: Value Conversion
+      description: Measure Runtime.ToValue / Value.Export / ExportTo conversion overhead.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkValueConversion$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      flags:
+        bench: ^BenchmarkValueConversion$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 250ms
+        count: "3"
+        run: ^$
+        timeout: 20m
+      benchmarks:
+        - name: BenchmarkValueConversion
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+    - id: p2-payload-sweep
+      title: Payload Sweep
+      description: Measure boundary-call behavior across tiny/medium/large payloads.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkPayloadSweep$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      flags:
+        bench: ^BenchmarkPayloadSweep$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 250ms
+        count: "3"
+        run: ^$
+        timeout: 20m
+      benchmarks:
+        - name: BenchmarkPayloadSweep
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+    - id: p2-gc-sensitivity
+      title: GC Sensitivity
+      description: Measure runtime spawn/reuse behavior under allocation-heavy scripts.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkGCSensitivity$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      flags:
+        bench: ^BenchmarkGCSensitivity$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 250ms
+        count: "3"
+        run: ^$
+        timeout: 20m
+      benchmarks:
+        - name: BenchmarkGCSensitivity
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+results:
+    - id: p2-value-conversion
+      task_title: Value Conversion
+      task_description: Measure Runtime.ToValue / Value.Export / ExportTo conversion overhead.
+      benchmark_definitions:
+        - name: BenchmarkValueConversion
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkValueConversion$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      output_file: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-task-output/p2-value-conversion.txt
+      duration_ms: 8173
+      success: true
+      exit_code: 0
+      samples:
+        - benchmark: BenchmarkValueConversion/ToValue_Primitive_Int-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 46632002
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 9.796
+          raw_line: "BenchmarkValueConversion/ToValue_Primitive_Int-8         \t46632002\t         9.796 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkValueConversion/ToValue_Primitive_Int-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 28619181
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 10.67
+          raw_line: "BenchmarkValueConversion/ToValue_Primitive_Int-8         \t28619181\t        10.67 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkValueConversion/ToValue_Primitive_Int-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 33623444
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 8.66
+          raw_line: "BenchmarkValueConversion/ToValue_Primitive_Int-8         \t33623444\t         8.660 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkValueConversion/ToValue_Map20-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 1000000
+          metrics:
+            B/op: 208
+            allocs/op: 3
+            ns/op: 303.2
+          raw_line: "BenchmarkValueConversion/ToValue_Map20-8                 \t 1000000\t       303.2 ns/op\t     208 B/op\t       3 allocs/op"
+        - benchmark: BenchmarkValueConversion/ToValue_Map20-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 1212379
+          metrics:
+            B/op: 208
+            allocs/op: 3
+            ns/op: 289.6
+          raw_line: "BenchmarkValueConversion/ToValue_Map20-8                 \t 1212379\t       289.6 ns/op\t     208 B/op\t       3 allocs/op"
+        - benchmark: BenchmarkValueConversion/ToValue_Map20-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 798370
+          metrics:
+            B/op: 208
+            allocs/op: 3
+            ns/op: 335.5
+          raw_line: "BenchmarkValueConversion/ToValue_Map20-8                 \t  798370\t       335.5 ns/op\t     208 B/op\t       3 allocs/op"
+        - benchmark: BenchmarkValueConversion/ToValue_Nested-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 1014740
+          metrics:
+            B/op: 208
+            allocs/op: 3
+            ns/op: 282.7
+          raw_line: "BenchmarkValueConversion/ToValue_Nested-8                \t 1014740\t       282.7 ns/op\t     208 B/op\t       3 allocs/op"
+        - benchmark: BenchmarkValueConversion/ToValue_Nested-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 999777
+          metrics:
+            B/op: 208
+            allocs/op: 3
+            ns/op: 349.1
+          raw_line: "BenchmarkValueConversion/ToValue_Nested-8                \t  999777\t       349.1 ns/op\t     208 B/op\t       3 allocs/op"
+        - benchmark: BenchmarkValueConversion/ToValue_Nested-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 906903
+          metrics:
+            B/op: 208
+            allocs/op: 3
+            ns/op: 303.8
+          raw_line: "BenchmarkValueConversion/ToValue_Nested-8                \t  906903\t       303.8 ns/op\t     208 B/op\t       3 allocs/op"
+        - benchmark: BenchmarkValueConversion/Export_Map20-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 6381744
+          metrics:
+            B/op: 8
+            allocs/op: 1
+            ns/op: 52.39
+          raw_line: "BenchmarkValueConversion/Export_Map20-8                  \t 6381744\t        52.39 ns/op\t       8 B/op\t       1 allocs/op"
+        - benchmark: BenchmarkValueConversion/Export_Map20-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 7480558
+          metrics:
+            B/op: 8
+            allocs/op: 1
+            ns/op: 54.24
+          raw_line: "BenchmarkValueConversion/Export_Map20-8                  \t 7480558\t        54.24 ns/op\t       8 B/op\t       1 allocs/op"
+        - benchmark: BenchmarkValueConversion/Export_Map20-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 8855497
+          metrics:
+            B/op: 8
+            allocs/op: 1
+            ns/op: 43.88
+          raw_line: "BenchmarkValueConversion/Export_Map20-8                  \t 8855497\t        43.88 ns/op\t       8 B/op\t       1 allocs/op"
+        - benchmark: BenchmarkValueConversion/ExportTo_Struct-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 73821
+          metrics:
+            B/op: 1136
+            allocs/op: 17
+            ns/op: 4200
+          raw_line: "BenchmarkValueConversion/ExportTo_Struct-8               \t   73821\t      4200 ns/op\t    1136 B/op\t      17 allocs/op"
+        - benchmark: BenchmarkValueConversion/ExportTo_Struct-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 84006
+          metrics:
+            B/op: 1136
+            allocs/op: 17
+            ns/op: 3612
+          raw_line: "BenchmarkValueConversion/ExportTo_Struct-8               \t   84006\t      3612 ns/op\t    1136 B/op\t      17 allocs/op"
+        - benchmark: BenchmarkValueConversion/ExportTo_Struct-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          iterations: 75537
+          metrics:
+            B/op: 1136
+            allocs/op: 17
+            ns/op: 4589
+          raw_line: "BenchmarkValueConversion/ExportTo_Struct-8               \t   75537\t      4589 ns/op\t    1136 B/op\t      17 allocs/op"
+      summaries:
+        - benchmark: BenchmarkValueConversion/ExportTo_Struct-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 1136
+              min: 1136
+              max: 1136
+            - metric: allocs/op
+              avg: 17
+              min: 17
+              max: 17
+            - metric: ns/op
+              avg: 4133.666666666667
+              min: 3612
+              max: 4589
+        - benchmark: BenchmarkValueConversion/Export_Map20-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 8
+              min: 8
+              max: 8
+            - metric: allocs/op
+              avg: 1
+              min: 1
+              max: 1
+            - metric: ns/op
+              avg: 50.169999999999995
+              min: 43.88
+              max: 54.24
+        - benchmark: BenchmarkValueConversion/ToValue_Map20-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 208
+              min: 208
+              max: 208
+            - metric: allocs/op
+              avg: 3
+              min: 3
+              max: 3
+            - metric: ns/op
+              avg: 309.43333333333334
+              min: 289.6
+              max: 335.5
+        - benchmark: BenchmarkValueConversion/ToValue_Nested-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 208
+              min: 208
+              max: 208
+            - metric: allocs/op
+              avg: 3
+              min: 3
+              max: 3
+            - metric: ns/op
+              avg: 311.8666666666666
+              min: 282.7
+              max: 349.1
+        - benchmark: BenchmarkValueConversion/ToValue_Primitive_Int-8
+          description: Measure conversion overhead between Go values and goja values across primitive, map, nested, export, and export-to paths.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: allocs/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: ns/op
+              avg: 9.708666666666668
+              min: 8.66
+              max: 10.67
+    - id: p2-payload-sweep
+      task_title: Payload Sweep
+      task_description: Measure boundary-call behavior across tiny/medium/large payloads.
+      benchmark_definitions:
+        - name: BenchmarkPayloadSweep
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkPayloadSweep$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      output_file: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-task-output/p2-payload-sweep.txt
+      duration_ms: 18105
+      success: true
+      exit_code: 0
+      samples:
+        - benchmark: BenchmarkPayloadSweep/tiny/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 273590360
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 1.318
+          raw_line: "BenchmarkPayloadSweep/tiny/GoDirect-8         \t273590360\t         1.318 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/tiny/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 384280876
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.8819
+          raw_line: "BenchmarkPayloadSweep/tiny/GoDirect-8         \t384280876\t         0.8819 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/tiny/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 371178951
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.7038
+          raw_line: "BenchmarkPayloadSweep/tiny/GoDirect-8         \t371178951\t         0.7038 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/tiny/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 113062
+          metrics:
+            B/op: 824
+            allocs/op: 14
+            ns/op: 2708
+          raw_line: "BenchmarkPayloadSweep/tiny/JS_vm_Set-8        \t  113062\t      2708 ns/op\t     824 B/op\t      14 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/tiny/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 148471
+          metrics:
+            B/op: 824
+            allocs/op: 14
+            ns/op: 2550
+          raw_line: "BenchmarkPayloadSweep/tiny/JS_vm_Set-8        \t  148471\t      2550 ns/op\t     824 B/op\t      14 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/tiny/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 141075
+          metrics:
+            B/op: 824
+            allocs/op: 14
+            ns/op: 2368
+          raw_line: "BenchmarkPayloadSweep/tiny/JS_vm_Set-8        \t  141075\t      2368 ns/op\t     824 B/op\t      14 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/tiny/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 47236
+          metrics:
+            B/op: 1729
+            allocs/op: 33
+            ns/op: 6403
+          raw_line: "BenchmarkPayloadSweep/tiny/JS_module_SetExport-8         \t   47236\t      6403 ns/op\t    1729 B/op\t      33 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/tiny/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 63757
+          metrics:
+            B/op: 1729
+            allocs/op: 33
+            ns/op: 5401
+          raw_line: "BenchmarkPayloadSweep/tiny/JS_module_SetExport-8         \t   63757\t      5401 ns/op\t    1729 B/op\t      33 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/tiny/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 94105
+          metrics:
+            B/op: 1729
+            allocs/op: 33
+            ns/op: 4581
+          raw_line: "BenchmarkPayloadSweep/tiny/JS_module_SetExport-8         \t   94105\t      4581 ns/op\t    1729 B/op\t      33 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/tiny/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 174048
+          metrics:
+            B/op: 1184
+            allocs/op: 15
+            ns/op: 2647
+          raw_line: "BenchmarkPayloadSweep/tiny/GojaAssertFunction-8          \t  174048\t      2647 ns/op\t    1184 B/op\t      15 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/tiny/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 197103
+          metrics:
+            B/op: 1184
+            allocs/op: 15
+            ns/op: 2334
+          raw_line: "BenchmarkPayloadSweep/tiny/GojaAssertFunction-8          \t  197103\t      2334 ns/op\t    1184 B/op\t      15 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/tiny/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 130336
+          metrics:
+            B/op: 1184
+            allocs/op: 15
+            ns/op: 2757
+          raw_line: "BenchmarkPayloadSweep/tiny/GojaAssertFunction-8          \t  130336\t      2757 ns/op\t    1184 B/op\t      15 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 515398252
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.5463
+          raw_line: "BenchmarkPayloadSweep/medium/GoDirect-8                  \t515398252\t         0.5463 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 561709057
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.651
+          raw_line: "BenchmarkPayloadSweep/medium/GoDirect-8                  \t561709057\t         0.6510 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 499613682
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.5691
+          raw_line: "BenchmarkPayloadSweep/medium/GoDirect-8                  \t499613682\t         0.5691 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 40090
+          metrics:
+            B/op: 2976
+            allocs/op: 38
+            ns/op: 7759
+          raw_line: "BenchmarkPayloadSweep/medium/JS_vm_Set-8                 \t   40090\t      7759 ns/op\t    2976 B/op\t      38 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 44739
+          metrics:
+            B/op: 2976
+            allocs/op: 38
+            ns/op: 6340
+          raw_line: "BenchmarkPayloadSweep/medium/JS_vm_Set-8                 \t   44739\t      6340 ns/op\t    2976 B/op\t      38 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 53896
+          metrics:
+            B/op: 2976
+            allocs/op: 38
+            ns/op: 8925
+          raw_line: "BenchmarkPayloadSweep/medium/JS_vm_Set-8                 \t   53896\t      8925 ns/op\t    2976 B/op\t      38 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 10000
+          metrics:
+            B/op: 7762
+            allocs/op: 118
+            ns/op: 29418
+          raw_line: "BenchmarkPayloadSweep/medium/JS_module_SetExport-8       \t   10000\t     29418 ns/op\t    7762 B/op\t     118 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 9570
+          metrics:
+            B/op: 7761
+            allocs/op: 118
+            ns/op: 27448
+          raw_line: "BenchmarkPayloadSweep/medium/JS_module_SetExport-8       \t    9570\t     27448 ns/op\t    7761 B/op\t     118 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 10000
+          metrics:
+            B/op: 7761
+            allocs/op: 118
+            ns/op: 30612
+          raw_line: "BenchmarkPayloadSweep/medium/JS_module_SetExport-8       \t   10000\t     30612 ns/op\t    7761 B/op\t     118 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 36554
+          metrics:
+            B/op: 2432
+            allocs/op: 37
+            ns/op: 8108
+          raw_line: "BenchmarkPayloadSweep/medium/GojaAssertFunction-8        \t   36554\t      8108 ns/op\t    2432 B/op\t      37 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 39231
+          metrics:
+            B/op: 2432
+            allocs/op: 37
+            ns/op: 9189
+          raw_line: "BenchmarkPayloadSweep/medium/GojaAssertFunction-8        \t   39231\t      9189 ns/op\t    2432 B/op\t      37 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/medium/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 42726
+          metrics:
+            B/op: 2432
+            allocs/op: 37
+            ns/op: 7549
+          raw_line: "BenchmarkPayloadSweep/medium/GojaAssertFunction-8        \t   42726\t      7549 ns/op\t    2432 B/op\t      37 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 307703310
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.8709
+          raw_line: "BenchmarkPayloadSweep/large/GoDirect-8                   \t307703310\t         0.8709 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 315980252
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 1.208
+          raw_line: "BenchmarkPayloadSweep/large/GoDirect-8                   \t315980252\t         1.208 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 339199140
+          metrics:
+            B/op: 0
+            allocs/op: 0
+            ns/op: 0.9229
+          raw_line: "BenchmarkPayloadSweep/large/GoDirect-8                   \t339199140\t         0.9229 ns/op\t       0 B/op\t       0 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 1870
+          metrics:
+            B/op: 50738
+            allocs/op: 784
+            ns/op: 188879
+          raw_line: "BenchmarkPayloadSweep/large/JS_vm_Set-8                  \t    1870\t    188879 ns/op\t   50738 B/op\t     784 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 3148
+          metrics:
+            B/op: 50692
+            allocs/op: 783
+            ns/op: 151756
+          raw_line: "BenchmarkPayloadSweep/large/JS_vm_Set-8                  \t    3148\t    151756 ns/op\t   50692 B/op\t     783 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 2280
+          metrics:
+            B/op: 50717
+            allocs/op: 783
+            ns/op: 135753
+          raw_line: "BenchmarkPayloadSweep/large/JS_vm_Set-8                  \t    2280\t    135753 ns/op\t   50717 B/op\t     783 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 537
+          metrics:
+            B/op: 131862
+            allocs/op: 2337
+            ns/op: 557935
+          raw_line: "BenchmarkPayloadSweep/large/JS_module_SetExport-8        \t     537\t    557935 ns/op\t  131862 B/op\t    2337 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 430
+          metrics:
+            B/op: 132053
+            allocs/op: 2339
+            ns/op: 677889
+          raw_line: "BenchmarkPayloadSweep/large/JS_module_SetExport-8        \t     430\t    677889 ns/op\t  132053 B/op\t    2339 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 334
+          metrics:
+            B/op: 132349
+            allocs/op: 2342
+            ns/op: 765864
+          raw_line: "BenchmarkPayloadSweep/large/JS_module_SetExport-8        \t     334\t    765864 ns/op\t  132349 B/op\t    2342 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 56386
+          metrics:
+            B/op: 1280
+            allocs/op: 18
+            ns/op: 5825
+          raw_line: "BenchmarkPayloadSweep/large/GojaAssertFunction-8         \t   56386\t      5825 ns/op\t    1280 B/op\t      18 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 65056
+          metrics:
+            B/op: 1280
+            allocs/op: 18
+            ns/op: 5033
+          raw_line: "BenchmarkPayloadSweep/large/GojaAssertFunction-8         \t   65056\t      5033 ns/op\t    1280 B/op\t      18 allocs/op"
+        - benchmark: BenchmarkPayloadSweep/large/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          iterations: 90829
+          metrics:
+            B/op: 1280
+            allocs/op: 18
+            ns/op: 4698
+          raw_line: "BenchmarkPayloadSweep/large/GojaAssertFunction-8         \t   90829\t      4698 ns/op\t    1280 B/op\t      18 allocs/op"
+      summaries:
+        - benchmark: BenchmarkPayloadSweep/large/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: allocs/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: ns/op
+              avg: 1.0006000000000002
+              min: 0.8709
+              max: 1.208
+        - benchmark: BenchmarkPayloadSweep/large/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 1280
+              min: 1280
+              max: 1280
+            - metric: allocs/op
+              avg: 18
+              min: 18
+              max: 18
+            - metric: ns/op
+              avg: 5185.333333333333
+              min: 4698
+              max: 5825
+        - benchmark: BenchmarkPayloadSweep/large/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 132088
+              min: 131862
+              max: 132349
+            - metric: allocs/op
+              avg: 2339.3333333333335
+              min: 2337
+              max: 2342
+            - metric: ns/op
+              avg: 667229.3333333334
+              min: 557935
+              max: 765864
+        - benchmark: BenchmarkPayloadSweep/large/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 50715.666666666664
+              min: 50692
+              max: 50738
+            - metric: allocs/op
+              avg: 783.3333333333334
+              min: 783
+              max: 784
+            - metric: ns/op
+              avg: 158796
+              min: 135753
+              max: 188879
+        - benchmark: BenchmarkPayloadSweep/medium/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: allocs/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: ns/op
+              avg: 0.5888
+              min: 0.5463
+              max: 0.651
+        - benchmark: BenchmarkPayloadSweep/medium/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 2432
+              min: 2432
+              max: 2432
+            - metric: allocs/op
+              avg: 37
+              min: 37
+              max: 37
+            - metric: ns/op
+              avg: 8282
+              min: 7549
+              max: 9189
+        - benchmark: BenchmarkPayloadSweep/medium/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 7761.333333333333
+              min: 7761
+              max: 7762
+            - metric: allocs/op
+              avg: 118
+              min: 118
+              max: 118
+            - metric: ns/op
+              avg: 29159.333333333332
+              min: 27448
+              max: 30612
+        - benchmark: BenchmarkPayloadSweep/medium/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 2976
+              min: 2976
+              max: 2976
+            - metric: allocs/op
+              avg: 38
+              min: 38
+              max: 38
+            - metric: ns/op
+              avg: 7674.666666666667
+              min: 6340
+              max: 8925
+        - benchmark: BenchmarkPayloadSweep/tiny/GoDirect-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: allocs/op
+              avg: 0
+              min: 0
+              max: 0
+            - metric: ns/op
+              avg: 0.9678999999999999
+              min: 0.7038
+              max: 1.318
+        - benchmark: BenchmarkPayloadSweep/tiny/GojaAssertFunction-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 1184
+              min: 1184
+              max: 1184
+            - metric: allocs/op
+              avg: 15
+              min: 15
+              max: 15
+            - metric: ns/op
+              avg: 2579.3333333333335
+              min: 2334
+              max: 2757
+        - benchmark: BenchmarkPayloadSweep/tiny/JS_module_SetExport-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 1729
+              min: 1729
+              max: 1729
+            - metric: allocs/op
+              avg: 33
+              min: 33
+              max: 33
+            - metric: ns/op
+              avg: 5461.666666666667
+              min: 4581
+              max: 6403
+        - benchmark: BenchmarkPayloadSweep/tiny/JS_vm_Set-8
+          description: Compare payload transfer overhead across tiny/medium/large payloads and multiple bridge strategies.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 824
+              min: 824
+              max: 824
+            - metric: allocs/op
+              avg: 14
+              min: 14
+              max: 14
+            - metric: ns/op
+              avg: 2542
+              min: 2368
+              max: 2708
+    - id: p2-gc-sensitivity
+      task_title: GC Sensitivity
+      task_description: Measure runtime spawn/reuse behavior under allocation-heavy scripts.
+      benchmark_definitions:
+        - name: BenchmarkGCSensitivity
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^BenchmarkGCSensitivity$
+        - -count
+        - "3"
+        - -benchtime
+        - 250ms
+        - -benchmem
+        - -timeout
+        - 20m
+      output_file: ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-task-output/p2-gc-sensitivity.txt
+      duration_ms: 5085
+      success: true
+      exit_code: 0
+      samples:
+        - benchmark: BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          iterations: 494
+          metrics:
+            B/op: 197023
+            allocs/op: 2038
+            ns/op: 535884
+          raw_line: "BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8         \t     494\t    535884 ns/op\t  197023 B/op\t    2038 allocs/op"
+        - benchmark: BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          iterations: 591
+          metrics:
+            B/op: 197027
+            allocs/op: 2038
+            ns/op: 558906
+          raw_line: "BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8         \t     591\t    558906 ns/op\t  197027 B/op\t    2038 allocs/op"
+        - benchmark: BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          iterations: 529
+          metrics:
+            B/op: 197024
+            allocs/op: 2038
+            ns/op: 554207
+          raw_line: "BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8         \t     529\t    554207 ns/op\t  197024 B/op\t    2038 allocs/op"
+        - benchmark: BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          iterations: 592
+          metrics:
+            B/op: 173030
+            allocs/op: 1717
+            ns/op: 493164
+          raw_line: "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8        \t     592\t    493164 ns/op\t  173030 B/op\t    1717 allocs/op"
+        - benchmark: BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          iterations: 673
+          metrics:
+            B/op: 173025
+            allocs/op: 1717
+            ns/op: 475568
+          raw_line: "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8        \t     673\t    475568 ns/op\t  173025 B/op\t    1717 allocs/op"
+        - benchmark: BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          iterations: 531
+          metrics:
+            B/op: 173034
+            allocs/op: 1717
+            ns/op: 488885
+          raw_line: "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8        \t     531\t    488885 ns/op\t  173034 B/op\t    1717 allocs/op"
+        - benchmark: BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          iterations: 663
+          metrics:
+            B/op: 173025
+            allocs/op: 1717
+            ns/op: 654866
+          raw_line: "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8         \t     663\t    654866 ns/op\t  173025 B/op\t    1717 allocs/op"
+        - benchmark: BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          iterations: 693
+          metrics:
+            B/op: 173024
+            allocs/op: 1717
+            ns/op: 587623
+          raw_line: "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8         \t     693\t    587623 ns/op\t  173024 B/op\t    1717 allocs/op"
+        - benchmark: BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          iterations: 660
+          metrics:
+            B/op: 173024
+            allocs/op: 1717
+            ns/op: 482547
+          raw_line: "BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8         \t     660\t    482547 ns/op\t  173024 B/op\t    1717 allocs/op"
+      summaries:
+        - benchmark: BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 173029.66666666666
+              min: 173025
+              max: 173034
+            - metric: allocs/op
+              avg: 1717
+              min: 1717
+              max: 1717
+            - metric: ns/op
+              avg: 485872.3333333333
+              min: 475568
+              max: 493164
+        - benchmark: BenchmarkGCSensitivity/ReuseRuntime_AllocHeavy_WithPeriodicGC-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 173024.33333333334
+              min: 173024
+              max: 173025
+            - metric: allocs/op
+              avg: 1717
+              min: 1717
+              max: 1717
+            - metric: ns/op
+              avg: 575012
+              min: 482547
+              max: 654866
+        - benchmark: BenchmarkGCSensitivity/SpawnAndDiscardRuntime-8
+          description: Measure allocation-heavy behavior under spawn/reuse strategies with and without periodic GC pressure.
+          runs: 3
+          metrics:
+            - metric: B/op
+              avg: 197024.66666666666
+              min: 197023
+              max: 197027
+            - metric: allocs/op
+              avg: 2038
+              min: 2038
+              max: 2038
+            - metric: ns/op
+              avg: 549665.6666666666
+              min: 535884
+              max: 558906
+summary:
+    total_tasks: 3
+    successful_tasks: 3
+    failed_tasks: 0
+    total_duration_ms: 31363
+    total_duration_seconds: "31.363"

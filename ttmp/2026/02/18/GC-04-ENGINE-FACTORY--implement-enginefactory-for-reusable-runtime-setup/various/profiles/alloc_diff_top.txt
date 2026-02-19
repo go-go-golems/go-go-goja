@@ -1,0 +1,90 @@
+File: goja.test
+Build ID: d78a0faa7df9923b954d3f38003009d269644754
+Type: alloc_objects
+Time: 2026-02-18 14:50:54 EST
+Showing nodes accounting for -11534360, 21.90% of 52666575 total
+Dropped 55 nodes (cum <= 263332)
+      flat  flat%   sum%        cum   cum%
+  -3091173  5.87%  5.87%   -3765947  7.15%  github.com/go-go-golems/go-go-goja/modules.(*Registry).Enable
+   -935785  1.78%  7.65%    -935785  1.78%  github.com/dop251/goja.(*baseObject)._put
+   -873854  1.66%  9.31%    -873854  1.66%  github.com/dop251/goja.(*baseObject).init (inline)
+   -778282  1.48% 10.78%   -4945661  9.39%  github.com/go-go-golems/go-go-goja/engine.NewFactory
+   -765167  1.45% 12.24%    -765167  1.45%  github.com/dop251/goja.(*baseObject).setOwnStr
+   -680567  1.29% 13.53%   -2930785  5.56%  github.com/dop251/goja.(*Runtime).newNativeFunc
+   -674774  1.28% 14.81%    -674774  1.28%  github.com/dop251/goja_nodejs/require.(*Registry).RegisterNativeModule
+   -480621  0.91% 15.72%    -480621  0.91%  github.com/dop251/goja.valueProp (inline)
+   -401432  0.76% 16.48%    -401432  0.76%  github.com/dop251/goja_nodejs/require.NewRegistry (inline)
+   -393222  0.75% 17.23%  -52539662 99.76%  github.com/go-go-golems/go-go-goja/engine.NewWithConfig
+   -344074  0.65% 17.88%    -344074  0.65%  github.com/go-go-golems/go-go-goja/engine.WithRequireOptions (inline)
+    327685  0.62% 17.26%   -3864487  7.34%  github.com/dop251/goja_nodejs/require.Require
+   -305842  0.58% 17.84%    -305842  0.58%  github.com/dop251/goja_nodejs/console.(*Console).log (inline)
+   -294917  0.56% 18.40%    -294917  0.56%  github.com/dop251/goja.stringValueFromRaw (inline)
+   -267631  0.51% 18.91%    -604885  1.15%  github.com/dop251/goja.(*Runtime).init
+   -262151   0.5% 19.41%    -262151   0.5%  github.com/dop251/goja.AssertFunction
+   -262148   0.5% 19.91%    -215184  0.41%  github.com/go-go-golems/go-go-goja/pkg/calllog.setRuntimeLoggerBinding
+   -198980  0.38% 20.28%    -198980  0.38%  github.com/dop251/goja.(*vm).pushTryFrame (inline)
+    196611  0.37% 19.91%   -2734174  5.19%  github.com/dop251/goja.(*Runtime).toValue
+   -189353  0.36% 20.27%    -200277  0.38%  github.com/dop251/goja.(*Runtime).newTemplatedFuncObject (inline)
+   -163841  0.31% 20.58%   -1040522  1.98%  github.com/dop251/goja_nodejs/require.(*Registry).Enable
+   -152924  0.29% 20.87%    -455655  0.87%  github.com/dop251/goja.(*Runtime).newBaseObject (inline)
+    109232  0.21% 20.66%     109232  0.21%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+    -98306  0.19% 20.85%    -163843  0.31%  path.Join
+    -92845  0.18% 21.03%   -3547603  6.74%  github.com/dop251/goja_nodejs/console.Require.requireWithPrinter.func1 (inline)
+    -79191  0.15% 21.18%     -79191  0.15%  encoding/xml.(*Decoder).rawToken
+    -65537  0.12% 21.30%     -65537  0.12%  path.(*lazybuf).append (inline)
+    -63033  0.12% 21.42%   -3930022  7.46%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadNative
+    -62268  0.12% 21.54%     -62268  0.12%  internal/sync.newIndirectNode[go.shape.interface {},go.shape.interface {}] (inline)
+    -57913  0.11% 21.65%    -662798  1.26%  github.com/dop251/goja.New (inline)
+    -51498 0.098% 21.75%    -302731  0.57%  github.com/dop251/goja.newBaseObjectObj (inline)
+    -43693 0.083% 21.83%    -243970  0.46%  github.com/dop251/goja.(*Runtime).getFunctionPrototype
+    -20482 0.039% 21.87%    -337254  0.64%  github.com/dop251/goja.(*Runtime).newTemplatedObject (inline)
+    -16384 0.031% 21.90%     -95575  0.18%  encoding/xml.(*Decoder).Token
+         0     0% 21.90%     -79191  0.15%  encoding/xml.(*Decoder).Decode (inline)
+         0     0% 21.90%     -79191  0.15%  encoding/xml.(*Decoder).DecodeElement
+         0     0% 21.90%     -79191  0.15%  encoding/xml.(*Decoder).unmarshal
+         0     0% 21.90%     -79191  0.15%  encoding/xml.(*Decoder).unmarshalInterface
+         0     0% 21.90%     -79191  0.15%  github.com/alecthomas/chroma/v2.(*Style).UnmarshalXML
+         0     0% 21.90%     -79191  0.15%  github.com/alecthomas/chroma/v2.NewXMLStyle
+         0     0% 21.90%     -79191  0.15%  github.com/alecthomas/chroma/v2/styles.init
+         0     0% 21.90%     -79191  0.15%  github.com/alecthomas/chroma/v2/styles.init.func1 (inline)
+         0     0% 21.90%   -3045414  5.78%  github.com/dop251/goja.(*Object).Set (inline)
+         0     0% 21.90%    -455655  0.87%  github.com/dop251/goja.(*Runtime).NewObject (inline)
+         0     0% 21.90%    -876681  1.66%  github.com/dop251/goja.(*Runtime).Set
+         0     0% 21.90%    -811141  1.54%  github.com/dop251/goja.(*Runtime).Set.func1
+         0     0% 21.90%   -2734174  5.19%  github.com/dop251/goja.(*Runtime).ToValue (partial-inline)
+         0     0% 21.90%   -4028328  7.65%  github.com/dop251/goja.(*Runtime).runWrapped
+         0     0% 21.90%   -3922095  7.45%  github.com/dop251/goja.(*Runtime).try (inline)
+         0     0% 21.90%   -2006248  3.81%  github.com/dop251/goja.(*baseFuncObject).init
+         0     0% 21.90%    -660851  1.25%  github.com/dop251/goja.(*baseObject)._putProp
+         0     0% 21.90%    -152808  0.29%  github.com/dop251/goja.(*templatedObject).setOwnStr
+         0     0% 21.90%   -4905009  9.31%  github.com/dop251/goja.(*vm).try
+         0     0% 21.90%   -4028328  7.65%  github.com/dop251/goja.AssertFunction.func1
+         0     0% 21.90%   -4028328  7.65%  github.com/dop251/goja.AssertFunction.func1.1
+         0     0% 21.90%   -3864487  7.34%  github.com/dop251/goja_nodejs/console.Enable
+         0     0% 21.90%   -3547603  6.74%  github.com/dop251/goja_nodejs/console.Require
+         0     0% 21.90%    -243148  0.46%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func11
+         0     0% 21.90%    -668160  1.27%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func3
+         0     0% 21.90%    -233047  0.44%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func5
+         0     0% 21.90%    -718216  1.36%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func7
+         0     0% 21.90%    -239952  0.46%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func9
+         0     0% 21.90%   -4028328  7.65%  github.com/dop251/goja_nodejs/require.(*RequireModule).Require
+         0     0% 21.90%    -598234  1.14%  github.com/dop251/goja_nodejs/require.(*RequireModule).createModuleObject
+         0     0% 21.90%   -4028328  7.65%  github.com/dop251/goja_nodejs/require.(*RequireModule).require
+         0     0% 21.90%   -4028328  7.65%  github.com/dop251/goja_nodejs/require.(*RequireModule).resolve
+         0     0% 21.90%    -800312  1.52%  github.com/dop251/goja_nodejs/util.Require
+         0     0% 21.90%    -800312  1.52%  github.com/dop251/goja_nodejs/util.Require.(*Object).Set.func1
+         0     0% 21.90%   -5782991 10.98%  github.com/go-go-golems/go-go-goja/engine.(*Factory).NewRuntime
+         0     0% 21.90%  -51802366 98.36%  github.com/go-go-golems/go-go-goja/engine.Open
+         0     0% 21.90%    -215184  0.41%  github.com/go-go-golems/go-go-goja/engine.configureRuntimeCallLog
+         0     0% 21.90%   -3765947  7.15%  github.com/go-go-golems/go-go-goja/modules.EnableAll (inline)
+         0     0% 21.90%  -52539662 99.76%  github.com/go-go-golems/go-go-goja/perf/goja_test.BenchmarkRuntimeSpawn.func2
+         0     0% 21.90%   41073714 77.99%  github.com/go-go-golems/go-go-goja/perf/goja_test.BenchmarkRuntimeSpawn.func3
+         0     0% 21.90%  -52539662 99.76%  github.com/go-go-golems/go-go-goja/perf/goja_test.newRuntimeNoCallLog
+         0     0% 21.90%    -215184  0.41%  github.com/go-go-golems/go-go-goja/pkg/calllog.DisableRuntimeLogger (inline)
+         0     0% 21.90%     -62268  0.12%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).expand
+         0     0% 21.90%     -65537  0.12%  path.Clean
+         0     0% 21.90%     -73459  0.14%  runtime.doInit (inline)
+         0     0% 21.90%     -73459  0.14%  runtime.doInit1
+         0     0% 21.90%     -73463  0.14%  runtime.main
+         0     0% 21.90%  -11464128 21.77%  testing.(*B).launch
+         0     0% 21.90%  -11465948 21.77%  testing.(*B).runN

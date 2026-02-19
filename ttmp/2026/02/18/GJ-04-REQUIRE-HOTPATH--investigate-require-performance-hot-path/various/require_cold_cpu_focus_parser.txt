@@ -1,0 +1,148 @@
+File: goja.test
+Build ID: d78a0faa7df9923b954d3f38003009d269644754
+Type: cpu
+Time: 2026-02-18 17:02:51 EST
+Duration: 6.21s, Total samples = 13.01s (209.37%)
+Active filters:
+   focus=goja/parser|goja\.Parse
+Showing nodes accounting for 1.25s, 9.61% of 13.01s total
+      flat  flat%   sum%        cum   cum%
+     0.12s  0.92%  0.92%      0.12s  0.92%  runtime.memclrNoHeapPointers
+     0.09s  0.69%  1.61%      0.31s  2.38%  github.com/dop251/goja/parser.(*_parser).scan
+     0.09s  0.69%  2.31%      0.09s  0.69%  runtime.(*mspan).writeHeapBitsSmall
+     0.06s  0.46%  2.77%      0.08s  0.61%  github.com/dop251/goja/parser.(*_parser).scanIdentifier
+     0.05s  0.38%  3.15%      0.05s  0.38%  github.com/dop251/goja/parser.(*_parser).read
+     0.04s  0.31%  3.46%      0.97s  7.46%  github.com/dop251/goja/parser.(*_parser).parseFunction
+     0.04s  0.31%  3.77%      0.45s  3.46%  runtime.mallocgc
+     0.04s  0.31%  4.07%      0.04s  0.31%  runtime.nextFreeFast (inline)
+     0.03s  0.23%  4.30%      0.04s  0.31%  github.com/dop251/goja/parser.(*_parser).parseDotMember
+     0.03s  0.23%  4.53%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseLeftHandSideExpressionAllowCall
+     0.02s  0.15%  4.69%      0.02s  0.15%  aeshashbody
+     0.02s  0.15%  4.84%      0.12s  0.92%  github.com/dop251/goja/parser.(*_parser).parseArgumentList
+     0.02s  0.15%  5.00%      1.05s  8.07%  github.com/dop251/goja/parser.(*_parser).parseAssignmentExpression
+     0.02s  0.15%  5.15%      0.07s  0.54%  github.com/dop251/goja/parser.(*_parser).parseBindingTarget
+     0.02s  0.15%  5.30%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseBitwiseOrExpression
+     0.02s  0.15%  5.46%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseLogicalAndExpression
+     0.02s  0.15%  5.61%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseMultiplicativeExpression
+     0.02s  0.15%  5.76%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseUnaryExpression
+     0.02s  0.15%  5.92%      0.03s  0.23%  github.com/dop251/goja/parser.(*_parser).skipWhiteSpace
+     0.02s  0.15%  6.07%      0.02s  0.15%  github.com/dop251/goja/parser.isIdentifierStart
+     0.02s  0.15%  6.23%      0.02s  0.15%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     0.02s  0.15%  6.38%      0.02s  0.15%  runtime.(*mspan).init
+     0.02s  0.15%  6.53%      0.02s  0.15%  runtime.(*spanSet).push
+     0.02s  0.15%  6.69%      0.02s  0.15%  runtime.bool2int (inline)
+     0.02s  0.15%  6.84%      0.02s  0.15%  runtime.gcWriteBarrier4
+     0.02s  0.15%  6.99%      0.09s  0.69%  runtime.growslice
+     0.02s  0.15%  7.15%      0.02s  0.15%  runtime.releasem (inline)
+     0.01s 0.077%  7.23%      0.71s  5.46%  github.com/dop251/goja.Parse
+     0.01s 0.077%  7.30%      0.06s  0.46%  github.com/dop251/goja/file.NewFile (inline)
+     0.01s 0.077%  7.38%      0.34s  2.61%  github.com/dop251/goja/parser.(*_parser).next (inline)
+     0.01s 0.077%  7.46%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseAdditiveExpression
+     0.01s 0.077%  7.53%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseConditionalExpression
+     0.01s 0.077%  7.61%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseExponentiationExpression
+     0.01s 0.077%  7.69%         1s  7.69%  github.com/dop251/goja/parser.(*_parser).parseExpression
+     0.01s 0.077%  7.76%      0.24s  1.84%  github.com/dop251/goja/parser.(*_parser).parseFunctionParameterList
+     0.01s 0.077%  7.84%      0.01s 0.077%  github.com/dop251/goja/parser.(*_parser).parseLeftHandSideExpressionAllowCall.func1
+     0.01s 0.077%  7.92%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseLogicalOrExpression
+     0.01s 0.077%  7.99%      0.23s  1.77%  github.com/dop251/goja/parser.(*_parser).parseObjectProperty
+     0.01s 0.077%  8.07%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parsePrimaryExpression
+     0.01s 0.077%  8.15%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseRelationalExpression
+     0.01s 0.077%  8.22%      0.17s  1.31%  github.com/dop251/goja/parser.(*_parser).parseReturnStatement
+     0.01s 0.077%  8.30%      0.72s  5.53%  github.com/dop251/goja/parser.(*_parser).parseStatementList (inline)
+     0.01s 0.077%  8.38%      0.13s     1%  github.com/dop251/goja/parser.(*_parser).parseVariableStatement
+     0.01s 0.077%  8.46%      0.03s  0.23%  github.com/dop251/goja/parser.(*_parser).scanString
+     0.01s 0.077%  8.53%      0.03s  0.23%  github.com/dop251/goja/parser.(*_parser).semicolon (inline)
+     0.01s 0.077%  8.61%      0.01s 0.077%  github.com/dop251/goja/parser.(*_parser).slice (inline)
+     0.01s 0.077%  8.69%      0.10s  0.77%  github.com/dop251/goja/parser._newParser
+     0.01s 0.077%  8.76%      0.01s 0.077%  github.com/dop251/goja/parser.parseStringLiteral
+     0.01s 0.077%  8.84%      0.01s 0.077%  internal/runtime/maps.(*groupsReference).group (inline)
+     0.01s 0.077%  8.92%      0.01s 0.077%  runtime.(*gcBitsArena).tryAlloc (inline)
+     0.01s 0.077%  8.99%      0.11s  0.85%  runtime.(*mcentral).cacheSpan
+     0.01s 0.077%  9.07%      0.01s 0.077%  runtime.(*mspan).base (inline)
+     0.01s 0.077%  9.15%      0.10s  0.77%  runtime.heapSetTypeNoHeader (inline)
+     0.01s 0.077%  9.22%      0.40s  3.07%  runtime.mallocgcSmallScanNoHeader
+     0.01s 0.077%  9.30%      0.35s  2.69%  runtime.newobject
+     0.01s 0.077%  9.38%      0.01s 0.077%  runtime.readvarint (inline)
+     0.01s 0.077%  9.45%      0.02s  0.15%  runtime.step
+     0.01s 0.077%  9.53%      0.01s 0.077%  runtime.sysUsedOS
+     0.01s 0.077%  9.61%      0.01s 0.077%  runtime.wbBufFlush1
+         0     0%  9.61%      0.01s 0.077%  gcWriteBarrier
+         0     0%  9.61%      0.09s  0.69%  github.com/dop251/goja.(*Runtime).runWrapped
+         0     0%  9.61%      0.12s  0.92%  github.com/dop251/goja.(*baseJsFuncObject).Call
+         0     0%  9.61%      0.20s  1.54%  github.com/dop251/goja.(*baseJsFuncObject).__call
+         0     0%  9.61%      0.19s  1.46%  github.com/dop251/goja.(*baseJsFuncObject)._call (inline)
+         0     0%  9.61%      0.19s  1.46%  github.com/dop251/goja.(*baseJsFuncObject).call
+         0     0%  9.61%      0.23s  1.77%  github.com/dop251/goja.(*nativeFuncObject).vmCall
+         0     0%  9.61%      0.22s  1.69%  github.com/dop251/goja.(*vm).run
+         0     0%  9.61%      0.22s  1.69%  github.com/dop251/goja.(*vm).runTryInner
+         0     0%  9.61%      0.10s  0.77%  github.com/dop251/goja.(*vm).try
+         0     0%  9.61%      0.09s  0.69%  github.com/dop251/goja.AssertFunction.func1
+         0     0%  9.61%      0.10s  0.77%  github.com/dop251/goja.AssertFunction.func1.1
+         0     0%  9.61%      0.23s  1.77%  github.com/dop251/goja.call.exec
+         0     0%  9.61%      0.23s  1.77%  github.com/dop251/goja/parser.(*_parser).expect
+         0     0%  9.61%      0.02s  0.15%  github.com/dop251/goja/parser.(*_parser).openScope (inline)
+         0     0%  9.61%      0.01s 0.077%  github.com/dop251/goja/parser.(*_parser).optionalSemicolon
+         0     0%  9.61%      0.60s  4.61%  github.com/dop251/goja/parser.(*_parser).parse
+         0     0%  9.61%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseBitwiseAndExpression
+         0     0%  9.61%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseBitwiseExclusiveOrExpression
+         0     0%  9.61%      0.76s  5.84%  github.com/dop251/goja/parser.(*_parser).parseBlockStatement
+         0     0%  9.61%      0.12s  0.92%  github.com/dop251/goja/parser.(*_parser).parseCallExpression
+         0     0%  9.61%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseEqualityExpression
+         0     0%  9.61%      0.76s  5.84%  github.com/dop251/goja/parser.(*_parser).parseFunctionBlock
+         0     0%  9.61%      0.25s  1.92%  github.com/dop251/goja/parser.(*_parser).parseObjectLiteral
+         0     0%  9.61%      0.01s 0.077%  github.com/dop251/goja/parser.(*_parser).parseObjectPropertyKey
+         0     0%  9.61%      0.77s  5.92%  github.com/dop251/goja/parser.(*_parser).parseParenthesisedExpression
+         0     0%  9.61%      0.64s  4.92%  github.com/dop251/goja/parser.(*_parser).parseProgram
+         0     0%  9.61%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseShiftExpression
+         0     0%  9.61%      0.62s  4.77%  github.com/dop251/goja/parser.(*_parser).parseSourceElements (inline)
+         0     0%  9.61%      1.07s  8.22%  github.com/dop251/goja/parser.(*_parser).parseStatement
+         0     0%  9.61%      1.04s  7.99%  github.com/dop251/goja/parser.(*_parser).parseUpdateExpression
+         0     0%  9.61%      0.11s  0.85%  github.com/dop251/goja/parser.(*_parser).parseVarDeclarationList
+         0     0%  9.61%      0.24s  1.84%  github.com/dop251/goja/parser.(*_parser).parseVariableDeclaration
+         0     0%  9.61%      0.11s  0.85%  github.com/dop251/goja/parser.(*_parser).parseVariableDeclarationList
+         0     0%  9.61%      0.72s  5.53%  github.com/dop251/goja/parser.ParseFile
+         0     0%  9.61%      0.02s  0.15%  github.com/dop251/goja/parser.ReadSource
+         0     0%  9.61%      0.05s  0.38%  github.com/dop251/goja/token.IsKeyword (inline)
+         0     0%  9.61%      0.70s  5.38%  github.com/dop251/goja_nodejs/require.(*Registry).getCompiledSource
+         0     0%  9.61%      0.69s  5.30%  github.com/dop251/goja_nodejs/require.(*RequireModule).Require
+         0     0%  9.61%      0.69s  5.30%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadAsFile
+         0     0%  9.61%      0.69s  5.30%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadAsFileOrDirectory
+         0     0%  9.61%      0.69s  5.30%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadModule
+         0     0%  9.61%      0.69s  5.30%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadModuleFile
+         0     0%  9.61%      0.23s  1.77%  github.com/dop251/goja_nodejs/require.(*RequireModule).require
+         0     0%  9.61%      0.69s  5.30%  github.com/dop251/goja_nodejs/require.(*RequireModule).resolve
+         0     0%  9.61%      0.55s  4.23%  github.com/go-go-golems/go-go-goja/perf/goja_test.BenchmarkRequireLoading.func1
+         0     0%  9.61%      0.02s  0.15%  runtime.(*inlineUnwinder).resolveInternal (inline)
+         0     0%  9.61%      0.13s     1%  runtime.(*mcache).nextFree
+         0     0%  9.61%      0.13s     1%  runtime.(*mcache).refill
+         0     0%  9.61%      0.09s  0.69%  runtime.(*mcentral).grow
+         0     0%  9.61%      0.02s  0.15%  runtime.(*mcentral).uncacheSpan
+         0     0%  9.61%      0.03s  0.23%  runtime.(*mheap).alloc
+         0     0%  9.61%      0.03s  0.23%  runtime.(*mheap).alloc.func1
+         0     0%  9.61%      0.03s  0.23%  runtime.(*mheap).allocSpan
+         0     0%  9.61%      0.02s  0.15%  runtime.(*mheap).initSpan
+         0     0%  9.61%      0.06s  0.46%  runtime.(*mspan).initHeapBits
+         0     0%  9.61%      0.01s 0.077%  runtime.(*sweepLocked).sweep
+         0     0%  9.61%      0.02s  0.15%  runtime.callers
+         0     0%  9.61%      0.02s  0.15%  runtime.callers.func1
+         0     0%  9.61%      0.01s 0.077%  runtime.convTstring
+         0     0%  9.61%      0.01s 0.077%  runtime.gcmarknewobject
+         0     0%  9.61%      0.02s  0.15%  runtime.mProf_Malloc
+         0     0%  9.61%      0.02s  0.15%  runtime.makeSpanClass (inline)
+         0     0%  9.61%      0.01s 0.077%  runtime.mallocgcSmallNoscan
+         0     0%  9.61%      0.05s  0.38%  runtime.mapaccess2_faststr
+         0     0%  9.61%      0.02s  0.15%  runtime.newInlineUnwinder
+         0     0%  9.61%      0.01s 0.077%  runtime.newMarkBits
+         0     0%  9.61%      0.02s  0.15%  runtime.pcdatavalue1
+         0     0%  9.61%      0.02s  0.15%  runtime.pcvalue
+         0     0%  9.61%      0.02s  0.15%  runtime.profilealloc
+         0     0%  9.61%      0.02s  0.15%  runtime.rawbyteslice
+         0     0%  9.61%      0.01s 0.077%  runtime.slicebytetostring
+         0     0%  9.61%      0.02s  0.15%  runtime.stringtoslicebyte
+         0     0%  9.61%      0.01s 0.077%  runtime.sysUsed (inline)
+         0     0%  9.61%      0.06s  0.46%  runtime.systemstack
+         0     0%  9.61%      0.02s  0.15%  runtime.tracebackPCs
+         0     0%  9.61%      0.01s 0.077%  runtime.wbBufFlush
+         0     0%  9.61%      0.01s 0.077%  runtime.wbBufFlush.func1
+         0     0%  9.61%      0.54s  4.15%  testing.(*B).launch
+         0     0%  9.61%      0.54s  4.15%  testing.(*B).runN

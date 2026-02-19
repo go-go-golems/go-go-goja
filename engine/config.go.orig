@@ -3,7 +3,13 @@ package engine
 // RuntimeConfig controls optional runtime features.
 type RuntimeConfig struct{}
 
+<<<<<<< HEAD
+// DefaultRuntimeConfig returns the default runtime config.
+||||||| fb80862
+// DefaultRuntimeConfig enables call logging to the default sqlite path.
+=======
 // DefaultRuntimeConfig returns the default runtime configuration.
+>>>>>>> origin/main
 func DefaultRuntimeConfig() RuntimeConfig {
 	return RuntimeConfig{}
 }

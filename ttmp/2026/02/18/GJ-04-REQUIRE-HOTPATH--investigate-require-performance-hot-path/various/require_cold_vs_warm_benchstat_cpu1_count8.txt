@@ -1,0 +1,15 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+                           │ ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_cold_cpu1_count8.norm.txt │ ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_warm_cpu1_count8.norm.txt │
+                           │                                                          sec/op                                                           │                                               sec/op                                                vs base               │
+RequireLoading/RequirePath                                                                                                              69.094µ ± 173%                                                                                         1.051µ ± 11%  -98.48% (p=0.000 n=8)
+
+                           │ ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_cold_cpu1_count8.norm.txt │ ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_warm_cpu1_count8.norm.txt │
+                           │                                                           B/op                                                            │                                                B/op                                                 vs base               │
+RequireLoading/RequirePath                                                                                                                34655.0 ± 0%                                                                                           552.0 ± 0%  -98.41% (p=0.000 n=8)
+
+                           │ ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_cold_cpu1_count8.norm.txt │ ttmp/2026/02/18/GJ-04-REQUIRE-HOTPATH--investigate-require-performance-hot-path/various/require_warm_cpu1_count8.norm.txt │
+                           │                                                         allocs/op                                                         │                                             allocs/op                                               vs base               │
+RequireLoading/RequirePath                                                                                                                 500.00 ± 0%                                                                                           10.00 ± 0%  -98.00% (p=0.000 n=8)

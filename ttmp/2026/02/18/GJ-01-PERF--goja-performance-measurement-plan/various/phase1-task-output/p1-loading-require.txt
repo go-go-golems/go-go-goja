@@ -1,0 +1,39 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkJSLoading/Compile_small-8         	    3664	     73447 ns/op	   33728 B/op	     503 allocs/op
+BenchmarkJSLoading/Compile_small-8         	    4262	     85710 ns/op	   33728 B/op	     503 allocs/op
+BenchmarkJSLoading/Compile_small-8         	    2911	     96352 ns/op	   33730 B/op	     503 allocs/op
+BenchmarkJSLoading/RunString_FreshRuntime_small-8         	    3963	    131171 ns/op	   47753 B/op	     686 allocs/op
+BenchmarkJSLoading/RunString_FreshRuntime_small-8         	    2504	    186725 ns/op	   47765 B/op	     686 allocs/op
+BenchmarkJSLoading/RunString_FreshRuntime_small-8         	    4702	     68789 ns/op	   47753 B/op	     686 allocs/op
+BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8       	   43624	      5156 ns/op	    1681 B/op	      35 allocs/op
+BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8       	   44132	      5276 ns/op	    1681 B/op	      35 allocs/op
+BenchmarkJSLoading/RunProgram_ReusedRuntime_small-8       	   44835	      5863 ns/op	    1681 B/op	      35 allocs/op
+BenchmarkJSLoading/Compile_medium-8                       	     346	   1205766 ns/op	  495048 B/op	    7235 allocs/op
+BenchmarkJSLoading/Compile_medium-8                       	     360	    767240 ns/op	  495048 B/op	    7235 allocs/op
+BenchmarkJSLoading/Compile_medium-8                       	     313	    949217 ns/op	  495048 B/op	    7235 allocs/op
+BenchmarkJSLoading/RunString_FreshRuntime_medium-8        	     285	    899100 ns/op	  535827 B/op	    8364 allocs/op
+BenchmarkJSLoading/RunString_FreshRuntime_medium-8        	     303	   1141721 ns/op	  535831 B/op	    8364 allocs/op
+BenchmarkJSLoading/RunString_FreshRuntime_medium-8        	     319	    784043 ns/op	  535823 B/op	    8364 allocs/op
+BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8      	    2295	     96045 ns/op	   28669 B/op	     984 allocs/op
+BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8      	    2228	    104712 ns/op	   28675 B/op	     984 allocs/op
+BenchmarkJSLoading/RunProgram_ReusedRuntime_medium-8      	    2589	    124853 ns/op	   28644 B/op	     983 allocs/op
+BenchmarkJSLoading/Compile_large-8                        	      51	   6733552 ns/op	 4443584 B/op	   57429 allocs/op
+BenchmarkJSLoading/Compile_large-8                        	      48	   6000479 ns/op	 4443586 B/op	   57429 allocs/op
+BenchmarkJSLoading/Compile_large-8                        	      43	   6124447 ns/op	 4443584 B/op	   57429 allocs/op
+BenchmarkJSLoading/RunString_FreshRuntime_large-8         	      43	   7265317 ns/op	 4685068 B/op	   65726 allocs/op
+BenchmarkJSLoading/RunString_FreshRuntime_large-8         	      34	   7140155 ns/op	 4685085 B/op	   65726 allocs/op
+BenchmarkJSLoading/RunString_FreshRuntime_large-8         	      36	   8180818 ns/op	 4685072 B/op	   65726 allocs/op
+BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8       	     308	    782695 ns/op	  243619 B/op	    8335 allocs/op
+BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8       	     277	    747515 ns/op	  245239 B/op	    8356 allocs/op
+BenchmarkJSLoading/RunProgram_ReusedRuntime_large-8       	     274	   1298566 ns/op	  245414 B/op	    8359 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime-8          	    4978	     53011 ns/op	   34645 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime-8          	    4227	     52725 ns/op	   34644 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime-8          	    2274	     90522 ns/op	   34648 B/op	     500 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8       	  118154	      1976 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8       	  175758	      1646 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime-8       	  192226	      1780 ns/op	     552 B/op	      10 allocs/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	16.973s

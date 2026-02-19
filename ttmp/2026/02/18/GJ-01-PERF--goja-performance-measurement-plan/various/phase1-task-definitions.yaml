@@ -1,0 +1,98 @@
+phase: phase-1
+generated_at: "2026-02-18T14:28:22Z"
+tasks:
+    - id: p1-runtime-lifecycle
+      title: Runtime Lifecycle
+      description: Measure VM spawn and spawn+execute/reuse behavior.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^(BenchmarkRuntimeSpawn|BenchmarkRuntimeSpawnAndExecute|BenchmarkRuntimeReuse)$
+        - -count
+        - "3"
+        - -benchtime
+        - 200ms
+        - -benchmem
+        - -timeout
+        - 15m
+      flags:
+        bench: ^(BenchmarkRuntimeSpawn|BenchmarkRuntimeSpawnAndExecute|BenchmarkRuntimeReuse)$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 200ms
+        count: "3"
+        run: ^$
+        timeout: 15m
+      benchmarks:
+        - name: BenchmarkRuntimeSpawn
+          description: Compare runtime creation costs, including calllog-enabled and calllog-disabled modes.
+        - name: BenchmarkRuntimeSpawnAndExecute
+          description: Measure cost of creating a runtime and immediately executing one script/program.
+        - name: BenchmarkRuntimeReuse
+          description: Measure repeated execution on a reused runtime for RunString vs precompiled RunProgram.
+    - id: p1-loading-require
+      title: Loading and Require
+      description: Measure JS compile/load cost and require cold/warm behavior.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^(BenchmarkJSLoading|BenchmarkRequireLoading)$
+        - -count
+        - "3"
+        - -benchtime
+        - 200ms
+        - -benchmem
+        - -timeout
+        - 15m
+      flags:
+        bench: ^(BenchmarkJSLoading|BenchmarkRequireLoading)$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 200ms
+        count: "3"
+        run: ^$
+        timeout: 15m
+      benchmarks:
+        - name: BenchmarkJSLoading
+          description: Measure compile/run costs across small, medium, and large scripts.
+        - name: BenchmarkRequireLoading
+          description: Measure module loading overhead in cold runtime and warm cached runtime paths.
+    - id: p1-boundary-calls
+      title: Go/JS Boundary Calls
+      description: Measure JS->Go and Go->JS call overhead and logging mode deltas.
+      command: go
+      args:
+        - test
+        - ./perf/goja
+        - -run
+        - ^$
+        - -bench
+        - ^(BenchmarkJSCallingGo|BenchmarkGoCallingJS)$
+        - -count
+        - "3"
+        - -benchtime
+        - 200ms
+        - -benchmem
+        - -timeout
+        - 15m
+      flags:
+        bench: ^(BenchmarkJSCallingGo|BenchmarkGoCallingJS)$
+        bench-package: ./perf/goja
+        benchmem: "true"
+        benchtime: 200ms
+        count: "3"
+        run: ^$
+        timeout: 15m
+      benchmarks:
+        - name: BenchmarkJSCallingGo
+          description: Compare direct Go baseline against calls crossing JS->Go boundary.
+        - name: BenchmarkGoCallingJS
+          description: Compare direct Go baseline against Go->JS calls with/without calllog wrappers.

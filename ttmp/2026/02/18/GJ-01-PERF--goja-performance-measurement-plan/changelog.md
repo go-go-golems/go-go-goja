@@ -1,0 +1,130 @@
+# Changelog
+
+## 2026-02-18
+
+- Created ticket workspace and reference docs for `GJ-01-PERF`.
+- Added a dedicated benchmark section at `perf/goja/`.
+- Implemented benchmark suites for VM spawn/execute, JS load cost, JS<->Go call overhead, Go->JS call overhead, and require cold/warm loading.
+- Ran functional benchmark smoke validation with `go test ./perf/goja -run '^$' -bench . -benchtime=1x -count=1`.
+- Authored implementation plan documenting benchmark matrix, execution protocol, and phased follow-up plan.
+
+## 2026-02-18
+
+Implemented perf/goja benchmark harness and documented phased performance measurement plan with diary notes.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/perf/goja/README.md — Benchmark runbook
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/perf/goja/bench_test.go — Initial benchmark suites
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/01-goja-performance-benchmark-plan.md — Implementation plan
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/02-diary.md — Investigation diary
+
+
+## 2026-02-18
+
+Uploaded bundled benchmark plan/diary package to reMarkable at /ai/2026/02/18/GJ-01-PERF.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/01-goja-performance-benchmark-plan.md — Bundled in uploaded PDF
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/02-diary.md — Bundled in uploaded PDF
+
+
+## 2026-02-18
+
+- Commit `039a49f959ebbec004cb4da6f90da760a1388fb8`: baseline performance ticket and benchmark harness landed; call logging default switched to disabled with guard test.
+- Commit `deb40211326e13fc503c3ef6311353a78828a530`: added Glazed phase-1 runner commands and produced YAML task definitions + YAML run report + per-task raw outputs.
+- Completed Phase-1 execution tasks P1-T1 through P1-T5 in `tasks.md`.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/main.go — CLI root for phase-1 runner commands
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase1_tasks_command.go — YAML task definition command
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase1_run_command.go — YAML execution/report command
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-task-definitions.yaml — Phase-1 command/flag definitions
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-run-results.yaml — Phase-1 structured run results
+
+## 2026-02-18
+
+Added Glazed phase-1 commands, generated YAML task/result artifacts, and recorded detailed incremental diary with commit hashes 039a49f and deb4021.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase1_run_command.go — Phase-1 execution command
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase1_tasks_command.go — Phase-1 task definitions command
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/02-diary.md — Detailed implementation diary updates
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-run-results.yaml — Structured run output
+
+
+## 2026-02-18
+
+- Commit `549f6ddef623642388bc8354f909536577eb0c04`: added phase-2 benchmark suites and `goja-perf` phase2 task/run commands.
+- Added and completed Phase-2 execution tasks P2-T1 through P2-T6.
+- Generated phase-2 task definition/report YAML and per-task raw benchmark outputs.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/perf/goja/phase2_bench_test.go — Phase-2 benchmark suites
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase2_tasks_command.go — Phase-2 task definition command
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase2_run_command.go — Phase-2 run/report command
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-task-definitions.yaml — Phase-2 command/flag definitions
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-run-results.yaml — Phase-2 structured run results
+
+## 2026-02-18
+
+Implemented phase-2 benchmark suites and executed phase-2 task runner with YAML outputs (commit 549f6dd).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase2_run_command.go — Phase-2 execution command
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/perf/goja/phase2_bench_test.go — Phase-2 benchmark implementation
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-run-results.yaml — Phase-2 structured results
+
+
+## 2026-02-18
+
+- Commit `6e0d57021a837da98d3330893ce53ccea7994ba9`: added `goja-perf serve` browser dashboard to run phase commands and view report summaries.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_command.go — Local HTTP UI and phase run/report handlers
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/main.go — Registered serve subcommand
+
+## 2026-02-18
+
+Added browser dashboard command (goja-perf serve) for running phase tests and viewing report summaries.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_command.go — Serve command and handlers
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/02-diary.md — Detailed app implementation diary step
+
+
+## 2026-02-18
+
+- Commit `08153e1f1f149eedac570855a6e2207dc3ef873e`: enriched structured benchmark reporting with task/benchmark descriptions and rendered structured table output in the web dashboard.
+- Regenerated phase-1 and phase-2 task/run YAML artifacts with updated benchmark explanation fields and summary metrics.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase1_types.go — Added benchmark definition metadata to task/result schemas
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase1_run_command.go — Structured benchmark sample parsing and summary stats
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/phase2_types.go — Added phase-2 benchmark definitions
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/cmd/goja-perf/serve_command.go — Dashboard tables for “what this task measures” and structured metric summaries
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase1-run-results.yaml — Structured phase-1 results with benchmark descriptions and summaries
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/various/phase2-run-results.yaml — Structured phase-2 results with benchmark descriptions and summaries
+
+
+## 2026-02-18
+
+- Uploaded refreshed ticket bundle to reMarkable:
+  - `GJ-01-PERF Goja Performance Plan (structured tables update).pdf`
+  - destination: `/ai/2026/02/18/GJ-01-PERF`
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/index.md — Included in reMarkable bundle
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/tasks.md — Included in reMarkable bundle
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/changelog.md — Included in reMarkable bundle
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/01-goja-performance-benchmark-plan.md — Included in reMarkable bundle
+- /home/manuel/workspaces/2026-02-18/goja-performance/go-go-goja/ttmp/2026/02/18/GJ-01-PERF--goja-performance-measurement-plan/reference/02-diary.md — Included in reMarkable bundle

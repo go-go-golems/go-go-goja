@@ -1,0 +1,80 @@
+generated_at: "2026-02-18T15:12:00-05:00"
+artifacts:
+  - id: engine_new_cpu_svg
+    title: "EngineNew CPU Flamegraph"
+    description: "CPU callgraph SVG for EngineNew_NoCallLog path (5s sample)"
+    phase: "phase1"
+    task_id: "p1-runtime-lifecycle"
+    benchmark: "BenchmarkRuntimeSpawn/EngineNew_NoCallLog"
+    kind: "flamegraph_svg"
+    rel_path: "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_new_cpu_5s.svg"
+    mime: "image/svg+xml"
+    bytes: 170032
+    generated_at: "2026-02-18T15:08:10-05:00"
+    tags: ["cpu", "baseline"]
+
+  - id: engine_factory_cpu_svg
+    title: "EngineFactory CPU Flamegraph"
+    description: "CPU callgraph SVG for EngineFactory_NoCallLog path (5s sample)"
+    phase: "phase1"
+    task_id: "p1-runtime-lifecycle"
+    benchmark: "BenchmarkRuntimeSpawn/EngineFactory_NoCallLog"
+    kind: "flamegraph_svg"
+    rel_path: "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_cpu_5s.svg"
+    mime: "image/svg+xml"
+    bytes: 177351
+    generated_at: "2026-02-18T15:08:10-05:00"
+    tags: ["cpu", "candidate"]
+
+  - id: cpu_diff_svg
+    title: "CPU Diff Flamegraph"
+    description: "Differential CPU callgraph SVG (EngineFactory minus EngineNew, 5s sample)"
+    phase: "phase1"
+    task_id: "p1-runtime-lifecycle"
+    benchmark: "BenchmarkRuntimeSpawn"
+    kind: "flamegraph_svg"
+    rel_path: "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/cpu_diff_5s.svg"
+    mime: "image/svg+xml"
+    bytes: 179047
+    generated_at: "2026-02-18T15:08:10-05:00"
+    tags: ["cpu", "diff"]
+
+  - id: engine_new_cpu_top
+    title: "EngineNew CPU Top Report"
+    description: "Top CPU consumers for EngineNew path"
+    phase: "phase1"
+    task_id: "p1-runtime-lifecycle"
+    benchmark: "BenchmarkRuntimeSpawn/EngineNew_NoCallLog"
+    kind: "top_report"
+    rel_path: "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_new_cpu_top_5s.txt"
+    mime: "text/plain; charset=utf-8"
+    tags: ["cpu", "baseline", "top"]
+
+  - id: engine_factory_cpu_top
+    title: "EngineFactory CPU Top Report"
+    description: "Top CPU consumers for EngineFactory path"
+    phase: "phase1"
+    task_id: "p1-runtime-lifecycle"
+    benchmark: "BenchmarkRuntimeSpawn/EngineFactory_NoCallLog"
+    kind: "top_report"
+    rel_path: "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/engine_factory_cpu_top_5s.txt"
+    mime: "text/plain; charset=utf-8"
+    tags: ["cpu", "candidate", "top"]
+
+  - id: cpu_diff_top
+    title: "CPU Diff Top Report"
+    description: "Differential top CPU consumers"
+    phase: "phase1"
+    task_id: "p1-runtime-lifecycle"
+    benchmark: "BenchmarkRuntimeSpawn"
+    kind: "top_report"
+    rel_path: "ttmp/2026/02/18/GC-04-ENGINE-FACTORY--implement-enginefactory-for-reusable-runtime-setup/various/profiles/cpu_diff_top_5s.txt"
+    mime: "text/plain; charset=utf-8"
+    tags: ["cpu", "diff", "top"]
+
+comparisons:
+  - id: engine_factory_vs_new_cpu
+    title: "EngineFactory vs EngineNew (CPU)"
+    baseline_artifact_id: engine_new_cpu_svg
+    candidate_artifact_id: engine_factory_cpu_svg
+    diff_artifact_id: cpu_diff_svg

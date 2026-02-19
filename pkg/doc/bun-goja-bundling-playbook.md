@@ -81,6 +81,23 @@ if !ok {
 }
 ```
 
+For repeated runtime creation (worker pools, high-throughput request handlers),
+use a reusable factory to reduce setup overhead:
+
+```go
+factory := engine.NewFactory(
+    engine.WithRequireOptions(require.WithLoader(embeddedSourceLoader)),
+)
+
+vm, req := factory.NewRuntime()
+mod, err := req.Require("./assets/bundle.cjs")
+if err != nil {
+    log.Fatalf("require bundle: %v", err)
+}
+_ = vm
+_ = mod
+```
+
 ## Demo layout
 A self-contained demo keeps the JS workspace, bundle, and Go entrypoint in one directory so it is easy to copy or vendor. This is the layout used by `cmd/bun-demo`:
 
@@ -307,6 +324,7 @@ This section summarizes the integration points between Goja and the bundled outp
 
 **Goja loader**
 - `engine.NewWithOptions(require.WithLoader(loader))` configures Goja to load embedded sources.
+- `engine.NewFactory(engine.WithRequireOptions(require.WithLoader(loader)))` prebuilds runtime bootstrap state for repeated runtime creation.
 - `require.ModuleFileDoesNotExistError` signals to Goja that the module path is missing.
 
 **Makefile targets**

@@ -91,7 +91,7 @@ func New(config Config) (*Evaluator, error) {
 		runtime = config.Runtime
 	} else if config.EnableModules {
 		// Create runtime with module support using go-go-goja engine
-		runtime, _ = ggjengine.NewWithConfig(ggjengine.DefaultRuntimeConfig())
+		runtime, _ = ggjengine.New()
 	} else {
 		// Create basic runtime without modules
 		runtime = goja.New()

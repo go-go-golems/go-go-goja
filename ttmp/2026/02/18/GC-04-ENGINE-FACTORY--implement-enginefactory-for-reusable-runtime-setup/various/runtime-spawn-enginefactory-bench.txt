@@ -1,0 +1,24 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkRuntimeSpawn/GojaNew-8     	  276330	       909.2 ns/op
+BenchmarkRuntimeSpawn/GojaNew-8     	  300090	       846.9 ns/op
+BenchmarkRuntimeSpawn/GojaNew-8     	  250794	       995.4 ns/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   18013	     15080 ns/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   19125	     11244 ns/op
+BenchmarkRuntimeSpawn/EngineNew_NoCallLog-8         	   19106	     13101 ns/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	   10000	     21536 ns/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	   22424	     20247 ns/op
+BenchmarkRuntimeSpawn/EngineFactory_NoCallLog-8     	   12943	     16786 ns/op
+BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	     813	    324014 ns/op
+BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	     777	    273957 ns/op
+BenchmarkRuntimeSpawn/EngineNew_WithCallLog-8       	     602	    339127 ns/op
+BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	    9147	     26339 ns/op
+BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	    9672	     26385 ns/op
+BenchmarkRuntimeSpawnAndExecute/RunString_FreshRuntime-8         	    8738	     23555 ns/op
+BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	    8145	     27634 ns/op
+BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	   12069	     23184 ns/op
+BenchmarkRuntimeSpawnAndExecute/RunProgram_FreshRuntime-8        	   11228	     28226 ns/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	41.517s
