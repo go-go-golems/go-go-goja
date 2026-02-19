@@ -1,0 +1,80 @@
+File: goja.test
+Build ID: d78a0faa7df9923b954d3f38003009d269644754
+Type: alloc_objects
+Time: 2026-02-18 17:02:58 EST
+Active filters:
+   focus=goja/parser|goja\.Parse
+Showing nodes accounting for 12018781, 21.01% of 57210381 total
+Dropped 7 nodes (cum <= 286051)
+      flat  flat%   sum%        cum   cum%
+   2342965  4.10%  4.10%    4038746  7.06%  github.com/dop251/goja/parser.(*_parser).parseVariableDeclaration
+   1310748  2.29%  6.39%    1310748  2.29%  github.com/dop251/goja/parser.(*_parser).parseBindingTarget
+   1223374  2.14%  8.52%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parsePrimaryExpression
+    793043  1.39%  9.91%     793043  1.39%  github.com/dop251/goja/parser.(*_parser).openScope (inline)
+    491556  0.86% 10.77%    9763544 17.07%  github.com/dop251/goja/parser.(*_parser).parseFunction
+    491541  0.86% 11.63%    6707821 11.72%  github.com/dop251/goja/parser.(*_parser).parseBlockStatement
+    458758   0.8% 12.43%    6456589 11.29%  github.com/dop251/goja/parser.(*_parser).parseStatementList (inline)
+    450586  0.79% 13.22%    3787534  6.62%  github.com/dop251/goja/parser.(*_parser).parseFunctionParameterList
+    327694  0.57% 13.79%     327694  0.57%  github.com/dop251/goja/parser.(*_parser).parseDotMember
+    327684  0.57% 14.36%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseParenthesisedExpression
+    294916  0.52% 14.88%   10517217 18.38%  github.com/dop251/goja/parser.(*_parser).parseSourceElements (inline)
+    294915  0.52% 15.40%   10222301 17.87%  github.com/dop251/goja/parser.(*_parser).parseStatement
+    278533  0.49% 15.88%     770073  1.35%  github.com/dop251/goja/parser.(*_parser).parseArgumentList
+    239874  0.42% 16.30%   11920476 20.84%  github.com/dop251/goja/parser.ParseFile
+    234879  0.41% 16.71%     415118  0.73%  github.com/dop251/goja/parser._newParser
+    232136  0.41% 17.12%     232136  0.41%  github.com/dop251/goja/parser.ReadSource
+    229386   0.4% 17.52%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseAssignmentExpression
+    221197  0.39% 17.91%   10738414 18.77%  github.com/dop251/goja/parser.(*_parser).parseProgram
+    218459  0.38% 18.29%    2704533  4.73%  github.com/dop251/goja/parser.(*_parser).parseObjectLiteral
+    196612  0.34% 18.63%    1512839  2.64%  github.com/dop251/goja/parser.(*_parser).parseReturnStatement
+    196609  0.34% 18.97%     196609  0.34%  github.com/dop251/goja/parser.(*_scope).declare (inline)
+    180239  0.32% 19.29%     180239  0.32%  github.com/dop251/goja/file.NewFile (inline)
+    155657  0.27% 19.56%     925730  1.62%  github.com/dop251/goja/parser.(*_parser).parseCallExpression
+    155657  0.27% 19.83%    2486074  4.35%  github.com/dop251/goja/parser.(*_parser).parseObjectProperty
+    147460  0.26% 20.09%    1111405  1.94%  github.com/dop251/goja/parser.(*_parser).parseVariableStatement
+    142001  0.25% 20.34%     142001  0.25%  github.com/dop251/goja/parser.(*_parser).parseObjectPropertyKey
+    131073  0.23% 20.57%   12051549 21.07%  github.com/dop251/goja.Parse
+    120154  0.21% 20.78%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseAdditiveExpression
+     65538  0.11% 20.89%     963945  1.68%  github.com/dop251/goja/parser.(*_parser).parseVarDeclarationList
+     65537  0.11% 21.01%      65537  0.11%  github.com/dop251/goja/parser.(*_parser).parseIdentifier
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja.(*Runtime).runWrapped
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja.(*baseJsFuncObject).Call
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja.(*baseJsFuncObject).__call
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja.(*baseJsFuncObject)._call (inline)
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja.(*baseJsFuncObject).call
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja.(*nativeFuncObject).vmCall
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja.(*vm).run
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja.(*vm).runTryInner
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja.(*vm).try
+         0     0% 21.01%    5816825 10.17%  github.com/dop251/goja.AssertFunction.func1
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja.AssertFunction.func1.1
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja.call.exec
+         0     0% 21.01%   11033348 19.29%  github.com/dop251/goja/parser.(*_parser).parse
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseBitwiseAndExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseBitwiseExclusiveOrExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseBitwiseOrExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseConditionalExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseEqualityExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseExponentiationExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseExpression
+         0     0% 21.01%    6996200 12.23%  github.com/dop251/goja/parser.(*_parser).parseFunctionBlock
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseLeftHandSideExpressionAllowCall
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseLogicalAndExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseLogicalOrExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseMultiplicativeExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseRelationalExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseShiftExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseUnaryExpression
+         0     0% 21.01%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseUpdateExpression
+         0     0% 21.01%     701798  1.23%  github.com/dop251/goja/parser.(*_parser).parseVariableDeclarationList
+         0     0% 21.01%   12051549 21.07%  github.com/dop251/goja_nodejs/require.(*Registry).getCompiledSource
+         0     0% 21.01%   12051549 21.07%  github.com/dop251/goja_nodejs/require.(*RequireModule).Require
+         0     0% 21.01%   12051549 21.07%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadAsFile
+         0     0% 21.01%   12051549 21.07%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadAsFileOrDirectory
+         0     0% 21.01%   12051549 21.07%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadModule
+         0     0% 21.01%   12051549 21.07%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadModuleFile
+         0     0% 21.01%    6144512 10.74%  github.com/dop251/goja_nodejs/require.(*RequireModule).require
+         0     0% 21.01%   12051549 21.07%  github.com/dop251/goja_nodejs/require.(*RequireModule).resolve
+         0     0% 21.01%   11603708 20.28%  github.com/go-go-golems/go-go-goja/perf/goja_test.BenchmarkRequireLoading.func1
+         0     0% 21.01%   11603708 20.28%  testing.(*B).launch
+         0     0% 21.01%   11603708 20.28%  testing.(*B).runN

@@ -1,0 +1,191 @@
+File: goja.test
+Build ID: d78a0faa7df9923b954d3f38003009d269644754
+Type: alloc_objects
+Time: 2026-02-18 17:02:58 EST
+Active filters:
+   focus=goja_nodejs/require|goja_nodejs/console
+Showing nodes accounting for 51065055, 89.26% of 57210381 total
+Dropped 33 nodes (cum <= 286051)
+      flat  flat%   sum%        cum   cum%
+   4141936  7.24%  7.24%    4141936  7.24%  github.com/dop251/goja.(*baseObject)._put
+   3058510  5.35% 12.59%    3058510  5.35%  github.com/dop251/goja.(*binding).getAccessPointsForScope (inline)
+   2577857  4.51% 17.09%    2577857  4.51%  github.com/dop251/goja.(*baseObject).init (inline)
+   2342965  4.10% 21.19%    4038746  7.06%  github.com/dop251/goja/parser.(*_parser).parseVariableDeclaration
+   2030044  3.55% 24.74%    2030044  3.55%  github.com/dop251/goja.(*baseObject).setOwnStr
+   2026273  3.54% 28.28%    2353967  4.11%  github.com/dop251/goja.(*scope).bindNameShadow
+   1511836  2.64% 30.92%    6756888 11.81%  github.com/dop251/goja.(*Runtime).newNativeFunc
+   1397250  2.44% 33.36%   15878066 27.75%  github.com/dop251/goja.(*compiledFunctionLiteral).compile
+   1376274  2.41% 35.77%    1376274  2.41%  github.com/dop251/goja.stringValueFromRaw (inline)
+   1362653  2.38% 38.15%    1362653  2.38%  github.com/dop251/goja.(*scope).addBinding
+   1310748  2.29% 40.44%    1310748  2.29%  github.com/dop251/goja/parser.(*_parser).parseBindingTarget
+   1223391  2.14% 42.58%    1223391  2.14%  github.com/dop251/goja.valueProp (inline)
+   1223374  2.14% 44.72%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parsePrimaryExpression
+   1076773  1.88% 46.60%    2234624  3.91%  github.com/dop251/goja.newBaseObjectObj (inline)
+   1019958  1.78% 48.38%    1019958  1.78%  github.com/dop251/goja.(*Program).addSrcMap (inline)
+    983076  1.72% 50.10%   16558022 28.94%  github.com/dop251/goja.(*compiledFunctionLiteral).emitGetter
+    928467  1.62% 51.72%    3163091  5.53%  github.com/dop251/goja.(*Runtime).newBaseObject (inline)
+    824364  1.44% 53.16%   30836288 53.90%  github.com/dop251/goja_nodejs/require.(*Registry).getCompiledSource
+    793043  1.39% 54.55%     793043  1.39%  github.com/dop251/goja/parser.(*_parser).openScope (inline)
+    770070  1.35% 55.90%     770070  1.35%  github.com/dop251/goja.(*compiler).compileIdentifierExpression
+    669472  1.17% 57.07%     669472  1.17%  github.com/dop251/goja.(*compiler).newScope (inline)
+    562529  0.98% 58.05%    9940727 17.38%  github.com/dop251/goja_nodejs/console.Require.requireWithPrinter.func1 (inline)
+    524299  0.92% 58.97%     524299  0.92%  github.com/dop251/goja_nodejs/console.(*Console).log (inline)
+    524294  0.92% 59.88%    1844214  3.22%  github.com/dop251/goja_nodejs/util.Require
+    524294  0.92% 60.80%     524294  0.92%  path.(*lazybuf).append (inline)
+    511049  0.89% 61.69%     511049  0.89%  github.com/dop251/goja.(*compiler).emit (inline)
+    491579  0.86% 62.55%     491579  0.86%  github.com/dop251/goja.(*compiler).compileFunctionLiteral
+    491556  0.86% 63.41%    9763544 17.07%  github.com/dop251/goja/parser.(*_parser).parseFunction
+    491541  0.86% 64.27%    6707821 11.72%  github.com/dop251/goja/parser.(*_parser).parseBlockStatement
+    465514  0.81% 65.08%     465514  0.81%  github.com/dop251/goja.(*compiler).trimCode (inline)
+    458758   0.8% 65.89%     458758   0.8%  github.com/dop251/goja.(*scope).finaliseVarAlloc
+    458758   0.8% 66.69%    6456589 11.29%  github.com/dop251/goja/parser.(*_parser).parseStatementList (inline)
+    450586  0.79% 67.48%    3787534  6.62%  github.com/dop251/goja/parser.(*_parser).parseFunctionParameterList
+    450574  0.79% 68.26%    1368104  2.39%  github.com/dop251/goja.(*compiler).compileCallExpression
+    440426  0.77% 69.03%     440426  0.77%  github.com/dop251/goja.(*compiler).newCode (inline)
+    436925  0.76% 69.80%     436925  0.76%  github.com/dop251/goja.(*Runtime).initBaseJsFunction
+    436925  0.76% 70.56%     436925  0.76%  github.com/dop251/goja.(*scope).ensureBoundNamesCreated (inline)
+    436915  0.76% 71.32%     699063  1.22%  github.com/dop251/goja.AssertFunction
+    425989  0.74% 72.07%   11894864 20.79%  github.com/dop251/goja_nodejs/require.Require
+    420971  0.74% 72.80%   11184881 19.55%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadNative
+    415135  0.73% 73.53%    3486431  6.09%  github.com/dop251/goja.(*Runtime).newFunc
+    412910  0.72% 74.25%     412910  0.72%  github.com/dop251/goja.newCompiler (inline)
+    404150  0.71% 74.96%    1996539  3.49%  github.com/dop251/goja_nodejs/require.(*Registry).Enable
+    400533   0.7% 75.66%     400533   0.7%  github.com/dop251/goja.(*compiler).emitLiteralString
+    397943   0.7% 76.35%     397943   0.7%  github.com/dop251/goja.(*vm).pushTryFrame (inline)
+    393221  0.69% 77.04%     819210  1.43%  path.Join
+    360453  0.63% 77.67%     760986  1.33%  github.com/dop251/goja.(*compiler).emitLiteralValue
+    358869  0.63% 78.30%     358869  0.63%  github.com/dop251/goja.(*valueStack).expand (inline)
+    327694  0.57% 78.87%     327694  0.57%  github.com/dop251/goja/parser.(*_parser).parseDotMember
+    327685  0.57% 79.44%    7084573 12.38%  github.com/dop251/goja.(*Runtime).toValue
+    327684  0.57% 80.02%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseParenthesisedExpression
+    294921  0.52% 80.53%     294921  0.52%  github.com/dop251/goja.(*compiler).compileNumberLiteral
+    294916  0.52% 81.05%   10517217 18.38%  github.com/dop251/goja/parser.(*_parser).parseSourceElements (inline)
+    294915  0.52% 81.56%   10222301 17.87%  github.com/dop251/goja/parser.(*_parser).parseStatement
+    285145   0.5% 82.06%     285145   0.5%  github.com/dop251/goja.(*vm).pushCtx
+    278536  0.49% 82.55%     507915  0.89%  github.com/dop251/goja.(*compiler).compileStringLiteral
+    278533  0.49% 83.04%     770073  1.35%  github.com/dop251/goja/parser.(*_parser).parseArgumentList
+    262148  0.46% 83.49%    8809757 15.40%  github.com/dop251/goja.(*compiledDotExpr).emitSetter
+    251232  0.44% 83.93%   37888972 66.23%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadModuleFile
+    239874  0.42% 84.35%   11920476 20.84%  github.com/dop251/goja/parser.ParseFile
+    234879  0.41% 84.76%     415118  0.73%  github.com/dop251/goja/parser._newParser
+    229386   0.4% 85.16%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseAssignmentExpression
+    221197  0.39% 85.55%     862932  1.51%  github.com/dop251/goja.(*compiler).compileAssignExpression
+    221197  0.39% 85.94%   10738414 18.77%  github.com/dop251/goja/parser.(*_parser).parseProgram
+    218459  0.38% 86.32%    2704533  4.73%  github.com/dop251/goja/parser.(*_parser).parseObjectLiteral
+    207539  0.36% 86.68%     551613  0.96%  github.com/dop251/goja.(*compiler).compileDotExpression
+    196612  0.34% 87.03%    1512839  2.64%  github.com/dop251/goja/parser.(*_parser).parseReturnStatement
+    155657  0.27% 87.30%     925730  1.62%  github.com/dop251/goja/parser.(*_parser).parseCallExpression
+    155657  0.27% 87.57%    2486074  4.35%  github.com/dop251/goja/parser.(*_parser).parseObjectProperty
+    147460  0.26% 87.83%    1111405  1.94%  github.com/dop251/goja/parser.(*_parser).parseVariableStatement
+    131073  0.23% 88.06%   12051549 21.07%  github.com/dop251/goja.Parse
+    120154  0.21% 88.27%     338625  0.59%  github.com/dop251/goja.(*Runtime).getFunctionPrototype
+    120154  0.21% 88.48%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseAdditiveExpression
+    111419  0.19% 88.67%    2209520  3.86%  github.com/dop251/goja.(*Runtime).RunProgram
+    106502  0.19% 88.86%     417807  0.73%  github.com/dop251/goja.(*compiler).compileBinaryExpression
+     98323  0.17% 89.03%    1570207  2.74%  github.com/dop251/goja.(*scope).bindNameLexical
+     65538  0.11% 89.14%     963945  1.68%  github.com/dop251/goja/parser.(*_parser).parseVarDeclarationList
+     32768 0.057% 89.20%    4006113  7.00%  github.com/dop251/goja.(*compiledObjectLiteral).emitGetter
+     32768 0.057% 89.26%     933925  1.63%  github.com/dop251/goja.(*compiler).emitCallee
+         0     0% 89.26%    7704723 13.47%  github.com/dop251/goja.(*Object).Set (inline)
+         0     0% 89.26%    3163091  5.53%  github.com/dop251/goja.(*Runtime).NewObject (inline)
+         0     0% 89.26%    1592389  2.78%  github.com/dop251/goja.(*Runtime).Set
+         0     0% 89.26%    1412154  2.47%  github.com/dop251/goja.(*Runtime).Set.func1
+         0     0% 89.26%    7084573 12.38%  github.com/dop251/goja.(*Runtime).ToValue (partial-inline)
+         0     0% 89.26%   31834204 55.64%  github.com/dop251/goja.(*Runtime).runWrapped
+         0     0% 89.26%    9297112 16.25%  github.com/dop251/goja.(*Runtime).try (inline)
+         0     0% 89.26%    1019958  1.78%  github.com/dop251/goja.(*baseCompiledExpr).addSrcMap (inline)
+         0     0% 89.26%    7540798 13.18%  github.com/dop251/goja.(*baseFuncObject).init
+         0     0% 89.26%   20518250 35.86%  github.com/dop251/goja.(*baseJsFuncObject).Call
+         0     0% 89.26%   20518250 35.86%  github.com/dop251/goja.(*baseJsFuncObject).__call
+         0     0% 89.26%   20518250 35.86%  github.com/dop251/goja.(*baseJsFuncObject)._call (inline)
+         0     0% 89.26%   20518250 35.86%  github.com/dop251/goja.(*baseJsFuncObject).call
+         0     0% 89.26%    2761733  4.83%  github.com/dop251/goja.(*baseObject)._putProp
+         0     0% 89.26%    2443160  4.27%  github.com/dop251/goja.(*binding).emitGet
+         0     0% 89.26%     615350  1.08%  github.com/dop251/goja.(*binding).emitInitP
+         0     0% 89.26%    3058510  5.35%  github.com/dop251/goja.(*binding).markAccessPoint (inline)
+         0     0% 89.26%    8809757 15.40%  github.com/dop251/goja.(*compiledAssignExpr).emitGetter
+         0     0% 89.26%    1145121  2.00%  github.com/dop251/goja.(*compiledBinaryExpr).emitGetter
+         0     0% 89.26%    1891530  3.31%  github.com/dop251/goja.(*compiledCallExpr).emitGetter
+         0     0% 89.26%    3498181  6.11%  github.com/dop251/goja.(*compiledFunctionLiteral).emitNamed
+         0     0% 89.26%    2518257  4.40%  github.com/dop251/goja.(*compiledIdentifierExpr).emitGetter
+         0     0% 89.26%     617162  1.08%  github.com/dop251/goja.(*compiledIdentifierExpr).emitGetterAndCallee
+         0     0% 89.26%     760986  1.33%  github.com/dop251/goja.(*compiledLiteral).emitGetter
+         0     0% 89.26%   17296534 30.23%  github.com/dop251/goja.(*compiler).compile
+         0     0% 89.26%     327690  0.57%  github.com/dop251/goja.(*compiler).compileCallee
+         0     0% 89.26%     281273  0.49%  github.com/dop251/goja.(*compiler).compileDeclList (inline)
+         0     0% 89.26%    3246909  5.68%  github.com/dop251/goja.(*compiler).compileExpression
+         0     0% 89.26%   17057771 29.82%  github.com/dop251/goja.(*compiler).compileExpressionStatement
+         0     0% 89.26%    2353967  4.11%  github.com/dop251/goja.(*compiler).compileParameterBindingIdentifier
+         0     0% 89.26%    3116721  5.45%  github.com/dop251/goja.(*compiler).compileReturnStatement
+         0     0% 89.26%   17057771 29.82%  github.com/dop251/goja.(*compiler).compileStatement
+         0     0% 89.26%   17057771 29.82%  github.com/dop251/goja.(*compiler).compileStatements
+         0     0% 89.26%   17057771 29.82%  github.com/dop251/goja.(*compiler).compileStatementsNeedResult
+         0     0% 89.26%    2015336  3.52%  github.com/dop251/goja.(*compiler).compileVarBinding
+         0     0% 89.26%    2015336  3.52%  github.com/dop251/goja.(*compiler).compileVariableStatement (inline)
+         0     0% 89.26%     281273  0.49%  github.com/dop251/goja.(*compiler).createBindings
+         0     0% 89.26%     281273  0.49%  github.com/dop251/goja.(*compiler).createVarBinding (inline)
+         0     0% 89.26%     281273  0.49%  github.com/dop251/goja.(*compiler).createVarBindings
+         0     0% 89.26%     281273  0.49%  github.com/dop251/goja.(*compiler).createVarBindings.(*compiler).createVarBinding.func1
+         0     0% 89.26%     281273  0.49%  github.com/dop251/goja.(*compiler).createVarIdBinding
+         0     0% 89.26%   16558022 28.94%  github.com/dop251/goja.(*compiler).emitExpr
+         0     0% 89.26%    1075042  1.88%  github.com/dop251/goja.(*compiler).emitNamed
+         0     0% 89.26%    1075042  1.88%  github.com/dop251/goja.(*compiler).emitNamedOrConst
+         0     0% 89.26%    1384537  2.42%  github.com/dop251/goja.(*compiler).emitVarAssign
+         0     0% 89.26%   19387652 33.89%  github.com/dop251/goja.(*nativeFuncObject).vmCall
+         0     0% 89.26%    3584738  6.27%  github.com/dop251/goja.(*newFunc).exec
+         0     0% 89.26%     281273  0.49%  github.com/dop251/goja.(*scope).bindName
+         0     0% 89.26%    1015861  1.78%  github.com/dop251/goja.(*scope).createThisBinding (inline)
+         0     0% 89.26%     465514  0.81%  github.com/dop251/goja.(*scope).trimCode
+         0     0% 89.26%   21330765 37.28%  github.com/dop251/goja.(*vm).run
+         0     0% 89.26%    1850628  3.23%  github.com/dop251/goja.(*vm).runTry
+         0     0% 89.26%   21330765 37.28%  github.com/dop251/goja.(*vm).runTryInner
+         0     0% 89.26%   33767049 59.02%  github.com/dop251/goja.(*vm).try
+         0     0% 89.26%   31506517 55.07%  github.com/dop251/goja.AssertFunction.func1
+         0     0% 89.26%   31834204 55.64%  github.com/dop251/goja.AssertFunction.func1.1
+         0     0% 89.26%   17709444 30.95%  github.com/dop251/goja.CompileAST (inline)
+         0     0% 89.26%     343306   0.6%  github.com/dop251/goja._newObject.exec
+         0     0% 89.26%   19387652 33.89%  github.com/dop251/goja.call.exec
+         0     0% 89.26%   17709444 30.95%  github.com/dop251/goja.compileAST
+         0     0% 89.26%   11033348 19.29%  github.com/dop251/goja/parser.(*_parser).parse
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseBitwiseAndExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseBitwiseExclusiveOrExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseBitwiseOrExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseConditionalExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseEqualityExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseExponentiationExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseExpression
+         0     0% 89.26%    6996200 12.23%  github.com/dop251/goja/parser.(*_parser).parseFunctionBlock
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseLeftHandSideExpressionAllowCall
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseLogicalAndExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseLogicalOrExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseMultiplicativeExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseRelationalExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseShiftExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseUnaryExpression
+         0     0% 89.26%   10091228 17.64%  github.com/dop251/goja/parser.(*_parser).parseUpdateExpression
+         0     0% 89.26%     701798  1.23%  github.com/dop251/goja/parser.(*_parser).parseVariableDeclarationList
+         0     0% 89.26%   11894864 20.79%  github.com/dop251/goja_nodejs/console.Enable
+         0     0% 89.26%    9940727 17.38%  github.com/dop251/goja_nodejs/console.Require
+         0     0% 89.26%     977115  1.71%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func11
+         0     0% 89.26%    1190675  2.08%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func3
+         0     0% 89.26%    1100348  1.92%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func5
+         0     0% 89.26%     911200  1.59%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func7
+         0     0% 89.26%     939049  1.64%  github.com/dop251/goja_nodejs/console.Require.Require.requireWithPrinter.func1.(*Object).Set.func9
+         0     0% 89.26%   50562800 88.38%  github.com/dop251/goja_nodejs/require.(*RequireModule).Require
+         0     0% 89.26%    4086201  7.14%  github.com/dop251/goja_nodejs/require.(*RequireModule).createModuleObject
+         0     0% 89.26%    1048708  1.83%  github.com/dop251/goja_nodejs/require.(*RequireModule).createModuleObject.(*Object).Set.func1
+         0     0% 89.26%   38984699 68.14%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadAsFile
+         0     0% 89.26%   38984699 68.14%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadAsFileOrDirectory
+         0     0% 89.26%   38984699 68.14%  github.com/dop251/goja_nodejs/require.(*RequireModule).loadModule
+         0     0% 89.26%   30549573 53.40%  github.com/dop251/goja_nodejs/require.(*RequireModule).require
+         0     0% 89.26%   50562800 88.38%  github.com/dop251/goja_nodejs/require.(*RequireModule).resolve
+         0     0% 89.26%    1319920  2.31%  github.com/dop251/goja_nodejs/util.Require.(*Object).Set.func1
+         0     0% 89.26%   13891403 24.28%  github.com/go-go-golems/go-go-goja/engine.(*Factory).NewRuntime
+         0     0% 89.26%     323721  0.57%  github.com/go-go-golems/go-go-goja/engine.NewFactory
+         0     0% 89.26%   14215124 24.85%  github.com/go-go-golems/go-go-goja/engine.NewWithConfig
+         0     0% 89.26%   14215124 24.85%  github.com/go-go-golems/go-go-goja/engine.Open
+         0     0% 89.26%   53210740 93.01%  github.com/go-go-golems/go-go-goja/perf/goja_test.BenchmarkRequireLoading.func1
+         0     0% 89.26%   14215124 24.85%  github.com/go-go-golems/go-go-goja/perf/goja_test.newRuntimeNoCallLog
+         0     0% 89.26%     557062  0.97%  path.Clean
+         0     0% 89.26%   53210740 93.01%  testing.(*B).launch
+         0     0% 89.26%   53210740 93.01%  testing.(*B).runN

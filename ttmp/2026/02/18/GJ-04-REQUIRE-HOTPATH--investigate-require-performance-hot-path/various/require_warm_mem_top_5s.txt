@@ -1,0 +1,33 @@
+File: goja.test
+Build ID: d78a0faa7df9923b954d3f38003009d269644754
+Type: alloc_objects
+Time: 2026-02-18 17:02:59 EST
+Showing nodes accounting for 41478573, 99.80% of 41560425 total
+Dropped 57 nodes (cum <= 207802)
+      flat  flat%   sum%        cum   cum%
+  14149611 34.05% 34.05%   14149611 34.05%  github.com/dop251/goja.(*valueStack).expand (inline)
+   9830549 23.65% 57.70%    9830549 23.65%  path.(*lazybuf).append (inline)
+   4751432 11.43% 69.13%    9666706 23.26%  path.Join
+   4653162 11.20% 80.33%    8650919 20.82%  github.com/dop251/goja.AssertFunction
+   4096062  9.86% 90.18%    4096062  9.86%  path.(*lazybuf).string (inline)
+   3997757  9.62% 99.80%    3997757  9.62%  github.com/dop251/goja.(*baseJsFuncObject).assertCallable
+         0     0% 99.80%   14149611 34.05%  github.com/dop251/goja.(*Runtime).runWrapped
+         0     0% 99.80%   14149611 34.05%  github.com/dop251/goja.(*baseJsFuncObject).Call
+         0     0% 99.80%   14149611 34.05%  github.com/dop251/goja.(*baseJsFuncObject).__call
+         0     0% 99.80%   14149611 34.05%  github.com/dop251/goja.(*baseJsFuncObject)._call (inline)
+         0     0% 99.80%   14149611 34.05%  github.com/dop251/goja.(*baseJsFuncObject).call
+         0     0% 99.80%    4473378 10.76%  github.com/dop251/goja.(*enterFuncStashless).exec
+         0     0% 99.80%    4867236 11.71%  github.com/dop251/goja.(*vm).push (inline)
+         0     0% 99.80%    9340614 22.47%  github.com/dop251/goja.(*vm).run
+         0     0% 99.80%    9340614 22.47%  github.com/dop251/goja.(*vm).runTryInner
+         0     0% 99.80%   14149611 34.05%  github.com/dop251/goja.(*vm).try
+         0     0% 99.80%   14149611 34.05%  github.com/dop251/goja.AssertFunction.func1
+         0     0% 99.80%   14149611 34.05%  github.com/dop251/goja.AssertFunction.func1.1
+         0     0% 99.80%    4867236 11.71%  github.com/dop251/goja.loadStackLex.exec
+         0     0% 99.80%   18678043 44.94%  github.com/dop251/goja_nodejs/require.(*RequireModule).Require
+         0     0% 99.80%   18678043 44.94%  github.com/dop251/goja_nodejs/require.(*RequireModule).resolve
+         0     0% 99.80%    9011337 21.68%  github.com/dop251/goja_nodejs/require.filepathClean (inline)
+         0     0% 99.80%   41478573 99.80%  github.com/go-go-golems/go-go-goja/perf/goja_test.BenchmarkRequireLoading.func2
+         0     0% 99.80%   13926611 33.51%  path.Clean
+         0     0% 99.80%   41478573 99.80%  testing.(*B).launch
+         0     0% 99.80%   41478573 99.80%  testing.(*B).runN

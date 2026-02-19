@@ -1,0 +1,14 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkRequireLoading/RequirePath         	  295575	       967.0 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/RequirePath         	  303504	      1081 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/RequirePath         	  215859	      1160 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/RequirePath         	  238147	      1313 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/RequirePath         	  247930	      1112 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/RequirePath         	  260325	       990.1 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/RequirePath         	  296187	       937.1 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/RequirePath         	  291968	      1021 ns/op	     552 B/op	      10 allocs/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	2.432s

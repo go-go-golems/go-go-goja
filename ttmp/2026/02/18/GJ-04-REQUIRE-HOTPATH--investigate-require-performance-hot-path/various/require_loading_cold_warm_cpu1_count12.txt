@@ -1,0 +1,30 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    6444	     64285 ns/op	   34661 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    8808	     62137 ns/op	   34654 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    9762	     79301 ns/op	   34645 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    9738	     39733 ns/op	   34658 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    9914	     38883 ns/op	   34666 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    9703	     42914 ns/op	   34668 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    8287	     56538 ns/op	   34670 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    7840	     46503 ns/op	   34667 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    3964	     86659 ns/op	   34668 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    4190	    123857 ns/op	   34664 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    8304	     43577 ns/op	   34663 B/op	     500 allocs/op
+BenchmarkRequireLoading/ColdRequire_NewRuntime         	    7754	     64368 ns/op	   34659 B/op	     500 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  548550	      1280 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  566397	       616.9 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  577566	       609.2 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  597579	       686.1 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  589782	       653.2 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  598303	       661.7 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  594040	       663.3 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  581712	       628.7 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  382531	      1091 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  395840	      4602 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  632524	       677.5 ns/op	     552 B/op	      10 allocs/op
+BenchmarkRequireLoading/WarmRequire_ReusedRuntime      	  405303	       969.1 ns/op	     552 B/op	      10 allocs/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	236.987s
