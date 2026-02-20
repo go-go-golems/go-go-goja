@@ -19,11 +19,54 @@ Asynchronous operations in go-go-goja bridge Go's goroutine model with JavaScrip
 
 ## Core Async Principle
 
-The goja runtime is single-threaded, meaning any operation that touches JavaScript values, calls JavaScript functions, or resolves Promises must happen on the VM's goroutine. Background work executes in separate goroutines, then schedules results back to the main event loop using `eventloop.RunOnLoop()`.
+The goja runtime is single-threaded, meaning any operation that touches JavaScript values, calls JavaScript functions, or resolves Promises must happen on the VM's goroutine.
+
+Preferred approach in this repository:
+
+- create a `runtimeowner.Runner` once (`runtimeowner.NewRunner(vm, loop, ...)`);
+- use `runner.Call(...)` for request/response owner-thread work;
+- use `runner.Post(...)` for fire-and-forget owner-thread settlement (Promise resolve/reject, callback notification).
+
+`eventloop.RunOnLoop()` is still a valid low-level primitive, but `runtimeowner.Runner` is the recommended reusable API.
+
+### Recommended Runner Pattern
+
+```go
+runner := runtimeowner.NewRunner(vm, loop, runtimeowner.Options{
+    Name:          "my-module",
+    RecoverPanics: true,
+})
+
+exports.Set("sleep", func(ms int64) goja.Value {
+    promise, resolve, reject := vm.NewPromise()
+    go func() {
+        time.Sleep(time.Duration(ms) * time.Millisecond)
+        _ = runner.Post(context.Background(), "timer.sleep.settle", func(context.Context, *goja.Runtime) {
+            if ms < 0 {
+                _ = reject(vm.ToValue("invalid duration"))
+                return
+            }
+            _ = resolve(goja.Undefined())
+        })
+    }()
+    return vm.ToValue(promise)
+})
+```
+
+### Deadlock Safety Rule
+
+Do not execute blocking synchronous flows on the owner thread when those flows wait on background goroutines that themselves need to schedule owner-thread callbacks. That creates a circular wait.
+
+In practice:
+
+- keep blocking orchestration off owner when possible;
+- route callback/value boundaries onto owner via `runner.Call`/`runner.Post`.
 
 ## Promise-Based APIs
 
 Promises provide the most natural async experience for JavaScript developers. Create them using `vm.NewPromise()` and resolve/reject them from background goroutines.
+
+Note: examples below use explicit `eventloop.RunOnLoop(...)` for illustration. In production modules, prefer the runner wrapper above.
 
 ### Basic Promise Pattern
 
