@@ -76,3 +76,13 @@ Step 5: refreshed root README for canonical builder/factory/runtime API and remo
 - /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/README.md — Updated runtime API docs to NewBuilder/Build/NewRuntime/Close model
 - /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/reference/01-diary.md — Added Step 5 entry for README refresh
 
+
+## 2026-02-21
+
+Step 6: fixed evaluator owned-runtime cleanup on init errors and made reset non-destructive by swapping before close (commit 993fbfe).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go — Lifecycle hardening for constructor failure cleanup and reset ordering
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/reference/01-diary.md — Added Step 6 review-response entry
+

@@ -34,7 +34,9 @@ RelatedFiles:
     - Path: go-go-goja/perf/goja/phase2_bench_test.go
       Note: Remaining bench callsites updated for 3-value runtime helper and close handling
     - Path: go-go-goja/pkg/repl/evaluators/javascript/evaluator.go
-      Note: Evaluator reset now closes/recreates owned runtime
+      Note: |-
+        Evaluator reset now closes/recreates owned runtime
+        Step 6 evaluator failure-path runtime lifecycle fixes
     - Path: go-go-goja/ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/index.md
       Note: Step 4 index normalization for completion-state accuracy
 ExternalSources: []
@@ -43,6 +45,7 @@ LastUpdated: 2026-02-21T15:47:38.4626097-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -402,3 +405,107 @@ This prevents new contributors from copy-pasting obsolete `engine.New()` pattern
   - `Build()`
   - `factory.NewRuntime(ctx)`
   - `rt.Close(ctx)`
+
+## Step 6: Fix evaluator owned-runtime leak and destructive reset ordering
+
+I addressed two concrete regression risks reported in review on `pkg/repl/evaluators/javascript/evaluator.go`: leaked owned runtimes during constructor failures and destructive reset behavior when re-initialization fails.
+
+The fix keeps runtime ownership semantics explicit and failure-safe: new runtime is fully prepared before replacing the old one, and constructor failures now clean up any started owned runtime.
+
+### Prompt Context
+
+**User prompt (verbatim):** "pkg/repl/evaluators/javascript/evaluator.go
+Comment on lines +102 to +104
+		ownedRuntime, err = factory.NewRuntime(context.Background())
+		if err != nil {
+			return nil, errors.Wrap(err, \"failed to create runtime\")
+@chatgpt-codex-connector
+chatgpt-codex-connector bot
+2 minutes ago
+
+P2 Badge Close owned runtime on evaluator init failure
+
+New now allocates an owned engine runtime (which starts an event-loop goroutine) before running later setup steps, but if setupConsole or custom module registration returns an error, the function exits without closing that runtime. In flows that create evaluators repeatedly (or fail during startup), this leaves background loop goroutines and runtime resources alive until process exit, which is a new leak introduced by the owned runtime path.
+
+Useful? React with 👍 / 👎.
+@wesen
+
+
+
+pkg/repl/evaluators/javascript/evaluator.go
+Comment on lines +590 to 594
+		_ = e.ownedRuntime.Close(context.Background())
+	}
+
+	// Create a new runtime with the same configuration
+	newEvaluator, err := New(e.config)
+@chatgpt-codex-connector
+chatgpt-codex-connector bot
+2 minutes ago
+
+P2 Badge Create replacement runtime before closing current one
+
+Reset shuts down the current ownedRuntime before attempting New(e.config), so any reset-time initialization error leaves the evaluator bound to a runtime that has already been closed. This turns a recoverable reset failure into a destructive state loss for callers that continue using the evaluator after the error; construct the new evaluator first, then swap and close the previous runtime only on success.
+
+Useful? React with 👍 / 👎.
+@wesen"
+
+**Assistant interpretation:** Apply both review fixes in evaluator runtime lifecycle code, preserving no-compat architecture while removing leak/destructive reset behavior.
+
+**Inferred user intent:** Harden runtime lifecycle correctness in failure paths and keep evaluator usable after reset failures.
+
+**Commit (code):** `993fbfe` — "fix(js evaluator): avoid owned runtime leaks on init/reset failures"
+
+### What I did
+
+- In `New(config)`:
+  - added local cleanup closure to close `ownedRuntime` on post-runtime init failures.
+  - invoked cleanup on `setupConsole()` error.
+  - invoked cleanup on custom module registration error.
+- In `Reset()`:
+  - changed ordering to build replacement evaluator first.
+  - swapped runtime fields under `runtimeMu`.
+  - closed old owned runtime only after successful swap.
+
+### Why
+
+- Constructor error paths could leak active runtime/event-loop resources.
+- Reset could leave evaluator in a broken state if re-init failed after early close.
+
+### What worked
+
+- Both failure-path concerns were addressed with small, localized changes.
+- Pre-commit lint/test hooks passed on commit.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Runtime lifecycle transitions should always be transactional: acquire replacement first, then swap, then retire prior resources.
+
+### What was tricky to build
+
+- The subtle part was ensuring cleanup and swap sequencing remained minimal while avoiding broader concurrency refactors. Locking only around field replacement kept the change targeted.
+
+### What warrants a second pair of eyes
+
+- Validate whether `Reset()` should surface close errors from retiring old runtime (currently intentionally ignored to preserve non-destructive semantics).
+
+### What should be done in the future
+
+- Consider explicit lifecycle tests that inject failures in `setupConsole` and custom module registration to prevent regressions.
+
+### Code review instructions
+
+- Review:
+  - `pkg/repl/evaluators/javascript/evaluator.go`
+
+### Technical details
+
+- New failure-safe reset order:
+  - `newEvaluator, err := New(e.config)`
+  - lock + swap runtime pointers
+  - unlock
+  - close previous owned runtime
