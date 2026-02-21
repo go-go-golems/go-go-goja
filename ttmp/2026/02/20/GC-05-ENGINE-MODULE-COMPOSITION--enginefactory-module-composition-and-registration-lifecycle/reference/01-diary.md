@@ -15,8 +15,12 @@ RelatedFiles:
       Note: Step 5 top-level docs modernization after no-compat API rewrite
     - Path: go-go-goja/cmd/bun-demo/main.go
       Note: Demo command migrated to builder/factory runtime flow
+    - Path: go-go-goja/cmd/js-repl/main.go
+      Note: Step 7 explicit evaluator teardown on app exit
     - Path: go-go-goja/cmd/repl/main.go
       Note: REPL command migrated to owned runtime construction and close
+    - Path: go-go-goja/cmd/smalltalk-inspector/main.go
+      Note: Step 7 model close call after bubbletea run
     - Path: go-go-goja/engine/factory.go
       Note: New builder/factory API with explicit Build and NewRuntime lifecycle
     - Path: go-go-goja/engine/factory_test.go
@@ -45,6 +49,7 @@ LastUpdated: 2026-02-21T15:47:38.4626097-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -509,3 +514,91 @@ Useful? React with 👍 / 👎.
   - lock + swap runtime pointers
   - unlock
   - close previous owned runtime
+
+## Step 7: Add explicit evaluator Close lifecycle and wire teardown call sites
+
+I implemented an explicit `Close()` teardown path for the JavaScript evaluator and wired it through the Bobatea adapter and runtime call sites that create or replace evaluator instances. This closes the remaining gap where owned runtimes could stay alive if callers dropped evaluators without invoking `Reset()`.
+
+The result is a concrete disposal contract: constructor-owned runtime resources can now be released intentionally on normal session termination and when assist evaluators are replaced.
+
+### Prompt Context
+
+**User prompt (verbatim):** "pkg/repl/evaluators/javascript/evaluator.go
+Comment on lines +102 to +104
+		ownedRuntime, err = factory.NewRuntime(context.Background())
+		if err != nil {
+			return nil, errors.Wrap(err, \"failed to create runtime\")
+@chatgpt-codex-connector
+chatgpt-codex-connector bot
+4 minutes ago
+
+P2 Badge Add teardown path for owned evaluator runtime
+
+When EnableModules is true, New allocates an owned engine runtime (which starts a loop/owner lifecycle) but the evaluator type does not expose any Close/teardown method for normal disposal; only Reset closes the previous runtime. In flows that create evaluators repeatedly (e.g., per REPL session/request), dropping the evaluator without calling Reset leaves runtime resources alive until process exit, which is a new leak introduced by the owned-runtime migration.
+
+Useful? React with 👍 / 👎.
+@wesen"
+
+**Assistant interpretation:** Add an explicit disposal API for owned evaluator runtimes and integrate teardown at known evaluator lifecycle boundaries.
+
+**Inferred user intent:** Eliminate runtime lifecycle leaks in normal evaluator creation/disposal flows beyond reset.
+
+**Commit (code):** `7a842da` — "fix(repl): add evaluator Close lifecycle and wire teardown paths"
+
+### What I did
+
+- Added `Close() error` to `pkg/repl/evaluators/javascript.Evaluator`:
+  - atomically detaches `ownedRuntime`
+  - closes it when present
+  - no-op for external runtime reuse mode
+- Added forwarding `Close()` to `pkg/repl/adapters/bobatea.JavaScriptEvaluator`.
+- Wired teardown in runtime callsites:
+  - `cmd/js-repl/main.go`: defer evaluator close on process exit.
+  - `cmd/smalltalk-inspector/app/repl_widgets.go`: close previous assist evaluator before replacement.
+  - `cmd/smalltalk-inspector/app/model.go`: close assist evaluator in model-level `Close()`.
+  - `cmd/smalltalk-inspector/main.go`: close final model resources after `p.Run()`.
+
+### Why
+
+- Owned runtime resources (event loop + owner runner) need explicit disposal independent of `Reset()` to avoid leaks in repeated evaluator lifecycle flows.
+
+### What worked
+
+- Lifecycle API remained backward-compatible at interface boundaries while introducing explicit close semantics.
+- Lint/test hooks passed with updated callsites.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Ownership-safe APIs need both failure-path cleanup (`Step 6`) and explicit success-path teardown (`Step 7`) to be complete.
+
+### What was tricky to build
+
+- The subtle edge was ensuring close wiring covered both direct REPL command lifecycle and repeated assist evaluator replacement in smalltalk inspector widgets.
+
+### What warrants a second pair of eyes
+
+- Confirm whether broader Bobatea evaluator contracts should eventually include a formal lifecycle interface (e.g., optional closer) to standardize this pattern across evaluators.
+
+### What should be done in the future
+
+- Add focused tests for idempotent close and repeated `setupReplWidgetsForRuntime()` replacement loops.
+
+### Code review instructions
+
+- Review:
+  - `pkg/repl/evaluators/javascript/evaluator.go`
+  - `pkg/repl/adapters/bobatea/javascript.go`
+  - `cmd/js-repl/main.go`
+  - `cmd/smalltalk-inspector/app/repl_widgets.go`
+  - `cmd/smalltalk-inspector/app/model.go`
+  - `cmd/smalltalk-inspector/main.go`
+
+### Technical details
+
+- New teardown flow:
+  - create evaluator -> use evaluator -> `evaluator.Close()`
+  - replacement path closes old assist evaluator before assigning new one.

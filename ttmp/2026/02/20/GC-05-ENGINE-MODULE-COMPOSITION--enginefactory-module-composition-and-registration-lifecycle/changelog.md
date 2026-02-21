@@ -86,3 +86,18 @@ Step 6: fixed evaluator owned-runtime cleanup on init errors and made reset non-
 - /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go — Lifecycle hardening for constructor failure cleanup and reset ordering
 - /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/reference/01-diary.md — Added Step 6 review-response entry
 
+
+## 2026-02-21
+
+Step 7: added explicit evaluator Close lifecycle and wired teardown at REPL call sites (commit 7a842da).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/cmd/js-repl/main.go — Deferred evaluator close on REPL shutdown
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/cmd/smalltalk-inspector/app/model.go — Model.Close now disposes assist evaluator
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/cmd/smalltalk-inspector/app/repl_widgets.go — Close previous assist evaluator before replacement
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/cmd/smalltalk-inspector/main.go — Close final model resources after tea program run
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/pkg/repl/adapters/bobatea/javascript.go — Adapter Close() forwards teardown to core evaluator
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go — Added evaluator Close() to release owned runtime resources
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/reference/01-diary.md — Added Step 7 lifecycle teardown documentation
+
