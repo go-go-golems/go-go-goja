@@ -30,3 +30,14 @@ Replaced the research-oriented task list with an implementation sequence for a n
 
 - /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/tasks.md — Detailed execution tasks for clean API cutover
 - /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/reference/01-diary.md — Implementation diary initialized
+
+## 2026-02-21
+
+Step 2: landed no-compat builder/factory/runtime rewrite and migrated callsites (commit 4059db5).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/engine/factory.go — Canonical builder/factory runtime construction and initialization sequencing
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/engine/module_specs.go — ModuleSpec and RuntimeInitializer contracts with explicit default registry module
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go — REPL evaluator migrated to owned runtime lifecycle and reset handling
+
