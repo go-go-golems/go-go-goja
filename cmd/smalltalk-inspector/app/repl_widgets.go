@@ -89,6 +89,9 @@ func (a replInputBufferAdapter) SetCursorByte(cursor int) {
 }
 
 func (m *Model) setupReplWidgetsForRuntime() {
+	if m.replAssist != nil {
+		_ = m.replAssist.Close()
+	}
 	m.replAssist = nil
 	m.replSuggestWidget = nil
 	m.replContextBarWidget = nil

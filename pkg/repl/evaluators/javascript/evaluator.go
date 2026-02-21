@@ -617,6 +617,22 @@ func (e *Evaluator) Reset() error {
 	return nil
 }
 
+// Close releases owned runtime resources when this evaluator created its own runtime.
+// It is a no-op when evaluator reuses an externally provided runtime.
+func (e *Evaluator) Close() error {
+	e.runtimeMu.Lock()
+	ownedRuntime := e.ownedRuntime
+	e.ownedRuntime = nil
+	e.runtimeMu.Unlock()
+
+	if ownedRuntime != nil {
+		if err := ownedRuntime.Close(context.Background()); err != nil {
+			return errors.Wrap(err, "failed to close owned runtime")
+		}
+	}
+	return nil
+}
+
 // GetConfig returns the current configuration
 func (e *Evaluator) GetConfig() Config {
 	return e.config
