@@ -7,6 +7,7 @@ The goal is to have a place where you can:
 * add your own Go files under `modules/` and immediately use them from JS via `require("your-module")`
 * experiment with goja + Node-style `require()` without having to set up a whole application
 * run JS files non-interactively or open an interactive prompt (`go run ./cmd/repl`)
+* compose runtime behavior explicitly via `engine.NewBuilder() -> Build() -> Factory.NewRuntime(...)`
 
 ---
 
@@ -15,8 +16,9 @@ The goal is to have a place where you can:
 ```text
  go-go-goja/
  ├── cmd/
- │   └── repl/            # standalone runner / interactive prompt
- ├── engine/              # one helper: engine.New() → (*goja.Runtime, *require.RequireModule)
+ │   ├── repl/            # standalone runner / interactive prompt
+ │   └── bun-demo/        # bun-integrated demo command
+ ├── engine/              # builder/factory/runtime ownership APIs
  ├── modules/             # ← add your Go-backed modules here
  │   ├── common.go        # registry plumbing (NativeModule, Register, …)
  │   ├── fs/              # example module 1: basic file-system helpers
@@ -26,12 +28,15 @@ The goal is to have a place where you can:
  └── go.mod
 ```
 
-`engine.New()` does the heavy lifting:
+The canonical API is explicit runtime composition:
 
-1. creates a fresh `goja.Runtime`
-2. enables Node-style `require()`
-3. calls `modules.EnableAll(reg)` so every module that called `modules.Register()` during `init()` becomes available to JS
-4. exposes a global `console` object so that `console.log()` works out-of-the-box
+1. create a builder (`engine.NewBuilder(...)`)
+2. add module/runtime options (`WithModules(...)`, `WithRuntimeInitializers(...)`, ...)
+3. build an immutable factory (`Build()`)
+4. create an owned runtime (`factory.NewRuntime(ctx)`)
+5. close runtime explicitly (`rt.Close(ctx)`)
+
+Legacy convenience wrappers (`engine.New()`, `engine.NewWithOptions(...)`, `engine.Open(...)`) were removed.
 
 ---
 
@@ -54,6 +59,35 @@ hi
 ```
 
 The `-debug` flag prints extra logs such as which modules were registered.
+
+### Runtime API quick example (current)
+
+```go
+ctx := context.Background()
+
+factory, err := engine.NewBuilder().
+    WithModules(engine.DefaultRegistryModules()).
+    Build()
+if err != nil {
+    return err
+}
+
+rt, err := factory.NewRuntime(ctx)
+if err != nil {
+    return err
+}
+defer rt.Close(ctx)
+
+vm := rt.VM
+_, err = vm.RunString(`console.log("hello from go-go-goja")`)
+if err != nil {
+    return err
+}
+```
+
+Notes:
+- `DefaultRegistryModules()` enables modules that registered themselves through `modules.Register(...)`.
+- `rt` bundles `VM`, `Require`, `Loop`, and `Owner` for explicit lifecycle control.
 
 ---
 
@@ -90,13 +124,13 @@ Say we want to expose a simplistic `uuid` module that exports a single `v4()` fu
 
    func init() { modules.Register(&m{}) }
    ```
-3. **Make sure the package is imported somewhere** so that its `init()` runs. The simplest is to add a blank-import in `engine/runtime.go` (or in `cmd/repl/main.go` if you prefer):
+3. **Make sure the package is imported somewhere** so that its `init()` runs. The simplest is to add a blank-import in your app bootstrap (for this repo, `engine/runtime.go` or command entrypoints are common places):
    ```go
    import (
        _ "github.com/go-go-golems/go-go-goja/modules/uuid" // ← new module here
    )
    ```
-   The blank import is only required once – after that every call to `engine.New()` automatically enables the module.
+   The blank import is only required once. At runtime, enabling `engine.DefaultRegistryModules()` makes registered modules available to `require(...)`.
 4. **Profit**
    ```js
    const { v4 } = require("uuid");
@@ -109,6 +143,7 @@ Say we want to expose a simplistic `uuid` module that exports a single `v4()` fu
 * Return only **plain Go types** (string, number, bool, maps, slices) or `goja.Value`s. The runtime converts between Go & JS automatically.
 * If your module allocates goroutines, honour `context.Context` and consider `errgroup` for clean cancellation.
 * Use `var _ modules.NativeModule = (*yourType)(nil)` for compile-time checks (see [Go guidelines in the repo rules]).
+* Prefer explicit composition in application setup (`NewBuilder`, `WithModules`, `Build`, `NewRuntime`) over hidden global setup patterns.
 
 ---
 
