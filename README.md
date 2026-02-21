@@ -1,116 +1,196 @@
-# go-go-goja
+# go-go-goja – Native-Module Playground for goja
 
-`go-go-goja` is a Go + JavaScript tooling workspace centered on:
-- goja native module execution (`cmd/repl`, `cmd/js-repl`, `modules/*`, `engine`)
-- JavaScript parsing/indexing/completion (`pkg/jsparse`)
-- inspector domain primitives (`pkg/inspector/*`)
-- user-facing inspector orchestration (`pkg/inspectorapi`)
-- terminal inspector adapters (`cmd/inspector`, `cmd/smalltalk-inspector`)
+**go-go-goja** is a tiny sandbox project that shows how to wire Go-implemented "native" modules into a [dop251/goja] JavaScript runtime using the [goja_nodejs/require] subsystem.
 
-## Quick Start
+The goal is to have a place where you can:
 
-From repo root:
+* add your own Go files under `modules/` and immediately use them from JS via `require("your-module")`
+* experiment with goja + Node-style `require()` without having to set up a whole application
+* run JS files non-interactively or open an interactive prompt (`go run ./cmd/repl`)
 
-```bash
-go run ./cmd/repl testdata/hello.js
-go run ./cmd/js-repl
-go run ./cmd/inspector ../goja/testdata/sample.js
-go run ./cmd/smalltalk-inspector ../goja/testdata/sample.js
-```
+---
 
-## Project Layout
+## Folder layout
 
 ```text
-go-go-goja/
-├── cmd/
-│   ├── repl/                  # goja runtime REPL + script runner
-│   ├── js-repl/               # Bobatea-powered JS REPL with completion/help widgets
-│   ├── inspector/             # jsparse-oriented AST inspector example
-│   └── smalltalk-inspector/   # Smalltalk-style object inspector UI
-├── engine/                    # runtime bootstrap helpers (goja + require)
-├── modules/                   # native modules exposed through require()
-├── pkg/
-│   ├── jsparse/               # low-level parser/index/resolution/completion
-│   ├── inspector/             # reusable inspector core/runtime/navigation/tree
-│   ├── inspectorapi/          # high-level service facade for adapters
-│   └── doc/                   # glazed help pages
-├── testdata/
-└── ttmp/                      # ticket docs, plans, diaries, reviews
+ go-go-goja/
+ ├── cmd/
+ │   └── repl/            # standalone runner / interactive prompt
+ ├── engine/              # one helper: engine.New() → (*goja.Runtime, *require.RequireModule)
+ ├── modules/             # ← add your Go-backed modules here
+ │   ├── common.go        # registry plumbing (NativeModule, Register, …)
+ │   ├── fs/              # example module 1: basic file-system helpers
+ │   └── exec/            # example module 2: thin wrapper around os/exec
+ ├── testdata/            # demo JS scripts used by Go tests
+ ├── repl_test.go         # Go test that runs a JS script through the runner
+ └── go.mod
 ```
 
-## Architecture Boundaries
+`engine.New()` does the heavy lifting:
 
-Use `pkg/jsparse` when you need parser-level control:
-- AST indexing and source mapping
-- lexical binding resolution
-- completion context extraction and candidate resolution
+1. creates a fresh `goja.Runtime`
+2. enables Node-style `require()`
+3. calls `modules.EnableAll(reg)` so every module that called `modules.Register()` during `init()` becomes available to JS
+4. exposes a global `console` object so that `console.log()` works out-of-the-box
 
-Use `pkg/inspectorapi` when you need adapter-facing workflows:
-- document/session lifecycle
-- globals/members/jump orchestration
-- runtime merge helpers
-- tree/source sync wrappers
+---
 
-Command adapters (`cmd/*`) should stay focused on input, key handling, and rendering. Business orchestration should live in `pkg/inspectorapi` and lower packages.
+## Quick start
 
-## Native Module Authoring
+```bash
+# from the project root
+cd go-go-goja
 
-Add a module under `modules/<name>/` and register it during `init()`:
+# run a script once
+❯ go run ./cmd/repl testdata/hello.js
+OK
 
-```go
-package uuidmod
-
-import (
-    "github.com/dop251/goja"
-    "github.com/go-go-golems/go-go-goja/modules"
-    "github.com/google/uuid"
-)
-
-type Module struct{}
-
-var _ modules.NativeModule = (*Module)(nil)
-
-func (m *Module) Name() string { return "uuid" }
-
-func (m *Module) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
-    exports := moduleObj.Get("exports").(*goja.Object)
-    exports.Set("v4", func() string { return uuid.NewString() })
-}
-
-func init() { modules.Register(&Module{}) }
+# or open the prompt (type JS, :quit to exit)
+❯ go run ./cmd/repl -debug
+js> const fs = require("fs");
+js> fs.writeFileSync("/tmp/demo.txt", "hi");
+js> console.log(fs.readFileSync("/tmp/demo.txt"));
+hi
 ```
 
-Ensure the package is imported once (usually in `engine/runtime.go`) so the registration `init()` runs.
+The `-debug` flag prints extra logs such as which modules were registered.
+
+---
+
+## Adding **your** native module
+
+Say we want to expose a simplistic `uuid` module that exports a single `v4()` function.
+
+1. **Create a sub-folder** under `modules/`:
+   ```bash
+   mkdir modules/uuid && touch modules/uuid/uuid.go
+   ```
+2. **Implement the module** – only ~40 lines:
+   ```go
+   // modules/uuid/uuid.go
+   package uuidmod
+
+   import (
+       "github.com/dop251/goja"
+       "github.com/go-go-golems/go-go-goja/modules" // registry helpers
+       "github.com/google/uuid"
+   )
+
+   type m struct{}
+
+   // compile-time check – keeps the linter happy and guarantees the interface is satisfied
+   var _ modules.NativeModule = (*m)(nil)
+
+   func (m) Name() string { return "uuid" }
+
+   func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+       exports := moduleObj.Get("exports").(*goja.Object)
+       exports.Set("v4", func() string { return uuid.NewString() })
+   }
+
+   func init() { modules.Register(&m{}) }
+   ```
+3. **Make sure the package is imported somewhere** so that its `init()` runs. The simplest is to add a blank-import in `engine/runtime.go` (or in `cmd/repl/main.go` if you prefer):
+   ```go
+   import (
+       _ "github.com/go-go-golems/go-go-goja/modules/uuid" // ← new module here
+   )
+   ```
+   The blank import is only required once – after that every call to `engine.New()` automatically enables the module.
+4. **Profit**
+   ```js
+   const { v4 } = require("uuid");
+   console.log(v4());
+   ```
+
+### Tips & conventions
+
+* Always keep your module self-contained inside `modules/<name>/<name>.go` – easier to copy around.
+* Return only **plain Go types** (string, number, bool, maps, slices) or `goja.Value`s. The runtime converts between Go & JS automatically.
+* If your module allocates goroutines, honour `context.Context` and consider `errgroup` for clean cancellation.
+* Use `var _ modules.NativeModule = (*yourType)(nil)` for compile-time checks (see [Go guidelines in the repo rules]).
+
+---
 
 ## Testing
 
-Run the full suite:
+`repl_test.go` shows how to execute a JS file from a Go test:
 
-```bash
-go test ./... -count=1
+```go
+cmd := exec.Command("go", "run", "./cmd/repl", "testdata/hello.js")
+cmd.Dir = "./go-go-goja" // run from module root
 ```
 
-Focused checks:
+The JS script lives in `testdata/hello.js` and prints `OK` on success. Add new test scripts the same way and extend the test function.
 
-```bash
-go test ./pkg/jsparse/... -count=1
-go test ./pkg/inspectorapi/... -count=1
-go test ./cmd/smalltalk-inspector/... -count=1
-```
-
-## Documentation
-
-Glazed help pages live in `pkg/doc`. Useful entry points:
-
-```bash
-glaze help jsparse-framework-reference
-glaze help inspectorapi-hybrid-service-guide
-glaze help inspector-example-user-guide
-```
+---
 
 ## License
 
-MIT (see `LICENSE`).
+MIT (see LICENSE file).
 
-[dop251/goja]: https://github.com/dop251/goja
+[dop251/goja]:   https://github.com/dop251/goja
 [goja_nodejs/require]: https://pkg.go.dev/github.com/dop251/goja_nodejs/require
+
+---
+
+## Asynchronous APIs (Promises & Callbacks)
+
+`goja` lets Go code create real JavaScript `Promise`s or invoke JS callbacks later, but all VM access must happen on the runtime owner thread.
+
+The recommended reusable pattern is `pkg/runtimeowner`:
+
+```go
+runner := runtimeowner.NewRunner(vm, loop, runtimeowner.Options{
+    Name:          "my-module",
+    RecoverPanics: true,
+})
+
+promise, resolve, reject := vm.NewPromise()
+go func() {
+    out, err := slowWork()
+    _ = runner.Post(context.Background(), "myModule.settle", func(context.Context, *goja.Runtime) {
+        if err != nil {
+            _ = reject(vm.ToValue(err.Error()))
+            return
+        }
+        _ = resolve(vm.ToValue(out))
+    })
+}()
+return vm.ToValue(promise)
+```
+
+Low-level `loop.RunOnLoop(...)` is still valid, but `runtimeowner.Runner` is preferred for:
+
+- cancellation-aware `Call`/`Post`,
+- standardized errors (`ErrClosed`, `ErrScheduleRejected`, etc.),
+- owner-context fast-path for nested calls.
+
+Important caveat:
+
+- do not run blocking synchronous flows on the owner thread if those flows wait on background work that itself schedules back onto owner, or you can deadlock.
+
+### Demo: `timer` module
+
+Included in `modules/timer/timer.go` is a minimal example:
+
+```js
+const { sleep } = require("timer");
+await sleep(1000);   // returns a Promise that resolves after 1 s
+console.log("done");
+```
+
+The Go side (simplified):
+
+```go
+exports.Set("sleep", func(ms int64) goja.Value {
+    p, resolve, _ := vm.NewPromise()
+    go func() {
+        time.Sleep(time.Duration(ms) * time.Millisecond)
+        loop.RunOnLoop(func(*goja.Runtime) { resolve(goja.Undefined()) })
+    }()
+    return vm.ToValue(p)
+})
+```
+
+Use it as a template for any async binding you need (HTTP fetchers, database calls, …).
