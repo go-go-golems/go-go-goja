@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -16,14 +17,26 @@ func TestFactoryWithRequireOptions(t *testing.T) {
 		return nil, require.ModuleFileDoesNotExistError
 	}
 
-	factory := NewFactory(WithRequireOptions(require.WithLoader(loader)))
-	vm, req := factory.NewRuntime()
-	val, err := req.Require("./entry.js")
+	factory, err := NewBuilder(
+		WithRequireOptions(require.WithLoader(loader)),
+	).Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() {
+		_ = rt.Close(context.Background())
+	}()
+
+	val, err := rt.Require.Require("./entry.js")
 	if err != nil {
 		t.Fatalf("require entry.js: %v", err)
 	}
 
-	obj := val.ToObject(vm)
+	obj := val.ToObject(rt.VM)
 	if got := obj.Get("ok").ToInteger(); got != 42 {
 		t.Fatalf("ok = %d, want 42", got)
 	}

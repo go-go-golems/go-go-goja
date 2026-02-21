@@ -54,6 +54,7 @@ var (
 // Evaluator implements the REPL evaluator interface for JavaScript
 type Evaluator struct {
 	runtime            *goja.Runtime
+	ownedRuntime       *ggjengine.Runtime
 	runtimeMu          sync.Mutex
 	tsParser           *jsparse.TSParser
 	tsMu               sync.Mutex
@@ -86,12 +87,23 @@ func DefaultConfig() Config {
 // New creates a new JavaScript evaluator with the given configuration
 func New(config Config) (*Evaluator, error) {
 	var runtime *goja.Runtime
+	var ownedRuntime *ggjengine.Runtime
 
 	if config.Runtime != nil {
 		runtime = config.Runtime
 	} else if config.EnableModules {
-		// Create runtime with module support using go-go-goja engine
-		runtime, _ = ggjengine.New()
+		// Create runtime with module support using explicit engine composition.
+		factory, err := ggjengine.NewBuilder().
+			WithModules(ggjengine.DefaultRegistryModules()).
+			Build()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build runtime factory")
+		}
+		ownedRuntime, err = factory.NewRuntime(context.Background())
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create runtime")
+		}
+		runtime = ownedRuntime.VM
 	} else {
 		// Create basic runtime without modules
 		runtime = goja.New()
@@ -99,6 +111,7 @@ func New(config Config) (*Evaluator, error) {
 
 	evaluator := &Evaluator{
 		runtime:            runtime,
+		ownedRuntime:       ownedRuntime,
 		runtimeDeclaredIDs: map[string]jsparse.CompletionCandidate{},
 		config:             config,
 	}
@@ -573,6 +586,10 @@ func (e *Evaluator) LoadScript(ctx context.Context, filename string, content str
 
 // Reset resets the JavaScript runtime to a clean state
 func (e *Evaluator) Reset() error {
+	if e.ownedRuntime != nil {
+		_ = e.ownedRuntime.Close(context.Background())
+	}
+
 	// Create a new runtime with the same configuration
 	newEvaluator, err := New(e.config)
 	if err != nil {
@@ -580,6 +597,7 @@ func (e *Evaluator) Reset() error {
 	}
 
 	e.runtime = newEvaluator.runtime
+	e.ownedRuntime = newEvaluator.ownedRuntime
 	e.tsParser = newEvaluator.tsParser
 	e.runtimeDeclaredMu.Lock()
 	e.runtimeDeclaredIDs = map[string]jsparse.CompletionCandidate{}

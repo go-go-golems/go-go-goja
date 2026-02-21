@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -30,7 +31,19 @@ type conversion between Go and JavaScript values.`,
 		// If no files were given, just show usage.
 		debug, _ := cmd.Flags().GetBool("debug")
 
-		vm, req := engine.New()
+		factory, err := engine.NewBuilder().
+			WithModules(engine.DefaultRegistryModules()).
+			Build()
+		if err != nil {
+			return fmt.Errorf("failed to build engine factory: %v", err)
+		}
+		rt, err := factory.NewRuntime(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to create runtime: %v", err)
+		}
+		defer func() {
+			_ = rt.Close(context.Background())
+		}()
 
 		if debug {
 			log.Printf("engine initialised, args=%v", args)
@@ -38,14 +51,14 @@ type conversion between Go and JavaScript values.`,
 
 		// If a script path is provided, run it once and exit.
 		if len(args) > 0 {
-			if _, err := req.Require(args[0]); err != nil {
+			if _, err := rt.Require.Require(args[0]); err != nil {
 				return fmt.Errorf("failed to run script: %v", err)
 			}
 			return nil
 		}
 
 		// Interactive loop.
-		return runInteractiveLoop(vm, debug)
+		return runInteractiveLoop(rt.VM, debug)
 	},
 }
 
