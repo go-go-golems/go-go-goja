@@ -66,3 +66,13 @@ Step 4: refreshed ticket index metadata and overview to reflect completed implem
 - /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/index.md — Updated summary/status/key links and related-files metadata for completed ticket state
 - /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/reference/01-diary.md — Added Step 4 documentation consistency audit and remediation record
 
+
+## 2026-02-21
+
+Step 5: refreshed root README for canonical builder/factory/runtime API and removed legacy wrapper guidance (commit 998a03b).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/README.md — Updated runtime API docs to NewBuilder/Build/NewRuntime/Close model
+- /home/manuel/workspaces/2026-02-21/entity-extraction-js/go-go-goja/ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/reference/01-diary.md — Added Step 5 entry for README refresh
+

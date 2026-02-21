@@ -11,6 +11,8 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: go-go-goja/README.md
+      Note: Step 5 top-level docs modernization after no-compat API rewrite
     - Path: go-go-goja/cmd/bun-demo/main.go
       Note: Demo command migrated to builder/factory runtime flow
     - Path: go-go-goja/cmd/repl/main.go
@@ -41,6 +43,7 @@ LastUpdated: 2026-02-21T15:47:38.4626097-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -331,3 +334,71 @@ This keeps the ticket self-consistent for handoff and future maintenance: reader
   - summary/what-for/when-to-use rewrite for completed state
   - key links for design/01, design/02, and diary
   - status text normalization to `complete`.
+
+## Step 5: Refresh root README for post-rewrite API reality
+
+I updated the repository README because it still taught removed runtime wrappers and outdated folder semantics. The doc now reflects the shipped no-compat runtime composition model and points readers to the current lifecycle contract.
+
+This prevents new contributors from copy-pasting obsolete `engine.New()` patterns and aligns onboarding docs with the code that actually exists.
+
+### Prompt Context
+
+**User prompt (verbatim):** "also update the README which probably hasn't been touched in a while."
+
+**Assistant interpretation:** Modernize README content to match current implementation state after the runtime API rewrite.
+
+**Inferred user intent:** Keep top-level documentation operationally accurate for new readers and future implementation work.
+
+**Commit (code):** `998a03b` — "docs: refresh README for builder/factory runtime API"
+
+### What I did
+
+- Updated `README.md` to:
+  - document `NewBuilder -> Build -> NewRuntime -> Close` as canonical flow
+  - remove/reframe references to removed wrappers (`engine.New`, `engine.NewWithOptions`, `engine.Open`)
+  - update folder layout descriptions for current commands/engine package
+  - add an explicit runtime API code example for current usage
+  - clarify module enablement language around `DefaultRegistryModules()`
+
+### Why
+
+- The README is the first integration surface for contributors; stale API guidance creates avoidable churn and incorrect implementations.
+
+### What worked
+
+- Targeted edits were sufficient; no additional code changes were needed.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- API-cut tickets should reserve a final pass specifically for root README synchronization, not only ticket-local docs.
+
+### What was tricky to build
+
+- The main risk was making sure wording reflected strict no-compat reality while preserving practical onboarding examples.
+
+### What warrants a second pair of eyes
+
+- Confirm whether README should also include an advanced section on custom `ModuleSpec` / `RuntimeInitializer` authoring patterns.
+
+### What should be done in the future
+
+- Add a short release checklist item: “README examples compile against current public API.”
+
+### Code review instructions
+
+- Review:
+  - `README.md`
+  - `ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/reference/01-diary.md`
+
+### Technical details
+
+- Canonical sequence now documented:
+  - `engine.NewBuilder()`
+  - `WithModules(engine.DefaultRegistryModules())`
+  - `Build()`
+  - `factory.NewRuntime(ctx)`
+  - `rt.Close(ctx)`
