@@ -33,12 +33,15 @@ RelatedFiles:
       Note: Remaining bench callsites updated for 3-value runtime helper and close handling
     - Path: go-go-goja/pkg/repl/evaluators/javascript/evaluator.go
       Note: Evaluator reset now closes/recreates owned runtime
+    - Path: go-go-goja/ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/index.md
+      Note: Step 4 index normalization for completion-state accuracy
 ExternalSources: []
 Summary: ""
 LastUpdated: 2026-02-21T15:47:38.4626097-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Diary
@@ -260,3 +263,71 @@ With this closure, the no-compat runtime composition rewrite is fully tracked fr
 
 - Closure criterion used:
   - task checklist aligned with landed commits and associated diary/changelog records.
+
+## Step 4: Refresh ticket index to match completed implementation state
+
+I audited the ticket index after closure and found stale research-era wording that still described the work as pre-implementation and marked status text as active in the body. I updated the index metadata and overview to reflect what was actually shipped.
+
+This keeps the ticket self-consistent for handoff and future maintenance: readers now see the implemented v2 design, diary, and completion state from the first document they open.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Make sure the documentation is updated appropriately"
+
+**Assistant interpretation:** Validate ticket documentation consistency post-implementation and correct stale or misleading documentation state.
+
+**Inferred user intent:** Ensure the ticket is accurate and review-ready, not only code-complete.
+
+### What I did
+
+- Ran a doc hygiene pass (`task list`, `doc list`, `doctor`) for GC-05.
+- Identified stale `index.md` content:
+  - summary still framed as future work
+  - body status said active
+  - key links omitted implemented v2 design and diary
+  - related files only referenced design/01
+- Updated `index.md` frontmatter and body to reflect completed no-compat rewrite and include key docs.
+
+### Why
+
+- Ticket index is the entrypoint; stale status/summary causes confusion and weakens traceability for interns/reviewers.
+
+### What worked
+
+- Existing ticket artifacts (tasks/changelog/diary/design v2) were already complete; only index normalization was needed.
+
+### What didn't work
+
+- `docmgr doctor` reported generic workspace warnings:
+  - `multiple_index` in dated parent folder
+  - `missing_numeric_prefix` for ticket `index.md`
+- These are structural conventions and not correctness blockers for this ticket content.
+
+### What I learned
+
+- Ticket closure does not automatically rewrite narrative sections in `index.md`; manual index sync remains necessary after major scope shifts.
+
+### What was tricky to build
+
+- The subtle part was distinguishing real ticket inconsistency from non-blocking doctor convention warnings. I treated only the semantic drift in ticket content as actionable.
+
+### What warrants a second pair of eyes
+
+- Confirm preferred policy for `index.md` naming/prefix conventions if you want doctor warnings reduced globally.
+
+### What should be done in the future
+
+- Add a lightweight “index sync after close” checklist item template to avoid stale summaries in future tickets.
+
+### Code review instructions
+
+- Review:
+  - `ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/index.md`
+  - `ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/reference/01-diary.md`
+
+### Technical details
+
+- Index updates included:
+  - summary/what-for/when-to-use rewrite for completed state
+  - key links for design/01, design/02, and diary
+  - status text normalization to `complete`.
