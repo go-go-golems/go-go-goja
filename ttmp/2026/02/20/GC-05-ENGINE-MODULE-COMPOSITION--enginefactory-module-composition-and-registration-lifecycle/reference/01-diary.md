@@ -200,3 +200,63 @@ This step also captured a real migration break in perf benchmarks, then fixed it
   - `factory, _ := builder.WithModules(engine.DefaultRegistryModules()).Build()`
   - `rt, _ := factory.NewRuntime(ctx)`
   - `defer rt.Close(ctx)`
+
+## Step 3: Close ticket execution checklist after migration commits
+
+I closed the remaining ticket checklist item for documentation because the diary and changelog now have per-step, per-commit entries for the implementation sequence. This step keeps the ticket state aligned with the actual code and commit history.
+
+With this closure, the no-compat runtime composition rewrite is fully tracked from planning to landed code and documentation artifacts.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Finish the remaining task bookkeeping and keep diary continuity while progressing step-by-step with commits.
+
+**Inferred user intent:** Ensure the ticket is not just coded but properly closed out in documentation.
+
+### What I did
+
+- Verified execution checklist state in `tasks.md`.
+- Added this closure diary step.
+- Marked remaining docs task as completed.
+
+### Why
+
+- The ticket required explicit documentary tracking per commit; leaving the final checkbox open would misrepresent completion state.
+
+### What worked
+
+- Existing step entries and changelog notes were sufficient to satisfy the docs requirement without additional code churn.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Keeping docs in lockstep with each code commit makes final closure straightforward and low-risk.
+
+### What was tricky to build
+
+- The only subtlety was ensuring closure reflects real completion criteria (per-step diary + concrete changelog links), not just checking a box mechanically.
+
+### What warrants a second pair of eyes
+
+- Confirm ticket reviewers agree that current diary granularity is sufficient for archival traceability.
+
+### What should be done in the future
+
+- Continue the same step/commit diary pattern for subsequent tickets to reduce context loss during handoffs.
+
+### Code review instructions
+
+- Review:
+  - `ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/tasks.md`
+  - `ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/changelog.md`
+  - `ttmp/2026/02/20/GC-05-ENGINE-MODULE-COMPOSITION--enginefactory-module-composition-and-registration-lifecycle/reference/01-diary.md`
+
+### Technical details
+
+- Closure criterion used:
+  - task checklist aligned with landed commits and associated diary/changelog records.

@@ -25,6 +25,6 @@
   - `pkg/repl/evaluators/javascript`
   - engine tests and perf benches.
 - [x] Update tests for new API surface (no dependency solver assertions, only duplicate-ID and lifecycle semantics).
-- [ ] Update GC-05 ticket docs:
+- [x] Update GC-05 ticket docs:
   - diary entries per implementation step/commit.
   - changelog entries tied to concrete code changes.
