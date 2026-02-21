@@ -115,6 +115,11 @@ func New(config Config) (*Evaluator, error) {
 		runtimeDeclaredIDs: map[string]jsparse.CompletionCandidate{},
 		config:             config,
 	}
+	closeOwnedRuntimeOnError := func() {
+		if evaluator.ownedRuntime != nil {
+			_ = evaluator.ownedRuntime.Close(context.Background())
+		}
+	}
 	if parser, parserErr := jsparse.NewTSParser(); parserErr == nil {
 		evaluator.tsParser = parser
 	}
@@ -122,6 +127,7 @@ func New(config Config) (*Evaluator, error) {
 	// Set up console.log override if enabled
 	if config.EnableConsoleLog {
 		if err := evaluator.setupConsole(); err != nil {
+			closeOwnedRuntimeOnError()
 			return nil, errors.Wrap(err, "failed to setup console")
 		}
 	}
@@ -129,6 +135,7 @@ func New(config Config) (*Evaluator, error) {
 	// Register custom modules if provided
 	for name, module := range config.CustomModules {
 		if err := evaluator.registerModule(name, module); err != nil {
+			closeOwnedRuntimeOnError()
 			return nil, errors.Wrapf(err, "failed to register custom module %s", name)
 		}
 	}
@@ -586,19 +593,24 @@ func (e *Evaluator) LoadScript(ctx context.Context, filename string, content str
 
 // Reset resets the JavaScript runtime to a clean state
 func (e *Evaluator) Reset() error {
-	if e.ownedRuntime != nil {
-		_ = e.ownedRuntime.Close(context.Background())
-	}
-
 	// Create a new runtime with the same configuration
 	newEvaluator, err := New(e.config)
 	if err != nil {
 		return errors.Wrap(err, "failed to reset JavaScript evaluator")
 	}
 
+	var oldOwnedRuntime *ggjengine.Runtime
+	e.runtimeMu.Lock()
+	oldOwnedRuntime = e.ownedRuntime
 	e.runtime = newEvaluator.runtime
 	e.ownedRuntime = newEvaluator.ownedRuntime
 	e.tsParser = newEvaluator.tsParser
+	e.runtimeMu.Unlock()
+
+	if oldOwnedRuntime != nil {
+		_ = oldOwnedRuntime.Close(context.Background())
+	}
+
 	e.runtimeDeclaredMu.Lock()
 	e.runtimeDeclaredIDs = map[string]jsparse.CompletionCandidate{}
 	e.runtimeDeclaredMu.Unlock()
