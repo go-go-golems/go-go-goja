@@ -17,7 +17,18 @@ func main() {
 	model := app.NewModel(filename)
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
-	if _, err := p.Run(); err != nil {
+	finalModel, err := p.Run()
+	if finalModel != nil {
+		switch fm := finalModel.(type) {
+		case app.Model:
+			fm.Close()
+		case *app.Model:
+			fm.Close()
+		}
+	} else {
+		model.Close()
+	}
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

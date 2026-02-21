@@ -49,6 +49,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer func() {
+		_ = evaluator.Close()
+	}()
 
 	cfg := repl.DefaultConfig()
 	cfg.Title = "go-go-goja JavaScript REPL (Bobatea UI + jsparse completion/help)"

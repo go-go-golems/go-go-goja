@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"errors"
 	"flag"
@@ -35,13 +36,28 @@ func main() {
 	entry := flag.String("entry", "./assets/bundle.cjs", "bundle entrypoint to require")
 	flag.Parse()
 
-	vm, req := engine.NewWithOptions(require.WithLoader(embeddedSourceLoader))
-	mod, err := req.Require(*entry)
+	factory, err := engine.NewBuilder().
+		WithRequireOptions(require.WithLoader(embeddedSourceLoader)).
+		WithModules(engine.DefaultRegistryModules()).
+		Build()
+	if err != nil {
+		log.Fatalf("build engine factory: %v", err)
+	}
+
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		log.Fatalf("create runtime: %v", err)
+	}
+	defer func() {
+		_ = rt.Close(context.Background())
+	}()
+
+	mod, err := rt.Require.Require(*entry)
 	if err != nil {
 		log.Fatalf("require %s: %v", *entry, err)
 	}
 
-	exports := mod.ToObject(vm)
+	exports := mod.ToObject(rt.VM)
 	runVal := exports.Get("run")
 	run, ok := goja.AssertFunction(runVal)
 	if !ok {

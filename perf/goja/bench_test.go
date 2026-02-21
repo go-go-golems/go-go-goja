@@ -1,6 +1,7 @@
 package gojaperf_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -23,10 +24,22 @@ func silenceBenchLogs() {
 	})
 }
 
-func newRuntime(tb testing.TB, opts ...require.Option) (*goja.Runtime, *require.RequireModule) {
+func newRuntime(tb testing.TB, opts ...require.Option) (*goja.Runtime, *require.RequireModule, func()) {
 	tb.Helper()
-	vm, req := engine.NewWithOptions(opts...)
-	return vm, req
+	factory, err := engine.NewBuilder().
+		WithRequireOptions(opts...).
+		WithModules(engine.DefaultRegistryModules()).
+		Build()
+	if err != nil {
+		tb.Fatalf("build factory: %v", err)
+	}
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		tb.Fatalf("new runtime: %v", err)
+	}
+	return rt.VM, rt.Require, func() {
+		_ = rt.Close(context.Background())
+	}
 }
 
 func compile(tb testing.TB, name, src string) *goja.Program {
@@ -52,20 +65,31 @@ func BenchmarkRuntimeSpawn(b *testing.B) {
 
 	b.Run("EngineNew", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			vm, req := newRuntime(b)
+			vm, req, closeRuntime := newRuntime(b)
 			if vm == nil || req == nil {
 				b.Fatal("nil runtime or require module")
 			}
+			closeRuntime()
 		}
 	})
 
 	b.Run("EngineFactory", func(b *testing.B) {
-		factory := engine.NewFactory()
+		factory, err := engine.NewBuilder().
+			WithModules(engine.DefaultRegistryModules()).
+			Build()
+		if err != nil {
+			b.Fatalf("build factory: %v", err)
+		}
 		for i := 0; i < b.N; i++ {
-			vm, req := factory.NewRuntime()
+			rt, err := factory.NewRuntime(context.Background())
+			if err != nil {
+				b.Fatalf("new runtime: %v", err)
+			}
+			vm, req := rt.VM, rt.Require
 			if vm == nil || req == nil {
 				b.Fatal("nil runtime or require module")
 			}
+			_ = rt.Close(context.Background())
 		}
 	})
 }
@@ -80,7 +104,7 @@ func BenchmarkRuntimeSpawnAndExecute(b *testing.B) {
 
 	b.Run("RunString_FreshRuntime", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			vm, _ := newRuntime(b)
+			vm, _, closeRuntime := newRuntime(b)
 			v, err := vm.RunString(script)
 			if err != nil {
 				b.Fatal(err)
@@ -88,12 +112,13 @@ func BenchmarkRuntimeSpawnAndExecute(b *testing.B) {
 			if got := v.ToInteger(); got != 42 {
 				b.Fatalf("unexpected result: %d", got)
 			}
+			closeRuntime()
 		}
 	})
 
 	b.Run("RunProgram_FreshRuntime", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			vm, _ := newRuntime(b)
+			vm, _, closeRuntime := newRuntime(b)
 			v, err := vm.RunProgram(prg)
 			if err != nil {
 				b.Fatal(err)
@@ -101,6 +126,7 @@ func BenchmarkRuntimeSpawnAndExecute(b *testing.B) {
 			if got := v.ToInteger(); got != 42 {
 				b.Fatalf("unexpected result: %d", got)
 			}
+			closeRuntime()
 		}
 	})
 }
@@ -110,7 +136,8 @@ func BenchmarkRuntimeReuse(b *testing.B) {
 
 	const script = "(40 + 2)"
 	prg := compile(b, "runtime-reuse.js", script)
-	vm, _ := newRuntime(b)
+	vm, _, closeRuntime := newRuntime(b)
+	defer closeRuntime()
 
 	b.ReportAllocs()
 
@@ -165,16 +192,18 @@ func BenchmarkJSLoading(b *testing.B) {
 		b.Run(fmt.Sprintf("RunString_FreshRuntime_%s", tc.name), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				vm, _ := newRuntime(b)
+				vm, _, closeRuntime := newRuntime(b)
 				if _, err := vm.RunString(tc.src); err != nil {
 					b.Fatal(err)
 				}
+				closeRuntime()
 			}
 		})
 
 		b.Run(fmt.Sprintf("RunProgram_ReusedRuntime_%s", tc.name), func(b *testing.B) {
 			b.ReportAllocs()
-			vm, _ := newRuntime(b)
+			vm, _, closeRuntime := newRuntime(b)
+			defer closeRuntime()
 			prg := compile(b, tc.name+".js", tc.src)
 			for i := 0; i < b.N; i++ {
 				if _, err := vm.RunProgram(prg); err != nil {
@@ -304,7 +333,7 @@ func BenchmarkRequireLoading(b *testing.B) {
 
 	b.Run("ColdRequire_NewRuntime", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			vm, req := newRuntime(b, require.WithLoader(loader))
+			vm, req, closeRuntime := newRuntime(b, require.WithLoader(loader))
 			mod, err := req.Require("./entry.js")
 			if err != nil {
 				b.Fatal(err)
@@ -321,11 +350,13 @@ func BenchmarkRequireLoading(b *testing.B) {
 			if got := out.ToInteger(); got != 42 {
 				b.Fatalf("unexpected result: %d", got)
 			}
+			closeRuntime()
 		}
 	})
 
 	b.Run("WarmRequire_ReusedRuntime", func(b *testing.B) {
-		vm, req := newRuntime(b, require.WithLoader(loader))
+		vm, req, closeRuntime := newRuntime(b, require.WithLoader(loader))
+		defer closeRuntime()
 		for i := 0; i < b.N; i++ {
 			mod, err := req.Require("./entry.js")
 			if err != nil {

@@ -63,6 +63,14 @@ func (e *JavaScriptEvaluator) GetHelpDrawer(ctx context.Context, req bobarepl.He
 	return e.core.GetHelpDrawer(ctx, req)
 }
 
+// Close releases evaluator-owned runtime resources.
+func (e *JavaScriptEvaluator) Close() error {
+	if e == nil || e.core == nil {
+		return nil
+	}
+	return e.core.Close()
+}
+
 var _ bobarepl.Evaluator = (*JavaScriptEvaluator)(nil)
 var _ bobarepl.InputCompleter = (*JavaScriptEvaluator)(nil)
 var _ bobarepl.HelpBarProvider = (*JavaScriptEvaluator)(nil)

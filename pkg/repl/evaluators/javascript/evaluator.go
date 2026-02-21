@@ -54,6 +54,7 @@ var (
 // Evaluator implements the REPL evaluator interface for JavaScript
 type Evaluator struct {
 	runtime            *goja.Runtime
+	ownedRuntime       *ggjengine.Runtime
 	runtimeMu          sync.Mutex
 	tsParser           *jsparse.TSParser
 	tsMu               sync.Mutex
@@ -86,12 +87,23 @@ func DefaultConfig() Config {
 // New creates a new JavaScript evaluator with the given configuration
 func New(config Config) (*Evaluator, error) {
 	var runtime *goja.Runtime
+	var ownedRuntime *ggjengine.Runtime
 
 	if config.Runtime != nil {
 		runtime = config.Runtime
 	} else if config.EnableModules {
-		// Create runtime with module support using go-go-goja engine
-		runtime, _ = ggjengine.New()
+		// Create runtime with module support using explicit engine composition.
+		factory, err := ggjengine.NewBuilder().
+			WithModules(ggjengine.DefaultRegistryModules()).
+			Build()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build runtime factory")
+		}
+		ownedRuntime, err = factory.NewRuntime(context.Background())
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create runtime")
+		}
+		runtime = ownedRuntime.VM
 	} else {
 		// Create basic runtime without modules
 		runtime = goja.New()
@@ -99,8 +111,14 @@ func New(config Config) (*Evaluator, error) {
 
 	evaluator := &Evaluator{
 		runtime:            runtime,
+		ownedRuntime:       ownedRuntime,
 		runtimeDeclaredIDs: map[string]jsparse.CompletionCandidate{},
 		config:             config,
+	}
+	closeOwnedRuntimeOnError := func() {
+		if evaluator.ownedRuntime != nil {
+			_ = evaluator.ownedRuntime.Close(context.Background())
+		}
 	}
 	if parser, parserErr := jsparse.NewTSParser(); parserErr == nil {
 		evaluator.tsParser = parser
@@ -109,6 +127,7 @@ func New(config Config) (*Evaluator, error) {
 	// Set up console.log override if enabled
 	if config.EnableConsoleLog {
 		if err := evaluator.setupConsole(); err != nil {
+			closeOwnedRuntimeOnError()
 			return nil, errors.Wrap(err, "failed to setup console")
 		}
 	}
@@ -116,6 +135,7 @@ func New(config Config) (*Evaluator, error) {
 	// Register custom modules if provided
 	for name, module := range config.CustomModules {
 		if err := evaluator.registerModule(name, module); err != nil {
+			closeOwnedRuntimeOnError()
 			return nil, errors.Wrapf(err, "failed to register custom module %s", name)
 		}
 	}
@@ -579,11 +599,37 @@ func (e *Evaluator) Reset() error {
 		return errors.Wrap(err, "failed to reset JavaScript evaluator")
 	}
 
+	var oldOwnedRuntime *ggjengine.Runtime
+	e.runtimeMu.Lock()
+	oldOwnedRuntime = e.ownedRuntime
 	e.runtime = newEvaluator.runtime
+	e.ownedRuntime = newEvaluator.ownedRuntime
 	e.tsParser = newEvaluator.tsParser
+	e.runtimeMu.Unlock()
+
+	if oldOwnedRuntime != nil {
+		_ = oldOwnedRuntime.Close(context.Background())
+	}
+
 	e.runtimeDeclaredMu.Lock()
 	e.runtimeDeclaredIDs = map[string]jsparse.CompletionCandidate{}
 	e.runtimeDeclaredMu.Unlock()
+	return nil
+}
+
+// Close releases owned runtime resources when this evaluator created its own runtime.
+// It is a no-op when evaluator reuses an externally provided runtime.
+func (e *Evaluator) Close() error {
+	e.runtimeMu.Lock()
+	ownedRuntime := e.ownedRuntime
+	e.ownedRuntime = nil
+	e.runtimeMu.Unlock()
+
+	if ownedRuntime != nil {
+		if err := ownedRuntime.Close(context.Background()); err != nil {
+			return errors.Wrap(err, "failed to close owned runtime")
+		}
+	}
 	return nil
 }
 

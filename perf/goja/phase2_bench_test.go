@@ -188,7 +188,7 @@ func BenchmarkGCSensitivity(b *testing.B) {
 	b.Run("SpawnAndDiscardRuntime", func(b *testing.B) {
 		const script = `(() => { let a=[]; for (let i=0;i<128;i++) { a.push({i, s:"abcd", n:[1,2,3,4]}); } return a.length; })()`
 		for i := 0; i < b.N; i++ {
-			vm, _ := newRuntime(b)
+			vm, _, closeRuntime := newRuntime(b)
 			v, err := vm.RunString(script)
 			if err != nil {
 				b.Fatal(err)
@@ -196,11 +196,13 @@ func BenchmarkGCSensitivity(b *testing.B) {
 			if got := v.ToInteger(); got != 128 {
 				b.Fatalf("unexpected result: %d", got)
 			}
+			closeRuntime()
 		}
 	})
 
 	b.Run("ReuseRuntime_AllocHeavy", func(b *testing.B) {
-		vm, _ := newRuntime(b)
+		vm, _, closeRuntime := newRuntime(b)
+		defer closeRuntime()
 		prg := compile(b, "gc-heavy.js", `(() => { let a=[]; for (let i=0;i<128;i++) { a.push({i, s:"abcd", n:[1,2,3,4]}); } return a.length; })()`)
 		for i := 0; i < b.N; i++ {
 			v, err := vm.RunProgram(prg)
@@ -214,7 +216,8 @@ func BenchmarkGCSensitivity(b *testing.B) {
 	})
 
 	b.Run("ReuseRuntime_AllocHeavy_WithPeriodicGC", func(b *testing.B) {
-		vm, _ := newRuntime(b)
+		vm, _, closeRuntime := newRuntime(b)
+		defer closeRuntime()
 		prg := compile(b, "gc-heavy-periodic.js", `(() => { let a=[]; for (let i=0;i<128;i++) { a.push({i, s:"abcd", n:[1,2,3,4]}); } return a.length; })()`)
 		for i := 0; i < b.N; i++ {
 			v, err := vm.RunProgram(prg)

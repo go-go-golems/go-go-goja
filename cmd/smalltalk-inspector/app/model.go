@@ -170,6 +170,10 @@ func NewModel(filename string) Model {
 
 // Close releases resources (tree-sitter parser).
 func (m *Model) Close() {
+	if m.replAssist != nil {
+		_ = m.replAssist.Close()
+		m.replAssist = nil
+	}
 	if m.tsParser != nil {
 		m.tsParser.Close()
 		m.tsParser = nil
