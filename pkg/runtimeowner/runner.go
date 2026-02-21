@@ -74,6 +74,14 @@ func (r *runner) Call(ctx context.Context, op string, fn CallFunc) (any, error) 
 	resultCh := make(chan callResult, 1)
 	accepted := r.scheduler.RunOnLoop(func(vm *goja.Runtime) {
 		ownerCtx := r.withOwnerContext(ctx)
+		select {
+		case <-ownerCtx.Done():
+			resultCh <- callResult{
+				err: fmt.Errorf("runtimeowner %s: %w: %v", op, ErrCanceled, ownerCtx.Err()),
+			}
+			return
+		default:
+		}
 		v, err := r.invoke(ownerCtx, op, fn)
 		resultCh <- callResult{value: v, err: err}
 	})
@@ -97,24 +105,39 @@ func (r *runner) Post(ctx context.Context, op string, fn PostFunc) error {
 		return ErrClosed
 	}
 	ctx, cancel := r.normalizeContext(ctx)
-	if cancel != nil {
-		defer cancel()
-	}
 	select {
 	case <-ctx.Done():
+		if cancel != nil {
+			cancel()
+		}
 		return fmt.Errorf("runtimeowner %s: %w: %v", op, ErrCanceled, ctx.Err())
 	default:
 	}
 
 	if r.isOwnerContext(ctx) {
+		if cancel != nil {
+			defer cancel()
+		}
 		r.invokePost(ctx, op, fn)
 		return nil
 	}
 
 	accepted := r.scheduler.RunOnLoop(func(vm *goja.Runtime) {
-		r.invokePost(r.withOwnerContext(ctx), op, fn)
+		if cancel != nil {
+			defer cancel()
+		}
+		ownerCtx := r.withOwnerContext(ctx)
+		select {
+		case <-ownerCtx.Done():
+			return
+		default:
+		}
+		r.invokePost(ownerCtx, op, fn)
 	})
 	if !accepted {
+		if cancel != nil {
+			cancel()
+		}
 		return fmt.Errorf("runtimeowner %s: %w", op, ErrScheduleRejected)
 	}
 	return nil

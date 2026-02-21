@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -59,6 +60,55 @@ func (s *queueScheduler) Close() {
 type rejectScheduler struct{}
 
 func (rejectScheduler) RunOnLoop(func(*goja.Runtime)) bool { return false }
+
+type manualScheduler struct {
+	vm     *goja.Runtime
+	jobs   chan func(*goja.Runtime)
+	closed bool
+	mu     sync.Mutex
+}
+
+func newManualScheduler(vm *goja.Runtime) *manualScheduler {
+	return &manualScheduler{
+		vm:   vm,
+		jobs: make(chan func(*goja.Runtime), 128),
+	}
+}
+
+func (s *manualScheduler) RunOnLoop(fn func(*goja.Runtime)) bool {
+	s.mu.Lock()
+	closed := s.closed
+	s.mu.Unlock()
+	if closed {
+		return false
+	}
+	s.jobs <- fn
+	return true
+}
+
+func (s *manualScheduler) RunNext() bool {
+	select {
+	case job, ok := <-s.jobs:
+		if !ok {
+			return false
+		}
+		job(s.vm)
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *manualScheduler) Close() {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return
+	}
+	s.closed = true
+	close(s.jobs)
+	s.mu.Unlock()
+}
 
 func TestRunnerCallSuccess(t *testing.T) {
 	vm := goja.New()
@@ -166,5 +216,67 @@ func TestRunnerPost(t *testing.T) {
 	case <-done:
 	case <-time.After(1 * time.Second):
 		t.Fatalf("post did not execute")
+	}
+}
+
+func TestRunnerCallSkipsCanceledQueuedInvocation(t *testing.T) {
+	vm := goja.New()
+	s := newManualScheduler(vm)
+	defer s.Close()
+
+	r := NewRunner(vm, s, Options{RecoverPanics: true})
+
+	var invoked atomic.Int32
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	_, err := r.Call(ctx, "test.call.canceled-queued", func(context.Context, *goja.Runtime) (any, error) {
+		invoked.Add(1)
+		return "unexpected", nil
+	})
+	if err == nil {
+		t.Fatalf("expected cancellation error")
+	}
+	if !errors.Is(err, ErrCanceled) {
+		t.Fatalf("expected ErrCanceled, got: %v", err)
+	}
+
+	if !s.RunNext() {
+		t.Fatalf("expected queued job")
+	}
+	if got := invoked.Load(); got != 0 {
+		t.Fatalf("expected canceled queued call to skip invocation, invoked=%d", got)
+	}
+}
+
+func TestRunnerPostKeepsTimeoutContextAliveUntilQueuedExecution(t *testing.T) {
+	vm := goja.New()
+	s := newManualScheduler(vm)
+	defer s.Close()
+
+	r := NewRunner(vm, s, Options{
+		RecoverPanics: true,
+		MaxWait:       1000,
+	})
+
+	done := make(chan error, 1)
+	err := r.Post(context.Background(), "test.post.context-lifecycle", func(ctx context.Context, _ *goja.Runtime) {
+		done <- ctx.Err()
+	})
+	if err != nil {
+		t.Fatalf("Post error: %v", err)
+	}
+
+	if !s.RunNext() {
+		t.Fatalf("expected queued post job")
+	}
+
+	select {
+	case ctxErr := <-done:
+		if ctxErr != nil {
+			t.Fatalf("expected queued post callback context to be active, got: %v", ctxErr)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatalf("post callback did not execute")
 	}
 }
