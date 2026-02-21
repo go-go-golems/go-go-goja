@@ -1,8 +1,11 @@
 package runtimeowner
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"runtime"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -12,7 +15,8 @@ import (
 type ownerCtxKey struct{}
 
 type ownerCtxValue struct {
-	r *runner
+	r   *runner
+	gid uint64
 }
 
 type callResult struct {
@@ -187,10 +191,31 @@ func (r *runner) normalizeContext(ctx context.Context) (context.Context, context
 }
 
 func (r *runner) withOwnerContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ownerCtxKey{}, ownerCtxValue{r: r})
+	return context.WithValue(ctx, ownerCtxKey{}, ownerCtxValue{
+		r:   r,
+		gid: currentGoroutineID(),
+	})
 }
 
 func (r *runner) isOwnerContext(ctx context.Context) bool {
 	v, ok := ctx.Value(ownerCtxKey{}).(ownerCtxValue)
-	return ok && v.r == r
+	if !ok || v.r != r || v.gid == 0 {
+		return false
+	}
+	return v.gid == currentGoroutineID()
+}
+
+func currentGoroutineID() uint64 {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	parts := bytes.Fields(buf[:n])
+	// Expected prefix: "goroutine <id> ..."
+	if len(parts) < 2 {
+		return 0
+	}
+	id, err := strconv.ParseUint(string(parts[1]), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return id
 }

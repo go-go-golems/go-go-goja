@@ -280,3 +280,98 @@ func TestRunnerPostKeepsTimeoutContextAliveUntilQueuedExecution(t *testing.T) {
 		t.Fatalf("post callback did not execute")
 	}
 }
+
+func TestRunnerCallWithLeakedOwnerContextStillSchedules(t *testing.T) {
+	vm := goja.New()
+	s := newQueueScheduler(vm)
+	defer s.Close()
+
+	r := NewRunner(vm, s, Options{RecoverPanics: true})
+
+	innerReturned := make(chan struct{})
+	innerInvoked := make(chan struct{}, 1)
+	earlyReturn := make(chan bool, 1)
+
+	_, err := r.Call(context.Background(), "test.call.leaked-owner-ctx", func(ctx context.Context, _ *goja.Runtime) (any, error) {
+		go func(leaked context.Context) {
+			_, _ = r.Call(leaked, "test.call.inner", func(context.Context, *goja.Runtime) (any, error) {
+				innerInvoked <- struct{}{}
+				return nil, nil
+			})
+			close(innerReturned)
+		}(ctx)
+
+		time.Sleep(20 * time.Millisecond)
+		select {
+		case <-innerReturned:
+			earlyReturn <- true
+		default:
+			earlyReturn <- false
+		}
+		return nil, nil
+	})
+	if err != nil {
+		t.Fatalf("outer call failed: %v", err)
+	}
+
+	select {
+	case early := <-earlyReturn:
+		if early {
+			t.Fatalf("inner call returned before owner callback finished; leaked owner context bypassed scheduler")
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatalf("timed out waiting for early-return check")
+	}
+
+	select {
+	case <-innerInvoked:
+	case <-time.After(1 * time.Second):
+		t.Fatalf("inner invocation was never scheduled")
+	}
+}
+
+func TestRunnerPostWithLeakedOwnerContextStillSchedules(t *testing.T) {
+	vm := goja.New()
+	s := newQueueScheduler(vm)
+	defer s.Close()
+
+	r := NewRunner(vm, s, Options{RecoverPanics: true})
+
+	postDone := make(chan struct{})
+	earlyPost := make(chan bool, 1)
+
+	_, err := r.Call(context.Background(), "test.post.leaked-owner-ctx", func(ctx context.Context, _ *goja.Runtime) (any, error) {
+		go func(leaked context.Context) {
+			_ = r.Post(leaked, "test.post.inner", func(context.Context, *goja.Runtime) {
+				close(postDone)
+			})
+		}(ctx)
+
+		time.Sleep(20 * time.Millisecond)
+		select {
+		case <-postDone:
+			earlyPost <- true
+		default:
+			earlyPost <- false
+		}
+		return nil, nil
+	})
+	if err != nil {
+		t.Fatalf("outer call failed: %v", err)
+	}
+
+	select {
+	case early := <-earlyPost:
+		if early {
+			t.Fatalf("post callback executed before owner callback finished; leaked owner context bypassed scheduler")
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatalf("timed out waiting for post early-return check")
+	}
+
+	select {
+	case <-postDone:
+	case <-time.After(1 * time.Second):
+		t.Fatalf("post callback was never scheduled")
+	}
+}
