@@ -89,6 +89,30 @@ Notes:
 - `DefaultRegistryModules()` enables modules that registered themselves through `modules.Register(...)`.
 - `rt` bundles `VM`, `Require`, `Loop`, and `Owner` for explicit lifecycle control.
 
+### Script Module-Root Helper
+
+When your JS entrypoint lives in a nested folder (for example `js/extractor/main.js`),
+you can derive the standard `require.WithGlobalFolders(...)` layering from script path:
+
+```go
+factory, err := engine.NewBuilder(
+    engine.WithModuleRootsFromScript(
+        "/abs/path/to/js/extractor/main.js",
+        engine.DefaultModuleRootsOptions(),
+    ),
+).Build()
+```
+
+`DefaultModuleRootsOptions()` yields:
+
+- script directory
+- parent directory
+- `scriptDir/node_modules`
+- `parentDir/node_modules`
+
+Use this helper instead of duplicating manual `require.WithGlobalFolders(...)`
+lists in each command.
+
 ---
 
 ## Adding **your** native module
