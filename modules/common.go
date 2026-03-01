@@ -73,6 +73,16 @@ func (r *Registry) GetDocumentation() map[string]string {
 	return docs
 }
 
+// ListModules returns a shallow copy of the registered modules.
+func (r *Registry) ListModules() []NativeModule {
+	if r == nil || len(r.modules) == 0 {
+		return nil
+	}
+	out := make([]NativeModule, len(r.modules))
+	copy(out, r.modules)
+	return out
+}
+
 // Enable registers all modules from this registry with a goja_nodejs/require.Registry.
 func (r *Registry) Enable(gojaRegistry *require.Registry) {
 	for _, m := range r.modules {
@@ -92,6 +102,11 @@ func Register(m NativeModule) {
 // GetModule returns a registered module by name from the default global registry.
 func GetModule(name string) NativeModule {
 	return DefaultRegistry.GetModule(name)
+}
+
+// ListDefaultModules returns a copy of modules from the default global registry.
+func ListDefaultModules() []NativeModule {
+	return DefaultRegistry.ListModules()
 }
 
 // EnableAll iterates over every module in the default registry and adds it
