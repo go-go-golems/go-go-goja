@@ -3,12 +3,12 @@ package databasemod
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/modules"
 	_ "github.com/mattn/go-sqlite3" // Driver for sqlite3
+	"github.com/rs/zerolog/log"
 )
 
 // DBModule provides a database connection for a goja runtime.
@@ -50,24 +50,24 @@ func (m *DBModule) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 func (m *DBModule) Configure(driverName, dataSourceName string) error {
 	if m.db != nil {
 		if err := m.db.Close(); err != nil {
-			log.Printf("database: failed to close existing connection: %v", err)
+			log.Error().Err(err).Msg("database: failed to close existing connection")
 		}
 	}
 
 	db, err := sql.Open(driverName, dataSourceName)
 	if err != nil {
-		log.Printf("database: failed to open connection to %s: %v", dataSourceName, err)
+		log.Error().Str("dsn", dataSourceName).Err(err).Msg("database: failed to open connection")
 		return err
 	}
 	m.db = db
-	log.Printf("database: configured for driver %s", driverName)
+	log.Debug().Str("driver", driverName).Msg("database: configured")
 	return nil
 }
 
 // Close closes the database connection.
 func (m *DBModule) Close() error {
 	if m.db != nil {
-		log.Printf("database: closing connection")
+		log.Debug().Msg("database: closing connection")
 		return m.db.Close()
 	}
 	return nil
@@ -80,7 +80,7 @@ func (m *DBModule) Query(query string, args ...interface{}) ([]map[string]interf
 	}
 
 	startTime := time.Now()
-	log.Printf("database: executing query: %s", query)
+	log.Debug().Str("query", query).Msg("database: executing query")
 
 	var flatArgs []interface{}
 	for _, arg := range args {
@@ -93,12 +93,12 @@ func (m *DBModule) Query(query string, args ...interface{}) ([]map[string]interf
 
 	rows, err := m.db.Query(query, flatArgs...)
 	if err != nil {
-		log.Printf("database: query error: %v", err)
+		log.Error().Str("query", query).Err(err).Msg("database: query error")
 		return nil, err
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("database: failed to close rows: %v", err)
+			log.Error().Err(err).Msg("database: failed to close rows")
 		}
 	}()
 
@@ -116,7 +116,7 @@ func (m *DBModule) Query(query string, args ...interface{}) ([]map[string]interf
 		}
 
 		if err := rows.Scan(scan...); err != nil {
-			log.Printf("database: row scan error: %v", err)
+			log.Error().Err(err).Msg("database: row scan error")
 			continue
 		}
 
@@ -128,7 +128,10 @@ func (m *DBModule) Query(query string, args ...interface{}) ([]map[string]interf
 	}
 
 	duration := time.Since(startTime)
-	log.Printf("database: query completed in %v, returned %d rows", duration, len(result))
+	log.Debug().
+		Dur("duration", duration).
+		Int("rows", len(result)).
+		Msg("database: query completed")
 
 	return result, nil
 }
@@ -140,7 +143,7 @@ func (m *DBModule) Exec(query string, args ...interface{}) (map[string]interface
 	}
 
 	startTime := time.Now()
-	log.Printf("database: executing exec: %s", query)
+	log.Debug().Str("query", query).Msg("database: executing exec")
 
 	var flatArgs []interface{}
 	for _, arg := range args {
@@ -153,7 +156,7 @@ func (m *DBModule) Exec(query string, args ...interface{}) (map[string]interface
 
 	result, err := m.db.Exec(query, flatArgs...)
 	if err != nil {
-		log.Printf("database: exec error: %v", err)
+		log.Error().Str("query", query).Err(err).Msg("database: exec error")
 		return map[string]interface{}{
 			"error":   err.Error(),
 			"success": false,
@@ -164,7 +167,10 @@ func (m *DBModule) Exec(query string, args ...interface{}) (map[string]interface
 	lastInsertId, _ := result.LastInsertId()
 
 	duration := time.Since(startTime)
-	log.Printf("database: exec completed in %v, affected %d rows", duration, rowsAffected)
+	log.Debug().
+		Dur("duration", duration).
+		Int64("rowsAffected", rowsAffected).
+		Msg("database: exec completed")
 
 	return map[string]interface{}{
 		"success":      true,
