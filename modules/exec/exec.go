@@ -5,14 +5,32 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/modules"
+	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 )
 
 // m implements a minimal wrapper around os/exec for JavaScript.
 type m struct{}
 
 var _ modules.NativeModule = (*m)(nil)
+var _ modules.TypeScriptDeclarer = (*m)(nil)
 
 func (m) Name() string { return "exec" }
+
+func (m) TypeScriptModule() *spec.Module {
+	return &spec.Module{
+		Name: "exec",
+		Functions: []spec.Function{
+			{
+				Name: "run",
+				Params: []spec.Param{
+					{Name: "cmd", Type: spec.String()},
+					{Name: "args", Type: spec.Array(spec.String())},
+				},
+				Returns: spec.String(),
+			},
+		},
+	}
+}
 
 // Doc returns the documentation for the module.
 func (m) Doc() string {

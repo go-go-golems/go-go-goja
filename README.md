@@ -89,6 +89,24 @@ Notes:
 - `DefaultRegistryModules()` enables modules that registered themselves through `modules.Register(...)`.
 - `rt` bundles `VM`, `Require`, `Loop`, and `Owner` for explicit lifecycle control.
 
+## TypeScript Declaration Generation
+
+Goja module declarations for the bun demo are generated from module-owned descriptors:
+
+```bash
+cd go-go-goja
+make gen-dts
+```
+
+CI/drift check mode:
+
+```bash
+cd go-go-goja
+make check-dts
+```
+
+The generator source is `cmd/gen-dts`, and modules opt in by implementing `modules.TypeScriptDeclarer`.
+
 ### Script Module-Root Helper
 
 When your JS entrypoint lives in a nested folder (for example `js/extractor/main.js`),

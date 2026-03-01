@@ -5,6 +5,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/modules"
+	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 )
 
 // m is the concrete implementation of the fs module.
@@ -14,8 +15,32 @@ import (
 type m struct{}
 
 var _ modules.NativeModule = (*m)(nil)
+var _ modules.TypeScriptDeclarer = (*m)(nil)
 
 func (m) Name() string { return "fs" }
+
+func (m) TypeScriptModule() *spec.Module {
+	return &spec.Module{
+		Name: "fs",
+		Functions: []spec.Function{
+			{
+				Name: "readFileSync",
+				Params: []spec.Param{
+					{Name: "path", Type: spec.String()},
+				},
+				Returns: spec.String(),
+			},
+			{
+				Name: "writeFileSync",
+				Params: []spec.Param{
+					{Name: "path", Type: spec.String()},
+					{Name: "data", Type: spec.String()},
+				},
+				Returns: spec.Void(),
+			},
+		},
+	}
+}
 
 // Doc returns the documentation for the module.
 func (m) Doc() string {
