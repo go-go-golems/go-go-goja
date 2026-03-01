@@ -24,8 +24,14 @@ RelatedFiles:
       Note: Implements generator CLI flow and strict/check behavior
     - Path: workspaces/2026-03-01/generate-js-types/go-go-goja/cmd/gen-dts/main_test.go
       Note: Validates generator option parsing and write/check behavior
+    - Path: workspaces/2026-03-01/generate-js-types/go-go-goja/cmd/repl/main.go
+      Note: CLI help hints now include generator docs
     - Path: workspaces/2026-03-01/generate-js-types/go-go-goja/modules/common.go
       Note: TypeScript declarer integration and module listing
+    - Path: workspaces/2026-03-01/generate-js-types/go-go-goja/pkg/doc/08-typescript-declaration-generator.md
+      Note: Primary help entry for cmd/gen-dts usage
+    - Path: workspaces/2026-03-01/generate-js-types/go-go-goja/pkg/doc/bun-goja-bundling-playbook.md
+      Note: Adjacent help page refreshed for generator-era workflow
     - Path: workspaces/2026-03-01/generate-js-types/go-go-goja/pkg/tsgen/render/dts_renderer.go
       Note: Deterministic declaration rendering
 ExternalSources: []
@@ -34,6 +40,7 @@ LastUpdated: 2026-03-01T06:14:51.117420889-05:00
 WhatFor: Capture decisions, commands, evidence, and delivery steps for intern handoff.
 WhenToUse: Use when reviewing why this design was chosen and how to execute or continue the work.
 ---
+
 
 
 
@@ -416,3 +423,98 @@ I also attempted to run `docmgr doctor` as a final hygiene pass, but encountered
   - `docmgr changelog update ...`
   - `docmgr doc relate ...`
 - Final task state: all 14 tasks checked.
+
+## Step 5: Author Generator Help Page and Refresh Stale Help Docs
+
+I added a new Glazed help page dedicated to using `cmd/gen-dts` and made a focused cleanup pass across existing help content that had drifted from the current implementation. The new page documents command flags, strict/check behavior, module authoring flow, CI usage, and common failures in the same long-form style used by the existing help corpus.
+
+I also updated the Bun bundling playbook where it was stale (manual declaration workflow, removed runtime APIs, and missing drift-check guidance), and improved REPL help discoverability by listing the new generator docs in the `:help` hint output.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Write a detailed document about using it in the same style as the other docs, and make a pass on what needs to be updated anyway.
+
+$glazed-help-page-authoring"
+
+**Assistant interpretation:** Create an intern-quality help document for the new TypeScript declaration generator and update surrounding docs that are now outdated.
+
+**Inferred user intent:** Ensure the newly implemented generator is properly documented and that neighboring help docs remain accurate and trustworthy.
+
+**Commit (code):** `fa7339a` — "docs(help): add gen-dts guide and refresh bundling playbook"
+
+### What I did
+
+- Added a new help entry:
+  - `pkg/doc/08-typescript-declaration-generator.md`
+  - slug: `typescript-declaration-generator`
+  - section type: `Tutorial`
+  - includes command usage, module authoring steps, strict/check semantics, troubleshooting table, and cross-links.
+- Updated stale sections in:
+  - `pkg/doc/bun-goja-bundling-playbook.md`
+  - replaced removed runtime API examples with current `engine.NewBuilder().Build().NewRuntime(...)` flow.
+  - switched declaration guidance from manual edits to `make gen-dts` / `make check-dts`.
+  - updated TypeScript snippets (`goja-modules.d.ts` generated, `assets.d.ts` hand-authored).
+  - refreshed troubleshooting and testing checklists with declaration drift checks.
+- Updated REPL discoverability hints in:
+  - `cmd/repl/main.go`
+  - added `repl help bun-bundling-playbook-goja` and `repl help typescript-declaration-generator`.
+- Validated docs are discoverable with:
+  - `go run ./cmd/repl help typescript-declaration-generator`
+  - `go run ./cmd/repl help bun-bundling-playbook-goja`
+
+### Why
+
+- The new generator introduced a workflow shift from manual `.d.ts` maintenance to generated declarations with check mode; docs needed to teach this clearly.
+- Existing help content referenced removed runtime APIs and old declaration practices, which would mislead new contributors.
+- Surfacing the new slug in REPL help keeps discoverability aligned with how users navigate docs from the CLI.
+
+### What worked
+
+- New help page loaded correctly via embedded help system and rendered as expected.
+- Updated playbook examples now align with current runtime API and make targets.
+- REPL `:help` output now points directly to the generator and bundling topics.
+- Lint/test hooks passed on commit:
+  - `golangci-lint run -v`
+  - `go generate ./...`
+  - `go test ./...`
+
+### What didn't work
+
+- No blocking failures in this step.
+- Minor style mismatch remains in older docs that still include top-level `#` headings; I kept existing file style in-place for consistency and only enforced improved structure in the new page.
+
+### What I learned
+
+- The help corpus had two important drift points after generator implementation: API bootstrap snippets and declaration ownership boundaries.
+- Keeping generated vs hand-authored type files explicitly separated in docs (`goja-modules.d.ts` vs `assets.d.ts`) removes ambiguity for contributors.
+
+### What was tricky to build
+
+- The tricky part was balancing “same style as existing docs” with newer Glazed authoring guidance (especially around section structure and frontmatter discipline).
+- I resolved this by matching existing prose depth and formatting patterns while still adding stronger troubleshooting/see-also sections and up-to-date command semantics.
+
+### What warrants a second pair of eyes
+
+- Confirm whether older docs should be incrementally normalized to remove duplicate top-level headings for full Glazed style consistency.
+- Review the Bun playbook’s breadth to ensure it still serves both simple and split-bundle workflows without becoming too broad.
+
+### What should be done in the future
+
+- Continue opportunistic refreshes of pre-generator documentation pages when touching adjacent topics.
+
+### Code review instructions
+
+- Review new generator page first:
+  - `pkg/doc/08-typescript-declaration-generator.md`
+- Review refreshes in:
+  - `pkg/doc/bun-goja-bundling-playbook.md`
+  - `cmd/repl/main.go`
+- Validate help discoverability:
+  - `go run ./cmd/repl help typescript-declaration-generator`
+  - `go run ./cmd/repl help bun-bundling-playbook-goja`
+
+### Technical details
+
+- Ticket tasks completed in this step:
+  - 15, 16
+- Task 17 scope (discoverability + bookkeeping) initiated in this step and completed after diary/changelog updates.

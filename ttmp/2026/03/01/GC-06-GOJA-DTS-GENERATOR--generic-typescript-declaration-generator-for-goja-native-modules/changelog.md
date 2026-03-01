@@ -41,3 +41,14 @@ Finalized ticket bookkeeping: checked off tasks 9-14, updated implementation dia
 - /home/manuel/workspaces/2026-03-01/generate-js-types/go-go-goja/ttmp/2026/03/01/GC-06-GOJA-DTS-GENERATOR--generic-typescript-declaration-generator-for-goja-native-modules/reference/01-implementation-diary.md — Step-by-step implementation and tooling failure log
 - /home/manuel/workspaces/2026-03-01/generate-js-types/go-go-goja/ttmp/2026/03/01/GC-06-GOJA-DTS-GENERATOR--generic-typescript-declaration-generator-for-goja-native-modules/tasks.md — All checklist items completed
 
+
+## 2026-03-01
+
+Added a new Glazed help page for cmd/gen-dts and refreshed stale documentation/discoverability: new tutorial slug typescript-declaration-generator, updated bun bundling playbook to generated declaration workflow and current runtime API, and updated REPL help hints (commit fa7339a).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-01/generate-js-types/go-go-goja/cmd/repl/main.go — Improved help topic discoverability for new docs
+- /home/manuel/workspaces/2026-03-01/generate-js-types/go-go-goja/pkg/doc/08-typescript-declaration-generator.md — New detailed generator usage documentation
+- /home/manuel/workspaces/2026-03-01/generate-js-types/go-go-goja/pkg/doc/bun-goja-bundling-playbook.md — Refreshed stale API and declaration workflow guidance
+

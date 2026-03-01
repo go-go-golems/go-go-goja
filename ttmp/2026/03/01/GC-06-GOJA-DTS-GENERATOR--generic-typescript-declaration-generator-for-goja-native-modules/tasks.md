@@ -18,4 +18,4 @@
 - [x] Record implementation diary/changelog updates and relate modified files
 - [x] Add a detailed Glazed help page documenting cmd/gen-dts usage, workflow, strict/check modes, and module authoring patterns
 - [x] Refresh stale docs to match generator reality (bun playbook type declarations, generation commands, and troubleshooting)
-- [ ] Improve help discoverability for new generator docs and record diary/changelog updates for this doc pass
+- [x] Improve help discoverability for new generator docs and record diary/changelog updates for this doc pass
