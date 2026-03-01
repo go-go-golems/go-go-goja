@@ -1,0 +1,164 @@
+---
+Title: TypeScript Declaration Generator for Native Modules
+Slug: typescript-declaration-generator
+Short: Generate deterministic `.d.ts` files from Go module descriptors and enforce drift checks in CI.
+Topics:
+- goja
+- typescript
+- declarations
+- modules
+- tooling
+- ci
+Commands:
+- gen-dts
+- repl
+Flags:
+- out
+- module
+- strict
+- check
+- header
+IsTopLevel: true
+IsTemplate: false
+ShowPerDefault: true
+SectionType: Tutorial
+---
+
+## Overview
+This guide covers how to use `cmd/gen-dts` to generate TypeScript declarations for Goja native modules. The workflow keeps type declarations close to module code, makes output deterministic, and gives you a `--check` mode you can enforce in CI.
+
+The generator matters because manual declaration files drift quickly. Once a module exports a new function or changes signatures, stale `.d.ts` files become misleading and break editor tooling for users of `require("fs")`, `require("exec")`, or other native modules.
+
+## How the system works
+The declaration system has three moving parts: module descriptors, generator selection, and renderer/validator output. A module opts in by implementing `modules.TypeScriptDeclarer`, the command collects those descriptors from the default registry, and the renderer emits sorted `declare module` blocks.
+
+High-level flow:
+- Module package registers itself as usual (`modules.Register(...)`).
+- Module optionally implements `TypeScriptModule() *spec.Module`.
+- `cmd/gen-dts` loads registered modules and filters with `--module`.
+- Validator checks descriptor shape and type trees.
+- Renderer writes deterministic `.d.ts` output or validates with `--check`.
+
+## Quick start
+Use these commands when you want to regenerate Bun demo declarations and verify they match the committed file.
+
+Generate declarations:
+
+```bash
+cd go-go-goja
+go run ./cmd/gen-dts \
+  --out ./cmd/bun-demo/js/src/types/goja-modules.d.ts \
+  --module fs,exec,database \
+  --strict
+```
+
+Check mode (no file write; fails on drift):
+
+```bash
+cd go-go-goja
+go run ./cmd/gen-dts \
+  --out ./cmd/bun-demo/js/src/types/goja-modules.d.ts \
+  --module fs,exec,database \
+  --strict \
+  --check
+```
+
+Makefile wrappers:
+
+```bash
+cd go-go-goja
+make gen-dts
+make check-dts
+```
+
+## Command reference
+This section explains what each flag does in practice and when you should use it.
+
+| Flag | What it does | Why it matters |
+| --- | --- | --- |
+| `--out` | Target file to write or compare | Makes generation explicit and scriptable |
+| `--module` | Comma-separated module filter | Limits output surface and strict checks to intended modules |
+| `--strict` | Fails if a selected module has no descriptor | Prevents silent gaps in declaration coverage |
+| `--check` | Compares generated output with `--out` and exits non-zero on mismatch | Enables CI drift enforcement |
+| `--header` | Overrides generated header comment | Useful for custom branding or migration phases |
+
+## Step-by-step module authoring
+Use this flow when adding types for a new native module. It keeps runtime exports and static declarations aligned.
+
+### 1) Implement runtime module as usual
+Start with `modules.NativeModule` and export functions in `Loader`.
+
+### 2) Add the declaration interface
+Implement `modules.TypeScriptDeclarer` on the same module type.
+
+```go
+type m struct{}
+
+var _ modules.NativeModule = (*m)(nil)
+var _ modules.TypeScriptDeclarer = (*m)(nil)
+```
+
+### 3) Return a descriptor
+Define the module declaration with `pkg/tsgen/spec` helper constructors.
+
+```go
+func (m) TypeScriptModule() *spec.Module {
+	return &spec.Module{
+		Name: "fs",
+		Functions: []spec.Function{
+			{
+				Name: "readFileSync",
+				Params: []spec.Param{
+					{Name: "path", Type: spec.String()},
+				},
+				Returns: spec.String(),
+			},
+		},
+	}
+}
+```
+
+### 4) Generate and verify
+Run `make gen-dts` and then `make check-dts`. Commit both module code and generated declarations together.
+
+## Strict mode behavior
+Strict mode validates descriptor presence for the selected module set. If you pass `--module fs,exec,database --strict`, those three modules must implement `TypeScriptDeclarer`.
+
+If you omit `--module` and use `--strict`, every module discovered from the default registry must provide a descriptor. Use this carefully if your registry includes modules you have not migrated yet.
+
+## CI integration pattern
+Use check mode as a required step in CI so declaration drift fails fast and predictably.
+
+Suggested CI command:
+
+```bash
+cd go-go-goja
+make check-dts
+```
+
+Recommended local workflow before pushing:
+- Update module exports and descriptors in the same PR.
+- Run `make gen-dts`.
+- Run `make check-dts`.
+- Run `go test ./cmd/gen-dts ./pkg/tsgen/... ./modules/... -count=1`.
+
+## Relationship to Bun demo type files
+The Bun demo keeps generated and hand-authored ambient types separate:
+- `cmd/bun-demo/js/src/types/goja-modules.d.ts` is generated by `cmd/gen-dts`.
+- `cmd/bun-demo/js/src/types/assets.d.ts` remains hand-authored for `*.svg`.
+
+This split matters because generated files can be overwritten at any time, while asset-specific ambient types usually do not come from Go module descriptors.
+
+## Troubleshooting
+| Problem | Cause | Solution |
+| --- | --- | --- |
+| `module "x" has no TypeScript descriptor` | `--strict` enabled but module does not implement `TypeScriptDeclarer` | Add `TypeScriptModule()` or remove module from `--module` filter |
+| `requested module(s) not found` | `--module` includes names not registered in default registry | Fix module names or ensure module package is imported/registered |
+| `--check failed: generated output differs` | Committed `.d.ts` is stale | Run generation command, review diff, and commit updated file |
+| `--check failed: <file> does not exist` | Target file has not been generated yet | Run without `--check` once to create output |
+| TypeScript still complains about `.svg` imports | SVG declaration was placed in generated file and got overwritten | Keep asset declarations in `assets.d.ts` |
+
+## See Also
+- `glaze help bun-bundling-playbook-goja`
+- `glaze help creating-modules`
+- `glaze help introduction`

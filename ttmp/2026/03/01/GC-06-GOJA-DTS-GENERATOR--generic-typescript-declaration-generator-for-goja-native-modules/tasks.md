@@ -16,3 +16,6 @@
 - [x] Regenerate cmd/bun-demo/js/src/types/goja-modules.d.ts from cmd/gen-dts
 - [x] Add docs/automation hooks (README guidance and make/check command for declaration drift)
 - [x] Record implementation diary/changelog updates and relate modified files
+- [x] Add a detailed Glazed help page documenting cmd/gen-dts usage, workflow, strict/check modes, and module authoring patterns
+- [x] Refresh stale docs to match generator reality (bun playbook type declarations, generation commands, and troubleshooting)
+- [ ] Improve help discoverability for new generator docs and record diary/changelog updates for this doc pass
