@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -154,5 +155,37 @@ func TestHandleRunStatus_NoRunFallsBackToReport(t *testing.T) {
 	}
 	if !strings.Contains(body, "Report not available yet") {
 		t.Fatalf("expected report fallback message, got: %s", body)
+	}
+}
+
+func TestBuildPhaseRunCommand(t *testing.T) {
+	cmd, err := buildPhaseRunCommand(context.Background(), "phase1")
+	if err != nil {
+		t.Fatalf("build command: %v", err)
+	}
+	wantArgs := []string{
+		"go",
+		"run",
+		"./cmd/goja-perf",
+		"phase1-run",
+		"--output-file",
+		defaultPhase1OutputFile,
+		"--output-dir",
+		defaultPhase1TaskOutputDir,
+	}
+	if len(cmd.Args) != len(wantArgs) {
+		t.Fatalf("args length = %d, want %d (%v)", len(cmd.Args), len(wantArgs), cmd.Args)
+	}
+	for i := range wantArgs {
+		if cmd.Args[i] != wantArgs[i] {
+			t.Fatalf("args[%d] = %q, want %q", i, cmd.Args[i], wantArgs[i])
+		}
+	}
+}
+
+func TestBuildPhaseRunCommand_UnknownPhase(t *testing.T) {
+	_, err := buildPhaseRunCommand(context.Background(), "unknown")
+	if err == nil {
+		t.Fatalf("expected error")
 	}
 }
