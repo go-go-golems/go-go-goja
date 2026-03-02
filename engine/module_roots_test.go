@@ -62,6 +62,44 @@ func TestResolveModuleRootsFromScript_ExtraFoldersDeduplicated(t *testing.T) {
 	}
 }
 
+func TestResolveModuleRootsFromScript_ExtraFoldersRelativeToScriptDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join(tmpDir, "project", "scripts", "main.js")
+	scriptDir := filepath.Dir(scriptPath)
+
+	cwdBefore, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(cwdBefore)
+	})
+
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	roots, err := ResolveModuleRootsFromScript(scriptPath, ModuleRootsOptions{
+		ExtraFolders: []string{"./lib", "../shared"},
+	})
+	if err != nil {
+		t.Fatalf("resolve module roots: %v", err)
+	}
+
+	expected := []string{
+		filepath.Join(scriptDir, "lib"),
+		filepath.Join(filepath.Dir(scriptDir), "shared"),
+	}
+	if len(roots) != len(expected) {
+		t.Fatalf("roots length = %d, want %d (%v)", len(roots), len(expected), roots)
+	}
+	for i := range expected {
+		if roots[i] != expected[i] {
+			t.Fatalf("roots[%d] = %q, want %q", i, roots[i], expected[i])
+		}
+	}
+}
+
 func TestWithModuleRootsFromScript_ResolvesNestedRequire(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectDir := filepath.Join(tmpDir, "js")

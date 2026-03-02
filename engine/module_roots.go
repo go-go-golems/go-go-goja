@@ -55,7 +55,17 @@ func ResolveModuleRootsFromScript(scriptPath string, opts ModuleRootsOptions) ([
 			candidates = append(candidates, filepath.Join(parentDir, "node_modules"))
 		}
 	}
-	candidates = append(candidates, opts.ExtraFolders...)
+	for _, folder := range opts.ExtraFolders {
+		folder = strings.TrimSpace(folder)
+		if folder == "" {
+			continue
+		}
+		cleaned := filepath.Clean(folder)
+		if !filepath.IsAbs(cleaned) {
+			cleaned = filepath.Join(scriptDir, cleaned)
+		}
+		candidates = append(candidates, cleaned)
+	}
 
 	out := make([]string, 0, len(candidates))
 	seen := map[string]struct{}{}
