@@ -66,9 +66,13 @@ func (r *runner) Call(ctx context.Context, op string, fn CallFunc) (any, error) 
 	if r.closed.Load() {
 		return nil, ErrClosed
 	}
-	ctx, cancel := r.normalizeContext(ctx)
-	if cancel != nil {
-		defer cancel()
+	ctx = normalizeContext(ctx)
+	var cancel context.CancelFunc
+	if r.opts.MaxWait > 0 {
+		if _, ok := ctx.Deadline(); !ok {
+			ctx, cancel = context.WithTimeout(ctx, time.Duration(r.opts.MaxWait)*time.Millisecond)
+			defer cancel()
+		}
 	}
 
 	if r.isOwnerContext(ctx) {
@@ -108,7 +112,14 @@ func (r *runner) Post(ctx context.Context, op string, fn PostFunc) error {
 	if r.closed.Load() {
 		return ErrClosed
 	}
-	ctx, cancel := r.normalizeContext(ctx)
+	ctx = normalizeContext(ctx)
+	var cancel context.CancelFunc
+	if r.opts.MaxWait > 0 {
+		if _, ok := ctx.Deadline(); !ok {
+			ctx, cancel = context.WithTimeout(ctx, time.Duration(r.opts.MaxWait)*time.Millisecond)
+		}
+	}
+
 	select {
 	case <-ctx.Done():
 		if cancel != nil {
@@ -177,17 +188,11 @@ func (r *runner) invokePost(ctx context.Context, op string, fn PostFunc) {
 	fn(ctx, r.vm)
 }
 
-func (r *runner) normalizeContext(ctx context.Context) (context.Context, context.CancelFunc) {
+func normalizeContext(ctx context.Context) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if r.opts.MaxWait > 0 {
-		if _, ok := ctx.Deadline(); !ok {
-			timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(r.opts.MaxWait)*time.Millisecond)
-			return timeoutCtx, cancel
-		}
-	}
-	return ctx, nil
+	return ctx
 }
 
 func (r *runner) withOwnerContext(ctx context.Context) context.Context {

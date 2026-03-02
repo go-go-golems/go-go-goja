@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -66,7 +67,7 @@ func (rs *runState) finish(err error) {
 }
 
 // startBackgroundRun launches the phase command in the background, streaming output line by line.
-func (a *perfWebApp) startBackgroundRun(phaseID string, cfg phaseConfig) {
+func (a *perfWebApp) startBackgroundRun(phaseID string) {
 	rs := &runState{
 		running:   true,
 		startedAt: time.Now(),
@@ -80,15 +81,14 @@ func (a *perfWebApp) startBackgroundRun(phaseID string, cfg phaseConfig) {
 	a.mu.Unlock()
 
 	go func() {
-		args := []string{
-			"run", "./cmd/goja-perf", phaseID + "-run",
-			"--output-file", cfg.OutputFile,
-			"--output-dir", cfg.OutputDir,
-		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
 
-		cmd := exec.CommandContext(ctx, "go", args...)
+		cmd, err := buildPhaseRunCommand(ctx, phaseID)
+		if err != nil {
+			rs.finish(err)
+			return
+		}
 		cmd.Dir = a.repoRoot
 
 		// Create pipes for streaming
@@ -119,6 +119,37 @@ func (a *perfWebApp) startBackgroundRun(phaseID string, cfg phaseConfig) {
 		err = cmd.Wait()
 		rs.finish(err)
 	}()
+}
+
+func buildPhaseRunCommand(ctx context.Context, phaseID string) (*exec.Cmd, error) {
+	switch phaseID {
+	case "phase1":
+		return exec.CommandContext(
+			ctx,
+			"go",
+			"run",
+			"./cmd/goja-perf",
+			"phase1-run",
+			"--output-file",
+			defaultPhase1OutputFile,
+			"--output-dir",
+			defaultPhase1TaskOutputDir,
+		), nil
+	case "phase2":
+		return exec.CommandContext(
+			ctx,
+			"go",
+			"run",
+			"./cmd/goja-perf",
+			"phase2-run",
+			"--output-file",
+			defaultPhase2OutputFile,
+			"--output-dir",
+			defaultPhase2TaskOutputDir,
+		), nil
+	default:
+		return nil, fmt.Errorf("%w: %s", os.ErrInvalid, phaseID)
+	}
 }
 
 // getRunState returns the current run state for a phase (nil if no run has happened).
@@ -207,7 +238,7 @@ func (a *perfWebApp) handleRunStreaming(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	phaseID := strings.TrimPrefix(r.URL.Path, "/api/run/")
-	cfg, ok := a.phases[phaseID]
+	_, ok := a.phases[phaseID]
 	if !ok {
 		http.Error(w, "unknown phase", http.StatusNotFound)
 		return
@@ -219,7 +250,7 @@ func (a *perfWebApp) handleRunStreaming(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	a.startBackgroundRun(phaseID, cfg)
+	a.startBackgroundRun(phaseID)
 	// Small delay so the first poll has something to show
 	time.Sleep(100 * time.Millisecond)
 	a.renderProgressFragment(w, phaseID)
