@@ -70,8 +70,8 @@
   - [ ] golden JSON outputs (optional)
 - [ ] Manual parity runbook (documented in a playbook or the design guide):
   - [x] write runbook doc (`playbooks/01-parity-runbook.md`)
-  - [ ] compare `jsdocex extract` vs `goja-jsdoc extract` on all samples
-  - [ ] compare server endpoints for one sample directory
+  - [x] compare `jsdocex extract` vs `goja-jsdoc extract` on all samples
+  - [x] compare server endpoints for one sample directory
 - [ ] Once parity confirmed:
   - [ ] remove `./jsdocex` from the workspace `go.work`
   - [ ] delete or archive `jsdocex/` directory (no compatibility wrapper unless requested)
