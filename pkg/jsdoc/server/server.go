@@ -52,6 +52,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/symbol/", s.handleSymbol)
 	mux.HandleFunc("/api/example/", s.handleExample)
 	mux.HandleFunc("/api/search", s.handleSearch)
+	mux.HandleFunc("/api/batch/extract", s.handleBatchExtract)
+	mux.HandleFunc("/api/batch/export", s.handleBatchExport)
 
 	// SSE for live reload.
 	mux.HandleFunc("/events", s.handleSSE)
