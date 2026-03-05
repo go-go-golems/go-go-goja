@@ -69,6 +69,7 @@
   - [x] field-level assertions (minimum)
   - [ ] golden JSON outputs (optional)
 - [ ] Manual parity runbook (documented in a playbook or the design guide):
+  - [x] write runbook doc (`playbooks/01-parity-runbook.md`)
   - [ ] compare `jsdocex extract` vs `goja-jsdoc extract` on all samples
   - [ ] compare server endpoints for one sample directory
 - [ ] Once parity confirmed:
