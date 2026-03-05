@@ -174,3 +174,70 @@ With this commit in place, the remaining work is “just code”: port packages,
 - Commands:
   - `git -C go-go-goja add ttmp/2026/03/05/...`
   - `git -C go-go-goja commit -m "📝 GOJA-01: add migration plan and diary"`
+
+## Step 3: Port `pkg/jsdoc/model` + `DocStore` (with tests)
+
+This step creates the first reusable package inside `go-go-goja`: the exported doc model types and the `DocStore` indexing logic. This is the foundation that the extractor, server, and CLI will build on.
+
+It also adds a small but important unit test suite to lock down the “remove/overwrite by FilePath” behavior, since the server relies on that for handling delete/rename events.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Start implementing GOJA-01 by porting the doc model/store into `go-go-goja/pkg/jsdoc/model`, adding tests, and checking off the corresponding tasks.
+
+**Inferred user intent:** Move incrementally with reviewable commits and ensure correctness (especially store overwrite/removal semantics) before building the more complex extractor/server layers.
+
+**Commit (code):** 80eefd1 — "✨ Add jsdoc model and store"
+
+### What I did
+- Added `go-go-goja/pkg/jsdoc/model/model.go` (ported structs with stable JSON tags).
+- Added `go-go-goja/pkg/jsdoc/model/store.go` (ported `DocStore` + indexes + `AddFile` semantics).
+- Added `go-go-goja/pkg/jsdoc/model/store_test.go` covering:
+  - overwrite-by-file-path semantics
+  - removal-by-file-path via `AddFile(&FileDoc{FilePath: ...})`
+- Updated ticket `tasks.md` to check off Phase 1.1 items.
+
+### Why
+- The model and store are the lowest-risk, highest-reuse part of the migration and unblock the extractor/server work.
+- Tests here prevent subtle regressions when we later refactor server update logic.
+
+### What worked
+- `gofmt -w go-go-goja/pkg/jsdoc/model/*.go` produced clean formatting.
+- `go test ./pkg/jsdoc/model -count=1` passed.
+- The repo’s pre-commit hook ran additional checks during `git commit`:
+  - `go generate ./...`
+  - `go test ./...`
+  - `golangci-lint run -v`
+  All completed successfully for this commit.
+
+### What didn't work
+- During the pre-commit `go generate ./...` (dagger), there was a transient-looking log line:
+  - `remotes.docker.resolver.HTTPRequest ERROR`
+  It did not fail the run (the generate step and subsequent tests completed).
+
+### What I learned
+- `go-go-goja` has an opinionated pre-commit pipeline (generate + full test suite + lint). Future commits should be scoped and staged intentionally to avoid unnecessary churn.
+
+### What was tricky to build
+- Ensuring we exactly preserve `DocStore.AddFile` semantics: overwriting by `FilePath` is used both for “file updated” and “file removed” flows in the server. A minor change (e.g., clearing `Files` differently) would break delete handling.
+
+### What warrants a second pair of eyes
+- Confirm the `DocStore` API naming (`DocStore` vs `Store`) is acceptable long-term; I kept `DocStore` to match jsdocex parity expectations and JSON field names.
+
+### What should be done in the future
+- Proceed to Phase 1.2: port the extractor into `pkg/jsdoc/extract` using `github.com/tree-sitter/go-tree-sitter`.
+
+### Code review instructions
+- Start at:
+  - `pkg/jsdoc/model/model.go`
+  - `pkg/jsdoc/model/store.go`
+  - `pkg/jsdoc/model/store_test.go`
+- Validate:
+  - `go test ./pkg/jsdoc/model -count=1`
+
+### Technical details
+- Commands:
+  - `gofmt -w go-go-goja/pkg/jsdoc/model/*.go`
+  - `cd go-go-goja && go test ./pkg/jsdoc/model -count=1`
