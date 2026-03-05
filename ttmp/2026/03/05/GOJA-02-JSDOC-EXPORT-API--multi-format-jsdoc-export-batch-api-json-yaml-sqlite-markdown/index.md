@@ -1,7 +1,7 @@
 ---
 Title: Multi-format jsdoc export + batch API (json/yaml/sqlite/markdown)
 Ticket: GOJA-02-JSDOC-EXPORT-API
-Status: active
+Status: complete
 Topics:
     - goja
     - tooling
@@ -22,7 +22,7 @@ WhenToUse: ""
 
 ## Overview
 
-This ticket designs (and will later implement) batch extraction and multi-format export for the migrated jsdoc system:
+This ticket designs and implements batch extraction and multi-format export for the migrated jsdoc system:
 
 - batch inputs (multiple files; optionally inline content),
 - exports to JSON, YAML, SQLite, and Markdown (with ToC),
@@ -38,7 +38,7 @@ Primary design/implementation plan:
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 ## Topics
 
