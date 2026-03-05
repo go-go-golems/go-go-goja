@@ -6,6 +6,7 @@ package extract
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,23 @@ import (
 // ParseFile parses a single JS file and returns its extracted documentation.
 func ParseFile(path string) (*model.FileDoc, error) {
 	src, err := os.ReadFile(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading %s", path)
+	}
+	return ParseSource(path, src)
+}
+
+// ParseFSFile parses a single JS file from the provided filesystem and returns
+// its extracted documentation.
+func ParseFSFile(fsys fs.FS, path string) (*model.FileDoc, error) {
+	if fsys == nil {
+		return nil, errors.New("filesystem is nil")
+	}
+	if path == "" {
+		return nil, ErrEmptyPath
+	}
+
+	src, err := fs.ReadFile(fsys, path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading %s", path)
 	}

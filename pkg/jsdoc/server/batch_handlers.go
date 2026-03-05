@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,6 +11,8 @@ import (
 
 	"github.com/go-go-golems/go-go-goja/pkg/jsdoc/batch"
 	jsdocexport "github.com/go-go-golems/go-go-goja/pkg/jsdoc/export"
+	"github.com/go-go-golems/go-go-goja/pkg/jsdoc/extract"
+	"github.com/go-go-golems/go-go-goja/pkg/jsdoc/model"
 )
 
 type batchInput struct {
@@ -56,8 +57,20 @@ func (s *Server) handleBatchExtract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	br, err := batch.BuildStore(r.Context(), inputs, batch.BatchOptions{ContinueOnError: req.ContinueOnError})
+	parsePath, err := s.scopedPathParser()
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	br, err := batch.BuildStore(r.Context(), inputs, batch.BatchOptions{
+		ContinueOnError: req.ContinueOnError,
+		ParsePath:       parsePath,
+	})
+	if err != nil {
+		if isPathPolicyError(err) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -87,8 +100,20 @@ func (s *Server) handleBatchExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	br, err := batch.BuildStore(r.Context(), inputs, batch.BatchOptions{ContinueOnError: req.Options.ContinueOnError})
+	parsePath, err := s.scopedPathParser()
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	br, err := batch.BuildStore(r.Context(), inputs, batch.BatchOptions{
+		ContinueOnError: req.Options.ContinueOnError,
+		ParsePath:       parsePath,
+	})
+	if err != nil {
+		if isPathPolicyError(err) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -137,15 +162,17 @@ func (s *Server) inputsFromRequest(in []batchInput) ([]batch.InputFile, error) {
 	}
 	out := make([]batch.InputFile, 0, len(in))
 	for i, bi := range in {
+		if bi.Content != "" && bi.Path != "" {
+			return nil, errors.Errorf("inputs[%d]: path and content cannot both be set", i)
+		}
 		if bi.Content != "" {
 			name := bi.DisplayName
 			if name == "" {
-				name = bi.Path
+				name = "inline"
 			}
 			out = append(out, batch.InputFile{
 				Content:     []byte(bi.Content),
 				DisplayName: name,
-				Path:        bi.Path,
 			})
 			continue
 		}
@@ -173,19 +200,24 @@ func (s *Server) resolvePath(p string) (string, error) {
 		return "", errors.Errorf("path traversal is not allowed")
 	}
 
-	rootAbs, err := filepath.Abs(s.dir)
+	return filepath.ToSlash(clean), nil
+}
+
+func (s *Server) scopedPathParser() (func(path string) (*model.FileDoc, error), error) {
+	scopedFS, err := extract.NewScopedFS(s.dir)
 	if err != nil {
-		return "", errors.Wrap(err, "abs root")
-	}
-	full := filepath.Join(rootAbs, clean)
-	fullAbs, err := filepath.Abs(full)
-	if err != nil {
-		return "", errors.Wrap(err, "abs path")
+		return nil, errors.Wrap(err, "create scoped fs")
 	}
 
-	sep := string(os.PathSeparator)
-	if fullAbs != rootAbs && !strings.HasPrefix(fullAbs, rootAbs+sep) {
-		return "", errors.Errorf("path is outside allowed root")
-	}
-	return fullAbs, nil
+	return func(path string) (*model.FileDoc, error) {
+		return extract.ParseFSFile(scopedFS, path)
+	}, nil
+}
+
+func isPathPolicyError(err error) bool {
+	return errors.Is(err, extract.ErrEmptyPath) ||
+		errors.Is(err, extract.ErrAbsolutePath) ||
+		errors.Is(err, extract.ErrInvalidPath) ||
+		errors.Is(err, extract.ErrPathTraversal) ||
+		errors.Is(err, extract.ErrOutsideAllowedRoot)
 }

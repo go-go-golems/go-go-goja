@@ -28,6 +28,7 @@ type InputFile struct {
 // BatchOptions controls batch extraction behavior.
 type BatchOptions struct {
 	ContinueOnError bool
+	ParsePath       func(path string) (*model.FileDoc, error)
 }
 
 // InputSummary is a lossy (safe to serialize) view of an input.
@@ -61,7 +62,7 @@ func BuildStore(ctx context.Context, inputs []InputFile, opts BatchOptions) (*Ba
 			return nil, err
 		}
 
-		fd, err := parseOne(in, i)
+		fd, err := parseOne(in, i, opts)
 		if err != nil {
 			if !opts.ContinueOnError {
 				return nil, err
@@ -78,15 +79,19 @@ func BuildStore(ctx context.Context, inputs []InputFile, opts BatchOptions) (*Ba
 	return result, nil
 }
 
-func parseOne(in InputFile, index int) (*model.FileDoc, error) {
+func parseOne(in InputFile, index int, opts BatchOptions) (*model.FileDoc, error) {
 	hasPath := in.Path != ""
 	hasContent := len(in.Content) > 0
+	parsePath := opts.ParsePath
+	if parsePath == nil {
+		parsePath = extract.ParseFile
+	}
 
 	switch {
 	case hasPath && hasContent:
 		return nil, errors.Errorf("input %d: both path and content are set (choose one)", index)
 	case hasPath:
-		return extract.ParseFile(in.Path)
+		return parsePath(in.Path)
 	case hasContent:
 		return extract.ParseSource(bestInlineName(in, index), in.Content)
 	default:

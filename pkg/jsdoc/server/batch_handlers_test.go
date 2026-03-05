@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -40,6 +41,9 @@ func TestBatchExtract(t *testing.T) {
 	}
 	if got := len(resp.Store.BySymbol); got != 1 {
 		t.Fatalf("expected 1 symbol, got %d", got)
+	}
+	if got := len(resp.Store.Files); got != 1 || resp.Store.Files[0].FilePath != "a.js" {
+		t.Fatalf("expected relative file path a.js, got %+v", resp.Store.Files)
 	}
 }
 
@@ -108,5 +112,48 @@ func TestBatchPathTraversalRejected(t *testing.T) {
 	h.ServeHTTP(rr, req)
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rr.Code)
+	}
+}
+
+func TestBatchMixedPathAndContentRejected(t *testing.T) {
+	dir := t.TempDir()
+	s := New(model.NewDocStore(), dir, "127.0.0.1", 0)
+	h := s.Handler()
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/batch/extract", strings.NewReader(`{"inputs":[{"path":"a.js","content":"__doc__({\"name\":\"x\"})"}]}`))
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestBatchSymlinkEscapeRejected(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink permissions are environment-dependent on Windows")
+	}
+
+	root := t.TempDir()
+	outsideDir := t.TempDir()
+	outsideFile := filepath.Join(outsideDir, "outside.js")
+	if err := os.WriteFile(outsideFile, []byte(`__doc__({"name":"outside"})`), 0o644); err != nil {
+		t.Fatalf("write outside fixture: %v", err)
+	}
+
+	if err := os.Symlink(outsideDir, filepath.Join(root, "linked")); err != nil {
+		t.Fatalf("create symlink: %v", err)
+	}
+
+	s := New(model.NewDocStore(), root, "127.0.0.1", 0)
+	h := s.Handler()
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/batch/extract", strings.NewReader(`{"inputs":[{"path":"linked/outside.js"}]}`))
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for scoped read rejection, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "outside allowed root") {
+		t.Fatalf("expected outside-root error, got %s", rr.Body.String())
 	}
 }
