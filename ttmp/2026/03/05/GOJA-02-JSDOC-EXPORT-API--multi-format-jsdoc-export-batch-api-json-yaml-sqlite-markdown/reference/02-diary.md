@@ -225,3 +225,66 @@ The main entry point is `pkg/jsdoc/export.Export(ctx, store, writer, opts)`, whi
 
 ### Technical details
 - SQLite schema is kept in `createSchema` and matches the plan’s “starter normalized schema”.
+
+## Step 4: Add `goja-jsdoc export` CLI command (Glazed)
+
+This step wires the new batch builder + exporters into a user-facing CLI command: `goja-jsdoc export`. It supports multiple inputs via `--input` (repeatable) and/or positional args, and can export in JSON/YAML/Markdown/SQLite to stdout or a file.
+
+This gives us an end-to-end “happy path” for GOJA-02 before touching the HTTP server: batch inputs → store → exporter → output file. The remaining work for Phase 3 is adding directory/glob input expansion if desired, and deciding whether to use Glazed’s row output system for JSON/YAML (currently we write directly via the exporter).
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Implement the CLI command layer so users can export docs from multiple files in several formats.
+
+**Inferred user intent:** Make the functionality available in the real tooling workflow (CLI) with consistent flags and predictable outputs.
+
+**Commit (code):** 229566f — "GOJA-02: add goja-jsdoc export command"
+
+### What I did
+- Added `cmd/goja-jsdoc/export_command.go`:
+  - `--input` (repeatable) and positional args (`inputs`) to specify input files
+  - `--format json|yaml|markdown|sqlite`
+  - `--shape store|files` (JSON/YAML only)
+  - `--pretty` (JSON only)
+  - `--toc-depth` (Markdown only)
+  - `--output-file` to write to file (or `-`/empty for stdout)
+  - `--continue-on-error` to emit partial stores with warnings
+- Registered the command in `cmd/goja-jsdoc/main.go`.
+- Verified compilation via `go test ./cmd/goja-jsdoc -count=1`.
+- Committed code.
+
+### Why
+- The CLI is the fastest way to validate batch + exporter behavior end-to-end and provides immediate user value without waiting for HTTP handler work.
+
+### What worked
+- The command uses the existing Glazed command description + flag decoding conventions, consistent with the rest of the repo.
+
+### What didn't work
+- N/A
+
+### What I learned
+- For binary SQLite output, keeping a single `io.Writer`-based exporter API means the CLI can write to stdout or a file uniformly, but user guidance may be needed (people usually want `--output-file docs.sqlite`).
+
+### What was tricky to build
+- Combining `--input` list flags and positional args cleanly required two distinct decoded fields (`input` and `inputs`) and then merging them.
+
+### What warrants a second pair of eyes
+- Flag naming: the command currently uses `--output-file` for consistency with `extract`; confirm whether GOJA-02 should standardize on `--output` instead.
+- Warning formatting: when `ContinueOnError=true`, warnings print `be.Input.Path`, which is empty for inline-content inputs; server work will likely need a better label.
+
+### What should be done in the future
+- Decide and implement directory/glob expansion flags (`--dir`, `--recursive`, `--glob`) if needed (Phase 3 remaining checkbox).
+
+### Code review instructions
+- Start at:
+  - `go-go-goja/cmd/goja-jsdoc/export_command.go`
+  - `go-go-goja/pkg/jsdoc/batch/batch.go`
+  - `go-go-goja/pkg/jsdoc/export/export.go`
+- Validate:
+  - `go test ./cmd/goja-jsdoc -count=1`
+  - Manual smoke: `go run ./cmd/goja-jsdoc export go-go-goja/testdata/jsdoc/sample.js --format markdown`
+
+### Technical details
+- Command uses Glazed decoding (`vals.DecodeSectionInto(schema.DefaultSlug, &settings)`) and does not use Glazed row outputs yet (intentional).

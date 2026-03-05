@@ -26,12 +26,12 @@
   - [x] tests that open DB and query counts/fields
 
 ### Phase 3: CLI (`cmd/goja-jsdoc`)
-- [ ] Add `export` command (or refactor `extract`) to support:
-  - [ ] multiple `--input` flags and/or positional args
+- [x] Add `export` command (or refactor `extract`) to support:
+  - [x] multiple `--input` flags and/or positional args
   - [ ] `--dir` + `--recursive` + `--glob` (decide which are supported)
-  - [ ] `--format json|yaml|sqlite|markdown`
-  - [ ] `--output` path (file)
-  - [ ] format-specific flags (ToC depth, sqlite options)
+  - [x] `--format json|yaml|sqlite|markdown`
+  - [x] `--output` path (file)
+  - [x] format-specific flags (ToC depth, sqlite options)
 - [ ] Decide whether to implement Glazed row output modes here (or explicitly defer)
 
 ### Phase 4: HTTP API (`pkg/jsdoc/server`)
