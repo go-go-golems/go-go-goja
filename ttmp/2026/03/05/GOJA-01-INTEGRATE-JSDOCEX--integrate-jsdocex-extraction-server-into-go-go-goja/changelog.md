@@ -33,3 +33,12 @@ Step 3: Ported jsdoc model + DocStore into go-go-goja (commit 80eefd1).
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/model/store.go — DocStore and indexing semantics
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/model/store_test.go — Unit tests for overwrite/removal semantics
 
+
+## 2026-03-05
+
+Step 4: Ported jsdocex extractor into pkg/jsdoc/extract using go-tree-sitter (commit 510dbde).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/extract/extract.go — Extractor implementation (sentinels + doc)
+
