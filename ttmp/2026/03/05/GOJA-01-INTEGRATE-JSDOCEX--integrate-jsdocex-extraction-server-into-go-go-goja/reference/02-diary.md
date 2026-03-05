@@ -485,3 +485,52 @@ To make the tests self-contained in `go-go-goja` (and not depend on the external
 ### Technical details
 - Commands:
   - `cd go-go-goja && go test ./pkg/jsdoc/extract -count=1`
+
+## Step 8: Add manual parity runbook playbook
+
+This step adds a concrete, copy/paste-ready playbook to compare the old `jsdocex` behavior with the new `goja-jsdoc` CLI and server endpoints. This is intentionally manual: it’s meant for a human to run once (or occasionally) to confirm end-to-end parity before we remove the old module from the workspace.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Document the remaining parity verification steps as an explicit runbook in the ticket’s `playbooks/` directory.
+
+**Inferred user intent:** Make the “last mile” (parity confirmation and cutover) reliable and easy for an intern or reviewer to execute.
+
+**Commit (code):** c7ddb6e — "📝 Add GOJA-01 parity runbook"
+
+### What I did
+- Added `ttmp/.../playbooks/01-parity-runbook.md` with:
+  - extract JSON diffs for all sample fixtures
+  - server endpoint comparisons (`/api/store`, `/api/symbol/...`)
+  - SSE reload manual check instructions
+- Updated `ttmp/.../tasks.md` to mark the “write runbook doc” subtask complete.
+
+### Why
+- Cutover is the highest-risk moment in the ticket. A runbook turns “tribal knowledge” into a repeatable checklist.
+
+### What worked
+- N/A (documentation-only step).
+
+### What didn't work
+- N/A
+
+### What I learned
+- N/A
+
+### What was tricky to build
+- Keeping the runbook robust: it uses `/tmp/jsdoc-parity` for outputs and runs diffs per file so you can isolate differences quickly.
+
+### What warrants a second pair of eyes
+- Confirm the chosen ports (8081/8082) and any org-specific tooling expectations (e.g., `jq` availability) are acceptable.
+
+### What should be done in the future
+- Execute the runbook and record findings in the diary before starting cutover tasks.
+
+### Code review instructions
+- Review:
+  - `ttmp/.../playbooks/01-parity-runbook.md`
+
+### Technical details
+- N/A
