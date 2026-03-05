@@ -1,7 +1,7 @@
 ---
 Title: Integrate jsdocex extraction + server into go-go-goja
 Ticket: GOJA-01-INTEGRATE-JSDOCEX
-Status: active
+Status: complete
 Topics:
     - goja
     - migration
@@ -13,7 +13,10 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: ""
+Summary: >
+  Migrated jsdocex doc extraction and web server into go-go-goja as reusable
+  packages (pkg/jsdoc/*) plus a Glazed-wired CLI (cmd/goja-jsdoc), validated via
+  extractor tests and a parity runbook.
 LastUpdated: 2026-03-05T01:19:33.181832748-05:00
 WhatFor: ""
 WhenToUse: ""

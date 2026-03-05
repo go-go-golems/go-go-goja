@@ -72,9 +72,9 @@
   - [x] write runbook doc (`playbooks/01-parity-runbook.md`)
   - [x] compare `jsdocex extract` vs `goja-jsdoc extract` on all samples
   - [x] compare server endpoints for one sample directory
-- [ ] Once parity confirmed:
+- [x] Once parity confirmed:
   - [x] remove `./jsdocex` from the workspace `go.work`
-  - [ ] delete or archive `jsdocex/` directory (destructive; confirm before doing)
+  - [ ] (optional) delete/archive workspace `jsdocex/` directory (outside go-go-goja repo; destructive)
 
 ### Commit checkpoints (recommended)
 
