@@ -75,3 +75,12 @@ Step 7: Added extractor parity tests and copied jsdocex samples into go-go-goja/
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/extract/extract_test.go — Parity tests for sentinel + prose attachment
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/testdata/jsdoc/ — JS fixture files copied from jsdocex
 
+
+## 2026-03-05
+
+Step 8: Added parity runbook playbook for manual jsdocex vs goja-jsdoc comparison (commit c7ddb6e).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/ttmp/2026/03/05/GOJA-01-INTEGRATE-JSDOCEX--integrate-jsdocex-extraction-server-into-go-go-goja/playbooks/01-parity-runbook.md — Manual parity checklist
+
