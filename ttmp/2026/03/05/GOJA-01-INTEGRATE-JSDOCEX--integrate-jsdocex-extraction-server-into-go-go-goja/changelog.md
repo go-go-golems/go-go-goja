@@ -84,3 +84,12 @@ Step 8: Added parity runbook playbook for manual jsdocex vs goja-jsdoc compariso
 
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/ttmp/2026/03/05/GOJA-01-INTEGRATE-JSDOCEX--integrate-jsdocex-extraction-server-into-go-go-goja/playbooks/01-parity-runbook.md — Manual parity checklist
 
+
+## 2026-03-05
+
+Step 9: Executed parity runbook; extract output matched and server endpoints matched after JSON normalization (see playbook).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/ttmp/2026/03/05/GOJA-01-INTEGRATE-JSDOCEX--integrate-jsdocex-extraction-server-into-go-go-goja/playbooks/01-parity-runbook.md — Commands used for parity run
+
