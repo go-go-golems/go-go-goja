@@ -54,3 +54,14 @@ Step 5: Ported watcher and HTTP doc server into pkg/jsdoc/watch and pkg/jsdoc/se
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/server/ui.go — Embedded UI (copied from jsdocex)
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/watch/watcher.go — FS watcher with debounce
 
+
+## 2026-03-05
+
+Step 6: Added cmd/goja-jsdoc Glazed CLI with extract and serve commands (commit 692e148).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/cmd/goja-jsdoc/extract_command.go — Extract command (JSON parity output)
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/cmd/goja-jsdoc/main.go — Cobra wiring for jsdoc CLI
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/cmd/goja-jsdoc/serve_command.go — Serve command (web UI + API + watcher)
+
