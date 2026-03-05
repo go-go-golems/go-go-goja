@@ -127,8 +127,8 @@ Add an explicit “batch + export” command:
 - `goja-jsdoc export file1.js --format markdown --output-file docs.md --toc-depth 3`
 
 Notes:
-- The initial GOJA-02 implementation supports **file paths only** (positional args and/or `--input`).
-- Directory/glob expansion flags (`--dir`, `--recursive`, `--glob`) can be added later if needed.
+- The GOJA-02 implementation supports file paths via positional args and/or `--input`, and also supports directory scanning via `--dir` + `--recursive`.
+- Glob expansion (`--glob`) is deferred for now.
 
 ### HTTP API proposal (new endpoints; keep existing routes stable)
 

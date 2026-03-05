@@ -7,6 +7,7 @@
 - Added `pkg/jsdoc/batch` to build a `DocStore` from multiple inputs (commit 6987c36).
 - Added `pkg/jsdoc/export` dispatcher and exporters for JSON/YAML/Markdown/SQLite (commit 57899b0).
 - Added `goja-jsdoc export` command (batch input + multi-format output) (commit 229566f).
+- Added `--dir` + `--recursive` to `goja-jsdoc export` for directory scanning (commit 6be6a4d).
 - Added HTTP endpoints `POST /api/batch/extract` and `POST /api/batch/export` with path safety and handler tests (commit 3d02600).
 - Updated GOJA-02 design doc with implemented CLI/API details and added an E2E runbook playbook.
 

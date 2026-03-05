@@ -415,3 +415,53 @@ This step updates the GOJA-02 design/plan document to reflect the implemented CL
 
 ### Technical details
 - N/A
+
+## Step 7: Add `--dir` + `--recursive` support to CLI export
+
+This step expands the `goja-jsdoc export` command’s input model beyond explicit file lists: it can now scan a directory for `.js` files, optionally recursively. This completes the “`--dir` + `--recursive`” checkbox from the Phase 3 task list while keeping globbing (`--glob`) intentionally deferred for now.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Finish remaining CLI input-expansion tasks (directory scanning) and keep the ticket checklist aligned with what’s implemented.
+
+**Inferred user intent:** Make the tool convenient for real-world usage (docs for whole folders), not only one-off file exports.
+
+**Commit (code):** 6be6a4d — "GOJA-02: add --dir/--recursive input expansion to export"
+
+### What I did
+- Added flags to `goja-jsdoc export`:
+  - `--dir` (directory to scan)
+  - `--recursive` (scan subdirectories)
+- Implemented deterministic path collection and de-duplication (sorted list) before building the batch store.
+- Verified compilation via `go test ./cmd/goja-jsdoc -count=1`.
+- Committed code.
+
+### Why
+- Directory-based export is a common workflow (“export docs for this project folder”) and pairs naturally with SQLite/Markdown outputs.
+
+### What worked
+- Using `filepath.WalkDir` keeps the implementation dependency-free and portable.
+
+### What didn't work
+- N/A
+
+### What I learned
+- N/A
+
+### What was tricky to build
+- Dedupe + sort: when mixing `--input` and `--dir`, it’s easy to parse the same file twice; the command now de-duplicates paths and sorts for determinism.
+
+### What warrants a second pair of eyes
+- Path normalization: currently the CLI preserves paths as provided/collected; if users pass relative and `--dir` yields absolute paths, you can end up with duplicates that don’t compare equal. If this becomes a problem, normalize to absolute paths before de-duping.
+
+### What should be done in the future
+- Consider `--glob` using `doublestar` if users want pattern-based selection.
+
+### Code review instructions
+- Review:
+  - `go-go-goja/cmd/goja-jsdoc/export_command.go`
+
+### Technical details
+- N/A

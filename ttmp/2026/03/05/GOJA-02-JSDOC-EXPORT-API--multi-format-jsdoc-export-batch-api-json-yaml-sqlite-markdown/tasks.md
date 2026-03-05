@@ -28,11 +28,12 @@
 ### Phase 3: CLI (`cmd/goja-jsdoc`)
 - [x] Add `export` command (or refactor `extract`) to support:
   - [x] multiple `--input` flags and/or positional args
-  - [ ] `--dir` + `--recursive` + `--glob` (decide which are supported)
+  - [x] `--dir` + `--recursive`
+  - [ ] `--glob` (deferred)
   - [x] `--format json|yaml|sqlite|markdown`
   - [x] `--output` path (file)
   - [x] format-specific flags (ToC depth, sqlite options)
-- [ ] Decide whether to implement Glazed row output modes here (or explicitly defer)
+- [x] Decide whether to implement Glazed row output modes here (explicitly deferred; exporter writes directly)
 
 ### Phase 4: HTTP API (`pkg/jsdoc/server`)
 - [x] Add new endpoints without breaking existing routes:
