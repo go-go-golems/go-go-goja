@@ -535,6 +535,53 @@ This step adds a concrete, copy/paste-ready playbook to compare the old `jsdocex
 ### Technical details
 - N/A
 
+## Step 12: Docmgr hygiene (fix playbook frontmatter)
+
+This step fixes a docmgr validation issue: the parity playbook initially lacked YAML frontmatter, causing `docmgr doctor` to report an invalid frontmatter error for the ticket. Adding proper frontmatter makes the playbook discoverable and keeps the ticket in a “doctor clean” state.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Keep ticket documentation conformant with docmgr rules as we approach completion.
+
+**Inferred user intent:** Ensure the ticket workspace remains clean and consistent (frontmatter metadata present), especially before handing off to others.
+
+**Commit (code):** c64fd95 — "📝 Playbook: add docmgr frontmatter"
+
+### What I did
+- Ran `docmgr doctor --ticket GOJA-01-INTEGRATE-JSDOCEX` and saw an error: playbook frontmatter delimiters missing.
+- Added YAML frontmatter to `playbooks/01-parity-runbook.md` using the `playbook` template fields.
+- Re-ran `docmgr doctor` and confirmed all checks passed.
+
+### Why
+- Docmgr frontmatter is required for ticket documents; missing metadata breaks validation and makes docs harder to manage/search.
+
+### What worked
+- `docmgr doctor` is clean after adding frontmatter.
+
+### What didn't work
+- The first version of the playbook was “plain markdown” without frontmatter, which docmgr rejects.
+
+### What I learned
+- Any new doc under a ticket (including playbooks) should start from a template or include proper frontmatter from day one.
+
+### What was tricky to build
+- N/A
+
+### What warrants a second pair of eyes
+- N/A
+
+### What should be done in the future
+- N/A
+
+### Code review instructions
+- Review `ttmp/.../playbooks/01-parity-runbook.md` top-of-file frontmatter.
+- Validate with `docmgr doctor --ticket GOJA-01-INTEGRATE-JSDOCEX --stale-after 30`.
+
+### Technical details
+- N/A
+
 ## Step 11: Finalize design doc acceptance criteria + explicit parity decisions
 
 This step tightens the documentation so it clearly defines what “done” means for the ticket and explicitly records the intentional parity constraints (things we are *not* improving yet). This reduces ambiguity for reviewers and makes it clear which improvements belong in the follow-up output/API ticket.
