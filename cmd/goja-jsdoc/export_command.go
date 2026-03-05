@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
@@ -26,6 +27,8 @@ var _ cmds.BareCommand = (*exportCommand)(nil)
 type exportSettings struct {
 	Input           []string `glazed:"input"`
 	Inputs          []string `glazed:"inputs"`
+	Dir             string   `glazed:"dir"`
+	Recursive       bool     `glazed:"recursive"`
 	Format          string   `glazed:"format"`
 	Shape           string   `glazed:"shape"`
 	OutputFile      string   `glazed:"output-file"`
@@ -53,6 +56,8 @@ Examples:
   goja-jsdoc export a.js b.js --format sqlite --output-file docs.sqlite`),
 		cmds.WithFlags(
 			fields.New("input", fields.TypeStringList, fields.WithHelp("Input .js files (repeatable)")),
+			fields.New("dir", fields.TypeString, fields.WithDefault(""), fields.WithHelp("Optional directory to scan for .js files")),
+			fields.New("recursive", fields.TypeBool, fields.WithDefault(false), fields.WithHelp("Recursively scan --dir for .js files")),
 			fields.New("format", fields.TypeChoice, fields.WithDefault(string(jsdocexport.FormatJSON)), fields.WithChoices(
 				string(jsdocexport.FormatJSON),
 				string(jsdocexport.FormatYAML),
@@ -83,15 +88,34 @@ func (c *exportCommand) Run(ctx context.Context, vals *values.Values) error {
 
 	paths := append([]string{}, settings.Input...)
 	paths = append(paths, settings.Inputs...)
+	if settings.Dir != "" {
+		dirPaths, err := collectJSFiles(settings.Dir, settings.Recursive)
+		if err != nil {
+			return err
+		}
+		paths = append(paths, dirPaths...)
+	}
 	if len(paths) == 0 {
 		return errors.Errorf("at least one input file is required (use args or --input)")
 	}
 
-	inputs := make([]batch.InputFile, 0, len(paths))
+	seen := map[string]struct{}{}
+	var uniq []string
 	for _, p := range paths {
-		if strings.TrimSpace(p) == "" {
+		p = strings.TrimSpace(p)
+		if p == "" {
 			continue
 		}
+		if _, ok := seen[p]; ok {
+			continue
+		}
+		seen[p] = struct{}{}
+		uniq = append(uniq, p)
+	}
+	sort.Strings(uniq)
+
+	inputs := make([]batch.InputFile, 0, len(uniq))
+	for _, p := range uniq {
 		inputs = append(inputs, batch.InputFile{Path: p})
 	}
 	if len(inputs) == 0 {
@@ -138,4 +162,49 @@ func (c *exportCommand) Run(ctx context.Context, vals *values.Values) error {
 		fmt.Fprintf(os.Stderr, "wrote %s\n", settings.OutputFile)
 	}
 	return nil
+}
+
+func collectJSFiles(dir string, recursive bool) ([]string, error) {
+	info, err := os.Stat(dir)
+	if err != nil {
+		return nil, errors.Wrap(err, "stat --dir")
+	}
+	if !info.IsDir() {
+		return nil, errors.Errorf("--dir %q is not a directory", dir)
+	}
+
+	var out []string
+	if !recursive {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return nil, errors.Wrap(err, "read dir")
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			name := e.Name()
+			if strings.HasSuffix(name, ".js") {
+				out = append(out, filepath.Join(dir, name))
+			}
+		}
+		return out, nil
+	}
+
+	err = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), ".js") {
+			out = append(out, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "walk dir")
+	}
+	return out, nil
 }
