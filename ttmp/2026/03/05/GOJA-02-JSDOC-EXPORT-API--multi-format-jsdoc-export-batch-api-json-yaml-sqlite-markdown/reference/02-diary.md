@@ -152,3 +152,76 @@ The batch builder is the foundation for the next phases (exporters, CLI export c
 ### Technical details
 - Remote verification:
   - `remarquee cloud ls /ai/2026/03/05/GOJA-02-JSDOC-EXPORT-API --long --non-interactive`
+
+## Step 3: Implement exporters (JSON/YAML/Markdown/SQLite)
+
+This step implements Phase 2 of the ticket: reusable exporters that serialize a `*model.DocStore` into JSON, YAML, Markdown (with a deterministic ToC), or a SQLite database. The goal is to keep this logic independent of the CLI and server layers so that both can reuse the same export implementation without duplicating format handling.
+
+The main entry point is `pkg/jsdoc/export.Export(ctx, store, writer, opts)`, which dispatches to the appropriate format-specific writer. SQLite export is implemented via a temp file under the hood (create DB file → stream bytes), which is straightforward for both CLI `--output` and HTTP download responses.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue implementing GOJA-02 tasks, focusing next on exporters needed by both CLI and HTTP API.
+
+**Inferred user intent:** Get real, consumable outputs (SQLite/Markdown) in addition to JSON/YAML, and do it in a way that’s reusable across command/API entry points.
+
+**Commit (code):** 57899b0 — "GOJA-02: add jsdoc exporters (json/yaml/markdown/sqlite)"
+
+### What I did
+- Added exporter packages:
+  - `pkg/jsdoc/export`:
+    - `Format` enum (`json|yaml|markdown|sqlite`)
+    - `Shape` option for JSON/YAML (`store` vs `files`)
+    - `Export(ctx, store, io.Writer, opts)` dispatcher
+  - `pkg/jsdoc/exportmd`:
+    - single-file Markdown generator
+    - deterministic ToC derived from the generated headings (no Markdown parsing)
+  - `pkg/jsdoc/exportsq`:
+    - normalized starter schema (packages/symbols/examples + join tables)
+    - transactional inserts + simple indexes
+    - `WriteFile` helper and `Write` streaming helper (temp file)
+- Added unit tests:
+  - JSON/YAML shape validation (`pkg/jsdoc/export/export_test.go`)
+  - SQLite schema row-count checks (`pkg/jsdoc/exportsq/exportsq_test.go`)
+- Ran targeted tests (`go test ./pkg/jsdoc/export ./pkg/jsdoc/exportmd ./pkg/jsdoc/exportsq -count=1`).
+- Fixed a linter failure caught by pre-commit (`predeclared`): renamed helper `max` → `maxInt` in Markdown exporter.
+- Committed code.
+
+### Why
+- Exporters should be pure and reusable: CLI and HTTP should just prepare inputs/store and then call one export function.
+- SQLite is a key “durable output” format for downstream tooling; having it early enables iteration on schema and consumers.
+
+### What worked
+- Pre-existing `gopkg.in/yaml.v3` and SQLite driver dependencies were already present in the repo, so no module changes were needed.
+- SQLite tests validate schema correctness in a black-box way (open DB, query counts).
+
+### What didn't work
+- Initial commit attempt failed lint due to using a helper named `max` (flagged as “predeclared identifier” by the `predeclared` linter); renaming to `maxInt` resolved it.
+
+### What I learned
+- ToC generation must be driven by the full set of headings; inserting a ToC early requires either a second pass or building the body first (the Markdown exporter now builds the body + heading list first, then emits the ToC at the top).
+
+### What was tricky to build
+- Markdown ToC determinism: map iteration order is non-deterministic, so all package/symbol/example listings are sorted before rendering.
+- SQLite export streaming: SQLite wants a file path, so the writer-based export uses a temp file to keep the public API simple (`io.Writer`) while remaining compatible with HTTP responses.
+
+### What warrants a second pair of eyes
+- SQLite schema completeness: currently exports tags and concepts, but does not yet export params/returns/related; confirm whether v1 should include those fields in additional tables.
+- Markdown anchors: anchorization is “best effort” and may not match GitHub exactly; confirm anchor format expectations before relying on deep links.
+
+### What should be done in the future
+- Wire these exporters into a `goja-jsdoc export` command (Phase 3) and implement HTTP batch/export endpoints (Phase 4).
+
+### Code review instructions
+- Start at:
+  - `go-go-goja/pkg/jsdoc/export/export.go`
+  - `go-go-goja/pkg/jsdoc/exportmd/exportmd.go`
+  - `go-go-goja/pkg/jsdoc/exportsq/exportsq.go`
+- Validate:
+  - `go test ./pkg/jsdoc/export ./pkg/jsdoc/exportmd ./pkg/jsdoc/exportsq -count=1`
+  - Full hook run via any `git commit` (lefthook runs lint + go generate + go test).
+
+### Technical details
+- SQLite schema is kept in `createSchema` and matches the plan’s “starter normalized schema”.

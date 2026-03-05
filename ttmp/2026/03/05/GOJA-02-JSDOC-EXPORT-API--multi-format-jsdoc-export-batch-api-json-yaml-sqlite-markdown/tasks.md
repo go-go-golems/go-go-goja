@@ -13,17 +13,17 @@
 - [x] Add unit tests (small inline fixtures)
 
 ### Phase 2: Exporters (`pkg/jsdoc/export*`)
-- [ ] Add format enums and an `Export(ctx, store, writer, opts)` dispatcher
-- [ ] Implement JSON export (choose store vs files shapes)
-- [ ] Implement YAML export (mirror JSON shape)
-- [ ] Implement Markdown export:
-  - [ ] single-file output
-  - [ ] deterministic ToC generation
-  - [ ] `--toc-depth` option
-- [ ] Implement SQLite export:
-  - [ ] define schema
-  - [ ] transactional inserts + indexes
-  - [ ] tests that open DB and query counts/fields
+- [x] Add format enums and an `Export(ctx, store, writer, opts)` dispatcher
+- [x] Implement JSON export (choose store vs files shapes)
+- [x] Implement YAML export (mirror JSON shape)
+- [x] Implement Markdown export:
+  - [x] single-file output
+  - [x] deterministic ToC generation
+  - [x] `--toc-depth` option
+- [x] Implement SQLite export:
+  - [x] define schema
+  - [x] transactional inserts + indexes
+  - [x] tests that open DB and query counts/fields
 
 ### Phase 3: CLI (`cmd/goja-jsdoc`)
 - [ ] Add `export` command (or refactor `extract`) to support:
