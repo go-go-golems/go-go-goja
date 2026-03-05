@@ -232,7 +232,8 @@ Defaults:
 
 Scoped API caller:
 
-- set `ParsePath` to a closure around `extract.ParseFSFile(os.DirFS(root), path)`
+- set `ParsePath` to a closure around `extract.ParseFSFile(scopedFS, path)`
+- where `scopedFS` is created by `extract.NewScopedFS(root)`
 
 This keeps the batch package small and avoids over-abstracting.
 
@@ -243,7 +244,7 @@ In `pkg/jsdoc/server/batch_handlers.go`:
 - keep request validation,
 - but stop converting accepted paths into absolute host paths,
 - instead keep them as cleaned relative paths,
-- create `fsys := os.DirFS(s.dir)`,
+- create `scopedFS := extract.NewScopedFS(s.dir)`,
 - call batch builder with a `ParsePath` override that uses `extract.ParseFSFile(fsys, path)`.
 
 Important detail:
@@ -251,6 +252,11 @@ Important detail:
 - `resolvePath` should probably become “normalize relative path” rather than “return absolute path”.
 
 That change is desirable because absolute paths are precisely what blur the scoped boundary.
+
+Additional security detail:
+
+- `os.DirFS` by itself is not sufficient for this ticket because symlinks inside the root can still target paths outside the intended boundary.
+- The implemented design therefore needs a symlink-aware scoped filesystem wrapper that evaluates the real resolved path before allowing the read.
 
 ### 4. CLI layer
 
@@ -318,7 +324,7 @@ function inputsFromRequest(requestInputs):
       keep relative path only
 
 function handleBatchExport():
-  fsys = os.DirFS(serverRoot)
+  fsys = NewScopedFS(serverRoot)
   batch.BuildStore(inputs, ParsePath = func(path):
     return extract.ParseFSFile(fsys, path))
 ```
@@ -386,4 +392,3 @@ Recommendation:
 - Does CLI behavior remain unchanged?
 - Do tests cover both valid relative paths and rejected traversal cases?
 - Is the parsing package still reusable outside HTTP?
-

@@ -23,6 +23,8 @@ topics:
       description: Bobatea reusable TUI components and frameworks
     - slug: repl
       description: Read-eval-print loop interfaces and behavior
+    - slug: security
+      description: Security-focused engineering work such as trust boundaries, validation, and policy enforcement.
 docTypes:
     - slug: index
       description: Ticket index documents

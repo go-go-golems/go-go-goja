@@ -1,7 +1,7 @@
 ---
 Title: Scope jsdoc API file parsing to allowed roots
 Ticket: GOJA-03-SCOPED-JSDOC-PATHS
-Status: active
+Status: complete
 Topics:
     - goja
     - tooling
@@ -38,7 +38,7 @@ The implementation focus is:
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 ## Topics
 
