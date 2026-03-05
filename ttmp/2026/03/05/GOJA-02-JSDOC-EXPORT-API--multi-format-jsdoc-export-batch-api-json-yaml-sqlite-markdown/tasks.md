@@ -35,16 +35,16 @@
 - [ ] Decide whether to implement Glazed row output modes here (or explicitly defer)
 
 ### Phase 4: HTTP API (`pkg/jsdoc/server`)
-- [ ] Add new endpoints without breaking existing routes:
-  - [ ] `POST /api/batch/extract`
-  - [ ] `POST /api/batch/export`
-- [ ] Add input safety constraints (required if path input is supported):
-  - [ ] allowed root directory restriction
-  - [ ] reject traversal/absolute paths (unless explicitly enabled)
-- [ ] Add handler tests:
-  - [ ] JSON response
-  - [ ] Markdown response
-  - [ ] SQLite response headers + non-empty body
+- [x] Add new endpoints without breaking existing routes:
+  - [x] `POST /api/batch/extract`
+  - [x] `POST /api/batch/export`
+- [x] Add input safety constraints (required if path input is supported):
+  - [x] allowed root directory restriction
+  - [x] reject traversal/absolute paths (unless explicitly enabled)
+- [x] Add handler tests:
+  - [x] JSON response
+  - [x] Markdown response
+  - [x] SQLite response headers + non-empty body
 
 ### Phase 5: Docs + runbooks
 - [ ] Update design doc with final API paths and CLI flags once implemented

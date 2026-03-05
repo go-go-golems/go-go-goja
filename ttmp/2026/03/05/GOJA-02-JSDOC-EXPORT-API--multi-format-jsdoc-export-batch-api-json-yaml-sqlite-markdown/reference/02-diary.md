@@ -288,3 +288,76 @@ This gives us an end-to-end “happy path” for GOJA-02 before touching the HTT
 
 ### Technical details
 - Command uses Glazed decoding (`vals.DecodeSectionInto(schema.DefaultSlug, &settings)`) and does not use Glazed row outputs yet (intentional).
+
+## Step 5: Add HTTP batch extract/export endpoints + safety constraints
+
+This step extends the jsdoc web server (`pkg/jsdoc/server`) with two new POST endpoints that build a store from arbitrary inputs and return either a JSON “store” payload or an exported artifact (json/yaml/markdown/sqlite). This is intentionally added under a new `/api/batch/...` namespace to avoid breaking the existing browse API routes migrated in GOJA-01.
+
+Because the server can read files from disk when given `path` inputs, this step also implements a strict “allowed root” restriction: paths must be relative, must not contain traversal (`..`), and must resolve within the server’s configured `dir`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Add a batch/export API to the server without breaking existing endpoints, and enforce safe path handling.
+
+**Inferred user intent:** Make doc extraction/export available as an HTTP API for tooling integrations while keeping the browsing server stable and safe.
+
+**Commit (code):** 3d02600 — "GOJA-02: add jsdoc batch extract/export HTTP endpoints"
+
+### What I did
+- Added new routes in `Server.Handler()`:
+  - `POST /api/batch/extract` → returns JSON `BatchResult` (`{store, errors}`)
+  - `POST /api/batch/export` → returns formatted output (json/yaml/markdown/sqlite)
+- Implemented request DTOs (`batchInput`, `batchExtractRequest`, `batchExportRequest`) and mapped them to `pkg/jsdoc/batch.InputFile`.
+  - Inline content is accepted as a UTF-8 string field (`content`) for convenience.
+- Implemented path safety:
+  - rejects absolute paths
+  - rejects traversal paths (`..`)
+  - enforces “inside server root dir” by resolving under `s.dir`
+- Set response headers:
+  - content-types per format
+  - sqlite `Content-Disposition: attachment; filename="docs.sqlite"`
+  - `X-JSDoc-Error-Count` when `ContinueOnError=true` yields partial errors
+- Added handler tests for:
+  - JSON extract response
+  - Markdown export response
+  - SQLite export headers + non-empty body
+  - traversal rejection (`../...`)
+- Verified via `go test ./pkg/jsdoc/server -count=1`.
+- Committed code.
+
+### Why
+- This enables integrations (e.g., other tools/scripts) to request exports without shelling out to the CLI, while keeping the existing UI/API stable.
+- Path restriction is required to avoid obvious path traversal vulnerabilities.
+
+### What worked
+- The endpoint implementation reuses the exact same batch builder and exporters as the CLI, minimizing duplicated logic.
+
+### What didn't work
+- N/A
+
+### What I learned
+- It’s better to have a clear request DTO layer for the HTTP API instead of reusing internal types like `batch.InputFile` directly; it avoids accidental JSON shapes (e.g., `[]byte` base64 encoding).
+
+### What was tricky to build
+- Path “inside root” checks: joining + cleaning is not enough; you must also compare absolute resolved paths against the absolute root to prevent traversal.
+
+### What warrants a second pair of eyes
+- Content encoding: currently `content` is a plain string; if we ever need binary-safe payloads, we may want `contentBase64` or `multipart/form-data`.
+- Error reporting: `X-JSDoc-Error-Count` is a minimal signal for non-JSON outputs; confirm whether the API should instead fail when any input fails (unless explicitly overridden).
+
+### What should be done in the future
+- Document the final HTTP API request/response shapes in the design doc (Phase 5).
+- Add CORS preflight handling (`OPTIONS`) if this is meant to be called from browsers outside the served UI.
+
+### Code review instructions
+- Start at:
+  - `go-go-goja/pkg/jsdoc/server/batch_handlers.go`
+  - `go-go-goja/pkg/jsdoc/server/server.go`
+- Validate:
+  - `go test ./pkg/jsdoc/server -count=1`
+  - Manual smoke: run `go run ./cmd/goja-jsdoc serve --dir ./testdata/jsdoc` and call the new endpoints with `curl`.
+
+### Technical details
+- `resolvePath` uses `filepath.Clean` + `filepath.Abs` and ensures the resolved path has the server root as a prefix.
