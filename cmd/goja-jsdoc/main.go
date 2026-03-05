@@ -51,6 +51,23 @@ and optionally serve a web UI + JSON API with live reload.`,
 	}
 	root.AddCommand(serveCobra)
 
+	exportCmd, err := newExportCommand()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	exportCobra, err := cli.BuildCobraCommand(exportCmd,
+		cli.WithParserConfig(cli.CobraParserConfig{
+			ShortHelpSections: []string{schema.DefaultSlug},
+			MiddlewaresFunc:   cli.CobraCommandDefaultMiddlewares,
+		}),
+	)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	root.AddCommand(exportCobra)
+
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}
