@@ -6,7 +6,7 @@
 
 - [x] Read `jsdocex/` code and document behavior parity targets (see design guide)
 - [x] Design `go-go-goja/pkg/jsdoc` package layout + public API (see design guide)
-- [ ] Add a short “Acceptance Criteria” section to the design guide (exact parity checklist)
+- [x] Add a short “Acceptance Criteria” section to the design guide (exact parity checklist)
 
 ### Phase 1: New reusable packages in `go-go-goja/pkg/jsdoc`
 
@@ -26,10 +26,10 @@
   - [x] `__doc__("name", { ... })` and `__doc__({name: "...", ...})`
   - [x] `__example__({ ... })`
   - [x] `doc\`...\`` attaches prose by `symbol:` / `package:` frontmatter
-- [ ] Decide and document (parity vs enhancement) for known gaps:
-  - [ ] `Example.Body` remains empty for parity (explicitly documented)
-  - [ ] frontmatter parser remains simple (explicitly documented)
-  - [ ] object-literal JS→JSON conversion remains heuristic (explicitly documented)
+- [x] Decide and document (parity vs enhancement) for known gaps:
+  - [x] `Example.Body` remains empty for parity (explicitly documented)
+  - [x] frontmatter parser remains simple (explicitly documented)
+  - [x] object-literal JS→JSON conversion remains heuristic (explicitly documented)
 
 **1.3 Watcher**
 - [x] Create `go-go-goja/pkg/jsdoc/watch` ported from `jsdocex/internal/watcher/watcher.go`
@@ -68,7 +68,7 @@
 - [x] Add extractor parity tests using `jsdocex/samples/*.js` (copied into `go-go-goja/testdata/jsdoc`)
   - [x] field-level assertions (minimum)
   - [ ] golden JSON outputs (optional)
-- [ ] Manual parity runbook (documented in a playbook or the design guide):
+- [x] Manual parity runbook (documented in a playbook or the design guide):
   - [x] write runbook doc (`playbooks/01-parity-runbook.md`)
   - [x] compare `jsdocex extract` vs `goja-jsdoc extract` on all samples
   - [x] compare server endpoints for one sample directory
@@ -78,9 +78,9 @@
 
 ### Commit checkpoints (recommended)
 
-- [ ] Commit A: ticket docs + task breakdown + diary updates
-- [ ] Commit B: `pkg/jsdoc/model` (+ tests)
-- [ ] Commit C: `pkg/jsdoc/extract` (+ tests)
-- [ ] Commit D: `pkg/jsdoc/watch` + `pkg/jsdoc/server` (+ handler tests)
-- [ ] Commit E: `cmd/goja-jsdoc` Glazed commands
-- [ ] Commit F: parity tests + `go.work` cutover cleanup
+- [x] Commit A: ticket docs + task breakdown + diary updates
+- [x] Commit B: `pkg/jsdoc/model` (+ tests)
+- [x] Commit C: `pkg/jsdoc/extract` (+ tests)
+- [x] Commit D: `pkg/jsdoc/watch` + `pkg/jsdoc/server` (+ handler tests)
+- [x] Commit E: `cmd/goja-jsdoc` Glazed commands
+- [x] Commit F: parity tests + `go.work` cutover cleanup

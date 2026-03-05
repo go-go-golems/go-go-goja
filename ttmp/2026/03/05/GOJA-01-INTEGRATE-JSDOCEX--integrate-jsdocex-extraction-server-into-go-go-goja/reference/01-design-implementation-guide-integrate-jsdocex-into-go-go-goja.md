@@ -132,6 +132,41 @@ Concrete fixtures:
 
 The migration should keep endpoints and response JSON structure stable (same fields and names).
 
+### Acceptance Criteria (definition of “done”)
+
+This ticket is considered complete when all of the following are true:
+
+1) **Reusable packages exist in `go-go-goja`**
+- `pkg/jsdoc/model`, `pkg/jsdoc/extract`, `pkg/jsdoc/watch`, `pkg/jsdoc/server` exist and compile.
+- No new dependency on the smacker tree-sitter binding was introduced into `go-go-goja` (standardize on `github.com/tree-sitter/go-tree-sitter`).
+
+2) **CLI exists and runs**
+- `go run ./go-go-goja/cmd/goja-jsdoc extract --file <path>` emits JSON docs (parity mode).
+- `go run ./go-go-goja/cmd/goja-jsdoc serve --dir <dir> --host <host> --port <port>` serves the UI + API.
+
+3) **Extraction parity is acceptable**
+- Running the parity runbook extract diff across all fixtures shows no meaningful differences.
+- At minimum, `go-go-goja/pkg/jsdoc/extract` tests pass and validate:
+  - sentinel extraction
+  - doc prose attachment to symbols and packages
+
+4) **Server/API parity is acceptable**
+- The API routes exist and return JSON with the same fields as jsdocex:
+  - `/api/store`, `/api/package/{name}`, `/api/symbol/{name}`, `/api/example/{id}`, `/api/search`, `/events`.
+- The parity runbook shows endpoint payload parity after JSON normalization (ordering is not a contract).
+
+5) **Cutover is safe**
+- The workspace no longer includes `jsdocex` in `go.work` once parity is confirmed.
+- Deleting the `jsdocex/` directory is either performed or explicitly deferred (because it is destructive).
+
+### Explicit parity decisions (what stays “simple” for now)
+
+To preserve jsdocex behavior during migration, we intentionally keep these constraints:
+
+- `Example.Body` remains empty (jsdocex model includes it, but extractor doesn’t populate it).
+- Frontmatter parsing remains “key: value” only (not full YAML).
+- JS object-literal parsing remains heuristic (string rewriting to JSON-ish before `encoding/json`).
+
 ### Proposed target layout (go-go-goja)
 
 Recommended package split:
