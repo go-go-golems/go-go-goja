@@ -53,12 +53,12 @@ go run ./go-go-goja/cmd/goja-jsdoc serve --dir ./jsdocex/samples --host 127.0.0.
 ### Compare endpoints
 
 ```bash
-curl -sS http://127.0.0.1:8081/api/store | jq . > /tmp/jsdoc-parity-store-jsdocex.json
-curl -sS http://127.0.0.1:8082/api/store | jq . > /tmp/jsdoc-parity-store-goja.json
+curl -sS http://127.0.0.1:8081/api/store | jq -S . > /tmp/jsdoc-parity-store-jsdocex.json
+curl -sS http://127.0.0.1:8082/api/store | jq -S . > /tmp/jsdoc-parity-store-goja.json
 diff -u /tmp/jsdoc-parity-store-jsdocex.json /tmp/jsdoc-parity-store-goja.json || true
 
-curl -sS http://127.0.0.1:8081/api/symbol/smoothstep | jq . > /tmp/jsdoc-parity-sym-jsdocex.json
-curl -sS http://127.0.0.1:8082/api/symbol/smoothstep | jq . > /tmp/jsdoc-parity-sym-goja.json
+curl -sS http://127.0.0.1:8081/api/symbol/smoothstep | jq '.examples |= sort_by(.id)' > /tmp/jsdoc-parity-sym-jsdocex.json
+curl -sS http://127.0.0.1:8082/api/symbol/smoothstep | jq '.examples |= sort_by(.id)' > /tmp/jsdoc-parity-sym-goja.json
 diff -u /tmp/jsdoc-parity-sym-jsdocex.json /tmp/jsdoc-parity-sym-goja.json || true
 ```
 
@@ -69,4 +69,3 @@ diff -u /tmp/jsdoc-parity-sym-jsdocex.json /tmp/jsdoc-parity-sym-goja.json || tr
    - goja-jsdoc: `http://127.0.0.1:8082/`
 2. Edit a sample file (e.g., add a new `__doc__` block) and save:
    - verify each UI shows a reload badge and updates after reload.
-
