@@ -535,6 +535,55 @@ This step adds a concrete, copy/paste-ready playbook to compare the old `jsdocex
 ### Technical details
 - N/A
 
+## Step 11: Finalize design doc acceptance criteria + explicit parity decisions
+
+This step tightens the documentation so it clearly defines what “done” means for the ticket and explicitly records the intentional parity constraints (things we are *not* improving yet). This reduces ambiguity for reviewers and makes it clear which improvements belong in the follow-up output/API ticket.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Clean up the ticket docs now that implementation exists, so they reflect the actual completion gates and documented migration decisions.
+
+**Inferred user intent:** Ensure the ticket is reviewable and that future work (multi-format output) is clearly separated from the migration itself.
+
+**Commit (code):** 6a0eb6c — "📝 Docs: add acceptance criteria and decisions"
+
+### What I did
+- Updated the design guide to include:
+  - an “Acceptance Criteria” section with concrete completion gates
+  - an “Explicit parity decisions” section (Example.Body/frontmatter/object literal parsing)
+- Updated tasks to mark those documentation tasks complete.
+
+### Why
+- Without explicit “done” criteria, migration work tends to sprawl into feature work. This keeps the scope crisp.
+
+### What worked
+- N/A (docs-only change).
+
+### What didn't work
+- N/A
+
+### What I learned
+- N/A
+
+### What was tricky to build
+- N/A
+
+### What warrants a second pair of eyes
+- Confirm the acceptance criteria match how you want to declare the ticket “complete”, especially around whether deleting the `jsdocex/` directory is required or optional.
+
+### What should be done in the future
+- Finish the last cutover checkbox (delete/archive `jsdocex/`) once confirmed.
+
+### Code review instructions
+- Review:
+  - `ttmp/.../reference/01-design-implementation-guide-integrate-jsdocex-into-go-go-goja.md`
+  - `ttmp/.../tasks.md`
+
+### Technical details
+- N/A
+
 ## Step 9: Execute parity runbook (extract + server)
 
 This step runs the parity checks described in the playbook to confirm that the migrated implementation matches the original jsdocex behavior on the provided sample fixtures, both for extraction output and for the HTTP API.
