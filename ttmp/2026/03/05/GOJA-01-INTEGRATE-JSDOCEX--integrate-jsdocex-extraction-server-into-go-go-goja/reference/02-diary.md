@@ -428,3 +428,60 @@ This unlocks end-to-end testing of the migrated system in the go-go-goja repo wi
 ### Technical details
 - Commands:
   - `cd go-go-goja && go test ./cmd/goja-jsdoc -count=1`
+
+## Step 7: Add extractor parity tests + fixture copies
+
+This step adds actual behavioral tests for the migrated extractor. Up to now, we mostly verified compilation and basic handler wiring; now we lock down the most important extraction behaviors: sentinel parsing and doc prose attachment.
+
+To make the tests self-contained in `go-go-goja` (and not depend on the external `jsdocex/` module existing), this step copies the jsdocex sample JS files into `go-go-goja/testdata/jsdoc/`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Implement Phase 3’s “extractor parity tests” by adding test fixtures and Go tests that validate key fields/prose attachments from those fixtures.
+
+**Inferred user intent:** Ensure future refactors don’t silently change extraction behavior while we continue the migration and start removing the old module.
+
+**Commit (code):** 3795939 — "✅ Add jsdoc extractor parity tests"
+
+### What I did
+- Copied `jsdocex/samples/*.js` into `testdata/jsdoc/*.js` inside `go-go-goja`.
+- Added `pkg/jsdoc/extract/extract_test.go` validating:
+  - package metadata extraction (`__package__`)
+  - symbol metadata extraction (`__doc__`) and line numbers
+  - prose attachment to symbols and packages via doc tagged-template blocks
+- Updated `ttmp/.../tasks.md` to check off “field-level assertions” parity tests.
+
+### Why
+- These fixtures represent the canonical “docs in JS” patterns we are migrating. Tests ensure we preserve behavior while porting, and they’ll catch accidental traversal or parser changes.
+
+### What worked
+- `go test ./pkg/jsdoc/extract -count=1` passed.
+- Pre-commit lint/test pipeline passed for the commit.
+
+### What didn't work
+- N/A
+
+### What I learned
+- Copying fixtures into `go-go-goja/testdata` is essential for making the migration testable after we remove the `jsdocex/` module from the workspace.
+
+### What was tricky to build
+- Keeping tests “field-level” (not full golden JSON) avoids brittle diffs while we’re still iterating on implementation details, but still asserts the key invariants we care about.
+
+### What warrants a second pair of eyes
+- Confirm whether we want to add golden JSON outputs in this ticket (optional) or defer them; field-level assertions should be enough for now.
+
+### What should be done in the future
+- Add a manual parity runbook step comparing server output and UI behavior against the old jsdocex binary.
+
+### Code review instructions
+- Start at:
+  - `pkg/jsdoc/extract/extract_test.go`
+  - `testdata/jsdoc/*.js`
+- Validate:
+  - `go test ./pkg/jsdoc/extract -count=1`
+
+### Technical details
+- Commands:
+  - `cd go-go-goja && go test ./pkg/jsdoc/extract -count=1`
