@@ -65,8 +65,9 @@
 
 ### Phase 3: Tests + parity comparison + cutover
 
-- [ ] Add extractor parity tests using `jsdocex/samples/*.js`
-  - [ ] golden JSON outputs (optional) or field-level assertions (minimum)
+- [x] Add extractor parity tests using `jsdocex/samples/*.js` (copied into `go-go-goja/testdata/jsdoc`)
+  - [x] field-level assertions (minimum)
+  - [ ] golden JSON outputs (optional)
 - [ ] Manual parity runbook (documented in a playbook or the design guide):
   - [ ] compare `jsdocex extract` vs `goja-jsdoc extract` on all samples
   - [ ] compare server endpoints for one sample directory
