@@ -535,6 +535,54 @@ This step adds a concrete, copy/paste-ready playbook to compare the old `jsdocex
 ### Technical details
 - N/A
 
+## Step 13: Mark GOJA-01 complete (status + remaining optional cleanup)
+
+This step marks the GOJA-01 ticket status as complete, since the migration work is implemented, parity-checked, and documented. Remaining items are explicitly optional (e.g., deleting the workspace’s `jsdocex/` directory), so they don’t block closure of the ticket.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Close out the migration ticket once parity checks pass and the new implementation is runnable and tested.
+
+**Inferred user intent:** Move on to the follow-up ticket for multi-format output/API design without leaving the migration work in a half-finished state.
+
+**Commit (code):** 711c0d3 — "📝 Close GOJA-01 ticket"
+
+### What I did
+- Updated ticket `index.md` frontmatter `Status` to `complete` and added a summary.
+- Updated `tasks.md` to mark cutover done and explicitly label destructive workspace cleanup as optional.
+
+### Why
+- The ticket is now in a shippable state: reusable packages + CLI exist, parity is validated, and documentation is doctor-clean.
+
+### What worked
+- N/A (docs-only closeout step).
+
+### What didn't work
+- N/A
+
+### What I learned
+- N/A
+
+### What was tricky to build
+- N/A
+
+### What warrants a second pair of eyes
+- N/A
+
+### What should be done in the future
+- Proceed to the follow-up ticket (multi-format output + API design).
+- Optionally delete `jsdocex/` from this workspace if you want to clean up the working tree.
+
+### Code review instructions
+- Review:
+  - `ttmp/.../index.md`
+  - `ttmp/.../tasks.md`
+
+### Technical details
+- N/A
+
 ## Step 12: Docmgr hygiene (fix playbook frontmatter)
 
 This step fixes a docmgr validation issue: the parity playbook initially lacked YAML frontmatter, causing `docmgr doctor` to report an invalid frontmatter error for the ticket. Adding proper frontmatter makes the playbook discoverable and keeps the ticket in a “doctor clean” state.
