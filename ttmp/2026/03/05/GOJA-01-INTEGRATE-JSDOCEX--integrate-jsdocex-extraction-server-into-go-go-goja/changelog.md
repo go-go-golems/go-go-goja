@@ -111,3 +111,12 @@ Step 11: Updated design doc with acceptance criteria and explicit parity decisio
 
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/ttmp/2026/03/05/GOJA-01-INTEGRATE-JSDOCEX--integrate-jsdocex-extraction-server-into-go-go-goja/reference/01-design-implementation-guide-integrate-jsdocex-into-go-go-goja.md — Acceptance criteria + parity decisions
 
+
+## 2026-03-05
+
+Step 12: Fixed docmgr validation by adding YAML frontmatter to parity playbook; doctor now passes clean.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/ttmp/2026/03/05/GOJA-01-INTEGRATE-JSDOCEX--integrate-jsdocex-extraction-server-into-go-go-goja/playbooks/01-parity-runbook.md — Added required frontmatter
+
