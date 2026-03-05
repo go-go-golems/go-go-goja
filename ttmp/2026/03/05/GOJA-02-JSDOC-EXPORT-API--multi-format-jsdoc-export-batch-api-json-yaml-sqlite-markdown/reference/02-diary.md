@@ -361,3 +361,57 @@ Because the server can read files from disk when given `path` inputs, this step 
 
 ### Technical details
 - `resolvePath` uses `filepath.Clean` + `filepath.Abs` and ensures the resolved path has the server root as a prefix.
+
+## Step 6: Update design doc + add E2E runbook playbook
+
+This step updates the GOJA-02 design/plan document to reflect the implemented CLI flags and server API behaviors, and adds a copy/paste-ready end-to-end runbook for manual validation. The goal is to keep the ticket’s documentation usable as a “how to validate” guide for reviewers and future interns.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Finish the ticket’s documentation loop by updating the plan with “as built” details and adding a runbook for manual checks.
+
+**Inferred user intent:** Ensure the work is easy to review, test, and maintain, and that it can be validated without reading implementation code first.
+
+**Commit (code):** N/A (docs-only in this step)
+
+### What I did
+- Updated `reference/01-design-implementation-plan-batch-jsdoc-api-and-multi-format-exporters.md`:
+  - corrected CLI examples to use `--output-file`
+  - documented current behavior (file paths only; dir/glob expansion deferred)
+  - documented server path safety behavior and relative-path requirement
+- Added `playbooks/01-e2e-export-runbook.md` with:
+  - CLI checks for JSON/YAML/Markdown/SQLite outputs
+  - server checks for `/api/batch/extract` and `/api/batch/export`
+  - negative safety checks (traversal rejection)
+- Checked off Phase 5 tasks in `tasks.md`.
+
+### Why
+- Without “as built” docs and a runbook, the implementation is harder to validate and is much easier to regress silently.
+
+### What worked
+- The runbook uses only standard tools (`go run`, `curl`, optional `jq`) and mirrors the exact implemented request/response shapes.
+
+### What didn't work
+- N/A
+
+### What I learned
+- N/A
+
+### What was tricky to build
+- Keeping the plan document accurate while also preserving its “intern-friendly” narrative; updates were kept minimal and additive rather than rewriting the whole doc.
+
+### What warrants a second pair of eyes
+- Confirm whether `--output-file` should be renamed to `--output` for consistency with other tools; if so, update both CLI and docs together.
+
+### What should be done in the future
+- If directory/glob expansion is implemented, update the runbook to include at least one directory-based example.
+
+### Code review instructions
+- Review:
+  - `go-go-goja/ttmp/2026/03/05/GOJA-02-JSDOC-EXPORT-API--multi-format-jsdoc-export-batch-api-json-yaml-sqlite-markdown/reference/01-design-implementation-plan-batch-jsdoc-api-and-multi-format-exporters.md`
+  - `go-go-goja/ttmp/2026/03/05/GOJA-02-JSDOC-EXPORT-API--multi-format-jsdoc-export-batch-api-json-yaml-sqlite-markdown/playbooks/01-e2e-export-runbook.md`
+
+### Technical details
+- N/A

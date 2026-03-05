@@ -47,5 +47,5 @@
   - [x] SQLite response headers + non-empty body
 
 ### Phase 5: Docs + runbooks
-- [ ] Update design doc with final API paths and CLI flags once implemented
-- [ ] Add a playbook for manual end-to-end export checks
+- [x] Update design doc with final API paths and CLI flags once implemented
+- [x] Add a playbook for manual end-to-end export checks

@@ -122,9 +122,13 @@ inputs (paths or inline content)
 
 Add an explicit “batch + export” command:
 
-- `goja-jsdoc export --input file1.js --input file2.js --format json`
-- `goja-jsdoc export --dir ./src --recursive --format sqlite --output out.db`
-- `goja-jsdoc export --glob 'src/**/*.js' --format markdown --output docs.md --toc-depth 3`
+- `goja-jsdoc export --input file1.js --input file2.js --format json --pretty`
+- `goja-jsdoc export file1.js file2.js --format sqlite --output-file out.db`
+- `goja-jsdoc export file1.js --format markdown --output-file docs.md --toc-depth 3`
+
+Notes:
+- The initial GOJA-02 implementation supports **file paths only** (positional args and/or `--input`).
+- Directory/glob expansion flags (`--dir`, `--recursive`, `--glob`) can be added later if needed.
 
 ### HTTP API proposal (new endpoints; keep existing routes stable)
 
@@ -318,6 +322,10 @@ Security constraints (required if `path` is supported):
 - reject paths outside an allowed root (e.g., the server’s watched dir),
 - optionally disallow absolute paths by default.
 
+Implementation note (as implemented in GOJA-02):
+- server accepts `path` inputs only as **relative paths** (resolved under `Server.dir`)
+- rejects `..` traversal and absolute paths
+
 ## Implementation plan (phased)
 
 ### Phase 1: Batch builder
@@ -344,7 +352,7 @@ Security constraints (required if `path` is supported):
   - multiple `--input` flags and/or positional args
   - `--dir` + `--recursive`
   - `--format` and format-specific flags
-  - `--output` to write files
+  - `--output-file` to write files
 - Use Glazed for flags and help.
 
 ### Phase 4: HTTP API integration
@@ -362,8 +370,8 @@ Security constraints (required if `path` is supported):
 
 ```bash
 go run ./go-go-goja/cmd/goja-jsdoc export --input a.js --input b.js --format yaml
-go run ./go-go-goja/cmd/goja-jsdoc export --dir ./src --recursive --format sqlite --output docs.db
-go run ./go-go-goja/cmd/goja-jsdoc export --dir ./src --format markdown --output docs.md --toc-depth 3
+go run ./go-go-goja/cmd/goja-jsdoc export a.js b.js --format sqlite --output-file docs.db
+go run ./go-go-goja/cmd/goja-jsdoc export a.js --format markdown --output-file docs.md --toc-depth 3
 ```
 
 ### HTTP API (proposed)
