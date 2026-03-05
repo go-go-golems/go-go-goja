@@ -1,3 +1,22 @@
+---
+Title: "Parity Runbook: jsdocex vs goja-jsdoc"
+Ticket: GOJA-01-INTEGRATE-JSDOCEX
+Status: active
+Topics:
+  - goja
+  - migration
+  - tooling
+DocType: playbook
+Intent: short-term
+Owners: []
+RelatedFiles: []
+ExternalSources: []
+Summary: >
+  Manual, copy/paste-ready parity checklist to compare the original jsdocex
+  extractor/server against the migrated goja-jsdoc CLI and HTTP API.
+LastUpdated: 2026-03-05T04:00:00-05:00
+---
+
 # Parity Runbook: jsdocex vs goja-jsdoc
 
 This playbook is a manual checklist to validate that the migrated implementation in `go-go-goja` behaves like the original `jsdocex` tool for:
