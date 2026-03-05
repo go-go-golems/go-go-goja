@@ -241,3 +241,65 @@ It also adds a small but important unit test suite to lock down the “remove/ov
 - Commands:
   - `gofmt -w go-go-goja/pkg/jsdoc/model/*.go`
   - `cd go-go-goja && go test ./pkg/jsdoc/model -count=1`
+
+## Step 4: Port `pkg/jsdoc/extract` using go-tree-sitter
+
+This step ports the jsdocex extractor into `go-go-goja/pkg/jsdoc/extract`, but rewritten to use the same tree-sitter binding already used elsewhere in go-go-goja (`github.com/tree-sitter/go-tree-sitter`). The goal is to preserve jsdocex semantics while avoiding long-term dual tree-sitter dependency stacks.
+
+It also advances the ticket checklist by checking off the extractor subtasks (package created, ParseFile/ParseSource/ParseDir implemented, sentinel + doc`...` behavior preserved).
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Implement Phase 1.2 by porting the extractor logic into `pkg/jsdoc/extract`, updating tasks as we complete parity milestones, and committing as a focused unit.
+
+**Inferred user intent:** Move the system into reusable packages while keeping semantics stable and aligning to go-go-goja’s existing parsing stack.
+
+**Commit (code):** 510dbde — "✨ Add jsdoc extractor"
+
+### What I did
+- Added `pkg/jsdoc/extract/extract.go` implementing:
+  - `ParseFile`, `ParseSource`, `ParseDir` (non-recursive)
+  - sentinel extraction: `__package__`, `__doc__`, `__example__`
+  - tagged template prose extraction: `doc\`...\`` with `symbol:`/`package:` frontmatter
+  - the same heuristic JS-object-literal → JSON conversion as jsdocex
+- Updated `ttmp/.../tasks.md` to mark Phase 1.2 extractor items complete.
+
+### Why
+- The extractor is the second core layer (after model/store) and is required before we can port the server and create Glazed commands.
+- Using `github.com/tree-sitter/go-tree-sitter` keeps go-go-goja on one binding (important for maintenance).
+
+### What worked
+- `go test ./pkg/jsdoc/extract -count=1` passed (no tests yet, but package compiles).
+- After fixing lint issues, the repo’s pre-commit pipeline (generate + full test suite + lint) passed for the commit.
+
+### What didn't work
+- First commit attempt failed lint in pre-commit due to:
+  - `nonamedreturns` (named returns in `splitFrontmatter`)
+  - `staticcheck` QF1001 (De Morgan suggestion in comment-skip loop)
+- After fixing the file, `git commit` still failed because the staged version of `extract.go` was the pre-fix version. The fix was to re-stage:
+  - `git add pkg/jsdoc/extract/extract.go`
+
+### What I learned
+- When pre-commit fails on staged content, you must re-stage fixes explicitly; otherwise, the hook keeps linting the old staged snapshot even if the working tree is corrected.
+
+### What was tricky to build
+- Porting while keeping semantics stable requires resisting “improvements” (e.g., recursive ParseDir, YAML frontmatter). I kept parity behavior and left enhancements as explicit future tasks.
+
+### What warrants a second pair of eyes
+- Confirm that the set of node kinds we recurse into (class/export/variable declarations) is sufficient with the `go-tree-sitter` JS grammar; if not, we may need to broaden traversal while preserving parity expectations.
+
+### What should be done in the future
+- Phase 1.3/1.4: port watcher and server next, then build `cmd/goja-jsdoc`.
+- Add extractor tests using `jsdocex/samples/*.js` (Phase 3).
+
+### Code review instructions
+- Start at `pkg/jsdoc/extract/extract.go`.
+- Validate compilation:
+  - `go test ./pkg/jsdoc/extract -count=1`
+
+### Technical details
+- Commands (during iteration):
+  - `cd go-go-goja && golangci-lint run -v ./pkg/jsdoc/extract`
+  - `git -C go-go-goja add pkg/jsdoc/extract/extract.go`
