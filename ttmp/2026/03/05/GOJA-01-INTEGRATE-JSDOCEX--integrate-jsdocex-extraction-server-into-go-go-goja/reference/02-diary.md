@@ -303,3 +303,68 @@ It also advances the ticket checklist by checking off the extractor subtasks (pa
 - Commands (during iteration):
   - `cd go-go-goja && golangci-lint run -v ./pkg/jsdoc/extract`
   - `git -C go-go-goja add pkg/jsdoc/extract/extract.go`
+
+## Step 5: Port watcher + HTTP server (API parity + UI embed)
+
+This step ports the remaining “runtime” pieces needed to actually use extracted docs interactively: a filesystem watcher and the doc-browser HTTP server. The focus is strict parity with the existing jsdocex behavior: same API routes, same enriched symbol response, same embedded UI HTML, and the same SSE “reload” mechanism.
+
+With this in place, the next step is to build `cmd/goja-jsdoc` Glazed commands to wire everything together into a single runnable CLI.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Implement Phase 1.3 and 1.4 by porting the watcher and server packages into go-go-goja, adding minimal handler tests, and committing the change.
+
+**Inferred user intent:** Keep the existing web UI and API stable while relocating functionality into reusable packages and aligning with the go-go-goja codebase.
+
+**Commit (code):** 7d0e00c — "✨ Add jsdoc watcher and server"
+
+### What I did
+- Added `pkg/jsdoc/watch/watcher.go` (ported from `jsdocex/internal/watcher/watcher.go`).
+- Added `pkg/jsdoc/server/server.go` implementing:
+  - stable API routes (`/api/store`, `/api/package/`, `/api/symbol/`, `/api/example/`, `/api/search`)
+  - SSE endpoint `/events` broadcasting `reload`
+  - UI handler that serves embedded HTML for all other routes
+  - watcher integration that reparses on write/create and removes entries on remove/rename
+- Copied the UI HTML from `jsdocex/internal/server/ui.go` verbatim into `pkg/jsdoc/server/ui.go` (so the UI stays identical).
+- Added `pkg/jsdoc/server/server_test.go` with `httptest` coverage for:
+  - `/api/store` JSON decode
+  - `/api/symbol/{name}` enriched `examples` field
+- Updated `ttmp/.../tasks.md` to check off watcher/server tasks.
+
+### Why
+- The server layer is the externally visible contract (API + UI). Porting it early de-risks later CLI wiring because it surfaces any model/JSON compatibility mismatches quickly.
+
+### What worked
+- `go test ./pkg/jsdoc/server -count=1` passed.
+- Pre-commit lint/test pipeline passed for the commit.
+
+### What didn't work
+- My first attempt at `pkg/jsdoc/server/ui.go` accidentally introduced JavaScript template-literal backticks inside a Go raw string literal, breaking `gofmt` and compilation. Fix: copy `jsdocex/internal/server/ui.go` verbatim (it avoids JS template literals and is valid Go).
+- Pre-commit lint initially failed on the watcher due to `errcheck` on `defer fw.Close()`. Fix: `defer func() { _ = fw.Close() }()`.
+
+### What I learned
+- UI embedding is extremely sensitive to the “raw string contains backticks” rule. Copying proven-working sources is safer than “reconstructing” the UI.
+
+### What was tricky to build
+- Keeping both store access and SSE client bookkeeping protected by a single RWMutex is simple and matches jsdocex, but it’s easy to accidentally introduce races when adding new endpoints. I kept the jsdocex locking structure to reduce risk.
+
+### What warrants a second pair of eyes
+- Confirm the server should default to `127.0.0.1:8080` in `pkg/jsdoc/server.Server.Run`; the CLI will likely supply host/port explicitly, but this default can leak into tests/examples.
+
+### What should be done in the future
+- Build `cmd/goja-jsdoc` Glazed commands next (extract + serve).
+
+### Code review instructions
+- Start at:
+  - `pkg/jsdoc/watch/watcher.go`
+  - `pkg/jsdoc/server/server.go`
+  - `pkg/jsdoc/server/server_test.go`
+  - `pkg/jsdoc/server/ui.go` (large; diff should match jsdocex)
+- Validate:
+  - `go test ./pkg/jsdoc/server -count=1`
+
+### Technical details
+- Commands:
+  - `go test ./pkg/jsdoc/server -count=1`
