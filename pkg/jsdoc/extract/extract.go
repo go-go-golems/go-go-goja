@@ -97,6 +97,7 @@ func (e *extractor) extract(root *tree_sitter.Node) *model.FileDoc {
 	fd := &model.FileDoc{FilePath: e.path}
 
 	// Walk top-level statements.
+	// #nosec G115 -- tree-sitter child counts are bounded by the parsed source tree in memory.
 	count := int(root.ChildCount())
 	for i := 0; i < count; i++ {
 		child := root.Child(uint(i))
@@ -149,6 +150,7 @@ func (e *extractor) processNode(node *tree_sitter.Node, fd *model.FileDoc) {
 
 // recurseChildren walks all children of a node through processNode.
 func (e *extractor) recurseChildren(node *tree_sitter.Node, fd *model.FileDoc) {
+	// #nosec G115 -- tree-sitter child counts are bounded by the parsed source tree in memory.
 	for i := 0; i < int(node.ChildCount()); i++ {
 		e.processNode(node.Child(uint(i)), fd)
 	}
@@ -187,6 +189,7 @@ func (e *extractor) handleCallExpression(node *tree_sitter.Node, fd *model.FileD
 		sym := e.parseSymbolDoc(argsNode)
 		if sym != nil {
 			sym.SourceFile = e.path
+			// #nosec G115 -- tree-sitter row values are derived from the in-memory parsed source.
 			sym.Line = int(node.StartPosition().Row) + 1
 			fd.Symbols = append(fd.Symbols, sym)
 		}
@@ -195,6 +198,7 @@ func (e *extractor) handleCallExpression(node *tree_sitter.Node, fd *model.FileD
 		ex := e.parseExample(argsNode)
 		if ex != nil {
 			ex.SourceFile = e.path
+			// #nosec G115 -- tree-sitter row values are derived from the in-memory parsed source.
 			ex.Line = int(node.StartPosition().Row) + 1
 			fd.Examples = append(fd.Examples, ex)
 		}
@@ -208,6 +212,7 @@ func (e *extractor) handleCallExpression(node *tree_sitter.Node, fd *model.FileD
 func (e *extractor) handleDocTemplate(node *tree_sitter.Node, fd *model.FileDoc) {
 	// Find the template_string as a direct child of the call_expression.
 	var tmplNode *tree_sitter.Node
+	// #nosec G115 -- tree-sitter child counts are bounded by the parsed source tree in memory.
 	for i := 0; i < int(node.ChildCount()); i++ {
 		c := node.Child(uint(i))
 		if c.Kind() == "template_string" {
@@ -330,6 +335,7 @@ func (e *extractor) parseExample(argsNode *tree_sitter.Node) *model.Example {
 // ---- AST traversal helpers ----
 
 func (e *extractor) firstObjectArg(argsNode *tree_sitter.Node) *tree_sitter.Node {
+	// #nosec G115 -- tree-sitter child counts are bounded by the parsed source tree in memory.
 	for i := 0; i < int(argsNode.ChildCount()); i++ {
 		c := argsNode.Child(uint(i))
 		if c.Kind() == "object" {
@@ -341,6 +347,7 @@ func (e *extractor) firstObjectArg(argsNode *tree_sitter.Node) *tree_sitter.Node
 
 func (e *extractor) collectArgs(argsNode *tree_sitter.Node) []*tree_sitter.Node {
 	var args []*tree_sitter.Node
+	// #nosec G115 -- tree-sitter child counts are bounded by the parsed source tree in memory.
 	for i := 0; i < int(argsNode.ChildCount()); i++ {
 		c := argsNode.Child(uint(i))
 		k := c.Kind()
@@ -355,7 +362,9 @@ func (e *extractor) nodeText(node *tree_sitter.Node) string {
 	if node == nil {
 		return ""
 	}
+	// #nosec G115 -- tree-sitter byte offsets are bounded by the parsed source buffer length.
 	start := int(node.StartByte())
+	// #nosec G115 -- tree-sitter byte offsets are bounded by the parsed source buffer length.
 	end := int(node.EndByte())
 	if start < 0 || end < start || end > len(e.src) {
 		return ""
