@@ -534,3 +534,55 @@ This step adds a concrete, copy/paste-ready playbook to compare the old `jsdocex
 
 ### Technical details
 - N/A
+
+## Step 9: Execute parity runbook (extract + server)
+
+This step runs the parity checks described in the playbook to confirm that the migrated implementation matches the original jsdocex behavior on the provided sample fixtures, both for extraction output and for the HTTP API.
+
+The primary goal here is to build confidence before removing `jsdocex/` from the workspace `go.work` and deleting/archiving the old module.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Run the parity checks and record whether any differences remain that would block cutover.
+
+**Inferred user intent:** Avoid breaking API/UI behavior during migration by validating parity before removing the old implementation.
+
+**Commit (code):** N/A (parity run produced no code changes; tasks were updated separately)
+
+### What I did
+- Ran extract parity diffs on all sample files (`01-math.js` through `04-events.js`) and observed no diffs.
+- Ran server endpoint diffs for:
+  - `/api/store` (normalized with `jq -S` for stable key ordering)
+  - `/api/symbol/smoothstep` (normalized by sorting `examples` by id)
+- Updated the ticket tasks to mark the parity runbook execution complete.
+
+### Why
+- This is the go/no-go gate for cutover: if extraction/API parity is not good enough, we should not remove the old module yet.
+
+### What worked
+- Extract outputs matched exactly across all sample files.
+- Server endpoint payloads matched after applying minimal JSON normalization (sorting keys and sorting the `examples` array by id).
+
+### What didn't work
+- Raw JSON diffs for `/api/symbol/...` can show differences due solely to nondeterministic map iteration order when building the `examples` array. This is not a semantic difference, but it makes naive `diff` noisy.
+
+### What I learned
+- Parity comparisons should normalize JSON where ordering is not part of the contract (maps, and arrays assembled from map iteration).
+
+### What was tricky to build
+- Running servers in this environment required using `tmux` so the processes survived beyond a single command invocation.
+
+### What warrants a second pair of eyes
+- Confirm that the team considers nondeterministic example ordering acceptable; if not, we can sort `examples` in the handler (small behavior change, but likely an improvement).
+
+### What should be done in the future
+- Proceed to cutover (remove `jsdocex` from `go.work` and delete/archive the module) now that parity checks passed.
+
+### Code review instructions
+- Review the playbook: `ttmp/.../playbooks/01-parity-runbook.md`
+
+### Technical details
+- Files written during parity runs:
+  - `/tmp/jsdoc-parity/*`
