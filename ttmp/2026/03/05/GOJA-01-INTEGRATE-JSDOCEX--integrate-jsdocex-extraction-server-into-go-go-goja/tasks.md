@@ -53,15 +53,15 @@
 
 ### Phase 2: Glazed CLI (`cmd/goja-jsdoc`)
 
-- [ ] Create `go-go-goja/cmd/goja-jsdoc`
-- [ ] Add Glazed/Cobra wiring like `go-go-goja/cmd/goja-perf/main.go`
-- [ ] Implement `extract` command:
-  - [ ] `--file` required
-  - [ ] default output as rows (symbols/examples/package)
-  - [ ] optional `--raw-json` to print `FileDoc` JSON for parity debugging
-- [ ] Implement `serve` command:
-  - [ ] `--dir`, `--host`, `--port`
-  - [ ] initial parse + watcher + server run-until-canceled
+- [x] Create `go-go-goja/cmd/goja-jsdoc`
+- [x] Add Glazed/Cobra wiring like `go-go-goja/cmd/goja-perf/main.go`
+- [x] Implement `extract` command (JSON parity mode):
+  - [x] `--file` required
+  - [x] JSON output with `--pretty` and optional `--output-file`
+  - [ ] (defer) Glazed row output modes (handled in follow-up ticket about output formats)
+- [x] Implement `serve` command:
+  - [x] `--dir`, `--host`, `--port`
+  - [x] initial parse + watcher + server run-until-canceled
 
 ### Phase 3: Tests + parity comparison + cutover
 
