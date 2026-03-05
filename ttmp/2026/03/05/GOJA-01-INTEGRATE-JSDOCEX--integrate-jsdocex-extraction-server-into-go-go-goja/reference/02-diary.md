@@ -586,3 +586,51 @@ The primary goal here is to build confidence before removing `jsdocex/` from the
 ### Technical details
 - Files written during parity runs:
   - `/tmp/jsdoc-parity/*`
+
+## Step 10: Cutover prep (remove jsdocex from go.work)
+
+This step starts the actual cutover after parity checks passed by removing the `jsdocex/` module from the workspace `go.work` file. This ensures future builds/tests in this workspace don’t accidentally depend on the old module.
+
+Destructive cleanup (deleting the `jsdocex/` directory) is intentionally deferred until explicitly confirmed, since it can remove a separate git repository from the working tree.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Begin cutover steps after parity checks by removing the old module from workspace wiring, while avoiding destructive deletes without explicit confirmation.
+
+**Inferred user intent:** Complete the migration and reduce the chance of regressions by ensuring the old implementation is no longer part of the active workspace.
+
+**Commit (code):** N/A (workspace `go.work` change is outside the go-go-goja git repo)
+
+### What I did
+- Updated workspace `go.work` to remove `./jsdocex` from the `use (...)` list.
+- Updated ticket tasks to mark the `go.work` cutover item complete.
+
+### Why
+- Once parity is confirmed, leaving `jsdocex` in `go.work` increases the risk of accidental coupling (imports, tests, or local tooling continuing to reference the old module).
+
+### What worked
+- N/A (config-only change).
+
+### What didn't work
+- N/A
+
+### What I learned
+- N/A
+
+### What was tricky to build
+- N/A
+
+### What warrants a second pair of eyes
+- Confirm whether we should delete the `jsdocex/` directory from this workspace now, or keep it around temporarily for reference (it is not part of the go-go-goja repo).
+
+### What should be done in the future
+- If confirmed, delete or archive `jsdocex/` from this workspace.
+- Mark the ticket status complete and proceed to the follow-up ticket for multi-format output/API design.
+
+### Code review instructions
+- Review `go.work` at workspace root (not in go-go-goja repo).
+
+### Technical details
+- N/A
