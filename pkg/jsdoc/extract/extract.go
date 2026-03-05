@@ -18,15 +18,6 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/jsdoc/model"
 )
 
-// ParseFile parses a single JS file and returns its extracted documentation.
-func ParseFile(path string) (*model.FileDoc, error) {
-	src, err := os.ReadFile(path)
-	if err != nil {
-		return nil, errors.Wrapf(err, "reading %s", path)
-	}
-	return ParseSource(path, src)
-}
-
 // ParseFSFile parses a single JS file from the provided filesystem and returns
 // its extracted documentation.
 func ParseFSFile(fsys fs.FS, path string) (*model.FileDoc, error) {
@@ -80,7 +71,12 @@ func ParseDir(dir string) ([]*model.FileDoc, error) {
 			continue
 		}
 		path := filepath.Join(dir, entry.Name())
-		fd, err := ParseFile(path)
+		src, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: reading %s: %v\n", path, err)
+			continue
+		}
+		fd, err := ParseSource(path, src)
 		if err != nil {
 			// Parity note: log but continue.
 			fmt.Fprintf(os.Stderr, "warning: %v\n", err)

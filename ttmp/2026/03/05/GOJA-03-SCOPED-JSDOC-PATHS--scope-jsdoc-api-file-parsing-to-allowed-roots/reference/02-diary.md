@@ -200,3 +200,64 @@ This step changes the HTTP API flow so accepted request paths remain relative an
 
 ### Technical details
 - The symlink escape fix specifically addresses the case where a directory inside the allowed root is a symlink to content outside the root.
+
+## Step 4: Remove `extract.ParseFile` entirely
+
+This step removes the remaining exported path-based convenience helper from the jsdoc extractor. The earlier refactor had already eliminated untrusted API use of `ParseFile`, but the symbol still existed for trusted callers. This follow-up finishes the cleanup so the jsdoc extractor no longer exposes a generic “read arbitrary path” API at all.
+
+### Prompt Context
+
+**User prompt (verbatim):** "just replace it entirely"
+
+**Assistant interpretation:** Remove `extract.ParseFile` instead of keeping it as a trusted/local convenience helper, and update the remaining jsdoc callers accordingly.
+
+**Inferred user intent:** Eliminate the ambiguous API surface completely so there is no leftover generic path reader in the jsdoc extractor package.
+
+**Commit (code):** pending
+
+### What I did
+- Removed `ParseFile` from `pkg/jsdoc/extract/extract.go`.
+- Replaced remaining trusted jsdoc call sites with explicit host reads plus `extract.ParseSource`:
+  - `cmd/goja-jsdoc/extract_command.go`
+  - `pkg/jsdoc/server/server.go`
+  - `pkg/jsdoc/batch/batch.go`
+  - `pkg/jsdoc/extract/extract.go` (`ParseDir`)
+- Updated extractor tests to read fixture bytes explicitly and call `ParseSource`.
+- Updated the Glazed help page pseudocode to stop referring to the removed helper.
+- Verified that remaining `ParseFile(...)` search hits are only unrelated `parser.ParseFile(...)` calls from `pkg/jsparse` and inspector code.
+
+### Why
+- Leaving the old helper in place would keep the extractor API broader than necessary and would continue to blur the trust boundary, even if untrusted callers no longer used it.
+
+### What worked
+- The existing `ParseSource` entrypoint made the final cleanup straightforward.
+
+### What didn't work
+- N/A
+
+### What I learned
+- N/A
+
+### What was tricky to build
+- The main sharp edge was avoiding accidental stale references in docs/tests after removing the symbol.
+
+### What warrants a second pair of eyes
+- None beyond the normal review of the touched trusted-call sites.
+
+### What should be done in the future
+- N/A
+
+### Code review instructions
+- Review:
+  - `pkg/jsdoc/extract/extract.go`
+  - `pkg/jsdoc/batch/batch.go`
+  - `cmd/goja-jsdoc/extract_command.go`
+  - `pkg/jsdoc/server/server.go`
+- Validate:
+  - `go test ./pkg/jsdoc/extract ./pkg/jsdoc/batch ./pkg/jsdoc/server ./cmd/goja-jsdoc -count=1`
+
+### Technical details
+- After this change, the jsdoc extractor package exposes:
+  - `ParseSource`
+  - `ParseFSFile`
+  - `NewScopedFS`

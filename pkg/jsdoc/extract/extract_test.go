@@ -1,17 +1,21 @@
 package extract
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseFile_Samples(t *testing.T) {
+func TestParseSource_Samples(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "testdata", "jsdoc")
 
 	t.Run("01-math", func(t *testing.T) {
-		fd, err := ParseFile(filepath.Join(root, "01-math.js"))
+		path := filepath.Join(root, "01-math.js")
+		src, err := os.ReadFile(path)
+		require.NoError(t, err)
+		fd, err := ParseSource(path, src)
 		require.NoError(t, err)
 		require.NotNil(t, fd.Package)
 		require.Equal(t, "math/core", fd.Package.Name)
@@ -29,7 +33,10 @@ func TestParseFile_Samples(t *testing.T) {
 	})
 
 	t.Run("02-easing_doc_prose_attaches_to_symbol", func(t *testing.T) {
-		fd, err := ParseFile(filepath.Join(root, "02-easing.js"))
+		path := filepath.Join(root, "02-easing.js")
+		src, err := os.ReadFile(path)
+		require.NoError(t, err)
+		fd, err := ParseSource(path, src)
 		require.NoError(t, err)
 		require.NotNil(t, fd.Package)
 		require.Equal(t, "animation/easing", fd.Package.Name)
@@ -46,7 +53,10 @@ func TestParseFile_Samples(t *testing.T) {
 	})
 
 	t.Run("03-vector2_doc_prose_attaches_to_package", func(t *testing.T) {
-		fd, err := ParseFile(filepath.Join(root, "03-vector2.js"))
+		path := filepath.Join(root, "03-vector2.js")
+		src, err := os.ReadFile(path)
+		require.NoError(t, err)
+		fd, err := ParseSource(path, src)
 		require.NoError(t, err)
 		require.NotNil(t, fd.Package)
 		require.Equal(t, "math/vector2", fd.Package.Name)
@@ -54,7 +64,10 @@ func TestParseFile_Samples(t *testing.T) {
 	})
 
 	t.Run("04-events_doc_prose_attaches_to_package_and_symbol", func(t *testing.T) {
-		fd, err := ParseFile(filepath.Join(root, "04-events.js"))
+		path := filepath.Join(root, "04-events.js")
+		src, err := os.ReadFile(path)
+		require.NoError(t, err)
+		fd, err := ParseSource(path, src)
 		require.NoError(t, err)
 		require.NotNil(t, fd.Package)
 		require.Equal(t, "core/events", fd.Package.Name)

@@ -117,7 +117,12 @@ func (s *Server) onFileChange(ev watch.Event) {
 		s.store.AddFile(&model.FileDoc{FilePath: ev.Path}) // empty doc removes old entries
 		s.mu.Unlock()
 	} else {
-		fd, err := extract.ParseFile(ev.Path)
+		src, err := os.ReadFile(ev.Path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "parse error: reading %s: %v\n", ev.Path, err)
+			return
+		}
+		fd, err := extract.ParseSource(ev.Path, src)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "parse error: %v\n", err)
 			return

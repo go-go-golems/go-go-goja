@@ -57,7 +57,11 @@ func (c *extractCommand) Run(_ context.Context, vals *values.Values) error {
 		return errors.Errorf("--file is required")
 	}
 
-	fd, err := extract.ParseFile(settings.File)
+	src, err := os.ReadFile(settings.File)
+	if err != nil {
+		return errors.Wrapf(err, "reading %s", settings.File)
+	}
+	fd, err := extract.ParseSource(settings.File, src)
 	if err != nil {
 		return err
 	}

@@ -157,7 +157,7 @@ Prose gets attached to the closest package/symbol context the extractor can infe
 ### Pseudocode (single file)
 
 ```pseudo
-function ParseFile(path):
+function ReadAndParse(path):
   src = readFile(path)
   tree = treeSitterParseJavaScript(src)
   fileDoc = new FileDoc(filePath=path)
@@ -185,7 +185,7 @@ function BuildStore(inputs, continueOnError):
   for each input in inputs:
     try:
       if input.path:
-        fd = ParseFile(input.path)
+        fd = ParsePath(input.path)
       else if input.content:
         fd = ParseSource(input.displayName, input.content)
       else:

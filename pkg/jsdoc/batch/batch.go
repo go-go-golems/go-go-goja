@@ -4,6 +4,7 @@ package batch
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/pkg/errors"
 
@@ -84,7 +85,7 @@ func parseOne(in InputFile, index int, opts BatchOptions) (*model.FileDoc, error
 	hasContent := len(in.Content) > 0
 	parsePath := opts.ParsePath
 	if parsePath == nil {
-		parsePath = extract.ParseFile
+		parsePath = parseHostPath
 	}
 
 	switch {
@@ -107,4 +108,12 @@ func bestInlineName(in InputFile, index int) string {
 		return in.DisplayName
 	}
 	return fmt.Sprintf("inline:%d", index)
+}
+
+func parseHostPath(path string) (*model.FileDoc, error) {
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading %s", path)
+	}
+	return extract.ParseSource(path, src)
 }
