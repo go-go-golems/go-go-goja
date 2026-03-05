@@ -42,3 +42,15 @@ Step 4: Ported jsdocex extractor into pkg/jsdoc/extract using go-tree-sitter (co
 
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/extract/extract.go — Extractor implementation (sentinels + doc)
 
+
+## 2026-03-05
+
+Step 5: Ported watcher and HTTP doc server into pkg/jsdoc/watch and pkg/jsdoc/server (commit 7d0e00c).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/server/server.go — HTTP API + SSE + UI handler
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/server/server_test.go — Minimal handler tests
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/server/ui.go — Embedded UI (copied from jsdocex)
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/watch/watcher.go — FS watcher with debounce
+
