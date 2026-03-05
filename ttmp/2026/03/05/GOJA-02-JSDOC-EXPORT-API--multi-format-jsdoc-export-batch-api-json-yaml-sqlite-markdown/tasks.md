@@ -2,15 +2,15 @@
 
 ## TODO
 
-- [ ] Review GOJA-01 baseline packages (`pkg/jsdoc/*`) and confirm extension points
+- [x] Review GOJA-01 baseline packages (`pkg/jsdoc/*`) and confirm extension points
 
 ### Phase 1: Batch builder (`pkg/jsdoc/batch`)
-- [ ] Define `InputFile`, `BatchOptions`, `BatchResult` types
-- [ ] Implement batch store builder:
-  - [ ] supports multiple inputs (paths)
-  - [ ] optional support for inline content (for HTTP usage)
-  - [ ] `ContinueOnError` behavior with per-input error capture
-- [ ] Add unit tests (small inline fixtures)
+- [x] Define `InputFile`, `BatchOptions`, `BatchResult` types
+- [x] Implement batch store builder:
+  - [x] supports multiple inputs (paths)
+  - [x] optional support for inline content (for HTTP usage)
+  - [x] `ContinueOnError` behavior with per-input error capture
+- [x] Add unit tests (small inline fixtures)
 
 ### Phase 2: Exporters (`pkg/jsdoc/export*`)
 - [ ] Add format enums and an `Export(ctx, store, writer, opts)` dispatcher
