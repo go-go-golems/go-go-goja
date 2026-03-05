@@ -11,9 +11,9 @@
 ### Phase 1: New reusable packages in `go-go-goja/pkg/jsdoc`
 
 **1.1 Model + store**
-- [ ] Create `go-go-goja/pkg/jsdoc/model` and port structs from `jsdocex/internal/model/model.go`
-- [ ] Port `DocStore` (or rename to `Store`, but keep JSON stable) including `AddFile` remove/replace semantics
-- [ ] Add unit tests for `DocStore.AddFile` overwrite/removal semantics
+- [x] Create `go-go-goja/pkg/jsdoc/model` and port structs from `jsdocex/internal/model/model.go`
+- [x] Port `DocStore` (or rename to `Store`, but keep JSON stable) including `AddFile` remove/replace semantics
+- [x] Add unit tests for `DocStore.AddFile` overwrite/removal semantics
 
 **1.2 Extractor**
 - [ ] Create `go-go-goja/pkg/jsdoc/extract`
