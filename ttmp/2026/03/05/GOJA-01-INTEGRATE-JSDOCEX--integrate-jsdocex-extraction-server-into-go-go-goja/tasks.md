@@ -16,16 +16,16 @@
 - [x] Add unit tests for `DocStore.AddFile` overwrite/removal semantics
 
 **1.2 Extractor**
-- [ ] Create `go-go-goja/pkg/jsdoc/extract`
-- [ ] Implement `ParseFile`, `ParseSource`, `ParseDir` with current semantics
-  - [ ] keep `ParseDir` non-recursive (parity)
-  - [ ] preserve `Line` as 1-based line number for `__doc__` and `__example__` nodes
-- [ ] Re-implement tree-walk using `github.com/tree-sitter/go-tree-sitter` (do not carry smacker binding in go-go-goja)
-- [ ] Preserve sentinel + template behavior:
-  - [ ] `__package__({ ... })`
-  - [ ] `__doc__("name", { ... })` and `__doc__({name: "...", ...})`
-  - [ ] `__example__({ ... })`
-  - [ ] `doc\`...\`` attaches prose by `symbol:` / `package:` frontmatter
+- [x] Create `go-go-goja/pkg/jsdoc/extract`
+- [x] Implement `ParseFile`, `ParseSource`, `ParseDir` with current semantics
+  - [x] keep `ParseDir` non-recursive (parity)
+  - [x] preserve `Line` as 1-based line number for `__doc__` and `__example__` nodes
+- [x] Re-implement tree-walk using `github.com/tree-sitter/go-tree-sitter` (do not carry smacker binding in go-go-goja)
+- [x] Preserve sentinel + template behavior:
+  - [x] `__package__({ ... })`
+  - [x] `__doc__("name", { ... })` and `__doc__({name: "...", ...})`
+  - [x] `__example__({ ... })`
+  - [x] `doc\`...\`` attaches prose by `symbol:` / `package:` frontmatter
 - [ ] Decide and document (parity vs enhancement) for known gaps:
   - [ ] `Example.Body` remains empty for parity (explicitly documented)
   - [ ] frontmatter parser remains simple (explicitly documented)
