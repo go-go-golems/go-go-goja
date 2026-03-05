@@ -121,3 +121,56 @@ Create a detailed analysis / design / implementation guide that is very detailed
   - `go-go-goja/pkg/jsparse/treesitter.go`
   - `go-go-goja/cmd/goja-perf/main.go`
   - `go-go-goja/cmd/goja-perf/serve_command.go`
+
+## Step 2: Commit ticket docs + task breakdown
+
+This step commits the initial ticket documentation so subsequent code changes can be reviewed independently from the planning artifacts. It also formalizes a detailed task breakdown so we can work sequentially and check items off as we go.
+
+With this commit in place, the remaining work is “just code”: port packages, add Glazed commands, add tests, then cut over.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Land the GOJA-01 ticket docs and detailed task checklist as a first commit, then proceed with implementation tasks one-by-one.
+
+**Inferred user intent:** Keep the work reviewable and continuation-friendly by committing planning artifacts early and maintaining a diary trail as implementation progresses.
+
+**Commit (code):** a46d726 — "📝 GOJA-01: add migration plan and diary"
+
+### What I did
+- Updated `tasks.md` with a phase-by-phase implementation checklist and explicit commit checkpoints.
+- Committed the ticket workspace docs to the `go-go-goja` git repository.
+
+### Why
+- Separating “planning docs” from “implementation code” makes later diffs smaller and code review easier.
+
+### What worked
+- `git -C go-go-goja commit ...` succeeded; lefthook pre-commit hooks skipped lint/test because only docs were staged.
+
+### What didn't work
+- Attempting to stage `.git-commit-message.yaml` failed because the file is gitignored:
+  - Error: `The following paths are ignored by one of your .gitignore files: .git-commit-message.yaml`
+
+### What I learned
+- The `go-go-goja` repo ignores `.git-commit-message.yaml`, so we can still generate it locally for operator convenience, but it won’t be committed unless the ignore rules change.
+
+### What was tricky to build
+- N/A (straightforward documentation + commit); the only nuance was ensuring we committed from the nested `go-go-goja` git repo, not the workspace root (which is not a git repo).
+
+### What warrants a second pair of eyes
+- N/A
+
+### What should be done in the future
+- Proceed to Phase 1.1 (port `pkg/jsdoc/model` + tests) next, and commit as “Commit B”.
+
+### Code review instructions
+- Review the guide and checklist:
+  - `ttmp/2026/03/05/GOJA-01-INTEGRATE-JSDOCEX--integrate-jsdocex-extraction-server-into-go-go-goja/reference/01-design-implementation-guide-integrate-jsdocex-into-go-go-goja.md`
+  - `ttmp/2026/03/05/GOJA-01-INTEGRATE-JSDOCEX--integrate-jsdocex-extraction-server-into-go-go-goja/tasks.md`
+- No tests to run for this commit (docs-only).
+
+### Technical details
+- Commands:
+  - `git -C go-go-goja add ttmp/2026/03/05/...`
+  - `git -C go-go-goja commit -m "📝 GOJA-01: add migration plan and diary"`
