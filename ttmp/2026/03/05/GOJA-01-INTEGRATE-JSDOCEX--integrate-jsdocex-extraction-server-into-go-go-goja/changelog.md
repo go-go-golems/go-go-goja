@@ -102,3 +102,12 @@ Step 10: Removed jsdocex module from workspace go.work after parity checks; dest
 
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go.work — Workspace module wiring
 
+
+## 2026-03-05
+
+Step 11: Updated design doc with acceptance criteria and explicit parity decisions (commit 6a0eb6c).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/ttmp/2026/03/05/GOJA-01-INTEGRATE-JSDOCEX--integrate-jsdocex-extraction-server-into-go-go-goja/reference/01-design-implementation-guide-integrate-jsdocex-into-go-go-goja.md — Acceptance criteria + parity decisions
+
