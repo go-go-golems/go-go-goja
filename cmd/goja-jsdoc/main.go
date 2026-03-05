@@ -6,7 +6,11 @@ import (
 
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/help"
+	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/spf13/cobra"
+
+	jsdocdoc "github.com/go-go-golems/go-go-goja/cmd/goja-jsdoc/doc"
 )
 
 func main() {
@@ -67,6 +71,12 @@ and optionally serve a web UI + JSON API with live reload.`,
 		os.Exit(1)
 	}
 	root.AddCommand(exportCobra)
+
+	helpSystem := help.NewHelpSystem()
+	if err := jsdocdoc.AddDocToHelpSystem(helpSystem); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to load help docs: %v\n", err)
+	}
+	help_cmd.SetupCobraRootCommand(helpSystem, root)
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
