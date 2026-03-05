@@ -73,8 +73,8 @@
   - [x] compare `jsdocex extract` vs `goja-jsdoc extract` on all samples
   - [x] compare server endpoints for one sample directory
 - [ ] Once parity confirmed:
-  - [ ] remove `./jsdocex` from the workspace `go.work`
-  - [ ] delete or archive `jsdocex/` directory (no compatibility wrapper unless requested)
+  - [x] remove `./jsdocex` from the workspace `go.work`
+  - [ ] delete or archive `jsdocex/` directory (destructive; confirm before doing)
 
 ### Commit checkpoints (recommended)
 
