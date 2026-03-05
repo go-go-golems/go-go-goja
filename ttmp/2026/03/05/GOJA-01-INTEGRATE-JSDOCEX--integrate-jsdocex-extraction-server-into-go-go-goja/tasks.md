@@ -32,24 +32,24 @@
   - [ ] object-literal JS→JSON conversion remains heuristic (explicitly documented)
 
 **1.3 Watcher**
-- [ ] Create `go-go-goja/pkg/jsdoc/watch` ported from `jsdocex/internal/watcher/watcher.go`
-- [ ] Preserve behavior:
-  - [ ] watch subdirectories
-  - [ ] debounce per-path (150ms)
-  - [ ] ignore non-`.js`
+- [x] Create `go-go-goja/pkg/jsdoc/watch` ported from `jsdocex/internal/watcher/watcher.go`
+- [x] Preserve behavior:
+  - [x] watch subdirectories
+  - [x] debounce per-path (150ms)
+  - [x] ignore non-`.js`
 
 **1.4 Server**
-- [ ] Create `go-go-goja/pkg/jsdoc/server` ported from `jsdocex/internal/server/server.go`
-- [ ] Preserve HTTP API contract:
-  - [ ] `GET /api/store`
-  - [ ] `GET /api/package/{name}`
-  - [ ] `GET /api/symbol/{name}` includes `examples: []`
-  - [ ] `GET /api/example/{id}`
-  - [ ] `GET /api/search?q=...`
-  - [ ] `GET /events` SSE sends `reload`
-  - [ ] `GET /*` serves embedded UI HTML (copy `jsdocex/internal/server/ui.go` as-is)
-- [ ] Preserve change handling + SSE broadcast semantics
-- [ ] Add minimal handler tests with `httptest` (store + symbol route)
+- [x] Create `go-go-goja/pkg/jsdoc/server` ported from `jsdocex/internal/server/server.go`
+- [x] Preserve HTTP API contract:
+  - [x] `GET /api/store`
+  - [x] `GET /api/package/{name}`
+  - [x] `GET /api/symbol/{name}` includes `examples: []`
+  - [x] `GET /api/example/{id}`
+  - [x] `GET /api/search?q=...`
+  - [x] `GET /events` SSE sends `reload`
+  - [x] `GET /*` serves embedded UI HTML (copy `jsdocex/internal/server/ui.go` as-is)
+- [x] Preserve change handling + SSE broadcast semantics
+- [x] Add minimal handler tests with `httptest` (store + symbol route)
 
 ### Phase 2: Glazed CLI (`cmd/goja-jsdoc`)
 
