@@ -368,3 +368,63 @@ With this in place, the next step is to build `cmd/goja-jsdoc` Glazed commands t
 ### Technical details
 - Commands:
   - `go test ./pkg/jsdoc/server -count=1`
+
+## Step 6: Add `cmd/goja-jsdoc` Glazed CLI (extract + serve)
+
+This step wires the migrated packages into a runnable CLI binary inside `go-go-goja`. The goal is not yet “multi-format export”; it is parity: provide a Glazed-defined command interface to run the same core operations as jsdocex did (`extract` and `serve`).
+
+This unlocks end-to-end testing of the migrated system in the go-go-goja repo without depending on the old `jsdocex/` module.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Implement Phase 2 by adding `cmd/goja-jsdoc` with Glazed+Cobra wiring and `extract`/`serve` commands using the migrated packages.
+
+**Inferred user intent:** Standardize the migration on the repo’s CLI conventions (Glazed) and make the new implementation easy to run/validate.
+
+**Commit (code):** 692e148 — "✨ Add goja-jsdoc CLI"
+
+### What I did
+- Added `cmd/goja-jsdoc/main.go` with Glazed+Cobra wiring (patterned after `cmd/goja-perf`).
+- Added `cmd/goja-jsdoc/extract_command.go`:
+  - `--file` required
+  - outputs JSON (parity with jsdocex) with `--pretty` and optional `--output-file`
+- Added `cmd/goja-jsdoc/serve_command.go`:
+  - `--dir`, `--host`, `--port`
+  - initial parse -> store -> server run with watcher + SSE reload
+- Updated `ttmp/.../tasks.md` to reflect the implemented CLI behavior (JSON parity output; Glazed row outputs deferred).
+
+### Why
+- Having an in-repo CLI is the main “integration” point for users/operators. It also provides a stable entrypoint for parity testing and future enhancements.
+
+### What worked
+- Pre-commit lint/test pipeline passed for the commit.
+- `go run ./cmd/goja-jsdoc --help` (manual expectation) should now show two subcommands (`extract`, `serve`) with Glazed-managed flags.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The existing go-go-goja pattern uses Glazed mainly for flag definitions and Cobra wiring; it’s consistent to keep JSON output parity here and introduce richer output formats in a dedicated follow-up ticket.
+
+### What was tricky to build
+- Avoiding backtick literals in Glazed `WithLong` docs: raw string literals can’t contain backticks, so help text should describe “doc tagged templates” instead of embedding literal `doc` syntax.
+
+### What warrants a second pair of eyes
+- Decide whether `extract` should default to JSON forever, or whether we should flip it to Glazed-row output once the follow-up ticket adds multi-format outputs.
+
+### What should be done in the future
+- Phase 3: add extractor parity tests against `jsdocex/samples/*.js` and do a manual server parity runbook.
+
+### Code review instructions
+- Start at:
+  - `cmd/goja-jsdoc/main.go`
+  - `cmd/goja-jsdoc/extract_command.go`
+  - `cmd/goja-jsdoc/serve_command.go`
+- Validate:
+  - `go test ./cmd/goja-jsdoc -count=1`
+
+### Technical details
+- Commands:
+  - `cd go-go-goja && go test ./cmd/goja-jsdoc -count=1`
