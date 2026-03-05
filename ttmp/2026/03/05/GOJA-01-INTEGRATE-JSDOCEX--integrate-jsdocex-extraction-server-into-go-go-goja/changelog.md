@@ -93,3 +93,12 @@ Step 9: Executed parity runbook; extract output matched and server endpoints mat
 
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/ttmp/2026/03/05/GOJA-01-INTEGRATE-JSDOCEX--integrate-jsdocex-extraction-server-into-go-go-goja/playbooks/01-parity-runbook.md — Commands used for parity run
 
+
+## 2026-03-05
+
+Step 10: Removed jsdocex module from workspace go.work after parity checks; destructive deletion deferred pending confirmation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go.work — Workspace module wiring
+
