@@ -65,3 +65,13 @@ Step 6: Added cmd/goja-jsdoc Glazed CLI with extract and serve commands (commit 
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/cmd/goja-jsdoc/main.go — Cobra wiring for jsdoc CLI
 - /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/cmd/goja-jsdoc/serve_command.go — Serve command (web UI + API + watcher)
 
+
+## 2026-03-05
+
+Step 7: Added extractor parity tests and copied jsdocex samples into go-go-goja/testdata (commit 3795939).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/pkg/jsdoc/extract/extract_test.go — Parity tests for sentinel + prose attachment
+- /home/manuel/workspaces/2026-03-05/add-jsdocex/go-go-goja/testdata/jsdoc/ — JS fixture files copied from jsdocex
+
