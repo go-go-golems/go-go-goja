@@ -66,7 +66,7 @@ func Write(ctx context.Context, store *model.DocStore, w io.Writer, opts Options
 			pkg := store.ByPackage[name]
 			addHeading(3, fmt.Sprintf("Package: %s", pkg.Name))
 			if pkg.Title != "" {
-				body.WriteString(fmt.Sprintf("**Title:** %s\n\n", pkg.Title))
+				fmt.Fprintf(&body, "**Title:** %s\n\n", pkg.Title)
 			}
 			if pkg.Description != "" {
 				body.WriteString(pkg.Description)
@@ -77,7 +77,7 @@ func Write(ctx context.Context, store *model.DocStore, w io.Writer, opts Options
 				body.WriteString("\n\n")
 			}
 			if pkg.SourceFile != "" {
-				body.WriteString(fmt.Sprintf("**Source:** `%s`\n\n", pkg.SourceFile))
+				fmt.Fprintf(&body, "**Source:** `%s`\n\n", pkg.SourceFile)
 			}
 		}
 	}
@@ -103,9 +103,9 @@ func Write(ctx context.Context, store *model.DocStore, w io.Writer, opts Options
 				body.WriteString("**Parameters**\n\n")
 				for _, p := range sym.Params {
 					if p.Type != "" {
-						body.WriteString(fmt.Sprintf("- `%s` (%s): %s\n", p.Name, p.Type, p.Description))
+						fmt.Fprintf(&body, "- `%s` (%s): %s\n", p.Name, p.Type, p.Description)
 					} else {
-						body.WriteString(fmt.Sprintf("- `%s`: %s\n", p.Name, p.Description))
+						fmt.Fprintf(&body, "- `%s`: %s\n", p.Name, p.Description)
 					}
 				}
 				body.WriteString("\n")
@@ -113,9 +113,9 @@ func Write(ctx context.Context, store *model.DocStore, w io.Writer, opts Options
 			if sym.Returns.Type != "" || sym.Returns.Description != "" {
 				body.WriteString("**Returns**\n\n")
 				if sym.Returns.Type != "" {
-					body.WriteString(fmt.Sprintf("- (%s) %s\n\n", sym.Returns.Type, sym.Returns.Description))
+					fmt.Fprintf(&body, "- (%s) %s\n\n", sym.Returns.Type, sym.Returns.Description)
 				} else {
-					body.WriteString(fmt.Sprintf("- %s\n\n", sym.Returns.Description))
+					fmt.Fprintf(&body, "- %s\n\n", sym.Returns.Description)
 				}
 			}
 			if sym.Prose != "" {
@@ -127,7 +127,7 @@ func Write(ctx context.Context, store *model.DocStore, w io.Writer, opts Options
 				if sym.Line > 0 {
 					loc = fmt.Sprintf("%s:%d", sym.SourceFile, sym.Line)
 				}
-				body.WriteString(fmt.Sprintf("**Source:** `%s`\n\n", loc))
+				fmt.Fprintf(&body, "**Source:** `%s`\n\n", loc)
 			}
 		}
 	}
@@ -168,7 +168,7 @@ func Write(ctx context.Context, store *model.DocStore, w io.Writer, opts Options
 				if ex.Line > 0 {
 					loc = fmt.Sprintf("%s:%d", ex.SourceFile, ex.Line)
 				}
-				body.WriteString(fmt.Sprintf("**Source:** `%s`\n\n", loc))
+				fmt.Fprintf(&body, "**Source:** `%s`\n\n", loc)
 			}
 		}
 	}

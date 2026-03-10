@@ -387,7 +387,7 @@ func buildArithmeticScript(lines int) string {
 	sb.Grow(lines * 16)
 	sb.WriteString("var total = 0;\n")
 	for i := 0; i < lines; i++ {
-		sb.WriteString(fmt.Sprintf("total = total + %d;\n", i%13))
+		fmt.Fprintf(&sb, "total = total + %d;\n", i%13)
 	}
 	sb.WriteString("total;")
 	return sb.String()

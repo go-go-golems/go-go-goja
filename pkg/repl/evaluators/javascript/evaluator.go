@@ -505,7 +505,7 @@ func (e *Evaluator) GetHelpDrawer(ctx context.Context, req repl.HelpDrawerReques
 		}
 		if len(candidates) > limit {
 			md.WriteString("- ...")
-			md.WriteString(fmt.Sprintf(" %d more", len(candidates)-limit))
+			fmt.Fprintf(&md, " %d more", len(candidates)-limit)
 			md.WriteString("\n")
 		}
 	}

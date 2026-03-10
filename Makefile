@@ -1,17 +1,23 @@
-.PHONY: docker-lint lint lintmax gosec govulncheck test test-inspector build goreleaser tag-major tag-minor tag-patch release bump-glazed
+.PHONY: docker-lint lint lintmax golangci-lint-install gosec govulncheck test test-inspector build goreleaser tag-major tag-minor tag-patch release bump-glazed
 
 all: build
 
 VERSION=v0.1.14
+GOLANGCI_LINT_VERSION ?= $(shell cat .golangci-lint-version)
+GOLANGCI_LINT_BIN ?= $(CURDIR)/.bin/golangci-lint
 
 docker-lint:
-	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:latest golangci-lint run -v
+	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) golangci-lint run -v
 
-lint:
-	golangci-lint run -v
+golangci-lint-install:
+	mkdir -p $(dir $(GOLANGCI_LINT_BIN))
+	GOBIN=$(dir $(GOLANGCI_LINT_BIN)) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
-lintmax:
-	golangci-lint run -v --max-same-issues=100
+lint: golangci-lint-install
+	$(GOLANGCI_LINT_BIN) run -v
+
+lintmax: golangci-lint-install
+	$(GOLANGCI_LINT_BIN) run -v --max-same-issues=100
 
 gosec:
 	go install github.com/securego/gosec/v2/cmd/gosec@latest
