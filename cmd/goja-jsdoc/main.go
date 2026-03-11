@@ -72,6 +72,23 @@ and optionally serve a web UI + JSON API with live reload.`,
 	}
 	root.AddCommand(exportCobra)
 
+	previewHelpCmd, err := newPreviewHelpCommand()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	previewHelpCobra, err := cli.BuildCobraCommand(previewHelpCmd,
+		cli.WithParserConfig(cli.CobraParserConfig{
+			ShortHelpSections: []string{schema.DefaultSlug},
+			MiddlewaresFunc:   cli.CobraCommandDefaultMiddlewares,
+		}),
+	)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	root.AddCommand(previewHelpCobra)
+
 	helpSystem := help.NewHelpSystem()
 	if err := jsdocdoc.AddDocToHelpSystem(helpSystem); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: failed to load help docs: %v\n", err)
