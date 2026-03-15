@@ -16,6 +16,7 @@ import (
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
 	_ "github.com/go-go-golems/go-go-goja/modules/fs"
 	_ "github.com/go-go-golems/go-go-goja/modules/glazehelp"
+	_ "github.com/go-go-golems/go-go-goja/modules/obsidian"
 )
 
 // Runtime is an owned runtime instance with explicit lifecycle.
