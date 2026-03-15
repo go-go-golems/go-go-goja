@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/bobatea/pkg/autocomplete"
@@ -207,25 +208,136 @@ func (e *Evaluator) Evaluate(ctx context.Context, code string) (string, error) {
 	default:
 	}
 
-	// Execute the JavaScript code
+	code, wrappedAwait := wrapTopLevelAwaitExpression(code)
+
 	e.runtimeMu.Lock()
-	result, err := e.runtime.RunString(code)
+	defer e.runtimeMu.Unlock()
+
+	var (
+		result goja.Value
+		err    error
+	)
+	if e.ownedRuntime != nil {
+		result, err = e.runOwned(ctx, code)
+	} else {
+		result, err = e.runtime.RunString(code)
+	}
 	if err != nil {
-		e.runtimeMu.Unlock()
 		return "", errors.Wrap(err, "JavaScript execution failed")
 	}
 
-	// Convert result to string
-	var output string
-	if result != nil && !goja.IsUndefined(result) {
-		output = result.String()
-	} else {
-		output = "undefined"
+	output, err := e.stringifyResult(ctx, result)
+	if err != nil {
+		return "", errors.Wrap(err, "JavaScript execution failed")
 	}
-	e.runtimeMu.Unlock()
+	if wrappedAwait && output == "undefined" {
+		output = ""
+	}
 	e.observeRuntimeDeclarations(code)
 
 	return output, nil
+}
+
+func (e *Evaluator) runOwned(ctx context.Context, code string) (goja.Value, error) {
+	ret, err := e.ownedRuntime.Owner.Call(ctx, "javascript.evaluate", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		return vm.RunString(code)
+	})
+	if err != nil {
+		return nil, err
+	}
+	value, ok := ret.(goja.Value)
+	if !ok && ret == nil {
+		return nil, nil
+	}
+	if !ok {
+		return nil, errors.Errorf("unexpected evaluation result type %T", ret)
+	}
+	return value, nil
+}
+
+func (e *Evaluator) stringifyResult(ctx context.Context, result goja.Value) (string, error) {
+	if result == nil || goja.IsUndefined(result) {
+		return "undefined", nil
+	}
+
+	if promise, ok := result.Export().(*goja.Promise); ok {
+		return e.waitForPromise(ctx, promise)
+	}
+
+	return result.String(), nil
+}
+
+func (e *Evaluator) waitForPromise(ctx context.Context, promise *goja.Promise) (string, error) {
+	if promise == nil {
+		return "undefined", nil
+	}
+	if e.ownedRuntime == nil {
+		return promiseString(promise)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+		}
+
+		ret, err := e.ownedRuntime.Owner.Call(ctx, "javascript.promise-state", func(_ context.Context, vm *goja.Runtime) (any, error) {
+			return promiseSnapshot{
+				State:  promise.State(),
+				Result: promise.Result(),
+			}, nil
+		})
+		if err != nil {
+			return "", err
+		}
+		snapshot, ok := ret.(promiseSnapshot)
+		if !ok {
+			return "", errors.Errorf("unexpected promise snapshot type %T", ret)
+		}
+		switch snapshot.State {
+		case goja.PromiseStatePending:
+			time.Sleep(5 * time.Millisecond)
+			continue
+		case goja.PromiseStateRejected:
+			return "", errors.Errorf("Promise rejected: %s", valueString(snapshot.Result))
+		case goja.PromiseStateFulfilled:
+			return valueString(snapshot.Result), nil
+		}
+	}
+}
+
+type promiseSnapshot struct {
+	State  goja.PromiseState
+	Result goja.Value
+}
+
+func promiseString(promise *goja.Promise) (string, error) {
+	switch promise.State() {
+	case goja.PromiseStatePending:
+		return "Promise { <pending> }", nil
+	case goja.PromiseStateRejected:
+		return "", errors.Errorf("Promise rejected: %s", valueString(promise.Result()))
+	case goja.PromiseStateFulfilled:
+		return valueString(promise.Result()), nil
+	}
+
+	return "Promise { <pending> }", nil
+}
+
+func valueString(value goja.Value) string {
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return "undefined"
+	}
+	return value.String()
+}
+
+func wrapTopLevelAwaitExpression(code string) (string, bool) {
+	trimmed := strings.TrimSpace(code)
+	if strings.HasPrefix(trimmed, "await ") {
+		return "(async () => { return " + trimmed + "; })()", true
+	}
+	return code, false
 }
 
 // EvaluateStream adapts Evaluate to the streaming interface used by the timeline-based REPL.

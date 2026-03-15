@@ -97,6 +97,24 @@ func TestEvaluator_Evaluate(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, context.Canceled, err)
 	})
+
+	t.Run("promise result settles before rendering", func(t *testing.T) {
+		result, err := evaluator.Evaluate(ctx, "Promise.resolve(7)")
+		require.NoError(t, err)
+		assert.Equal(t, "7", result)
+	})
+
+	t.Run("promise rejection becomes an error", func(t *testing.T) {
+		_, err := evaluator.Evaluate(ctx, "Promise.reject('boom')")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Promise rejected: boom")
+	})
+
+	t.Run("expression style top-level await is supported", func(t *testing.T) {
+		result, err := evaluator.Evaluate(ctx, "await Promise.resolve(9)")
+		require.NoError(t, err)
+		assert.Equal(t, "9", result)
+	})
 }
 
 func TestEvaluator_InterfaceImplementation(t *testing.T) {
