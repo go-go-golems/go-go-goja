@@ -3,8 +3,6 @@ package jsverbs
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -13,7 +11,6 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
-	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/engine"
 )
@@ -35,7 +32,11 @@ func (r *Registry) invoke(ctx context.Context, verb *VerbSpec, parsedValues *val
 		_ = runtime.Close(context.Background())
 	}()
 
-	args, err := buildArguments(parsedValues, verb, r.RootDir)
+	plan, err := buildVerbBindingPlan(verb)
+	if err != nil {
+		return nil, err
+	}
+	args, err := buildArguments(parsedValues, plan, r.RootDir)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +86,7 @@ func (r *Registry) invoke(ctx context.Context, verb *VerbSpec, parsedValues *val
 	return ret, nil
 }
 
-func buildArguments(parsedValues *values.Values, verb *VerbSpec, rootDir string) ([]interface{}, error) {
+func buildArguments(parsedValues *values.Values, plan *VerbBindingPlan, rootDir string) ([]interface{}, error) {
 	sectionValues := map[string]map[string]interface{}{}
 	if parsedValues == nil {
 		parsedValues = values.New()
@@ -103,74 +104,54 @@ func buildArguments(parsedValues *values.Values, verb *VerbSpec, rootDir string)
 		sectionValues[slug] = sectionMap
 	})
 
-	args := make([]interface{}, 0, len(verb.Params))
-	for _, param := range verb.Params {
-		field := verb.Field(param.Name)
-		if field == nil {
-			field = inferFieldFromParam(param)
-		}
-		if field != nil {
-			switch bind := strings.TrimSpace(field.Bind); bind {
-			case "all":
-				args = append(args, allValues)
-				continue
-			case "context":
-				args = append(args, map[string]interface{}{
-					"verb":       verb.FullPath(),
-					"function":   verb.FunctionName,
-					"module":     verb.File.ModulePath,
-					"sourceFile": verb.File.AbsPath,
-					"rootDir":    rootDir,
-					"values":     allValues,
-					"sections":   sectionValues,
-				})
-				continue
-			case "":
-			default:
-				slug := cleanCommandWord(bind)
-				args = append(args, cloneMap(sectionValues[slug]))
-				continue
-			}
-		}
-		if param.Kind != ParameterIdentifier && param.Kind != ParameterUnknown {
-			return nil, fmt.Errorf("%s parameter %q requires a bind", verb.SourceRef(), param.Name)
-		}
-		sectionSlug := schema.DefaultSlug
-		if field != nil && field.Section != "" {
-			sectionSlug = field.Section
-		}
-		value := sectionValues[sectionSlug][param.Name]
-		if param.Rest {
-			rv := reflect.ValueOf(value)
-			if rv.IsValid() && (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) {
-				for i := 0; i < rv.Len(); i++ {
-					args = append(args, rv.Index(i).Interface())
+	args := make([]interface{}, 0, len(plan.Parameters))
+	for _, binding := range plan.Parameters {
+		switch binding.Mode {
+		case BindingModeAll:
+			args = append(args, allValues)
+			continue
+		case BindingModeContext:
+			args = append(args, map[string]interface{}{
+				"verb":       plan.Verb.FullPath(),
+				"function":   plan.Verb.FunctionName,
+				"module":     plan.Verb.File.ModulePath,
+				"sourceFile": fileSourcePath(plan.Verb.File),
+				"rootDir":    rootDir,
+				"values":     allValues,
+				"sections":   sectionValues,
+			})
+			continue
+		case BindingModeSection:
+			args = append(args, cloneMap(sectionValues[binding.SectionSlug]))
+			continue
+		case BindingModePositional:
+			value := sectionValues[binding.SectionSlug][binding.Field.Name]
+			if binding.Param.Rest {
+				rv := reflect.ValueOf(value)
+				if rv.IsValid() && (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) {
+					for i := 0; i < rv.Len(); i++ {
+						args = append(args, rv.Index(i).Interface())
+					}
+					continue
 				}
-				continue
 			}
+			args = append(args, value)
+		default:
+			return nil, fmt.Errorf("%s parameter %q has unsupported binding mode %q", plan.Verb.SourceRef(), binding.Param.Name, binding.Mode)
 		}
-		args = append(args, value)
 	}
 	return args, nil
 }
 
-func (r *Registry) sourceLoader(path string) ([]byte, error) {
-	absPath, err := resolveModulePath(r.RootDir, path)
-	if err != nil {
+func (r *Registry) sourceLoader(modulePath string) ([]byte, error) {
+	file := r.filesByModule[modulePath]
+	if file == nil {
 		return nil, require.ModuleFileDoesNotExistError
 	}
-	src, err := os.ReadFile(absPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, require.ModuleFileDoesNotExistError
-		}
-		return nil, err
-	}
-	return []byte(r.injectOverlay(path, absPath, string(src))), nil
+	return []byte(r.injectOverlay(modulePath, file, string(file.Source))), nil
 }
 
-func (r *Registry) injectOverlay(moduleKey, absPath, source string) string {
-	file := r.filesByAbs[absPath]
+func (r *Registry) injectOverlay(moduleKey string, file *FileSpec, source string) string {
 	functionNames := []string{}
 	if file != nil {
 		for _, fn := range file.Functions {
@@ -220,33 +201,9 @@ func injectPrelude(source, prelude string) string {
 	return prelude + source
 }
 
-func resolveModulePath(rootDir, modulePath string) (string, error) {
-	modulePath = filepath.FromSlash(strings.TrimSpace(modulePath))
-	if modulePath == "" {
-		return "", fmt.Errorf("module path is empty")
-	}
-	candidates := []string{}
-	if filepath.IsAbs(modulePath) {
-		candidates = append(candidates, modulePath)
-	} else {
-		candidates = append(candidates, filepath.Join(rootDir, modulePath))
-	}
-
-	expanded := []string{}
-	for _, candidate := range candidates {
-		expanded = append(expanded, candidate)
-		expanded = append(expanded, candidate+".js", candidate+".cjs")
-		expanded = append(expanded, filepath.Join(candidate, "index.js"))
-		expanded = append(expanded, filepath.Join(candidate, "index.cjs"))
-	}
-	for _, candidate := range expanded {
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			return candidate, nil
-		}
-	}
-	return "", fmt.Errorf("module %s not found", modulePath)
-}
-
+// waitForPromise intentionally uses polling for v1. It is simple, explicit, and
+// good enough for the current prototype, but should not be mistaken for the final
+// async bridge design.
 func waitForPromise(ctx context.Context, runtime *engine.Runtime, promise *goja.Promise) (interface{}, error) {
 	for {
 		select {
@@ -297,4 +254,14 @@ func cloneMap(in map[string]interface{}) map[string]interface{} {
 		out[key] = value
 	}
 	return out
+}
+
+func fileSourcePath(file *FileSpec) string {
+	if file == nil {
+		return ""
+	}
+	if file.AbsPath != "" {
+		return file.AbsPath
+	}
+	return file.RelPath
 }

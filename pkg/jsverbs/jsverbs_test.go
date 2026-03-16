@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/runner"
@@ -128,6 +129,120 @@ func TestFixtureCommandsExecute(t *testing.T) {
 		rows := runCommand(t, commandMap["meta pkg-demo ping"], nil)
 		require.Equal(t, true, rows[0]["ok"])
 	})
+}
+
+func TestScanSourcesSupportsRawJS(t *testing.T) {
+	registry, err := ScanSources([]SourceFile{
+		{
+			Path: "inline.js",
+			Source: []byte(`
+function ping(name) {
+  return { greeting: "hi " + name };
+}
+
+__verb__("ping", {
+  fields: {
+    name: { argument: true }
+  }
+});
+`),
+		},
+	})
+	require.NoError(t, err)
+
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["inline ping"], map[string]map[string]interface{}{
+		"default": {
+			"name": "manuel",
+		},
+	})
+	require.Equal(t, "hi manuel", rows[0]["greeting"])
+}
+
+func TestScanFSSupportsVirtualFiles(t *testing.T) {
+	registry, err := ScanFS(fstest.MapFS{
+		"nested/entry.js": {
+			Data: []byte(`
+function render(prefix, target) {
+  const helper = require("./sub/helper");
+  return { value: helper.decorate(prefix, target) };
+}
+
+__verb__("render", {
+  fields: {
+    prefix: { argument: true },
+    target: { argument: true }
+  }
+});
+`),
+		},
+		"nested/sub/helper.js": {
+			Data: []byte(`exports.decorate = (prefix, target) => prefix + ":" + target;`),
+		},
+	}, ".", ScanOptions{
+		IncludePublicFunctions: true,
+		Extensions:             []string{".js"},
+		FailOnErrorDiagnostics: true,
+	})
+	require.NoError(t, err)
+
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["nested entry render"], map[string]map[string]interface{}{
+		"default": {
+			"prefix": "repo",
+			"target": "glazed",
+		},
+	})
+	require.Equal(t, "repo:glazed", rows[0]["value"])
+}
+
+func TestScanDiagnosticsSurfaceInvalidMetadata(t *testing.T) {
+	registry, err := ScanSource("broken.js", `
+function greet() {
+  return { ok: true };
+}
+
+__verb__("greet", {
+  short: helper()
+});
+`)
+	require.Error(t, err)
+	require.NotNil(t, registry)
+	require.Contains(t, err.Error(), "unsupported metadata literal")
+	require.Len(t, registry.ErrorDiagnostics(), 1)
+	require.Contains(t, registry.ErrorDiagnostics()[0].Message, "invalid __verb__ metadata")
+}
+
+func TestCommandsFailForUnknownBoundSection(t *testing.T) {
+	registry, err := ScanSource("broken.js", `
+function summarize(filters) {
+  return { ok: !!filters };
+}
+
+__verb__("summarize", {
+  fields: {
+    filters: { bind: "missing" }
+  }
+});
+`)
+	require.NoError(t, err)
+
+	_, err = registry.Commands()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `unknown section "missing"`)
+}
+
+func TestCommandsFailForObjectParamWithoutBind(t *testing.T) {
+	registry, err := ScanSource("broken.js", `
+function summarize({ owner }) {
+  return { owner };
+}
+`)
+	require.NoError(t, err)
+
+	_, err = registry.Commands()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "requires a bind")
 }
 
 func mustRegistry(t *testing.T) *Registry {

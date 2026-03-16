@@ -1,15 +1,15 @@
 package jsverbs
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 	tree_sitter_javascript "github.com/tree-sitter/tree-sitter-javascript/bindings/go"
 )
@@ -22,47 +22,150 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
-		return nil, errors.Wrap(err, "resolve root")
+		return nil, fmt.Errorf("resolve root: %w", err)
 	}
 
-	registry := &Registry{
-		RootDir:    absRoot,
-		Files:      []*FileSpec{},
-		verbsByKey: map[string]*VerbSpec{},
-		filesByAbs: map[string]*FileSpec{},
-		options:    options,
-	}
-
-	err = filepath.WalkDir(absRoot, func(path string, d fs.DirEntry, walkErr error) error {
+	inputs := []sourceInput{}
+	err = filepath.WalkDir(absRoot, func(filePath string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 		name := d.Name()
 		if d.IsDir() {
-			if name == "node_modules" || strings.HasPrefix(name, ".") {
-				if path == absRoot {
+			if shouldSkipDir(name) {
+				if filePath == absRoot {
 					return nil
 				}
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if !supportsExtension(path, options.Extensions) {
+		if !supportsExtension(filePath, options.Extensions) {
 			return nil
 		}
-		file, err := scanFile(absRoot, path, options)
+		source, err := os.ReadFile(filePath)
 		if err != nil {
-			return err
+			return fmt.Errorf("read %s: %w", filePath, err)
 		}
-		if file == nil {
-			return nil
+		relPath, err := filepath.Rel(absRoot, filePath)
+		if err != nil {
+			return fmt.Errorf("relpath %s: %w", filePath, err)
 		}
-		registry.Files = append(registry.Files, file)
-		registry.filesByAbs[file.AbsPath] = file
+		inputs = append(inputs, sourceInput{
+			AbsPath:    filePath,
+			RelPath:    filepath.ToSlash(relPath),
+			ModulePath: modulePathFromRelative(relPath),
+			Source:     source,
+		})
 		return nil
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	return scanInputs(absRoot, inputs, options)
+}
+
+func ScanFS(fsys fs.FS, root string, opts ...ScanOptions) (*Registry, error) {
+	options := DefaultScanOptions()
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+	root = strings.TrimSpace(root)
+	if root == "" {
+		root = "."
+	}
+
+	inputs := []sourceInput{}
+	err := fs.WalkDir(fsys, root, func(filePath string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		name := d.Name()
+		if d.IsDir() {
+			if shouldSkipDir(name) {
+				if filePath == root {
+					return nil
+				}
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !supportsExtension(filePath, options.Extensions) {
+			return nil
+		}
+		source, err := fs.ReadFile(fsys, filePath)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", filePath, err)
+		}
+		relPath, err := filepath.Rel(root, filePath)
+		if err != nil {
+			return fmt.Errorf("relpath %s: %w", filePath, err)
+		}
+		inputs = append(inputs, sourceInput{
+			RelPath:    filepath.ToSlash(relPath),
+			ModulePath: modulePathFromRelative(relPath),
+			Source:     source,
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return scanInputs(root, inputs, options)
+}
+
+func ScanSource(filePath string, source string, opts ...ScanOptions) (*Registry, error) {
+	return ScanSources([]SourceFile{{Path: filePath, Source: []byte(source)}}, opts...)
+}
+
+func ScanSources(files []SourceFile, opts ...ScanOptions) (*Registry, error) {
+	options := DefaultScanOptions()
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+
+	inputs := make([]sourceInput, 0, len(files))
+	for _, file := range files {
+		modulePath, err := normalizeModulePath(file.Path)
+		if err != nil {
+			return nil, err
+		}
+		inputs = append(inputs, sourceInput{
+			RelPath:    strings.TrimPrefix(modulePath, "/"),
+			ModulePath: modulePath,
+			Source:     append([]byte(nil), file.Source...),
+		})
+	}
+
+	return scanInputs("", inputs, options)
+}
+
+type sourceInput struct {
+	AbsPath    string
+	RelPath    string
+	ModulePath string
+	Source     []byte
+}
+
+func scanInputs(rootDir string, inputs []sourceInput, options ScanOptions) (*Registry, error) {
+	registry := &Registry{
+		RootDir:       rootDir,
+		Files:         []*FileSpec{},
+		Diagnostics:   []Diagnostic{},
+		verbsByKey:    map[string]*VerbSpec{},
+		filesByModule: map[string]*FileSpec{},
+		options:       options,
+	}
+
+	for _, input := range inputs {
+		file, err := scanInput(input, options, registry)
+		if err != nil {
+			return registry, err
+		}
+		registry.Files = append(registry.Files, file)
+		registry.filesByModule[file.ModulePath] = file
 	}
 
 	sort.Slice(registry.Files, func(i, j int) bool {
@@ -70,14 +173,18 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 	})
 
 	if err := registry.finalizeVerbs(); err != nil {
-		return nil, err
+		return registry, err
+	}
+
+	if diagnostics := registry.ErrorDiagnostics(); len(diagnostics) > 0 && options.FailOnErrorDiagnostics {
+		return registry, &ScanError{Diagnostics: diagnostics}
 	}
 
 	return registry, nil
 }
 
-func supportsExtension(path string, extensions []string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
+func supportsExtension(filePath string, extensions []string) bool {
+	ext := strings.ToLower(filepath.Ext(filePath))
 	for _, candidate := range extensions {
 		if strings.EqualFold(ext, candidate) {
 			return true
@@ -86,35 +193,29 @@ func supportsExtension(path string, extensions []string) bool {
 	return false
 }
 
-func scanFile(rootDir, absPath string, options ScanOptions) (*FileSpec, error) {
-	src, err := os.ReadFile(absPath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "read %s", absPath)
-	}
-	relPath, err := filepath.Rel(rootDir, absPath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "relpath %s", absPath)
-	}
-	relPath = filepath.ToSlash(relPath)
-	modulePath := filepath.ToSlash(absPath)
+func shouldSkipDir(name string) bool {
+	return name == "node_modules" || strings.HasPrefix(name, ".")
+}
 
+func scanInput(input sourceInput, options ScanOptions, registry *Registry) (*FileSpec, error) {
 	parser := tree_sitter.NewParser()
 	defer parser.Close()
 	lang := tree_sitter.NewLanguage(tree_sitter_javascript.Language())
 	if err := parser.SetLanguage(lang); err != nil {
-		return nil, errors.Wrap(err, "set javascript language")
+		return nil, fmt.Errorf("set javascript language: %w", err)
 	}
 
-	tree := parser.Parse(src, nil)
+	tree := parser.Parse(input.Source, nil)
 	if tree == nil {
-		return nil, fmt.Errorf("parse %s: nil tree", relPath)
+		return nil, fmt.Errorf("parse %s: nil tree", input.RelPath)
 	}
 	defer tree.Close()
 
 	file := &FileSpec{
-		AbsPath:        absPath,
-		RelPath:        relPath,
-		ModulePath:     modulePath,
+		AbsPath:        input.AbsPath,
+		RelPath:        filepath.ToSlash(input.RelPath),
+		ModulePath:     input.ModulePath,
+		Source:         append([]byte(nil), input.Source...),
 		Functions:      []*FunctionSpec{},
 		functionByName: map[string]*FunctionSpec{},
 		SectionOrder:   []string{},
@@ -122,14 +223,15 @@ func scanFile(rootDir, absPath string, options ScanOptions) (*FileSpec, error) {
 		VerbMeta:       map[string]*VerbSpec{},
 		Docs:           map[string]string{},
 	}
-	e := &extractor{
-		src:     src,
-		path:    absPath,
-		relPath: relPath,
-		options: options,
-		file:    file,
+
+	extractor := &extractor{
+		src:      input.Source,
+		relPath:  file.RelPath,
+		options:  options,
+		file:     file,
+		registry: registry,
 	}
-	e.extract(tree.RootNode())
+	extractor.extract(tree.RootNode())
 	return file, nil
 }
 
@@ -222,9 +324,9 @@ func (r *Registry) finalizeVerb(file *FileSpec, verb *VerbSpec) error {
 
 func defaultParentsForFile(file *FileSpec) []string {
 	parents := append([]string{}, file.Package.Parents...)
-	dir := filepath.Dir(file.RelPath)
+	dir := path.Dir(file.RelPath)
 	if dir != "." {
-		for _, part := range strings.Split(filepath.ToSlash(dir), "/") {
+		for _, part := range strings.Split(dir, "/") {
 			part = cleanCommandWord(part)
 			if part != "" {
 				parents = append(parents, part)
@@ -233,7 +335,7 @@ func defaultParentsForFile(file *FileSpec) []string {
 	}
 	group := file.Package.Name
 	if strings.TrimSpace(group) == "" {
-		base := strings.TrimSuffix(filepath.Base(file.RelPath), filepath.Ext(file.RelPath))
+		base := strings.TrimSuffix(path.Base(file.RelPath), path.Ext(file.RelPath))
 		if base != "index" || len(parents) == 0 {
 			group = base
 		}
@@ -245,17 +347,16 @@ func defaultParentsForFile(file *FileSpec) []string {
 }
 
 type extractor struct {
-	src     []byte
-	path    string
-	relPath string
-	options ScanOptions
-	file    *FileSpec
+	src      []byte
+	relPath  string
+	options  ScanOptions
+	file     *FileSpec
+	registry *Registry
 }
 
 func (e *extractor) extract(root *tree_sitter.Node) {
-	count := int(root.ChildCount())
-	for i := 0; i < count; i++ {
-		e.processTopLevel(root.Child(uint(i)))
+	for i := uint(0); i < root.ChildCount(); i++ {
+		e.processTopLevel(root.Child(i))
 	}
 }
 
@@ -271,9 +372,8 @@ func (e *extractor) processTopLevel(node *tree_sitter.Node) {
 	case "function_declaration":
 		e.handleFunctionDeclaration(node)
 	case "lexical_declaration", "variable_declaration", "export_statement":
-		count := int(node.ChildCount())
-		for i := 0; i < count; i++ {
-			e.processTopLevel(node.Child(uint(i)))
+		for i := uint(0); i < node.ChildCount(); i++ {
+			e.processTopLevel(node.Child(i))
 		}
 	case "variable_declarator":
 		e.handleVariableDeclarator(node)
@@ -340,10 +440,17 @@ func (e *extractor) handleCallExpression(node *tree_sitter.Node) {
 func (e *extractor) handlePackage(argsNode *tree_sitter.Node) {
 	objectArg := e.firstObjectArg(argsNode)
 	if objectArg == nil {
+		e.errorf("", "__package__ requires an object argument")
 		return
 	}
-	data := map[string]interface{}{}
-	if err := e.unmarshalObject(objectArg, &data); err != nil {
+	value, err := e.parseLiteralNode(objectArg)
+	if err != nil {
+		e.errorf("", "invalid __package__ metadata: %v", err)
+		return
+	}
+	data, ok := value.(map[string]interface{})
+	if !ok {
+		e.errorf("", "__package__ metadata must be an object")
 		return
 	}
 	e.file.Package = PackageSpec{
@@ -358,10 +465,17 @@ func (e *extractor) handlePackage(argsNode *tree_sitter.Node) {
 func (e *extractor) handleSection(argsNode *tree_sitter.Node) {
 	name, objectNode := e.namedObjectArgs(argsNode)
 	if objectNode == nil {
+		e.errorf(name, "__section__ requires a name and object metadata")
 		return
 	}
-	data := map[string]interface{}{}
-	if err := e.unmarshalObject(objectNode, &data); err != nil {
+	value, err := e.parseLiteralNode(objectNode)
+	if err != nil {
+		e.errorf(name, "invalid __section__ metadata: %v", err)
+		return
+	}
+	data, ok := value.(map[string]interface{})
+	if !ok {
+		e.errorf(name, "__section__ metadata must be an object")
 		return
 	}
 	if name == "" {
@@ -369,6 +483,7 @@ func (e *extractor) handleSection(argsNode *tree_sitter.Node) {
 	}
 	slug := cleanCommandWord(name)
 	if slug == "" {
+		e.errorf(name, "__section__ resolved to empty slug")
 		return
 	}
 	section := &SectionSpec{
@@ -389,10 +504,17 @@ func (e *extractor) handleSection(argsNode *tree_sitter.Node) {
 func (e *extractor) handleVerb(argsNode *tree_sitter.Node) {
 	name, objectNode := e.namedObjectArgs(argsNode)
 	if objectNode == nil {
+		e.errorf(name, "__verb__ requires a function name and object metadata")
 		return
 	}
-	data := map[string]interface{}{}
-	if err := e.unmarshalObject(objectNode, &data); err != nil {
+	value, err := e.parseLiteralNode(objectNode)
+	if err != nil {
+		e.errorf(name, "invalid __verb__ metadata: %v", err)
+		return
+	}
+	data, ok := value.(map[string]interface{})
+	if !ok {
+		e.errorf(name, "__verb__ metadata must be an object")
 		return
 	}
 	if name == "" {
@@ -400,6 +522,7 @@ func (e *extractor) handleVerb(argsNode *tree_sitter.Node) {
 	}
 	functionName := strings.TrimSpace(name)
 	if functionName == "" {
+		e.errorf(name, "__verb__ resolved to empty function name")
 		return
 	}
 
@@ -422,8 +545,8 @@ func (e *extractor) handleVerb(argsNode *tree_sitter.Node) {
 
 func (e *extractor) handleDocTemplate(node *tree_sitter.Node) {
 	var templateNode *tree_sitter.Node
-	for i := 0; i < int(node.ChildCount()); i++ {
-		child := node.Child(uint(i))
+	for i := uint(0); i < node.ChildCount(); i++ {
+		child := node.Child(i)
 		if child.Kind() == "template_string" {
 			templateNode = child
 			break
@@ -453,15 +576,20 @@ func (e *extractor) namedObjectArgs(argsNode *tree_sitter.Node) (string, *tree_s
 			return "", args[0]
 		}
 	case 2:
-		return strings.Trim(e.nodeText(args[0]), `"'`+"`"), args[1]
+		nameValue, err := e.parseLiteralNode(args[0])
+		if err == nil {
+			if name, ok := nameValue.(string); ok {
+				return name, args[1]
+			}
+		}
 	}
 	return "", nil
 }
 
 func (e *extractor) collectArgs(argsNode *tree_sitter.Node) []*tree_sitter.Node {
 	ret := []*tree_sitter.Node{}
-	for i := 0; i < int(argsNode.ChildCount()); i++ {
-		child := argsNode.Child(uint(i))
+	for i := uint(0); i < argsNode.ChildCount(); i++ {
+		child := argsNode.Child(i)
 		switch child.Kind() {
 		case ",", "(", ")", "comment":
 			continue
@@ -481,22 +609,17 @@ func (e *extractor) firstObjectArg(argsNode *tree_sitter.Node) *tree_sitter.Node
 	return nil
 }
 
-func (e *extractor) unmarshalObject(node *tree_sitter.Node, dst interface{}) error {
-	raw := e.nodeText(node)
-	data := jsObjectToJSON(raw)
-	return json.Unmarshal([]byte(data), dst)
-}
-
 func (e *extractor) nodeText(node *tree_sitter.Node) string {
 	if node == nil {
 		return ""
 	}
-	start := int(node.StartByte())
-	end := int(node.EndByte())
-	if start < 0 || end < start || end > len(e.src) {
+	start := node.StartByte()
+	end := node.EndByte()
+	srcLen := uint(len(e.src))
+	if end < start || uint(start) > srcLen || uint(end) > srcLen {
 		return ""
 	}
-	return string(e.src[start:end])
+	return string(e.src[int(start):int(end)])
 }
 
 func (e *extractor) templateRawText(tmplNode *tree_sitter.Node) string {
@@ -504,6 +627,106 @@ func (e *extractor) templateRawText(tmplNode *tree_sitter.Node) string {
 	text = strings.TrimPrefix(text, "`")
 	text = strings.TrimSuffix(text, "`")
 	return text
+}
+
+func (e *extractor) parseLiteralNode(node *tree_sitter.Node) (interface{}, error) {
+	if node == nil {
+		return nil, fmt.Errorf("literal node is nil")
+	}
+	switch node.Kind() {
+	case "object":
+		return e.parseObjectLiteral(node)
+	case "array":
+		return e.parseArrayLiteral(node)
+	case "string":
+		return decodeStringLiteral(e.nodeText(node))
+	case "template_string":
+		return e.parseTemplateLiteral(node)
+	case "number":
+		return strconv.ParseFloat(e.nodeText(node), 64)
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	case "null":
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("unsupported metadata literal %q", node.Kind())
+	}
+}
+
+func (e *extractor) parseObjectLiteral(node *tree_sitter.Node) (map[string]interface{}, error) {
+	ret := map[string]interface{}{}
+	for i := uint(0); i < node.NamedChildCount(); i++ {
+		child := node.NamedChild(i)
+		switch child.Kind() {
+		case "pair":
+			keyNode := child.ChildByFieldName("key")
+			valueNode := child.ChildByFieldName("value")
+			if keyNode == nil || valueNode == nil {
+				return nil, fmt.Errorf("object pair missing key or value")
+			}
+			key, err := e.parseObjectKey(keyNode)
+			if err != nil {
+				return nil, err
+			}
+			value, err := e.parseLiteralNode(valueNode)
+			if err != nil {
+				return nil, fmt.Errorf("field %q: %w", key, err)
+			}
+			ret[key] = value
+		case "comment":
+			continue
+		default:
+			return nil, fmt.Errorf("unsupported object element %q", child.Kind())
+		}
+	}
+	return ret, nil
+}
+
+func (e *extractor) parseArrayLiteral(node *tree_sitter.Node) ([]interface{}, error) {
+	ret := []interface{}{}
+	for i := uint(0); i < node.NamedChildCount(); i++ {
+		child := node.NamedChild(i)
+		if child.Kind() == "comment" {
+			continue
+		}
+		value, err := e.parseLiteralNode(child)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, value)
+	}
+	return ret, nil
+}
+
+func (e *extractor) parseObjectKey(node *tree_sitter.Node) (string, error) {
+	switch node.Kind() {
+	case "property_identifier", "identifier":
+		return e.nodeText(node), nil
+	case "string", "template_string":
+		value, err := e.parseLiteralNode(node)
+		if err != nil {
+			return "", err
+		}
+		s, ok := value.(string)
+		if !ok {
+			return "", fmt.Errorf("object key must resolve to string")
+		}
+		return s, nil
+	default:
+		return "", fmt.Errorf("unsupported object key %q", node.Kind())
+	}
+}
+
+func (e *extractor) parseTemplateLiteral(node *tree_sitter.Node) (string, error) {
+	for i := uint(0); i < node.NamedChildCount(); i++ {
+		child := node.NamedChild(i)
+		if child.Kind() != "string_fragment" {
+			return "", fmt.Errorf("template metadata strings cannot contain substitutions")
+		}
+	}
+	return e.templateRawText(node), nil
 }
 
 func extractParameters(node *tree_sitter.Node, textFn func(*tree_sitter.Node) string) []ParameterSpec {
@@ -521,8 +744,8 @@ func extractParameters(node *tree_sitter.Node, textFn func(*tree_sitter.Node) st
 
 func collectParameterNodes(paramsNode *tree_sitter.Node, textFn func(*tree_sitter.Node) string) []ParameterSpec {
 	params := []ParameterSpec{}
-	for i := 0; i < int(paramsNode.ChildCount()); i++ {
-		child := paramsNode.Child(uint(i))
+	for i := uint(0); i < paramsNode.ChildCount(); i++ {
+		child := paramsNode.Child(i)
 		switch child.Kind() {
 		case ",", "(", ")", "comment":
 			continue
@@ -591,123 +814,6 @@ func parseFieldMap(data map[string]interface{}) map[string]*FieldSpec {
 	return ret
 }
 
-func jsObjectToJSON(js string) string {
-	return convertJSToJSON(js)
-}
-
-func convertJSToJSON(input string) string {
-	var sb strings.Builder
-	i := 0
-	n := len(input)
-
-	for i < n {
-		ch := input[i]
-		switch {
-		case ch == '/' && i+1 < n && input[i+1] == '/':
-			for i < n && input[i] != '\n' {
-				i++
-			}
-		case ch == '/' && i+1 < n && input[i+1] == '*':
-			i += 2
-			for i+1 < n && (input[i] != '*' || input[i+1] != '/') {
-				i++
-			}
-			i += 2
-		case ch == '\'':
-			sb.WriteByte('"')
-			i++
-			for i < n && input[i] != '\'' {
-				if input[i] == '"' {
-					sb.WriteByte('\\')
-				}
-				if input[i] == '\\' && i+1 < n {
-					if input[i+1] == '\'' {
-						sb.WriteByte('\'')
-						i += 2
-						continue
-					}
-					sb.WriteByte(input[i])
-					i++
-				}
-				sb.WriteByte(input[i])
-				i++
-			}
-			sb.WriteByte('"')
-			i++
-		case ch == '"':
-			sb.WriteByte(ch)
-			i++
-			for i < n && input[i] != '"' {
-				if input[i] == '\\' && i+1 < n {
-					sb.WriteByte(input[i])
-					i++
-				}
-				sb.WriteByte(input[i])
-				i++
-			}
-			sb.WriteByte('"')
-			i++
-		case ch == '`':
-			sb.WriteByte('"')
-			i++
-			for i < n && input[i] != '`' {
-				if input[i] == '"' {
-					sb.WriteByte('\\')
-				}
-				if input[i] == '\\' && i+1 < n {
-					sb.WriteByte(input[i])
-					i++
-				}
-				sb.WriteByte(input[i])
-				i++
-			}
-			sb.WriteByte('"')
-			i++
-		case isIdentStart(ch):
-			start := i
-			for i < n && isIdentPart(input[i]) {
-				i++
-			}
-			word := input[start:i]
-			j := i
-			for j < n && (input[j] == ' ' || input[j] == '\t') {
-				j++
-			}
-			if j < n && input[j] == ':' && word != "true" && word != "false" && word != "null" {
-				sb.WriteByte('"')
-				sb.WriteString(word)
-				sb.WriteByte('"')
-			} else {
-				sb.WriteString(word)
-			}
-		case ch == ',':
-			j := i + 1
-			for j < n && (input[j] == ' ' || input[j] == '\t' || input[j] == '\n' || input[j] == '\r') {
-				j++
-			}
-			if j < n && (input[j] == '}' || input[j] == ']') {
-				i++
-			} else {
-				sb.WriteByte(ch)
-				i++
-			}
-		default:
-			sb.WriteByte(ch)
-			i++
-		}
-	}
-
-	return sb.String()
-}
-
-func isIdentStart(c byte) bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$'
-}
-
-func isIdentPart(c byte) bool {
-	return isIdentStart(c) || (c >= '0' && c <= '9')
-}
-
 func splitFrontmatter(text string) (string, string) {
 	text = strings.TrimSpace(text)
 	if !strings.HasPrefix(text, "---") {
@@ -737,6 +843,55 @@ func parseFrontmatter(fm string) map[string]string {
 		ret[key] = value
 	}
 	return ret
+}
+
+func decodeStringLiteral(raw string) (string, error) {
+	if len(raw) < 2 {
+		return "", fmt.Errorf("invalid string literal")
+	}
+	switch raw[0] {
+	case '"':
+		value, err := strconv.Unquote(raw)
+		if err != nil {
+			return "", fmt.Errorf("decode string literal: %w", err)
+		}
+		return value, nil
+	case '\'':
+		return decodeSingleQuotedLiteral(raw)
+	default:
+		return "", fmt.Errorf("unsupported string literal %q", raw)
+	}
+}
+
+func decodeSingleQuotedLiteral(raw string) (string, error) {
+	if len(raw) < 2 || raw[0] != '\'' || raw[len(raw)-1] != '\'' {
+		return "", fmt.Errorf("invalid single-quoted literal")
+	}
+	var sb strings.Builder
+	for i := 1; i < len(raw)-1; i++ {
+		ch := raw[i]
+		if ch != '\\' {
+			sb.WriteByte(ch)
+			continue
+		}
+		i++
+		if i >= len(raw)-1 {
+			return "", fmt.Errorf("unterminated escape sequence")
+		}
+		switch raw[i] {
+		case '\\', '\'', '"', '`':
+			sb.WriteByte(raw[i])
+		case 'n':
+			sb.WriteByte('\n')
+		case 'r':
+			sb.WriteByte('\r')
+		case 't':
+			sb.WriteByte('\t')
+		default:
+			return "", fmt.Errorf("unsupported escape sequence \\%c", raw[i])
+		}
+	}
+	return sb.String(), nil
 }
 
 func firstMap(values ...interface{}) (map[string]interface{}, bool) {
@@ -830,4 +985,28 @@ func normalizeOutputMode(value string) string {
 	default:
 		return strings.ToLower(strings.TrimSpace(value))
 	}
+}
+
+func modulePathFromRelative(relPath string) string {
+	return "/" + strings.TrimPrefix(filepath.ToSlash(relPath), "/")
+}
+
+func normalizeModulePath(filePath string) (string, error) {
+	cleaned := path.Clean("/" + strings.TrimSpace(filepath.ToSlash(filePath)))
+	if cleaned == "/" || cleaned == "." {
+		return "", fmt.Errorf("module path is empty")
+	}
+	return cleaned, nil
+}
+
+func (e *extractor) errorf(symbol, format string, args ...interface{}) {
+	if e.registry == nil {
+		return
+	}
+	e.registry.Diagnostics = append(e.registry.Diagnostics, Diagnostic{
+		Severity: DiagnosticSeverityError,
+		Path:     e.relPath,
+		Symbol:   strings.TrimSpace(symbol),
+		Message:  fmt.Sprintf(format, args...),
+	})
 }

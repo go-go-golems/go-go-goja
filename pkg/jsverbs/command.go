@@ -70,6 +70,11 @@ func (r *Registry) commandForVerb(verb *VerbSpec) (cmds.Command, error) {
 }
 
 func (r *Registry) buildDescription(verb *VerbSpec) (*cmds.CommandDescription, error) {
+	plan, err := buildVerbBindingPlan(verb)
+	if err != nil {
+		return nil, err
+	}
+
 	sections := map[string]*schema.SectionImpl{}
 	ordered := []string{}
 
@@ -107,26 +112,7 @@ func (r *Registry) buildDescription(verb *VerbSpec) (*cmds.CommandDescription, e
 		return nil, err
 	}
 
-	referencedSections := map[string]struct{}{}
-	for _, section := range verb.UseSections {
-		referencedSections[section] = struct{}{}
-	}
-	for _, fieldMeta := range verb.Fields {
-		if fieldMeta == nil {
-			continue
-		}
-		if fieldMeta.Section != "" {
-			referencedSections[fieldMeta.Section] = struct{}{}
-		}
-		if bind := strings.TrimSpace(fieldMeta.Bind); bind != "" && bind != "all" && bind != "context" {
-			referencedSections[cleanCommandWord(bind)] = struct{}{}
-		}
-	}
-
-	for _, slug := range verb.File.SectionOrder {
-		if _, ok := referencedSections[slug]; !ok {
-			continue
-		}
+	for _, slug := range plan.ReferencedSections {
 		spec := verb.File.Sections[slug]
 		section, err := ensureSection(spec.Slug, spec.Title, spec.Description)
 		if err != nil {
@@ -162,66 +148,18 @@ func (r *Registry) buildDescription(verb *VerbSpec) (*cmds.CommandDescription, e
 		return nil
 	}
 
-	usedFields := map[string]struct{}{}
-	for _, param := range verb.Params {
-		fieldSpec := verb.Field(param.Name)
-		if fieldSpec != nil {
-			usedFields[param.Name] = struct{}{}
-		}
-		if fieldSpec == nil {
-			fieldSpec = inferFieldFromParam(param)
-		}
-		if fieldSpec == nil {
+	for _, binding := range plan.Parameters {
+		if binding.Mode != BindingModePositional {
 			continue
 		}
-		if bind := strings.TrimSpace(fieldSpec.Bind); bind != "" {
-			if param.Kind != ParameterIdentifier && param.Kind != ParameterUnknown {
-				continue
-			}
-			continue
-		}
-		if param.Kind != ParameterIdentifier && param.Kind != ParameterUnknown {
-			return nil, fmt.Errorf("%s parameter %q requires a bind because it is %s", verb.SourceRef(), param.Name, param.Kind)
-		}
-		sectionSlug := schema.DefaultSlug
-		if fieldSpec.Section != "" {
-			sectionSlug = fieldSpec.Section
-		}
-		fieldSpec = fieldSpec.Clone()
-		if fieldSpec.Name == "" {
-			fieldSpec.Name = param.Name
-		}
-		if err := addField(sectionSlug, fieldSpec); err != nil {
-			return nil, fmt.Errorf("%s field %s: %w", verb.SourceRef(), param.Name, err)
+		if err := addField(binding.SectionSlug, binding.Field); err != nil {
+			return nil, fmt.Errorf("%s field %s: %w", verb.SourceRef(), binding.Param.Name, err)
 		}
 	}
 
-	extraFieldNames := make([]string, 0, len(verb.Fields))
-	for name := range verb.Fields {
-		if _, ok := usedFields[name]; ok {
-			continue
-		}
-		extraFieldNames = append(extraFieldNames, name)
-	}
-	sort.Strings(extraFieldNames)
-	for _, name := range extraFieldNames {
-		fieldSpec := verb.Fields[name]
-		if fieldSpec == nil {
-			continue
-		}
-		if strings.TrimSpace(fieldSpec.Bind) != "" {
-			continue
-		}
-		sectionSlug := schema.DefaultSlug
-		if fieldSpec.Section != "" {
-			sectionSlug = fieldSpec.Section
-		}
-		fieldSpec = fieldSpec.Clone()
-		if fieldSpec.Name == "" {
-			fieldSpec.Name = name
-		}
-		if err := addField(sectionSlug, fieldSpec); err != nil {
-			return nil, fmt.Errorf("%s field %s: %w", verb.SourceRef(), name, err)
+	for _, extraField := range plan.ExtraFields {
+		if err := addField(extraField.SectionSlug, extraField.Field); err != nil {
+			return nil, fmt.Errorf("%s field %s: %w", verb.SourceRef(), extraField.Name, err)
 		}
 	}
 

@@ -13,11 +13,13 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: go-go-goja/ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/design-doc/01-js-to-glazed-command-exporting-design-and-implementation-guide.md
+    - Path: ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/design-doc/01-js-to-glazed-command-exporting-design-and-implementation-guide.md
       Note: Primary deliverable for the ticket
-    - Path: go-go-goja/ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/reference/01-diary.md
+    - Path: ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/design-doc/02-js-verbs-prototype-postmortem-and-code-review.md
+      Note: Postmortem and code review deliverable for the prototype branch
+    - Path: ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/reference/01-diary.md
       Note: Chronological investigation diary
-    - Path: go-go-goja/ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/sources/local/01-goja-js.md
+    - Path: ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/sources/local/01-goja-js.md
       Note: Imported source note that motivated the design work
 ExternalSources:
     - local:01-goja-js.md
@@ -26,6 +28,7 @@ LastUpdated: 2026-03-16T13:56:35.761467442-04:00
 WhatFor: Track the analysis and implementation planning work for exposing JavaScript-defined functions as ordinary Glazed commands in go-go-goja.
 WhenToUse: Use when reviewing or implementing JS-to-Glazed command discovery, compilation, and runtime invocation in this repository.
 ---
+
 
 
 

@@ -259,6 +259,128 @@ I therefore created a ticket-local experiment rather than treating the note as a
 
 **Commit (code):** N/A
 
+## Step 5: Postmortem The Prototype Against origin/main
+
+After the prototype and docs were committed, the next useful step was not more feature work. It was to stop and inspect what we had actually built since `origin/main`, with special attention to inelegant code, non-idiomatic patterns, and places where the prototype shape should not calcify into the final architecture.
+
+This step produced a new long-form postmortem/code review document aimed at a new intern. The goal was to explain the subsystem clearly while also being candid about what is solid, what is brittle, and what should be cleaned up first.
+
+### Prompt Context
+
+**User prompt (verbatim):**
+
+```text
+Ok, let's do a full post mortem and post mortem review of the code we wrote since origin/main. Create a detailed postmortem and review, especially vs inelegant code, deprecated stuff, non idiomatic code, etc...
+
+Create a detailed postmortem/code review that is very detailed for a new intern, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file
+  references.
+  It should be very clear and detailed. Store in the ticket and the nupload to remarkable.
+```
+
+**Assistant interpretation:** Compare the current branch against `origin/main`, read the newly-added jsverbs code and docs as a complete subsystem, identify the main architectural and idiomatic issues, write a detailed intern-facing postmortem/review into the existing ticket, and upload the updated ticket bundle to reMarkable.
+
+**Inferred user intent:** Capture the real lessons of the implementation while the context is still fresh, so future engineers inherit a grounded review rather than only a design guide.
+
+**Commit (code):** `4e4e893` — `Add jsverbs prototype runner and shared docs`
+
+### What I did
+
+- Fetched `origin/main` and diffed the branch against it.
+- Confirmed the branch delta was the single committed jsverbs prototype plus docs and ticket artifacts.
+- Read the core implementation files with line anchors:
+  - `pkg/jsverbs/scan.go`
+  - `pkg/jsverbs/command.go`
+  - `pkg/jsverbs/runtime.go`
+  - `pkg/jsverbs/model.go`
+  - `pkg/jsverbs/jsverbs_test.go`
+  - `cmd/jsverbs-example/main.go`
+- Read framework seams used by the prototype:
+  - `go-go-goja/engine/factory.go`
+  - `glazed/pkg/cmds/cmds.go`
+  - `glazed/pkg/cli/cobra.go`
+  - `glazed/pkg/cmds/logging/init.go`
+  - `go-go-goja/pkg/doc/doc.go`
+- Added a new design doc:
+  - `design-doc/02-js-verbs-prototype-postmortem-and-code-review.md`
+- Wrote the postmortem with:
+  - architecture explanation,
+  - findings ordered by severity,
+  - cleanup roadmap,
+  - diagrams and pseudocode,
+  - intern-oriented onramp guidance.
+
+### Why
+
+- The prototype was already functional, but branch-local success is not the same thing as a clean long-term design.
+- Doing the review immediately after implementation catches prototype assumptions before they become entrenched.
+- The user explicitly wanted scrutiny around inelegant and non-idiomatic code, not just a celebratory summary.
+
+### What worked
+
+- The branch delta was compact enough that a full origin/main review was tractable in one pass.
+- The code had enough tests and docs to make a detailed review evidence-based instead of speculative.
+- The new postmortem identified a short list of high-leverage cleanup targets rather than producing a vague "could be cleaner" report.
+
+### What didn't work
+
+- Nothing failed materially in this step.
+- The hardest part was not tooling; it was deciding which prototype shortcuts were acceptable spike tradeoffs and which ones needed to be called out as real debt.
+
+### What I learned
+
+- The overall architecture is sound; the biggest issues are contract clarity and internal shape, not feature direction.
+- The most important cleanup is making metadata parsing explicit and strict.
+- The next most important cleanup is removing the duplication between schema-building and runtime argument binding.
+
+### What was tricky to build
+
+- The review needed to serve two goals at once: explain the subsystem to a new intern and also critique it sharply. Those goals can conflict if the doc becomes either too tutorial-like or too terse.
+- I resolved that by first describing the actual runtime/data flow, then layering the findings on top of that shared explanation.
+
+### What warrants a second pair of eyes
+
+- Whether the scanner should become fully fail-fast or support a first-class diagnostics mode.
+- Whether a shared `BindingPlan` layer is the right abstraction name and shape.
+- Whether the runtime factory should live on `Registry`, on a separate runner object, or behind an injected provider.
+
+### What should be done in the future
+
+- Implement the cleanup roadmap in the new postmortem doc in order:
+  1. metadata strictness,
+  2. failure-path tests,
+  3. shared binding plan,
+  4. runtime factory reuse,
+  5. promise bridge cleanup.
+
+### Code review instructions
+
+- Start with the new postmortem:
+  - `ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/design-doc/02-js-verbs-prototype-postmortem-and-code-review.md`
+- Then review the referenced implementation files in this order:
+  - `pkg/jsverbs/scan.go`
+  - `pkg/jsverbs/command.go`
+  - `pkg/jsverbs/runtime.go`
+  - `cmd/jsverbs-example/main.go`
+- Validate the claims against the actual branch delta:
+  - `git diff --stat origin/main...HEAD`
+
+### Technical details
+
+- Diff commands used:
+
+```bash
+git -C /home/manuel/workspaces/2026-03-16/add-glazed-js-layer/go-go-goja fetch origin main
+git -C /home/manuel/workspaces/2026-03-16/add-glazed-js-layer/go-go-goja diff --stat origin/main...HEAD
+git -C /home/manuel/workspaces/2026-03-16/add-glazed-js-layer/go-go-goja diff --name-only origin/main...HEAD
+git -C /home/manuel/workspaces/2026-03-16/add-glazed-js-layer/go-go-goja log --oneline --reverse origin/main..HEAD
+```
+
+- Core review output:
+
+```text
+ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/design-doc/02-js-verbs-prototype-postmortem-and-code-review.md
+```
+
 ### What I did
 
 - Added:

@@ -16,31 +16,76 @@ const (
 	ParameterUnknown    ParameterKind = "unknown"
 )
 
+type DiagnosticSeverity string
+
+const (
+	DiagnosticSeverityWarning DiagnosticSeverity = "warning"
+	DiagnosticSeverityError   DiagnosticSeverity = "error"
+)
+
+type Diagnostic struct {
+	Severity DiagnosticSeverity
+	Path     string
+	Symbol   string
+	Message  string
+}
+
+type ScanError struct {
+	Diagnostics []Diagnostic
+}
+
+func (e *ScanError) Error() string {
+	if e == nil || len(e.Diagnostics) == 0 {
+		return "jsverbs scan failed"
+	}
+	parts := make([]string, 0, len(e.Diagnostics))
+	for _, diagnostic := range e.Diagnostics {
+		location := diagnostic.Path
+		if diagnostic.Symbol != "" {
+			location += "#" + diagnostic.Symbol
+		}
+		if location == "" {
+			location = "jsverbs"
+		}
+		parts = append(parts, fmt.Sprintf("%s: %s", location, diagnostic.Message))
+	}
+	return strings.Join(parts, "; ")
+}
+
 type ScanOptions struct {
 	IncludePublicFunctions bool
 	Extensions             []string
+	FailOnErrorDiagnostics bool
 }
 
 func DefaultScanOptions() ScanOptions {
 	return ScanOptions{
 		IncludePublicFunctions: true,
 		Extensions:             []string{".js", ".cjs"},
+		FailOnErrorDiagnostics: true,
 	}
 }
 
+type SourceFile struct {
+	Path   string
+	Source []byte
+}
+
 type Registry struct {
-	RootDir    string
-	Files      []*FileSpec
-	verbs      []*VerbSpec
-	verbsByKey map[string]*VerbSpec
-	filesByAbs map[string]*FileSpec
-	options    ScanOptions
+	RootDir       string
+	Files         []*FileSpec
+	Diagnostics   []Diagnostic
+	verbs         []*VerbSpec
+	verbsByKey    map[string]*VerbSpec
+	filesByModule map[string]*FileSpec
+	options       ScanOptions
 }
 
 type FileSpec struct {
 	AbsPath        string
 	RelPath        string
 	ModulePath     string
+	Source         []byte
 	Package        PackageSpec
 	Functions      []*FunctionSpec
 	functionByName map[string]*FunctionSpec
@@ -118,6 +163,16 @@ func (r *Registry) Verbs() []*VerbSpec {
 func (r *Registry) Verb(fullPath string) (*VerbSpec, bool) {
 	v, ok := r.verbsByKey[fullPath]
 	return v, ok
+}
+
+func (r *Registry) ErrorDiagnostics() []Diagnostic {
+	ret := []Diagnostic{}
+	for _, diagnostic := range r.Diagnostics {
+		if diagnostic.Severity == DiagnosticSeverityError {
+			ret = append(ret, diagnostic)
+		}
+	}
+	return ret
 }
 
 func (v *VerbSpec) FullPath() string {
