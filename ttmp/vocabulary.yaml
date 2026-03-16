@@ -25,6 +25,10 @@ topics:
       description: Read-eval-print loop interfaces and behavior
     - slug: security
       description: Security-focused engineering work such as trust boundaries, validation, and policy enforcement.
+    - slug: js-bindings
+      description: JavaScript-facing bindings and interop topics
+    - slug: glazed
+      description: Glazed command and CLI framework topics
 docTypes:
     - slug: index
       description: Ticket index documents
