@@ -1,0 +1,113 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"sort"
+	"strings"
+
+	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/cmds/logging"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/help"
+	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
+	"github.com/spf13/cobra"
+
+	sharedoc "github.com/go-go-golems/go-go-goja/pkg/doc"
+	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+)
+
+func main() {
+	dir := discoverDirectory(os.Args[1:])
+
+	registry, err := jsverbs.ScanDir(dir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	commands, err := registry.Commands()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	root := &cobra.Command{
+		Use:   "jsverbs-example",
+		Short: "Expose scanned JavaScript functions as Glazed commands",
+		Long: fmt.Sprintf(
+			"Scan %s for .js/.cjs files, infer verbs from top-level functions, and run them through goja + Glazed.",
+			registry.RootDir,
+		),
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return logging.InitLoggerFromCobra(cmd)
+		},
+	}
+	root.PersistentFlags().StringP("dir", "d", dir, "Directory scanned before command registration")
+	if err := logging.AddLoggingSectionToRootCommand(root, "jsverbs-example"); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	setDefaultFlagValue(root, "log-level", "error")
+	setDefaultFlagValue(root, "log-format", "text")
+
+	root.AddCommand(&cobra.Command{
+		Use:   "list",
+		Short: "List discovered JS verbs",
+		Run: func(cmd *cobra.Command, args []string) {
+			paths := make([]string, 0, len(registry.Verbs()))
+			for _, verb := range registry.Verbs() {
+				paths = append(paths, fmt.Sprintf("%s\t%s", verb.FullPath(), verb.SourceRef()))
+			}
+			sort.Strings(paths)
+			fmt.Fprintln(cmd.OutOrStdout(), strings.Join(paths, "\n"))
+		},
+	})
+
+	if err := cli.AddCommandsToRootCommand(
+		root,
+		commands,
+		nil,
+		cli.WithParserConfig(cli.CobraParserConfig{
+			ShortHelpSections: []string{schema.DefaultSlug},
+			MiddlewaresFunc:   cli.CobraCommandDefaultMiddlewares,
+		}),
+	); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	helpSystem := help.NewHelpSystem()
+	if err := sharedoc.AddDocToHelpSystem(helpSystem); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to load help docs: %v\n", err)
+	}
+	help_cmd.SetupCobraRootCommand(helpSystem, root)
+
+	if err := root.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func discoverDirectory(args []string) string {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--dir" || arg == "-d":
+			if i+1 < len(args) {
+				return args[i+1]
+			}
+		case strings.HasPrefix(arg, "--dir="):
+			return strings.TrimPrefix(arg, "--dir=")
+		}
+	}
+	return "."
+}
+
+func setDefaultFlagValue(root *cobra.Command, name string, value string) {
+	flag := root.PersistentFlags().Lookup(name)
+	if flag == nil {
+		return
+	}
+	flag.DefValue = value
+	_ = flag.Value.Set(value)
+}
