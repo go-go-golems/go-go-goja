@@ -25,6 +25,15 @@ Think of this page as the answer key for the developer guide. The guide explains
 
 ## Discovery rules
 
+Library entrypoints:
+
+- `ScanDir(root, ...)`
+- `ScanFS(fsys, root, ...)`
+- `ScanSource(path, source, ...)`
+- `ScanSources(files, ...)`
+
+The example runner uses `ScanDir(...)`, but the package itself is no longer limited to disk directories.
+
 Supported function declarations:
 
 - top-level `function name(...) {}`
@@ -51,6 +60,24 @@ This rule gives the subsystem a useful default: simple files can become command 
 The sentinels are statically extracted at scan time and installed as runtime no-ops during execution.
 
 That means the same token can matter in two different ways: at scan time it carries meaning for command construction, and at runtime it only needs to exist so requiring the source does not fail. New developers sometimes conflate those roles, so it is worth being explicit that most sentinel behavior is compile-time metadata, not dynamic runtime logic.
+
+Metadata values are parsed as a strict literal subset. Supported metadata values are:
+
+- object literals
+- array literals
+- quoted strings
+- template strings without substitutions
+- numbers
+- `true`, `false`, `null`
+
+Unsupported metadata values include:
+
+- function calls
+- identifiers as values
+- template substitutions
+- computed keys
+- spreads
+- other dynamic expressions
 
 ## `__package__` fields
 
@@ -154,6 +181,8 @@ Requiredness rule:
 
 That requiredness rule is one of the most visible user-facing defaults in the subsystem. It is there to make the generated CLI behave like a serious command, not like an unconstrained JavaScript function call.
 
+Parameters using object or array patterns are not treated as normal inferred positional values. They require an explicit `bind`, because the package now prefers one explicit binding contract over guesswork.
+
 ## Binding modes
 
 No bind:
@@ -180,6 +209,8 @@ No bind:
 - pass one object with values from that named section
 
 Bindings are where a lot of expressiveness comes from. They let the generated CLI remain idiomatic on the Go side while still letting JavaScript authors think in terms of cohesive objects instead of only flat parameter lists.
+
+Internally, bindings are resolved through a shared binding plan that is consumed by both command compilation and runtime invocation. The user-visible implication is simple: invalid binds should now fail consistently instead of becoming mismatched behavior between those two phases.
 
 ## Output modes
 
@@ -211,26 +242,38 @@ Behavior:
 
 Promise support matters because it allows the runtime path to remain usable for more realistic JavaScript helpers instead of only synchronous utility functions. At the same time, the waiting logic is intentionally simple and explicit so developers can reason about how long-running or failing async code surfaces back into the CLI.
 
+The current polling implementation is deliberately retained as version-1 behavior. It is documented as simple and temporary rather than as the final async design.
+
 ## Relative module loading
 
-Execution uses a source loader that reads the real file from disk and injects an overlay around it. The overlay captures top-level functions while preserving normal relative `require()` behavior.
+Execution uses a source loader that serves the source already stored in the registry and injects an overlay around it. The overlay captures top-level functions while preserving normal relative `require()` behavior.
 
 Resolution currently tries:
 
-- exact path
-- `.js`
-- `.cjs`
-- `index.js`
-- `index.cjs`
+- the registry-backed module path for scanned files
+- relative lookups resolved by the underlying `require()` resolver against that scanned module path
 
-The runtime keeps this resolution logic intentionally narrow. It is designed to support practical local module trees for command fixtures and experiments, not to become a full reimplementation of every Node resolution edge case.
+This means relative helpers still work for directory scans, `fs.FS` scans, and raw in-memory source sets, as long as the referenced helper module is part of the scanned source set.
+
+## Diagnostics
+
+The scanner records diagnostics on the registry and, by default, fails with `ScanError` when error diagnostics are present.
+
+Practical implications:
+
+- malformed metadata is not silently dropped anymore
+- callers can inspect `registry.Diagnostics`
+- callers can inspect `registry.ErrorDiagnostics()`
+- `ScanOptions.FailOnErrorDiagnostics` controls whether error diagnostics become a returned scan error
+
+This is one of the most important behavioral changes from the original prototype because it turns missing-command debugging into an explicit scanner contract.
 
 ## Testing pattern
 
 Preferred testing structure:
 
 - use `testdata/jsverbs` for fixtures
-- use `ScanDir(...)` to build a registry
+- use `ScanDir(...)`, `ScanFS(...)`, or `ScanSource(...)` depending on what source origin you want to validate
 - use `registry.Commands()` to compile commands
 - execute structured verbs through a capture processor
 - execute text verbs through a `strings.Builder`

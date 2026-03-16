@@ -19,6 +19,8 @@ SectionType: Example
 
 This page describes the metadata patterns supported by the current prototype so you can create fixture directories intentionally.
 
+The important recent change is that metadata is now parsed as a strict literal subset rather than by rewriting JavaScript object text into JSON. That makes the accepted fixture format narrower, but also far more predictable. If a metadata block uses dynamic JavaScript, the scanner now reports an error instead of silently guessing.
+
 ## Supported metadata
 
 ### `__package__({...})`
@@ -48,6 +50,26 @@ Verb metadata also supports output selection:
 - `output: "text"` turns the verb into a plain writer command
 - omitted `output` keeps the default structured Glazed row behavior
 
+Metadata values should be static literals. Supported literal shapes are:
+
+- object literals
+- array literals
+- quoted strings
+- template strings without `${...}` substitutions
+- numbers
+- `true`, `false`, and `null`
+
+Unsupported metadata shapes include:
+
+- function calls
+- identifiers used as values
+- spreads
+- computed object keys
+- template substitutions
+- other dynamic expressions
+
+That restriction is intentional. Metadata is part of command discovery, so it needs to behave like declarative configuration rather than executable code.
+
 ## Binding modes
 
 `bind` changes how a JavaScript parameter is populated.
@@ -55,6 +77,8 @@ Verb metadata also supports output selection:
 - `bind: "all"` passes every resolved Glazed value as one object.
 - `bind: "context"` passes execution metadata such as the command path, module path, root directory, and section maps.
 - `bind: "filters"` passes the values from the named section as one object.
+
+Bindings are now resolved through one shared internal binding plan used by both schema generation and runtime invocation. As a JavaScript author you do not need to know the internal type name, but you do benefit from the result: if a bind is invalid, the failure happens consistently instead of one phase accepting it while another phase mis-invokes the function.
 
 ## Example
 
@@ -94,7 +118,29 @@ __verb__("banner", {
 });
 ```
 
+## Non-directory sources
+
+Most examples use directory fixtures because they are easy to inspect and run manually. The package is no longer limited to that one source shape, though. The same metadata format works when files come from:
+
+- `ScanDir(...)`
+- `ScanFS(...)`
+- `ScanSource(...)`
+- `ScanSources(...)`
+
+That means the fixture format described here is also the format for embedded command trees and in-memory synthetic command files.
+
+## Scanner failures
+
+Malformed metadata is now surfaced as scanner diagnostics and usually returned as a `ScanError`. In practice that means fixture authors should expect invalid metadata to fail loudly.
+
+Typical causes:
+
+- using a dynamic expression in metadata,
+- binding to a section that does not exist,
+- declaring a verb for a function name that is not present in the file.
+
 ## See Also
 
 - `glaze help jsverbs-example-overview`
 - `glaze help jsverbs-example-developer-guide`
+- `glaze help jsverbs-example-reference`

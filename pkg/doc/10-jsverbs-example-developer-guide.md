@@ -30,6 +30,8 @@ The most important thing to understand up front is that this subsystem is not �
 
 That means a new developer should think in two mental models at the same time. The first model is static: files, functions, sentinels, sections, fields, command paths. The second model is dynamic: runtime factories, `require()` loaders, argument marshalling, promise waiting, and output rendering. Most bugs happen when those two models drift apart. For example, a function may be discovered correctly at scan time but invoked with the wrong argument shape at runtime, or a piece of metadata may be parsed correctly but never applied when the Glazed command description is built.
 
+The hardening pass after the initial prototype tightened exactly those drift-prone seams. Metadata parsing is stricter, scanner diagnostics are explicit, raw and `fs.FS` inputs are supported in addition to directory scanning, and the compile-time/runtime parameter semantics now flow through one shared binding plan. If you read older notes or code-review documents for this subsystem, keep that evolution in mind because some of the rough edges called out there have already been addressed.
+
 ## Easy onramp
 
 This section tells you where to start if you are new and want useful progress in the first hour.
@@ -51,6 +53,7 @@ This is valuable because it lets a JavaScript author work in a natural style whi
 If you only read three files first, read these:
 
 - `pkg/jsverbs/scan.go`
+- `pkg/jsverbs/binding.go`
 - `pkg/jsverbs/command.go`
 - `pkg/jsverbs/runtime.go`
 
@@ -59,7 +62,8 @@ Read them in that order.
 Why this order matters:
 
 - `scan.go` tells you what the system believes exists.
-- `command.go` tells you how that belief becomes a Glazed command.
+- `binding.go` tells you how that discovered metadata becomes one shared command/runtime contract.
+- `command.go` tells you how that contract becomes a Glazed command.
 - `runtime.go` tells you how execution actually crosses the Go/JS boundary.
 
 ### The fastest way to build intuition
@@ -93,13 +97,15 @@ Use it as a map:
 - `nested/with-helper.js` and `nested/sub/helper.js` show relative `require()` behavior.
 - `packaged.js` shows `__package__` metadata and automatic exposure of public functions.
 
+The fixture tree is still disk-based because it is meant to be browsed by humans and exercised by the example runner. The package itself is now broader than that. It can also scan a generic `fs.FS` or a raw list of in-memory source files. That matters when you move from “example runner” thinking to “library API” thinking. The fixture tree teaches the metadata format and runtime behavior; it does not define the full list of supported source origins anymore.
+
 When you are unsure how a feature should behave, start by adding or changing a fixture first and then make the implementation satisfy it.
 
 This is not just a testing convenience. It is a design discipline. The fixture tree acts as the most concrete form of subsystem documentation because it shows what JavaScript authors are actually expected to write. A fixture is harder to misread than a prose sentence and easier to stabilize than an informal code comment. In practice, the safest development loop is: write or update a fixture, make the scanner see it, make the compiler shape it, and then make the runtime execute it.
 
 ## System at a glance
 
-The system has four stages:
+The system has five stages:
 
 ```text
 JavaScript files
@@ -107,6 +113,10 @@ JavaScript files
     v
 scan.go
   discover functions + sentinels
+    |
+    v
+binding.go
+  resolve parameter + field + section binding plan
     |
     v
 command.go
@@ -124,6 +134,7 @@ CLI output
 Each stage has one job:
 
 - scanning answers “what functions and metadata exist?”
+- binding planning answers “what is the one agreed contract between schema and invocation?”
 - command building answers “what CLI shape should each function have?”
 - runtime invocation answers “how do we call the function correctly?”
 - output handling answers “should this become rows or plain text?”
@@ -137,13 +148,15 @@ This section explains which files exist so you do not waste time searching.
 ### Core implementation
 
 - `pkg/jsverbs/model.go`
-  This defines the in-memory model: registry, file specs, verb specs, parameter specs, field specs, and output modes.
+  This defines the in-memory model: registry, file specs, verb specs, parameter specs, field specs, diagnostics, source-file inputs, and output modes.
 - `pkg/jsverbs/scan.go`
-  This walks the filesystem, parses JavaScript with tree-sitter, extracts functions and sentinel metadata, and finalizes discovered verbs.
+  This walks input sources, parses JavaScript with tree-sitter, extracts functions and sentinel metadata, records diagnostics, and finalizes discovered verbs.
+- `pkg/jsverbs/binding.go`
+  This resolves one shared binding plan so schema generation and runtime invocation do not each invent their own interpretation of parameter semantics.
 - `pkg/jsverbs/command.go`
   This turns `VerbSpec` values into real Glazed commands. It decides whether a verb becomes a `GlazeCommand` or a `WriterCommand`.
 - `pkg/jsverbs/runtime.go`
-  This builds a goja runtime, injects a registry overlay, maps parsed Glazed values back into JS arguments, waits on promises, and returns results to Go.
+  This builds a goja runtime, injects a registry overlay, serves in-memory module source through the runtime loader, maps parsed Glazed values back into JS arguments, waits on promises, and returns results to Go.
 
 These files are intentionally small enough to read in one sitting. That is a good property to preserve. If you add a feature and it feels like it needs to spread arbitrary logic across all files at once, stop and ask whether you are really adding a new concept or only patching over a mismatch. Good additions usually fit cleanly into one stage and then require only a narrow thread through the others.
 
@@ -199,6 +212,8 @@ The key design decision is that these are treated as source metadata, not runtim
 
 That separation is important for security and correctness. We do not want discovery to execute arbitrary module top-level code just to learn what a command looks like. We also do not want JavaScript authors to think of sentinels as runtime hooks with side effects. They are effectively annotations embedded in real code.
 
+The scanner now enforces that the metadata attached to these sentinels is a strict literal subset. This is worth emphasizing because it changes how you should think about authoring metadata. The supported style is “declarative configuration written in JavaScript syntax,” not “arbitrary code that eventually produces an object.”
+
 ### Why tree-sitter is used
 
 The scanner uses tree-sitter because the system needs source-aware extraction without executing arbitrary JavaScript during discovery.
@@ -210,6 +225,28 @@ That gives three important properties:
 - metadata sentinels can be read from source in a deterministic way.
 
 Tree-sitter is not free; it adds a parser dependency and a source-model layer that a new developer must learn a bit. But the tradeoff is worth it here because the subsystem needs syntax awareness. Once you accept that requirement, a proper parser is much cheaper than inventing a homegrown partial parser through string operations and then slowly discovering edge cases one by one.
+
+That last sentence is no longer hypothetical. The subsystem originally used a JS-to-JSON rewrite shortcut for metadata objects. The hardening pass removed it and replaced it with AST literal parsing precisely because source-text rewriting was the wrong long-term abstraction once tree-sitter was already in the stack.
+
+## Source origins
+
+This section explains a change that is easy to miss if you only use `jsverbs-example`.
+
+The library now supports several input shapes:
+
+- `ScanDir(...)`
+- `ScanFS(...)`
+- `ScanSource(...)`
+- `ScanSources(...)`
+
+All of them normalize into the same internal `FileSpec` and runtime module-path model. That means a future consumer can:
+
+- scan a real directory,
+- scan an `embed.FS`,
+- synthesize command files in memory,
+- and still reuse the same runtime loader and command compiler.
+
+The runtime no longer depends on going back to disk after scanning. It loads source from the registry itself. That is a subtle but important shift because it makes the scanner the source of truth for module content, not just a discovery pass that happens before a second, unrelated disk read.
 
 ## Command compilation
 
@@ -261,6 +298,8 @@ Positional arguments are treated as required unless a default value is declared.
 
 This rule is worth remembering because it is the point where JavaScript permissiveness meets CLI strictness. JavaScript is happy to call a function with fewer arguments. A CLI should usually not be. The subsystem therefore chooses the CLI interpretation by default: if something is a positional argument, users should be told when it is missing.
 
+The current implementation now reaches that behavior through a shared binding plan rather than through duplicated logic in `command.go` and `runtime.go`. That matters for maintainability. If you change how a parameter should behave, the safest place to start is the binding-plan layer rather than editing compile-time and runtime code separately.
+
 ## Runtime model
 
 This section explains what happens when the user actually runs a discovered verb.
@@ -279,6 +318,8 @@ That overlay does two things:
 This matters because it preserves normal module behavior, especially relative `require()` paths, while still letting Go find the function object later.
 
 This is the key design choice that made the prototype practical. A runtime that evaluated stitched-together snippets or bypassed `require()` entirely would quickly break real JavaScript modules. By overlaying the actual source instead, the subsystem can keep relative imports, helper modules, and familiar CommonJS behavior intact.
+
+The overlay still exists in the hardened implementation, but the backing source no longer has to come from the host filesystem. The loader now serves source from the registry’s scanned files, which is what enables raw-source and `fs.FS` use cases while preserving the same relative-module behavior.
 
 ### Runtime sequence
 
@@ -312,6 +353,22 @@ These bindings are the bridge between Glazed’s section-based model and JavaScr
 
 Bindings are also one of the most important readability tools available to the JavaScript author. If a function really wants a cohesive object like `filters` or a runtime context object, encoding that directly is clearer than pretending every value should arrive as a flat string parameter. A good binding makes both the JS source and the Go-side command model easier to understand.
 
+From the Go side, bindings are now resolved once into a `VerbBindingPlan`. You do not need to memorize the exact struct fields to work on the package, but you should remember the architectural rule: schema generation and runtime invocation should read from the same resolved binding contract. If you find yourself teaching those two phases the same rule separately, you are probably regressing the design.
+
+## Diagnostics and failure handling
+
+This section covers a behavior change that improves day-to-day development substantially.
+
+Malformed metadata is no longer silently dropped. The scanner now records diagnostics on the registry and, by default, returns a `ScanError` when error-level diagnostics are present.
+
+In practice, that means:
+
+- invalid `__verb__` metadata now fails loudly,
+- unsupported dynamic expressions inside metadata are rejected explicitly,
+- callers can inspect diagnostics instead of guessing why a verb disappeared.
+
+This makes the package stricter, but in a way that saves engineering time. For generated command trees, explicit scanner failures are much easier to debug than missing commands with no explanation.
+
 ## Output choice guide
 
 This section helps a new developer choose between structured and text output without overthinking it.
@@ -341,9 +398,10 @@ This section gives the preferred workflow for extending the subsystem.
 1. Add or update a fixture in `testdata/jsverbs`.
 2. Extend the model in `model.go` if needed.
 3. Parse the metadata in `scan.go`.
-4. Apply the metadata in `command.go` or `runtime.go`.
-5. Add assertions in `pkg/jsverbs/jsverbs_test.go`.
-6. Run the package tests and one real `go run` command.
+4. If it changes parameter semantics, express it through `binding.go`.
+5. Apply the metadata in `command.go` or `runtime.go`.
+6. Add assertions in `pkg/jsverbs/jsverbs_test.go`.
+7. Run the package tests and one real `go run` command.
 
 This sequence matters because it forces the new behavior to exist in all three forms that matter: source syntax, in-memory model, and user-facing command behavior. Skipping one of those tends to create half-finished features that technically parse but never become useful commands, or commands that work only in tests but are not documented for actual users.
 
@@ -356,7 +414,7 @@ Preferred order:
 1. define the exact supported syntax,
 2. add a fixture,
 3. decide whether the new shape is inferable or must require explicit `bind`,
-4. update `extractParameters` and argument building together,
+4. update `extractParameters` and the shared binding plan together,
 5. verify both structured and writer verbs still work.
 
 Parameter support looks deceptively local, but it is one of the few places where scanner, compiler, and runtime all have to agree. That is why this kind of change deserves extra care. A parameter shape that is easy to extract but hard to marshal, or easy to marshal but hard to explain to users, is usually not worth supporting.

@@ -24,6 +24,13 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve root: %w", err)
 	}
+	rootHandle, err := os.OpenRoot(absRoot)
+	if err != nil {
+		return nil, fmt.Errorf("open root %s: %w", absRoot, err)
+	}
+	defer func() {
+		_ = rootHandle.Close()
+	}()
 
 	inputs := []sourceInput{}
 	err = filepath.WalkDir(absRoot, func(filePath string, d fs.DirEntry, walkErr error) error {
@@ -43,13 +50,13 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 		if !supportsExtension(filePath, options.Extensions) {
 			return nil
 		}
-		source, err := os.ReadFile(filePath)
-		if err != nil {
-			return fmt.Errorf("read %s: %w", filePath, err)
-		}
 		relPath, err := filepath.Rel(absRoot, filePath)
 		if err != nil {
 			return fmt.Errorf("relpath %s: %w", filePath, err)
+		}
+		source, err := rootHandle.ReadFile(relPath)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", filePath, err)
 		}
 		inputs = append(inputs, sourceInput{
 			AbsPath:    filePath,
@@ -616,10 +623,10 @@ func (e *extractor) nodeText(node *tree_sitter.Node) string {
 	start := node.StartByte()
 	end := node.EndByte()
 	srcLen := uint(len(e.src))
-	if end < start || uint(start) > srcLen || uint(end) > srcLen {
+	if end < start || start > srcLen || end > srcLen {
 		return ""
 	}
-	return string(e.src[int(start):int(end)])
+	return string(e.src[start:end])
 }
 
 func (e *extractor) templateRawText(tmplNode *tree_sitter.Node) string {
