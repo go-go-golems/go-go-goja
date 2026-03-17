@@ -245,6 +245,63 @@ function summarize({ owner }) {
 	require.Contains(t, err.Error(), "requires a bind")
 }
 
+func TestAddSharedSectionRejectsDuplicateSlug(t *testing.T) {
+	registry := &Registry{}
+
+	err := registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Filters",
+		Fields: map[string]*FieldSpec{
+			"state": {Type: "string"},
+		},
+	})
+	require.NoError(t, err)
+
+	err = registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Other Filters",
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `duplicate shared section "filters"`)
+}
+
+func TestResolveSectionPrefersLocalSectionOverSharedSection(t *testing.T) {
+	registry, err := ScanSource("example.js", `
+__section__("filters", {
+  title: "Local Filters",
+  fields: {
+    state: { type: "string", default: "closed" }
+  }
+});
+
+function summarize(filters) {
+  return { ok: !!filters };
+}
+
+__verb__("summarize", {
+  fields: {
+    filters: { bind: "filters" }
+  }
+});
+`)
+	require.NoError(t, err)
+	require.NoError(t, registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Shared Filters",
+		Fields: map[string]*FieldSpec{
+			"state": {Type: "string", Default: "open"},
+		},
+	}))
+
+	verb, ok := registry.Verb("example summarize")
+	require.True(t, ok)
+
+	section, ok := registry.ResolveSection(verb, "filters")
+	require.True(t, ok)
+	require.Equal(t, "Local Filters", section.Title)
+	require.Equal(t, "closed", section.Fields["state"].Default)
+}
+
 func mustRegistry(t *testing.T) *Registry {
 	t.Helper()
 	registry, err := ScanDir(filepath.Join(repoRoot(t), "testdata", "jsverbs"))

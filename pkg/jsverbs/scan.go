@@ -158,12 +158,14 @@ type sourceInput struct {
 
 func scanInputs(rootDir string, inputs []sourceInput, options ScanOptions) (*Registry, error) {
 	registry := &Registry{
-		RootDir:       rootDir,
-		Files:         []*FileSpec{},
-		Diagnostics:   []Diagnostic{},
-		verbsByKey:    map[string]*VerbSpec{},
-		filesByModule: map[string]*FileSpec{},
-		options:       options,
+		RootDir:            rootDir,
+		Files:              []*FileSpec{},
+		Diagnostics:        []Diagnostic{},
+		SharedSections:     map[string]*SectionSpec{},
+		SharedSectionOrder: []string{},
+		verbsByKey:         map[string]*VerbSpec{},
+		filesByModule:      map[string]*FileSpec{},
+		options:            options,
 	}
 
 	for _, input := range inputs {
