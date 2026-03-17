@@ -79,6 +79,12 @@ Run a command that uses a shared section:
 jsverbs-example --dir ./testdata/jsverbs basics list-issues go-go-golems/go-go-goja --state closed --labels bug --labels docs
 ```
 
+Run the dedicated example that uses a host-registered shared section instead of a file-local `__section__`:
+
+```bash
+jsverbs-example --dir ./testdata/jsverbs-example/registry-shared issues list-issues go-go-golems/go-go-goja --state closed --labels bug --labels docs
+```
+
 If you are working inside Go rather than through the example binary, the package-level entrypoints are now:
 
 ```go

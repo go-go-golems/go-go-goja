@@ -53,6 +53,8 @@ if err != nil {
 
 Registry-level shared sections are resolved after file-local sections. That means a file can still override a shared slug intentionally by declaring its own `__section__("filters", ...)`.
 
+The example runner now includes a concrete demo of that host-side registration path under `testdata/jsverbs-example/registry-shared`. That fixture binds to `filters` without declaring any local `__section__`; `cmd/jsverbs-example` injects the shared section before command compilation when you scan that directory.
+
 ### `__verb__("functionName", {...})`
 
 Use this to override the inferred command name, help text, parents, or fields. Field metadata currently supports:

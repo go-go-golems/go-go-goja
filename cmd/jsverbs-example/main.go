@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -22,6 +23,10 @@ func main() {
 
 	registry, err := jsverbs.ScanDir(dir)
 	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := registerExampleSharedSections(dir, registry); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -110,4 +115,31 @@ func setDefaultFlagValue(root *cobra.Command, name string, value string) {
 	}
 	flag.DefValue = value
 	_ = flag.Value.Set(value)
+}
+
+func registerExampleSharedSections(dir string, registry *jsverbs.Registry) error {
+	if registry == nil {
+		return fmt.Errorf("registry is nil")
+	}
+	if filepath.Base(filepath.Clean(dir)) != "registry-shared" {
+		return nil
+	}
+
+	return registry.AddSharedSection(&jsverbs.SectionSpec{
+		Slug:        "filters",
+		Title:       "Registry Filters",
+		Description: "Example host-registered shared filter flags for jsverbs-example.",
+		Fields: map[string]*jsverbs.FieldSpec{
+			"state": {
+				Type:    "choice",
+				Choices: []string{"open", "closed"},
+				Default: "open",
+				Help:    "Issue state",
+			},
+			"labels": {
+				Type: "stringList",
+				Help: "Labels to filter on",
+			},
+		},
+	})
 }
