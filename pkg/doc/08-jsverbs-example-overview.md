@@ -38,7 +38,7 @@ By default, public top-level functions become commands even without explicit `__
 
 ## Command shape
 
-Each discovered function is compiled into an ordinary Glazed command. Scalar parameters become Glazed fields, shared sections become flag groups, and the JavaScript result is converted back into rows:
+Each discovered function is compiled into an ordinary Glazed command. Scalar parameters become Glazed fields, file-local sections become flag groups, and the JavaScript result is converted back into rows:
 
 - object result: one row,
 - array of objects: one row per item,
@@ -46,6 +46,8 @@ Each discovered function is compiled into an ordinary Glazed command. Scalar par
 - `Promise`: awaited before conversion.
 
 Some verbs can opt out of structured output entirely. When a verb declares `output: "text"`, the runner exposes it as a writer-style command and prints the returned string directly instead of building a table.
+
+The section story now has one extra layer that matters if you are embedding `pkg/jsverbs` in Go code instead of only using the example runner. `__section__` still declares sections local to one JavaScript file. A Go caller can additionally register registry-level shared sections with `Registry.AddSharedSection(...)` or `Registry.AddSharedSections(...)`. When both exist for the same slug, the file-local section wins.
 
 Positional arguments are treated as required unless a default value is declared. That means `jsverbs-example basics echo` now fails with usage instead of silently producing no rows.
 

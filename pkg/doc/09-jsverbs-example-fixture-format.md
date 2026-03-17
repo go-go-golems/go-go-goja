@@ -29,7 +29,29 @@ Use this to set file-level grouping metadata such as a package name or extra par
 
 ### `__section__("slug", {...})`
 
-Use this to define shared Glazed sections with reusable fields. Commands opt into those sections through `sections: ["slug"]` or by binding a parameter to that section.
+Use this to define file-local Glazed sections with reusable fields. Commands in the same file can opt into those sections through `sections: ["slug"]` or by binding a parameter to that section.
+
+`__section__` does not import metadata across files through `require()`. If you need one section catalog reused across multiple files, register it from Go on the scanned registry:
+
+```go
+registry, err := jsverbs.ScanDir("./verbs")
+if err != nil {
+    return err
+}
+
+err = registry.AddSharedSection(&jsverbs.SectionSpec{
+    Slug:  "filters",
+    Title: "Filters",
+    Fields: map[string]*jsverbs.FieldSpec{
+        "state": {Type: "choice", Choices: []string{"open", "closed"}},
+    },
+})
+if err != nil {
+    return err
+}
+```
+
+Registry-level shared sections are resolved after file-local sections. That means a file can still override a shared slug intentionally by declaring its own `__section__("filters", ...)`.
 
 ### `__verb__("functionName", {...})`
 
@@ -138,6 +160,8 @@ Typical causes:
 - using a dynamic expression in metadata,
 - binding to a section that does not exist,
 - declaring a verb for a function name that is not present in the file.
+
+When shared sections are involved, "does not exist" means "not found either in the file-local `__section__` catalog or in the registry shared-section catalog added from Go."
 
 ## See Also
 

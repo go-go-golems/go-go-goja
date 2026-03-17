@@ -106,6 +106,16 @@ Section field definitions support the same field keys used under `__verb__`.
 
 Sections are the main mechanism for sharing schema across multiple verbs in one file. They are especially useful when several commands conceptually operate over the same group of filters or options and you want the command line shape to reflect that shared structure.
 
+Scope rule:
+
+- `__section__` defines file-local sections only.
+- Cross-file shared sections are registered from Go with `Registry.AddSharedSection(...)` or `Registry.AddSharedSections(...)`.
+- Resolution order is:
+  - file-local section with that slug, then
+  - registry-level shared section with that slug.
+
+`require()` does not import metadata from another file. It only affects runtime code loading.
+
 ## `__verb__` fields
 
 Supported verb-level fields:
