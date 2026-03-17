@@ -199,6 +199,14 @@ func (r *Registry) AddSharedSection(section *SectionSpec) error {
 
 	cloned := section.Clone()
 	cloned.Slug = slug
+	for name, field := range cloned.Fields {
+		if field == nil {
+			continue
+		}
+		if strings.TrimSpace(field.Name) == "" {
+			field.Name = name
+		}
+	}
 	r.SharedSections[slug] = cloned
 	r.SharedSectionOrder = append(r.SharedSectionOrder, slug)
 
