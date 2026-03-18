@@ -56,3 +56,13 @@ Implemented the host-side plugin loading path, added test plugins plus integrati
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/testplugin/invalid/main.go — Invalid plugin fixture used by validation tests
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go — Evaluator config now accepts plugin directories
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/cmd/repl/main.go — REPL now accepts `--plugin-dir`
+
+## 2026-03-18
+
+Ran the full repository test suite, reran `docmgr doctor`, updated the GOJA-08 task/diary state with concrete implementation commits, and prepared the refreshed ticket bundle for reMarkable publication.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/tasks.md — Final task state for the implementation sequence
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/reference/01-diary.md — Diary now records the implementation commit hashes and closeout validation step
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/changelog.md — Closeout entry for validation and publication

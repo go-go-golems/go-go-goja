@@ -168,7 +168,7 @@ I also added runtime close hooks and a new runtime-scoped module registrar inter
 
 **Inferred user intent:** Make concrete code progress while preserving traceability in the ticket.
 
-**Commit (code):** pending
+**Commit (code):** `d50da08` — `engine: add runtime-scoped module registrars`
 
 ### What I did
 
@@ -264,7 +264,7 @@ The goal of this step was not to implement discovery or runtime registration yet
 
 **Inferred user intent:** Land the feature incrementally with clear checkpoints instead of one large unreviewable patch.
 
-**Commit (code):** pending
+**Commit (code):** `d474dd9` — `hashiplugin: add shared gRPC contract scaffold`
 
 ### What I did
 
@@ -352,7 +352,7 @@ I then wired plugin directory support into real runtime creation paths. The simp
 
 **Inferred user intent:** Reach a usable end-to-end plugin path, not just internal library scaffolding.
 
-**Commit (code):** pending
+**Commit (code):** `9a463cf` — `hashiplugin: load plugin modules into runtimes`
 
 ### What I did
 
@@ -388,6 +388,87 @@ I then wired plugin directory support into real runtime creation paths. The simp
 ### What was tricky to build
 
 - The sharpest part was deciding how much policy to implement in v1. It would be easy to over-design the host config with checksum maps, richer capability gates, or more elaborate naming policies before the core loading path existed. I kept the first host version strict but small: namespace enforcement, duplicate/shape validation, executable filtering, gRPC-only transport, and per-runtime lifecycle. That gives a stable base without locking the API into a half-finished security story.
+
+## Step 5: Validate the repo-wide change set and refresh the ticket bundle
+
+This step closed the ticket loop after the implementation work landed. I reran the full repository test suite, reran `docmgr doctor` for GOJA-08, updated the ticket bookkeeping with the actual implementation commit hashes, and prepared the refreshed document bundle for upload back to reMarkable. The purpose here was not to add new feature code, but to make the ticket trustworthy as a continuation point for the next engineer.
+
+The important outcome is that the implementation and the documentation now describe the same state. The task list is fully checked off, the diary records the reviewable commit slices, and the final validation step was executed against the repository after the host/runtime integration landed.
+
+### Prompt Context
+
+**User prompt (verbatim):**
+
+```text
+alright, create a detailed set of tasks in the ticket, and then work on them one by one, checking things off as you go, committing at appropriate intervals, and keeping a diary.
+```
+
+**Assistant interpretation:** Finish the remaining ticket tasks, keep the implementation broken into reviewable commits, and record the final verification/publication work in the ticket itself.
+
+**Inferred user intent:** Leave behind a clean, auditable ticket that matches the code now in the branch.
+
+**Commit (code):** documentation closeout commit to follow after this diary update
+
+### What I did
+
+- Ran `go test ./... -count=1` after the plugin host integration commit.
+- Ran `docmgr doctor --ticket GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration --stale-after 30`.
+- Updated `tasks.md` so the implementation sequence is fully checked off.
+- Updated this diary with concrete commit hashes for the three implementation slices.
+- Added a closeout entry to `changelog.md`.
+- Prepared the refreshed ticket bundle for reMarkable publication.
+
+### Why
+
+- The user explicitly asked for task-by-task execution, checked-off progress, commits at reasonable intervals, and a maintained diary.
+- Without a closeout step, the ticket would still reflect the earlier research-only state instead of the implemented branch state.
+- Re-running repository-wide validation after the final feature commit is the fastest way to catch accidental regressions outside the focused package tests.
+
+### What worked
+
+- The full repository test suite passed after the plugin changes landed.
+- `docmgr doctor` reported that all GOJA-08 checks passed.
+- The earlier task breakdown translated cleanly into three code commits plus this final documentation/closeout pass.
+
+### What didn't work
+
+- There were no new technical failures in this step. The main issue that surfaced during closeout was process-related: the earlier failed host commit had been caused by stale staged content, which is now reflected accurately in the diary and resolved in the final commit history.
+
+### What I learned
+
+- Keeping the ticket diary current during implementation makes the final closeout substantially easier because the major design decisions are already captured while they are fresh.
+- The runtime/plugin work is broad enough that repo-wide validation is worth doing even after focused package tests have already passed; it confirms there are no hidden compile or lint regressions in neighboring entrypoints.
+
+### What was tricky to build
+
+- The tricky part here was sequencing the final docs update and publication so the uploaded bundle reflects the real branch state rather than a slightly earlier snapshot. That is why the ticket bookkeeping is updated before the final upload instead of after it.
+
+### What warrants a second pair of eyes
+
+- Whether the closeout bundle should eventually include a shorter operator-facing plugin authoring quickstart in addition to the architecture guide.
+- Whether future tickets should split the research/design phase and the implementation phase into separate bundled documents for easier consumption on reMarkable.
+
+### What should be done in the future
+
+- Add a dedicated plugin authoring example or template package once the first external plugin consumer exists.
+- Decide whether plugin trust policy should grow beyond namespace/shape validation into checksums or explicit allowlists by default.
+- Consider wiring plugin directories into more runtime entrypoints if the feature proves broadly useful.
+
+### Code review instructions
+
+- Read the three implementation commits in order: engine seam, shared transport, then host/runtime integration.
+- Use this diary to map each commit to the underlying design intent.
+- Cross-check the final task list in `tasks.md` if you want the high-level execution sequence.
+
+### Technical details
+
+- Commands run:
+  - `go test ./... -count=1`
+  - `docmgr doctor --ticket GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration --stale-after 30`
+  - `git log --oneline -3`
+  - `remarquee status`
+  - `remarquee cloud account --non-interactive`
+  - `remarquee upload bundle --dry-run ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/index.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/design-doc/01-hashicorp-plugin-support-for-go-go-goja-architecture-and-implementation-guide.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/reference/01-diary.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/tasks.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/changelog.md --name "GOJA-08 HashiCorp plugin support" --remote-dir "/ai/2026/03/18/GOJA-08-HASHICORP-PLUGINS" --toc-depth 2`
 
 ### What warrants a second pair of eyes
 
