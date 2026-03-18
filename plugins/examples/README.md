@@ -37,10 +37,11 @@ greeter.meta.pid()
 
 The greeter example is intentionally small but covers the main authoring surface:
 
-- a manifest with a plugin-scoped module name,
+- explicit module construction with `sdk.MustModule(...)`,
+- module-level metadata such as `Version(...)` and `Doc(...)`,
 - top-level function exports,
 - object exports with methods,
-- simple JSON-like argument/result values,
-- standard `plugin.Serve(...)` wiring with the shared handshake.
+- simple JSON-like argument/result values through `sdk.Call`,
+- standard serving through `sdk.Serve(...)` instead of handwritten transport bootstrapping.
 
 If you are building your own plugin, start by copying `plugins/examples/greeter` rather than the test fixtures.

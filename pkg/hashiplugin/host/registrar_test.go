@@ -70,6 +70,65 @@ func TestRegistrarRegistersPluginModuleIntoRuntime(t *testing.T) {
 	waitForProcessExit(t, pid)
 }
 
+func TestRegistrarLoadsSDKAuthoredExamplePlugin(t *testing.T) {
+	binDir := t.TempDir()
+	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-greeter"), "./plugins/examples/greeter")
+
+	factory, err := engine.NewBuilder().
+		WithRuntimeModuleRegistrars(NewRegistrar(Config{
+			Directories: []string{binDir},
+		})).
+		Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() {
+		if err := rt.Close(context.Background()); err != nil {
+			t.Fatalf("close runtime: %v", err)
+		}
+	}()
+
+	mod, err := rt.Require.Require("plugin:greeter")
+	if err != nil {
+		t.Fatalf("require plugin module: %v", err)
+	}
+
+	obj := mod.ToObject(rt.VM)
+	greet := assertFunction(t, obj.Get("greet"))
+	greetResp, err := greet(goja.Undefined(), rt.VM.ToValue("Manuel"))
+	if err != nil {
+		t.Fatalf("call greet: %v", err)
+	}
+	if got := greetResp.String(); got != "hello, Manuel" {
+		t.Fatalf("greet result = %q, want hello, Manuel", got)
+	}
+
+	stringsObj := obj.Get("strings").ToObject(rt.VM)
+	upper := assertFunction(t, stringsObj.Get("upper"))
+	upperResp, err := upper(goja.Undefined(), rt.VM.ToValue("hello"))
+	if err != nil {
+		t.Fatalf("call strings.upper: %v", err)
+	}
+	if got := upperResp.String(); got != "HELLO" {
+		t.Fatalf("strings.upper = %q, want HELLO", got)
+	}
+
+	metaObj := obj.Get("meta").ToObject(rt.VM)
+	pidFn := assertFunction(t, metaObj.Get("pid"))
+	pidResp, err := pidFn(goja.Undefined())
+	if err != nil {
+		t.Fatalf("call meta.pid: %v", err)
+	}
+	if got := pidResp.ToInteger(); got <= 0 {
+		t.Fatalf("meta.pid = %d, want positive pid", got)
+	}
+}
+
 func TestRegistrarRejectsInvalidManifest(t *testing.T) {
 	binDir := t.TempDir()
 	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-invalid"), "./plugins/testplugin/invalid")
