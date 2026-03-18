@@ -362,3 +362,48 @@ After the review ticket existed as a stable artifact, the next request was to tu
 
 - The review findings were accurate enough to turn into code quickly. Neither cleanup required redesigning the surrounding architecture.
 - The remaining deeper work from GOJA-13 is runtime-state persistence and diagnostics/cancellation hardening, not more cleanup of obviously obsolete surfaces.
+
+## Step 7: Persist runtime-scoped registrar state onto owned runtimes
+
+The next cleanup slice tackled the first runtime-lifecycle finding directly: registrar-produced values existed only during setup. The implementation goal was to make that state visible to later runtime consumers without inventing a full service container.
+
+### What I did
+
+- Added `Values map[string]any` plus `Value(key string)` to `engine.Runtime`.
+- Added `Values`, `SetValue(...)`, and `Value(...)` to `engine.RuntimeContext` so runtime initializers can participate in the same state seam.
+- Updated `engine.Factory.NewRuntime(...)` to:
+  - copy `RuntimeModuleContext.Values` onto the returned runtime
+  - pass the same map into the initializer context
+- Updated `pkg/docaccess/runtime/registrar.go` to store the constructed docs hub under `RuntimeHubContextKey`.
+- Added engine tests proving:
+  - registrar values survive onto the returned runtime
+  - runtime initializers can read registrar values and publish new runtime values
+- Added integration assertions proving:
+  - `pkg/hashiplugin/host` exposes loaded plugin metadata via runtime values
+  - `pkg/docaccess/runtime` exposes the docs hub via runtime values
+
+### Why
+
+- This is the smallest change that makes registrars feel like true runtime-scoped contributors rather than setup-only hooks.
+- It also unlocks later work in evaluator help and runtime diagnostics without more side-channel wiring.
+
+### What worked
+
+- The seam stayed small. A plain runtime-owned value map plus accessors was enough.
+- Copying registrar values before initializer execution gave initializers a coherent view of runtime-scoped state while still allowing them to publish additional values.
+- Persisting the docs hub immediately made the new seam useful in more than one subsystem.
+
+### What didn't work
+
+- The first version of the engine tests assumed helper adapter types already existed in `engine`. They did not, so I replaced those references with tiny test-local adapters instead of expanding the production API.
+
+### Technical details
+
+- Commands run:
+  - `go test ./engine ./pkg/docaccess/runtime ./pkg/hashiplugin/host -count=1`
+  - `go test ./... -count=1`
+
+### What I learned
+
+- The runtime-state review finding was real but easy to correct once scoped narrowly.
+- The next runtime-lifecycle step should be cancellation propagation, not more state abstraction.

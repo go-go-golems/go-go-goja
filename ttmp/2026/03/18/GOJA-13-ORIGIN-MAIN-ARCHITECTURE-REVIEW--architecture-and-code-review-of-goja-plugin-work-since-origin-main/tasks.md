@@ -38,7 +38,7 @@
 
 ## Phase 7: Runtime And Entry Point Cleanup
 
-- [ ] Persist registrar-produced runtime values on `engine.Runtime`.
+- [x] Persist registrar-produced runtime values on `engine.Runtime`.
 - [ ] Add a runtime-owned cancellation context and route plugin invocation through it.
 - [ ] Strengthen plugin diagnostics and report summaries in `pkg/hashiplugin/host`.
 - [x] Remove the legacy `modules/glazehelp` module and its registration path.
@@ -52,5 +52,5 @@
 
 ## Phase 9: Docs Integration Follow-Up
 
-- [ ] Persist the docs hub into runtime-owned state for evaluator/help consumers.
+- [x] Persist the docs hub into runtime-owned state for evaluator/help consumers.
 - [ ] Wire evaluator help and autocomplete to the unified `docaccess` hub instead of static/parallel surfaces.

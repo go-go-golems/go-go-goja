@@ -45,6 +45,8 @@ type Registrar struct {
 	config Config
 }
 
+const RuntimeHubContextKey = "docaccess.hub"
+
 func NewRegistrar(config Config) *Registrar {
 	return &Registrar{config: config}
 }
@@ -61,6 +63,9 @@ func (r *Registrar) RegisterRuntimeModules(ctx *engine.RuntimeModuleContext, reg
 	hub, err := r.buildHub(ctx)
 	if err != nil {
 		return err
+	}
+	if ctx != nil {
+		ctx.SetValue(RuntimeHubContextKey, hub)
 	}
 
 	reg.RegisterNativeModule(r.moduleName(), loader(hub))

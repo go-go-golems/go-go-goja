@@ -19,3 +19,7 @@ Added a focused implementation plan for registrar state ownership and plugin dia
 ## 2026-03-18
 
 Implemented the first GOJA-13 cleanup slices. The legacy `modules/glazehelp` path was removed from default runtime composition and from `repl`, and shared plugin manifest validation was extracted into `pkg/hashiplugin/contract/validate.go` so the host and SDK no longer duplicate namespace/export/method shape checks.
+
+## 2026-03-18
+
+Implemented runtime-scoped value persistence. Registrar-produced values now survive onto `engine.Runtime`, runtime initializers can read and write the same value map, and the docs registrar now stores its `docaccess.Hub` as runtime-owned state alongside the plugin registrar's loaded-module snapshot.

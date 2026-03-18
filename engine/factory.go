@@ -168,9 +168,10 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	})
 
 	rt := &Runtime{
-		VM:    vm,
-		Loop:  loop,
-		Owner: owner,
+		VM:     vm,
+		Loop:   loop,
+		Owner:  owner,
+		Values: map[string]any{},
 	}
 
 	reg := require.NewRegistry(f.settings.requireOptions...)
@@ -193,6 +194,7 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 			return nil, fmt.Errorf("runtime module registrar %q: %w", registrar.ID(), err)
 		}
 	}
+	rt.Values = cloneRuntimeValues(moduleCtx.Values)
 
 	reqMod := reg.Enable(vm)
 	console.Enable(vm)
@@ -203,6 +205,7 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		Require: reqMod,
 		Loop:    loop,
 		Owner:   owner,
+		Values:  rt.Values,
 	}
 	for _, init := range f.runtimeInitializers {
 		if err := init.InitRuntime(initCtx); err != nil {
@@ -212,4 +215,15 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	}
 
 	return rt, nil
+}
+
+func cloneRuntimeValues(values map[string]any) map[string]any {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(values))
+	for key, value := range values {
+		out[key] = value
+	}
+	return out
 }

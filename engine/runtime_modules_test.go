@@ -16,6 +16,32 @@ type testRuntimeModuleRegistrar struct {
 	closed []int
 }
 
+type testRegistrarFunc struct {
+	id string
+	fn func(ctx *RuntimeModuleContext, reg *require.Registry) error
+}
+
+func (f testRegistrarFunc) ID() string {
+	return f.id
+}
+
+func (f testRegistrarFunc) RegisterRuntimeModules(ctx *RuntimeModuleContext, reg *require.Registry) error {
+	return f.fn(ctx, reg)
+}
+
+type testRuntimeInitializerFunc struct {
+	id string
+	fn func(ctx *RuntimeContext) error
+}
+
+func (f testRuntimeInitializerFunc) ID() string {
+	return f.id
+}
+
+func (f testRuntimeInitializerFunc) InitRuntime(ctx *RuntimeContext) error {
+	return f.fn(ctx)
+}
+
 func (r *testRuntimeModuleRegistrar) ID() string {
 	return "test-runtime-registrar"
 }
@@ -148,5 +174,73 @@ func TestRuntimeCloseRunsRegistrarClosers(t *testing.T) {
 	closed := registrar.closedIDs()
 	if len(closed) != 1 || closed[0] != 1 {
 		t.Fatalf("closed ids = %v, want [1]", closed)
+	}
+}
+
+func TestRuntimePersistsRegistrarValues(t *testing.T) {
+	registrar := &testRuntimeModuleRegistrar{}
+
+	factory, err := NewBuilder().
+		WithRuntimeModuleRegistrars(registrar, testRegistrarFunc{id: "value-registrar", fn: func(ctx *RuntimeModuleContext, reg *require.Registry) error {
+			ctx.SetValue("runtime-id", 42)
+			return nil
+		}}).
+		Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() {
+		_ = rt.Close(context.Background())
+	}()
+
+	value, ok := rt.Value("runtime-id")
+	if !ok {
+		t.Fatalf("runtime value not found")
+	}
+	if value != 42 {
+		t.Fatalf("runtime value = %#v, want 42", value)
+	}
+}
+
+func TestRuntimeInitializersCanReadAndWriteRuntimeValues(t *testing.T) {
+	factory, err := NewBuilder().
+		WithRuntimeModuleRegistrars(testRegistrarFunc{id: "seed-values", fn: func(ctx *RuntimeModuleContext, reg *require.Registry) error {
+			ctx.SetValue("phase", "registered")
+			return nil
+		}}).
+		WithRuntimeInitializers(testRuntimeInitializerFunc{id: "read-write-values", fn: func(ctx *RuntimeContext) error {
+			value, ok := ctx.Value("phase")
+			if !ok {
+				return fmt.Errorf("phase value missing")
+			}
+			if value != "registered" {
+				return fmt.Errorf("phase = %#v", value)
+			}
+			ctx.SetValue("initializer", "done")
+			return nil
+		}}).
+		Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() {
+		_ = rt.Close(context.Background())
+	}()
+
+	if got, ok := rt.Value("phase"); !ok || got != "registered" {
+		t.Fatalf("runtime phase = %#v, %v", got, ok)
+	}
+	if got, ok := rt.Value("initializer"); !ok || got != "done" {
+		t.Fatalf("runtime initializer value = %#v, %v", got, ok)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/help"
 	helpmodel "github.com/go-go-golems/glazed/pkg/help/model"
 	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	jsdocmodel "github.com/go-go-golems/go-go-goja/pkg/jsdoc/model"
 )
@@ -66,6 +67,14 @@ func TestRegistrarRegistersDocsModuleWithHelpAndJSDocSources(t *testing.T) {
 			t.Fatalf("close runtime: %v", err)
 		}
 	}()
+
+	hubValue, ok := rt.Value(RuntimeHubContextKey)
+	if !ok {
+		t.Fatalf("runtime docs hub missing")
+	}
+	if _, ok := hubValue.(*docaccess.Hub); !ok {
+		t.Fatalf("runtime docs hub type = %T, want *docaccess.Hub", hubValue)
+	}
 
 	value, err := rt.Require.Require("docs")
 	if err != nil {

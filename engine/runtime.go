@@ -25,11 +25,21 @@ type Runtime struct {
 	Require *require.RequireModule
 	Loop    *eventloop.EventLoop
 	Owner   runtimeowner.Runner
+	Values  map[string]any
 
 	closeOnce sync.Once
 	closerMu  sync.Mutex
 	closers   []func(context.Context) error
 	closing   bool
+}
+
+// Value returns runtime-scoped data produced during runtime setup.
+func (r *Runtime) Value(key string) (any, bool) {
+	if r == nil || r.Values == nil || key == "" {
+		return nil, false
+	}
+	value, ok := r.Values[key]
+	return value, ok
 }
 
 // AddCloser registers a cleanup hook that is executed before the runtime owner

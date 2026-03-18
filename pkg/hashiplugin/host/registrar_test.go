@@ -33,6 +33,18 @@ func TestRegistrarRegistersPluginModuleIntoRuntime(t *testing.T) {
 		t.Fatalf("new runtime: %v", err)
 	}
 
+	loaded, ok := rt.Value(RuntimeLoadedModulesContextKey)
+	if !ok {
+		t.Fatalf("runtime loaded-modules value missing")
+	}
+	infos, ok := loaded.([]LoadedModuleInfo)
+	if !ok {
+		t.Fatalf("runtime loaded-modules type = %T, want []LoadedModuleInfo", loaded)
+	}
+	if len(infos) != 1 || infos[0].Manifest.GetModuleName() != "plugin:echo" {
+		t.Fatalf("runtime loaded-modules = %#v", infos)
+	}
+
 	mod, err := rt.Require.Require("plugin:echo")
 	if err != nil {
 		t.Fatalf("require plugin module: %v", err)
