@@ -14,6 +14,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/modules/glazehelp"
 	"github.com/go-go-golems/go-go-goja/pkg/doc"
+	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	"github.com/spf13/cobra"
 )
 
@@ -30,10 +31,16 @@ type conversion between Go and JavaScript values.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If no files were given, just show usage.
 		debug, _ := cmd.Flags().GetBool("debug")
+		pluginDirs, _ := cmd.Flags().GetStringSlice("plugin-dir")
 
-		factory, err := engine.NewBuilder().
-			WithModules(engine.DefaultRegistryModules()).
-			Build()
+		builder := engine.NewBuilder().
+			WithModules(engine.DefaultRegistryModules())
+		if len(pluginDirs) > 0 {
+			builder = builder.WithRuntimeModuleRegistrars(host.NewRegistrar(host.Config{
+				Directories: pluginDirs,
+			}))
+		}
+		factory, err := builder.Build()
 		if err != nil {
 			return fmt.Errorf("failed to build engine factory: %v", err)
 		}
@@ -120,6 +127,7 @@ func runInteractiveLoop(vm *goja.Runtime, debug bool) error {
 func main() {
 	// Set up flags
 	rootCmd.Flags().Bool("debug", false, "enable verbose debug logs")
+	rootCmd.Flags().StringSlice("plugin-dir", nil, "directory containing HashiCorp go-plugin module binaries")
 
 	// Set up help system
 	helpSystem := help.NewHelpSystem()

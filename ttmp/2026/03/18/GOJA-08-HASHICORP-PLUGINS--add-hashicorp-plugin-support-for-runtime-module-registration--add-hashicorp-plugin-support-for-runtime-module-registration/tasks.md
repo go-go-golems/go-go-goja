@@ -10,14 +10,14 @@
 
 ## In Progress
 
-- [ ] Implement plugin discovery, manifest validation, client lifecycle, and module reification under a new host package.
+- [ ] Update GOJA-08 docs, changelog, and diary after each implementation phase.
 
 ## Next
 
-- [ ] Add runtime integration tests covering per-runtime registration, invalid plugin rejection, and runtime cleanup.
-- [ ] Wire plugin configuration into at least one runtime entrypoint and provide a working example/test plugin.
-- [ ] Update GOJA-08 docs, changelog, and diary after each implementation phase.
 - [ ] Validate with `go test`, rerun `docmgr doctor`, and re-upload the refreshed bundle to reMarkable.
 
 - [x] Refactor `engine.Factory` and `engine.Runtime` so runtime-scoped module registrars and runtime cleanup hooks are supported.
 - [x] Add HashiCorp `go-plugin` dependency and shared plugin contract/package scaffolding.
+- [x] Implement plugin discovery, manifest validation, client lifecycle, and module reification under a new host package.
+- [x] Add runtime integration tests covering per-runtime registration, invalid plugin rejection, and runtime cleanup.
+- [x] Wire plugin configuration into at least one runtime entrypoint and provide a working example/test plugin.

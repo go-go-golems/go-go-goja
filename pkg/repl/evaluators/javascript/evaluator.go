@@ -12,6 +12,7 @@ import (
 	"github.com/go-go-golems/bobatea/pkg/autocomplete"
 	"github.com/go-go-golems/bobatea/pkg/repl"
 	ggjengine "github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 	"github.com/pkg/errors"
 )
@@ -69,6 +70,7 @@ type Config struct {
 	EnableModules     bool
 	EnableConsoleLog  bool
 	EnableNodeModules bool
+	PluginDirectories []string
 	CustomModules     map[string]interface{}
 	// Runtime, when set, reuses an existing VM instead of creating a new one.
 	Runtime *goja.Runtime
@@ -80,6 +82,7 @@ func DefaultConfig() Config {
 		EnableModules:     true,
 		EnableConsoleLog:  true,
 		EnableNodeModules: true,
+		PluginDirectories: nil,
 		CustomModules:     make(map[string]interface{}),
 		Runtime:           nil,
 	}
@@ -94,9 +97,14 @@ func New(config Config) (*Evaluator, error) {
 		runtime = config.Runtime
 	} else if config.EnableModules {
 		// Create runtime with module support using explicit engine composition.
-		factory, err := ggjengine.NewBuilder().
-			WithModules(ggjengine.DefaultRegistryModules()).
-			Build()
+		builder := ggjengine.NewBuilder().
+			WithModules(ggjengine.DefaultRegistryModules())
+		if len(config.PluginDirectories) > 0 {
+			builder = builder.WithRuntimeModuleRegistrars(host.NewRegistrar(host.Config{
+				Directories: config.PluginDirectories,
+			}))
+		}
+		factory, err := builder.Build()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to build runtime factory")
 		}

@@ -38,3 +38,21 @@ Added the shared HashiCorp plugin transport scaffold: dependency, protobuf contr
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/contract/jsmodule_grpc.pb.go — Generated gRPC bindings for the contract
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/shared/plugin.go — Added shared handshake, plugin set helpers, and GRPCPlugin adapter
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/shared/plugin_test.go — Added a round-trip gRPC dispense test for the adapter
+
+## 2026-03-18
+
+Implemented the host-side plugin loading path, added test plugins plus integration tests, and wired plugin directories into runtime creation for both the basic REPL and the reusable evaluator configuration.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/config.go — Plugin discovery/runtime config defaults
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/discover.go — Discovery and executable filtering
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/validate.go — Manifest validation rules
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/client.go — Plugin client startup, manifest fetch, and lifecycle management
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/reify.go — CommonJS module reification into goja
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/registrar.go — Runtime registrar that plugs host loading into the engine seam
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/registrar_test.go — End-to-end plugin loading and cleanup tests
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/testplugin/echo/main.go — Example valid plugin used by integration tests
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/testplugin/invalid/main.go — Invalid plugin fixture used by validation tests
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go — Evaluator config now accepts plugin directories
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/cmd/repl/main.go — REPL now accepts `--plugin-dir`

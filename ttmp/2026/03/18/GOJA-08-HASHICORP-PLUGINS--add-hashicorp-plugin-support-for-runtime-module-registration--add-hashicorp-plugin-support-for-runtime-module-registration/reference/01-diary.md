@@ -337,3 +337,83 @@ ok  	github.com/go-go-golems/go-go-goja/pkg/hashiplugin/shared	0.005s
   - `PATH="$(go env GOPATH)/bin:$PATH" GOWORK=off go generate ./pkg/hashiplugin/contract`
   - `gofmt -w pkg/hashiplugin/contract/contract.go pkg/hashiplugin/shared/plugin.go pkg/hashiplugin/shared/plugin_test.go`
   - `GOWORK=off go test ./pkg/hashiplugin/... -count=1`
+
+## Step 4: Implement host loading, integration tests, and REPL wiring
+
+This step turned the scaffold into a working feature. I added the `pkg/hashiplugin/host` package that discovers binaries, launches plugin clients, reads and validates manifests, reifies plugin exports into CommonJS native modules, and registers a cleanup hook so plugin subprocesses are killed when the runtime closes. I also added two tiny test plugins, one valid and one intentionally invalid, and used them in integration tests that build the plugin binaries on the fly.
+
+I then wired plugin directory support into real runtime creation paths. The simple Cobra REPL now accepts `--plugin-dir`, and the reusable JavaScript evaluator config gained a `PluginDirectories` field so other runtime entrypoints can opt in without duplicating registrar wiring. At this point the feature is functionally present: a runtime can load `plugin:echo`, call exported functions and object methods, and tear down the plugin process on close.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue implementing the ticket tasks until the designed plugin support becomes a working runtime feature, while keeping the ticket docs up to date.
+
+**Inferred user intent:** Reach a usable end-to-end plugin path, not just internal library scaffolding.
+
+**Commit (code):** pending
+
+### What I did
+
+- Added `pkg/hashiplugin/host/config.go`, `discover.go`, `validate.go`, `client.go`, `reify.go`, and `registrar.go`.
+- Added `pkg/hashiplugin/testplugin/echo/main.go` and `pkg/hashiplugin/testplugin/invalid/main.go`.
+- Added `pkg/hashiplugin/host/registrar_test.go` with end-to-end tests that build plugin binaries and verify loading, validation failure, and subprocess cleanup.
+- Wired plugin-directory support into `pkg/repl/evaluators/javascript.Config`.
+- Wired `--plugin-dir` into `cmd/repl`.
+
+### Why
+
+- The host package is where the design becomes real: discovery, trust boundary checks, subprocess lifecycle, and JS export reification all live there.
+- Example plugins make the tests meaningful and give future reviewers a concrete authoring template.
+- Wiring at least one entrypoint was part of the task list and proves the feature can be used outside tests.
+
+### What worked
+
+- The valid `plugin:echo` example loaded into a real runtime and returned expected values from `ping`, `math.add`, and `pid`.
+- The invalid plugin fixture failed runtime creation with the expected namespace validation error.
+- The runtime cleanup test confirmed that the plugin subprocess exits after `Runtime.Close()`.
+- The evaluator package still passed after adding `PluginDirectories`.
+
+### What didn't work
+
+- Nothing in this phase failed after the initial host code landed. The main debugging effort had already been burned down in the earlier engine and contract phases.
+
+### What I learned
+
+- Keeping manifest validation separate from client startup and module reification makes the host package much easier to reason about.
+- Building test plugin binaries inside the integration tests is a practical way to exercise real subprocess behavior without committing built artifacts.
+- The engine seam added in Step 2 is exactly the right boundary for this feature; the host registrar fit into it with very little friction.
+
+### What was tricky to build
+
+- The sharpest part was deciding how much policy to implement in v1. It would be easy to over-design the host config with checksum maps, richer capability gates, or more elaborate naming policies before the core loading path existed. I kept the first host version strict but small: namespace enforcement, duplicate/shape validation, executable filtering, gRPC-only transport, and per-runtime lifecycle. That gives a stable base without locking the API into a half-finished security story.
+
+### What warrants a second pair of eyes
+
+- Whether `Config` should default `AutoMTLS` to true unconditionally or expose a more explicit enable/disable option.
+- Whether `plugin:...` names are definitely safe across all intended module-resolution paths, or whether `plugin/...` would be a lower-risk namespace.
+- Whether the example plugin packages should move under `testdata/` once the feature stabilizes.
+
+### What should be done in the future
+
+- Run the full repo validation pass and refresh the ticket bundle on reMarkable.
+- Decide whether to expose plugin directory flags in additional entrypoints such as the Bobatea JS REPL.
+- Add stronger checksum/allowlist policy once the runtime-facing path is stable.
+
+### Code review instructions
+
+- Start with `pkg/hashiplugin/host/registrar.go`.
+- Then read `client.go`, `validate.go`, and `reify.go` as one flow.
+- Review `pkg/hashiplugin/host/registrar_test.go` and the two `testplugin` packages together.
+- Finish with the small entrypoint changes in `pkg/repl/evaluators/javascript/evaluator.go` and `cmd/repl/main.go`.
+
+### Technical details
+
+- Commands run:
+  - `GOWORK=off go doc github.com/hashicorp/go-plugin.Client.Kill`
+  - `GOWORK=off go doc github.com/hashicorp/go-plugin.Client.Exited`
+  - `gofmt -w pkg/hashiplugin/host/*.go pkg/hashiplugin/testplugin/echo/main.go pkg/hashiplugin/testplugin/invalid/main.go`
+  - `GOWORK=off go test ./pkg/hashiplugin/... -count=1`
+  - `gofmt -w pkg/repl/evaluators/javascript/evaluator.go cmd/repl/main.go`
+  - `GOWORK=off go test ./pkg/hashiplugin/... ./pkg/repl/evaluators/javascript -count=1`
