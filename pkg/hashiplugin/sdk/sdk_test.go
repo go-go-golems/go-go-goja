@@ -193,3 +193,89 @@ func TestModuleBuiltThroughSDKWorksOverSharedGRPCTransport(t *testing.T) {
 		t.Fatalf("result = %q", got)
 	}
 }
+
+func TestEncodeResultNormalizesTypedSlicesAndMaps(t *testing.T) {
+	t.Run("string slice", func(t *testing.T) {
+		result, err := encodeResult([]string{"a", "b"})
+		if err != nil {
+			t.Fatalf("encode []string: %v", err)
+		}
+		got := result.AsInterface()
+		values, ok := got.([]any)
+		if !ok {
+			t.Fatalf("result type = %T, want []any", got)
+		}
+		if len(values) != 2 || values[0] != "a" || values[1] != "b" {
+			t.Fatalf("result = %#v", values)
+		}
+	})
+
+	t.Run("int slice", func(t *testing.T) {
+		result, err := encodeResult([]int{1, 2, 3})
+		if err != nil {
+			t.Fatalf("encode []int: %v", err)
+		}
+		got := result.AsInterface()
+		values, ok := got.([]any)
+		if !ok {
+			t.Fatalf("result type = %T, want []any", got)
+		}
+		if len(values) != 3 || values[0] != float64(1) || values[1] != float64(2) || values[2] != float64(3) {
+			t.Fatalf("result = %#v", values)
+		}
+	})
+
+	t.Run("string map", func(t *testing.T) {
+		result, err := encodeResult(map[string]string{"name": "Manuel"})
+		if err != nil {
+			t.Fatalf("encode map[string]string: %v", err)
+		}
+		got := result.AsInterface()
+		values, ok := got.(map[string]any)
+		if !ok {
+			t.Fatalf("result type = %T, want map[string]any", got)
+		}
+		if values["name"] != "Manuel" {
+			t.Fatalf("result = %#v", values)
+		}
+	})
+
+	t.Run("nested values", func(t *testing.T) {
+		result, err := encodeResult(map[string]any{
+			"name": "Manuel",
+			"tags": []string{"plugins", "goja"},
+			"scores": map[string]int{
+				"one": 1,
+				"two": 2,
+			},
+		})
+		if err != nil {
+			t.Fatalf("encode nested values: %v", err)
+		}
+		got := result.AsInterface()
+		values, ok := got.(map[string]any)
+		if !ok {
+			t.Fatalf("result type = %T, want map[string]any", got)
+		}
+		tags, ok := values["tags"].([]any)
+		if !ok || len(tags) != 2 || tags[0] != "plugins" || tags[1] != "goja" {
+			t.Fatalf("tags = %#v", values["tags"])
+		}
+		scores, ok := values["scores"].(map[string]any)
+		if !ok || scores["one"] != float64(1) || scores["two"] != float64(2) {
+			t.Fatalf("scores = %#v", values["scores"])
+		}
+	})
+}
+
+func TestEncodeResultRejectsUnsupportedShapes(t *testing.T) {
+	_, err := encodeResult(map[int]string{1: "bad"})
+	if err == nil || !strings.Contains(err.Error(), "unsupported map key type") {
+		t.Fatalf("expected unsupported map key error, got %v", err)
+	}
+
+	_, err = encodeResult(func() {})
+	if err == nil || !strings.Contains(err.Error(), "unsupported result type") {
+		t.Fatalf("expected unsupported result type error, got %v", err)
+	}
+}
