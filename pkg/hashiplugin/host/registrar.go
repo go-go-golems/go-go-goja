@@ -30,7 +30,13 @@ func (r *Registrar) RegisterRuntimeModules(ctx *engine.RuntimeModuleContext, reg
 	cfg := r.config.withDefaults()
 	paths, err := Discover(cfg)
 	if err != nil {
+		if cfg.Report != nil {
+			cfg.Report.SetError(err)
+		}
 		return err
+	}
+	if cfg.Report != nil {
+		cfg.Report.SetCandidates(paths)
 	}
 	if len(paths) == 0 {
 		return nil
@@ -38,11 +44,20 @@ func (r *Registrar) RegisterRuntimeModules(ctx *engine.RuntimeModuleContext, reg
 
 	loaded, err := LoadModules(cfg, paths)
 	if err != nil {
+		if cfg.Report != nil {
+			cfg.Report.SetError(err)
+		}
 		return err
 	}
 	for _, mod := range loaded {
+		if cfg.Report != nil {
+			cfg.Report.AddLoaded(mod)
+		}
 		if err := RegisterModule(reg, mod); err != nil {
 			closeLoaded(loaded)
+			if cfg.Report != nil {
+				cfg.Report.SetError(err)
+			}
 			return err
 		}
 	}

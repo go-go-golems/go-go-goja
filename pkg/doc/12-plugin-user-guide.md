@@ -138,6 +138,7 @@ There are currently two REPL binaries in the repo, and both now expose the same 
 It supports:
 
 - `--plugin-dir`
+- `--plugin-status`
 - direct script execution
 - interactive line-based evaluation
 
@@ -155,6 +156,7 @@ It follows the same plugin discovery rules as `repl`:
 
 - default scan under `~/.go-go-goja/plugins/...`
 - optional `--plugin-dir` flags for explicit directories
+- `--plugin-status` for one-shot discovery/load reporting without entering the UI
 
 Example:
 
@@ -181,6 +183,21 @@ The host scans the configured directories and filters for regular executable fil
 5. reifies the described exports into the runtime's `require.Registry`.
 
 If any plugin has an invalid manifest, runtime creation fails early instead of partially registering a broken module set.
+
+## Discovery visibility in the REPLs
+
+The current REPL surfaces expose plugin visibility in two ways.
+
+In `repl`:
+
+- startup prints a short plugin summary when plugin directories are configured,
+- `:plugins` prints the full discovery and load report,
+- `--plugin-status` prints the report and exits.
+
+In `js-repl`:
+
+- the placeholder includes a short plugin summary when directories are configured,
+- `--plugin-status` prints the same report and exits without starting the TUI.
 
 ## Surface API reference
 

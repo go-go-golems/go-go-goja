@@ -15,6 +15,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/modules/glazehelp"
 	"github.com/go-go-golems/go-go-goja/pkg/doc"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
 
@@ -31,14 +32,22 @@ type conversion between Go and JavaScript values.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If no files were given, just show usage.
 		debug, _ := cmd.Flags().GetBool("debug")
+		if debug {
+			zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		} else {
+			zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+		}
+		pluginStatus, _ := cmd.Flags().GetBool("plugin-status")
 		pluginDirs, _ := cmd.Flags().GetStringSlice("plugin-dir")
 		pluginDirs = host.ResolveDiscoveryDirectories(pluginDirs)
+		reporter := host.NewReportCollector(pluginDirs)
 
 		builder := engine.NewBuilder().
 			WithModules(engine.DefaultRegistryModules())
 		if len(pluginDirs) > 0 {
 			builder = builder.WithRuntimeModuleRegistrars(host.NewRegistrar(host.Config{
 				Directories: pluginDirs,
+				Report:      reporter,
 			}))
 		}
 		factory, err := builder.Build()
@@ -52,9 +61,17 @@ type conversion between Go and JavaScript values.`,
 		defer func() {
 			_ = rt.Close(context.Background())
 		}()
+		report := reporter.Snapshot()
 
 		if debug {
 			log.Printf("engine initialised, args=%v", args)
+		}
+		if pluginStatus {
+			printPluginReport(report)
+			return nil
+		}
+		if summary := pluginStartupSummary(report); summary != "" {
+			fmt.Println(summary)
 		}
 
 		// If a script path is provided, run it once and exit.
@@ -66,11 +83,11 @@ type conversion between Go and JavaScript values.`,
 		}
 
 		// Interactive loop.
-		return runInteractiveLoop(rt.VM, debug)
+		return runInteractiveLoop(rt.VM, debug, report)
 	},
 }
 
-func runInteractiveLoop(vm *goja.Runtime, debug bool) error {
+func runInteractiveLoop(vm *goja.Runtime, debug bool, report host.LoadReport) error {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("goja> type JS code (:help for help)")
 
@@ -96,6 +113,7 @@ func runInteractiveLoop(vm *goja.Runtime, debug bool) error {
 		case ":help":
 			fmt.Println("REPL Commands:")
 			fmt.Println("  :help    show this help")
+			fmt.Println("  :plugins show plugin discovery and load details")
 			fmt.Println("  :quit    exit the REPL")
 			fmt.Println("\nFor comprehensive documentation, run:")
 			fmt.Println("  repl help")
@@ -109,6 +127,9 @@ func runInteractiveLoop(vm *goja.Runtime, debug bool) error {
 			fmt.Println("  repl help jsparse-framework-reference")
 			fmt.Println("  repl help inspector-example-user-guide")
 			fmt.Println("\nOtherwise any line is evaluated as JavaScript.")
+			continue
+		case ":plugins":
+			printPluginReport(report)
 			continue
 		}
 
@@ -132,6 +153,7 @@ func main() {
 	// Set up flags
 	rootCmd.Flags().Bool("debug", false, "enable verbose debug logs")
 	rootCmd.Flags().StringSlice("plugin-dir", nil, fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
+	rootCmd.Flags().Bool("plugin-status", false, "print plugin discovery/load status and exit")
 
 	// Set up help system
 	helpSystem := help.NewHelpSystem()
@@ -148,5 +170,18 @@ func main() {
 	// Execute
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func pluginStartupSummary(report host.LoadReport) string {
+	if len(report.Directories) == 0 && len(report.Loaded) == 0 && len(report.Candidates) == 0 && report.Error == "" {
+		return ""
+	}
+	return "Plugins: " + report.Summary() + " (type :plugins for details)"
+}
+
+func printPluginReport(report host.LoadReport) {
+	for _, line := range report.DetailLines() {
+		fmt.Println(line)
 	}
 }

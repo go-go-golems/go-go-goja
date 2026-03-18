@@ -372,6 +372,11 @@ This path is simple, but it sets the practical constraints for plugin authors:
 
 `cmd/repl` is the currently wired CLI line entrypoint for plugin testing. It resolves plugin directories from either explicit `--plugin-dir` flags or the default per-user tree under `~/.go-go-goja/plugins/...`, creates the registrar, and builds an owned runtime directly.
 
+It also now exposes plugin visibility through:
+
+- `:plugins` in the interactive loop,
+- `--plugin-status` for one-shot reporting.
+
 ### `js-repl`
 
 `cmd/js-repl` uses the higher-level evaluator adapter path. It now resolves plugin directories with the same rules as `cmd/repl`: explicit `--plugin-dir` flags win, otherwise the command scans `~/.go-go-goja/plugins/...`.
@@ -380,6 +385,8 @@ That means both the lower-level evaluator integration and the top-level TUI flag
 
 - `pkg/repl/evaluators/javascript/evaluator.go`
 - `pkg/repl/adapters/bobatea/javascript.go`
+
+The TUI entrypoint also exposes `--plugin-status`, which reuses the same host-side report collector without starting the Bubble Tea UI.
 
 but the top-level TUI entrypoint still needs UI-facing wiring if you want plugin discovery there.
 

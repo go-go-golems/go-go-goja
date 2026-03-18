@@ -31,6 +31,9 @@ go run ./cmd/repl
 # Add an extra plugin directory explicitly
 go run ./cmd/repl --plugin-dir /tmp/goja-plugins
 
+# Inspect plugin discovery/load status and exit
+go run ./cmd/repl --plugin-status
+
 # With debug logging
 go run ./cmd/repl --debug
 
@@ -42,6 +45,9 @@ go run ./cmd/js-repl
 
 # Rich Bobatea-based JS REPL with an extra plugin directory
 go run ./cmd/js-repl --plugin-dir /tmp/goja-plugins
+
+# Inspect plugin discovery/load status without starting the TUI
+go run ./cmd/js-repl --plugin-status
 ```
 
 When you do not pass `--plugin-dir`, both REPL entrypoints scan the default per-user plugin tree under `~/.go-go-goja/plugins/...`. If you do pass one or more `--plugin-dir` flags, those explicit directories are used instead.
@@ -68,6 +74,7 @@ js> [1, 2, 3].map(x => x * 2)
 The REPL recognizes special commands prefixed with `:`:
 
 - `:help` - Display available commands and usage information
+- `:plugins` - Display plugin discovery directories, discovered candidates, and loaded modules
 - `:quit` or `:exit` - Exit the REPL
 - `:clear` - Clear the current context (if implemented)
 

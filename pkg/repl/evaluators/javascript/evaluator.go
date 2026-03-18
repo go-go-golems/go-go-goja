@@ -71,6 +71,7 @@ type Config struct {
 	EnableConsoleLog  bool
 	EnableNodeModules bool
 	PluginDirectories []string
+	PluginReporter    *host.ReportCollector
 	CustomModules     map[string]interface{}
 	// Runtime, when set, reuses an existing VM instead of creating a new one.
 	Runtime *goja.Runtime
@@ -102,6 +103,7 @@ func New(config Config) (*Evaluator, error) {
 		if len(config.PluginDirectories) > 0 {
 			builder = builder.WithRuntimeModuleRegistrars(host.NewRegistrar(host.Config{
 				Directories: config.PluginDirectories,
+				Report:      config.PluginReporter,
 			}))
 		}
 		factory, err := builder.Build()

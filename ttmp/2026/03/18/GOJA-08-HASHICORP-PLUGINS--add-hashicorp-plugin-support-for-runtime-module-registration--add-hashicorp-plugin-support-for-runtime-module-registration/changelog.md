@@ -78,3 +78,15 @@ Started the GOJA-08 productization pass by separating user-facing sample plugins
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/12-plugin-user-guide.md — User guide now points at the example plugin
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/13-plugin-developer-guide.md — Developer guide now distinguishes examples from test fixtures
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/14-plugin-tutorial-build-install.md — Tutorial now uses the example plugin path
+
+## 2026-03-18
+
+Added plugin discovery visibility to the REPL surfaces. The host registrar can now record discovery/load reports, `repl` exposes `:plugins` and `--plugin-status`, `js-repl` exposes `--plugin-status`, and the help docs now describe the diagnostics surface.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/report.go — New runtime load report and CLI-friendly formatting helpers
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/registrar.go — Registrar now records discovered and loaded modules
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/cmd/repl/main.go — Added startup summaries, `:plugins`, and `--plugin-status`
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/cmd/js-repl/main.go — Added `--plugin-status` and TUI plugin summary wiring
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go — Evaluator config now accepts a plugin report collector

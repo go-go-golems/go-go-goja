@@ -50,6 +50,7 @@ func parseLevel(s string) zerolog.Level {
 func main() {
 	ll := flag.String("log-level", "error", "log level: trace, debug, info, warn, error")
 	lf := flag.String("log-file", "", "log file path (optional)")
+	pluginStatus := flag.Bool("plugin-status", false, "print plugin discovery/load status and exit")
 	var pluginDirs stringSliceFlag
 	flag.Var(&pluginDirs, "plugin-dir", fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
 	flag.Parse()
@@ -61,8 +62,11 @@ func main() {
 		logutil.InitTUILoggingToDiscard(level)
 	}
 
+	resolvedPluginDirs := host.ResolveDiscoveryDirectories(pluginDirs)
+	reporter := host.NewReportCollector(resolvedPluginDirs)
 	evaluatorConfig := js.DefaultConfig()
-	evaluatorConfig.PluginDirectories = host.ResolveDiscoveryDirectories(pluginDirs)
+	evaluatorConfig.PluginDirectories = resolvedPluginDirs
+	evaluatorConfig.PluginReporter = reporter
 	evaluator, err := jsadapter.NewJavaScriptEvaluator(evaluatorConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -70,10 +74,18 @@ func main() {
 	defer func() {
 		_ = evaluator.Close()
 	}()
+	report := reporter.Snapshot()
+	if *pluginStatus {
+		printPluginReport(report)
+		return
+	}
 
 	cfg := repl.DefaultConfig()
 	cfg.Title = "go-go-goja JavaScript REPL (Bobatea UI + jsparse completion/help)"
 	cfg.Placeholder = "Type console.lo or fs.re, then use alt+h (drawer), ctrl+h (full help), ctrl+r (refresh)"
+	if summary := pluginStartupSummary(report); summary != "" {
+		cfg.Placeholder += " | " + summary
+	}
 	cfg.Autocomplete.Enabled = true
 	cfg.Autocomplete.FocusToggleKey = "ctrl+t"
 	cfg.Autocomplete.TriggerKeys = []string{"tab"}
@@ -106,5 +118,18 @@ func main() {
 	}()
 	if runErr := <-errs; runErr != nil {
 		log.Fatal(runErr)
+	}
+}
+
+func pluginStartupSummary(report host.LoadReport) string {
+	if len(report.Directories) == 0 && len(report.Loaded) == 0 && len(report.Candidates) == 0 && report.Error == "" {
+		return ""
+	}
+	return report.Summary()
+}
+
+func printPluginReport(report host.LoadReport) {
+	for _, line := range report.DetailLines() {
+		fmt.Println(line)
 	}
 }

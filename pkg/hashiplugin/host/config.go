@@ -20,6 +20,7 @@ type Config struct {
 	CallTimeout  time.Duration
 	AutoMTLS     bool
 	Logger       hclog.Logger
+	Report       *ReportCollector
 }
 
 // DefaultDiscoveryRoot returns the conventional per-user plugin root.

@@ -549,6 +549,87 @@ Ok, add tasks for all of this to the ticket, and then work on them task by task.
   - `go run ./cmd/repl help goja-plugin-user-guide | sed -n '1,120p'`
   - `go run ./cmd/repl help plugin-tutorial-build-install | sed -n '1,120p'`
 
+## Step 7: Add plugin discovery visibility to the REPL surfaces
+
+This step focused on operability rather than transport or runtime semantics. The plugin system was already functional, but once default plugin discovery was enabled it became harder for a user to answer basic questions such as “what directories were scanned?”, “what module names actually loaded?”, and “why am I not seeing any plugin modules?” I addressed that by adding a small host-side report collector and surfacing it through both REPL entrypoints.
+
+The line REPL now gives the best interactive experience: it prints a short startup summary when plugin directories are configured, supports `:plugins` inside the loop, and supports `--plugin-status` for a non-interactive report. The Bobatea `js-repl` does not have a command palette command for this yet, but it does now expose the same one-shot `--plugin-status` path and shows a short plugin summary in the initial placeholder text. That keeps the diagnostics story consistent without having to design a full TUI diagnostics panel yet.
+
+### Prompt Context
+
+**User prompt (verbatim):**
+
+```text
+Ok, add tasks for all of this to the ticket, and then work on them task by task.
+```
+
+**Assistant interpretation:** Continue the productization backlog in small, reviewable slices, prioritizing visibility and usability after the example plugin work.
+
+**Inferred user intent:** Make the plugin system inspectable from the user-facing tools, not just from code and tests.
+
+**Commit (code):** pending
+
+### What I did
+
+- Added `pkg/hashiplugin/host/report.go` with a report collector and CLI-friendly summaries.
+- Updated the registrar to record discovered candidates, loaded modules, and startup errors.
+- Added `:plugins` and `--plugin-status` to `cmd/repl`.
+- Added `--plugin-status` and startup summary support to `cmd/js-repl`.
+- Extended the JavaScript evaluator config so the TUI path can pass the host report collector down to the registrar.
+- Updated the help pages to document the new diagnostics surface.
+
+### Why
+
+- Default discovery is convenient, but it increases the need for visibility.
+- Users need a way to confirm which modules were actually loaded without reading code or turning on unrelated debug logs.
+- A small reporting seam in the host package is reusable for later policy work and future entrypoints.
+
+### What worked
+
+- The report collector fit cleanly into the existing registrar without changing the transport contract.
+- `repl --plugin-status` and `js-repl --plugin-status` both work without building a second discovery/load path.
+- The line REPL gained a useful `:plugins` command with minimal complexity.
+
+### What didn't work
+
+- The first `repl --plugin-status` pass printed unrelated native-module debug logs before the report because the command had never pinned the global `zerolog` level. I fixed that by explicitly setting `zerolog.ErrorLevel` unless `--debug` is enabled.
+
+### What I learned
+
+- A small runtime setup report gives most of the operational value users need without having to build a broader observability subsystem.
+- The right seam for visibility was the host registrar, not the CLI layer, because that keeps the report tied to the real load path instead of a duplicate probe path.
+
+### What was tricky to build
+
+- The tricky design point was avoiding a second startup path that would rediscover and reload plugins just for reporting. That would have been easier to write, but it would also have been less trustworthy and would have introduced extra plugin process churn. Threading a report collector through the existing registrar kept the behavior honest.
+
+### What warrants a second pair of eyes
+
+- Whether `js-repl` should eventually gain a first-class in-UI plugin diagnostics view instead of relying on `--plugin-status` plus the placeholder summary.
+- Whether the report should eventually include more manifest detail such as versioned capability flags once the contract grows.
+
+### What should be done in the future
+
+- Add allowlisting/trust-policy knobs next.
+- Wire plugin configuration into one more runtime consumer after the policy surface settles.
+- Refresh and republish the ticket bundle once the whole productization pass is done.
+
+### Code review instructions
+
+- Read `pkg/hashiplugin/host/report.go` first.
+- Then read `cmd/repl/main.go` and `cmd/js-repl/main.go`.
+- Finish with `pkg/repl/evaluators/javascript/evaluator.go` to see how the report collector reaches the TUI path.
+
+### Technical details
+
+- Commands run:
+  - `sed -n '1,260p' pkg/hashiplugin/host/client.go`
+  - `sed -n '1,260p' pkg/hashiplugin/host/registrar.go`
+  - `gofmt -w cmd/repl/main.go cmd/js-repl/main.go pkg/repl/evaluators/javascript/evaluator.go pkg/hashiplugin/host/report.go pkg/hashiplugin/host/report_test.go pkg/hashiplugin/host/registrar.go`
+  - `go test ./cmd/repl ./cmd/js-repl ./pkg/hashiplugin/host ./pkg/repl/evaluators/javascript -count=1`
+  - `go run ./cmd/repl --plugin-status | sed -n '1,120p'`
+  - `go run ./cmd/js-repl --plugin-status | sed -n '1,120p'`
+
 ### What warrants a second pair of eyes
 
 - Whether `Config` should default `AutoMTLS` to true unconditionally or expose a more explicit enable/disable option.
