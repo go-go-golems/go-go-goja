@@ -4,10 +4,9 @@ Ticket: GOJA-10-PLUGIN-RESULT-NORMALIZATION
 Status: active
 Topics:
     - goja
-    - plugins
-    - hashicorp
-    - protobuf
     - go
+    - js-bindings
+    - tooling
 DocType: index
 Intent: long-term
 Owners: []

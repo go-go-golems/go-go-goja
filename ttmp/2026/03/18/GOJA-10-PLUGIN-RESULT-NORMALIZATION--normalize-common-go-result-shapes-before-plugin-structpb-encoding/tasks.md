@@ -24,5 +24,5 @@
 
 - [x] Update the GOJA-10 diary with commands, failures, and commit hashes.
 - [x] Update `changelog.md` with reviewable slices.
-- [ ] Run `docmgr doctor --ticket GOJA-10-PLUGIN-RESULT-NORMALIZATION --stale-after 30`.
-- [ ] Upload the refreshed GOJA-10 bundle to reMarkable and verify the remote listing.
+- [x] Run `docmgr doctor --ticket GOJA-10-PLUGIN-RESULT-NORMALIZATION --stale-after 30`.
+- [x] Upload the refreshed GOJA-10 bundle to reMarkable and verify the remote listing.

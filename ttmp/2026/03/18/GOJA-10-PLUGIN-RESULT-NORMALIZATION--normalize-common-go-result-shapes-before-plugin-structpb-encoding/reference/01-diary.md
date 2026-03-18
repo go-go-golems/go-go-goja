@@ -1,3 +1,29 @@
+---
+Title: Investigation diary
+Ticket: GOJA-10-PLUGIN-RESULT-NORMALIZATION
+Status: active
+Topics:
+    - goja
+    - go
+    - js-bindings
+    - tooling
+DocType: reference
+Intent: long-term
+Owners: []
+RelatedFiles:
+    - Path: pkg/hashiplugin/sdk/convert.go
+      Note: Main implementation seam changed by GOJA-10
+    - Path: pkg/hashiplugin/sdk/sdk_test.go
+      Note: Focused tests added for typed slice and map result normalization
+    - Path: ttmp/2026/03/18/GOJA-10-PLUGIN-RESULT-NORMALIZATION--normalize-common-go-result-shapes-before-plugin-structpb-encoding/design/01-result-normalization-plan.md
+      Note: Compact design note that set the scope for the ticket
+ExternalSources: []
+Summary: Chronological record of the GOJA-10 plugin result normalization ticket from setup through implementation and closeout.
+LastUpdated: 2026-03-18T15:34:38-04:00
+WhatFor: Capture the evidence, implementation details, and validation steps for GOJA-10.
+WhenToUse: Use when reviewing or extending plugin result normalization behavior.
+---
+
 # Diary
 
 ## Goal
@@ -149,3 +175,77 @@ That kept the ticket aligned with its original scope. The SDK is still not a gen
 - Final touched code files:
   - `pkg/hashiplugin/sdk/convert.go`
   - `pkg/hashiplugin/sdk/sdk_test.go`
+
+## Step 3: Repair ticket metadata, validate, and publish the bundle
+
+The code change was already done, but the closeout still needed the ticket to satisfy the repo's `docmgr` expectations. The first `docmgr doctor` run caught a real documentation hygiene problem: the GOJA-10 design note and diary had been created as plain markdown without YAML frontmatter, and the generated ticket index still carried topic values outside the configured vocabulary. I fixed those metadata issues rather than ignoring them, reran `doctor`, and then uploaded the final bundle to reMarkable.
+
+This is the normal closeout pattern worth preserving for later tickets: code first, then make the ticket actually reflect the code and pass the local doc checks before publishing.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes, let's do the third, create a separate ticket for it. Add small implementation plan and tasks, then work on it as usual"
+
+**Assistant interpretation:** Finish GOJA-10 end-to-end, including the usual task/diary/changelog updates, validation, and reMarkable upload.
+
+**Inferred user intent:** Treat this as a normal tracked ticket, not just a code-only patch.
+
+**Commit (docs):** `e556f05` - `docs: record GOJA-10 normalization slice`
+
+### What I did
+
+- Added proper docmgr frontmatter to `design/01-result-normalization-plan.md` and `reference/01-diary.md`.
+- Trimmed the generated `index.md` topics to the repository vocabulary.
+- Ran `docmgr doctor --ticket GOJA-10-PLUGIN-RESULT-NORMALIZATION --stale-after 30` until it passed.
+- Dry-ran the bundle upload, then uploaded the final GOJA-10 PDF to reMarkable.
+- Verified the remote listing under `/ai/2026/03/18/GOJA-10-PLUGIN-RESULT-NORMALIZATION`.
+
+### Why
+
+- Ticket docs are part of the deliverable in this repository, not an optional side artifact.
+- The doctor failures were legitimate and would have left the ticket in a lower-quality state than the code itself.
+
+### What worked
+
+- `docmgr doctor` gave actionable file-level failures.
+- The bundle upload path worked cleanly once the ticket metadata was fixed.
+
+### What didn't work
+
+- The first `docmgr doctor` run did not pass because two docs lacked frontmatter and the ticket index topics were too broad for the configured vocabulary.
+
+### What I learned
+
+- Even short ticket docs should start with valid frontmatter if they are going to live in `ttmp/...` and participate in docmgr validation.
+- The generated `index.md` can still need hand cleanup when the default topics do not match the repository vocabulary.
+
+### What was tricky to build
+
+- The only subtle part was deciding whether to broaden the vocabulary or narrow the ticket topics. For this ticket, narrowing the topics was the right choice because the implementation is fundamentally about `goja`, Go SDK ergonomics, and tooling rather than a separate taxonomy expansion.
+
+### What warrants a second pair of eyes
+
+- Nothing significant remains in the ticket mechanics; the remaining review focus should stay on the actual normalization behavior in the code.
+
+### What should be done in the future
+
+- If more tickets keep wanting topic values like `plugins` or `protobuf`, it may be worth expanding the repo vocabulary instead of trimming them manually each time.
+
+### Code review instructions
+
+- Confirm `docmgr doctor` is clean for GOJA-10.
+- Open the ticket workspace and verify the diary, tasks, and changelog match commits `e5fed78`, `11db436`, and `e556f05`.
+- Optionally inspect the uploaded reMarkable folder listing for `GOJA-10 Plugin result normalization`.
+
+### Technical details
+
+- Commands run:
+  - `docmgr doctor --ticket GOJA-10-PLUGIN-RESULT-NORMALIZATION --stale-after 30`
+  - `remarquee status`
+  - `remarquee cloud account --non-interactive`
+  - `remarquee upload bundle ttmp/2026/03/18/GOJA-10-PLUGIN-RESULT-NORMALIZATION--normalize-common-go-result-shapes-before-plugin-structpb-encoding --dry-run --name "GOJA-10 Plugin result normalization" --remote-dir "/ai/2026/03/18/GOJA-10-PLUGIN-RESULT-NORMALIZATION" --toc-depth 2`
+  - `remarquee upload bundle ttmp/2026/03/18/GOJA-10-PLUGIN-RESULT-NORMALIZATION--normalize-common-go-result-shapes-before-plugin-structpb-encoding --force --name "GOJA-10 Plugin result normalization" --remote-dir "/ai/2026/03/18/GOJA-10-PLUGIN-RESULT-NORMALIZATION" --toc-depth 2`
+  - `remarquee cloud ls /ai/2026/03/18/GOJA-10-PLUGIN-RESULT-NORMALIZATION --long --non-interactive`
+- Final validation result:
+  - `docmgr doctor`: all checks passed
+  - reMarkable listing: `[f] GOJA-10 Plugin result normalization`

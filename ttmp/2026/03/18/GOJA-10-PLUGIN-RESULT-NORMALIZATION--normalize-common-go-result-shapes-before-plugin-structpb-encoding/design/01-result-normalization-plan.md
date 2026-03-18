@@ -1,3 +1,29 @@
+---
+Title: Result normalization plan
+Ticket: GOJA-10-PLUGIN-RESULT-NORMALIZATION
+Status: active
+Topics:
+    - goja
+    - go
+    - js-bindings
+    - tooling
+DocType: design-doc
+Intent: long-term
+Owners: []
+RelatedFiles:
+    - Path: pkg/hashiplugin/sdk/convert.go
+      Note: Result encoding seam where normalization is implemented before structpb conversion
+    - Path: pkg/hashiplugin/sdk/sdk_test.go
+      Note: Focused package tests that should capture typed slice and map normalization behavior
+    - Path: plugins/examples/kv/main.go
+      Note: Example plugin that previously had to manually widen []string-like results
+ExternalSources: []
+Summary: Compact design note for normalizing common Go plugin result shapes before structpb encoding without expanding the transport contract.
+LastUpdated: 2026-03-18T15:34:38-04:00
+WhatFor: Define the narrow scope and implementation plan for GOJA-10.
+WhenToUse: Use when implementing or reviewing SDK result normalization behavior.
+---
+
 # GOJA-10 Result Normalization Plan
 
 ## Goal
