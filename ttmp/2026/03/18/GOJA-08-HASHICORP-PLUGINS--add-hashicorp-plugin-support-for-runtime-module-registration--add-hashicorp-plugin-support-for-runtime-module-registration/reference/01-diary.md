@@ -799,7 +799,7 @@ The point of this step was to make the ticket trustworthy as a continuation arti
 
 **Inferred user intent:** Leave the branch and the ticket in a clean, auditable state rather than stopping at “code works locally.”
 
-**Commit (code):** pending
+**Commit (code):** `e39fcc0` — `docs: refresh GOJA-08 productization closeout`
 
 ### What I did
 
