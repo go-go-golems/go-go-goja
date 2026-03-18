@@ -630,6 +630,86 @@ Ok, add tasks for all of this to the ticket, and then work on them task by task.
   - `go run ./cmd/repl --plugin-status | sed -n '1,120p'`
   - `go run ./cmd/js-repl --plugin-status | sed -n '1,120p'`
 
+## Step 8: Add allowlist trust-policy knobs to the supported entrypoints
+
+This step took an existing internal validation feature and made it usable. The host config already had `AllowModules`, but until now there was no straightforward way for a user or runtime consumer to ask for “only these plugin module names are allowed in this run.” I wired that allowlist through the two REPL entrypoints and the shared JavaScript evaluator config, then added an integration test proving that a plugin is rejected when it is outside the requested allowlist.
+
+This is still a modest trust-policy surface. It is not checksums, signatures, or provenance. But it is an important operational guardrail because it lets a caller constrain module names explicitly even when discovery is happening over a broader directory tree. That is the right next step before stronger policy mechanisms, because it is simple, visible, and easy to reason about.
+
+### Prompt Context
+
+**User prompt (verbatim):**
+
+```text
+Ok, add tasks for all of this to the ticket, and then work on them task by task.
+```
+
+**Assistant interpretation:** Continue the productization pass, moving from visibility into lightweight trust controls that are concrete enough to use immediately.
+
+**Inferred user intent:** Make the plugin system safer to operate without over-designing the trust model in one jump.
+
+**Commit (code):** pending
+
+### What I did
+
+- Added `--allow-plugin-module` to `cmd/repl`.
+- Added `--allow-plugin-module` to `cmd/js-repl`.
+- Added `PluginAllowModules` to the shared JavaScript evaluator config.
+- Normalized allowlist values in `host.Config.withDefaults()`.
+- Added an integration test that rejects `plugin:echo` when only `plugin:greeter` is allowed.
+- Updated the help docs to describe the allowlist flag and the resulting startup error shape.
+
+### Why
+
+- The existing allowlist check had no user-facing control surface.
+- Module-name allowlisting is a practical first trust-policy control because it is explicit and low-complexity.
+- Wiring the flag through the shared evaluator path keeps the policy surface consistent across the two REPL entrypoints.
+
+### What worked
+
+- The flag mapped cleanly onto the existing `ValidateManifest(...)` allowlist logic.
+- The integration test gave direct proof that the entrypoint-facing configuration now matters in the runtime load path.
+- The help output for both REPL binaries now surfaces the allowlist flag.
+
+### What didn't work
+
+- Nothing failed technically in this step once the wiring path was chosen. The main risk was missing one of the config layers, which is why I validated both command help surfaces and the host integration path explicitly.
+
+### What I learned
+
+- Small policy features become much more valuable once they are available uniformly at both the direct engine-builder path and the higher-level evaluator path.
+- The existing host config design was already good enough for this feature; the missing work was mostly propagation and documentation.
+
+### What was tricky to build
+
+- The subtle part was resisting the urge to add a larger policy system immediately. A single explicit allowlist flag is easy to teach and review. That keeps the system moving while leaving room for stronger future controls.
+
+### What warrants a second pair of eyes
+
+- Whether `--allow-plugin-module` should eventually accept globbing or remain exact-match only.
+- Whether the allowlist should be reflected directly in the plugin status report so operators can see both “what loaded” and “what was permitted.”
+
+### What should be done in the future
+
+- Wire plugin configuration into one additional runtime consumer next.
+- Refresh and republish the ticket bundle after the productization pass is complete.
+
+### Code review instructions
+
+- Start with `cmd/repl/main.go` and `cmd/js-repl/main.go`.
+- Then read `pkg/repl/evaluators/javascript/evaluator.go`.
+- Finish with `pkg/hashiplugin/host/registrar_test.go` to verify the allowlist behavior end to end.
+
+### Technical details
+
+- Commands run:
+  - `sed -n '1,220p' pkg/hashiplugin/host/validate.go`
+  - `sed -n '1,140p' pkg/repl/evaluators/javascript/evaluator.go`
+  - `gofmt -w pkg/hashiplugin/host/config.go pkg/hashiplugin/host/registrar_test.go pkg/repl/evaluators/javascript/evaluator.go cmd/repl/main.go cmd/js-repl/main.go`
+  - `go test ./cmd/repl ./cmd/js-repl ./pkg/hashiplugin/host ./pkg/repl/evaluators/javascript -count=1`
+  - `go run ./cmd/repl --help | sed -n '1,120p'`
+  - `go run ./cmd/js-repl --help | sed -n '1,120p'`
+
 ### What warrants a second pair of eyes
 
 - Whether `Config` should default `AutoMTLS` to true unconditionally or expose a more explicit enable/disable option.

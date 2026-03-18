@@ -92,6 +92,29 @@ func TestRegistrarRejectsInvalidManifest(t *testing.T) {
 	}
 }
 
+func TestRegistrarRejectsModuleOutsideAllowlist(t *testing.T) {
+	binDir := t.TempDir()
+	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-echo"), "./plugins/testplugin/echo")
+
+	factory, err := engine.NewBuilder().
+		WithRuntimeModuleRegistrars(NewRegistrar(Config{
+			Directories:  []string{binDir},
+			AllowModules: []string{"plugin:greeter"},
+		})).
+		Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	_, err = factory.NewRuntime(context.Background())
+	if err == nil {
+		t.Fatalf("expected allowlist error")
+	}
+	if !strings.Contains(err.Error(), "allowlist") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func buildTestPlugin(t *testing.T, outputPath, packagePath string) {
 	t.Helper()
 

@@ -34,6 +34,9 @@ go run ./cmd/repl --plugin-dir /tmp/goja-plugins
 # Inspect plugin discovery/load status and exit
 go run ./cmd/repl --plugin-status
 
+# Restrict loading to specific plugin module names
+go run ./cmd/repl --allow-plugin-module plugin:greeter
+
 # With debug logging
 go run ./cmd/repl --debug
 
@@ -48,6 +51,9 @@ go run ./cmd/js-repl --plugin-dir /tmp/goja-plugins
 
 # Inspect plugin discovery/load status without starting the TUI
 go run ./cmd/js-repl --plugin-status
+
+# Restrict loading to specific plugin module names
+go run ./cmd/js-repl --allow-plugin-module plugin:greeter
 ```
 
 When you do not pass `--plugin-dir`, both REPL entrypoints scan the default per-user plugin tree under `~/.go-go-goja/plugins/...`. If you do pass one or more `--plugin-dir` flags, those explicit directories are used instead.

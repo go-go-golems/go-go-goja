@@ -137,6 +137,7 @@ There are currently two REPL binaries in the repo, and both now expose the same 
 
 It supports:
 
+- `--allow-plugin-module`
 - `--plugin-dir`
 - `--plugin-status`
 - direct script execution
@@ -156,6 +157,7 @@ It follows the same plugin discovery rules as `repl`:
 
 - default scan under `~/.go-go-goja/plugins/...`
 - optional `--plugin-dir` flags for explicit directories
+- optional `--allow-plugin-module` flags for module-name allowlisting
 - `--plugin-status` for one-shot discovery/load reporting without entering the UI
 
 Example:
@@ -271,6 +273,7 @@ Loading a plugin means executing a local Go binary that you selected via `--plug
 What the current system does provide:
 
 - explicit directory opt-in,
+- optional module-name allowlisting at the CLI/config layer,
 - manifest validation,
 - namespace validation,
 - runtime-scoped lifecycle,
@@ -283,12 +286,22 @@ What it does not currently provide by default:
 - automatic provenance verification,
 - an opinionated allowlist policy.
 
+If you want to allow only a specific set of modules for one run, use the allowlist flag:
+
+```bash
+go run ./cmd/repl --allow-plugin-module plugin:greeter
+go run ./cmd/js-repl --allow-plugin-module plugin:greeter
+```
+
+You can repeat the flag to allow multiple module names.
+
 ## Troubleshooting
 
 | Problem | Cause | Solution |
 |---|---|---|
 | `Cannot find module 'plugin:greeter'` | The plugin binary was not discovered or the manifest was rejected | Confirm the binary is named `goja-plugin-greeter`, placed in the configured directory, and that you passed `--plugin-dir /path/to/dir` |
 | Runtime creation fails with `must use namespace` | The plugin manifest published a module name outside `plugin:` | Update the plugin manifest to use a name like `plugin:echo` |
+| Runtime creation fails with `not in the allowlist` | The plugin loaded successfully but its module name was not on the requested allowlist | Add `--allow-plugin-module plugin:your-module` or remove the allowlist restriction |
 | The plugin binary exists but still is not loaded | The file is not executable or does not match the discovery pattern | Run `chmod +x` if needed and keep the binary name under `goja-plugin-*` |
 | Calls fail on argument conversion | The JS values do not cleanly round-trip through protobuf `structpb.Value` | Use JSON-like values and avoid host-specific Goja objects/functions as arguments |
 | `js-repl` does not see plugins | The plugin was not built under the default tree and no explicit directory was passed | Build into `~/.go-go-goja/plugins/...` or pass one or more `--plugin-dir` flags |

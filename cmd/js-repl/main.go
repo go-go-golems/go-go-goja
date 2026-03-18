@@ -52,6 +52,8 @@ func main() {
 	lf := flag.String("log-file", "", "log file path (optional)")
 	pluginStatus := flag.Bool("plugin-status", false, "print plugin discovery/load status and exit")
 	var pluginDirs stringSliceFlag
+	var allowPluginModules stringSliceFlag
+	flag.Var(&allowPluginModules, "allow-plugin-module", "allow only the listed plugin module names (for example plugin:greeter)")
 	flag.Var(&pluginDirs, "plugin-dir", fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
 	flag.Parse()
 
@@ -66,6 +68,7 @@ func main() {
 	reporter := host.NewReportCollector(resolvedPluginDirs)
 	evaluatorConfig := js.DefaultConfig()
 	evaluatorConfig.PluginDirectories = resolvedPluginDirs
+	evaluatorConfig.PluginAllowModules = allowPluginModules
 	evaluatorConfig.PluginReporter = reporter
 	evaluator, err := jsadapter.NewJavaScriptEvaluator(evaluatorConfig)
 	if err != nil {

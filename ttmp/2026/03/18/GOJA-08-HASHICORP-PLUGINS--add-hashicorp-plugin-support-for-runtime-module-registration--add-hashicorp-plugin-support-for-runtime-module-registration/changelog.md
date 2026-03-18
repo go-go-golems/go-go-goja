@@ -90,3 +90,15 @@ Added plugin discovery visibility to the REPL surfaces. The host registrar can n
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/cmd/repl/main.go — Added startup summaries, `:plugins`, and `--plugin-status`
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/cmd/js-repl/main.go — Added `--plugin-status` and TUI plugin summary wiring
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go — Evaluator config now accepts a plugin report collector
+
+## 2026-03-18
+
+Added allowlist-style trust-policy knobs to the supported entrypoints. `repl`, `js-repl`, and the shared evaluator config now accept explicit plugin-module allowlists, and the host integration tests cover rejection when a loaded module is outside the requested allowlist.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/cmd/repl/main.go — Added `--allow-plugin-module`
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/cmd/js-repl/main.go — Added `--allow-plugin-module`
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go — Evaluator config now forwards plugin allowlists
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/config.go — Allowlist values are normalized centrally
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/registrar_test.go — Added integration coverage for allowlist rejection

@@ -224,6 +224,13 @@ Current defaults:
 - startup timeout: `10s`
 - call timeout: `5s`
 
+Relevant policy fields:
+
+- `Directories`
+- `AllowModules`
+- `Pattern`
+- `Namespace`
+
 This keeps user-facing configuration small while still centralizing policy.
 
 ### `host.Discover`
@@ -377,6 +384,8 @@ It also now exposes plugin visibility through:
 - `:plugins` in the interactive loop,
 - `--plugin-status` for one-shot reporting.
 
+It also exposes `--allow-plugin-module`, which maps directly onto `host.Config.AllowModules`.
+
 ### `js-repl`
 
 `cmd/js-repl` uses the higher-level evaluator adapter path. It now resolves plugin directories with the same rules as `cmd/repl`: explicit `--plugin-dir` flags win, otherwise the command scans `~/.go-go-goja/plugins/...`.
@@ -388,7 +397,7 @@ That means both the lower-level evaluator integration and the top-level TUI flag
 
 The TUI entrypoint also exposes `--plugin-status`, which reuses the same host-side report collector without starting the Bubble Tea UI.
 
-but the top-level TUI entrypoint still needs UI-facing wiring if you want plugin discovery there.
+It also exposes `--allow-plugin-module`, which is forwarded through the evaluator config into the host registrar.
 
 ## Tests and examples
 

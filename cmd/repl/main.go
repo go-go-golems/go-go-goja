@@ -38,6 +38,7 @@ type conversion between Go and JavaScript values.`,
 			zerolog.SetGlobalLevel(zerolog.ErrorLevel)
 		}
 		pluginStatus, _ := cmd.Flags().GetBool("plugin-status")
+		allowPluginModules, _ := cmd.Flags().GetStringSlice("allow-plugin-module")
 		pluginDirs, _ := cmd.Flags().GetStringSlice("plugin-dir")
 		pluginDirs = host.ResolveDiscoveryDirectories(pluginDirs)
 		reporter := host.NewReportCollector(pluginDirs)
@@ -46,8 +47,9 @@ type conversion between Go and JavaScript values.`,
 			WithModules(engine.DefaultRegistryModules())
 		if len(pluginDirs) > 0 {
 			builder = builder.WithRuntimeModuleRegistrars(host.NewRegistrar(host.Config{
-				Directories: pluginDirs,
-				Report:      reporter,
+				Directories:  pluginDirs,
+				AllowModules: allowPluginModules,
+				Report:       reporter,
 			}))
 		}
 		factory, err := builder.Build()
@@ -152,6 +154,7 @@ func runInteractiveLoop(vm *goja.Runtime, debug bool, report host.LoadReport) er
 func main() {
 	// Set up flags
 	rootCmd.Flags().Bool("debug", false, "enable verbose debug logs")
+	rootCmd.Flags().StringSlice("allow-plugin-module", nil, "allow only the listed plugin module names (for example plugin:greeter)")
 	rootCmd.Flags().StringSlice("plugin-dir", nil, fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
 	rootCmd.Flags().Bool("plugin-status", false, "print plugin discovery/load status and exit")
 

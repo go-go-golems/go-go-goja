@@ -67,12 +67,13 @@ type Evaluator struct {
 
 // Config holds configuration for the JavaScript evaluator
 type Config struct {
-	EnableModules     bool
-	EnableConsoleLog  bool
-	EnableNodeModules bool
-	PluginDirectories []string
-	PluginReporter    *host.ReportCollector
-	CustomModules     map[string]interface{}
+	EnableModules      bool
+	EnableConsoleLog   bool
+	EnableNodeModules  bool
+	PluginDirectories  []string
+	PluginAllowModules []string
+	PluginReporter     *host.ReportCollector
+	CustomModules      map[string]interface{}
 	// Runtime, when set, reuses an existing VM instead of creating a new one.
 	Runtime *goja.Runtime
 }
@@ -80,12 +81,13 @@ type Config struct {
 // DefaultConfig returns a default configuration for JavaScript evaluation
 func DefaultConfig() Config {
 	return Config{
-		EnableModules:     true,
-		EnableConsoleLog:  true,
-		EnableNodeModules: true,
-		PluginDirectories: nil,
-		CustomModules:     make(map[string]interface{}),
-		Runtime:           nil,
+		EnableModules:      true,
+		EnableConsoleLog:   true,
+		EnableNodeModules:  true,
+		PluginDirectories:  nil,
+		PluginAllowModules: nil,
+		CustomModules:      make(map[string]interface{}),
+		Runtime:            nil,
 	}
 }
 
@@ -102,8 +104,9 @@ func New(config Config) (*Evaluator, error) {
 			WithModules(ggjengine.DefaultRegistryModules())
 		if len(config.PluginDirectories) > 0 {
 			builder = builder.WithRuntimeModuleRegistrars(host.NewRegistrar(host.Config{
-				Directories: config.PluginDirectories,
-				Report:      config.PluginReporter,
+				Directories:  config.PluginDirectories,
+				AllowModules: config.PluginAllowModules,
+				Report:       config.PluginReporter,
 			}))
 		}
 		factory, err := builder.Build()

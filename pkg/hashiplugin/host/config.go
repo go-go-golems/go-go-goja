@@ -51,6 +51,7 @@ func ResolveDiscoveryDirectories(directories []string) []string {
 }
 
 func (c Config) withDefaults() Config {
+	c.AllowModules = normalizeModuleNames(c.AllowModules)
 	if strings.TrimSpace(c.Pattern) == "" {
 		c.Pattern = "goja-plugin-*"
 	}
@@ -121,6 +122,27 @@ func normalizeDirectories(directories []string) []string {
 		}
 		seen[dir] = struct{}{}
 		out = append(out, dir)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func normalizeModuleNames(names []string) []string {
+	if len(names) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(names))
+	seen := map[string]struct{}{}
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
 	}
 	sort.Strings(out)
 	return out

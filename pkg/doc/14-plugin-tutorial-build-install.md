@@ -41,6 +41,8 @@ You need:
 
 This tutorial assumes you are running commands from the repository root.
 
+If you want to constrain the runtime to one expected plugin module while testing, you can add `--allow-plugin-module plugin:greeter` to the REPL commands shown below.
+
 ## Step 1: Build the example plugin
 
 Start by building the existing example. This proves the host side is working before you start editing your own code.
