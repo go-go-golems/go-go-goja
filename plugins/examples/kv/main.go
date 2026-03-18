@@ -93,7 +93,11 @@ func (s *kvStore) keys(context.Context, *sdk.Call) (any, error) {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	return keys, nil
+	out := make([]any, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, key)
+	}
+	return out, nil
 }
 
 func (s *kvStore) clear(context.Context, *sdk.Call) (any, error) {

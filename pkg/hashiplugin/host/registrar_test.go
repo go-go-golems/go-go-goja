@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -126,6 +127,141 @@ func TestRegistrarLoadsSDKAuthoredExamplePlugin(t *testing.T) {
 	}
 	if got := pidResp.ToInteger(); got <= 0 {
 		t.Fatalf("meta.pid = %d, want positive pid", got)
+	}
+}
+
+func TestRegistrarLoadsStatefulKVExamplePlugin(t *testing.T) {
+	binDir := t.TempDir()
+	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-kv"), "./plugins/examples/kv")
+
+	factory, err := engine.NewBuilder().
+		WithRuntimeModuleRegistrars(NewRegistrar(Config{
+			Directories: []string{binDir},
+		})).
+		Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() {
+		if err := rt.Close(context.Background()); err != nil {
+			t.Fatalf("close runtime: %v", err)
+		}
+	}()
+
+	mod, err := rt.Require.Require("plugin:kv")
+	if err != nil {
+		t.Fatalf("require plugin module: %v", err)
+	}
+
+	store := mod.ToObject(rt.VM).Get("store").ToObject(rt.VM)
+	setFn := assertFunction(t, store.Get("set"))
+	getFn := assertFunction(t, store.Get("get"))
+	keysFn := assertFunction(t, store.Get("keys"))
+	sizeFn := assertFunction(t, store.Get("size"))
+	clearFn := assertFunction(t, store.Get("clear"))
+
+	if _, err := setFn(goja.Undefined(), rt.VM.ToValue("name"), rt.VM.ToValue("Manuel")); err != nil {
+		t.Fatalf("call store.set(name): %v", err)
+	}
+	if _, err := setFn(goja.Undefined(), rt.VM.ToValue("role"), rt.VM.ToValue("admin")); err != nil {
+		t.Fatalf("call store.set(role): %v", err)
+	}
+
+	getResp, err := getFn(goja.Undefined(), rt.VM.ToValue("name"))
+	if err != nil {
+		t.Fatalf("call store.get: %v", err)
+	}
+	if got := getResp.String(); got != "Manuel" {
+		t.Fatalf("store.get(name) = %q, want Manuel", got)
+	}
+
+	sizeResp, err := sizeFn(goja.Undefined())
+	if err != nil {
+		t.Fatalf("call store.size: %v", err)
+	}
+	if got := sizeResp.ToInteger(); got != 2 {
+		t.Fatalf("store.size = %d, want 2", got)
+	}
+
+	keysResp, err := keysFn(goja.Undefined())
+	if err != nil {
+		t.Fatalf("call store.keys: %v", err)
+	}
+	exported, ok := keysResp.Export().([]any)
+	if !ok {
+		t.Fatalf("store.keys export type = %T, want []any", keysResp.Export())
+	}
+	keys := make([]string, 0, len(exported))
+	for _, value := range exported {
+		s, ok := value.(string)
+		if !ok {
+			t.Fatalf("store.keys element type = %T, want string", value)
+		}
+		keys = append(keys, s)
+	}
+	if !slices.Equal(keys, []string{"name", "role"}) {
+		t.Fatalf("store.keys = %#v, want [name role]", keys)
+	}
+
+	if _, err := clearFn(goja.Undefined()); err != nil {
+		t.Fatalf("call store.clear: %v", err)
+	}
+	sizeResp, err = sizeFn(goja.Undefined())
+	if err != nil {
+		t.Fatalf("call store.size after clear: %v", err)
+	}
+	if got := sizeResp.ToInteger(); got != 0 {
+		t.Fatalf("store.size after clear = %d, want 0", got)
+	}
+}
+
+func TestRegistrarSurfacesPluginHandlerErrors(t *testing.T) {
+	binDir := t.TempDir()
+	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-failing"), "./plugins/examples/failing")
+
+	factory, err := engine.NewBuilder().
+		WithRuntimeModuleRegistrars(NewRegistrar(Config{
+			Directories: []string{binDir},
+		})).
+		Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() {
+		if err := rt.Close(context.Background()); err != nil {
+			t.Fatalf("close runtime: %v", err)
+		}
+	}()
+
+	mod, err := rt.Require.Require("plugin:failing")
+	if err != nil {
+		t.Fatalf("require plugin module: %v", err)
+	}
+
+	obj := mod.ToObject(rt.VM)
+	alwaysFn := assertFunction(t, obj.Get("always"))
+	if _, err := alwaysFn(goja.Undefined(), rt.VM.ToValue("boom")); err == nil {
+		t.Fatalf("expected always() to fail")
+	} else if !strings.Contains(err.Error(), "always failed: boom") {
+		t.Fatalf("always() error = %v, want reason text", err)
+	}
+
+	checks := obj.Get("checks").ToObject(rt.VM)
+	requirePositive := assertFunction(t, checks.Get("requirePositive"))
+	if _, err := requirePositive(goja.Undefined(), rt.VM.ToValue(-1)); err == nil {
+		t.Fatalf("expected requirePositive() to fail")
+	} else if !strings.Contains(err.Error(), "value must be positive") {
+		t.Fatalf("requirePositive() error = %v, want validation text", err)
 	}
 }
 

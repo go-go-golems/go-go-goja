@@ -428,3 +428,152 @@ This final step was about making the ticket truthful and reviewable rather than 
   - `remarquee upload bundle --dry-run --bundle-dir ttmp/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins--create-a-plugin-authoring-sdk-layer-for-hashicorp-go-go-goja-plugins --name "GOJA-09 Plugin authoring SDK" --remote-dir "/ai/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK" --toc-depth 2`
   - `remarquee upload bundle --force --bundle-dir ttmp/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins--create-a-plugin-authoring-sdk-layer-for-hashicorp-go-go-goja-plugins --name "GOJA-09 Plugin authoring SDK" --remote-dir "/ai/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK" --toc-depth 2`
   - `remarquee cloud ls /ai/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK --long --non-interactive`
+
+## Step 5: Expand the SDK example catalog with focused plugins for metadata, validation, state, nested results, and errors
+
+The original `greeter` example was enough to show the happy path, but it was no longer enough to show the actual shape of the richer SDK. I added five more user-facing example plugins under `plugins/examples/...`, each designed to teach one aspect of the public authoring surface instead of repeating the same pattern with different string literals.
+
+The goal in this slice was not to invent new SDK features. It was to turn the shipped SDK into something authors can actually learn from by example. That meant building examples around the existing v1 surface: metadata helpers, zero-argument handlers, `sdk.Call` accessors, stateful object methods, nested JSON-like results, and explicit handler errors.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes go ahead with all of them"
+
+**Assistant interpretation:** Implement the full example set previously proposed rather than only a smaller subset.
+
+**Inferred user intent:** Make the SDK feel real and teachable by providing concrete, copyable plugins for the main use cases instead of one minimal baseline plus a test fixture.
+
+**Commit (code):** `9ed3b51` — `plugins: add sdk example catalog`
+
+### What I did
+
+- Added `plugins/examples/clock/main.go` to show module metadata, zero-argument calls, and structured object return values.
+- Added `plugins/examples/validator/main.go` to show `sdk.Call` helpers, optional/default handling, `Map`, `Slice`, `Bool`, and `Float64` reads, plus explicit validation errors.
+- Added `plugins/examples/kv/main.go` to show stateful object methods backed by plugin-process-local memory.
+- Added `plugins/examples/system-info/main.go` to show mixed export shapes and nested JSON-like responses.
+- Added `plugins/examples/failing/main.go` to show explicit handler errors and conditional failures.
+- Kept all examples within the existing SDK and transport constraints rather than adding API surface just to support demos.
+
+### Why
+
+- `greeter` teaches the baseline shape, but not the breadth of the SDK surface.
+- Examples are the fastest way to make an API understandable to new authors.
+- A focused catalog makes it easier to copy the right starting point without reading long reference docs first.
+
+### What worked
+
+- The examples compiled cleanly as ordinary Go packages with no SDK changes required.
+- The richer SDK surface was already expressive enough to cover the planned example types.
+- The new examples stayed conceptually distinct instead of collapsing into variants of `greeter`.
+
+### What didn't work
+
+- Nothing failed in this first catalog slice. The only real design constraint was staying within the JSON-like value boundary that the transport already expects.
+
+### What I learned
+
+- The current SDK is already broad enough for real teaching examples; the missing piece was the catalog, not more API design.
+- It is easier to understand the SDK by looking at several intentionally narrow examples than by growing one example into a kitchen sink.
+
+### What was tricky to build
+
+- The main challenge was avoiding fake diversity. Each example had to justify its existence by teaching one thing clearly: metadata, validation, state, nested results, or errors.
+
+### What warrants a second pair of eyes
+
+- Whether `system-info` is the right name versus something shorter like `sysinfo`.
+- Whether any of the examples should gain tiny local READMEs later, or whether the top-level catalog README is the right amount of structure.
+
+### What should be done in the future
+
+- Add docs and runtime tests that explicitly call out which example to read for which SDK behavior.
+- Consider whether one example should eventually demonstrate a more document-oriented or command-oriented plugin if those become real user stories.
+
+### Code review instructions
+
+- Read `plugins/examples/greeter/main.go` first as the baseline.
+- Then compare `plugins/examples/validator/main.go` and `plugins/examples/kv/main.go` to see how the same SDK surface handles input validation versus stateful behavior.
+- Finish with `plugins/examples/system-info/main.go` and `plugins/examples/failing/main.go` for nested results and explicit error returns.
+
+### Technical details
+
+- Commands run:
+  - `gofmt -w plugins/examples/clock/main.go plugins/examples/validator/main.go plugins/examples/kv/main.go plugins/examples/system-info/main.go plugins/examples/failing/main.go`
+  - `go test ./plugins/examples/... -count=1`
+  - `git add plugins/examples/clock/main.go plugins/examples/validator/main.go plugins/examples/kv/main.go plugins/examples/system-info/main.go plugins/examples/failing/main.go`
+  - `git commit -m "plugins: add sdk example catalog"`
+
+## Step 6: Turn the example directory into a catalog, add focused runtime coverage, and record one transport-shape sharp edge
+
+After the example binaries existed, I rewrote the example README and the plugin help pages so the broader catalog is discoverable, then extended the host integration tests to cover the two most important non-trivial behaviors: state surviving across calls and handler errors crossing the plugin boundary. During that work I hit one small but useful edge case: returning `[]string` from a handler did not encode through the current protobuf conversion path, while `[]any{...}` did.
+
+I fixed that by keeping the example aligned with the transport contract instead of expanding the SDK or host logic. That is exactly the kind of detail examples are supposed to expose.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Finish the example-catalog slice end to end, including docs, tests, ticket updates, and validation.
+
+**Inferred user intent:** Do not stop at adding source files; make the new examples discoverable, tested where it matters, and recorded in GOJA-09.
+
+**Commit (code):** `N/A` until the docs/tests/ticket sync commit is recorded in git history.
+
+### What I did
+
+- Rewrote `plugins/examples/README.md` into a real catalog with module names, teaching goals, build examples, and quick JavaScript probes.
+- Updated `pkg/doc/04-repl-usage.md`, `pkg/doc/12-plugin-user-guide.md`, `pkg/doc/13-plugin-developer-guide.md`, and `pkg/doc/14-plugin-tutorial-build-install.md` to reference the broader example set.
+- Added `TestRegistrarLoadsStatefulKVExamplePlugin` to prove stateful object methods survive across calls in one runtime.
+- Added `TestRegistrarSurfacesPluginHandlerErrors` to prove explicit plugin handler errors surface back to the JavaScript caller.
+- Fixed `plugins/examples/kv/main.go` so `store.keys()` returns `[]any` instead of `[]string`, matching the current conversion path used by `sdk.encodeResult(...)`.
+- Re-ran the focused host/example/doc validations and rendered the updated help pages through `cmd/repl help ...`.
+
+### Why
+
+- Examples that cannot be discovered from the docs might as well not exist.
+- The two most important runtime behaviors beyond the baseline happy path are state retention and error propagation.
+- The `[]string` result issue was a concrete reminder that examples should reflect the actual transport boundary rather than an idealized one.
+
+### What worked
+
+- The catalog README made the example set much easier to scan and choose from.
+- The new host integration tests passed once the `kv` example returned a transport-friendly slice shape.
+- The help system rendered the updated catalog and tutorial pages successfully.
+
+### What didn't work
+
+- The first version of `kv.store.keys()` returned `[]string`, which failed with `proto: invalid type: []string` in the current `structpb.NewValue(...)` path.
+
+### What I learned
+
+- The current SDK surface is fine; the practical limitation lives one layer down in the value-encoding boundary.
+- It is useful to keep at least one example that bumps into a real edge case, because it documents what “JSON-like” means in practice rather than in theory.
+
+### What was tricky to build
+
+- The subtle part was deciding whether to “fix” the SDK for `[]string` or to keep the example faithful to the current transport constraints. I chose the latter because the purpose of the example catalog is to teach the shipped system, not an aspirational one.
+
+### What warrants a second pair of eyes
+
+- Whether `encodeResult(...)` should eventually normalize simple typed slices like `[]string` into a `structpb`-friendly shape automatically.
+- Whether the example catalog should later grow one tiny note about supported result shapes instead of relying on the more general “JSON-like values” wording.
+
+### What should be done in the future
+
+- Decide whether automatic normalization for common typed slices and maps belongs in the SDK or should stay an author responsibility.
+- If that normalization is added later, update `kv` and the docs to show the simpler return shape.
+
+### Code review instructions
+
+- Start with `plugins/examples/README.md`.
+- Then read `pkg/hashiplugin/host/registrar_test.go` for the new `kv` and `failing` integration coverage.
+- Finish with `pkg/doc/12-plugin-user-guide.md` and `pkg/doc/14-plugin-tutorial-build-install.md` to confirm the new examples are discoverable from the user-facing docs.
+
+### Technical details
+
+- Commands run:
+  - `gofmt -w pkg/hashiplugin/host/registrar_test.go`
+  - `go test ./pkg/hashiplugin/host ./plugins/examples/... ./pkg/doc -count=1`
+  - `go run ./cmd/repl help goja-plugin-user-guide | sed -n '1,220p'`
+  - `go run ./cmd/repl help goja-plugin-developer-guide | sed -n '420,520p'`
+  - `go run ./cmd/repl help plugin-tutorial-build-install | sed -n '1,260p'`

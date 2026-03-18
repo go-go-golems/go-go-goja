@@ -96,6 +96,21 @@ Expected results:
 - `greeter.strings.upper("hello")` returns `"HELLO"`
 - `greeter.meta.pid()` returns the plugin subprocess PID
 
+## Example catalog
+
+The example directory now contains several SDK-authored plugins, each meant to teach one part of the surface:
+
+| Example | Module name | What to learn from it |
+|---|---|---|
+| `plugins/examples/greeter` | `plugin:greeter` | Baseline module structure, metadata, function exports, object methods |
+| `plugins/examples/clock` | `plugin:clock` | Zero-argument handlers and structured result objects |
+| `plugins/examples/validator` | `plugin:validator` | `sdk.Call` helpers, defaults, map/slice inputs, and validation failures |
+| `plugins/examples/kv` | `plugin:kv` | Stateful object methods that keep process-local state |
+| `plugins/examples/system-info` | `plugin:system-info` | Mixed export shapes and nested JSON-like responses |
+| `plugins/examples/failing` | `plugin:failing` | Explicit handler errors and how failures surface to JavaScript |
+
+If you want a single starting point, copy `plugins/examples/greeter`. If you want a plugin that looks more like input validation or process-local services, read `validator` and `kv` next.
+
 ### 4. Exit the runtime
 
 When you leave the REPL or the runtime is closed, the plugin subprocesses created for that runtime are shut down by runtime cleanup hooks.
@@ -265,12 +280,14 @@ If you are building your own plugin binary, follow these rules first before you 
 
 These rules are not arbitrary. They align with how the first host implementation validates manifests and how it currently marshals values across the process boundary.
 
-The current example plugin under `plugins/examples/greeter` now follows the richer SDK path:
+The example catalog under `plugins/examples/...` now follows the richer SDK path:
 
 - `sdk.MustModule(...)` defines the module,
 - `sdk.Function(...)` defines top-level functions,
 - `sdk.Object(...sdk.Method(...))` defines object-method exports,
 - `sdk.Serve(...)` boots the shared transport.
+
+The examples are intentionally varied. `greeter` is the small baseline, `clock` emphasizes structured return values, `validator` shows `sdk.Call` helper usage, `kv` shows plugin-local state, `system-info` shows nested responses, and `failing` shows explicit error returns.
 
 ## Security and trust model
 

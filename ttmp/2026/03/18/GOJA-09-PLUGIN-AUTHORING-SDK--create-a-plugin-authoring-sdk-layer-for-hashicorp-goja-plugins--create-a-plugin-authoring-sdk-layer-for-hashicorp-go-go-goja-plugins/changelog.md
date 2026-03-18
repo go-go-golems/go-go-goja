@@ -64,3 +64,20 @@ Closed out GOJA-09 by syncing the checklist and diary with the landed SDK work, 
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/13-plugin-developer-guide.md — Developer-facing layering guide updated for the SDK
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins--create-a-plugin-authoring-sdk-layer-for-hashicorp-go-go-goja-plugins/reference/01-investigation-diary.md — Final diary with validation and upload evidence
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins--create-a-plugin-authoring-sdk-layer-for-hashicorp-go-go-goja-plugins/tasks.md — Fully checked-off execution checklist
+
+## 2026-03-18
+
+Re-opened GOJA-09 to expand the SDK example catalog beyond `greeter` and `echo`, adding focused user-facing examples for metadata, validation, stateful behavior, nested responses, and explicit errors, then updated the docs and host integration coverage to make that catalog discoverable and trustworthy.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/plugins/examples/clock/main.go — Metadata and structured-return example
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/plugins/examples/validator/main.go — `sdk.Call` helper and validation example
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/plugins/examples/kv/main.go — Stateful object-method example
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/plugins/examples/system-info/main.go — Mixed export shape and nested-result example
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/plugins/examples/failing/main.go — Explicit error-propagation example
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/plugins/examples/README.md — Catalog-style entrypoint for choosing the right example
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/registrar_test.go — Added stateful and error-propagation integration coverage
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/12-plugin-user-guide.md — User guide now references the broader example set
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/13-plugin-developer-guide.md — Developer guide now documents the expanded example catalog
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/14-plugin-tutorial-build-install.md — Tutorial now points authors at follow-up examples after `greeter`

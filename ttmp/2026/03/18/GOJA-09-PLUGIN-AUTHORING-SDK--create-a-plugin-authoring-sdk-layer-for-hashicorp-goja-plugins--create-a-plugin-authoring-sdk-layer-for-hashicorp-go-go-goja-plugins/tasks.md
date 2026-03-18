@@ -85,3 +85,18 @@
 - [x] Update `changelog.md` with meaningful reviewable slices rather than one bulk entry.
 - [x] Run `docmgr doctor --ticket GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins --stale-after 30`.
 - [x] Upload the refreshed GOJA-09 bundle to reMarkable and verify the remote listing.
+
+## Phase 9: Example Catalog Expansion
+
+- [x] Re-open GOJA-09 to expand the user-facing example catalog for the richer SDK surface.
+- [x] Add `plugins/examples/clock` to demonstrate metadata, zero-argument functions, and structured object returns.
+- [x] Add `plugins/examples/validator` to demonstrate `sdk.Call` helpers, optional/default handling, and author-facing validation errors.
+- [x] Add `plugins/examples/kv` to demonstrate stateful object methods inside one plugin subprocess.
+- [x] Add `plugins/examples/system-info` to demonstrate mixed export shapes and nested JSON-like responses.
+- [x] Add `plugins/examples/failing` to demonstrate explicit error returns and host-visible failure behavior.
+- [x] Rewrite `plugins/examples/README.md` so it acts as a catalog instead of a single-example note.
+- [x] Update the plugin user/developer/tutorial help pages to reference the broader example set where useful.
+- [x] Add focused runtime or integration coverage for at least the stateful and error-propagation examples.
+- [x] Re-run the relevant example, host, and docs validation passes.
+- [x] Update the GOJA-09 diary and changelog for the new example slices.
+- [ ] Refresh the GOJA-09 bundle on reMarkable after the expanded example catalog lands.

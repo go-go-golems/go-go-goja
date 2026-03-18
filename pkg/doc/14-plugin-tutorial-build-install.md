@@ -30,6 +30,16 @@ By the end, you will have:
 
 This tutorial uses the user-facing example plugin under `plugins/examples/greeter` as the fastest route to success first, and then shows the richer SDK-based code shape you should use for your own plugin.
 
+The repo now also ships additional examples under `plugins/examples/...`:
+
+- `clock` for structured return values,
+- `validator` for `sdk.Call` helper usage and validation errors,
+- `kv` for stateful object methods,
+- `system-info` for nested mixed-shape responses,
+- `failing` for explicit handler errors.
+
+Work through `greeter` first, then read the others as focused follow-up examples.
+
 ## Prerequisites
 
 You need:
@@ -272,6 +282,24 @@ go run ./cmd/repl /tmp/test-plugin.js
 ```
 
 That sequence is a good smoke test after host-side changes or when onboarding a new plugin author.
+
+After you finish the baseline flow, the next useful follow-up commands are:
+
+```bash
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-validator ./plugins/examples/validator
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-kv ./plugins/examples/kv
+```
+
+Then in JavaScript:
+
+```javascript
+const validator = require("plugin:validator")
+validator.grade(0.9, true)
+
+const kv = require("plugin:kv")
+kv.store.set("name", "Manuel")
+kv.store.get("name")
+```
 
 ## Troubleshooting
 

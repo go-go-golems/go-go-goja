@@ -111,9 +111,16 @@ hello
 
 js> echo.math.add(2, 3)
 5
+
+js> const kv = require("plugin:kv")
+js> kv.store.set("name", "Manuel")
+{key: "name", value: "Manuel", size: 1}
+
+js> kv.store.get("name")
+Manuel
 ```
 
-Use `repl help goja-plugin-user-guide` for the full plugin reference and `repl help plugin-tutorial-build-install` for the step-by-step build/install flow.
+Use `repl help goja-plugin-user-guide` for the full plugin reference and example catalog, and `repl help plugin-tutorial-build-install` for the step-by-step build/install flow.
 
 ### HTTP Requests
 

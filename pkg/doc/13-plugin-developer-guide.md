@@ -440,12 +440,19 @@ It covers:
 - calling a function export,
 - calling an object-method export,
 - loading the SDK-authored `plugin:greeter` example,
+- loading the SDK-authored `plugin:kv` example and verifying state survives across calls,
+- loading the SDK-authored `plugin:failing` example and verifying handler errors surface back to the caller,
 - rejecting an invalid manifest,
 - verifying subprocess shutdown on runtime close.
 
 The user-facing example plugin sources currently live under:
 
 - `plugins/examples/greeter`
+- `plugins/examples/clock`
+- `plugins/examples/validator`
+- `plugins/examples/kv`
+- `plugins/examples/system-info`
+- `plugins/examples/failing`
 
 The integration-test fixture plugins live under:
 
@@ -457,6 +464,7 @@ This split is intentional. `plugins/examples/...` is for copyable authoring exam
 The current state is intentionally mixed:
 
 - `plugins/examples/greeter` now uses the richer SDK surface and is the primary authoring example,
+- `plugins/examples/clock`, `validator`, `kv`, `system-info`, and `failing` expand the catalog so different SDK features are demonstrated in isolation,
 - `plugins/testplugin/echo` also uses the SDK so integration tests exercise the real authoring path,
 - `plugins/testplugin/invalid` remains handwritten so the suite still covers the raw contract path.
 
