@@ -407,7 +407,7 @@ alright, create a detailed set of tasks in the ticket, and then work on them one
 
 **Inferred user intent:** Leave behind a clean, auditable ticket that matches the code now in the branch.
 
-**Commit (code):** documentation closeout commit to follow after this diary update
+**Commit (code):** `8239796` — `docs: update GOJA-08 implementation diary`
 
 ### What I did
 
