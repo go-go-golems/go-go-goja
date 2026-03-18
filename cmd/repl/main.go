@@ -136,6 +136,7 @@ func runInteractiveLoop(vm *goja.Runtime, debug bool, report host.LoadReport) er
 			fmt.Println("  repl help creating-modules")
 			fmt.Println("  repl help async-patterns")
 			fmt.Println("  repl help repl-usage")
+			fmt.Println("  repl help goja-docs-module-guide")
 			fmt.Println("  repl help goja-plugin-user-guide")
 			fmt.Println("  repl help goja-plugin-developer-guide")
 			fmt.Println("  repl help plugin-tutorial-build-install")

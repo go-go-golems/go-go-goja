@@ -122,6 +122,28 @@ Manuel
 
 Use `repl help goja-plugin-user-guide` for the full plugin reference and example catalog, and `repl help plugin-tutorial-build-install` for the step-by-step build/install flow.
 
+### Unified Documentation Access
+
+The runtime now also exposes a built-in `docs` module that lets JavaScript inspect embedded help pages, jsdoc stores when they are attached, and loaded plugin metadata:
+
+```javascript
+js> const docs = require("docs")
+
+js> docs.sources()
+[
+  { id: "default-help", kind: "glazed-help", ... },
+  { id: "plugin-manifests", kind: "plugin", ... }
+]
+
+js> docs.bySlug("default-help", "repl-usage").title
+REPL Usage
+
+js> docs.byID("plugin-manifests", "plugin-method", "plugin:examples:kv/store.get").body
+Get a key, returning null if it is absent
+```
+
+Use `repl help goja-docs-module-guide` for the full API reference and examples.
+
 ### HTTP Requests
 
 ```javascript
