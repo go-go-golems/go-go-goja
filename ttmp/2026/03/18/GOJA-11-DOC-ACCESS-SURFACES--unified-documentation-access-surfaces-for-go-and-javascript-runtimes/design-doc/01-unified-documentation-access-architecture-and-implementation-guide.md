@@ -601,19 +601,44 @@ This provider is the strongest argument for a common docs hub: `pkg/jsdoc` is al
 - export kind
 - method names
 
-#### Important caveat
+#### Plugin manifest extension required
 
-Current protobuf schema stores docs only at module and export level:
+The original design analysis treated method-level plugin docs as a limitation of the existing protobuf contract. That should not survive implementation. Since the plugin system is not published yet, GOJA-11 should extend the contract now and make method docs first-class rather than designing around their absence.
 
-- `ModuleManifest.doc`
-- `ExportSpec.doc`
+Recommended contract shape:
 
-It does not store method-level docs. That means:
+```proto
+message MethodSpec {
+  string name = 1;
+  string summary = 2;
+  string doc = 3;
+  repeated string tags = 4;
+}
 
-- object methods can be enumerated,
-- but they do not have first-class rich doc bodies yet.
+message ExportSpec {
+  string name = 1;
+  ExportKind kind = 2;
+  string doc = 3;
+  repeated MethodSpec method_specs = 4;
+}
+```
 
-This should be called out directly in the implementation guide because it constrains how much plugin introspection can be truthful in v1.
+Important decision:
+
+- do not keep the old `repeated string methods` field for compatibility
+- regenerate the protobuf code and update the SDK and host together
+
+Rationale:
+
+- the plugin system has not been published yet
+- carrying temporary compatibility fields would complicate validation, summarization, and provider code for no durable benefit
+
+With this change:
+
+- module docs stay on `ModuleManifest.doc`
+- export docs stay on `ExportSpec.doc`
+- object methods gain first-class rich docs through `MethodSpec.doc`
+- the plugin provider can expose honest method entries rather than synthetic placeholders
 
 ### Future docmgr provider
 
@@ -719,6 +744,7 @@ The plan below is intentionally phased so the system can ship without a huge fla
 
 Build:
 
+- extend the plugin manifest schema to support method docs without compatibility fields
 - `pkg/docaccess/model.go`
 - `pkg/docaccess/provider.go`
 - `pkg/docaccess/registry.go`
@@ -734,6 +760,7 @@ Deliver:
 
 Validation:
 
+- protobuf regeneration compiles cleanly
 - unit tests for provider registration, duplicate IDs, merged search ordering, and not-found behavior
 
 ### Phase 2: Glazed help provider
@@ -769,18 +796,23 @@ Validation:
 Build:
 
 - `pkg/docaccess/plugin/provider.go`
+- `pkg/hashiplugin/contract/jsmodule.proto`
+- regenerated `pkg/hashiplugin/contract/jsmodule*.pb.go`
 
 Deliver:
 
 - runtime-scoped provider over loaded plugin manifests
 
-Implementation note:
+Implementation notes:
 
-- the host probably needs a retained manifest source, not just `LoadReport`, because `LoadReport` currently summarizes loaded state for humans rather than preserving a full queryable manifest model
+- the host needs a retained manifest source, not just `LoadReport`, because `LoadReport` currently summarizes loaded state for humans rather than preserving a full queryable manifest model
+- the provider should expose module, export, and method entries directly from those retained manifests
+- reification should stay callable-function oriented; the richer metadata belongs in the docs provider and reporting layers
 
 Validation:
 
 - integration test using example plugins
+- tests covering method-level docs
 
 ### Phase 5: runtime-scoped JS module
 

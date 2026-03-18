@@ -249,3 +249,33 @@ This step exists so the design is usable as a real ticket artifact rather than a
 - Validation result:
   - `docmgr doctor`: all checks passed
   - reMarkable listing: `GOJA-11 Unified documentation access surfaces`
+
+## Step 4: Re-scope GOJA-11 around first-class plugin method docs
+
+Once implementation became part of the request, one part of the earlier design needed to change immediately. The original guide treated method-level plugin docs as a limitation of the existing protobuf contract and designed around that absence. That is the wrong tradeoff now. Since the plugin surface has not been published yet, the right move is to change the contract directly and make method docs first-class before the rest of the documentation hub is built.
+
+This improves the rest of GOJA-11:
+
+- the plugin provider can expose real method entries instead of synthetic placeholders
+- JavaScript callers can inspect plugin methods with honest rich bodies
+- the shared docs model stays cleaner because plugin methods are real entries, not inferred names
+
+### What I changed in the ticket plan
+
+- Declared `docs` as the intended JS module name.
+- Declared that plugin method docs should be added to the protobuf contract without backward compatibility baggage.
+- Expanded the task list into concrete implementation phases covering:
+  - schema regeneration
+  - SDK and host updates
+  - provider implementation
+  - runtime/module wiring
+  - tests
+
+### Why
+
+- Temporary compatibility complexity would only slow down the implementation and muddy the data model.
+- First-class method docs make the unified documentation story materially better.
+
+### What warrants a second pair of eyes
+
+- Whether `modules/glazehelp` should survive as a thin alias once `docs` exists.
