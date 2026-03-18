@@ -6,4 +6,8 @@ Created GOJA-10 to address the remaining SDK ergonomics gap around result encodi
 
 ## 2026-03-18
 
+Implemented the normalization slice in `pkg/hashiplugin/sdk/convert.go` and `pkg/hashiplugin/sdk/sdk_test.go`. The SDK now rewrites common typed slices, arrays, pointers, interfaces, and `map[string]T` values into `structpb`-friendly container trees before encoding, while still preserving `*structpb.Value` as the explicit escape hatch and rejecting unsupported shapes such as non-string map keys and function values.
+
+## 2026-03-18
+
 - Initial workspace created
