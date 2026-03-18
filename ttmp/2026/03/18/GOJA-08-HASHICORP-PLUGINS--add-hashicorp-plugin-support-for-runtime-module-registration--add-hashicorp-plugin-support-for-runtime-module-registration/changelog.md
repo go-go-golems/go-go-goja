@@ -112,3 +112,13 @@ Wired plugin configuration into `cmd/bun-demo` so the plugin system is no longer
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/cmd/bun-demo/main.go — Bun demo now opts into plugin discovery and allowlisting
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/bun-goja-bundling-playbook.md — Bundling guide now documents plugin-backed runtime extensions
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/13-plugin-developer-guide.md — Architecture guide now lists `cmd/bun-demo` as a wired entrypoint
+
+## 2026-03-18
+
+Refreshed the GOJA-08 ticket after the productization pass: cleaned the task list, updated the diary with the later commit hashes, reran the full repository and ticket validation commands, and uploaded the updated bundle back to reMarkable.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/tasks.md — Final executed task sequence across the design, implementation, and productization phases
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/reference/01-diary.md — Diary now records the later productization commits and final closeout step
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/changelog.md — Changelog reflects the refreshed ticket validation and publication pass

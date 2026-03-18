@@ -44,7 +44,7 @@ RelatedFiles:
 ExternalSources:
     - local:Imported goja plugins note.md
 Summary: Chronological record of how the GOJA-08 design ticket was created, investigated, and written.
-LastUpdated: 2026-03-18T09:14:54.586210258-04:00
+LastUpdated: 2026-03-18T15:55:00-04:00
 WhatFor: Capture the investigation steps, decisions, and caveats behind the GOJA-08 plugin-support design ticket.
 WhenToUse: Use when reviewing the design ticket or continuing the implementation work later.
 ---
@@ -488,7 +488,7 @@ Ok, add tasks for all of this to the ticket, and then work on them task by task.
 
 **Inferred user intent:** Move from raw feature-complete plumbing to a more polished, teachable plugin subsystem.
 
-**Commit (code):** pending
+**Commit (code):** `e4b9b1d` — `docs: add user-facing plugin examples`
 
 ### What I did
 
@@ -567,7 +567,7 @@ Ok, add tasks for all of this to the ticket, and then work on them task by task.
 
 **Inferred user intent:** Make the plugin system inspectable from the user-facing tools, not just from code and tests.
 
-**Commit (code):** pending
+**Commit (code):** `ee6bfce` — `repl: add plugin discovery visibility`
 
 ### What I did
 
@@ -648,7 +648,7 @@ Ok, add tasks for all of this to the ticket, and then work on them task by task.
 
 **Inferred user intent:** Make the plugin system safer to operate without over-designing the trust model in one jump.
 
-**Commit (code):** pending
+**Commit (code):** `cef04cf` — `repl: add plugin allowlist controls`
 
 ### What I did
 
@@ -728,7 +728,7 @@ Ok, add tasks for all of this to the ticket, and then work on them task by task.
 
 **Inferred user intent:** Prove the plugin system composes into another real consumer, not just the REPL binaries.
 
-**Commit (code):** pending
+**Commit (code):** `a83d05b` — `bun-demo: wire plugin runtime options`
 
 ### What I did
 
@@ -785,31 +785,80 @@ Ok, add tasks for all of this to the ticket, and then work on them task by task.
   - `go test ./cmd/bun-demo ./pkg/doc -count=1`
   - `go run ./cmd/bun-demo --help | sed -n '1,120p'`
 
+## Step 10: Refresh the GOJA-08 ticket state, validate it, and publish the updated bundle
+
+This step closed the loop on the broader productization pass. By this point the code changes were already done, but the ticket still needed to reflect the finished task sequence, the newer commit hashes, and the current validation state. I cleaned up the task list, fixed the missing commit references in the diary, removed a stale duplicated block near the end of the diary, reran the full repository and ticket validation commands, and uploaded the refreshed bundle for publication.
+
+The point of this step was to make the ticket trustworthy as a continuation artifact. A future reviewer should be able to open the GOJA-08 workspace, see the complete implementation sequence, match each slice to a real commit, and rely on the validation and upload records without having to reconstruct what changed after the original design pass.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Finish the remaining ticket bookkeeping and publication work after the code changes are complete.
+
+**Inferred user intent:** Leave the branch and the ticket in a clean, auditable state rather than stopping at “code works locally.”
+
+**Commit (code):** pending
+
+### What I did
+
+- Cleaned `tasks.md` so it reflects the actual executed task sequence instead of stale in-progress placeholders.
+- Updated the diary frontmatter timestamp and filled in the real commit hashes for Steps 6 through 9.
+- Removed a duplicated leftover diary block after Step 9.
+- Reran `go test ./... -count=1`.
+- Reran `docmgr doctor --ticket GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration --stale-after 30`.
+- Uploaded the refreshed ticket bundle to reMarkable with `--force`.
+- Verified the remote listing under `/ai/2026/03/18/GOJA-08-HASHICORP-PLUGINS`.
+
+### Why
+
+- The user explicitly asked for ticket tasks plus task-by-task execution, so the ticket has to match the actual sequence of work.
+- The productization pass added enough extra commits that the earlier closeout state was no longer accurate.
+- Re-running the full validation pass after the final docs refresh is the simplest way to ensure the ticket and branch are aligned.
+
+### What worked
+
+- `go test ./... -count=1` passed after the productization work.
+- `docmgr doctor` still reports all GOJA-08 checks passing.
+- The refreshed GOJA-08 bundle uploaded cleanly and the remote listing shows the expected document name.
+- The stale task and diary drift was straightforward to reconcile once the final commit sequence was known.
+
+### What didn't work
+
+- The diary had a duplicated stale block near the end, which would have made the closeout confusing if it had been left in place.
+
+### What I learned
+
+- The ticket maintenance burden stays low as long as each implementation slice is documented soon after it lands.
+- A final “ticket hygiene” pass is still valuable once follow-up productization work extends the original implementation beyond its first closeout.
+
+### What was tricky to build
+
+- The subtle part was keeping the ticket historically accurate without pretending the later polish work happened during the original implementation pass. The fix was to preserve the earlier steps as-written, add the newer steps with their own commit references, and then record a final closeout step that explicitly describes the refresh.
+
 ### What warrants a second pair of eyes
 
-- Whether `Config` should default `AutoMTLS` to true unconditionally or expose a more explicit enable/disable option.
-- Whether `plugin:...` names are definitely safe across all intended module-resolution paths, or whether `plugin/...` would be a lower-risk namespace.
-- Whether the example plugin packages should move under `testdata/` once the feature stabilizes.
+- Whether the final ticket bundle should include an even shorter operator quickstart page in addition to the longer plugin docs.
+- Whether the next ticket should focus on stronger plugin trust policy or a richer `js-repl` diagnostics surface first.
 
 ### What should be done in the future
 
-- Run the full repo validation pass and refresh the ticket bundle on reMarkable.
-- Decide whether to expose plugin directory flags in additional entrypoints such as the Bobatea JS REPL.
-- Add stronger checksum/allowlist policy once the runtime-facing path is stable.
+- Keep any future plugin-surface changes synchronized with the ticket diary rather than batching another large retrospective cleanup.
+- Decide whether the next plugin follow-up should prioritize stronger trust policy or richer `js-repl` diagnostics.
 
 ### Code review instructions
 
-- Start with `pkg/hashiplugin/host/registrar.go`.
-- Then read `client.go`, `validate.go`, and `reify.go` as one flow.
-- Review `pkg/hashiplugin/host/registrar_test.go` and the two `testplugin` packages together.
-- Finish with the small entrypoint changes in `pkg/repl/evaluators/javascript/evaluator.go` and `cmd/repl/main.go`.
+- Start with `tasks.md` to see the final executed checklist.
+- Then skim Steps 6 through 10 in this diary to review the productization sequence.
+- Finish with `changelog.md` to confirm the closeout state is reflected outside the diary as well.
 
 ### Technical details
 
 - Commands run:
-  - `GOWORK=off go doc github.com/hashicorp/go-plugin.Client.Kill`
-  - `GOWORK=off go doc github.com/hashicorp/go-plugin.Client.Exited`
-  - `gofmt -w pkg/hashiplugin/host/*.go pkg/hashiplugin/testplugin/echo/main.go pkg/hashiplugin/testplugin/invalid/main.go`
-  - `GOWORK=off go test ./pkg/hashiplugin/... -count=1`
-  - `gofmt -w pkg/repl/evaluators/javascript/evaluator.go cmd/repl/main.go`
-  - `GOWORK=off go test ./pkg/hashiplugin/... ./pkg/repl/evaluators/javascript -count=1`
+  - `git status --short`
+  - `git log --oneline -6`
+  - `go test ./... -count=1`
+  - `docmgr doctor --ticket GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration --stale-after 30`
+  - `remarquee upload bundle --force ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/index.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/design-doc/01-hashicorp-plugin-support-for-go-go-goja-architecture-and-implementation-guide.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/reference/01-diary.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/tasks.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/changelog.md --name "GOJA-08 HashiCorp plugin support" --remote-dir "/ai/2026/03/18/GOJA-08-HASHICORP-PLUGINS" --toc-depth 2`
+  - `remarquee cloud ls /ai/2026/03/18/GOJA-08-HASHICORP-PLUGINS --long --non-interactive`
