@@ -21,6 +21,8 @@ SectionType: GeneralTopic
 ## Overview
 This playbook shows how to manage npm dependencies with Bun, bundle TypeScript and assets into a CommonJS bundle, and execute the result inside Goja using the Go-provided `require` loader. It is written for a Go developer who needs a repeatable pipeline that turns a modern JS/TS project into a single embedded artifact.
 
+The `cmd/bun-demo` runtime path now also supports HashiCorp plugin-backed modules through the same `--plugin-dir` and `--allow-plugin-module` flags exposed by the REPLs. That means a bundled CommonJS app can `require("plugin:...")` as long as the runtime entrypoint opts into plugin discovery.
+
 ## Architecture and flow
 The bundling pipeline is a simple, reproducible assembly line: Bun installs dependencies, esbuild bundles the TS entrypoint into a single CommonJS file, Go embeds that file, and Goja `require()` executes it at runtime. This keeps the runtime loader focused on CommonJS and avoids shipping a full Node runtime.
 
@@ -101,6 +103,30 @@ _ = mod
 ## Demo layout
 A self-contained demo keeps the JS workspace, bundle, and Go entrypoint in one directory so it is easy to copy or vendor. This is the layout used by `cmd/bun-demo`:
 
+```
+
+## Plugin-backed runtime extensions
+
+If your bundled code wants to call plugin-backed modules in addition to built-in native modules, build the plugin into the default plugin tree and start the demo with the same flags used by the REPLs.
+
+Example:
+
+```bash
+mkdir -p ~/.go-go-goja/plugins/examples
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-greeter ./plugins/examples/greeter
+go run ./cmd/bun-demo --plugin-dir ~/.go-go-goja/plugins/examples
+```
+
+Inside the bundle, the JavaScript side can then call:
+
+```javascript
+const greeter = require("plugin:greeter")
+```
+
+If you want to constrain the runtime to a known plugin module name, add:
+
+```bash
+--allow-plugin-module plugin:greeter
 ```
 cmd/bun-demo/
   Makefile

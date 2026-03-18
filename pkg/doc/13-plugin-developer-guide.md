@@ -94,6 +94,7 @@ The runtime is not globally plugin-aware by default. An entrypoint opts in by co
 Current wired entrypoints:
 
 - `cmd/repl`
+- `cmd/bun-demo`
 - `pkg/repl/evaluators/javascript`
 
 That means plugin support is explicit at composition time.

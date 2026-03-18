@@ -13,6 +13,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 )
 
 //go:embed assets/*.cjs assets/tsx.html
@@ -32,14 +33,37 @@ func embeddedSourceLoader(path string) ([]byte, error) {
 	return nil, err
 }
 
+type stringSliceFlag []string
+
+func (s *stringSliceFlag) String() string {
+	return strings.Join(*s, ",")
+}
+
+func (s *stringSliceFlag) Set(value string) error {
+	*s = append(*s, value)
+	return nil
+}
+
 func main() {
 	entry := flag.String("entry", "./assets/bundle.cjs", "bundle entrypoint to require")
+	var pluginDirs stringSliceFlag
+	var allowPluginModules stringSliceFlag
+	flag.Var(&pluginDirs, "plugin-dir", fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
+	flag.Var(&allowPluginModules, "allow-plugin-module", "allow only the listed plugin module names (for example plugin:greeter)")
 	flag.Parse()
+	resolvedPluginDirs := host.ResolveDiscoveryDirectories(pluginDirs)
 
-	factory, err := engine.NewBuilder().
+	builder := engine.NewBuilder().
 		WithRequireOptions(require.WithLoader(embeddedSourceLoader)).
-		WithModules(engine.DefaultRegistryModules()).
-		Build()
+		WithModules(engine.DefaultRegistryModules())
+	if len(resolvedPluginDirs) > 0 {
+		builder = builder.WithRuntimeModuleRegistrars(host.NewRegistrar(host.Config{
+			Directories:  resolvedPluginDirs,
+			AllowModules: allowPluginModules,
+		}))
+	}
+
+	factory, err := builder.Build()
 	if err != nil {
 		log.Fatalf("build engine factory: %v", err)
 	}

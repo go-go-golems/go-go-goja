@@ -710,6 +710,81 @@ Ok, add tasks for all of this to the ticket, and then work on them task by task.
   - `go run ./cmd/repl --help | sed -n '1,120p'`
   - `go run ./cmd/js-repl --help | sed -n '1,120p'`
 
+## Step 9: Wire plugins into one additional runtime consumer
+
+This step closed the last implementation item in the productization backlog by wiring plugin support into `cmd/bun-demo`. That command was a good target because it already builds an engine runtime directly and loads a bundled CommonJS entrypoint through `require()`. Once it gained the same `--plugin-dir` and `--allow-plugin-module` controls as the REPLs, the plugin system stopped being “a REPL feature” and became a more general runtime composition capability.
+
+This was a deliberately smaller choice than pushing plugins into the Smalltalk inspector runtime path immediately. `bun-demo` uses the same engine/factory seam as the REPLs, so it validates the portability of the plugin design without dragging in a second custom runtime model. That keeps the architectural signal clean: the plugin seam works anywhere the repository uses the owned engine runtime composition path.
+
+### Prompt Context
+
+**User prompt (verbatim):**
+
+```text
+Ok, add tasks for all of this to the ticket, and then work on them task by task.
+```
+
+**Assistant interpretation:** Finish the remaining concrete implementation task before the final docs/validation/upload refresh.
+
+**Inferred user intent:** Prove the plugin system composes into another real consumer, not just the REPL binaries.
+
+**Commit (code):** pending
+
+### What I did
+
+- Added `--plugin-dir` and `--allow-plugin-module` support to `cmd/bun-demo`.
+- Reused the existing host registrar rather than inventing a bundle-specific plugin path.
+- Updated the Bun bundling playbook to show plugin-backed runtime extensions.
+- Updated the developer guide to list `cmd/bun-demo` as another wired entrypoint.
+
+### Why
+
+- The user explicitly asked to work through the full follow-up list task by task.
+- An extra consumer proves the runtime/plugin architecture is reusable.
+- `cmd/bun-demo` is a clean engine-runtime consumer with fewer unrelated concerns than the inspector stack.
+
+### What worked
+
+- The Bun demo already used the owned engine-builder path, so the plugin registrar fit cleanly.
+- The command help now shows the plugin flags exactly as expected.
+- The bundling doc now has a place to explain plugin-backed extensions in a non-REPL runtime.
+
+### What didn't work
+
+- Nothing failed technically in this step. The main design choice was selecting the right consumer to wire first.
+
+### What I learned
+
+- The plugin runtime seam is broad enough to support both interactive and embedded-bundle consumers with minimal extra code.
+- `cmd/bun-demo` is a useful proving ground for runtime composition changes because it is simple but not trivial.
+
+### What was tricky to build
+
+- The tricky part was choosing a second consumer that validates the design without turning the task into a separate UI integration project. `bun-demo` hit that balance well.
+
+### What warrants a second pair of eyes
+
+- Whether `bun-demo` should eventually grow a small example bundle that actually requires `plugin:greeter` so the docs have a matching runnable artifact.
+- Whether the next consumer after this should be `smalltalk-inspector` or another direct engine-runtime tool.
+
+### What should be done in the future
+
+- Refresh the ticket docs, validation results, and reMarkable bundle now that the productization backlog is implemented.
+
+### Code review instructions
+
+- Start with `cmd/bun-demo/main.go`.
+- Then read the new plugin section in `pkg/doc/bun-goja-bundling-playbook.md`.
+- Finish with `pkg/doc/13-plugin-developer-guide.md` to confirm the architecture notes now reflect the extra consumer.
+
+### Technical details
+
+- Commands run:
+  - `sed -n '1,220p' cmd/bun-demo/main.go`
+  - `gofmt -w cmd/bun-demo/main.go`
+  - `go test ./cmd/bun-demo ./pkg/doc -count=1`
+  - `go run ./cmd/bun-demo --help | sed -n '1,120p'`
+
 ### What warrants a second pair of eyes
 
 - Whether `Config` should default `AutoMTLS` to true unconditionally or expose a more explicit enable/disable option.

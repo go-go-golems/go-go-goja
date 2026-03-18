@@ -102,3 +102,13 @@ Added allowlist-style trust-policy knobs to the supported entrypoints. `repl`, `
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go — Evaluator config now forwards plugin allowlists
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/config.go — Allowlist values are normalized centrally
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/registrar_test.go — Added integration coverage for allowlist rejection
+
+## 2026-03-18
+
+Wired plugin configuration into `cmd/bun-demo` so the plugin system is no longer just a REPL feature. The Bun/CommonJS demo now accepts the same `--plugin-dir` and `--allow-plugin-module` controls, and the bundling playbook now documents how bundled code can require plugin-backed modules.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/cmd/bun-demo/main.go — Bun demo now opts into plugin discovery and allowlisting
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/bun-goja-bundling-playbook.md — Bundling guide now documents plugin-backed runtime extensions
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/13-plugin-developer-guide.md — Architecture guide now lists `cmd/bun-demo` as a wired entrypoint

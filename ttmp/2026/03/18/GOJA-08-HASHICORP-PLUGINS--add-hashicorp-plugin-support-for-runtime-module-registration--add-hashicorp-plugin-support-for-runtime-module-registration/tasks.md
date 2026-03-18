@@ -12,11 +12,12 @@
 - [x] Add a user-facing sample plugin under a top-level examples path plus a small README for plugin authors.
 - [x] Add plugin discovery visibility and diagnostics to the REPL surfaces so users can see what loaded and why.
 - [x] Add CLI/config trust-policy knobs for plugin allowlisting and wire them into supported entrypoints.
+- [x] Wire plugin configuration into one additional runtime consumer beyond `repl` and `js-repl`.
 
 ## In Progress
 
 - [ ] Expand GOJA-08 from core plugin support into a user-facing productization pass with explicit follow-up tasks, commits, and diary entries.
-- [ ] Wire plugin configuration into one additional runtime consumer beyond `repl` and `js-repl`.
+- [ ] Refresh the GOJA-08 task list, changelog, diary, validation results, and reMarkable bundle after the productization pass.
 
 ## Next
 
