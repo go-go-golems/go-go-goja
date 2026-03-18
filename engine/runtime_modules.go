@@ -18,6 +18,7 @@ type RuntimeModuleRegistrar interface {
 
 // RuntimeModuleContext exposes runtime-scoped objects to module registrars.
 type RuntimeModuleContext struct {
+	Context   context.Context
 	VM        *goja.Runtime
 	Loop      *eventloop.EventLoop
 	Owner     runtimeowner.Runner

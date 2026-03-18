@@ -50,3 +50,43 @@ func TestLoadReportSummary(t *testing.T) {
 		t.Fatalf("summary = %q", got)
 	}
 }
+
+func TestLoadReportSummaryPrioritizesErrors(t *testing.T) {
+	report := LoadReport{
+		Candidates: []string{"/plugins/goja-plugin-examples-greeter"},
+		Loaded: []LoadedModuleSummary{
+			{ModuleName: "plugin:examples:greeter"},
+		},
+		Errors: []string{"start plugin failed"},
+	}
+
+	if got := report.Summary(); got != "plugin load errors: 1; loaded: 1" {
+		t.Fatalf("summary = %q", got)
+	}
+
+	lines := report.DetailLines()
+	if len(lines) == 0 || lines[len(lines)-2] != "Plugin loading errors: 1" {
+		t.Fatalf("detail lines = %#v", lines)
+	}
+}
+
+func TestWrapDiagnosticErrorIncludesBoundedStderr(t *testing.T) {
+	buf := newBoundedDiagnosticBuffer(32)
+	if _, err := buf.Write([]byte("stderr line one\nstderr line two")); err != nil {
+		t.Fatalf("write diagnostics: %v", err)
+	}
+
+	err := wrapDiagnosticError(assertErr("boom"), buf)
+	if err == nil {
+		t.Fatalf("expected wrapped error")
+	}
+	if got := err.Error(); got != "boom; plugin stderr: stderr line one\nstderr line two" {
+		t.Fatalf("wrapped error = %q", got)
+	}
+}
+
+type testError string
+
+func (e testError) Error() string { return string(e) }
+
+func assertErr(msg string) error { return testError(msg) }

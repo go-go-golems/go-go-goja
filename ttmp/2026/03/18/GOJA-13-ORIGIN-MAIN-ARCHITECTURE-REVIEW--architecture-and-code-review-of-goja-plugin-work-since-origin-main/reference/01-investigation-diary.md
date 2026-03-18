@@ -407,3 +407,49 @@ The next cleanup slice tackled the first runtime-lifecycle finding directly: reg
 
 - The runtime-state review finding was real but easy to correct once scoped narrowly.
 - The next runtime-lifecycle step should be cancellation propagation, not more state abstraction.
+
+## Step 8: Finish the remaining Phase 7 cleanup work
+
+With runtime-scoped values in place, the rest of Phase 7 became straightforward: wire plugin calls through a runtime-owned context, improve plugin diagnostics so process failures keep their stderr context, and remove the repeated plugin setup code from the three main runtime entrypoints.
+
+### What I did
+
+- Added a runtime-owned context to `engine.Runtime` and exposed it through `Context()`.
+- Updated runtime construction so the context exists before registrars run and is available through:
+  - `engine.Runtime`
+  - `engine.RuntimeModuleContext`
+  - `engine.RuntimeContext`
+- Updated plugin reification so plugin-backed JS exports invoke through the runtime context rather than `context.Background()`.
+- Added host tests proving reified plugin calls observe a canceled runtime context.
+- Added bounded stderr capture in `pkg/hashiplugin/host/client.go` so startup/manifest failures can include plugin stderr in the returned error.
+- Expanded `LoadReport` so it can retain multiple errors and prefer error-first summaries.
+- Added a shared `host.RuntimeSetup` helper and `host.StringSliceFlag` so `repl`, `js-repl`, and `bun-demo` now share the same plugin directory resolution, allowlist normalization, reporter setup, and builder wiring.
+
+### Why
+
+- Runtime ownership and plugin invocation should point at the same lifecycle root.
+- Once plugins are subprocesses, discarding stderr is avoidable self-inflicted blindness.
+- The entrypoint duplication had already started to drift and would only get worse as the plugin surface grew.
+
+### What worked
+
+- The runtime context seam fit naturally into the existing `engine` lifecycle model.
+- The bounded stderr capture is enough to improve diagnostics materially without introducing a more elaborate supervisor abstraction.
+- The new `RuntimeSetup` helper reduced repetition without dragging docs/help wiring into the plugin host package.
+
+### What didn't work
+
+- The first `cmd/js-repl` refactor patch briefly mangled `parseLevel`; fixing that was trivial once the file was re-read.
+- The first combined patch against `engine/factory.go` drifted against the live file and had to be reapplied against the exact current context.
+
+### Technical details
+
+- Commands run:
+  - `go test ./engine ./pkg/hashiplugin/host -count=1`
+  - `go test ./engine ./pkg/hashiplugin/host ./cmd/repl ./cmd/js-repl ./cmd/bun-demo -count=1`
+  - `go test ./... -count=1`
+
+### What I learned
+
+- The Phase 7 review items were well scoped. They all reduced complexity rather than adding new architecture.
+- The next highest-value GOJA-13 work is now the evaluator-side docs/help integration, not more plugin bootstrap cleanup.

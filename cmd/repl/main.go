@@ -42,18 +42,11 @@ type conversion between Go and JavaScript values.`,
 		pluginStatus, _ := cmd.Flags().GetBool("plugin-status")
 		allowPluginModules, _ := cmd.Flags().GetStringSlice("allow-plugin-module")
 		pluginDirs, _ := cmd.Flags().GetStringSlice("plugin-dir")
-		pluginDirs = host.ResolveDiscoveryDirectories(pluginDirs)
-		reporter := host.NewReportCollector(pluginDirs)
+		pluginSetup := host.NewRuntimeSetup(pluginDirs, allowPluginModules)
 
-		builder := engine.NewBuilder().
-			WithModules(engine.DefaultRegistryModules())
-		if len(pluginDirs) > 0 {
-			builder = builder.WithRuntimeModuleRegistrars(host.NewRegistrar(host.Config{
-				Directories:  pluginDirs,
-				AllowModules: allowPluginModules,
-				Report:       reporter,
-			}))
-		}
+		builder := pluginSetup.
+			WithBuilder(engine.NewBuilder().
+				WithModules(engine.DefaultRegistryModules()))
 		if appHelpSystem != nil {
 			builder = builder.WithRuntimeModuleRegistrars(docaccessruntime.NewRegistrar(docaccessruntime.Config{
 				HelpSources: []docaccessruntime.HelpSource{{
@@ -75,7 +68,7 @@ type conversion between Go and JavaScript values.`,
 		defer func() {
 			_ = rt.Close(context.Background())
 		}()
-		report := reporter.Snapshot()
+		report := pluginSetup.Snapshot()
 
 		if debug {
 			log.Printf("engine initialised, args=%v", args)
@@ -187,7 +180,7 @@ func main() {
 }
 
 func pluginStartupSummary(report host.LoadReport) string {
-	if len(report.Directories) == 0 && len(report.Loaded) == 0 && len(report.Candidates) == 0 && report.Error == "" {
+	if !report.HasActivity() {
 		return ""
 	}
 	return "Plugins: " + report.Summary() + " (type :plugins for details)"

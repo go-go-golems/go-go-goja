@@ -23,3 +23,7 @@ Implemented the first GOJA-13 cleanup slices. The legacy `modules/glazehelp` pat
 ## 2026-03-18
 
 Implemented runtime-scoped value persistence. Registrar-produced values now survive onto `engine.Runtime`, runtime initializers can read and write the same value map, and the docs registrar now stores its `docaccess.Hub` as runtime-owned state alongside the plugin registrar's loaded-module snapshot.
+
+## 2026-03-18
+
+Completed the rest of GOJA-13 Phase 7. Owned runtimes now carry a lifecycle context used by plugin invocations, plugin startup/load errors preserve bounded stderr diagnostics and error-first report summaries, and the plugin setup path is shared across `repl`, `js-repl`, and `bun-demo` through `pkg/hashiplugin/host/runtime_setup.go`.

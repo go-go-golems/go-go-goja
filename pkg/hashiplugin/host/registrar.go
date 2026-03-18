@@ -50,7 +50,7 @@ func (r *Registrar) RegisterRuntimeModules(ctx *engine.RuntimeModuleContext, reg
 		return err
 	}
 	for _, mod := range loaded {
-		if err := RegisterModule(reg, mod); err != nil {
+		if err := RegisterModule(reg, mod, runtimeContext(ctx)); err != nil {
 			closeLoaded(loaded)
 			if cfg.Report != nil {
 				cfg.Report.SetError(err)
@@ -74,4 +74,11 @@ func (r *Registrar) RegisterRuntimeModules(ctx *engine.RuntimeModuleContext, reg
 		}
 	}
 	return nil
+}
+
+func runtimeContext(ctx *engine.RuntimeModuleContext) context.Context {
+	if ctx == nil || ctx.Context == nil {
+		return context.Background()
+	}
+	return ctx.Context
 }

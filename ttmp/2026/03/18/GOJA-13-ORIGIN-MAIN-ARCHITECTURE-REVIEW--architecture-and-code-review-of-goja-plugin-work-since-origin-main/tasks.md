@@ -39,10 +39,10 @@
 ## Phase 7: Runtime And Entry Point Cleanup
 
 - [x] Persist registrar-produced runtime values on `engine.Runtime`.
-- [ ] Add a runtime-owned cancellation context and route plugin invocation through it.
-- [ ] Strengthen plugin diagnostics and report summaries in `pkg/hashiplugin/host`.
+- [x] Add a runtime-owned cancellation context and route plugin invocation through it.
+- [x] Strengthen plugin diagnostics and report summaries in `pkg/hashiplugin/host`.
 - [x] Remove the legacy `modules/glazehelp` module and its registration path.
-- [ ] Consolidate duplicated plugin bootstrap helpers across `repl`, `js-repl`, and `bun-demo`.
+- [x] Consolidate duplicated plugin bootstrap helpers across `repl`, `js-repl`, and `bun-demo`.
 
 ## Phase 8: HashiPlugin Contract And Validation Cleanup
 

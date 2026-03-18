@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -26,6 +27,7 @@ type RuntimeInitializer interface {
 
 // RuntimeContext exposes runtime-scoped objects to initializers.
 type RuntimeContext struct {
+	Context context.Context
 	VM      *goja.Runtime
 	Require *require.RequireModule
 	Loop    *eventloop.EventLoop

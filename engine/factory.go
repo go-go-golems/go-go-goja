@@ -166,12 +166,15 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		Name:          "go-go-goja-runtime",
 		RecoverPanics: true,
 	})
+	runtimeCtx, runtimeCtxCancel := context.WithCancel(context.Background())
 
 	rt := &Runtime{
-		VM:     vm,
-		Loop:   loop,
-		Owner:  owner,
-		Values: map[string]any{},
+		VM:               vm,
+		Loop:             loop,
+		Owner:            owner,
+		Values:           map[string]any{},
+		runtimeCtx:       runtimeCtx,
+		runtimeCtxCancel: runtimeCtxCancel,
 	}
 
 	reg := require.NewRegistry(f.settings.requireOptions...)
@@ -182,6 +185,7 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		}
 	}
 	moduleCtx := &RuntimeModuleContext{
+		Context:   runtimeCtx,
 		VM:        vm,
 		Loop:      loop,
 		Owner:     owner,
@@ -201,6 +205,7 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	rt.Require = reqMod
 
 	initCtx := &RuntimeContext{
+		Context: runtimeCtx,
 		VM:      vm,
 		Require: reqMod,
 		Loop:    loop,

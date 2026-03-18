@@ -68,6 +68,7 @@ func LoadModules(cfg Config, paths []string) ([]*LoadedModule, error) {
 
 func LoadModule(cfg Config, path string) (*LoadedModule, error) {
 	cfg = cfg.withDefaults()
+	diagnostics := newBoundedDiagnosticBuffer(maxDiagnosticBytes)
 
 	client := plugin.NewClient(&plugin.ClientConfig{
 		Cmd:              exec.Command(path),
@@ -78,20 +79,20 @@ func LoadModule(cfg Config, path string) (*LoadedModule, error) {
 		StartTimeout:     cfg.StartTimeout,
 		Logger:           cfg.Logger,
 		SyncStdout:       io.Discard,
-		SyncStderr:       io.Discard,
-		Stderr:           io.Discard,
+		SyncStderr:       diagnostics,
+		Stderr:           diagnostics,
 	})
 
 	rpcClient, err := client.Client()
 	if err != nil {
 		client.Kill()
-		return nil, fmt.Errorf("start plugin %q: %w", path, err)
+		return nil, wrapDiagnosticError(fmt.Errorf("start plugin %q: %w", path, err), diagnostics)
 	}
 
 	raw, err := rpcClient.Dispense(shared.ServiceName)
 	if err != nil {
 		client.Kill()
-		return nil, fmt.Errorf("dispense plugin service from %q: %w", path, err)
+		return nil, wrapDiagnosticError(fmt.Errorf("dispense plugin service from %q: %w", path, err), diagnostics)
 	}
 
 	mod, ok := raw.(contract.JSModule)
@@ -105,11 +106,11 @@ func LoadModule(cfg Config, path string) (*LoadedModule, error) {
 	manifest, err := mod.Manifest(manifestCtx)
 	if err != nil {
 		client.Kill()
-		return nil, fmt.Errorf("read plugin manifest from %q: %w", path, err)
+		return nil, wrapDiagnosticError(fmt.Errorf("read plugin manifest from %q: %w", path, err), diagnostics)
 	}
 	if err := ValidateManifest(cfg, manifest); err != nil {
 		client.Kill()
-		return nil, fmt.Errorf("validate plugin manifest from %q: %w", path, err)
+		return nil, wrapDiagnosticError(fmt.Errorf("validate plugin manifest from %q: %w", path, err), diagnostics)
 	}
 
 	return &LoadedModule{

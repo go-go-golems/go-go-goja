@@ -27,6 +27,9 @@ type Runtime struct {
 	Owner   runtimeowner.Runner
 	Values  map[string]any
 
+	runtimeCtx       context.Context
+	runtimeCtxCancel context.CancelFunc
+
 	closeOnce sync.Once
 	closerMu  sync.Mutex
 	closers   []func(context.Context) error
@@ -40,6 +43,14 @@ func (r *Runtime) Value(key string) (any, bool) {
 	}
 	value, ok := r.Values[key]
 	return value, ok
+}
+
+// Context returns the runtime-owned lifecycle context.
+func (r *Runtime) Context() context.Context {
+	if r == nil || r.runtimeCtx == nil {
+		return context.Background()
+	}
+	return r.runtimeCtx
 }
 
 // AddCloser registers a cleanup hook that is executed before the runtime owner
@@ -75,6 +86,10 @@ func (r *Runtime) Close(ctx context.Context) error {
 		closers := append([]func(context.Context) error(nil), r.closers...)
 		r.closers = nil
 		r.closerMu.Unlock()
+
+		if r.runtimeCtxCancel != nil {
+			r.runtimeCtxCancel()
+		}
 
 		for i := len(closers) - 1; i >= 0; i-- {
 			if err := closers[i](ctx); err != nil {

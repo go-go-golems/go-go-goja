@@ -12,7 +12,7 @@ import (
 )
 
 // RegisterModule reifies a loaded plugin into a native CommonJS module.
-func RegisterModule(reg *require.Registry, loaded *LoadedModule) error {
+func RegisterModule(reg *require.Registry, loaded *LoadedModule, runtimeCtx context.Context) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}
@@ -34,14 +34,14 @@ func RegisterModule(reg *require.Registry, loaded *LoadedModule) error {
 				continue
 			case contract.ExportKind_EXPORT_KIND_FUNCTION:
 				modules.SetExport(exports, requireName, exp.GetName(), func(call goja.FunctionCall) goja.Value {
-					return invokeExport(vm, loaded, exp.GetName(), "", call)
+					return invokeExport(vm, runtimeCtx, loaded, exp.GetName(), "", call)
 				})
 			case contract.ExportKind_EXPORT_KIND_OBJECT:
 				obj := vm.NewObject()
 				for _, method := range exp.GetMethodSpecs() {
 					methodName := method.GetName()
 					modules.SetExport(obj, requireName, methodName, func(call goja.FunctionCall) goja.Value {
-						return invokeExport(vm, loaded, exp.GetName(), methodName, call)
+						return invokeExport(vm, runtimeCtx, loaded, exp.GetName(), methodName, call)
 					})
 				}
 				modules.SetExport(exports, requireName, exp.GetName(), obj)
@@ -52,13 +52,16 @@ func RegisterModule(reg *require.Registry, loaded *LoadedModule) error {
 	return nil
 }
 
-func invokeExport(vm *goja.Runtime, loaded *LoadedModule, exportName, methodName string, call goja.FunctionCall) goja.Value {
+func invokeExport(vm *goja.Runtime, runtimeCtx context.Context, loaded *LoadedModule, exportName, methodName string, call goja.FunctionCall) goja.Value {
 	args, err := exportArgs(call.Arguments)
 	if err != nil {
 		panic(vm.NewGoError(err))
 	}
+	if runtimeCtx == nil {
+		runtimeCtx = context.Background()
+	}
 
-	resp, err := loaded.Invoke(context.Background(), &contract.InvokeRequest{
+	resp, err := loaded.Invoke(runtimeCtx, &contract.InvokeRequest{
 		ExportName: exportName,
 		MethodName: methodName,
 		Args:       args,

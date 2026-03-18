@@ -13,6 +13,7 @@ type LoadReport struct {
 	Directories []string
 	Candidates  []string
 	Loaded      []LoadedModuleSummary
+	Errors      []string
 	Error       string
 }
 
@@ -67,7 +68,14 @@ func (r *ReportCollector) SetError(err error) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.report.Error = err.Error()
+	msg := strings.TrimSpace(err.Error())
+	if msg == "" {
+		return
+	}
+	if len(r.report.Errors) == 0 || r.report.Errors[len(r.report.Errors)-1] != msg {
+		r.report.Errors = append(r.report.Errors, msg)
+	}
+	r.report.Error = strings.Join(r.report.Errors, "; ")
 }
 
 func (r *ReportCollector) Snapshot() LoadReport {
@@ -80,6 +88,7 @@ func (r *ReportCollector) Snapshot() LoadReport {
 	out := LoadReport{
 		Directories: append([]string(nil), r.report.Directories...),
 		Candidates:  append([]string(nil), r.report.Candidates...),
+		Errors:      append([]string(nil), r.report.Errors...),
 		Error:       r.report.Error,
 	}
 	if len(r.report.Loaded) > 0 {
@@ -96,8 +105,20 @@ func (r *ReportCollector) Snapshot() LoadReport {
 	return out
 }
 
+func (r LoadReport) HasActivity() bool {
+	return len(r.Directories) > 0 || len(r.Candidates) > 0 || len(r.Loaded) > 0 || len(r.Errors) > 0 || strings.TrimSpace(r.Error) != ""
+}
+
 func (r LoadReport) Summary() string {
 	switch {
+	case len(r.Errors) > 0:
+		if len(r.Loaded) > 0 {
+			return fmt.Sprintf("plugin load errors: %d; loaded: %d", len(r.Errors), len(r.Loaded))
+		}
+		if len(r.Candidates) > 0 {
+			return fmt.Sprintf("plugin load errors: %d; candidates: %d", len(r.Errors), len(r.Candidates))
+		}
+		return fmt.Sprintf("plugin load errors: %d", len(r.Errors))
 	case len(r.Loaded) > 0:
 		names := make([]string, 0, len(r.Loaded))
 		for _, loaded := range r.Loaded {
@@ -114,7 +135,7 @@ func (r LoadReport) Summary() string {
 }
 
 func (r LoadReport) DetailLines() []string {
-	lines := make([]string, 0, 8)
+	lines := make([]string, 0, 12)
 	if len(r.Directories) == 0 {
 		lines = append(lines, "Plugin discovery directories: none")
 	} else {
@@ -144,7 +165,12 @@ func (r LoadReport) DetailLines() []string {
 		}
 	}
 
-	if strings.TrimSpace(r.Error) != "" {
+	if len(r.Errors) > 0 {
+		lines = append(lines, fmt.Sprintf("Plugin loading errors: %d", len(r.Errors)))
+		for _, err := range r.Errors {
+			lines = append(lines, "  - "+err)
+		}
+	} else if strings.TrimSpace(r.Error) != "" {
 		lines = append(lines, "Plugin loading error: "+r.Error)
 	}
 

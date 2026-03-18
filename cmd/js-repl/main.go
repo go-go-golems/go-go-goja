@@ -22,17 +22,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type stringSliceFlag []string
-
-func (s *stringSliceFlag) String() string {
-	return strings.Join(*s, ",")
-}
-
-func (s *stringSliceFlag) Set(value string) error {
-	*s = append(*s, value)
-	return nil
-}
-
 func parseLevel(s string) zerolog.Level {
 	switch strings.ToLower(s) {
 	case "trace":
@@ -54,8 +43,8 @@ func main() {
 	ll := flag.String("log-level", "error", "log level: trace, debug, info, warn, error")
 	lf := flag.String("log-file", "", "log file path (optional)")
 	pluginStatus := flag.Bool("plugin-status", false, "print plugin discovery/load status and exit")
-	var pluginDirs stringSliceFlag
-	var allowPluginModules stringSliceFlag
+	var pluginDirs host.StringSliceFlag
+	var allowPluginModules host.StringSliceFlag
 	flag.Var(&allowPluginModules, "allow-plugin-module", "allow only the listed plugin module names (for example plugin:examples:greeter)")
 	flag.Var(&pluginDirs, "plugin-dir", fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
 	flag.Parse()
@@ -67,16 +56,15 @@ func main() {
 		logutil.InitTUILoggingToDiscard(level)
 	}
 
-	resolvedPluginDirs := host.ResolveDiscoveryDirectories(pluginDirs)
-	reporter := host.NewReportCollector(resolvedPluginDirs)
+	pluginSetup := host.NewRuntimeSetup(pluginDirs, allowPluginModules)
 	helpSystem := help.NewHelpSystem()
 	if err := doc.AddDocToHelpSystem(helpSystem); err != nil {
 		log.Printf("warning: failed to load documentation: %v", err)
 	}
 	evaluatorConfig := js.DefaultConfig()
-	evaluatorConfig.PluginDirectories = resolvedPluginDirs
-	evaluatorConfig.PluginAllowModules = allowPluginModules
-	evaluatorConfig.PluginReporter = reporter
+	evaluatorConfig.PluginDirectories = pluginSetup.Directories
+	evaluatorConfig.PluginAllowModules = pluginSetup.AllowModules
+	evaluatorConfig.PluginReporter = pluginSetup.Reporter
 	evaluatorConfig.HelpSources = []docaccessruntime.HelpSource{{
 		ID:      "default-help",
 		Title:   "Default Help",
@@ -90,7 +78,7 @@ func main() {
 	defer func() {
 		_ = evaluator.Close()
 	}()
-	report := reporter.Snapshot()
+	report := pluginSetup.Snapshot()
 	if *pluginStatus {
 		printPluginReport(report)
 		return
@@ -138,7 +126,7 @@ func main() {
 }
 
 func pluginStartupSummary(report host.LoadReport) string {
-	if len(report.Directories) == 0 && len(report.Loaded) == 0 && len(report.Candidates) == 0 && report.Error == "" {
+	if !report.HasActivity() {
 		return ""
 	}
 	return report.Summary()
