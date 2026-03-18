@@ -25,3 +25,16 @@ Implemented the engine lifecycle refactor for plugin support and verified the en
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/engine/runtime.go — Runtime now supports ordered cleanup hooks
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/engine/runtime_modules.go — New runtime-scoped module registrar interface and context
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/engine/runtime_modules_test.go — Added tests covering per-runtime registration and close-hook behavior
+
+## 2026-03-18
+
+Added the shared HashiCorp plugin transport scaffold: dependency, protobuf contract, generated bindings, and the shared gRPC adapter used by both host and plugin subprocesses.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/go.mod — Added direct dependency on github.com/hashicorp/go-plugin
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/contract/jsmodule.proto — Defined the JS module manifest and invoke RPC schema
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/contract/jsmodule.pb.go — Generated protobuf bindings for the contract
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/contract/jsmodule_grpc.pb.go — Generated gRPC bindings for the contract
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/shared/plugin.go — Added shared handshake, plugin set helpers, and GRPCPlugin adapter
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/shared/plugin_test.go — Added a round-trip gRPC dispense test for the adapter

@@ -249,3 +249,91 @@ GOWORK=off go test ./engine/... -count=1
   - `go test ./engine/... -count=1`
   - `GOWORK=off go test ./engine/... -count=1`
   - `command -v protoc && command -v protoc-gen-go && command -v protoc-gen-go-grpc`
+
+## Step 3: Add the shared HashiCorp plugin contract and gRPC adapter scaffold
+
+This step added the first real `hashiplugin` package code. I introduced a protobuf contract for manifests and invocation, generated the Go bindings, added a small `contract.JSModule` interface shared by host and plugin implementations, and then wrapped the generated gRPC client/server with a `go-plugin` `GRPCPlugin` adapter under `pkg/hashiplugin/shared`.
+
+The goal of this step was not to implement discovery or runtime registration yet. It was to give the next phase a stable transport surface so the host package can focus on policy and lifecycle instead of also inventing the wire protocol at the same time. The adapter test proves that `go-plugin` can dispense a typed module interface over gRPC using the exact contract this repo will build on.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue executing the ticket task list phase by phase, committing coherent slices and keeping the diary current.
+
+**Inferred user intent:** Land the feature incrementally with clear checkpoints instead of one large unreviewable patch.
+
+**Commit (code):** pending
+
+### What I did
+
+- Added `github.com/hashicorp/go-plugin v1.7.0` to `go.mod`.
+- Added `pkg/hashiplugin/contract/jsmodule.proto`.
+- Added `pkg/hashiplugin/contract/generate.go` and generated `jsmodule.pb.go` plus `jsmodule_grpc.pb.go`.
+- Added `pkg/hashiplugin/contract/contract.go` with the repo-local `JSModule` interface.
+- Added `pkg/hashiplugin/shared/plugin.go` with handshake settings, plugin-set helpers, and the `GRPCPlugin` adapter.
+- Added `pkg/hashiplugin/shared/plugin_test.go` with a round-trip `plugin.TestPluginGRPCConn(...)` test.
+
+### Why
+
+- The host and plugin subprocess need one typed contract before discovery and runtime registration logic is added.
+- The gRPC adapter belongs in a shared package because both the host binary and plugin binaries need the same handshake and plugin-set definitions.
+- A narrow adapter test is the fastest way to confirm that the chosen transport shape works before adding more moving parts.
+
+### What worked
+
+- `go-plugin` latest stable version resolved cleanly at `v1.7.0`.
+- `protoc`, `protoc-gen-go`, and `protoc-gen-go-grpc` worked with a simple local `go:generate` directive.
+- The adapter round-trip test passed:
+
+```text
+GOWORK=off go test ./pkg/hashiplugin/... -count=1
+?   	github.com/go-go-golems/go-go-goja/pkg/hashiplugin/contract	[no test files]
+ok  	github.com/go-go-golems/go-go-goja/pkg/hashiplugin/shared	0.005s
+```
+
+### What didn't work
+
+- I initially launched `go test` in parallel with `go generate`, so the test started before the generated files existed and the contract package failed with undefined generated types.
+- That was an orchestration mistake rather than a code defect. Rerunning the tests after generation resolved it.
+
+### What I learned
+
+- `plugin.TestPluginGRPCConn(...)` is a convenient way to validate the adapter without launching subprocesses yet.
+- The generated service uses `GetManifest(...)`, while the repo-local interface can keep the cleaner `Manifest(...)` method and map between them in the adapter.
+- Keeping the generated protobuf package and the handwritten interface in the same `contract` package makes later host code simpler.
+
+### What was tricky to build
+
+- The main judgment call was where to put the boundary between generated code and handwritten code. Putting both the generated message types and the handwritten `JSModule` interface in the same `contract` package makes the public API easier to consume, but it also means the package mixes generated and non-generated files. That tradeoff is worth it here because every future caller wants one import path for the transport contract.
+
+### What warrants a second pair of eyes
+
+- Whether the manifest schema should include more explicit fields for docs, capability flags, or future dynamic-object support now or later.
+- Whether we want a stricter naming scheme for the magic cookie constants before plugin binaries are published.
+- Whether a dedicated `proto/` subdirectory would be preferable if more services are added later.
+
+### What should be done in the future
+
+- Implement the host package on top of this scaffold next.
+- Add manifest validation rules before any discovered plugin can be registered.
+- Add real subprocess-backed integration tests after host loading exists.
+
+### Code review instructions
+
+- Start with `pkg/hashiplugin/contract/jsmodule.proto`.
+- Then read `pkg/hashiplugin/shared/plugin.go`.
+- Finish with `pkg/hashiplugin/shared/plugin_test.go` to see the intended usage.
+
+### Technical details
+
+- Commands run:
+  - `GOWORK=off go list -m -versions github.com/hashicorp/go-plugin`
+  - `GOWORK=off go get github.com/hashicorp/go-plugin@v1.7.0`
+  - `GOWORK=off go doc github.com/hashicorp/go-plugin`
+  - `GOWORK=off go doc github.com/hashicorp/go-plugin.ClientConfig`
+  - `GOWORK=off go doc github.com/hashicorp/go-plugin.GRPCPlugin`
+  - `PATH="$(go env GOPATH)/bin:$PATH" GOWORK=off go generate ./pkg/hashiplugin/contract`
+  - `gofmt -w pkg/hashiplugin/contract/contract.go pkg/hashiplugin/shared/plugin.go pkg/hashiplugin/shared/plugin_test.go`
+  - `GOWORK=off go test ./pkg/hashiplugin/... -count=1`
