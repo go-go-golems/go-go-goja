@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/dop251/goja"
@@ -26,6 +28,29 @@ type Runtime struct {
 	Owner   runtimeowner.Runner
 
 	closeOnce sync.Once
+	closerMu  sync.Mutex
+	closers   []func(context.Context) error
+	closing   bool
+}
+
+// AddCloser registers a cleanup hook that is executed before the runtime owner
+// and event loop are shut down.
+func (r *Runtime) AddCloser(fn func(context.Context) error) error {
+	if r == nil {
+		return fmt.Errorf("runtime is nil")
+	}
+	if fn == nil {
+		return fmt.Errorf("runtime closer is nil")
+	}
+
+	r.closerMu.Lock()
+	defer r.closerMu.Unlock()
+
+	if r.closing {
+		return fmt.Errorf("runtime is closing or closed")
+	}
+	r.closers = append(r.closers, fn)
+	return nil
 }
 
 // Close shuts down runtime-owned resources.
@@ -36,9 +61,20 @@ func (r *Runtime) Close(ctx context.Context) error {
 
 	var retErr error
 	r.closeOnce.Do(func() {
+		r.closerMu.Lock()
+		r.closing = true
+		closers := append([]func(context.Context) error(nil), r.closers...)
+		r.closers = nil
+		r.closerMu.Unlock()
+
+		for i := len(closers) - 1; i >= 0; i-- {
+			if err := closers[i](ctx); err != nil {
+				retErr = errors.Join(retErr, err)
+			}
+		}
 		if r.Owner != nil {
-			if err := r.Owner.Shutdown(ctx); err != nil && retErr == nil {
-				retErr = err
+			if err := r.Owner.Shutdown(ctx); err != nil {
+				retErr = errors.Join(retErr, err)
 			}
 		}
 		if r.Loop != nil {

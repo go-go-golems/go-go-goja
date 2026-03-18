@@ -17,15 +17,18 @@ import (
 type FactoryBuilder struct {
 	settings builderSettings
 
-	modules             []ModuleSpec
-	runtimeInitializers []RuntimeInitializer
-	built               bool
+	modules                 []ModuleSpec
+	runtimeModuleRegistrars []RuntimeModuleRegistrar
+	runtimeInitializers     []RuntimeInitializer
+	built                   bool
 }
 
 // Factory creates runtime instances from an immutable build plan.
 type Factory struct {
-	registry            *require.Registry
-	runtimeInitializers []RuntimeInitializer
+	settings                builderSettings
+	modules                 []ModuleSpec
+	runtimeModuleRegistrars []RuntimeModuleRegistrar
+	runtimeInitializers     []RuntimeInitializer
 }
 
 // NewBuilder starts a new explicit runtime composition flow.
@@ -61,6 +64,13 @@ func (b *FactoryBuilder) WithRequireOptions(opts ...require.Option) *FactoryBuil
 func (b *FactoryBuilder) WithModules(mods ...ModuleSpec) *FactoryBuilder {
 	b.assertMutable()
 	b.modules = append(b.modules, mods...)
+	return b
+}
+
+// WithRuntimeModuleRegistrars appends runtime-scoped module registration hooks.
+func (b *FactoryBuilder) WithRuntimeModuleRegistrars(registrars ...RuntimeModuleRegistrar) *FactoryBuilder {
+	b.assertMutable()
+	b.runtimeModuleRegistrars = append(b.runtimeModuleRegistrars, registrars...)
 	return b
 }
 
@@ -101,6 +111,13 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 		}
 		modules_ = append(modules_, mod)
 	}
+	runtimeRegistrars := make([]RuntimeModuleRegistrar, 0, len(b.runtimeModuleRegistrars))
+	for i, registrar := range b.runtimeModuleRegistrars {
+		if registrar == nil {
+			return nil, fmt.Errorf("runtime module registrar at index %d is nil", i)
+		}
+		runtimeRegistrars = append(runtimeRegistrars, registrar)
+	}
 	inits := make([]RuntimeInitializer, 0, len(b.runtimeInitializers))
 	for i, init := range b.runtimeInitializers {
 		if init == nil {
@@ -112,22 +129,22 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 	if err := validateUniqueIDs(modules_, "module"); err != nil {
 		return nil, err
 	}
-	if err := validateUniqueIDs(inits, "runtime initializer"); err != nil {
+	if err := validateUniqueIDs(runtimeRegistrars, "runtime module registrar"); err != nil {
 		return nil, err
 	}
-
-	reg := require.NewRegistry(b.settings.requireOptions...)
-	for _, mod := range modules_ {
-		if err := mod.Register(reg); err != nil {
-			return nil, fmt.Errorf("register module %q: %w", mod.ID(), err)
-		}
+	if err := validateUniqueIDs(inits, "runtime initializer"); err != nil {
+		return nil, err
 	}
 
 	b.built = true
 
 	return &Factory{
-		registry:            reg,
-		runtimeInitializers: append([]RuntimeInitializer(nil), inits...),
+		settings: builderSettings{
+			requireOptions: append([]require.Option(nil), b.settings.requireOptions...),
+		},
+		modules:                 append([]ModuleSpec(nil), modules_...),
+		runtimeModuleRegistrars: append([]RuntimeModuleRegistrar(nil), runtimeRegistrars...),
+		runtimeInitializers:     append([]RuntimeInitializer(nil), inits...),
 	}, nil
 }
 
@@ -136,9 +153,6 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	if f == nil {
 		return nil, fmt.Errorf("factory is nil")
-	}
-	if f.registry == nil {
-		return nil, fmt.Errorf("factory has no require registry")
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -153,15 +167,35 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		RecoverPanics: true,
 	})
 
-	reqMod := f.registry.Enable(vm)
-	console.Enable(vm)
-
 	rt := &Runtime{
-		VM:      vm,
-		Require: reqMod,
-		Loop:    loop,
-		Owner:   owner,
+		VM:    vm,
+		Loop:  loop,
+		Owner: owner,
 	}
+
+	reg := require.NewRegistry(f.settings.requireOptions...)
+	for _, mod := range f.modules {
+		if err := mod.Register(reg); err != nil {
+			_ = rt.Close(ctx)
+			return nil, fmt.Errorf("register module %q: %w", mod.ID(), err)
+		}
+	}
+	moduleCtx := &RuntimeModuleContext{
+		VM:        vm,
+		Loop:      loop,
+		Owner:     owner,
+		AddCloser: rt.AddCloser,
+	}
+	for _, registrar := range f.runtimeModuleRegistrars {
+		if err := registrar.RegisterRuntimeModules(moduleCtx, reg); err != nil {
+			_ = rt.Close(ctx)
+			return nil, fmt.Errorf("runtime module registrar %q: %w", registrar.ID(), err)
+		}
+	}
+
+	reqMod := reg.Enable(vm)
+	console.Enable(vm)
+	rt.Require = reqMod
 
 	initCtx := &RuntimeContext{
 		VM:      vm,
