@@ -12,6 +12,7 @@ import (
 	"github.com/go-go-golems/bobatea/pkg/autocomplete"
 	"github.com/go-go-golems/bobatea/pkg/repl"
 	ggjengine "github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
 	docaccessruntime "github.com/go-go-golems/go-go-goja/pkg/docaccess/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
@@ -63,6 +64,7 @@ type Evaluator struct {
 	tsMu               sync.Mutex
 	runtimeDeclaredMu  sync.RWMutex
 	runtimeDeclaredIDs map[string]jsparse.CompletionCandidate
+	docsResolver       *docsResolver
 	config             Config
 }
 
@@ -116,7 +118,7 @@ func New(config Config) (*Evaluator, error) {
 				Report:       config.PluginReporter,
 			}))
 		}
-		if len(config.HelpSources) > 0 || len(config.JSDocSources) > 0 {
+		if len(config.PluginDirectories) > 0 || len(config.HelpSources) > 0 || len(config.JSDocSources) > 0 {
 			builder = builder.WithRuntimeModuleRegistrars(docaccessruntime.NewRegistrar(docaccessruntime.Config{
 				HelpSources:  append([]docaccessruntime.HelpSource(nil), config.HelpSources...),
 				JSDocSources: append([]docaccessruntime.JSDocSource(nil), config.JSDocSources...),
@@ -145,6 +147,7 @@ func New(config Config) (*Evaluator, error) {
 		runtimeDeclaredIDs: map[string]jsparse.CompletionCandidate{},
 		config:             config,
 	}
+	evaluator.docsResolver = newDocsResolver(ownedRuntime)
 	closeOwnedRuntimeOnError := func() {
 		if evaluator.ownedRuntime != nil {
 			_ = evaluator.ownedRuntime.Close(context.Background())
@@ -419,6 +422,8 @@ func (e *Evaluator) CompleteInput(_ context.Context, req repl.CompletionRequest)
 		e.runtimeIdentifierHints(),
 	)
 	e.runtimeMu.Unlock()
+	aliases := jsparse.ExtractRequireAliases(input)
+	candidates = append(candidates, e.docCompletionCandidates(ctx, aliases)...)
 	if len(candidates) == 0 {
 		return repl.CompletionResult{
 			Show:        false,
@@ -451,6 +456,11 @@ func (e *Evaluator) CompleteInput(_ context.Context, req repl.CompletionRequest)
 		}
 		if candidate.Detail != "" {
 			display += " - " + candidate.Detail
+		}
+		if entry, ok := e.resolveDocEntryForCandidate(ctx, candidate, aliases); ok {
+			if summary := strings.TrimSpace(entry.Summary); summary != "" && !strings.Contains(display, summary) {
+				display += " - " + summary
+			}
 		}
 
 		suggestions = append(suggestions, autocomplete.Suggestion{
@@ -517,13 +527,14 @@ func (e *Evaluator) GetHelpBar(_ context.Context, req repl.HelpBarRequest) (repl
 			}
 		}
 	}
+	candidates = append(candidates, e.docCompletionCandidates(ctx, aliases)...)
 	candidates = jsparse.DedupeAndSortCandidates(candidates)
 
 	if payload, ok := e.helpBarFromContext(ctx, candidates, aliases); ok {
 		return payload, nil
 	}
 
-	return e.helpBarFromTokenFallback(token), nil
+	return e.helpBarFromTokenFallback(token, aliases), nil
 }
 
 // GetHelpDrawer resolves rich contextual help for the JS REPL input.
@@ -581,15 +592,23 @@ func (e *Evaluator) GetHelpDrawer(ctx context.Context, req repl.HelpDrawerReques
 			}
 		}
 	}
+	candidates = append(candidates, e.docCompletionCandidates(completionCtx, aliases)...)
 	candidates = jsparse.DedupeAndSortCandidates(candidates)
 
+	entry, entryOK := e.resolveDocEntryFromContext(completionCtx, candidates, aliases)
 	payload, ok := e.helpBarFromContext(completionCtx, candidates, aliases)
 	if !ok {
-		payload = e.helpBarFromTokenFallback(token)
+		if !entryOK {
+			entry, entryOK = e.resolveDocEntryFromToken(token, aliases)
+		}
+		payload = e.helpBarFromTokenFallback(token, aliases)
 	}
 
 	if payload.Show {
 		doc.Title = payload.Text
+	}
+	if entryOK {
+		doc.Title = entry.Title
 	}
 
 	doc.Subtitle = fmt.Sprintf(
@@ -598,6 +617,15 @@ func (e *Evaluator) GetHelpDrawer(ctx context.Context, req repl.HelpDrawerReques
 		describeCompletionKind(completionCtx.Kind),
 		cursor,
 	)
+	if entryOK {
+		doc.Subtitle = fmt.Sprintf(
+			"%s | %s | source: %s | cursor: %d",
+			describeHelpDrawerTrigger(req.Trigger),
+			entry.KindLabel,
+			entry.Ref.SourceID,
+			cursor,
+		)
+	}
 
 	var md strings.Builder
 	if strings.TrimSpace(input) == "" {
@@ -613,6 +641,56 @@ func (e *Evaluator) GetHelpDrawer(ctx context.Context, req repl.HelpDrawerReques
 		md.WriteString("- ")
 		md.WriteString(payload.Text)
 		md.WriteString("\n")
+	}
+	if entryOK {
+		md.WriteString("\n### Documentation\n")
+		if summary := strings.TrimSpace(entry.Summary); summary != "" {
+			md.WriteString(summary)
+			md.WriteString("\n")
+		}
+		if body := strings.TrimSpace(entry.Body); body != "" && body != strings.TrimSpace(entry.Summary) {
+			md.WriteString("\n")
+			md.WriteString(body)
+			md.WriteString("\n")
+		}
+		md.WriteString("\n### Doc Metadata\n")
+		md.WriteString("- Source: `")
+		md.WriteString(entry.Ref.SourceID)
+		md.WriteString("`\n")
+		md.WriteString("- Kind: ")
+		md.WriteString(entry.KindLabel)
+		md.WriteString("\n")
+		if entry.Path != "" {
+			md.WriteString("- Path: `")
+			md.WriteString(entry.Path)
+			md.WriteString("`\n")
+		}
+		if len(entry.Tags) > 0 {
+			md.WriteString("- Tags: `")
+			md.WriteString(strings.Join(entry.Tags, "`, `"))
+			md.WriteString("`\n")
+		}
+		if len(entry.Related) > 0 {
+			md.WriteString("\n### Related Docs\n")
+			limit := min(6, len(entry.Related))
+			for i := 0; i < limit; i++ {
+				ref := entry.Related[i]
+				md.WriteString("- `")
+				md.WriteString(ref.ID)
+				md.WriteString("`")
+				if ref.Kind != "" {
+					md.WriteString(" (")
+					md.WriteString(ref.Kind)
+					md.WriteString(")")
+				}
+				md.WriteString("\n")
+			}
+			if len(entry.Related) > limit {
+				md.WriteString("- ...")
+				fmt.Fprintf(&md, " %d more", len(entry.Related)-limit)
+				md.WriteString("\n")
+			}
+		}
 	}
 
 	if completionCtx.Kind == jsparse.CompletionProperty {
@@ -746,6 +824,7 @@ func (e *Evaluator) Reset() error {
 	e.runtime = newEvaluator.runtime
 	e.ownedRuntime = newEvaluator.ownedRuntime
 	e.tsParser = newEvaluator.tsParser
+	e.docsResolver = newEvaluator.docsResolver
 	e.runtimeMu.Unlock()
 
 	if oldOwnedRuntime != nil {
@@ -863,6 +942,10 @@ func (e *Evaluator) helpBarFromContext(
 	candidates []jsparse.CompletionCandidate,
 	aliases map[string]string,
 ) (repl.HelpBarPayload, bool) {
+	if entry, ok := e.resolveDocEntryFromContext(ctx, candidates, aliases); ok {
+		return makeHelpBarPayload(docEntrySummary(entry), "docs"), true
+	}
+
 	switch ctx.Kind {
 	case jsparse.CompletionProperty:
 		base := strings.TrimSpace(ctx.BaseExpr)
@@ -919,7 +1002,7 @@ func (e *Evaluator) helpBarFromContext(
 	return repl.HelpBarPayload{}, false
 }
 
-func (e *Evaluator) helpBarFromTokenFallback(token string) repl.HelpBarPayload {
+func (e *Evaluator) helpBarFromTokenFallback(token string, aliases map[string]string) repl.HelpBarPayload {
 	if token == "" {
 		return repl.HelpBarPayload{Show: false}
 	}
@@ -927,6 +1010,9 @@ func (e *Evaluator) helpBarFromTokenFallback(token string) repl.HelpBarPayload {
 	token = strings.Trim(token, ".")
 	if token == "" {
 		return repl.HelpBarPayload{Show: false}
+	}
+	if entry, ok := e.resolveDocEntryFromToken(token, aliases); ok {
+		return makeHelpBarPayload(docEntrySummary(entry), "docs")
 	}
 
 	if txt, ok := helpBarSymbolSignatures[token]; ok {
@@ -1038,6 +1124,92 @@ func normalizeCandidateDetail(detail string) string {
 		return "symbol"
 	}
 	return detail
+}
+
+func docEntrySummary(entry *docaccess.Entry) string {
+	if entry == nil {
+		return ""
+	}
+	summary := strings.TrimSpace(entry.Summary)
+	if summary == "" {
+		return entry.Title
+	}
+	return fmt.Sprintf("%s - %s", entry.Title, summary)
+}
+
+func (e *Evaluator) resolveDocEntryFromContext(
+	ctx jsparse.CompletionContext,
+	candidates []jsparse.CompletionCandidate,
+	aliases map[string]string,
+) (*docaccess.Entry, bool) {
+	if e.docsResolver == nil {
+		return nil, false
+	}
+
+	switch ctx.Kind {
+	case jsparse.CompletionProperty:
+		base := strings.TrimSpace(ctx.BaseExpr)
+		if base == "" {
+			return nil, false
+		}
+		if strings.TrimSpace(ctx.PartialText) == "" {
+			return e.docsResolver.ResolveProperty(base, "", aliases)
+		}
+		if exact := jsparse.FindExactCandidate(candidates, ctx.PartialText); exact != nil {
+			return e.docsResolver.ResolveProperty(base, exact.Label, aliases)
+		}
+		if len(candidates) > 0 {
+			return e.docsResolver.ResolveProperty(base, candidates[0].Label, aliases)
+		}
+	case jsparse.CompletionIdentifier:
+		if exact := jsparse.FindExactCandidate(candidates, ctx.PartialText); exact != nil {
+			return e.docsResolver.ResolveIdentifier(exact.Label, aliases)
+		}
+		if len(candidates) > 0 {
+			return e.docsResolver.ResolveIdentifier(candidates[0].Label, aliases)
+		}
+	case jsparse.CompletionNone, jsparse.CompletionArgument:
+		return nil, false
+	}
+
+	return nil, false
+}
+
+func (e *Evaluator) resolveDocEntryFromToken(token string, aliases map[string]string) (*docaccess.Entry, bool) {
+	if e.docsResolver == nil {
+		return nil, false
+	}
+	return e.docsResolver.ResolveToken(token, aliases)
+}
+
+func (e *Evaluator) resolveDocEntryForCandidate(
+	ctx jsparse.CompletionContext,
+	candidate jsparse.CompletionCandidate,
+	aliases map[string]string,
+) (*docaccess.Entry, bool) {
+	if e.docsResolver == nil {
+		return nil, false
+	}
+	switch ctx.Kind {
+	case jsparse.CompletionProperty:
+		return e.docsResolver.ResolveProperty(ctx.BaseExpr, candidate.Label, aliases)
+	case jsparse.CompletionIdentifier:
+		return e.docsResolver.ResolveIdentifier(candidate.Label, aliases)
+	case jsparse.CompletionNone, jsparse.CompletionArgument:
+		return nil, false
+	default:
+		return nil, false
+	}
+}
+
+func (e *Evaluator) docCompletionCandidates(
+	ctx jsparse.CompletionContext,
+	aliases map[string]string,
+) []jsparse.CompletionCandidate {
+	if e.docsResolver == nil {
+		return nil
+	}
+	return e.docsResolver.CompletionCandidates(ctx, aliases)
 }
 
 func makeHelpBarPayload(text, kind string) repl.HelpBarPayload {
