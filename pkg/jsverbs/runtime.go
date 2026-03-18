@@ -32,7 +32,7 @@ func (r *Registry) invoke(ctx context.Context, verb *VerbSpec, parsedValues *val
 		_ = runtime.Close(context.Background())
 	}()
 
-	plan, err := buildVerbBindingPlan(verb)
+	plan, err := buildVerbBindingPlan(r, verb)
 	if err != nil {
 		return nil, err
 	}

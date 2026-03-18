@@ -46,6 +46,8 @@ The key idea is simple:
 - Optional metadata sentinels such as `__verb__` and `__section__` refine how those functions should look as CLI commands.
 - Go code scans the source tree once, builds command descriptions, and later invokes the right function with parsed Glazed values.
 
+One scope rule is especially important now: `__section__` remains file-local metadata. Cross-file section reuse is implemented on the Go side by registering shared sections on the `Registry` after scanning and before command compilation.
+
 This is valuable because it lets a JavaScript author work in a natural style while still getting the operational benefits of Glazed: schema-driven parsing, grouped flags, help text, table output, alternate renderers, and a conventional Cobra command tree. The author does not need to hand-write Go commands for every function. Instead, they provide a narrow amount of metadata only where the defaults are not good enough.
 
 ### The three most important source files
@@ -92,7 +94,7 @@ The test fixture directory at `testdata/jsverbs` is the shortest path to underst
 
 Use it as a map:
 
-- `basics.js` shows public functions, explicit verb metadata, shared sections, `bind: "all"`, `bind: "context"`, structured output, and text output.
+- `basics.js` shows public functions, explicit verb metadata, file-local sections, `bind: "all"`, `bind: "context"`, structured output, and text output.
 - `advanced/numbers.js` shows integer arguments, async results, and rest parameters.
 - `nested/with-helper.js` and `nested/sub/helper.js` show relative `require()` behavior.
 - `packaged.js` shows `__package__` metadata and automatic exposure of public functions.
@@ -148,7 +150,7 @@ This section explains which files exist so you do not waste time searching.
 ### Core implementation
 
 - `pkg/jsverbs/model.go`
-  This defines the in-memory model: registry, file specs, verb specs, parameter specs, field specs, diagnostics, source-file inputs, and output modes.
+  This defines the in-memory model: registry, file specs, verb specs, parameter specs, field specs, diagnostics, source-file inputs, output modes, and registry-level shared-section storage.
 - `pkg/jsverbs/scan.go`
   This walks input sources, parses JavaScript with tree-sitter, extracts functions and sentinel metadata, records diagnostics, and finalizes discovered verbs.
 - `pkg/jsverbs/binding.go`
@@ -211,6 +213,8 @@ The scanner currently understands:
 The key design decision is that these are treated as source metadata, not runtime APIs. The scanner reads them statically; the runtime later installs no-op definitions so requiring the source does not crash.
 
 That separation is important for security and correctness. We do not want discovery to execute arbitrary module top-level code just to learn what a command looks like. We also do not want JavaScript authors to think of sentinels as runtime hooks with side effects. They are effectively annotations embedded in real code.
+
+The shared-section feature follows that same rule. `require()` still does not import metadata. If a host application wants one reusable section catalog across many files, it scans first and then calls `Registry.AddSharedSection(...)` or `Registry.AddSharedSections(...)`. During command compilation and runtime binding, the registry resolves sections local-first and shared-second.
 
 The scanner now enforces that the metadata attached to these sentinels is a strict literal subset. This is worth emphasizing because it changes how you should think about authoring metadata. The supported style is “declarative configuration written in JavaScript syntax,” not “arbitrary code that eventually produces an object.”
 

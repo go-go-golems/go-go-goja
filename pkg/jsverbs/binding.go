@@ -37,7 +37,11 @@ type VerbBindingPlan struct {
 	ReferencedSections []string
 }
 
-func buildVerbBindingPlan(verb *VerbSpec) (*VerbBindingPlan, error) {
+func buildVerbBindingPlan(r *Registry, verb *VerbSpec) (*VerbBindingPlan, error) {
+	if r == nil {
+		return nil, fmt.Errorf("registry is nil")
+	}
+
 	referencedSections := map[string]struct{}{}
 	for _, slug := range verb.UseSections {
 		referencedSections[slug] = struct{}{}
@@ -115,15 +119,41 @@ func buildVerbBindingPlan(verb *VerbSpec) (*VerbBindingPlan, error) {
 	}
 
 	for slug := range referencedSections {
-		if _, ok := verb.File.Sections[slug]; !ok {
+		if _, ok := r.ResolveSection(verb, slug); !ok {
 			return nil, fmt.Errorf("%s references unknown section %q", verb.SourceRef(), slug)
 		}
 	}
+
 	plan.ReferencedSections = make([]string, 0, len(referencedSections))
-	for _, slug := range verb.File.SectionOrder {
-		if _, ok := referencedSections[slug]; ok {
-			plan.ReferencedSections = append(plan.ReferencedSections, slug)
+	seenSections := map[string]struct{}{}
+	appendSection := func(slug string) {
+		if _, ok := referencedSections[slug]; !ok {
+			return
 		}
+		if _, ok := seenSections[slug]; ok {
+			return
+		}
+		plan.ReferencedSections = append(plan.ReferencedSections, slug)
+		seenSections[slug] = struct{}{}
+	}
+
+	for _, slug := range verb.File.SectionOrder {
+		appendSection(slug)
+	}
+	for _, slug := range r.SharedSectionOrder {
+		appendSection(slug)
+	}
+
+	remaining := make([]string, 0, len(referencedSections))
+	for slug := range referencedSections {
+		if _, ok := seenSections[slug]; ok {
+			continue
+		}
+		remaining = append(remaining, slug)
+	}
+	sort.Strings(remaining)
+	for _, slug := range remaining {
+		appendSection(slug)
 	}
 
 	return plan, nil

@@ -70,7 +70,7 @@ func (r *Registry) commandForVerb(verb *VerbSpec) (cmds.Command, error) {
 }
 
 func (r *Registry) buildDescription(verb *VerbSpec) (*cmds.CommandDescription, error) {
-	plan, err := buildVerbBindingPlan(verb)
+	plan, err := buildVerbBindingPlan(r, verb)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,10 @@ func (r *Registry) buildDescription(verb *VerbSpec) (*cmds.CommandDescription, e
 	}
 
 	for _, slug := range plan.ReferencedSections {
-		spec := verb.File.Sections[slug]
+		spec, ok := r.ResolveSection(verb, slug)
+		if !ok {
+			return nil, fmt.Errorf("%s references unknown section %q", verb.SourceRef(), slug)
+		}
 		section, err := ensureSection(spec.Slug, spec.Title, spec.Description)
 		if err != nil {
 			return nil, err

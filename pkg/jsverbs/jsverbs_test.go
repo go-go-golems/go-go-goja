@@ -245,6 +245,227 @@ function summarize({ owner }) {
 	require.Contains(t, err.Error(), "requires a bind")
 }
 
+func TestAddSharedSectionRejectsDuplicateSlug(t *testing.T) {
+	registry := &Registry{}
+
+	err := registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Filters",
+		Fields: map[string]*FieldSpec{
+			"state": {Type: "string"},
+		},
+	})
+	require.NoError(t, err)
+
+	err = registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Other Filters",
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `duplicate shared section "filters"`)
+}
+
+func TestAddSharedSectionRejectsNilFieldSpec(t *testing.T) {
+	registry := &Registry{}
+
+	err := registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Filters",
+		Fields: map[string]*FieldSpec{
+			"state": nil,
+		},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `shared section "filters" field "state" is nil`)
+}
+
+func TestResolveSectionPrefersLocalSectionOverSharedSection(t *testing.T) {
+	registry, err := ScanSource("example.js", `
+__section__("filters", {
+  title: "Local Filters",
+  fields: {
+    state: { type: "string", default: "closed" }
+  }
+});
+
+function summarize(filters) {
+  return { ok: !!filters };
+}
+
+__verb__("summarize", {
+  fields: {
+    filters: { bind: "filters" }
+  }
+});
+`)
+	require.NoError(t, err)
+	require.NoError(t, registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Shared Filters",
+		Fields: map[string]*FieldSpec{
+			"state": {Type: "string", Default: "open"},
+		},
+	}))
+
+	verb, ok := registry.Verb("example summarize")
+	require.True(t, ok)
+
+	section, ok := registry.ResolveSection(verb, "filters")
+	require.True(t, ok)
+	require.Equal(t, "Local Filters", section.Title)
+	require.Equal(t, "closed", section.Fields["state"].Default)
+}
+
+func TestCommandsUseRegistrySharedSection(t *testing.T) {
+	registry, err := ScanSource("shared.js", `
+function summarize(filters) {
+  return {
+    state: filters.state,
+    labelCount: filters.labels.length
+  };
+}
+
+__verb__("summarize", {
+  fields: {
+    filters: { bind: "filters" }
+  }
+});
+`)
+	require.NoError(t, err)
+	require.NoError(t, registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Filters",
+		Fields: map[string]*FieldSpec{
+			"state": {
+				Type:    "choice",
+				Choices: []string{"open", "closed"},
+			},
+			"labels": {
+				Type: "stringList",
+			},
+		},
+	}))
+
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["shared summarize"], map[string]map[string]interface{}{
+		"filters": {
+			"state":  "closed",
+			"labels": []string{"bug", "docs"},
+		},
+	})
+	require.Equal(t, "closed", rows[0]["state"])
+	require.EqualValues(t, 2, rows[0]["labelCount"])
+}
+
+func TestLocalSectionOverridesRegistrySharedSectionDuringCommandExecution(t *testing.T) {
+	registry, err := ScanSource("local.js", `
+__section__("filters", {
+  fields: {
+    localOnly: { type: "string" }
+  }
+});
+
+function summarize(filters) {
+  return {
+    local: filters.localOnly,
+    shared: filters.sharedOnly
+  };
+}
+
+__verb__("summarize", {
+  fields: {
+    filters: { bind: "filters" }
+  }
+});
+`)
+	require.NoError(t, err)
+	require.NoError(t, registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Shared Filters",
+		Fields: map[string]*FieldSpec{
+			"sharedOnly": {Type: "string"},
+		},
+	}))
+
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["local summarize"], map[string]map[string]interface{}{
+		"filters": {
+			"localOnly": "from-local",
+		},
+	})
+	require.Equal(t, "from-local", rows[0]["local"])
+	require.Nil(t, rows[0]["shared"])
+}
+
+func TestSharedSectionsWorkWithScanFS(t *testing.T) {
+	registry, err := ScanFS(fstest.MapFS{
+		"nested/entry.js": {
+			Data: []byte(`
+function render(filters) {
+  const helper = require("./sub/helper");
+  return { state: filters.state, decorated: helper.decorate(filters.state) };
+}
+
+__verb__("render", {
+  fields: {
+    filters: { bind: "filters" }
+  }
+});
+`),
+		},
+		"nested/sub/helper.js": {
+			Data: []byte(`exports.decorate = (value) => "decorated:" + value;`),
+		},
+	}, ".", ScanOptions{
+		IncludePublicFunctions: true,
+		Extensions:             []string{".js"},
+		FailOnErrorDiagnostics: true,
+	})
+	require.NoError(t, err)
+	require.NoError(t, registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Filters",
+		Fields: map[string]*FieldSpec{
+			"state": {Type: "string"},
+		},
+	}))
+
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["nested entry render"], map[string]map[string]interface{}{
+		"filters": {
+			"state": "closed",
+		},
+	})
+	require.Equal(t, "closed", rows[0]["state"])
+	require.Equal(t, "decorated:closed", rows[0]["decorated"])
+}
+
+func TestUnknownSectionStillFailsWhenAbsentFromBothCatalogs(t *testing.T) {
+	registry, err := ScanSource("broken.js", `
+function summarize(filters) {
+  return { ok: !!filters };
+}
+
+__verb__("summarize", {
+  fields: {
+    filters: { bind: "missing" }
+  }
+});
+`)
+	require.NoError(t, err)
+	require.NoError(t, registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Filters",
+		Fields: map[string]*FieldSpec{
+			"state": {Type: "string"},
+		},
+	}))
+
+	_, err = registry.Commands()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `unknown section "missing"`)
+}
+
 func mustRegistry(t *testing.T) *Registry {
 	t.Helper()
 	registry, err := ScanDir(filepath.Join(repoRoot(t), "testdata", "jsverbs"))

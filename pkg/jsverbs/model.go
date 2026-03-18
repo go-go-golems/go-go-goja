@@ -72,13 +72,15 @@ type SourceFile struct {
 }
 
 type Registry struct {
-	RootDir       string
-	Files         []*FileSpec
-	Diagnostics   []Diagnostic
-	verbs         []*VerbSpec
-	verbsByKey    map[string]*VerbSpec
-	filesByModule map[string]*FileSpec
-	options       ScanOptions
+	RootDir            string
+	Files              []*FileSpec
+	Diagnostics        []Diagnostic
+	SharedSections     map[string]*SectionSpec
+	SharedSectionOrder []string
+	verbs              []*VerbSpec
+	verbsByKey         map[string]*VerbSpec
+	filesByModule      map[string]*FileSpec
+	options            ScanOptions
 }
 
 type FileSpec struct {
@@ -173,6 +175,76 @@ func (r *Registry) ErrorDiagnostics() []Diagnostic {
 		}
 	}
 	return ret
+}
+
+func (r *Registry) AddSharedSection(section *SectionSpec) error {
+	if r == nil {
+		return fmt.Errorf("registry is nil")
+	}
+	if section == nil {
+		return fmt.Errorf("shared section is nil")
+	}
+
+	slug := cleanCommandWord(section.Slug)
+	if slug == "" {
+		return fmt.Errorf("shared section slug is empty")
+	}
+
+	if r.SharedSections == nil {
+		r.SharedSections = map[string]*SectionSpec{}
+	}
+	if _, ok := r.SharedSections[slug]; ok {
+		return fmt.Errorf("duplicate shared section %q", slug)
+	}
+	for name, field := range section.Fields {
+		if field == nil {
+			return fmt.Errorf("shared section %q field %q is nil", slug, name)
+		}
+	}
+
+	cloned := section.Clone()
+	cloned.Slug = slug
+	for name, field := range cloned.Fields {
+		if field == nil {
+			continue
+		}
+		if strings.TrimSpace(field.Name) == "" {
+			field.Name = name
+		}
+	}
+	r.SharedSections[slug] = cloned
+	r.SharedSectionOrder = append(r.SharedSectionOrder, slug)
+
+	return nil
+}
+
+func (r *Registry) AddSharedSections(sections ...*SectionSpec) error {
+	for _, section := range sections {
+		if err := r.AddSharedSection(section); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *Registry) ResolveSection(verb *VerbSpec, slug string) (*SectionSpec, bool) {
+	slug = cleanCommandWord(slug)
+	if slug == "" {
+		return nil, false
+	}
+	if verb != nil && verb.File != nil && verb.File.Sections != nil {
+		if section, ok := verb.File.Sections[slug]; ok && section != nil {
+			return section, true
+		}
+	}
+	if r == nil || r.SharedSections == nil {
+		return nil, false
+	}
+	section, ok := r.SharedSections[slug]
+	if !ok || section == nil {
+		return nil, false
+	}
+	return section, true
 }
 
 func (v *VerbSpec) FullPath() string {
