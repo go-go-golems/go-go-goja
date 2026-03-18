@@ -13,6 +13,9 @@ import (
 	"github.com/go-go-golems/bobatea/pkg/logutil"
 	"github.com/go-go-golems/bobatea/pkg/repl"
 	"github.com/go-go-golems/bobatea/pkg/timeline"
+	"github.com/go-go-golems/glazed/pkg/help"
+	"github.com/go-go-golems/go-go-goja/pkg/doc"
+	docaccessruntime "github.com/go-go-golems/go-go-goja/pkg/docaccess/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	jsadapter "github.com/go-go-golems/go-go-goja/pkg/repl/adapters/bobatea"
 	js "github.com/go-go-golems/go-go-goja/pkg/repl/evaluators/javascript"
@@ -66,10 +69,20 @@ func main() {
 
 	resolvedPluginDirs := host.ResolveDiscoveryDirectories(pluginDirs)
 	reporter := host.NewReportCollector(resolvedPluginDirs)
+	helpSystem := help.NewHelpSystem()
+	if err := doc.AddDocToHelpSystem(helpSystem); err != nil {
+		log.Printf("warning: failed to load documentation: %v", err)
+	}
 	evaluatorConfig := js.DefaultConfig()
 	evaluatorConfig.PluginDirectories = resolvedPluginDirs
 	evaluatorConfig.PluginAllowModules = allowPluginModules
 	evaluatorConfig.PluginReporter = reporter
+	evaluatorConfig.HelpSources = []docaccessruntime.HelpSource{{
+		ID:      "default-help",
+		Title:   "Default Help",
+		Summary: "Embedded REPL help pages",
+		System:  helpSystem,
+	}}
 	evaluator, err := jsadapter.NewJavaScriptEvaluator(evaluatorConfig)
 	if err != nil {
 		log.Fatal(err)

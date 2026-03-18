@@ -12,6 +12,7 @@ import (
 	"github.com/go-go-golems/bobatea/pkg/autocomplete"
 	"github.com/go-go-golems/bobatea/pkg/repl"
 	ggjengine "github.com/go-go-golems/go-go-goja/engine"
+	docaccessruntime "github.com/go-go-golems/go-go-goja/pkg/docaccess/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 	"github.com/pkg/errors"
@@ -73,6 +74,9 @@ type Config struct {
 	PluginDirectories  []string
 	PluginAllowModules []string
 	PluginReporter     *host.ReportCollector
+	HelpSources        []docaccessruntime.HelpSource
+	JSDocSources       []docaccessruntime.JSDocSource
+	RuntimeRegistrars  []ggjengine.RuntimeModuleRegistrar
 	CustomModules      map[string]interface{}
 	// Runtime, when set, reuses an existing VM instead of creating a new one.
 	Runtime *goja.Runtime
@@ -86,6 +90,9 @@ func DefaultConfig() Config {
 		EnableNodeModules:  true,
 		PluginDirectories:  nil,
 		PluginAllowModules: nil,
+		HelpSources:        nil,
+		JSDocSources:       nil,
+		RuntimeRegistrars:  nil,
 		CustomModules:      make(map[string]interface{}),
 		Runtime:            nil,
 	}
@@ -108,6 +115,15 @@ func New(config Config) (*Evaluator, error) {
 				AllowModules: config.PluginAllowModules,
 				Report:       config.PluginReporter,
 			}))
+		}
+		if len(config.HelpSources) > 0 || len(config.JSDocSources) > 0 {
+			builder = builder.WithRuntimeModuleRegistrars(docaccessruntime.NewRegistrar(docaccessruntime.Config{
+				HelpSources:  append([]docaccessruntime.HelpSource(nil), config.HelpSources...),
+				JSDocSources: append([]docaccessruntime.JSDocSource(nil), config.JSDocSources...),
+			}))
+		}
+		if len(config.RuntimeRegistrars) > 0 {
+			builder = builder.WithRuntimeModuleRegistrars(config.RuntimeRegistrars...)
 		}
 		factory, err := builder.Build()
 		if err != nil {
