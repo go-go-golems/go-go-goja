@@ -196,6 +196,11 @@ func (r *Registry) AddSharedSection(section *SectionSpec) error {
 	if _, ok := r.SharedSections[slug]; ok {
 		return fmt.Errorf("duplicate shared section %q", slug)
 	}
+	for name, field := range section.Fields {
+		if field == nil {
+			return fmt.Errorf("shared section %q field %q is nil", slug, name)
+		}
+	}
 
 	cloned := section.Clone()
 	cloned.Slug = slug

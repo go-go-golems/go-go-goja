@@ -265,6 +265,20 @@ func TestAddSharedSectionRejectsDuplicateSlug(t *testing.T) {
 	require.Contains(t, err.Error(), `duplicate shared section "filters"`)
 }
 
+func TestAddSharedSectionRejectsNilFieldSpec(t *testing.T) {
+	registry := &Registry{}
+
+	err := registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Filters",
+		Fields: map[string]*FieldSpec{
+			"state": nil,
+		},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `shared section "filters" field "state" is nil`)
+}
+
 func TestResolveSectionPrefersLocalSectionOverSharedSection(t *testing.T) {
 	registry, err := ScanSource("example.js", `
 __section__("filters", {
