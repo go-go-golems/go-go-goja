@@ -16,8 +16,18 @@ RelatedFiles:
       Note: Runtime creation flow that should host the future runtime-scoped documentation hub
     - Path: modules/glazehelp/glazehelp.go
       Note: Old JS-facing help module whose strengths and limitations shape the new design
+    - Path: pkg/docaccess/hub.go
+      Note: Shared hub abstraction implemented from the ticket design
+    - Path: pkg/docaccess/plugin/provider.go
+      Note: Plugin provider that exposes module/export/method docs
+    - Path: pkg/docaccess/runtime/registrar.go
+      Note: Runtime-scoped registrar that builds the per-runtime docs hub and JS module
     - Path: pkg/hashiplugin/contract/jsmodule.proto
-      Note: Defines what plugin metadata exists today and therefore what the docs hub can expose
+      Note: |-
+        Defines what plugin metadata exists today and therefore what the docs hub can expose
+        Plugin manifest contract updated to carry first-class method docs
+    - Path: pkg/hashiplugin/host/catalog.go
+      Note: Retained plugin manifest snapshot used as docs-provider input
     - Path: pkg/hashiplugin/host/reify.go
       Note: Shows where plugin docs are currently lost during JS reification
     - Path: pkg/jsdoc/model/store.go
@@ -28,6 +38,7 @@ LastUpdated: 2026-03-18T15:42:01.102157415-04:00
 WhatFor: Explain how to design a shared documentation hub and adapter system for Glazed help, jsdocex, and plugin metadata without over-coupling existing subsystems.
 WhenToUse: Use when implementing, reviewing, or extending documentation lookup APIs for Go callers, JavaScript callers, or future docmgr-backed sources.
 ---
+
 
 
 # Unified documentation access architecture and implementation guide
