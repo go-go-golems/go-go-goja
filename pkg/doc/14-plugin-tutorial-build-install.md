@@ -28,7 +28,7 @@ By the end, you will have:
 - a working `require("plugin:...")` call from JavaScript,
 - a mental model for how your Go code becomes a JavaScript module.
 
-This tutorial uses the user-facing example plugin under `plugins/examples/greeter` as the fastest route to success first, and then shows the minimal code shape you need for your own plugin.
+This tutorial uses the user-facing example plugin under `plugins/examples/greeter` as the fastest route to success first, and then shows the richer SDK-based code shape you should use for your own plugin.
 
 ## Prerequisites
 
@@ -135,15 +135,18 @@ go run ./cmd/repl /tmp/test-plugin.js
 
 This is the easiest way to create a small regression harness while you iterate on plugin code.
 
-## Step 6: Understand the minimal plugin shape
+## Step 6: Understand the recommended SDK-based plugin shape
 
-A plugin binary needs three main pieces:
+The current recommended path is to author plugins with `pkg/hashiplugin/sdk`.
 
-1. a type that implements the shared module interface,
-2. a manifest that describes the JavaScript module,
-3. a `plugin.Serve(...)` main function wired with the shared handshake and plugin set.
+That gives you four useful building blocks:
 
-The minimal shape looks like this:
+1. `sdk.MustModule(...)` to define one plugin module,
+2. `sdk.Function(...)` for top-level exports,
+3. `sdk.Object(...sdk.Method(...))` for object-method exports,
+4. `sdk.Serve(...)` to boot the shared transport.
+
+The minimal useful shape now looks like this:
 
 ```go
 package main
@@ -151,59 +154,37 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
-	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/contract"
-	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/shared"
-	"github.com/hashicorp/go-plugin"
-	"google.golang.org/protobuf/types/known/structpb"
+	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/sdk"
 )
 
-type helloModule struct{}
-
-func (helloModule) Manifest(context.Context) (*contract.ModuleManifest, error) {
-	return &contract.ModuleManifest{
-		ModuleName: "plugin:hello",
-		Version:    "v1",
-		Exports: []*contract.ExportSpec{
-			{
-				Name: "greet",
-				Kind: contract.ExportKind_EXPORT_KIND_FUNCTION,
-			},
-		},
-	}, nil
-}
-
-func (helloModule) Invoke(_ context.Context, req *contract.InvokeRequest) (*contract.InvokeResponse, error) {
-	switch req.GetExportName() {
-	case "greet":
-		name := "world"
-		if len(req.GetArgs()) > 0 {
-			name = req.GetArgs()[0].GetStringValue()
-		}
-		value, err := structpb.NewValue("hello, " + name)
-		if err != nil {
-			return nil, err
-		}
-		return &contract.InvokeResponse{Result: value}, nil
-	default:
-		return nil, fmt.Errorf("unsupported export %q", req.GetExportName())
-	}
-}
-
 func main() {
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig:  shared.Handshake,
-		VersionedPlugins: shared.VersionedServerPluginSets(helloModule{}),
-		GRPCServer:       plugin.DefaultGRPCServer,
-	})
+	mod := sdk.MustModule(
+		"plugin:hello",
+		sdk.Version("v1"),
+		sdk.Doc("Simple hello plugin"),
+		sdk.Function("greet", func(_ context.Context, call *sdk.Call) (any, error) {
+			name := call.StringDefault(0, "world")
+			return fmt.Sprintf("hello, %s", name), nil
+		}),
+		sdk.Object("strings",
+			sdk.Method("upper", func(_ context.Context, call *sdk.Call) (any, error) {
+				return strings.ToUpper(call.StringDefault(0, "")), nil
+			}),
+		),
+	)
+
+	sdk.Serve(mod)
 }
 ```
 
-This is the smallest useful mental model:
+This is the new mental model:
 
-- `Manifest(...)` tells the host what module exists.
-- `Invoke(...)` handles calls from JavaScript.
-- `plugin.Serve(...)` publishes the service.
+- `sdk.MustModule(...)` defines the plugin module and its manifest shape.
+- `sdk.Function(...)` and `sdk.Object(...sdk.Method(...))` declare exports.
+- `sdk.Call` gives handlers easy access to decoded arguments.
+- `sdk.Serve(...)` publishes the service over the shared transport.
 
 ## Step 7: Build your own plugin
 
@@ -219,7 +200,7 @@ Make sure:
 
 - the output filename still matches `goja-plugin-*`,
 - the manifest module name begins with `plugin:`,
-- the manifest export list matches what `Invoke(...)` actually supports.
+- the SDK declarations match the exports you expect JavaScript to see.
 
 ## Step 8: Load your plugin in JavaScript
 
@@ -234,29 +215,22 @@ This should now behave exactly like any other runtime-registered module from the
 
 ## Step 9: Add an object export
 
-If you want namespaced methods, add an object export to the manifest:
+If you want namespaced methods, add an object export with methods:
 
 ```go
-{
-	Name:    "math",
-	Kind:    contract.ExportKind_EXPORT_KIND_OBJECT,
-	Methods: []string{"add"},
-}
-```
-
-Then handle it in `Invoke(...)`:
-
-```go
-case "math":
-	if req.GetMethodName() != "add" {
-		return nil, fmt.Errorf("unsupported method %q", req.GetMethodName())
-	}
-	sum := req.GetArgs()[0].GetNumberValue() + req.GetArgs()[1].GetNumberValue()
-	value, err := structpb.NewValue(sum)
-	if err != nil {
-		return nil, err
-	}
-	return &contract.InvokeResponse{Result: value}, nil
+sdk.Object("math",
+	sdk.Method("add", func(_ context.Context, call *sdk.Call) (any, error) {
+		a, err := call.Float64(0)
+		if err != nil {
+			return nil, err
+		}
+		b, err := call.Float64(1)
+		if err != nil {
+			return nil, err
+		}
+		return a + b, nil
+	}),
+)
 ```
 
 From JavaScript:
@@ -305,7 +279,7 @@ That sequence is a good smoke test after host-side changes or when onboarding a 
 |---|---|---|
 | `require("plugin:hello")` fails | The binary was not discovered or the manifest did not match the requested module name | Check the output filename, the plugin directory path, and the `ModuleName` field in the manifest |
 | Runtime startup fails before the REPL prompt appears | Plugin validation failed during runtime creation | Build with a known-good manifest first, then compare your plugin to the example fixture |
-| `Invoke(...)` returns the wrong value shape | The plugin returned data that does not map cleanly through `structpb.Value` | Stick to strings, numbers, booleans, arrays, objects, and null |
+| A handler returns the wrong value shape | The SDK could not encode the returned Go value into `structpb.Value` | Stick to strings, numbers, booleans, arrays, objects, and null |
 | The plugin works in tests but not manually | The test built the binary into a temp dir, but your manual run expects the default per-user tree | Rebuild into `~/.go-go-goja/plugins/...` or pass the exact path with `--plugin-dir` |
 | `js-repl` does not see plugins | The binary was not built under the default tree and no explicit directory was passed | Build into `~/.go-go-goja/plugins/...` or start `js-repl` with `--plugin-dir /path/to/plugins` |
 

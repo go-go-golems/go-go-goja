@@ -56,27 +56,27 @@
 
 ## Phase 5: Migrate Examples And Fixtures
 
-- [ ] Migrate `plugins/examples/greeter/main.go` to the SDK and keep the example obviously shorter than the current manual version.
-- [ ] Migrate `plugins/testplugin/echo/main.go` to the SDK if it improves clarity without obscuring integration-test intent.
-- [ ] Decide whether `plugins/testplugin/invalid/main.go` should remain handwritten to preserve raw-contract coverage, or be replaced by an SDK-driven invalid case that still exercises the intended failure mode.
-- [ ] Update `plugins/examples/README.md` so the example shows the richer SDK surface rather than the old low-level contract.
+- [x] Migrate `plugins/examples/greeter/main.go` to the SDK and keep the example obviously shorter than the current manual version.
+- [x] Migrate `plugins/testplugin/echo/main.go` to the SDK if it improves clarity without obscuring integration-test intent.
+- [x] Decide whether `plugins/testplugin/invalid/main.go` should remain handwritten to preserve raw-contract coverage, or be replaced by an SDK-driven invalid case that still exercises the intended failure mode.
+- [x] Update `plugins/examples/README.md` so the example shows the richer SDK surface rather than the old low-level contract.
 
 ## Phase 6: Integration Validation
 
-- [ ] Extend `pkg/hashiplugin/host/registrar_test.go` so at least one integration test builds an SDK-authored plugin and loads it through the existing runtime path.
-- [ ] Confirm that host-side behavior from JavaScript remains unchanged:
+- [x] Extend `pkg/hashiplugin/host/registrar_test.go` so at least one integration test builds an SDK-authored plugin and loads it through the existing runtime path.
+- [x] Confirm that host-side behavior from JavaScript remains unchanged:
   `require("plugin:...")`, top-level functions, object methods, and runtime cleanup after close.
-- [ ] Add at least one integration test that proves SDK-generated manifests remain compatible with host validation rules.
-- [ ] Run focused package tests for `pkg/hashiplugin/sdk`, `pkg/hashiplugin/shared`, `pkg/hashiplugin/host`, and the example/test plugin packages.
+- [x] Add at least one integration test that proves SDK-generated manifests remain compatible with host validation rules.
+- [x] Run focused package tests for `pkg/hashiplugin/sdk`, `pkg/hashiplugin/shared`, `pkg/hashiplugin/host`, and the example/test plugin packages.
 
 ## Phase 7: Documentation
 
-- [ ] Update the GOJA-09 design doc if the shipped v1 API differs from the current proposed API.
-- [ ] Update `pkg/doc/12-plugin-user-guide.md` to keep the user-facing story stable while pointing plugin authors at the new SDK-based examples.
-- [ ] Update `pkg/doc/13-plugin-developer-guide.md` to explain the new layering:
+- [x] Update the GOJA-09 design doc if the shipped v1 API differs from the current proposed API.
+- [x] Update `pkg/doc/12-plugin-user-guide.md` to keep the user-facing story stable while pointing plugin authors at the new SDK-based examples.
+- [x] Update `pkg/doc/13-plugin-developer-guide.md` to explain the new layering:
   author-facing `sdk`, low-level `contract/shared`, host-side `host`, runtime-side `engine`.
-- [ ] Rewrite `pkg/doc/14-plugin-tutorial-build-install.md` so the primary authoring path uses `sdk.ServeModule(...)` or `sdk.MustModule(...)`.
-- [ ] Add one short quickstart snippet showing the richer SDK in the smallest useful form.
+- [x] Rewrite `pkg/doc/14-plugin-tutorial-build-install.md` so the primary authoring path uses `sdk.ServeModule(...)` or `sdk.MustModule(...)`.
+- [x] Add one short quickstart snippet showing the richer SDK in the smallest useful form.
 
 ## Phase 8: Ticket Closeout
 

@@ -35,3 +35,17 @@ Implemented the first GOJA-09 code slice: the new `pkg/hashiplugin/sdk` package 
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/sdk/dispatch.go — Invoke routing implementation
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/sdk/serve.go — Thin serve wrapper over the existing shared transport
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/sdk/sdk_test.go — Manifest, dispatch, conversion, and gRPC compatibility tests
+
+## 2026-03-18
+
+Migrated the user-facing example plugin and the positive test fixture to the new SDK, kept the invalid fixture handwritten for raw-contract coverage, added host integration coverage for an SDK-authored example, and rewrote the plugin help pages to teach the SDK-based authoring path.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/plugins/examples/greeter/main.go — Example plugin now uses `sdk.MustModule(...)` and `sdk.Serve(...)`
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/plugins/examples/README.md — Example README now describes the richer SDK surface
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/plugins/testplugin/echo/main.go — Positive fixture now exercises the SDK path too
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/hashiplugin/host/registrar_test.go — Added SDK-authored example integration coverage
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/12-plugin-user-guide.md — User guide now points authors at the SDK-backed example
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/13-plugin-developer-guide.md — Developer guide now describes the `sdk` layer explicitly
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/14-plugin-tutorial-build-install.md — Tutorial now teaches the SDK-based authoring path

@@ -258,11 +258,19 @@ If you are building your own plugin binary, follow these rules first before you 
 
 - Use a binary name that matches `goja-plugin-*`.
 - Publish a module name in the `plugin:` namespace.
+- Prefer the higher-level `pkg/hashiplugin/sdk` package instead of implementing `contract.JSModule` manually.
 - Keep arguments and return values JSON-like.
 - Prefer small, explicit function signatures.
 - Use object exports only when you want a real namespace such as `plugin:foo.math.add`.
 
 These rules are not arbitrary. They align with how the first host implementation validates manifests and how it currently marshals values across the process boundary.
+
+The current example plugin under `plugins/examples/greeter` now follows the richer SDK path:
+
+- `sdk.MustModule(...)` defines the module,
+- `sdk.Function(...)` defines top-level functions,
+- `sdk.Object(...sdk.Method(...))` defines object-method exports,
+- `sdk.Serve(...)` boots the shared transport.
 
 ## Security and trust model
 

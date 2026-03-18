@@ -33,6 +33,11 @@ If you are new to the subsystem, read these files in this order:
 - `engine/runtime_modules.go`
 - `engine/factory.go`
 - `engine/runtime.go`
+- `pkg/hashiplugin/sdk/module.go`
+- `pkg/hashiplugin/sdk/export.go`
+- `pkg/hashiplugin/sdk/call.go`
+- `pkg/hashiplugin/sdk/dispatch.go`
+- `pkg/hashiplugin/sdk/serve.go`
 - `pkg/hashiplugin/contract/jsmodule.proto`
 - `pkg/hashiplugin/shared/plugin.go`
 - `pkg/hashiplugin/host/config.go`
@@ -48,6 +53,7 @@ If you are new to the subsystem, read these files in this order:
 That order mirrors the real layering:
 
 - engine seam,
+- authoring SDK,
 - transport contract,
 - host policy,
 - runtime integration,
@@ -64,9 +70,15 @@ If plugin clients had been attached to the factory instead, subprocess lifetime 
 
 ## Core architecture
 
-The current plugin architecture has four layers:
+The current plugin architecture has five layers:
 
 ```text
+plugin authoring code
+    |
+    v
+author-facing sdk
+    |
+    v
 CLI / evaluator config
     |
     v
@@ -87,7 +99,22 @@ plugin subprocess
 
 Each layer has one responsibility.
 
-### 1. Entry points choose whether plugins are enabled
+### 1. Plugin authors can use the SDK instead of the raw contract
+
+`pkg/hashiplugin/sdk` is the new author-facing layer.
+
+It provides:
+
+- `sdk.MustModule(...)`
+- `sdk.Function(...)`
+- `sdk.Object(...)`
+- `sdk.Method(...)`
+- `sdk.Call`
+- `sdk.Serve(...)`
+
+This package does not replace `contract` or `shared`. It implements `contract.JSModule` on behalf of plugin authors and centralizes manifest building, invoke dispatch, and value conversion.
+
+### 2. Entry points choose whether plugins are enabled
 
 The runtime is not globally plugin-aware by default. An entrypoint opts in by constructing a registrar and attaching it to the engine builder.
 
@@ -99,7 +126,7 @@ Current wired entrypoints:
 
 That means plugin support is explicit at composition time.
 
-### 2. The engine provides the runtime-scoped seam
+### 3. The engine provides the runtime-scoped seam
 
 `engine.RuntimeModuleRegistrar` is the central extension seam. A registrar receives:
 
@@ -109,7 +136,7 @@ That means plugin support is explicit at composition time.
 
 This is the design point that makes plugins feasible without adding plugin-specific lifecycle hacks to the engine.
 
-### 3. The host package owns policy
+### 4. The host package owns policy
 
 `pkg/hashiplugin/host` is the policy layer. It decides:
 
@@ -121,7 +148,7 @@ This is the design point that makes plugins feasible without adding plugin-speci
 
 This is intentionally separate from the transport contract so that future policy changes do not require redesigning the protobuf schema.
 
-### 4. The transport package owns the shared wire contract
+### 5. The transport package owns the shared wire contract
 
 The shared `contract` and `shared` packages define:
 
@@ -131,6 +158,8 @@ The shared `contract` and `shared` packages define:
 - `GRPCPlugin` adapter helpers.
 
 They are narrow on purpose. The contract should not accumulate host-only policy or engine-specific concepts.
+
+That is also why the SDK belongs beside them rather than inside `host`: authoring ergonomics and host policy are different concerns.
 
 ## Runtime creation flow
 
@@ -410,6 +439,7 @@ It covers:
 - loading `plugin:echo`,
 - calling a function export,
 - calling an object-method export,
+- loading the SDK-authored `plugin:greeter` example,
 - rejecting an invalid manifest,
 - verifying subprocess shutdown on runtime close.
 
@@ -423,6 +453,12 @@ The integration-test fixture plugins live under:
 - `plugins/testplugin/invalid`
 
 This split is intentional. `plugins/examples/...` is for copyable authoring examples and documentation, while `plugins/testplugin/...` stays small and deterministic for integration tests.
+
+The current state is intentionally mixed:
+
+- `plugins/examples/greeter` now uses the richer SDK surface and is the primary authoring example,
+- `plugins/testplugin/echo` also uses the SDK so integration tests exercise the real authoring path,
+- `plugins/testplugin/invalid` remains handwritten so the suite still covers the raw contract path.
 
 ## Common extension points
 

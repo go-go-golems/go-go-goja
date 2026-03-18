@@ -268,3 +268,88 @@ pkg/hashiplugin/sdk/module.go:132:3: missing cases in switch of type contract.Ex
   - `go test ./pkg/hashiplugin/sdk ./pkg/hashiplugin/shared ./pkg/hashiplugin/host -count=1`
   - `git add pkg/hashiplugin/sdk`
   - `git commit -m "hashiplugin: add authoring sdk core"`
+
+## Step 3: Migrate the example plugins to the SDK, extend runtime integration coverage, and rewrite the help docs
+
+This step turned the SDK from an isolated package into the actual recommended authoring path. I migrated the user-facing `greeter` example and the `echo` test plugin to the new `pkg/hashiplugin/sdk` API, deliberately kept the invalid fixture handwritten so the raw contract path still has coverage, and added a new host integration test that builds and loads the SDK-authored `greeter` example through the existing runtime registrar.
+
+Once that path worked, I updated the plugin help pages so they stop teaching authors to hand-build `Manifest(...)`, `Invoke(...)`, and `plugin.Serve(...)` for the common case. The docs now present the SDK as the default authoring layer and describe the lower-level contract as the underlying transport boundary rather than the first thing a new author should touch.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Continue the GOJA-09 backlog in reviewable slices, moving from core SDK internals into real examples, integration validation, and user-facing documentation.
+
+**Inferred user intent:** Prove the SDK is not just internally plausible but is actually the path the repo now wants plugin authors to use.
+
+**Commit (code):** `945a573` — `hashiplugin: migrate examples to sdk`
+
+### What I did
+
+- Rewrote `plugins/examples/greeter/main.go` to use `sdk.MustModule(...)`, `sdk.Function(...)`, `sdk.Object(...)`, `sdk.Method(...)`, and `sdk.Serve(...)`.
+- Rewrote `plugins/testplugin/echo/main.go` to use the SDK while keeping the integration-test intent clear.
+- Left `plugins/testplugin/invalid/main.go` handwritten so raw-contract failure coverage remains in the test suite.
+- Updated `plugins/examples/README.md` so it describes the SDK surface instead of low-level `plugin.Serve(...)` wiring.
+- Added `TestRegistrarLoadsSDKAuthoredExamplePlugin` to `pkg/hashiplugin/host/registrar_test.go`.
+- Updated `pkg/doc/12-plugin-user-guide.md` to point plugin authors at the SDK-backed example.
+- Updated `pkg/doc/13-plugin-developer-guide.md` to describe the new layering with `pkg/hashiplugin/sdk`.
+- Rewrote the authoring portions of `pkg/doc/14-plugin-tutorial-build-install.md` around the richer SDK path.
+- Updated the GOJA-09 design doc so it reflects that the SDK now exists and that the examples have already been migrated.
+- Verified the help pages still render through `cmd/repl help ...`.
+
+### Why
+
+- The SDK only matters if the examples and tests actually use it.
+- Migrating the examples early makes the public surface concrete and quickly exposes missing affordances.
+- Leaving the invalid fixture manual is the cleanest way to retain raw-contract test coverage while still moving the happy path to the SDK.
+- The help docs need to match the code, or new plugin authors will still learn the older low-level path first.
+
+### What worked
+
+- The migrated `greeter` example became materially shorter and easier to read.
+- The existing host/runtime integration accepted the SDK-authored plugins without any host-side code changes.
+- The new registrar test proved the SDK-authored example loads through the real runtime path, not just SDK-local tests.
+- The help pages rendered successfully after the tutorial and architecture updates.
+
+### What didn't work
+
+- Nothing failed technically in this slice. The main judgment call was whether to migrate the invalid fixture as well, and I chose not to because the handwritten path is still useful coverage.
+
+### What I learned
+
+- The SDK is already expressive enough for the current example plugins; there was no missing feature that forced a fallback to the low-level contract.
+- Keeping one handwritten invalid fixture is a good compromise between dogfooding the SDK and preserving transport-level test coverage.
+- The developer guide needed a clearer statement that `sdk`, `contract/shared`, and `host` are three different layers with different responsibilities.
+
+### What was tricky to build
+
+- The subtle part was avoiding a documentation split-brain. Once the examples moved, the tutorial and developer guide immediately became stale because they still taught raw `Manifest(...)`/`Invoke(...)` code. Updating the example code and the authoring docs in the same slice kept the repo coherent.
+
+### What warrants a second pair of eyes
+
+- Whether `plugins/testplugin/echo` should remain SDK-authored permanently, or whether one small handwritten positive fixture is still useful alongside the handwritten invalid fixture.
+- Whether the tutorial should also show a second object-method example using numeric arguments now that `sdk.Call.Float64(...)` exists.
+- Whether the developer guide should add one tiny API reference section specifically for `pkg/hashiplugin/sdk`.
+
+### What should be done in the future
+
+- Run the final GOJA-09 validation pass, update the ticket closeout state, and re-upload the bundle to reMarkable.
+- Decide whether to add a dedicated quickstart help page for the SDK itself, or keep the tutorial as the primary authoring entrypoint.
+
+### Code review instructions
+
+- Start with `plugins/examples/greeter/main.go` and compare it mentally to the pre-SDK shape described in the GOJA-09 design doc.
+- Then read `pkg/hashiplugin/host/registrar_test.go` to see the real runtime path loading an SDK-authored example.
+- Finish with `pkg/doc/14-plugin-tutorial-build-install.md` to confirm the help system now teaches the SDK-based path.
+
+### Technical details
+
+- Commands run:
+  - `gofmt -w plugins/examples/greeter/main.go plugins/testplugin/echo/main.go pkg/hashiplugin/host/registrar_test.go`
+  - `go test ./pkg/hashiplugin/sdk ./pkg/hashiplugin/host ./plugins/examples/... ./plugins/testplugin/... -count=1`
+  - `go run ./cmd/repl help goja-plugin-user-guide | sed -n '1,120p'`
+  - `go run ./cmd/repl help goja-plugin-developer-guide | sed -n '1,160p'`
+  - `go run ./cmd/repl help plugin-tutorial-build-install | sed -n '1,200p'`
+  - `git add plugins/examples/greeter/main.go plugins/examples/README.md plugins/testplugin/echo/main.go pkg/hashiplugin/host/registrar_test.go`
+  - `git commit -m "hashiplugin: migrate examples to sdk"`
