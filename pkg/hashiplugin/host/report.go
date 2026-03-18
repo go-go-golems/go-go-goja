@@ -162,16 +162,16 @@ func summarizeExports(manifest *contract.ModuleManifest) []string {
 		if name == "" {
 			continue
 		}
-		if len(exp.GetMethods()) == 0 {
+		if len(exp.GetMethodSpecs()) == 0 {
 			out = append(out, name)
 			continue
 		}
-		for _, method := range exp.GetMethods() {
-			method = strings.TrimSpace(method)
-			if method == "" {
+		for _, method := range exp.GetMethodSpecs() {
+			methodName := strings.TrimSpace(method.GetName())
+			if methodName == "" {
 				continue
 			}
-			out = append(out, name+"."+method)
+			out = append(out, name+"."+methodName)
 		}
 	}
 	return out

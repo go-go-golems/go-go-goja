@@ -50,9 +50,6 @@ func (r *Registrar) RegisterRuntimeModules(ctx *engine.RuntimeModuleContext, reg
 		return err
 	}
 	for _, mod := range loaded {
-		if cfg.Report != nil {
-			cfg.Report.AddLoaded(mod)
-		}
 		if err := RegisterModule(reg, mod); err != nil {
 			closeLoaded(loaded)
 			if cfg.Report != nil {
@@ -60,6 +57,12 @@ func (r *Registrar) RegisterRuntimeModules(ctx *engine.RuntimeModuleContext, reg
 			}
 			return err
 		}
+		if cfg.Report != nil {
+			cfg.Report.AddLoaded(mod)
+		}
+	}
+	if ctx != nil {
+		ctx.SetValue(RuntimeLoadedModulesContextKey, SnapshotLoadedModules(loaded))
 	}
 	if ctx != nil && ctx.AddCloser != nil {
 		if err := ctx.AddCloser(func(context.Context) error {

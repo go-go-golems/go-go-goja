@@ -185,6 +185,7 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		Loop:      loop,
 		Owner:     owner,
 		AddCloser: rt.AddCloser,
+		Values:    map[string]any{},
 	}
 	for _, registrar := range f.runtimeModuleRegistrars {
 		if err := registrar.RegisterRuntimeModules(moduleCtx, reg); err != nil {

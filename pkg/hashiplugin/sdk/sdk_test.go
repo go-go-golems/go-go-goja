@@ -55,8 +55,12 @@ func TestNewModuleBuildsManifestCompatibleWithHostValidation(t *testing.T) {
 	if got := manifest.GetExports()[0].GetName(); got != "greet" {
 		t.Fatalf("first export = %q, want greet", got)
 	}
-	if got := manifest.GetExports()[1].GetMethods(); len(got) != 2 || got[0] != "upper" || got[1] != "lower" {
-		t.Fatalf("object methods = %#v", got)
+	methods := manifest.GetExports()[1].GetMethodSpecs()
+	if len(methods) != 2 || methods[0].GetName() != "upper" || methods[1].GetName() != "lower" {
+		t.Fatalf("object methods = %#v", methods)
+	}
+	if got := methods[0].GetDoc(); got != "Uppercase helper" {
+		t.Fatalf("first method doc = %q, want Uppercase helper", got)
 	}
 }
 

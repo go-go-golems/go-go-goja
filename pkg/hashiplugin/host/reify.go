@@ -38,10 +38,10 @@ func RegisterModule(reg *require.Registry, loaded *LoadedModule) error {
 				})
 			case contract.ExportKind_EXPORT_KIND_OBJECT:
 				obj := vm.NewObject()
-				for _, method := range exp.GetMethods() {
-					method := method
-					modules.SetExport(obj, requireName, method, func(call goja.FunctionCall) goja.Value {
-						return invokeExport(vm, loaded, exp.GetName(), method, call)
+				for _, method := range exp.GetMethodSpecs() {
+					methodName := method.GetName()
+					modules.SetExport(obj, requireName, methodName, func(call goja.FunctionCall) goja.Value {
+						return invokeExport(vm, loaded, exp.GetName(), methodName, call)
 					})
 				}
 				modules.SetExport(exports, requireName, exp.GetName(), obj)

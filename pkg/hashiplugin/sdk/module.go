@@ -184,11 +184,14 @@ func buildManifest(def *moduleDefinition) *contract.ModuleManifest {
 			Doc:  exp.doc,
 		}
 		if exp.kind == contract.ExportKind_EXPORT_KIND_OBJECT {
-			methods := make([]string, 0, len(exp.methods))
+			methods := make([]*contract.MethodSpec, 0, len(exp.methods))
 			for _, method := range exp.methods {
-				methods = append(methods, method.name)
+				methods = append(methods, &contract.MethodSpec{
+					Name: method.name,
+					Doc:  method.doc,
+				})
 			}
-			spec.Methods = methods
+			spec.MethodSpecs = methods
 		}
 		manifest.Exports = append(manifest.Exports, spec)
 	}

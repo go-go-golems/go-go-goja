@@ -16,7 +16,7 @@ func TestReportCollectorSnapshot(t *testing.T) {
 			Version:    "v1",
 			Exports: []*contract.ExportSpec{
 				{Name: "greet", Kind: contract.ExportKind_EXPORT_KIND_FUNCTION},
-				{Name: "strings", Kind: contract.ExportKind_EXPORT_KIND_OBJECT, Methods: []string{"upper", "lower"}},
+				{Name: "strings", Kind: contract.ExportKind_EXPORT_KIND_OBJECT, MethodSpecs: []*contract.MethodSpec{{Name: "upper"}, {Name: "lower"}}},
 			},
 		},
 	})

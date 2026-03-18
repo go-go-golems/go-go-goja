@@ -148,19 +148,87 @@ func (x *ModuleManifest) GetDoc() string {
 	return ""
 }
 
+type MethodSpec struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Summary       string                 `protobuf:"bytes,2,opt,name=summary,proto3" json:"summary,omitempty"`
+	Doc           string                 `protobuf:"bytes,3,opt,name=doc,proto3" json:"doc,omitempty"`
+	Tags          []string               `protobuf:"bytes,4,rep,name=tags,proto3" json:"tags,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MethodSpec) Reset() {
+	*x = MethodSpec{}
+	mi := &file_jsmodule_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MethodSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MethodSpec) ProtoMessage() {}
+
+func (x *MethodSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_jsmodule_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MethodSpec.ProtoReflect.Descriptor instead.
+func (*MethodSpec) Descriptor() ([]byte, []int) {
+	return file_jsmodule_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *MethodSpec) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *MethodSpec) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *MethodSpec) GetDoc() string {
+	if x != nil {
+		return x.Doc
+	}
+	return ""
+}
+
+func (x *MethodSpec) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
 type ExportSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Kind          ExportKind             `protobuf:"varint,2,opt,name=kind,proto3,enum=hashiplugin.contract.v1.ExportKind" json:"kind,omitempty"`
-	Methods       []string               `protobuf:"bytes,3,rep,name=methods,proto3" json:"methods,omitempty"`
-	Doc           string                 `protobuf:"bytes,4,opt,name=doc,proto3" json:"doc,omitempty"`
+	Doc           string                 `protobuf:"bytes,3,opt,name=doc,proto3" json:"doc,omitempty"`
+	MethodSpecs   []*MethodSpec          `protobuf:"bytes,4,rep,name=method_specs,json=methodSpecs,proto3" json:"method_specs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExportSpec) Reset() {
 	*x = ExportSpec{}
-	mi := &file_jsmodule_proto_msgTypes[1]
+	mi := &file_jsmodule_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -172,7 +240,7 @@ func (x *ExportSpec) String() string {
 func (*ExportSpec) ProtoMessage() {}
 
 func (x *ExportSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_jsmodule_proto_msgTypes[1]
+	mi := &file_jsmodule_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -185,7 +253,7 @@ func (x *ExportSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportSpec.ProtoReflect.Descriptor instead.
 func (*ExportSpec) Descriptor() ([]byte, []int) {
-	return file_jsmodule_proto_rawDescGZIP(), []int{1}
+	return file_jsmodule_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ExportSpec) GetName() string {
@@ -202,18 +270,18 @@ func (x *ExportSpec) GetKind() ExportKind {
 	return ExportKind_EXPORT_KIND_UNSPECIFIED
 }
 
-func (x *ExportSpec) GetMethods() []string {
-	if x != nil {
-		return x.Methods
-	}
-	return nil
-}
-
 func (x *ExportSpec) GetDoc() string {
 	if x != nil {
 		return x.Doc
 	}
 	return ""
+}
+
+func (x *ExportSpec) GetMethodSpecs() []*MethodSpec {
+	if x != nil {
+		return x.MethodSpecs
+	}
+	return nil
 }
 
 type InvokeRequest struct {
@@ -227,7 +295,7 @@ type InvokeRequest struct {
 
 func (x *InvokeRequest) Reset() {
 	*x = InvokeRequest{}
-	mi := &file_jsmodule_proto_msgTypes[2]
+	mi := &file_jsmodule_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -239,7 +307,7 @@ func (x *InvokeRequest) String() string {
 func (*InvokeRequest) ProtoMessage() {}
 
 func (x *InvokeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_jsmodule_proto_msgTypes[2]
+	mi := &file_jsmodule_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -252,7 +320,7 @@ func (x *InvokeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvokeRequest.ProtoReflect.Descriptor instead.
 func (*InvokeRequest) Descriptor() ([]byte, []int) {
-	return file_jsmodule_proto_rawDescGZIP(), []int{2}
+	return file_jsmodule_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *InvokeRequest) GetExportName() string {
@@ -285,7 +353,7 @@ type InvokeResponse struct {
 
 func (x *InvokeResponse) Reset() {
 	*x = InvokeResponse{}
-	mi := &file_jsmodule_proto_msgTypes[3]
+	mi := &file_jsmodule_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -297,7 +365,7 @@ func (x *InvokeResponse) String() string {
 func (*InvokeResponse) ProtoMessage() {}
 
 func (x *InvokeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_jsmodule_proto_msgTypes[3]
+	mi := &file_jsmodule_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -310,7 +378,7 @@ func (x *InvokeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvokeResponse.ProtoReflect.Descriptor instead.
 func (*InvokeResponse) Descriptor() ([]byte, []int) {
-	return file_jsmodule_proto_rawDescGZIP(), []int{3}
+	return file_jsmodule_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *InvokeResponse) GetResult() *structpb.Value {
@@ -331,13 +399,19 @@ const file_jsmodule_proto_rawDesc = "" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12=\n" +
 	"\aexports\x18\x03 \x03(\v2#.hashiplugin.contract.v1.ExportSpecR\aexports\x12\"\n" +
 	"\fcapabilities\x18\x04 \x03(\tR\fcapabilities\x12\x10\n" +
-	"\x03doc\x18\x05 \x01(\tR\x03doc\"\x85\x01\n" +
+	"\x03doc\x18\x05 \x01(\tR\x03doc\"`\n" +
+	"\n" +
+	"MethodSpec\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\asummary\x18\x02 \x01(\tR\asummary\x12\x10\n" +
+	"\x03doc\x18\x03 \x01(\tR\x03doc\x12\x12\n" +
+	"\x04tags\x18\x04 \x03(\tR\x04tags\"\xb3\x01\n" +
 	"\n" +
 	"ExportSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
-	"\x04kind\x18\x02 \x01(\x0e2#.hashiplugin.contract.v1.ExportKindR\x04kind\x12\x18\n" +
-	"\amethods\x18\x03 \x03(\tR\amethods\x12\x10\n" +
-	"\x03doc\x18\x04 \x01(\tR\x03doc\"}\n" +
+	"\x04kind\x18\x02 \x01(\x0e2#.hashiplugin.contract.v1.ExportKindR\x04kind\x12\x10\n" +
+	"\x03doc\x18\x03 \x01(\tR\x03doc\x12F\n" +
+	"\fmethod_specs\x18\x04 \x03(\v2#.hashiplugin.contract.v1.MethodSpecR\vmethodSpecs\"}\n" +
 	"\rInvokeRequest\x12\x1f\n" +
 	"\vexport_name\x18\x01 \x01(\tR\n" +
 	"exportName\x12\x1f\n" +
@@ -368,30 +442,32 @@ func file_jsmodule_proto_rawDescGZIP() []byte {
 }
 
 var file_jsmodule_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_jsmodule_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_jsmodule_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_jsmodule_proto_goTypes = []any{
 	(ExportKind)(0),        // 0: hashiplugin.contract.v1.ExportKind
 	(*ModuleManifest)(nil), // 1: hashiplugin.contract.v1.ModuleManifest
-	(*ExportSpec)(nil),     // 2: hashiplugin.contract.v1.ExportSpec
-	(*InvokeRequest)(nil),  // 3: hashiplugin.contract.v1.InvokeRequest
-	(*InvokeResponse)(nil), // 4: hashiplugin.contract.v1.InvokeResponse
-	(*structpb.Value)(nil), // 5: google.protobuf.Value
-	(*emptypb.Empty)(nil),  // 6: google.protobuf.Empty
+	(*MethodSpec)(nil),     // 2: hashiplugin.contract.v1.MethodSpec
+	(*ExportSpec)(nil),     // 3: hashiplugin.contract.v1.ExportSpec
+	(*InvokeRequest)(nil),  // 4: hashiplugin.contract.v1.InvokeRequest
+	(*InvokeResponse)(nil), // 5: hashiplugin.contract.v1.InvokeResponse
+	(*structpb.Value)(nil), // 6: google.protobuf.Value
+	(*emptypb.Empty)(nil),  // 7: google.protobuf.Empty
 }
 var file_jsmodule_proto_depIdxs = []int32{
-	2, // 0: hashiplugin.contract.v1.ModuleManifest.exports:type_name -> hashiplugin.contract.v1.ExportSpec
+	3, // 0: hashiplugin.contract.v1.ModuleManifest.exports:type_name -> hashiplugin.contract.v1.ExportSpec
 	0, // 1: hashiplugin.contract.v1.ExportSpec.kind:type_name -> hashiplugin.contract.v1.ExportKind
-	5, // 2: hashiplugin.contract.v1.InvokeRequest.args:type_name -> google.protobuf.Value
-	5, // 3: hashiplugin.contract.v1.InvokeResponse.result:type_name -> google.protobuf.Value
-	6, // 4: hashiplugin.contract.v1.JSModuleService.GetManifest:input_type -> google.protobuf.Empty
-	3, // 5: hashiplugin.contract.v1.JSModuleService.Invoke:input_type -> hashiplugin.contract.v1.InvokeRequest
-	1, // 6: hashiplugin.contract.v1.JSModuleService.GetManifest:output_type -> hashiplugin.contract.v1.ModuleManifest
-	4, // 7: hashiplugin.contract.v1.JSModuleService.Invoke:output_type -> hashiplugin.contract.v1.InvokeResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	2, // 2: hashiplugin.contract.v1.ExportSpec.method_specs:type_name -> hashiplugin.contract.v1.MethodSpec
+	6, // 3: hashiplugin.contract.v1.InvokeRequest.args:type_name -> google.protobuf.Value
+	6, // 4: hashiplugin.contract.v1.InvokeResponse.result:type_name -> google.protobuf.Value
+	7, // 5: hashiplugin.contract.v1.JSModuleService.GetManifest:input_type -> google.protobuf.Empty
+	4, // 6: hashiplugin.contract.v1.JSModuleService.Invoke:input_type -> hashiplugin.contract.v1.InvokeRequest
+	1, // 7: hashiplugin.contract.v1.JSModuleService.GetManifest:output_type -> hashiplugin.contract.v1.ModuleManifest
+	5, // 8: hashiplugin.contract.v1.JSModuleService.Invoke:output_type -> hashiplugin.contract.v1.InvokeResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_jsmodule_proto_init() }
@@ -405,7 +481,7 @@ func file_jsmodule_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_jsmodule_proto_rawDesc), len(file_jsmodule_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

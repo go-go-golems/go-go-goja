@@ -26,11 +26,18 @@ message ModuleManifest {
   string doc = 5;
 }
 
+message MethodSpec {
+  string name = 1;
+  string summary = 2;
+  string doc = 3;
+  repeated string tags = 4;
+}
+
 message ExportSpec {
   string name = 1;
   ExportKind kind = 2;
-  repeated string methods = 3;
-  string doc = 4;
+  string doc = 3;
+  repeated MethodSpec method_specs = 4;
 }
 
 message InvokeRequest {

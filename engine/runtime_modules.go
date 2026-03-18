@@ -22,4 +22,23 @@ type RuntimeModuleContext struct {
 	Loop      *eventloop.EventLoop
 	Owner     runtimeowner.Runner
 	AddCloser func(func(context.Context) error) error
+	Values    map[string]any
+}
+
+func (ctx *RuntimeModuleContext) SetValue(key string, value any) {
+	if ctx == nil || key == "" {
+		return
+	}
+	if ctx.Values == nil {
+		ctx.Values = map[string]any{}
+	}
+	ctx.Values[key] = value
+}
+
+func (ctx *RuntimeModuleContext) Value(key string) (any, bool) {
+	if ctx == nil || ctx.Values == nil || key == "" {
+		return nil, false
+	}
+	value, ok := ctx.Values[key]
+	return value, ok
 }
