@@ -28,6 +28,9 @@ The REPL accepts any valid JavaScript expression and immediately evaluates it wi
 # Lightweight line REPL / script runner
 go run ./cmd/repl
 
+# Add an extra plugin directory explicitly
+go run ./cmd/repl --plugin-dir /tmp/goja-plugins
+
 # With debug logging
 go run ./cmd/repl --debug
 
@@ -36,7 +39,12 @@ go run ./cmd/repl path/to/script.js
 
 # Rich Bobatea-based JS REPL with completion/help widgets
 go run ./cmd/js-repl
+
+# Rich Bobatea-based JS REPL with an extra plugin directory
+go run ./cmd/js-repl --plugin-dir /tmp/goja-plugins
 ```
+
+When you do not pass `--plugin-dir`, both REPL entrypoints scan the default per-user plugin tree under `~/.go-go-goja/plugins/...`. If you do pass one or more `--plugin-dir` flags, those explicit directories are used instead.
 
 ### Basic JavaScript Evaluation
 
@@ -78,6 +86,21 @@ Hello from REPL!
 js> fs.existsSync("/tmp/demo.txt")
 true
 ```
+
+### Plugin-backed Modules
+
+Plugin-backed modules load through the same `require()` API as in-process native modules:
+
+```javascript
+js> const echo = require("plugin:echo")
+js> echo.ping("hello")
+hello
+
+js> echo.math.add(2, 3)
+5
+```
+
+Use `repl help goja-plugin-user-guide` for the full plugin reference and `repl help plugin-tutorial-build-install` for the step-by-step build/install flow.
 
 ### HTTP Requests
 

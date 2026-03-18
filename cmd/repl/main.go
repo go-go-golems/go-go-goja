@@ -32,6 +32,7 @@ type conversion between Go and JavaScript values.`,
 		// If no files were given, just show usage.
 		debug, _ := cmd.Flags().GetBool("debug")
 		pluginDirs, _ := cmd.Flags().GetStringSlice("plugin-dir")
+		pluginDirs = host.ResolveDiscoveryDirectories(pluginDirs)
 
 		builder := engine.NewBuilder().
 			WithModules(engine.DefaultRegistryModules())
@@ -102,6 +103,9 @@ func runInteractiveLoop(vm *goja.Runtime, debug bool) error {
 			fmt.Println("  repl help creating-modules")
 			fmt.Println("  repl help async-patterns")
 			fmt.Println("  repl help repl-usage")
+			fmt.Println("  repl help goja-plugin-user-guide")
+			fmt.Println("  repl help goja-plugin-developer-guide")
+			fmt.Println("  repl help plugin-tutorial-build-install")
 			fmt.Println("  repl help jsparse-framework-reference")
 			fmt.Println("  repl help inspector-example-user-guide")
 			fmt.Println("\nOtherwise any line is evaluated as JavaScript.")
@@ -127,7 +131,7 @@ func runInteractiveLoop(vm *goja.Runtime, debug bool) error {
 func main() {
 	// Set up flags
 	rootCmd.Flags().Bool("debug", false, "enable verbose debug logs")
-	rootCmd.Flags().StringSlice("plugin-dir", nil, "directory containing HashiCorp go-plugin module binaries")
+	rootCmd.Flags().StringSlice("plugin-dir", nil, fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
 
 	// Set up help system
 	helpSystem := help.NewHelpSystem()

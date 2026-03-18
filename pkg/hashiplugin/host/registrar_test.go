@@ -16,7 +16,7 @@ import (
 
 func TestRegistrarRegistersPluginModuleIntoRuntime(t *testing.T) {
 	binDir := t.TempDir()
-	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-echo"), "./pkg/hashiplugin/testplugin/echo")
+	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-echo"), "./plugins/testplugin/echo")
 
 	factory, err := engine.NewBuilder().
 		WithRuntimeModuleRegistrars(NewRegistrar(Config{
@@ -72,7 +72,7 @@ func TestRegistrarRegistersPluginModuleIntoRuntime(t *testing.T) {
 
 func TestRegistrarRejectsInvalidManifest(t *testing.T) {
 	binDir := t.TempDir()
-	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-invalid"), "./pkg/hashiplugin/testplugin/invalid")
+	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-invalid"), "./plugins/testplugin/invalid")
 
 	factory, err := engine.NewBuilder().
 		WithRuntimeModuleRegistrars(NewRegistrar(Config{

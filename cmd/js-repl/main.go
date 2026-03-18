@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -12,9 +13,22 @@ import (
 	"github.com/go-go-golems/bobatea/pkg/logutil"
 	"github.com/go-go-golems/bobatea/pkg/repl"
 	"github.com/go-go-golems/bobatea/pkg/timeline"
+	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	jsadapter "github.com/go-go-golems/go-go-goja/pkg/repl/adapters/bobatea"
+	js "github.com/go-go-golems/go-go-goja/pkg/repl/evaluators/javascript"
 	"github.com/rs/zerolog"
 )
+
+type stringSliceFlag []string
+
+func (s *stringSliceFlag) String() string {
+	return strings.Join(*s, ",")
+}
+
+func (s *stringSliceFlag) Set(value string) error {
+	*s = append(*s, value)
+	return nil
+}
 
 func parseLevel(s string) zerolog.Level {
 	switch strings.ToLower(s) {
@@ -36,6 +50,8 @@ func parseLevel(s string) zerolog.Level {
 func main() {
 	ll := flag.String("log-level", "error", "log level: trace, debug, info, warn, error")
 	lf := flag.String("log-file", "", "log file path (optional)")
+	var pluginDirs stringSliceFlag
+	flag.Var(&pluginDirs, "plugin-dir", fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
 	flag.Parse()
 
 	level := parseLevel(*ll)
@@ -45,7 +61,9 @@ func main() {
 		logutil.InitTUILoggingToDiscard(level)
 	}
 
-	evaluator, err := jsadapter.NewJavaScriptEvaluatorWithDefaults()
+	evaluatorConfig := js.DefaultConfig()
+	evaluatorConfig.PluginDirectories = host.ResolveDiscoveryDirectories(pluginDirs)
+	evaluator, err := jsadapter.NewJavaScriptEvaluator(evaluatorConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
