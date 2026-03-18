@@ -81,3 +81,12 @@ Re-opened GOJA-09 to expand the SDK example catalog beyond `greeter` and `echo`,
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/12-plugin-user-guide.md — User guide now references the broader example set
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/13-plugin-developer-guide.md — Developer guide now documents the expanded example catalog
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/14-plugin-tutorial-build-install.md — Tutorial now points authors at follow-up examples after `greeter`
+
+## 2026-03-18
+
+Closed out the reopened GOJA-09 example-catalog phase by rerunning the full suite, validating the ticket again, and refreshing the reMarkable bundle from the new committed state.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins--create-a-plugin-authoring-sdk-layer-for-hashicorp-go-go-goja-plugins/tasks.md — Phase 9 checklist now fully checked off
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins--create-a-plugin-authoring-sdk-layer-for-hashicorp-go-go-goja-plugins/reference/01-investigation-diary.md — Final reopened-slice validation and upload evidence

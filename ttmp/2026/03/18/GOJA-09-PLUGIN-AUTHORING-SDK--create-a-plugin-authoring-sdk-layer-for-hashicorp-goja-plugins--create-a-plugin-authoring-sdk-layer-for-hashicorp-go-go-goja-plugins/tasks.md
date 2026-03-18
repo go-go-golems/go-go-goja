@@ -99,4 +99,4 @@
 - [x] Add focused runtime or integration coverage for at least the stateful and error-propagation examples.
 - [x] Re-run the relevant example, host, and docs validation passes.
 - [x] Update the GOJA-09 diary and changelog for the new example slices.
-- [ ] Refresh the GOJA-09 bundle on reMarkable after the expanded example catalog lands.
+- [x] Refresh the GOJA-09 bundle on reMarkable after the expanded example catalog lands.

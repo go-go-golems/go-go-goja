@@ -577,3 +577,78 @@ I fixed that by keeping the example aligned with the transport contract instead 
   - `go run ./cmd/repl help goja-plugin-user-guide | sed -n '1,220p'`
   - `go run ./cmd/repl help goja-plugin-developer-guide | sed -n '420,520p'`
   - `go run ./cmd/repl help plugin-tutorial-build-install | sed -n '1,260p'`
+
+## Step 7: Close out the reopened example-catalog slice and refresh the external deliverable
+
+Once the example catalog, docs, and focused tests were committed, the remaining work was ticket hygiene again: rerun the full validation pass from the committed state, refresh the uploaded bundle, and make the GOJA-09 workspace reflect that the reopened slice is complete rather than still in progress.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Finish the reopened GOJA-09 slice all the way through validation, upload, and ticket closeout.
+
+**Inferred user intent:** Leave no ambiguity about whether the expanded example catalog is just local branch work or a fully closed out ticket deliverable.
+
+**Commit (code):** `88fc319` — `plugins: document and test sdk example catalog`
+
+### What I did
+
+- Re-ran the full repository test suite after the example-catalog docs and host-test work landed.
+- Re-ran `docmgr doctor` for GOJA-09.
+- Verified `remarquee` status and cloud account access.
+- Dry-ran the bundle upload with the current CLI syntax.
+- Re-uploaded the GOJA-09 bundle from the committed ticket state.
+- Verified the remote listing for `/ai/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK`.
+- Checked off the final Phase 9 upload item in `tasks.md`.
+
+### Why
+
+- The reopened work should meet the same standard as the original GOJA-09 closeout: passing tests, current ticket artifacts, and a refreshed external bundle.
+- Re-running the full suite catches drift that focused tests can miss, especially after help-page and example changes.
+
+### What worked
+
+- The full repository tests still passed after the example-catalog expansion.
+- `docmgr doctor` remained clean.
+- The reMarkable bundle refresh succeeded and the remote directory still showed the expected document.
+
+### What didn't work
+
+- Nothing failed in this final closeout slice.
+
+### What I learned
+
+- Reopening a ticket for follow-on work is manageable as long as the diary and checklist keep explicit boundaries between the original closeout and the reopened slice.
+- The example catalog now carries more of the teaching burden, which should reduce pressure to over-explain the SDK in every help page.
+
+### What was tricky to build
+
+- The subtle part was not code; it was keeping the reopened slice from making the earlier closeout record misleading. The answer was to treat the reopened work as an explicit new ticket phase with its own final evidence.
+
+### What warrants a second pair of eyes
+
+- Whether the GOJA-09 design guide should now mention the expanded example catalog explicitly in its recommended reading order.
+- Whether one of the new examples should be promoted into the main tutorial as an optional second walkthrough, especially `validator` or `kv`.
+
+### What should be done in the future
+
+- If a future ticket improves value normalization in `sdk.encodeResult(...)`, revisit `kv` and the docs to see whether plain typed slices should become first-class return shapes.
+- Consider adding tiny smoke scripts under `testdata/` that exercise one or two example plugins from JavaScript for copy-paste manual testing.
+
+### Code review instructions
+
+- Start with `git show 9ed3b51` for the pure example-source slice.
+- Then read `git show 88fc319` for the docs, tests, and ticket updates that turned the examples into a real catalog.
+- Finish with `tasks.md` and this diary step to verify the reopened Phase 9 is fully closed.
+
+### Technical details
+
+- Commands run:
+  - `go test ./... -count=1`
+  - `docmgr doctor --ticket GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins --stale-after 30`
+  - `remarquee status`
+  - `remarquee cloud account --non-interactive`
+  - `remarquee upload bundle ttmp/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins--create-a-plugin-authoring-sdk-layer-for-hashicorp-go-go-goja-plugins --dry-run --name "GOJA-09 Plugin authoring SDK" --remote-dir "/ai/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK" --toc-depth 2`
+  - `remarquee upload bundle ttmp/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins--create-a-plugin-authoring-sdk-layer-for-hashicorp-go-go-goja-plugins --force --name "GOJA-09 Plugin authoring SDK" --remote-dir "/ai/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK" --toc-depth 2`
+  - `remarquee cloud ls /ai/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK --long --non-interactive`
