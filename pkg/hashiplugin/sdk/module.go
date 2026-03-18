@@ -108,30 +108,15 @@ func validateModuleDefinition(def *moduleDefinition) error {
 	if def == nil {
 		return fmt.Errorf("sdk module definition is nil")
 	}
-	if def.name == "" {
-		return fmt.Errorf("sdk module name is empty")
-	}
-	if !strings.HasPrefix(def.name, DefaultNamespace) {
-		return fmt.Errorf("sdk module %q must use namespace %q", def.name, DefaultNamespace)
-	}
-
-	exportNames := map[string]struct{}{}
 	for _, exp := range def.exports {
 		if exp == nil {
 			return fmt.Errorf("sdk module %q contains a nil export", def.name)
 		}
 		exp.name = strings.TrimSpace(exp.name)
-		if exp.name == "" {
-			return fmt.Errorf("sdk module %q has an export with empty name", def.name)
-		}
-		if _, ok := exportNames[exp.name]; ok {
-			return fmt.Errorf("sdk module %q has duplicate export %q", def.name, exp.name)
-		}
-		exportNames[exp.name] = struct{}{}
 
 		switch exp.kind {
 		case contract.ExportKind_EXPORT_KIND_UNSPECIFIED:
-			return fmt.Errorf("sdk export %q in module %q has unspecified kind", exp.name, def.name)
+			// Shared manifest validation below owns kind-shape validation.
 		case contract.ExportKind_EXPORT_KIND_FUNCTION:
 			if exp.handler == nil {
 				return fmt.Errorf("sdk function export %q in module %q has nil handler", exp.name, def.name)
@@ -140,25 +125,14 @@ func validateModuleDefinition(def *moduleDefinition) error {
 				return fmt.Errorf("sdk function export %q in module %q must not define methods", exp.name, def.name)
 			}
 		case contract.ExportKind_EXPORT_KIND_OBJECT:
-			if len(exp.methods) == 0 {
-				return fmt.Errorf("sdk object export %q in module %q must define at least one method", exp.name, def.name)
-			}
-			methodNames := map[string]struct{}{}
 			for _, method := range exp.methods {
 				if method == nil {
 					return fmt.Errorf("sdk object export %q in module %q contains a nil method", exp.name, def.name)
 				}
 				method.name = strings.TrimSpace(method.name)
-				if method.name == "" {
-					return fmt.Errorf("sdk object export %q in module %q has an empty method name", exp.name, def.name)
-				}
 				if method.handler == nil {
 					return fmt.Errorf("sdk method %q in export %q module %q has nil handler", method.name, exp.name, def.name)
 				}
-				if _, ok := methodNames[method.name]; ok {
-					return fmt.Errorf("sdk object export %q in module %q has duplicate method %q", exp.name, def.name, method.name)
-				}
-				methodNames[method.name] = struct{}{}
 			}
 		default:
 			return fmt.Errorf("sdk export %q in module %q has unsupported kind %q", exp.name, def.name, exp.kind.String())
@@ -166,6 +140,11 @@ func validateModuleDefinition(def *moduleDefinition) error {
 	}
 
 	def.capabilities = normalizeStrings(def.capabilities)
+	if err := contract.ValidateManifest(buildManifest(def), contract.ManifestValidationOptions{
+		NamespacePrefix: DefaultNamespace,
+	}); err != nil {
+		return fmt.Errorf("sdk module definition invalid: %w", err)
+	}
 	return nil
 }
 

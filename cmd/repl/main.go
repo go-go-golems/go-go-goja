@@ -12,7 +12,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/help"
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/go-go-golems/go-go-goja/engine"
-	"github.com/go-go-golems/go-go-goja/modules/glazehelp"
 	"github.com/go-go-golems/go-go-goja/pkg/doc"
 	docaccessruntime "github.com/go-go-golems/go-go-goja/pkg/docaccess/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
@@ -177,9 +176,6 @@ func main() {
 	if err := doc.AddDocToHelpSystem(appHelpSystem); err != nil {
 		log.Printf("Warning: failed to load documentation: %v", err)
 	}
-
-	// Register help system for JavaScript access
-	glazehelp.Register("default", appHelpSystem)
 
 	// Setup enhanced help system for the complete application
 	help_cmd.SetupCobraRootCommand(appHelpSystem, rootCmd)

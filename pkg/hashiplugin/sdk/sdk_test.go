@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/contract"
-	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/shared"
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -40,8 +39,10 @@ func TestNewModuleBuildsManifestCompatibleWithHostValidation(t *testing.T) {
 		t.Fatalf("manifest: %v", err)
 	}
 
-	if err := host.ValidateManifest(host.Config{}, manifest); err != nil {
-		t.Fatalf("host validate manifest: %v", err)
+	if err := contract.ValidateManifest(manifest, contract.ManifestValidationOptions{
+		NamespacePrefix: DefaultNamespace,
+	}); err != nil {
+		t.Fatalf("shared validate manifest: %v", err)
 	}
 	if got := manifest.GetVersion(); got != "v1" {
 		t.Fatalf("version = %q, want v1", got)
@@ -77,7 +78,7 @@ func TestNewModuleRejectsDuplicateExport(t *testing.T) {
 
 func TestNewModuleRejectsObjectWithoutMethods(t *testing.T) {
 	_, err := NewModule("plugin:bad", Object("math"))
-	if err == nil || !strings.Contains(err.Error(), "must define at least one method") {
+	if err == nil || !strings.Contains(err.Error(), "must define methods") {
 		t.Fatalf("expected missing methods error, got %v", err)
 	}
 }
