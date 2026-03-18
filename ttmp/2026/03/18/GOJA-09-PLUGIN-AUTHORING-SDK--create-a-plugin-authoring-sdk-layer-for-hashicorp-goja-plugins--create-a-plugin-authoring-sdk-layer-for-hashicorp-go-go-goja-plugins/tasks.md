@@ -80,8 +80,8 @@
 
 ## Phase 8: Ticket Closeout
 
-- [ ] Update the GOJA-09 diary after each implementation slice with commands, failures, and commit hashes.
-- [ ] Keep `tasks.md` checked off task by task as the SDK work lands.
-- [ ] Update `changelog.md` with meaningful reviewable slices rather than one bulk entry.
-- [ ] Run `docmgr doctor --ticket GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins --stale-after 30`.
-- [ ] Upload the refreshed GOJA-09 bundle to reMarkable and verify the remote listing.
+- [x] Update the GOJA-09 diary after each implementation slice with commands, failures, and commit hashes.
+- [x] Keep `tasks.md` checked off task by task as the SDK work lands.
+- [x] Update `changelog.md` with meaningful reviewable slices rather than one bulk entry.
+- [x] Run `docmgr doctor --ticket GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins --stale-after 30`.
+- [x] Upload the refreshed GOJA-09 bundle to reMarkable and verify the remote listing.

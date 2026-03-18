@@ -353,3 +353,78 @@ Once that path worked, I updated the plugin help pages so they stop teaching aut
   - `go run ./cmd/repl help plugin-tutorial-build-install | sed -n '1,200p'`
   - `git add plugins/examples/greeter/main.go plugins/examples/README.md plugins/testplugin/echo/main.go pkg/hashiplugin/host/registrar_test.go`
   - `git commit -m "hashiplugin: migrate examples to sdk"`
+
+## Step 4: Run the final GOJA-09 closeout pass, sync the ticket state, and refresh the reMarkable bundle
+
+This final step was about making the ticket truthful and reviewable rather than adding more code. I checked off the remaining closeout tasks, reran the full validation pass after the SDK and docs work had landed, and refreshed the uploaded bundle so the reMarkable copy matches the final ticket state instead of an earlier intermediate draft.
+
+### Prompt Context
+
+**User prompt (verbatim):** "alright, work on it task by task, committing at appropriate intervals as you go, and keeping a diary."
+
+**Assistant interpretation:** Finish the remaining GOJA-09 execution loop by recording the final validation evidence, closing the ticket checklist, and publishing the final bundle state.
+
+**Inferred user intent:** Leave the repository and the ticket artifacts in a state where another engineer can review the shipped SDK work and trust that the docs, checklist, and external bundle all reflect the code that is actually on the branch.
+
+**Commit (code):** `N/A` for the validation/upload pass itself; the matching closeout docs commit is recorded separately in git history.
+
+### What I did
+
+- Updated `tasks.md` so the final closeout items are explicitly checked off.
+- Added this closeout diary step so the validation and delivery evidence live in the ticket, not just in terminal history.
+- Updated `changelog.md` with a final GOJA-09 closeout summary that points reviewers at the shipped SDK, migrated examples, tests, and docs.
+- Re-ran the full repository test suite after the SDK, example, and documentation slices were complete.
+- Re-ran `docmgr doctor` for the GOJA-09 ticket.
+- Re-uploaded the GOJA-09 bundle to reMarkable and verified the remote listing in the target directory.
+
+### Why
+
+- The ticket checklist should not imply unfinished work when the implementation is already complete.
+- The diary is most useful when it captures the full lifecycle, including the final validation and publication pass.
+- Re-uploading after the last ticket updates avoids drift between the checked-in ticket state and the copy sent to reMarkable.
+
+### What worked
+
+- The full repository test suite passed after the SDK migration work.
+- `docmgr doctor` passed without requiring structural fixes to the ticket.
+- The bundle upload succeeded and the target reMarkable directory still resolved to the expected GOJA-09 document name.
+
+### What didn't work
+
+- Nothing failed in this closeout slice. The work here was mostly consistency and proof rather than debugging.
+
+### What I learned
+
+- The most fragile part of these ticket-driven workflows is usually not the code; it is keeping the ticket artifacts, uploaded bundle, and branch history aligned. Doing one explicit closeout pass is worth it.
+- The richer SDK remained small enough that the final full test run was still the right validation level; no specialized or manual-only validation was needed beyond the existing integration coverage.
+
+### What was tricky to build
+
+- The main subtlety was deciding what counts as "done" for a research-plus-implementation ticket. The answer here was: code merged into the branch, examples migrated, docs updated, tests passing, ticket state current, and external bundle refreshed.
+
+### What warrants a second pair of eyes
+
+- Whether the GOJA-09 design guide should now be split into a shorter API quickstart plus a deeper intern document, or whether the current long-form guide is the right shape for this repo.
+- Whether `sdk.ServeModule(...)` should remain a supported helper in examples, or whether future docs should standardize more strongly on `MustModule(...)` + `Serve(...)`.
+
+### What should be done in the future
+
+- If plugin authoring becomes a bigger user story, add a dedicated quickstart page focused purely on the SDK API.
+- Consider whether the next plugin hardening ticket should build on the new SDK surface with authoring-time validation helpers or trust-policy integration.
+
+### Code review instructions
+
+- Review `pkg/hashiplugin/sdk/*.go` first to understand the shipped API surface.
+- Then read `plugins/examples/greeter/main.go` and `pkg/hashiplugin/host/registrar_test.go` to confirm the example and real runtime path both use the SDK successfully.
+- Finish with the GOJA-09 `tasks.md` and `changelog.md` to verify the ticket history lines up with the code.
+
+### Technical details
+
+- Commands run:
+  - `go test ./... -count=1`
+  - `docmgr doctor --ticket GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins --stale-after 30`
+  - `remarquee status`
+  - `remarquee cloud account --non-interactive`
+  - `remarquee upload bundle --dry-run --bundle-dir ttmp/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins--create-a-plugin-authoring-sdk-layer-for-hashicorp-go-go-goja-plugins --name "GOJA-09 Plugin authoring SDK" --remote-dir "/ai/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK" --toc-depth 2`
+  - `remarquee upload bundle --force --bundle-dir ttmp/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins--create-a-plugin-authoring-sdk-layer-for-hashicorp-go-go-goja-plugins --name "GOJA-09 Plugin authoring SDK" --remote-dir "/ai/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK" --toc-depth 2`
+  - `remarquee cloud ls /ai/2026/03/18/GOJA-09-PLUGIN-AUTHORING-SDK --long --non-interactive`
