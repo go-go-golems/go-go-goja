@@ -439,9 +439,9 @@ It covers:
 - loading `plugin:echo`,
 - calling a function export,
 - calling an object-method export,
-- loading the SDK-authored `plugin:greeter` example,
-- loading the SDK-authored `plugin:kv` example and verifying state survives across calls,
-- loading the SDK-authored `plugin:failing` example and verifying handler errors surface back to the caller,
+- loading the SDK-authored `plugin:examples:greeter` example,
+- loading the SDK-authored `plugin:examples:kv` example and verifying state survives across calls,
+- loading the SDK-authored `plugin:examples:failing` example and verifying handler errors surface back to the caller,
 - rejecting an invalid manifest,
 - verifying subprocess shutdown on runtime close.
 

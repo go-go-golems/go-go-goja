@@ -1,10 +1,12 @@
-.PHONY: docker-lint lint lintmax golangci-lint-install gosec govulncheck test test-inspector build goreleaser tag-major tag-minor tag-patch release bump-glazed
+.PHONY: docker-lint lint lintmax golangci-lint-install gosec govulncheck test test-inspector build goreleaser tag-major tag-minor tag-patch release bump-glazed install-modules
 
 all: build
 
 VERSION=v0.1.14
 GOLANGCI_LINT_VERSION ?= $(shell cat .golangci-lint-version)
 GOLANGCI_LINT_BIN ?= $(CURDIR)/.bin/golangci-lint
+DEFAULT_PLUGIN_DIR ?= $(HOME)/.go-go-goja/plugins/examples
+EXAMPLE_PLUGIN_NAMES := greeter clock validator kv system-info failing
 
 docker-lint:
 	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) golangci-lint run -v
@@ -39,6 +41,13 @@ test-inspector:
 build:
 	go generate ./...
 	go build ./...
+
+install-modules:
+	mkdir -p "$(DEFAULT_PLUGIN_DIR)"
+	@for name in $(EXAMPLE_PLUGIN_NAMES); do \
+		echo "installing $$name -> $(DEFAULT_PLUGIN_DIR)/goja-plugin-examples-$$name"; \
+		go build -o "$(DEFAULT_PLUGIN_DIR)/goja-plugin-examples-$$name" "./plugins/examples/$$name"; \
+	done
 
 goreleaser:
 	goreleaser release --skip=sign --snapshot --clean

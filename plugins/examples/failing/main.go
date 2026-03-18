@@ -10,7 +10,7 @@ import (
 func main() {
 	sdk.Serve(
 		sdk.MustModule(
-			"plugin:failing",
+			"plugin:examples:failing",
 			sdk.Version("v1"),
 			sdk.Doc("Example plugin that demonstrates explicit handler errors"),
 			sdk.Capabilities("examples", "errors"),

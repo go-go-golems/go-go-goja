@@ -62,10 +62,16 @@ From the repository root:
 
 ```bash
 mkdir -p ~/.go-go-goja/plugins/examples
-go build -o ~/.go-go-goja/plugins/examples/goja-plugin-greeter ./plugins/examples/greeter
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-examples-greeter ./plugins/examples/greeter
 ```
 
-The binary name matters. Discovery uses the pattern `goja-plugin-*` by default, so `goja-plugin-greeter` is picked up automatically.
+If you want to install the whole example catalog at once, run:
+
+```bash
+make install-modules
+```
+
+The binary name matters. Discovery uses the pattern `goja-plugin-*` by default, so `goja-plugin-examples-greeter` is picked up automatically.
 
 ### 2. Start the line REPL with plugin discovery enabled
 
@@ -84,7 +90,7 @@ go run ./cmd/repl --plugin-dir /tmp/goja-plugins
 ### 3. Require the module in JavaScript
 
 ```javascript
-let greeter = require("plugin:greeter")
+let greeter = require("plugin:examples:greeter")
 greeter.greet("hello")
 greeter.strings.upper("hello")
 greeter.meta.pid()
@@ -102,12 +108,12 @@ The example directory now contains several SDK-authored plugins, each meant to t
 
 | Example | Module name | What to learn from it |
 |---|---|---|
-| `plugins/examples/greeter` | `plugin:greeter` | Baseline module structure, metadata, function exports, object methods |
-| `plugins/examples/clock` | `plugin:clock` | Zero-argument handlers and structured result objects |
-| `plugins/examples/validator` | `plugin:validator` | `sdk.Call` helpers, defaults, map/slice inputs, and validation failures |
-| `plugins/examples/kv` | `plugin:kv` | Stateful object methods that keep process-local state |
-| `plugins/examples/system-info` | `plugin:system-info` | Mixed export shapes and nested JSON-like responses |
-| `plugins/examples/failing` | `plugin:failing` | Explicit handler errors and how failures surface to JavaScript |
+| `plugins/examples/greeter` | `plugin:examples:greeter` | Baseline module structure, metadata, function exports, object methods |
+| `plugins/examples/clock` | `plugin:examples:clock` | Zero-argument handlers and structured result objects |
+| `plugins/examples/validator` | `plugin:examples:validator` | `sdk.Call` helpers, defaults, map/slice inputs, and validation failures |
+| `plugins/examples/kv` | `plugin:examples:kv` | Stateful object methods that keep process-local state |
+| `plugins/examples/system-info` | `plugin:examples:system-info` | Mixed export shapes and nested JSON-like responses |
+| `plugins/examples/failing` | `plugin:examples:failing` | Explicit handler errors and how failures surface to JavaScript |
 
 If you want a single starting point, copy `plugins/examples/greeter`. If you want a plugin that looks more like input validation or process-local services, read `validator` and `kv` next.
 
@@ -122,7 +128,7 @@ You can also execute a JavaScript file once, which is often easier for repeatabl
 Create a script:
 
 ```javascript
-const greeter = require("plugin:greeter")
+const greeter = require("plugin:examples:greeter")
 
 console.log(greeter.greet("hello"))
 console.log(greeter.strings.upper("hello"))
@@ -229,7 +235,7 @@ This section is the user-facing contract for what a plugin may expose to JavaScr
 Examples:
 
 - valid: `plugin:echo`
-- valid: `plugin:greeter`
+- valid: `plugin:examples:greeter`
 - valid: `plugin:dbtools`
 - invalid: `echo`
 - invalid: `fs`
@@ -314,8 +320,8 @@ What it does not currently provide by default:
 If you want to allow only a specific set of modules for one run, use the allowlist flag:
 
 ```bash
-go run ./cmd/repl --allow-plugin-module plugin:greeter
-go run ./cmd/js-repl --allow-plugin-module plugin:greeter
+go run ./cmd/repl --allow-plugin-module plugin:examples:greeter
+go run ./cmd/js-repl --allow-plugin-module plugin:examples:greeter
 ```
 
 You can repeat the flag to allow multiple module names.
@@ -324,7 +330,7 @@ You can repeat the flag to allow multiple module names.
 
 | Problem | Cause | Solution |
 |---|---|---|
-| `Cannot find module 'plugin:greeter'` | The plugin binary was not discovered or the manifest was rejected | Confirm the binary is named `goja-plugin-greeter`, placed in the configured directory, and that you passed `--plugin-dir /path/to/dir` |
+| `Cannot find module 'plugin:examples:greeter'` | The plugin binary was not discovered or the manifest was rejected | Confirm the binary is named `goja-plugin-examples-greeter`, placed in the configured directory, and that you passed `--plugin-dir /path/to/dir` |
 | Runtime creation fails with `must use namespace` | The plugin manifest published a module name outside `plugin:` | Update the plugin manifest to use a name like `plugin:echo` |
 | Runtime creation fails with `not in the allowlist` | The plugin loaded successfully but its module name was not on the requested allowlist | Add `--allow-plugin-module plugin:your-module` or remove the allowlist restriction |
 | The plugin binary exists but still is not loaded | The file is not executable or does not match the discovery pattern | Run `chmod +x` if needed and keep the binary name under `goja-plugin-*` |

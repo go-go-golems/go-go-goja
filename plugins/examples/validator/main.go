@@ -11,7 +11,7 @@ import (
 func main() {
 	sdk.Serve(
 		sdk.MustModule(
-			"plugin:validator",
+			"plugin:examples:validator",
 			sdk.Version("v1"),
 			sdk.Doc("Example plugin that demonstrates sdk.Call helpers and validation errors"),
 			sdk.Capabilities("examples", "call-helpers", "validation"),

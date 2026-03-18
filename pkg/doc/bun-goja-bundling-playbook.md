@@ -113,20 +113,20 @@ Example:
 
 ```bash
 mkdir -p ~/.go-go-goja/plugins/examples
-go build -o ~/.go-go-goja/plugins/examples/goja-plugin-greeter ./plugins/examples/greeter
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-examples-greeter ./plugins/examples/greeter
 go run ./cmd/bun-demo --plugin-dir ~/.go-go-goja/plugins/examples
 ```
 
 Inside the bundle, the JavaScript side can then call:
 
 ```javascript
-const greeter = require("plugin:greeter")
+const greeter = require("plugin:examples:greeter")
 ```
 
 If you want to constrain the runtime to a known plugin module name, add:
 
 ```bash
---allow-plugin-module plugin:greeter
+--allow-plugin-module plugin:examples:greeter
 ```
 cmd/bun-demo/
   Makefile

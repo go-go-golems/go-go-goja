@@ -15,7 +15,7 @@ func main() {
 
 	sdk.Serve(
 		sdk.MustModule(
-			"plugin:kv",
+			"plugin:examples:kv",
 			sdk.Version("v1"),
 			sdk.Doc("Example stateful plugin with object methods"),
 			sdk.Capabilities("examples", "stateful", "object-methods"),

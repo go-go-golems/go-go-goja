@@ -11,7 +11,7 @@ import (
 
 func main() {
 	mod := sdk.MustModule(
-		"plugin:greeter",
+		"plugin:examples:greeter",
 		sdk.Version("v1"),
 		sdk.Doc("Example greeter plugin"),
 		sdk.Capabilities("examples", "strings"),

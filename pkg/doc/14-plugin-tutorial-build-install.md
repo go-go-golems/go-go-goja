@@ -51,7 +51,7 @@ You need:
 
 This tutorial assumes you are running commands from the repository root.
 
-If you want to constrain the runtime to one expected plugin module while testing, you can add `--allow-plugin-module plugin:greeter` to the REPL commands shown below.
+If you want to constrain the runtime to one expected plugin module while testing, you can add `--allow-plugin-module plugin:examples:greeter` to the REPL commands shown below.
 
 ## Step 1: Build the example plugin
 
@@ -59,7 +59,13 @@ Start by building the existing example. This proves the host side is working bef
 
 ```bash
 mkdir -p ~/.go-go-goja/plugins/examples
-go build -o ~/.go-go-goja/plugins/examples/goja-plugin-greeter ./plugins/examples/greeter
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-examples-greeter ./plugins/examples/greeter
+```
+
+If you want all example plugins instead of only the baseline one, you can also run:
+
+```bash
+make install-modules
 ```
 
 Why this step matters:
@@ -68,7 +74,7 @@ Why this step matters:
 - it verifies your local Go environment,
 - it gives you a reference binary name and location for discovery.
 
-The output file name should match the host discovery pattern. The default pattern is `goja-plugin-*`, so `goja-plugin-greeter` is a safe default.
+The output file name should match the host discovery pattern. The default pattern is `goja-plugin-*`, so `goja-plugin-examples-greeter` is a safe default.
 
 ## Step 2: Start the REPL with plugin discovery enabled
 
@@ -92,7 +98,7 @@ If startup succeeds, you now have a runtime that can resolve plugin modules thro
 Inside the REPL:
 
 ```javascript
-let greeter = require("plugin:greeter")
+let greeter = require("plugin:examples:greeter")
 ```
 
 If this line works, the main integration path is already correct:
@@ -130,7 +136,7 @@ Interactive testing is useful, but a script is better when you want repeatabilit
 Create a file:
 
 ```javascript
-const greeter = require("plugin:greeter")
+const greeter = require("plugin:examples:greeter")
 
 console.log(greeter.greet("hello"))
 console.log(greeter.strings.upper("hello"))
@@ -203,7 +209,7 @@ Put your plugin in a package of your choice and build it into the plugin directo
 Example:
 
 ```bash
-go build -o ~/.go-go-goja/plugins/examples/goja-plugin-hello ./path/to/your/plugin
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-my-module ./path/to/your/plugin
 ```
 
 Make sure:
@@ -271,9 +277,9 @@ Here is the full shell sequence in one place:
 
 ```bash
 mkdir -p ~/.go-go-goja/plugins/examples
-go build -o ~/.go-go-goja/plugins/examples/goja-plugin-greeter ./plugins/examples/greeter
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-examples-greeter ./plugins/examples/greeter
 cat >/tmp/test-plugin.js <<'EOF'
-const greeter = require("plugin:greeter")
+const greeter = require("plugin:examples:greeter")
 console.log(greeter.greet("hello"))
 console.log(greeter.strings.upper("hello"))
 console.log(greeter.meta.pid())
@@ -286,17 +292,17 @@ That sequence is a good smoke test after host-side changes or when onboarding a 
 After you finish the baseline flow, the next useful follow-up commands are:
 
 ```bash
-go build -o ~/.go-go-goja/plugins/examples/goja-plugin-validator ./plugins/examples/validator
-go build -o ~/.go-go-goja/plugins/examples/goja-plugin-kv ./plugins/examples/kv
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-examples-validator ./plugins/examples/validator
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-examples-kv ./plugins/examples/kv
 ```
 
 Then in JavaScript:
 
 ```javascript
-const validator = require("plugin:validator")
+const validator = require("plugin:examples:validator")
 validator.grade(0.9, true)
 
-const kv = require("plugin:kv")
+const kv = require("plugin:examples:kv")
 kv.store.set("name", "Manuel")
 kv.store.get("name")
 ```

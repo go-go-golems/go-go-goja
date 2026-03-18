@@ -53,7 +53,7 @@ func main() {
 	pluginStatus := flag.Bool("plugin-status", false, "print plugin discovery/load status and exit")
 	var pluginDirs stringSliceFlag
 	var allowPluginModules stringSliceFlag
-	flag.Var(&allowPluginModules, "allow-plugin-module", "allow only the listed plugin module names (for example plugin:greeter)")
+	flag.Var(&allowPluginModules, "allow-plugin-module", "allow only the listed plugin module names (for example plugin:examples:greeter)")
 	flag.Var(&pluginDirs, "plugin-dir", fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
 	flag.Parse()
 

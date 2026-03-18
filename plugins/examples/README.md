@@ -11,12 +11,12 @@ These examples are different from `plugins/testplugin/...`:
 
 | Example | Module name | What it demonstrates |
 |---|---|---|
-| `greeter` | `plugin:greeter` | Baseline SDK shape: metadata, top-level functions, object methods |
-| `clock` | `plugin:clock` | Zero-argument calls, metadata, and structured object returns |
-| `validator` | `plugin:validator` | `sdk.Call` helpers, defaults, map/slice arguments, and validation errors |
-| `kv` | `plugin:kv` | Stateful object methods inside one plugin subprocess |
-| `system-info` | `plugin:system-info` | Mixed export shapes and nested JSON-like responses |
-| `failing` | `plugin:failing` | Explicit handler errors and host-visible failure behavior |
+| `greeter` | `plugin:examples:greeter` | Baseline SDK shape: metadata, top-level functions, object methods |
+| `clock` | `plugin:examples:clock` | Zero-argument calls, metadata, and structured object returns |
+| `validator` | `plugin:examples:validator` | `sdk.Call` helpers, defaults, map/slice arguments, and validation errors |
+| `kv` | `plugin:examples:kv` | Stateful object methods inside one plugin subprocess |
+| `system-info` | `plugin:examples:system-info` | Mixed export shapes and nested JSON-like responses |
+| `failing` | `plugin:examples:failing` | Explicit handler errors and host-visible failure behavior |
 
 ## Build one example
 
@@ -24,7 +24,7 @@ From the repository root:
 
 ```bash
 mkdir -p ~/.go-go-goja/plugins/examples
-go build -o ~/.go-go-goja/plugins/examples/goja-plugin-greeter ./plugins/examples/greeter
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-examples-greeter ./plugins/examples/greeter
 ```
 
 Replace `greeter` with `clock`, `validator`, `kv`, `system-info`, or `failing` to build a different example.
@@ -32,10 +32,7 @@ Replace `greeter` with `clock`, `validator`, `kv`, `system-info`, or `failing` t
 You can also build several in one pass:
 
 ```bash
-mkdir -p ~/.go-go-goja/plugins/examples
-for name in greeter clock validator kv system-info failing; do
-  go build -o ~/.go-go-goja/plugins/examples/goja-plugin-${name} ./plugins/examples/${name}
-done
+make install-modules
 ```
 
 Then start either REPL:
@@ -49,24 +46,24 @@ go run ./cmd/js-repl
 ## Quick JavaScript probes
 
 ```javascript
-const greeter = require("plugin:greeter")
+const greeter = require("plugin:examples:greeter")
 greeter.greet("Manuel")
 greeter.strings.upper("hello")
 
-const clock = require("plugin:clock")
+const clock = require("plugin:examples:clock")
 clock.now()
 
-const validator = require("plugin:validator")
+const validator = require("plugin:examples:validator")
 validator.grade(0.9, true)
 
-const kv = require("plugin:kv")
+const kv = require("plugin:examples:kv")
 kv.store.set("name", "Manuel")
 kv.store.get("name")
 
-const systemInfo = require("plugin:system-info")
+const systemInfo = require("plugin:examples:system-info")
 systemInfo.runtime.snapshot()
 
-const failing = require("plugin:failing")
+const failing = require("plugin:examples:failing")
 failing.sometimes("fail")
 ```
 

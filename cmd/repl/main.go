@@ -154,7 +154,7 @@ func runInteractiveLoop(vm *goja.Runtime, debug bool, report host.LoadReport) er
 func main() {
 	// Set up flags
 	rootCmd.Flags().Bool("debug", false, "enable verbose debug logs")
-	rootCmd.Flags().StringSlice("allow-plugin-module", nil, "allow only the listed plugin module names (for example plugin:greeter)")
+	rootCmd.Flags().StringSlice("allow-plugin-module", nil, "allow only the listed plugin module names (for example plugin:examples:greeter)")
 	rootCmd.Flags().StringSlice("plugin-dir", nil, fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
 	rootCmd.Flags().Bool("plugin-status", false, "print plugin discovery/load status and exit")
 

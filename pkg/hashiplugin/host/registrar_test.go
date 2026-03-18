@@ -73,7 +73,7 @@ func TestRegistrarRegistersPluginModuleIntoRuntime(t *testing.T) {
 
 func TestRegistrarLoadsSDKAuthoredExamplePlugin(t *testing.T) {
 	binDir := t.TempDir()
-	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-greeter"), "./plugins/examples/greeter")
+	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-examples-greeter"), "./plugins/examples/greeter")
 
 	factory, err := engine.NewBuilder().
 		WithRuntimeModuleRegistrars(NewRegistrar(Config{
@@ -94,7 +94,7 @@ func TestRegistrarLoadsSDKAuthoredExamplePlugin(t *testing.T) {
 		}
 	}()
 
-	mod, err := rt.Require.Require("plugin:greeter")
+	mod, err := rt.Require.Require("plugin:examples:greeter")
 	if err != nil {
 		t.Fatalf("require plugin module: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestRegistrarLoadsSDKAuthoredExamplePlugin(t *testing.T) {
 
 func TestRegistrarLoadsStatefulKVExamplePlugin(t *testing.T) {
 	binDir := t.TempDir()
-	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-kv"), "./plugins/examples/kv")
+	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-examples-kv"), "./plugins/examples/kv")
 
 	factory, err := engine.NewBuilder().
 		WithRuntimeModuleRegistrars(NewRegistrar(Config{
@@ -153,7 +153,7 @@ func TestRegistrarLoadsStatefulKVExamplePlugin(t *testing.T) {
 		}
 	}()
 
-	mod, err := rt.Require.Require("plugin:kv")
+	mod, err := rt.Require.Require("plugin:examples:kv")
 	if err != nil {
 		t.Fatalf("require plugin module: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestRegistrarLoadsStatefulKVExamplePlugin(t *testing.T) {
 
 func TestRegistrarSurfacesPluginHandlerErrors(t *testing.T) {
 	binDir := t.TempDir()
-	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-failing"), "./plugins/examples/failing")
+	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-examples-failing"), "./plugins/examples/failing")
 
 	factory, err := engine.NewBuilder().
 		WithRuntimeModuleRegistrars(NewRegistrar(Config{
@@ -243,7 +243,7 @@ func TestRegistrarSurfacesPluginHandlerErrors(t *testing.T) {
 		}
 	}()
 
-	mod, err := rt.Require.Require("plugin:failing")
+	mod, err := rt.Require.Require("plugin:examples:failing")
 	if err != nil {
 		t.Fatalf("require plugin module: %v", err)
 	}
@@ -294,7 +294,7 @@ func TestRegistrarRejectsModuleOutsideAllowlist(t *testing.T) {
 	factory, err := engine.NewBuilder().
 		WithRuntimeModuleRegistrars(NewRegistrar(Config{
 			Directories:  []string{binDir},
-			AllowModules: []string{"plugin:greeter"},
+			AllowModules: []string{"plugin:examples:greeter"},
 		})).
 		Build()
 	if err != nil {

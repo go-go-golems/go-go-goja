@@ -13,7 +13,7 @@ import (
 func main() {
 	sdk.Serve(
 		sdk.MustModule(
-			"plugin:system-info",
+			"plugin:examples:system-info",
 			sdk.Version("v1"),
 			sdk.Doc("Example plugin with mixed export shapes and nested responses"),
 			sdk.Capabilities("examples", "mixed-exports", "nested-results"),

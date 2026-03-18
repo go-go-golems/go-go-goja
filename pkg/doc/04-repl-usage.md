@@ -35,7 +35,7 @@ go run ./cmd/repl --plugin-dir /tmp/goja-plugins
 go run ./cmd/repl --plugin-status
 
 # Restrict loading to specific plugin module names
-go run ./cmd/repl --allow-plugin-module plugin:greeter
+go run ./cmd/repl --allow-plugin-module plugin:examples:greeter
 
 # With debug logging
 go run ./cmd/repl --debug
@@ -53,7 +53,7 @@ go run ./cmd/js-repl --plugin-dir /tmp/goja-plugins
 go run ./cmd/js-repl --plugin-status
 
 # Restrict loading to specific plugin module names
-go run ./cmd/js-repl --allow-plugin-module plugin:greeter
+go run ./cmd/js-repl --allow-plugin-module plugin:examples:greeter
 ```
 
 When you do not pass `--plugin-dir`, both REPL entrypoints scan the default per-user plugin tree under `~/.go-go-goja/plugins/...`. If you do pass one or more `--plugin-dir` flags, those explicit directories are used instead.
@@ -112,7 +112,7 @@ hello
 js> echo.math.add(2, 3)
 5
 
-js> const kv = require("plugin:kv")
+js> const kv = require("plugin:examples:kv")
 js> kv.store.set("name", "Manuel")
 {key: "name", value: "Manuel", size: 1}
 

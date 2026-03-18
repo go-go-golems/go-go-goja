@@ -10,7 +10,7 @@ import (
 func main() {
 	sdk.Serve(
 		sdk.MustModule(
-			"plugin:clock",
+			"plugin:examples:clock",
 			sdk.Version("v1"),
 			sdk.Doc("Example plugin that returns structured time snapshots"),
 			sdk.Capabilities("examples", "metadata", "structured-results"),
