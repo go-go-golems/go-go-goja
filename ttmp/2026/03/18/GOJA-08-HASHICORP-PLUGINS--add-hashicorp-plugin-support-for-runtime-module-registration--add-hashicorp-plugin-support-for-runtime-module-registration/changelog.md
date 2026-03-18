@@ -66,3 +66,15 @@ Ran the full repository test suite, reran `docmgr doctor`, updated the GOJA-08 t
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/tasks.md — Final task state for the implementation sequence
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/reference/01-diary.md — Diary now records the implementation commit hashes and closeout validation step
 - /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/changelog.md — Closeout entry for validation and publication
+
+## 2026-03-18
+
+Started the GOJA-08 productization pass by separating user-facing sample plugins from integration-test fixtures. Added a new example plugin plus README under `plugins/examples`, and updated the help docs to teach from the example path instead of the test fixture path.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/plugins/examples/README.md — New operator-facing entrypoint for plugin examples
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/plugins/examples/greeter/main.go — New sample plugin intended to be copied and built manually
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/12-plugin-user-guide.md — User guide now points at the example plugin
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/13-plugin-developer-guide.md — Developer guide now distinguishes examples from test fixtures
+- /home/manuel/workspaces/2026-03-18/add-goja-plugins/go-go-goja/pkg/doc/14-plugin-tutorial-build-install.md — Tutorial now uses the example plugin path

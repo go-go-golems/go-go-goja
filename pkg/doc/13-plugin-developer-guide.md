@@ -396,12 +396,16 @@ It covers:
 - rejecting an invalid manifest,
 - verifying subprocess shutdown on runtime close.
 
-The example plugin sources currently live under:
+The user-facing example plugin sources currently live under:
+
+- `plugins/examples/greeter`
+
+The integration-test fixture plugins live under:
 
 - `plugins/testplugin/echo`
 - `plugins/testplugin/invalid`
 
-They are test fixtures first, but they are also the clearest minimal examples of plugin authoring.
+This split is intentional. `plugins/examples/...` is for copyable authoring examples and documentation, while `plugins/testplugin/...` stays small and deterministic for integration tests.
 
 ## Common extension points
 

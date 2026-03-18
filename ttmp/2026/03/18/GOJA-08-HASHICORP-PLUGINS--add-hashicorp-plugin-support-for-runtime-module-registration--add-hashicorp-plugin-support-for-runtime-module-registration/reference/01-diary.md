@@ -470,6 +470,85 @@ alright, create a detailed set of tasks in the ticket, and then work on them one
   - `remarquee cloud account --non-interactive`
   - `remarquee upload bundle --dry-run ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/index.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/design-doc/01-hashicorp-plugin-support-for-go-go-goja-architecture-and-implementation-guide.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/reference/01-diary.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/tasks.md ttmp/2026/03/18/GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration--add-hashicorp-plugin-support-for-runtime-module-registration/changelog.md --name "GOJA-08 HashiCorp plugin support" --remote-dir "/ai/2026/03/18/GOJA-08-HASHICORP-PLUGINS" --toc-depth 2`
 
+## Step 6: Add a user-facing example plugin path and retarget the docs
+
+This step started the productization pass after the core runtime work was already complete. The immediate problem was that the docs were still telling users to build from `plugins/testplugin/...`, which is fine for integration tests but not a clean onboarding story for plugin authors. I split the responsibilities by adding a new `plugins/examples/greeter` sample plus a small `plugins/examples/README.md`, while keeping `plugins/testplugin/...` as the deterministic fixture path used by host integration tests.
+
+That split matters because examples and test fixtures optimize for different things. The example should be readable, copyable, and slightly more narrative. The test fixture should stay tiny, stable, and shaped around assertions. Once those two concerns are separated, the help docs can teach from the example path without forcing future authors to reverse-engineer why a “sample” package is named like a test.
+
+### Prompt Context
+
+**User prompt (verbatim):**
+
+```text
+Ok, add tasks for all of this to the ticket, and then work on them task by task.
+```
+
+**Assistant interpretation:** Turn the earlier “what’s next” list into explicit ticket tasks and then execute those tasks one by one, starting with the most concrete user-facing improvement.
+
+**Inferred user intent:** Move from raw feature-complete plumbing to a more polished, teachable plugin subsystem.
+
+**Commit (code):** pending
+
+### What I did
+
+- Added the next-phase task list to `tasks.md`.
+- Added `plugins/examples/README.md`.
+- Added `plugins/examples/greeter/main.go` as a copyable sample plugin.
+- Updated the user guide and tutorial to build the example plugin instead of the test fixture.
+- Updated the developer guide to distinguish `plugins/examples/...` from `plugins/testplugin/...`.
+
+### Why
+
+- The docs should teach from a path that exists for users rather than a path that exists primarily for tests.
+- A copyable plugin example shortens the path from “I understand the architecture” to “I can build one myself.”
+- The productization pass needed a clean first slice before adding visibility, policy, and more entrypoint wiring.
+
+### What worked
+
+- The new example plugin compiled cleanly.
+- The updated help pages rendered without frontmatter or embedding issues.
+- Keeping the integration-test fixture packages untouched avoided unnecessary churn in the runtime tests.
+
+### What didn't work
+
+- The existing docs still had several references to the test fixture path, so the first patch pass needed a wider sweep than expected.
+
+### What I learned
+
+- The docs were already detailed enough that moving from fixture-path examples to real example-path examples had a large user-facing effect with relatively little code.
+- Keeping the example plugin separate from the test fixture makes later documentation and README work much easier, because the example can evolve for clarity without destabilizing tests.
+
+### What was tricky to build
+
+- The tricky part was deciding whether to replace the existing fixture package entirely or introduce a second path. Replacing it would have blurred the line between authoring guidance and test stability again. Adding a second path costs a bit more maintenance but keeps the intent of each package obvious.
+
+### What warrants a second pair of eyes
+
+- Whether the example plugin should eventually expose one async-style method as well, so authors see that shape early.
+- Whether `plugins/examples` should grow into a small catalog or stay intentionally tiny with just one canonical example.
+
+### What should be done in the future
+
+- Add discovery visibility in the REPLs next.
+- Add allowlisting/trust-policy knobs after the visibility work.
+- Refresh the ticket bundle once the productization pass is complete.
+
+### Code review instructions
+
+- Start with `plugins/examples/greeter/main.go`.
+- Then read `plugins/examples/README.md`.
+- Finish by skimming the three plugin help pages to confirm the teaching path now points at the example package.
+
+### Technical details
+
+- Commands run:
+  - `find plugins -maxdepth 3 -type f | sort`
+  - `gofmt -w plugins/examples/greeter/main.go`
+  - `go test ./plugins/examples/... ./pkg/doc -count=1`
+  - `go run ./cmd/repl help goja-plugin-user-guide | sed -n '1,120p'`
+  - `go run ./cmd/repl help plugin-tutorial-build-install | sed -n '1,120p'`
+
 ### What warrants a second pair of eyes
 
 - Whether `Config` should default `AutoMTLS` to true unconditionally or expose a more explicit enable/disable option.

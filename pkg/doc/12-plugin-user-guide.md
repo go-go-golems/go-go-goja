@@ -62,10 +62,10 @@ From the repository root:
 
 ```bash
 mkdir -p ~/.go-go-goja/plugins/examples
-go build -o ~/.go-go-goja/plugins/examples/goja-plugin-echo ./plugins/testplugin/echo
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-greeter ./plugins/examples/greeter
 ```
 
-The binary name matters. Discovery uses the pattern `goja-plugin-*` by default, so `goja-plugin-echo` is picked up automatically.
+The binary name matters. Discovery uses the pattern `goja-plugin-*` by default, so `goja-plugin-greeter` is picked up automatically.
 
 ### 2. Start the line REPL with plugin discovery enabled
 
@@ -84,17 +84,17 @@ go run ./cmd/repl --plugin-dir /tmp/goja-plugins
 ### 3. Require the module in JavaScript
 
 ```javascript
-let echo = require("plugin:echo")
-echo.ping("hello")
-echo.math.add(2, 3)
-echo.pid()
+let greeter = require("plugin:greeter")
+greeter.greet("hello")
+greeter.strings.upper("hello")
+greeter.meta.pid()
 ```
 
 Expected results:
 
-- `echo.ping("hello")` returns `"hello"`
-- `echo.math.add(2, 3)` returns `5`
-- `echo.pid()` returns the plugin subprocess PID
+- `greeter.greet("hello")` returns `"hello, hello"`
+- `greeter.strings.upper("hello")` returns `"HELLO"`
+- `greeter.meta.pid()` returns the plugin subprocess PID
 
 ### 4. Exit the runtime
 
@@ -107,11 +107,11 @@ You can also execute a JavaScript file once, which is often easier for repeatabl
 Create a script:
 
 ```javascript
-const echo = require("plugin:echo")
+const greeter = require("plugin:greeter")
 
-console.log(echo.ping("hello"))
-console.log(echo.math.add(2, 3))
-console.log(echo.pid())
+console.log(greeter.greet("hello"))
+console.log(greeter.strings.upper("hello"))
+console.log(greeter.meta.pid())
 ```
 
 Then run it:
@@ -195,6 +195,7 @@ This section is the user-facing contract for what a plugin may expose to JavaScr
 Examples:
 
 - valid: `plugin:echo`
+- valid: `plugin:greeter`
 - valid: `plugin:dbtools`
 - invalid: `echo`
 - invalid: `fs`
@@ -269,7 +270,7 @@ What it does not currently provide by default:
 
 | Problem | Cause | Solution |
 |---|---|---|
-| `Cannot find module 'plugin:echo'` | The plugin binary was not discovered or the manifest was rejected | Confirm the binary is named `goja-plugin-echo`, placed in the configured directory, and that you passed `--plugin-dir /path/to/dir` |
+| `Cannot find module 'plugin:greeter'` | The plugin binary was not discovered or the manifest was rejected | Confirm the binary is named `goja-plugin-greeter`, placed in the configured directory, and that you passed `--plugin-dir /path/to/dir` |
 | Runtime creation fails with `must use namespace` | The plugin manifest published a module name outside `plugin:` | Update the plugin manifest to use a name like `plugin:echo` |
 | The plugin binary exists but still is not loaded | The file is not executable or does not match the discovery pattern | Run `chmod +x` if needed and keep the binary name under `goja-plugin-*` |
 | Calls fail on argument conversion | The JS values do not cleanly round-trip through protobuf `structpb.Value` | Use JSON-like values and avoid host-specific Goja objects/functions as arguments |

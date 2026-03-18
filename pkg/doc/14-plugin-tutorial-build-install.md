@@ -28,7 +28,7 @@ By the end, you will have:
 - a working `require("plugin:...")` call from JavaScript,
 - a mental model for how your Go code becomes a JavaScript module.
 
-This tutorial uses the existing example plugin as the fastest route to success first, and then shows the minimal code shape you need for your own plugin.
+This tutorial uses the user-facing example plugin under `plugins/examples/greeter` as the fastest route to success first, and then shows the minimal code shape you need for your own plugin.
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ Start by building the existing example. This proves the host side is working bef
 
 ```bash
 mkdir -p ~/.go-go-goja/plugins/examples
-go build -o ~/.go-go-goja/plugins/examples/goja-plugin-echo ./plugins/testplugin/echo
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-greeter ./plugins/examples/greeter
 ```
 
 Why this step matters:
@@ -56,7 +56,7 @@ Why this step matters:
 - it verifies your local Go environment,
 - it gives you a reference binary name and location for discovery.
 
-The output file name should match the host discovery pattern. The default pattern is `goja-plugin-*`, so `goja-plugin-echo` is a safe default.
+The output file name should match the host discovery pattern. The default pattern is `goja-plugin-*`, so `goja-plugin-greeter` is a safe default.
 
 ## Step 2: Start the REPL with plugin discovery enabled
 
@@ -80,7 +80,7 @@ If startup succeeds, you now have a runtime that can resolve plugin modules thro
 Inside the REPL:
 
 ```javascript
-let echo = require("plugin:echo")
+let greeter = require("plugin:greeter")
 ```
 
 If this line works, the main integration path is already correct:
@@ -95,15 +95,15 @@ If this line works, the main integration path is already correct:
 Continue in the REPL:
 
 ```javascript
-echo.ping("hello")
-echo.math.add(2, 3)
-echo.pid()
+greeter.greet("hello")
+greeter.strings.upper("hello")
+greeter.meta.pid()
 ```
 
 Expected results:
 
-- `"hello"`
-- `5`
+- `"hello, hello"`
+- `"HELLO"`
 - a numeric process ID
 
 At this point you have verified both supported export styles:
@@ -118,11 +118,11 @@ Interactive testing is useful, but a script is better when you want repeatabilit
 Create a file:
 
 ```javascript
-const echo = require("plugin:echo")
+const greeter = require("plugin:greeter")
 
-console.log(echo.ping("hello"))
-console.log(echo.math.add(2, 3))
-console.log(echo.pid())
+console.log(greeter.greet("hello"))
+console.log(greeter.strings.upper("hello"))
+console.log(greeter.meta.pid())
 ```
 
 Run it:
@@ -285,12 +285,12 @@ Here is the full shell sequence in one place:
 
 ```bash
 mkdir -p ~/.go-go-goja/plugins/examples
-go build -o ~/.go-go-goja/plugins/examples/goja-plugin-echo ./plugins/testplugin/echo
+go build -o ~/.go-go-goja/plugins/examples/goja-plugin-greeter ./plugins/examples/greeter
 cat >/tmp/test-plugin.js <<'EOF'
-const echo = require("plugin:echo")
-console.log(echo.ping("hello"))
-console.log(echo.math.add(2, 3))
-console.log(echo.pid())
+const greeter = require("plugin:greeter")
+console.log(greeter.greet("hello"))
+console.log(greeter.strings.upper("hello"))
+console.log(greeter.meta.pid())
 EOF
 go run ./cmd/repl /tmp/test-plugin.js
 ```
