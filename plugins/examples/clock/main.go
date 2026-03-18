@@ -21,7 +21,7 @@ func main() {
 				sdk.ObjectDoc("UTC time helpers"),
 				sdk.Method("now", func(_ context.Context, _ *sdk.Call) (any, error) {
 					return snapshot(time.Now().UTC()), nil
-				}, sdk.ExportDoc("Return the current UTC time as a structured object")),
+				}, sdk.MethodSummary("Return the current UTC time as a structured object"), sdk.MethodDoc("Return the current UTC time as a structured object"), sdk.MethodTags("time", "utc")),
 			),
 		),
 	)

@@ -53,7 +53,7 @@ func main() {
 						},
 						"timestamp": time.Now().UTC().Format(time.RFC3339),
 					}, nil
-				}, sdk.ExportDoc("Return nested runtime and process information")),
+				}, sdk.MethodSummary("Return nested runtime and process information"), sdk.MethodDoc("Return nested runtime and process information"), sdk.MethodTags("runtime", "process")),
 			),
 		),
 	)

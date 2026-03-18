@@ -24,7 +24,7 @@ func TestNewModuleBuildsManifestCompatibleWithHostValidation(t *testing.T) {
 			ObjectDoc("String helpers"),
 			Method("upper", func(_ context.Context, call *Call) (any, error) {
 				return strings.ToUpper(call.StringDefault(0, "")), nil
-			}, ExportDoc("Uppercase helper")),
+			}, MethodSummary("Uppercase helper"), MethodDoc("Uppercase helper"), MethodTags("strings", "uppercase")),
 			Method("lower", func(_ context.Context, call *Call) (any, error) {
 				return strings.ToLower(call.StringDefault(0, "")), nil
 			}),
@@ -62,6 +62,12 @@ func TestNewModuleBuildsManifestCompatibleWithHostValidation(t *testing.T) {
 	}
 	if got := methods[0].GetDoc(); got != "Uppercase helper" {
 		t.Fatalf("first method doc = %q, want Uppercase helper", got)
+	}
+	if got := methods[0].GetSummary(); got != "Uppercase helper" {
+		t.Fatalf("first method summary = %q, want Uppercase helper", got)
+	}
+	if got := methods[0].GetTags(); len(got) != 2 || got[0] != "strings" || got[1] != "uppercase" {
+		t.Fatalf("first method tags = %#v", got)
 	}
 }
 

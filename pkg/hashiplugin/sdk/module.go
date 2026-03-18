@@ -166,8 +166,10 @@ func buildManifest(def *moduleDefinition) *contract.ModuleManifest {
 			methods := make([]*contract.MethodSpec, 0, len(exp.methods))
 			for _, method := range exp.methods {
 				methods = append(methods, &contract.MethodSpec{
-					Name: method.name,
-					Doc:  method.doc,
+					Name:    method.name,
+					Summary: method.summary,
+					Doc:     method.doc,
+					Tags:    append([]string(nil), method.tags...),
 				})
 			}
 			spec.MethodSpecs = methods

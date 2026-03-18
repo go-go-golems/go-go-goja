@@ -10,9 +10,16 @@ import (
 
 type ExportOption func(*exportConfig) error
 type ObjectOption func(*objectConfig) error
+type MethodOption func(*methodConfig) error
 
 type exportConfig struct {
 	doc string
+}
+
+type methodConfig struct {
+	doc     string
+	summary string
+	tags    []string
 }
 
 type objectConfig struct {
@@ -31,6 +38,8 @@ type exportDefinition struct {
 type methodDefinition struct {
 	name    string
 	doc     string
+	summary string
+	tags    []string
 	handler Handler
 }
 
@@ -44,6 +53,27 @@ func ExportDoc(doc string) ExportOption {
 func ObjectDoc(doc string) ObjectOption {
 	return func(cfg *objectConfig) error {
 		cfg.doc = strings.TrimSpace(doc)
+		return nil
+	}
+}
+
+func MethodDoc(doc string) MethodOption {
+	return func(cfg *methodConfig) error {
+		cfg.doc = strings.TrimSpace(doc)
+		return nil
+	}
+}
+
+func MethodSummary(summary string) MethodOption {
+	return func(cfg *methodConfig) error {
+		cfg.summary = strings.TrimSpace(summary)
+		return nil
+	}
+}
+
+func MethodTags(tags ...string) MethodOption {
+	return func(cfg *methodConfig) error {
+		cfg.tags = append(cfg.tags, tags...)
 		return nil
 	}
 }
@@ -90,9 +120,9 @@ func Object(name string, opts ...ObjectOption) ModuleOption {
 	}
 }
 
-func Method(name string, fn Handler, opts ...ExportOption) ObjectOption {
+func Method(name string, fn Handler, opts ...MethodOption) ObjectOption {
 	return func(cfg *objectConfig) error {
-		methodCfg := exportConfig{}
+		methodCfg := methodConfig{}
 		for i, opt := range opts {
 			if opt == nil {
 				return fmt.Errorf("sdk method %q option %d is nil", name, i)
@@ -104,6 +134,8 @@ func Method(name string, fn Handler, opts ...ExportOption) ObjectOption {
 		method := &methodDefinition{
 			name:    strings.TrimSpace(name),
 			doc:     methodCfg.doc,
+			summary: methodCfg.summary,
+			tags:    normalizeStrings(methodCfg.tags),
 			handler: fn,
 		}
 		if len(cfg.methods) > 0 {

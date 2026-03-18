@@ -74,7 +74,7 @@ func main() {
 						"hasAdmin":  containsString(tags, "admin"),
 						"validated": true,
 					}, nil
-				}, sdk.ExportDoc("Validate a profile object and an accompanying tag list")),
+				}, sdk.MethodSummary("Validate a profile object and an accompanying tag list"), sdk.MethodDoc("Validate a profile object and an accompanying tag list"), sdk.MethodTags("validation", "profiles")),
 			),
 		),
 	)

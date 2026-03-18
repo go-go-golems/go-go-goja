@@ -42,7 +42,7 @@ func main() {
 						"value": value,
 						"ok":    true,
 					}, nil
-				}, sdk.ExportDoc("Reject zero or negative numeric arguments")),
+				}, sdk.MethodSummary("Reject zero or negative numeric arguments"), sdk.MethodDoc("Reject zero or negative numeric arguments"), sdk.MethodTags("validation", "numbers")),
 			),
 		),
 	)

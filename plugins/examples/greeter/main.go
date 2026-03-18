@@ -23,7 +23,7 @@ func main() {
 			sdk.ObjectDoc("String helpers"),
 			sdk.Method("upper", func(_ context.Context, call *sdk.Call) (any, error) {
 				return strings.ToUpper(call.StringDefault(0, "")), nil
-			}, sdk.ExportDoc("Uppercase the first argument")),
+			}, sdk.MethodSummary("Uppercase the first argument"), sdk.MethodDoc("Uppercase the first argument"), sdk.MethodTags("strings", "uppercase")),
 			sdk.Method("lower", func(_ context.Context, call *sdk.Call) (any, error) {
 				return strings.ToLower(call.StringDefault(0, "")), nil
 			}),

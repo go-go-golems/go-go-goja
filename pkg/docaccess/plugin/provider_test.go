@@ -20,8 +20,10 @@ func TestProviderExposesMethodDocs(t *testing.T) {
 				Kind: contract.ExportKind_EXPORT_KIND_OBJECT,
 				Doc:  "Store operations",
 				MethodSpecs: []*contract.MethodSpec{{
-					Name: "get",
-					Doc:  "Return the current value",
+					Name:    "get",
+					Summary: "Return the current value",
+					Doc:     "Return the current value",
+					Tags:    []string{"lookup", "kv"},
 				}},
 			}},
 		},
@@ -40,5 +42,11 @@ func TestProviderExposesMethodDocs(t *testing.T) {
 	}
 	if entry.Body != "Return the current value" {
 		t.Fatalf("body = %q", entry.Body)
+	}
+	if entry.Summary != "Return the current value" {
+		t.Fatalf("summary = %q", entry.Summary)
+	}
+	if len(entry.Tags) != 2 || entry.Tags[0] != "lookup" || entry.Tags[1] != "kv" {
+		t.Fatalf("tags = %#v", entry.Tags)
 	}
 }
