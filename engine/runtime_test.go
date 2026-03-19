@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dop251/goja_nodejs/require"
 )
@@ -40,5 +41,34 @@ func TestBuilderWithRequireOptions(t *testing.T) {
 	obj := val.ToObject(rt.VM)
 	if got := obj.Get("ok").ToInteger(); got != 42 {
 		t.Fatalf("ok = %d, want 42", got)
+	}
+}
+
+func TestRuntimeContextCancelsOnClose(t *testing.T) {
+	factory, err := NewBuilder().Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+
+	runtimeCtx := rt.Context()
+	select {
+	case <-runtimeCtx.Done():
+		t.Fatalf("runtime context already canceled")
+	default:
+	}
+
+	if err := rt.Close(context.Background()); err != nil {
+		t.Fatalf("close runtime: %v", err)
+	}
+
+	select {
+	case <-runtimeCtx.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatalf("runtime context was not canceled on close")
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -12,7 +13,12 @@ import (
 	"github.com/go-go-golems/bobatea/pkg/logutil"
 	"github.com/go-go-golems/bobatea/pkg/repl"
 	"github.com/go-go-golems/bobatea/pkg/timeline"
+	"github.com/go-go-golems/glazed/pkg/help"
+	"github.com/go-go-golems/go-go-goja/pkg/doc"
+	docaccessruntime "github.com/go-go-golems/go-go-goja/pkg/docaccess/runtime"
+	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	jsadapter "github.com/go-go-golems/go-go-goja/pkg/repl/adapters/bobatea"
+	js "github.com/go-go-golems/go-go-goja/pkg/repl/evaluators/javascript"
 	"github.com/rs/zerolog"
 )
 
@@ -36,6 +42,11 @@ func parseLevel(s string) zerolog.Level {
 func main() {
 	ll := flag.String("log-level", "error", "log level: trace, debug, info, warn, error")
 	lf := flag.String("log-file", "", "log file path (optional)")
+	pluginStatus := flag.Bool("plugin-status", false, "print plugin discovery/load status and exit")
+	var pluginDirs host.StringSliceFlag
+	var allowPluginModules host.StringSliceFlag
+	flag.Var(&allowPluginModules, "allow-plugin-module", "allow only the listed plugin module names (for example plugin:examples:greeter)")
+	flag.Var(&pluginDirs, "plugin-dir", fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
 	flag.Parse()
 
 	level := parseLevel(*ll)
@@ -45,17 +56,40 @@ func main() {
 		logutil.InitTUILoggingToDiscard(level)
 	}
 
-	evaluator, err := jsadapter.NewJavaScriptEvaluatorWithDefaults()
+	pluginSetup := host.NewRuntimeSetup(pluginDirs, allowPluginModules)
+	helpSystem := help.NewHelpSystem()
+	if err := doc.AddDocToHelpSystem(helpSystem); err != nil {
+		log.Printf("warning: failed to load documentation: %v", err)
+	}
+	evaluatorConfig := js.DefaultConfig()
+	evaluatorConfig.PluginDirectories = pluginSetup.Directories
+	evaluatorConfig.PluginAllowModules = pluginSetup.AllowModules
+	evaluatorConfig.PluginReporter = pluginSetup.Reporter
+	evaluatorConfig.HelpSources = []docaccessruntime.HelpSource{{
+		ID:      "default-help",
+		Title:   "Default Help",
+		Summary: "Embedded REPL help pages",
+		System:  helpSystem,
+	}}
+	evaluator, err := jsadapter.NewJavaScriptEvaluator(evaluatorConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer func() {
 		_ = evaluator.Close()
 	}()
+	report := pluginSetup.Snapshot()
+	if *pluginStatus {
+		printPluginReport(report)
+		return
+	}
 
 	cfg := repl.DefaultConfig()
 	cfg.Title = "go-go-goja JavaScript REPL (Bobatea UI + jsparse completion/help)"
 	cfg.Placeholder = "Type console.lo or fs.re, then use alt+h (drawer), ctrl+h (full help), ctrl+r (refresh)"
+	if summary := pluginStartupSummary(report); summary != "" {
+		cfg.Placeholder += " | " + summary
+	}
 	cfg.Autocomplete.Enabled = true
 	cfg.Autocomplete.FocusToggleKey = "ctrl+t"
 	cfg.Autocomplete.TriggerKeys = []string{"tab"}
@@ -88,5 +122,18 @@ func main() {
 	}()
 	if runErr := <-errs; runErr != nil {
 		log.Fatal(runErr)
+	}
+}
+
+func pluginStartupSummary(report host.LoadReport) string {
+	if !report.HasActivity() {
+		return ""
+	}
+	return report.Summary()
+}
+
+func printPluginReport(report host.LoadReport) {
+	for _, line := range report.DetailLines() {
+		fmt.Println(line)
 	}
 }

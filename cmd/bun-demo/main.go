@@ -13,6 +13,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 )
 
 //go:embed assets/*.cjs assets/tsx.html
@@ -34,12 +35,18 @@ func embeddedSourceLoader(path string) ([]byte, error) {
 
 func main() {
 	entry := flag.String("entry", "./assets/bundle.cjs", "bundle entrypoint to require")
+	var pluginDirs host.StringSliceFlag
+	var allowPluginModules host.StringSliceFlag
+	flag.Var(&pluginDirs, "plugin-dir", fmt.Sprintf("directory containing HashiCorp go-plugin module binaries (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
+	flag.Var(&allowPluginModules, "allow-plugin-module", "allow only the listed plugin module names (for example plugin:examples:greeter)")
 	flag.Parse()
+	pluginSetup := host.NewRuntimeSetup(pluginDirs, allowPluginModules)
 
-	factory, err := engine.NewBuilder().
+	builder := pluginSetup.WithBuilder(engine.NewBuilder().
 		WithRequireOptions(require.WithLoader(embeddedSourceLoader)).
-		WithModules(engine.DefaultRegistryModules()).
-		Build()
+		WithModules(engine.DefaultRegistryModules()))
+
+	factory, err := builder.Build()
 	if err != nil {
 		log.Fatalf("build engine factory: %v", err)
 	}

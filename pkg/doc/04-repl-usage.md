@@ -28,6 +28,15 @@ The REPL accepts any valid JavaScript expression and immediately evaluates it wi
 # Lightweight line REPL / script runner
 go run ./cmd/repl
 
+# Add an extra plugin directory explicitly
+go run ./cmd/repl --plugin-dir /tmp/goja-plugins
+
+# Inspect plugin discovery/load status and exit
+go run ./cmd/repl --plugin-status
+
+# Restrict loading to specific plugin module names
+go run ./cmd/repl --allow-plugin-module plugin:examples:greeter
+
 # With debug logging
 go run ./cmd/repl --debug
 
@@ -36,7 +45,18 @@ go run ./cmd/repl path/to/script.js
 
 # Rich Bobatea-based JS REPL with completion/help widgets
 go run ./cmd/js-repl
+
+# Rich Bobatea-based JS REPL with an extra plugin directory
+go run ./cmd/js-repl --plugin-dir /tmp/goja-plugins
+
+# Inspect plugin discovery/load status without starting the TUI
+go run ./cmd/js-repl --plugin-status
+
+# Restrict loading to specific plugin module names
+go run ./cmd/js-repl --allow-plugin-module plugin:examples:greeter
 ```
+
+When you do not pass `--plugin-dir`, both REPL entrypoints scan the default per-user plugin tree under `~/.go-go-goja/plugins/...`. If you do pass one or more `--plugin-dir` flags, those explicit directories are used instead.
 
 ### Basic JavaScript Evaluation
 
@@ -60,6 +80,7 @@ js> [1, 2, 3].map(x => x * 2)
 The REPL recognizes special commands prefixed with `:`:
 
 - `:help` - Display available commands and usage information
+- `:plugins` - Display plugin discovery directories, discovered candidates, and loaded modules
 - `:quit` or `:exit` - Exit the REPL
 - `:clear` - Clear the current context (if implemented)
 
@@ -78,6 +99,50 @@ Hello from REPL!
 js> fs.existsSync("/tmp/demo.txt")
 true
 ```
+
+### Plugin-backed Modules
+
+Plugin-backed modules load through the same `require()` API as in-process native modules:
+
+```javascript
+js> const echo = require("plugin:echo")
+js> echo.ping("hello")
+hello
+
+js> echo.math.add(2, 3)
+5
+
+js> const kv = require("plugin:examples:kv")
+js> kv.store.set("name", "Manuel")
+{key: "name", value: "Manuel", size: 1}
+
+js> kv.store.get("name")
+Manuel
+```
+
+Use `repl help goja-plugin-user-guide` for the full plugin reference and example catalog, and `repl help plugin-tutorial-build-install` for the step-by-step build/install flow.
+
+### Unified Documentation Access
+
+The runtime now also exposes a built-in `docs` module that lets JavaScript inspect embedded help pages, jsdoc stores when they are attached, and loaded plugin metadata:
+
+```javascript
+js> const docs = require("docs")
+
+js> docs.sources()
+[
+  { id: "default-help", kind: "glazed-help", ... },
+  { id: "plugin-manifests", kind: "plugin", ... }
+]
+
+js> docs.bySlug("default-help", "repl-usage").title
+REPL Usage
+
+js> docs.byID("plugin-manifests", "plugin-method", "plugin:examples:kv/store.get").body
+Get a key, returning null if it is absent
+```
+
+Use `repl help goja-docs-module-guide` for the full API reference and examples.
 
 ### HTTP Requests
 

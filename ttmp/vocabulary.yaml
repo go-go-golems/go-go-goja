@@ -29,6 +29,12 @@ topics:
       description: JavaScript-facing bindings and interop topics
     - slug: glazed
       description: Glazed command and CLI framework topics
+    - slug: plugins
+      description: Runtime plugin loading, plugin authoring, and plugin integration work.
+    - slug: documentation
+      description: Documentation systems, help content, and doc-access surfaces.
+    - slug: review
+      description: Review-oriented analysis, cleanup, and branch handoff documentation.
 docTypes:
     - slug: index
       description: Ticket index documents
