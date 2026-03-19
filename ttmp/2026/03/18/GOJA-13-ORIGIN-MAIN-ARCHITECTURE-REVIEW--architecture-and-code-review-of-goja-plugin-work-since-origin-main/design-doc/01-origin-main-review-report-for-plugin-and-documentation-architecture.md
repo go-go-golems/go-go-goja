@@ -484,7 +484,7 @@ The protobuf contract now includes richer method metadata:
 - `doc`
 - `tags`
 
-but the SDK only exposes method docs, not summaries or tags. At the same time, plugin doc entries are encoded into string IDs using `/` and `.` separators, but export and method names are not validated against those separators.
+and the SDK now exposes `MethodSummary(...)`, `MethodDoc(...)`, and `MethodTags(...)`. The remaining concern is that plugin doc entries are encoded into string IDs using `/` and `.` separators, but export and method names are not validated against those separators.
 
 ### Where to look
 

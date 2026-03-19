@@ -109,10 +109,21 @@ It provides:
 - `sdk.Function(...)`
 - `sdk.Object(...)`
 - `sdk.Method(...)`
+- `sdk.MethodSummary(...)`
+- `sdk.MethodDoc(...)`
+- `sdk.MethodTags(...)`
 - `sdk.Call`
 - `sdk.Serve(...)`
 
 This package does not replace `contract` or `shared`. It implements `contract.JSModule` on behalf of plugin authors and centralizes manifest building, invoke dispatch, and value conversion.
+
+Method metadata is now intentionally split by role:
+
+- `sdk.ExportDoc(...)` documents top-level function exports,
+- `sdk.ObjectDoc(...)` documents object exports,
+- `sdk.MethodSummary(...)` gives `js-repl` and other compact UIs a one-line description,
+- `sdk.MethodDoc(...)` provides the fuller method body,
+- `sdk.MethodTags(...)` attaches lightweight classification labels for search and display.
 
 ### 2. Entry points choose whether plugins are enabled
 

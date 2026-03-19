@@ -291,6 +291,7 @@ The example catalog under `plugins/examples/...` now follows the richer SDK path
 - `sdk.MustModule(...)` defines the module,
 - `sdk.Function(...)` defines top-level functions,
 - `sdk.Object(...sdk.Method(...))` defines object-method exports,
+- `sdk.MethodSummary(...)`, `sdk.MethodDoc(...)`, and `sdk.MethodTags(...)` attach richer method metadata,
 - `sdk.Serve(...)` boots the shared transport.
 
 The examples are intentionally varied. `greeter` is the small baseline, `clock` emphasizes structured return values, `validator` shows `sdk.Call` helper usage, `kv` shows plugin-local state, `system-info` shows nested responses, and `failing` shows explicit error returns.

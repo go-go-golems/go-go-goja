@@ -196,7 +196,7 @@ alright, work on it task by task, committing at appropriate intervals as you go,
 ### What I did
 
 - Added `pkg/hashiplugin/sdk/module.go` with `Module`, `ModuleOption`, `NewModule(...)`, `MustModule(...)`, module metadata helpers, validation, and manifest generation.
-- Added `pkg/hashiplugin/sdk/export.go` with `Function(...)`, `Object(...)`, `Method(...)`, `ExportDoc(...)`, and `ObjectDoc(...)`.
+- Added `pkg/hashiplugin/sdk/export.go` with `Function(...)`, `Object(...)`, `Method(...)`, `ExportDoc(...)`, and `ObjectDoc(...)`. Later follow-up work also added explicit method metadata helpers: `MethodSummary(...)`, `MethodDoc(...)`, and `MethodTags(...)`.
 - Added `pkg/hashiplugin/sdk/call.go` with the initial `Call` helper API:
   `Len`, `Value`, `String`, `StringDefault`, `Float64`, `Bool`, `Map`, and `Slice`.
 - Added `pkg/hashiplugin/sdk/convert.go` with request decoding and result encoding helpers around `structpb.Value`.

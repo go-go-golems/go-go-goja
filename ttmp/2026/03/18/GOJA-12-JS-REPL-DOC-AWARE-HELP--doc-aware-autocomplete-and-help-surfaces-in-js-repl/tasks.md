@@ -40,7 +40,7 @@
 ## Phase 6: Broader Module-Docs Follow-Up
 
 - [x] Decide how native module docs like `fs`, `path`, `url`, and `docs` should plug into the same resolver seam.
-- [ ] Decide whether source IDs such as `plugin-manifests` should be centralized before broader rollout.
+- [x] Decide whether source IDs such as `plugin-manifests` should be centralized before broader rollout.
 - [x] Document what remains intentionally out of scope for the first implementation slice.
 
 ## Phase 7: Ticket Closeout

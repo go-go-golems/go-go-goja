@@ -308,7 +308,7 @@ The first real implementation slice changed the plugin contract before anything 
 
 ### What worked
 
-- The plugin SDK examples already used `sdk.ExportDoc(...)` for methods, so the new schema immediately made those docs visible.
+- The plugin SDK examples already carried method docs already, and later follow-up work made that authoring surface explicit with `sdk.MethodSummary(...)`, `sdk.MethodDoc(...)`, and `sdk.MethodTags(...)`.
 - `go generate ./pkg/hashiplugin/contract` was enough to refresh the protobuf bindings cleanly.
 
 ### What didn't work

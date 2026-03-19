@@ -133,7 +133,7 @@ func (r *Registrar) buildHub(ctx *engine.RuntimeModuleContext) (*docaccess.Hub, 
 func (r *Registrar) pluginSourceID() string {
 	sourceID := strings.TrimSpace(r.config.PluginSourceID)
 	if sourceID == "" {
-		return "plugin-manifests"
+		return pluginprovider.DefaultSourceID
 	}
 	return sourceID
 }

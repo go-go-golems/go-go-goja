@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	DefaultSourceID       = "plugin-manifests"
 	EntryKindPluginModule = "plugin-module"
 	EntryKindPluginExport = "plugin-export"
 	EntryKindPluginMethod = "plugin-method"
@@ -24,7 +25,7 @@ type Provider struct {
 
 func NewProvider(sourceID, title, summary string, modules []host.LoadedModuleInfo) (*Provider, error) {
 	if sourceID == "" {
-		sourceID = "plugin-manifests"
+		sourceID = DefaultSourceID
 	}
 	if title == "" {
 		title = "Plugin Manifests"

@@ -10,7 +10,7 @@ import (
 )
 
 func TestProviderExposesMethodDocs(t *testing.T) {
-	provider, err := NewProvider("plugin-manifests", "", "", []host.LoadedModuleInfo{{
+	provider, err := NewProvider(DefaultSourceID, "", "", []host.LoadedModuleInfo{{
 		Path: "/plugins/goja-plugin-examples-kv",
 		Manifest: &contract.ModuleManifest{
 			ModuleName: "plugin:examples:kv",
@@ -33,7 +33,7 @@ func TestProviderExposesMethodDocs(t *testing.T) {
 	}
 
 	entry, err := provider.Get(context.Background(), docaccess.EntryRef{
-		SourceID: "plugin-manifests",
+		SourceID: DefaultSourceID,
 		Kind:     EntryKindPluginMethod,
 		ID:       "plugin:examples:kv/store.get",
 	})

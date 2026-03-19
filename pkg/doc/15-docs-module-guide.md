@@ -189,7 +189,7 @@ docs.byID("plugin-manifests", "plugin-export", "plugin:examples:kv/store")
 docs.byID("plugin-manifests", "plugin-method", "plugin:examples:kv/store.get")
 ```
 
-This is where rich method doc bodies now show up.
+This is where rich method summaries, bodies, and tags now show up.
 
 ## Common workflows
 
@@ -227,7 +227,7 @@ docs.search({
 | `require("docs")` fails | The runtime was created without the documentation registrar | Use `repl` or `js-repl`, or attach the GOJA-11 registrar in your own runtime builder |
 | `plugin-manifests` source is missing | No plugins were loaded in that runtime | Pass `--plugin-dir` or install plugins under `~/.go-go-goja/plugins/...` |
 | `docs.bySymbol(...)` returns `null` | No jsdoc store was attached under that source ID | Attach a jsdoc provider when constructing your runtime or query `docs.sources()` first |
-| A plugin method has no body | The plugin did not publish method docs | Add method docs in the plugin SDK declaration |
+| A plugin method has no body | The plugin did not publish method docs | Add `sdk.MethodDoc(...)` in the plugin SDK declaration |
 
 ## See Also
 

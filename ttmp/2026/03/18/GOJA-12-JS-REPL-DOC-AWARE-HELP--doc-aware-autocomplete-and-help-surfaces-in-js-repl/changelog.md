@@ -15,3 +15,7 @@ Validated GOJA-12 with `docmgr doctor` and uploaded the bundle to reMarkable at 
 ## 2026-03-18
 
 Implemented the first GOJA-12 slice. The JavaScript evaluator now reads the runtime-scoped docs hub through a dedicated resolver, adds plugin manifest-backed completion candidates for `require()` aliases, prefers docs-derived help text in the help bar, and renders full plugin documentation bodies in the help drawer. The docs registrar is now installed for plugin-backed runtimes even when no additional Glazed/jsdoc sources are configured.
+
+## 2026-03-18
+
+Follow-up cleanup centralized the default plugin documentation source ID instead of depending on repeated string literals. This closes the last open GOJA-12 backlog item and makes the evaluator, docs registrar, and tests share the same `plugin-manifests` constant.

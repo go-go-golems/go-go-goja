@@ -48,9 +48,9 @@
 
 - [x] Centralize shared manifest validation rules so SDK and host do not duplicate namespace/export/method shape checks.
 - [x] Keep SDK-only validation focused on authoring-time concerns such as nil handlers and nil definitions.
-- [ ] Decide whether method `summary` and `tags` should be exposed in the SDK now or explicitly documented as deferred.
+- [x] Decide whether method `summary` and `tags` should be exposed in the SDK now or explicitly documented as deferred.
 
 ## Phase 9: Docs Integration Follow-Up
 
 - [x] Persist the docs hub into runtime-owned state for evaluator/help consumers.
-- [ ] Wire evaluator help and autocomplete to the unified `docaccess` hub instead of static/parallel surfaces.
+- [x] Wire evaluator help and autocomplete to the unified `docaccess` hub instead of static/parallel surfaces.

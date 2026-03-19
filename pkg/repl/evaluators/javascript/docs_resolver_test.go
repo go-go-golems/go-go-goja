@@ -18,7 +18,7 @@ import (
 
 func TestDocsResolver_ResolvePluginEntries(t *testing.T) {
 	provider, err := pluginprovider.NewProvider(
-		"plugin-manifests",
+		pluginprovider.DefaultSourceID,
 		"Plugin Manifests",
 		"Runtime-scoped plugin metadata",
 		[]host.LoadedModuleInfo{{
@@ -48,7 +48,7 @@ func TestDocsResolver_ResolvePluginEntries(t *testing.T) {
 
 	resolver := &docsResolver{
 		hub:             hub,
-		pluginSourceIDs: []string{"plugin-manifests"},
+		pluginSourceIDs: []string{pluginprovider.DefaultSourceID},
 	}
 	aliases := map[string]string{"kv": "plugin:examples:kv"}
 

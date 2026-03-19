@@ -10,6 +10,7 @@ import (
 	helpmodel "github.com/go-go-golems/glazed/pkg/help/model"
 	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
+	pluginprovider "github.com/go-go-golems/go-go-goja/pkg/docaccess/plugin"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	jsdocmodel "github.com/go-go-golems/go-go-goja/pkg/jsdoc/model"
 )
@@ -139,7 +140,7 @@ func TestRegistrarExposesPluginMethodDocs(t *testing.T) {
 		}
 	}()
 
-	entryValue, err := rt.VM.RunString(`require("docs").byID("plugin-manifests", "plugin-method", "plugin:examples:kv/store.get")`)
+	entryValue, err := rt.VM.RunString(`require("docs").byID("` + pluginprovider.DefaultSourceID + `", "plugin-method", "plugin:examples:kv/store.get")`)
 	if err != nil {
 		t.Fatalf("docs.byID(): %v", err)
 	}

@@ -162,6 +162,12 @@ That gives you four useful building blocks:
 3. `sdk.Object(...sdk.Method(...))` for object-method exports,
 4. `sdk.Serve(...)` to boot the shared transport.
 
+For richer documentation, methods can also declare:
+
+- `sdk.MethodSummary(...)` for the short one-line description used by compact UIs,
+- `sdk.MethodDoc(...)` for the fuller body,
+- `sdk.MethodTags(...)` for simple search/display labels.
+
 The minimal useful shape now looks like this:
 
 ```go
@@ -185,9 +191,15 @@ func main() {
 			return fmt.Sprintf("hello, %s", name), nil
 		}),
 		sdk.Object("strings",
-			sdk.Method("upper", func(_ context.Context, call *sdk.Call) (any, error) {
-				return strings.ToUpper(call.StringDefault(0, "")), nil
-			}),
+			sdk.Method(
+				"upper",
+				func(_ context.Context, call *sdk.Call) (any, error) {
+					return strings.ToUpper(call.StringDefault(0, "")), nil
+				},
+				sdk.MethodSummary("Uppercase the first argument"),
+				sdk.MethodDoc("Uppercase the first argument"),
+				sdk.MethodTags("strings", "uppercase"),
+			),
 		),
 	)
 
@@ -199,6 +211,7 @@ This is the new mental model:
 
 - `sdk.MustModule(...)` defines the plugin module and its manifest shape.
 - `sdk.Function(...)` and `sdk.Object(...sdk.Method(...))` declare exports.
+- `sdk.MethodSummary(...)`, `sdk.MethodDoc(...)`, and `sdk.MethodTags(...)` enrich object methods for docs/search/help.
 - `sdk.Call` gives handlers easy access to decoded arguments.
 - `sdk.Serve(...)` publishes the service over the shared transport.
 
