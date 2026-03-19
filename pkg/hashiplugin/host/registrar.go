@@ -49,6 +49,13 @@ func (r *Registrar) RegisterRuntimeModules(ctx *engine.RuntimeModuleContext, reg
 		}
 		return err
 	}
+	if err := validateUniqueLoadedModules(loaded); err != nil {
+		closeLoaded(loaded)
+		if cfg.Report != nil {
+			cfg.Report.SetError(err)
+		}
+		return err
+	}
 	for _, mod := range loaded {
 		if err := RegisterModule(reg, mod, runtimeContext(ctx)); err != nil {
 			closeLoaded(loaded)
@@ -81,4 +88,26 @@ func runtimeContext(ctx *engine.RuntimeModuleContext) context.Context {
 		return context.Background()
 	}
 	return ctx.Context
+}
+
+func validateUniqueLoadedModules(loaded []*LoadedModule) error {
+	if len(loaded) < 2 {
+		return nil
+	}
+
+	seen := map[string]string{}
+	for _, mod := range loaded {
+		if mod == nil {
+			continue
+		}
+		name := mod.RequireName()
+		if name == "" {
+			continue
+		}
+		if firstPath, ok := seen[name]; ok {
+			return fmt.Errorf("duplicate plugin module %q discovered at %q and %q", name, firstPath, mod.Path)
+		}
+		seen[name] = mod.Path
+	}
+	return nil
 }

@@ -322,6 +322,29 @@ func TestRegistrarRejectsModuleOutsideAllowlist(t *testing.T) {
 	}
 }
 
+func TestRegistrarRejectsDuplicateModuleNames(t *testing.T) {
+	binDir := t.TempDir()
+	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-echo-one"), "./plugins/testplugin/echo")
+	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-echo-two"), "./plugins/testplugin/echo")
+
+	factory, err := engine.NewBuilder().
+		WithRuntimeModuleRegistrars(NewRegistrar(Config{
+			Directories: []string{binDir},
+		})).
+		Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	_, err = factory.NewRuntime(context.Background())
+	if err == nil {
+		t.Fatalf("expected duplicate module error")
+	}
+	if !strings.Contains(err.Error(), `duplicate plugin module "plugin:echo"`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func buildTestPlugin(t *testing.T, outputPath, packagePath string) {
 	t.Helper()
 

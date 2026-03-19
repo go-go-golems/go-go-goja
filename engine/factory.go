@@ -166,13 +166,15 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		Name:          "go-go-goja-runtime",
 		RecoverPanics: true,
 	})
+	// #nosec G118 -- the runtime owns this cancel func and calls it on close and on setup failures.
 	runtimeCtx, runtimeCtxCancel := context.WithCancel(context.Background())
+	runtimeValues := map[string]any{}
 
 	rt := &Runtime{
 		VM:               vm,
 		Loop:             loop,
 		Owner:            owner,
-		Values:           map[string]any{},
+		Values:           runtimeValues,
 		runtimeCtx:       runtimeCtx,
 		runtimeCtxCancel: runtimeCtxCancel,
 	}
@@ -190,7 +192,7 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		Loop:      loop,
 		Owner:     owner,
 		AddCloser: rt.AddCloser,
-		Values:    map[string]any{},
+		Values:    runtimeValues,
 	}
 	for _, registrar := range f.runtimeModuleRegistrars {
 		if err := registrar.RegisterRuntimeModules(moduleCtx, reg); err != nil {
@@ -198,7 +200,6 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 			return nil, fmt.Errorf("runtime module registrar %q: %w", registrar.ID(), err)
 		}
 	}
-	rt.Values = cloneRuntimeValues(moduleCtx.Values)
 
 	reqMod := reg.Enable(vm)
 	console.Enable(vm)
@@ -220,15 +221,4 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	}
 
 	return rt, nil
-}
-
-func cloneRuntimeValues(values map[string]any) map[string]any {
-	if len(values) == 0 {
-		return nil
-	}
-	out := make(map[string]any, len(values))
-	for key, value := range values {
-		out[key] = value
-	}
-	return out
 }

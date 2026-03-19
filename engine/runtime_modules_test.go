@@ -244,3 +244,27 @@ func TestRuntimeInitializersCanReadAndWriteRuntimeValues(t *testing.T) {
 		t.Fatalf("runtime initializer value = %#v, %v", got, ok)
 	}
 }
+
+func TestRuntimeInitializersPersistValuesWithoutRegistrarState(t *testing.T) {
+	factory, err := NewBuilder().
+		WithRuntimeInitializers(testRuntimeInitializerFunc{id: "seed-value", fn: func(ctx *RuntimeContext) error {
+			ctx.SetValue("initializer-only", "present")
+			return nil
+		}}).
+		Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() {
+		_ = rt.Close(context.Background())
+	}()
+
+	if got, ok := rt.Value("initializer-only"); !ok || got != "present" {
+		t.Fatalf("runtime initializer-only = %#v, %v", got, ok)
+	}
+}
