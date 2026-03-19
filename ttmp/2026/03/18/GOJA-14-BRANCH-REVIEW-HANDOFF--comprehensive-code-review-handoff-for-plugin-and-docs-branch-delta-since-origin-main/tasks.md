@@ -14,4 +14,4 @@
 - [x] Relate the handoff doc to the key code files.
 - [x] Run `docmgr doctor` for GOJA-14 and fix any hygiene issues.
 - [x] Upload the bundle to reMarkable and verify the remote listing.
-- [ ] Commit the GOJA-14 ticket artifacts.
+- [x] Commit the GOJA-14 ticket artifacts.
