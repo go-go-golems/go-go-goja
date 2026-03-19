@@ -1,7 +1,7 @@
 ---
 Title: Doc-aware autocomplete and help surfaces in js-repl
 Ticket: GOJA-12-JS-REPL-DOC-AWARE-HELP
-Status: active
+Status: complete
 Topics:
     - goja
     - repl
@@ -14,10 +14,12 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Design ticket for making js-repl autocomplete and contextual help consume runtime-scoped documentation, starting with plugin docs and extending later to modules more generally.
-LastUpdated: 2026-03-18T16:47:19.37971336-04:00
+LastUpdated: 2026-03-18T21:03:56.275055623-04:00
 WhatFor: Track the design and future implementation of documentation-aware autocomplete and help in the Bobatea JavaScript REPL.
 WhenToUse: Use when orienting yourself to GOJA-12 or locating the design and diary artifacts for the work.
 ---
+
+
 
 # Doc-aware autocomplete and help surfaces in js-repl
 
@@ -32,7 +34,7 @@ WhenToUse: Use when orienting yourself to GOJA-12 or locating the design and dia
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 ## Topics
 

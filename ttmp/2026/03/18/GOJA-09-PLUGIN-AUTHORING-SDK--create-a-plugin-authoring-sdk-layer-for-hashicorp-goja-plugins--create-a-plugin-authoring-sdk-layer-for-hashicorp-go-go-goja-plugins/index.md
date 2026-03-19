@@ -1,7 +1,7 @@
 ---
 Title: Create a plugin authoring SDK layer for HashiCorp go-go-goja plugins
 Ticket: GOJA-09-PLUGIN-AUTHORING-SDK--create-a-plugin-authoring-sdk-layer-for-hashicorp-goja-plugins
-Status: active
+Status: complete
 Topics:
     - goja
     - go
@@ -14,10 +14,12 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-03-18T12:43:34.556291045-04:00
+LastUpdated: 2026-03-18T21:03:55.718048875-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
 
 # Create a plugin authoring SDK layer for HashiCorp go-go-goja plugins
 
@@ -32,7 +34,7 @@ WhenToUse: ""
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 ## Topics
 

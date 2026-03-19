@@ -1,7 +1,7 @@
 ---
 Title: Normalize common Go result shapes before plugin structpb encoding
 Ticket: GOJA-10-PLUGIN-RESULT-NORMALIZATION
-Status: active
+Status: complete
 Topics:
     - goja
     - go
@@ -13,10 +13,12 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-03-18T15:28:17.639318495-04:00
+LastUpdated: 2026-03-18T21:03:55.883463954-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
 
 # Normalize common Go result shapes before plugin structpb encoding
 
@@ -31,7 +33,7 @@ WhenToUse: ""
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 ## Topics
 

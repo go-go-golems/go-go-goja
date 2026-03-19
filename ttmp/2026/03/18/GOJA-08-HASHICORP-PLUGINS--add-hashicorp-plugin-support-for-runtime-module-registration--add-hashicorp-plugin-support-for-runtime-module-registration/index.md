@@ -1,7 +1,7 @@
 ---
 Title: Add HashiCorp plugin support for runtime module registration
 Ticket: GOJA-08-HASHICORP-PLUGINS--add-hashicorp-plugin-support-for-runtime-module-registration
-Status: active
+Status: complete
 Topics:
     - goja
     - go
@@ -32,10 +32,12 @@ RelatedFiles:
 ExternalSources:
     - local:Imported goja plugins note.md
 Summary: Ticket workspace for a repo-grounded design of HashiCorp go-plugin support in go-go-goja, with an intern-facing implementation guide and imported source analysis.
-LastUpdated: 2026-03-18T09:14:54.589316697-04:00
+LastUpdated: 2026-03-18T21:03:55.586659562-04:00
 WhatFor: Explain how to add runtime-registered plugin modules to go-go-goja without violating goja runtime ownership, module lifecycle, or trust-boundary constraints.
 WhenToUse: Use when implementing or reviewing HashiCorp plugin-based module loading in go-go-goja.
 ---
+
+
 
 
 # Add HashiCorp plugin support for runtime module registration
@@ -55,7 +57,7 @@ The primary deliverable is a detailed implementation guide for a new engineer. I
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 ## Topics
 

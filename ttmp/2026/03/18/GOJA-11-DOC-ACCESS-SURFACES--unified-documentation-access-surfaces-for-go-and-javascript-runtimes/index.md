@@ -1,7 +1,7 @@
 ---
 Title: Unified documentation access surfaces for Go and JavaScript runtimes
 Ticket: GOJA-11-DOC-ACCESS-SURFACES
-Status: active
+Status: complete
 Topics:
     - goja
     - architecture
@@ -14,10 +14,12 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Design ticket for a shared documentation access layer that can unify Glazed help, jsdoc stores, and plugin metadata for both Go callers and JavaScript runtimes.
-LastUpdated: 2026-03-18T15:41:52.924626367-04:00
+LastUpdated: 2026-03-18T21:03:56.136974154-04:00
 WhatFor: Plan a unified documentation access architecture and future implementation path.
 WhenToUse: Use when implementing or reviewing doc access APIs spanning Glazed help, jsdoc, plugin metadata, and future docmgr integration.
 ---
+
+
 
 # Unified documentation access surfaces for Go and JavaScript runtimes
 
@@ -32,7 +34,7 @@ This ticket is about designing a unified documentation access layer for `go-go-g
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 ## Topics
 
