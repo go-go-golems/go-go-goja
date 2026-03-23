@@ -9,6 +9,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 
 	// Blank imports ensure module init() functions run so they can register
@@ -17,6 +18,7 @@ import (
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
 	_ "github.com/go-go-golems/go-go-goja/modules/fs"
+	_ "github.com/go-go-golems/go-go-goja/modules/timer"
 )
 
 // Runtime is an owned runtime instance with explicit lifecycle.
@@ -89,6 +91,9 @@ func (r *Runtime) Close(ctx context.Context) error {
 
 		if r.runtimeCtxCancel != nil {
 			r.runtimeCtxCancel()
+		}
+		if r.VM != nil {
+			runtimebridge.Delete(r.VM)
 		}
 
 		for i := len(closers) - 1; i >= 0; i-- {

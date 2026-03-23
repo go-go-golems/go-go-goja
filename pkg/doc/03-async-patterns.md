@@ -77,8 +77,8 @@ package timermod
 import (
     "time"
     "github.com/dop251/goja"
-    "github.com/dop251/goja_nodejs/eventloop"
     "github.com/go-go-golems/go-go-goja/modules"
+    "github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 )
 
 type m struct{}
@@ -88,19 +88,29 @@ func (m) Name() string { return "timer" }
 
 func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
     exports := moduleObj.Get("exports").(*goja.Object)
-    loop := eventloop.Get(vm)
+    bindings, ok := runtimebridge.Lookup(vm)
+    if !ok || bindings.Owner == nil {
+        panic(vm.NewGoError(fmt.Errorf("timer module requires runtime bindings")))
+    }
     
     exports.Set("sleep", func(ms int64) goja.Value {
         // Create Promise on VM goroutine
         promise, resolve, reject := vm.NewPromise()
         
         go func() {
+            if ms < 0 {
+                _ = bindings.Owner.Post(bindings.Context, "timer.sleep.reject", func(context.Context, *goja.Runtime) {
+                    _ = reject(vm.ToValue("timer.sleep: duration must be >= 0"))
+                })
+                return
+            }
+
             // Background work in separate goroutine
             time.Sleep(time.Duration(ms) * time.Millisecond)
             
             // Schedule resolution back to VM goroutine
-            loop.RunOnLoop(func(*goja.Runtime) {
-                resolve(goja.Undefined())
+            _ = bindings.Owner.Post(bindings.Context, "timer.sleep.resolve", func(context.Context, *goja.Runtime) {
+                _ = resolve(goja.Undefined())
             })
         }()
         
@@ -111,6 +121,8 @@ func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 
 func init() { modules.Register(&m{}) }
 ```
+
+In the current repository this is a real shipped module, not just a pattern sketch. A fresh runtime still does not expose global `setTimeout`/`setInterval`; the supported primitive is `require("timer").sleep(ms)`.
 
 JavaScript usage:
 ```javascript

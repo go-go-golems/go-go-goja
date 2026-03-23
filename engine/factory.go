@@ -9,6 +9,7 @@ import (
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 )
 
@@ -178,6 +179,12 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		runtimeCtx:       runtimeCtx,
 		runtimeCtxCancel: runtimeCtxCancel,
 	}
+
+	runtimebridge.Store(vm, runtimebridge.Bindings{
+		Context: runtimeCtx,
+		Loop:    loop,
+		Owner:   owner,
+	})
 
 	reg := require.NewRegistry(f.settings.requireOptions...)
 	for _, mod := range f.modules {

@@ -249,7 +249,7 @@ Important caveat:
 
 ### Demo: `timer` module
 
-Included in `modules/timer/timer.go` is a minimal example:
+`go-go-goja` now ships a built-in `timer` module when you enable `DefaultRegistryModules()`:
 
 ```js
 const { sleep } = require("timer");
@@ -264,10 +264,12 @@ exports.Set("sleep", func(ms int64) goja.Value {
     p, resolve, _ := vm.NewPromise()
     go func() {
         time.Sleep(time.Duration(ms) * time.Millisecond)
-        loop.RunOnLoop(func(*goja.Runtime) { resolve(goja.Undefined()) })
+        _ = runner.Post(context.Background(), "timer.sleep.resolve", func(context.Context, *goja.Runtime) {
+            _ = resolve(goja.Undefined())
+        })
     }()
     return vm.ToValue(p)
 })
 ```
 
-Use it as a template for any async binding you need (HTTP fetchers, database calls, …).
+Use it as a concrete built-in and as a template for any async binding you need (HTTP fetchers, database calls, …).
