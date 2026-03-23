@@ -53,7 +53,7 @@ func renderModule(module *spec.Module) (string, error) {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("declare module %q {\n", moduleName))
+	fmt.Fprintf(&sb, "declare module %q {\n", moduleName)
 
 	functions := append([]spec.Function(nil), module.Functions...)
 	sort.Slice(functions, func(i, j int) bool {
