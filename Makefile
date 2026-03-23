@@ -48,6 +48,11 @@ install-modules:
 		echo "installing $$name -> $(DEFAULT_PLUGIN_DIR)/goja-plugin-examples-$$name"; \
 		go build -o "$(DEFAULT_PLUGIN_DIR)/goja-plugin-examples-$$name" "./plugins/examples/$$name"; \
 	done
+gen-dts:
+	go run ./cmd/gen-dts --out ./cmd/bun-demo/js/src/types/goja-modules.d.ts --module fs,exec,database --strict
+
+check-dts:
+	go run ./cmd/gen-dts --out ./cmd/bun-demo/js/src/types/goja-modules.d.ts --module fs,exec,database --strict --check
 
 goreleaser:
 	goreleaser release --skip=sign --snapshot --clean

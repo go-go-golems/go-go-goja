@@ -7,6 +7,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/modules"
+	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 	_ "github.com/mattn/go-sqlite3" // Driver for sqlite3
 	"github.com/rs/zerolog/log"
 )
@@ -17,9 +18,46 @@ type DBModule struct {
 }
 
 var _ modules.NativeModule = (*DBModule)(nil)
+var _ modules.TypeScriptDeclarer = (*DBModule)(nil)
 
 // Name returns the module name.
 func (m *DBModule) Name() string { return "database" }
+
+func (m *DBModule) TypeScriptModule() *spec.Module {
+	return &spec.Module{
+		Name: "database",
+		Functions: []spec.Function{
+			{
+				Name: "configure",
+				Params: []spec.Param{
+					{Name: "driverName", Type: spec.String()},
+					{Name: "dataSourceName", Type: spec.String()},
+				},
+				Returns: spec.Void(),
+			},
+			{
+				Name: "query",
+				Params: []spec.Param{
+					{Name: "query", Type: spec.String()},
+					{Name: "args", Type: spec.Unknown(), Variadic: true},
+				},
+				Returns: spec.Unknown(),
+			},
+			{
+				Name: "exec",
+				Params: []spec.Param{
+					{Name: "query", Type: spec.String()},
+					{Name: "args", Type: spec.Unknown(), Variadic: true},
+				},
+				Returns: spec.Unknown(),
+			},
+			{
+				Name:    "close",
+				Returns: spec.Void(),
+			},
+		},
+	}
+}
 
 // Doc returns the documentation for the module.
 func (m *DBModule) Doc() string {
