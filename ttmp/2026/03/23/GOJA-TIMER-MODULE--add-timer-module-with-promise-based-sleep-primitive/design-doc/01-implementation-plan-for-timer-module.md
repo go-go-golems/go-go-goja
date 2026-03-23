@@ -17,14 +17,19 @@ RelatedFiles:
       Note: DefaultRegistryModules wiring controls built-in module availability
     - Path: engine/runtime.go
       Note: Default blank imports determine whether timer ships in fresh runtimes
+    - Path: modules/timer/timer.go
+      Note: Actual shipped timer module implementation
     - Path: pkg/doc/03-async-patterns.md
       Note: Async documentation already describes the timer pattern this ticket implements
+    - Path: pkg/runtimebridge/runtimebridge.go
+      Note: New internal bridge enabling async modules to find runtime owner bindings
 ExternalSources: []
 Summary: ""
 LastUpdated: 2026-03-23T14:56:29.634149479-04:00
 WhatFor: Explain how to add and validate a shipped timer module for go-go-goja.
 WhenToUse: Use when implementing or reviewing Promise-based async module patterns in go-go-goja.
 ---
+
 
 
 # Implementation plan for timer module
@@ -60,6 +65,8 @@ Behavioral contract:
 - Zero duration is allowed and resolves asynchronously.
 
 The runtime and docs should then be updated so `DefaultRegistryModules()` includes this module automatically via the normal blank-import path.
+
+Because the current factory constructs its own `goja.Runtime` alongside a separate `eventloop.EventLoop`, the module should not rely on `eventloop.Get(vm)`. Instead, the engine should register runtime-owned scheduling bindings for each VM and let the timer module look them up when it needs to settle Promises.
 
 High-level flow:
 
@@ -140,6 +147,16 @@ Rationale:
 - The repository already documents this as the required pattern.
 - Reusing the same pattern reduces the chance of subtle VM misuse.
 
+### Introduce a tiny runtime bridge for VM-scoped bindings
+
+The timer module should read runtime-scoped owner bindings from a shared internal package rather than trying to discover them dynamically from the module loader alone.
+
+Rationale:
+
+- Native modules in the default registry are effectively shared definitions, so they cannot safely keep per-runtime state on the module struct itself.
+- The current factory shape means `eventloop.Get(vm)` is not the right binding source for the runtime VM.
+- A small VM-keyed bridge gives modules a safe way to access the current runtime owner and lifecycle context without creating import cycles.
+
 ### Keep the milestone-one API minimal
 
 Milestone one only adds `sleep(ms)`. No `setTimeout`, `setInterval`, cancellation handles, or global mounting.
@@ -177,6 +194,7 @@ Rejected because blocking the owner thread would be incorrect for a Goja runtime
 ### Phase 2: Timer module implementation
 
 - Add `modules/timer/timer.go`.
+- Add a tiny internal package for VM-to-runtime binding lookup.
 - Implement `Name`, `Doc`, `Loader`, and `init()` registration.
 - Expose `sleep(ms)` using Promise creation plus owner-thread settlement.
 
