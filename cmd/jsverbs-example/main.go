@@ -18,6 +18,8 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 )
 
+const defaultExampleDir = "testdata/jsverbs"
+
 func main() {
 	dir := discoverDirectory(os.Args[1:])
 
@@ -105,7 +107,7 @@ func discoverDirectory(args []string) string {
 			return strings.TrimPrefix(arg, "--dir=")
 		}
 	}
-	return "."
+	return defaultExampleDir
 }
 
 func setDefaultFlagValue(root *cobra.Command, name string, value string) {

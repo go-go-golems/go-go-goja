@@ -12,6 +12,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDiscoverDirectoryDefaultsToSelfContainedExampleFixture(t *testing.T) {
+	require.Equal(t, defaultExampleDir, discoverDirectory(nil))
+}
+
+func TestDiscoverDirectoryRespectsExplicitOverride(t *testing.T) {
+	require.Equal(t, "custom-dir", discoverDirectory([]string{"--dir", "custom-dir"}))
+	require.Equal(t, "other-dir", discoverDirectory([]string{"--dir=other-dir"}))
+	require.Equal(t, "short-dir", discoverDirectory([]string{"-d", "short-dir"}))
+}
+
 func TestRegisterExampleSharedSectionsSupportsRegistrySharedFixture(t *testing.T) {
 	dir := filepath.Join(repoRoot(t), "testdata", "jsverbs-example", "registry-shared")
 
