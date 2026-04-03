@@ -13,20 +13,29 @@ Owners: []
 RelatedFiles:
     - Path: pkg/jsdoc/extract/extract.go
       Note: Existing jsdocex extraction logic reused for REPL-authored docs
+    - Path: pkg/repldb/read.go
+      Note: Step 3 export and replay loader implementation
     - Path: pkg/repldb/schema.go
       Note: Step 2 schema design implementation
     - Path: pkg/repldb/store.go
       Note: Step 2 code slice for SQLite bootstrap
     - Path: pkg/repldb/store_test.go
       Note: Step 2 validation coverage
+    - Path: pkg/repldb/types.go
+      Note: Step 3 durable record contracts
+    - Path: pkg/repldb/write.go
+      Note: Step 3 transactional write path
     - Path: pkg/replsession/service.go
       Note: Evaluation pipeline being extended with durable persistence hooks
+    - Path: pkg/replsession/service_persistence_test.go
+      Note: Step 3 end-to-end persistence validation
 ExternalSources: []
 Summary: Chronological implementation diary for the SQLite-backed persistence layer added after the replsession extraction.
 LastUpdated: 2026-04-03T18:01:00-04:00
 WhatFor: Use this diary to review the implementation sequence, reasoning, commands, and validation evidence for GOJA-21.
 WhenToUse: Use when handing off the persistence work or reviewing why the schema and replay contract were chosen.
 ---
+
 
 
 # Diary
@@ -140,7 +149,7 @@ The implementation stayed intentionally narrow: open the SQLite file, ensure the
 
 **Inferred user intent:** Build the persistence layer incrementally, with each slice landing in a reviewable state and being recorded in the ticket docs as it goes.
 
-**Commit (code):** pending
+**Commit (code):** `8d0298c` — `Add SQLite REPL store bootstrap`
 
 ### What I did
 
@@ -182,7 +191,7 @@ The implementation stayed intentionally narrow: open the SQLite file, ensure the
 
 ### What didn't work
 
-- N/A in this slice.
+- The commit unexpectedly also captured a set of pre-existing mode-only script changes from the dirty worktree. I left history intact and corrected course by keeping all later staging explicit and file-scoped.
 
 ### What I learned
 
@@ -217,4 +226,125 @@ Commands used during this step:
 mkdir -p pkg/repldb
 go fmt ./pkg/repldb
 go test ./pkg/repldb
+```
+
+## Step 3: Transactional Writes, Service Integration, Binding Versions, and Read APIs
+
+The second code slice turned the schema into a usable subsystem. The store now has real session/evaluation write APIs, `replsession.Service` can persist live work as it happens, changed bindings get version rows with exportability metadata, jsdocex-style docs are captured from raw cell source, and the store can now read back ordered history for export and replay.
+
+This step intentionally crossed several task boundaries together because they are tightly coupled in the code. Once the service started writing evaluations, it was cheaper and clearer to also persist binding/doc children in the same transaction and then add read-side loaders that prove the written shape is usable.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue implementing the SQLite ticket beyond schema bootstrap until the store can both persist and read the session history that later CLI/server phases will consume.
+
+**Inferred user intent:** Finish the durable REPL core for this ticket so the next phase can focus on transport surfaces rather than more storage refactoring.
+
+**Commit (code):** `35fcb4a` — `Persist REPL evaluations bindings and docs`
+
+### What I did
+
+- Added `pkg/repldb/types.go` with durable record types for:
+  - sessions,
+  - evaluations,
+  - console events,
+  - binding versions,
+  - binding docs,
+  - structured session export.
+- Added `pkg/repldb/write.go` with:
+  - `CreateSession`,
+  - `DeleteSession`,
+  - `PersistEvaluation`,
+  - transactional child-row writes for console events, binding versions, and docs.
+- Added `pkg/repldb/read.go` with:
+  - `LoadSession`,
+  - `LoadEvaluations`,
+  - `ExportSession`,
+  - `LoadReplaySource`.
+- Extended `pkg/replsession/service.go` to:
+  - accept an optional persistence dependency via `WithPersistence(...)`,
+  - persist session creation/deletion,
+  - persist each cell after execution,
+  - classify changed bindings for JSON/string/no snapshot export,
+  - extract REPL-authored docs with `pkg/jsdoc/extract`,
+  - install no-op jsdocex sentinels (`__doc__`, `__package__`, `__example__`, `doc`) into the runtime so documentation input does not break evaluation,
+  - ignore those helper globals in runtime snapshots and diffs.
+- Added tests:
+  - `pkg/repldb/store_test.go` for store writes and read-side export/replay loading,
+  - `pkg/replsession/service_persistence_test.go` for end-to-end session, evaluation, deletion, binding version, and doc persistence through the live service.
+- Ran focused validation repeatedly during the slice:
+  - `go fmt ./pkg/repldb ./pkg/replsession`
+  - `go test ./pkg/repldb ./pkg/replsession ./pkg/webrepl ./cmd/web-repl`
+- Pre-commit validation on the code commit also passed:
+  - `golangci-lint run -v`
+  - `go generate ./...`
+  - `go test ./...`
+
+### Why
+
+- The CLI/server ticket after this one needs a stable read/write persistence boundary, not more in-memory-only session state.
+- Binding versions and docs are only reliable if they are written in the same evaluation transaction as the cell row they belong to.
+- jsdocex input must be safe to type into the REPL, otherwise doc metadata support is a paper design rather than a usable feature.
+
+### What worked
+
+- The option-based `replsession.NewService(..., WithPersistence(store))` seam kept existing callers working while making persistence opt-in.
+- Using `pkg/jsdoc/extract.ParseSource(...)` directly on the raw cell source gave immediate reuse of the existing jsdocex parser.
+- Storing both raw source and rewritten source keeps replay/export honest while preserving debugging visibility into the lexical wrapper.
+- The read-side APIs could be built directly on the same normalized record types used by the write path.
+
+### What didn't work
+
+- My first test for doc persistence ended the cell on the tagged template expression, which produced the wrong persisted export snapshot for the assertion I was making. I corrected the test to end the cell on `x` explicitly and to assert the binding name from SQLite, which made the intended behavior unambiguous.
+- I also had one command-line quoting mistake while re-querying the jsdoc extractor paths; that was corrected immediately and did not affect the code.
+
+### What I learned
+
+- Installing runtime no-op jsdocex sentinels is the simplest clean way to support REPL-authored docs without source rewriting.
+- The right restore contract for this phase is still replay-first, but read-side export helpers are cheap once the write records are structured well.
+- Exportability classification is useful even before any selective restore path exists, because it makes notebook/export consumers explicit about what is reconstructible.
+
+### What was tricky to build
+
+- The sharp edge was separating "cell result" from "binding export snapshot" in doc-heavy cells. A tagged template at the end of a cell changes the last expression even though it should not change the stored binding value, so the test had to assert the binding name and make the final expression explicit.
+- Another subtlety was avoiding helper-global pollution. The doc sentinels are real globals in the runtime, so the snapshot/diff path needed an explicit ignored-global mechanism or those helpers would leak into session state.
+
+### What warrants a second pair of eyes
+
+- The `classifyBindingExport(...)` heuristic, especially for non-JSON but previewable values.
+- The current `RawDoc` field contents in `binding_docs`: because the extractor API does not expose the original sentinel bytes, the stored raw form is presently a reconstructed JSON payload from the extracted symbol doc rather than verbatim source text.
+- The error semantics if persistence fails after runtime execution has already mutated the session. The current behavior returns an error, which is correct, but the live runtime is already advanced.
+
+### What should be done in the future
+
+- Decide whether a persistence failure should taint/lock a live session until explicit operator intervention.
+- Add transport-level commands and endpoints in the next ticket using `ExportSession` and `LoadReplaySource`.
+- Decide whether replay helpers should live in `replsession`, a dedicated orchestration package, or the future CLI/server layer.
+
+### Code review instructions
+
+- Start with:
+  - `pkg/repldb/write.go`
+  - `pkg/repldb/read.go`
+  - `pkg/replsession/service.go`
+- Then read the tests:
+  - `pkg/repldb/store_test.go`
+  - `pkg/replsession/service_persistence_test.go`
+- Validate with:
+  - `go test ./pkg/repldb ./pkg/replsession ./pkg/webrepl ./cmd/web-repl`
+- If you want the full gate used by the commit hook, run:
+  - `golangci-lint run -v`
+  - `go generate ./...`
+  - `go test ./...`
+
+### Technical details
+
+Focused validation commands:
+
+```bash
+go fmt ./pkg/repldb ./pkg/replsession
+go test ./pkg/repldb ./pkg/replsession ./pkg/webrepl ./cmd/web-repl
+go test ./pkg/replsession -run TestServicePersistsBindingVersionsAndDocs -v
 ```

@@ -17,16 +17,24 @@ RelatedFiles:
       Note: Existing jsdocex extraction logic to reuse for REPL-authored binding docs
     - Path: pkg/jsdoc/model/store.go
       Note: Existing in-memory doc model that informs stored REPL doc payloads
+    - Path: pkg/repldb/read.go
+      Note: Read-side export and replay loading APIs for the durable store
     - Path: pkg/repldb/schema.go
       Note: Initial durable schema for sessions evaluations bindings and docs
     - Path: pkg/repldb/store.go
       Note: SQLite store bootstrap and lifecycle for the durable REPL database
     - Path: pkg/repldb/store_test.go
       Note: Bootstrap tests proving schema creation and version recording
+    - Path: pkg/repldb/types.go
+      Note: Shared durable record types used by the store write and read paths
+    - Path: pkg/repldb/write.go
+      Note: Transactional session evaluation binding and doc writes
     - Path: pkg/replsession/rewrite.go
       Note: Binding rewrite layer that determines which names and declarations are persisted
     - Path: pkg/replsession/service.go
       Note: Current session lifecycle and evaluation pipeline that must gain persistence hooks
+    - Path: pkg/replsession/service_persistence_test.go
+      Note: End-to-end persistence tests through the live replsession service
     - Path: pkg/replsession/types.go
       Note: Transport-neutral cell and binding types that inform the persisted schema
 ExternalSources:
@@ -36,6 +44,7 @@ LastUpdated: 2026-04-03T18:01:00-04:00
 WhatFor: Use this guide to implement the SQLite-backed persistence layer for the extracted persistent REPL kernel.
 WhenToUse: Use when building or reviewing the session store, replay flow, export path, and REPL-scoped JSDoc persistence work.
 ---
+
 
 
 # SQLite Persistence Replay and Export Implementation Plan
