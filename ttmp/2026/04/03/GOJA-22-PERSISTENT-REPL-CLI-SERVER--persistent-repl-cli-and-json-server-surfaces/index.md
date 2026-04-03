@@ -13,17 +13,19 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: ""
+Summary: Implementation ticket for the first-class persistent REPL CLI and JSON-only HTTP server built on replsession and repldb.
 LastUpdated: 2026-04-03T17:23:56.4868507-04:00
-WhatFor: ""
-WhenToUse: ""
+WhatFor: Use this ticket when implementing or reviewing the new persistent REPL command surface and JSON server transport.
+WhenToUse: Use when working on restore-aware CLI commands, agent-facing HTTP routes, or the transition away from the browser-oriented prototype boundary.
 ---
 
 # Persistent REPL CLI and JSON Server Surfaces
 
 ## Overview
 
-<!-- Provide a brief overview of the ticket, its goals, and current status -->
+This ticket turns the durable persistent REPL core into usable product surfaces. The main outcomes are a new `goja-repl` binary, a JSON-only HTTP package, and a shared restore-aware orchestration layer that can load persisted sessions back into live runtimes when needed.
+
+The design center is not the browser UI. The design center is command and API workflows that remain useful across process restarts because they can rebuild live runtime state from SQLite-backed history.
 
 ## Key Links
 

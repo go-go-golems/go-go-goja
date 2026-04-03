@@ -45,6 +45,8 @@ topics:
       description: Persistent REPL sessions with cross-cell state management
     - slug: sqlite
       description: SQLite-backed persistence, querying, and export workflows
+    - slug: cli
+      description: Command-line application surfaces, verbs, and automation-friendly command design
 docTypes:
     - slug: index
       description: Ticket index documents
