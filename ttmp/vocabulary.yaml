@@ -35,6 +35,16 @@ topics:
       description: Documentation systems, help content, and doc-access surfaces.
     - slug: review
       description: Review-oriented analysis, cleanup, and branch handoff documentation.
+    - slug: webrepl
+      description: Web REPL prototype and persistent session management
+    - slug: rest-api
+      description: REST API design and HTTP endpoint architecture
+    - slug: llm-agent-integration
+      description: Integration patterns for LLM agent interaction with long-running processes
+    - slug: persistent-repl
+      description: Persistent REPL sessions with cross-cell state management
+    - slug: sqlite
+      description: SQLite-backed persistence, querying, and export workflows
 docTypes:
     - slug: index
       description: Ticket index documents
