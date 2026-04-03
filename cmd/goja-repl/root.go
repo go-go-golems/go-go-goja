@@ -109,7 +109,17 @@ func (s commandSupport) newApp() (*replapi.App, *repldb.Store, error) {
 		_ = store.Close()
 		return nil, nil, errors.Wrap(err, "build engine factory")
 	}
-	return replapi.New(factory, store, log.Logger), store, nil
+	app, err := replapi.New(
+		factory,
+		log.Logger,
+		replapi.WithProfile(replapi.ProfilePersistent),
+		replapi.WithStore(store),
+	)
+	if err != nil {
+		_ = store.Close()
+		return nil, nil, err
+	}
+	return app, store, nil
 }
 
 func writeJSON(out io.Writer, payload any) error {

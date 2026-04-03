@@ -92,5 +92,14 @@ func newTestApp(t *testing.T) *replapi.App {
 			t.Fatalf("close store: %v", err)
 		}
 	})
-	return replapi.New(factory, store, zerolog.Nop())
+	app, err := replapi.New(
+		factory,
+		zerolog.Nop(),
+		replapi.WithProfile(replapi.ProfilePersistent),
+		replapi.WithStore(store),
+	)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	return app
 }

@@ -5,6 +5,8 @@ import "time"
 // SessionSummary is the top-level state returned to the web UI.
 type SessionSummary struct {
 	ID             string             `json:"id"`
+	Profile        string             `json:"profile"`
+	Policy         SessionPolicy      `json:"policy"`
 	CreatedAt      time.Time          `json:"createdAt"`
 	CellCount      int                `json:"cellCount"`
 	BindingCount   int                `json:"bindingCount"`

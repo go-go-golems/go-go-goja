@@ -37,16 +37,19 @@ var ErrSessionNotFound = errors.New("replsession: session not found")
 
 // Service manages persistent REPL sessions and their backing runtimes.
 type Service struct {
-	mu       sync.RWMutex
-	factory  *engine.Factory
-	logger   zerolog.Logger
-	store    Persistence
-	nextID   uint64
-	sessions map[string]*sessionState
+	mu                 sync.RWMutex
+	factory            *engine.Factory
+	logger             zerolog.Logger
+	store              Persistence
+	nextID             uint64
+	sessions           map[string]*sessionState
+	defaultSessionOpts SessionOptions
 }
 
 type sessionState struct {
 	id          string
+	profile     string
+	policy      SessionPolicy
 	createdAt   time.Time
 	runtime     *engine.Runtime
 	logger      zerolog.Logger
@@ -101,6 +104,14 @@ type Option func(*Service)
 func WithPersistence(store Persistence) Option {
 	return func(service *Service) {
 		service.store = store
+		service.defaultSessionOpts = PersistentSessionOptions()
+	}
+}
+
+// WithDefaultSessionOptions configures the default options used by CreateSession.
+func WithDefaultSessionOptions(opts SessionOptions) Option {
+	return func(service *Service) {
+		service.defaultSessionOpts = NormalizeSessionOptions(opts)
 	}
 }
 
@@ -110,9 +121,10 @@ func NewService(factory *engine.Factory, logger zerolog.Logger, opts ...Option) 
 		panic("replsession: factory is nil")
 	}
 	service := &Service{
-		factory:  factory,
-		logger:   logger,
-		sessions: map[string]*sessionState{},
+		factory:            factory,
+		logger:             logger,
+		sessions:           map[string]*sessionState{},
+		defaultSessionOpts: InteractiveSessionOptions(),
 	}
 	for _, opt := range opts {
 		if opt != nil {
@@ -122,35 +134,66 @@ func NewService(factory *engine.Factory, logger zerolog.Logger, opts ...Option) 
 	return service
 }
 
-// CreateSession allocates a fresh runtime and returns its initial summary.
+// CreateSession allocates a fresh runtime using the service defaults and returns its initial summary.
 func (s *Service) CreateSession(ctx context.Context) (*SessionSummary, error) {
+	return s.CreateSessionWithOptions(ctx, SessionOptions{})
+}
+
+// CreateSessionWithOptions allocates a fresh runtime using explicit session options.
+func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOptions) (*SessionSummary, error) {
+	resolved := s.resolveSessionOptions(opts)
+	if resolved.Policy.PersistenceEnabled() && s.store == nil {
+		return nil, errors.New("create session: persistence enabled but no store configured")
+	}
+
 	rt, err := s.factory.NewRuntime(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "create runtime")
 	}
-	id := fmt.Sprintf("session-%d", atomic.AddUint64(&s.nextID, 1))
+	id := strings.TrimSpace(resolved.ID)
+	if id == "" {
+		id = fmt.Sprintf("session-%d", atomic.AddUint64(&s.nextID, 1))
+	} else {
+		s.noteSessionID(id)
+	}
+	createdAt := resolved.CreatedAt.UTC()
+	if createdAt.IsZero() {
+		createdAt = time.Now().UTC()
+	}
 	state := &sessionState{
 		id:        id,
-		createdAt: time.Now().UTC(),
+		profile:   resolved.Profile,
+		policy:    NormalizeSessionPolicy(resolved.Policy),
+		createdAt: createdAt,
 		runtime:   rt,
 		logger:    s.logger.With().Str("session", id).Logger(),
 		bindings:  map[string]*bindingState{},
 		ignored:   map[string]struct{}{},
 	}
-	if err := state.installConsoleCapture(ctx); err != nil {
-		_ = rt.Close(ctx)
-		return nil, errors.Wrap(err, "install console capture")
+	if state.policy.Observe.ConsoleCapture {
+		if err := state.installConsoleCapture(ctx); err != nil {
+			_ = rt.Close(ctx)
+			return nil, errors.Wrap(err, "install console capture")
+		}
 	}
-	if err := state.installDocSentinels(ctx); err != nil {
-		_ = rt.Close(ctx)
-		return nil, errors.Wrap(err, "install doc sentinels")
+	if state.policy.Observe.JSDocExtraction {
+		if err := state.installDocSentinels(ctx); err != nil {
+			_ = rt.Close(ctx)
+			return nil, errors.Wrap(err, "install doc sentinels")
+		}
 	}
-	if s.store != nil {
+	if state.policy.Persist.Enabled {
+		metadataJSON, err := resolved.SessionMetadataJSON()
+		if err != nil {
+			_ = rt.Close(ctx)
+			return nil, errors.Wrap(err, "persist session metadata")
+		}
 		if err := s.store.CreateSession(ctx, repldb.SessionRecord{
-			SessionID:  id,
-			CreatedAt:  state.createdAt,
-			UpdatedAt:  state.createdAt,
-			EngineKind: "goja",
+			SessionID:    id,
+			CreatedAt:    state.createdAt,
+			UpdatedAt:    state.createdAt,
+			EngineKind:   "goja",
+			MetadataJSON: metadataJSON,
 		}); err != nil {
 			_ = rt.Close(ctx)
 			return nil, errors.Wrap(err, "persist session")
@@ -174,34 +217,41 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
+	policy := NormalizeSessionPolicy(state.policy)
 	state.nextCellID++
 	cellID := state.nextCellID
 	filename := fmt.Sprintf("<repl-cell-%d>", cellID)
 
-	var cstRoot *jsparse.TSNode
-	if parser, parserErr := jsparse.NewTSParser(); parserErr == nil {
-		cstRoot = parser.Parse([]byte(source))
-		parser.Close()
+	var (
+		analysis     *jsparse.AnalysisResult
+		staticReport StaticReport
+	)
+	if shouldAnalyze(policy) {
+		var cstRoot *jsparse.TSNode
+		if policy.Observe.StaticAnalysis {
+			if parser, parserErr := jsparse.NewTSParser(); parserErr == nil {
+				cstRoot = parser.Parse([]byte(source))
+				parser.Close()
+			}
+		}
+		analysis = jsparse.Analyze(filename, source, nil)
+		if policy.Observe.StaticAnalysis {
+			staticReport = buildStaticReport(analysis, cstRoot, defaultASTRowLimit, defaultCSTRowLimit)
+		}
 	}
 
-	analysis := jsparse.Analyze(filename, source, nil)
-	staticReport := buildStaticReport(analysis, cstRoot, defaultASTRowLimit, defaultCSTRowLimit)
-	rewrite := buildRewrite(source, analysis, cellID)
+	rewrite := buildRewriteReport(source, analysis, cellID, policy)
 
 	cell := &CellReport{
-		ID:        cellID,
-		CreatedAt: time.Now().UTC(),
-		Source:    source,
-		Static:    staticReport,
-		Rewrite:   rewrite,
-		Provenance: []ProvenanceRecord{
-			{Section: "static", Source: "jsparse.Analyze + resolver + tree-sitter snapshot", Notes: []string{"top-level bindings come from the root lexical scope", "AST rows come from the indexed node tree", "CST rows come from tree-sitter"}},
-			{Section: "rewrite", Source: "async IIFE wrapper with explicit binding capture", Notes: []string{"lexical declarations stay cell-local", "declared names are returned and then mirrored back onto the runtime global object"}},
-			{Section: "runtime", Source: "goja runtime snapshots before and after evaluation", Notes: []string{"global diffs come from comparing non-builtin global properties", "binding runtime metadata comes from object/property inspection"}},
-		},
+		ID:         cellID,
+		CreatedAt:  time.Now().UTC(),
+		Source:     source,
+		Static:     staticReport,
+		Rewrite:    rewrite,
+		Provenance: provenanceForPolicy(policy),
 	}
 
-	if analysis == nil || analysis.ParseErr != nil {
+	if policy.UsesInstrumentedExecution() && (analysis == nil || analysis.ParseErr != nil) {
 		cell.Execution = ExecutionReport{
 			Status:     "parse-error",
 			Error:      firstDiagnosticMessage(staticReport.Diagnostics),
@@ -215,6 +265,68 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 		return &EvaluateResponse{Session: state.buildSummaryLocked(), Cell: cell}, nil
 	}
 
+	if policy.UsesInstrumentedExecution() {
+		return s.evaluateInstrumented(ctx, state, cell, analysis, rewrite)
+	}
+	return s.evaluateRaw(ctx, state, cell, analysis, rewrite, policy)
+}
+
+func shouldAnalyze(policy SessionPolicy) bool {
+	policy = NormalizeSessionPolicy(policy)
+	return policy.UsesInstrumentedExecution() || policy.Observe.StaticAnalysis || policy.Observe.BindingTracking
+}
+
+func buildRewriteReport(source string, analysis *jsparse.AnalysisResult, cellID int, policy SessionPolicy) RewriteReport {
+	policy = NormalizeSessionPolicy(policy)
+	if policy.UsesInstrumentedExecution() {
+		return buildRewrite(source, analysis, cellID)
+	}
+
+	report := RewriteReport{
+		Mode:              "raw",
+		TransformedSource: source,
+	}
+	if policy.Eval.SupportTopLevelAwait {
+		if wrapped, ok := wrapTopLevelAwaitExpression(source); ok {
+			report.TransformedSource = wrapped
+			report.Warnings = append(report.Warnings, "wrapped top-level await expression in an async IIFE for raw execution")
+		}
+		report.Operations = append(report.Operations, RewriteStep{
+			Kind:   "raw-execution",
+			Detail: "execute source directly without declaration capture; top-level await wrapper may be applied at runtime",
+		})
+	} else {
+		report.Operations = append(report.Operations, RewriteStep{
+			Kind:   "raw-execution",
+			Detail: "execute source directly without source transformation",
+		})
+	}
+	return report
+}
+
+func provenanceForPolicy(policy SessionPolicy) []ProvenanceRecord {
+	policy = NormalizeSessionPolicy(policy)
+	if policy.UsesInstrumentedExecution() {
+		return []ProvenanceRecord{
+			{Section: "static", Source: "jsparse.Analyze + resolver + tree-sitter snapshot", Notes: []string{"top-level bindings come from the root lexical scope", "AST rows come from the indexed node tree", "CST rows come from tree-sitter"}},
+			{Section: "rewrite", Source: "async IIFE wrapper with explicit binding capture", Notes: []string{"lexical declarations stay cell-local", "declared names are returned and then mirrored back onto the runtime global object"}},
+			{Section: "runtime", Source: "goja runtime snapshots before and after evaluation", Notes: []string{"global diffs come from comparing non-builtin global properties", "binding runtime metadata comes from object/property inspection"}},
+		}
+	}
+
+	records := []ProvenanceRecord{
+		{Section: "execution", Source: "direct goja runtime execution without binding-capture rewrite"},
+	}
+	if policy.Observe.StaticAnalysis {
+		records = append(records, ProvenanceRecord{Section: "static", Source: "optional jsparse static analysis performed without changing execution"})
+	}
+	if policy.Observe.RuntimeSnapshot || policy.Observe.BindingTracking {
+		records = append(records, ProvenanceRecord{Section: "runtime", Source: "optional global snapshots collected around raw execution"})
+	}
+	return records
+}
+
+func (s *Service) evaluateInstrumented(ctx context.Context, state *sessionState, cell *CellReport, analysis *jsparse.AnalysisResult, rewrite RewriteReport) (*EvaluateResponse, error) {
 	beforeGlobals, err := state.snapshotGlobals(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "snapshot globals before evaluation")
@@ -253,7 +365,7 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 			continue
 		}
 		leakedGlobals = append(leakedGlobals, name)
-		state.upsertRuntimeDiscoveredBinding(name, cellID, afterGlobals[name])
+		state.upsertRuntimeDiscoveredBinding(name, cell.ID, afterGlobals[name])
 		newBindings = append(newBindings, name)
 	}
 	for _, name := range updated {
@@ -262,10 +374,10 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 			continue
 		}
 		if binding := state.bindings[name]; binding != nil {
-			binding.LastUpdatedCell = cellID
+			binding.LastUpdatedCell = cell.ID
 		} else {
 			leakedGlobals = append(leakedGlobals, name)
-			state.upsertRuntimeDiscoveredBinding(name, cellID, afterGlobals[name])
+			state.upsertRuntimeDiscoveredBinding(name, cell.ID, afterGlobals[name])
 			newBindings = append(newBindings, name)
 		}
 	}
@@ -273,7 +385,7 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 		if state.bindings[name] == nil {
 			newBindings = append(newBindings, name)
 		}
-		state.upsertDeclaredBinding(analysis, name, cellID)
+		state.upsertDeclaredBinding(analysis, name, cell.ID)
 	}
 
 	if err := state.refreshBindingRuntimeDetails(ctx); err != nil {
@@ -309,6 +421,96 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 	return &EvaluateResponse{Session: state.buildSummaryLockedWithGlobals(afterGlobals), Cell: cell}, nil
 }
 
+func (s *Service) evaluateRaw(ctx context.Context, state *sessionState, cell *CellReport, analysis *jsparse.AnalysisResult, rewrite RewriteReport, policy SessionPolicy) (*EvaluateResponse, error) {
+	var (
+		beforeGlobals map[string]GlobalStateView
+		err           error
+	)
+	observeRuntime := policy.Observe.RuntimeSnapshot || policy.Observe.BindingTracking
+	if observeRuntime {
+		beforeGlobals, err = state.snapshotGlobals(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "snapshot globals before evaluation")
+		}
+	}
+
+	state.consoleSink = nil
+	start := time.Now()
+	outcome, execErr := state.executeRaw(ctx, rewrite.TransformedSource, policy)
+	duration := time.Since(start)
+	consoleEvents := append([]ConsoleEvent(nil), state.consoleSink...)
+	state.consoleSink = nil
+
+	var afterGlobals map[string]GlobalStateView
+	if observeRuntime {
+		afterGlobals, err = state.snapshotGlobals(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "snapshot globals after evaluation")
+		}
+	}
+
+	diffs := []GlobalDiffView{}
+	newBindings := []string{}
+	updatedBindings := []string{}
+	removedBindings := []string{}
+	if observeRuntime {
+		var added []string
+		diffs, added, updatedBindings, removedBindings = diffGlobals(beforeGlobals, afterGlobals, state.bindings)
+		if policy.Observe.BindingTracking {
+			newBindings = append(newBindings, added...)
+			for _, name := range removedBindings {
+				delete(state.bindings, name)
+			}
+			for _, name := range added {
+				state.upsertRuntimeDiscoveredBinding(name, cell.ID, afterGlobals[name])
+			}
+			for _, name := range updatedBindings {
+				if binding := state.bindings[name]; binding != nil {
+					binding.LastUpdatedCell = cell.ID
+				} else {
+					state.upsertRuntimeDiscoveredBinding(name, cell.ID, afterGlobals[name])
+					newBindings = append(newBindings, name)
+				}
+			}
+			if err := state.refreshBindingRuntimeDetails(ctx); err != nil {
+				return nil, errors.Wrap(err, "refresh binding runtime details")
+			}
+		}
+	}
+
+	cell.Execution = ExecutionReport{
+		Status:     executionStatus(execErr, false),
+		Result:     outcome.LastValue,
+		Error:      errorString(execErr),
+		DurationMS: duration.Milliseconds(),
+		Awaited:    outcome.Awaited,
+		Console:    consoleEvents,
+		HadSideFX:  len(diffs) > 0,
+	}
+	cell.Runtime = RuntimeReport{
+		CurrentCellValue: outcome.LastValue,
+	}
+	if policy.Observe.RuntimeSnapshot {
+		cell.Runtime.BeforeGlobals = mapGlobalSnapshotViews(beforeGlobals)
+		cell.Runtime.AfterGlobals = mapGlobalSnapshotViews(afterGlobals)
+		cell.Runtime.Diffs = diffs
+	}
+	if policy.Observe.BindingTracking {
+		cell.Runtime.NewBindings = dedupeSortedStrings(newBindings)
+		cell.Runtime.UpdatedBindings = dedupeSortedStrings(updatedBindings)
+		cell.Runtime.RemovedBindings = dedupeSortedStrings(removedBindings)
+	}
+
+	state.cells = append(state.cells, &cellState{report: cell, analysis: analysis})
+	if err := s.persistCell(ctx, state, cell); err != nil {
+		return nil, err
+	}
+	if observeRuntime {
+		return &EvaluateResponse{Session: state.buildSummaryLockedWithGlobals(afterGlobals), Cell: cell}, nil
+	}
+	return &EvaluateResponse{Session: state.buildSummaryLocked(), Cell: cell}, nil
+}
+
 // Snapshot returns the current session summary.
 func (s *Service) Snapshot(ctx context.Context, sessionID string) (*SessionSummary, error) {
 	state, err := s.getSession(sessionID)
@@ -331,7 +533,7 @@ func (s *Service) DeleteSession(ctx context.Context, sessionID string) error {
 	if !ok {
 		return ErrSessionNotFound
 	}
-	if s.store != nil {
+	if state.policy.Persist.Enabled {
 		if err := s.store.DeleteSession(ctx, sessionID, time.Now().UTC()); err != nil {
 			return errors.Wrap(err, "persist session deletion")
 		}
@@ -340,18 +542,22 @@ func (s *Service) DeleteSession(ctx context.Context, sessionID string) error {
 }
 
 // RestoreSession rebuilds a live session by replaying persisted source cells.
-func (s *Service) RestoreSession(ctx context.Context, sessionID string, createdAt time.Time, history []string) (*SessionSummary, error) {
-	if strings.TrimSpace(sessionID) == "" {
+func (s *Service) RestoreSession(ctx context.Context, opts SessionOptions, history []string) (*SessionSummary, error) {
+	resolved := s.resolveSessionOptions(opts)
+	if strings.TrimSpace(resolved.ID) == "" {
 		return nil, errors.New("restore session: session id is empty")
 	}
-	if state, err := s.getSession(sessionID); err == nil {
+	if state, err := s.getSession(resolved.ID); err == nil {
 		state.mu.Lock()
 		defer state.mu.Unlock()
 		return state.buildSummary(ctx), nil
 	}
 
-	tmpService := NewService(s.factory, s.logger)
-	tmpSummary, err := tmpService.CreateSession(ctx)
+	replayOpts := resolved
+	replayOpts.ID = ""
+	replayOpts.Policy.Persist = PersistPolicy{}
+	tmpService := NewService(s.factory, s.logger, WithDefaultSessionOptions(replayOpts))
+	tmpSummary, err := tmpService.CreateSessionWithOptions(ctx, replayOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "restore session: create replay runtime")
 	}
@@ -374,15 +580,18 @@ func (s *Service) RestoreSession(ctx context.Context, sessionID string, createdA
 	}
 
 	tmpState.mu.Lock()
-	tmpState.id = sessionID
-	if !createdAt.IsZero() {
-		tmpState.createdAt = createdAt.UTC()
+	tmpState.id = resolved.ID
+	tmpState.profile = resolved.Profile
+	tmpState.policy = NormalizeSessionPolicy(resolved.Policy)
+	if !resolved.CreatedAt.IsZero() {
+		tmpState.createdAt = resolved.CreatedAt.UTC()
 	}
-	tmpState.logger = s.logger.With().Str("session", sessionID).Logger()
+	tmpState.logger = s.logger.With().Str("session", resolved.ID).Logger()
 	tmpState.mu.Unlock()
+	s.noteSessionID(resolved.ID)
 
 	s.mu.Lock()
-	if existing, ok := s.sessions[sessionID]; ok {
+	if existing, ok := s.sessions[resolved.ID]; ok {
 		s.mu.Unlock()
 		_ = tmpState.runtime.Close(ctx)
 		existing.mu.Lock()
@@ -390,7 +599,7 @@ func (s *Service) RestoreSession(ctx context.Context, sessionID string, createdA
 		return existing.buildSummary(ctx), nil
 	}
 	delete(tmpService.sessions, tmpSummary.ID)
-	s.sessions[sessionID] = tmpState
+	s.sessions[resolved.ID] = tmpState
 	s.mu.Unlock()
 
 	restoreFailed = false
@@ -400,7 +609,7 @@ func (s *Service) RestoreSession(ctx context.Context, sessionID string, createdA
 }
 
 func (s *Service) persistCell(ctx context.Context, state *sessionState, cell *CellReport) error {
-	if s.store == nil {
+	if s.store == nil || state == nil || !state.policy.Persist.Enabled || !state.policy.Persist.Evaluations {
 		return nil
 	}
 	if state == nil || cell == nil {
@@ -460,9 +669,18 @@ func (s *Service) persistCell(ctx context.Context, state *sessionState, cell *Ce
 }
 
 func (s *Service) bindingPersistenceRecords(ctx context.Context, state *sessionState, cell *CellReport) ([]repldb.BindingVersionRecord, []repldb.BindingDocRecord, error) {
-	docRecords, docDigests, err := extractBindingDocs(cell)
-	if err != nil {
-		return nil, nil, err
+	docRecords := []repldb.BindingDocRecord{}
+	docDigests := map[string]string{}
+	var err error
+	if state.policy.Persist.BindingDocs && state.policy.Observe.JSDocExtraction {
+		docRecords, docDigests, err = extractBindingDocs(cell)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if !state.policy.Persist.BindingVersions {
+		return nil, docRecords, nil
 	}
 
 	changedNames := append([]string(nil), cell.Runtime.NewBindings...)
@@ -502,6 +720,49 @@ func (s *Service) bindingPersistenceRecords(ctx context.Context, state *sessionS
 	}
 
 	return versionRecords, docRecords, nil
+}
+
+func (s *Service) resolveSessionOptions(opts SessionOptions) SessionOptions {
+	base := NormalizeSessionOptions(s.defaultSessionOpts)
+	if strings.TrimSpace(base.Profile) == "" {
+		base = NormalizeSessionOptions(InteractiveSessionOptions())
+	}
+
+	if strings.TrimSpace(opts.ID) != "" {
+		base.ID = strings.TrimSpace(opts.ID)
+	}
+	if !opts.CreatedAt.IsZero() {
+		base.CreatedAt = opts.CreatedAt.UTC()
+	}
+	if strings.TrimSpace(opts.Profile) != "" {
+		base.Profile = strings.TrimSpace(opts.Profile)
+	}
+	if !opts.Policy.IsZero() {
+		base.Policy = NormalizeSessionPolicy(opts.Policy)
+	}
+	if base.CreatedAt.IsZero() {
+		base.CreatedAt = time.Now().UTC()
+	}
+	return NormalizeSessionOptions(base)
+}
+
+func (s *Service) noteSessionID(id string) {
+	if !strings.HasPrefix(id, "session-") {
+		return
+	}
+	var n uint64
+	if _, err := fmt.Sscanf(id, "session-%d", &n); err != nil || n == 0 {
+		return
+	}
+	for {
+		current := atomic.LoadUint64(&s.nextID)
+		if current >= n {
+			return
+		}
+		if atomic.CompareAndSwapUint64(&s.nextID, current, n) {
+			return
+		}
+	}
 }
 
 type bindingExportSnapshot struct {
@@ -741,6 +1002,43 @@ func formatConsoleMessage(args []goja.Value, vm *goja.Runtime) string {
 	return strings.Join(parts, " ")
 }
 
+func wrapTopLevelAwaitExpression(source string) (string, bool) {
+	trimmed := strings.TrimSpace(source)
+	if strings.HasPrefix(trimmed, "await ") {
+		return "(async () => { return " + trimmed + "; })()", true
+	}
+	return source, false
+}
+
+func (s *sessionState) executeRaw(ctx context.Context, source string, policy SessionPolicy) (executionOutcome, error) {
+	outcome := executionOutcome{}
+	value, err := s.runString(ctx, source)
+	if err != nil {
+		return outcome, err
+	}
+	if value == nil {
+		outcome.LastValue = "undefined"
+		return outcome, nil
+	}
+	if promise, ok := value.Export().(*goja.Promise); ok {
+		if policy.Eval.SupportTopLevelAwait {
+			outcome.Awaited = true
+			value, err = s.waitPromise(ctx, promise)
+			if err != nil {
+				return outcome, err
+			}
+		} else {
+			outcome.LastValue = promisePreview(promise)
+			return outcome, nil
+		}
+	}
+	outcome.LastValue = gojaValuePreview(value, s.runtime.VM)
+	if outcome.LastValue == "" && (value == nil || goja.IsUndefined(value) || goja.IsNull(value)) {
+		outcome.LastValue = "undefined"
+	}
+	return outcome, nil
+}
+
 func (s *sessionState) executeWrapped(ctx context.Context, rewrite RewriteReport) (executionOutcome, error) {
 	outcome := executionOutcome{}
 	value, err := s.runString(ctx, rewrite.TransformedSource)
@@ -839,6 +1137,19 @@ func (s *sessionState) persistWrappedReturn(ctx context.Context, value goja.Valu
 		return nil, "", false, fmt.Errorf("unexpected persist result type %T", ret)
 	}
 	return result.Persisted, result.LastValue, result.HelperError, nil
+}
+
+func promisePreview(promise *goja.Promise) string {
+	switch promise.State() {
+	case goja.PromiseStatePending:
+		return "Promise { <pending> }"
+	case goja.PromiseStateRejected:
+		return "Promise { <rejected> }"
+	case goja.PromiseStateFulfilled:
+		return "Promise { <fulfilled> }"
+	default:
+		return "Promise { <pending> }"
+	}
 }
 
 type persistResult struct {
@@ -1213,6 +1524,9 @@ func dedupeSortedStrings(values []string) []string {
 }
 
 func (s *sessionState) buildSummary(ctx context.Context) *SessionSummary {
+	if !s.policy.Observe.RuntimeSnapshot && !s.policy.Observe.BindingTracking {
+		return s.buildSummaryLocked()
+	}
 	globals, err := s.snapshotGlobals(ctx)
 	if err != nil {
 		s.logger.Debug().Err(err).Msg("failed to snapshot globals for summary")
@@ -1256,6 +1570,8 @@ func (s *sessionState) buildSummaryLockedWithGlobals(globals map[string]GlobalSt
 
 	summary := &SessionSummary{
 		ID:           s.id,
+		Profile:      s.profile,
+		Policy:       NormalizeSessionPolicy(s.policy),
 		CreatedAt:    s.createdAt,
 		CellCount:    len(s.cells),
 		BindingCount: len(bindings),

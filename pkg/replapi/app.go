@@ -12,28 +12,63 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// App combines the live session kernel with the durable session store.
+// App combines the live session kernel with the optional durable session store.
 type App struct {
+	config  Config
 	service *replsession.Service
 	store   *repldb.Store
 }
 
-// New creates a restore-aware persistent REPL application façade.
-func New(factory *engine.Factory, store *repldb.Store, logger zerolog.Logger) *App {
+// New creates a configurable REPL application facade.
+func New(factory *engine.Factory, logger zerolog.Logger, opts ...Option) (*App, error) {
+	config := DefaultConfig()
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&config)
+		}
+	}
+	return NewWithConfig(factory, logger, config)
+}
+
+// NewWithConfig creates a configurable REPL application facade from an explicit config.
+func NewWithConfig(factory *engine.Factory, logger zerolog.Logger, config Config) (*App, error) {
 	if factory == nil {
-		panic("replapi: factory is nil")
+		return nil, errors.New("replapi: factory is nil")
 	}
-	if store == nil {
-		panic("replapi: store is nil")
+
+	config = normalizeConfig(config)
+	if err := validateConfig(config); err != nil {
+		return nil, err
 	}
+
+	serviceOpts := []replsession.Option{
+		replsession.WithDefaultSessionOptions(config.SessionOptions),
+	}
+	if config.Store != nil {
+		serviceOpts = append(serviceOpts, replsession.WithPersistence(config.Store))
+		serviceOpts = append(serviceOpts, replsession.WithDefaultSessionOptions(config.SessionOptions))
+	}
+
 	return &App{
-		service: replsession.NewService(factory, logger, replsession.WithPersistence(store)),
-		store:   store,
-	}
+		config:  config,
+		service: replsession.NewService(factory, logger, serviceOpts...),
+		store:   config.Store,
+	}, nil
 }
 
 func (a *App) CreateSession(ctx context.Context) (*replsession.SessionSummary, error) {
-	return a.service.CreateSession(ctx)
+	return a.CreateSessionWithOptions(ctx, SessionOptions{})
+}
+
+func (a *App) CreateSessionWithOptions(ctx context.Context, opts SessionOptions) (*replsession.SessionSummary, error) {
+	if a == nil {
+		return nil, errors.New("replapi: app is nil")
+	}
+	resolved := resolveSessionOptions(a.config, opts)
+	if resolved.Policy.PersistenceEnabled() && a.store == nil {
+		return nil, errors.New("replapi: persistence requested but no store configured")
+	}
+	return a.service.CreateSessionWithOptions(ctx, resolved)
 }
 
 func (a *App) Evaluate(ctx context.Context, sessionID string, source string) (*replsession.EvaluateResponse, error) {
@@ -48,6 +83,9 @@ func (a *App) Snapshot(ctx context.Context, sessionID string) (*replsession.Sess
 }
 
 func (a *App) Restore(ctx context.Context, sessionID string) (*replsession.SessionSummary, error) {
+	if a.store == nil {
+		return nil, errors.New("replapi: restore requires a store")
+	}
 	record, err := a.store.LoadSession(ctx, sessionID)
 	if err != nil {
 		return nil, err
@@ -56,7 +94,8 @@ func (a *App) Restore(ctx context.Context, sessionID string) (*replsession.Sessi
 	if err != nil {
 		return nil, err
 	}
-	return a.service.RestoreSession(ctx, sessionID, record.CreatedAt, history)
+	restoreOptions := a.restoreOptionsForRecord(record)
+	return a.service.RestoreSession(ctx, restoreOptions, history)
 }
 
 func (a *App) DeleteSession(ctx context.Context, sessionID string) error {
@@ -67,6 +106,9 @@ func (a *App) DeleteSession(ctx context.Context, sessionID string) error {
 	if !errors.Is(err, replsession.ErrSessionNotFound) {
 		return err
 	}
+	if a.store == nil {
+		return err
+	}
 	if _, loadErr := a.store.LoadSession(ctx, sessionID); loadErr != nil {
 		return loadErr
 	}
@@ -74,18 +116,30 @@ func (a *App) DeleteSession(ctx context.Context, sessionID string) error {
 }
 
 func (a *App) ListSessions(ctx context.Context) ([]repldb.SessionRecord, error) {
+	if a.store == nil {
+		return nil, errors.New("replapi: list sessions requires a store")
+	}
 	return a.store.ListSessions(ctx)
 }
 
 func (a *App) History(ctx context.Context, sessionID string) ([]repldb.EvaluationRecord, error) {
+	if a.store == nil {
+		return nil, errors.New("replapi: history requires a store")
+	}
 	return a.store.LoadEvaluations(ctx, sessionID)
 }
 
 func (a *App) Export(ctx context.Context, sessionID string) (*repldb.SessionExport, error) {
+	if a.store == nil {
+		return nil, errors.New("replapi: export requires a store")
+	}
 	return a.store.ExportSession(ctx, sessionID)
 }
 
 func (a *App) ReplaySource(ctx context.Context, sessionID string) ([]string, error) {
+	if a.store == nil {
+		return nil, errors.New("replapi: replay source requires a store")
+	}
 	return a.store.LoadReplaySource(ctx, sessionID)
 }
 
@@ -98,6 +152,9 @@ func (a *App) Bindings(ctx context.Context, sessionID string) ([]replsession.Bin
 }
 
 func (a *App) Docs(ctx context.Context, sessionID string) ([]repldb.BindingDocRecord, error) {
+	if a.store == nil {
+		return nil, errors.New("replapi: docs requires a store")
+	}
 	exported, err := a.store.ExportSession(ctx, sessionID)
 	if err != nil {
 		return nil, err
@@ -123,5 +180,27 @@ func (a *App) ensureLiveSession(ctx context.Context, sessionID string) (*replses
 	if !errors.Is(err, replsession.ErrSessionNotFound) {
 		return nil, err
 	}
+	if !a.config.AutoRestore || a.store == nil {
+		return nil, err
+	}
 	return a.Restore(ctx, sessionID)
+}
+
+func (a *App) restoreOptionsForRecord(record repldb.SessionRecord) replsession.SessionOptions {
+	options := replsession.NormalizeSessionOptions(a.config.SessionOptions)
+	options.ID = record.SessionID
+	options.CreatedAt = record.CreatedAt
+
+	if metadataOpts, ok, err := replsession.SessionOptionsFromMetadata(record.MetadataJSON); err == nil && ok {
+		metadataOpts.ID = record.SessionID
+		metadataOpts.CreatedAt = record.CreatedAt
+		return replsession.NormalizeSessionOptions(metadataOpts)
+	}
+
+	if options.Profile == "" {
+		options = replsession.PersistentSessionOptions()
+		options.ID = record.SessionID
+		options.CreatedAt = record.CreatedAt
+	}
+	return replsession.NormalizeSessionOptions(options)
 }
