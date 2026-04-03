@@ -8,13 +8,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dop251/goja"
 	"github.com/go-go-golems/glazed/pkg/help"
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/doc"
 	docaccessruntime "github.com/go-go-golems/go-go-goja/pkg/docaccess/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
+	"github.com/go-go-golems/go-go-goja/pkg/replapi"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
@@ -61,13 +61,6 @@ type conversion between Go and JavaScript values.`,
 		if err != nil {
 			return fmt.Errorf("failed to build engine factory: %v", err)
 		}
-		rt, err := factory.NewRuntime(context.Background())
-		if err != nil {
-			return fmt.Errorf("failed to create runtime: %v", err)
-		}
-		defer func() {
-			_ = rt.Close(context.Background())
-		}()
 		report := pluginSetup.Snapshot()
 
 		if debug {
@@ -83,20 +76,37 @@ type conversion between Go and JavaScript values.`,
 
 		// If a script path is provided, run it once and exit.
 		if len(args) > 0 {
+			rt, err := factory.NewRuntime(context.Background())
+			if err != nil {
+				return fmt.Errorf("failed to create runtime: %v", err)
+			}
+			defer func() {
+				_ = rt.Close(context.Background())
+			}()
 			if _, err := rt.Require.Require(args[0]); err != nil {
 				return fmt.Errorf("failed to run script: %v", err)
 			}
 			return nil
 		}
 
+		app, err := replapi.New(factory, zerolog.Nop(), replapi.WithProfile(replapi.ProfileInteractive))
+		if err != nil {
+			return fmt.Errorf("failed to create interactive repl app: %v", err)
+		}
+
 		// Interactive loop.
-		return runInteractiveLoop(rt.VM, debug, report)
+		return runInteractiveLoop(context.Background(), app, debug, report)
 	},
 }
 
-func runInteractiveLoop(vm *goja.Runtime, debug bool, report host.LoadReport) error {
+func runInteractiveLoop(ctx context.Context, app *replapi.App, debug bool, report host.LoadReport) error {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("goja> type JS code (:help for help)")
+
+	session, err := app.CreateSession(ctx)
+	if err != nil {
+		return fmt.Errorf("create repl session: %v", err)
+	}
 
 	for {
 		fmt.Print("js> ")
@@ -143,7 +153,7 @@ func runInteractiveLoop(vm *goja.Runtime, debug bool, report host.LoadReport) er
 			continue
 		}
 
-		val, err := vm.RunString(line)
+		resp, err := app.Evaluate(ctx, session.ID, line)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			if debug {
@@ -152,9 +162,20 @@ func runInteractiveLoop(vm *goja.Runtime, debug bool, report host.LoadReport) er
 			continue
 		}
 
-		// Print non-undefined results.
-		if val != nil && !goja.IsUndefined(val) {
-			fmt.Println(val)
+		if resp == nil || resp.Cell == nil {
+			continue
+		}
+		if len(resp.Cell.Execution.Console) > 0 {
+			for _, event := range resp.Cell.Execution.Console {
+				fmt.Println(event.Message)
+			}
+		}
+		if resp.Cell.Execution.Error != "" {
+			fmt.Printf("Error: %s\n", resp.Cell.Execution.Error)
+			continue
+		}
+		if result := strings.TrimSpace(resp.Cell.Execution.Result); result != "" && result != "undefined" {
+			fmt.Println(result)
 		}
 	}
 }
