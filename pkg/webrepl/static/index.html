@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>go-go-goja Web REPL Prototype</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/app.css" rel="stylesheet">
+  </head>
+  <body>
+    <div class="container-fluid py-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h1 class="h3 mb-0">go-go-goja Web REPL Prototype</h1>
+          <p class="text-body-secondary mb-0">Persistent session, parser/runtime introspection, visible rewrite pipeline.</p>
+        </div>
+        <div class="d-flex gap-2">
+          <button id="newSessionBtn" class="btn btn-outline-secondary btn-sm">New Session</button>
+          <button id="runBtn" class="btn btn-primary">Run Cell</button>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-xl-5">
+          <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>Editor</span>
+              <small class="text-body-secondary">Ctrl/Cmd + Enter</small>
+            </div>
+            <div class="card-body p-0">
+              <textarea id="editor" class="form-control editor border-0" spellcheck="false">const answer = 40 + 2;
+function greet(name) {
+  return `hello ${name}`;
+}
+
+({ answer, message: greet("world") })</textarea>
+            </div>
+          </div>
+
+          <div class="card shadow-sm mt-3">
+            <div class="card-header">Session</div>
+            <div class="card-body">
+              <dl class="row small mb-0" id="sessionMeta"></dl>
+            </div>
+          </div>
+
+          <div class="card shadow-sm mt-3">
+            <div class="card-header">History</div>
+            <div class="card-body p-0">
+              <div id="history" class="list-group list-group-flush"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xl-7">
+          <div class="card shadow-sm">
+            <div class="card-header">Execution</div>
+            <div class="card-body">
+              <div id="executionSummary" class="mb-3"></div>
+              <div class="mb-3">
+                <h2 class="h6">Console</h2>
+                <div id="consoleOutput" class="console-output small"></div>
+              </div>
+              <div>
+                <h2 class="h6">How this was obtained</h2>
+                <ul id="provenanceList" class="small mb-0"></ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="card shadow-sm mt-3">
+            <div class="card-header">Current Bindings</div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0" id="bindingsTable">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Kind</th>
+                      <th>Preview</th>
+                      <th>Origin</th>
+                      <th>Declared</th>
+                      <th>Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card shadow-sm mt-3">
+            <div class="card-header">Last Cell Details</div>
+            <div class="card-body">
+              <ul class="nav nav-tabs" id="detailTabs" role="tablist">
+                <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-static" type="button">Static</button></li>
+                <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-rewrite" type="button">Rewrite</button></li>
+                <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-runtime" type="button">Runtime</button></li>
+                <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-json" type="button">Raw JSON</button></li>
+              </ul>
+              <div class="tab-content border border-top-0 rounded-bottom p-3 bg-body-tertiary">
+                <div class="tab-pane fade show active" id="tab-static">
+                  <pre id="staticJson" class="json-view mb-0"></pre>
+                </div>
+                <div class="tab-pane fade" id="tab-rewrite">
+                  <pre id="rewriteSource" class="json-view mb-0"></pre>
+                </div>
+                <div class="tab-pane fade" id="tab-runtime">
+                  <pre id="runtimeJson" class="json-view mb-0"></pre>
+                </div>
+                <div class="tab-pane fade" id="tab-json">
+                  <pre id="rawJson" class="json-view mb-0"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
