@@ -339,6 +339,66 @@ func (s *Service) DeleteSession(ctx context.Context, sessionID string) error {
 	return state.runtime.Close(ctx)
 }
 
+// RestoreSession rebuilds a live session by replaying persisted source cells.
+func (s *Service) RestoreSession(ctx context.Context, sessionID string, createdAt time.Time, history []string) (*SessionSummary, error) {
+	if strings.TrimSpace(sessionID) == "" {
+		return nil, errors.New("restore session: session id is empty")
+	}
+	if state, err := s.getSession(sessionID); err == nil {
+		state.mu.Lock()
+		defer state.mu.Unlock()
+		return state.buildSummary(ctx), nil
+	}
+
+	tmpService := NewService(s.factory, s.logger)
+	tmpSummary, err := tmpService.CreateSession(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "restore session: create replay runtime")
+	}
+	tmpState, err := tmpService.getSession(tmpSummary.ID)
+	if err != nil {
+		return nil, errors.Wrap(err, "restore session: get replay state")
+	}
+
+	restoreFailed := true
+	defer func() {
+		if restoreFailed {
+			_ = tmpState.runtime.Close(ctx)
+		}
+	}()
+
+	for idx, source := range history {
+		if _, err := tmpService.Evaluate(ctx, tmpSummary.ID, source); err != nil {
+			return nil, errors.Wrapf(err, "restore session: replay cell %d", idx+1)
+		}
+	}
+
+	tmpState.mu.Lock()
+	tmpState.id = sessionID
+	if !createdAt.IsZero() {
+		tmpState.createdAt = createdAt.UTC()
+	}
+	tmpState.logger = s.logger.With().Str("session", sessionID).Logger()
+	tmpState.mu.Unlock()
+
+	s.mu.Lock()
+	if existing, ok := s.sessions[sessionID]; ok {
+		s.mu.Unlock()
+		_ = tmpState.runtime.Close(ctx)
+		existing.mu.Lock()
+		defer existing.mu.Unlock()
+		return existing.buildSummary(ctx), nil
+	}
+	delete(tmpService.sessions, tmpSummary.ID)
+	s.sessions[sessionID] = tmpState
+	s.mu.Unlock()
+
+	restoreFailed = false
+	tmpState.mu.Lock()
+	defer tmpState.mu.Unlock()
+	return tmpState.buildSummary(ctx), nil
+}
+
 func (s *Service) persistCell(ctx context.Context, state *sessionState, cell *CellReport) error {
 	if s.store == nil {
 		return nil

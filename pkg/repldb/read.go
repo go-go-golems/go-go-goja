@@ -10,6 +10,43 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ErrSessionNotFound indicates that the requested persisted session does not exist.
+var ErrSessionNotFound = errors.New("repldb: session not found")
+
+// ListSessions returns durable session rows ordered by creation time.
+func (s *Store) ListSessions(ctx context.Context) ([]SessionRecord, error) {
+	if s == nil || s.db == nil {
+		return nil, errors.New("list sessions: store is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db.QueryContext(
+		ctx,
+		`SELECT session_id, created_at, updated_at, deleted_at, engine_kind, metadata_json
+		 FROM sessions
+		 ORDER BY created_at ASC, session_id ASC`,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "list sessions")
+	}
+	defer func() { _ = rows.Close() }()
+
+	records := []SessionRecord{}
+	for rows.Next() {
+		record, err := scanSessionRecord(rows)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, record)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "list sessions: iterate rows")
+	}
+	return records, nil
+}
+
 // LoadSession returns the durable session record for sessionID.
 func (s *Store) LoadSession(ctx context.Context, sessionID string) (SessionRecord, error) {
 	if s == nil || s.db == nil {
@@ -22,13 +59,8 @@ func (s *Store) LoadSession(ctx context.Context, sessionID string) (SessionRecor
 		return SessionRecord{}, err
 	}
 
-	var (
-		record            SessionRecord
-		createdAtRaw      string
-		updatedAtRaw      string
-		deletedAtNullable sql.NullString
-		metadataJSON      string
-	)
+	record := SessionRecord{}
+	values := &scanSessionValues{}
 	err := s.db.QueryRowContext(
 		ctx,
 		`SELECT session_id, created_at, updated_at, deleted_at, engine_kind, metadata_json
@@ -37,23 +69,25 @@ func (s *Store) LoadSession(ctx context.Context, sessionID string) (SessionRecor
 		sessionID,
 	).Scan(
 		&record.SessionID,
-		&createdAtRaw,
-		&updatedAtRaw,
-		&deletedAtNullable,
+		&values.createdAtRaw,
+		&values.updatedAtRaw,
+		&values.deletedAtNullable,
 		&record.EngineKind,
-		&metadataJSON,
+		&values.metadataJSON,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return SessionRecord{}, ErrSessionNotFound
+		}
 		return SessionRecord{}, errors.Wrap(err, "load session")
 	}
-
-	record.CreatedAt = parseTime(createdAtRaw)
-	record.UpdatedAt = parseTime(updatedAtRaw)
-	if deletedAtNullable.Valid {
-		deletedAt := parseTime(deletedAtNullable.String)
+	record.CreatedAt = parseTime(values.createdAtRaw)
+	record.UpdatedAt = parseTime(values.updatedAtRaw)
+	if values.deletedAtNullable.Valid {
+		deletedAt := parseTime(values.deletedAtNullable.String)
 		record.DeletedAt = &deletedAt
 	}
-	record.MetadataJSON = json.RawMessage(metadataJSON)
+	record.MetadataJSON = json.RawMessage(values.metadataJSON)
 	return record, nil
 }
 
@@ -291,4 +325,35 @@ func parseTime(value string) time.Time {
 		return time.Time{}
 	}
 	return parsed.UTC()
+}
+
+type scanSessionValues struct {
+	createdAtRaw      string
+	updatedAtRaw      string
+	deletedAtNullable sql.NullString
+	metadataJSON      string
+}
+
+func scanSessionRecord(scanner interface{ Scan(dest ...any) error }) (SessionRecord, error) {
+	record := SessionRecord{}
+	values := &scanSessionValues{}
+	err := scanner.Scan(
+		&record.SessionID,
+		&values.createdAtRaw,
+		&values.updatedAtRaw,
+		&values.deletedAtNullable,
+		&record.EngineKind,
+		&values.metadataJSON,
+	)
+	if err != nil {
+		return SessionRecord{}, errors.Wrap(err, "scan session record")
+	}
+	record.CreatedAt = parseTime(values.createdAtRaw)
+	record.UpdatedAt = parseTime(values.updatedAtRaw)
+	if values.deletedAtNullable.Valid {
+		deletedAt := parseTime(values.deletedAtNullable.String)
+		record.DeletedAt = &deletedAt
+	}
+	record.MetadataJSON = json.RawMessage(values.metadataJSON)
+	return record, nil
 }
