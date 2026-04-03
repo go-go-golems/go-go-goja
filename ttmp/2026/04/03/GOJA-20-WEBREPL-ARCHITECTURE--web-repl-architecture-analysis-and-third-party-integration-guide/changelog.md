@@ -51,3 +51,13 @@ Phase 1 extraction: moved the persistent session kernel out of pkg/webrepl into 
 - /home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go — Shared session kernel extracted in phase 1 (commit 7b6681d)
 - /home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/webrepl/server.go — Web transport now depends on replsession (commit 7b6681d)
 
+
+## 2026-04-03
+
+Created follow-on tickets GOJA-21-PERSISTENT-REPL-SQLITE and GOJA-22-PERSISTENT-REPL-CLI-SERVER to carry phases 2 and 3 separately.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/03/GOJA-21-PERSISTENT-REPL-SQLITE--persistent-repl-sqlite-persistence-replay-and-export/tasks.md — Phase 2 ticket scaffolded with initial persistence/replay tasks
+- /home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/03/GOJA-22-PERSISTENT-REPL-CLI-SERVER--persistent-repl-cli-and-json-server-surfaces/tasks.md — Phase 3 ticket scaffolded with initial CLI/server tasks
+

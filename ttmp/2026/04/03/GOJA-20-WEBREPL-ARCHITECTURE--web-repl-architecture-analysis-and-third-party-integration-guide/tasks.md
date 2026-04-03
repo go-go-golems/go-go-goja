@@ -15,5 +15,5 @@
 - [x] Phase 1.5: Rewire `cmd/web-repl` to use the shared package directly through the HTTP transport.
 - [x] Phase 1.6: Run targeted build/test validation for the extracted packages and fix any regressions caused by the move.
 - [x] Phase 1.7: Commit the code refactor in focused commits and record each step in the diary and changelog.
-- [ ] Create follow-on ticket for SQLite persistence, replay/restore, and export.
-- [ ] Create follow-on ticket for the new CLI and JSON server surfaces after the phase-1 extraction lands.
+- [x] Create follow-on ticket for SQLite persistence, replay/restore, and export.
+- [x] Create follow-on ticket for the new CLI and JSON server surfaces after the phase-1 extraction lands.

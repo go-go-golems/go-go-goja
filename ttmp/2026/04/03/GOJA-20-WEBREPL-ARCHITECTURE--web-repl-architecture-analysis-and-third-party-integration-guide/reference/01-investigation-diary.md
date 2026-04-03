@@ -399,3 +399,84 @@ Current command wiring remains in:
 ```
 
 The key implementation decision in this step was to move only the kernel pieces that are already transport-neutral. No SQLite interfaces, replay logic, or new CLI/server packages were introduced yet.
+
+## Step 5: Split Later Phases into Their Own Tickets
+
+Once the phase-1 extraction was committed, the remaining open items in `GOJA-20` were no longer implementation tasks for this ticket. They were roadmap handoff tasks. I closed those out by creating the next two tickets so that persistence/replay work and the new CLI/JSON server work can proceed independently without bloating the architecture ticket.
+
+This kept `GOJA-20` focused on what it was supposed to produce: the architecture, the phase-1 extraction plan, the first extraction commit, and the handoff scaffolding for later phases.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 4)
+
+**Assistant interpretation:** Finish the phase-1 ticket cleanly by spinning later phases out into their own ticket workspaces instead of leaving them as vague future tasks.
+
+**Inferred user intent:** Keep the work decomposed and reviewable, with one ticket owning the extraction and separate tickets owning persistence and the new transport surfaces.
+
+**Commit (code):** N/A — ticket bookkeeping only
+
+### What I did
+
+- Created `GOJA-21-PERSISTENT-REPL-SQLITE` with initial tasks for:
+  - schema design,
+  - `repldb` store implementation,
+  - binding version persistence,
+  - replay/export flows.
+- Created `GOJA-22-PERSISTENT-REPL-CLI-SERVER` with initial tasks for:
+  - single-binary CLI design,
+  - JSON HTTP transport implementation,
+  - CLI command wiring,
+  - final retirement of the remaining prototype package.
+- Marked tasks 14 and 15 in `GOJA-20` complete.
+- Updated the `GOJA-20` changelog to point at the new follow-on ticket task files.
+
+### Why
+
+- The architecture ticket should not quietly accumulate phase-2 and phase-3 implementation scope.
+- Separate tickets make it easier to review, prioritize, and upload later deliverables independently.
+
+### What worked
+
+- `docmgr ticket create-ticket` created both workspaces cleanly.
+- The new tickets now have concrete task lists instead of placeholder TODOs.
+- `GOJA-20` is now fully complete from a task-tracking perspective.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The ticket split is worth doing immediately once phase boundaries become real in code, otherwise the architecture ticket becomes a backlog bucket instead of a finished deliverable.
+
+### What was tricky to build
+
+- The only mildly tricky part was making sure the follow-on tickets inherited enough structure to be actionable without over-documenting them before implementation starts.
+
+### What warrants a second pair of eyes
+
+- Review the ticket names and scopes to confirm the split matches how the remaining work should actually be staffed:
+  - `GOJA-21` for persistence/replay/export
+  - `GOJA-22` for CLI/JSON server/product surfaces
+
+### What should be done in the future
+
+- Start phase 2 work in `GOJA-21`.
+- Start phase 3 work in `GOJA-22`.
+
+### Code review instructions
+
+- Check the new ticket directories:
+  - `ttmp/2026/04/03/GOJA-21-PERSISTENT-REPL-SQLITE--persistent-repl-sqlite-persistence-replay-and-export`
+  - `ttmp/2026/04/03/GOJA-22-PERSISTENT-REPL-CLI-SERVER--persistent-repl-cli-and-json-server-surfaces`
+- Confirm `GOJA-20` now has all tasks checked.
+
+### Technical details
+
+Created follow-on tickets:
+
+```text
+GOJA-21-PERSISTENT-REPL-SQLITE
+GOJA-22-PERSISTENT-REPL-CLI-SERVER
+```
