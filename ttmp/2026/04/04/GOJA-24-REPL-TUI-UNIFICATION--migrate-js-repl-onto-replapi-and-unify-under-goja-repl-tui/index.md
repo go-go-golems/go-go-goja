@@ -13,8 +13,8 @@ Owners: []
 RelatedFiles:
     - Path: cmd/goja-repl/root.go
       Note: Unified CLI root and future tui command host
-    - Path: cmd/js-repl/main.go
-      Note: Migrated Bubble Tea entrypoint
+    - Path: cmd/goja-repl/tui.go
+      Note: Unified Bubble Tea entrypoint
     - Path: pkg/repl/adapters/bobatea/javascript.go
       Note: Current adapter seam slated for replacement or refactor
     - Path: pkg/repl/evaluators/javascript/evaluator.go
@@ -23,7 +23,7 @@ RelatedFiles:
       Note: Target shared session API
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-04T15:32:08.162298859-04:00
+LastUpdated: 2026-04-04T18:24:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---

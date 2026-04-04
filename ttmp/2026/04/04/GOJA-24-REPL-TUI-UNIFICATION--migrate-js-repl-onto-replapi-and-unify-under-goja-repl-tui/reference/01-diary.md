@@ -13,15 +13,15 @@ Owners: []
 RelatedFiles:
     - Path: cmd/goja-repl/root.go
       Note: Primary evidence for unified-binary direction
-    - Path: cmd/js-repl/main.go
-      Note: Primary evidence for current TUI bootstrap
+    - Path: cmd/goja-repl/tui.go
+      Note: Primary evidence for the unified TUI bootstrap
     - Path: pkg/repl/evaluators/javascript/evaluator.go
       Note: Primary evidence for evaluator responsibility split
     - Path: pkg/replapi/app.go
       Note: Primary evidence for shared session API adoption
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-04T17:28:00-04:00
+LastUpdated: 2026-04-04T18:34:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -407,3 +407,211 @@ go test ./pkg/repl/evaluators/javascript ./pkg/repl/adapters/bobatea ./pkg/repla
 ```
 
 - The accepted code commit passed the repository pre-commit hook after the lint cleanup.
+
+## Step 4: Move the Bubble Tea frontend under `goja-repl tui` and remove `cmd/js-repl`
+
+This step completed the actual user-facing cutover. The new `replapi`-backed Bobatea adapter was already in place and the shared assistance layer was already extracted, so the remaining work was to move the Bubble Tea startup into the unified command tree, make the TUI choose an appropriate `replapi` profile, and delete the old standalone `cmd/js-repl` entrypoint. I also updated the end-user documentation so the repo stops teaching two different TUI entrypoints.
+
+The architectural boundary is worth stating precisely: this step removed evaluator-owned execution from the Bubble Tea TUI path, but it did not delete the old JavaScript evaluator package entirely. That evaluator is still used by other callers, most visibly `cmd/smalltalk-inspector/app/repl_widgets.go`, so the TUI unification is complete without pretending the entire legacy evaluator package is dead.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Create a detailed list of tasks in the ticket and then work on them one by one, committing at appropriate intervals, keeping a detailed diary as you work."
+
+**Assistant interpretation:** Turn the ticket phases into concrete tracked work, finish the TUI unification slice, validate the binary cutover carefully, and record the engineering details in the diary and ticket bookkeeping.
+
+**Inferred user intent:** Complete the planned TUI migration in reviewable phases, not just by landing code, but by keeping the ticket history clear enough that another engineer can reconstruct the reasoning and validate the behavior.
+
+**Commit (code):** `0412ae8` — `Add goja-repl tui and retire cmd/js-repl`
+
+### What I did
+- Added a dedicated TUI subcommand in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/goja-repl/tui.go`
+- Refactored app creation in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/goja-repl/root.go`
+  - so the command tree can build either interactive or persistent `replapi` applications cleanly
+- Registered the same embedded help source for the TUI runtime path so `require("docs")` and related help lookups still work under the unified binary
+- Added command-level coverage in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/goja-repl/root_test.go`
+- Removed the old standalone entrypoint:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/js-repl/main.go`
+- Updated user-facing docs and examples to point at:
+  - `go run ./cmd/goja-repl tui`
+- Ran focused validation:
+  - `go test ./cmd/goja-repl ./pkg/repl/adapters/bobatea ./pkg/repl/evaluators/javascript ./pkg/replapi ./pkg/replsession`
+- Ran full validation:
+  - `go test ./...`
+- Ran an interactive smoke test under `tmux`:
+  - started `go run ./cmd/goja-repl tui --alt-screen=false`
+  - entered `1+1`
+  - captured the pane output to confirm the result and help line rendering
+
+### Why
+- The user explicitly wants one binary, with the TUI living under `goja-repl tui`.
+- Keeping `cmd/js-repl` around after the new subcommand exists would preserve duplication and ambiguity in the user-facing surface.
+- The ticket was already structured around the idea that the Bubble Tea UI should stay, while execution and session ownership move onto the shared `replapi` stack.
+
+### What worked
+- The earlier adapter and assistance extraction paid off exactly as intended: once those seams existed, the TUI startup migration was mostly command wiring.
+- The shared help system could be reused for the unified binary, so the TUI path did not lose documentation affordances.
+- `goja-repl tui` starts cleanly in `interactive` profile and evaluates through the `replapi` path as expected.
+- The repo builds and tests cleanly after removing `cmd/js-repl`.
+
+### What didn't work
+- The first `tmux` smoke run exposed unexpected Watermill handler logs in the pane output. The TUI worked, but the output was polluted by the default event-bus logger, which would have made the terminal UX noisy and confusing.
+
+The pane showed the TUI mixed with lines like:
+
+```text
+[watermill] ... Adding handler ...
+```
+
+That noise came from the default `eventbus.NewInMemoryBus()` path. I fixed it by constructing the in-memory Watermill bus with `watermill.NopLogger{}` in the new TUI command instead of using the default helper directly.
+
+### What I learned
+- The binary unification itself is easy once the backend seams are right; the integration surprises are mostly operational details like logging behavior.
+- The old evaluator package is no longer part of the TUI execution path, but it still has non-TUI consumers. That means cleanup work after this ticket should be driven by actual remaining call sites, not by the assumption that the package is globally dead.
+- `tmux` was the right validation tool here because it let me exercise the TUI as a real terminal program and inspect the rendered pane after feeding input.
+
+### What was tricky to build
+- The subtle part was not launching Bubble Tea; it was preserving the right startup semantics under the new command root:
+  - choose `interactive` versus `persistent` cleanly
+  - create a session automatically when no session ID is provided
+  - allow attaching to an existing persisted session when the profile is `persistent`
+  - keep runtime docs/help registration intact
+- The other sharp edge was avoiding noisy event-bus logs in a TUI environment where plain stdout should belong to the UI itself.
+
+### What warrants a second pair of eyes
+- The `cmd/goja-repl/tui.go` startup contract, especially the current restriction that `--session-id` is only valid with `--profile persistent`
+- Whether `interactive` should remain the default TUI profile long-term, or whether the product eventually wants `persistent` by default once the UX is more explicit about session restoration
+- The remaining non-TUI uses of `pkg/repl/evaluators/javascript`, especially `cmd/smalltalk-inspector/app/repl_widgets.go`, before any future deletion/refactor of that package
+
+### What should be done in the future
+- Finish the ticket bookkeeping and publish the updated bundle
+- Decide whether `cmd/repl` should continue to exist as a separate minimal shell or be folded into the unified binary later
+- Plan a follow-on cleanup ticket for deleting or shrinking the remaining evaluator-owned execution paths only after their actual consumers have moved
+- Plan a follow-on cleanup ticket for retiring `cmd/web-repl` / `pkg/webrepl` after the broader frontend consolidation work is ready
+
+### Code review instructions
+- Start with the unified TUI command:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/goja-repl/tui.go`
+- Then review the supporting root-command refactor:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/goja-repl/root.go`
+- Then confirm the new command-level tests:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/goja-repl/root_test.go`
+- Then review the user-facing cutover:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/01-introduction.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/04-repl-usage.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/12-plugin-user-guide.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/13-plugin-developer-guide.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/14-plugin-tutorial-build-install.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/15-docs-module-guide.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/plugins/examples/README.md`
+- Validate with:
+  - `go test ./cmd/goja-repl ./pkg/repl/adapters/bobatea ./pkg/repl/evaluators/javascript ./pkg/replapi ./pkg/replsession`
+  - `go test ./...`
+  - a `tmux` smoke run of `go run ./cmd/goja-repl tui --alt-screen=false`
+
+### Technical details
+- Focused validation:
+
+```bash
+go test ./cmd/goja-repl ./pkg/repl/adapters/bobatea ./pkg/repl/evaluators/javascript ./pkg/replapi ./pkg/replsession
+```
+
+- Full validation:
+
+```bash
+go test ./...
+```
+
+- Smoke test:
+
+```bash
+tmux new-session -d -s goja24-smoke 'cd /home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja && go run ./cmd/goja-repl tui --alt-screen=false'
+tmux send-keys -t goja24-smoke '1+1' Enter
+tmux capture-pane -pt goja24-smoke -S -120
+tmux send-keys -t goja24-smoke C-c
+```
+
+## Step 5: Refresh the ticket metadata and publish the updated bundle
+
+This final step was not code architecture work, but it mattered for the ticket to remain truthful and reviewable. After deleting `cmd/js-repl`, the ticket metadata still referenced that file, so I reran the ticket validation, fixed the stale related-file entry, and then republished the ticket bundle to reMarkable. Because the original ticket bundle was already present remotely, I chose not to overwrite it implicitly; instead I uploaded an updated copy under a distinct name in the same ticket folder.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Create a detailed list of tasks in the ticket and then work on them one by one, committing at appropriate intervals, keeping a detailed diary as you work."
+
+**Assistant interpretation:** Finish the implementation in a way that leaves the ticket itself accurate, validated, and distributed, not just the code changes committed.
+
+**Inferred user intent:** Make the ticket a trustworthy record of the work, including validation state and published deliverables.
+
+**Commit (code):** N/A
+
+### What I did
+- Ran:
+  - `docmgr doctor --ticket GOJA-24-REPL-TUI-UNIFICATION --stale-after 30`
+- Fixed the stale related file in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/04/GOJA-24-REPL-TUI-UNIFICATION--migrate-js-repl-onto-replapi-and-unify-under-goja-repl-tui/index.md`
+  - by replacing `cmd/js-repl/main.go` with `cmd/goja-repl/tui.go`
+- Updated:
+  - `tasks.md`
+  - `changelog.md`
+  - `reference/01-diary.md`
+- Confirmed `docmgr doctor` passes cleanly after the metadata fix
+- Uploaded the updated bundle to reMarkable under:
+  - `/ai/2026/04/04/GOJA-24-REPL-TUI-UNIFICATION`
+  - document name: `GOJA-24 REPL TUI Unification - updated`
+- Verified the remote listing now contains both:
+  - `GOJA-24 REPL TUI Unification`
+  - `GOJA-24 REPL TUI Unification - updated`
+
+### Why
+- A deleted file left behind in ticket metadata is exactly the kind of drift the ticket workflow is supposed to prevent.
+- Re-running `docmgr doctor` after structural cleanup is the fastest way to catch those mismatches.
+- ReMarkable publication needed to reflect the actual implementation state, not just the earlier design-only state.
+- Avoiding an implicit overwrite preserved the previously uploaded document and any potential annotations on it.
+
+### What worked
+- `docmgr doctor` immediately pointed to the single stale related-file entry.
+- The metadata fix was simple once the warning identified the specific field and path.
+- The updated reMarkable upload succeeded cleanly under a new name in the same ticket folder.
+
+### What didn't work
+- The first attempt to republish with the original document name was skipped because the file already existed remotely.
+
+Exact output:
+
+```text
+SKIP: GOJA-24 REPL TUI Unification already exists in /ai/2026/04/04/GOJA-24-REPL-TUI-UNIFICATION (use --force to overwrite)
+```
+
+I did not use `--force` because that would implicitly replace the earlier uploaded document. Instead, I uploaded the refreshed bundle as `GOJA-24 REPL TUI Unification - updated`.
+
+### What I learned
+- The ticket validation loop is doing useful work even late in the implementation: deleting code often means ticket metadata must be updated too.
+- ReMarkable publication is best treated as a versioned artifact unless the user explicitly wants in-place replacement.
+
+### What warrants a second pair of eyes
+- Nothing architectural here. The main review focus is simply whether the published ticket artifacts match the landed code and commit history.
+
+### Technical details
+- Validation:
+
+```bash
+docmgr doctor --ticket GOJA-24-REPL-TUI-UNIFICATION --stale-after 30
+```
+
+- Refresh upload:
+
+```bash
+remarquee upload bundle \
+  /home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/04/GOJA-24-REPL-TUI-UNIFICATION--migrate-js-repl-onto-replapi-and-unify-under-goja-repl-tui/index.md \
+  /home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/04/GOJA-24-REPL-TUI-UNIFICATION--migrate-js-repl-onto-replapi-and-unify-under-goja-repl-tui/design-doc/01-js-repl-migration-to-replapi-and-goja-repl-tui-unification-guide.md \
+  /home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/04/GOJA-24-REPL-TUI-UNIFICATION--migrate-js-repl-onto-replapi-and-unify-under-goja-repl-tui/tasks.md \
+  /home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/04/GOJA-24-REPL-TUI-UNIFICATION--migrate-js-repl-onto-replapi-and-unify-under-goja-repl-tui/changelog.md \
+  /home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/04/GOJA-24-REPL-TUI-UNIFICATION--migrate-js-repl-onto-replapi-and-unify-under-goja-repl-tui/reference/01-diary.md \
+  --name "GOJA-24 REPL TUI Unification - updated" \
+  --remote-dir "/ai/2026/04/04/GOJA-24-REPL-TUI-UNIFICATION" \
+  --toc-depth 2
+```

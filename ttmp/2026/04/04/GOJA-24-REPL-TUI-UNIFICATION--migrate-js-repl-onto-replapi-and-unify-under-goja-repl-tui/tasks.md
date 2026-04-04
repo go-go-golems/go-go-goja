@@ -16,27 +16,27 @@
 
 ## Phase 3: Unified Binary
 
-- [ ] Refactor `cmd/goja-repl` app construction so TUI can choose `interactive` or `persistent` profiles cleanly
-- [ ] Add `goja-repl tui` under the existing Cobra/Glazed root command
-- [ ] Port the current `cmd/js-repl` Bubble Tea startup into the new subcommand
-- [ ] Support startup flags for profile, session selection, and alt-screen behavior
-- [ ] Add command-level tests where practical
+- [x] Refactor `cmd/goja-repl` app construction so TUI can choose `interactive` or `persistent` profiles cleanly
+- [x] Add `goja-repl tui` under the existing Cobra/Glazed root command
+- [x] Port the current `cmd/js-repl` Bubble Tea startup into the new subcommand
+- [x] Support startup flags for profile, session selection, and alt-screen behavior
+- [x] Add command-level tests where practical
 
 ## Phase 4: Cutover and Cleanup
 
-- [ ] Switch the TUI path to the new `replapi`-backed adapter
-- [ ] Remove the standalone `cmd/js-repl` entrypoint
-- [ ] Remove old evaluator-owned execution code that is no longer needed
-- [ ] Update docs/help text/examples to point users at `goja-repl tui`
+- [x] Switch the TUI path to the new `replapi`-backed adapter
+- [x] Remove the standalone `cmd/js-repl` entrypoint
+- [x] Remove evaluator-owned execution from the TUI path while keeping the evaluator available for non-TUI callers that still use it
+- [x] Update docs/help text/examples to point users at `goja-repl tui`
 
 ## Phase 5: Validation and Ticket Hygiene
 
-- [ ] Run targeted Go tests for adapter, assistance, and CLI surfaces
-- [ ] Run end-to-end TUI smoke tests under `tmux`
-- [ ] Update the diary after each material implementation step
-- [ ] Update changelog/tasks as commits land
-- [ ] Run `docmgr doctor --ticket GOJA-24-REPL-TUI-UNIFICATION --stale-after 30`
-- [ ] Upload the final ticket bundle to reMarkable
+- [x] Run targeted Go tests for adapter, assistance, and CLI surfaces
+- [x] Run end-to-end TUI smoke tests under `tmux`
+- [x] Update the diary after each material implementation step
+- [x] Update changelog/tasks as commits land
+- [x] Run `docmgr doctor --ticket GOJA-24-REPL-TUI-UNIFICATION --stale-after 30`
+- [x] Upload the final ticket bundle to reMarkable
 
 ## Completed Discovery
 
