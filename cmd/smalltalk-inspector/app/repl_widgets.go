@@ -14,7 +14,6 @@ import (
 	"github.com/go-go-golems/bobatea/pkg/tui/widgets/contextpanel"
 	"github.com/go-go-golems/bobatea/pkg/tui/widgets/suggest"
 	jsadapter "github.com/go-go-golems/go-go-goja/pkg/repl/adapters/bobatea"
-	jsrepl "github.com/go-go-golems/go-go-goja/pkg/repl/evaluators/javascript"
 )
 
 type replSuggestProvider struct {
@@ -101,18 +100,16 @@ func (m *Model) setupReplWidgetsForRuntime() {
 		return
 	}
 
-	cfg := jsrepl.DefaultConfig()
-	cfg.Runtime = m.rtSession.VM
-	cfg.EnableConsoleLog = false
-
-	evaluator, err := jsadapter.NewJavaScriptEvaluator(cfg)
+	assist, err := jsadapter.NewRuntimeAssistance(jsadapter.RuntimeAssistanceConfig{
+		Runtime: m.rtSession.VM,
+	})
 	if err != nil {
 		m.statusMsg = fmt.Sprintf("%s | ⚠ REPL assist disabled: %v", strings.TrimSpace(m.statusMsg), err)
 		return
 	}
 
-	m.replAssist = evaluator
-	m.replSuggestWidget = suggest.New(replSuggestProvider{evaluator: evaluator}, suggest.Config{
+	m.replAssist = assist
+	m.replSuggestWidget = suggest.New(replSuggestProvider{evaluator: assist}, suggest.Config{
 		Debounce:       120 * time.Millisecond,
 		RequestTimeout: 400 * time.Millisecond,
 		MaxVisible:     8,
@@ -127,8 +124,8 @@ func (m *Model) setupReplWidgetsForRuntime() {
 		Placement:      suggest.PlacementAuto,
 		HorizontalGrow: suggest.HorizontalGrowRight,
 	})
-	m.replContextBarWidget = contextbar.New(replContextBarProvider{evaluator: evaluator}, 120*time.Millisecond, 300*time.Millisecond)
-	m.replContextPanelWidget = contextpanel.New(replContextPanelProvider{evaluator: evaluator}, contextpanel.Config{
+	m.replContextBarWidget = contextbar.New(replContextBarProvider{evaluator: assist}, 120*time.Millisecond, 300*time.Millisecond)
+	m.replContextPanelWidget = contextpanel.New(replContextPanelProvider{evaluator: assist}, contextpanel.Config{
 		Debounce:           140 * time.Millisecond,
 		RequestTimeout:     500 * time.Millisecond,
 		PrefetchWhenHidden: false,
@@ -140,10 +137,10 @@ func (m *Model) setupReplWidgetsForRuntime() {
 }
 
 func (m *Model) recordReplAssistDeclarations(expr string) {
-	if m.replAssist == nil || m.replAssist.Core() == nil {
+	if m.replAssist == nil {
 		return
 	}
-	m.replAssist.Core().RecordDeclarations(expr)
+	m.replAssist.RecordDeclarations(expr)
 }
 
 func (m *Model) scheduleReplWidgetDebounce(prevValue string, prevCursor int) tea.Cmd {
