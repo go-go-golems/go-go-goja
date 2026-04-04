@@ -130,6 +130,59 @@ func TestREPLAPIAdapterSessionPersistsAcrossEvaluations(t *testing.T) {
 	}
 }
 
+func TestREPLAPIAdapterCapabilityDelegation(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	app := newAdapterTestApp(t, replapi.ProfileInteractive, nil)
+	session, err := app.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	adapter, err := NewREPLAPIAdapter(app, session.ID)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	completion, err := adapter.CompleteInput(ctx, bobarepl.CompletionRequest{
+		Input:      "console.lo",
+		CursorByte: len("console.lo"),
+		Reason:     bobarepl.CompletionReasonShortcut,
+	})
+	if err != nil {
+		t.Fatalf("complete input: %v", err)
+	}
+	if !completion.Show {
+		t.Fatalf("expected completion popup to show")
+	}
+
+	helpBar, err := adapter.GetHelpBar(ctx, bobarepl.HelpBarRequest{
+		Input:      "console.log",
+		CursorByte: len("console.log"),
+		Reason:     bobarepl.HelpBarReasonDebounce,
+	})
+	if err != nil {
+		t.Fatalf("get help bar: %v", err)
+	}
+	if !helpBar.Show {
+		t.Fatalf("expected help bar to show")
+	}
+
+	helpDrawer, err := adapter.GetHelpDrawer(ctx, bobarepl.HelpDrawerRequest{
+		Input:      "console.lo",
+		CursorByte: len("console.lo"),
+		RequestID:  1,
+		Trigger:    bobarepl.HelpDrawerTriggerTyping,
+	})
+	if err != nil {
+		t.Fatalf("get help drawer: %v", err)
+	}
+	if !helpDrawer.Show {
+		t.Fatalf("expected help drawer to show")
+	}
+}
+
 func TestAppWithRuntimeAutoRestoresPersistentSession(t *testing.T) {
 	t.Parallel()
 

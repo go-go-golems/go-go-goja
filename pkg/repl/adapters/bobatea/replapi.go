@@ -4,8 +4,14 @@ import (
 	"context"
 	"strings"
 
+	"github.com/dop251/goja"
 	bobarepl "github.com/go-go-golems/bobatea/pkg/repl"
+	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
+	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+	js "github.com/go-go-golems/go-go-goja/pkg/repl/evaluators/javascript"
 	"github.com/go-go-golems/go-go-goja/pkg/replapi"
+	"github.com/go-go-golems/go-go-goja/pkg/replsession"
 	"github.com/pkg/errors"
 )
 
@@ -14,6 +20,7 @@ import (
 type REPLAPIAdapter struct {
 	app       *replapi.App
 	sessionID string
+	assist    *js.Assistance
 }
 
 // NewREPLAPIAdapter creates a Bobatea evaluator backed by one replapi session.
@@ -25,9 +32,28 @@ func NewREPLAPIAdapter(app *replapi.App, sessionID string) (*REPLAPIAdapter, err
 	if sessionID == "" {
 		return nil, errors.New("replapi adapter: session id is empty")
 	}
+	tsParser, err := jsparse.NewTSParser()
+	if err != nil {
+		return nil, errors.Wrap(err, "replapi adapter: create TypeScript parser")
+	}
 	return &REPLAPIAdapter{
 		app:       app,
 		sessionID: sessionID,
+		assist: js.NewAssistance(js.AssistanceConfig{
+			TSParser: tsParser,
+			WithRuntime: func(ctx context.Context, fn func(*goja.Runtime, *docaccess.Hub) error) error {
+				return app.WithRuntime(ctx, sessionID, func(runtime *engine.Runtime) error {
+					return fn(runtime.VM, js.DocHubFromRuntime(runtime))
+				})
+			},
+			BindingHints: func(ctx context.Context) ([]jsparse.CompletionCandidate, error) {
+				bindings, err := app.Bindings(ctx, sessionID)
+				if err != nil {
+					return nil, nil
+				}
+				return bindingHintCandidates(bindings), nil
+			},
+		}),
 	}, nil
 }
 
@@ -107,9 +133,52 @@ func (a *REPLAPIAdapter) GetFileExtension() string {
 	return ".js"
 }
 
+func (a *REPLAPIAdapter) CompleteInput(ctx context.Context, req bobarepl.CompletionRequest) (bobarepl.CompletionResult, error) {
+	return a.assist.CompleteInput(ctx, req)
+}
+
+func (a *REPLAPIAdapter) GetHelpBar(ctx context.Context, req bobarepl.HelpBarRequest) (bobarepl.HelpBarPayload, error) {
+	return a.assist.GetHelpBar(ctx, req)
+}
+
+func (a *REPLAPIAdapter) GetHelpDrawer(ctx context.Context, req bobarepl.HelpDrawerRequest) (bobarepl.HelpDrawerDocument, error) {
+	return a.assist.GetHelpDrawer(ctx, req)
+}
+
 // Close releases adapter resources. The adapter does not own the underlying app.
 func (a *REPLAPIAdapter) Close() error {
 	return nil
 }
 
 var _ bobarepl.Evaluator = (*REPLAPIAdapter)(nil)
+var _ bobarepl.InputCompleter = (*REPLAPIAdapter)(nil)
+var _ bobarepl.HelpBarProvider = (*REPLAPIAdapter)(nil)
+var _ bobarepl.HelpDrawerProvider = (*REPLAPIAdapter)(nil)
+
+func bindingHintCandidates(bindings []replsession.BindingView) []jsparse.CompletionCandidate {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]jsparse.CompletionCandidate, 0, len(bindings))
+	for _, binding := range bindings {
+		name := strings.TrimSpace(binding.Name)
+		if name == "" {
+			continue
+		}
+		kind := jsparse.CandidateVariable
+		switch strings.ToLower(strings.TrimSpace(binding.Kind)) {
+		case "function", "class":
+			kind = jsparse.CandidateFunction
+		}
+		detail := strings.TrimSpace(binding.Kind)
+		if detail == "" {
+			detail = "session binding"
+		}
+		out = append(out, jsparse.CompletionCandidate{
+			Label:  name,
+			Kind:   kind,
+			Detail: detail,
+		})
+	}
+	return out
+}
