@@ -175,6 +175,108 @@ Use this diary alongside the main design doc while implementing the ticket. The 
 - During review:
   - use the code-review instructions in Step 1 to trace evidence and validate scope
 
+## Step 2: Add the `replapi` runtime hook and Bobatea runtime adapter
+
+This step implemented the first real migration slice. The goal was to establish a new execution adapter that talks to `replapi` instead of the old monolithic evaluator, while also adding the smallest hook needed for future completion/help extraction: a controlled way to inspect the live session runtime under session ownership.
+
+The result is not the full TUI migration yet, but it is the right foundation. We now have a Bobatea evaluator implementation backed by `replapi`, plus focused tests that prove session reuse, console/error mapping, and persistent auto-restore behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Turn the ticket plan into real implementation work, proceed task by task, commit in meaningful slices, and keep the diary current.
+
+**Inferred user intent:** Make the ticket executable, not just descriptive, and preserve a reviewable record of each architectural slice as it lands.
+
+**Commit (code):** `62e774a` — `Add replapi-backed Bobatea runtime adapter`
+
+### What I did
+- Added `Service.WithRuntime(...)` to `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go`.
+- Added `App.WithRuntime(...)` to `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replapi/app.go`.
+- Added a new Bobatea adapter in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/replapi.go`
+- Added focused tests in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/replapi_test.go`
+- Ran targeted tests first:
+  - `go test ./pkg/replapi ./pkg/replsession ./pkg/repl/adapters/bobatea`
+- Committed the code once that slice was stable.
+
+### Why
+- The future assistance layer still needs access to the live runtime for completion and help generation.
+- That access needs to happen without letting the TUI own runtimes directly again.
+- A narrow callback-based runtime hook is a better seam than exposing raw session state or rebuilding evaluator-owned VMs.
+- The new adapter lets us start replacing the old execution backend without touching the Bubble Tea model yet.
+
+### What worked
+- The `replapi` and `replsession` layering accepted the runtime hook cleanly.
+- The Bobatea evaluator contract is small, so replacing the execution backend was straightforward.
+- The adapter tests proved the key behaviors we need early:
+  - result rendering
+  - console event mapping
+  - repeated evaluation in one session
+  - auto-restore-backed runtime inspection in persistent mode
+
+### What didn't work
+- The first targeted test run failed because I expected `console.log('hello')` to surface as `hello`, but the current console capture path intentionally uses the preview renderer and therefore returns the quoted string form.
+
+Exact failing output:
+
+```text
+--- FAIL: TestREPLAPIAdapterEvaluateStreamConsoleAndError (0.00s)
+    replapi_test.go:77: expected stdout text hello, got "\"hello\""
+```
+
+I fixed the test to match the existing runtime formatting behavior instead of changing the console capture semantics in this slice.
+
+### What I learned
+- The runtime hook belongs in `replapi`/`replsession`, not in the Bobatea adapter. That keeps session ownership in one place.
+- The adapter can already replace execution without solving completion/help yet, which validates the phased migration plan.
+- Console formatting semantics are already opinionated by `replsession` and should be treated as shared behavior, not TUI-local behavior.
+
+### What was tricky to build
+- The main subtlety was choosing the shape of the runtime access hook.
+- Exposing too much runtime/session state would undermine the whole migration.
+- Exposing too little would force the future assistance layer back into evaluator-owned runtime duplication.
+- The callback-based `WithRuntime(...)` shape is a reasonable middle ground because it:
+  - keeps the session lock in `replsession`
+  - keeps auto-restore logic in `replapi`
+  - avoids handing ownership of the runtime object to the UI
+
+### What warrants a second pair of eyes
+- Whether `WithRuntime(...)` should remain a public `replapi` method long-term or be kept as an internal/frontend-only seam.
+- Whether `EventStdout` versus `EventResultMarkdown` is the right long-term event mapping for console output in the TUI timeline.
+- Whether the future assistance provider should talk to `WithRuntime(...)` directly or via a smaller app-facing helper.
+
+### What should be done in the future
+- Extract the old completion/help logic into a separate assistance provider.
+- Reuse the new runtime hook there so assistance follows the live session runtime.
+- Then wire the new adapter into a `goja-repl tui` command.
+
+### Code review instructions
+- Start with the runtime hook:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replapi/app.go`
+- Then review the new adapter:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/replapi.go`
+- Then review the tests:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/replapi_test.go`
+- Validate with:
+  - `go test ./pkg/replapi ./pkg/replsession ./pkg/repl/adapters/bobatea`
+- Pre-commit also passed on the code commit:
+  - `golangci-lint run -v`
+  - `go generate ./...`
+  - `go test ./...`
+
+### Technical details
+- Targeted test command:
+
+```bash
+go test ./pkg/replapi ./pkg/replsession ./pkg/repl/adapters/bobatea
+```
+
+- The commit also passed the repository pre-commit hook, which ran full lint/generate/test before accepting the commit.
+
 ## Related
 
 - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/03/GOJA-22-PERSISTENT-REPL-CLI-SERVER--persistent-repl-cli-and-json-server-surfaces/design-doc/01-cli-and-json-server-implementation-plan.md`
