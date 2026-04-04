@@ -21,7 +21,7 @@ RelatedFiles:
       Note: Primary evidence for shared session API adoption
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-04T18:34:00-04:00
+LastUpdated: 2026-04-04T17:51:52-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -614,4 +614,100 @@ remarquee upload bundle \
   --name "GOJA-24 REPL TUI Unification - updated" \
   --remote-dir "/ai/2026/04/04/GOJA-24-REPL-TUI-UNIFICATION" \
   --toc-depth 2
+```
+
+## Step 6: Decouple `smalltalk-inspector` from the full JavaScript evaluator
+
+This step cleaned up the last non-TUI call site that I had already called out as a blocker to deleting the evaluator-backed frontend path entirely. The important nuance is that `smalltalk-inspector` was not using the old evaluator as an evaluator in the same way the old `js-repl` did. It already owned its own runtime and only relied on the old adapter as a convenient bundle of completion, help-bar, help-drawer, and declaration-tracking behavior. That made this a much smaller cleanup than the TUI migration.
+
+The design choice here was to avoid dragging `replapi` into `smalltalk-inspector`. The inspector does not need persisted sessions or the shared execution pipeline. It just needs assistance against an already-owned `goja.Runtime`. So instead of forcing it onto the `replapi` path, I added a small assistance-only Bobatea adapter that reuses the shared `Assistance` provider and keeps its own declaration-hint map.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, add tasks to the ticket, and then work on them task by task, committing at appropriate intervals, and keeping a detailed diary"
+
+**Assistant interpretation:** Extend the active ticket with the remaining inspector cleanup work, implement the smallest correct refactor, and document it in the same incremental style as the earlier ticket phases.
+
+**Inferred user intent:** Continue collapsing legacy evaluator-backed frontend dependencies where that work is now straightforward, without turning the cleanup into another large architecture exercise.
+
+**Commit (code):** `5856ade` — `Add runtime-only JS assistance adapter for inspector`
+
+### What I did
+- Added a new assistance-only adapter in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/runtime_assistance.go`
+- Added focused tests in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/runtime_assistance_test.go`
+- Updated `smalltalk-inspector` to use the new adapter in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/smalltalk-inspector/app/repl_widgets.go`
+- Narrowed the model field type in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/smalltalk-inspector/app/model.go`
+  - from the full `JavaScriptEvaluator` wrapper to the new `RuntimeAssistance` type
+- Preserved declaration tracking by replacing:
+  - `m.replAssist.Core().RecordDeclarations(expr)`
+  - with:
+  - `m.replAssist.RecordDeclarations(expr)`
+- Added a new Phase 6 to the ticket task list before starting the refactor
+- Ran focused validation:
+  - `go test ./pkg/repl/adapters/bobatea ./cmd/smalltalk-inspector/app`
+- Let pre-commit run full validation on the accepted code commit:
+  - `golangci-lint run -v`
+  - `go generate ./...`
+  - `go test ./...`
+
+### Why
+- `smalltalk-inspector` already owns its runtime through `pkg/inspector/runtime`, so it does not need the full evaluator abstraction or the `replapi` session stack.
+- Keeping it on `JavaScriptEvaluator` only to reach completion/help/declaration tracking would preserve exactly the kind of unnecessary coupling the ticket is trying to remove.
+- An assistance-only adapter is the right size for this call site: it matches what the inspector actually needs and nothing more.
+
+### What worked
+- The shared `Assistance` provider from Phase 2 was already the right primitive for this refactor.
+- The only missing piece was declaration tracking, which was small enough to keep local to the new assistance-only adapter.
+- `smalltalk-inspector` switched over without needing any runtime-lifecycle changes.
+- Focused tests passed immediately once the new adapter existed, and the full pre-commit suite also passed.
+
+### What didn't work
+- There was no major failure in this slice after the initial design check. The main risk was over-engineering the change by trying to force `smalltalk-inspector` onto `replapi`, which would have been unnecessary and would have increased the blast radius.
+
+### What I learned
+- The old evaluator package was carrying two different responsibilities:
+  - execution/runtime ownership
+  - assistance services
+- Once those are separated conceptually, the right migration path for each caller becomes much clearer.
+- `smalltalk-inspector` is a good example of a caller that wants the assistance half only, and does not benefit from the rest of the REPL stack.
+
+### What was tricky to build
+- The one tricky API edge was declaration tracking. The inspector previously reached through `Core()` only to call `RecordDeclarations(...)`, which was a sign that the adapter shape was wrong for this use case.
+- The fix was to make declaration tracking a first-class method on the new assistance-only adapter instead of treating it as an internal evaluator detail.
+
+### What warrants a second pair of eyes
+- The decision to keep declaration-hint storage local to `RuntimeAssistance` rather than extracting another shared helper from `pkg/repl/evaluators/javascript`
+- The remaining legacy frontend surfaces, especially `cmd/web-repl` / `pkg/webrepl`, which are now more clearly isolated after this cleanup
+
+### What should be done in the future
+- Decide whether `pkg/repl/evaluators/javascript` should eventually shrink to an execution-focused compatibility layer, or whether more assistance-related pieces should be moved out of it over time
+- Continue with the remaining frontend cleanup work:
+  - retire `cmd/web-repl`
+  - retire `pkg/webrepl`
+- Reassess whether `cmd/repl` should remain as a standalone entrypoint once the unified binary has stabilized
+
+### Code review instructions
+- Start with the new assistance-only adapter:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/runtime_assistance.go`
+- Then review its focused tests:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/runtime_assistance_test.go`
+- Then inspect the `smalltalk-inspector` cutover:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/smalltalk-inspector/app/repl_widgets.go`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/smalltalk-inspector/app/model.go`
+- Validate with:
+  - `go test ./pkg/repl/adapters/bobatea ./cmd/smalltalk-inspector/app`
+- The accepted code commit also passed repository pre-commit:
+  - `golangci-lint run -v`
+  - `go generate ./...`
+  - `go test ./...`
+
+### Technical details
+- Focused validation:
+
+```bash
+go test ./pkg/repl/adapters/bobatea ./cmd/smalltalk-inspector/app
 ```

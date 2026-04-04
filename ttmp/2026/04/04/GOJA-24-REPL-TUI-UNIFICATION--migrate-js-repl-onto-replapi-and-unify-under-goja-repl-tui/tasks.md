@@ -38,6 +38,14 @@
 - [x] Run `docmgr doctor --ticket GOJA-24-REPL-TUI-UNIFICATION --stale-after 30`
 - [x] Upload the final ticket bundle to reMarkable
 
+## Phase 6: Inspector Assistance Cleanup
+
+- [x] Add an assistance-only Bobatea adapter for existing non-`replapi` runtimes
+- [x] Move `smalltalk-inspector` off the full JavaScript evaluator dependency
+- [x] Preserve completion, help bar, help drawer, and declaration tracking behavior in the inspector REPL widgets
+- [x] Add focused tests for the new assistance-only adapter where practical
+- [x] Re-run targeted tests for `smalltalk-inspector` and the Bobatea adapter package
+
 ## Completed Discovery
 
 - [x] Create the ticket workspace and scaffold the primary design and diary documents

@@ -15,15 +15,17 @@ RelatedFiles:
       Note: Unified CLI root and future tui command host
     - Path: cmd/goja-repl/tui.go
       Note: Unified Bubble Tea entrypoint
-    - Path: pkg/repl/adapters/bobatea/javascript.go
-      Note: Current adapter seam slated for replacement or refactor
+    - Path: cmd/smalltalk-inspector/app/repl_widgets.go
+      Note: Non-replapi inspector assistance integration now decoupled from the full evaluator
+    - Path: pkg/repl/adapters/bobatea/runtime_assistance.go
+      Note: Assistance-only Bobatea adapter for existing runtimes
     - Path: pkg/repl/evaluators/javascript/evaluator.go
       Note: Execution and assistance logic split point
     - Path: pkg/replapi/app.go
       Note: Target shared session API
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-04T18:24:00-04:00
+LastUpdated: 2026-04-04T17:51:52-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
