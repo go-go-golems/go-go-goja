@@ -522,6 +522,22 @@ func (s *Service) Snapshot(ctx context.Context, sessionID string) (*SessionSumma
 	return state.buildSummary(ctx), nil
 }
 
+// WithRuntime runs fn while holding the target session lock, allowing callers
+// to inspect the live runtime without bypassing session ownership rules.
+func (s *Service) WithRuntime(ctx context.Context, sessionID string, fn func(*engine.Runtime) error) error {
+	_ = ctx
+	if fn == nil {
+		return errors.New("with runtime: callback is nil")
+	}
+	state, err := s.getSession(sessionID)
+	if err != nil {
+		return err
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	return fn(state.runtime)
+}
+
 // DeleteSession shuts down a session and removes it from the service.
 func (s *Service) DeleteSession(ctx context.Context, sessionID string) error {
 	s.mu.Lock()

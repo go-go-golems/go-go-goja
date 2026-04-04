@@ -172,6 +172,18 @@ func (a *App) Docs(ctx context.Context, sessionID string) ([]repldb.BindingDocRe
 	return docs, nil
 }
 
+// WithRuntime runs fn against the live runtime for one session while preserving
+// replapi session ownership and auto-restore behavior.
+func (a *App) WithRuntime(ctx context.Context, sessionID string, fn func(*engine.Runtime) error) error {
+	if a == nil {
+		return errors.New("replapi: app is nil")
+	}
+	if _, err := a.ensureLiveSession(ctx, sessionID); err != nil {
+		return err
+	}
+	return a.service.WithRuntime(ctx, sessionID, fn)
+}
+
 func (a *App) ensureLiveSession(ctx context.Context, sessionID string) (*replsession.SessionSummary, error) {
 	summary, err := a.service.Snapshot(ctx, sessionID)
 	if err == nil {
