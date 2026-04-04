@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -62,5 +63,52 @@ func TestCLICommandFlow(t *testing.T) {
 	}
 	if len(historyPayload.History) != 1 {
 		t.Fatalf("expected 1 history row, got %d", len(historyPayload.History))
+	}
+}
+
+func TestTUICommandHelp(t *testing.T) {
+	t.Parallel()
+
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	root.SetArgs([]string{"tui", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute tui help: %v", err)
+	}
+	rendered := out.String()
+	if !strings.Contains(rendered, "--profile") {
+		t.Fatalf("expected tui help to describe --profile, got %q", rendered)
+	}
+	if !strings.Contains(rendered, "--alt-screen") {
+		t.Fatalf("expected tui help to describe --alt-screen, got %q", rendered)
+	}
+}
+
+func TestParseTUIProfile(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{input: "", want: "interactive"},
+		{input: "interactive", want: "interactive"},
+		{input: "raw", want: "raw"},
+		{input: "persistent", want: "persistent"},
+	}
+	for _, tc := range cases {
+		got, err := parseTUIProfile(tc.input)
+		if err != nil {
+			t.Fatalf("parse profile %q: %v", tc.input, err)
+		}
+		if string(got) != tc.want {
+			t.Fatalf("parse profile %q: expected %q, got %q", tc.input, tc.want, got)
+		}
+	}
+	if _, err := parseTUIProfile("weird"); err == nil {
+		t.Fatal("expected invalid profile to fail")
 	}
 }

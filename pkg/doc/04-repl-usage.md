@@ -9,7 +9,7 @@ Topics:
 - console
 Commands:
 - repl
-- js-repl
+- goja-repl
 IsTopLevel: true
 IsTemplate: false
 ShowPerDefault: true
@@ -44,19 +44,16 @@ go run ./cmd/repl --debug
 go run ./cmd/repl path/to/script.js
 
 # Rich Bobatea-based JS REPL with completion/help widgets
-go run ./cmd/js-repl
+go run ./cmd/goja-repl tui
 
 # Rich Bobatea-based JS REPL with an extra plugin directory
-go run ./cmd/js-repl --plugin-dir /tmp/goja-plugins
-
-# Inspect plugin discovery/load status without starting the TUI
-go run ./cmd/js-repl --plugin-status
+go run ./cmd/goja-repl --plugin-dir /tmp/goja-plugins tui
 
 # Restrict loading to specific plugin module names
-go run ./cmd/js-repl --allow-plugin-module plugin:examples:greeter
+go run ./cmd/goja-repl --allow-plugin-module plugin:examples:greeter tui
 ```
 
-When you do not pass `--plugin-dir`, both REPL entrypoints scan the default per-user plugin tree under `~/.go-go-goja/plugins/...`. If you do pass one or more `--plugin-dir` flags, those explicit directories are used instead.
+When you do not pass `--plugin-dir`, both `repl` and `goja-repl tui` scan the default per-user plugin tree under `~/.go-go-goja/plugins/...`. If you do pass one or more `--plugin-dir` flags, those explicit directories are used instead.
 
 ### Basic JavaScript Evaluation
 

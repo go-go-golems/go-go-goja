@@ -11,7 +11,7 @@ Topics:
 - modules
 Commands:
 - repl
-- js-repl
+- goja-repl
 Flags:
 - --plugin-dir
 IsTopLevel: true
@@ -150,7 +150,7 @@ This is the best path when you want:
 
 ## Current command-line entrypoints
 
-There are currently two REPL binaries in the repo, and both now expose the same plugin discovery model.
+There are currently two interactive REPL entrypoints in the repo, and both now expose the same plugin discovery model.
 
 ### `repl`
 
@@ -170,21 +170,20 @@ Example:
 go run ./cmd/repl
 ```
 
-### `js-repl`
+### `goja-repl tui`
 
-`js-repl` is the Bobatea TUI REPL with completion and help widgets.
+`goja-repl tui` is the Bobatea TUI REPL with completion and help widgets.
 
 It follows the same plugin discovery rules as `repl`:
 
 - default scan under `~/.go-go-goja/plugins/...`
 - optional `--plugin-dir` flags for explicit directories
 - optional `--allow-plugin-module` flags for module-name allowlisting
-- `--plugin-status` for one-shot discovery/load reporting without entering the UI
 
 Example:
 
 ```bash
-go run ./cmd/js-repl
+go run ./cmd/goja-repl tui
 ```
 
 ## Plugin discovery rules
@@ -217,10 +216,10 @@ In `repl`:
 - `:plugins` prints the full discovery and load report,
 - `--plugin-status` prints the report and exits.
 
-In `js-repl`:
+In `goja-repl tui`:
 
-- the placeholder includes a short plugin summary when directories are configured,
-- `--plugin-status` prints the same report and exits without starting the TUI.
+- the TUI uses the same plugin directory and allowlist flags as the rest of `goja-repl`,
+- plugin discovery happens during app startup against the selected runtime profile.
 
 ## Surface API reference
 
@@ -322,7 +321,7 @@ If you want to allow only a specific set of modules for one run, use the allowli
 
 ```bash
 go run ./cmd/repl --allow-plugin-module plugin:examples:greeter
-go run ./cmd/js-repl --allow-plugin-module plugin:examples:greeter
+go run ./cmd/goja-repl --allow-plugin-module plugin:examples:greeter tui
 ```
 
 You can repeat the flag to allow multiple module names.
@@ -336,7 +335,7 @@ You can repeat the flag to allow multiple module names.
 | Runtime creation fails with `not in the allowlist` | The plugin loaded successfully but its module name was not on the requested allowlist | Add `--allow-plugin-module plugin:your-module` or remove the allowlist restriction |
 | The plugin binary exists but still is not loaded | The file is not executable or does not match the discovery pattern | Run `chmod +x` if needed and keep the binary name under `goja-plugin-*` |
 | Calls fail on argument conversion | The JS values do not cleanly round-trip through protobuf `structpb.Value` | Use JSON-like values and avoid host-specific Goja objects/functions as arguments |
-| `js-repl` does not see plugins | The plugin was not built under the default tree and no explicit directory was passed | Build into `~/.go-go-goja/plugins/...` or pass one or more `--plugin-dir` flags |
+| `goja-repl tui` does not see plugins | The plugin was not built under the default tree and no explicit directory was passed | Build into `~/.go-go-goja/plugins/...` or pass one or more `--plugin-dir` flags |
 
 ## See Also
 

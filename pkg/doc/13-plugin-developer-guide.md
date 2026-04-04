@@ -11,7 +11,7 @@ Topics:
 - engine
 Commands:
 - repl
-- js-repl
+- goja-repl
 Flags:
 - --plugin-dir
 IsTopLevel: true
@@ -121,7 +121,7 @@ Method metadata is now intentionally split by role:
 
 - `sdk.ExportDoc(...)` documents top-level function exports,
 - `sdk.ObjectDoc(...)` documents object exports,
-- `sdk.MethodSummary(...)` gives `js-repl` and other compact UIs a one-line description,
+- `sdk.MethodSummary(...)` gives `goja-repl tui` and other compact UIs a one-line description,
 - `sdk.MethodDoc(...)` provides the fuller method body,
 - `sdk.MethodTags(...)` attaches lightweight classification labels for search and display.
 
@@ -414,7 +414,7 @@ This path is simple, but it sets the practical constraints for plugin authors:
 - avoid expecting host object identity,
 - avoid returning Goja-specific objects from plugin code.
 
-## Integration in `repl` and `js-repl`
+## Integration in `repl` and `goja-repl tui`
 
 ### `repl`
 
@@ -427,16 +427,16 @@ It also now exposes plugin visibility through:
 
 It also exposes `--allow-plugin-module`, which maps directly onto `host.Config.AllowModules`.
 
-### `js-repl`
+### `goja-repl tui`
 
-`cmd/js-repl` uses the higher-level evaluator adapter path. It now resolves plugin directories with the same rules as `cmd/repl`: explicit `--plugin-dir` flags win, otherwise the command scans `~/.go-go-goja/plugins/...`.
+`cmd/goja-repl` now exposes the TUI through the `tui` subcommand. It resolves plugin directories with the same rules as `cmd/repl`: explicit `--plugin-dir` flags win, otherwise the command scans `~/.go-go-goja/plugins/...`.
 
 That means both the lower-level evaluator integration and the top-level TUI flag wiring are now present in:
 
 - `pkg/repl/evaluators/javascript/evaluator.go`
 - `pkg/repl/adapters/bobatea/javascript.go`
 
-The TUI entrypoint also exposes `--plugin-status`, which reuses the same host-side report collector without starting the Bubble Tea UI.
+The TUI entrypoint also uses the shared `replapi` runtime/session stack while keeping the Bobatea completion/help widgets.
 
 It also exposes `--allow-plugin-module`, which is forwarded through the evaluator config into the host registrar.
 

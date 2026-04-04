@@ -21,6 +21,7 @@ import (
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/go-go-golems/go-go-goja/engine"
 	sharedoc "github.com/go-go-golems/go-go-goja/pkg/doc"
+	docaccessruntime "github.com/go-go-golems/go-go-goja/pkg/docaccess/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	"github.com/go-go-golems/go-go-goja/pkg/replapi"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
@@ -42,8 +43,8 @@ func newRootCommand(out io.Writer) (*cobra.Command, error) {
 
 	root := &cobra.Command{
 		Use:   "goja-repl",
-		Short: "Persistent JavaScript REPL CLI and JSON server",
-		Long:  "Create, evaluate, inspect, export, restore, and serve persistent goja-backed REPL sessions.",
+		Short: "JavaScript REPL CLI, TUI, and JSON server",
+		Long:  "Create, evaluate, inspect, export, restore, serve, and interact with goja-backed REPL sessions.",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return logging.InitLoggerFromCobra(cmd)
 		},
@@ -69,6 +70,7 @@ func newRootCommand(out io.Writer) (*cobra.Command, error) {
 		newExportCommand(out, opts),
 		newRestoreCommand(out, opts),
 		newServeCommand(out, opts),
+		newTUICommand(out, opts),
 	}
 	for _, command := range commands {
 		cobraCommand, err := cli.BuildCobraCommand(command,
@@ -83,9 +85,10 @@ func newRootCommand(out io.Writer) (*cobra.Command, error) {
 		root.AddCommand(cobraCommand)
 	}
 
-	helpSystem := help.NewHelpSystem()
-	if err := sharedoc.AddDocToHelpSystem(helpSystem); err != nil {
+	helpSystem, err := newSharedHelpSystem()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: failed to load help docs: %v\n", err)
+		helpSystem = help.NewHelpSystem()
 	}
 	help_cmd.SetupCobraRootCommand(helpSystem, root)
 
@@ -97,29 +100,68 @@ type commandSupport struct {
 	opts *rootOptions
 }
 
+type appSupportOptions struct {
+	profile    replapi.Profile
+	withStore  bool
+	helpSystem *help.HelpSystem
+}
+
 func (s commandSupport) newApp() (*replapi.App, *repldb.Store, error) {
-	store, err := repldb.Open(context.Background(), s.opts.DBPath)
-	if err != nil {
-		return nil, nil, err
+	return s.newAppWithOptions(appSupportOptions{
+		profile:   replapi.ProfilePersistent,
+		withStore: true,
+	})
+}
+
+func (s commandSupport) newAppWithOptions(options appSupportOptions) (*replapi.App, *repldb.Store, error) {
+	var store *repldb.Store
+	var err error
+	if options.withStore {
+		store, err = repldb.Open(context.Background(), s.opts.DBPath)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	pluginSetup := host.NewRuntimeSetup(s.opts.PluginDirs, s.opts.AllowPluginModules)
-	builder := pluginSetup.WithBuilder(engine.NewBuilder().WithModules(engine.DefaultRegistryModules()))
+	builder := engine.NewBuilder().WithModules(engine.DefaultRegistryModules())
+	if options.helpSystem != nil {
+		builder = builder.WithRuntimeModuleRegistrars(docaccessruntime.NewRegistrar(docaccessruntime.Config{
+			HelpSources: []docaccessruntime.HelpSource{{
+				ID:      "default-help",
+				Title:   "Default Help",
+				Summary: "Embedded REPL help pages",
+				System:  options.helpSystem,
+			}},
+		}))
+	}
+	builder = pluginSetup.WithBuilder(builder)
 	factory, err := builder.Build()
 	if err != nil {
-		_ = store.Close()
+		if store != nil {
+			_ = store.Close()
+		}
 		return nil, nil, errors.Wrap(err, "build engine factory")
 	}
-	app, err := replapi.New(
-		factory,
-		log.Logger,
-		replapi.WithProfile(replapi.ProfilePersistent),
-		replapi.WithStore(store),
-	)
+	appOpts := []replapi.Option{replapi.WithProfile(options.profile)}
+	if store != nil {
+		appOpts = append(appOpts, replapi.WithStore(store))
+	}
+	app, err := replapi.New(factory, log.Logger, appOpts...)
 	if err != nil {
-		_ = store.Close()
+		if store != nil {
+			_ = store.Close()
+		}
 		return nil, nil, err
 	}
 	return app, store, nil
+}
+
+func newSharedHelpSystem() (*help.HelpSystem, error) {
+	helpSystem := help.NewHelpSystem()
+	if err := sharedoc.AddDocToHelpSystem(helpSystem); err != nil {
+		return nil, err
+	}
+	return helpSystem, nil
 }
 
 func writeJSON(out io.Writer, payload any) error {

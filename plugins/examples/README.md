@@ -40,7 +40,7 @@ Then start either REPL:
 ```bash
 go run ./cmd/repl
 # or
-go run ./cmd/js-repl
+go run ./cmd/goja-repl tui
 ```
 
 ## Quick JavaScript probes

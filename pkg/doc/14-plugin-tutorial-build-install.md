@@ -280,7 +280,7 @@ Plan around these constraints:
 - values should be JSON-like,
 - manifests only support function and object exports,
 - `repl` is the current CLI path for plugin testing,
-- both `repl` and `js-repl` default to scanning `~/.go-go-goja/plugins/...`.
+- both `repl` and `goja-repl tui` default to scanning `~/.go-go-goja/plugins/...`.
 
 These are not permanent limits, but they are the limits you should design against today.
 
@@ -328,7 +328,7 @@ kv.store.get("name")
 | Runtime startup fails before the REPL prompt appears | Plugin validation failed during runtime creation | Build with a known-good manifest first, then compare your plugin to the example fixture |
 | A handler returns the wrong value shape | The SDK could not encode the returned Go value into `structpb.Value` | Stick to strings, numbers, booleans, arrays, objects, and null |
 | The plugin works in tests but not manually | The test built the binary into a temp dir, but your manual run expects the default per-user tree | Rebuild into `~/.go-go-goja/plugins/...` or pass the exact path with `--plugin-dir` |
-| `js-repl` does not see plugins | The binary was not built under the default tree and no explicit directory was passed | Build into `~/.go-go-goja/plugins/...` or start `js-repl` with `--plugin-dir /path/to/plugins` |
+| `goja-repl tui` does not see plugins | The binary was not built under the default tree and no explicit directory was passed | Build into `~/.go-go-goja/plugins/...` or start `goja-repl tui` with `--plugin-dir /path/to/plugins` |
 
 ## See Also
 
