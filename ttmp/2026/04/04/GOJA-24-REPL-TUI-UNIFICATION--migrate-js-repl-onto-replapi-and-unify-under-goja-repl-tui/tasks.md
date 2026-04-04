@@ -9,10 +9,10 @@
 
 ## Phase 2: Assistance Split
 
-- [ ] Extract completion/help logic from the old JavaScript evaluator into a dedicated assistance provider
-- [ ] Make the assistance provider consume runtime hints from the live `replapi` session runtime
-- [ ] Preserve docs-resolver behavior for plugin/module help
-- [ ] Add focused tests for completion, help bar, and help drawer on the extracted provider
+- [x] Extract completion/help logic from the old JavaScript evaluator into a dedicated assistance provider
+- [x] Make the assistance provider consume runtime hints from the live `replapi` session runtime
+- [x] Preserve docs-resolver behavior for plugin/module help
+- [x] Add focused tests for completion, help bar, and help drawer on the extracted provider
 
 ## Phase 3: Unified Binary
 

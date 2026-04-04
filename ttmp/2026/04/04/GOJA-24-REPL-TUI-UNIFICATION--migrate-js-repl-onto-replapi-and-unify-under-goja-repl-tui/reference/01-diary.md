@@ -21,7 +21,7 @@ RelatedFiles:
       Note: Primary evidence for shared session API adoption
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-04T15:32:08.343140703-04:00
+LastUpdated: 2026-04-04T17:28:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -281,3 +281,129 @@ go test ./pkg/replapi ./pkg/replsession ./pkg/repl/adapters/bobatea
 
 - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/03/GOJA-22-PERSISTENT-REPL-CLI-SERVER--persistent-repl-cli-and-json-server-surfaces/design-doc/01-cli-and-json-server-implementation-plan.md`
 - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/03/GOJA-23-CONFIGURABLE-REPLAPI--configurable-replapi-profiles-and-policies/design-doc/01-configurable-replapi-profiles-and-policies-implementation-plan.md`
+
+## Step 3: Extract shared JavaScript assistance and wire the replapi adapter onto it
+
+This step separated editor assistance from execution. The old JavaScript evaluator had accumulated CST parsing, completion ranking, docs lookups, runtime inspection, help-bar synthesis, and help-drawer rendering in the same type that also owned runtime construction and evaluation. That coupling was exactly the architectural problem called out in the ticket analysis, so I pulled those assistance responsibilities into a dedicated provider that can be reused by both backends.
+
+The important result is not just less duplication. The important result is that the new `replapi`-backed Bobatea adapter now exposes the same completion/help interfaces as the old evaluator path, using the live session runtime and the same docs hub semantics. That means the next phase can swap the TUI backend without re-implementing assistance behavior from scratch.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue implementing the ticket task by task, commit meaningful slices, and maintain a detailed engineering diary as the migration progresses.
+
+**Inferred user intent:** Make the migration reviewable and incremental, with each architectural seam extracted deliberately instead of attempting a risky one-shot TUI rewrite.
+
+**Commit (code):** `6c4afd8` — `Share JS assistance between evaluator and replapi adapter`
+
+### What I did
+- Added a shared assistance provider in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/evaluators/javascript/assistance.go`
+- Refactored the old evaluator in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go`
+  - so `CompleteInput`, `GetHelpBar`, and `GetHelpDrawer` delegate to the shared provider instead of embedding their own logic
+- Extended the docs seam in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/evaluators/javascript/docs_resolver.go`
+  - so cross-package adapters can recover the runtime docs hub without exposing the private resolver type
+- Updated the `replapi` Bobatea adapter in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/replapi.go`
+  - to implement:
+    - `bobarepl.InputCompleter`
+    - `bobarepl.HelpBarProvider`
+    - `bobarepl.HelpDrawerProvider`
+- Added capability coverage in:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/replapi_test.go`
+- Ran focused validation before commit:
+  - `go test ./pkg/repl/evaluators/javascript ./pkg/repl/adapters/bobatea ./pkg/replapi ./pkg/replsession`
+- Let pre-commit run full repo lint/generate/test on the final code commit
+
+### Why
+- The migration guide explicitly identified "execution" and "editor assistance" as the two backend roles that must be separated before the TUI can move onto `replapi`.
+- Re-implementing completion/help a second time inside the new adapter would create another dead-end architecture.
+- A shared provider keeps one implementation of:
+  - CST parsing
+  - candidate ranking
+  - docs lookups
+  - runtime symbol inspection
+  - help-bar generation
+  - help-drawer rendering
+
+### What worked
+- The old evaluator logic was structured enough to extract into a reusable provider without changing the observable behavior of the classic adapter.
+- The new provider could be parameterized with two narrow seams:
+  - runtime access with docs-hub access
+  - binding-hint access
+- The `replapi` adapter can now surface completion/help using the live session runtime instead of a duplicate evaluator-owned VM.
+- Focused adapter tests stayed fast and gave quick confidence before the full pre-commit run.
+
+### What didn't work
+- The first pre-commit attempt failed on lint after the extraction.
+- `golangci-lint` reported:
+  - non-exhaustive `switch` statements over `jsparse.CompletionKind`
+  - an unused `newDocsResolver` helper after the refactor
+
+Exact failing output:
+
+```text
+pkg/repl/evaluators/javascript/assistance.go:464:2: missing cases in switch of type jsparse.CompletionKind: jsparse.CompletionNone, jsparse.CompletionArgument (exhaustive)
+pkg/repl/evaluators/javascript/assistance.go:609:2: missing cases in switch of type jsparse.CompletionKind: jsparse.CompletionNone, jsparse.CompletionArgument (exhaustive)
+pkg/repl/evaluators/javascript/assistance.go:651:2: missing cases in switch of type jsparse.CompletionKind: jsparse.CompletionNone, jsparse.CompletionArgument (exhaustive)
+pkg/repl/evaluators/javascript/docs_resolver.go:25:6: func newDocsResolver is unused (unused)
+```
+
+I fixed that by:
+- adding explicit `CompletionNone` / `CompletionArgument` cases in the shared provider
+- routing the evaluator back through `newDocsResolver(ownedRuntime)` so the helper remained the canonical wrapper
+
+### What I learned
+- The current assistance stack really only needs three dynamic inputs:
+  - a parser
+  - a live runtime view
+  - binding hints
+- The docs seam is easiest to preserve by exposing the runtime docs hub, not by trying to export the resolver type itself.
+- The live `replapi` session runtime is good enough for assistance as long as we stay within the callback-based ownership model introduced in Step 2.
+
+### What was tricky to build
+- The tricky part was not the AST/CST logic itself; that was mostly extraction.
+- The real sharp edge was choosing a public seam that the Bobatea adapter could use without:
+  - re-exposing the private docs resolver
+  - giving the frontend long-lived ownership of runtime internals
+- The compromise that worked was:
+  - keep the resolver private
+  - expose the docs hub
+  - let the shared assistance provider rebuild a private resolver per request from that hub
+
+### What warrants a second pair of eyes
+- The new `Assistance` provider API shape in `pkg/repl/evaluators/javascript/assistance.go`
+- Whether binding hints should remain advisory-only, or become a stronger contract for raw-mode sessions later
+- Whether the docs-hub helper exported from `docs_resolver.go` is the smallest acceptable cross-package seam
+
+### What should be done in the future
+- Use this shared assistance layer when swapping the Bubble Tea TUI onto the `replapi` adapter
+- Move TUI startup under `goja-repl tui`
+- Once the TUI is cut over, delete execution code paths that only existed to support the old evaluator-owned runtime model
+
+### Code review instructions
+- Start with the new shared provider:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/evaluators/javascript/assistance.go`
+- Then inspect how the classic evaluator delegates into it:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go`
+- Then inspect how the `replapi` adapter wires the same provider to the live session runtime:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/replapi.go`
+- Validate with:
+  - `go test ./pkg/repl/evaluators/javascript ./pkg/repl/adapters/bobatea ./pkg/replapi ./pkg/replsession`
+- Review the full-hook output from the accepted commit:
+  - `golangci-lint run -v`
+  - `go generate ./...`
+  - `go test ./...`
+
+### Technical details
+- Focused validation command:
+
+```bash
+go test ./pkg/repl/evaluators/javascript ./pkg/repl/adapters/bobatea ./pkg/replapi ./pkg/replsession
+```
+
+- The accepted code commit passed the repository pre-commit hook after the lint cleanup.
