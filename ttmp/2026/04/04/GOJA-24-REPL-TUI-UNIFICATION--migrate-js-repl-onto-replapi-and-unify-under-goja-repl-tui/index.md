@@ -1,7 +1,7 @@
 ---
 Title: Migrate js-repl onto replapi and unify under goja-repl tui
 Ticket: GOJA-24-REPL-TUI-UNIFICATION
-Status: active
+Status: complete
 Topics:
     - repl
     - tui
@@ -26,8 +26,8 @@ RelatedFiles:
     - Path: pkg/replapi/app.go
       Note: Target shared session API
 ExternalSources: []
-Summary: ""
-LastUpdated: 2026-04-06T11:50:59-04:00
+Summary: "The Bubble Tea frontend now runs as `goja-repl tui`, the legacy web prototype is gone, `smalltalk-inspector` no longer depends on the full JavaScript evaluator for assistance, and the old standalone `cmd/repl` command has been removed so the interactive surface is unified under `goja-repl`."
+LastUpdated: 2026-04-06T15:21:30-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -37,7 +37,7 @@ WhenToUse: ""
 
 ## Overview
 
-This ticket covers the integration phase that moves the Bubble Tea `js-repl` onto the shared `replapi` session architecture and merges the interactive TUI into the unified `goja-repl` binary as `goja-repl tui`. The intended end-state is one execution/session core, one primary CLI binary, and removal of the remaining standalone TUI bootstrap path.
+This ticket covers the integration phase that moved the Bubble Tea `js-repl` onto the shared `replapi` session architecture, merged the interactive TUI into the unified `goja-repl` binary as `goja-repl tui`, and removed the old standalone REPL frontends. The end-state is one execution/session core, one primary CLI binary, and one maintained interactive REPL surface.
 
 ## Key Links
 
@@ -48,7 +48,7 @@ This ticket covers the integration phase that moves the Bubble Tea `js-repl` ont
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 ## Topics
 

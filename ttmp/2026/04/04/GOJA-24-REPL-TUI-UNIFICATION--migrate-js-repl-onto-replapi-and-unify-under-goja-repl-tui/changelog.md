@@ -17,3 +17,5 @@
 
 - Phase 7 landed in commit `18d790f` (`Remove legacy web repl prototype`): removed `cmd/web-repl`, deleted `pkg/webrepl` and its embedded static browser UI, and completed the repository-side retirement of the old web prototype path
 - Post-removal validation passed with a non-historical reference scan showing no remaining current references to `cmd/web-repl` / `pkg/webrepl` outside ticket history and with `go test ./...` passing cleanly
+- Phase 8 landed in commit `5c0cec1` (`Remove standalone repl command`): removed `cmd/repl`, deleted the last standalone line-REPL entrypoint, and updated current onboarding/help/plugin docs so `goja-repl tui` is the canonical interactive surface
+- Validation for the canonical-command cleanup passed with a non-historical reference scan showing no remaining current references to `cmd/repl` and with both `go test ./...` and the repository pre-commit hook succeeding

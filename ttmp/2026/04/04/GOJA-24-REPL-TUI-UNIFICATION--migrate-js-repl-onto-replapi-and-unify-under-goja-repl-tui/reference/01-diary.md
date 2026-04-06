@@ -525,6 +525,128 @@ go test ./cmd/goja-repl ./pkg/repl/adapters/bobatea ./pkg/repl/evaluators/javasc
 go test ./...
 ```
 
+## Step 8: Remove the standalone `cmd/repl` command and make `goja-repl tui` canonical
+
+This final frontend cleanup closed the last obvious gap in the unification story. `js-repl` was already gone and the old web prototype had already been deleted, but the repository still carried `cmd/repl` plus a lot of current docs that treated it as a first-class entrypoint. That left the product surface muddled even though the architecture had already converged.
+
+The right move was to delete `cmd/repl` outright and then immediately update the current live docs so they stopped promising a line REPL or script-runner that no longer matched the maintained surface. That made `goja-repl tui` the canonical interactive frontend in both code and onboarding material instead of only in architecture discussions.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, kill cmd/repl and js-repl and let goja-repl tui be the canonical one."
+
+**Assistant interpretation:** Remove the remaining standalone line REPL and align the live documentation/help surface so the maintained interactive entrypoint is clearly `goja-repl tui`.
+
+**Inferred user intent:** Finish the frontend consolidation so users encounter one obvious interactive REPL path instead of several historical command names.
+
+**Commit (code):** `5c0cec1` — `Remove standalone repl command`
+
+### What I did
+- Added a new Phase 8 to the active ticket before closing out the code path
+- Deleted the standalone line REPL command:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/repl/main.go`
+- Removed the now-empty directory on disk:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/repl`
+- Updated current user-facing documentation and examples so they point at `goja-repl tui` instead of `cmd/repl`:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/README.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/plugins/examples/README.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/01-introduction.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/02-creating-modules.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/03-async-patterns.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/04-repl-usage.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/05-jsparse-framework-reference.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/06-inspector-example-user-guide.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/07-inspectorapi-hybrid-service-guide.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/08-typescript-declaration-generator.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/12-plugin-user-guide.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/13-plugin-developer-guide.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/14-plugin-tutorial-build-install.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/15-docs-module-guide.md`
+- Removed outdated claims about:
+  - `cmd/repl`
+  - `go run ./cmd/repl ...`
+  - `repl help ...`
+  - `--plugin-status`
+  - direct script execution through the deleted command
+- Ran a non-historical reference scan to confirm there were no remaining current references to `cmd/repl` or `go run ./cmd/repl`
+- Ran full validation:
+  - `go test ./...`
+- Let pre-commit run its normal validation on the accepted code commit:
+  - `golangci-lint run -v`
+  - `go generate ./...`
+  - `go test ./...`
+
+### Why
+- The architecture was already unified, but the live command surface still suggested a split world.
+- Keeping `cmd/repl` after deleting `cmd/js-repl` and `cmd/web-repl` would preserve one more historical entrypoint that no longer offered unique value.
+- The current docs were still teaching users to start from a command we no longer wanted to maintain, which is exactly how architectural cleanup gets undone.
+
+### What worked
+- `cmd/repl` was cleanly deletable because execution and interactive ownership had already moved elsewhere.
+- The repo-wide scan showed the remaining work was mostly current docs/help text rather than hidden code dependencies.
+- `go test ./...` still passed after the deletion.
+- The repository pre-commit hook also passed cleanly on the deletion commit.
+
+### What didn't work
+- One `rg` cleanup search used a literal newline in the regex and failed immediately.
+
+Exact output:
+
+```text
+rg: the literal "\n" is not allowed in a regex
+
+Consider enabling multiline mode with the --multiline flag (or -U for short).
+When multiline mode is enabled, new line characters can be matched.
+```
+
+I reran the scan as simpler targeted searches instead of trying to be clever with a multiline pattern.
+
+### What I learned
+- The hardest part of deleting an old CLI is rarely code. It is usually the surrounding documentation and examples that still imply the deleted surface is normal.
+- Because `goja-repl tui` already had the shared help system, updating `repl help ...` references to `goja-repl help ...` was a real consolidation, not just a rename.
+
+### What was tricky to build
+- The sharp edge here was not technical dependency but product-truthfulness. Some older pages still described capabilities that only existed in `cmd/repl`, especially direct script execution and `--plugin-status`.
+- The safe approach was to remove those claims instead of inventing a compatibility shim or quietly redirecting users to behavior that does not exist. That kept the cleanup honest and aligned with the repository guideline against adding unnecessary backwards-compatibility layers.
+
+### What warrants a second pair of eyes
+- The README/help-page edits that removed mentions of script execution. A reviewer should verify that no current onboarding path still relies on a standalone "run a script once" command.
+- The help-page frontmatter updates that changed advertised commands from `repl` to `goja-repl`.
+
+### What should be done in the future
+- If product ergonomics matter more than explicit subcommands, consider whether bare `goja-repl` should eventually launch the TUI by default.
+- Otherwise, N/A for this ticket: the intended frontend unification work is complete.
+
+### Code review instructions
+- Start with the deletion itself:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/repl/main.go`
+- Then review the main user-facing cleanup:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/README.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/04-repl-usage.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/12-plugin-user-guide.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/13-plugin-developer-guide.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/14-plugin-tutorial-build-install.md`
+- Then spot-check the metadata-only cleanup:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/02-creating-modules.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/05-jsparse-framework-reference.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/doc/08-typescript-declaration-generator.md`
+- Validate with:
+  - `rg -n "cmd/repl|go run \\./cmd/repl" . --glob '!ttmp/**'`
+  - `go test ./...`
+
+### Technical details
+- Reference scan:
+
+```bash
+rg -n "cmd/repl|go run \./cmd/repl" . --glob '!ttmp/**'
+```
+
+- Full validation:
+
+```bash
+go test ./...
+```
+
 - Smoke test:
 
 ```bash

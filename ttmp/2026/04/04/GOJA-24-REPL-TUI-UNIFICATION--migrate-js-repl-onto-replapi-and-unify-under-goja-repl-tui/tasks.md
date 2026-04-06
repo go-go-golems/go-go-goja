@@ -53,6 +53,13 @@
 - [x] Clean up any current user-facing references that still point at the legacy web prototype instead of `goja-repl serve`
 - [x] Re-run full validation after the removal
 
+## Phase 8: Canonical REPL Command Cleanup
+
+- [x] Remove the standalone `cmd/repl` binary now that `goja-repl tui` is the maintained interactive surface
+- [x] Remove current live references to `cmd/repl` from README, help pages, and plugin examples
+- [x] Update help-page command metadata so current docs advertise `goja-repl` instead of a deleted `repl` command
+- [x] Re-run full validation after the command deletion and doc cleanup
+
 ## Completed Discovery
 
 - [x] Create the ticket workspace and scaffold the primary design and diary documents
