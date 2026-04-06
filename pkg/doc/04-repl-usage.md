@@ -8,7 +8,6 @@ Topics:
 - javascript
 - console
 Commands:
-- repl
 - goja-repl
 IsTopLevel: true
 IsTemplate: false
@@ -25,35 +24,20 @@ The REPL accepts any valid JavaScript expression and immediately evaluates it wi
 ### Starting the REPL
 
 ```bash
-# Lightweight line REPL / script runner
-go run ./cmd/repl
-
-# Add an extra plugin directory explicitly
-go run ./cmd/repl --plugin-dir /tmp/goja-plugins
-
-# Inspect plugin discovery/load status and exit
-go run ./cmd/repl --plugin-status
-
-# Restrict loading to specific plugin module names
-go run ./cmd/repl --allow-plugin-module plugin:examples:greeter
-
-# With debug logging
-go run ./cmd/repl --debug
-
-# Run a script file
-go run ./cmd/repl path/to/script.js
-
-# Rich Bobatea-based JS REPL with completion/help widgets
+# Canonical Bobatea-based JS REPL with completion/help widgets
 go run ./cmd/goja-repl tui
 
-# Rich Bobatea-based JS REPL with an extra plugin directory
+# Add an extra plugin directory explicitly
 go run ./cmd/goja-repl --plugin-dir /tmp/goja-plugins tui
 
 # Restrict loading to specific plugin module names
 go run ./cmd/goja-repl --allow-plugin-module plugin:examples:greeter tui
+
+# With debug logging
+go run ./cmd/goja-repl --log-level debug tui
 ```
 
-When you do not pass `--plugin-dir`, both `repl` and `goja-repl tui` scan the default per-user plugin tree under `~/.go-go-goja/plugins/...`. If you do pass one or more `--plugin-dir` flags, those explicit directories are used instead.
+When you do not pass `--plugin-dir`, `goja-repl tui` scans the default per-user plugin tree under `~/.go-go-goja/plugins/...`. If you do pass one or more `--plugin-dir` flags, those explicit directories are used instead.
 
 ### Basic JavaScript Evaluation
 
@@ -117,7 +101,7 @@ js> kv.store.get("name")
 Manuel
 ```
 
-Use `repl help goja-plugin-user-guide` for the full plugin reference and example catalog, and `repl help plugin-tutorial-build-install` for the step-by-step build/install flow.
+Use `goja-repl help goja-plugin-user-guide` for the full plugin reference and example catalog, and `goja-repl help plugin-tutorial-build-install` for the step-by-step build/install flow.
 
 ### Unified Documentation Access
 
@@ -139,7 +123,7 @@ js> docs.byID("plugin-manifests", "plugin-method", "plugin:examples:kv/store.get
 Get a key, returning null if it is absent
 ```
 
-Use `repl help goja-docs-module-guide` for the full API reference and examples.
+Use `goja-repl help goja-docs-module-guide` for the full API reference and examples.
 
 ### HTTP Requests
 
@@ -212,7 +196,7 @@ SyntaxError: Unexpected token i in JSON at position 0
 Enable debug logging to see module registration and runtime details:
 
 ```bash
-go run ./cmd/repl --debug
+go run ./cmd/goja-repl --log-level debug tui
 2024/01/15 10:30:45 engine initialised, modules: [fs, http, timer, uuid]
 js> const fs = require("fs")
 2024/01/15 10:30:47 module loaded: fs
@@ -255,7 +239,7 @@ js> uuid.v4()
 
 ### Testing Complex Logic
 
-Prototype and test JavaScript logic before moving to script files:
+Prototype and test JavaScript logic interactively before moving it into a Go test, module implementation, or a higher-level automation flow:
 
 ```javascript
 js> function processData(items) {
@@ -277,21 +261,6 @@ js> processData(testData)
   { id: 1, active: true, priority: 2, processed: true }
 ]
 ```
-
-## Script File Execution
-
-Run complete JavaScript files through the REPL environment:
-
-```bash
-# Create a test script
-echo 'const fs = require("fs"); console.log("Files in /tmp:", fs.readdirSync("/tmp"));' > test.js
-
-# Execute it
-go run ./cmd/repl test.js
-Files in /tmp: [demo.txt, .com.apple.launchd.ABC123, ...]
-```
-
-This approach combines the benefits of script organization with full access to native modules and proper error reporting.
 
 ## Console Integration
 

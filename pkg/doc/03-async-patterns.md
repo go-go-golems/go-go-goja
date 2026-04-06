@@ -8,7 +8,7 @@ Topics:
 - callbacks
 - concurrency
 Commands:
-- repl
+- goja-repl
 IsTopLevel: true
 IsTemplate: false
 ShowPerDefault: true
@@ -377,7 +377,7 @@ Robust error handling in async operations prevents silent failures and provides 
 When combining async modules with the REPL:
 
 ```bash
-go run ./cmd/repl
+go run ./cmd/goja-repl tui
 js> const timer = require("timer"); timer.sleep(1000).then(() => console.log("Done!"));
 js> // REPL continues immediately, "Done!" appears after 1 second
 ```

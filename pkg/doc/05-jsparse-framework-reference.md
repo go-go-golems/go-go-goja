@@ -9,7 +9,7 @@ Topics:
 - ast
 - completion
 Commands:
-- repl
+- goja-repl
 - inspector
 IsTopLevel: true
 IsTemplate: false
@@ -290,5 +290,5 @@ if errList, ok := res.ParseErr.(parser.ErrorList); ok && len(errList) > 0 {
 
 - `glaze help inspectorapi-hybrid-service-guide`
 - `glaze help inspector-example-user-guide`
-- `glaze help repl-usage`
+- `goja-repl help repl-usage`
 - `glaze help async-patterns`

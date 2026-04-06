@@ -107,5 +107,5 @@ GOWORK=off go test ./... -count=1
 
 - `glaze help jsparse-framework-reference`
 - `glaze help inspectorapi-hybrid-service-guide`
-- `glaze help repl-usage`
+- `goja-repl help repl-usage`
 - `glaze help creating-modules`

@@ -10,7 +10,6 @@ Topics:
 - architecture
 - engine
 Commands:
-- repl
 - goja-repl
 Flags:
 - --plugin-dir
@@ -48,7 +47,8 @@ If you are new to the subsystem, read these files in this order:
 - `pkg/hashiplugin/host/registrar.go`
 - `pkg/hashiplugin/host/registrar_test.go`
 - `pkg/repl/evaluators/javascript/evaluator.go`
-- `cmd/repl/main.go`
+- `cmd/goja-repl/root.go`
+- `cmd/goja-repl/tui.go`
 
 That order mirrors the real layering:
 
@@ -131,7 +131,7 @@ The runtime is not globally plugin-aware by default. An entrypoint opts in by co
 
 Current wired entrypoints:
 
-- `cmd/repl`
+- `cmd/goja-repl`
 - `cmd/bun-demo`
 - `pkg/repl/evaluators/javascript`
 
@@ -177,7 +177,7 @@ That is also why the SDK belongs beside them rather than inside `host`: authorin
 This is the end-to-end flow from CLI flag to `require("plugin:echo")`.
 
 ```text
-cmd/repl
+cmd/goja-repl tui
     |
     v
 engine.NewBuilder()
@@ -414,22 +414,9 @@ This path is simple, but it sets the practical constraints for plugin authors:
 - avoid expecting host object identity,
 - avoid returning Goja-specific objects from plugin code.
 
-## Integration in `repl` and `goja-repl tui`
+## Integration in `goja-repl tui`
 
-### `repl`
-
-`cmd/repl` is the currently wired CLI line entrypoint for plugin testing. It resolves plugin directories from either explicit `--plugin-dir` flags or the default per-user tree under `~/.go-go-goja/plugins/...`, creates the registrar, and builds an owned runtime directly.
-
-It also now exposes plugin visibility through:
-
-- `:plugins` in the interactive loop,
-- `--plugin-status` for one-shot reporting.
-
-It also exposes `--allow-plugin-module`, which maps directly onto `host.Config.AllowModules`.
-
-### `goja-repl tui`
-
-`cmd/goja-repl` now exposes the TUI through the `tui` subcommand. It resolves plugin directories with the same rules as `cmd/repl`: explicit `--plugin-dir` flags win, otherwise the command scans `~/.go-go-goja/plugins/...`.
+`cmd/goja-repl` now exposes the TUI through the `tui` subcommand. It resolves plugin directories directly from the shared root flags: explicit `--plugin-dir` flags win, otherwise the command scans `~/.go-go-goja/plugins/...`.
 
 That means both the lower-level evaluator integration and the top-level TUI flag wiring are now present in:
 
@@ -524,7 +511,7 @@ Do not skip the validation layer. Reification should assume the manifest is alre
 
 ## See Also
 
-- `repl help goja-plugin-user-guide` — User-facing reference for loading and calling plugins
-- `repl help plugin-tutorial-build-install` — Step-by-step plugin build and install walkthrough
-- `repl help repl-usage` — General REPL usage and command entrypoints
-- `repl help creating-modules` — In-process native module authoring, which is the closest existing parallel concept
+- `goja-repl help goja-plugin-user-guide` — User-facing reference for loading and calling plugins
+- `goja-repl help plugin-tutorial-build-install` — Step-by-step plugin build and install walkthrough
+- `goja-repl help repl-usage` — General REPL usage and command entrypoints
+- `goja-repl help creating-modules` — In-process native module authoring, which is the closest existing parallel concept

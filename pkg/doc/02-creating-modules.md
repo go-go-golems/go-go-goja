@@ -8,7 +8,7 @@ Topics:
 - go
 - implementation
 Commands:
-- repl
+- goja-repl
 IsTopLevel: true
 IsTemplate: false
 ShowPerDefault: true
