@@ -12,3 +12,8 @@
 - Ticket metadata was refreshed after the cutover, `docmgr doctor --ticket GOJA-24-REPL-TUI-UNIFICATION --stale-after 30` passed cleanly, and the updated ticket bundle was uploaded to reMarkable as `GOJA-24 REPL TUI Unification - updated` to avoid overwriting the earlier copy implicitly
 - Phase 6 landed in commit `5856ade` (`Add runtime-only JS assistance adapter for inspector`): added a Bobatea assistance-only adapter for existing runtimes and moved `smalltalk-inspector` off the full JavaScript evaluator dependency while preserving completion/help/declaration tracking
 - Validation for the inspector cleanup passed with `go test ./pkg/repl/adapters/bobatea ./cmd/smalltalk-inspector/app` and the repository pre-commit hook, which again ran `go generate ./...` and `go test ./...`
+
+## 2026-04-06
+
+- Phase 7 landed in commit `18d790f` (`Remove legacy web repl prototype`): removed `cmd/web-repl`, deleted `pkg/webrepl` and its embedded static browser UI, and completed the repository-side retirement of the old web prototype path
+- Post-removal validation passed with a non-historical reference scan showing no remaining current references to `cmd/web-repl` / `pkg/webrepl` outside ticket history and with `go test ./...` passing cleanly

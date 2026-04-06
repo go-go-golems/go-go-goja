@@ -15,6 +15,8 @@ RelatedFiles:
       Note: Unified CLI root and future tui command host
     - Path: cmd/goja-repl/tui.go
       Note: Unified Bubble Tea entrypoint
+    - Path: pkg/replhttp/handler.go
+      Note: Replacement JSON server path after retiring the legacy web prototype
     - Path: cmd/smalltalk-inspector/app/repl_widgets.go
       Note: Non-replapi inspector assistance integration now decoupled from the full evaluator
     - Path: pkg/repl/adapters/bobatea/runtime_assistance.go
@@ -25,7 +27,7 @@ RelatedFiles:
       Note: Target shared session API
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-04T17:51:52-04:00
+LastUpdated: 2026-04-06T11:50:59-04:00
 WhatFor: ""
 WhenToUse: ""
 ---

@@ -46,6 +46,13 @@
 - [x] Add focused tests for the new assistance-only adapter where practical
 - [x] Re-run targeted tests for `smalltalk-inspector` and the Bobatea adapter package
 
+## Phase 7: Legacy Web Prototype Removal
+
+- [x] Remove the `cmd/web-repl` binary
+- [x] Remove the `pkg/webrepl` package and embedded static UI assets
+- [x] Clean up any current user-facing references that still point at the legacy web prototype instead of `goja-repl serve`
+- [x] Re-run full validation after the removal
+
 ## Completed Discovery
 
 - [x] Create the ticket workspace and scaffold the primary design and diary documents

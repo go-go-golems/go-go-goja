@@ -21,7 +21,7 @@ RelatedFiles:
       Note: Primary evidence for shared session API adoption
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-04T17:51:52-04:00
+LastUpdated: 2026-04-06T11:50:59-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -710,4 +710,108 @@ The design choice here was to avoid dragging `replapi` into `smalltalk-inspector
 
 ```bash
 go test ./pkg/repl/adapters/bobatea ./cmd/smalltalk-inspector/app
+```
+
+## Step 7: Remove the legacy web prototype path
+
+This step finished the cleanup that had been deferred since the new persistent CLI/server surfaces came online. By this point the repository already had the replacement pieces in place:
+
+- `goja-repl serve` as the maintained server entrypoint
+- `pkg/replhttp` as the maintained JSON transport
+- `goja-repl tui` as the maintained interactive frontend
+
+That meant the remaining `cmd/web-repl` plus `pkg/webrepl` browser prototype was only historical baggage. The right move was to delete it outright rather than keep a second server surface around after the architecture had already converged elsewhere.
+
+### Prompt Context
+
+**User prompt (verbatim):** "remove legacy code."
+
+**Assistant interpretation:** Remove the remaining obsolete REPL/frontend code paths rather than just documenting them as deprecated.
+
+**Inferred user intent:** Finish the architectural cleanup and stop carrying the old web prototype once the new REPL surfaces are proven.
+
+**Commit (code):** `18d790f` — `Remove legacy web repl prototype`
+
+### What I did
+- Added a new Phase 7 to the active ticket before changing code
+- Deleted the legacy command:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/web-repl/main.go`
+- Deleted the legacy package and browser assets:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/webrepl/server.go`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/webrepl/static/index.html`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/webrepl/static/app.js`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/webrepl/static/app.css`
+- Removed the now-empty directories on disk
+- Ran a repository scan excluding historical ticket artifacts to confirm there were no remaining current references to:
+  - `cmd/web-repl`
+  - `pkg/webrepl`
+  - `web-repl`
+  - `webrepl`
+- Ran full validation:
+  - `go test ./...`
+- Let pre-commit run its normal validation on the accepted code commit:
+  - `golangci-lint run -v`
+  - `go generate ./...`
+  - `go test ./...`
+
+### Why
+- The architecture no longer uses the web prototype as a meaningful product surface.
+- Keeping `cmd/web-repl` and `pkg/webrepl` after `replhttp` and `goja-repl serve` existed would preserve redundant transport code and invite confusion about which surface is real.
+- The user explicitly asked to remove legacy code, and this was the clearest remaining legacy REPL path.
+
+### What worked
+- The removal was clean because the actual logic had already been moved out earlier.
+- The repo already had the maintained replacements in place, so deleting the prototype did not require new compatibility work.
+- `go test ./...` still passed after the deletion.
+- A non-historical `rg` scan found no current references left to the deleted path.
+
+### What didn't work
+- My first reference scan included a nonexistent `doc/` path and failed for that reason, which was just a search-command mistake on my side.
+
+Exact output:
+
+```text
+rg: doc: No such file or directory (os error 2)
+```
+
+I reran the scan correctly against the repository root while excluding `ttmp/**`.
+
+### What I learned
+- By the time the shared `replapi` / `replhttp` / `goja-repl` stack exists, the old prototype really is dead weight. The earlier staged extraction work paid off because this final removal became trivial instead of risky.
+- Historical ticket documentation can safely keep old references as evidence; the important cleanup target is the live repository surface.
+
+### What warrants a second pair of eyes
+- Only the product-shape question now: whether `cmd/repl` should remain as a standalone minimal shell or eventually fold into `goja-repl`.
+
+### What should be done in the future
+- Decide the long-term fate of `cmd/repl`
+- Continue simplifying docs and onboarding material around the now-final frontend/server surface:
+  - `goja-repl tui`
+  - `goja-repl serve`
+  - `pkg/replhttp`
+
+### Code review instructions
+- Review the deletion commit itself:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/web-repl/main.go`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/webrepl/server.go`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/webrepl/static/index.html`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/webrepl/static/app.js`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/webrepl/static/app.css`
+- Then confirm the maintained replacement surface still exists:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/goja-repl`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replhttp/handler.go`
+- Validate with:
+  - `go test ./...`
+
+### Technical details
+- Reference scan:
+
+```bash
+rg -n "cmd/web-repl|pkg/webrepl|web-repl|webrepl" . --glob '!ttmp/**'
+```
+
+- Full validation:
+
+```bash
+go test ./...
 ```
