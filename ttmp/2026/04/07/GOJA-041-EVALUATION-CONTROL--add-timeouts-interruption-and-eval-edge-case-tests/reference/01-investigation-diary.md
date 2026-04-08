@@ -73,6 +73,10 @@ The main reason for stopping short is that the straightforward design did not ho
 - Validated the safe subset with:
   - `go test ./pkg/replsession -run 'TestServiceRawSessionAwaitExpressionWorksButDeclarationDoesNot|TestServiceRawAwaitPromiseTimeoutUsesEvalDeadline|TestServiceRawSessionUsesDirectExecution|TestServiceInteractiveSessionTracksBindingsWithoutPersistence'`
   - `go test ./pkg/replsession ./pkg/replapi`
+- Stored the interruption experiments retroactively under [00-scripts-index.md](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/00-scripts-index.md):
+  - [01-goja-plain-runtime-interrupt/main.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/01-goja-plain-runtime-interrupt/main.go)
+  - [02-goja-nodejs-eventloop-interrupt/main.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/02-goja-nodejs-eventloop-interrupt/main.go)
+  - [03-eventloop-same-vm-check/main.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/03-eventloop-same-vm-check/main.go)
 
 ### Why
 
@@ -100,6 +104,7 @@ The main reason for stopping short is that the straightforward design did not ho
 
 - Promise deadlines are implementable now.
 - Synchronous runaway-evaluation recovery needs a deeper design than "call `vm.Interrupt(...)` and keep going" in this repo's runtime model.
+- The direct reason is now clearer: the `eventloop` creates its own runtime instance, and our earlier failing repro was interrupting a different `*goja.Runtime`.
 - The right next step is probably architectural, not another small patch in `replsession/service.go`.
 
 ### What was tricky to build
@@ -136,3 +141,7 @@ The main reason for stopping short is that the straightforward design did not ho
   - `await new Promise(() => {})` now times out when `timeoutMs` is set.
 - Current unresolved behavior:
   - synchronous runaway `while (true) {}` execution is still not safely recoverable under the current event-loop-backed runtime stack.
+- Repro scripts:
+  - [01-goja-plain-runtime-interrupt/main.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/01-goja-plain-runtime-interrupt/main.go): plain upstream `goja` interrupt works for async IIFE runaway code.
+  - [02-goja-nodejs-eventloop-interrupt/main.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/02-goja-nodejs-eventloop-interrupt/main.go): `eventloop` repro that times out waiting.
+  - [03-eventloop-same-vm-check/main.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/03-eventloop-same-vm-check/main.go): confirms the loop runtime is not the same pointer as an independently created runtime.

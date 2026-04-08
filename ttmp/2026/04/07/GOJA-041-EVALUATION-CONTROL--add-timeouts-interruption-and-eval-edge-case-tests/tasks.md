@@ -5,6 +5,7 @@
 - [x] Create ticket `GOJA-041-EVALUATION-CONTROL`
 - [x] Write the evaluation control analysis/design/implementation guide
 - [x] Record an investigation diary
+- [x] Store numbered retraceable experiment scripts under `scripts/`
 - [x] Validate the ticket with `docmgr doctor`
 - [x] Upload the ticket bundle to reMarkable
 
