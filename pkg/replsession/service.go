@@ -35,6 +35,9 @@ const (
 // ErrSessionNotFound is returned when a requested session ID does not exist.
 var ErrSessionNotFound = errors.New("replsession: session not found")
 
+// ErrEvaluationTimeout is returned when one cell exceeds its configured execution deadline.
+var ErrEvaluationTimeout = errors.New("replsession: evaluation timed out")
+
 // Service manages persistent REPL sessions and their backing runtimes.
 type Service struct {
 	mu                 sync.RWMutex
@@ -1020,7 +1023,9 @@ func (s *sessionState) executeRaw(ctx context.Context, source string, policy Ses
 	if promise, ok := value.Export().(*goja.Promise); ok {
 		if policy.Eval.SupportTopLevelAwait {
 			outcome.Awaited = true
-			value, err = s.waitPromise(ctx, promise)
+			execCtx, cancel := evaluationContext(ctx, policy)
+			value, err = s.waitPromise(execCtx, promise)
+			cancel()
 			if err != nil {
 				return outcome, err
 			}
@@ -1047,7 +1052,9 @@ func (s *sessionState) executeWrapped(ctx context.Context, rewrite RewriteReport
 	}
 	if promise, ok := value.Export().(*goja.Promise); ok {
 		outcome.Awaited = true
-		value, err = s.waitPromise(ctx, promise)
+		execCtx, cancel := evaluationContext(ctx, s.policy)
+		value, err = s.waitPromise(execCtx, promise)
+		cancel()
 		if err != nil {
 			return outcome, err
 		}
@@ -1081,6 +1088,12 @@ func (s *sessionState) runString(ctx context.Context, source string) (goja.Value
 
 func (s *sessionState) waitPromise(ctx context.Context, promise *goja.Promise) (goja.Value, error) {
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, evaluationContextError(ctx)
+		default:
+		}
+
 		ret, err := s.runtime.Owner.Call(ctx, "replsession.promise-state", func(_ context.Context, vm *goja.Runtime) (any, error) {
 			return promiseSnapshot{State: promise.State(), Result: promise.Result()}, nil
 		})
@@ -1093,7 +1106,11 @@ func (s *sessionState) waitPromise(ctx context.Context, promise *goja.Promise) (
 		}
 		switch snapshot.State {
 		case goja.PromiseStatePending:
-			time.Sleep(5 * time.Millisecond)
+			select {
+			case <-ctx.Done():
+				return nil, evaluationContextError(ctx)
+			case <-time.After(5 * time.Millisecond):
+			}
 			continue
 		case goja.PromiseStateRejected:
 			return nil, fmt.Errorf("promise rejected: %s", gojaValuePreview(snapshot.Result, s.runtime.VM))
@@ -1477,6 +1494,9 @@ func gojaValuePreview(value goja.Value, vm *goja.Runtime) string {
 }
 
 func executionStatus(err error, helperError bool) string {
+	if errors.Is(err, ErrEvaluationTimeout) || errors.Is(err, context.DeadlineExceeded) {
+		return "timeout"
+	}
 	if err != nil {
 		return "runtime-error"
 	}
@@ -1491,6 +1511,27 @@ func errorString(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+func evaluationContext(ctx context.Context, policy SessionPolicy) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	timeout := NormalizeSessionPolicy(policy).Eval.Timeout()
+	if timeout <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeoutCause(ctx, timeout, errors.Wrapf(ErrEvaluationTimeout, "evaluation exceeded %s", timeout))
+}
+
+func evaluationContextError(ctx context.Context) error {
+	if ctx == nil {
+		return nil
+	}
+	if cause := context.Cause(ctx); cause != nil {
+		return cause
+	}
+	return ctx.Err()
 }
 
 func firstDiagnosticMessage(diagnostics []DiagnosticView) string {

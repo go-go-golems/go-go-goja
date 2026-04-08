@@ -19,6 +19,7 @@ type EvalPolicy struct {
 	Mode                  EvalMode `json:"mode"`
 	CaptureLastExpression bool     `json:"captureLastExpression"`
 	SupportTopLevelAwait  bool     `json:"supportTopLevelAwait"`
+	TimeoutMS             int64    `json:"timeoutMs,omitempty"`
 }
 
 // ObservePolicy controls non-durable analysis and runtime introspection.
@@ -65,7 +66,8 @@ func RawSessionOptions() SessionOptions {
 		Profile: "raw",
 		Policy: SessionPolicy{
 			Eval: EvalPolicy{
-				Mode: EvalModeRaw,
+				Mode:      EvalModeRaw,
+				TimeoutMS: 5000,
 			},
 		},
 	}
@@ -80,6 +82,7 @@ func InteractiveSessionOptions() SessionOptions {
 				Mode:                  EvalModeInstrumented,
 				CaptureLastExpression: true,
 				SupportTopLevelAwait:  true,
+				TimeoutMS:             5000,
 			},
 			Observe: ObservePolicy{
 				StaticAnalysis:  true,
@@ -123,7 +126,18 @@ func NormalizeSessionPolicy(policy SessionPolicy) SessionPolicy {
 	if normalized.Eval.Mode == "" {
 		normalized.Eval.Mode = EvalModeInstrumented
 	}
+	if normalized.Eval.TimeoutMS < 0 {
+		normalized.Eval.TimeoutMS = 0
+	}
 	return normalized
+}
+
+// Timeout returns the configured evaluation deadline.
+func (p EvalPolicy) Timeout() time.Duration {
+	if p.TimeoutMS <= 0 {
+		return 0
+	}
+	return time.Duration(p.TimeoutMS) * time.Millisecond
 }
 
 // IsZero reports whether no explicit policy fields were set.

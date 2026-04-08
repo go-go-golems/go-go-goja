@@ -3,6 +3,7 @@ package replsession
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 )
@@ -59,5 +60,73 @@ func TestServiceInteractiveSessionTracksBindingsWithoutPersistence(t *testing.T)
 	}
 	if resp.Session.Profile != "interactive" {
 		t.Fatalf("expected interactive profile, got %q", resp.Session.Profile)
+	}
+}
+
+func TestServiceRawSessionAwaitExpressionWorksButDeclarationDoesNot(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	opts := RawSessionOptions()
+	opts.Policy.Eval.SupportTopLevelAwait = true
+	opts.Policy.Eval.TimeoutMS = int64((250 * time.Millisecond) / time.Millisecond)
+
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithDefaultSessionOptions(opts))
+
+	session, err := service.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	expressionResp, err := service.Evaluate(ctx, session.ID, "await Promise.resolve(9)")
+	if err != nil {
+		t.Fatalf("evaluate await expression: %v", err)
+	}
+	if expressionResp.Cell.Execution.Status != "ok" {
+		t.Fatalf("expected ok status for await expression, got %q", expressionResp.Cell.Execution.Status)
+	}
+	if expressionResp.Cell.Execution.Result != "9" {
+		t.Fatalf("expected await expression result 9, got %q", expressionResp.Cell.Execution.Result)
+	}
+	if !expressionResp.Cell.Execution.Awaited {
+		t.Fatal("expected await expression to be marked awaited")
+	}
+
+	declarationResp, err := service.Evaluate(ctx, session.ID, "const x = await Promise.resolve(3); x")
+	if err != nil {
+		t.Fatalf("evaluate await declaration: %v", err)
+	}
+	if declarationResp.Cell.Execution.Status != "runtime-error" {
+		t.Fatalf("expected runtime-error for declaration-style await, got %q", declarationResp.Cell.Execution.Status)
+	}
+	if declarationResp.Cell.Execution.Error == "" {
+		t.Fatal("expected declaration-style await to return an error message")
+	}
+}
+
+func TestServiceRawAwaitPromiseTimeoutUsesEvalDeadline(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	opts := RawSessionOptions()
+	opts.Policy.Eval.SupportTopLevelAwait = true
+	opts.Policy.Eval.TimeoutMS = 20
+
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithDefaultSessionOptions(opts))
+
+	session, err := service.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	resp, err := service.Evaluate(ctx, session.ID, "await new Promise(() => {})")
+	if err != nil {
+		t.Fatalf("evaluate pending await: %v", err)
+	}
+	if resp.Cell.Execution.Status != "timeout" {
+		t.Fatalf("expected timeout status, got %q", resp.Cell.Execution.Status)
+	}
+	if !resp.Cell.Execution.Awaited {
+		t.Fatal("expected pending await to be marked awaited")
 	}
 }
