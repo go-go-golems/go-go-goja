@@ -17,6 +17,10 @@ import (
 
 // REPLAPIAdapter adapts replapi-backed session execution to the Bobatea
 // evaluator contract used by the Bubble Tea REPL model.
+//
+// This adapter is the bridge between the Bobatea/TUI evaluator surface and the
+// replapi/replsession kernel. It exists on purpose; it is not dead compatibility
+// code.
 type REPLAPIAdapter struct {
 	app       *replapi.App
 	sessionID string

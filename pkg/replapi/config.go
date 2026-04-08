@@ -20,13 +20,18 @@ const (
 
 // Config controls app-level replapi behavior.
 type Config struct {
-	Profile        Profile
-	Store          *repldb.Store
-	AutoRestore    bool
+	Profile     Profile
+	Store       *repldb.Store
+	AutoRestore bool
+	// SessionOptions are the default kernel/session options passed into replsession.
 	SessionOptions replsession.SessionOptions
 }
 
-// SessionOptions controls per-session replapi behavior.
+// SessionOptions are app-layer create-session overrides.
+//
+// Unlike replsession.SessionOptions, this type is intentionally sparse: it lets
+// callers override profile/policy defaults at session-creation time without
+// having to construct a full kernel policy object up front.
 type SessionOptions struct {
 	ID        string
 	CreatedAt time.Time
@@ -160,7 +165,7 @@ func validateConfig(config Config) error {
 	return nil
 }
 
-func resolveSessionOptions(base Config, override SessionOptions) replsession.SessionOptions {
+func resolveCreateSessionOptions(base Config, override SessionOptions) replsession.SessionOptions {
 	resolved := replsession.NormalizeSessionOptions(base.SessionOptions)
 	if strings.TrimSpace(override.ID) != "" {
 		resolved.ID = strings.TrimSpace(override.ID)

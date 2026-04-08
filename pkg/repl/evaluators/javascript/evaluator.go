@@ -53,7 +53,11 @@ var (
 	}
 )
 
-// Evaluator implements the REPL evaluator interface for JavaScript
+// Evaluator implements the Bobatea-oriented JavaScript REPL surface.
+//
+// This type remains the TUI/help/completion-facing evaluator stack. It is not
+// the same subsystem as replsession, which owns durable session lifecycle and
+// cell-by-cell kernel behavior.
 type Evaluator struct {
 	runtime            *goja.Runtime
 	ownedRuntime       *ggjengine.Runtime

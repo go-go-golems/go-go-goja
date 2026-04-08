@@ -64,7 +64,7 @@ func (a *App) CreateSessionWithOptions(ctx context.Context, opts SessionOptions)
 	if a == nil {
 		return nil, errors.New("replapi: app is nil")
 	}
-	resolved := resolveSessionOptions(a.config, opts)
+	resolved := resolveCreateSessionOptions(a.config, opts)
 	if resolved.Policy.PersistenceEnabled() && a.store == nil {
 		return nil, errors.New("replapi: persistence requested but no store configured")
 	}
