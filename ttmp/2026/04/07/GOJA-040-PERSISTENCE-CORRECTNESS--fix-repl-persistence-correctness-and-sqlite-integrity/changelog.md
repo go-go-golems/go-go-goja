@@ -7,3 +7,4 @@
 - Captured the three main problem areas: deleted-session visibility, durable session ID collisions, and connection-local SQLite integrity settings.
 - Validated the ticket with `docmgr doctor` and uploaded the bundle to reMarkable.
 - Implemented the first code slice: hidden-session semantics for deleted durable sessions, plus regression tests in `repldb` and `replapi`.
+- Implemented the second code slice: collision-resistant default session IDs, removed the process-local counter, and added session-creation regression tests.

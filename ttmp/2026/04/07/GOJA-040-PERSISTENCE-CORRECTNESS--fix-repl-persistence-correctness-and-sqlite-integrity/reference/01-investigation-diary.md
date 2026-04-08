@@ -83,3 +83,29 @@ Result:
 
 - all focused persistence packages passed
 - the first slice is ready to commit independently
+
+### Commit 2: collision-resistant default IDs
+
+Implemented the second behavior slice by removing the in-memory `session-%d` counter from `replsession.Service` and replacing the default ID path with generated opaque IDs.
+
+Design decision:
+
+- explicit caller-provided IDs still win
+- default IDs are now generated as `session-<uuid>`
+
+Why this design was chosen:
+
+- it avoids cross-process coordination entirely
+- it preserves log readability better than a bare UUID
+- it removes the need for the old `nextID` and `noteSessionID` machinery
+
+Validation:
+
+```bash
+go test ./pkg/repldb ./pkg/replapi ./pkg/replsession
+```
+
+Additional regression coverage:
+
+- two independent services sharing the same store now generate different IDs
+- explicit `SessionOptions.ID` is still honored unchanged

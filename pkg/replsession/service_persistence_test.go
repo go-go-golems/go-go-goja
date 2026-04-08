@@ -78,6 +78,58 @@ func TestServiceDeleteSessionPersistsDeletion(t *testing.T) {
 	}
 }
 
+func TestServiceCreateSessionUsesCollisionResistantDefaultIDsAcrossServices(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := openPersistenceTestStore(t)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Fatalf("close store: %v", err)
+		}
+	}()
+
+	service1 := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithPersistence(store))
+	session1, err := service1.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create first session: %v", err)
+	}
+
+	service2 := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithPersistence(store))
+	session2, err := service2.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create second session: %v", err)
+	}
+
+	if session1.ID == "" || session2.ID == "" {
+		t.Fatalf("expected non-empty generated ids, got %q and %q", session1.ID, session2.ID)
+	}
+	if session1.ID == session2.ID {
+		t.Fatalf("expected distinct generated ids, both were %q", session1.ID)
+	}
+}
+
+func TestServiceCreateSessionHonorsExplicitID(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := openPersistenceTestStore(t)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Fatalf("close store: %v", err)
+		}
+	}()
+
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithPersistence(store))
+	session, err := service.CreateSessionWithOptions(ctx, SessionOptions{ID: "manual-session-id"})
+	if err != nil {
+		t.Fatalf("create session with explicit id: %v", err)
+	}
+	if session.ID != "manual-session-id" {
+		t.Fatalf("expected explicit id to be preserved, got %q", session.ID)
+	}
+}
+
 func TestServicePersistsBindingVersionsAndDocs(t *testing.T) {
 	t.Parallel()
 

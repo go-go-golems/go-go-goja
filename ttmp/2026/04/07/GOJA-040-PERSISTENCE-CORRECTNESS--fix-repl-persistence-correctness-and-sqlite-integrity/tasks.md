@@ -12,7 +12,7 @@
 
 - [ ] Define the delete/read contract for durable sessions
 - [x] Commit 1: hide soft-deleted sessions from list/load/restore/export/history paths
-- [ ] Replace process-local default session ID allocation with collision-resistant durable IDs
+- [x] Replace process-local default session ID allocation with collision-resistant durable IDs
 - [ ] Move SQLite integrity configuration to connection-open time
 - [ ] Add regression tests for deleted-session behavior
 - [ ] Add regression tests for multi-process-safe durable IDs

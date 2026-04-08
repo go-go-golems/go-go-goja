@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/dop251/goja"
@@ -20,6 +19,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/jsdoc/extract"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
@@ -41,7 +41,6 @@ type Service struct {
 	factory            *engine.Factory
 	logger             zerolog.Logger
 	store              Persistence
-	nextID             uint64
 	sessions           map[string]*sessionState
 	defaultSessionOpts SessionOptions
 }
@@ -152,9 +151,7 @@ func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOpti
 	}
 	id := strings.TrimSpace(resolved.ID)
 	if id == "" {
-		id = fmt.Sprintf("session-%d", atomic.AddUint64(&s.nextID, 1))
-	} else {
-		s.noteSessionID(id)
+		id = newDefaultSessionID()
 	}
 	createdAt := resolved.CreatedAt.UTC()
 	if createdAt.IsZero() {
@@ -604,7 +601,6 @@ func (s *Service) RestoreSession(ctx context.Context, opts SessionOptions, histo
 	}
 	tmpState.logger = s.logger.With().Str("session", resolved.ID).Logger()
 	tmpState.mu.Unlock()
-	s.noteSessionID(resolved.ID)
 
 	s.mu.Lock()
 	if existing, ok := s.sessions[resolved.ID]; ok {
@@ -762,23 +758,8 @@ func (s *Service) resolveSessionOptions(opts SessionOptions) SessionOptions {
 	return NormalizeSessionOptions(base)
 }
 
-func (s *Service) noteSessionID(id string) {
-	if !strings.HasPrefix(id, "session-") {
-		return
-	}
-	var n uint64
-	if _, err := fmt.Sscanf(id, "session-%d", &n); err != nil || n == 0 {
-		return
-	}
-	for {
-		current := atomic.LoadUint64(&s.nextID)
-		if current >= n {
-			return
-		}
-		if atomic.CompareAndSwapUint64(&s.nextID, current, n) {
-			return
-		}
-	}
+func newDefaultSessionID() string {
+	return "session-" + uuid.NewString()
 }
 
 type bindingExportSnapshot struct {
