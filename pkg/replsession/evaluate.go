@@ -338,7 +338,10 @@ func wrapTopLevelAwaitExpression(source string) (string, bool) {
 
 func (s *sessionState) executeRaw(ctx context.Context, source string, policy SessionPolicy) (executionOutcome, error) {
 	outcome := executionOutcome{}
-	value, err := s.runString(ctx, source)
+	execCtx, cancel := evaluationContext(ctx, policy)
+	defer cancel()
+
+	value, err := s.runString(execCtx, source)
 	if err != nil {
 		return outcome, err
 	}
@@ -349,9 +352,7 @@ func (s *sessionState) executeRaw(ctx context.Context, source string, policy Ses
 	if promise, ok := value.Export().(*goja.Promise); ok {
 		if policy.Eval.SupportTopLevelAwait {
 			outcome.Awaited = true
-			execCtx, cancel := evaluationContext(ctx, policy)
 			value, err = s.waitPromise(execCtx, promise)
-			cancel()
 			if err != nil {
 				return outcome, err
 			}
@@ -369,7 +370,10 @@ func (s *sessionState) executeRaw(ctx context.Context, source string, policy Ses
 
 func (s *sessionState) executeWrapped(ctx context.Context, rewrite RewriteReport) (executionOutcome, error) {
 	outcome := executionOutcome{}
-	value, err := s.runString(ctx, rewrite.TransformedSource)
+	execCtx, cancel := evaluationContext(ctx, s.policy)
+	defer cancel()
+
+	value, err := s.runString(execCtx, rewrite.TransformedSource)
 	if err != nil {
 		return outcome, err
 	}
@@ -378,9 +382,7 @@ func (s *sessionState) executeWrapped(ctx context.Context, rewrite RewriteReport
 	}
 	if promise, ok := value.Export().(*goja.Promise); ok {
 		outcome.Awaited = true
-		execCtx, cancel := evaluationContext(ctx, s.policy)
 		value, err = s.waitPromise(execCtx, promise)
-		cancel()
 		if err != nil {
 			return outcome, err
 		}
@@ -396,9 +398,37 @@ func (s *sessionState) executeWrapped(ctx context.Context, rewrite RewriteReport
 }
 
 func (s *sessionState) runString(ctx context.Context, source string) (goja.Value, error) {
-	ret, err := s.runtime.Owner.Call(ctx, "replsession.run-string", func(_ context.Context, vm *goja.Runtime) (any, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := evaluationContextError(ctx); err != nil {
+		return nil, err
+	}
+
+	stopInterrupt := make(chan struct{})
+	interrupted := make(chan bool, 1)
+	go func() {
+		wasInterrupted := false
+		select {
+		case <-ctx.Done():
+			wasInterrupted = true
+			cause := evaluationContextError(ctx)
+			if cause == nil {
+				cause = context.Canceled
+			}
+			s.runtime.VM.Interrupt(cause)
+		case <-stopInterrupt:
+		}
+		interrupted <- wasInterrupted
+	}()
+
+	ret, err := s.runtime.Owner.Call(context.WithoutCancel(ctx), "replsession.run-string", func(_ context.Context, vm *goja.Runtime) (any, error) {
 		return vm.RunString(source)
 	})
+	close(stopInterrupt)
+	if <-interrupted {
+		s.runtime.VM.ClearInterrupt()
+	}
 	if err != nil {
 		return nil, err
 	}

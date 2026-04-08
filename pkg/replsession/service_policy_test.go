@@ -2,6 +2,7 @@ package replsession
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -128,5 +129,82 @@ func TestServiceRawAwaitPromiseTimeoutUsesEvalDeadline(t *testing.T) {
 	}
 	if !resp.Cell.Execution.Awaited {
 		t.Fatal("expected pending await to be marked awaited")
+	}
+}
+
+func TestServiceRawSyncRunawayTimeoutKeepsSessionUsable(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	opts := RawSessionOptions()
+	opts.Policy.Eval.TimeoutMS = 20
+
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithDefaultSessionOptions(opts))
+
+	session, err := service.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	resp, err := service.Evaluate(ctx, session.ID, "while (true) {}")
+	if err != nil {
+		t.Fatalf("evaluate runaway loop: %v", err)
+	}
+	if resp.Cell.Execution.Status != "timeout" {
+		t.Fatalf("expected timeout status, got %q", resp.Cell.Execution.Status)
+	}
+	if !strings.Contains(resp.Cell.Execution.Error, ErrEvaluationTimeout.Error()) {
+		t.Fatalf("expected timeout error to mention %q, got %q", ErrEvaluationTimeout.Error(), resp.Cell.Execution.Error)
+	}
+
+	next, err := service.Evaluate(ctx, session.ID, "1 + 1")
+	if err != nil {
+		t.Fatalf("evaluate after timeout: %v", err)
+	}
+	if next.Cell.Execution.Status != "ok" {
+		t.Fatalf("expected ok status after timeout, got %q", next.Cell.Execution.Status)
+	}
+	if next.Cell.Execution.Result != "2" {
+		t.Fatalf("expected result 2 after timeout, got %q", next.Cell.Execution.Result)
+	}
+}
+
+func TestServiceInteractiveSyncRunawayTimeoutKeepsSessionUsable(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	opts := InteractiveSessionOptions()
+	opts.Policy.Eval.TimeoutMS = 20
+
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithDefaultSessionOptions(opts))
+
+	session, err := service.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	resp, err := service.Evaluate(ctx, session.ID, "while (true) {}")
+	if err != nil {
+		t.Fatalf("evaluate runaway loop: %v", err)
+	}
+	if resp.Cell.Execution.Status != "timeout" {
+		t.Fatalf("expected timeout status, got %q", resp.Cell.Execution.Status)
+	}
+	if !strings.Contains(resp.Cell.Execution.Error, ErrEvaluationTimeout.Error()) {
+		t.Fatalf("expected timeout error to mention %q, got %q", ErrEvaluationTimeout.Error(), resp.Cell.Execution.Error)
+	}
+
+	next, err := service.Evaluate(ctx, session.ID, "const x = 41; x + 1")
+	if err != nil {
+		t.Fatalf("evaluate after timeout: %v", err)
+	}
+	if next.Cell.Execution.Status != "ok" {
+		t.Fatalf("expected ok status after timeout, got %q", next.Cell.Execution.Status)
+	}
+	if next.Cell.Execution.Result != "42" {
+		t.Fatalf("expected result 42 after timeout, got %q", next.Cell.Execution.Result)
+	}
+	if next.Session.BindingCount != 1 {
+		t.Fatalf("expected one tracked binding after recovery, got %d", next.Session.BindingCount)
 	}
 }
