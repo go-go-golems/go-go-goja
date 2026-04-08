@@ -1,0 +1,136 @@
+---
+Title: Investigation diary
+Ticket: GOJA-042-REPL-CLEANUP
+Status: active
+Topics:
+    - goja
+    - go
+    - repl
+    - refactor
+    - analysis
+DocType: reference
+Intent: long-term
+Owners: []
+RelatedFiles: []
+ExternalSources: []
+Summary: "Chronological notes for the REPL cleanup/refactor design guide."
+LastUpdated: 2026-04-07T10:00:00-04:00
+WhatFor: "Record the reasoning behind the cleanup/refactor follow-up design."
+WhenToUse: "Use when retracing why GOJA-042 is intentionally separated from correctness work."
+---
+
+# Investigation diary
+
+## Why this ticket exists
+
+The reviews found real cleanup work, but that work should not be mixed into the correctness PRs.
+
+The main cleanup topics are:
+
+- `pkg/replsession/service.go` is too large and too responsibility-dense
+- app-level and kernel-level `SessionOptions` are easy to confuse
+- the older evaluator path still exists through the Bobatea adapter and needs an explicit plan
+
+## Files to understand first
+
+- [pkg/replsession/service.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go)
+- [pkg/replsession/rewrite.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/rewrite.go)
+- [pkg/replsession/policy.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/policy.go)
+- [pkg/replapi/config.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replapi/config.go)
+- [pkg/repl/adapters/bobatea/javascript.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/javascript.go)
+- [pkg/repl/evaluators/javascript/evaluator.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go)
+
+## Main design stance
+
+This ticket should improve readability and responsibility boundaries without changing semantics unnecessarily. It is a cleanup ticket, not a hidden behavior-change ticket.
+
+## 2026-04-08 implementation session
+
+This first implementation step focused on the highest-signal cleanup target without mixing in naming or product-facing API work. The goal was to make `pkg/replsession` easier to read by lifting the evaluation-specific code out of the giant service file while keeping the public shape and behavior stable.
+
+The result is a new [evaluate.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/evaluate.go) file that now owns the evaluation pipeline. [service.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go) still holds lifecycle, persistence shaping, snapshotting, summary building, and binding/runtime support code, but it is materially smaller and less responsibility-dense than before.
+
+### Step 1: Extract evaluation orchestration into `evaluate.go`
+
+**User prompt (verbatim):** "ok, continue with GOJA-042"
+
+**Assistant interpretation:** Start implementing the cleanup ticket, using the same staged workflow as the earlier tickets instead of leaving GOJA-042 as design-only documentation.
+
+**Inferred user intent:** Reduce the structural complexity of the REPL kernel in reviewable increments while keeping the work traceable and low-risk.
+
+### What I did
+
+- Added [evaluate.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/evaluate.go).
+- Moved the evaluation cluster out of [service.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go):
+  - `Service.Evaluate`
+  - `shouldAnalyze`
+  - `buildRewriteReport`
+  - `provenanceForPolicy`
+  - `evaluateInstrumented`
+  - `evaluateRaw`
+  - `wrapTopLevelAwaitExpression`
+  - `executeRaw`
+  - `executeWrapped`
+  - `runString`
+  - `waitPromise`
+  - `persistWrappedReturn`
+  - `promisePreview`
+  - evaluation-only helper structs
+- Kept the utility helpers `executionStatus`, `errorString`, `evaluationContext`, `evaluationContextError`, and `gojaValuePreview` in `service.go` because they are still referenced from other non-evaluation helpers.
+- Formatted the files and validated with:
+  - `go test ./pkg/replsession ./pkg/replapi`
+
+### Why
+
+- This cluster is the most coherent responsibility boundary in `service.go`.
+- Extracting it first reduces file size and cognitive load without forcing any naming or architectural decisions elsewhere.
+- It is the best first slice because future timeout/rewrite/runtime-eval work should no longer require reading through persistence and summary code in the same file.
+
+### What worked
+
+- The move was mostly mechanical and did not require function renames.
+- Package tests passed after the extraction.
+- The resulting split is more legible: evaluation flow is now grouped together in one file.
+
+### What didn't work
+
+- During the first full package validation, `TestServiceRawAwaitPromiseTimeoutUsesEvalDeadline` failed once with `expected timeout status, got "runtime-error"`.
+- The same test passed immediately when run in isolation, and the full package run passed on rerun.
+- Because the extracted code path did not intentionally change the timeout logic, I treated this as a pre-existing timing-sensitive edge rather than proof of a cleanup regression.
+
+### What I learned
+
+- `pkg/replsession` is ready for incremental file extraction without a broad redesign.
+- The evaluation cluster is cohesive enough to live in its own file cleanly.
+- The timeout test likely has some timing sensitivity that predates the cleanup work and should be stabilized separately rather than hidden inside GOJA-042.
+
+### What was tricky to build
+
+- The main risk in a cleanup PR like this is accidental semantic drift from a "mechanical" move.
+- To avoid that, I moved the whole evaluation cluster together instead of partially splitting it across multiple files, and I avoided renaming symbols in the same step.
+- Another subtle point was deciding which small helpers should stay in `service.go`; I left shared utilities there instead of forcing a second split in the same patch.
+
+### What warrants a second pair of eyes
+
+- Verify that the file split really stayed mechanical and did not subtly alter the order of evaluation-side effects.
+- Keep an eye on the promise-timeout test behavior in future runs; if it flakes again, stabilize it in a dedicated change instead of smuggling test semantics work into GOJA-042.
+
+### What should be done in the future
+
+- Extract the persistence/snapshot helpers next.
+- Then revisit the `replapi.SessionOptions` vs `replsession.SessionOptions` naming boundary.
+- Keep the older evaluator-path decision as a separate explicit cleanup step rather than bundling it into the file split.
+
+### Code review instructions
+
+- Start with [evaluate.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/evaluate.go) to review the new responsibility boundary.
+- Then compare it against the slimmer [service.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go).
+- Validate with:
+  - `go test ./pkg/replsession ./pkg/replapi`
+
+### Technical details
+
+- Before this change, `service.go` contained both lifecycle and evaluation orchestration.
+- After this change:
+  - `evaluate.go` owns the evaluation pipeline
+  - `service.go` still owns lifecycle, persistence shaping, snapshots, binding/runtime details, and summaries

@@ -1,0 +1,15 @@
+# Changelog
+
+## 2026-04-07
+
+- Created ticket `GOJA-042-REPL-CLEANUP`.
+- Added a detailed design and implementation guide for the cleanup/refactor follow-up.
+- Scoped this work as lower-priority architecture cleanup to be done after correctness work lands.
+- Validated the ticket with `docmgr doctor` and uploaded the bundle to reMarkable.
+
+## 2026-04-08
+
+- Extracted the evaluation cluster from `pkg/replsession/service.go` into the new file `pkg/replsession/evaluate.go`.
+- Kept function names and behavior stable on purpose; this slice is a structural refactor, not a semantics change.
+- Validated the refactor with `go test ./pkg/replsession ./pkg/replapi`.
+- Noted one existing timing-sensitive edge during validation: `TestServiceRawAwaitPromiseTimeoutUsesEvalDeadline` failed once in a full package run, then passed in isolation and on rerun.
