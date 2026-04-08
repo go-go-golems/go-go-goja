@@ -14,7 +14,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Chronological notes for the evaluation-control design guide."
-LastUpdated: 2026-04-07T10:00:00-04:00
+LastUpdated: 2026-04-08T18:29:00-04:00
 WhatFor: "Record the reasoning behind the timeout and interruption design."
 WhenToUse: "Use when retracing why GOJA-041 was separated from persistence and cleanup."
 ---
@@ -49,7 +49,7 @@ Without that answer, the REPL has no durable execution contract.
 
 ## 2026-04-08 implementation session
 
-This session produced a safe partial GOJA-041 slice rather than the full timeout-and-recovery design. The code now has an explicit evaluation-timeout field in session policy, and promise waiting honors that deadline, but synchronous runaway JavaScript execution is still blocked on the runtime stack behavior described below.
+This session initially produced a safe partial GOJA-041 slice rather than the full timeout-and-recovery design. The code first gained an explicit evaluation-timeout field in session policy, and promise waiting began honoring that deadline, while synchronous runaway JavaScript execution remained blocked pending a better understanding of the runtime stack.
 
 The main reason for stopping short is that the straightforward design did not hold under test. A direct `goja.Runtime.Interrupt(...)` attempt did not unwind a runaway `RunString(...)` when execution was happening under the repository's `goja_nodejs/eventloop` model, so shipping a "timeout" response for synchronous infinite loops would have been misleading and unsafe.
 
@@ -139,9 +139,91 @@ The main reason for stopping short is that the straightforward design did not ho
   - `await Promise.resolve(9)` in raw mode can succeed when `SupportTopLevelAwait` is enabled.
   - `const x = await Promise.resolve(3)` in raw mode still fails because the wrapper only supports the expression-prefix case.
   - `await new Promise(() => {})` now times out when `timeoutMs` is set.
-- Current unresolved behavior:
-  - synchronous runaway `while (true) {}` execution is still not safely recoverable under the current event-loop-backed runtime stack.
+- At that point in the investigation, synchronous runaway `while (true) {}` execution still appeared unresolved.
 - Repro scripts:
   - [01-goja-plain-runtime-interrupt/main.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/01-goja-plain-runtime-interrupt/main.go): plain upstream `goja` interrupt works for async IIFE runaway code.
   - [02-goja-nodejs-eventloop-interrupt/main.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/02-goja-nodejs-eventloop-interrupt/main.go): `eventloop` repro that times out waiting.
   - [03-eventloop-same-vm-check/main.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/03-eventloop-same-vm-check/main.go): confirms the loop runtime is not the same pointer as an independently created runtime.
+
+## 2026-04-08 follow-up session
+
+The earlier blocker turned out to be real evidence, but only for the wrong path. The key correction was noticing that the repository's `engine.Runtime` does not evaluate against the `eventloop`'s internal VM. It creates its own `goja.New()` runtime, then uses the event loop as a scheduler while `runtimeowner.Runner` invokes closures against `rt.VM`.
+
+That means the right question was not:
+
+"Can I interrupt `eventloop.NewEventLoop().vm` from outside?"
+
+It was:
+
+"Can I interrupt `engine.Runtime.VM` while `runtimeowner.Runner.Call(...)` is executing `vm.RunString(...)` on the owner goroutine?"
+
+### Step 2: Build the decisive engine-path repro
+
+I added [04-engine-runtimeowner-interrupt-sync-loop/main.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/04-engine-runtimeowner-interrupt-sync-loop/main.go) to test the actual runtime stack used by `replsession`.
+
+That script prints:
+
+- whether the callback VM is the same object as `rt.VM`
+- whether `Interrupt(...)` unwinds a synchronous `while (true) {}`
+- whether `errors.Is(...)` still sees the original interrupt cause
+- whether `ClearInterrupt()` makes the VM reusable
+
+### What it showed
+
+The result was:
+
+- `sameVM true`
+- the interrupt error came back from `RunString(...)`
+- `errors.Is(err, interruptErr) == true`
+- `postInterrupt value=2 err=<nil>`
+
+That is the decisive missing fact. The real engine/runtimeowner path is interruptible and recoverable after clearing the interrupt flag.
+
+### Step 3: Implement synchronous timeout interruption in `replsession`
+
+With that experiment in hand, I updated [pkg/replsession/evaluate.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/evaluate.go).
+
+The implementation change is:
+
+- create one evaluation deadline context per cell
+- use that same context for both:
+  - `RunString(...)`
+  - later promise waiting, if the result is a promise
+- start a watcher goroutine that waits for the deadline context to finish
+- on timeout/cancellation, call `s.runtime.VM.Interrupt(cause)`
+- keep `Owner.Call(...)` itself on `context.WithoutCancel(ctx)` so it waits for the evaluation to actually unwind instead of returning early just because the timeout context fired
+- after the call returns, clear the interrupt flag if an interrupt was delivered
+
+That last point matters. If `Owner.Call(...)` were allowed to return immediately on `ctx.Done()`, the service could report timeout before the owner goroutine had actually unwound `RunString(...)`, which would make `ClearInterrupt()` unsafe and would not truly guarantee session recovery.
+
+### Why this design is correct
+
+- It uses the actual runtime object being evaluated.
+- It lets `goja` surface the interrupt as the evaluation error.
+- `errors.Is(...)` still sees the original timeout cause, so status classification remains sound.
+- The runtime is explicitly reset with `ClearInterrupt()` only after the interrupted call returns.
+
+### Step 4: Prove recovery with tests
+
+I added recovery tests in [pkg/replsession/service_policy_test.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service_policy_test.go):
+
+- raw session:
+  - `while (true) {}` returns `status == "timeout"`
+  - a subsequent `1 + 1` succeeds
+- interactive session:
+  - `while (true) {}` returns `status == "timeout"`
+  - a subsequent `const x = 41; x + 1` succeeds
+  - binding tracking still works after recovery
+
+### What I learned
+
+- The original eventloop repro was still useful, but only as a clue that VM identity mattered.
+- The actual production path is interruptible today.
+- The important engineering detail is not just "call Interrupt", but "wait for the owner call to finish unwinding before clearing the interrupt and reusing the runtime."
+
+### Updated current state
+
+- Promise deadlines are implemented.
+- Synchronous runaway timeout interruption is implemented.
+- Session reuse after timeout is covered by tests.
+- The remaining GOJA-041 question is no longer "is this possible?" but whether there are any additional cancellation semantics or edge cases worth tightening beyond the current design.
