@@ -14,7 +14,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Chronological notes for the REPL cleanup/refactor design guide."
-LastUpdated: 2026-04-07T10:00:00-04:00
+LastUpdated: 2026-04-08T18:16:00-04:00
 WhatFor: "Record the reasoning behind the cleanup/refactor follow-up design."
 WhenToUse: "Use when retracing why GOJA-042 is intentionally separated from correctness work."
 ---
@@ -134,3 +134,98 @@ The result is a new [evaluate.go](/home/manuel/workspaces/2026-04-03/js-repl-sma
 - After this change:
   - `evaluate.go` owns the evaluation pipeline
   - `service.go` still owns lifecycle, persistence shaping, snapshots, binding/runtime details, and summaries
+
+### Step 2: Extract persistence shaping into `persistence.go`
+
+After the evaluation split, the next most coherent cluster was the code that turns a finished cell report into durable database records. That code had nothing to do with session lifecycle, but it still lived in `service.go` because the original file had grown organically.
+
+The result is a new [persistence.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/persistence.go) file. It now owns:
+
+- `persistCell`
+- `bindingPersistenceRecords`
+- `snapshotBindingExports`
+- `classifyBindingExport`
+- `bindingVersionRecord`
+- `bindingRemovalRecord`
+- `extractBindingDocs`
+- export snapshot helper types and defaults
+
+### What I did
+
+- Added [persistence.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/persistence.go).
+- Moved the persistence-only helpers out of [service.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go) without renaming them.
+- Kept `resolveSessionOptions` and session creation logic in `service.go` because those are still lifecycle concerns.
+- Validated with:
+  - `go test ./pkg/replsession ./pkg/replapi`
+
+### Why
+
+- Persistence shaping is a distinct responsibility from evaluation and session lifecycle.
+- This split makes it much easier to review database write behavior without mentally filtering out runtime bootstrap code.
+- It also makes future persistence changes lower-risk because there is now one focused file for that behavior.
+
+### What worked
+
+- The split was fully mechanical.
+- Package tests passed immediately after the move.
+- `service.go` dropped from 1175 lines to 890 lines after this slice.
+
+### What I learned
+
+- The persistence path is cohesive enough to stand alone cleanly.
+- The REPL session package can be split by responsibility without introducing awkward circular dependencies.
+
+### Step 3: Extract runtime observation and summary shaping into `observe.go`
+
+Once persistence was separate, the remaining large cluster in [service.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go) was the runtime-observation code: global snapshots, binding runtime refresh, property/prototype inspection, and summary assembly. That is also a coherent subsystem, so it became the next cleanup slice.
+
+The result is a new [observe.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/observe.go) file. It now owns:
+
+- runtime global snapshot helpers
+- binding/runtime detail refresh
+- property and prototype inspection helpers
+- summary shaping (`buildSummary*`)
+- binding view shaping
+
+### What I did
+
+- Added [observe.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/observe.go).
+- Moved the observation and summary helpers out of [service.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go).
+- Left smaller shared helpers like `executionStatus`, `evaluationContext`, `firstDiagnosticMessage`, and `dedupeSortedStrings` in `service.go` because they are still used across the package.
+- Validated with:
+  - `go test ./pkg/replsession ./pkg/replapi`
+
+### Why
+
+- This split finally makes the remaining `service.go` file read like a service rather than a dump of every helper in the subsystem.
+- The runtime-observation code is easier to review when it is not interleaved with session construction and persistence writes.
+- This file boundary matches how a new engineer would actually reason about the subsystem: evaluate, persist, observe, then lifecycle.
+
+### What worked
+
+- The refactor stayed mechanical.
+- Focused package tests passed.
+- The pre-commit hook reran lint and full `go test ./...` successfully.
+- `service.go` dropped again, from 890 lines to 467 lines.
+
+### What was tricky
+
+- The only failed attempt in this slice was my first oversized patch. It mismatched the live file because `bindingViewFromState` had gained provenance fields that were not reflected in the removal hunk I prepared.
+- I stopped, reread the file, and reapplied the extraction in smaller patches instead of forcing the edit.
+
+### What I learned
+
+- The file layout is now much closer to the intended mental model:
+  - [service.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go): lifecycle and setup
+  - [evaluate.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/evaluate.go): evaluation flow
+  - [persistence.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/persistence.go): durable write shaping
+  - [observe.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/observe.go): runtime observation and summaries
+- At this point, the remaining cleanup work is no longer “split the giant file”; it is mostly naming and legacy-path decisions.
+
+### Updated code review instructions
+
+- Start with [service.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/service.go) and confirm that it now reads as lifecycle/setup code.
+- Review [evaluate.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/evaluate.go), [persistence.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/persistence.go), and [observe.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replsession/observe.go) as three explicit responsibility areas.
+- Validate with:
+  - `go test ./pkg/replsession ./pkg/replapi`
+  - `go test ./...`
