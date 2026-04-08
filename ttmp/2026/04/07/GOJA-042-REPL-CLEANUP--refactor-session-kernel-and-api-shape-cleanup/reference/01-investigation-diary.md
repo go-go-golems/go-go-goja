@@ -14,7 +14,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Chronological notes for the REPL cleanup/refactor design guide."
-LastUpdated: 2026-04-08T18:16:00-04:00
+LastUpdated: 2026-04-08T18:19:30-04:00
 WhatFor: "Record the reasoning behind the cleanup/refactor follow-up design."
 WhenToUse: "Use when retracing why GOJA-042 is intentionally separated from correctness work."
 ---
@@ -229,3 +229,68 @@ The result is a new [observe.go](/home/manuel/workspaces/2026-04-03/js-repl-smai
 - Validate with:
   - `go test ./pkg/replsession ./pkg/replapi`
   - `go test ./...`
+
+### Step 4: Clarify the app-layer option boundary instead of breaking it
+
+The review correctly identified that `replapi.SessionOptions` and `replsession.SessionOptions` are easy to confuse. After revisiting the boundary in code, I decided not to rename the public API in GOJA-042. That would create churn across callers for a cleanup ticket, and the package-qualified names already carry the layer distinction if the comments are explicit enough.
+
+So the cleanup decision was:
+
+- keep the public type names as they are
+- improve comments to explain the layer split
+- rename the internal helper from `resolveSessionOptions` to `resolveCreateSessionOptions`
+- add a focused test to pin the app-layer override semantics
+
+### Why this is the right cleanup level
+
+- It improves readability without creating a migration chore for callers.
+- It makes the app-layer type read as "create-session overrides" instead of "yet another full session config object."
+- It leaves any future public rename as an explicit product/API decision instead of sneaking it into a refactor ticket.
+
+### What I changed
+
+- Updated [pkg/replapi/config.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replapi/config.go) comments to distinguish:
+  - app-layer session creation overrides
+  - kernel/session-layer default policy objects
+- Renamed the internal helper in [pkg/replapi/config.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replapi/config.go) and [pkg/replapi/app.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replapi/app.go) from `resolveSessionOptions` to `resolveCreateSessionOptions`.
+- Added [config_test.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replapi/config_test.go) to cover:
+  - profile preset override behavior
+  - preservation of explicit `ID` and `CreatedAt`
+  - explicit policy override behavior
+
+### Step 5: Decide the status of the Bobatea evaluator path
+
+I rechecked the old evaluator path before accepting the earlier review claim that it looked deprecated. The code says otherwise.
+
+Relevant usage points include:
+
+- [cmd/goja-repl/tui.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/goja-repl/tui.go)
+- [cmd/smalltalk-inspector/app/repl_widgets.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/cmd/smalltalk-inspector/app/repl_widgets.go)
+- [pkg/repl/adapters/bobatea/javascript.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/javascript.go)
+- [pkg/repl/adapters/bobatea/replapi.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/replapi.go)
+- [pkg/repl/evaluators/javascript/evaluator.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go)
+
+### Decision
+
+- Do not mark this path deprecated.
+- Do not remove or consolidate it inside GOJA-042.
+- Document that it remains the Bobatea/TUI-facing evaluator surface, while `replsession` is the session-kernel path.
+
+### Why
+
+- It still has real call sites.
+- It still has its own tests.
+- It solves a different problem: TUI assistance/evaluator contracts rather than durable session lifecycle.
+
+### What I changed
+
+- Added clarifying comments to:
+  - [pkg/repl/evaluators/javascript/evaluator.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go)
+  - [pkg/repl/adapters/bobatea/replapi.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/repl/adapters/bobatea/replapi.go)
+
+### Final state after this session
+
+- The giant `pkg/replsession/service.go` split work is done.
+- The app-vs-kernel option naming confusion is reduced without a breaking rename.
+- The Bobatea evaluator path has an explicit "kept and documented" decision.
+- There is now a small test guarding the option-resolution boundary.

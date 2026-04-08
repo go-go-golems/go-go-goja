@@ -17,3 +17,6 @@
 - Extracted runtime observation, binding runtime refresh, global snapshot/diff logic, and summary shaping into the new file `pkg/replsession/observe.go`.
 - Reduced `pkg/replsession/service.go` from 1175 lines after the first split to 467 lines after the persistence and observation splits.
 - Revalidated both cleanup slices with `go test ./pkg/replsession ./pkg/replapi`, and the pre-commit hook reran full lint and `go test ./...` successfully on both commits.
+- Clarified the `replapi.SessionOptions` vs `replsession.SessionOptions` boundary with stronger comments and by renaming the internal resolver to `resolveCreateSessionOptions`.
+- Documented in code that the Bobatea evaluator path remains an active TUI-oriented integration surface rather than deprecated compatibility code.
+- Added [config_test.go](/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replapi/config_test.go) to pin app-layer option resolution behavior.
