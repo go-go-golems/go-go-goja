@@ -9,3 +9,4 @@
 - Implemented the first code slice: hidden-session semantics for deleted durable sessions, plus regression tests in `repldb` and `replapi`.
 - Implemented the second code slice: collision-resistant default session IDs, removed the process-local counter, and added session-creation regression tests.
 - Implemented the third code slice: connection-open SQLite integrity settings via DSN configuration, plus multi-connection pragma regression tests.
+- Validated the completed GOJA-040 ticket again after implementation and prepared the remaining ticket guide files for commit.

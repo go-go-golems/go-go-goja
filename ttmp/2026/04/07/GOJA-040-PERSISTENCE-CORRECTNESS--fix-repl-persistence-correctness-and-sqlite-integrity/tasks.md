@@ -17,5 +17,5 @@
 - [x] Add regression tests for deleted-session behavior
 - [x] Add regression tests for multi-process-safe durable IDs
 - [x] Add regression tests or probes for SQLite foreign key enforcement
-- [ ] Keep the implementation diary updated after each slice
-- [ ] Commit each stable slice with focused commit messages
+- [x] Keep the implementation diary updated after each slice
+- [x] Commit each stable slice with focused commit messages
