@@ -109,3 +109,32 @@ Additional regression coverage:
 
 - two independent services sharing the same store now generate different IDs
 - explicit `SessionOptions.ID` is still honored unchanged
+
+### Commit 3: connection-open SQLite integrity settings
+
+Implemented the final planned slice by moving the desired SQLite connection settings into the DSN passed to `sql.Open(...)`.
+
+Settings now requested at connection-open time:
+
+- foreign keys on
+- busy timeout set
+- WAL journal mode requested
+
+Why this matters:
+
+- the original bug was not about schema bootstrap
+- the original bug was that pooled later connections might not inherit the one bootstrap-time pragma
+
+Added regression coverage:
+
+- verifies `PRAGMA foreign_keys` on two live connections
+- verifies `PRAGMA busy_timeout`
+- verifies `PRAGMA journal_mode`
+
+Validation:
+
+```bash
+go test ./pkg/repldb ./pkg/replapi ./pkg/replsession
+```
+
+At this point, the planned GOJA-040 implementation slices are complete.

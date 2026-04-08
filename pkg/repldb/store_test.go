@@ -50,6 +50,71 @@ func TestOpenBootstrapsSchema(t *testing.T) {
 	}
 }
 
+func TestOpenAppliesSQLiteConnectionSettings(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "repl.sqlite")
+
+	store, err := Open(ctx, path)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Fatalf("close store: %v", err)
+		}
+	}()
+
+	store.DB().SetMaxOpenConns(2)
+
+	conn1, err := store.DB().Conn(ctx)
+	if err != nil {
+		t.Fatalf("first conn: %v", err)
+	}
+	defer func() {
+		if err := conn1.Close(); err != nil {
+			t.Fatalf("close first conn: %v", err)
+		}
+	}()
+
+	conn2, err := store.DB().Conn(ctx)
+	if err != nil {
+		t.Fatalf("second conn: %v", err)
+	}
+	defer func() {
+		if err := conn2.Close(); err != nil {
+			t.Fatalf("close second conn: %v", err)
+		}
+	}()
+
+	for idx, conn := range []*sql.Conn{conn1, conn2} {
+		var foreignKeys int
+		if err := conn.QueryRowContext(ctx, `PRAGMA foreign_keys;`).Scan(&foreignKeys); err != nil {
+			t.Fatalf("conn %d foreign_keys: %v", idx+1, err)
+		}
+		if foreignKeys != 1 {
+			t.Fatalf("expected conn %d foreign_keys=1, got %d", idx+1, foreignKeys)
+		}
+
+		var busyTimeout int
+		if err := conn.QueryRowContext(ctx, `PRAGMA busy_timeout;`).Scan(&busyTimeout); err != nil {
+			t.Fatalf("conn %d busy_timeout: %v", idx+1, err)
+		}
+		if busyTimeout < 5000 {
+			t.Fatalf("expected conn %d busy_timeout >= 5000, got %d", idx+1, busyTimeout)
+		}
+	}
+
+	var journalMode string
+	if err := conn1.QueryRowContext(ctx, `PRAGMA journal_mode;`).Scan(&journalMode); err != nil {
+		t.Fatalf("journal_mode: %v", err)
+	}
+	if journalMode != "wal" {
+		t.Fatalf("expected journal_mode wal, got %q", journalMode)
+	}
+}
+
 func TestOpenRejectsEmptyPath(t *testing.T) {
 	t.Parallel()
 

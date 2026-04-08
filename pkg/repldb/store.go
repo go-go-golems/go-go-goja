@@ -3,8 +3,10 @@ package repldb
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
@@ -29,7 +31,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		return nil, errors.Wrap(err, "open repl db: creating sqlite directory")
 	}
 
-	db, err := sql.Open("sqlite3", path)
+	db, err := sql.Open("sqlite3", sqliteDSN(path))
 	if err != nil {
 		return nil, errors.Wrap(err, "open repl db: opening sqlite")
 	}
@@ -89,4 +91,12 @@ func (s *Store) bootstrap(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func sqliteDSN(path string) string {
+	separator := "?"
+	if strings.Contains(path, "?") {
+		separator = "&"
+	}
+	return fmt.Sprintf("%s%s_foreign_keys=on&_busy_timeout=5000&_journal_mode=WAL", path, separator)
 }
