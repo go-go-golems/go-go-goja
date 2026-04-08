@@ -2,6 +2,7 @@ package replapi
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -142,6 +143,51 @@ func TestAppSessionOverrideCanDropFromPersistentToRaw(t *testing.T) {
 	}
 	if len(sessions) != 0 {
 		t.Fatalf("expected raw override session to avoid durable storage, got %d persisted sessions", len(sessions))
+	}
+}
+
+func TestAppDeletedSessionIsHiddenFromRestoreAndHistory(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := openTestStore(t)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Fatalf("close store: %v", err)
+		}
+	}()
+
+	factory := newTestFactory(t)
+	app, err := New(factory, zerolog.Nop(), WithProfile(ProfilePersistent), WithStore(store))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+
+	session, err := app.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := app.Evaluate(ctx, session.ID, "const x = 1; x"); err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if err := app.DeleteSession(ctx, session.ID); err != nil {
+		t.Fatalf("delete session: %v", err)
+	}
+
+	if sessions, err := app.ListSessions(ctx); err != nil {
+		t.Fatalf("list sessions: %v", err)
+	} else if len(sessions) != 0 {
+		t.Fatalf("expected deleted session to be hidden from list, got %d rows", len(sessions))
+	}
+
+	if _, err := app.Restore(ctx, session.ID); !errors.Is(err, repldb.ErrSessionNotFound) {
+		t.Fatalf("expected restore to return ErrSessionNotFound, got %v", err)
+	}
+	if _, err := app.History(ctx, session.ID); !errors.Is(err, repldb.ErrSessionNotFound) {
+		t.Fatalf("expected history to return ErrSessionNotFound, got %v", err)
+	}
+	if _, err := app.Export(ctx, session.ID); !errors.Is(err, repldb.ErrSessionNotFound) {
+		t.Fatalf("expected export to return ErrSessionNotFound, got %v", err)
 	}
 }
 

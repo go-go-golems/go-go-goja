@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -231,6 +232,67 @@ func TestExportSessionAndReplaySource(t *testing.T) {
 	}
 	if len(replaySource) != 1 || replaySource[0] != "const x = {answer: 42}" {
 		t.Fatalf("unexpected replay source: %#v", replaySource)
+	}
+}
+
+func TestDeletedSessionsAreHiddenFromNormalReads(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := openTestStore(t)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Fatalf("close store: %v", err)
+		}
+	}()
+
+	createdAt := time.Date(2026, 4, 8, 12, 0, 0, 0, time.UTC)
+	sessionID := "session-deleted"
+	if err := store.CreateSession(ctx, SessionRecord{
+		SessionID:  sessionID,
+		CreatedAt:  createdAt,
+		UpdatedAt:  createdAt,
+		EngineKind: "goja",
+	}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := store.PersistEvaluation(ctx, EvaluationRecord{
+		SessionID:         sessionID,
+		CellID:            1,
+		CreatedAt:         createdAt.Add(time.Second),
+		RawSource:         "1 + 1",
+		RewrittenSource:   "1 + 1",
+		OK:                true,
+		ResultJSON:        json.RawMessage(`{"result":"2"}`),
+		AnalysisJSON:      json.RawMessage(`{}`),
+		GlobalsBeforeJSON: json.RawMessage(`[]`),
+		GlobalsAfterJSON:  json.RawMessage(`[]`),
+	}); err != nil {
+		t.Fatalf("persist evaluation: %v", err)
+	}
+	if err := store.DeleteSession(ctx, sessionID, createdAt.Add(2*time.Second)); err != nil {
+		t.Fatalf("delete session: %v", err)
+	}
+
+	sessions, err := store.ListSessions(ctx)
+	if err != nil {
+		t.Fatalf("list sessions: %v", err)
+	}
+	if len(sessions) != 0 {
+		t.Fatalf("expected deleted session to be hidden from list, got %d rows", len(sessions))
+	}
+
+	if _, err := store.LoadSession(ctx, sessionID); !errors.Is(err, ErrSessionNotFound) {
+		t.Fatalf("expected load session to return ErrSessionNotFound, got %v", err)
+	}
+	if _, err := store.LoadEvaluations(ctx, sessionID); !errors.Is(err, ErrSessionNotFound) {
+		t.Fatalf("expected load evaluations to return ErrSessionNotFound, got %v", err)
+	}
+	if _, err := store.ExportSession(ctx, sessionID); !errors.Is(err, ErrSessionNotFound) {
+		t.Fatalf("expected export session to return ErrSessionNotFound, got %v", err)
+	}
+	if _, err := store.LoadReplaySource(ctx, sessionID); !errors.Is(err, ErrSessionNotFound) {
+		t.Fatalf("expected replay source to return ErrSessionNotFound, got %v", err)
 	}
 }
 

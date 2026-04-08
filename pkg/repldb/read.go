@@ -26,6 +26,7 @@ func (s *Store) ListSessions(ctx context.Context) ([]SessionRecord, error) {
 		ctx,
 		`SELECT session_id, created_at, updated_at, deleted_at, engine_kind, metadata_json
 		 FROM sessions
+		 WHERE deleted_at IS NULL
 		 ORDER BY created_at ASC, session_id ASC`,
 	)
 	if err != nil {
@@ -65,7 +66,7 @@ func (s *Store) LoadSession(ctx context.Context, sessionID string) (SessionRecor
 		ctx,
 		`SELECT session_id, created_at, updated_at, deleted_at, engine_kind, metadata_json
 		 FROM sessions
-		 WHERE session_id = ?`,
+		 WHERE session_id = ? AND deleted_at IS NULL`,
 		sessionID,
 	).Scan(
 		&record.SessionID,
@@ -100,6 +101,9 @@ func (s *Store) LoadEvaluations(ctx context.Context, sessionID string) ([]Evalua
 		return nil, errors.New("load evaluations: session id is empty")
 	}
 	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if _, err := s.LoadSession(ctx, sessionID); err != nil {
 		return nil, err
 	}
 
