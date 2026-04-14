@@ -46,6 +46,12 @@ func (r *Registry) Commands() ([]cmds.Command, error) {
 	return commands, nil
 }
 
+// CommandDescriptionForVerb exposes the command schema/description building path
+// without forcing callers to use the default runtime-owning command wrappers.
+func (r *Registry) CommandDescriptionForVerb(verb *VerbSpec) (*cmds.CommandDescription, error) {
+	return r.buildDescription(verb)
+}
+
 func (r *Registry) commandForVerb(verb *VerbSpec) (cmds.Command, error) {
 	description, err := r.buildDescription(verb)
 	if err != nil {
