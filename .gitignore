@@ -27,4 +27,6 @@ dist/
 cmd/bun-demo/js/node_modules/
 cmd/bun-demo/js/dist/
 cmd/bun-demo/js/dist-split/
+web/node_modules/
+web/storybook-static/
 sinspect.log

@@ -70,6 +70,7 @@ func newRootCommand(out io.Writer) (*cobra.Command, error) {
 		newExportCommand(out, opts),
 		newRestoreCommand(out, opts),
 		newServeCommand(out, opts),
+		newEssayCommand(out, opts),
 		newTUICommand(out, opts),
 	}
 	for _, command := range commands {

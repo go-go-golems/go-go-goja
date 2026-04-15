@@ -87,6 +87,27 @@ func TestTUICommandHelp(t *testing.T) {
 	}
 }
 
+func TestEssayCommandHelp(t *testing.T) {
+	t.Parallel()
+
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	root.SetArgs([]string{"essay", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute essay help: %v", err)
+	}
+	rendered := out.String()
+	if !strings.Contains(rendered, "interactive REPL essay") {
+		t.Fatalf("expected essay help to describe the interactive REPL essay, got %q", rendered)
+	}
+	if !strings.Contains(rendered, "--addr") {
+		t.Fatalf("expected essay help to describe --addr, got %q", rendered)
+	}
+}
+
 func TestParseTUIProfile(t *testing.T) {
 	t.Parallel()
 
