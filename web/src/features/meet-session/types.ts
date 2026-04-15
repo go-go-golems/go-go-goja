@@ -110,6 +110,18 @@ export type EvaluationBootstrapResponse = {
   rawRoutes: RouteRef[];
 };
 
+export type PersistenceBootstrapResponse = {
+  section: SectionSpec;
+  seedSources: ExampleSourceSpec[];
+  rawRoutes: RouteRef[];
+};
+
+export type TimeoutBootstrapResponse = {
+  section: SectionSpec;
+  scenarios: ExampleSourceSpec[];
+  rawRoutes: RouteRef[];
+};
+
 export type EvaluateResponse = {
   session: SessionSummary;
   cell: CellReport;
@@ -234,4 +246,34 @@ export type BindingView = {
 export type BindingRuntimeView = {
   valueKind: string;
   preview: string;
+};
+
+export type SessionRecord = {
+  SessionID: string;
+  CreatedAt: string;
+  UpdatedAt: string;
+  DeletedAt?: string | null;
+  EngineKind: string;
+  MetadataJSON?: string;
+};
+
+export type HistoryResponse = {
+  history: EvaluationRecord[];
+};
+
+export type EvaluationRecord = {
+  EvaluationID: number;
+  SessionID: string;
+  CellID: number;
+  CreatedAt: string;
+  RawSource: string;
+  RewrittenSource: string;
+  OK: boolean;
+  ResultJSON?: unknown;
+  ErrorText?: string;
+};
+
+export type SessionExport = {
+  Session: SessionRecord;
+  Evaluations: EvaluationRecord[];
 };

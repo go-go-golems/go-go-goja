@@ -18,6 +18,8 @@ import { setActiveSessionId } from "@/features/meet-session/meetSessionSlice";
 import type { SessionSummary } from "@/features/meet-session/types";
 import { ProfileComparisonSection } from "@/features/profile-comparison/ProfileComparisonSection";
 import { CodeEvaluationSection } from "@/features/code-flow/CodeEvaluationSection";
+import { PersistenceHistorySection } from "@/features/persistence/PersistenceHistorySection";
+import { TimeoutContractSection } from "@/features/timeouts/TimeoutContractSection";
 
 type ErrorWithMessage = {
   data?: {
@@ -146,6 +148,10 @@ export function MeetSessionPage() {
           <ProfileComparisonSection />
           <Divider />
           <CodeEvaluationSection />
+          <Divider />
+          <PersistenceHistorySection />
+          <Divider />
+          <TimeoutContractSection />
         </>
       }
     />

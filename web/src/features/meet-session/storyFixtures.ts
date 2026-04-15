@@ -2,9 +2,13 @@ import type {
   BootstrapResponse,
   EvaluateResponse,
   EvaluationBootstrapResponse,
+  PersistenceBootstrapResponse,
   ProfilesBootstrapResponse,
   SessionPolicy,
-  SessionSummary
+  SessionSummary,
+  SessionExport,
+  SessionRecord,
+  TimeoutBootstrapResponse
 } from "@/features/meet-session/types";
 
 export const rawPolicyFixture: SessionPolicy = {
@@ -393,4 +397,143 @@ export const evaluateResponseFixture: EvaluateResponse = {
       currentCellValue: "1"
     }
   }
+};
+
+export const persistenceBootstrapFixture: PersistenceBootstrapResponse = {
+  section: {
+    id: "persistence-history-and-restore",
+    title: "Persistence, History, and Restore",
+    summary:
+      "Persistent mode turns a temporary REPL interaction into a recoverable session with durable history.",
+    intro: [
+      "This section uses the real durable session store. It lists persistent sessions, shows evaluation history, and exercises restore against the same raw /api/sessions routes that the rest of the backend exposes.",
+      "The point is to make the persistence model concrete. A recoverable REPL is not only one process with memory; it is a session record plus durable cell history plus enough metadata to rebuild the live runtime later."
+    ],
+    primaryAction: {
+      label: "Seed Durable Session",
+      method: "POST",
+      path: "/api/sessions"
+    },
+    panels: [
+      {
+        id: "durable-session-list",
+        title: "Durable Sessions",
+        kind: "session-list",
+        description: "Real persistent session records returned from the durable store."
+      }
+    ]
+  },
+  seedSources: [
+    {
+      id: "seed-1",
+      label: "Cell 1",
+      source: "const x = 1; x",
+      rationale: "Introduces one binding and a simple final expression."
+    },
+    {
+      id: "seed-2",
+      label: "Cell 2",
+      source: "const answer = 41 + 1; answer",
+      rationale: "Adds a second binding and a second stored evaluation."
+    },
+    {
+      id: "seed-3",
+      label: "Cell 3",
+      source: "globalThis.greeting = 'hello'; greeting",
+      rationale: "Creates a runtime side effect visible in export/history analysis."
+    }
+  ],
+  rawRoutes: [
+    {
+      method: "GET",
+      path: "/api/sessions",
+      purpose: "Real durable-session listing route."
+    }
+  ]
+};
+
+export const timeoutBootstrapFixture: TimeoutBootstrapResponse = {
+  section: {
+    id: "timeouts-are-part-of-the-contract",
+    title: "Timeouts Are Part of the Contract",
+    summary:
+      "A timeout is not just an error. It is part of the REPL's recovery contract, and the next cell must still work.",
+    intro: [
+      "This section demonstrates the timeout behavior implemented during GOJA-041. The live evaluation route should report timeout status for a runaway cell, and the same session should remain usable immediately afterward.",
+      "The teaching point is architectural: a well-behaved REPL must treat interruption and recovery as first-class behavior, not as undefined failure states."
+    ],
+    primaryAction: {
+      label: "Run Scenario",
+      method: "POST",
+      path: "/api/essay/sections/what-happened-to-my-code/session/{sessionID}/evaluate"
+    },
+    panels: [
+      {
+        id: "timeout-scenarios",
+        title: "Scenarios",
+        kind: "scenario-buttons",
+        description: "Real timeout and recovery scenario submissions against one live session."
+      }
+    ]
+  },
+  scenarios: [
+    {
+      id: "infinite-loop",
+      label: "while (true) {}",
+      source: "while (true) {}",
+      rationale: "Exercises synchronous interruption and timeout handling."
+    },
+    {
+      id: "never-settle",
+      label: "new Promise(() => {})",
+      source: "new Promise(() => {})",
+      rationale: "Exercises awaited-promise timeout behavior."
+    },
+    {
+      id: "recovery",
+      label: "1 + 1",
+      source: "1 + 1",
+      rationale: "Confirms that the same session still evaluates successfully after a timeout."
+    }
+  ],
+  rawRoutes: [
+    {
+      method: "POST",
+      path: "/api/sessions/{sessionID}/evaluate",
+      purpose: "Underlying raw evaluation route that implements timeout and recovery behavior."
+    }
+  ]
+};
+
+export const durableSessionRecordFixture: SessionRecord = {
+  SessionID: "session-durable-1",
+  CreatedAt: "2026-04-15T04:20:00.000000000Z",
+  UpdatedAt: "2026-04-15T04:25:00.000000000Z",
+  EngineKind: "goja"
+};
+
+export const sessionExportFixture: SessionExport = {
+  Session: durableSessionRecordFixture,
+  Evaluations: [
+    {
+      EvaluationID: 1,
+      SessionID: "session-durable-1",
+      CellID: 1,
+      CreatedAt: "2026-04-15T04:20:01.000000000Z",
+      RawSource: "const x = 1; x",
+      RewrittenSource: "var x = 1; x",
+      OK: true,
+      ResultJSON: 1
+    },
+    {
+      EvaluationID: 2,
+      SessionID: "session-durable-1",
+      CellID: 2,
+      CreatedAt: "2026-04-15T04:20:10.000000000Z",
+      RawSource: "const answer = 41 + 1; answer",
+      RewrittenSource: "var answer = 41 + 1; answer",
+      OK: true,
+      ResultJSON: 42
+    }
+  ]
 };

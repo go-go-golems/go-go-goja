@@ -17,6 +17,8 @@ const (
 	CodeFlowCreatePath         = "/api/essay/sections/what-happened-to-my-code/session"
 	codeFlowSnapshotPrefix     = "/api/essay/sections/what-happened-to-my-code/session/"
 	codeFlowEvaluatePathSuffix = "/evaluate"
+	PersistenceBootstrapPath   = "/api/essay/sections/persistence-history-and-restore"
+	TimeoutBootstrapPath       = "/api/essay/sections/timeouts-are-part-of-the-contract"
 )
 
 type ProfileSectionResponse struct {
@@ -40,6 +42,18 @@ type CodeFlowSectionResponse struct {
 	StarterSource  string             `json:"starterSource"`
 	Examples       []ExampleSourceRef `json:"examples"`
 	RawRoutes      []RouteRef         `json:"rawRoutes"`
+}
+
+type PersistenceSectionResponse struct {
+	Section     SectionSpec        `json:"section"`
+	SeedSources []ExampleSourceRef `json:"seedSources"`
+	RawRoutes   []RouteRef         `json:"rawRoutes"`
+}
+
+type TimeoutSectionResponse struct {
+	Section   SectionSpec        `json:"section"`
+	Scenarios []ExampleSourceRef `json:"scenarios"`
+	RawRoutes []RouteRef         `json:"rawRoutes"`
 }
 
 type ExampleSourceRef struct {
@@ -198,6 +212,118 @@ func buildProfileSpecs() []ProfileSpec {
 				"Adds durable storage for sessions, evaluations, binding versions, and binding docs.",
 				"Is the profile that makes restore/history/export-style workflows possible.",
 			},
+		},
+	}
+}
+
+func buildPersistenceSectionResponse() PersistenceSectionResponse {
+	return PersistenceSectionResponse{
+		Section: SectionSpec{
+			ID:      "persistence-history-and-restore",
+			Title:   "Persistence, History, and Restore",
+			Summary: "Persistent mode turns a temporary REPL interaction into a recoverable session with durable history.",
+			Intro: []string{
+				"This section uses the real durable session store. It lists persistent sessions, shows evaluation history, and exercises restore against the same raw `/api/sessions` routes that the rest of the backend exposes.",
+				"The point is to make the persistence model concrete. A recoverable REPL is not only 'one process with memory'; it is a session record plus durable cell history plus enough metadata to rebuild the live runtime later.",
+			},
+			PrimaryAction: ActionSpec{
+				Label:  "Seed Durable Session",
+				Method: http.MethodPost,
+				Path:   "/api/sessions",
+			},
+			Panels: []PanelSpec{
+				{
+					ID:          "durable-session-list",
+					Title:       "Durable Sessions",
+					Kind:        "session-list",
+					Description: "Real persistent session records returned from the durable store.",
+				},
+				{
+					ID:          "session-history",
+					Title:       "History",
+					Kind:        "history-table",
+					Description: "Evaluation history for the selected session from the real history route.",
+				},
+			},
+		},
+		SeedSources: []ExampleSourceRef{
+			{
+				ID:        "seed-1",
+				Label:     "Cell 1",
+				Source:    "const x = 1; x",
+				Rationale: "Introduces one binding and a simple final expression.",
+			},
+			{
+				ID:        "seed-2",
+				Label:     "Cell 2",
+				Source:    "const answer = 41 + 1; answer",
+				Rationale: "Adds a second binding and a second stored evaluation.",
+			},
+			{
+				ID:        "seed-3",
+				Label:     "Cell 3",
+				Source:    "globalThis.greeting = 'hello'; greeting",
+				Rationale: "Creates a runtime side effect that is visible in export/history analysis.",
+			},
+		},
+		RawRoutes: []RouteRef{
+			{Method: http.MethodGet, Path: PersistenceBootstrapPath, Purpose: "Article-scoped description of the persistence section and the seed cells it uses."},
+			{Method: http.MethodGet, Path: "/api/sessions", Purpose: "Real durable-session listing route."},
+			{Method: http.MethodGet, Path: "/api/sessions/{sessionID}/history", Purpose: "Real evaluation-history route."},
+			{Method: http.MethodPost, Path: "/api/sessions/{sessionID}/restore", Purpose: "Real restore route for rebuilding a live session from persistence."},
+			{Method: http.MethodGet, Path: "/api/sessions/{sessionID}/export", Purpose: "Real structured export route for one persistent session."},
+		},
+	}
+}
+
+func buildTimeoutSectionResponse() TimeoutSectionResponse {
+	return TimeoutSectionResponse{
+		Section: SectionSpec{
+			ID:      "timeouts-are-part-of-the-contract",
+			Title:   "Timeouts Are Part of the Contract",
+			Summary: "A timeout is not just an error. It is part of the REPL's recovery contract, and the next cell must still work.",
+			Intro: []string{
+				"This section demonstrates the timeout behavior implemented during GOJA-041. The live evaluation route should report timeout status for a runaway cell, and the same session should remain usable immediately afterward.",
+				"The teaching point is architectural: a well-behaved REPL must treat interruption and recovery as first-class behavior, not as undefined failure states.",
+			},
+			PrimaryAction: ActionSpec{
+				Label:  "Run Scenario",
+				Method: http.MethodPost,
+				Path:   codeFlowSnapshotPrefix + "{sessionID}" + codeFlowEvaluatePathSuffix,
+			},
+			Panels: []PanelSpec{
+				{
+					ID:          "timeout-scenarios",
+					Title:       "Scenarios",
+					Kind:        "scenario-buttons",
+					Description: "Real timeout and recovery scenario submissions against one live session.",
+				},
+			},
+		},
+		Scenarios: []ExampleSourceRef{
+			{
+				ID:        "infinite-loop",
+				Label:     "while (true) {}",
+				Source:    "while (true) {}",
+				Rationale: "Exercises synchronous interruption and timeout handling.",
+			},
+			{
+				ID:        "never-settle",
+				Label:     "new Promise(() => {})",
+				Source:    "new Promise(() => {})",
+				Rationale: "Exercises awaited-promise timeout behavior.",
+			},
+			{
+				ID:        "recovery",
+				Label:     "1 + 1",
+				Source:    "1 + 1",
+				Rationale: "Confirms that the same session still evaluates successfully after a timeout.",
+			},
+		},
+		RawRoutes: []RouteRef{
+			{Method: http.MethodGet, Path: TimeoutBootstrapPath, Purpose: "Article-scoped description of the timeout section and its scenario list."},
+			{Method: http.MethodPost, Path: codeFlowSnapshotPrefix + "{sessionID}" + codeFlowEvaluatePathSuffix, Purpose: "Article-scoped live evaluation route reused for timeout scenarios."},
+			{Method: http.MethodPost, Path: "/api/sessions/{sessionID}/evaluate", Purpose: "Underlying raw evaluation route that implements timeout and recovery behavior."},
 		},
 	}
 }

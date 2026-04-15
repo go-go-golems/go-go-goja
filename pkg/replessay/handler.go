@@ -266,6 +266,20 @@ func NewHandler(app *replapi.App) (http.Handler, error) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"session": summary})
 	})
+	mux.HandleFunc(PersistenceBootstrapPath, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSONErrorMessage(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		writeJSON(w, http.StatusOK, buildPersistenceSectionResponse())
+	})
+	mux.HandleFunc(TimeoutBootstrapPath, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSONErrorMessage(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		writeJSON(w, http.StatusOK, buildTimeoutSectionResponse())
+	})
 
 	return mux, nil
 }

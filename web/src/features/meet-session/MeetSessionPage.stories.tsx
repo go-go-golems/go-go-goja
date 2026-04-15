@@ -3,11 +3,15 @@ import { http, HttpResponse } from "msw";
 import { MeetSessionPage } from "@/features/meet-session/MeetSessionPage";
 import {
   bootstrapFixture,
+  durableSessionRecordFixture,
   evaluateResponseFixture,
   evaluationBootstrapFixture,
+  persistenceBootstrapFixture,
   profilesBootstrapFixture,
   persistentPolicyFixture,
-  sessionFixture
+  sessionExportFixture,
+  sessionFixture,
+  timeoutBootstrapFixture
 } from "@/features/meet-session/storyFixtures";
 import { withEssayProviders } from "@/storybook/withEssayProviders";
 
@@ -62,6 +66,63 @@ const emptyHandlers = [
   ),
   http.post("/api/essay/sections/what-happened-to-my-code/session/:sessionID/evaluate", () =>
     HttpResponse.json(evaluateResponseFixture)
+  ),
+  http.get("/api/essay/sections/persistence-history-and-restore", () =>
+    HttpResponse.json(persistenceBootstrapFixture)
+  ),
+  http.get("/api/essay/sections/timeouts-are-part-of-the-contract", () =>
+    HttpResponse.json(timeoutBootstrapFixture)
+  ),
+  http.get("/api/sessions", () =>
+    HttpResponse.json({ sessions: [durableSessionRecordFixture] })
+  ),
+  http.post("/api/sessions", () =>
+    HttpResponse.json(
+      {
+        session: {
+          ...sessionFixture,
+          id: "session-story-persistent",
+          profile: "persistent",
+          policy: persistentPolicyFixture
+        }
+      },
+      { status: 201 }
+    )
+  ),
+  http.post("/api/sessions/:sessionID/evaluate", ({ request }) =>
+    request
+      .json()
+      .then((body) => {
+        const source = String((body as { source?: string }).source || "");
+        if (source.includes("while") || source.includes("Promise")) {
+          return HttpResponse.json({
+            ...evaluateResponseFixture,
+            cell: {
+              ...evaluateResponseFixture.cell,
+              source,
+              execution: {
+                ...evaluateResponseFixture.cell.execution,
+                status: "timeout",
+                result: "",
+                error: "evaluation timed out"
+              }
+            }
+          });
+        }
+        return HttpResponse.json(evaluateResponseFixture);
+      })
+  ),
+  http.get("/api/sessions/:sessionID/history", () =>
+    HttpResponse.json({ history: sessionExportFixture.Evaluations })
+  ),
+  http.get("/api/sessions/:sessionID/export", () =>
+    HttpResponse.json(sessionExportFixture)
+  ),
+  http.delete("/api/sessions/:sessionID", () =>
+    HttpResponse.json({ deleted: true })
+  ),
+  http.post("/api/sessions/:sessionID/restore", () =>
+    HttpResponse.json({ session: sessionFixture })
   )
 ];
 

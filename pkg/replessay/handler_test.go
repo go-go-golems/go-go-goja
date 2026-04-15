@@ -53,6 +53,27 @@ func TestHandlerServesMeetSessionBootstrapAndHTML(t *testing.T) {
 	}
 }
 
+func TestHandlerServesLaterSectionBootstraps(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestHandler(t)
+
+	endpoints := []string{
+		ProfilesBootstrapPath,
+		CodeFlowBootstrapPath,
+		PersistenceBootstrapPath,
+		TimeoutBootstrapPath,
+	}
+	for _, endpoint := range endpoints {
+		req := httptest.NewRequest(http.MethodGet, endpoint, nil)
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, req)
+		if res.Code != http.StatusOK {
+			t.Fatalf("expected 200 for %s, got %d", endpoint, res.Code)
+		}
+	}
+}
+
 func TestHandlerArticleScopedSessionLifecycle(t *testing.T) {
 	t.Parallel()
 
