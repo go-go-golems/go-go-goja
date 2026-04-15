@@ -3,10 +3,17 @@ import { http, HttpResponse } from "msw";
 import { MeetSessionPage } from "@/features/meet-session/MeetSessionPage";
 import {
   bootstrapFixture,
+  evaluateResponseFixture,
+  evaluationBootstrapFixture,
+  profilesBootstrapFixture,
   persistentPolicyFixture,
   sessionFixture
 } from "@/features/meet-session/storyFixtures";
 import { withEssayProviders } from "@/storybook/withEssayProviders";
+
+const interactiveProfilePolicy =
+  profilesBootstrapFixture.profiles.find((profile) => profile.id === "interactive")?.policy ??
+  persistentPolicyFixture;
 
 const emptyHandlers = [
   http.get("/api/essay/sections/meet-a-session", () => HttpResponse.json(bootstrapFixture)),
@@ -20,6 +27,41 @@ const emptyHandlers = [
         id: String(params.sessionID)
       }
     })
+  ),
+  http.get("/api/essay/sections/profiles-change-behavior", () =>
+    HttpResponse.json(profilesBootstrapFixture)
+  ),
+  http.post("/api/essay/sections/profiles-change-behavior/session", () =>
+    HttpResponse.json(
+      {
+        session: {
+          ...sessionFixture,
+          id: "session-story-profile",
+          profile: "interactive",
+          policy: interactiveProfilePolicy
+        }
+      },
+      { status: 201 }
+    )
+  ),
+  http.get("/api/essay/sections/what-happened-to-my-code", () =>
+    HttpResponse.json(evaluationBootstrapFixture)
+  ),
+  http.post("/api/essay/sections/what-happened-to-my-code/session", () =>
+    HttpResponse.json(
+      {
+        session: {
+          ...sessionFixture,
+          id: "session-story-code",
+          profile: "interactive",
+          policy: interactiveProfilePolicy
+        }
+      },
+      { status: 201 }
+    )
+  ),
+  http.post("/api/essay/sections/what-happened-to-my-code/session/:sessionID/evaluate", () =>
+    HttpResponse.json(evaluateResponseFixture)
   )
 ];
 

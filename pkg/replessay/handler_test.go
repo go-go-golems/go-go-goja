@@ -101,6 +101,112 @@ func TestHandlerArticleScopedSessionLifecycle(t *testing.T) {
 	}
 }
 
+func TestHandlerProfileSectionCreatesSelectedProfile(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestHandler(t)
+
+	bootstrapReq := httptest.NewRequest(http.MethodGet, ProfilesBootstrapPath, nil)
+	bootstrapRes := httptest.NewRecorder()
+	handler.ServeHTTP(bootstrapRes, bootstrapReq)
+	if bootstrapRes.Code != http.StatusOK {
+		t.Fatalf("expected 200 bootstrap, got %d", bootstrapRes.Code)
+	}
+
+	var bootstrapPayload ProfileSectionResponse
+	if err := json.NewDecoder(bootstrapRes.Body).Decode(&bootstrapPayload); err != nil {
+		t.Fatalf("decode profile bootstrap: %v", err)
+	}
+	if len(bootstrapPayload.Profiles) != 3 {
+		t.Fatalf("expected 3 profile specs, got %d", len(bootstrapPayload.Profiles))
+	}
+
+	createReq := httptest.NewRequest(http.MethodPost, ProfilesCreatePath, strings.NewReader(`{"profile":"raw"}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	createRes := httptest.NewRecorder()
+	handler.ServeHTTP(createRes, createReq)
+	if createRes.Code != http.StatusCreated {
+		t.Fatalf("expected 201 create, got %d", createRes.Code)
+	}
+
+	var createPayload struct {
+		Session struct {
+			ID      string `json:"id"`
+			Profile string `json:"profile"`
+		} `json:"session"`
+	}
+	if err := json.NewDecoder(createRes.Body).Decode(&createPayload); err != nil {
+		t.Fatalf("decode profile create payload: %v", err)
+	}
+	if createPayload.Session.Profile != "raw" {
+		t.Fatalf("expected raw profile, got %q", createPayload.Session.Profile)
+	}
+	if createPayload.Session.ID == "" {
+		t.Fatal("expected created session id")
+	}
+}
+
+func TestHandlerCodeFlowEvaluatesLiveSession(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestHandler(t)
+
+	createReq := httptest.NewRequest(http.MethodPost, CodeFlowCreatePath, strings.NewReader(`{"profile":"interactive"}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	createRes := httptest.NewRecorder()
+	handler.ServeHTTP(createRes, createReq)
+	if createRes.Code != http.StatusCreated {
+		t.Fatalf("expected 201 create, got %d", createRes.Code)
+	}
+
+	var createPayload struct {
+		Session struct {
+			ID string `json:"id"`
+		} `json:"session"`
+	}
+	if err := json.NewDecoder(createRes.Body).Decode(&createPayload); err != nil {
+		t.Fatalf("decode code-flow create payload: %v", err)
+	}
+
+	evalReq := httptest.NewRequest(
+		http.MethodPost,
+		codeFlowSnapshotPrefix+createPayload.Session.ID+codeFlowEvaluatePathSuffix,
+		strings.NewReader(`{"source":"const x = 1; x"}`),
+	)
+	evalReq.Header.Set("Content-Type", "application/json")
+	evalRes := httptest.NewRecorder()
+	handler.ServeHTTP(evalRes, evalReq)
+	if evalRes.Code != http.StatusOK {
+		t.Fatalf("expected 200 evaluate, got %d", evalRes.Code)
+	}
+
+	var payload struct {
+		Session struct {
+			CellCount int `json:"cellCount"`
+		} `json:"session"`
+		Cell struct {
+			Rewrite struct {
+				TransformedSource string `json:"transformedSource"`
+			} `json:"rewrite"`
+			Execution struct {
+				Status string `json:"status"`
+			} `json:"execution"`
+		} `json:"cell"`
+	}
+	if err := json.NewDecoder(evalRes.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode evaluate payload: %v", err)
+	}
+	if payload.Cell.Execution.Status != "ok" {
+		t.Fatalf("expected ok execution status, got %q", payload.Cell.Execution.Status)
+	}
+	if payload.Cell.Rewrite.TransformedSource == "" {
+		t.Fatal("expected transformed source in live evaluate response")
+	}
+	if payload.Session.CellCount != 1 {
+		t.Fatalf("expected session cell count 1 after evaluation, got %d", payload.Session.CellCount)
+	}
+}
+
 func TestHandlerRedirectsStaticEssayPrefix(t *testing.T) {
 	t.Parallel()
 

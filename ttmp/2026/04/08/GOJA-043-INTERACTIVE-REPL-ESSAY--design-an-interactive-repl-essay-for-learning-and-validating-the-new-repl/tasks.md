@@ -52,7 +52,9 @@
 - [x] Keep existing article API routes unchanged while switching UI rendering path
 - [x] Add end-to-end smoke coverage for static mount + section-1 happy path
 - [x] Rewrite Section 1 copy into a technical field guide with prose, diagrams, pseudocode, API references, and source-file references
-- [ ] Port section 2 and section 3 from imported mock into feature modules and wire them to real or article-scoped backend data
+- [x] Port section 2 and section 3 from imported mock into feature modules and wire them to real or article-scoped backend data
+- [x] Extend the live evaluation walkthrough into section 4 and section 5 using the same backend evaluation/session payloads
+- [ ] Port persistence/history/restore, timeout, docs/provenance, and API appendix sections from the imported mock into real backend-backed sections
 
 ## Section 1: "Meet a Session"
 
@@ -129,74 +131,114 @@
 
 ### Scope
 
-- [ ] Add a Section 2 feature module rather than extending `MeetSessionPage` inline
-- [ ] Keep Section 2 focused on profile comparison, not on evaluation rewrite details
-- [ ] Decide whether Section 2 uses article-scoped mock comparison data first or real create-session profile overrides immediately
+- [x] Add a Section 2 feature module rather than extending `MeetSessionPage` inline
+- [x] Keep Section 2 focused on profile comparison, not on evaluation rewrite details
+- [x] Decide whether Section 2 uses article-scoped mock comparison data first or real create-session profile overrides immediately
 
 ### UX and Content
 
-- [ ] Port the Section 2 structure from `repl-essay(1).jsx`
-- [ ] Add the profile selector control with `raw`, `interactive`, and `persistent`
-- [ ] Add a profile comparison table covering eval, observe, and persist differences
-- [ ] Add intern-oriented explanatory prose for what a profile is and why it matters
-- [ ] Add a compact “what changes if I pick this?” summary block
+- [x] Port the Section 2 structure from `repl-essay(1).jsx`
+- [x] Add the profile selector control with `raw`, `interactive`, and `persistent`
+- [x] Add a profile comparison table covering eval, observe, and persist differences
+- [x] Add intern-oriented explanatory prose for what a profile is and why it matters
+- [x] Add a compact “what changes if I pick this?” summary block
 
 ### Backend / API
 
-- [ ] Decide the data source for Section 2:
-  - [ ] article-scoped static comparison payload from bootstrap, or
-  - [ ] article-scoped create-session override route, or
-  - [ ] raw API expansion for profile selection
-- [ ] If profile override support is introduced, keep the contract minimal and explicit
-- [ ] Keep the existing Section 1 create/snapshot flow unchanged while adding Section 2 support
+- [x] Decide the data source for Section 2:
+  - [x] article-scoped static comparison payload from bootstrap, and
+  - [x] article-scoped create-session override route
+  - [x] no raw API expansion for profile selection yet
+- [x] If profile override support is introduced, keep the contract minimal and explicit
+- [x] Keep the existing Section 1 create/snapshot flow unchanged while adding Section 2 support
 
 ### Storybook
 
-- [ ] Add standalone stories for the profile selector and comparison table
-- [ ] Add page-level Section 2 stories for each active profile
-- [ ] Use Storybook to tune the typography and spacing to match the imported mock
+- [x] Add standalone stories for the profile selector and comparison table
+- [x] Add page-level Section 2 stories for the section surface
+- [x] Use Storybook to tune the typography and spacing to match the imported mock
 
 ### Validation
 
-- [ ] Manual test: confirm switching profiles changes the displayed policy explanation correctly
-- [ ] Manual test: if real profile creation is supported, confirm the created session summary matches the selected profile
-- [ ] Add at least one focused frontend test or route smoke for the selected Section 2 data contract
+- [x] Manual test: confirm switching profiles changes the displayed policy explanation correctly
+- [x] Manual test: if real profile creation is supported, confirm the created session summary matches the selected profile
+- [x] Add at least one focused frontend test or route smoke for the selected Section 2 data contract
 
 ## Next Slice: Section 3 "What Happened To My Code?"
 
 ### Scope
 
-- [ ] Add a Section 3 feature module centered on one evaluation and its visible transformation pipeline
-- [ ] Keep Section 3 focused on rewrite/execution visibility, not persistence/history
+- [x] Add a Section 3 feature module centered on one evaluation and its visible transformation pipeline
+- [x] Keep Section 3 focused on rewrite/execution visibility, not persistence/history
 
 ### UX and Content
 
-- [ ] Port the Section 3 structure from `repl-essay(1).jsx`
-- [ ] Add the source editor / canned source input UI
-- [ ] Add side-by-side or sequential original-source and transformed-source views
-- [ ] Add the rewrite operations list
-- [ ] Add the execution result summary block
-- [ ] Add explanatory prose about instrumented evaluation, helper insertion, and last-expression capture
+- [x] Port the Section 3 structure from `repl-essay(1).jsx`
+- [x] Add the source editor / canned source input UI
+- [x] Add side-by-side or sequential original-source and transformed-source views
+- [x] Add the rewrite operations list
+- [x] Add the execution result summary block
+- [x] Add explanatory prose about instrumented evaluation, helper insertion, and last-expression capture
 
 ### Backend / API
 
-- [ ] Map the exact real API data needed for Section 3:
-  - [ ] evaluate route
-  - [ ] rewrite report
-  - [ ] execution result
-  - [ ] static/runtime reports
-- [ ] Decide whether Section 3 should call the real evaluate endpoint directly or use an article-scoped wrapper
-- [ ] If needed, add a narrow article route that returns the evaluation report in the shape the section needs
+- [x] Map the exact real API data needed for Section 3:
+  - [x] evaluate route
+  - [x] rewrite report
+  - [x] execution result
+  - [x] static/runtime reports
+- [x] Decide whether Section 3 should call the real evaluate endpoint directly or use an article-scoped wrapper
+- [x] If needed, add a narrow article route that returns the evaluation report in the shape the section needs
 
 ### Storybook
 
-- [ ] Add stories for original/transformed source panes
-- [ ] Add a story for the rewrite operations list
-- [ ] Add a story for the execution result summary
-- [ ] Add a page-level Section 3 story using the canned evaluation fixture from the imported mock
+- [x] Add stories for original/transformed source panes
+- [x] Add a story for the rewrite operations list
+- [x] Add a story for the execution result summary
+- [x] Add a page-level Section 3 story using the canned evaluation fixture from the imported mock
 
 ### Validation
 
-- [ ] Manual test: submit one simple expression and confirm the transformed source matches the reported rewrite operations
-- [ ] Manual test: confirm the execution result block matches the backend evaluation payload
-- [ ] Add at least one focused frontend/backend smoke test for the Section 3 evaluation flow
+- [x] Manual test: submit one simple expression and confirm the transformed source matches the reported rewrite operations
+- [x] Manual test: confirm the execution result block matches the backend evaluation payload
+- [x] Add at least one focused frontend/backend smoke test for the Section 3 evaluation flow
+
+## Section 4: "Static Analysis vs Runtime Reality"
+
+### Completed in this slice
+
+- [x] Add a section that compares parser-derived facts with runtime-derived facts from one live `EvaluateResponse`
+- [x] Render the static report summary, binding discoveries, unresolved count, and AST node count
+- [x] Render runtime-created bindings and global diffs from the same cell
+- [x] Add standalone Storybook coverage for the populated and empty states
+
+## Section 5: "Bindings Are the Memory"
+
+### Completed in this slice
+
+- [x] Add a section that reads `session.history` and `session.bindings` from the live session summary
+- [x] Add a small timeline selector to approximate environment growth over successive cells
+- [x] Render the current binding table with name, kind, preview, and declaration cell
+- [x] Add standalone Storybook coverage for populated and empty states
+
+## Next Slice: Section 6-9
+
+### Section 6 "Persistence, History, and Restore"
+
+- [ ] Add article-scoped routes for durable session listing and article-friendly restore/history/export flows
+- [ ] Add a section that shows real persistent sessions and real history rather than only local in-memory session state
+- [ ] Decide whether restore/export should remain article-only routes or directly reuse raw `/api/sessions` endpoints
+
+### Section 7 "Timeouts Are Part of the Contract"
+
+- [ ] Build a timeout walkthrough using the actual timeout/recovery behavior from GOJA-041
+- [ ] Show both the timeout outcome and the post-timeout recovery proof cell on the same live session
+
+### Section 8 "Docs and Provenance"
+
+- [ ] Add a section that explains where facts came from using the real `provenance` and docs surfaces
+- [ ] Decide whether the docs section should use `SessionSummary`, `EvaluateResponse`, or the `docs` route as the primary artifact
+
+### Section 9 "API Appendix"
+
+- [ ] Build a route appendix that is generated from the actual article/raw route surface rather than hand-maintained prose only

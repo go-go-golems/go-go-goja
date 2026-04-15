@@ -16,6 +16,8 @@ import { SessionJsonPanel } from "@/features/meet-session/components/SessionJson
 import { SessionSummaryCard } from "@/features/meet-session/components/SessionSummaryCard";
 import { setActiveSessionId } from "@/features/meet-session/meetSessionSlice";
 import type { SessionSummary } from "@/features/meet-session/types";
+import { ProfileComparisonSection } from "@/features/profile-comparison/ProfileComparisonSection";
+import { CodeEvaluationSection } from "@/features/code-flow/CodeEvaluationSection";
 
 type ErrorWithMessage = {
   data?: {
@@ -140,6 +142,10 @@ export function MeetSessionPage() {
         <>
           <SessionJsonPanel session={session} />
           <MeetSessionFieldGuide bootstrap={bootstrap} session={session} />
+          <Divider />
+          <ProfileComparisonSection />
+          <Divider />
+          <CodeEvaluationSection />
         </>
       }
     />

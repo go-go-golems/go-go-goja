@@ -17,7 +17,7 @@ RelatedFiles:
       Note: Existing consolidated report referenced while shaping the article concept
 ExternalSources: []
 Summary: Chronological diary for the design of the interactive REPL article ticket.
-LastUpdated: 2026-04-15T10:35:00-04:00
+LastUpdated: 2026-04-15T00:02:00-04:00
 WhatFor: Record the research and writing steps used to build this ticket.
 WhenToUse: Use when reviewing how the ticket was created or continuing the work later.
 ---
@@ -253,6 +253,146 @@ pnpm -C web build-storybook
   - live app via `http://127.0.0.1:3092/`
   - Storybook via `http://localhost:6006/`
   - imported public artifact via `https://claude.ai/public/artifacts/bdfebd12-4387-494a-9266-e9455a60b634`
+
+## Step 9: Turn the essay into a real multi-section backend walkthrough
+
+Once Section 1 was stable, the next design question was how to keep extending the essay without turning it into a pile of disconnected demo widgets. The imported mock had Sections 2 through 9, but only the first section existed in the real implementation. The useful way forward was to group the next work into two categories:
+
+- sections that needed new backend article routes because they introduced a new contract
+- sections that could be derived from data the article was already fetching
+
+This led to a clean implementation split. Section 2 and Section 3 required backend additions: profile comparison needed a minimal profile override create-session route, and the evaluation walkthrough needed a narrow article route for preparing and evaluating a live session. Section 4 and Section 5 did not need new backend routes. They could be built directly on top of the `EvaluateResponse` and `SessionSummary` already returned by Section 3.
+
+### Prompt Context
+
+**User prompt (condensed):** "continue with more sections."
+
+**Assistant interpretation:** Continue the live essay implementation beyond Section 1 and do it as a coherent next slice rather than isolated component work.
+
+**Inferred user intent:** Keep shipping the actual article, not just planning it, while preserving the essay's technical rigor and the real-backend contract.
+
+**Commit (code):** In progress at the time of this diary update. The current working tree contains the Section 2-5 implementation slice.
+
+### What I did
+
+- Confirmed the remaining imported mock sections:
+  - Section 2: profiles
+  - Section 3: evaluation walkthrough
+  - Section 4: static vs runtime
+  - Section 5: bindings as memory
+  - Section 6-9: persistence, timeouts, docs/provenance, API appendix
+- Implemented new article bootstrap and route-shaping logic in `pkg/replessay`:
+  - `GET /api/essay/sections/profiles-change-behavior`
+  - `POST /api/essay/sections/profiles-change-behavior/session`
+  - `GET /api/essay/sections/profiles-change-behavior/session/:id`
+  - `GET /api/essay/sections/what-happened-to-my-code`
+  - `POST /api/essay/sections/what-happened-to-my-code/session`
+  - `POST /api/essay/sections/what-happened-to-my-code/session/:id/evaluate`
+- Kept the profile override narrow and article-only by routing it through `replapi.CreateSessionWithOptions(...)` instead of broadening the raw `/api/sessions` contract.
+- Added frontend RTK Query endpoints and feature modules for:
+  - profile comparison
+  - code evaluation walkthrough
+  - static vs runtime comparison
+  - bindings/history interpretation
+- Extended the frontend type surface to include the parts of `EvaluateResponse` and `SessionSummary` needed for those sections.
+- Added Storybook stories for the new section-level feature components and their subcomponents.
+- Validated the new backend route behavior with live `curl` requests against the running tmux-hosted essay server.
+
+### Why
+
+- Section 2 introduces a new idea: the browser should be able to ask for a specific profile. That required a minimal backend change.
+- Section 3 introduces a different new idea: the browser should be able to walk one evaluation end to end. That also required backend support.
+- Section 4 and Section 5 are explanatory expansions of Section 3, not new backend capabilities. Building them from the same `EvaluateResponse` keeps the essay honest and reduces duplicated state.
+
+### What worked
+
+- The article-only profile override route was a good compromise. It made the profile section real without prematurely expanding the generic HTTP create-session contract.
+- The evaluation route produced exactly the kind of backend truth the article needed. A single live evaluation response already carries:
+  - transformed source
+  - rewrite operations
+  - execution status
+  - static analysis facts
+  - runtime diffs
+  - updated session summary
+- Reusing that one payload for Section 3, 4, and 5 made the architecture cleaner than creating separate mock data flows.
+
+### What didn't work
+
+- The first TypeScript validation pass failed on a few surface mismatches:
+  - a reused `Prose` component needed a `className` prop
+  - some Storybook stories needed explicit required args
+  - one story assumed an array slot existed instead of guarding it
+- These were small integration issues, not design failures, and were fixed in the same slice.
+
+### What I learned
+
+- The right way to extend this essay is to ask "what is the next real backend object we can teach from?" rather than "what is the next visual section from the mock?"
+- Section 4 and Section 5 became much stronger once they were tied directly to the same live evaluation flow as Section 3. That keeps the prose and the backend synchronized.
+- The imported mock is useful as a sequencing guide, but the real implementation should group sections according to shared backend data dependencies.
+
+### What was tricky to build
+
+- The trickiest part was deciding where to add backend surface area and where to resist adding it. For example, the profile override route is useful inside the essay, but making it part of the general raw API would have been a broader product decision.
+- Another subtle point was how to model Section 5 honestly. The imported mock used canned history. The real implementation now reads `session.history` and `session.bindings` from the live session summary, which is architecturally better even if the initial data is sparse until the user runs several cells.
+
+### What warrants a second pair of eyes
+
+- The current page composition still uses `MeetSessionPage` as the top-level root even though it now hosts multiple sections. That is workable, but the naming is starting to lag behind the structure.
+- Section 5 currently approximates “environment growth” by filtering current bindings against `declaredInCell`. That is reasonable for now, but a future version might want richer historical binding snapshots if the teaching value justifies the extra backend work.
+
+### What should be done in the future
+
+- Commit the Section 2-5 slice after one final review.
+- Continue with Section 6 using the real persistent session list/history/export surfaces.
+- Build Section 7 directly on the timeout-and-recovery guarantees from GOJA-041.
+- Decide whether Sections 8 and 9 should be partly generated from backend metadata rather than maintained manually.
+
+### Code review instructions
+
+- Start with the new backend route definitions:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replessay/sections.go`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/pkg/replessay/handler.go`
+- Then inspect the frontend route/data layer:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/web/src/app/api/essayApi.ts`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/web/src/features/meet-session/types.ts`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/web/src/features/meet-session/storyFixtures.ts`
+- Then inspect the new section implementations:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/web/src/features/profile-comparison/`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/web/src/features/code-flow/`
+- Finally inspect the new task/changelog updates:
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/08/GOJA-043-INTERACTIVE-REPL-ESSAY--design-an-interactive-repl-essay-for-learning-and-validating-the-new-repl/tasks.md`
+  - `/home/manuel/workspaces/2026-04-03/js-repl-smailnail/go-go-goja/ttmp/2026/04/08/GOJA-043-INTERACTIVE-REPL-ESSAY--design-an-interactive-repl-essay-for-learning-and-validating-the-new-repl/changelog.md`
+
+### Technical details
+
+- Focused validations used:
+
+```bash
+go test ./pkg/replessay
+pnpm -C web check
+pnpm -C web build
+pnpm -C web build-storybook
+```
+
+- Live route checks used against the running backend:
+
+```bash
+curl -sS http://127.0.0.1:3091/api/essay/sections/profiles-change-behavior | jq '.section.id, .profiles[0].id, .selectedProfile'
+
+session_json=$(curl -sS -X POST http://127.0.0.1:3091/api/essay/sections/what-happened-to-my-code/session \
+  -H 'Content-Type: application/json' \
+  -d '{"profile":"interactive"}')
+id=$(printf '%s' "$session_json" | jq -r '.session.id')
+curl -sS -X POST "http://127.0.0.1:3091/api/essay/sections/what-happened-to-my-code/session/$id/evaluate" \
+  -H 'Content-Type: application/json' \
+  -d '{"source":"const x = 1; x"}'
+```
+
+- Observed live result from the real evaluate route:
+  - session `cellCount` incremented to `1`
+  - session `bindingCount` incremented to `1`
+  - execution `status` returned `ok`
+  - transformed source contained the actual instrumented helper wrapper generated by the backend
 
 - The tricky part was scoping the deliverable correctly. A request like "make a Bret Victor-style article" can easily turn into vague UX brainstorming. The useful way to approach it was to treat the article as a living acceptance harness for the REPL, then ask which backend artifacts already exist to support that.
 - Another subtle point was distinguishing current capabilities from desirable future capabilities. For example, the handler already supports real session lifecycle operations, but the create-session route is fixed to the app default. That matters because a profile-comparison chapter sounds obvious at the UX level, but it is not fully supported by the current HTTP contract.

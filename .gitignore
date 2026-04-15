@@ -29,4 +29,7 @@ cmd/bun-demo/js/dist/
 cmd/bun-demo/js/dist-split/
 web/node_modules/
 web/storybook-static/
+goja-repl.sqlite
+goja-repl.sqlite-shm
+goja-repl.sqlite-wal
 sinspect.log

@@ -31,6 +31,10 @@
 - Split the Section 1 essay body into smaller components so Storybook can inspect individual article sections instead of one large monolith
 - Added story coverage for essay-specific primitives and Section 1 building blocks
 - Matched the active font stacks back to the original imported artifact CSS and restored the original callout copy/style treatment
+- Added Section 2 with a real article-only profile override route, live profile session creation, and profile-comparison stories
+- Added Section 3 with a real article-only evaluation walkthrough, source-transform display, rewrite operation list, and execution summary
+- Extended the same live evaluation walkthrough into Section 4 and Section 5 so static/runtime differences and binding memory are explained from the same backend payloads
+- Added new Storybook stories for the Section 2-5 feature surfaces and validated the live article routes with `curl`, `go test ./pkg/replessay`, `pnpm -C web check`, `pnpm -C web build`, and `pnpm -C web build-storybook`
 
 ## 2026-04-08
 

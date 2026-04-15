@@ -74,4 +74,164 @@ export type SessionSummary = {
   cellCount: number;
   bindingCount: number;
   policy: SessionPolicy;
+  bindings?: BindingView[];
+  history?: HistoryEntry[];
+};
+
+export type ProfileName = "raw" | "interactive" | "persistent";
+
+export type ProfileSpec = {
+  id: ProfileName;
+  title: string;
+  summary: string;
+  policy: SessionPolicy;
+  highlights: string[];
+};
+
+export type ProfilesBootstrapResponse = {
+  section: SectionSpec;
+  selectedProfile: ProfileName;
+  profiles: ProfileSpec[];
+  rawRoutes: RouteRef[];
+};
+
+export type ExampleSourceSpec = {
+  id: string;
+  label: string;
+  source: string;
+  rationale: string;
+};
+
+export type EvaluationBootstrapResponse = {
+  section: SectionSpec;
+  defaultProfile: ProfileName;
+  starterSource: string;
+  examples: ExampleSourceSpec[];
+  rawRoutes: RouteRef[];
+};
+
+export type EvaluateResponse = {
+  session: SessionSummary;
+  cell: CellReport;
+};
+
+export type CellReport = {
+  id: number;
+  createdAt: string;
+  source: string;
+  static: StaticReport;
+  rewrite: RewriteReport;
+  execution: ExecutionReport;
+  runtime: RuntimeReport;
+};
+
+export type ExecutionReport = {
+  status: string;
+  result: string;
+  error?: string;
+  durationMs: number;
+  awaited: boolean;
+  console: ConsoleEvent[];
+  hadSideEffects: boolean;
+  helperError: boolean;
+};
+
+export type ConsoleEvent = {
+  kind: string;
+  message: string;
+};
+
+export type StaticReport = {
+  diagnostics: DiagnosticView[];
+  topLevelBindings: TopLevelBindingView[];
+  unresolved: IdentifierUseView[];
+  astNodeCount: number;
+  summary: StaticSummaryFact[];
+};
+
+export type StaticSummaryFact = {
+  label: string;
+  value: string;
+};
+
+export type RewriteReport = {
+  mode: string;
+  declaredNames: string[];
+  helperNames: string[];
+  lastHelperName: string;
+  bindingHelperName: string;
+  capturedLastExpr: boolean;
+  transformedSource: string;
+  operations: RewriteStep[];
+  warnings?: string[];
+  finalExpressionSource?: string;
+};
+
+export type RewriteStep = {
+  kind: string;
+  detail: string;
+};
+
+export type RuntimeReport = {
+  diffs: GlobalDiffView[];
+  newBindings: string[];
+  updatedBindings: string[];
+  removedBindings: string[];
+  leakedGlobals: string[];
+  persistedByWrap: string[];
+  currentCellValue: string;
+};
+
+export type GlobalDiffView = {
+  name: string;
+  change: string;
+  before?: string;
+  after?: string;
+  beforeKind?: string;
+  afterKind?: string;
+  sessionBound: boolean;
+};
+
+export type DiagnosticView = {
+  severity: string;
+  message: string;
+};
+
+export type TopLevelBindingView = {
+  name: string;
+  kind: string;
+  line: number;
+  snippet: string;
+  extends?: string;
+  referenceCount: number;
+};
+
+export type IdentifierUseView = {
+  line: number;
+  col: number;
+  context?: string;
+  nodeId: number;
+  snippet?: string;
+};
+
+export type HistoryEntry = {
+  cellId: number;
+  createdAt: string;
+  sourcePreview: string;
+  resultPreview: string;
+  status: string;
+};
+
+export type BindingView = {
+  name: string;
+  kind: string;
+  origin: string;
+  declaredInCell: number;
+  lastUpdatedCell: number;
+  runtime: BindingRuntimeView;
+};
+
+export type BindingRuntimeView = {
+  valueKind: string;
+  preview: string;
 };

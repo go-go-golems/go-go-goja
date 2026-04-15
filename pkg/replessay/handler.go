@@ -144,8 +144,144 @@ func NewHandler(app *replapi.App) (http.Handler, error) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"session": summary})
 	})
+	mux.HandleFunc(ProfilesBootstrapPath, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSONErrorMessage(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		writeJSON(w, http.StatusOK, buildProfileSectionResponse())
+	})
+	mux.HandleFunc(ProfilesCreatePath, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSONErrorMessage(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		req, err := decodeCreateSessionRequest(r)
+		if err != nil {
+			writeJSONErrorMessage(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		profile, err := parseProfile(req.Profile)
+		if err != nil {
+			writeJSONErrorMessage(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		summary, err := app.CreateSessionWithOptions(r.Context(), replapi.SessionOptions{Profile: profile})
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"session": summary})
+	})
+	mux.HandleFunc(profilesSnapshotPrefix, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSONErrorMessage(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		sessionID := strings.TrimPrefix(r.URL.Path, profilesSnapshotPrefix)
+		sessionID = strings.TrimSpace(strings.Trim(sessionID, "/"))
+		if sessionID == "" {
+			writeJSONErrorMessage(w, http.StatusNotFound, "session id missing")
+			return
+		}
+		summary, err := app.Snapshot(r.Context(), sessionID)
+		if err != nil {
+			writeJSONError(w, statusForError(err), err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"session": summary})
+	})
+	mux.HandleFunc(CodeFlowBootstrapPath, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSONErrorMessage(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		writeJSON(w, http.StatusOK, buildCodeFlowSectionResponse())
+	})
+	mux.HandleFunc(CodeFlowCreatePath, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSONErrorMessage(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		req, err := decodeCreateSessionRequest(r)
+		if err != nil {
+			writeJSONErrorMessage(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		profile, err := parseProfile(req.Profile)
+		if err != nil {
+			writeJSONErrorMessage(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if profile == nil {
+			defaultProfile := replapi.ProfileInteractive
+			profile = &defaultProfile
+		}
+		summary, err := app.CreateSessionWithOptions(r.Context(), replapi.SessionOptions{Profile: profile})
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"session": summary})
+	})
+	mux.HandleFunc(codeFlowSnapshotPrefix, func(w http.ResponseWriter, r *http.Request) {
+		trimmed := strings.TrimPrefix(r.URL.Path, codeFlowSnapshotPrefix)
+		trimmed = strings.Trim(trimmed, "/")
+		if trimmed == "" {
+			writeJSONErrorMessage(w, http.StatusNotFound, "session id missing")
+			return
+		}
+		if strings.HasSuffix(trimmed, codeFlowEvaluatePathSuffix) {
+			if r.Method != http.MethodPost {
+				writeJSONErrorMessage(w, http.StatusMethodNotAllowed, "method not allowed")
+				return
+			}
+			sessionID := strings.TrimSpace(strings.TrimSuffix(trimmed, codeFlowEvaluatePathSuffix))
+			if sessionID == "" {
+				writeJSONErrorMessage(w, http.StatusNotFound, "session id missing")
+				return
+			}
+			var req replsession.EvaluateRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeJSONErrorMessage(w, http.StatusBadRequest, "invalid JSON body")
+				return
+			}
+			resp, err := app.Evaluate(r.Context(), sessionID, req.Source)
+			if err != nil {
+				writeJSONError(w, statusForError(err), err)
+				return
+			}
+			writeJSON(w, http.StatusOK, resp)
+			return
+		}
+		if r.Method != http.MethodGet {
+			writeJSONErrorMessage(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		sessionID := strings.TrimSpace(trimmed)
+		summary, err := app.Snapshot(r.Context(), sessionID)
+		if err != nil {
+			writeJSONError(w, statusForError(err), err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"session": summary})
+	})
 
 	return mux, nil
+}
+
+func decodeCreateSessionRequest(r *http.Request) (createSessionRequest, error) {
+	var req createSessionRequest
+	if r == nil || r.Body == nil {
+		return req, nil
+	}
+	if r.ContentLength == 0 {
+		return req, nil
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return createSessionRequest{}, errors.New("invalid JSON body")
+	}
+	return req, nil
 }
 
 func buildBootstrapResponse() BootstrapResponse {
