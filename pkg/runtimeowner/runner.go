@@ -210,14 +210,19 @@ func (r *runner) isOwnerContext(ctx context.Context) bool {
 	return v.gid == currentGoroutineID()
 }
 
+type ownerContexter interface {
+	withOwnerContext(context.Context) context.Context
+}
+
 // OwnerContext marks ctx as belonging to the current owner goroutine for this
 // runner. It should only be used at known owner-thread entry points (for
 // example, inside native module exports invoked directly by the VM).
 func OwnerContext(r Runner, ctx context.Context) context.Context {
-	if rr, ok := r.(*runner); ok {
-		return rr.withOwnerContext(normalizeContext(ctx))
+	ctx = normalizeContext(ctx)
+	if oc, ok := r.(ownerContexter); ok {
+		return oc.withOwnerContext(ctx)
 	}
-	return normalizeContext(ctx)
+	return ctx
 }
 
 func currentGoroutineID() uint64 {
