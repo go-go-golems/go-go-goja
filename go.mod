@@ -2,6 +2,8 @@ module github.com/go-go-golems/go-go-goja
 
 go 1.26.1
 
+toolchain go1.26.2
+
 require (
 	dagger.io/dagger v0.20.3
 	github.com/charmbracelet/bubbles v1.0.0
