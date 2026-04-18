@@ -32,7 +32,21 @@ Library entrypoints:
 - `ScanSource(path, source, ...)`
 - `ScanSources(files, ...)`
 
-The example runner uses `ScanDir(...)`, but the package itself is no longer limited to disk directories.
+Command-compilation entrypoints:
+
+- `registry.Commands()`
+- `registry.CommandsWithInvoker(invoker)`
+- `registry.CommandForVerb(verb)`
+- `registry.CommandForVerbWithInvoker(verb, invoker)`
+- `registry.CommandDescriptionForVerb(verb)`
+
+Runtime entrypoints:
+
+- default internal `registry.invoke(...)` via `Commands()` / `CommandForVerb(...)`
+- `registry.InvokeInRuntime(ctx, runtime, verb, parsedValues)` for caller-owned runtimes
+- `registry.RequireLoader()` for composing the scanned-source loader into a host runtime
+
+The example runner uses `ScanDir(...)` plus the default `registry.Commands()` path, but the package itself is no longer limited to disk directories or to runtime-owning command wrappers.
 
 Supported function declarations:
 
@@ -284,7 +298,7 @@ Preferred testing structure:
 
 - use `testdata/jsverbs` for fixtures
 - use `ScanDir(...)`, `ScanFS(...)`, or `ScanSource(...)` depending on what source origin you want to validate
-- use `registry.Commands()` to compile commands
+- use `registry.Commands()` for default runtime-owning command compilation, or `registry.CommandsWithInvoker(...)` when you need to verify host-owned execution hooks
 - execute structured verbs through a capture processor
 - execute text verbs through a `strings.Builder`
 

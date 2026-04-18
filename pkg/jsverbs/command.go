@@ -19,25 +19,37 @@ import (
 	"golang.org/x/text/language"
 )
 
+type VerbInvoker func(ctx context.Context, registry *Registry, verb *VerbSpec, parsedValues *values.Values) (interface{}, error)
+
 type Command struct {
 	*cmds.CommandDescription
 	registry *Registry
 	verb     *VerbSpec
+	invoker  VerbInvoker
 }
 
 type WriterCommand struct {
 	*cmds.CommandDescription
 	registry *Registry
 	verb     *VerbSpec
+	invoker  VerbInvoker
 }
 
 var _ cmds.GlazeCommand = (*Command)(nil)
 var _ cmds.WriterCommand = (*WriterCommand)(nil)
 
 func (r *Registry) Commands() ([]cmds.Command, error) {
+	return r.CommandsWithInvoker(nil)
+}
+
+// CommandsWithInvoker builds Glazed command wrappers for every discovered verb
+// while allowing the caller to override how command execution happens.
+//
+// When invoker is nil, the default runtime-owning registry.invoke(...) behavior is used.
+func (r *Registry) CommandsWithInvoker(invoker VerbInvoker) ([]cmds.Command, error) {
 	commands := make([]cmds.Command, 0, len(r.verbs))
 	for _, verb := range r.verbs {
-		cmd, err := r.commandForVerb(verb)
+		cmd, err := r.CommandForVerbWithInvoker(verb, invoker)
 		if err != nil {
 			return nil, err
 		}
@@ -52,7 +64,17 @@ func (r *Registry) CommandDescriptionForVerb(verb *VerbSpec) (*cmds.CommandDescr
 	return r.buildDescription(verb)
 }
 
-func (r *Registry) commandForVerb(verb *VerbSpec) (cmds.Command, error) {
+// CommandForVerb builds one Glazed command wrapper for the given verb using the
+// default runtime-owning invoke path.
+func (r *Registry) CommandForVerb(verb *VerbSpec) (cmds.Command, error) {
+	return r.CommandForVerbWithInvoker(verb, nil)
+}
+
+// CommandForVerbWithInvoker builds one Glazed command wrapper for the given
+// verb while allowing the caller to override how execution happens.
+//
+// When invoker is nil, the default runtime-owning registry.invoke(...) behavior is used.
+func (r *Registry) CommandForVerbWithInvoker(verb *VerbSpec, invoker VerbInvoker) (cmds.Command, error) {
 	description, err := r.buildDescription(verb)
 	if err != nil {
 		return nil, err
@@ -63,12 +85,14 @@ func (r *Registry) commandForVerb(verb *VerbSpec) (cmds.Command, error) {
 			CommandDescription: description,
 			registry:           r,
 			verb:               verb,
+			invoker:            invoker,
 		}, nil
 	case OutputModeText:
 		return &WriterCommand{
 			CommandDescription: description,
 			registry:           r,
 			verb:               verb,
+			invoker:            invoker,
 		}, nil
 	default:
 		return nil, fmt.Errorf("%s has unsupported output mode %q", verb.SourceRef(), verb.OutputMode)
@@ -338,7 +362,7 @@ func normalizeDefaultValue(value interface{}, fieldType fields.Type) (interface{
 }
 
 func (c *Command) RunIntoGlazeProcessor(ctx context.Context, parsedValues *values.Values, gp middlewares.Processor) error {
-	result, err := c.registry.invoke(ctx, c.verb, parsedValues)
+	result, err := c.invoke(ctx, parsedValues)
 	if err != nil {
 		return err
 	}
@@ -355,7 +379,7 @@ func (c *Command) RunIntoGlazeProcessor(ctx context.Context, parsedValues *value
 }
 
 func (c *WriterCommand) RunIntoWriter(ctx context.Context, parsedValues *values.Values, w io.Writer) error {
-	result, err := c.registry.invoke(ctx, c.verb, parsedValues)
+	result, err := c.invoke(ctx, parsedValues)
 	if err != nil {
 		return err
 	}
@@ -365,6 +389,20 @@ func (c *WriterCommand) RunIntoWriter(ctx context.Context, parsedValues *values.
 	}
 	_, err = io.WriteString(w, text)
 	return err
+}
+
+func (c *Command) invoke(ctx context.Context, parsedValues *values.Values) (interface{}, error) {
+	if c.invoker != nil {
+		return c.invoker(ctx, c.registry, c.verb, parsedValues)
+	}
+	return c.registry.invoke(ctx, c.verb, parsedValues)
+}
+
+func (c *WriterCommand) invoke(ctx context.Context, parsedValues *values.Values) (interface{}, error) {
+	if c.invoker != nil {
+		return c.invoker(ctx, c.registry, c.verb, parsedValues)
+	}
+	return c.registry.invoke(ctx, c.verb, parsedValues)
 }
 
 func renderTextResult(result interface{}) (string, error) {

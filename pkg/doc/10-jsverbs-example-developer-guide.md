@@ -258,6 +258,13 @@ This section explains how a discovered verb becomes a usable CLI command.
 
 This stage is where the subsystem starts feeling like “real Glazed” instead of an extraction experiment. By the time a `VerbSpec` reaches `command.go`, the problem is no longer “what did the JavaScript file contain?” but “what command interface should users see?” That is a different problem, and it is why `command.go` deserves to stay focused on schema construction and command semantics.
 
+There are now two closely related host-integration paths:
+
+- `registry.Commands()` and `registry.CommandForVerb(...)` build command wrappers that use the default runtime-owning execution path.
+- `registry.CommandsWithInvoker(...)` and `registry.CommandForVerbWithInvoker(...)` build the same command wrappers, but let the host inject its own execution strategy.
+
+That second path matters for host applications that need to keep ownership of a long-lived runtime or session. A caller can still reuse the jsverbs-generated schema and output-mode handling while routing execution through host-owned state instead of forcing a new runtime per command invocation.
+
 ### Structured output verbs
 
 Most verbs default to structured output. They compile into a Glazed command and their result is normalized like this:
@@ -283,7 +290,7 @@ __verb__("banner", {
 
 That changes compilation from `GlazeCommand` to `WriterCommand`.
 
-The runtime invocation is the same. Only the Go-side result handling changes:
+The runtime invocation contract is the same. Only the Go-side result handling changes:
 
 - strings are written directly,
 - `[]byte` is written directly,
@@ -303,6 +310,30 @@ Positional arguments are treated as required unless a default value is declared.
 This rule is worth remembering because it is the point where JavaScript permissiveness meets CLI strictness. JavaScript is happy to call a function with fewer arguments. A CLI should usually not be. The subsystem therefore chooses the CLI interpretation by default: if something is a positional argument, users should be told when it is missing.
 
 The current implementation now reaches that behavior through a shared binding plan rather than through duplicated logic in `command.go` and `runtime.go`. That matters for maintainability. If you change how a parameter should behave, the safest place to start is the binding-plan layer rather than editing compile-time and runtime code separately.
+
+### Host-owned execution versus default execution
+
+The default `registry.Commands()` path still calls the internal `registry.invoke(...)` helper, which creates and closes a runtime for each command execution. That remains the right default for small tools like `jsverbs-example`.
+
+Some host applications need a different ownership model. Examples include hardware-backed runtimes, long-lived event loops, or application-specific runtime/session state that must outlive one command call. For those cases, the package now supports injected execution with:
+
+- `registry.CommandsWithInvoker(invoker)`
+- `registry.CommandForVerbWithInvoker(verb, invoker)`
+
+The `invoker` callback receives:
+
+- the `context.Context`
+- the `Registry`
+- the selected `VerbSpec`
+- the parsed Glazed `*values.Values`
+
+A host can therefore:
+
+1. reuse jsverbs discovery and schema generation,
+2. parse values through the generated command as usual,
+3. run the verb inside a caller-owned runtime using `registry.InvokeInRuntime(...)`, or route execution through some other host-specific mechanism.
+
+That split is deliberate. `pkg/jsverbs` owns command discovery, metadata interpretation, and generic command-wrapper generation. The host application still owns runtime/session lifecycle policy when it needs something more specialized than the default ephemeral runtime path.
 
 ## Runtime model
 
