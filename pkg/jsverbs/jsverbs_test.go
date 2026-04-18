@@ -2,14 +2,19 @@ package jsverbs
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
 
+	"github.com/dop251/goja"
+	noderequire "github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/runner"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/stretchr/testify/require"
 )
 
@@ -440,6 +445,128 @@ __verb__("render", {
 	require.Equal(t, "decorated:closed", rows[0]["decorated"])
 }
 
+func TestCommandDescriptionForVerb(t *testing.T) {
+	registry := mustRegistry(t)
+	verb, ok := registry.Verb("basics greet")
+	require.True(t, ok)
+	desc, err := registry.CommandDescriptionForVerb(verb)
+	require.NoError(t, err)
+	require.Equal(t, "greet", desc.Name)
+	require.NotNil(t, desc.Schema)
+}
+
+func TestCommandForVerbWithInvokerUsesCustomInvoker(t *testing.T) {
+	registry := mustRegistry(t)
+	verb, ok := registry.Verb("basics greet")
+	require.True(t, ok)
+
+	called := false
+	cmd, err := registry.CommandForVerbWithInvoker(verb, func(ctx context.Context, gotRegistry *Registry, gotVerb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
+		called = true
+		require.Equal(t, registry, gotRegistry)
+		require.Equal(t, verb, gotVerb)
+		require.NotNil(t, parsedValues)
+		return map[string]interface{}{
+			"greeting": "custom:" + gotVerb.FullPath(),
+		}, nil
+	})
+	require.NoError(t, err)
+
+	rows := runCommand(t, cmd, map[string]map[string]interface{}{
+		"default": {
+			"name": "Manuel",
+		},
+	})
+	require.True(t, called)
+	require.Equal(t, "custom:basics greet", rows[0]["greeting"])
+}
+
+func TestCommandsWithInvokerUsesCustomInvokerForWriterCommands(t *testing.T) {
+	registry := mustRegistry(t)
+	commandMap := mustCommandMapWithInvoker(t, registry, func(ctx context.Context, gotRegistry *Registry, gotVerb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
+		require.Equal(t, registry, gotRegistry)
+		require.NotNil(t, gotVerb)
+		require.NotNil(t, parsedValues)
+		return fmt.Sprintf("custom writer for %s\n", gotVerb.FullPath()), nil
+	})
+
+	text := runWriterCommand(t, commandMap["basics banner"], map[string]map[string]interface{}{
+		"default": {
+			"name": "Manuel",
+		},
+	})
+	require.Equal(t, "custom writer for basics banner\n", text)
+}
+
+func TestCommandsWithInvokerNilFallsBackToDefaultExecution(t *testing.T) {
+	registry := mustRegistry(t)
+	commandMap := mustCommandMapWithInvoker(t, registry, nil)
+
+	rows := runCommand(t, commandMap["basics greet"], map[string]map[string]interface{}{
+		"default": {
+			"name":    "Manuel",
+			"excited": true,
+		},
+	})
+	require.Equal(t, "Hello, Manuel!", rows[0]["greeting"])
+}
+
+func TestInvokeInRuntimeReusesLiveRuntime(t *testing.T) {
+	registry := mustRegistry(t)
+	verb, ok := registry.Verb("basics list-issues")
+	require.True(t, ok)
+
+	requireOpt, err := engine.RequireOptionWithModuleRootsFromScript(
+		filepath.Join(repoRoot(t), "testdata", "jsverbs", "basics.js"),
+		engine.DefaultModuleRootsOptions(),
+	)
+	require.NoError(t, err)
+
+	builder := engine.NewBuilder().
+		WithRequireOptions(noderequire.WithLoader(registry.RequireLoader())).
+		WithModules(engine.DefaultRegistryModules())
+	if requireOpt != nil {
+		builder = builder.WithRequireOptions(requireOpt)
+	}
+	factory, err := builder.Build()
+	require.NoError(t, err)
+	rt, err := factory.NewRuntime(context.Background())
+	require.NoError(t, err)
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	desc, err := registry.CommandDescriptionForVerb(verb)
+	require.NoError(t, err)
+	cmd := &Command{CommandDescription: desc, registry: registry, verb: verb}
+	parsedValues, err := runner.ParseCommandValues(cmd, runner.WithValuesForSections(map[string]map[string]interface{}{
+		"default": {
+			"repo": "go-go-golems/go-go-goja",
+		},
+		"filters": {
+			"state":  "closed",
+			"labels": []string{"bug", "docs"},
+		},
+	}))
+	require.NoError(t, err)
+
+	result, err := registry.InvokeInRuntime(context.Background(), rt, verb, parsedValues)
+	require.NoError(t, err)
+	rows, err := rowsFromResult(result)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	row := rowToMap(rows[0])
+	require.Equal(t, "go-go-golems/go-go-goja", row["repo"])
+	require.Equal(t, "closed", row["state"])
+	require.EqualValues(t, 2, row["labelCount"])
+
+	stillAlive, err := rt.Owner.Call(context.Background(), "test.still-alive", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		return vm.RunString(`(() => 42)()`)
+	})
+	require.NoError(t, err)
+	value, ok := stillAlive.(goja.Value)
+	require.True(t, ok)
+	require.EqualValues(t, 42, value.ToInteger())
+}
+
 func TestUnknownSectionStillFailsWhenAbsentFromBothCatalogs(t *testing.T) {
 	registry, err := ScanSource("broken.js", `
 function summarize(filters) {
@@ -482,7 +609,12 @@ func repoRoot(t *testing.T) string {
 
 func mustCommandMap(t *testing.T, registry *Registry) map[string]cmds.Command {
 	t.Helper()
-	commands, err := registry.Commands()
+	return mustCommandMapWithInvoker(t, registry, nil)
+}
+
+func mustCommandMapWithInvoker(t *testing.T, registry *Registry, invoker VerbInvoker) map[string]cmds.Command {
+	t.Helper()
+	commands, err := registry.CommandsWithInvoker(invoker)
 	require.NoError(t, err)
 	ret := map[string]cmds.Command{}
 	for i, command := range commands {

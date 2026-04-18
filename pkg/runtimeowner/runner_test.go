@@ -110,6 +110,26 @@ func (s *manualScheduler) Close() {
 	s.mu.Unlock()
 }
 
+func TestOwnerContextAllowsReentrantCall(t *testing.T) {
+	vm := goja.New()
+	s := newQueueScheduler(vm)
+	defer s.Close()
+
+	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	got, err := r.Call(context.Background(), "test.owner-context", func(ctx context.Context, _ *goja.Runtime) (any, error) {
+		ownerCtx := OwnerContext(r, ctx)
+		return r.Call(ownerCtx, "test.owner-context.nested", func(context.Context, *goja.Runtime) (any, error) {
+			return 42, nil
+		})
+	})
+	if err != nil {
+		t.Fatalf("Call returned error: %v", err)
+	}
+	if got != 42 {
+		t.Fatalf("nested Call = %#v, want 42", got)
+	}
+}
+
 func TestRunnerCallSuccess(t *testing.T) {
 	vm := goja.New()
 	s := newQueueScheduler(vm)

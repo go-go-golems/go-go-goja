@@ -11,17 +11,14 @@ import (
 
 func TestProviderSearchAndGet(t *testing.T) {
 	hs := help.NewHelpSystem()
-	hs.AddSection(&help.Section{
-		Section: &helpmodel.Section{
-			Slug:        "repl-usage",
-			Title:       "REPL Usage",
-			Short:       "How to use the REPL",
-			Content:     "Body",
-			Topics:      []string{"goja", "repl"},
-			Commands:    []string{"repl"},
-			SectionType: helpmodel.SectionGeneralTopic,
-		},
-		HelpSystem: hs,
+	hs.AddSection(&helpmodel.Section{
+		Slug:        "repl-usage",
+		Title:       "REPL Usage",
+		Short:       "How to use the REPL",
+		Content:     "Body",
+		Topics:      []string{"goja", "repl"},
+		Commands:    []string{"repl"},
+		SectionType: helpmodel.SectionGeneralTopic,
 	})
 
 	provider, err := NewProvider("default-help", "Default Help", "", hs)

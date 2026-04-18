@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-go-golems/glazed/pkg/help"
+	helpmodel "github.com/go-go-golems/glazed/pkg/help/model"
 	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
 )
 
@@ -75,7 +76,7 @@ func (p *Provider) Search(_ context.Context, _ docaccess.Query) ([]docaccess.Ent
 	}
 	out := make([]docaccess.Entry, 0, len(sections))
 	for _, section := range sections {
-		if section == nil || section.Section == nil {
+		if section == nil {
 			continue
 		}
 		out = append(out, sectionEntry(p.sourceID, section))
@@ -83,7 +84,7 @@ func (p *Provider) Search(_ context.Context, _ docaccess.Query) ([]docaccess.Ent
 	return out, nil
 }
 
-func sectionEntry(sourceID string, section *help.Section) docaccess.Entry {
+func sectionEntry(sourceID string, section *helpmodel.Section) docaccess.Entry {
 	return docaccess.Entry{
 		Ref: docaccess.EntryRef{
 			SourceID: sourceID,

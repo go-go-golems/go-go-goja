@@ -32,6 +32,27 @@ func (r *Registry) invoke(ctx context.Context, verb *VerbSpec, parsedValues *val
 		_ = runtime.Close(context.Background())
 	}()
 
+	return r.InvokeInRuntime(ctx, runtime, verb, parsedValues)
+}
+
+// RequireLoader exposes the scanned-source overlay loader so host applications
+// can compose their own engine runtime while still using jsverbs module capture.
+func (r *Registry) RequireLoader() func(modulePath string) ([]byte, error) {
+	return r.sourceLoader
+}
+
+// InvokeInRuntime invokes a verb inside an already-live caller-owned runtime.
+// Unlike the default Commands()/invoke() path, it does not create or close the runtime.
+func (r *Registry) InvokeInRuntime(ctx context.Context, runtime *engine.Runtime, verb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
+	if r == nil {
+		return nil, fmt.Errorf("registry is nil")
+	}
+	if runtime == nil {
+		return nil, fmt.Errorf("runtime is nil")
+	}
+	if verb == nil {
+		return nil, fmt.Errorf("verb is nil")
+	}
 	plan, err := buildVerbBindingPlan(r, verb)
 	if err != nil {
 		return nil, err
