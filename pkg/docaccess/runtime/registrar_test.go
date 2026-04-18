@@ -17,16 +17,13 @@ import (
 
 func TestRegistrarRegistersDocsModuleWithHelpAndJSDocSources(t *testing.T) {
 	helpSystem := help.NewHelpSystem()
-	helpSystem.AddSection(&help.Section{
-		Section: &helpmodel.Section{
-			Slug:        "repl-usage",
-			Title:       "REPL Usage",
-			Short:       "How to use the REPL",
-			Content:     "Detailed help",
-			Topics:      []string{"goja", "repl"},
-			SectionType: helpmodel.SectionGeneralTopic,
-		},
-		HelpSystem: helpSystem,
+	helpSystem.AddSection(&helpmodel.Section{
+		Slug:        "repl-usage",
+		Title:       "REPL Usage",
+		Short:       "How to use the REPL",
+		Content:     "Detailed help",
+		Topics:      []string{"goja", "repl"},
+		SectionType: helpmodel.SectionGeneralTopic,
 	})
 
 	store := jsdocmodel.NewDocStore()
