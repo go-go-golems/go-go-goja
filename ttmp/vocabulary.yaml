@@ -43,6 +43,14 @@ topics:
       description: Integration patterns for LLM agent interaction with long-running processes
     - slug: persistent-repl
       description: Persistent REPL sessions with cross-cell state management
+    - slug: javascript
+      description: JavaScript language and runtime topics
+    - slug: cli
+      description: Command-line interface design and implementation topics
+    - slug: cobra
+      description: Cobra command tree and flag parsing topics
+    - slug: bots
+      description: Bot-oriented command and runtime integration topics
     - slug: sqlite
       description: SQLite-backed persistence, querying, and export workflows
     - slug: cli

@@ -1,0 +1,12 @@
+# Changelog
+
+## 2026-04-20
+
+- Created ticket `GOJA-18-BOT-CLI-VERBS` for the requested `go-go-goja bots list|run|help` command surface.
+- Analyzed the current `go-go-goja` `jsverbs` scan/describe/invoke pipeline and the `engine` runtime composition flow.
+- Analyzed `loupedeck`'s `verbs` bootstrap and runtime command wrapper patterns as the main reusable reference.
+- Documented the design decision to keep sandbox `defineBot(...)` out of the v1 CLI discovery path.
+- Wrote the primary design / implementation guide, quick-reference API doc, and diary.
+- Related the key code files to the ticket docs.
+- Validated the ticket with `docmgr doctor`.
+- Uploaded the ticket bundle to reMarkable at `/ai/2026/04/20/GOJA-18-BOT-CLI-VERBS`.
