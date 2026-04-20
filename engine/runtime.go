@@ -18,6 +18,7 @@ import (
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
 	_ "github.com/go-go-golems/go-go-goja/modules/fs"
+	_ "github.com/go-go-golems/go-go-goja/modules/sandbox"
 	_ "github.com/go-go-golems/go-go-goja/modules/timer"
 )
 
