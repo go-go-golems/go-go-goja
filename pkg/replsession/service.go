@@ -344,7 +344,7 @@ func (s *Service) resolveSessionOptions(opts SessionOptions) SessionOptions {
 	if base.CreatedAt.IsZero() {
 		base.CreatedAt = time.Now().UTC()
 	}
-	return NormalizeSessionOptions(base)
+	return base
 }
 
 func newDefaultSessionID() string {
@@ -445,7 +445,7 @@ func evaluationContext(ctx context.Context, policy SessionPolicy) (context.Conte
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	timeout := NormalizeSessionPolicy(policy).Eval.Timeout()
+	timeout := policy.Eval.Timeout()
 	if timeout <= 0 {
 		return ctx, func() {}
 	}

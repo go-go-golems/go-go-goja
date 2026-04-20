@@ -46,7 +46,6 @@ func NewWithConfig(factory *engine.Factory, logger zerolog.Logger, config Config
 	}
 	if config.Store != nil {
 		serviceOpts = append(serviceOpts, replsession.WithPersistence(config.Store))
-		serviceOpts = append(serviceOpts, replsession.WithDefaultSessionOptions(config.SessionOptions))
 	}
 
 	return &App{

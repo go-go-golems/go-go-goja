@@ -385,7 +385,7 @@ func (s *sessionState) buildSummaryLockedWithGlobals(globals map[string]GlobalSt
 	summary := &SessionSummary{
 		ID:           s.id,
 		Profile:      s.profile,
-		Policy:       NormalizeSessionPolicy(s.policy),
+		Policy:       s.policy, // already normalized at session creation/restore
 		CreatedAt:    s.createdAt,
 		CellCount:    len(s.cells),
 		BindingCount: len(bindings),
@@ -431,7 +431,7 @@ func staticFunctionMapping(binding *bindingState, analysis *jsparse.AnalysisResu
 				if analysis.Index != nil && analysis.Index.Nodes[b.DeclNodeID] != nil {
 					node := analysis.Index.Nodes[b.DeclNodeID]
 					endLine = node.EndLine
-					}
+				}
 			}
 		}
 	}

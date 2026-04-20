@@ -73,7 +73,7 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 		return &EvaluateResponse{Session: state.buildSummaryLocked(), Cell: cell}, nil
 	}
 
-	policy := NormalizeSessionPolicy(state.policy)
+	policy := state.policy // already normalized at session creation/restore
 	state.nextCellID++
 	cellID := state.nextCellID
 	filename := fmt.Sprintf("<repl-cell-%d>", cellID)
@@ -190,12 +190,10 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 }
 
 func shouldAnalyze(policy SessionPolicy) bool {
-	policy = NormalizeSessionPolicy(policy)
 	return policy.UsesInstrumentedExecution() || policy.Observe.StaticAnalysis || policy.Observe.BindingTracking
 }
 
 func buildRewriteReport(source string, analysis *jsparse.AnalysisResult, cellID int, policy SessionPolicy) RewriteReport {
-	policy = NormalizeSessionPolicy(policy)
 	if policy.UsesInstrumentedExecution() {
 		return buildRewrite(source, analysis, cellID)
 	}
@@ -227,7 +225,6 @@ func buildRewriteReport(source string, analysis *jsparse.AnalysisResult, cellID 
 }
 
 func provenanceForPolicy(policy SessionPolicy) []ProvenanceRecord {
-	policy = NormalizeSessionPolicy(policy)
 	if policy.UsesInstrumentedExecution() {
 		return []ProvenanceRecord{
 			{Section: "static", Source: "jsparse.Analyze + resolver + tree-sitter snapshot", Notes: []string{"top-level bindings come from the root lexical scope", "AST rows come from the indexed node tree", "CST rows come from tree-sitter"}},
