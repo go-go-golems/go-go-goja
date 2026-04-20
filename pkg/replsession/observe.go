@@ -391,11 +391,7 @@ func (s *sessionState) buildSummaryLockedWithGlobals(globals map[string]GlobalSt
 		BindingCount: len(bindings),
 		Bindings:     bindings,
 		History:      history,
-		Provenance: []ProvenanceRecord{
-			{Section: "session.bindings", Source: "aggregated persistent bindings stored across cells"},
-			{Section: "session.history", Source: "evaluation reports recorded after each submitted cell"},
-			{Section: "session.globals", Source: "current non-builtin goja global object snapshot"},
-		},
+		Provenance: provenanceForSummary(),
 	}
 	if globals != nil {
 		summary.CurrentGlobals = mapGlobalSnapshotViews(globals)
@@ -454,9 +450,21 @@ func bindingViewFromState(binding *bindingState) BindingView {
 		DeclaredSnippet: binding.DeclaredSnippet,
 		Static:          binding.Static,
 		Runtime:         binding.Runtime,
-		Provenance: []ProvenanceRecord{
-			{Section: "binding.static", Source: "root-scope binding extraction from the declaring cell"},
-			{Section: "binding.runtime", Source: "current runtime value inspection from goja"},
-		},
+		Provenance: provenanceForBinding(),
+	}
+}
+
+func provenanceForSummary() []ProvenanceRecord {
+	return []ProvenanceRecord{
+		{Section: "session.bindings", Source: "aggregated persistent bindings stored across cells"},
+		{Section: "session.history", Source: "evaluation reports recorded after each submitted cell"},
+		{Section: "session.globals", Source: "current non-builtin goja global object snapshot"},
+	}
+}
+
+func provenanceForBinding() []ProvenanceRecord {
+	return []ProvenanceRecord{
+		{Section: "binding.static", Source: "root-scope binding extraction from the declaring cell"},
+		{Section: "binding.runtime", Source: "current runtime value inspection from goja"},
 	}
 }
