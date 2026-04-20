@@ -10,3 +10,6 @@
 - Related the key code files to the ticket docs.
 - Validated the ticket with `docmgr doctor`.
 - Uploaded the ticket bundle to reMarkable at `/ai/2026/04/20/GOJA-18-BOT-CLI-VERBS`.
+- Implemented the first working `go-go-goja bots` CLI under `cmd/go-go-goja` and `pkg/botcli`, including `list`, `run`, and `help`.
+- Chose explicit `__verb__` discovery for v1 by scanning with `IncludePublicFunctions = false`.
+- Added end-to-end bot CLI tests covering listing, structured output, text output, async Promise settlement, and relative `require()` support.

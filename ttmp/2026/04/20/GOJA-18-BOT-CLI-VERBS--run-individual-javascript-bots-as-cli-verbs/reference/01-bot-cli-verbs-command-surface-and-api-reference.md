@@ -17,8 +17,14 @@ RelatedFiles:
       Note: Shows caller-owned runtime invocation for a selected verb
     - Path: ../../../../../../../loupedeck/pkg/scriptmeta/scriptmeta.go
       Note: Shows useful selector and target-resolution patterns for follow-up implementation
+    - Path: cmd/go-go-goja/main.go
+      Note: Exposes the new bots command from the root binary
     - Path: cmd/jsverbs-example/main.go
       Note: Smallest example of scanning and exposing jsverbs through a CLI
+    - Path: pkg/botcli/command_test.go
+      Note: Proves list
+    - Path: pkg/botcli/resolve.go
+      Note: Defines the selector resolution rules used by bots run and bots help
     - Path: pkg/jsverbs/model.go
       Note: Defines Registry and VerbSpec fields referenced by the new command surface
     - Path: pkg/jsverbs/runtime.go
@@ -29,6 +35,7 @@ LastUpdated: 2026-04-20T12:45:00-04:00
 WhatFor: Give reviewers and implementers a concise copy/paste-ready reference for the bot CLI verb design.
 WhenToUse: Use while implementing or reviewing the new bot CLI package and its Cobra/Glazed/jsverbs integration.
 ---
+
 
 
 # Bot CLI verbs command surface and API reference

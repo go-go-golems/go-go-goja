@@ -15,8 +15,16 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../loupedeck/cmd/loupedeck/cmds/verbs/command.go
       Note: Was inspected to document the reusable CLI command-wrapper pattern in the diary
+    - Path: cmd/go-go-goja/main.go
+      Note: Was added during Step 3 as the canonical root CLI binary
     - Path: modules/sandbox/runtime.go
       Note: Was inspected to document why sandbox is separate from v1 CLI discovery
+    - Path: pkg/botcli/bootstrap.go
+      Note: Was added during Step 3 for repository bootstrap and explicit-verb scanning
+    - Path: pkg/botcli/command.go
+      Note: Was added during Step 3 for the public bots command surface
+    - Path: pkg/botcli/command_test.go
+      Note: Was added during Step 3 to validate the new bot CLI end-to-end
     - Path: pkg/jsverbs/runtime.go
       Note: Was inspected to document invocation behavior in the diary
     - Path: pkg/jsverbs/scan.go
@@ -27,6 +35,7 @@ LastUpdated: 2026-04-20T12:45:00-04:00
 WhatFor: Capture the research and documentation steps behind the bot CLI verbs ticket.
 WhenToUse: Read when continuing the ticket, reviewing evidence, or checking how the reMarkable bundle was produced.
 ---
+
 
 
 # Diary
@@ -184,6 +193,104 @@ After the docs were in place, I validated the ticket with `docmgr doctor`, perfo
   - `remarquee upload bundle --name "GOJA-18 Bot CLI Verbs" --remote-dir "/ai/2026/04/20/GOJA-18-BOT-CLI-VERBS" <ticket directory>`
 - Remote verification command used:
   - `remarquee cloud ls /ai/2026/04/20/GOJA-18-BOT-CLI-VERBS --long --non-interactive`
+
+## Step 3: Implement the first working `bots list|run|help` command surface
+
+After the design bundle was committed, I started implementing the feature in the repository itself, beginning with the command shell and the reusable orchestration package. I chose the canonical `cmd/go-go-goja` binary path from the design doc and put the feature-specific logic in a new `pkg/botcli` package so the lower-level `pkg/jsverbs` APIs stayed generic.
+
+The implementation deliberately followed the architecture from the ticket: repository bootstrap and duplicate detection live in `pkg/botcli`, verb resolution stays selector-driven, and runtime invocation reuses `jsverbs.CommandDescriptionForVerb(...)` plus `registry.InvokeInRuntime(...)`. I also kept the v1 discovery policy strict by scanning with `IncludePublicFunctions = false`, which means only explicit `__verb__` metadata becomes a bot command.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add tasks. then work on them one by one, committing at appropriate intervals, keeping a diary as you go."
+
+**Assistant interpretation:** Turn the design ticket into active implementation work, complete the command-line feature incrementally, and checkpoint the work with focused commits and diary updates.
+
+**Inferred user intent:** Move from design into disciplined implementation without losing documentation quality or reviewability.
+
+**Commit (code):** 869b954 — "Add bot CLI verbs command surface"
+
+### What I did
+- Added `cmd/go-go-goja/main.go` as a new canonical root CLI binary for this repo.
+- Added `pkg/botcli/model.go` with repository and discovered-bot types.
+- Added `pkg/botcli/bootstrap.go` for:
+  - `--bot-repository` handling,
+  - raw-arg filtering for lazy `run`/`help`,
+  - path normalization,
+  - directory scanning,
+  - duplicate full-path detection.
+- Added `pkg/botcli/resolve.go` for bot selector resolution from either explicit full paths or unique shorter selectors.
+- Added `pkg/botcli/runtime.go` for:
+  - building single-verb Cobra commands from `CommandDescriptionForVerb(...)`,
+  - creating runtimes with the scanned-source loader plus filesystem module roots,
+  - invoking selected verbs,
+  - printing structured JSON or text output.
+- Added `pkg/botcli/command.go` for the public `bots list`, `bots run`, and `bots help` subcommands.
+- Added `pkg/botcli/command_test.go` covering:
+  - list output,
+  - structured verb execution,
+  - text verb execution,
+  - async Promise settlement,
+  - relative `require()` support,
+  - help output.
+- Ran manual smoke commands and full repo tests with `GOWORK=off go test ./...`.
+
+### Why
+- The user asked to work through the implementation tasks rather than stopping at design.
+- The `pkg/botcli` package keeps the UX-specific logic separate from the reusable `jsverbs` package.
+- A dedicated root binary makes the new surface easier to discover and easier to extend later.
+
+### What worked
+- The `loupedeck` pattern translated cleanly into a smaller `go-go-goja`-specific command layer.
+- Reusing `CommandDescriptionForVerb(...)` kept `run` and `help` aligned.
+- The existing async settlement work in `jsverbs` and sandbox made the async bot CLI test pass without extra promise-specific CLI logic.
+- The full repository test suite passed with `GOWORK=off go test ./...` after the new package landed.
+
+### What didn't work
+- The first test expectation incorrectly assumed the `packaged.js` fixture would still show up in `bots list`. That fixture relies on public-function inference, but the new CLI deliberately disables `IncludePublicFunctions`, so the test had to be updated to reflect the explicit-verb-only policy.
+- The initial help test also assumed positional argument help text would be rendered more verbosely than Cobra currently prints for this generated command, so I adjusted the assertion to match the actual help output.
+- I hit one compile error while wiring runtime options:
+  - `pkg/botcli/runtime.go:72:40: bot.runtimeOptions undefined (type DiscoveredBot has no field or method runtimeOptions)`
+  - The fix was to call the helper on `bot.Repository` instead.
+
+### What I learned
+- The static `bots run <verb>` UX works well when selector resolution is implemented as “longest matching argument prefix.”
+- Supporting both parsed inherited flags and manually filtered raw args makes lazy commands much easier to use.
+- Explicit `__verb__`-only discovery is a good default for a production-shaped CLI because it avoids accidental command exposure.
+
+### What was tricky to build
+- The trickiest part was balancing lazy command dispatch with verb-specific flag parsing. `bots run` and `bots help` need to defer verb parsing until after the selected verb is known, so they cannot rely on normal Cobra flag registration at the outer command layer. I handled that by manually stripping repository flags from the raw argument stream, resolving the bot selector from the remaining args, then building an ephemeral verb-specific Cobra command and parser.
+
+### What warrants a second pair of eyes
+- Whether the exact selector-matching rules should stay as implemented or be narrowed to exact full paths only.
+- Whether the v1 explicit-verb-only policy should be surfaced more prominently in user-facing docs/help text.
+- Whether `bots run` should eventually integrate deeper with Glazed table renderers rather than using JSON-first structured output.
+
+### What should be done in the future
+- Add dedicated bot-specific fixture trees under `testdata/` instead of only reusing `testdata/jsverbs`.
+- Add multi-repository and duplicate-selector tests.
+- Add user-facing authoring docs or a help page explaining how to write bot scripts with `__verb__`.
+
+### Code review instructions
+- Start with `pkg/botcli/command.go`, then read `bootstrap.go`, `resolve.go`, and `runtime.go` in that order.
+- Review `cmd/go-go-goja/main.go` to see how the new root command is exposed.
+- Run these manual smoke commands:
+  - `GOWORK=off go run ./cmd/go-go-goja bots list --bot-repository ./testdata/jsverbs`
+  - `GOWORK=off go run ./cmd/go-go-goja bots run basics greet --bot-repository ./testdata/jsverbs Manuel --excited`
+  - `GOWORK=off go run ./cmd/go-go-goja bots help basics greet --bot-repository ./testdata/jsverbs`
+- Re-run the full suite with `GOWORK=off go test ./...`.
+
+### Technical details
+- Manual validation commands used:
+  - `GOWORK=off go run ./cmd/go-go-goja bots list --bot-repository ./testdata/jsverbs`
+  - `GOWORK=off go run ./cmd/go-go-goja bots run basics greet --bot-repository ./testdata/jsverbs Manuel --excited`
+  - `GOWORK=off go run ./cmd/go-go-goja bots help basics greet --bot-repository ./testdata/jsverbs`
+- Focused package test command used:
+  - `GOWORK=off go test ./pkg/botcli ./cmd/go-go-goja`
+- Full validation command used:
+  - `GOWORK=off go test ./...`
+- Exact compile error encountered during implementation:
+  - `pkg/botcli/runtime.go:72:40: bot.runtimeOptions undefined (type DiscoveredBot has no field or method runtimeOptions)`
 
 ## Related
 

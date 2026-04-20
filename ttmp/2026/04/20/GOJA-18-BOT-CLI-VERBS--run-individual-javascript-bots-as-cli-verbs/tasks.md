@@ -16,36 +16,36 @@
 ## Recommended implementation phases
 
 ### Phase 1: Root command and package scaffolding
-- [ ] Decide whether the canonical binary should be `cmd/go-go-goja` or a transitional example binary.
-- [ ] Add a `pkg/botcli` package for command orchestration rather than putting UX-specific logic into `pkg/jsverbs`.
-- [ ] Add a `bots` root command with shared `--bot-repository` flags.
+- [x] Decide whether the canonical binary should be `cmd/go-go-goja` or a transitional example binary.
+- [x] Add a `pkg/botcli` package for command orchestration rather than putting UX-specific logic into `pkg/jsverbs`.
+- [x] Add a `bots` root command with shared `--bot-repository` flags.
 
 ### Phase 2: Repository bootstrap and discovery
-- [ ] Implement repository normalization and scanning helpers.
-- [ ] Scan repositories with `jsverbs.ScanDir(...)`.
-- [ ] Decide whether v1 should require explicit `__verb__` annotations or allow public-function inference.
-- [ ] Reject duplicate full verb paths with clear source reporting.
+- [x] Implement repository normalization and scanning helpers.
+- [x] Scan repositories with `jsverbs.ScanDir(...)`.
+- [x] Decide whether v1 should require explicit `__verb__` annotations or allow public-function inference.
+- [x] Reject duplicate full verb paths with clear source reporting.
 
 ### Phase 3: `bots list`
-- [ ] Implement a sorted list view of discovered verbs.
-- [ ] Print each verb path with a stable source label.
+- [x] Implement a sorted list view of discovered verbs.
+- [x] Print each verb path with a stable source label.
 - [ ] Add tests for empty, duplicate, and multi-repository cases.
 
 ### Phase 4: `bots run <verb>`
-- [ ] Implement selector resolution for one requested verb.
-- [ ] Build a single-verb Glazed/Cobra parser from `CommandDescriptionForVerb(...)`.
-- [ ] Create a runtime with the registry overlay loader and module roots.
-- [ ] Invoke the selected verb through `registry.InvokeInRuntime(...)`.
-- [ ] Render text and structured output correctly.
+- [x] Implement selector resolution for one requested verb.
+- [x] Build a single-verb Glazed/Cobra parser from `CommandDescriptionForVerb(...)`.
+- [x] Create a runtime with the registry overlay loader and module roots.
+- [x] Invoke the selected verb through `registry.InvokeInRuntime(...)`.
+- [x] Render text and structured output correctly.
 
 ### Phase 5: `bots help <verb>`
-- [ ] Build an ephemeral Cobra command from the selected description.
-- [ ] Reuse the same parser/description source as `bots run`.
-- [ ] Verify that help text stays aligned with actual runtime parsing.
+- [x] Build an ephemeral Cobra command from the selected description.
+- [x] Reuse the same parser/description source as `bots run`.
+- [x] Verify that help text stays aligned with actual runtime parsing.
 
 ### Phase 6: Validation and examples
 - [ ] Add fixture JS files under `testdata/` for bot verbs.
-- [ ] Add end-to-end tests for list, run, help, async Promise results, and relative `require()`.
+- [x] Add end-to-end tests for list, run, help, async Promise results, and relative `require()`.
 - [ ] Add a README or help page showing how to author bot scripts with `__verb__`.
 
 ## Open follow-ups

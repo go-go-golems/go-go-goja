@@ -19,8 +19,16 @@ RelatedFiles:
       Note: Shows how jsverbs can be wrapped into runtime-backed Cobra commands
     - Path: README.md
       Note: Explains the repo's explicit engine composition style and shows the absence of a canonical bot CLI today
+    - Path: cmd/go-go-goja/main.go
+      Note: Implements the canonical root CLI binary chosen in the design
     - Path: engine/factory.go
       Note: Defines the engine builder/factory/runtime lifecycle the bot CLI should reuse
+    - Path: pkg/botcli/bootstrap.go
+      Note: Implements repository bootstrap
+    - Path: pkg/botcli/command.go
+      Note: Implements the public bots list/run/help surface
+    - Path: pkg/botcli/runtime.go
+      Note: Implements runtime-backed single-verb execution and help wiring
     - Path: pkg/jsverbs/command.go
       Note: Provides command description generation from discovered VerbSpecs
     - Path: pkg/jsverbs/runtime.go
@@ -33,6 +41,7 @@ LastUpdated: 2026-04-20T12:45:00-04:00
 WhatFor: Explain how to add a stable `go-go-goja bots list|run|help` command surface on top of the existing jsverbs and engine runtime layers.
 WhenToUse: Read this before implementing or reviewing a CLI feature that exposes JavaScript bots as command-line verbs in go-go-goja.
 ---
+
 
 
 # Bot CLI verbs architecture and implementation guide
