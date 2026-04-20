@@ -368,6 +368,69 @@ The bundle upload was a useful sanity check because it forced me to verify that 
 - Remote verification command: `remarquee cloud ls /ai/2026/04/20/GOJA-17-JS-SANDBOX-API --long --non-interactive`.
 - Ticket validation command: `docmgr doctor --ticket GOJA-17-JS-SANDBOX-API --stale-after 30`.
 
+## Step 6: Teach the sandbox dispatch path to settle async Promise results
+
+After the first implementation landed, I went back and fixed the part that had been intentionally left as a follow-up: async handler settlement. The important bug was that async JS command and event handlers were still bubbling Promise objects back to Go instead of returning settled values. That made the command-line and host-facing API awkward, because callers want a normal resolved result, not a raw Promise wrapper.
+
+The fix was to settle handler return values after the owner-thread call completes, not from inside the owner-thread call itself. That distinction matters in goja because the runtime only drains queued promise jobs when the top-level call returns. The new dispatch path now waits for Promise settlement outside the owner callback and recursively resolves async results in command and event payloads.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Finish async Promise settlement so sandbox bot handlers can use `async` naturally and still return settled values to the host.
+
+**Inferred user intent:** Make the JS bot API pleasant for real scripts that rely on async/await, while preserving a simple Go-side dispatch contract.
+
+**Commit (code):** 5e3a8ef — "Add async promise settlement for sandbox dispatch"
+
+### What I did
+- Reworked `modules/sandbox/bot.go` so command and event dispatch settle returned Promise objects before returning to Go.
+- Added a small recursive settlement helper so arrays and maps containing Promise values are normalized too.
+- Restored the runtime tests to use `async` handlers, which now pass with the settled dispatch flow.
+- Revalidated the repository with `GOWORK=off go test ./...`.
+
+### Why
+- The sandbox API should feel natural to JS authors, and `async/await` is part of that contract.
+- Returning unresolved Promise objects forces host code to know too much about goja internals.
+- Settling at the boundary keeps the Go API compact and the JS API ergonomic.
+
+### What worked
+- The existing runtime-owner pattern made it possible to inspect Promise state safely on the owner thread.
+- The updated tests now prove both command and event paths can use async handlers.
+- The change did not require any API shape changes in the docs or CLI harness.
+
+### What didn't work
+- The first version of the settlement logic tried to wait from inside the owner-thread callback, which is the wrong place to do it because promise jobs are drained only after the top-level runtime call returns.
+- Event dispatch also needed special handling because it can collect multiple handler return values, not just one.
+
+### What I learned
+- Promise settlement belongs at the host boundary, after the JS call returns, not in the middle of the JS call itself.
+- It is easier to normalize nested async results once than to make every call site understand Promise objects.
+- goja’s runtime model rewards a very clear distinction between “invoke JS” and “observe JS result.”
+
+### What was tricky to build
+- The tricky part was separating the owner-thread call from the result-collection step so the runtime could actually flush queued promise jobs.
+- Event handlers were slightly harder than commands because the result shape is an array of handler outcomes, so settlement had to recurse through collections too.
+
+### What warrants a second pair of eyes
+- Whether deeper nested container settlement should be generalized further or kept intentionally minimal.
+- Whether the CLI harness should log when it waits on a Promise, or stay silent and just return the settled value.
+
+### What should be done in the future
+- Use the settled async path in a real bot or live scene integration.
+- Consider whether `ctx.reply` and `ctx.defer` should eventually expose richer host-side reply result types.
+
+### Code review instructions
+- Start with `modules/sandbox/bot.go` and read the `dispatch`, `settleValue`, and `waitForPromise` helpers together.
+- Re-run `GOWORK=off go test ./modules/sandbox ./...` if you want to confirm the async handlers still settle correctly.
+- Compare the new behavior against the synchronous CLI harness path if you need a quick smoke check.
+
+### Technical details
+- Validation command used: `GOWORK=off go test ./...`.
+- Async tests now cover `command("ping", async ...)` and `event("ready", async ...)`.
+- The Promise state polling still happens on the runtime owner thread via `runtimeowner.Runner`.
+
 ## Related
 
 - `design-doc/01-js-sandbox-host-api-and-runtime-architecture.md`

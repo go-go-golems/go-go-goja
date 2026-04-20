@@ -36,4 +36,4 @@
 - [ ] Re-run `docmgr doctor` and re-upload the final markdown bundle to reMarkable after implementation.
 
 ### Phase 6: Follow-up work
-- [ ] Add Promise settlement support for async handlers if the host needs awaited results rather than Promise objects.
+- [x] Add Promise settlement support for async handlers so command and event dispatch returns settled values instead of raw Promise objects.
