@@ -530,7 +530,7 @@ func (s *sessionState) waitPromise(ctx context.Context, promise *goja.Promise) (
 			}
 			continue
 		case goja.PromiseStateRejected:
-			return nil, fmt.Errorf("promise rejected: %s", gojaValuePreview(snapshot.Result, s.runtime.VM))
+			return nil, fmt.Errorf("promise rejected: %s", rejectionMessage(snapshot.Result, s.runtime.VM))
 		case goja.PromiseStateFulfilled:
 			return snapshot.Result, nil
 		default:
@@ -581,4 +581,50 @@ func promisePreview(promise *goja.Promise) string {
 	default:
 		return "Promise { <pending> }"
 	}
+}
+
+// rejectionMessage extracts a human-readable error message from a promise
+// rejection value. When the value is a JS Error object it reads .message
+// and .stack; otherwise it falls back to a general preview.
+func rejectionMessage(value goja.Value, vm *goja.Runtime) string {
+	if value == nil || goja.IsUndefined(value) {
+		return "undefined"
+	}
+	obj, ok := value.(*goja.Object)
+	if !ok {
+		return gojaValuePreview(value, vm)
+	}
+	// Check for .message (Error objects)
+	msgVal := obj.Get("message")
+	if msgVal != nil && !goja.IsUndefined(msgVal) {
+		msg := msgVal.String()
+		if msg != "" {
+			// Also try to get the constructor name for context
+			ctor := obj.Get("constructor")
+			if ctorObj, ok := ctor.(*goja.Object); ok {
+				nameVal := ctorObj.Get("name")
+				if nameVal != nil && !goja.IsUndefined(nameVal) {
+					name := nameVal.String()
+					if name != "" && name != "Error" {
+						return name + ": " + msg
+					}
+				}
+			}
+			return msg
+		}
+	}
+	// Fallback: try .toString()
+	toStringVal := obj.Get("toString")
+	if toStringVal != nil && !goja.IsUndefined(toStringVal) {
+		if fn, ok := goja.AssertFunction(toStringVal); ok {
+			result, err := fn(obj)
+			if err == nil && result != nil && !goja.IsUndefined(result) {
+				s := result.String()
+				if s != "[object Object]" {
+					return s
+				}
+			}
+		}
+	}
+	return gojaValuePreview(value, vm)
 }
