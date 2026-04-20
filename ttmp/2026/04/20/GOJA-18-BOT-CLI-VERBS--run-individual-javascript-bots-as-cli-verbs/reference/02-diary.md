@@ -25,16 +25,23 @@ RelatedFiles:
       Note: Was added during Step 3 for the public bots command surface
     - Path: pkg/botcli/command_test.go
       Note: Was added during Step 3 to validate the new bot CLI end-to-end
+    - Path: pkg/doc/12-bot-cli-verb-authoring-guide.md
+      Note: Was added during Step 5 as the authoring help page for explicit bot verbs
     - Path: pkg/jsverbs/runtime.go
       Note: Was inspected to document invocation behavior in the diary
     - Path: pkg/jsverbs/scan.go
       Note: Was inspected to document the discovery pipeline in the diary
+    - Path: testdata/botcli-dupe-a/discord.js
+      Note: Was added during Step 5 to validate duplicate repository detection
+    - Path: testdata/botcli/discord.js
+      Note: Was added during Step 5 as a dedicated bot CLI fixture
 ExternalSources: []
 Summary: Chronological diary for the GOJA-18 ticket covering investigation of jsverbs, loupedeck verb wiring, and the delivery of the bot CLI verbs design bundle.
 LastUpdated: 2026-04-20T12:45:00-04:00
 WhatFor: Capture the research and documentation steps behind the bot CLI verbs ticket.
 WhenToUse: Read when continuing the ticket, reviewing evidence, or checking how the reMarkable bundle was produced.
 ---
+
 
 
 
@@ -339,6 +346,81 @@ After the command surface and tests were committed, I refreshed the reMarkable b
   - `remarquee upload bundle --force --name "GOJA-18 Bot CLI Verbs" --remote-dir "/ai/2026/04/20/GOJA-18-BOT-CLI-VERBS" <ticket directory>`
 - Verification command used:
   - `remarquee cloud ls /ai/2026/04/20/GOJA-18-BOT-CLI-VERBS --long --non-interactive`
+
+## Step 5: Add bot-specific fixtures, edge-case tests, and an authoring help page
+
+With the first working command surface in place, I finished the remaining immediate tasks by creating dedicated fixture trees for the bot CLI, extending the tests to cover empty and duplicate repository behavior, and adding a help page that explains how bot authors should write scripts for the new command surface. This step matters because it turns the feature from “working in the happy path” into something that is easier to maintain and teach.
+
+The new fixture tree also makes the bot CLI less dependent on the older generic `testdata/jsverbs` examples. That is useful for future contributors because the tests now show the exact authoring style expected by `go-go-goja bots ...` rather than only borrowing from the broader jsverbs prototype fixtures.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue working through the remaining implementation tasks instead of stopping after the first successful command surface.
+
+**Inferred user intent:** Finish the most obvious validation and documentation follow-through so the feature feels complete, not merely demonstrated.
+
+**Commit (code):** eb5a944 — "Add bot CLI fixtures and authoring guide"
+
+### What I did
+- Added a dedicated `testdata/botcli/` fixture tree with explicit bot verbs:
+  - `discord.js`
+  - `async.js`
+  - `nested/relay.js`
+  - `nested/sub/helper.js`
+- Added duplicate-path fixtures under:
+  - `testdata/botcli-dupe-a/discord.js`
+  - `testdata/botcli-dupe-b/discord.js`
+- Extended `pkg/botcli/command_test.go` with tests for:
+  - multiple repositories,
+  - empty repositories,
+  - duplicate bot path rejection,
+  - dedicated bot fixture relative `require()` behavior.
+- Added `pkg/doc/12-bot-cli-verb-authoring-guide.md` to explain how to write bot scripts with explicit `__verb__(...)` metadata.
+- Re-ran `GOWORK=off go test ./pkg/botcli ./cmd/go-go-goja` and `GOWORK=off go test ./...`.
+
+### Why
+- Dedicated fixtures make the bot CLI contract clearer than reusing only the generic jsverbs examples.
+- Duplicate and empty repository cases are exactly the kinds of operational edges that should be tested before the feature is treated as stable.
+- The authoring guide closes the loop for future users by documenting the explicit-verb policy chosen for v1.
+
+### What worked
+- The duplicate fixture setup made it easy to verify that conflicting full bot paths fail loudly.
+- The new authoring guide fit naturally into the existing embedded help-doc system because `pkg/doc` already loads all markdown help pages.
+- The full repository test suite still passed after the additional fixtures and tests landed.
+
+### What didn't work
+- Nothing substantial failed in this step.
+- The only small adjustment was making sure the dedicated nested fixture used the expected full path (`nested relay relay`) that comes from jsverbs’ directory/file/verb path rules.
+
+### What I learned
+- A dedicated fixture tree is more than test data; it becomes executable documentation for future contributors.
+- The v1 explicit `__verb__` policy is much easier to explain once there is a focused help page that says so plainly.
+
+### What was tricky to build
+- The slightly tricky part was remembering how `jsverbs` derives full paths from both directories and file names. For nested fixtures, the full command path includes the directory component, the file-derived parent, and the verb name, so the test selectors had to match that exact structure.
+
+### What warrants a second pair of eyes
+- Whether the authoring guide should eventually be split into both a help page and a README section.
+- Whether the duplicate-repository error should include repository names in addition to the source refs already shown.
+
+### What should be done in the future
+- Consider adding shell-completion tests once the root CLI surface stabilizes further.
+- Consider adding env/config repository discovery if users want parity with the richer `loupedeck` bootstrap flow.
+
+### Code review instructions
+- Read `pkg/botcli/command_test.go` to see the new validation coverage.
+- Inspect `testdata/botcli/` and `pkg/doc/12-bot-cli-verb-authoring-guide.md` together to understand the intended authoring contract.
+- Re-run `GOWORK=off go test ./...` from the repo root.
+
+### Technical details
+- Focused validation command used:
+  - `GOWORK=off go test ./pkg/botcli ./cmd/go-go-goja`
+- Full validation command used:
+  - `GOWORK=off go test ./...`
+- New authoring help page:
+  - `pkg/doc/12-bot-cli-verb-authoring-guide.md`
 
 ## Related
 

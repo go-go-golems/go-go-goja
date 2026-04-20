@@ -25,16 +25,23 @@ RelatedFiles:
       Note: Proves list
     - Path: pkg/botcli/resolve.go
       Note: Defines the selector resolution rules used by bots run and bots help
+    - Path: pkg/doc/12-bot-cli-verb-authoring-guide.md
+      Note: Embedded help page for authoring bot scripts with __verb__
     - Path: pkg/jsverbs/model.go
       Note: Defines Registry and VerbSpec fields referenced by the new command surface
     - Path: pkg/jsverbs/runtime.go
       Note: Defines the runtime invocation contract reused by bots run
+    - Path: testdata/botcli-dupe-a/discord.js
+      Note: One half of the duplicate-path fixture pair used in validation
+    - Path: testdata/botcli/discord.js
+      Note: Example dedicated bot fixture for the new CLI
 ExternalSources: []
 Summary: Quick-reference companion to the design doc for the proposed `go-go-goja bots list|run|help` surface, including command contracts, API sketches, file map, and implementation checkpoints.
 LastUpdated: 2026-04-20T12:45:00-04:00
 WhatFor: Give reviewers and implementers a concise copy/paste-ready reference for the bot CLI verb design.
 WhenToUse: Use while implementing or reviewing the new bot CLI package and its Cobra/Glazed/jsverbs integration.
 ---
+
 
 
 

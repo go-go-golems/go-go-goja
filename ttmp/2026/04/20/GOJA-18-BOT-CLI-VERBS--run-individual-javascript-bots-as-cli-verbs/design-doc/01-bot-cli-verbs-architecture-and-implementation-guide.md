@@ -29,18 +29,23 @@ RelatedFiles:
       Note: Implements the public bots list/run/help surface
     - Path: pkg/botcli/runtime.go
       Note: Implements runtime-backed single-verb execution and help wiring
+    - Path: pkg/doc/12-bot-cli-verb-authoring-guide.md
+      Note: Documents the explicit __verb__ authoring contract chosen by the implementation
     - Path: pkg/jsverbs/command.go
       Note: Provides command description generation from discovered VerbSpecs
     - Path: pkg/jsverbs/runtime.go
       Note: Provides runtime invocation and Promise settlement for selected verbs
     - Path: pkg/jsverbs/scan.go
       Note: Provides the scan stage for discovering filesystem-backed JavaScript verbs
+    - Path: testdata/botcli/discord.js
+      Note: Provides a dedicated bot fixture that reflects the intended v1 authoring style
 ExternalSources: []
 Summary: Intern-friendly architecture and implementation plan for a go-go-goja CLI surface that lists bot verbs, runs one bot verb on demand, and renders help for a selected verb by reusing jsverbs scanning and runtime execution patterns.
 LastUpdated: 2026-04-20T12:45:00-04:00
 WhatFor: Explain how to add a stable `go-go-goja bots list|run|help` command surface on top of the existing jsverbs and engine runtime layers.
 WhenToUse: Read this before implementing or reviewing a CLI feature that exposes JavaScript bots as command-line verbs in go-go-goja.
 ---
+
 
 
 

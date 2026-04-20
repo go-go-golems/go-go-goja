@@ -14,3 +14,5 @@
 - Chose explicit `__verb__` discovery for v1 by scanning with `IncludePublicFunctions = false`.
 - Added end-to-end bot CLI tests covering listing, structured output, text output, async Promise settlement, and relative `require()` support.
 - Refreshed the reMarkable bundle after implementation so the uploaded PDF matches the current repo and diary state.
+- Added dedicated `testdata/botcli` fixtures plus duplicate-repository fixtures to validate bot CLI behavior with bot-specific inputs.
+- Added empty/multi-repository/duplicate repository tests and a help page for authoring bot scripts with explicit `__verb__` metadata.

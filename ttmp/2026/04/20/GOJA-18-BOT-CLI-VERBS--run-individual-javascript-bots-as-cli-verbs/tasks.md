@@ -29,7 +29,7 @@
 ### Phase 3: `bots list`
 - [x] Implement a sorted list view of discovered verbs.
 - [x] Print each verb path with a stable source label.
-- [ ] Add tests for empty, duplicate, and multi-repository cases.
+- [x] Add tests for empty, duplicate, and multi-repository cases.
 
 ### Phase 4: `bots run <verb>`
 - [x] Implement selector resolution for one requested verb.
@@ -44,9 +44,9 @@
 - [x] Verify that help text stays aligned with actual runtime parsing.
 
 ### Phase 6: Validation and examples
-- [ ] Add fixture JS files under `testdata/` for bot verbs.
+- [x] Add fixture JS files under `testdata/` for bot verbs.
 - [x] Add end-to-end tests for list, run, help, async Promise results, and relative `require()`.
-- [ ] Add a README or help page showing how to author bot scripts with `__verb__`.
+- [x] Add a README or help page showing how to author bot scripts with `__verb__`.
 
 ## Open follow-ups
 
