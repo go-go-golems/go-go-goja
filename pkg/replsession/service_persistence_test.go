@@ -3,7 +3,9 @@ package replsession
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
@@ -130,6 +132,71 @@ func TestServiceCreateSessionHonorsExplicitID(t *testing.T) {
 	}
 }
 
+func TestServiceCreateSessionRejectsDuplicateExplicitLiveID(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop())
+
+	first, err := service.CreateSessionWithOptions(ctx, SessionOptions{ID: "manual-session-id"})
+	if err != nil {
+		t.Fatalf("create first session with explicit id: %v", err)
+	}
+
+	_, err = service.CreateSessionWithOptions(ctx, SessionOptions{ID: "manual-session-id"})
+	if err == nil {
+		t.Fatal("expected duplicate explicit session id to be rejected")
+	}
+	if !strings.Contains(err.Error(), `session "manual-session-id" already exists`) {
+		t.Fatalf("expected duplicate id error, got %v", err)
+	}
+
+	resp, err := service.Evaluate(ctx, first.ID, "const x = 1; x")
+	if err != nil {
+		t.Fatalf("evaluate original session after duplicate rejection: %v", err)
+	}
+	if resp.Cell.Execution.Status != "ok" {
+		t.Fatalf("expected original session to remain usable, got %q", resp.Cell.Execution.Status)
+	}
+}
+
+func TestServiceDeleteSessionClosesRuntimeWhenPersistenceDeleteFails(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := &stubPersistenceStore{deleteSessionErr: context.Canceled}
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithPersistence(store))
+
+	session, err := service.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	closedAt := time.Time{}
+	if err := service.WithRuntime(ctx, session.ID, func(rt *engine.Runtime) error {
+		return rt.AddCloser(func(context.Context) error {
+			closedAt = time.Now()
+			return nil
+		})
+	}); err != nil {
+		t.Fatalf("register runtime closer: %v", err)
+	}
+
+	err = service.DeleteSession(ctx, session.ID)
+	if err == nil {
+		t.Fatal("expected delete session to return persistence error")
+	}
+	if !strings.Contains(err.Error(), "persist session deletion") {
+		t.Fatalf("expected persist session deletion error, got %v", err)
+	}
+	if closedAt.IsZero() {
+		t.Fatal("expected runtime close hook to run even when persistence delete fails")
+	}
+	if store.deleteCalls != 1 {
+		t.Fatalf("expected one delete call, got %d", store.deleteCalls)
+	}
+}
+
 func TestServicePersistsBindingVersionsAndDocs(t *testing.T) {
 	t.Parallel()
 
@@ -226,4 +293,22 @@ func openPersistenceTestStore(t *testing.T) *repldb.Store {
 		t.Fatalf("open store: %v", err)
 	}
 	return store
+}
+
+type stubPersistenceStore struct {
+	deleteSessionErr error
+	deleteCalls      int
+}
+
+func (s *stubPersistenceStore) CreateSession(ctx context.Context, record repldb.SessionRecord) error {
+	return nil
+}
+
+func (s *stubPersistenceStore) DeleteSession(ctx context.Context, sessionID string, deletedAt time.Time) error {
+	s.deleteCalls++
+	return s.deleteSessionErr
+}
+
+func (s *stubPersistenceStore) PersistEvaluation(ctx context.Context, record repldb.EvaluationRecord) error {
+	return nil
 }

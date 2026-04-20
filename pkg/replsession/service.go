@@ -129,13 +129,23 @@ func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOpti
 		return nil, errors.New("create session: persistence enabled but no store configured")
 	}
 
+	id := strings.TrimSpace(resolved.ID)
+	explicitID := id != ""
+	if id == "" {
+		id = newDefaultSessionID()
+	}
+	if explicitID {
+		s.mu.RLock()
+		_, exists := s.sessions[id]
+		s.mu.RUnlock()
+		if exists {
+			return nil, errors.Errorf("create session: session %q already exists", id)
+		}
+	}
+
 	rt, err := s.factory.NewRuntime(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "create runtime")
-	}
-	id := strings.TrimSpace(resolved.ID)
-	if id == "" {
-		id = newDefaultSessionID()
 	}
 	createdAt := resolved.CreatedAt.UTC()
 	if createdAt.IsZero() {
@@ -182,6 +192,11 @@ func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOpti
 	}
 
 	s.mu.Lock()
+	if _, exists := s.sessions[id]; exists {
+		s.mu.Unlock()
+		_ = rt.Close(ctx)
+		return nil, errors.Errorf("create session: session %q already exists", id)
+	}
 	s.sessions[id] = state
 	s.mu.Unlock()
 
@@ -226,12 +241,20 @@ func (s *Service) DeleteSession(ctx context.Context, sessionID string) error {
 	if !ok {
 		return ErrSessionNotFound
 	}
+
+	var persistErr error
 	if state.policy.Persist.Enabled {
-		if err := s.store.DeleteSession(ctx, sessionID, time.Now().UTC()); err != nil {
-			return errors.Wrap(err, "persist session deletion")
-		}
+		persistErr = s.store.DeleteSession(ctx, sessionID, time.Now().UTC())
 	}
-	return state.runtime.Close(ctx)
+	closeErr := state.runtime.Close(ctx)
+
+	if persistErr != nil {
+		if closeErr != nil {
+			return errors.Wrapf(persistErr, "persist session deletion (runtime close also failed: %v)", closeErr)
+		}
+		return errors.Wrap(persistErr, "persist session deletion")
+	}
+	return closeErr
 }
 
 // RestoreSession rebuilds a live session by replaying persisted source cells.
