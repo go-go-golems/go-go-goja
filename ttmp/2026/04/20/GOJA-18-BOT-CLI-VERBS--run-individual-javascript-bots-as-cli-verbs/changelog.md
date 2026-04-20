@@ -19,3 +19,4 @@
 - Refreshed the reMarkable bundle again so the uploaded PDF includes the fixture/docs follow-up work.
 - Added a realistic example repository under `examples/bots` covering structured output, text output, async verbs, relative `require()`, bound sections/context, package metadata, and `bind: all`.
 - Added a ticket playbook with exact smoke-test commands for the real example repository.
+- Refreshed the reMarkable bundle again so the uploaded PDF includes the real example repository and smoke-test playbook.

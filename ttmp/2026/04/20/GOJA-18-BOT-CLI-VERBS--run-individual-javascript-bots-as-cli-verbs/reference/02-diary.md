@@ -568,6 +568,53 @@ This step is important because it turns the feature into something you can actua
 - Exact CLI mismatch encountered while validating examples:
   - `unknown flag: --dry-run`
 
+## Step 8: Refresh the bundle after adding the real example repository
+
+After the example repository and smoke-test playbook landed, I refreshed the reMarkable bundle again so the delivered PDF would include the new testing workflow and example set. That keeps the ticket useful for people who review the work away from the repository.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 7)
+
+**Assistant interpretation:** Keep the ticket deliverable synchronized with the newly added real examples and testing guidance.
+
+**Inferred user intent:** Make the examples discoverable both in the repo and in the ticket artifact.
+
+### What I did
+- Re-uploaded the ticket bundle with `--force` after the example repository and playbook were added.
+- Verified the remote folder again.
+
+### Why
+- The ticket PDF should include the new example repository guidance and smoke-test playbook.
+
+### What worked
+- The upload succeeded.
+- The verification listing still shows the expected document in the ticket folder.
+
+### What didn't work
+- Nothing new failed in this refresh step.
+
+### What I learned
+- The ticket stays much more useful when the PDF is refreshed after each major testing/documentation milestone.
+
+### What was tricky to build
+- Nothing technical here; this was another disciplined delivery refresh.
+
+### What warrants a second pair of eyes
+- Whether the project wants an even more formal release note or example index once more example repositories exist.
+
+### What should be done in the future
+- Refresh the bundle again if the remaining open follow-ups materially change the docs.
+
+### Code review instructions
+- Open the refreshed reMarkable PDF and compare it to the `examples/bots/README.md` and the ticket playbook if you want to confirm the artifact path.
+
+### Technical details
+- Upload command used:
+  - `remarquee upload bundle --force --name "GOJA-18 Bot CLI Verbs" --remote-dir "/ai/2026/04/20/GOJA-18-BOT-CLI-VERBS" <ticket directory>`
+- Verification command used:
+  - `remarquee cloud ls /ai/2026/04/20/GOJA-18-BOT-CLI-VERBS --long --non-interactive`
+
 ## Related
 
 - `../design-doc/01-bot-cli-verbs-architecture-and-implementation-guide.md`
