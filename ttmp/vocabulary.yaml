@@ -47,6 +47,16 @@ topics:
       description: SQLite-backed persistence, querying, and export workflows
     - slug: cli
       description: Command-line application surfaces, verbs, and automation-friendly command design
+    - slug: engine
+      description: Go runtime engine construction, ownership, and lifecycle surfaces
+    - slug: lifecycle
+      description: Lifecycle management, shutdown phases, and cleanup sequencing
+    - slug: fuzzing
+      description: Fuzz testing and coverage-guided testing
+    - slug: replapi
+      description: The public REPL API facade layer
+    - slug: testing
+      description: Testing infrastructure and strategy
 docTypes:
     - slug: index
       description: Ticket index documents
