@@ -177,6 +177,8 @@ The only real snag was a path typo in the first reMarkable dry-run. Fixing that 
 
 **Inferred user intent:** Make the design package easy to review and preserve the work in a portable PDF bundle.
 
+**Commit (docs):** 42dec4a — "Document JS sandbox host API"
+
 ### What I did
 - Related the design doc, API reference, and diary back to the ticket index.
 - Ran `docmgr doctor --ticket GOJA-17-JS-SANDBOX-API --stale-after 30`.
