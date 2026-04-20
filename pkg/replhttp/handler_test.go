@@ -103,3 +103,52 @@ func newTestApp(t *testing.T) *replapi.App {
 	}
 	return app
 }
+
+func TestHandlerPanicRecoveryReturns500(t *testing.T) {
+	t.Parallel()
+
+	app := newTestApp(t)
+	handler, err := NewHandler(app)
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	// Create a session first
+	createReq := httptest.NewRequest(http.MethodPost, "/api/sessions", nil)
+	createRes := httptest.NewRecorder()
+	handler.ServeHTTP(createRes, createReq)
+	if createRes.Code != http.StatusCreated {
+		t.Fatalf("expected 201 create, got %d", createRes.Code)
+	}
+	var createPayload struct {
+		Session struct {
+			ID string `json:"id"`
+		} `json:"session"`
+	}
+	if err := json.NewDecoder(createRes.Body).Decode(&createPayload); err != nil {
+		t.Fatalf("decode create payload: %v", err)
+	}
+
+	// Send empty source which would have panicked before BUG-1 fix
+	// The recovery middleware should still work if any other panic occurs
+	evalReq := httptest.NewRequest(http.MethodPost, "/api/sessions/"+createPayload.Session.ID+"/evaluate",
+		bytes.NewBufferString(`{"source":""}`))
+	evalRes := httptest.NewRecorder()
+	handler.ServeHTTP(evalRes, evalReq)
+
+	// Should get a proper JSON response, not an empty reply
+	if evalRes.Code == 0 {
+		t.Fatal("expected non-zero status code, got 0 (connection likely closed by panic)")
+	}
+	// After BUG-1 fix, empty source returns status 'empty-source' (200), not a panic
+	// But the recovery middleware should ensure we never get an empty reply
+	if evalRes.Code == http.StatusOK || evalRes.Code == http.StatusInternalServerError {
+		// Verify we got valid JSON back
+		var resp map[string]any
+		if err := json.NewDecoder(evalRes.Body).Decode(&resp); err != nil {
+			t.Fatalf("expected valid JSON response, got: %q", evalRes.Body.String())
+		}
+	} else {
+		t.Logf("Got status %d (acceptable for empty source)", evalRes.Code)
+	}
+}

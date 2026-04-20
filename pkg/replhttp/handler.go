@@ -2,6 +2,7 @@ package replhttp
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -18,6 +19,19 @@ func NewHandler(app *replapi.App) (http.Handler, error) {
 	}
 
 	mux := http.NewServeMux()
+
+	// Recovery middleware: catch panics in handlers and return 500 JSON
+	// instead of crashing the connection.
+	recoverWrapper := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if rec := recover(); rec != nil {
+					writeJSONError(w, http.StatusInternalServerError, fmt.Errorf("internal error: %v", rec))
+				}
+			}()
+			next.ServeHTTP(w, r)
+		})
+	}
 	mux.HandleFunc("/api/sessions", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -148,7 +162,7 @@ func NewHandler(app *replapi.App) (http.Handler, error) {
 			writeJSONErrorMessage(w, http.StatusNotFound, "route not found")
 		}
 	})
-	return mux, nil
+	return recoverWrapper(mux), nil
 }
 
 func statusForError(err error) int {
