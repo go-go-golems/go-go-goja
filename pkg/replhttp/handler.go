@@ -137,9 +137,15 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// isSessionNotFound checks both sentinel error values since repldb and
+// replsession cannot share a single sentinel (import cycle).
+func isSessionNotFound(err error) bool {
+	return errors.Is(err, replsession.ErrSessionNotFound) || errors.Is(err, repldb.ErrSessionNotFound)
+}
+
 func statusForError(err error) int {
 	switch {
-	case errors.Is(err, replsession.ErrSessionNotFound), errors.Is(err, repldb.ErrSessionNotFound):
+	case isSessionNotFound(err):
 		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError
