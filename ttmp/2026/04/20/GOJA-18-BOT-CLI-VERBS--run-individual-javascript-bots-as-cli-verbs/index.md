@@ -39,6 +39,7 @@ The core design direction is to reuse the existing `pkg/jsverbs` scan/describe/i
 - [Design doc](./design-doc/01-bot-cli-verbs-architecture-and-implementation-guide.md)
 - [Command/API reference](./reference/01-bot-cli-verbs-command-surface-and-api-reference.md)
 - [Diary](./reference/02-diary.md)
+- [Smoke-test playbook](./playbook/01-real-bot-example-repository-smoke-tests.md)
 - [Tasks](./tasks.md)
 - [Changelog](./changelog.md)
 

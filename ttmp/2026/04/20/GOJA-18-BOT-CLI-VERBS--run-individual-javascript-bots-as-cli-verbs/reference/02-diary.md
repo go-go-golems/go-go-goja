@@ -17,6 +17,10 @@ RelatedFiles:
       Note: Was inspected to document the reusable CLI command-wrapper pattern in the diary
     - Path: cmd/go-go-goja/main.go
       Note: Was added during Step 3 as the canonical root CLI binary
+    - Path: examples/bots/README.md
+      Note: Was added during Step 7 as the real example repository testing guide
+    - Path: examples/bots/issues.js
+      Note: Was added during Step 7 to exercise sections and context in a real example bot
     - Path: modules/sandbox/runtime.go
       Note: Was inspected to document why sandbox is separate from v1 CLI discovery
     - Path: pkg/botcli/bootstrap.go
@@ -41,6 +45,7 @@ LastUpdated: 2026-04-20T12:45:00-04:00
 WhatFor: Capture the research and documentation steps behind the bot CLI verbs ticket.
 WhenToUse: Read when continuing the ticket, reviewing evidence, or checking how the reMarkable bundle was produced.
 ---
+
 
 
 
@@ -469,6 +474,99 @@ Because the fixture additions, extra tests, and authoring guide changed the tick
   - `remarquee upload bundle --force --name "GOJA-18 Bot CLI Verbs" --remote-dir "/ai/2026/04/20/GOJA-18-BOT-CLI-VERBS" <ticket directory>`
 - Verification command used:
   - `remarquee cloud ls /ai/2026/04/20/GOJA-18-BOT-CLI-VERBS --long --non-interactive`
+
+## Step 7: Add a real example bot repository and a smoke-test playbook
+
+The earlier fixture work made the bot CLI testable, but the user asked for something more realistic: a whole set of example bots that can be run manually to exercise the feature set end to end. To support that, I created a real example repository under `examples/bots` and wrote a playbook document with exact commands that a human can copy and run.
+
+This step is important because it turns the feature into something you can actually demo and validate interactively. Instead of pointing people only at low-level fixtures or unit tests, the repo now contains a discoverable bot repository with examples for structured output, text output, async commands, nested `require()`, bound sections, package metadata, and `bind: all`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "How can I test a bot? can you make a whole set of bot examples so we can now test sall the functionality for real"
+
+**Assistant interpretation:** Create a realistic example repository plus concrete testing instructions so the bot CLI can be exercised manually and end to end.
+
+**Inferred user intent:** Move from implementation and unit tests to hands-on validation with believable example bots.
+
+### What I did
+- Added a real example repository under `examples/bots` with these example scripts:
+  - `discord.js`
+  - `math/index.js`
+  - `nested/index.js`
+  - `nested/sub/helper.js`
+  - `issues.js`
+  - `admin.js`
+  - `all-values.js`
+  - `README.md`
+- Extended `pkg/botcli/command_test.go` with example-repository smoke tests that cover:
+  - listing all example paths,
+  - structured output,
+  - text output,
+  - async Promise settlement,
+  - relative `require()`,
+  - bound sections and context,
+  - package metadata,
+  - `bind: all`,
+  - help output.
+- Added a ticket playbook:
+  - `playbook/01-real-bot-example-repository-smoke-tests.md`
+- Ran focused tests, manual smoke commands, and the full repository test suite.
+
+### Why
+- The user asked how to test a bot in practice, not only how the architecture works.
+- A real example repository is easier to understand than minimal internal fixtures.
+- A playbook makes repeated manual validation much faster for future review and regression checking.
+
+### What worked
+- The example repository exercised the bot CLI exactly the way the user wanted: by running actual `go-go-goja bots ...` commands against a realistic directory tree.
+- The examples surfaced and validated several important behaviors:
+  - async settlement,
+  - relative `require()`,
+  - file-local sections,
+  - `bind: context`,
+  - `bind: all`,
+  - package metadata-driven command paths.
+- The manual smoke commands and `GOWORK=off go test ./...` both passed after the examples were added.
+
+### What didn't work
+- One of the example smoke tests initially failed because I guessed the flag would be exposed as `--dry-run`, but the generated Glazed/Cobra flag name for that field is `--dryRun`.
+- The exact error was:
+  - `unknown flag: --dry-run`
+- I updated the test and example README to use the actual generated flag name.
+
+### What I learned
+- Real examples are very good at exposing tiny UX mismatches that unit-style fixtures can miss.
+- The bot CLI is already strong enough to support a meaningful example repository without additional framework work.
+
+### What was tricky to build
+- The slightly tricky part was choosing examples that each exercised a distinct feature without making the repository feel random. I solved that by giving each file one job: Discord-style verbs for basic output modes, math verbs for async and list args, nested verbs for relative imports, issues for sections/context, admin for package metadata, and all-values for `bind: all`.
+
+### What warrants a second pair of eyes
+- Whether the `--dryRun` flag naming is acceptable as-is or whether future work should normalize camelCase field names into kebab-case flags more aggressively.
+- Whether the example repository should eventually move into a top-level `examples/` convention used more broadly across the repo.
+
+### What should be done in the future
+- Add shell-completion checks or snapshot help tests against the example repository if the CLI surface evolves further.
+- Consider adding one example that wraps sandbox functionality behind an explicit `__verb__` if that integration becomes a priority.
+
+### Code review instructions
+- Start with `examples/bots/README.md` and run the listed commands manually.
+- Then read `pkg/botcli/command_test.go` to see how the example repository is used in automated coverage.
+- Finally read the smoke-test playbook in the ticket workspace.
+
+### Technical details
+- Manual smoke commands used:
+  - `GOWORK=off go run ./cmd/go-go-goja bots list --bot-repository ./examples/bots`
+  - `GOWORK=off go run ./cmd/go-go-goja bots run issues list --bot-repository ./examples/bots acme/repo --state closed --labels bug --labels docs`
+  - `GOWORK=off go run ./cmd/go-go-goja bots run all-values echo-all --bot-repository ./examples/bots --repo acme/demo --dryRun --names one --names two`
+  - `GOWORK=off go run ./cmd/go-go-goja bots help discord greet --bot-repository ./examples/bots`
+- Focused test command used:
+  - `GOWORK=off go test ./pkg/botcli ./cmd/go-go-goja`
+- Full validation command used:
+  - `GOWORK=off go test ./...`
+- Exact CLI mismatch encountered while validating examples:
+  - `unknown flag: --dry-run`
 
 ## Related
 

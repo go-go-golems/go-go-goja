@@ -12,6 +12,8 @@
 - [x] Relate the key source files to the focused ticket docs.
 - [x] Validate the ticket with `docmgr doctor`.
 - [x] Upload the final ticket bundle to reMarkable and verify the remote path.
+- [x] Add a real example bot repository under `examples/bots` that exercises the major bot CLI features end to end.
+- [x] Add a smoke-test playbook with exact commands for validating the example repository manually.
 
 ## Recommended implementation phases
 

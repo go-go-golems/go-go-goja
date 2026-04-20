@@ -17,3 +17,5 @@
 - Added dedicated `testdata/botcli` fixtures plus duplicate-repository fixtures to validate bot CLI behavior with bot-specific inputs.
 - Added empty/multi-repository/duplicate repository tests and a help page for authoring bot scripts with explicit `__verb__` metadata.
 - Refreshed the reMarkable bundle again so the uploaded PDF includes the fixture/docs follow-up work.
+- Added a realistic example repository under `examples/bots` covering structured output, text output, async verbs, relative `require()`, bound sections/context, package metadata, and `bind: all`.
+- Added a ticket playbook with exact smoke-test commands for the real example repository.
