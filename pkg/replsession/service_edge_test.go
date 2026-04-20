@@ -230,3 +230,36 @@ func TestServiceInstrumentedAwaitChained(t *testing.T) {
 		t.Fatalf("expected 15, got %q", resp.Cell.Execution.Result)
 	}
 }
+
+func TestServiceFunctionSourceMappingIsPopulated(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithDefaultSessionOptions(InteractiveSessionOptions()))
+
+	session, err := service.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	resp, err := service.Evaluate(ctx, session.ID, "function greet(name) { return 'Hello, ' + name; }; greet('World')")
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if resp.Cell.Execution.Status != "ok" {
+		t.Fatalf("expected ok, got %q", resp.Cell.Execution.Status)
+	}
+	if resp.Session.BindingCount != 1 {
+		t.Fatalf("expected 1 binding, got %d", resp.Session.BindingCount)
+	}
+	b := resp.Session.Bindings[0]
+	if b.Kind != "function" {
+		t.Fatalf("expected binding kind=function, got %q", b.Kind)
+	}
+	if b.Runtime.FunctionMapping == nil {
+		t.Fatal("expected FunctionMapping to be populated, got nil")
+	}
+	if b.Runtime.FunctionMapping.Name != "greet" {
+		t.Fatalf("expected mapping name=greet, got %q", b.Runtime.FunctionMapping.Name)
+	}
+}

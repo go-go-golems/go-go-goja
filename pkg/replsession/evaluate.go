@@ -310,6 +310,10 @@ func (s *Service) evaluateInstrumented(ctx context.Context, state *sessionState,
 		state.upsertDeclaredBinding(analysis, name, cell.ID)
 	}
 
+	// Append the cell before refreshing runtime details so that cellByID
+	// can resolve the declaring cell for function source mapping.
+	state.cells = append(state.cells, &cellState{report: cell, analysis: analysis})
+
 	if err := state.refreshBindingRuntimeDetails(ctx); err != nil {
 		return nil, errors.Wrap(err, "refresh binding runtime details")
 	}
@@ -336,7 +340,6 @@ func (s *Service) evaluateInstrumented(ctx context.Context, state *sessionState,
 		CurrentCellValue: outcome.LastValue,
 	}
 
-	state.cells = append(state.cells, &cellState{report: cell, analysis: analysis})
 	if err := s.persistCell(ctx, state, cell); err != nil {
 		return nil, err
 	}

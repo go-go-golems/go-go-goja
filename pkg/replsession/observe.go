@@ -204,18 +204,15 @@ func (s *sessionState) refreshBindingRuntimeDetails(ctx context.Context) error {
 				view.OwnProperties = ownPropertiesView(obj, vm)
 				view.PrototypeChain = prototypeChainView(obj, vm)
 			}
-			if binding != nil && binding.Kind == jsparse.BindingFunction {
-				if cell := s.cellByID(binding.DeclaredInCell); cell != nil && cell.analysis != nil {
-					if mapping := inspectorruntime.MapFunctionToSource(val, vm, cell.analysis); mapping != nil {
-						view.FunctionMapping = &FunctionMappingView{
-							Name:      mapping.Name,
-							ClassName: mapping.ClassName,
-							StartLine: mapping.StartLine,
-							StartCol:  mapping.StartCol,
-							EndLine:   mapping.EndLine,
-							EndCol:    mapping.EndCol,
-							NodeID:    int(mapping.NodeID),
-						}
+			if binding != nil {
+				if binding.Kind == jsparse.BindingFunction {
+					// Build FunctionMapping from static analysis data since the
+					// runtime function was compiled from the IIFE wrapper, not
+					// the original source, so MapFunctionToSource offsets don't
+					// match. Use the declared line and parameters we already
+					// captured during static analysis.
+					if c := s.cellByID(binding.DeclaredInCell); c != nil && c.analysis != nil {
+						view.FunctionMapping = staticFunctionMapping(binding, c.analysis)
 					}
 				}
 			}
@@ -413,6 +410,37 @@ func (s *sessionState) cellByID(cellID int) *cellState {
 		}
 	}
 	return nil
+}
+
+// staticFunctionMapping builds a FunctionMappingView from static analysis
+// data rather than trying to match the runtime function's bytecode offsets,
+// which don't align because the runtime compiled from the IIFE wrapper.
+func staticFunctionMapping(binding *bindingState, analysis *jsparse.AnalysisResult) *FunctionMappingView {
+	if binding == nil {
+		return nil
+	}
+	// Try to find the function node in the AST for position info
+	startLine := binding.DeclaredLine
+	endLine := 0
+	nodeID := 0
+	if analysis != nil && analysis.Resolution != nil && analysis.Resolution.RootScopeID >= 0 {
+		root := analysis.Resolution.Scopes[analysis.Resolution.RootScopeID]
+		if root != nil {
+			if b, ok := root.Bindings[binding.Name]; ok && b != nil && b.DeclNodeID >= 0 {
+				nodeID = int(b.DeclNodeID)
+				if analysis.Index != nil && analysis.Index.Nodes[b.DeclNodeID] != nil {
+					node := analysis.Index.Nodes[b.DeclNodeID]
+					endLine = node.EndLine
+					}
+			}
+		}
+	}
+	return &FunctionMappingView{
+		Name:      binding.Name,
+		StartLine: startLine,
+		EndLine:   endLine,
+		NodeID:    nodeID,
+	}
 }
 
 func bindingViewFromState(binding *bindingState) BindingView {
