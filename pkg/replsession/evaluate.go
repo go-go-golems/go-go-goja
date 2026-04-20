@@ -73,8 +73,18 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 			Status:     "parse-error",
 			Error:      firstDiagnosticMessage(staticReport.Diagnostics),
 			DurationMS: 0,
+			Console:    []ConsoleEvent{},
 		}
-		cell.Runtime = RuntimeReport{}
+		cell.Runtime = RuntimeReport{
+			BeforeGlobals:   []GlobalStateView{},
+			AfterGlobals:    []GlobalStateView{},
+			Diffs:           []GlobalDiffView{},
+			NewBindings:     []string{},
+			UpdatedBindings: []string{},
+			RemovedBindings: []string{},
+			LeakedGlobals:   []string{},
+			PersistedByWrap: []string{},
+		}
 		state.cells = append(state.cells, &cellState{report: cell, analysis: analysis})
 		if err := s.persistCell(ctx, state, cell); err != nil {
 			return nil, err
@@ -102,6 +112,10 @@ func buildRewriteReport(source string, analysis *jsparse.AnalysisResult, cellID 
 	report := RewriteReport{
 		Mode:              "raw",
 		TransformedSource: source,
+		DeclaredNames:     []string{},
+		HelperNames:       []string{},
+		Operations:        []RewriteStep{},
+		Warnings:          []string{},
 	}
 	if policy.Eval.SupportTopLevelAwait {
 		if wrapped, ok := wrapTopLevelAwaitExpression(source); ok {
@@ -306,6 +320,14 @@ func (s *Service) evaluateRaw(ctx context.Context, state *sessionState, cell *Ce
 	}
 	cell.Runtime = RuntimeReport{
 		CurrentCellValue: outcome.LastValue,
+		BeforeGlobals:    []GlobalStateView{},
+		AfterGlobals:     []GlobalStateView{},
+		Diffs:            []GlobalDiffView{},
+		NewBindings:      []string{},
+		UpdatedBindings:  []string{},
+		RemovedBindings:  []string{},
+		LeakedGlobals:    []string{},
+		PersistedByWrap:  []string{},
 	}
 	if policy.Observe.RuntimeSnapshot {
 		cell.Runtime.BeforeGlobals = mapGlobalSnapshotViews(beforeGlobals)

@@ -448,7 +448,7 @@ func firstDiagnosticMessage(diagnostics []DiagnosticView) string {
 
 func dedupeSortedStrings(values []string) []string {
 	if len(values) == 0 {
-		return nil
+		return []string{}
 	}
 	seen := map[string]struct{}{}
 	out := make([]string, 0, len(values))
@@ -463,5 +463,8 @@ func dedupeSortedStrings(values []string) []string {
 		out = append(out, value)
 	}
 	sort.Strings(out)
+	if len(out) == 0 {
+		return []string{}
+	}
 	return out
 }

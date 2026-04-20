@@ -12,7 +12,11 @@ import (
 
 func buildRewrite(source string, result *jsparse.AnalysisResult, cellID int) RewriteReport {
 	report := RewriteReport{
-		Mode: "async-iife-with-binding-capture",
+		Mode:          "async-iife-with-binding-capture",
+		DeclaredNames: []string{},
+		HelperNames:   []string{},
+		Operations:    []RewriteStep{},
+		Warnings:      []string{},
 	}
 	if result == nil {
 		report.TransformedSource = source
@@ -173,7 +177,15 @@ func rangeFromNode(result *jsparse.AnalysisResult, n ast.Node) *RangeView {
 }
 
 func buildStaticReport(result *jsparse.AnalysisResult, cstRoot *jsparse.TSNode, maxASTRows, maxCSTRows int) StaticReport {
-	report := StaticReport{}
+	report := StaticReport{
+		Diagnostics:      []DiagnosticView{},
+		TopLevelBindings: []TopLevelBindingView{},
+		Unresolved:       []IdentifierUseView{},
+		References:       []BindingReferenceGroup{},
+		AST:              []ASTRowView{},
+		CST:              []CSTNodeView{},
+		Summary:          []StaticSummaryFact{},
+	}
 	if result == nil {
 		return report
 	}

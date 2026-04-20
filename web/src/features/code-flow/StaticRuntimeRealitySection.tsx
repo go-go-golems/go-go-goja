@@ -9,6 +9,15 @@ type StaticRuntimeRealitySectionProps = {
 export function StaticRuntimeRealitySection({
   response
 }: StaticRuntimeRealitySectionProps) {
+  const diagnostics = response?.cell.static.diagnostics ?? [];
+  const topLevelBindings = response?.cell.static.topLevelBindings ?? [];
+  const unresolved = response?.cell.static.unresolved ?? [];
+  const newBindings = response?.cell.runtime.newBindings ?? [];
+  const updatedBindings = response?.cell.runtime.updatedBindings ?? [];
+  const removedBindings = response?.cell.runtime.removedBindings ?? [];
+  const leakedGlobals = response?.cell.runtime.leakedGlobals ?? [];
+  const diffs = response?.cell.runtime.diffs ?? [];
+
   return (
     <section className="essay-section-block">
       <Heading n="4">Static Analysis vs Runtime Reality</Heading>
@@ -34,15 +43,15 @@ export function StaticRuntimeRealitySection({
                 <tbody>
                   <tr>
                     <td className="essay-table__label">Bindings found</td>
-                    <td>{response.cell.static.topLevelBindings.length}</td>
+                    <td>{topLevelBindings.length}</td>
                   </tr>
                   <tr>
                     <td className="essay-table__label">Diagnostics</td>
-                    <td>{response.cell.static.diagnostics.length}</td>
+                    <td>{diagnostics.length}</td>
                   </tr>
                   <tr>
                     <td className="essay-table__label">Unresolved</td>
-                    <td>{response.cell.static.unresolved.length}</td>
+                    <td>{unresolved.length}</td>
                   </tr>
                   <tr>
                     <td className="essay-table__label">AST nodes</td>
@@ -51,7 +60,7 @@ export function StaticRuntimeRealitySection({
                 </tbody>
               </table>
               <div className="essay-fact-list">
-                {response.cell.static.topLevelBindings.map((binding) => (
+                {topLevelBindings.map((binding) => (
                   <div key={`${binding.name}-${binding.line}`}>
                     <span className="essay-emph-blue">{binding.kind}</span>{" "}
                     <strong>{binding.name}</strong>{" "}
@@ -70,28 +79,28 @@ export function StaticRuntimeRealitySection({
                 <tbody>
                   <tr>
                     <td className="essay-table__label">New bindings</td>
-                    <td>{response.cell.runtime.newBindings.join(", ") || "—"}</td>
+                    <td>{newBindings.join(", ") || "—"}</td>
                   </tr>
                   <tr>
                     <td className="essay-table__label">Updated</td>
-                    <td>{response.cell.runtime.updatedBindings.join(", ") || "—"}</td>
+                    <td>{updatedBindings.join(", ") || "—"}</td>
                   </tr>
                   <tr>
                     <td className="essay-table__label">Removed</td>
-                    <td>{response.cell.runtime.removedBindings.join(", ") || "—"}</td>
+                    <td>{removedBindings.join(", ") || "—"}</td>
                   </tr>
                   <tr>
                     <td className="essay-table__label">Leaked globals</td>
-                    <td>{response.cell.runtime.leakedGlobals.join(", ") || "—"}</td>
+                    <td>{leakedGlobals.join(", ") || "—"}</td>
                   </tr>
                 </tbody>
               </table>
               <div className="essay-fact-list">
                 <div className="essay-fact-list__label">Global diffs</div>
-                {response.cell.runtime.diffs.length === 0 ? (
+                {diffs.length === 0 ? (
                   <div className="essay-meta-inline">No global changes recorded.</div>
                 ) : (
-                  response.cell.runtime.diffs.map((diff) => (
+                  diffs.map((diff) => (
                     <div key={`${diff.name}-${diff.change}`}>
                       <strong>{diff.name}</strong>:{" "}
                       <span className="essay-meta-inline">{diff.before || "undefined"}</span> →{" "}
