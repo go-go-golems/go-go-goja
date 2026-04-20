@@ -34,7 +34,6 @@ type ObservePolicy struct {
 // PersistPolicy controls durable side effects to the session store.
 type PersistPolicy struct {
 	Enabled         bool `json:"enabled"`
-	Sessions        bool `json:"sessions"`
 	Evaluations     bool `json:"evaluations"`
 	BindingVersions bool `json:"bindingVersions"`
 	BindingDocs     bool `json:"bindingDocs"`
@@ -101,7 +100,6 @@ func PersistentSessionOptions() SessionOptions {
 	ops.Profile = "persistent"
 	ops.Policy.Persist = PersistPolicy{
 		Enabled:         true,
-		Sessions:        true,
 		Evaluations:     true,
 		BindingVersions: true,
 		BindingDocs:     true,
