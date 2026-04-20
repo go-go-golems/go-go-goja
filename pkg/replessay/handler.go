@@ -166,7 +166,7 @@ func NewHandler(app *replapi.App) (http.Handler, error) {
 			writeJSONErrorMessage(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		summary, err := app.CreateSessionWithOptions(r.Context(), replapi.SessionOptions{Profile: profile})
+		summary, err := app.CreateSessionWithOptions(r.Context(), replapi.SessionOverrides{Profile: profile})
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err)
 			return
@@ -217,7 +217,7 @@ func NewHandler(app *replapi.App) (http.Handler, error) {
 			defaultProfile := replapi.ProfileInteractive
 			profile = &defaultProfile
 		}
-		summary, err := app.CreateSessionWithOptions(r.Context(), replapi.SessionOptions{Profile: profile})
+		summary, err := app.CreateSessionWithOptions(r.Context(), replapi.SessionOverrides{Profile: profile})
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err)
 			return

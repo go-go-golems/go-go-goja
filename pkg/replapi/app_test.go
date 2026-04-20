@@ -125,7 +125,7 @@ func TestAppSessionOverrideCanDropFromPersistentToRaw(t *testing.T) {
 	}
 
 	rawProfile := ProfileRaw
-	session, err := app.CreateSessionWithOptions(ctx, SessionOptions{Profile: &rawProfile})
+	session, err := app.CreateSessionWithOptions(ctx, SessionOverrides{Profile: &rawProfile})
 	if err != nil {
 		t.Fatalf("create raw session override: %v", err)
 	}

@@ -14,7 +14,7 @@ func TestResolveCreateSessionOptionsUsesProfilePresetAndPreservesExplicitFields(
 	createdAt := time.Date(2026, time.April, 8, 18, 0, 0, 0, time.UTC)
 	rawProfile := ProfileRaw
 
-	resolved := resolveCreateSessionOptions(base, SessionOptions{
+	resolved := resolveCreateSessionOptions(base, SessionOverrides{
 		ID:        "manual-id",
 		CreatedAt: createdAt,
 		Profile:   &rawProfile,
@@ -43,7 +43,7 @@ func TestResolveCreateSessionOptionsAppliesExplicitPolicyOverride(t *testing.T) 
 	base := ConfigForProfile(ProfileInteractive)
 	override := replsession.RawSessionOptions().Policy
 
-	resolved := resolveCreateSessionOptions(base, SessionOptions{
+	resolved := resolveCreateSessionOptions(base, SessionOverrides{
 		Policy: &override,
 	})
 

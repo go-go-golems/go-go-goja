@@ -56,10 +56,10 @@ func NewWithConfig(factory *engine.Factory, logger zerolog.Logger, config Config
 }
 
 func (a *App) CreateSession(ctx context.Context) (*replsession.SessionSummary, error) {
-	return a.CreateSessionWithOptions(ctx, SessionOptions{})
+	return a.CreateSessionWithOptions(ctx, SessionOverrides{})
 }
 
-func (a *App) CreateSessionWithOptions(ctx context.Context, opts SessionOptions) (*replsession.SessionSummary, error) {
+func (a *App) CreateSessionWithOptions(ctx context.Context, opts SessionOverrides) (*replsession.SessionSummary, error) {
 	if a == nil {
 		return nil, errors.New("replapi: app is nil")
 	}

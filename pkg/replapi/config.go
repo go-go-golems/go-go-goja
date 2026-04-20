@@ -27,12 +27,12 @@ type Config struct {
 	SessionOptions replsession.SessionOptions
 }
 
-// SessionOptions are app-layer create-session overrides.
+// SessionOverrides are app-layer create-session overrides.
 //
 // Unlike replsession.SessionOptions, this type is intentionally sparse: it lets
 // callers override profile/policy defaults at session-creation time without
 // having to construct a full kernel policy object up front.
-type SessionOptions struct {
+type SessionOverrides struct {
 	ID        string
 	CreatedAt time.Time
 	Profile   *Profile
@@ -165,7 +165,7 @@ func validateConfig(config Config) error {
 	return nil
 }
 
-func resolveCreateSessionOptions(base Config, override SessionOptions) replsession.SessionOptions {
+func resolveCreateSessionOptions(base Config, override SessionOverrides) replsession.SessionOptions {
 	resolved := replsession.NormalizeSessionOptions(base.SessionOptions)
 	if strings.TrimSpace(override.ID) != "" {
 		resolved.ID = strings.TrimSpace(override.ID)

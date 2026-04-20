@@ -88,7 +88,7 @@ func (c *tuiCommand) Run(ctx context.Context, vals *values.Values) error {
 	sessionID := strings.TrimSpace(settings.SessionID)
 	if sessionID == "" {
 		requestedProfile := profile
-		session, err := app.CreateSessionWithOptions(ctx, replapi.SessionOptions{Profile: &requestedProfile})
+		session, err := app.CreateSessionWithOptions(ctx, replapi.SessionOverrides{Profile: &requestedProfile})
 		if err != nil {
 			return err
 		}
