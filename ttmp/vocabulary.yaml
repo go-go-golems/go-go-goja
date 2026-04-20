@@ -57,6 +57,10 @@ topics:
       description: The public REPL API facade layer
     - slug: testing
       description: Testing infrastructure and strategy
+    - slug: upstream
+      description: Upstream open-source contributions and patches
+    - slug: parser
+      description: JavaScript parser and lexer
 docTypes:
     - slug: index
       description: Ticket index documents

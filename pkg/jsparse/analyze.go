@@ -1,6 +1,8 @@
 package jsparse
 
 import (
+	"fmt"
+
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/parser"
 )
@@ -28,7 +30,18 @@ type AnalysisResult struct {
 }
 
 // Analyze parses source and builds index/resolution structures suitable for tooling.
-func Analyze(filename, source string, opts *AnalyzeOptions) *AnalysisResult {
+// It catches panics from the upstream goja parser and converts them to ParseErr.
+func Analyze(filename, source string, opts *AnalyzeOptions) (result *AnalysisResult) {
+	defer func() {
+		if r := recover(); r != nil {
+			result = &AnalysisResult{
+				Filename: filename,
+				Source:   source,
+				ParseErr: fmt.Errorf("parser panic: %v", r),
+			}
+		}
+	}()
+
 	mode := parser.Mode(0)
 	var parserOptions []parser.Option
 	if opts != nil {

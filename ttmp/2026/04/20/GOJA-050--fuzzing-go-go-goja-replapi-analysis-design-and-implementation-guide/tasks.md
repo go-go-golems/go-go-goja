@@ -2,7 +2,7 @@
 
 ## TODO
 
-- [ ] Add tasks here
+- [x] Add tasks here
 
 - [ ] Fix empty-string panic in buildRewrite (finalExpressionStatement)
 - [ ] Create ./fuzz/ package with shared test utilities
