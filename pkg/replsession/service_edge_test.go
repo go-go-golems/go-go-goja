@@ -173,3 +173,60 @@ func TestServiceThrowStringPreservesMessage(t *testing.T) {
 		t.Fatalf("expected error to contain 'simple string', got %q", resp.Cell.Execution.Error)
 	}
 }
+
+func TestServiceInstrumentedAwaitExpression(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	// Interactive mode uses instrumented execution with top-level await support
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithDefaultSessionOptions(InteractiveSessionOptions()))
+
+	session, err := service.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	resp, err := service.Evaluate(ctx, session.ID, "await Promise.resolve(99)")
+	if err != nil {
+		t.Fatalf("evaluate await: %v", err)
+	}
+	if resp.Cell.Execution.Status != "ok" {
+		t.Fatalf("expected ok, got %q: %s", resp.Cell.Execution.Status, resp.Cell.Execution.Error)
+	}
+	if resp.Cell.Execution.Result != "99" {
+		t.Fatalf("expected 99, got %q", resp.Cell.Execution.Result)
+	}
+	if !resp.Cell.Execution.Awaited {
+		t.Fatal("expected Awaited=true")
+	}
+}
+
+func TestServiceInstrumentedAwaitChained(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithDefaultSessionOptions(InteractiveSessionOptions()))
+
+	session, err := service.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	// First cell: declare a value normally
+	_, err = service.Evaluate(ctx, session.ID, "const a = 10")
+	if err != nil {
+		t.Fatalf("evaluate const: %v", err)
+	}
+
+	// Second cell: use await with a reference to the binding
+	resp, err := service.Evaluate(ctx, session.ID, "await Promise.resolve(a + 5)")
+	if err != nil {
+		t.Fatalf("evaluate await: %v", err)
+	}
+	if resp.Cell.Execution.Status != "ok" {
+		t.Fatalf("expected ok, got %q: %s", resp.Cell.Execution.Status, resp.Cell.Execution.Error)
+	}
+	if resp.Cell.Execution.Result != "15" {
+		t.Fatalf("expected 15, got %q", resp.Cell.Execution.Result)
+	}
+}

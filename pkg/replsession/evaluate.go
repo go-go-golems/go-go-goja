@@ -82,6 +82,10 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 		analysis     *jsparse.AnalysisResult
 		staticReport StaticReport
 	)
+
+	// Pre-analyze with the pre-wrapped source for top-level await so that
+	// static reports (AST/CST) are available, but keep the analysis for
+	// rewrite based on the original source.
 	if shouldAnalyze(policy) {
 		var cstRoot *jsparse.TSNode
 		if policy.Observe.StaticAnalysis {
@@ -91,7 +95,22 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 			}
 		}
 		analysis = jsparse.Analyze(filename, source, nil)
-		if policy.Observe.StaticAnalysis {
+
+		// If the original source failed to parse and looks like a top-level
+		// await expression, try again with a pre-wrapped version for static
+		// analysis only. The rewrite pipeline will handle await separately.
+		if analysis != nil && analysis.ParseErr != nil && policy.UsesInstrumentedExecution() && policy.Eval.SupportTopLevelAwait {
+			if wrapped, ok := wrapTopLevelAwaitExpression(source); ok {
+				wrappedAnalysis := jsparse.Analyze(filename, wrapped, nil)
+				if wrappedAnalysis != nil && wrappedAnalysis.ParseErr == nil {
+					staticReport = buildStaticReport(wrappedAnalysis, cstRoot, defaultASTRowLimit, defaultCSTRowLimit)
+					// Keep the original analysis (with parse error) so the
+					// rewrite pipeline sees it and handles the await case.
+				}
+			}
+		}
+
+		if policy.Observe.StaticAnalysis && len(staticReport.Diagnostics) == 0 {
 			staticReport = buildStaticReport(analysis, cstRoot, defaultASTRowLimit, defaultCSTRowLimit)
 		}
 	}
@@ -105,6 +124,39 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 		Static:     staticReport,
 		Rewrite:    rewrite,
 		Provenance: provenanceForPolicy(policy),
+	}
+
+	// When instrumented mode encounters a parse error that looks like a
+	// top-level await expression (which goja's parser rejects outside
+	// async functions), skip the normal rewrite pipeline and execute
+	// the pre-wrapped source directly.
+	isTopLevelAwait := false
+	if policy.UsesInstrumentedExecution() && analysis != nil && analysis.ParseErr != nil && policy.Eval.SupportTopLevelAwait {
+		trimmed := strings.TrimSpace(source)
+		isTopLevelAwait = strings.HasPrefix(trimmed, "await ") || strings.HasPrefix(trimmed, "await(")
+	}
+
+	if isTopLevelAwait {
+		trimmed := strings.TrimSpace(source)
+		helperLast := fmt.Sprintf("__ggg_repl_last_%d__", cellID)
+		helperBindings := fmt.Sprintf("__ggg_repl_bindings_%d__", cellID)
+
+		rewrite = RewriteReport{
+			Mode:              "async-iife-with-binding-capture",
+			DeclaredNames:     []string{},
+			HelperNames:       []string{helperLast, helperBindings},
+			LastHelperName:    helperLast,
+			BindingHelperName: helperBindings,
+			CapturedLastExpr:  true,
+			TransformedSource: buildAwaitIIFEWithCapture(trimmed, helperLast, helperBindings),
+			Operations: []RewriteStep{
+				{Kind: "wrap", Detail: "wrap cell source in an async IIFE for top-level await"},
+				{Kind: "capture-last-expression", Detail: "capture await expression result"},
+			},
+			FinalExpressionSrc: trimmed,
+		}
+		cell.Rewrite = rewrite
+		return s.evaluateInstrumented(ctx, state, cell, analysis, rewrite)
 	}
 
 	if policy.UsesInstrumentedExecution() && (analysis == nil || analysis.ParseErr != nil) {
@@ -391,10 +443,39 @@ func (s *Service) evaluateRaw(ctx context.Context, state *sessionState, cell *Ce
 
 func wrapTopLevelAwaitExpression(source string) (string, bool) {
 	trimmed := strings.TrimSpace(source)
-	if strings.HasPrefix(trimmed, "await ") {
+	if strings.HasPrefix(trimmed, "await ") || strings.HasPrefix(trimmed, "await(") {
 		return "(async () => { return " + trimmed + "; })()", true
 	}
 	return source, false
+}
+
+// buildAwaitIIFEWithCapture constructs an async IIFE that wraps a top-level
+// await expression and captures the result in the helper object format
+// expected by persistWrappedReturn.
+func buildAwaitIIFEWithCapture(awaitSource string, helperLast string, helperBindings string) string {
+	var builder strings.Builder
+	builder.WriteString("(async function () {\n")
+	builder.WriteString("  let ")
+	builder.WriteString(helperLast)
+	builder.WriteString(";\n")
+	builder.WriteString(helperLast)
+	builder.WriteString(" = (")
+	builder.WriteString(awaitSource)
+	builder.WriteString(");\n")
+	builder.WriteString("  return {\n")
+	builder.WriteString("    ")
+	fmt.Fprintf(&builder, "%q", helperBindings)
+	builder.WriteString(": {},\n")
+	builder.WriteString("    ")
+	fmt.Fprintf(&builder, "%q", helperLast)
+	builder.WriteString(": (typeof ")
+	builder.WriteString(helperLast)
+	builder.WriteString(" === \"undefined\" ? undefined : ")
+	builder.WriteString(helperLast)
+	builder.WriteString(")\n")
+	builder.WriteString("  };\n")
+	builder.WriteString("})()")
+	return builder.String()
 }
 
 func (s *sessionState) executeRaw(ctx context.Context, source string, policy SessionPolicy) (executionOutcome, error) {
