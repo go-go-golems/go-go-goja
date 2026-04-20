@@ -309,6 +309,65 @@ This step also added the runtime-local in-memory store, the `defineBot` builder,
 - The runtime-local state is seeded with `engine.RuntimeModuleContext.Values["sandbox.runtime"]` and cleaned up on runtime close.
 - The demo script lives at `testdata/sandbox/demo.js`.
 
+## Step 5: Refresh the ticket bundle and re-upload the delivered docs to reMarkable
+
+After the implementation and documentation commits were in place, I refreshed the ticket bundle so the uploaded PDF would include the updated tasks list, changelog, and implementation diary. This is the last-mile delivery step that makes the work easier to review offline as a single artifact.
+
+The bundle upload was a useful sanity check because it forced me to verify that the updated docs still render cleanly and that the remote reMarkable path contains the latest version of the ticket package.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Finish the implementation workflow, refresh the ticket documentation, and make sure the reMarkable bundle contains the latest docs.
+
+**Inferred user intent:** Keep the working notes and final deliverable in sync so the ticket can be reviewed as a complete package.
+
+### What I did
+- Ran `docmgr doctor --ticket GOJA-17-JS-SANDBOX-API --stale-after 30` again after the implementation docs were updated.
+- Rebuilt the reMarkable bundle from the full ticket directory so `tasks.md` and `changelog.md` were included alongside the design and reference docs.
+- Uploaded the refreshed bundle with `remarquee upload bundle --force ...`.
+- Verified the remote folder still contains the `GOJA-17 JS Sandbox API` PDF.
+
+### Why
+- The bundle needed to include the implementation diary and the updated task/changelog tracking.
+- Re-uploading with `--force` ensures reviewers see the latest state instead of the earlier planning-only bundle.
+- A final verification pass reduces the chance of leaving the ticket in a partially updated state.
+
+### What worked
+- `docmgr doctor` continued to report that all checks passed.
+- The reMarkable dry-run showed the full ticket directory contents before upload.
+- The forced upload succeeded and the remote listing confirmed the document is present.
+
+### What didn't work
+- Nothing new in this step; the only friction was the earlier workspace mismatch in the pre-commit hook and the need to use `--force` because an older bundle already existed on reMarkable.
+
+### What I learned
+- ReMarkable uploads are most useful when the ticket directory is treated as the source of truth.
+- Re-running the bundle command after doc edits is an easy way to catch missing files.
+- The ticket is easier to hand off when the implementation diary, tasks, and changelog all travel together.
+
+### What was tricky to build
+- The tricky part here was not the upload itself, but making sure the bundle order and included files matched the final ticket shape.
+- Because the bundle already existed remotely, I had to explicitly force the replacement so the latest PDF would land in the same path.
+
+### What warrants a second pair of eyes
+- Whether the final bundle should stay as a single PDF or be split by doc type for future tickets.
+- Whether the final implementation diary should stay in the same ticket bundle or be copied into a more durable project log.
+
+### What should be done in the future
+- N/A
+
+### Code review instructions
+- Open the final bundle from the reMarkable path and cross-check it against the `ttmp/...` workspace directory.
+- If you need to validate the delivery path again, rerun the bundle command with `--dry-run --force` before uploading.
+- Keep `docmgr doctor` in the loop any time the ticket docs change.
+
+### Technical details
+- Bundle command used: `remarquee upload bundle --force --name "GOJA-17 JS Sandbox API" --remote-dir "/ai/2026/04/20/GOJA-17-JS-SANDBOX-API" <ticket directory>`.
+- Remote verification command: `remarquee cloud ls /ai/2026/04/20/GOJA-17-JS-SANDBOX-API --long --non-interactive`.
+- Ticket validation command: `docmgr doctor --ticket GOJA-17-JS-SANDBOX-API --stale-after 30`.
+
 ## Related
 
 - `design-doc/01-js-sandbox-host-api-and-runtime-architecture.md`
