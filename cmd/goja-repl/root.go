@@ -5,15 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/logging"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
@@ -25,11 +20,9 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	"github.com/go-go-golems/go-go-goja/pkg/replapi"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
-	"github.com/go-go-golems/go-go-goja/pkg/replhttp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
 )
 
 type rootOptions struct {
@@ -96,11 +89,13 @@ func newRootCommand(out io.Writer) (*cobra.Command, error) {
 	return root, nil
 }
 
+// commandSupport provides shared app construction for CLI commands.
 type commandSupport struct {
 	out  io.Writer
 	opts *rootOptions
 }
 
+// appSupportOptions configures how newAppWithOptions builds the app.
 type appSupportOptions struct {
 	profile    replapi.Profile
 	withStore  bool
@@ -180,67 +175,7 @@ func setDefaultFlagValue(root *cobra.Command, name string, value string) {
 	_ = flag.Value.Set(value)
 }
 
-type sessionsCommand struct {
-	*cmds.CommandDescription
-	commandSupport
-}
-
-var _ cmds.BareCommand = (*sessionsCommand)(nil)
-
-func newSessionsCommand(out io.Writer, opts *rootOptions) *sessionsCommand {
-	return &sessionsCommand{
-		CommandDescription: cmds.NewCommandDescription("sessions",
-			cmds.WithShort("List durable REPL sessions"),
-		),
-		commandSupport: commandSupport{out: out, opts: opts},
-	}
-}
-
-func (c *sessionsCommand) Run(ctx context.Context, vals *values.Values) error {
-	_ = vals
-	app, store, err := c.newApp()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = store.Close() }()
-
-	sessions, err := app.ListSessions(ctx)
-	if err != nil {
-		return err
-	}
-	return writeJSON(c.out, map[string]any{"sessions": sessions})
-}
-
-type createCommand struct {
-	*cmds.CommandDescription
-	commandSupport
-}
-
-var _ cmds.BareCommand = (*createCommand)(nil)
-
-func newCreateCommand(out io.Writer, opts *rootOptions) *createCommand {
-	return &createCommand{
-		CommandDescription: cmds.NewCommandDescription("create",
-			cmds.WithShort("Create a fresh persistent REPL session"),
-		),
-		commandSupport: commandSupport{out: out, opts: opts},
-	}
-}
-
-func (c *createCommand) Run(ctx context.Context, vals *values.Values) error {
-	_ = vals
-	app, store, err := c.newApp()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = store.Close() }()
-
-	session, err := app.CreateSession(ctx)
-	if err != nil {
-		return err
-	}
-	return writeJSON(c.out, map[string]any{"session": session})
-}
+// --- Shared settings types used by multiple commands ---
 
 type sessionSettings struct {
 	SessionID string `glazed:"session-id"`
@@ -255,314 +190,16 @@ type serveSettings struct {
 	Addr string `glazed:"addr"`
 }
 
-type evalCommand struct {
-	*cmds.CommandDescription
-	commandSupport
-}
-
-var _ cmds.BareCommand = (*evalCommand)(nil)
-
-func newEvalCommand(out io.Writer, opts *rootOptions) *evalCommand {
-	return &evalCommand{
-		CommandDescription: cmds.NewCommandDescription("eval",
-			cmds.WithShort("Evaluate source in a persistent session"),
-			cmds.WithFlags(
-				fields.New("session-id", fields.TypeString, fields.WithRequired(true), fields.WithHelp("Persistent session id")),
-				fields.New("source", fields.TypeString, fields.WithRequired(true), fields.WithHelp("JavaScript source to evaluate")),
-			),
-		),
-		commandSupport: commandSupport{out: out, opts: opts},
-	}
-}
-
-func (c *evalCommand) Run(ctx context.Context, vals *values.Values) error {
-	settings := evalSettings{}
-	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
-		return err
-	}
-	app, store, err := c.newApp()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = store.Close() }()
-
-	resp, err := app.Evaluate(ctx, settings.SessionID, settings.Source)
-	if err != nil {
-		return err
-	}
-	return writeJSON(c.out, resp)
-}
-
-type snapshotCommand struct {
-	*cmds.CommandDescription
-	commandSupport
-}
-
-var _ cmds.BareCommand = (*snapshotCommand)(nil)
-
-func newSnapshotCommand(out io.Writer, opts *rootOptions) *snapshotCommand {
-	return &snapshotCommand{
-		CommandDescription: cmds.NewCommandDescription("snapshot",
-			cmds.WithShort("Load the current live snapshot for a session"),
-			cmds.WithFlags(fields.New("session-id", fields.TypeString, fields.WithRequired(true), fields.WithHelp("Persistent session id"))),
-		),
-		commandSupport: commandSupport{out: out, opts: opts},
-	}
-}
-
-func (c *snapshotCommand) Run(ctx context.Context, vals *values.Values) error {
-	settings := sessionSettings{}
-	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
-		return err
-	}
-	app, store, err := c.newApp()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = store.Close() }()
-
-	summary, err := app.Snapshot(ctx, settings.SessionID)
-	if err != nil {
-		return err
-	}
-	return writeJSON(c.out, map[string]any{"session": summary})
-}
-
-type historyCommand struct {
-	*cmds.CommandDescription
-	commandSupport
-}
-
-var _ cmds.BareCommand = (*historyCommand)(nil)
-
-func newHistoryCommand(out io.Writer, opts *rootOptions) *historyCommand {
-	return &historyCommand{
-		CommandDescription: cmds.NewCommandDescription("history",
-			cmds.WithShort("Show persisted evaluation history for a session"),
-			cmds.WithFlags(fields.New("session-id", fields.TypeString, fields.WithRequired(true), fields.WithHelp("Persistent session id"))),
-		),
-		commandSupport: commandSupport{out: out, opts: opts},
-	}
-}
-
-func (c *historyCommand) Run(ctx context.Context, vals *values.Values) error {
-	settings := sessionSettings{}
-	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
-		return err
-	}
-	app, store, err := c.newApp()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = store.Close() }()
-
-	history, err := app.History(ctx, settings.SessionID)
-	if err != nil {
-		return err
-	}
-	return writeJSON(c.out, map[string]any{"history": history})
-}
-
-type bindingsCommand struct {
-	*cmds.CommandDescription
-	commandSupport
-}
-
-var _ cmds.BareCommand = (*bindingsCommand)(nil)
-
-func newBindingsCommand(out io.Writer, opts *rootOptions) *bindingsCommand {
-	return &bindingsCommand{
-		CommandDescription: cmds.NewCommandDescription("bindings",
-			cmds.WithShort("Show current bindings for a session"),
-			cmds.WithFlags(fields.New("session-id", fields.TypeString, fields.WithRequired(true), fields.WithHelp("Persistent session id"))),
-		),
-		commandSupport: commandSupport{out: out, opts: opts},
-	}
-}
-
-func (c *bindingsCommand) Run(ctx context.Context, vals *values.Values) error {
-	settings := sessionSettings{}
-	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
-		return err
-	}
-	app, store, err := c.newApp()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = store.Close() }()
-
-	bindings, err := app.Bindings(ctx, settings.SessionID)
-	if err != nil {
-		return err
-	}
-	return writeJSON(c.out, map[string]any{"bindings": bindings})
-}
-
-type docsCommand struct {
-	*cmds.CommandDescription
-	commandSupport
-}
-
-var _ cmds.BareCommand = (*docsCommand)(nil)
-
-func newDocsCommand(out io.Writer, opts *rootOptions) *docsCommand {
-	return &docsCommand{
-		CommandDescription: cmds.NewCommandDescription("docs",
-			cmds.WithShort("Show persisted REPL-authored docs for a session"),
-			cmds.WithFlags(fields.New("session-id", fields.TypeString, fields.WithRequired(true), fields.WithHelp("Persistent session id"))),
-		),
-		commandSupport: commandSupport{out: out, opts: opts},
-	}
-}
-
-func (c *docsCommand) Run(ctx context.Context, vals *values.Values) error {
-	settings := sessionSettings{}
-	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
-		return err
-	}
-	app, store, err := c.newApp()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = store.Close() }()
-
-	docs, err := app.Docs(ctx, settings.SessionID)
-	if err != nil {
-		return err
-	}
-	return writeJSON(c.out, map[string]any{"docs": docs})
-}
-
-type exportCommand struct {
-	*cmds.CommandDescription
-	commandSupport
-}
-
-var _ cmds.BareCommand = (*exportCommand)(nil)
-
-func newExportCommand(out io.Writer, opts *rootOptions) *exportCommand {
-	return &exportCommand{
-		CommandDescription: cmds.NewCommandDescription("export",
-			cmds.WithShort("Export a session from SQLite"),
-			cmds.WithFlags(fields.New("session-id", fields.TypeString, fields.WithRequired(true), fields.WithHelp("Persistent session id"))),
-		),
-		commandSupport: commandSupport{out: out, opts: opts},
-	}
-}
-
-func (c *exportCommand) Run(ctx context.Context, vals *values.Values) error {
-	settings := sessionSettings{}
-	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
-		return err
-	}
-	app, store, err := c.newApp()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = store.Close() }()
-
-	exported, err := app.Export(ctx, settings.SessionID)
-	if err != nil {
-		return err
-	}
-	return writeJSON(c.out, exported)
-}
-
-type restoreCommand struct {
-	*cmds.CommandDescription
-	commandSupport
-}
-
-var _ cmds.BareCommand = (*restoreCommand)(nil)
-
-func newRestoreCommand(out io.Writer, opts *rootOptions) *restoreCommand {
-	return &restoreCommand{
-		CommandDescription: cmds.NewCommandDescription("restore",
-			cmds.WithShort("Replay-restore a persisted session into a live runtime"),
-			cmds.WithFlags(fields.New("session-id", fields.TypeString, fields.WithRequired(true), fields.WithHelp("Persistent session id"))),
-		),
-		commandSupport: commandSupport{out: out, opts: opts},
-	}
-}
-
-func (c *restoreCommand) Run(ctx context.Context, vals *values.Values) error {
-	settings := sessionSettings{}
-	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
-		return err
-	}
-	app, store, err := c.newApp()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = store.Close() }()
-
-	summary, err := app.Restore(ctx, settings.SessionID)
-	if err != nil {
-		return err
-	}
-	return writeJSON(c.out, map[string]any{"session": summary})
-}
-
-type serveCommand struct {
-	*cmds.CommandDescription
-	commandSupport
-}
-
-var _ cmds.BareCommand = (*serveCommand)(nil)
-
-func newServeCommand(out io.Writer, opts *rootOptions) *serveCommand {
-	return &serveCommand{
-		CommandDescription: cmds.NewCommandDescription("serve",
-			cmds.WithShort("Run the persistent REPL JSON server"),
-			cmds.WithFlags(
-				fields.New("addr", fields.TypeString, fields.WithDefault("127.0.0.1:3090"), fields.WithHelp("Listen address")),
-			),
-		),
-		commandSupport: commandSupport{out: out, opts: opts},
-	}
-}
-
-func (c *serveCommand) Run(ctx context.Context, vals *values.Values) error {
-	settings := serveSettings{}
-	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
-		return err
-	}
-	app, store, err := c.newApp()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = store.Close() }()
-
-	handler, err := replhttp.NewHandler(app)
-	if err != nil {
-		return err
-	}
-
-	srv := &http.Server{
-		Addr:              settings.Addr,
-		Handler:           handler,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
-	runCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	group, groupCtx := errgroup.WithContext(runCtx)
-	group.Go(func() error {
-		fmt.Fprintf(c.out, "goja-repl server listening on http://%s\n", settings.Addr)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+// runWithApp is a convenience wrapper for the common pattern:
+// build app, defer close, call fn.
+func (s commandSupport) runWithApp(fn func(ctx context.Context, app *replapi.App) error) func(ctx context.Context, vals *values.Values) error {
+	return func(ctx context.Context, vals *values.Values) error {
+		_ = vals
+		app, store, err := s.newApp()
+		if err != nil {
 			return err
 		}
-		return nil
-	})
-	group.Go(func() error {
-		<-groupCtx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		return srv.Shutdown(shutdownCtx)
-	})
-	if err := group.Wait(); err != nil && !errors.Is(err, context.Canceled) {
-		return errors.Wrap(err, "run http server")
+		defer func() { _ = store.Close() }()
+		return fn(ctx, app)
 	}
-	return nil
 }
