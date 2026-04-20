@@ -76,7 +76,7 @@ func FuzzPersistenceRestore(f *testing.F) {
 			t.Fatalf("create session: %v", err)
 		}
 
-		func() {
+		seedEvalErr := func() error {
 			defer func() {
 				if r := recover(); r != nil {
 					_ = store1.Close()
@@ -85,8 +85,13 @@ func FuzzPersistenceRestore(f *testing.F) {
 			}()
 			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
-			app1.Evaluate(timeoutCtx, session.ID, seed)
+			_, err := app1.Evaluate(timeoutCtx, session.ID, seed)
+			return err
 		}()
+		if seedEvalErr != nil {
+			_ = store1.Close()
+			return
+		}
 
 		sessionID := session.ID
 		_ = store1.Close()
@@ -110,7 +115,9 @@ func FuzzPersistenceRestore(f *testing.F) {
 
 			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
-			app2.Evaluate(timeoutCtx, sessionID, restore)
+			if _, err := app2.Evaluate(timeoutCtx, sessionID, restore); err != nil {
+				return // restore inputs may legitimately fail to evaluate during fuzzing
+			}
 		}()
 	})
 }
