@@ -292,6 +292,54 @@ The implementation deliberately followed the architecture from the ticket: repos
 - Exact compile error encountered during implementation:
   - `pkg/botcli/runtime.go:72:40: bot.runtimeOptions undefined (type DiscoveredBot has no field or method runtimeOptions)`
 
+## Step 4: Refresh the ticket bundle after implementation so the PDF matches the repo
+
+After the command surface and tests were committed, I refreshed the reMarkable bundle so the ticket PDF would include the implementation progress, updated tasks, and diary notes. This is the delivery hygiene step that keeps the off-screen artifact synchronized with the repository state.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Keep the ticket diary and deliverable current as implementation progresses.
+
+**Inferred user intent:** Make sure the implementation work remains documented and reviewable, not just coded.
+
+### What I did
+- Uploaded the updated ticket workspace again with `remarquee upload bundle --force ...`.
+- Verified the remote folder after upload.
+
+### Why
+- The original bundle only reflected the design stage.
+- The implementation added code and diary entries that should be visible in the reMarkable PDF.
+
+### What worked
+- The forced bundle upload succeeded on the first try.
+- The remote folder still contains the expected `GOJA-18 Bot CLI Verbs` document.
+
+### What didn't work
+- Nothing new failed in this refresh step.
+
+### What I learned
+- It is worth treating the ticket directory as the single source of truth and re-uploading after each meaningful implementation milestone.
+
+### What was tricky to build
+- Nothing was technically tricky here; the only requirement was remembering to refresh the bundle after the code and diary changed.
+
+### What warrants a second pair of eyes
+- Whether future tickets should always re-upload after each implementation milestone or only once at ticket closeout.
+
+### What should be done in the future
+- Re-run the bundle upload again if the remaining follow-up tasks change the docs substantially.
+
+### Code review instructions
+- Compare the refreshed PDF on reMarkable with the latest files in the ticket workspace if you want to validate the handoff artifact.
+
+### Technical details
+- Upload command used:
+  - `remarquee upload bundle --force --name "GOJA-18 Bot CLI Verbs" --remote-dir "/ai/2026/04/20/GOJA-18-BOT-CLI-VERBS" <ticket directory>`
+- Verification command used:
+  - `remarquee cloud ls /ai/2026/04/20/GOJA-18-BOT-CLI-VERBS --long --non-interactive`
+
 ## Related
 
 - `../design-doc/01-bot-cli-verbs-architecture-and-implementation-guide.md`

@@ -13,3 +13,4 @@
 - Implemented the first working `go-go-goja bots` CLI under `cmd/go-go-goja` and `pkg/botcli`, including `list`, `run`, and `help`.
 - Chose explicit `__verb__` discovery for v1 by scanning with `IncludePublicFunctions = false`.
 - Added end-to-end bot CLI tests covering listing, structured output, text output, async Promise settlement, and relative `require()` support.
+- Refreshed the reMarkable bundle after implementation so the uploaded PDF matches the current repo and diary state.
