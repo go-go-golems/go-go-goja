@@ -141,6 +141,118 @@ func TestDedicatedBotFixtureRunsAndSupportsRelativeRequire(t *testing.T) {
 	require.Contains(t, stdout.String(), "\"value\": \"hi:there\"")
 }
 
+func TestExamplesRepositoryListsAllCorePaths(t *testing.T) {
+	root := NewCommand()
+	var stdout bytes.Buffer
+	root.SetOut(&stdout)
+	root.SetErr(&stdout)
+	root.SetArgs([]string{"list", "--bot-repository", examplesFixtureDir(t)})
+
+	err := root.Execute()
+	require.NoError(t, err)
+	output := stdout.String()
+	require.Contains(t, output, "discord greet\tdiscord.js")
+	require.Contains(t, output, "discord banner\tdiscord.js")
+	require.Contains(t, output, "math multiply\tmath/index.js")
+	require.Contains(t, output, "nested relay\tnested/index.js")
+	require.Contains(t, output, "issues list\tissues.js")
+	require.Contains(t, output, "meta ops status\tadmin.js")
+	require.Contains(t, output, "all-values echo-all\tall-values.js")
+}
+
+func TestExamplesRepositorySupportsRealSmokeCommands(t *testing.T) {
+	t.Run("structured", func(t *testing.T) {
+		root := NewCommand()
+		var stdout bytes.Buffer
+		root.SetOut(&stdout)
+		root.SetErr(&stdout)
+		root.SetArgs([]string{"run", "discord", "greet", "--bot-repository", examplesFixtureDir(t), "Manuel", "--excited"})
+		require.NoError(t, root.Execute())
+		require.Contains(t, stdout.String(), "\"greeting\": \"Hello, Manuel!\"")
+	})
+
+	t.Run("text", func(t *testing.T) {
+		root := NewCommand()
+		var stdout bytes.Buffer
+		root.SetOut(&stdout)
+		root.SetErr(&stdout)
+		root.SetArgs([]string{"run", "discord", "banner", "--bot-repository", examplesFixtureDir(t), "Manuel"})
+		require.NoError(t, root.Execute())
+		require.Equal(t, "*** Manuel ***\n", stdout.String())
+	})
+
+	t.Run("async", func(t *testing.T) {
+		root := NewCommand()
+		var stdout bytes.Buffer
+		root.SetOut(&stdout)
+		root.SetErr(&stdout)
+		root.SetArgs([]string{"run", "math", "multiply", "--bot-repository", examplesFixtureDir(t), "6", "7"})
+		require.NoError(t, root.Execute())
+		require.Contains(t, stdout.String(), "\"product\": 42")
+	})
+
+	t.Run("nested require", func(t *testing.T) {
+		root := NewCommand()
+		var stdout bytes.Buffer
+		root.SetOut(&stdout)
+		root.SetErr(&stdout)
+		root.SetArgs([]string{"run", "nested", "relay", "--bot-repository", examplesFixtureDir(t), "hi", "there"})
+		require.NoError(t, root.Execute())
+		require.Contains(t, stdout.String(), "\"value\": \"hi:there\"")
+	})
+
+	t.Run("sections and context", func(t *testing.T) {
+		root := NewCommand()
+		var stdout bytes.Buffer
+		root.SetOut(&stdout)
+		root.SetErr(&stdout)
+		root.SetArgs([]string{"run", "issues", "list", "--bot-repository", examplesFixtureDir(t), "acme/repo", "--state", "closed", "--labels", "bug", "--labels", "docs"})
+		require.NoError(t, root.Execute())
+		out := stdout.String()
+		require.Contains(t, out, "\"repo\": \"acme/repo\"")
+		require.Contains(t, out, "\"state\": \"closed\"")
+		require.Contains(t, out, "\"labelCount\": 2")
+	})
+
+	t.Run("package metadata", func(t *testing.T) {
+		root := NewCommand()
+		var stdout bytes.Buffer
+		root.SetOut(&stdout)
+		root.SetErr(&stdout)
+		root.SetArgs([]string{"run", "meta", "ops", "status", "--bot-repository", examplesFixtureDir(t)})
+		require.NoError(t, root.Execute())
+		require.Contains(t, stdout.String(), "\"scope\": \"meta ops\"")
+	})
+
+	t.Run("bind all", func(t *testing.T) {
+		root := NewCommand()
+		var stdout bytes.Buffer
+		root.SetOut(&stdout)
+		root.SetErr(&stdout)
+		root.SetArgs([]string{"run", "all-values", "echo-all", "--bot-repository", examplesFixtureDir(t), "--repo", "acme/demo", "--dryRun", "--names", "one", "--names", "two"})
+		require.NoError(t, root.Execute())
+		out := stdout.String()
+		require.Contains(t, out, "\"repo\": \"acme/demo\"")
+		require.Contains(t, out, "\"dryRun\": true")
+		require.Contains(t, out, "\"count\": 2")
+	})
+}
+
+func TestExamplesRepositoryHelpShowsRealFlags(t *testing.T) {
+	root := NewCommand()
+	var stdout bytes.Buffer
+	root.SetOut(&stdout)
+	root.SetErr(&stdout)
+	root.SetArgs([]string{"help", "issues", "list", "--bot-repository", examplesFixtureDir(t)})
+
+	err := root.Execute()
+	require.NoError(t, err)
+	output := stdout.String()
+	require.Contains(t, output, "go-go-goja bots run issues list")
+	require.Contains(t, output, "--state")
+	require.Contains(t, output, "--labels")
+}
+
 func fixtureDir(t *testing.T) string {
 	t.Helper()
 	root := repoRoot(t)
@@ -157,6 +269,12 @@ func duplicateFixtureDir(t *testing.T, suffix string) string {
 	t.Helper()
 	root := repoRoot(t)
 	return filepath.Join(root, "testdata", "botcli-dupe-"+suffix)
+}
+
+func examplesFixtureDir(t *testing.T) string {
+	t.Helper()
+	root := repoRoot(t)
+	return filepath.Join(root, "examples", "bots")
 }
 
 func repoRoot(t *testing.T) string {
