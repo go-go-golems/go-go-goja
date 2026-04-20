@@ -431,6 +431,55 @@ The fix was to settle handler return values after the owner-thread call complete
 - Async tests now cover `command("ping", async ...)` and `event("ready", async ...)`.
 - The Promise state polling still happens on the runtime owner thread via `runtimeowner.Runner`.
 
+## Step 7: Refresh the bundle again after async settlement and keep the ticket delivery current
+
+Because the async-settlement fix changed the code after the prior bundle refresh, I refreshed the ticket package one more time so the reMarkable PDF would match the implementation that now ships in the repo. This is the kind of small but important delivery step that keeps the docs honest: the PDF should describe the same state the source tree now contains.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Re-upload the ticket bundle after the async-settlement implementation and make sure the PDF stays aligned with the latest docs.
+
+**Inferred user intent:** Preserve a reviewable, up-to-date artifact after the final code refinement.
+
+### What I did
+- Re-ran the bundle upload after the async-settlement docs update.
+- Kept the ticket directory as the source of truth for the PDF contents.
+- Verified the reMarkable folder still resolves to the `GOJA-17 JS Sandbox API` document.
+
+### Why
+- The bundle had to reflect the latest implementation and diary updates.
+- ReMarkable is the review artifact, so it needs to stay synchronized with the ticket workspace.
+
+### What worked
+- The refreshed bundle continued to upload successfully.
+- The remote folder still maps to the same ticket deliverable path.
+
+### What didn't work
+- Nothing new here; this was a straightforward refresh after the async fix.
+
+### What I learned
+- The final delivery step is easiest when the bundle is regenerated after each meaningful doc update.
+- Keeping the ticket directory authoritative prevents the PDF from drifting away from the implementation.
+
+### What was tricky to build
+- No code was tricky in this step; the main concern was simply making sure the docs and PDF stayed in sync.
+
+### What warrants a second pair of eyes
+- Whether the project wants one final bundle at ticket closeout or periodic bundle refreshes after each implementation milestone.
+
+### What should be done in the future
+- N/A
+
+### Code review instructions
+- Open the refreshed PDF and compare it to the latest `ttmp/...` workspace contents.
+- Re-run the bundle command whenever the diary or changelog changes.
+
+### Technical details
+- Remote path: `/ai/2026/04/20/GOJA-17-JS-SANDBOX-API`.
+- Bundle command: `remarquee upload bundle --force --name "GOJA-17 JS Sandbox API" --remote-dir "/ai/2026/04/20/GOJA-17-JS-SANDBOX-API" <ticket directory>`.
+
 ## Related
 
 - `design-doc/01-js-sandbox-host-api-and-runtime-architecture.md`
