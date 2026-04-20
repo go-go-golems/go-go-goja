@@ -2,6 +2,12 @@ package replsession
 
 import "time"
 
+// This file defines the JSON serialization layer (DTOs) for the REPL service.
+// All types here exist purely for JSON transport to the web UI.
+// They have no logic or validation.
+
+// --- Top-level request/response types ---
+
 // SessionSummary is the top-level state returned to the web UI.
 type SessionSummary struct {
 	ID             string             `json:"id"`
@@ -26,6 +32,8 @@ type EvaluateResponse struct {
 	Session *SessionSummary `json:"session"`
 	Cell    *CellReport     `json:"cell"`
 }
+
+// --- Cell report sub-structures ---
 
 // CellReport captures one evaluation pipeline end to end.
 type CellReport struct {
@@ -129,6 +137,8 @@ type HistoryEntry struct {
 	Status        string    `json:"status"`
 }
 
+// --- Binding detail views ---
+
 // BindingView is the current session view of one named binding.
 type BindingView struct {
 	Name            string             `json:"name"`
@@ -215,6 +225,8 @@ type GlobalDiffView struct {
 	SessionBound bool   `json:"sessionBound"`
 }
 
+// --- Static analysis views ---
+
 // DiagnosticView is a JSON-safe diagnostic.
 type DiagnosticView struct {
 	Severity string `json:"severity"`
@@ -246,6 +258,8 @@ type IdentifierUseView struct {
 	NodeID  int    `json:"nodeId"`
 	Snippet string `json:"snippet,omitempty"`
 }
+
+// --- AST/CST views ---
 
 // ScopeView is a recursive, UI-safe representation of the resolver scope tree.
 type ScopeView struct {
@@ -282,6 +296,8 @@ type CSTNodeView struct {
 	IsError   bool   `json:"isError"`
 	IsMissing bool   `json:"isMissing"`
 }
+
+// --- Utility views ---
 
 // RangeView points to a span in source.
 type RangeView struct {
