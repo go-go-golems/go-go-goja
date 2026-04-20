@@ -113,6 +113,20 @@ func Resolve(program *ast.Program, idx *Index) *Resolution {
 		NodeBinding: make(map[NodeID]*BindingRecord),
 	}
 
+	// Guard: an empty program (no body statements) cannot be resolved.
+	// Return an empty resolution with a root scope to avoid panics in
+	// program.Idx0()/Idx1() which assume Body is non-empty.
+	if program == nil || len(program.Body) == 0 {
+		rootID := ScopeID(0)
+		res.Scopes[rootID] = &ScopeRecord{
+			ID:       rootID,
+			Kind:     ScopeGlobal,
+			Bindings: make(map[string]*BindingRecord),
+		}
+		res.RootScopeID = rootID
+		return res
+	}
+
 	r := &resolver{
 		index:      idx,
 		resolution: res,

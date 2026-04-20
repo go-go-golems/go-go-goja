@@ -34,6 +34,45 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
+	// Short-circuit empty or whitespace-only source to avoid panics in
+	// jsparse.Resolve (which assumes program.Body is non-empty).
+	if strings.TrimSpace(source) == "" {
+		state.nextCellID++
+		cellID := state.nextCellID
+		now := time.Now().UTC()
+		cell := &CellReport{
+			ID:        cellID,
+			CreatedAt: now,
+			Source:    source,
+			Rewrite: RewriteReport{
+				Mode:              "raw",
+				TransformedSource: source,
+				DeclaredNames:     []string{},
+				HelperNames:       []string{},
+				Operations:        []RewriteStep{},
+				Warnings:          []string{"empty source: nothing to evaluate"},
+			},
+			Execution: ExecutionReport{
+				Status:  "empty-source",
+				Result:  "undefined",
+				Console: []ConsoleEvent{},
+			},
+			Runtime: RuntimeReport{
+				BeforeGlobals:   []GlobalStateView{},
+				AfterGlobals:    []GlobalStateView{},
+				Diffs:           []GlobalDiffView{},
+				NewBindings:     []string{},
+				UpdatedBindings: []string{},
+				RemovedBindings: []string{},
+				LeakedGlobals:   []string{},
+				PersistedByWrap: []string{},
+			},
+			Provenance: []ProvenanceRecord{},
+		}
+		state.cells = append(state.cells, &cellState{report: cell})
+		return &EvaluateResponse{Session: state.buildSummaryLocked(), Cell: cell}, nil
+	}
+
 	policy := NormalizeSessionPolicy(state.policy)
 	state.nextCellID++
 	cellID := state.nextCellID
