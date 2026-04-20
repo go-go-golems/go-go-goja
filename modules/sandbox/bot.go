@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -166,7 +168,86 @@ func (h *BotHandle) dispatch(ctx context.Context, fn goja.Callable, request Disp
 	if err != nil {
 		return nil, err
 	}
-	return ret, nil
+	return settleValue(ctx, bindings.Owner, ret)
+}
+
+func settleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	switch v := value.(type) {
+	case *goja.Promise:
+		return waitForPromise(ctx, owner, v)
+	case goja.Value:
+		return settleValue(ctx, owner, v.Export())
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			settled, err := settleValue(ctx, owner, item)
+			if err != nil {
+				return nil, err
+			}
+			out[i] = settled
+		}
+		return out, nil
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, item := range v {
+			settled, err := settleValue(ctx, owner, item)
+			if err != nil {
+				return nil, err
+			}
+			out[key] = settled
+		}
+		return out, nil
+	default:
+		return value, nil
+	}
+}
+
+type promiseSnapshot struct {
+	State  goja.PromiseState
+	Result goja.Value
+}
+
+func waitForPromise(ctx context.Context, owner runtimeowner.Runner, promise *goja.Promise) (any, error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		ret, err := owner.Call(ctx, "sandbox.bot.promise-state", func(context.Context, *goja.Runtime) (any, error) {
+			return promiseSnapshot{State: promise.State(), Result: promise.Result()}, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		snapshot, ok := ret.(promiseSnapshot)
+		if !ok {
+			return nil, fmt.Errorf("sandbox bot promise snapshot has unexpected type %T", ret)
+		}
+		switch snapshot.State {
+		case goja.PromiseStatePending:
+			time.Sleep(5 * time.Millisecond)
+		case goja.PromiseStateRejected:
+			return nil, fmt.Errorf("promise rejected: %s", valueString(snapshot.Result))
+		case goja.PromiseStateFulfilled:
+			if snapshot.Result == nil || goja.IsUndefined(snapshot.Result) || goja.IsNull(snapshot.Result) {
+				return nil, nil
+			}
+			return snapshot.Result.Export(), nil
+		}
+	}
+}
+
+func valueString(value goja.Value) string {
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return ""
+	}
+	return fmt.Sprint(value.Export())
 }
 
 func resolveValue(_ *goja.Runtime, value goja.Value) (any, error) {

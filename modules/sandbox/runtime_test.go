@@ -18,13 +18,13 @@ func TestSandboxRegistrarExposesBotAndStore(t *testing.T) {
 		const { defineBot } = require("sandbox")
 		module.exports = defineBot(({ command, event, configure }) => {
 			configure({ name: "demo-bot", tier: "gold" })
-			command("ping", (ctx) => {
+			command("ping", async (ctx) => {
 				const current = ctx.store.get("hits", 0)
 				ctx.store.set("hits", current + 1)
-				ctx.reply(`+"`pong:${current}`"+`)
+				await ctx.reply(`+"`pong:${current}`"+`)
 				return current
 			})
-			event("ready", (ctx) => {
+			event("ready", async (ctx) => {
 				ctx.store.set("ready", true)
 				return "ready"
 			})
@@ -142,7 +142,7 @@ func TestSandboxStateIsRuntimeLocal(t *testing.T) {
 	botScript := `
 		const { defineBot } = require("sandbox")
 		module.exports = defineBot(({ command }) => {
-			command("count", (ctx) => {
+			command("count", async (ctx) => {
 				const current = ctx.store.get("count", 0)
 				ctx.store.set("count", current + 1)
 				return current
