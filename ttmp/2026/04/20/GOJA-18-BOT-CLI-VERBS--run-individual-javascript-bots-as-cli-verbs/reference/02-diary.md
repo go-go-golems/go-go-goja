@@ -422,6 +422,54 @@ The new fixture tree also makes the bot CLI less dependent on the older generic 
 - New authoring help page:
   - `pkg/doc/12-bot-cli-verb-authoring-guide.md`
 
+## Step 6: Refresh the bundle again after the fixture/docs follow-up
+
+Because the fixture additions, extra tests, and authoring guide changed the ticket content after the prior upload, I refreshed the reMarkable bundle one more time so the PDF stayed aligned with the latest implementation and diary state.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Keep the ticket artifact synchronized as the remaining follow-up tasks land.
+
+**Inferred user intent:** Preserve a current deliverable, not just current source files.
+
+### What I did
+- Re-uploaded the ticket bundle after the fixture/tests/help-page follow-up.
+- Verified the remote reMarkable folder again.
+
+### Why
+- The ticket changed materially after the previous refresh.
+- The reMarkable PDF should include the dedicated fixture and authoring-guide work too.
+
+### What worked
+- The forced upload succeeded.
+- The verification listing still shows the expected document in the target folder.
+
+### What didn't work
+- Nothing new failed in this refresh step.
+
+### What I learned
+- The ticket bundle really is easiest to maintain when it is refreshed after each meaningful documentation milestone.
+
+### What was tricky to build
+- Nothing technical here; this was just a disciplined refresh step.
+
+### What warrants a second pair of eyes
+- Whether the project wants a stricter ticket-closeout checklist for bundle refreshes.
+
+### What should be done in the future
+- Re-run the bundle upload again if the open follow-up questions materially change the docs.
+
+### Code review instructions
+- Compare the refreshed PDF with the final state of the ticket workspace if you want to verify the artifact pipeline end to end.
+
+### Technical details
+- Upload command used:
+  - `remarquee upload bundle --force --name "GOJA-18 Bot CLI Verbs" --remote-dir "/ai/2026/04/20/GOJA-18-BOT-CLI-VERBS" <ticket directory>`
+- Verification command used:
+  - `remarquee cloud ls /ai/2026/04/20/GOJA-18-BOT-CLI-VERBS --long --non-interactive`
+
 ## Related
 
 - `../design-doc/01-bot-cli-verbs-architecture-and-implementation-guide.md`

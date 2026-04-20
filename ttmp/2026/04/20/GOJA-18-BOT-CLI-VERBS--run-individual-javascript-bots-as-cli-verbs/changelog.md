@@ -16,3 +16,4 @@
 - Refreshed the reMarkable bundle after implementation so the uploaded PDF matches the current repo and diary state.
 - Added dedicated `testdata/botcli` fixtures plus duplicate-repository fixtures to validate bot CLI behavior with bot-specific inputs.
 - Added empty/multi-repository/duplicate repository tests and a help page for authoring bot scripts with explicit `__verb__` metadata.
+- Refreshed the reMarkable bundle again so the uploaded PDF includes the fixture/docs follow-up work.
