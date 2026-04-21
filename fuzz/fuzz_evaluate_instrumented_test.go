@@ -62,9 +62,12 @@ func FuzzEvaluateInstrumented(f *testing.F) {
 			t.Fatalf("unknown status %q for source=%q", cell.Execution.Status, truncate(source, 100))
 		}
 
-		// Invariant: mode is instrumented (not raw).
-		if cell.Rewrite.Mode == "raw" {
-			t.Fatalf("interactive mode produced raw rewrite for source=%q", truncate(source, 100))
+		// Invariant: mode is instrumented (not raw, not none).
+		if cell.Rewrite.Mode == "raw" || cell.Rewrite.Mode == "none" {
+			// empty-source returns mode "none"; all other sources should be instrumented
+			if cell.Execution.Status != "empty-source" {
+				t.Fatalf("interactive mode produced %q rewrite for source=%q", cell.Rewrite.Mode, truncate(source, 100))
+			}
 		}
 
 		// Invariant: Cell ID is always >= 1.

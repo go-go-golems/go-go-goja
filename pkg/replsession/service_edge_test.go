@@ -29,8 +29,8 @@ func TestServiceEmptySourceReturnsGracefully(t *testing.T) {
 	if resp.Cell.Execution.Result != "undefined" {
 		t.Fatalf("expected result undefined, got %q", resp.Cell.Execution.Result)
 	}
-	if resp.Cell.Rewrite.Mode != "raw" {
-		t.Fatalf("expected rewrite mode raw, got %q", resp.Cell.Rewrite.Mode)
+	if resp.Cell.Rewrite.Mode != "none" {
+		t.Fatalf("expected rewrite mode none, got %q", resp.Cell.Rewrite.Mode)
 	}
 }
 

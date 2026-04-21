@@ -45,7 +45,7 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 			CreatedAt: now,
 			Source:    source,
 			Rewrite: RewriteReport{
-				Mode:              "raw",
+				Mode:              "none",
 				TransformedSource: source,
 				DeclaredNames:     []string{},
 				HelperNames:       []string{},
