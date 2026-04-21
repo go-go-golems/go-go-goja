@@ -391,7 +391,7 @@ func (s *sessionState) buildSummaryLockedWithGlobals(globals map[string]GlobalSt
 		BindingCount: len(bindings),
 		Bindings:     bindings,
 		History:      history,
-		Provenance: provenanceForSummary(),
+		Provenance:   provenanceForSummary(),
 	}
 	if globals != nil {
 		summary.CurrentGlobals = mapGlobalSnapshotViews(globals)
@@ -450,7 +450,7 @@ func bindingViewFromState(binding *bindingState) BindingView {
 		DeclaredSnippet: binding.DeclaredSnippet,
 		Static:          binding.Static,
 		Runtime:         binding.Runtime,
-		Provenance: provenanceForBinding(),
+		Provenance:      provenanceForBinding(),
 	}
 }
 

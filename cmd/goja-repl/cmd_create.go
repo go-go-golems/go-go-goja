@@ -1,12 +1,12 @@
 package main
 
 import (
-	"io"
 	"context"
+	"io"
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/go-go-goja/pkg/replapi"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/pkg/replapi"
 )
 
 type createCommand struct {

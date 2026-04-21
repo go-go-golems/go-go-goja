@@ -1,9 +1,9 @@
 package main
 
 import (
-	"io"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"

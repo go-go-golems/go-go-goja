@@ -23,18 +23,18 @@ type SessionExport struct {
 
 // EvaluationRecord is the durable representation of one evaluated cell.
 type EvaluationRecord struct {
-	EvaluationID      int64             `json:"evaluationId"`
-	SessionID         string            `json:"sessionId"`
-	CellID            int               `json:"cellId"`
-	CreatedAt         time.Time         `json:"createdAt"`
-	RawSource         string            `json:"rawSource"`
-	RewrittenSource   string            `json:"rewrittenSource"`
-	OK                bool              `json:"ok"`
-	ResultJSON        json.RawMessage   `json:"resultJson"`
-	ErrorText         string            `json:"errorText"`
-	AnalysisJSON      json.RawMessage   `json:"analysisJson"`
-	GlobalsBeforeJSON json.RawMessage   `json:"globalsBeforeJson"`
-	GlobalsAfterJSON  json.RawMessage   `json:"globalsAfterJson"`
+	EvaluationID      int64                  `json:"evaluationId"`
+	SessionID         string                 `json:"sessionId"`
+	CellID            int                    `json:"cellId"`
+	CreatedAt         time.Time              `json:"createdAt"`
+	RawSource         string                 `json:"rawSource"`
+	RewrittenSource   string                 `json:"rewrittenSource"`
+	OK                bool                   `json:"ok"`
+	ResultJSON        json.RawMessage        `json:"resultJson"`
+	ErrorText         string                 `json:"errorText"`
+	AnalysisJSON      json.RawMessage        `json:"analysisJson"`
+	GlobalsBeforeJSON json.RawMessage        `json:"globalsBeforeJson"`
+	GlobalsAfterJSON  json.RawMessage        `json:"globalsAfterJson"`
 	ConsoleEvents     []ConsoleEventRecord   `json:"consoleEvents"`
 	BindingVersions   []BindingVersionRecord `json:"bindingVersions"`
 	BindingDocs       []BindingDocRecord     `json:"bindingDocs"`
