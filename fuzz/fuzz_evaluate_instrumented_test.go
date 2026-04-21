@@ -90,9 +90,9 @@ func FuzzEvaluateInstrumented(f *testing.F) {
 			t.Fatalf("negative duration %d for source=%q", cell.Execution.DurationMS, truncate(source, 100))
 		}
 
-		// Invariant: Console events are captured in interactive mode.
+		// Invariant: Console events are always a non-nil slice after execution.
 		if cell.Execution.Console == nil {
-			t.Fatalf("nil console slice for source=%q", truncate(source, 100))
+			t.Fatalf("nil console slice for source=%q status=%q", truncate(source, 100), cell.Execution.Status)
 		}
 	})
 }

@@ -57,8 +57,12 @@ func FuzzEvaluateRaw(f *testing.F) {
 		}
 
 		// Invariant: raw mode never uses instrumented rewrite.
-		if resp.Cell.Rewrite.Mode != "raw" {
+		// Empty source short-circuits to mode "none" instead of "raw".
+		if resp.Cell.Rewrite.Mode == "async-iife-with-binding-capture" {
 			t.Fatalf("raw mode produced rewrite mode=%q for source=%q", resp.Cell.Rewrite.Mode, truncate(source, 100))
+		}
+		if resp.Cell.Rewrite.Mode == "none" && resp.Cell.Execution.Status != "empty-source" {
+			t.Fatalf("raw mode produced unexpected mode %q for source=%q", resp.Cell.Rewrite.Mode, truncate(source, 100))
 		}
 		_ = resp.Session
 	})

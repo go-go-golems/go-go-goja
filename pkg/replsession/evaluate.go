@@ -255,7 +255,7 @@ func (s *Service) evaluateInstrumented(ctx context.Context, state *sessionState,
 	start := time.Now()
 	outcome, execErr := state.executeWrapped(ctx, rewrite)
 	duration := time.Since(start)
-	consoleEvents := append([]ConsoleEvent(nil), state.consoleSink...)
+	consoleEvents := append([]ConsoleEvent{}, state.consoleSink...)
 	state.consoleSink = nil
 
 	afterGlobals, snapErr := state.snapshotGlobals(ctx)
@@ -360,7 +360,7 @@ func (s *Service) evaluateRaw(ctx context.Context, state *sessionState, cell *Ce
 	start := time.Now()
 	outcome, execErr := state.executeRaw(ctx, rewrite.TransformedSource, policy)
 	duration := time.Since(start)
-	consoleEvents := append([]ConsoleEvent(nil), state.consoleSink...)
+	consoleEvents := append([]ConsoleEvent{}, state.consoleSink...)
 	state.consoleSink = nil
 
 	var afterGlobals map[string]GlobalStateView
