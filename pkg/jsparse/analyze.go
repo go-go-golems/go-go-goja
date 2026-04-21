@@ -31,6 +31,7 @@ type AnalysisResult struct {
 
 // Analyze parses source and builds index/resolution structures suitable for tooling.
 // It catches panics from the upstream goja parser and converts them to ParseErr.
+//nolint:nonamedreturns // named return needed for defer recover assignment
 func Analyze(filename, source string, opts *AnalyzeOptions) (result *AnalysisResult) {
 	defer func() {
 		if r := recover(); r != nil {
