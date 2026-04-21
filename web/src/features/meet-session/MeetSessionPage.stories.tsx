@@ -113,7 +113,7 @@ const emptyHandlers = [
       })
   ),
   http.get("/api/sessions/:sessionID/history", () =>
-    HttpResponse.json({ history: sessionExportFixture.Evaluations })
+    HttpResponse.json({ history: sessionExportFixture.evaluations })
   ),
   http.get("/api/sessions/:sessionID/export", () =>
     HttpResponse.json(sessionExportFixture)

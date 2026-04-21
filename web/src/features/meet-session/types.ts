@@ -249,12 +249,12 @@ export type BindingRuntimeView = {
 };
 
 export type SessionRecord = {
-  SessionID: string;
-  CreatedAt: string;
-  UpdatedAt: string;
-  DeletedAt?: string | null;
-  EngineKind: string;
-  MetadataJSON?: string;
+  sessionId: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+  engineKind: string;
+  metadataJson?: string;
 };
 
 export type HistoryResponse = {
@@ -262,18 +262,18 @@ export type HistoryResponse = {
 };
 
 export type EvaluationRecord = {
-  EvaluationID: number;
-  SessionID: string;
-  CellID: number;
-  CreatedAt: string;
-  RawSource: string;
-  RewrittenSource: string;
-  OK: boolean;
-  ResultJSON?: unknown;
-  ErrorText?: string;
+  evaluationId: number;
+  sessionId: string;
+  cellId: number;
+  createdAt: string;
+  rawSource: string;
+  rewrittenSource: string;
+  ok: boolean;
+  resultJson?: unknown;
+  errorText?: string;
 };
 
 export type SessionExport = {
-  Session: SessionRecord;
-  Evaluations: EvaluationRecord[];
+  session: SessionRecord;
+  evaluations: EvaluationRecord[];
 };

@@ -131,12 +131,12 @@ export const handlers = [
         ...Array.from(sessions.values())
           .filter((session) => session.profile === "persistent")
           .map((session) => ({
-            SessionID: session.id,
-            CreatedAt: session.createdAt,
-            UpdatedAt: session.createdAt,
-            EngineKind: "goja"
+            sessionId: session.id,
+            createdAt: session.createdAt,
+            updatedAt: session.createdAt,
+            engineKind: "goja"
           })),
-        ...Array.from(persistentExports.values()).map((exported) => exported.Session)
+        ...Array.from(persistentExports.values()).map((exported) => exported.session)
       ]
     })
   ),
@@ -145,13 +145,13 @@ export const handlers = [
     sessions.set(session.id, session);
     persistentHistory.set(session.id, []);
     persistentExports.set(session.id, {
-      Session: {
+      session: {
         ...durableSessionRecordFixture,
-        SessionID: session.id,
-        CreatedAt: session.createdAt,
-        UpdatedAt: session.createdAt
+        sessionId: session.id,
+        createdAt: session.createdAt,
+        updatedAt: session.createdAt
       },
-      Evaluations: []
+      evaluations: []
     });
     return HttpResponse.json({ session }, { status: 201 });
   }),
@@ -164,20 +164,20 @@ export const handlers = [
     }
     const history = persistentHistory.get(sessionID) ?? [];
     const nextRecord: EvaluationRecord = {
-      EvaluationID: history.length + 1,
-      SessionID: sessionID,
-      CellID: history.length + 1,
-      CreatedAt: new Date().toISOString(),
-      RawSource: source,
-      RewrittenSource: source,
-      OK: !source.includes("while") && !source.includes("Promise"),
-      ResultJSON: source.includes("1 + 1") ? 2 : 1,
-      ErrorText: source.includes("while") || source.includes("Promise") ? "evaluation timed out" : ""
+      evaluationId: history.length + 1,
+      sessionId: sessionID,
+      cellId: history.length + 1,
+      createdAt: new Date().toISOString(),
+      rawSource: source,
+      rewrittenSource: source,
+      ok: !source.includes("while") && !source.includes("Promise"),
+      resultJson: source.includes("1 + 1") ? 2 : 1,
+      errorText: source.includes("while") || source.includes("Promise") ? "evaluation timed out" : ""
     };
     persistentHistory.set(sessionID, [...history, nextRecord]);
     const exported = persistentExports.get(sessionID);
     if (exported) {
-      exported.Evaluations = [...persistentHistory.get(sessionID)!];
+      exported.evaluations = [...persistentHistory.get(sessionID)!];
     }
     const timeout = source.includes("while") || source.includes("Promise");
     const response = {
@@ -204,16 +204,16 @@ export const handlers = [
   }),
   http.get("/api/sessions/:sessionID/history", ({ params }) => {
     const sessionID = String(params.sessionID || "");
-    return HttpResponse.json({ history: persistentHistory.get(sessionID) ?? sessionExportFixture.Evaluations });
+    return HttpResponse.json({ history: persistentHistory.get(sessionID) ?? sessionExportFixture.evaluations });
   }),
   http.get("/api/sessions/:sessionID/export", ({ params }) => {
     const sessionID = String(params.sessionID || "");
     return HttpResponse.json(
       persistentExports.get(sessionID) ?? {
         ...sessionExportFixture,
-        Session: {
-          ...sessionExportFixture.Session,
-          SessionID: sessionID
+        session: {
+          ...sessionExportFixture.session,
+          sessionId: sessionID
         }
       }
     );

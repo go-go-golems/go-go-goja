@@ -107,7 +107,7 @@ export const essayApi = createApi({
       providesTags: (result) =>
         result
           ? [
-              ...result.map((session) => ({ type: "PersistentSession" as const, id: session.SessionID })),
+              ...result.map((session) => ({ type: "PersistentSession" as const, id: session.sessionId })),
               { type: "PersistentSession" as const, id: "LIST" }
             ]
           : [{ type: "PersistentSession" as const, id: "LIST" }]

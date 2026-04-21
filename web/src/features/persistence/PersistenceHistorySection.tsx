@@ -48,7 +48,7 @@ export function PersistenceHistorySection() {
 
   useEffect(() => {
     if (!selectedSessionID && sessions.length > 0) {
-      setSelectedSessionID(sessions[0]?.SessionID ?? null);
+      setSelectedSessionID(sessions[0]?.sessionId ?? null);
     }
   }, [selectedSessionID, sessions]);
 
@@ -151,14 +151,14 @@ export function PersistenceHistorySection() {
             <div className="essay-session-list">
               {sessions.map((session) => (
                 <button
-                  key={session.SessionID}
+                  key={session.sessionId}
                   type="button"
                   className="essay-session-list__row"
-                  data-selected={selectedSessionID === session.SessionID}
-                  onClick={() => setSelectedSessionID(session.SessionID)}
+                  data-selected={selectedSessionID === session.sessionId}
+                  onClick={() => setSelectedSessionID(session.sessionId)}
                 >
-                  <span className="essay-table__value">{session.SessionID}</span>
-                  <span className="essay-meta-inline">{session.UpdatedAt}</span>
+                  <span className="essay-table__value">{session.sessionId}</span>
+                  <span className="essay-meta-inline">{session.updatedAt}</span>
                 </button>
               ))}
             </div>
@@ -239,11 +239,11 @@ export function PersistenceHistorySection() {
                   </tr>
                 ) : (
                   history.map((entry) => (
-                    <tr key={entry.EvaluationID}>
-                      <td>{entry.CellID}</td>
-                      <td className="essay-table__value">{entry.RawSource}</td>
-                      <td className="essay-table__value">{entry.RewrittenSource}</td>
-                      <td>{entry.OK ? "ok" : entry.ErrorText || "error"}</td>
+                    <tr key={entry.evaluationId}>
+                      <td>{entry.cellId}</td>
+                      <td className="essay-table__value">{entry.rawSource}</td>
+                      <td className="essay-table__value">{entry.rewrittenSource}</td>
+                      <td>{entry.ok ? "ok" : entry.errorText || "error"}</td>
                     </tr>
                   ))
                 )}

@@ -145,12 +145,18 @@ func WithDefaultSessionPolicy(policy replsession.SessionPolicy) Option {
 func normalizeConfig(config Config) Config {
 	normalized := config
 	if normalized.Profile == "" {
-		normalized = DefaultConfig()
+		defaults := DefaultConfig()
+		normalized.Profile = defaults.Profile
+		normalized.AutoRestore = defaults.AutoRestore
+		normalized.SessionOptions = defaults.SessionOptions
 	}
-	normalized.SessionOptions = replsession.NormalizeSessionOptions(normalized.SessionOptions)
+	// Propagate Config.Profile into SessionOptions before normalizing
+	// so that NormalizeSessionOptions sees the correct profile and does
+	// not default it to "interactive".
 	if strings.TrimSpace(normalized.SessionOptions.Profile) == "" {
 		normalized.SessionOptions.Profile = string(normalized.Profile)
 	}
+	normalized.SessionOptions = replsession.NormalizeSessionOptions(normalized.SessionOptions)
 	return normalized
 }
 

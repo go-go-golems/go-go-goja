@@ -12,7 +12,7 @@ const handlers = [
     HttpResponse.json(persistenceBootstrapFixture)
   ),
   http.get("/api/sessions", () =>
-    HttpResponse.json({ sessions: [sessionExportFixture.Session] })
+    HttpResponse.json({ sessions: [sessionExportFixture.session] })
   ),
   http.post("/api/sessions", () =>
     HttpResponse.json({ session: { id: "session-durable-1", profile: "persistent", createdAt: "2026-04-15T04:20:00Z", cellCount: 0, bindingCount: 0, policy: { eval: { mode: "instrumented", timeoutMs: 5000, captureLastExpression: true, supportTopLevelAwait: true }, observe: { staticAnalysis: true, runtimeSnapshot: true, bindingTracking: true, consoleCapture: true, jsdocExtraction: true }, persist: { enabled: true, sessions: true, evaluations: true, bindingVersions: true, bindingDocs: true } } } }, { status: 201 })
@@ -24,7 +24,7 @@ const handlers = [
     })
   ),
   http.get("/api/sessions/:sessionID/history", () =>
-    HttpResponse.json({ history: sessionExportFixture.Evaluations })
+    HttpResponse.json({ history: sessionExportFixture.evaluations })
   ),
   http.get("/api/sessions/:sessionID/export", () =>
     HttpResponse.json(sessionExportFixture)

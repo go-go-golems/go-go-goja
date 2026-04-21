@@ -506,34 +506,34 @@ export const timeoutBootstrapFixture: TimeoutBootstrapResponse = {
 };
 
 export const durableSessionRecordFixture: SessionRecord = {
-  SessionID: "session-durable-1",
-  CreatedAt: "2026-04-15T04:20:00.000000000Z",
-  UpdatedAt: "2026-04-15T04:25:00.000000000Z",
-  EngineKind: "goja"
+  sessionId: "session-durable-1",
+  createdAt: "2026-04-15T04:20:00.000000000Z",
+  updatedAt: "2026-04-15T04:25:00.000000000Z",
+  engineKind: "goja"
 };
 
 export const sessionExportFixture: SessionExport = {
-  Session: durableSessionRecordFixture,
-  Evaluations: [
+  session: durableSessionRecordFixture,
+  evaluations: [
     {
-      EvaluationID: 1,
-      SessionID: "session-durable-1",
-      CellID: 1,
-      CreatedAt: "2026-04-15T04:20:01.000000000Z",
-      RawSource: "const x = 1; x",
-      RewrittenSource: "var x = 1; x",
-      OK: true,
-      ResultJSON: 1
+      evaluationId: 1,
+      sessionId: "session-durable-1",
+      cellId: 1,
+      createdAt: "2026-04-15T04:20:01.000000000Z",
+      rawSource: "const x = 1; x",
+      rewrittenSource: "var x = 1; x",
+      ok: true,
+      resultJson: 1
     },
     {
-      EvaluationID: 2,
-      SessionID: "session-durable-1",
-      CellID: 2,
-      CreatedAt: "2026-04-15T04:20:10.000000000Z",
-      RawSource: "const answer = 41 + 1; answer",
-      RewrittenSource: "var answer = 41 + 1; answer",
-      OK: true,
-      ResultJSON: 42
+      evaluationId: 2,
+      sessionId: "session-durable-1",
+      cellId: 2,
+      createdAt: "2026-04-15T04:20:10.000000000Z",
+      rawSource: "const answer = 41 + 1; answer",
+      rewrittenSource: "var answer = 41 + 1; answer",
+      ok: true,
+      resultJson: 42
     }
   ]
 };

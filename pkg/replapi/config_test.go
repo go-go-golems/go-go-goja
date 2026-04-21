@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-go-golems/go-go-goja/pkg/repldb"
 	"github.com/go-go-golems/go-go-goja/pkg/replsession"
 )
 
@@ -49,5 +50,29 @@ func TestResolveCreateSessionOptionsAppliesExplicitPolicyOverride(t *testing.T) 
 
 	if resolved.Policy.Eval.Mode != replsession.EvalModeRaw {
 		t.Fatalf("expected policy override to win, got %q", resolved.Policy.Eval.Mode)
+	}
+}
+
+func TestNormalizeConfigHonorsExplicitProfile(t *testing.T) {
+	t.Parallel()
+
+	// When Config.Profile is set to raw but SessionOptions is zero-valued,
+	// normalizeConfig must propagate the profile before normalizing options.
+	// Note: policy resolution happens later in resolveSessionOptions, not here.
+	normalized := normalizeConfig(Config{Profile: ProfileRaw})
+	if normalized.SessionOptions.Profile != string(ProfileRaw) {
+		t.Fatalf("expected raw profile, got %q", normalized.SessionOptions.Profile)
+	}
+}
+
+func TestNormalizeConfigPreservesCallerStore(t *testing.T) {
+	t.Parallel()
+
+	// When only Store is set and Profile is empty, normalizeConfig should
+	// fill defaults from DefaultConfig() but keep the caller's Store.
+	store := &repldb.Store{} // dummy, just need a non-nil pointer
+	normalized := normalizeConfig(Config{Store: store})
+	if normalized.Store != store {
+		t.Fatal("expected caller store to be preserved after normalization")
 	}
 }
