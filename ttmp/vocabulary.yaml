@@ -35,6 +35,32 @@ topics:
       description: Documentation systems, help content, and doc-access surfaces.
     - slug: review
       description: Review-oriented analysis, cleanup, and branch handoff documentation.
+    - slug: webrepl
+      description: Web REPL prototype and persistent session management
+    - slug: rest-api
+      description: REST API design and HTTP endpoint architecture
+    - slug: llm-agent-integration
+      description: Integration patterns for LLM agent interaction with long-running processes
+    - slug: persistent-repl
+      description: Persistent REPL sessions with cross-cell state management
+    - slug: sqlite
+      description: SQLite-backed persistence, querying, and export workflows
+    - slug: cli
+      description: Command-line application surfaces, verbs, and automation-friendly command design
+    - slug: engine
+      description: Go runtime engine construction, ownership, and lifecycle surfaces
+    - slug: lifecycle
+      description: Lifecycle management, shutdown phases, and cleanup sequencing
+    - slug: fuzzing
+      description: Fuzz testing and coverage-guided testing
+    - slug: replapi
+      description: The public REPL API facade layer
+    - slug: testing
+      description: Testing infrastructure and strategy
+    - slug: upstream
+      description: Upstream open-source contributions and patches
+    - slug: parser
+      description: JavaScript parser and lexer
 docTypes:
     - slug: index
       description: Ticket index documents

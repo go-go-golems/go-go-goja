@@ -23,6 +23,10 @@ type docsResolver struct {
 }
 
 func newDocsResolver(runtime *ggjengine.Runtime) *docsResolver {
+	return newDocsResolverFromHub(docHubFromRuntime(runtime))
+}
+
+func docHubFromRuntime(runtime *ggjengine.Runtime) *docaccess.Hub {
 	if runtime == nil {
 		return nil
 	}
@@ -34,7 +38,19 @@ func newDocsResolver(runtime *ggjengine.Runtime) *docsResolver {
 	if !ok || hub == nil {
 		return nil
 	}
+	return hub
+}
 
+// DocHubFromRuntime exposes the runtime docs hub for cross-package assistance
+// adapters without leaking the private resolver type.
+func DocHubFromRuntime(runtime *ggjengine.Runtime) *docaccess.Hub {
+	return docHubFromRuntime(runtime)
+}
+
+func newDocsResolverFromHub(hub *docaccess.Hub) *docsResolver {
+	if hub == nil {
+		return nil
+	}
 	sourceIDs := make([]string, 0, 1)
 	for _, descriptor := range hub.Sources() {
 		if descriptor.Kind == docaccess.SourceKindPlugin {

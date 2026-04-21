@@ -10,8 +10,7 @@ Topics:
 - javascript
 - modules
 Commands:
-- repl
-- js-repl
+- goja-repl
 Flags:
 - --plugin-dir
 IsTopLevel: true
@@ -73,18 +72,18 @@ make install-modules
 
 The binary name matters. Discovery uses the pattern `goja-plugin-*` by default, so `goja-plugin-examples-greeter` is picked up automatically.
 
-### 2. Start the line REPL with plugin discovery enabled
+### 2. Start the canonical REPL with plugin discovery enabled
 
 ```bash
-go run ./cmd/repl
+go run ./cmd/goja-repl tui
 ```
 
-At runtime, `repl` scans `~/.go-go-goja/plugins/...` by default, starts matching plugin binaries through `go-plugin`, validates their manifests, and registers them as runtime-scoped CommonJS modules.
+At runtime, `goja-repl tui` scans `~/.go-go-goja/plugins/...` by default, starts matching plugin binaries through `go-plugin`, validates their manifests, and registers them as runtime-scoped CommonJS modules.
 
 If you want to use a different location for one run, pass one or more explicit flags:
 
 ```bash
-go run ./cmd/repl --plugin-dir /tmp/goja-plugins
+go run ./cmd/goja-repl --plugin-dir /tmp/goja-plugins tui
 ```
 
 ### 3. Require the module in JavaScript
@@ -121,70 +120,25 @@ If you want a single starting point, copy `plugins/examples/greeter`. If you wan
 
 When you leave the REPL or the runtime is closed, the plugin subprocesses created for that runtime are shut down by runtime cleanup hooks.
 
-## Running a script instead of using the interactive REPL
-
-You can also execute a JavaScript file once, which is often easier for repeatable testing.
-
-Create a script:
-
-```javascript
-const greeter = require("plugin:examples:greeter")
-
-console.log(greeter.greet("hello"))
-console.log(greeter.strings.upper("hello"))
-console.log(greeter.meta.pid())
-```
-
-Then run it:
-
-```bash
-go run ./cmd/repl /tmp/test-plugin.js
-```
-
-This is the best path when you want:
-
-- deterministic repro steps,
-- a fixture for a bug report,
-- a smoke test during plugin development,
-- a quick CI-style sanity check outside the Go test suite.
-
 ## Current command-line entrypoints
 
-There are currently two REPL binaries in the repo, and both now expose the same plugin discovery model.
+The canonical interactive entrypoint is `goja-repl tui`.
 
-### `repl`
+### `goja-repl tui`
 
-`repl` is the current user-facing line REPL and script runner for plugin testing.
+`goja-repl tui` is the Bobatea TUI REPL with completion and help widgets.
 
 It supports:
-
-- `--allow-plugin-module`
-- `--plugin-dir`
-- `--plugin-status`
-- direct script execution
-- interactive line-based evaluation
-
-Example:
-
-```bash
-go run ./cmd/repl
-```
-
-### `js-repl`
-
-`js-repl` is the Bobatea TUI REPL with completion and help widgets.
-
-It follows the same plugin discovery rules as `repl`:
 
 - default scan under `~/.go-go-goja/plugins/...`
 - optional `--plugin-dir` flags for explicit directories
 - optional `--allow-plugin-module` flags for module-name allowlisting
-- `--plugin-status` for one-shot discovery/load reporting without entering the UI
+- runtime profile selection through `--profile`
 
 Example:
 
 ```bash
-go run ./cmd/js-repl
+go run ./cmd/goja-repl tui
 ```
 
 ## Plugin discovery rules
@@ -207,20 +161,12 @@ The host scans the configured directories and filters for regular executable fil
 
 If any plugin has an invalid manifest, runtime creation fails early instead of partially registering a broken module set.
 
-## Discovery visibility in the REPLs
+## Discovery visibility in the REPL
 
-The current REPL surfaces expose plugin visibility in two ways.
+`goja-repl tui` exposes plugin visibility through runtime startup and its in-session JavaScript environment:
 
-In `repl`:
-
-- startup prints a short plugin summary when plugin directories are configured,
-- `:plugins` prints the full discovery and load report,
-- `--plugin-status` prints the report and exits.
-
-In `js-repl`:
-
-- the placeholder includes a short plugin summary when directories are configured,
-- `--plugin-status` prints the same report and exits without starting the TUI.
+- the TUI uses the same plugin directory and allowlist flags as the rest of `goja-repl`,
+- plugin discovery happens during app startup against the selected runtime profile.
 
 ## Surface API reference
 
@@ -321,8 +267,7 @@ What it does not currently provide by default:
 If you want to allow only a specific set of modules for one run, use the allowlist flag:
 
 ```bash
-go run ./cmd/repl --allow-plugin-module plugin:examples:greeter
-go run ./cmd/js-repl --allow-plugin-module plugin:examples:greeter
+go run ./cmd/goja-repl --allow-plugin-module plugin:examples:greeter tui
 ```
 
 You can repeat the flag to allow multiple module names.
@@ -336,11 +281,11 @@ You can repeat the flag to allow multiple module names.
 | Runtime creation fails with `not in the allowlist` | The plugin loaded successfully but its module name was not on the requested allowlist | Add `--allow-plugin-module plugin:your-module` or remove the allowlist restriction |
 | The plugin binary exists but still is not loaded | The file is not executable or does not match the discovery pattern | Run `chmod +x` if needed and keep the binary name under `goja-plugin-*` |
 | Calls fail on argument conversion | The JS values do not cleanly round-trip through protobuf `structpb.Value` | Use JSON-like values and avoid host-specific Goja objects/functions as arguments |
-| `js-repl` does not see plugins | The plugin was not built under the default tree and no explicit directory was passed | Build into `~/.go-go-goja/plugins/...` or pass one or more `--plugin-dir` flags |
+| `goja-repl tui` does not see plugins | The plugin was not built under the default tree and no explicit directory was passed | Build into `~/.go-go-goja/plugins/...` or pass one or more `--plugin-dir` flags |
 
 ## See Also
 
-- `repl help plugin-tutorial-build-install` — Step-by-step tutorial for building and installing a plugin
-- `repl help goja-plugin-developer-guide` — Internal architecture and integration guide
-- `repl help repl-usage` — General REPL usage
-- `repl help creating-modules` — Native in-process module authoring guide
+- `goja-repl help plugin-tutorial-build-install` — Step-by-step tutorial for building and installing a plugin
+- `goja-repl help goja-plugin-developer-guide` — Internal architecture and integration guide
+- `goja-repl help repl-usage` — General REPL usage
+- `goja-repl help creating-modules` — Native in-process module authoring guide

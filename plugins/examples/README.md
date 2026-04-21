@@ -35,12 +35,10 @@ You can also build several in one pass:
 make install-modules
 ```
 
-Then start either REPL:
+Then start the canonical REPL:
 
 ```bash
-go run ./cmd/repl
-# or
-go run ./cmd/js-repl
+go run ./cmd/goja-repl tui
 ```
 
 ## Quick JavaScript probes

@@ -75,7 +75,7 @@ type Model struct {
 	replResult    string
 	replError     string
 	replDeclared  []inspectorapi.DeclaredBinding
-	replAssist    *jsadapter.JavaScriptEvaluator
+	replAssist    *jsadapter.RuntimeAssistance
 
 	replSuggestWidget      *suggest.Widget
 	replContextBarWidget   *contextbar.Widget

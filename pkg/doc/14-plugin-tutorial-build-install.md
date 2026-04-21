@@ -10,7 +10,7 @@ Topics:
 - hashicorp
 - javascript
 Commands:
-- repl
+- goja-repl
 Flags:
 - --plugin-dir
 IsTopLevel: true
@@ -24,7 +24,7 @@ This tutorial walks through the full happy path for building and installing a pl
 By the end, you will have:
 
 - a plugin binary built from Go source,
-- a plugin directory that `repl` can scan,
+- a plugin directory that `goja-repl tui` can scan,
 - a working `require("plugin:...")` call from JavaScript,
 - a mental model for how your Go code becomes a JavaScript module.
 
@@ -46,7 +46,7 @@ You need:
 
 - a working Go toolchain,
 - this repository checked out,
-- the ability to run `go run ./cmd/repl`,
+- the ability to run `go run ./cmd/goja-repl tui`,
 - a writable local directory such as `/tmp/goja-plugins`.
 
 This tutorial assumes you are running commands from the repository root.
@@ -81,7 +81,7 @@ The output file name should match the host discovery pattern. The default patter
 Run:
 
 ```bash
-go run ./cmd/repl
+go run ./cmd/goja-repl tui
 ```
 
 This tells the runtime builder to:
@@ -129,29 +129,7 @@ At this point you have verified both supported export styles:
 - direct function export,
 - object method export.
 
-## Step 5: Run the same test as a script
-
-Interactive testing is useful, but a script is better when you want repeatability.
-
-Create a file:
-
-```javascript
-const greeter = require("plugin:examples:greeter")
-
-console.log(greeter.greet("hello"))
-console.log(greeter.strings.upper("hello"))
-console.log(greeter.meta.pid())
-```
-
-Run it:
-
-```bash
-go run ./cmd/repl /tmp/test-plugin.js
-```
-
-This is the easiest way to create a small regression harness while you iterate on plugin code.
-
-## Step 6: Understand the recommended SDK-based plugin shape
+## Step 5: Understand the recommended SDK-based plugin shape
 
 The current recommended path is to author plugins with `pkg/hashiplugin/sdk`.
 
@@ -215,7 +193,7 @@ This is the new mental model:
 - `sdk.Call` gives handlers easy access to decoded arguments.
 - `sdk.Serve(...)` publishes the service over the shared transport.
 
-## Step 7: Build your own plugin
+## Step 6: Build your own plugin
 
 Put your plugin in a package of your choice and build it into the plugin directory.
 
@@ -231,7 +209,7 @@ Make sure:
 - the manifest module name begins with `plugin:`,
 - the SDK declarations match the exports you expect JavaScript to see.
 
-## Step 8: Load your plugin in JavaScript
+## Step 7: Load your plugin in JavaScript
 
 If your manifest name is `plugin:hello`, test it like this:
 
@@ -242,7 +220,7 @@ hello.greet("Manuel")
 
 This should now behave exactly like any other runtime-registered module from the JavaScript side.
 
-## Step 9: Add an object export
+## Step 8: Add an object export
 
 If you want namespaced methods, add an object export with methods:
 
@@ -271,7 +249,7 @@ mod.math.add(2, 3)
 
 This is the right approach when you want one module to expose several closely related operations without flattening every function into the top-level export object.
 
-## Step 10: Know the current limits
+## Step 9: Know the current limits
 
 This first implementation is intentionally conservative.
 
@@ -279,8 +257,8 @@ Plan around these constraints:
 
 - values should be JSON-like,
 - manifests only support function and object exports,
-- `repl` is the current CLI path for plugin testing,
-- both `repl` and `js-repl` default to scanning `~/.go-go-goja/plugins/...`.
+- `goja-repl tui` is the canonical interactive path for plugin testing,
+- `goja-repl tui` defaults to scanning `~/.go-go-goja/plugins/...`.
 
 These are not permanent limits, but they are the limits you should design against today.
 
@@ -291,13 +269,16 @@ Here is the full shell sequence in one place:
 ```bash
 mkdir -p ~/.go-go-goja/plugins/examples
 go build -o ~/.go-go-goja/plugins/examples/goja-plugin-examples-greeter ./plugins/examples/greeter
-cat >/tmp/test-plugin.js <<'EOF'
+go run ./cmd/goja-repl tui
+```
+
+Then inside the TUI:
+
+```javascript
 const greeter = require("plugin:examples:greeter")
-console.log(greeter.greet("hello"))
-console.log(greeter.strings.upper("hello"))
-console.log(greeter.meta.pid())
-EOF
-go run ./cmd/repl /tmp/test-plugin.js
+greeter.greet("hello")
+greeter.strings.upper("hello")
+greeter.meta.pid()
 ```
 
 That sequence is a good smoke test after host-side changes or when onboarding a new plugin author.
@@ -328,10 +309,10 @@ kv.store.get("name")
 | Runtime startup fails before the REPL prompt appears | Plugin validation failed during runtime creation | Build with a known-good manifest first, then compare your plugin to the example fixture |
 | A handler returns the wrong value shape | The SDK could not encode the returned Go value into `structpb.Value` | Stick to strings, numbers, booleans, arrays, objects, and null |
 | The plugin works in tests but not manually | The test built the binary into a temp dir, but your manual run expects the default per-user tree | Rebuild into `~/.go-go-goja/plugins/...` or pass the exact path with `--plugin-dir` |
-| `js-repl` does not see plugins | The binary was not built under the default tree and no explicit directory was passed | Build into `~/.go-go-goja/plugins/...` or start `js-repl` with `--plugin-dir /path/to/plugins` |
+| `goja-repl tui` does not see plugins | The binary was not built under the default tree and no explicit directory was passed | Build into `~/.go-go-goja/plugins/...` or start `goja-repl tui` with `--plugin-dir /path/to/plugins` |
 
 ## See Also
 
-- `repl help goja-plugin-user-guide` — User-facing plugin reference
-- `repl help goja-plugin-developer-guide` — Internal architecture and integration guide
-- `repl help repl-usage` — General REPL usage
+- `goja-repl help goja-plugin-user-guide` — User-facing plugin reference
+- `goja-repl help goja-plugin-developer-guide` — Internal architecture and integration guide
+- `goja-repl help repl-usage` — General REPL usage

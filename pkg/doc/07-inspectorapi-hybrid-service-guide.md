@@ -11,7 +11,7 @@ Topics:
 Commands:
 - smalltalk-inspector
 - inspector
-- repl
+- goja-repl
 IsTopLevel: true
 IsTemplate: false
 ShowPerDefault: true
@@ -226,5 +226,5 @@ Clean-cutover checklist:
 
 - `glaze help jsparse-framework-reference`
 - `glaze help inspector-example-user-guide`
-- `glaze help repl-usage`
+- `goja-repl help repl-usage`
 - `glaze help creating-modules`

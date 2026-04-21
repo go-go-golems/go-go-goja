@@ -6,7 +6,8 @@ The goal is to have a place where you can:
 
 * add your own Go files under `modules/` and immediately use them from JS via `require("your-module")`
 * experiment with goja + Node-style `require()` without having to set up a whole application
-* run JS files non-interactively or open an interactive prompt (`go run ./cmd/repl`)
+* open the canonical interactive prompt with `go run ./cmd/goja-repl tui`
+* inspect and persist REPL sessions through the `goja-repl` CLI and JSON server surfaces
 * compose runtime behavior explicitly via `engine.NewBuilder() -> Build() -> Factory.NewRuntime(...)`
 
 ---
@@ -16,7 +17,7 @@ The goal is to have a place where you can:
 ```text
  go-go-goja/
  ├── cmd/
- │   ├── repl/            # standalone runner / interactive prompt
+ │   ├── goja-repl/       # canonical REPL CLI, TUI, and JSON server
  │   └── bun-demo/        # bun-integrated demo command
  ├── engine/              # builder/factory/runtime ownership APIs
  ├── modules/             # ← add your Go-backed modules here
@@ -46,19 +47,15 @@ Legacy convenience wrappers (`engine.New()`, `engine.NewWithOptions(...)`, `engi
 # from the project root
 cd go-go-goja
 
-# run a script once
-❯ go run ./cmd/repl testdata/hello.js
-OK
-
-# or open the prompt (type JS, :quit to exit)
-❯ go run ./cmd/repl -debug
+# open the canonical prompt (type JS, :quit to exit)
+❯ go run ./cmd/goja-repl tui --log-level debug
 js> const fs = require("fs");
 js> fs.writeFileSync("/tmp/demo.txt", "hi");
 js> console.log(fs.readFileSync("/tmp/demo.txt"));
 hi
 ```
 
-The `-debug` flag prints extra logs such as which modules were registered.
+The `--log-level debug` flag prints extra logs such as which modules were registered.
 
 ### Runtime API quick example (current)
 
@@ -191,14 +188,30 @@ Say we want to expose a simplistic `uuid` module that exports a single `v4()` fu
 
 ## Testing
 
-`repl_test.go` shows how to execute a JS file from a Go test:
+For Go-level tests, prefer constructing a runtime directly instead of shelling out to a standalone REPL binary:
 
 ```go
-cmd := exec.Command("go", "run", "./cmd/repl", "testdata/hello.js")
-cmd.Dir = "./go-go-goja" // run from module root
+ctx := context.Background()
+
+factory, err := engine.NewBuilder().
+    WithModules(engine.DefaultRegistryModules()).
+    Build()
+if err != nil {
+    t.Fatal(err)
+}
+
+rt, err := factory.NewRuntime(ctx)
+if err != nil {
+    t.Fatal(err)
+}
+defer rt.Close(ctx)
+
+if _, err := rt.VM.RunString(`console.log("OK")`); err != nil {
+    t.Fatal(err)
+}
 ```
 
-The JS script lives in `testdata/hello.js` and prints `OK` on success. Add new test scripts the same way and extend the test function.
+Use `goja-repl tui` or the `goja-repl` session commands for interactive/manual validation.
 
 ---
 

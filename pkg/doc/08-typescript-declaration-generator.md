@@ -11,7 +11,7 @@ Topics:
 - ci
 Commands:
 - gen-dts
-- repl
+- goja-repl
 Flags:
 - out
 - module

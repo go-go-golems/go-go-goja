@@ -8,8 +8,7 @@ Topics:
 - modules
 - runtime
 Commands:
-- repl
-- js-repl
+- goja-repl
 IsTopLevel: true
 IsTemplate: false
 ShowPerDefault: true
@@ -69,8 +68,7 @@ console.log(v4());
 
 Run the code:
 ```bash
-go run ./cmd/repl
-go run ./cmd/js-repl
+go run ./cmd/goja-repl tui
 js> const { v4 } = require("uuid"); console.log(v4());
 ```
 

@@ -1,0 +1,42 @@
+:root {
+  --essay-font-body: "Geneva", "ChicagoFLF", "Chicago", ui-monospace, "SF Mono", Monaco, monospace;
+  --essay-font-mono: "Monaco", "Menlo", "Courier New", monospace;
+
+  --essay-color-bg: #ffffff;
+  --essay-color-surface: #ffffff;
+  --essay-color-ink: #000000;
+  --essay-color-muted: #676767;
+  --essay-color-border: #000000;
+  --essay-color-accent: #1c50a0;
+  --essay-color-accent-2: #5828a0;
+  --essay-color-success: #1a6e30;
+  --essay-color-danger: #b82020;
+  --essay-color-warning: #a85010;
+  --essay-color-code-bg: #f4f4f0;
+
+  --essay-radius-sm: 0;
+  --essay-radius-md: 0;
+  --essay-radius-pill: 0;
+  --essay-shadow-card: none;
+
+  --essay-space-1: 0.25rem;
+  --essay-space-2: 0.5rem;
+  --essay-space-3: 0.75rem;
+  --essay-space-4: 1rem;
+  --essay-space-5: 1.5rem;
+  --essay-space-6: 2rem;
+}
+
+[data-theme="night-notes"] {
+  --essay-color-bg: #111111;
+  --essay-color-surface: #1c1c1c;
+  --essay-color-ink: #f8f8f8;
+  --essay-color-muted: #b8b8b8;
+  --essay-color-border: #f8f8f8;
+  --essay-color-accent: #8db6ff;
+  --essay-color-accent-2: #d8a6ff;
+  --essay-color-success: #89d48f;
+  --essay-color-danger: #ff9f9f;
+  --essay-color-warning: #ffcc88;
+  --essay-color-code-bg: #181818;
+}

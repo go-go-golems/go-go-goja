@@ -9,15 +9,14 @@ Topics:
 - javascript
 - plugins
 Commands:
-- repl
-- js-repl
+- goja-repl
 IsTopLevel: true
 IsTemplate: false
 ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-The `docs` module gives JavaScript code a uniform way to inspect runtime documentation sources. It is available through `require("docs")` in runtimes that wire the documentation registrar, which now includes both `repl` and `js-repl`.
+The `docs` module gives JavaScript code a uniform way to inspect runtime documentation sources. It is available through `require("docs")` in runtimes that wire the documentation registrar, which now includes `goja-repl tui`.
 
 This guide explains what the module exposes, what kinds of entries it returns, and how to use it in practice.
 
@@ -224,7 +223,7 @@ docs.search({
 
 | Problem | Cause | Solution |
 |---|---|---|
-| `require("docs")` fails | The runtime was created without the documentation registrar | Use `repl` or `js-repl`, or attach the GOJA-11 registrar in your own runtime builder |
+| `require("docs")` fails | The runtime was created without the documentation registrar | Use `goja-repl tui`, or attach the GOJA-11 registrar in your own runtime builder |
 | `plugin-manifests` source is missing | No plugins were loaded in that runtime | Pass `--plugin-dir` or install plugins under `~/.go-go-goja/plugins/...` |
 | `docs.bySymbol(...)` returns `null` | No jsdoc store was attached under that source ID | Attach a jsdoc provider when constructing your runtime or query `docs.sources()` first |
 | A plugin method has no body | The plugin did not publish method docs | Add `sdk.MethodDoc(...)` in the plugin SDK declaration |

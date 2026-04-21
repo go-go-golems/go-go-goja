@@ -3,13 +3,11 @@ package javascript
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/go-go-golems/bobatea/pkg/autocomplete"
 	"github.com/go-go-golems/bobatea/pkg/repl"
 	ggjengine "github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
@@ -55,7 +53,11 @@ var (
 	}
 )
 
-// Evaluator implements the REPL evaluator interface for JavaScript
+// Evaluator implements the Bobatea-oriented JavaScript REPL surface.
+//
+// This type remains the TUI/help/completion-facing evaluator stack. It is not
+// the same subsystem as replsession, which owns durable session lifecycle and
+// cell-by-cell kernel behavior.
 type Evaluator struct {
 	runtime            *goja.Runtime
 	ownedRuntime       *ggjengine.Runtime
@@ -64,7 +66,9 @@ type Evaluator struct {
 	tsMu               sync.Mutex
 	runtimeDeclaredMu  sync.RWMutex
 	runtimeDeclaredIDs map[string]jsparse.CompletionCandidate
+	docHub             *docaccess.Hub
 	docsResolver       *docsResolver
+	assistance         *Assistance
 	config             Config
 }
 
@@ -147,6 +151,7 @@ func New(config Config) (*Evaluator, error) {
 		runtimeDeclaredIDs: map[string]jsparse.CompletionCandidate{},
 		config:             config,
 	}
+	evaluator.docHub = docHubFromRuntime(ownedRuntime)
 	evaluator.docsResolver = newDocsResolver(ownedRuntime)
 	closeOwnedRuntimeOnError := func() {
 		if evaluator.ownedRuntime != nil {
@@ -172,6 +177,19 @@ func New(config Config) (*Evaluator, error) {
 			return nil, errors.Wrapf(err, "failed to register custom module %s", name)
 		}
 	}
+
+	evaluator.assistance = NewAssistance(AssistanceConfig{
+		TSParser: evaluator.tsParser,
+		TSMu:     &evaluator.tsMu,
+		WithRuntime: func(ctx context.Context, fn func(*goja.Runtime, *docaccess.Hub) error) error {
+			evaluator.runtimeMu.Lock()
+			defer evaluator.runtimeMu.Unlock()
+			return fn(evaluator.runtime, evaluator.docHub)
+		},
+		BindingHints: func(context.Context) ([]jsparse.CompletionCandidate, error) {
+			return evaluator.runtimeIdentifierHints(), nil
+		},
+	})
 
 	return evaluator, nil
 }
@@ -384,369 +402,18 @@ func (e *Evaluator) EvaluateStream(ctx context.Context, code string, emit func(r
 }
 
 // CompleteInput resolves JavaScript completions using jsparse CST + resolver primitives.
-func (e *Evaluator) CompleteInput(_ context.Context, req repl.CompletionRequest) (repl.CompletionResult, error) {
-	if e.tsParser == nil {
-		return repl.CompletionResult{Show: false}, nil
-	}
-
-	input := req.Input
-	cursor := clampCursor(req.CursorByte, len(input))
-	if strings.TrimSpace(input) == "" {
-		return repl.CompletionResult{
-			Show:        false,
-			ReplaceFrom: cursor,
-			ReplaceTo:   cursor,
-		}, nil
-	}
-
-	e.tsMu.Lock()
-	root := e.tsParser.Parse([]byte(input))
-	e.tsMu.Unlock()
-	if root == nil {
-		return repl.CompletionResult{Show: false}, nil
-	}
-
-	analysis := jsparse.Analyze("repl-input.js", input, nil)
-	row, col := byteOffsetToRowCol(input, cursor)
-	ctx := analysis.CompletionContextAt(root, row, col)
-	if ctx.Kind == jsparse.CompletionNone {
-		return repl.CompletionResult{Show: false}, nil
-	}
-
-	e.runtimeMu.Lock()
-	candidates := jsparse.AugmentREPLCandidates(
-		e.runtime,
-		input,
-		ctx,
-		jsparse.ResolveCandidates(ctx, analysis.Index, root),
-		e.runtimeIdentifierHints(),
-	)
-	e.runtimeMu.Unlock()
-	aliases := jsparse.ExtractRequireAliases(input)
-	candidates = append(candidates, e.docCompletionCandidates(ctx, aliases)...)
-	if len(candidates) == 0 {
-		return repl.CompletionResult{
-			Show:        false,
-			ReplaceFrom: cursor,
-			ReplaceTo:   cursor,
-		}, nil
-	}
-
-	replaceFrom := clampCursor(cursor-len(ctx.PartialText), len(input))
-	replaceTo := cursor
-	if replaceFrom > replaceTo {
-		replaceFrom = replaceTo
-	}
-
-	suggestions := make([]autocomplete.Suggestion, 0, len(candidates))
-	seen := make(map[string]struct{}, len(candidates))
-	for _, candidate := range candidates {
-		if candidate.Label == "" {
-			continue
-		}
-		if _, ok := seen[candidate.Label]; ok {
-			continue
-		}
-		seen[candidate.Label] = struct{}{}
-
-		display := candidate.Label
-		icon := candidate.Kind.Icon()
-		if icon != "" {
-			display = icon + " " + display
-		}
-		if candidate.Detail != "" {
-			display += " - " + candidate.Detail
-		}
-		if entry, ok := e.resolveDocEntryForCandidate(ctx, candidate, aliases); ok {
-			if summary := strings.TrimSpace(entry.Summary); summary != "" && !strings.Contains(display, summary) {
-				display += " - " + summary
-			}
-		}
-
-		suggestions = append(suggestions, autocomplete.Suggestion{
-			Id:          candidate.Label,
-			Value:       candidate.Label,
-			DisplayText: display,
-		})
-	}
-
-	show := len(suggestions) > 0
-	if req.Reason == repl.CompletionReasonDebounce {
-		if ctx.Kind == jsparse.CompletionIdentifier && len(ctx.PartialText) == 0 {
-			show = false
-		}
-	}
-
-	return repl.CompletionResult{
-		Show:        show,
-		Suggestions: suggestions,
-		ReplaceFrom: replaceFrom,
-		ReplaceTo:   replaceTo,
-	}, nil
+func (e *Evaluator) CompleteInput(ctx context.Context, req repl.CompletionRequest) (repl.CompletionResult, error) {
+	return e.assistance.CompleteInput(ctx, req)
 }
 
 // GetHelpBar resolves contextual one-line symbol help for the JS REPL input.
-func (e *Evaluator) GetHelpBar(_ context.Context, req repl.HelpBarRequest) (repl.HelpBarPayload, error) {
-	if e.tsParser == nil {
-		return repl.HelpBarPayload{Show: false}, nil
-	}
-
-	input := req.Input
-	if strings.TrimSpace(input) == "" {
-		return repl.HelpBarPayload{Show: false}, nil
-	}
-	cursor := clampCursor(req.CursorByte, len(input))
-
-	e.tsMu.Lock()
-	root := e.tsParser.Parse([]byte(input))
-	e.tsMu.Unlock()
-	if root == nil {
-		return repl.HelpBarPayload{Show: false}, nil
-	}
-
-	analysis := jsparse.Analyze("repl-input.js", input, nil)
-	row, col := byteOffsetToRowCol(input, cursor)
-	ctx := analysis.CompletionContextAt(root, row, col)
-
-	token, _, _ := tokenAtCursor(input, cursor)
-	token = strings.TrimSpace(token)
-	if token == "" && ctx.Kind == jsparse.CompletionNone {
-		return repl.HelpBarPayload{Show: false}, nil
-	}
-	if req.Reason == repl.HelpBarReasonDebounce && ctx.Kind == jsparse.CompletionIdentifier && len(strings.TrimSpace(ctx.PartialText)) < 2 {
-		return repl.HelpBarPayload{Show: false}, nil
-	}
-
-	aliases := jsparse.ExtractRequireAliases(input)
-	candidates := []jsparse.CompletionCandidate{}
-	if ctx.Kind != jsparse.CompletionNone {
-		candidates = jsparse.ResolveCandidates(ctx, analysis.Index, root)
-		if ctx.Kind == jsparse.CompletionProperty {
-			if moduleName, ok := aliases[ctx.BaseExpr]; ok {
-				candidates = append(candidates, jsparse.FilterCandidatesByPrefix(jsparse.NodeModuleCandidates(moduleName), ctx.PartialText)...)
-			}
-		}
-	}
-	candidates = append(candidates, e.docCompletionCandidates(ctx, aliases)...)
-	candidates = jsparse.DedupeAndSortCandidates(candidates)
-
-	if payload, ok := e.helpBarFromContext(ctx, candidates, aliases); ok {
-		return payload, nil
-	}
-
-	return e.helpBarFromTokenFallback(token, aliases), nil
+func (e *Evaluator) GetHelpBar(ctx context.Context, req repl.HelpBarRequest) (repl.HelpBarPayload, error) {
+	return e.assistance.GetHelpBar(ctx, req)
 }
 
 // GetHelpDrawer resolves rich contextual help for the JS REPL input.
 func (e *Evaluator) GetHelpDrawer(ctx context.Context, req repl.HelpDrawerRequest) (repl.HelpDrawerDocument, error) {
-	select {
-	case <-ctx.Done():
-		return repl.HelpDrawerDocument{}, ctx.Err()
-	default:
-	}
-
-	doc := repl.HelpDrawerDocument{
-		Show:       true,
-		Title:      "JavaScript Context",
-		Subtitle:   describeHelpDrawerTrigger(req.Trigger),
-		Markdown:   "Start typing JavaScript to inspect contextual symbol help.",
-		VersionTag: fmt.Sprintf("request-%d", req.RequestID),
-	}
-	if strings.TrimSpace(req.Input) == "" {
-		return doc, nil
-	}
-
-	if e.tsParser == nil {
-		doc.Diagnostics = []string{"jsparse parser not available"}
-		return doc, nil
-	}
-
-	input := req.Input
-	cursor := clampCursor(req.CursorByte, len(input))
-
-	e.tsMu.Lock()
-	root := e.tsParser.Parse([]byte(input))
-	e.tsMu.Unlock()
-	if root == nil {
-		doc.Diagnostics = []string{"failed to parse input"}
-		return doc, nil
-	}
-
-	analysis := jsparse.Analyze("repl-input.js", input, nil)
-	row, col := byteOffsetToRowCol(input, cursor)
-	completionCtx := analysis.CompletionContextAt(root, row, col)
-
-	token, _, _ := tokenAtCursor(input, cursor)
-	token = strings.TrimSpace(token)
-
-	aliases := jsparse.ExtractRequireAliases(input)
-	candidates := []jsparse.CompletionCandidate{}
-	if completionCtx.Kind != jsparse.CompletionNone {
-		candidates = jsparse.ResolveCandidates(completionCtx, analysis.Index, root)
-		if completionCtx.Kind == jsparse.CompletionProperty {
-			if moduleName, ok := aliases[completionCtx.BaseExpr]; ok {
-				candidates = append(
-					candidates,
-					jsparse.FilterCandidatesByPrefix(jsparse.NodeModuleCandidates(moduleName), completionCtx.PartialText)...,
-				)
-			}
-		}
-	}
-	candidates = append(candidates, e.docCompletionCandidates(completionCtx, aliases)...)
-	candidates = jsparse.DedupeAndSortCandidates(candidates)
-
-	entry, entryOK := e.resolveDocEntryFromContext(completionCtx, candidates, aliases)
-	payload, ok := e.helpBarFromContext(completionCtx, candidates, aliases)
-	if !ok {
-		if !entryOK {
-			entry, entryOK = e.resolveDocEntryFromToken(token, aliases)
-		}
-		payload = e.helpBarFromTokenFallback(token, aliases)
-	}
-
-	if payload.Show {
-		doc.Title = payload.Text
-	}
-	if entryOK {
-		doc.Title = entry.Title
-	}
-
-	doc.Subtitle = fmt.Sprintf(
-		"%s | kind: %s | cursor: %d",
-		describeHelpDrawerTrigger(req.Trigger),
-		describeCompletionKind(completionCtx.Kind),
-		cursor,
-	)
-	if entryOK {
-		doc.Subtitle = fmt.Sprintf(
-			"%s | %s | source: %s | cursor: %d",
-			describeHelpDrawerTrigger(req.Trigger),
-			entry.KindLabel,
-			entry.Ref.SourceID,
-			cursor,
-		)
-	}
-
-	var md strings.Builder
-	if strings.TrimSpace(input) == "" {
-		md.WriteString("Type a symbol such as `console.lo` or `Math.ma` to inspect context.\n")
-	} else {
-		md.WriteString("```javascript\n")
-		md.WriteString(clipForDrawer(input, 320))
-		md.WriteString("\n```\n")
-	}
-
-	if payload.Show {
-		md.WriteString("\n### Symbol\n")
-		md.WriteString("- ")
-		md.WriteString(payload.Text)
-		md.WriteString("\n")
-	}
-	if entryOK {
-		md.WriteString("\n### Documentation\n")
-		if summary := strings.TrimSpace(entry.Summary); summary != "" {
-			md.WriteString(summary)
-			md.WriteString("\n")
-		}
-		if body := strings.TrimSpace(entry.Body); body != "" && body != strings.TrimSpace(entry.Summary) {
-			md.WriteString("\n")
-			md.WriteString(body)
-			md.WriteString("\n")
-		}
-		md.WriteString("\n### Doc Metadata\n")
-		md.WriteString("- Source: `")
-		md.WriteString(entry.Ref.SourceID)
-		md.WriteString("`\n")
-		md.WriteString("- Kind: ")
-		md.WriteString(entry.KindLabel)
-		md.WriteString("\n")
-		if entry.Path != "" {
-			md.WriteString("- Path: `")
-			md.WriteString(entry.Path)
-			md.WriteString("`\n")
-		}
-		if len(entry.Tags) > 0 {
-			md.WriteString("- Tags: `")
-			md.WriteString(strings.Join(entry.Tags, "`, `"))
-			md.WriteString("`\n")
-		}
-		if len(entry.Related) > 0 {
-			md.WriteString("\n### Related Docs\n")
-			limit := min(6, len(entry.Related))
-			for i := 0; i < limit; i++ {
-				ref := entry.Related[i]
-				md.WriteString("- `")
-				md.WriteString(ref.ID)
-				md.WriteString("`")
-				if ref.Kind != "" {
-					md.WriteString(" (")
-					md.WriteString(ref.Kind)
-					md.WriteString(")")
-				}
-				md.WriteString("\n")
-			}
-			if len(entry.Related) > limit {
-				md.WriteString("- ...")
-				fmt.Fprintf(&md, " %d more", len(entry.Related)-limit)
-				md.WriteString("\n")
-			}
-		}
-	}
-
-	if completionCtx.Kind == jsparse.CompletionProperty {
-		base := strings.TrimSpace(completionCtx.BaseExpr)
-		if base != "" {
-			md.WriteString("\n### Property Context\n")
-			md.WriteString("- Base expression: `")
-			md.WriteString(base)
-			md.WriteString("`\n")
-			if partial := strings.TrimSpace(completionCtx.PartialText); partial != "" {
-				md.WriteString("- Typed prefix: `")
-				md.WriteString(partial)
-				md.WriteString("`\n")
-			}
-		}
-	}
-
-	if len(candidates) > 0 {
-		md.WriteString("\n### Completion Candidates\n")
-		limit := min(8, len(candidates))
-		for i := 0; i < limit; i++ {
-			candidate := candidates[i]
-			md.WriteString("- `")
-			md.WriteString(candidate.Label)
-			md.WriteString("`")
-			if detail := normalizeCandidateDetail(candidate.Detail); detail != "symbol" {
-				md.WriteString(" - ")
-				md.WriteString(detail)
-			}
-			md.WriteString("\n")
-		}
-		if len(candidates) > limit {
-			md.WriteString("- ...")
-			fmt.Fprintf(&md, " %d more", len(candidates)-limit)
-			md.WriteString("\n")
-		}
-	}
-
-	if len(aliases) > 0 {
-		md.WriteString("\n### require() Aliases\n")
-		keys := make([]string, 0, len(aliases))
-		for alias := range aliases {
-			keys = append(keys, alias)
-		}
-		sort.Strings(keys)
-		for _, alias := range keys {
-			md.WriteString("- `")
-			md.WriteString(alias)
-			md.WriteString("` -> `")
-			md.WriteString(aliases[alias])
-			md.WriteString("`\n")
-		}
-	}
-
-	doc.Markdown = strings.TrimSpace(md.String())
-	return doc, nil
+	return e.assistance.GetHelpDrawer(ctx, req)
 }
 
 // GetPrompt returns the prompt string for JavaScript evaluation
@@ -824,7 +491,9 @@ func (e *Evaluator) Reset() error {
 	e.runtime = newEvaluator.runtime
 	e.ownedRuntime = newEvaluator.ownedRuntime
 	e.tsParser = newEvaluator.tsParser
+	e.docHub = newEvaluator.docHub
 	e.docsResolver = newEvaluator.docsResolver
+	e.assistance = newEvaluator.assistance
 	e.runtimeMu.Unlock()
 
 	if oldOwnedRuntime != nil {
@@ -937,165 +606,6 @@ func (e *Evaluator) runtimeIdentifierHints() []jsparse.CompletionCandidate {
 	return out
 }
 
-func (e *Evaluator) helpBarFromContext(
-	ctx jsparse.CompletionContext,
-	candidates []jsparse.CompletionCandidate,
-	aliases map[string]string,
-) (repl.HelpBarPayload, bool) {
-	if entry, ok := e.resolveDocEntryFromContext(ctx, candidates, aliases); ok {
-		return makeHelpBarPayload(docEntrySummary(entry), "docs"), true
-	}
-
-	switch ctx.Kind {
-	case jsparse.CompletionProperty:
-		base := strings.TrimSpace(ctx.BaseExpr)
-		if base == "" {
-			return repl.HelpBarPayload{}, false
-		}
-
-		// Base object summary when no property token is typed yet.
-		if strings.TrimSpace(ctx.PartialText) == "" {
-			if txt, ok := e.helpBarSignatureFor(base, "", aliases); ok {
-				return makeHelpBarPayload(txt, "signature"), true
-			}
-		}
-
-		exact := jsparse.FindExactCandidate(candidates, ctx.PartialText)
-		if exact != nil {
-			if txt, ok := e.helpBarSignatureFor(base, exact.Label, aliases); ok {
-				return makeHelpBarPayload(txt, "signature"), true
-			}
-			return makeHelpBarPayload(fmt.Sprintf("%s.%s - %s", base, exact.Label, normalizeCandidateDetail(exact.Detail)), "info"), true
-		}
-		if len(candidates) > 0 {
-			c := candidates[0]
-			if txt, ok := e.helpBarSignatureFor(base, c.Label, aliases); ok {
-				return makeHelpBarPayload(txt, "signature"), true
-			}
-			return makeHelpBarPayload(fmt.Sprintf("%s.%s - %s", base, c.Label, normalizeCandidateDetail(c.Detail)), "info"), true
-		}
-	case jsparse.CompletionIdentifier:
-		exact := jsparse.FindExactCandidate(candidates, ctx.PartialText)
-		if exact != nil {
-			if txt, ok := e.helpBarSignatureFor(exact.Label, "", nil); ok {
-				return makeHelpBarPayload(txt, "signature"), true
-			}
-			if txt, ok := e.runtimeHelpForIdentifier(exact.Label); ok {
-				return makeHelpBarPayload(txt, "runtime"), true
-			}
-			return makeHelpBarPayload(fmt.Sprintf("%s - %s", exact.Label, normalizeCandidateDetail(exact.Detail)), "info"), true
-		}
-		if len(candidates) > 0 {
-			c := candidates[0]
-			if txt, ok := e.helpBarSignatureFor(c.Label, "", nil); ok {
-				return makeHelpBarPayload(txt, "signature"), true
-			}
-			if txt, ok := e.runtimeHelpForIdentifier(c.Label); ok {
-				return makeHelpBarPayload(txt, "runtime"), true
-			}
-			return makeHelpBarPayload(fmt.Sprintf("%s - %s", c.Label, normalizeCandidateDetail(c.Detail)), "info"), true
-		}
-	case jsparse.CompletionNone, jsparse.CompletionArgument:
-		return repl.HelpBarPayload{}, false
-	}
-
-	return repl.HelpBarPayload{}, false
-}
-
-func (e *Evaluator) helpBarFromTokenFallback(token string, aliases map[string]string) repl.HelpBarPayload {
-	if token == "" {
-		return repl.HelpBarPayload{Show: false}
-	}
-	// Keep fallback token-only: no arbitrary expression evaluation.
-	token = strings.Trim(token, ".")
-	if token == "" {
-		return repl.HelpBarPayload{Show: false}
-	}
-	if entry, ok := e.resolveDocEntryFromToken(token, aliases); ok {
-		return makeHelpBarPayload(docEntrySummary(entry), "docs")
-	}
-
-	if txt, ok := helpBarSymbolSignatures[token]; ok {
-		return makeHelpBarPayload(txt, "signature")
-	}
-	if txt, ok := e.runtimeHelpForIdentifier(token); ok {
-		return makeHelpBarPayload(txt, "runtime")
-	}
-	return repl.HelpBarPayload{Show: false}
-}
-
-func (e *Evaluator) helpBarSignatureFor(base, property string, aliases map[string]string) (string, bool) {
-	candidates := make([]string, 0, 4)
-
-	if property == "" {
-		if aliases != nil {
-			if moduleName, ok := aliases[base]; ok {
-				candidates = append(candidates, moduleName)
-			}
-		}
-		candidates = append(candidates, base)
-	} else {
-		if aliases != nil {
-			if moduleName, ok := aliases[base]; ok {
-				candidates = append(candidates, moduleName+"."+property)
-			}
-		}
-		candidates = append(candidates, base+"."+property)
-	}
-
-	for _, key := range candidates {
-		if txt, ok := helpBarSymbolSignatures[key]; ok {
-			return txt, true
-		}
-	}
-
-	return "", false
-}
-
-func (e *Evaluator) runtimeHelpForIdentifier(name string) (string, bool) {
-	if name == "" || strings.Contains(name, ".") {
-		return "", false
-	}
-
-	e.runtimeMu.Lock()
-	defer e.runtimeMu.Unlock()
-
-	v := e.runtime.Get(name)
-	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
-		return "", false
-	}
-
-	if _, ok := goja.AssertFunction(v); ok {
-		obj := v.ToObject(e.runtime)
-		displayName := name
-		if n := obj.Get("name"); n != nil && !goja.IsUndefined(n) {
-			if s := strings.TrimSpace(n.String()); s != "" {
-				displayName = s
-			}
-		}
-		if l := obj.Get("length"); l != nil && !goja.IsUndefined(l) {
-			switch vv := l.Export().(type) {
-			case int64:
-				return fmt.Sprintf("%s(...): function (arity %d)", displayName, vv), true
-			case int32:
-				return fmt.Sprintf("%s(...): function (arity %d)", displayName, vv), true
-			case int:
-				return fmt.Sprintf("%s(...): function (arity %d)", displayName, vv), true
-			case float64:
-				return fmt.Sprintf("%s(...): function (arity %d)", displayName, int64(vv)), true
-			}
-		}
-		return fmt.Sprintf("%s(...): function", displayName), true
-	}
-
-	obj := v.ToObject(e.runtime)
-	className := strings.ToLower(strings.TrimSpace(obj.ClassName()))
-	if className == "" {
-		className = "value"
-	}
-	return fmt.Sprintf("%s: %s", name, className), true
-}
-
 func tokenAtCursor(input string, cursor int) (string, int, int) {
 	cursor = clampCursor(cursor, len(input))
 	start := cursor
@@ -1135,81 +645,6 @@ func docEntrySummary(entry *docaccess.Entry) string {
 		return entry.Title
 	}
 	return fmt.Sprintf("%s - %s", entry.Title, summary)
-}
-
-func (e *Evaluator) resolveDocEntryFromContext(
-	ctx jsparse.CompletionContext,
-	candidates []jsparse.CompletionCandidate,
-	aliases map[string]string,
-) (*docaccess.Entry, bool) {
-	if e.docsResolver == nil {
-		return nil, false
-	}
-
-	switch ctx.Kind {
-	case jsparse.CompletionProperty:
-		base := strings.TrimSpace(ctx.BaseExpr)
-		if base == "" {
-			return nil, false
-		}
-		if strings.TrimSpace(ctx.PartialText) == "" {
-			return e.docsResolver.ResolveProperty(base, "", aliases)
-		}
-		if exact := jsparse.FindExactCandidate(candidates, ctx.PartialText); exact != nil {
-			return e.docsResolver.ResolveProperty(base, exact.Label, aliases)
-		}
-		if len(candidates) > 0 {
-			return e.docsResolver.ResolveProperty(base, candidates[0].Label, aliases)
-		}
-	case jsparse.CompletionIdentifier:
-		if exact := jsparse.FindExactCandidate(candidates, ctx.PartialText); exact != nil {
-			return e.docsResolver.ResolveIdentifier(exact.Label, aliases)
-		}
-		if len(candidates) > 0 {
-			return e.docsResolver.ResolveIdentifier(candidates[0].Label, aliases)
-		}
-	case jsparse.CompletionNone, jsparse.CompletionArgument:
-		return nil, false
-	}
-
-	return nil, false
-}
-
-func (e *Evaluator) resolveDocEntryFromToken(token string, aliases map[string]string) (*docaccess.Entry, bool) {
-	if e.docsResolver == nil {
-		return nil, false
-	}
-	return e.docsResolver.ResolveToken(token, aliases)
-}
-
-func (e *Evaluator) resolveDocEntryForCandidate(
-	ctx jsparse.CompletionContext,
-	candidate jsparse.CompletionCandidate,
-	aliases map[string]string,
-) (*docaccess.Entry, bool) {
-	if e.docsResolver == nil {
-		return nil, false
-	}
-	switch ctx.Kind {
-	case jsparse.CompletionProperty:
-		return e.docsResolver.ResolveProperty(ctx.BaseExpr, candidate.Label, aliases)
-	case jsparse.CompletionIdentifier:
-		return e.docsResolver.ResolveIdentifier(candidate.Label, aliases)
-	case jsparse.CompletionNone, jsparse.CompletionArgument:
-		return nil, false
-	default:
-		return nil, false
-	}
-}
-
-func (e *Evaluator) docCompletionCandidates(
-	ctx jsparse.CompletionContext,
-	aliases map[string]string,
-) []jsparse.CompletionCandidate {
-	if e.docsResolver == nil {
-		return nil
-	}
-	return e.docsResolver.CompletionCandidates(ctx, aliases)
 }
 
 func makeHelpBarPayload(text, kind string) repl.HelpBarPayload {

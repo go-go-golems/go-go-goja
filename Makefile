@@ -1,4 +1,4 @@
-.PHONY: docker-lint lint lintmax golangci-lint-install gosec govulncheck test test-inspector build goreleaser tag-major tag-minor tag-patch release bump-glazed install-modules
+.PHONY: docker-lint lint lintmax golangci-lint-install gosec govulncheck test test-inspector fuzz fuzz-seeds build goreleaser tag-major tag-minor tag-patch release bump-glazed install-modules
 
 all: build
 
@@ -32,6 +32,21 @@ govulncheck:
 test:
 	go generate ./...
 	go test ./...
+
+FUZZTIME ?= 30s
+FUZZ_TARGETS := FuzzEvaluateRaw FuzzRewriteIsolated FuzzEvaluateInstrumented \
+                 FuzzSessionSequence FuzzSessionSequenceRaw FuzzPersistenceRoundTrip FuzzGlobalSnapshot
+
+fuzz-seeds: ## Run all seed regression tests (fast, no mutation)
+	go test ./fuzz/ -run 'TestFuzz' -v -count=1
+
+fuzz: fuzz-seeds ## Run all fuzz targets for $(FUZZTIME) each
+	@echo "=== Fuzz targets: $(FUZZTIME) each ==="
+	@for target in $(FUZZ_TARGETS); do \
+		echo ">>> $$target ($(FUZZTIME))"; \
+		go test ./fuzz/ -fuzz=$$target -fuzztime=$(FUZZTIME) -v -count=1 || exit 1; \
+	done
+	@echo "=== All fuzz targets passed ==="
 
 test-inspector:
 	GOWORK=off go test ./pkg/jsparse -count=1
@@ -75,3 +90,5 @@ bump-glazed:
 	go get github.com/go-go-golems/clay@latest
 	go get github.com/go-go-golems/bobatea@latest
 	go mod tidy
+
+.PHONY: fuzz fuzz-seeds
