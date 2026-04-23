@@ -86,7 +86,7 @@ func (r *Registry) ListModules() []NativeModule {
 // Enable registers all modules from this registry with a goja_nodejs/require.Registry.
 func (r *Registry) Enable(gojaRegistry *require.Registry) {
 	for _, m := range r.modules {
-		log.Debug().Str("module", m.Name()).Msg("modules: registering native module")
+		log.Trace().Str("module", m.Name()).Msg("modules: registering native module")
 		gojaRegistry.RegisterNativeModule(m.Name(), m.Loader)
 	}
 }
