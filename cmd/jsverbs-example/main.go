@@ -1,17 +1,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/logging"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/help"
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/spf13/cobra"
 
 	sharedoc "github.com/go-go-golems/go-go-goja/pkg/doc"
@@ -19,6 +23,30 @@ import (
 )
 
 const defaultExampleDir = "testdata/jsverbs"
+
+// listCommand implements cmds.GlazeCommand and emits discovered verbs as structured rows.
+type listCommand struct {
+	*cmds.CommandDescription
+	registry *jsverbs.Registry
+}
+
+func (c *listCommand) RunIntoGlazeProcessor(
+	ctx context.Context,
+	parsedValues *values.Values,
+	gp middlewares.Processor,
+) error {
+	for _, verb := range c.registry.Verbs() {
+		row := types.NewRow(
+			types.MRP("path", verb.FullPath()),
+			types.MRP("source", verb.SourceRef()),
+			types.MRP("output_mode", verb.OutputMode),
+		)
+		if err := gp.AddRow(ctx, row); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func main() {
 	dir := discoverDirectory(os.Args[1:])
@@ -58,25 +86,23 @@ func main() {
 	setDefaultFlagValue(root, "log-level", "error")
 	setDefaultFlagValue(root, "log-format", "text")
 
-	root.AddCommand(&cobra.Command{
-		Use:   "list",
-		Short: "List discovered JS verbs",
-		Run: func(cmd *cobra.Command, args []string) {
-			paths := make([]string, 0, len(registry.Verbs()))
-			for _, verb := range registry.Verbs() {
-				paths = append(paths, fmt.Sprintf("%s\t%s", verb.FullPath(), verb.SourceRef()))
-			}
-			sort.Strings(paths)
-			fmt.Fprintln(cmd.OutOrStdout(), strings.Join(paths, "\n"))
-		},
-	})
+	listDesc := cmds.NewCommandDescription(
+		"list",
+		cmds.WithShort("List discovered JS verbs"),
+		cmds.WithLong("Emit all discovered jsverbs as a structured table."),
+	)
+	listCmd := &listCommand{
+		CommandDescription: listDesc,
+		registry:           registry,
+	}
+	allCommands := append([]cmds.Command{listCmd}, commands...)
 
 	if err := cli.AddCommandsToRootCommand(
 		root,
-		commands,
+		allCommands,
 		nil,
 		cli.WithParserConfig(cli.CobraParserConfig{
-			ShortHelpSections: []string{schema.DefaultSlug},
+			ShortHelpSections: []string{schema.DefaultSlug, schema.GlobalDefaultSlug},
 			MiddlewaresFunc:   cli.CobraCommandDefaultMiddlewares,
 		}),
 	); err != nil {

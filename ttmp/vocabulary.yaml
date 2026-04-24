@@ -61,16 +61,46 @@ topics:
       description: Upstream open-source contributions and patches
     - slug: parser
       description: JavaScript parser and lexer
+    - slug: jsverbs
+      description: JavaScript verbs — CLI commands defined in JS files and registered through go-go-goja
+    - slug: help-system
+      description: Glazed rich help system, markdown-based CLI help rendering, short/long help flags
+    - slug: command-registration
+      description: How commands are registered with Cobra and Glazed, including parent command creation and flag group wiring
+    - slug: short-help
+      description: Short help rendering, shortHelpSections filtering, and global flag visibility in CLI help
+    - slug: chat
+      description: Chat backend and frontend surfaces
+    - slug: backend
+      description: Backend services
+    - slug: websocket
+      description: WebSocket lifecycle & events
 docTypes:
     - slug: index
       description: Ticket index documents
     - slug: reference
       description: Reference material
+    - slug: design-doc
+      description: Structured rationale and architecture notes
+    - slug: playbook
+      description: Operational procedures and QA/Smoke steps
+    - slug: skill
+      description: Skill documentation (what it's for and when to use it)
 intent:
     - slug: long-term
       description: Long-term maintainable documentation
+    - slug: short-term
+      description: Short-term documentation for active work
+    - slug: throwaway
+      description: Temporary/experimental documentation
 status:
     - slug: active
       description: Active in-progress ticket
     - slug: complete
       description: Completed ticket
+    - slug: draft
+      description: Initial draft state
+    - slug: review
+      description: Ready for review
+    - slug: archived
+      description: Archived/completed work
