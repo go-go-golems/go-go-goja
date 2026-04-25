@@ -146,7 +146,7 @@ Then get to work and work task by task, keep a detailed diary, commit at appropr
 - The goja_nodejs `console` package already imports `util`, but explicit blank imports keep the primitive registration policy obvious.
 
 ### What was tricky to build
-- The distinction between “require-able module” and “global object” mattered. `require("process")` can be always available, while global `process` must remain optional.
+- The distinction between “require-able module” and “global object” mattered. Initially `require("process")` was treated as always available while global `process` remained optional; later code review tightened this so both `require("process")` and global `process` are opt-in because both expose `process.env`.
 
 ### What warrants a second pair of eyes
 - Whether `require("process")` itself should also be opt-in in high-security contexts, even if global `process` is absent.
@@ -510,3 +510,43 @@ bash ttmp/2026/04/25/GOJA-053--add-fs-primitive-module-and-ensure-all-goja-nodej
 ### What warrants a second pair of eyes
 
 - The mapper now exposes several Glazed field types beyond `objectFromFile`. They are direct mappings to existing Glazed constants, but only `objectFromFile` received a dedicated end-to-end test in this step.
+
+## Step 8: Address code review by making `require("process")` opt-in
+
+A code review found a sandbox leak in the process-module design. Importing `github.com/dop251/goja_nodejs/process` at package load time registers the `process` core module globally, which means any runtime can call `require("process").env` even when `engine.ProcessEnv()` is not enabled. That violated the new host-access isolation model.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Address code review comment: /tmp/pi-clipboard-05cb32c3-66b4-4e7f-a6b9-b72fada8cbf2.png"
+
+**Code review summary:** P1: Block process module in the default sandbox. `require("process").env` must not be available unless the embedder explicitly opts in.
+
+### What I changed
+
+- Removed the blank import of `goja_nodejs/process` from `engine/nodejs_init.go`.
+- Removed the direct `goja_nodejs/process` import from `engine/module_specs.go`.
+- Implemented a local opt-in `engine.ProcessModule()` ModuleSpec that registers `require("process")` only for the selected factory.
+- Kept `engine.ProcessEnv()` as the opt-in runtime initializer for the global `process` object.
+- Updated smoke tests so default runtimes verify both `process` and `require("process")` are absent.
+- Added tests for `ProcessModule()` and `ProcessModule()+ProcessEnv()`.
+- Updated the `nodejs-primitives` help page and GOJA-053 design doc to state that both module and global process access are opt-in.
+
+### Why
+
+`process.env` can expose secrets from the host environment. A global package-level import makes that capability available through `require("process")` before the embedder has a chance to choose a sandbox policy. Registry-specific module registration fixes that by moving the capability grant into the factory builder.
+
+### Validation
+
+```bash
+go test ./engine ./pkg/doc ./cmd/goja-repl -count=1
+go test ./modules/path ./modules/fs ./modules/os ./modules/crypto ./modules/time ./modules/timer ./engine -count=1
+```
+
+### Review note
+
+The new policy is:
+
+- default runtime: no global `process`, no `require("process")`
+- `WithModules(engine.ProcessModule())`: enables `require("process")`
+- `WithRuntimeInitializers(engine.ProcessEnv())`: installs global `process`
+- using both makes `process === require("process")`

@@ -78,3 +78,10 @@ LastUpdated: 2026-04-25T08:00:00-04:00
 - Added an end-to-end test proving JSON loaded through `objectFromFile` arrives in JavaScript as an object.
 - Added `scripts/validate-jsverbs-objectfromfile.sh` as a repeatable CLI smoke test using `cmd/jsverbs-example`.
 - Updated the jsverbs reference help page with the expanded field type mapping.
+
+## 2026-04-25: Made process module opt-in after code review
+
+- Removed package-level `goja_nodejs/process` imports so `require("process")` is no longer registered globally for every runtime.
+- Added `engine.ProcessModule()` for explicit per-factory `require("process")` registration.
+- Kept `engine.ProcessEnv()` for explicit global `process` installation.
+- Updated tests and help docs so default runtimes verify both global `process` and `require("process")` are unavailable.

@@ -3,11 +3,11 @@ package engine
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
-	"github.com/dop251/goja_nodejs/process"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/modules"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
@@ -179,6 +179,36 @@ func DataOnlyDefaultRegistryModuleNames() []string {
 	return append([]string(nil), dataOnlyDefaultRegistryModuleNames...)
 }
 
+func processObject(vm *goja.Runtime) *goja.Object {
+	process := vm.NewObject()
+	env := map[string]string{}
+	for _, item := range os.Environ() {
+		key, value, ok := strings.Cut(item, "=")
+		if !ok {
+			continue
+		}
+		env[key] = value
+	}
+	_ = process.Set("env", env)
+	return process
+}
+
+func processModuleLoader(vm *goja.Runtime, moduleObj *goja.Object) {
+	exports := moduleObj.Get("exports").(*goja.Object)
+	_ = exports.Set("env", processObject(vm).Get("env"))
+}
+
+// ProcessModule returns a ModuleSpec that registers require("process") for this
+// runtime factory only. It is opt-in because process.env exposes host
+// environment variables.
+func ProcessModule() ModuleSpec {
+	return NativeModuleSpec{
+		ModuleID:   "native:process",
+		ModuleName: "process",
+		Loader:     processModuleLoader,
+	}
+}
+
 type processEnvInitializer struct{}
 
 func (p processEnvInitializer) ID() string {
@@ -189,13 +219,18 @@ func (p processEnvInitializer) InitRuntime(ctx *RuntimeContext) error {
 	if ctx == nil || ctx.VM == nil {
 		return fmt.Errorf("runtime context or VM is nil")
 	}
-	process.Enable(ctx.VM)
-	return nil
+	if ctx.Require != nil {
+		if processValue, err := ctx.Require.Require("process"); err == nil {
+			return ctx.VM.Set("process", processValue)
+		}
+	}
+	return ctx.VM.Set("process", processObject(ctx.VM))
 }
 
 // ProcessEnv returns a runtime initializer that installs the global process
-// object. It is opt-in because goja_nodejs/process exposes the host
-// environment via process.env.
+// object. It is opt-in because process.env exposes host environment variables.
+// Use ProcessModule() as well when scripts should also be able to call
+// require("process").
 func ProcessEnv() RuntimeInitializer {
 	return processEnvInitializer{}
 }

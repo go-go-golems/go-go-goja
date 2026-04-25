@@ -61,7 +61,7 @@ The `goja_nodejs` library provides several Node.js-compatible modules implemente
 |---------|-------------|---------------|----------------|
 | `goja_nodejs/console` | `console` | Core module | Yes — sets global `console` |
 | `goja_nodejs/buffer` | `buffer` | Core module | Yes — sets global `Buffer` |
-| `goja_nodejs/process` | `process` | Core module | Yes — sets global `process` |
+| `goja_nodejs/process` | `process` | Core module | Yes — sets global `process`; **do not blank-import globally** because `process.env` leaks host environment data |
 | `goja_nodejs/url` | `url` | Core module | Yes — sets global `URL`, `URLSearchParams` |
 | `goja_nodejs/util` | `util` | Core module | No |
 
@@ -351,18 +351,20 @@ The current implementation also has a limitation: `readFileSync` always returns 
 
 ### Gap 2: goja_nodejs Modules Not Wired
 
-**Missing blank imports** — The following goja_nodejs packages are never imported in go-go-goja, so their `init()` functions never run:
+**Missing blank imports for safe core modules** — The following goja_nodejs packages were not imported in go-go-goja, so their `init()` functions did not run:
 
-- `_ "github.com/dop251/goja_nodejs/buffer"` — Not imported anywhere
-- `_ "github.com/dop251/goja_nodejs/process"` — Not imported anywhere  
-- `_ "github.com/dop251/goja_nodejs/url"` — Not imported anywhere
-- `_ "github.com/dop251/goja_nodejs/util"` — Not imported anywhere
+- `_ "github.com/dop251/goja_nodejs/buffer"` — safe to import globally
+- `_ "github.com/dop251/goja_nodejs/url"` — safe to import globally
+- `_ "github.com/dop251/goja_nodejs/util"` — safe to import globally
 
-**Missing Enable() calls** — Even if the `init()` functions ran (registering the modules as core modules so `require("buffer")` works), the globals would not be set up. These `Enable()` calls are missing from the factory:
+`goja_nodejs/process` must not be blank-imported globally. Its `init()` registers `require("process")` for every runtime, and `require("process").env` exposes host environment variables. Process module access is now handled by explicit per-factory `engine.ProcessModule()` registration.
+
+**Missing Enable() calls** — Even if the safe `init()` functions ran (registering the modules as core modules so `require("buffer")` works), the globals would not be set up. These safe `Enable()` calls are missing from the factory:
 
 - `buffer.Enable(vm)` — Should set the global `Buffer` constructor
-- `process.Enable(vm)` — Should set the global `process` object with `process.env`
 - `url.Enable(vm)` — Should set the global `URL` and `URLSearchParams` constructors
+
+Global `process` is not enabled in the factory. It is installed only by the explicit `engine.ProcessEnv()` initializer.
 
 Note: `util` has no `Enable()` function — it is only accessible via `require("util")`.
 
@@ -724,9 +726,9 @@ The goja_nodejs modules have two layers:
 | `url` | ✅ always | ✅ always (hardcoded) | Harmless — just constructors |
 | `console` | ✅ always | ✅ already hardcoded | Already done |
 | `util` | ✅ always | N/A (no Enable) | `require("util")` only |
-| `process` | ✅ always | ⚠️ **opt-in** via `ProcessEnv()` initializer | Exposes host env |
+| `process` | ❌ opt-in via `ProcessModule()` | ⚠️ **opt-in** via `ProcessEnv()` initializer | Exposes host env |
 
-**Blank imports** go in a dedicated file so they're clearly separated from the `Runtime` struct:
+**Blank imports** go in a dedicated file so they're clearly separated from the `Runtime` struct. Do not blank-import `goja_nodejs/process`: its package `init()` registers `require("process")` globally, which exposes host environment variables through `process.env` even in runtimes that did not opt in.
 
 ```go
 // engine/nodejs_init.go
@@ -734,13 +736,12 @@ package engine
 
 import (
     _ "github.com/dop251/goja_nodejs/buffer"
-    _ "github.com/dop251/goja_nodejs/process"
     _ "github.com/dop251/goja_nodejs/url"
     _ "github.com/dop251/goja_nodejs/util"
 )
 ```
 
-This ensures all four modules are always `require()`-able. The `init()` functions register them as core modules, so `require("buffer")`, `require("process")`, `require("url")`, `require("util")` always work.
+This ensures the safe core modules are always `require()`-able. `require("buffer")`, `require("url")`, and `require("util")` work by default. `require("process")` requires explicit per-factory registration with `engine.ProcessModule()`.
 
 **Always-on globals** in `engine/factory.go` (hardcoded):
 
@@ -752,18 +753,26 @@ url.Enable(vm)       // NEW — always on
 rt.Require = reqMod
 ```
 
-**Opt-in `process.env`** via `RuntimeInitializer`:
+**Opt-in `process.env`** via `ProcessModule()` and `RuntimeInitializer`:
 
 ```go
 // engine/module_specs.go
+
+func ProcessModule() ModuleSpec {
+    return NativeModuleSpec{
+        ModuleID:   "native:process",
+        ModuleName: "process",
+        Loader:     processModuleLoader,
+    }
+}
 
 type processEnvSpec struct{}
 
 func (s processEnvSpec) ID() string { return "process-env" }
 
 func (s processEnvSpec) InitRuntime(ctx *RuntimeContext) error {
-    process.Enable(ctx.VM)
-    return nil
+    // Install global process only when explicitly requested.
+    return ctx.VM.Set("process", processObject(ctx.VM))
 }
 
 // ProcessEnv returns a RuntimeInitializer that enables the global `process`
@@ -777,9 +786,9 @@ func ProcessEnv() RuntimeInitializer {
 **Callers opt in to `process.env`**:
 
 ```go
-// Full Node.js compat (including process.env):
+// Full process compat (including require("process") and global process.env):
 factory, _ := engine.NewBuilder().
-    WithModules(engine.DefaultRegistryModules()).
+    WithModules(engine.ProcessModule()).
     WithRuntimeInitializers(engine.ProcessEnv()).
     Build()
 
@@ -788,7 +797,7 @@ factory, _ := engine.NewBuilder().
     WithModules(engine.DefaultRegistryModules()).
     Build()
 // Buffer, URL still available as globals
-// process.env NOT available as global (but require("process") still works)
+// process.env NOT available; require("process") is also unavailable unless ProcessModule() is selected
 ```
 
 **What the user experience looks like**:
@@ -800,11 +809,13 @@ const u = new URL("https://x.com");   // global URL, URLSearchParams
 const util = require("util");          // always require-able
 const fs = require("fs");              // go-go-goja native module
 
-// Available via require() but NOT as global (unless opted in):
-const proc = require("process");      // works, gives { env: {...} }
-console.log(process);                  // undefined — unless ProcessEnv() initializer used
+// Process access is opt-in because it exposes host environment variables:
+// - engine.ProcessModule() enables require("process")
+// - engine.ProcessEnv() installs global process
+console.log(typeof process);           // "undefined" unless ProcessEnv() initializer used
 
-// With ProcessEnv() initializer opted in:
+// With ProcessModule() and ProcessEnv() opted in:
+const proc = require("process");       // gives { env: {...} }
 console.log(process.env.HOME);         // "/home/user"
 ```
 
@@ -972,12 +983,11 @@ import (
 )
 ```
 
-**New** — add four lines:
+**New** — add safe core module imports, but intentionally omit `process`:
 
 ```go
 import (
     _ "github.com/dop251/goja_nodejs/buffer"
-    _ "github.com/dop251/goja_nodejs/process"
     _ "github.com/dop251/goja_nodejs/url"
     _ "github.com/dop251/goja_nodejs/util"
 
@@ -988,7 +998,7 @@ import (
 )
 ```
 
-**What this does**: When the Go binary starts, each of these packages' `init()` functions runs, calling `require.RegisterCoreModule(...)`. This makes the modules available for `require()` resolution.
+**What this does**: When the Go binary starts, each safe package's `init()` function runs, calling `require.RegisterCoreModule(...)`. This makes `buffer`, `url`, and `util` available for `require()` resolution. `process` is different: it exposes host environment variables, so it must be registered per factory with `engine.ProcessModule()` rather than by global package import.
 
 #### File: `engine/factory.go`
 
@@ -1002,18 +1012,19 @@ console.Enable(vm)
 rt.Require = reqMod
 ```
 
-**New** — add three `Enable()` calls:
+**New** — add safe global `Enable()` calls only:
 
 ```go
 reqMod := reg.Enable(vm)
 console.Enable(vm)
 buffer.Enable(vm)
-process.Enable(vm)
 url.Enable(vm)
 rt.Require = reqMod
 ```
 
-**What this does**: Each `Enable()` function not only requires the module (loading it via the now-registered core module) but also sets up the corresponding global variable(s) on the VM. For example, `buffer.Enable(vm)` sets `vm.Buffer` to the Buffer constructor so JavaScript code can use `Buffer.from(...)` without importing.
+**What this does**: Each `Enable()` function sets up the corresponding safe global variable(s) on the VM. For example, `buffer.Enable(vm)` sets `Buffer` to the Buffer constructor so JavaScript code can use `Buffer.from(...)` without importing.
+
+Do not call `process.Enable(vm)` here. Global `process` exposes `process.env` and is installed only by the explicit `engine.ProcessEnv()` runtime initializer.
 
 You will also need to add the import statements (non-blank this time):
 
@@ -1022,7 +1033,6 @@ import (
     "github.com/dop251/goja_nodejs/buffer"
     "github.com/dop251/goja_nodejs/console"
     "github.com/dop251/goja_nodejs/eventloop"
-    "github.com/dop251/goja_nodejs/process"
     "github.com/dop251/goja_nodejs/require"
     "github.com/dop251/goja_nodejs/url"
     // ... other imports
@@ -1046,9 +1056,10 @@ func TestRequireBuffer(t *testing.T) {
     require.NoError(t, err)
 }
 
-func TestRequireProcess(t *testing.T) { /* require("process") works */ }
-func TestRequireUrl(t *testing.T)    { /* require("url") works */ }
-func TestRequireUtil(t *testing.T)   { /* require("util") works */ }
+func TestRequireProcessAbsentByDefault(t *testing.T) { /* require("process") fails without ProcessModule() */ }
+func TestRequireProcessOptIn(t *testing.T)           { /* require("process") works with ProcessModule() */ }
+func TestRequireUrl(t *testing.T)                    { /* require("url") works */ }
+func TestRequireUtil(t *testing.T)                   { /* require("util") works */ }
 
 func TestBufferGlobal(t *testing.T) {
     /* Verify Buffer is a global, e.g., Buffer.from("hello") works */
@@ -1188,7 +1199,7 @@ new URL("https://example.com/path?q=1").searchParams.get("q")
 | Blank imports cause init-order issues | Low | Medium | Go guarantees init order within a package is deterministic; cross-package order follows import dependency order |
 | `buffer.Enable()` conflicts with existing console.Enable() | Low | Low | These are independent globals; no known conflict |
 | `mkdirSync` options parsing is fragile | Low | Low | Use `goja.FunctionCall` and check for undefined/nil carefully; write tests for all combinations |
-| `process.Enable()` leaks env vars to JS | Expected | Medium | This is intentional — Node.js exposes `process.env`. Document this behavior. If security is a concern, future work can add env filtering. |
+| `process.env` leaks env vars to JS if enabled accidentally | Medium | High | Do not blank-import `goja_nodejs/process`; expose process access only through explicit `ProcessModule()` and `ProcessEnv()` opt-ins. |
 | `statSync` mode field loses precision (uint32 vs int64) | Low | Low | Go file modes fit in uint32; `int64` from `ToInteger()` is fine |
 | No `node:` prefix for go-go-goja native modules | N/A | Low | The `fs`, `exec`, `timer`, `database` modules are go-go-goja-specific, not Node.js builtins. They should NOT use the `node:` prefix. |
 

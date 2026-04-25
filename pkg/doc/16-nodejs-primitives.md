@@ -19,7 +19,7 @@ SectionType: GeneralTopic
 
 go-go-goja provides a practical subset of Node.js-style primitives so JavaScript scripts can do useful work without writing a custom Go adapter for every task. These primitives cover file I/O, path handling, operating-system information, hashing/randomness, timing, and selected `goja_nodejs` built-ins such as `Buffer`, `URL`, and `util`.
 
-The goal is not to clone Node.js completely. The goal is to provide the primitives most scripts need while keeping host exposure explicit. For example, `Buffer` and `URL` are safe globals, but the global `process` object is opt-in because `process.env` exposes host environment data.
+The goal is not to clone Node.js completely. The goal is to provide the primitives most scripts need while keeping host exposure explicit. For example, `Buffer` and `URL` are safe globals, but both the `process` module and the global `process` object are opt-in because `process.env` exposes host environment data.
 
 ## Runtime Composition Model
 
@@ -51,13 +51,16 @@ factory, err := engine.NewBuilder().
 
 You can still enable every module in `modules.DefaultRegistry` with `engine.DefaultRegistryModules()`, but that includes host-access modules such as `fs`, `os`, `exec`, and `database`. Use it only when the JavaScript code is trusted enough for that level of access.
 
-The `process` global is not installed by default. Enable it only when exposing host environment variables is acceptable:
+The `process` module and global are not installed by default. Enable them only when exposing host environment variables is acceptable:
 
 ```go
 factory, err := engine.NewBuilder().
+    WithModules(engine.ProcessModule()).
     WithRuntimeInitializers(engine.ProcessEnv()).
     Build()
 ```
+
+Use only `ProcessEnv()` if scripts need the global `process` object but not `require("process")`. Use only `ProcessModule()` if scripts should be able to call `require("process")` but should not receive a global `process` binding.
 
 ## Embedding from Third-Party Packages
 
@@ -102,16 +105,19 @@ factory, err := engine.NewBuilder().
 
 The engine package already contains the blank imports that make built-in modules register themselves, so third-party packages do not need to blank-import each module manually.
 
-If the application wants the global `process` object, add the opt-in initializer:
+If the application wants process environment access, opt in explicitly. For both `require("process")` and the global `process` object, use:
 
 ```go
 factory, err := engine.NewBuilder().
-    WithModules(engine.DefaultRegistryModule("fs")).
+    WithModules(
+        engine.DefaultRegistryModule("fs"),
+        engine.ProcessModule(),
+    ).
     WithRuntimeInitializers(engine.ProcessEnv()).
     Build()
 ```
 
-Use `ProcessEnv()` only when JavaScript should see host environment variables through `process.env`. Without this initializer, `require("process")` still works, but global `process` is not installed.
+Use `ProcessEnv()` only when JavaScript should see host environment variables through global `process.env`. Use `ProcessModule()` when JavaScript should be able to import the same host environment capability with `require("process")`. Without these opt-ins, both global `process` and `require("process")` are unavailable.
 
 A runtime created this way can execute scripts such as:
 
@@ -136,7 +142,7 @@ This section lists the current built-in primitives, what each one is for, and ho
 | `Buffer` | global, `require("buffer")` | Binary data | Installed globally by default. |
 | `URL`, `URLSearchParams` | global, `require("url")` | URL parsing | Installed globally by default. |
 | `util` | `require("util")` | Formatting helpers | Provided by goja_nodejs. |
-| `process` | `require("process")`; global only with `engine.ProcessEnv()` | Environment variables | Global `process` is opt-in. |
+| `process` | opt-in `require("process")` with `engine.ProcessModule()`; opt-in global with `engine.ProcessEnv()` | Environment variables | Both module and global are opt-in. |
 | `fs` | opt-in `require("fs")` | Promise-based and sync file I/O | Host filesystem access; enable explicitly. |
 | `path` | default `require("path")` | Host-platform path helpers | Data-only; uses Go `filepath`; no `posix`/`win32` split yet. |
 | `os` | opt-in `require("os")` | Host OS information | Host info access; enable explicitly. |
@@ -294,7 +300,7 @@ These primitives expose useful host capabilities. That is powerful, but it means
 - `fs` and `os` expose host filesystem and OS details and must be enabled explicitly.
 - `path`, `time`, `timer`, and `crypto` are enabled by default as data-only primitives.
 - `crypto.randomBytes()` uses host randomness.
-- `require("process").env` is available because goja_nodejs registers the module, but global `process` requires explicit `engine.ProcessEnv()` opt-in.
+- `require("process").env` requires explicit `engine.ProcessModule()` opt-in, and global `process` requires explicit `engine.ProcessEnv()` opt-in.
 - `exec` and `database` remain selectable modules and should be treated as more sensitive than the data-only primitives documented here.
 
 If your application runs untrusted JavaScript, do not blindly expose `DefaultRegistryModules()`. Compose a smaller registry with `DefaultRegistryModule(...)` or `DefaultRegistryModulesNamed(...)` before evaluating untrusted scripts.
@@ -307,7 +313,7 @@ This section maps the JavaScript APIs back to Go files so maintainers can review
 |-----|------------|
 | Node core registration | `engine/nodejs_init.go` |
 | Global Buffer/URL/performance install | `engine/factory.go`, `engine/performance.go` |
-| Optional global process | `engine/module_specs.go`, `ProcessEnv()` |
+| Optional process module/global | `engine/module_specs.go`, `ProcessModule()`, `ProcessEnv()` |
 | fs | `modules/fs/fs.go`, `fs_async.go`, `fs_sync.go`, `fs_errors.go` |
 | path | `modules/path/path.go` |
 | os | `modules/os/os.go` |
@@ -321,8 +327,8 @@ Smoke tests live next to each module and execute real JavaScript through a real 
 | Problem | Cause | Solution |
 |---------|-------|----------|
 | `require("fs")` fails | `fs` is host filesystem access and is not enabled by default | Add `.WithModules(engine.DefaultRegistryModule("fs"))` or `.WithModules(engine.DefaultRegistryModulesNamed("fs", ...))`. |
-| `process` is undefined | Global `process` is opt-in | Add `.WithRuntimeInitializers(engine.ProcessEnv())` if exposing `process.env` is acceptable. |
-| `require("process")` works but `process.env` global access fails | Module registration and global installation are separate | Use `const process = require("process")` or opt in to `ProcessEnv()`. |
+| `process` is undefined | Global `process` is opt-in | Add `.WithRuntimeInitializers(engine.ProcessEnv())` if exposing global `process.env` is acceptable. |
+| `require("process")` fails | The process module is opt-in because it exposes host environment variables | Add `.WithModules(engine.ProcessModule())` only if scripts should be able to import `process.env`. |
 | `fs.readFile(path)` returns a Buffer, not a string | Node-style default read behavior | Pass an encoding: `await fs.readFile(path, "utf8")`. |
 | `Buffer.isBuffer` is missing | goja_nodejs Buffer does not implement every Node helper | Check Buffer-like behavior with `length`, `toString()`, or add a helper if a package requires it. |
 | `path` behavior differs from POSIX examples | `path` uses host `filepath` | Add/use future `path.posix` for host-independent POSIX behavior. |

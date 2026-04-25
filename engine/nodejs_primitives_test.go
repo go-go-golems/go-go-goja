@@ -29,7 +29,7 @@ func TestNodeJSPrimitivesDefaultGlobalsAndRequires(t *testing.T) {
 		{name: "require buffer", code: `require("buffer").Buffer.from("xyz").toString()`, want: "xyz"},
 		{name: "require url", code: `require("url").URL === URL ? "yes" : "no"`, want: "yes"},
 		{name: "require util", code: `require("util").format("%s:%d", "x", 3)`, want: "x:3"},
-		{name: "require process", code: `typeof require("process").env`, want: "object"},
+		{name: "require process absent by default", code: `try { require("process"); "present" } catch (e) { "missing" }`, want: "missing"},
 		{name: "process global absent by default", code: `typeof process`, want: "undefined"},
 	}
 
@@ -75,5 +75,57 @@ func TestProcessEnvInitializerInstallsProcessGlobal(t *testing.T) {
 	}
 	if ret != "ok" {
 		t.Fatalf("process global status = %v, want ok", ret)
+	}
+}
+
+func TestProcessModuleIsOptIn(t *testing.T) {
+	factory, err := NewBuilder().WithModules(ProcessModule()).Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "process-module", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`typeof require("process").env === "object" && typeof process === "undefined" ? "ok" : "bad"`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("run process module smoke: %v", err)
+	}
+	if ret != "ok" {
+		t.Fatalf("process module status = %v, want ok", ret)
+	}
+}
+
+func TestProcessModuleAndGlobalShareOptIn(t *testing.T) {
+	factory, err := NewBuilder().WithModules(ProcessModule()).WithRuntimeInitializers(ProcessEnv()).Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "process-module-global", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`process === require("process") && typeof process.env === "object" ? "ok" : "bad"`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("run process module+global smoke: %v", err)
+	}
+	if ret != "ok" {
+		t.Fatalf("process module+global status = %v, want ok", ret)
 	}
 }
