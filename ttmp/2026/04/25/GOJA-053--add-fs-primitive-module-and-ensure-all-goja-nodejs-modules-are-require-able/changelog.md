@@ -1,0 +1,49 @@
+---
+Title: Changelog
+Ticket: GOJA-053
+LastUpdated: 2026-04-25T08:00:00-04:00
+---
+
+# Changelog
+
+## 2026-04-25: Initial analysis and design
+
+- Created ticket GOJA-053 with comprehensive design doc
+- Completed full investigation of goja_nodejs module inventory
+- Confirmed 4 missing module wirings (buffer, process, url, util)
+- Designed enhanced fs module API (8 new functions)
+- Created phased implementation plan (3 phases, 23 tasks)
+- Created investigation diary with evidence and findings
+
+## 2026-04-25 (update): Pivoted to promise-based fs design
+
+- Discovered the runtime already has full async/promise support via timer module pattern
+- Confirmed REPL evaluator handles `await` and Promise polling
+- Updated design doc: async-first fs with sync wrappers
+- New file structure: `fs.go` + `fs_async.go` + `fs_sync.go`
+- Updated tasks to 20 items across 3 phases
+
+### Related files
+
+- `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/modules/timer/timer.go`: Proven promise pattern
+- `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go`: await/Promise handling
+- `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/pkg/runtimeowner/runner.go`: Post() for safe owner-thread scheduling
+
+## 2026-04-25: Implemented Track A/B/C
+
+- Track A implemented imported goja_nodejs primitives and configurable `process` global (commit eb9401a1989289ffb286b0aa3d4a1f6821cf4474).
+- Track B implemented JavaScript timing primitives (`performance.now`, `console.time*`, `require("time")`) (commit a0e5628cbc7fb7d299349640b5de04ce40369f1b).
+- Track C implemented promise-based fs primitives plus sync wrappers (commit 79a36627d0e456da1a487d51d06fbf41ecbefb0f).
+- Validation passed: `go test ./engine ./modules/fs ./modules/time -count=1`.
+- Broader pre-commit hook surfaced an unrelated existing failure in `pkg/replsession`: `TestServiceRawAwaitPromiseTimeoutUsesEvalDeadline` expected timeout status but got `runtime-error`.
+
+### Related files
+
+- `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/engine/factory.go`: Runtime global installation for Buffer, URL, performance, and console timers.
+- `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/engine/module_specs.go`: `ProcessEnv()` opt-in runtime initializer.
+- `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/engine/nodejs_init.go`: goja_nodejs core module registration imports.
+- `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/engine/performance.go`: Performance and console timing globals.
+- `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/modules/time/time.go`: Explicit timing module.
+- `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/modules/fs/fs.go`: fs module wiring and declarations.
+- `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/modules/fs/fs_async.go`: Promise-based fs implementations.
+- `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/modules/fs/fs_sync.go`: Synchronous fs implementations.

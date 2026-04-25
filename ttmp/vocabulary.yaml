@@ -75,6 +75,14 @@ topics:
       description: Backend services
     - slug: websocket
       description: WebSocket lifecycle & events
+    - slug: fs
+      description: File system module operations
+    - slug: goja-nodejs
+      description: goja_nodejs compatibility library modules
+    - slug: modules
+      description: JavaScript native module system
+    - slug: nodejs-compat
+      description: Node.js API compatibility layer
 docTypes:
     - slug: index
       description: Ticket index documents
