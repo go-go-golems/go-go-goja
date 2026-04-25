@@ -68,7 +68,7 @@ func appendFileBytes(path string, data []byte, mode os.FileMode) error {
 	if err != nil {
 		return wrapFSError(err, path, "open")
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	_, err = f.Write(data)
 	return wrapFSError(err, path, "write")
 }
