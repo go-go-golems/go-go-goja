@@ -461,3 +461,52 @@ The goal is safer third-party embedding. A package can now create a useful runti
 ### Technical details
 - Data-only defaults: `crypto`, `path`, `time`, `timer`.
 - Selectable host-access modules remain available through `DefaultRegistryModule` / `DefaultRegistryModulesNamed`.
+
+## Step 7: Validate jsverbs `objectFromFile` Glazed field support
+
+This step answered whether jsverbs can use Glazed's `objectFromFile` field type to load JSON files and pass the parsed object into JavaScript verbs.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Other qustion, acn we load json files as objectfromfile glazed arguments to jsverbs? write a test script to validate."
+
+**Assistant interpretation:** Validate the end-to-end path from jsverbs metadata to Glazed field parsing to JavaScript argument binding. If the field type is missing from jsverbs' type mapper, add it and preserve the result with a repeatable script.
+
+### What I found
+
+Initially, `objectFromFile` did not work from jsverbs metadata. Glazed itself supports `fields.TypeObjectFromFile`, and `normalizeDefaultValue` already knew about file-backed types, but `pkg/jsverbs/command.go` rejected the field during metadata-to-Glazed conversion with:
+
+```text
+objectfile.js#inspectConfig field config: unsupported field type "objectFromFile"
+```
+
+### What I changed
+
+- Extended `glazedFieldType` in `pkg/jsverbs/command.go` to recognize Glazed file-backed and richer scalar/list types, including `objectFromFile`.
+- Added `TestObjectFromFileFieldLoadsJSONIntoJSObject` in `pkg/jsverbs/jsverbs_test.go`.
+- Added a repeatable smoke script at `scripts/validate-jsverbs-objectfromfile.sh` under this ticket workspace.
+- Updated the jsverbs reference help page's field type mapping.
+
+### Validation
+
+The smoke script creates a temporary jsverb and JSON file, invokes `cmd/jsverbs-example`, and verifies that JavaScript receives a real object:
+
+```text
++-----------+------------+------+--------+--------+
+| firstItem | listLength | name | nested | type   |
++-----------+------------+------+--------+--------+
+| a         | 3          | demo | 42     | object |
++-----------+------------+------+--------+--------+
+OK: objectFromFile JSON was parsed by Glazed and delivered to jsverbs as a JavaScript object.
+```
+
+Focused validation passed:
+
+```bash
+go test ./pkg/jsverbs ./cmd/jsverbs-example ./pkg/doc -count=1
+bash ttmp/2026/04/25/GOJA-053--add-fs-primitive-module-and-ensure-all-goja-nodejs-modules-are-require-able/scripts/validate-jsverbs-objectfromfile.sh
+```
+
+### What warrants a second pair of eyes
+
+- The mapper now exposes several Glazed field types beyond `objectFromFile`. They are direct mappings to existing Glazed constants, but only `objectFromFile` received a dedicated end-to-end test in this step.

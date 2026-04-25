@@ -3,6 +3,7 @@ package jsverbs
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -216,6 +217,44 @@ __verb__("greet", {
 	require.Contains(t, err.Error(), "unsupported metadata literal")
 	require.Len(t, registry.ErrorDiagnostics(), 1)
 	require.Contains(t, registry.ErrorDiagnostics()[0].Message, "invalid __verb__ metadata")
+}
+
+func TestObjectFromFileFieldLoadsJSONIntoJSObject(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.json")
+	require.NoError(t, os.WriteFile(configPath, []byte(`{"name":"demo","nested":{"value":42},"items":["a","b","c"]}`), 0o644))
+
+	registry, err := ScanSource("objectfile.js", `
+function inspectConfig(config) {
+  return [{
+    type: typeof config,
+    name: config && config.name,
+    nested: config && config.nested && config.nested.value,
+    listLength: config && config.items && config.items.length
+  }];
+}
+
+__verb__("inspectConfig", {
+  short: "Inspect JSON object loaded from a file",
+  fields: {
+    config: {
+      type: "objectFromFile",
+      help: "Path to JSON config file"
+    }
+  }
+});
+`)
+	require.NoError(t, err)
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["objectfile inspect-config"], map[string]map[string]interface{}{
+		"default": {
+			"config": configPath,
+		},
+	})
+	require.Equal(t, "object", rows[0]["type"])
+	require.Equal(t, "demo", rows[0]["name"])
+	require.EqualValues(t, 42, rows[0]["nested"])
+	require.EqualValues(t, 3, rows[0]["listLength"])
 }
 
 func TestCommandsFailForUnknownBoundSection(t *testing.T) {

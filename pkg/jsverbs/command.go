@@ -285,6 +285,32 @@ func glazedFieldType(spec *FieldSpec) (fields.Type, error) {
 		return fields.TypeChoice, nil
 	case "choicelist":
 		return fields.TypeChoiceList, nil
+	case "stringfromfile":
+		return fields.TypeStringFromFile, nil
+	case "stringfromfiles":
+		return fields.TypeStringFromFiles, nil
+	case "file":
+		return fields.TypeFile, nil
+	case "filelist":
+		return fields.TypeFileList, nil
+	case "objectfromfile":
+		return fields.TypeObjectFromFile, nil
+	case "objectlistfromfile":
+		return fields.TypeObjectListFromFile, nil
+	case "objectlistfromfiles":
+		return fields.TypeObjectListFromFiles, nil
+	case "stringlistfromfile":
+		return fields.TypeStringListFromFile, nil
+	case "stringlistfromfiles":
+		return fields.TypeStringListFromFiles, nil
+	case "keyvalue":
+		return fields.TypeKeyValue, nil
+	case "date":
+		return fields.TypeDate, nil
+	case "intlist", "integerlist":
+		return fields.TypeIntegerList, nil
+	case "floatlist", "numberlist":
+		return fields.TypeFloatList, nil
 	default:
 		return "", fmt.Errorf("unsupported field type %q", spec.Type)
 	}

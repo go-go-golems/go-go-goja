@@ -71,3 +71,10 @@ LastUpdated: 2026-04-25T08:00:00-04:00
 - Host-access modules (`fs`, `os`, `exec`, `database`) require explicit selection through `engine.DefaultRegistryModule(name)` or `engine.DefaultRegistryModulesNamed(...)`.
 - `engine.DefaultRegistryModules()` remains available for trusted runtimes that want the whole registry.
 - Updated help docs for third-party embedding and module selection (commits a7a6c9716d6bab3bcb9dfe943c6dbe4493aab4e1 and 0b01fc0b7ca6072040b5e83f903b30409a80f737).
+
+## 2026-04-25: Added jsverbs objectFromFile support
+
+- `pkg/jsverbs/command.go` now maps `objectFromFile` and related Glazed field types into Glazed field definitions.
+- Added an end-to-end test proving JSON loaded through `objectFromFile` arrives in JavaScript as an object.
+- Added `scripts/validate-jsverbs-objectfromfile.sh` as a repeatable CLI smoke test using `cmd/jsverbs-example`.
+- Updated the jsverbs reference help page with the expanded field type mapping.
