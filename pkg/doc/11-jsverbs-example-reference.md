@@ -187,6 +187,16 @@ Supported field types currently map to Glazed like this:
 - `stringList`, `list`, `[]string` -> string-list field
 - `choice` -> choice field
 - `choiceList` -> choice-list field
+- `objectFromFile` -> load one JSON/YAML object from a file and pass it to JavaScript as an object
+- `objectListFromFile` -> load a list of objects from one file
+- `objectListFromFiles` -> load object lists from multiple files
+- `stringFromFile` / `stringFromFiles` -> load string content from one or more files
+- `stringListFromFile` / `stringListFromFiles` -> load string lists from one or more files
+- `file` / `fileList` -> load Glazed file data values
+- `keyValue` -> parse key-value data
+- `date` -> date field
+- `intList` / `integerList` -> integer-list field
+- `floatList` / `numberList` -> float-list field
 
 If `choices` is set and no type is provided, the system treats the field as `choice`.
 

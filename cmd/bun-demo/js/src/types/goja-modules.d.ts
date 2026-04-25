@@ -12,6 +12,34 @@ declare module "exec" {
 }
 
 declare module "fs" {
-  export function readFileSync(path: string): string;
-  export function writeFileSync(path: string, data: string): void;
+  export function appendFile(path: string, data: string | Buffer | Uint8Array | DataView, encoding?: string | {  }): Promise<void>;
+  export function appendFileSync(path: string, data: string | Buffer | Uint8Array | DataView, encoding?: string | {  }): void;
+  export function copyFile(src: string, dst: string): Promise<void>;
+  export function copyFileSync(src: string, dst: string): void;
+  export function exists(path: string): Promise<boolean>;
+  export function existsSync(path: string): boolean;
+  export function mkdir(path: string, options?: {  }): Promise<void>;
+  export function mkdirSync(path: string, options?: {  }): void;
+  export function readFile(path: string, encoding?: string | {  }): Promise<string | Buffer>;
+  export function readFileSync(path: string, encoding?: string | {  }): string | Buffer;
+  export function readdir(path: string): Promise<string[]>;
+  export function readdirSync(path: string): string[];
+  export function rename(oldPath: string, newPath: string): Promise<void>;
+  export function renameSync(oldPath: string, newPath: string): void;
+  export function rm(path: string, options?: {  }): Promise<void>;
+  export function rmSync(path: string, options?: {  }): void;
+  export function stat(path: string): Promise<FileStats>;
+  export function statSync(path: string): FileStats;
+  export function unlink(path: string): Promise<void>;
+  export function unlinkSync(path: string): void;
+  export function writeFile(path: string, data: string | Buffer | Uint8Array | DataView, encoding?: string | {  }): Promise<void>;
+  export function writeFileSync(path: string, data: string | Buffer | Uint8Array | DataView, encoding?: string | {  }): void;
+  interface FileStats {
+  name: string;
+  size: number;
+  mode: number;
+  modTime: string;
+  isDir: boolean;
+  isFile: boolean;
+  }
 }
