@@ -214,6 +214,14 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	console.Enable(vm)
 	buffer.Enable(vm)
 	url.Enable(vm)
+	if err := installPerformanceGlobals(vm); err != nil {
+		_ = rt.Close(ctx)
+		return nil, err
+	}
+	if err := installConsoleTimers(vm); err != nil {
+		_ = rt.Close(ctx)
+		return nil, err
+	}
 	rt.Require = reqMod
 
 	initCtx := &RuntimeContext{
