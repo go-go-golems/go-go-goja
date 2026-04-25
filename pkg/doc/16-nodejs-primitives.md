@@ -51,6 +51,60 @@ factory, err := engine.NewBuilder().
     Build()
 ```
 
+## Embedding from Third-Party Packages
+
+This section shows how an application or library outside this repository should construct a runtime with the primitive modules enabled. The key idea is that module registration and runtime construction are explicit: import the `engine` package, build a factory, and opt in to the module set you want.
+
+For the standard go-go-goja primitive modules, use `engine.DefaultRegistryModules()`:
+
+```go
+package myruntime
+
+import (
+    "context"
+
+    "github.com/go-go-golems/go-go-goja/engine"
+)
+
+func NewRuntime(ctx context.Context) (*engine.Runtime, error) {
+    factory, err := engine.NewBuilder().
+        WithModules(engine.DefaultRegistryModules()).
+        Build()
+    if err != nil {
+        return nil, err
+    }
+
+    return factory.NewRuntime(ctx)
+}
+```
+
+That enables the native modules registered in the default registry, including `fs`, `path`, `os`, `crypto`, `time`, `timer`, `database`, and `exec`. The engine package already contains the blank imports that make those modules register themselves, so third-party packages do not need to blank-import each module manually.
+
+If the application wants the global `process` object, add the opt-in initializer:
+
+```go
+factory, err := engine.NewBuilder().
+    WithModules(engine.DefaultRegistryModules()).
+    WithRuntimeInitializers(engine.ProcessEnv()).
+    Build()
+```
+
+Use `ProcessEnv()` only when JavaScript should see host environment variables through `process.env`. Without this initializer, `require("process")` still works, but global `process` is not installed.
+
+A runtime created this way can execute scripts such as:
+
+```javascript
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+
+const file = path.join("/tmp", crypto.randomUUID() + ".txt");
+fs.writeFileSync(file, Buffer.from("hello"));
+console.log(fs.readFileSync(file, "utf8"));
+```
+
+For a tighter sandbox, do not use `DefaultRegistryModules()`. Instead, register only the modules your application wants through explicit `engine.NativeModuleSpec` values or a future project-level helper that selects built-in modules by name.
+
 ## Available Primitives
 
 This section lists the current built-in primitives, what each one is for, and how scripts should use them in practice.
