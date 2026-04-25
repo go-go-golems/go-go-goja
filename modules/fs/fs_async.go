@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/buffer"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 )
 
@@ -34,15 +35,32 @@ func asyncValue(vm *goja.Runtime, bindings runtimebridge.Bindings, op string, fn
 	return vm.ToValue(promise)
 }
 
-func asyncReadFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path string) goja.Value {
-	return asyncValue(vm, bindings, "fs.readFile", func() (any, error) {
-		return readFileSync(path)
-	})
+func asyncReadFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path string, enc goja.Value) goja.Value {
+	promise, resolve, reject := vm.NewPromise()
+	go func() {
+		select {
+		case <-bindings.Context.Done():
+			return
+		default:
+		}
+
+		data, err := readFileBytes(path)
+		if err != nil {
+			_ = bindings.Owner.Post(bindings.Context, "fs.readFile.reject", func(context.Context, *goja.Runtime) {
+				_ = reject(vm.ToValue(err.Error()))
+			})
+			return
+		}
+		_ = bindings.Owner.Post(bindings.Context, "fs.readFile.resolve", func(context.Context, *goja.Runtime) {
+			_ = resolve(buffer.EncodeBytes(vm, data, enc))
+		})
+	}()
+	return vm.ToValue(promise)
 }
 
-func asyncWriteFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path, data string) goja.Value {
+func asyncWriteFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path string, data []byte) goja.Value {
 	return asyncValue(vm, bindings, "fs.writeFile", func() (any, error) {
-		return nil, writeFileSync(path, data)
+		return nil, writeFileBytes(path, data)
 	})
 }
 
@@ -76,9 +94,9 @@ func asyncUnlink(vm *goja.Runtime, bindings runtimebridge.Bindings, path string)
 	})
 }
 
-func asyncAppendFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path, data string) goja.Value {
+func asyncAppendFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path string, data []byte) goja.Value {
 	return asyncValue(vm, bindings, "fs.appendFile", func() (any, error) {
-		return nil, appendFileSync(path, data)
+		return nil, appendFileBytes(path, data)
 	})
 }
 

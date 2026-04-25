@@ -18,13 +18,12 @@ func statMap(info os.FileInfo) fileStats {
 	}
 }
 
-func readFileSync(path string) (string, error) {
-	b, err := os.ReadFile(path)
-	return string(b), err
+func readFileBytes(path string) ([]byte, error) {
+	return os.ReadFile(path)
 }
 
-func writeFileSync(path, data string) error {
-	return os.WriteFile(path, []byte(data), 0o644)
+func writeFileBytes(path string, data []byte) error {
+	return os.WriteFile(path, data, 0o644)
 }
 
 func existsSync(path string) bool {
@@ -63,13 +62,13 @@ func unlinkSync(path string) error {
 	return os.Remove(path)
 }
 
-func appendFileSync(path, data string) error {
+func appendFileBytes(path string, data []byte) error {
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	_, err = f.WriteString(data)
+	_, err = f.Write(data)
 	return err
 }
 

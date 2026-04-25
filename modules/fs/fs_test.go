@@ -28,7 +28,7 @@ func TestAsyncFsSmoke(t *testing.T) {
 				await fs.mkdir(sub, { recursive: true });
 				await fs.writeFile(sub + "/a.txt", "hello");
 				await fs.appendFile(sub + "/a.txt", " world");
-				const text = await fs.readFile(sub + "/a.txt");
+				const text = await fs.readFile(sub + "/a.txt", "utf8");
 				const exists = await fs.exists(sub + "/a.txt");
 				const entries = await fs.readdir(sub);
 				const stat = await fs.stat(sub + "/a.txt");
@@ -75,6 +75,50 @@ func TestAsyncFsSmoke(t *testing.T) {
 	}
 }
 
+func TestAsyncFsBufferSmoke(t *testing.T) {
+	dir := t.TempDir()
+	rt := newRuntime(t)
+	quotedDir := strconv.Quote(filepath.ToSlash(dir))
+
+	_, err := rt.Owner.Call(context.Background(), "fs.async-buffer.setup", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, runErr := vm.RunString(`
+			globalThis.__fsSmoke = { done: false, error: "" };
+			(async () => {
+				const fs = require("fs");
+				const root = ` + quotedDir + `;
+				const p = root + "/buffer.bin";
+				await fs.writeFile(p, Buffer.from([65, 66, 67]));
+				await fs.appendFile(p, Buffer.from([68]));
+				const b = await fs.readFile(p);
+				const s = await fs.readFile(p, { encoding: "utf8" });
+				globalThis.__fsSmoke = {
+					done: true,
+					error: "",
+					bufferLength: b.length,
+					bufferText: b.toString(),
+					encodedText: s
+				};
+			})().catch(e => {
+				globalThis.__fsSmoke = { done: true, error: String(e) };
+			});
+		`)
+		return nil, runErr
+	})
+	if err != nil {
+		t.Fatalf("setup async buffer smoke: %v", err)
+	}
+
+	requireEventuallyState(t, rt, func(raw string) bool {
+		return strings.Contains(raw, `"done":true`)
+	})
+	state := readState(t, rt)
+	for _, want := range []string{`"error":""`, `"bufferLength":4`, `"bufferText":"ABCD"`, `"encodedText":"ABCD"`} {
+		if !strings.Contains(state, want) {
+			t.Fatalf("async buffer state missing %s: %s", want, state)
+		}
+	}
+}
+
 func TestSyncFsSmoke(t *testing.T) {
 	dir := t.TempDir()
 	rt := newRuntime(t)
@@ -88,7 +132,7 @@ func TestSyncFsSmoke(t *testing.T) {
 			fs.mkdirSync(sub, { recursive: true });
 			fs.writeFileSync(sub + "/a.txt", "sync");
 			fs.appendFileSync(sub + "/a.txt", " data");
-			const text = fs.readFileSync(sub + "/a.txt");
+			const text = fs.readFileSync(sub + "/a.txt", "utf8");
 			const entries = fs.readdirSync(sub);
 			const stat = fs.statSync(sub + "/a.txt");
 			fs.copyFileSync(sub + "/a.txt", sub + "/b.txt");
@@ -111,6 +155,41 @@ func TestSyncFsSmoke(t *testing.T) {
 	for _, want := range []string{`"text":"sync data"`, `"exists":true`, `"a.txt"`, `"isFile":true`, `"removed":true`} {
 		if !strings.Contains(state, want) {
 			t.Fatalf("sync state missing %s: %s", want, state)
+		}
+	}
+}
+
+func TestSyncFsBufferSmoke(t *testing.T) {
+	dir := t.TempDir()
+	rt := newRuntime(t)
+	quotedDir := strconv.Quote(filepath.ToSlash(dir))
+
+	ret, err := rt.Owner.Call(context.Background(), "fs.sync-buffer", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`
+			const fs = require("fs");
+			const root = ` + quotedDir + `;
+			const p = root + "/sync-buffer.bin";
+			fs.writeFileSync(p, Buffer.from([88, 89]));
+			fs.appendFileSync(p, Buffer.from([90]));
+			const b = fs.readFileSync(p);
+			const s = fs.readFileSync(p, "utf8");
+			JSON.stringify({ bufferLength: b.length, bufferText: b.toString(), encodedText: s });
+		`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("run sync buffer smoke: %v", err)
+	}
+	state, ok := ret.(string)
+	if !ok {
+		t.Fatalf("sync buffer result type %T", ret)
+	}
+	for _, want := range []string{`"bufferLength":3`, `"bufferText":"XYZ"`, `"encodedText":"XYZ"`} {
+		if !strings.Contains(state, want) {
+			t.Fatalf("sync buffer state missing %s: %s", want, state)
 		}
 	}
 }
