@@ -6,9 +6,11 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/buffer"
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/dop251/goja_nodejs/url"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 )
@@ -210,6 +212,8 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 
 	reqMod := reg.Enable(vm)
 	console.Enable(vm)
+	buffer.Enable(vm)
+	url.Enable(vm)
 	rt.Require = reqMod
 
 	initCtx := &RuntimeContext{

@@ -7,6 +7,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
+	"github.com/dop251/goja_nodejs/process"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/modules"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
@@ -100,4 +101,25 @@ func (s defaultRegistryModulesSpec) Register(reg *require.Registry) error {
 // go-go-goja/modules.DefaultRegistry. This is explicit and opt-in.
 func DefaultRegistryModules() ModuleSpec {
 	return defaultRegistryModulesSpec{}
+}
+
+type processEnvInitializer struct{}
+
+func (p processEnvInitializer) ID() string {
+	return "process-env"
+}
+
+func (p processEnvInitializer) InitRuntime(ctx *RuntimeContext) error {
+	if ctx == nil || ctx.VM == nil {
+		return fmt.Errorf("runtime context or VM is nil")
+	}
+	process.Enable(ctx.VM)
+	return nil
+}
+
+// ProcessEnv returns a runtime initializer that installs the global process
+// object. It is opt-in because goja_nodejs/process exposes the host
+// environment via process.env.
+func ProcessEnv() RuntimeInitializer {
+	return processEnvInitializer{}
 }
