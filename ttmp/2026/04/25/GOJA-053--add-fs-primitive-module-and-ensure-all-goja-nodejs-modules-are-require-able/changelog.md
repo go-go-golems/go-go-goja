@@ -47,3 +47,10 @@ LastUpdated: 2026-04-25T08:00:00-04:00
 - `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/modules/fs/fs.go`: fs module wiring and declarations.
 - `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/modules/fs/fs_async.go`: Promise-based fs implementations.
 - `/home/manuel/workspaces/2026-04-25/add-primitive-modules/go-go-goja/modules/fs/fs_sync.go`: Synchronous fs implementations.
+
+## 2026-04-25: Added Buffer support to fs primitives
+
+- Updated fs read APIs to return Buffer by default and string when encoding is provided.
+- Updated fs write/append APIs to accept string, Buffer, TypedArray, and DataView inputs.
+- Added async and sync Buffer smoke tests (commit ab179dd715d41f0f81adb33f199b9414145a5266).
+- Validation passed: `go test ./modules/fs -count=1` and `go test ./engine ./modules/fs ./modules/time ./pkg/replsession -count=1`.

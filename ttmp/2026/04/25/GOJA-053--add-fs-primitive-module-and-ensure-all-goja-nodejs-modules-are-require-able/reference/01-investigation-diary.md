@@ -276,3 +276,62 @@ The tests are real smoke tests: they create temp files and directories, run Java
 ### Technical details
 - Async functions: `readFile`, `writeFile`, `exists`, `mkdir`, `readdir`, `stat`, `unlink`, `appendFile`, `rename`, `copyFile`.
 - Sync functions: same names with `Sync` suffix.
+
+## Step 4: Add Buffer support to fs read/write APIs
+
+This step made the fs module behave more like Node.js for file contents. Reads now return `Buffer` by default and return strings only when an encoding is supplied. Writes and appends now accept strings, Buffers, TypedArrays, and DataViews by using the public goja_nodejs Buffer helpers.
+
+The implementation stayed inside go-go-goja. No upstream goja_nodejs changes were required because `github.com/dop251/goja_nodejs/buffer` already exposes `DecodeBytes` and `EncodeBytes` helpers.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Yes, implement buffer support."
+
+**Assistant interpretation:** Extend the already implemented promise-based fs module so read/write/append support Node-like Buffer behavior.
+
+**Inferred user intent:** Make `require("fs")` compatible with common Node-style binary and text workflows.
+
+**Commit (code):** ab179dd715d41f0f81adb33f199b9414145a5266 — "Add Buffer support to fs primitives"
+
+### What I did
+- Updated `modules/fs/fs.go` read/write/append exports to use `goja.FunctionCall`.
+- Used `buffer.EncodeBytes(vm, data, encoding)` for `readFile` and `readFileSync`.
+- Used `buffer.DecodeBytes(vm, value, encoding)` for `writeFile`, `writeFileSync`, `appendFile`, and `appendFileSync`.
+- Updated async read to create Buffer/string values on the owner thread during promise resolution.
+- Updated sync helpers to operate on `[]byte`.
+- Added async and sync smoke tests for Buffer read/write/append behavior.
+
+### Why
+- Node's `fs.readFileSync(path)` returns a Buffer by default and a string only when an encoding is provided.
+- File writes should accept Buffer-like binary inputs, not only strings.
+
+### What worked
+- goja_nodejs Buffer helpers were sufficient; no upstream changes were needed.
+- Existing async promise infrastructure adapted cleanly once read resolution encoded bytes on the owner thread.
+
+### What didn't work
+- Initial tests used `Buffer.isBuffer`, but goja_nodejs Buffer does not implement that helper. The smoke tests now validate Buffer behavior through `length` and `toString()`.
+
+### What I learned
+- `buffer.EncodeBytes` returns a Buffer when encoding is undefined and a string when encoding is provided.
+- `buffer.DecodeBytes` is the correct common path for string/Buffer/TypedArray/DataView write inputs.
+
+### What was tricky to build
+- Async `readFile` must not call `buffer.EncodeBytes` from the background goroutine because that creates goja values. It reads bytes in the goroutine and encodes them inside the `bindings.Owner.Post(...)` callback.
+
+### What warrants a second pair of eyes
+- Encoding object handling currently extracts `{ encoding }`; it does not implement every Node option. This is enough for smoke-tested Buffer/string behavior.
+- Error values still reject as strings rather than Node error objects.
+
+### What should be done in the future
+- Add tests for hex/base64 encodings if those are expected user workflows.
+- Consider implementing Node-like error objects for fs failures.
+
+### Code review instructions
+- Start in `modules/fs/fs.go` for JS API shape.
+- Review `modules/fs/fs_async.go` to confirm VM work stays on owner thread.
+- Validate with `go test ./modules/fs -count=1`.
+
+### Technical details
+- Validation run: `go test ./modules/fs -count=1`.
+- Broader validation run: `go test ./engine ./modules/fs ./modules/time ./pkg/replsession -count=1`.
