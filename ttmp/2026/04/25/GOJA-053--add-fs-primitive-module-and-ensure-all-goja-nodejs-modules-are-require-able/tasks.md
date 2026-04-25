@@ -46,3 +46,17 @@ LastUpdated: 2026-04-25T09:05:00-04:00
 - [ ] 27. Run broader `go test ./... -count=1` if feasible; document any pre-existing failures.
 - [ ] 28. Run `docmgr doctor --ticket GOJA-053 --stale-after 30`.
 - [ ] 29. Upload updated docs to reMarkable.
+
+## Track E: Follow-up Node-style primitive modules
+
+- [x] 30. Add `modules/path` with `join`, `resolve`, `dirname`, `basename`, `extname`, `isAbsolute`, `relative`, `separator`, and `delimiter`.
+- [x] 31. Add runtime smoke tests for `require("path")` using real JavaScript.
+- [x] 32. Improve fs error values to reject/throw Error objects with `code`, `path`, and `syscall` for common filesystem failures.
+- [x] 33. Add fs option support for read/write/append options objects (`encoding`, `mode`) and `rm/rmSync` with guarded `recursive`/`force` behavior.
+- [x] 34. Add runtime smoke tests for fs error objects and fs options.
+- [x] 35. Add `modules/os` with `homedir`, `tmpdir`, `platform`, `arch`, `hostname`, `release`, `type`, `cpus`, and `EOL`.
+- [x] 36. Add runtime smoke tests for `require("os")`.
+- [x] 37. Add `modules/crypto` basics: `randomUUID`, `randomBytes`, and `createHash(...).update(...).digest(...)` for sha1/sha256/sha512/md5.
+- [x] 38. Add runtime smoke tests for `require("crypto")`.
+- [x] 39. Run focused tests: `go test ./modules/path ./modules/fs ./modules/os ./modules/crypto ./engine -count=1`.
+- [ ] 40. Update diary/changelog, run `docmgr doctor`, upload docs to reMarkable.

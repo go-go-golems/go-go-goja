@@ -54,3 +54,13 @@ LastUpdated: 2026-04-25T08:00:00-04:00
 - Updated fs write/append APIs to accept string, Buffer, TypedArray, and DataView inputs.
 - Added async and sync Buffer smoke tests (commit ab179dd715d41f0f81adb33f199b9414145a5266).
 - Validation passed: `go test ./modules/fs -count=1` and `go test ./engine ./modules/fs ./modules/time ./pkg/replsession -count=1`.
+
+## 2026-04-25: Added path, os, crypto, and fs compatibility follow-ups
+
+- Added `path` module with host filepath helpers.
+- Added `os` module with common host OS helpers.
+- Added `crypto` module with `randomUUID`, `randomBytes`, and basic `createHash` support.
+- Improved fs errors to throw/reject Error objects with `code`, `path`, and `syscall`.
+- Added fs options support and `rm/rmSync`.
+- Added runtime smoke tests for all new modules and fs compatibility behavior (commit 0a0c49c1fea5c8d4828ed5e57fd6fbcd544dccad).
+- Validation passed: `go test ./modules/path ./modules/fs ./modules/os ./modules/crypto ./engine -count=1`.

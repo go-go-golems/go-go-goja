@@ -335,3 +335,71 @@ The implementation stayed inside go-go-goja. No upstream goja_nodejs changes wer
 ### Technical details
 - Validation run: `go test ./modules/fs -count=1`.
 - Broader validation run: `go test ./engine ./modules/fs ./modules/time ./pkg/replsession -count=1`.
+
+## Step 5: Add path, os, crypto, and fs compatibility follow-ups
+
+This step implemented the next set of Node-style primitives after fs: `path`, `os`, and `crypto`, plus fs error objects/options. The goal was to unlock common scripts that combine filesystem access with path manipulation, host environment inspection, and basic hashing/random generation.
+
+The implementation stayed pragmatic. It does not try to clone every Node edge case, but it provides the commonly used surface with real JavaScript smoke tests executed through go-go-goja runtimes.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add tasks to create 1-5. Then work on them."
+
+**Assistant interpretation:** Add tasks for the next five roadmap items after fs, then implement them immediately.
+
+**Inferred user intent:** Continue making go-go-goja's JavaScript runtime more Node-like and useful for real scripting workflows.
+
+**Commit (code):** 0a0c49c1fea5c8d4828ed5e57fd6fbcd544dccad — "Add path os crypto and fs options"
+
+### What I did
+- Added Track E tasks 30-40 to GOJA-053.
+- Added `modules/path` with `join`, `resolve`, `dirname`, `basename`, `extname`, `isAbsolute`, `relative`, `separator`, and `delimiter`.
+- Added `modules/os` with `homedir`, `tmpdir`, `platform`, `arch`, `hostname`, `release`, `type`, `cpus`, and `EOL`.
+- Added `modules/crypto` with `randomUUID`, `randomBytes`, and `createHash(...).update(...).digest(...)` for md5/sha1/sha256/sha512.
+- Added `modules/fs/fs_errors.go` and updated fs to throw/reject Error objects with `code`, `path`, and `syscall`.
+- Added fs options support for read/write/append encoding/mode objects and `rm/rmSync` with `recursive` and `force`.
+- Added smoke tests for path, os, crypto, fs errors, fs options, and rm behavior.
+- Added blank imports in `engine/runtime.go` so the new modules are available through `DefaultRegistryModules()`.
+
+### Why
+- `path` is the natural companion to `fs`.
+- Error objects with `code` make JS error handling practical.
+- `os` and `crypto` unlock common Node-style utility scripts.
+
+### What worked
+- Existing `modules.NativeModule` pattern worked cleanly for all new modules.
+- `goja_nodejs/buffer` helpers made `crypto.randomBytes()` and hash digest buffers easy.
+- Focused validation passed: `go test ./modules/path ./modules/fs ./modules/os ./modules/crypto ./engine -count=1`.
+
+### What didn't work
+- First path smoke assertion looked for escaped quotes around `c.txt`; actual JSON contained `a/b/c.txt`, so I relaxed the assertion to look for `c.txt`.
+- Initial compile errors found two unavailable goja helpers: `vm.NewRangeError` and `vm.NewError`. I replaced them with `vm.NewTypeError` and `vm.NewGoError` respectively.
+
+### What I learned
+- goja_nodejs Buffer does not mirror every Node helper, but it provides the important conversion primitives.
+- Go's filepath behavior is enough for a host-platform `path` v1, but not a full Node `path.posix`/`path.win32` clone.
+
+### What was tricky to build
+- fs error object creation needed to avoid raw string rejections and convert wrapped Go filesystem errors into JS Error objects on the owner thread.
+- `crypto.createHash()` needed chainable `update()` and digest behavior while preserving the Go hash state in a closure.
+
+### What warrants a second pair of eyes
+- `os.release()` and `os.type()` are currently pragmatic `runtime.GOOS` values, not full OS release strings.
+- `path` uses host `filepath`, not Node's exact POSIX/win32 implementation.
+- `crypto` intentionally supports a small algorithm set and a limited digest encoding set.
+
+### What should be done in the future
+- Add `path.posix` and `path.win32` if scripts need cross-platform deterministic path behavior.
+- Expand crypto digest encodings and algorithms only as needed.
+- Add more precise OS release/type information if required by users.
+
+### Code review instructions
+- Review new modules in `modules/path`, `modules/os`, and `modules/crypto`.
+- Review fs error/option changes in `modules/fs/fs.go`, `modules/fs/fs_sync.go`, `modules/fs/fs_async.go`, and `modules/fs/fs_errors.go`.
+- Validate with `go test ./modules/path ./modules/fs ./modules/os ./modules/crypto ./engine -count=1`.
+
+### Technical details
+- `crypto.randomBytes()` returns a goja_nodejs Buffer.
+- Hash digest without encoding returns Buffer; `hex` and `base64` return strings.
+- fs `rmSync(path, { force: true })` ignores missing paths.
