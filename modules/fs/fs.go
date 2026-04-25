@@ -1,16 +1,14 @@
 package fs
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/modules"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 )
-
-// m is the concrete implementation of the fs module.
-// We use an empty struct because no internal state is required.
-// The compile-time assertion guarantees that *m implements NativeModule.
 
 type m struct{}
 
@@ -22,54 +20,133 @@ func (m) Name() string { return "fs" }
 func (m) TypeScriptModule() *spec.Module {
 	return &spec.Module{
 		Name: "fs",
+		RawDTS: []string{
+			"interface FileStats {",
+			"  name: string;",
+			"  size: number;",
+			"  mode: number;",
+			"  modTime: string;",
+			"  isDir: boolean;",
+			"  isFile: boolean;",
+			"}",
+		},
 		Functions: []spec.Function{
-			{
-				Name: "readFileSync",
-				Params: []spec.Param{
-					{Name: "path", Type: spec.String()},
-				},
-				Returns: spec.String(),
-			},
-			{
-				Name: "writeFileSync",
-				Params: []spec.Param{
-					{Name: "path", Type: spec.String()},
-					{Name: "data", Type: spec.String()},
-				},
-				Returns: spec.Void(),
-			},
+			{Name: "readFile", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.Named("Promise<string>")},
+			{Name: "writeFile", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "data", Type: spec.String()}}, Returns: spec.Named("Promise<void>")},
+			{Name: "exists", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.Named("Promise<boolean>")},
+			{Name: "mkdir", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "options", Type: spec.Object(), Optional: true}}, Returns: spec.Named("Promise<void>")},
+			{Name: "readdir", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.Named("Promise<string[]>")},
+			{Name: "stat", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.Named("Promise<FileStats>")},
+			{Name: "unlink", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.Named("Promise<void>")},
+			{Name: "appendFile", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "data", Type: spec.String()}}, Returns: spec.Named("Promise<void>")},
+			{Name: "rename", Params: []spec.Param{{Name: "oldPath", Type: spec.String()}, {Name: "newPath", Type: spec.String()}}, Returns: spec.Named("Promise<void>")},
+			{Name: "copyFile", Params: []spec.Param{{Name: "src", Type: spec.String()}, {Name: "dst", Type: spec.String()}}, Returns: spec.Named("Promise<void>")},
+			{Name: "readFileSync", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.String()},
+			{Name: "writeFileSync", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "data", Type: spec.String()}}, Returns: spec.Void()},
+			{Name: "existsSync", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.Boolean()},
+			{Name: "mkdirSync", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "options", Type: spec.Object(), Optional: true}}, Returns: spec.Void()},
+			{Name: "readdirSync", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.Array(spec.String())},
+			{Name: "statSync", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.Named("FileStats")},
+			{Name: "unlinkSync", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.Void()},
+			{Name: "appendFileSync", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "data", Type: spec.String()}}, Returns: spec.Void()},
+			{Name: "renameSync", Params: []spec.Param{{Name: "oldPath", Type: spec.String()}, {Name: "newPath", Type: spec.String()}}, Returns: spec.Void()},
+			{Name: "copyFileSync", Params: []spec.Param{{Name: "src", Type: spec.String()}, {Name: "dst", Type: spec.String()}}, Returns: spec.Void()},
 		},
 	}
 }
 
-// Doc returns the documentation for the module.
 func (m) Doc() string {
 	return `
-The fs module provides basic file system operations.
+The fs module provides promise-based and synchronous file system helpers.
 
-Functions:
-  readFileSync(path): Reads a file and returns its content as a string.
-  writeFileSync(path, data): Writes data to a file.
+Async functions return Promises: readFile, writeFile, exists, mkdir, readdir,
+stat, unlink, appendFile, rename, copyFile.
+
+Sync functions block the JavaScript runtime: readFileSync, writeFileSync,
+existsSync, mkdirSync, readdirSync, statSync, unlinkSync, appendFileSync,
+renameSync, copyFileSync.
 `
 }
 
-// Loader attaches the exported Go functions to the JS `exports` object.
 func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
+	bindings, ok := runtimebridge.Lookup(vm)
+	if !ok || bindings.Owner == nil {
+		panic(vm.NewGoError(fmt.Errorf("fs module requires runtime owner bindings")))
+	}
 
-	// readFileSync(path) -> string | throws
-	modules.SetExport(exports, mod.Name(), "readFileSync", func(path string) (string, error) {
-		b, err := os.ReadFile(path)
-		return string(b), err
+	modules.SetExport(exports, mod.Name(), "readFile", func(path string) goja.Value {
+		return asyncReadFile(vm, bindings, path)
+	})
+	modules.SetExport(exports, mod.Name(), "writeFile", func(path, data string) goja.Value {
+		return asyncWriteFile(vm, bindings, path, data)
+	})
+	modules.SetExport(exports, mod.Name(), "exists", func(path string) goja.Value {
+		return asyncExists(vm, bindings, path)
+	})
+	modules.SetExport(exports, mod.Name(), "mkdir", func(call goja.FunctionCall) goja.Value {
+		path := call.Argument(0).String()
+		recursive, mode := mkdirOptions(vm, call.Argument(1))
+		return asyncMkdir(vm, bindings, path, recursive, mode)
+	})
+	modules.SetExport(exports, mod.Name(), "readdir", func(path string) goja.Value {
+		return asyncReaddir(vm, bindings, path)
+	})
+	modules.SetExport(exports, mod.Name(), "stat", func(path string) goja.Value {
+		return asyncStat(vm, bindings, path)
+	})
+	modules.SetExport(exports, mod.Name(), "unlink", func(path string) goja.Value {
+		return asyncUnlink(vm, bindings, path)
+	})
+	modules.SetExport(exports, mod.Name(), "appendFile", func(path, data string) goja.Value {
+		return asyncAppendFile(vm, bindings, path, data)
+	})
+	modules.SetExport(exports, mod.Name(), "rename", func(oldPath, newPath string) goja.Value {
+		return asyncRename(vm, bindings, oldPath, newPath)
+	})
+	modules.SetExport(exports, mod.Name(), "copyFile", func(src, dst string) goja.Value {
+		return asyncCopyFile(vm, bindings, src, dst)
 	})
 
-	// writeFileSync(path, data) -> void | throws
-	modules.SetExport(exports, mod.Name(), "writeFileSync", func(path, data string) error {
-		return os.WriteFile(path, []byte(data), 0o644)
+	modules.SetExport(exports, mod.Name(), "readFileSync", readFileSync)
+	modules.SetExport(exports, mod.Name(), "writeFileSync", writeFileSync)
+	modules.SetExport(exports, mod.Name(), "existsSync", existsSync)
+	modules.SetExport(exports, mod.Name(), "mkdirSync", func(call goja.FunctionCall) goja.Value {
+		path := call.Argument(0).String()
+		recursive, mode := mkdirOptions(vm, call.Argument(1))
+		if err := mkdirSync(path, recursive, fileMode(mode)); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return goja.Undefined()
 	})
+	modules.SetExport(exports, mod.Name(), "readdirSync", readdirSync)
+	modules.SetExport(exports, mod.Name(), "statSync", statSync)
+	modules.SetExport(exports, mod.Name(), "unlinkSync", unlinkSync)
+	modules.SetExport(exports, mod.Name(), "appendFileSync", appendFileSync)
+	modules.SetExport(exports, mod.Name(), "renameSync", renameSync)
+	modules.SetExport(exports, mod.Name(), "copyFileSync", copyFileSync)
 }
 
-// Each module registers itself during package initialization.
+func mkdirOptions(vm *goja.Runtime, value goja.Value) (bool, uint32) {
+	recursive := false
+	mode := uint32(0o755)
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return recursive, mode
+	}
+	obj := value.ToObject(vm)
+	if r := obj.Get("recursive"); r != nil && !goja.IsUndefined(r) {
+		recursive = r.ToBoolean()
+	}
+	if m := obj.Get("mode"); m != nil && !goja.IsUndefined(m) {
+		mode = uint32(m.ToInteger())
+	}
+	return recursive, mode
+}
+
+func fileMode(mode uint32) os.FileMode {
+	return os.FileMode(mode)
+}
+
 func init() {
 	modules.Register(&m{})
 }
