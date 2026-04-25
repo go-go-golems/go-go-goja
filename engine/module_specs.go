@@ -98,9 +98,85 @@ func (s defaultRegistryModulesSpec) Register(reg *require.Registry) error {
 }
 
 // DefaultRegistryModules returns a ModuleSpec that registers every module from
-// go-go-goja/modules.DefaultRegistry. This is explicit and opt-in.
+// go-go-goja/modules.DefaultRegistry. Prefer DefaultRegistryModule(name) or
+// DefaultRegistryModulesNamed(...) when embedding untrusted or semi-trusted
+// JavaScript, because the full default registry includes host-access modules
+// such as fs, os, exec, and database.
 func DefaultRegistryModules() ModuleSpec {
 	return defaultRegistryModulesSpec{}
+}
+
+type namedDefaultRegistryModulesSpec struct {
+	id    string
+	names []string
+}
+
+func (s namedDefaultRegistryModulesSpec) ID() string {
+	if strings.TrimSpace(s.id) != "" {
+		return strings.TrimSpace(s.id)
+	}
+	return "default-registry-modules:" + strings.Join(s.names, ",")
+}
+
+func (s namedDefaultRegistryModulesSpec) Register(reg *require.Registry) error {
+	if reg == nil {
+		return fmt.Errorf("require registry is nil")
+	}
+	for _, rawName := range s.names {
+		name := strings.TrimSpace(rawName)
+		if name == "" {
+			return fmt.Errorf("default registry module name is empty")
+		}
+		mod := modules.GetModule(name)
+		if mod == nil {
+			return fmt.Errorf("default registry module %q is not registered", name)
+		}
+		reg.RegisterNativeModule(mod.Name(), mod.Loader)
+	}
+	return nil
+}
+
+// DefaultRegistryModule returns a ModuleSpec that registers one module from
+// modules.DefaultRegistry by its JavaScript require() name.
+func DefaultRegistryModule(name string) ModuleSpec {
+	name = strings.TrimSpace(name)
+	return namedDefaultRegistryModulesSpec{
+		id:    "default-registry-module:" + name,
+		names: []string{name},
+	}
+}
+
+// DefaultRegistryModulesNamed returns a ModuleSpec that registers only the
+// named modules from modules.DefaultRegistry. Use this for granular sandbox
+// composition instead of DefaultRegistryModules().
+func DefaultRegistryModulesNamed(names ...string) ModuleSpec {
+	trimmed := make([]string, 0, len(names))
+	for _, name := range names {
+		if strings.TrimSpace(name) != "" {
+			trimmed = append(trimmed, strings.TrimSpace(name))
+		}
+	}
+	return namedDefaultRegistryModulesSpec{
+		id:    "default-registry-modules:" + strings.Join(trimmed, ","),
+		names: trimmed,
+	}
+}
+
+var dataOnlyDefaultRegistryModuleNames = []string{"crypto", "path", "time", "timer"}
+
+// DataOnlyDefaultRegistryModules returns the non-host-filesystem/non-process
+// primitives that are installed automatically for every engine runtime.
+func DataOnlyDefaultRegistryModules() ModuleSpec {
+	return namedDefaultRegistryModulesSpec{
+		id:    "data-only-default-registry-modules",
+		names: append([]string(nil), dataOnlyDefaultRegistryModuleNames...),
+	}
+}
+
+// DataOnlyDefaultRegistryModuleNames returns a copy of the module names that
+// are installed automatically for every engine runtime.
+func DataOnlyDefaultRegistryModuleNames() []string {
+	return append([]string(nil), dataOnlyDefaultRegistryModuleNames...)
 }
 
 type processEnvInitializer struct{}

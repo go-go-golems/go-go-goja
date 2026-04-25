@@ -189,6 +189,10 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	})
 
 	reg := require.NewRegistry(f.settings.requireOptions...)
+	if err := DataOnlyDefaultRegistryModules().Register(reg); err != nil {
+		_ = rt.Close(ctx)
+		return nil, fmt.Errorf("register data-only default modules: %w", err)
+	}
 	for _, mod := range f.modules {
 		if err := mod.Register(reg); err != nil {
 			_ = rt.Close(ctx)
