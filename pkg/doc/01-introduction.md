@@ -76,6 +76,6 @@ For comprehensive guidance on creating modules, using async patterns, using buil
 
 ## Built-in Node.js-Style Primitives
 
-go-go-goja includes a practical set of built-in primitives for scripts that need common Node.js capabilities without custom Go bindings. Use `require("fs")` for Buffer-aware file I/O, `require("path")` for host path helpers, `require("os")` for host OS information, `require("crypto")` for UUID/random/hash helpers, and `performance.now()` or `require("time")` for timing measurements.
+go-go-goja includes a practical set of built-in primitives for scripts that need common Node.js capabilities without custom Go bindings. Data-only primitives such as `require("path")`, `require("crypto")`, `require("time")`, and `performance.now()` are available in every engine runtime. Host-access primitives such as `require("fs")` and `require("os")` are enabled explicitly through the engine factory.
 
-See `nodejs-primitives` for the complete reference, including the `process.env` opt-in policy and security notes for embedders.
+See `nodejs-primitives` for the complete reference, including granular module selection, the `process.env` opt-in policy, and security notes for embedders.

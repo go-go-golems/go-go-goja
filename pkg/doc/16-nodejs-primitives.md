@@ -25,28 +25,36 @@ The goal is not to clone Node.js completely. The goal is to provide the primitiv
 
 This section explains how primitives become available in a runtime, how the pieces fit together, and why caller-controlled composition matters.
 
-A go-go-goja runtime starts with goja, then adds the `goja_nodejs/require` registry, the event loop, and selected native modules. Modules under `modules/` implement `modules.NativeModule` and register themselves into `modules.DefaultRegistry` through `init()` functions. Callers still choose whether to expose that registry by building a factory with `engine.DefaultRegistryModules()`.
+A go-go-goja runtime starts with goja, then adds the `goja_nodejs/require` registry, the event loop, and selected native modules. Modules under `modules/` implement `modules.NativeModule` and register themselves into `modules.DefaultRegistry` through `init()` functions.
 
-```go
-factory, err := engine.NewBuilder().
-    WithModules(engine.DefaultRegistryModules()).
-    Build()
-```
-
-If you omit `DefaultRegistryModules()`, the native modules described here are not registered through go-go-goja's module registry. This is intentional: embedders should decide which module set belongs in their sandbox.
-
-The factory always installs a few safe global primitives:
+The factory always installs data-only primitives and safe globals:
 
 - `console`, from `goja_nodejs/console`
 - `Buffer`, from `goja_nodejs/buffer`
 - `URL` and `URLSearchParams`, from `goja_nodejs/url`
 - `performance.now()`, implemented by go-go-goja
+- `require("crypto")`
+- `require("path")`
+- `require("time")`
+- `require("timer")`
+
+Host-access modules are not enabled by default. Enable them one at a time with `engine.DefaultRegistryModule(name)` or in a selected group with `engine.DefaultRegistryModulesNamed(...)`:
+
+```go
+factory, err := engine.NewBuilder().
+    WithModules(
+        engine.DefaultRegistryModule("fs"),
+        engine.DefaultRegistryModule("os"),
+    ).
+    Build()
+```
+
+You can still enable every module in `modules.DefaultRegistry` with `engine.DefaultRegistryModules()`, but that includes host-access modules such as `fs`, `os`, `exec`, and `database`. Use it only when the JavaScript code is trusted enough for that level of access.
 
 The `process` global is not installed by default. Enable it only when exposing host environment variables is acceptable:
 
 ```go
 factory, err := engine.NewBuilder().
-    WithModules(engine.DefaultRegistryModules()).
     WithRuntimeInitializers(engine.ProcessEnv()).
     Build()
 ```
@@ -55,7 +63,7 @@ factory, err := engine.NewBuilder().
 
 This section shows how an application or library outside this repository should construct a runtime with the primitive modules enabled. The key idea is that module registration and runtime construction are explicit: import the `engine` package, build a factory, and opt in to the module set you want.
 
-For the standard go-go-goja primitive modules, use `engine.DefaultRegistryModules()`:
+A minimal runtime already includes data-only primitives such as `crypto`, `path`, `time`, and `timer`:
 
 ```go
 package myruntime
@@ -67,9 +75,7 @@ import (
 )
 
 func NewRuntime(ctx context.Context) (*engine.Runtime, error) {
-    factory, err := engine.NewBuilder().
-        WithModules(engine.DefaultRegistryModules()).
-        Build()
+    factory, err := engine.NewBuilder().Build()
     if err != nil {
         return nil, err
     }
@@ -78,13 +84,29 @@ func NewRuntime(ctx context.Context) (*engine.Runtime, error) {
 }
 ```
 
-That enables the native modules registered in the default registry, including `fs`, `path`, `os`, `crypto`, `time`, `timer`, `database`, and `exec`. The engine package already contains the blank imports that make those modules register themselves, so third-party packages do not need to blank-import each module manually.
+If your package wants file and OS access, opt in explicitly:
+
+```go
+factory, err := engine.NewBuilder().
+    WithModules(engine.DefaultRegistryModulesNamed("fs", "os")).
+    Build()
+```
+
+For a single module, use:
+
+```go
+factory, err := engine.NewBuilder().
+    WithModules(engine.DefaultRegistryModule("fs")).
+    Build()
+```
+
+The engine package already contains the blank imports that make built-in modules register themselves, so third-party packages do not need to blank-import each module manually.
 
 If the application wants the global `process` object, add the opt-in initializer:
 
 ```go
 factory, err := engine.NewBuilder().
-    WithModules(engine.DefaultRegistryModules()).
+    WithModules(engine.DefaultRegistryModule("fs")).
     WithRuntimeInitializers(engine.ProcessEnv()).
     Build()
 ```
@@ -103,7 +125,7 @@ fs.writeFileSync(file, Buffer.from("hello"));
 console.log(fs.readFileSync(file, "utf8"));
 ```
 
-For a tighter sandbox, do not use `DefaultRegistryModules()`. Instead, register only the modules your application wants through explicit `engine.NativeModuleSpec` values or a future project-level helper that selects built-in modules by name.
+For a tighter sandbox, do not use `DefaultRegistryModules()`. Instead, register only the modules your application wants through `DefaultRegistryModule`, `DefaultRegistryModulesNamed`, or explicit `engine.NativeModuleSpec` values.
 
 ## Available Primitives
 
@@ -115,11 +137,11 @@ This section lists the current built-in primitives, what each one is for, and ho
 | `URL`, `URLSearchParams` | global, `require("url")` | URL parsing | Installed globally by default. |
 | `util` | `require("util")` | Formatting helpers | Provided by goja_nodejs. |
 | `process` | `require("process")`; global only with `engine.ProcessEnv()` | Environment variables | Global `process` is opt-in. |
-| `fs` | `require("fs")` | Promise-based and sync file I/O | Supports Buffer and encoded strings. |
-| `path` | `require("path")` | Host-platform path helpers | Uses Go `filepath`; no `posix`/`win32` split yet. |
-| `os` | `require("os")` | Host OS information | Pragmatic subset. |
-| `crypto` | `require("crypto")` | UUIDs, random bytes, basic hashes | Focused subset. |
-| `time` | `require("time")` | Explicit timing helper | Pairs with global `performance.now()`. |
+| `fs` | opt-in `require("fs")` | Promise-based and sync file I/O | Host filesystem access; enable explicitly. |
+| `path` | default `require("path")` | Host-platform path helpers | Data-only; uses Go `filepath`; no `posix`/`win32` split yet. |
+| `os` | opt-in `require("os")` | Host OS information | Host info access; enable explicitly. |
+| `crypto` | default `require("crypto")` | UUIDs, random bytes, basic hashes | Data-only default primitive. |
+| `time` | default `require("time")` | Explicit timing helper | Data-only; pairs with global `performance.now()`. |
 | `performance` | global | Monotonic elapsed timing | Provides `performance.now()`. |
 | `console.time*` | global `console` | Quick timing logs | Adds `time`, `timeLog`, and `timeEnd`. |
 
@@ -269,12 +291,13 @@ The runtime uses monotonic elapsed time from Go's `time` package, so measurement
 
 These primitives expose useful host capabilities. That is powerful, but it means embedders need a clear sandbox policy.
 
-- `fs`, `path`, and `os` expose host filesystem and OS details.
+- `fs` and `os` expose host filesystem and OS details and must be enabled explicitly.
+- `path`, `time`, `timer`, and `crypto` are enabled by default as data-only primitives.
 - `crypto.randomBytes()` uses host randomness.
 - `require("process").env` is available because goja_nodejs registers the module, but global `process` requires explicit `engine.ProcessEnv()` opt-in.
-- `exec` remains a separate module and should be treated as more sensitive than the primitives documented here.
+- `exec` and `database` remain selectable modules and should be treated as more sensitive than the data-only primitives documented here.
 
-If your application runs untrusted JavaScript, do not blindly expose `DefaultRegistryModules()`. Compose a smaller registry or add scoped variants before evaluating untrusted scripts.
+If your application runs untrusted JavaScript, do not blindly expose `DefaultRegistryModules()`. Compose a smaller registry with `DefaultRegistryModule(...)` or `DefaultRegistryModulesNamed(...)` before evaluating untrusted scripts.
 
 ## Implementation Map
 
@@ -297,7 +320,7 @@ Smoke tests live next to each module and execute real JavaScript through a real 
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| `require("fs")` fails | Runtime was built without `engine.DefaultRegistryModules()` | Add `.WithModules(engine.DefaultRegistryModules())` to the factory builder or register the needed module explicitly. |
+| `require("fs")` fails | `fs` is host filesystem access and is not enabled by default | Add `.WithModules(engine.DefaultRegistryModule("fs"))` or `.WithModules(engine.DefaultRegistryModulesNamed("fs", ...))`. |
 | `process` is undefined | Global `process` is opt-in | Add `.WithRuntimeInitializers(engine.ProcessEnv())` if exposing `process.env` is acceptable. |
 | `require("process")` works but `process.env` global access fails | Module registration and global installation are separate | Use `const process = require("process")` or opt in to `ProcessEnv()`. |
 | `fs.readFile(path)` returns a Buffer, not a string | Node-style default read behavior | Pass an encoding: `await fs.readFile(path, "utf8")`. |
