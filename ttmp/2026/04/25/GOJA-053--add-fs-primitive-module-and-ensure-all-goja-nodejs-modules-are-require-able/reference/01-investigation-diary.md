@@ -403,3 +403,61 @@ The implementation stayed pragmatic. It does not try to clone every Node edge ca
 - `crypto.randomBytes()` returns a goja_nodejs Buffer.
 - Hash digest without encoding returns Buffer; `hex` and `base64` return strings.
 - fs `rmSync(path, { force: true })` ignores missing paths.
+
+## Step 6: Add granular default module selection
+
+This step changed runtime composition so only data-only primitives are enabled automatically. Host-access modules such as `fs`, `os`, `exec`, and `database` now require explicit module selection by the embedder, while `console`, `Buffer`, `URL`, `performance`, `crypto`, `path`, `time`, and `timer` remain available by default.
+
+The goal is safer third-party embedding. A package can now create a useful runtime with `engine.NewBuilder().Build()` and add only the host capabilities it needs with `engine.DefaultRegistryModule("fs")` or `engine.DefaultRegistryModulesNamed("fs", "os")`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes, we want granular selection of default registry modules, only data only ones should always be enabled, and console. The rest should be selectable individually."
+
+**Assistant interpretation:** Change the engine API and runtime defaults so data-only modules are automatic and host-access modules are individually selectable.
+
+**Inferred user intent:** Make go-go-goja safer and more predictable for third-party embedders and sandboxed runtimes.
+
+**Commit (code):** a7a6c9716d6bab3bcb9dfe943c6dbe4493aab4e1 — "Add granular default module selection"
+
+**Commit (docs):** 0b01fc0b7ca6072040b5e83f903b30409a80f737 — "Document granular primitive module selection"
+
+### What I did
+- Added `engine.DefaultRegistryModule(name)` for one named built-in module.
+- Added `engine.DefaultRegistryModulesNamed(names...)` for selected built-in modules.
+- Added `engine.DataOnlyDefaultRegistryModules()` and `engine.DataOnlyDefaultRegistryModuleNames()`.
+- Changed `Factory.NewRuntime()` to automatically register only data-only modules: `crypto`, `path`, `time`, and `timer`.
+- Added smoke tests proving data-only modules are present by default and `fs`, `os`, `exec`, and `database` are absent unless selected.
+- Updated `pkg/doc/16-nodejs-primitives.md` and `pkg/doc/01-introduction.md`.
+
+### Why
+- `DefaultRegistryModules()` is too broad for safe embedding because it includes host-access primitives.
+- Granular selection lets embedders choose the least-privilege module set.
+
+### What worked
+- Existing `modules.GetModule(name)` and `require.Registry.RegisterNativeModule` were enough for named module selection.
+- Focused tests passed with `go test ./engine ./pkg/doc ./cmd/goja-repl -count=1` and broader primitive tests had already passed.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- The data-only/host-access split is easy to express at engine composition time and does not require changing the module registration mechanism.
+
+### What was tricky to build
+- `DefaultRegistryModules()` had to remain available for compatibility, but docs now steer embedders toward named selection for safer runtimes.
+
+### What warrants a second pair of eyes
+- Whether `crypto` should be considered data-only despite using host randomness.
+- Whether `timer` belongs in data-only defaults; it does not expose host data but schedules asynchronous time.
+
+### What should be done in the future
+- Consider adding a typed policy object for module categories if more primitives are added.
+
+### Code review instructions
+- Review `engine/module_specs.go` and `engine/factory.go` first.
+- Validate with `go test ./engine -count=1`.
+
+### Technical details
+- Data-only defaults: `crypto`, `path`, `time`, `timer`.
+- Selectable host-access modules remain available through `DefaultRegistryModule` / `DefaultRegistryModulesNamed`.

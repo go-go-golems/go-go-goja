@@ -64,3 +64,10 @@ LastUpdated: 2026-04-25T08:00:00-04:00
 - Added fs options support and `rm/rmSync`.
 - Added runtime smoke tests for all new modules and fs compatibility behavior (commit 0a0c49c1fea5c8d4828ed5e57fd6fbcd544dccad).
 - Validation passed: `go test ./modules/path ./modules/fs ./modules/os ./modules/crypto ./engine -count=1`.
+
+## 2026-04-25: Added granular default module selection
+
+- Data-only modules (`crypto`, `path`, `time`, `timer`) are now registered automatically for every engine runtime.
+- Host-access modules (`fs`, `os`, `exec`, `database`) require explicit selection through `engine.DefaultRegistryModule(name)` or `engine.DefaultRegistryModulesNamed(...)`.
+- `engine.DefaultRegistryModules()` remains available for trusted runtimes that want the whole registry.
+- Updated help docs for third-party embedding and module selection (commits a7a6c9716d6bab3bcb9dfe943c6dbe4493aab4e1 and 0b01fc0b7ca6072040b5e83f903b30409a80f737).
