@@ -43,6 +43,7 @@ func (m) TypeScriptModule() *spec.Module {
 			{Name: "appendFile", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "data", Type: spec.Union(spec.String(), spec.Named("Buffer"), spec.Named("Uint8Array"), spec.Named("DataView"))}, {Name: "encoding", Type: spec.Union(spec.String(), spec.Object()), Optional: true}}, Returns: spec.Named("Promise<void>")},
 			{Name: "rename", Params: []spec.Param{{Name: "oldPath", Type: spec.String()}, {Name: "newPath", Type: spec.String()}}, Returns: spec.Named("Promise<void>")},
 			{Name: "copyFile", Params: []spec.Param{{Name: "src", Type: spec.String()}, {Name: "dst", Type: spec.String()}}, Returns: spec.Named("Promise<void>")},
+			{Name: "rm", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "options", Type: spec.Object(), Optional: true}}, Returns: spec.Named("Promise<void>")},
 			{Name: "readFileSync", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "encoding", Type: spec.Union(spec.String(), spec.Object()), Optional: true}}, Returns: spec.Union(spec.String(), spec.Named("Buffer"))},
 			{Name: "writeFileSync", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "data", Type: spec.Union(spec.String(), spec.Named("Buffer"), spec.Named("Uint8Array"), spec.Named("DataView"))}, {Name: "encoding", Type: spec.Union(spec.String(), spec.Object()), Optional: true}}, Returns: spec.Void()},
 			{Name: "existsSync", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.Boolean()},
@@ -53,6 +54,7 @@ func (m) TypeScriptModule() *spec.Module {
 			{Name: "appendFileSync", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "data", Type: spec.Union(spec.String(), spec.Named("Buffer"), spec.Named("Uint8Array"), spec.Named("DataView"))}, {Name: "encoding", Type: spec.Union(spec.String(), spec.Object()), Optional: true}}, Returns: spec.Void()},
 			{Name: "renameSync", Params: []spec.Param{{Name: "oldPath", Type: spec.String()}, {Name: "newPath", Type: spec.String()}}, Returns: spec.Void()},
 			{Name: "copyFileSync", Params: []spec.Param{{Name: "src", Type: spec.String()}, {Name: "dst", Type: spec.String()}}, Returns: spec.Void()},
+			{Name: "rmSync", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "options", Type: spec.Object(), Optional: true}}, Returns: spec.Void()},
 		},
 	}
 }
@@ -86,8 +88,9 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	})
 	modules.SetExport(exports, mod.Name(), "writeFile", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		data := buffer.DecodeBytes(vm, call.Argument(1), encodingOption(vm, call.Argument(2)))
-		return asyncWriteFile(vm, bindings, path, data)
+		enc, mode := writeOptions(vm, call.Argument(2))
+		data := buffer.DecodeBytes(vm, call.Argument(1), enc)
+		return asyncWriteFile(vm, bindings, path, data, mode)
 	})
 	modules.SetExport(exports, mod.Name(), "exists", func(path string) goja.Value {
 		return asyncExists(vm, bindings, path)
@@ -108,8 +111,9 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	})
 	modules.SetExport(exports, mod.Name(), "appendFile", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		data := buffer.DecodeBytes(vm, call.Argument(1), encodingOption(vm, call.Argument(2)))
-		return asyncAppendFile(vm, bindings, path, data)
+		enc, mode := writeOptions(vm, call.Argument(2))
+		data := buffer.DecodeBytes(vm, call.Argument(1), enc)
+		return asyncAppendFile(vm, bindings, path, data, mode)
 	})
 	modules.SetExport(exports, mod.Name(), "rename", func(oldPath, newPath string) goja.Value {
 		return asyncRename(vm, bindings, oldPath, newPath)
@@ -117,44 +121,61 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	modules.SetExport(exports, mod.Name(), "copyFile", func(src, dst string) goja.Value {
 		return asyncCopyFile(vm, bindings, src, dst)
 	})
+	modules.SetExport(exports, mod.Name(), "rm", func(call goja.FunctionCall) goja.Value {
+		recursive, force := rmOptions(vm, call.Argument(1))
+		return asyncRm(vm, bindings, call.Argument(0).String(), recursive, force)
+	})
 
 	modules.SetExport(exports, mod.Name(), "readFileSync", func(call goja.FunctionCall) goja.Value {
 		data, err := readFileBytes(call.Argument(0).String())
-		if err != nil {
-			panic(vm.NewGoError(err))
-		}
+		panicFSError(vm, err)
 		return buffer.EncodeBytes(vm, data, encodingOption(vm, call.Argument(1)))
 	})
 	modules.SetExport(exports, mod.Name(), "writeFileSync", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		data := buffer.DecodeBytes(vm, call.Argument(1), encodingOption(vm, call.Argument(2)))
-		if err := writeFileBytes(path, data); err != nil {
-			panic(vm.NewGoError(err))
-		}
+		enc, mode := writeOptions(vm, call.Argument(2))
+		data := buffer.DecodeBytes(vm, call.Argument(1), enc)
+		panicFSError(vm, writeFileBytes(path, data, fileMode(mode)))
 		return goja.Undefined()
 	})
 	modules.SetExport(exports, mod.Name(), "existsSync", existsSync)
 	modules.SetExport(exports, mod.Name(), "mkdirSync", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		recursive, mode := mkdirOptions(vm, call.Argument(1))
-		if err := mkdirSync(path, recursive, fileMode(mode)); err != nil {
-			panic(vm.NewGoError(err))
-		}
+		panicFSError(vm, mkdirSync(path, recursive, fileMode(mode)))
 		return goja.Undefined()
 	})
-	modules.SetExport(exports, mod.Name(), "readdirSync", readdirSync)
-	modules.SetExport(exports, mod.Name(), "statSync", statSync)
-	modules.SetExport(exports, mod.Name(), "unlinkSync", unlinkSync)
+	modules.SetExport(exports, mod.Name(), "readdirSync", func(path string) []string {
+		ret, err := readdirSync(path)
+		panicFSError(vm, err)
+		return ret
+	})
+	modules.SetExport(exports, mod.Name(), "statSync", func(path string) fileStats {
+		ret, err := statSync(path)
+		panicFSError(vm, err)
+		return ret
+	})
+	modules.SetExport(exports, mod.Name(), "unlinkSync", func(path string) {
+		panicFSError(vm, unlinkSync(path))
+	})
 	modules.SetExport(exports, mod.Name(), "appendFileSync", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		data := buffer.DecodeBytes(vm, call.Argument(1), encodingOption(vm, call.Argument(2)))
-		if err := appendFileBytes(path, data); err != nil {
-			panic(vm.NewGoError(err))
-		}
+		enc, mode := writeOptions(vm, call.Argument(2))
+		data := buffer.DecodeBytes(vm, call.Argument(1), enc)
+		panicFSError(vm, appendFileBytes(path, data, fileMode(mode)))
 		return goja.Undefined()
 	})
-	modules.SetExport(exports, mod.Name(), "renameSync", renameSync)
-	modules.SetExport(exports, mod.Name(), "copyFileSync", copyFileSync)
+	modules.SetExport(exports, mod.Name(), "renameSync", func(oldPath, newPath string) {
+		panicFSError(vm, renameSync(oldPath, newPath))
+	})
+	modules.SetExport(exports, mod.Name(), "copyFileSync", func(src, dst string) {
+		panicFSError(vm, copyFileSync(src, dst))
+	})
+	modules.SetExport(exports, mod.Name(), "rmSync", func(call goja.FunctionCall) goja.Value {
+		recursive, force := rmOptions(vm, call.Argument(1))
+		panicFSError(vm, rmSync(call.Argument(0).String(), recursive, force))
+		return goja.Undefined()
+	})
 }
 
 func encodingOption(vm *goja.Runtime, value goja.Value) goja.Value {
@@ -169,6 +190,37 @@ func encodingOption(vm *goja.Runtime, value goja.Value) goja.Value {
 		return enc
 	}
 	return goja.Undefined()
+}
+
+func writeOptions(vm *goja.Runtime, value goja.Value) (goja.Value, uint32) {
+	mode := uint32(0o644)
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return goja.Undefined(), mode
+	}
+	if value.ExportType().Kind() == reflect.String {
+		return value, mode
+	}
+	obj := value.ToObject(vm)
+	if m := obj.Get("mode"); m != nil && !goja.IsUndefined(m) && !goja.IsNull(m) {
+		mode = uint32(m.ToInteger())
+	}
+	return encodingOption(vm, value), mode
+}
+
+func rmOptions(vm *goja.Runtime, value goja.Value) (bool, bool) {
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return false, false
+	}
+	obj := value.ToObject(vm)
+	recursive := false
+	force := false
+	if r := obj.Get("recursive"); r != nil && !goja.IsUndefined(r) {
+		recursive = r.ToBoolean()
+	}
+	if f := obj.Get("force"); f != nil && !goja.IsUndefined(f) {
+		force = f.ToBoolean()
+	}
+	return recursive, force
 }
 
 func mkdirOptions(vm *goja.Runtime, value goja.Value) (bool, uint32) {

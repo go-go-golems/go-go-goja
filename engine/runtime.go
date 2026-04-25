@@ -15,9 +15,12 @@ import (
 	// Blank imports ensure module init() functions run so they can register
 	// themselves in modules.DefaultRegistry. Registration is still explicit:
 	// callers must opt in via DefaultRegistryModules().
+	_ "github.com/go-go-golems/go-go-goja/modules/crypto"
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
 	_ "github.com/go-go-golems/go-go-goja/modules/fs"
+	_ "github.com/go-go-golems/go-go-goja/modules/os"
+	_ "github.com/go-go-golems/go-go-goja/modules/path"
 	_ "github.com/go-go-golems/go-go-goja/modules/time"
 	_ "github.com/go-go-golems/go-go-goja/modules/timer"
 )

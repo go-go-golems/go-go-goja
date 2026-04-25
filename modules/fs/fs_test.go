@@ -194,6 +194,71 @@ func TestSyncFsBufferSmoke(t *testing.T) {
 	}
 }
 
+func TestFsErrorObjectsAndRmOptionsSmoke(t *testing.T) {
+	dir := t.TempDir()
+	rt := newRuntime(t)
+	quotedDir := strconv.Quote(filepath.ToSlash(dir))
+
+	ret, err := rt.Owner.Call(context.Background(), "fs.options-errors", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`
+			const fs = require("fs");
+			const root = ` + quotedDir + `;
+			const p = root + "/mode.txt";
+			let syncCode = "";
+			try { fs.readFileSync(root + "/missing.txt"); } catch (e) { syncCode = e.code + ":" + e.path + ":" + e.syscall; }
+			fs.writeFileSync(p, "abc", { encoding: "utf8", mode: 0o600 });
+			const encoded = fs.readFileSync(p, { encoding: "utf8" });
+			const rmDir = root + "/rm/a/b";
+			fs.mkdirSync(rmDir, { recursive: true });
+			fs.writeFileSync(rmDir + "/x.txt", "x");
+			fs.rmSync(root + "/rm", { recursive: true, force: true });
+			fs.rmSync(root + "/missing-rm", { force: true });
+			JSON.stringify({ syncCode, encoded, removed: !fs.existsSync(root + "/rm") });
+		`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("run fs error/options smoke: %v", err)
+	}
+	state := ret.(string)
+	for _, want := range []string{`ENOENT`, `missing.txt`, `open`, `"encoded":"abc"`, `"removed":true`} {
+		if !strings.Contains(state, want) {
+			t.Fatalf("fs error/options state missing %s: %s", want, state)
+		}
+	}
+}
+
+func TestFsAsyncErrorObjectSmoke(t *testing.T) {
+	dir := t.TempDir()
+	rt := newRuntime(t)
+	quotedDir := strconv.Quote(filepath.ToSlash(dir))
+	_, err := rt.Owner.Call(context.Background(), "fs.async-error.setup", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, runErr := vm.RunString(`
+			globalThis.__fsSmoke = { done: false, error: "" };
+			(async () => {
+				const fs = require("fs");
+				try { await fs.readFile(` + quotedDir + ` + "/missing.txt"); }
+				catch (e) { globalThis.__fsSmoke = { done: true, code: e.code, path: e.path, syscall: e.syscall }; return; }
+				globalThis.__fsSmoke = { done: true, code: "NO_ERROR" };
+			})().catch(e => { globalThis.__fsSmoke = { done: true, error: String(e) }; });
+		`)
+		return nil, runErr
+	})
+	if err != nil {
+		t.Fatalf("setup async error smoke: %v", err)
+	}
+	requireEventuallyState(t, rt, func(raw string) bool { return strings.Contains(raw, `"done":true`) })
+	state := readState(t, rt)
+	for _, want := range []string{`"code":"ENOENT"`, `missing.txt`, `"syscall":"open"`} {
+		if !strings.Contains(state, want) {
+			t.Fatalf("async error state missing %s: %s", want, state)
+		}
+	}
+}
+
 func newRuntime(t *testing.T) *gggengine.Runtime {
 	t.Helper()
 	factory, err := gggengine.NewBuilder().WithModules(gggengine.DefaultRegistryModules()).Build()
