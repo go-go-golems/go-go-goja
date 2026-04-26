@@ -51,8 +51,8 @@ func TestFSWatchHelperEmitsFileEvents(t *testing.T) {
 	require.NoError(t, os.WriteFile(file, []byte("hello"), 0o644))
 
 	require.Eventually(t, func() bool {
-		got := runJS(t, rt, `JSON.stringify(globalThis.events)`)
-		return strings.Contains(got, "hello.txt")
+		got, err := runJSTry(rt, `JSON.stringify(globalThis.events)`)
+		return err == nil && strings.Contains(got, "hello.txt")
 	}, 3*time.Second, 20*time.Millisecond)
 
 	errors := runJS(t, rt, `JSON.stringify(globalThis.errors)`)
@@ -90,8 +90,8 @@ func TestFSWatchHelperCloseStopsFutureDelivery(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "after-close.txt"), []byte("ignored"), 0o644))
 
 	require.Never(t, func() bool {
-		got := runJS(t, rt, `globalThis.events.length`)
-		return got != "0"
+		got, err := runJSTry(rt, `globalThis.events.length`)
+		return err == nil && got != "0"
 	}, 300*time.Millisecond, 25*time.Millisecond)
 }
 
@@ -195,8 +195,8 @@ func TestFSWatchHelperRecursiveWatchesExistingNestedDirectories(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(filepath.Join(nested, "view.js"), []byte("export default 1"), 0o644))
 	require.Eventually(t, func() bool {
-		got := runJS(t, rt, `JSON.stringify(globalThis.events)`)
-		return strings.Contains(got, "src/components/view.js") && strings.Contains(got, `"recursive":true`)
+		got, err := runJSTry(rt, `JSON.stringify(globalThis.events)`)
+		return err == nil && strings.Contains(got, "src/components/view.js") && strings.Contains(got, `"recursive":true`)
 	}, 3*time.Second, 20*time.Millisecond)
 }
 
@@ -220,8 +220,8 @@ func TestFSWatchHelperRecursiveAddsNewDirectories(t *testing.T) {
 	require.NoError(t, os.MkdirAll(newDir, 0o755))
 	require.Eventually(t, func() bool {
 		_ = os.WriteFile(filepath.Join(newDir, "later.js"), []byte("export default 2"), 0o644)
-		got := runJS(t, rt, `JSON.stringify(globalThis.events)`)
-		return strings.Contains(got, "generated/later.js")
+		got, err := runJSTry(rt, `JSON.stringify(globalThis.events)`)
+		return err == nil && strings.Contains(got, "generated/later.js")
 	}, 3*time.Second, 50*time.Millisecond)
 }
 
@@ -252,8 +252,8 @@ func TestFSWatchHelperGlobIncludeExcludeFiltersEvents(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(nodeModules, "ignored.js"), []byte("ignored"), 0o644))
 
 	require.Eventually(t, func() bool {
-		got := runJS(t, rt, `JSON.stringify(globalThis.events)`)
-		return strings.Contains(got, "allowed.js")
+		got, err := runJSTry(rt, `JSON.stringify(globalThis.events)`)
+		return err == nil && strings.Contains(got, "allowed.js")
 	}, 3*time.Second, 20*time.Millisecond)
 	got := runJS(t, rt, `JSON.stringify(globalThis.events)`)
 	require.NotContains(t, got, "ignored.txt")
@@ -280,8 +280,8 @@ func TestFSWatchHelperGlobFiltersWatchedFileByBasename(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(file, []byte("updated"), 0o644))
 	require.Eventually(t, func() bool {
-		got := runJS(t, rt, `JSON.stringify(globalThis.events)`)
-		return strings.Contains(got, "watched.js")
+		got, err := runJSTry(rt, `JSON.stringify(globalThis.events)`)
+		return err == nil && strings.Contains(got, "watched.js")
 	}, 3*time.Second, 20*time.Millisecond)
 }
 
@@ -325,8 +325,8 @@ func TestFSWatchHelperDebouncesEvents(t *testing.T) {
 	}
 
 	require.Eventually(t, func() bool {
-		got := runJS(t, rt, `JSON.stringify(globalThis.events)`)
-		return strings.Contains(got, "debounced.txt") && strings.Contains(got, `"debounced":true`)
+		got, err := runJSTry(rt, `JSON.stringify(globalThis.events)`)
+		return err == nil && strings.Contains(got, "debounced.txt") && strings.Contains(got, `"debounced":true`)
 	}, 3*time.Second, 20*time.Millisecond)
 
 	countAfterFlush := runJS(t, rt, `globalThis.events.filter(ev => ev.relativeName === "debounced.txt").length`)

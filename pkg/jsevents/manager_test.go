@@ -2,6 +2,8 @@ package jsevents_test
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,8 +83,7 @@ func TestManagerAsyncEmitReportsListenerErrors(t *testing.T) {
 	require.Eventually(t, func() bool {
 		select {
 		case err := <-errCh:
-			require.Contains(t, err.Error(), "listener failed")
-			return true
+			return strings.Contains(err.Error(), "listener failed")
 		default:
 			return false
 		}
@@ -103,6 +104,12 @@ func newRuntime(t *testing.T, inits ...gggengine.RuntimeInitializer) *gggengine.
 
 func runJS(t *testing.T, rt *gggengine.Runtime, code string) string {
 	t.Helper()
+	str, err := runJSTry(rt, code)
+	require.NoError(t, err)
+	return str
+}
+
+func runJSTry(rt *gggengine.Runtime, code string) (string, error) {
 	ret, err := rt.Owner.Call(context.Background(), "jsevents.test.run", func(_ context.Context, vm *goja.Runtime) (any, error) {
 		value, err := vm.RunString(code)
 		if err != nil {
@@ -110,8 +117,12 @@ func runJS(t *testing.T, rt *gggengine.Runtime, code string) string {
 		}
 		return value.String(), nil
 	})
-	require.NoError(t, err)
+	if err != nil {
+		return "", err
+	}
 	str, ok := ret.(string)
-	require.True(t, ok)
-	return str
+	if !ok {
+		return "", fmt.Errorf("expected string result, got %T", ret)
+	}
+	return str, nil
 }
