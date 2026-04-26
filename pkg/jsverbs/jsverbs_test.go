@@ -16,6 +16,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/jsevents"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,6 +40,7 @@ func TestScanDirDiscoversExpectedPaths(t *testing.T) {
 		"events event-timeline",
 		"events handled-error",
 		"events listener-summary",
+		"fswatch watch-and-write",
 		"meta pkg-demo ping",
 		"nested with-helper render",
 	}, paths)
@@ -623,6 +625,59 @@ func TestInvokeInRuntimeReusesLiveRuntime(t *testing.T) {
 	value, ok := stillAlive.(goja.Value)
 	require.True(t, ok)
 	require.EqualValues(t, 42, value.ToInteger())
+}
+
+func TestFSWatchJsverbUsesInstalledHelper(t *testing.T) {
+	registry := mustRegistry(t)
+	verb, ok := registry.Verb("fswatch watch-and-write")
+	require.True(t, ok)
+
+	dir := t.TempDir()
+	requireOpt, err := engine.RequireOptionWithModuleRootsFromScript(
+		filepath.Join(repoRoot(t), "testdata", "jsverbs", "fswatch.js"),
+		engine.DefaultModuleRootsOptions(),
+	)
+	require.NoError(t, err)
+
+	builder := engine.NewBuilder().
+		WithRequireOptions(noderequire.WithLoader(registry.RequireLoader())).
+		WithModules(engine.DefaultRegistryModules()).
+		WithRuntimeInitializers(
+			jsevents.Install(),
+			jsevents.FSWatchHelper(jsevents.FSWatchOptions{Root: dir}),
+		)
+	if requireOpt != nil {
+		builder = builder.WithRequireOptions(requireOpt)
+	}
+	factory, err := builder.Build()
+	require.NoError(t, err)
+	rt, err := factory.NewRuntime(context.Background())
+	require.NoError(t, err)
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	desc, err := registry.CommandDescriptionForVerb(verb)
+	require.NoError(t, err)
+	cmd := &Command{CommandDescription: desc, registry: registry, verb: verb}
+	parsedValues, err := runner.ParseCommandValues(cmd, runner.WithValuesForSections(map[string]map[string]interface{}{
+		"default": {
+			"dir":      dir,
+			"fileName": "from-jsverb.txt",
+		},
+	}))
+	require.NoError(t, err)
+
+	result, err := registry.InvokeInRuntime(context.Background(), rt, verb, parsedValues)
+	require.NoError(t, err)
+	rows, err := rowsFromResult(result)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	row := rowToMap(rows[0])
+	require.Equal(t, "fsnotify", row["source"])
+	require.Equal(t, dir, row["watchPath"])
+	require.Contains(t, row["name"], "from-jsverb.txt")
+	require.NotEmpty(t, row["op"])
+	require.Equal(t, true, row["closeResult"])
+	require.GreaterOrEqual(t, row["count"], int64(1))
 }
 
 func TestUnknownSectionStillFailsWhenAbsentFromBothCatalogs(t *testing.T) {
