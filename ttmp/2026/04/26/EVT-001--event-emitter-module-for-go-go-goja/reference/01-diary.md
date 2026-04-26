@@ -31,12 +31,16 @@ RelatedFiles:
       Note: jsverbs regression coverage for EventEmitter examples.
     - Path: testdata/jsverbs/events.js
       Note: jsverbs EventEmitter examples added in commit 12c497d.
+    - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md
+      Note: fsnotify helper design created in Step 13.
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/scripts/01-gather-event-emitter-evidence.sh
       Note: Ticket-local evidence script created during investigation.
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/sources/local/01-event-emitter.md
       Note: Imported user-provided source brief.
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/sources/local/evidence.txt
       Note: Captured line-referenced investigation evidence.
+    - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/tasks.md
+      Note: fsnotify implementation tasks added.
 ExternalSources:
     - local:01-event-emitter.md
     - local:evidence.txt
@@ -45,6 +49,7 @@ LastUpdated: 2026-04-26T09:29:00-04:00
 WhatFor: Record the investigation and documentation work for EVT-001.
 WhenToUse: Read before resuming implementation or reviewing the event-emitter design.
 ---
+
 
 
 
@@ -1096,4 +1101,77 @@ pkg/jsevents/manager_test.go
 pkg/jsevents/watermill.go
 pkg/jsevents/watermill_test.go
 modules/events/events.go
+```
+
+## Step 13: Planned the fsnotify connected-emitter helper
+
+Before implementing fsnotify support, I created a dedicated design and implementation guide for the feature. The guide keeps fswatch aligned with the EventEmitter and Watermill direction: JavaScript creates a Go-native EventEmitter, passes it into a Go-backed helper, and Go adopts it through the connected-emitter manager.
+
+I also added detailed implementation tasks so the fsnotify slice can be implemented and reviewed in a focused follow-up. Only the planning task was checked complete; implementation tasks remain open.
+
+### Prompt Context
+
+**User prompt (verbatim):** "create a whole set of tasks and a design/implementation guide for the fsnotify feature first."
+
+**Assistant interpretation:** Do not implement fsnotify yet. First create detailed ticket tasks and a design/implementation guide.
+
+**Inferred user intent:** The user wants the fsnotify feature planned carefully before code changes, with clear API, lifecycle, test, and review guidance.
+
+**Commit (code):** N/A — planning documentation only so far.
+
+### What I did
+
+- Created `design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md`.
+- Added tasks `FSWATCH-001` through `FSWATCH-010` to `tasks.md`.
+- Marked `FSWATCH-001` complete because the design guide was written.
+- Related the guide to the existing connected-emitter manager, Watermill helper, Go-native EventEmitter, and fsnotify external API source.
+
+### Why
+
+- fsnotify is host filesystem access and needs a clear opt-in policy.
+- Watcher lifecycle is easy to get wrong; the guide specifies per-connection contexts, `conn.close()`, and no direct goja usage from watcher goroutines.
+
+### What worked
+
+- The guide now defines the intended JS API:
+  - `fswatch.watch(path, emitter, options?)`
+- It defines the Go API:
+  - `FSWatchOptions`
+  - `FSWatchHelper(opts FSWatchOptions) engine.RuntimeInitializer`
+- It includes path policy, payload shapes, phases, test plan, risks, and acceptance criteria.
+
+### What didn't work
+
+- N/A. This was a planning/doc step only.
+
+### What I learned
+
+- The fsnotify helper can closely mirror the Watermill helper, but path policy and test flakiness need special attention.
+- Close semantics should focus on stopping the Go watcher connection, not removing JS listeners from the emitter.
+
+### What was tricky to build
+
+- The design has to be explicit about close events because `EmitterRef.Emit(ctx, "close")` may fail after context cancellation. The guide recommends not guaranteeing a JS close event for explicit `conn.close()` in the first slice.
+
+### What warrants a second pair of eyes
+
+- Review the proposed path normalization with `Root` and `AllowPath` before implementation.
+- Review whether watcher add failures should throw synchronously or emit `error` asynchronously. The guide recommends asynchronous `error` because watcher setup happens in the goroutine.
+
+### What should be done in the future
+
+- Implement tasks `FSWATCH-002` through `FSWATCH-010`.
+- Add an fswatch docs/example snippet after the helper compiles and tests pass.
+
+### Code review instructions
+
+- Start with `design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md`.
+- Check that implementation follows the no-default-watcher and no-direct-goja-from-goroutine rules.
+
+### Technical details
+
+Guide path:
+
+```text
+go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md
 ```

@@ -84,3 +84,14 @@ Implemented connected-emitter manager and opt-in Watermill helper for JS-provide
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/watermill_test.go — Watermill helper ack/nack and validation tests.
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Recorded connected-emitter implementation step.
 
+
+## 2026-04-26
+
+Created fsnotify connected-emitter helper tasks and a detailed implementation guide; implementation tasks remain open.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md — New fsnotify design and implementation guide.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Recorded fsnotify planning step.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/tasks.md — Added FSWATCH-001 through FSWATCH-010 tasks.
+
