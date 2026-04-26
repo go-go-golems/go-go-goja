@@ -259,7 +259,35 @@ watcher.on("error", (err) => {
 conn.close();
 ```
 
-`fswatch.watch(path, emitter, options?)` watches one file or directory with `github.com/fsnotify/fsnotify`. Directory watches are not recursive in the first implementation; `{ recursive: true }` is rejected. The returned connection has `id`, `path`, and idempotent `close()` fields. Configure `FSWatchOptions.Root` and/or `AllowPath` when scripts should only watch selected paths.
+`fswatch.watch(path, emitter, options?)` watches one file or directory with `github.com/fsnotify/fsnotify`. The returned connection has `id`, `path`, `recursive`, `debounceMs`, `include`, `exclude`, and idempotent `close()` fields. Configure `FSWatchOptions.Root` and/or `AllowPath` when scripts should only watch selected paths.
+
+Recursive watching is available only when the host opts in with `AllowRecursive: true` because it can allocate one OS watch per directory:
+
+```go
+factory, err := engine.NewBuilder().
+    WithRuntimeInitializers(
+        jsevents.Install(),
+        jsevents.FSWatchHelper(jsevents.FSWatchOptions{
+            Root: "/tmp/my-app-sandbox",
+            AllowRecursive: true,
+            MaxDebounce: time.Second,
+        }),
+    ).
+    Build()
+```
+
+JavaScript may then request recursive watching, trailing debounce, and include/exclude glob filtering:
+
+```javascript
+const conn = fswatch.watch("/tmp/my-app-sandbox", watcher, {
+  recursive: true,
+  debounceMs: 100,
+  include: ["**/*.js", "**/*.ts"],
+  exclude: ["**/node_modules/**", "**/.git/**"]
+});
+```
+
+Event payloads include `relativeName`, `recursive`, `debounced`, and `count` in addition to the fsnotify operation booleans. The helper uses typed Go structs for options and payloads, then builds lowerCamel JavaScript objects explicitly.
 
 ## Path APIs
 

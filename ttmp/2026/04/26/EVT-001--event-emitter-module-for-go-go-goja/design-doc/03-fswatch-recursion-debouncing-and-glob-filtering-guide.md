@@ -11,20 +11,33 @@ DocType: design-doc
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: pkg/doc/03-async-patterns.md
+      Note: Connected-emitter docs updated for recursive/debounce/glob options.
+    - Path: pkg/doc/16-nodejs-primitives.md
+      Note: Node primitives docs updated for fswatch recursive/debounce/glob API.
     - Path: pkg/jsevents/fswatch.go
-      Note: Existing fswatch helper that will be extended with typed structs
+      Note: |-
+        Existing fswatch helper that will be extended with typed structs
+        Implemented typed options/payloads
     - Path: pkg/jsevents/fswatch_test.go
-      Note: Existing fswatch tests that will be extended for recursion/debounce/glob behavior.
+      Note: |-
+        Existing fswatch tests that will be extended for recursion/debounce/glob behavior.
+        Tests for recursive watching
     - Path: pkg/jsverbs/jsverbs_test.go
-      Note: Existing jsverbs integration test that will be extended for recursive/debounce/glob options.
+      Note: |-
+        Existing jsverbs integration test that will be extended for recursive/debounce/glob options.
+        jsverbs integration test invokes fswatch options in a custom runtime.
     - Path: testdata/jsverbs/fswatch.js
-      Note: Existing jsverbs example that will be extended with new options.
+      Note: |-
+        Existing jsverbs example that will be extended with new options.
+        jsverbs example extended with recursive/debounce/glob options.
 ExternalSources: []
 Summary: Design and implementation guide for recursive watching, debounced event delivery, and glob filtering in the fswatch connected-emitter helper using typed Go structs.
 LastUpdated: 2026-04-26T10:55:00-04:00
 WhatFor: Guide implementation and review of recursive fswatch, trailing debounce, and include/exclude glob filtering.
 WhenToUse: Use before implementing or reviewing fswatch recursive/debounce/glob behavior in pkg/jsevents.
 ---
+
 
 
 # fswatch recursion debouncing and glob filtering guide

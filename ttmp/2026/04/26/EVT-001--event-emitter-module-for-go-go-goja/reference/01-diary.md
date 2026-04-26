@@ -20,13 +20,21 @@ RelatedFiles:
     - Path: modules/events/events_test.go
       Note: Runtime tests for EventEmitter semantics and Go adoption.
     - Path: pkg/doc/03-async-patterns.md
-      Note: async connected-emitter docs updated in Step 14.
+      Note: |-
+        async connected-emitter docs updated in Step 14.
+        docs update recorded in Step 16.
     - Path: pkg/doc/16-nodejs-primitives.md
-      Note: primitive/helper docs updated in Step 14.
+      Note: |-
+        primitive/helper docs updated in Step 14.
+        docs update recorded in Step 16.
     - Path: pkg/jsevents/fswatch.go
-      Note: fsnotify connected-emitter helper implementation recorded in Step 14.
+      Note: |-
+        fsnotify connected-emitter helper implementation recorded in Step 14.
+        recursive/debounce/glob implementation recorded in Step 16.
     - Path: pkg/jsevents/fswatch_test.go
-      Note: fswatch helper tests recorded in Step 14.
+      Note: |-
+        fswatch helper tests recorded in Step 14.
+        recursive/debounce/glob tests recorded in Step 16.
     - Path: pkg/jsevents/manager.go
       Note: Connected-emitter manager and EmitterRef implementation added in commit 0a5f322.
     - Path: pkg/jsevents/manager_test.go
@@ -39,10 +47,13 @@ RelatedFiles:
       Note: |-
         jsverbs regression coverage for EventEmitter examples.
         fswatch jsverbs runtime integration test recorded in Step 14.
+        extended jsverb integration test recorded in Step 16.
     - Path: testdata/jsverbs/events.js
       Note: jsverbs EventEmitter examples added in commit 12c497d.
     - Path: testdata/jsverbs/fswatch.js
-      Note: fswatch jsverbs example recorded in Step 14.
+      Note: |-
+        fswatch jsverbs example recorded in Step 14.
+        extended fswatch jsverb example recorded in Step 16.
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md
       Note: fsnotify helper design created in Step 13.
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/03-fswatch-recursion-debouncing-and-glob-filtering-guide.md
@@ -65,6 +76,7 @@ LastUpdated: 2026-04-26T09:29:00-04:00
 WhatFor: Record the investigation and documentation work for EVT-001.
 WhenToUse: Read before resuming implementation or reviewing the event-emitter design.
 ---
+
 
 
 
@@ -1388,5 +1400,148 @@ Add tasks for the implementation, then implement task by task, commit at appropr
 Guide path:
 
 ```text
+ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/03-fswatch-recursion-debouncing-and-glob-filtering-guide.md
+```
+
+## Step 16: Implemented recursive fswatch, glob filtering, and debounce
+
+I implemented the recursive/debounce/glob slice for `fswatch`. The helper now decodes typed JavaScript options, uses typed Go payload structs for events/errors/connections, supports recursive directory trees when the host opts in, filters emitted events with include/exclude globs, and debounces noisy fsnotify bursts with a trailing timer.
+
+I also extended the jsverbs example so it demonstrates the richer option surface. The example can now request recursive watching, a debounce window, and include/exclude globs, while the test invokes it in an embedding runtime that explicitly enables recursive watching.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 15)
+
+**Assistant interpretation:** Continue after the design/task step and implement the recursive/debounce/glob feature in focused commits, keeping tests and documentation synchronized.
+
+**Inferred user intent:** The user wants the next fswatch feature set implemented with typed Go data boundaries, runnable examples, validation, and ticket bookkeeping.
+
+**Commit (code):** `bc01d99f0396473596678a678d85e079c06177e7` — "Add recursive fswatch filtering"
+
+**Commit (example):** `d67b7677eacbe69fe31ae51efdcefcc089489e58` — "Extend fswatch jsverb options"
+
+### What I did
+
+- Updated `pkg/jsevents/fswatch.go`:
+  - added `AllowRecursive`, `MaxDebounce`, and `IgnorePath` to `FSWatchOptions`;
+  - added typed `fsWatchCallOptions`, `fsWatchEventPayload`, `fsWatchErrorPayload`, and `fsWatchConnection` structs;
+  - replaced fswatch Go-to-JS `map[string]any` payloads with typed structs and `ToValue(vm)` builders;
+  - refactored the watcher into `fsWatchState`;
+  - added recursive initial directory walking with symlink-directory skipping;
+  - added dynamic registration for newly-created directories;
+  - added include/exclude glob filtering with `**` segment support;
+  - added trailing debounce with merged fsnotify ops, event counts, and timer cleanup on close.
+- Updated `pkg/jsevents/fswatch_test.go`:
+  - verified lowerCamel typed payload fields;
+  - tested recursive existing nested directories;
+  - tested dynamic new-directory registration;
+  - tested include/exclude glob filtering;
+  - tested invalid glob rejection;
+  - tested debounce delivery and debounce stability;
+  - tested close stops pending debounce timers;
+  - tested host debounce maximum enforcement.
+- Updated `testdata/jsverbs/fswatch.js`:
+  - added `recursive`, `debounceMs`, `include`, and `exclude` fields;
+  - returned `relativeName`, `recursive`, `debounced`, raw event `count`, and connection option metadata.
+- Updated `pkg/jsverbs/jsverbs_test.go`:
+  - installed `FSWatchHelper` with `AllowRecursive: true` and `MaxDebounce`;
+  - invoked the jsverb with recursive/debounce/glob options.
+- Updated docs:
+  - `pkg/doc/03-async-patterns.md`;
+  - `pkg/doc/16-nodejs-primitives.md`.
+- Marked FSWATCH-RDG-002 through FSWATCH-RDG-009 complete.
+
+### Why
+
+- Recursive watching needs explicit host opt-in because it can allocate many OS watches.
+- Debouncing is best done in Go before crossing into JavaScript, so noisy save bursts do not overrun JS listeners.
+- Glob filtering belongs in the helper so ignored trees such as `node_modules` can be skipped before event delivery.
+- Typed structs make the Go/JS contract reviewable and avoid ad-hoc payload drift.
+
+### What worked
+
+Targeted validation passed:
+
+```bash
+go test ./pkg/jsevents -run 'TestFSWatch' -count=1
+go test ./pkg/jsevents -count=1
+go test ./pkg/jsverbs -run 'TestFSWatchJsverbUsesInstalledHelper|TestScanDirDiscoversExpectedPaths' -count=1
+go test ./pkg/jsverbs -count=1
+go test ./pkg/jsevents ./pkg/jsverbs -count=1
+go test ./pkg/jsevents ./modules/events ./engine ./pkg/jsverbs -count=1
+make lint
+```
+
+The two code/example commits also passed the lefthook pre-commit hook, including `go generate ./...`, `go test ./...`, and lint.
+
+### What didn't work
+
+The first jsverbs example update wrote into a newly-created nested directory immediately after calling `fswatch.watch(..., { recursive: true })`. That was racy: fsnotify emitted the directory creation event, but the helper had not always registered the new directory before the file write occurred. The test failed with:
+
+```text
+promise rejected: Error: no fswatch event received for nested/from-jsverb.txt
+```
+
+I fixed the example by waiting briefly after creating the nested directory before writing the file when recursive mode is enabled:
+
+```js
+if (options.recursive && parent !== dir) {
+  await timer.sleep(50);
+}
+```
+
+### What I learned
+
+- goja does not convert Go structs with JSON tags into lowerCamel JS property names automatically. The typed struct approach needs explicit `ToValue(vm)` object builders.
+- Recursive dynamic directory registration cannot guarantee that the very first file write inside a newly-created directory is observed unless callers wait for the directory watch to be installed or write after registration has occurred.
+- Tests should avoid exact fsnotify event counts; platform behavior varies. The debounce tests assert debounced delivery and stability rather than a precise raw count.
+
+### What was tricky to build
+
+- The `**` glob matcher needed to be small but predictable. I implemented it as a segment matcher where `**` matches zero or more path segments and all other segments use `path.Match`.
+- Debounce cleanup needed to avoid timers firing after `conn.close()`. The connection cancel function now stops debounce timers before canceling the watcher context, and the watcher loop also stops timers in its defer.
+- Recursive directory creation needed both traversal filtering and event filtering. Excludes are used for `ShouldDescend(...)` so ignored trees are not watched, while include rules only affect event delivery because a directory that does not match an include may still contain files that do.
+
+### What warrants a second pair of eyes
+
+- Review the custom glob semantics against expected user patterns, especially `**/node_modules/**` and root-level matches.
+- Review symlink policy. The implementation skips symlink directories during recursive traversal, but lexical `Root` protection does not resolve symlink targets.
+- Review whether `AllowRecursive` should default to false or true in trusted applications. It currently defaults to false.
+- Review dynamic directory registration expectations. If scripts need guaranteed first-write observation in newly-created subdirectories, the API may need a more explicit acknowledgement event.
+
+### What should be done in the future
+
+- Consider `MaxWatchedDirs` to protect hosts from very large recursive trees.
+- Consider richer ignore syntax or a documented dependency if users need full minimatch compatibility.
+- Consider an explicit `directory-added` or `ready` event for dynamic recursive directories.
+
+### Code review instructions
+
+- Start with `pkg/jsevents/fswatch.go` and review:
+  - `decodeFSWatchCallOptions`,
+  - `fsWatchEventPayload.ToValue`,
+  - `fsWatchState.addRecursive`,
+  - `fsWatchState.dispatchDebounced`,
+  - `matchGlob`.
+- Review `pkg/jsevents/fswatch_test.go` for behavior coverage and platform-tolerant assertions.
+- Review `testdata/jsverbs/fswatch.js` and `TestFSWatchJsverbUsesInstalledHelper` for script-facing behavior.
+- Validate with:
+  - `go test ./pkg/jsevents ./pkg/jsverbs -count=1`
+  - `go test ./pkg/jsevents ./modules/events ./engine ./pkg/jsverbs -count=1`
+  - `make lint`
+  - `go test ./... -count=1`
+
+### Technical details
+
+Important files:
+
+```text
+pkg/jsevents/fswatch.go
+pkg/jsevents/fswatch_test.go
+testdata/jsverbs/fswatch.js
+pkg/jsverbs/jsverbs_test.go
+pkg/doc/03-async-patterns.md
+pkg/doc/16-nodejs-primitives.md
 ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/03-fswatch-recursion-debouncing-and-glob-filtering-guide.md
 ```

@@ -122,3 +122,19 @@ Created recursive fswatch/debounce/glob design guide and implementation task set
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Recorded recursive fswatch planning step.
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/tasks.md — Added FSWATCH-RDG-001 through FSWATCH-RDG-009 tasks.
 
+
+## 2026-04-26
+
+Implemented recursive fswatch, glob filtering, debounce, and typed Go payloads (commits bc01d99 and d67b767); updated docs and diary.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/03-async-patterns.md — async docs update.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/16-nodejs-primitives.md — primitive docs update.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/fswatch.go — recursive/debounce/glob fswatch implementation.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/fswatch_test.go — recursive/debounce/glob fswatch tests.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsverbs/jsverbs_test.go — extended jsverbs integration coverage.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/testdata/jsverbs/fswatch.js — extended jsverbs example.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/03-fswatch-recursion-debouncing-and-glob-filtering-guide.md — recursive/debounce/glob design guide.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 16 diary entry.
+

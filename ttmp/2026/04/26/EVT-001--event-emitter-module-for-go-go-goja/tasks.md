@@ -28,11 +28,11 @@
 - [x] FSWATCH-009: Add jsverbs or example script demonstrating fswatch helper usage in an embedding runtime
 - [x] FSWATCH-010: Update docs and diary, run validation, and commit fsnotify helper slice
 - [x] FSWATCH-RDG-001: Design recursive watching, debouncing, and glob filtering with typed Go structs
-- [ ] FSWATCH-RDG-002: Replace fswatch JS option decoding and event/error payload maps with typed Go structs
-- [ ] FSWATCH-RDG-003: Refactor fswatch watcher loop into an fsWatchState that owns watcher, path policy, and cleanup
-- [ ] FSWATCH-RDG-004: Implement recursive initial directory walk, dynamic new-directory registration, and watched-directory bookkeeping
-- [ ] FSWATCH-RDG-005: Implement glob include/exclude filtering for emitted events and recursive directory traversal
-- [ ] FSWATCH-RDG-006: Implement trailing debounce with merged fsnotify ops, event counts, and timer cleanup on close
-- [ ] FSWATCH-RDG-007: Add tests for typed payloads/options, recursion, glob filtering, debouncing, and close cleanup
-- [ ] FSWATCH-RDG-008: Extend fswatch jsverb example with recursive/debounce/glob options
-- [ ] FSWATCH-RDG-009: Update docs, diary, changelog, relationships, run validation, and commit final fswatch recursion/debounce/glob slice
+- [x] FSWATCH-RDG-002: Replace fswatch JS option decoding and event/error payload maps with typed Go structs
+- [x] FSWATCH-RDG-003: Refactor fswatch watcher loop into an fsWatchState that owns watcher, path policy, and cleanup
+- [x] FSWATCH-RDG-004: Implement recursive initial directory walk, dynamic new-directory registration, and watched-directory bookkeeping
+- [x] FSWATCH-RDG-005: Implement glob include/exclude filtering for emitted events and recursive directory traversal
+- [x] FSWATCH-RDG-006: Implement trailing debounce with merged fsnotify ops, event counts, and timer cleanup on close
+- [x] FSWATCH-RDG-007: Add tests for typed payloads/options, recursion, glob filtering, debouncing, and close cleanup
+- [x] FSWATCH-RDG-008: Extend fswatch jsverb example with recursive/debounce/glob options
+- [x] FSWATCH-RDG-009: Update docs, diary, changelog, relationships, run validation, and commit final fswatch recursion/debounce/glob slice

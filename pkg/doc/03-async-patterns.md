@@ -77,9 +77,14 @@ Example JavaScript shape:
 ```javascript
 const EventEmitter = require("events");
 const watcher = new EventEmitter();
-const conn = fswatch.watch("/tmp/demo", watcher);
+const conn = fswatch.watch("/tmp/demo", watcher, {
+  recursive: true,
+  debounceMs: 100,
+  include: ["**/*.js"],
+  exclude: ["**/node_modules/**"]
+});
 
-watcher.on("event", (ev) => console.log(ev.name, ev.op));
+watcher.on("event", (ev) => console.log(ev.relativeName, ev.op, ev.debounced, ev.count));
 watcher.on("error", (err) => console.error(err.message));
 
 conn.close();
@@ -91,7 +96,11 @@ The embedding Go application must explicitly install the manager and helper:
 factory, err := engine.NewBuilder().
     WithRuntimeInitializers(
         jsevents.Install(),
-        jsevents.FSWatchHelper(jsevents.FSWatchOptions{Root: "/tmp/demo"}),
+        jsevents.FSWatchHelper(jsevents.FSWatchOptions{
+            Root: "/tmp/demo",
+            AllowRecursive: true,
+            MaxDebounce: time.Second,
+        }),
     ).
     Build()
 ```
