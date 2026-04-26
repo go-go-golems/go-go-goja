@@ -111,3 +111,14 @@ Implemented fsnotify connected-emitter helper and jsverbs example (commits 33819
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md — fsnotify design guide updated to match implementation.
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 14 implementation diary.
 
+
+## 2026-04-26
+
+Created recursive fswatch/debounce/glob design guide and implementation task set; implementation tasks remain open.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/03-fswatch-recursion-debouncing-and-glob-filtering-guide.md — New recursive fswatch/debounce/glob design guide.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Recorded recursive fswatch planning step.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/tasks.md — Added FSWATCH-RDG-001 through FSWATCH-RDG-009 tasks.
+

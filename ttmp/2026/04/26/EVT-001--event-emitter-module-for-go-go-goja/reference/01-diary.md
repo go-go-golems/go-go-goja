@@ -45,6 +45,8 @@ RelatedFiles:
       Note: fswatch jsverbs example recorded in Step 14.
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md
       Note: fsnotify helper design created in Step 13.
+    - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/03-fswatch-recursion-debouncing-and-glob-filtering-guide.md
+      Note: recursive/debounce/glob guide created in Step 15.
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/scripts/01-gather-event-emitter-evidence.sh
       Note: Ticket-local evidence script created during investigation.
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/sources/local/01-event-emitter.md
@@ -52,7 +54,9 @@ RelatedFiles:
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/sources/local/evidence.txt
       Note: Captured line-referenced investigation evidence.
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/tasks.md
-      Note: fsnotify implementation tasks added.
+      Note: |-
+        fsnotify implementation tasks added.
+        recursive/debounce/glob implementation tasks added.
 ExternalSources:
     - local:01-event-emitter.md
     - local:evidence.txt
@@ -61,6 +65,7 @@ LastUpdated: 2026-04-26T09:29:00-04:00
 WhatFor: Record the investigation and documentation work for EVT-001.
 WhenToUse: Read before resuming implementation or reviewing the event-emitter design.
 ---
+
 
 
 
@@ -1311,4 +1316,77 @@ pkg/jsverbs/jsverbs_test.go
 pkg/doc/03-async-patterns.md
 pkg/doc/16-nodejs-primitives.md
 ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md
+```
+
+## Step 15: Designed recursive fswatch, debounce, and glob filtering
+
+I created a focused design guide for extending `fswatch` with recursive tree watching, trailing debounce, and include/exclude glob filtering. The guide explicitly follows the user's constraint that JavaScript/Go communication should use typed Go structs instead of free-form `map[string]any` payloads.
+
+The new tasks split the feature into reviewable implementation phases: typed option/payload structs first, watcher state refactor, recursion, glob filtering, debouncing, jsverbs updates, and final documentation/validation.
+
+### Prompt Context
+
+**User prompt (verbatim):** "create a design document for recursion, debouncing, glob filtering. make sure to use go structs and not free form map[string]... for the communication between js and go.
+Add tasks for the implementation, then implement task by task, commit at appropriate intervals, and keep a dary"
+
+**Assistant interpretation:** First design the next fswatch feature slice, add docmgr tasks, then proceed through implementation in commit-sized steps while updating the diary.
+
+**Inferred user intent:** The user wants the recursive/debounce/glob work to be planned carefully and implemented with typed Go boundaries rather than ad-hoc map payloads.
+
+**Commit (code):** N/A — design and task planning only.
+
+### What I did
+
+- Created `design-doc/03-fswatch-recursion-debouncing-and-glob-filtering-guide.md`.
+- Added tasks `FSWATCH-RDG-001` through `FSWATCH-RDG-009`.
+- Marked `FSWATCH-RDG-001` complete.
+- Related the new guide to the existing fswatch helper, tests, jsverbs example, and jsverbs integration test.
+
+### Why
+
+- Recursive watching and debouncing introduce enough lifecycle and resource-management complexity to deserve a separate guide.
+- The typed-struct requirement affects the implementation shape: options, event payloads, error payloads, and connection metadata should be represented by Go structs and converted into JS objects through typed builders.
+
+### What worked
+
+- The guide defines the target API:
+  - `recursive?: boolean`
+  - `debounceMs?: number`
+  - `include?: string[]`
+  - `exclude?: string[]`
+- It defines typed Go structs for host options, per-call options, event payloads, error payloads, and connection metadata.
+- It outlines implementation phases and acceptance criteria.
+
+### What didn't work
+
+- N/A. This was a planning step only.
+
+### What I learned
+
+- goja does not automatically use JSON tags when converting Go structs to JS values, so lowerCamel JavaScript payloads need explicit typed object builders rather than direct `vm.ToValue(struct)` conversion.
+
+### What was tricky to build
+
+- The design needed to reconcile typed Go structs with idiomatic lowerCamel JavaScript fields. The planned solution keeps structs as the internal boundary and uses `ToValue(vm)` methods to set JS properties explicitly.
+
+### What warrants a second pair of eyes
+
+- Review the proposed glob semantics before implementation, especially the small custom `**` matcher and how exclude patterns skip recursive directory traversal.
+- Review the decision that `AllowRecursive` defaults to false.
+
+### What should be done in the future
+
+- Implement `FSWATCH-RDG-002` through `FSWATCH-RDG-009` task by task.
+
+### Code review instructions
+
+- Start with the new design guide.
+- Confirm the implementation avoids `map[string]any` for fswatch Go-to-JS payloads.
+
+### Technical details
+
+Guide path:
+
+```text
+ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/03-fswatch-recursion-debouncing-and-glob-filtering-guide.md
 ```
