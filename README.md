@@ -22,6 +22,7 @@ The goal is to have a place where you can:
  ├── engine/              # builder/factory/runtime ownership APIs
  ├── modules/             # ← add your Go-backed modules here
  │   ├── common.go        # registry plumbing (NativeModule, Register, …)
+ │   ├── events/          # Go-native Node-style EventEmitter
  │   ├── fs/              # example module 1: basic file-system helpers
  │   └── exec/            # example module 2: thin wrapper around os/exec
  ├── testdata/            # demo JS scripts used by Go tests
@@ -259,6 +260,23 @@ Low-level `loop.RunOnLoop(...)` is still valid, but `runtimeowner.Runner` is pre
 Important caveat:
 
 - do not run blocking synchronous flows on the owner thread if those flows wait on background work that itself schedules back onto owner, or you can deadlock.
+
+### Demo: `events` module
+
+`go-go-goja` ships a Go-native subset of Node's EventEmitter API as `require("events")` and `require("node:events")`:
+
+```js
+const EventEmitter = require("events");
+const emitter = new EventEmitter();
+
+emitter.once("ready", (name) => console.log("first", name));
+emitter.on("ready", (name) => console.log("always", name));
+
+emitter.emit("ready", "goja");
+emitter.emit("ready", "again");
+```
+
+The emitter implementation is Go-backed, so Go helper modules can also validate/adopt an EventEmitter that JavaScript created and then emit to it safely from the runtime owner thread.
 
 ### Demo: `timer` module
 

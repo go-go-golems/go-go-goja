@@ -34,6 +34,8 @@ The factory always installs data-only primitives and safe globals:
 - `URL` and `URLSearchParams`, from `goja_nodejs/url`
 - `performance.now()`, implemented by go-go-goja
 - `require("crypto")`
+- `require("events")`
+- `require("node:events")`
 - `require("path")`
 - `require("time")`
 - `require("timer")`
@@ -144,6 +146,7 @@ This section lists the current built-in primitives, what each one is for, and ho
 | `util` | `require("util")` | Formatting helpers | Provided by goja_nodejs. |
 | `process` | opt-in `require("process")` with `engine.ProcessModule()`; opt-in global with `engine.ProcessEnv()` | Environment variables | Both module and global are opt-in. |
 | `fs` | opt-in `require("fs")` | Promise-based and sync file I/O | Host filesystem access; enable explicitly. |
+| `events` / `node:events` | default `require("events")` or `require("node:events")` | Go-native EventEmitter | Data-only; helper modules may adopt emitters explicitly. |
 | `path` | default `require("path")` | Host-platform path helpers | Data-only; uses Go `filepath`; no `posix`/`win32` split yet. |
 | `os` | opt-in `require("os")` | Host OS information | Host info access; enable explicitly. |
 | `crypto` | default `require("crypto")` | UUIDs, random bytes, basic hashes | Data-only default primitive. |
@@ -204,6 +207,24 @@ try {
   console.log(err.syscall); // open
 }
 ```
+
+## EventEmitter APIs
+
+The `events` module provides a Go-native subset of Node's EventEmitter. It is useful for JavaScript-only listener dispatch and as a typed handle that Go helper modules can adopt when JavaScript passes an emitter back into Go.
+
+```javascript
+const EventEmitter = require("events");
+const emitter = new EventEmitter();
+
+emitter.once("ready", (name) => console.log("first", name));
+emitter.on("ready", (name) => console.log("always", name));
+
+emitter.emit("ready", "goja");
+emitter.emit("ready", "again");
+console.log(emitter.listenerCount("ready"));
+```
+
+Supported methods include `on`/`addListener`, `once`, `off`/`removeListener`, `removeAllListeners`, `emit`, `listeners`, `rawListeners`, `listenerCount`, and `eventNames`. Emitting `"error"` without an error listener throws, matching the common Node EventEmitter behavior.
 
 ## Path APIs
 
@@ -298,7 +319,7 @@ The runtime uses monotonic elapsed time from Go's `time` package, so measurement
 These primitives expose useful host capabilities. That is powerful, but it means embedders need a clear sandbox policy.
 
 - `fs` and `os` expose host filesystem and OS details and must be enabled explicitly.
-- `path`, `time`, `timer`, and `crypto` are enabled by default as data-only primitives.
+- `events`, `path`, `time`, `timer`, and `crypto` are enabled by default as data-only primitives.
 - `crypto.randomBytes()` uses host randomness.
 - `require("process").env` requires explicit `engine.ProcessModule()` opt-in, and global `process` requires explicit `engine.ProcessEnv()` opt-in.
 - `exec` and `database` remain selectable modules and should be treated as more sensitive than the data-only primitives documented here.
@@ -315,6 +336,7 @@ This section maps the JavaScript APIs back to Go files so maintainers can review
 | Global Buffer/URL/performance install | `engine/factory.go`, `engine/performance.go` |
 | Optional process module/global | `engine/module_specs.go`, `ProcessModule()`, `ProcessEnv()` |
 | fs | `modules/fs/fs.go`, `fs_async.go`, `fs_sync.go`, `fs_errors.go` |
+| events | `modules/events/events.go` |
 | path | `modules/path/path.go` |
 | os | `modules/os/os.go` |
 | crypto | `modules/crypto/crypto.go` |

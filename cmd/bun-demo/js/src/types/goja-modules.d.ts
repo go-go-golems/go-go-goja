@@ -7,6 +7,27 @@ declare module "database" {
   export function query(query: string, ...args: unknown[]): unknown;
 }
 
+declare module "events" {
+  type EventName = string | symbol;
+  type Listener = (...args: any[]) => void;
+  class EventEmitter {
+  constructor();
+  on(name: EventName, listener: Listener): this;
+  addListener(name: EventName, listener: Listener): this;
+  once(name: EventName, listener: Listener): this;
+  off(name: EventName, listener: Listener): this;
+  removeListener(name: EventName, listener: Listener): this;
+  removeAllListeners(name?: EventName): this;
+  emit(name: EventName, ...args: any[]): boolean;
+  listeners(name: EventName): Listener[];
+  rawListeners(name: EventName): Listener[];
+  listenerCount(name: EventName): number;
+  eventNames(): EventName[];
+  }
+  export = EventEmitter;
+  export { EventEmitter };
+}
+
 declare module "exec" {
   export function run(cmd: string, args: string[]): string;
 }
@@ -42,4 +63,25 @@ declare module "fs" {
   isDir: boolean;
   isFile: boolean;
   }
+}
+
+declare module "node:events" {
+  type EventName = string | symbol;
+  type Listener = (...args: any[]) => void;
+  class EventEmitter {
+  constructor();
+  on(name: EventName, listener: Listener): this;
+  addListener(name: EventName, listener: Listener): this;
+  once(name: EventName, listener: Listener): this;
+  off(name: EventName, listener: Listener): this;
+  removeListener(name: EventName, listener: Listener): this;
+  removeAllListeners(name?: EventName): this;
+  emit(name: EventName, ...args: any[]): boolean;
+  listeners(name: EventName): Listener[];
+  rawListeners(name: EventName): Listener[];
+  listenerCount(name: EventName): number;
+  eventNames(): EventName[];
+  }
+  export = EventEmitter;
+  export { EventEmitter };
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-go-golems/go-go-goja/modules"
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
+	_ "github.com/go-go-golems/go-go-goja/modules/events"
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
 	_ "github.com/go-go-golems/go-go-goja/modules/fs"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/render"
