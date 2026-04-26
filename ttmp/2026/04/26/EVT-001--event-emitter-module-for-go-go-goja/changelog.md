@@ -196,3 +196,14 @@ Addressed GoSec CI findings for fs mode conversion, Node-compatible weak hash al
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/fs/fs.go — fileModeOption range-checks mode conversions.
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 20 diary entry.
 
+
+## 2026-04-26
+
+Fixed CI fswatch test flake by removing require/assert calls from async polling callbacks (commit a1e2308).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/fswatch_test.go — Eventually/Never callbacks no longer call testing helpers.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/manager_test.go — runJSTry helper and callback-safe error check.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 21 diary entry.
+

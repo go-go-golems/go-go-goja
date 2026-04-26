@@ -81,10 +81,13 @@ RelatedFiles:
         fswatch helper tests recorded in Step 14.
         recursive/debounce/glob tests recorded in Step 16.
         regression test for include glob matching when watching a single file.
+        polling callbacks now use runJSTry instead of runJS(t
     - Path: pkg/jsevents/manager.go
       Note: Connected-emitter manager and EmitterRef implementation added in commit 0a5f322.
     - Path: pkg/jsevents/manager_test.go
-      Note: Connected-emitter manager tests.
+      Note: |-
+        Connected-emitter manager tests.
+        added runJSTry and removed assertions from async polling callback.
     - Path: pkg/jsevents/watermill.go
       Note: Opt-in Watermill helper added in commit 0a5f322.
     - Path: pkg/jsevents/watermill_test.go
@@ -122,6 +125,7 @@ LastUpdated: 2026-04-26T09:29:00-04:00
 WhatFor: Record the investigation and documentation work for EVT-001.
 WhenToUse: Read before resuming implementation or reviewing the event-emitter design.
 ---
+
 
 
 
@@ -1905,6 +1909,46 @@ gosec -exclude=G101,G304,G301,G306,G204,G703 -exclude-generated -exclude-dir=.hi
 ```
 
 The code commit pre-commit hook also passed:
+
+```bash
+go generate ./...
+go test ./...
+```
+
+## Step 21: Fixed fswatch test polling flake in CI
+
+The publish-images CI reported a panic from `TestFSWatchHelperCloseStopsFutureDelivery`:
+
+```text
+panic: Fail in goroutine after TestFSWatchHelperCloseStopsFutureDelivery has completed
+```
+
+The root cause was not the fswatch implementation itself. The test used `require.Never(...)` with a callback that called the shared `runJS(t, ...)` helper. Testify's polling helpers run condition callbacks in goroutines, and `runJS(t, ...)` can call `require.NoError(t, ...)`. If a late polling goroutine observes a runtime-close error after the test has already completed, it tries to fail `t` from the wrong goroutine/lifetime and triggers the panic.
+
+**Commit (code):** `a1e230877286a65b524016237dfad6c8026bd645` — "Avoid assertions in async polling callbacks"
+
+### What I changed
+
+- Added `runJSTry(rt, code) (string, error)` in `pkg/jsevents/manager_test.go`.
+- Kept `runJS(t, rt, code)` for synchronous test assertions, but made it wrap `runJSTry`.
+- Replaced `runJS(t, ...)` calls inside `require.Eventually` / `require.Never` callbacks in `pkg/jsevents/fswatch_test.go` with `runJSTry(...)` and boolean-only error handling.
+- Replaced an assertion inside the async callback in `TestManagerAsyncEmitReportsListenerErrors` with a boolean `strings.Contains(...)` check.
+
+### Why
+
+Polling callbacks should be side-effect-free and should not call `t.Fail`, `require.*`, or helpers that may call `require.*`. They should return booleans only; assertions should happen after the polling helper returns.
+
+### Validation
+
+I ran:
+
+```bash
+go test ./pkg/jsevents -count=20
+go test ./pkg/jsevents ./pkg/jsverbs ./modules/events ./modules/fs ./modules/crypto -count=1
+make lint
+```
+
+The commit pre-commit hook also passed:
 
 ```bash
 go generate ./...
