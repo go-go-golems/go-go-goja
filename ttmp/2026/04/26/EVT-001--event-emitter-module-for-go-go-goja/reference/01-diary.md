@@ -14,13 +14,35 @@ RelatedFiles:
     - Path: ../../../../../../../go.work
       Note: Workspace file showing goja_nodejs was added locally.
     - Path: README.md
-      Note: connected EventEmitter/fswatch overview added in Step 17.
+      Note: |-
+        connected EventEmitter/fswatch overview added in Step 17.
+        README mentions systematic node alias policy.
+    - Path: cmd/bun-demo/generate.go
+      Note: bun-demo declaration generation requests node aliases.
     - Path: cmd/bun-demo/js/src/types/goja-modules.d.ts
-      Note: Generated TypeScript declarations now include events aliases.
+      Note: |-
+        Generated TypeScript declarations now include events aliases.
+        generated declarations include node aliases.
+    - Path: cmd/gen-dts/main.go
+      Note: TypeScript generator imports node-aliasable modules for strict generation.
+    - Path: engine/granular_modules_test.go
+      Note: node alias default and host opt-in tests added in Step 18.
+    - Path: engine/module_specs.go
+      Note: node alias expansion and node:process opt-in registration added in Step 18.
+    - Path: engine/nodejs_primitives_test.go
+      Note: node:process and goja_nodejs node alias tests added in Step 18.
+    - Path: modules/crypto/crypto.go
+      Note: crypto/node:crypto alias registration added in Step 18.
     - Path: modules/events/events.go
       Note: Go-native EventEmitter implementation added in commit b37c256.
     - Path: modules/events/events_test.go
       Note: Runtime tests for EventEmitter semantics and Go adoption.
+    - Path: modules/fs/fs.go
+      Note: fs/node:fs alias registration added in Step 18.
+    - Path: modules/os/os.go
+      Note: os/node:os alias registration added in Step 18.
+    - Path: modules/path/path.go
+      Note: path/node:path alias registration added in Step 18.
     - Path: pkg/doc/03-async-patterns.md
       Note: |-
         async connected-emitter docs updated in Step 14.
@@ -35,8 +57,11 @@ RelatedFiles:
         primitive/helper docs updated in Step 14.
         docs update recorded in Step 16.
         links node primitives reference to connected emitter guide.
+        node alias policy documented.
     - Path: pkg/doc/17-connected-eventemitters-developer-guide.md
-      Note: new embedded Glazed developer guide exposed in goja-repl and jsverbs-example.
+      Note: |-
+        new embedded Glazed developer guide exposed in goja-repl and jsverbs-example.
+        connected guide clarifies node vs custom names.
     - Path: pkg/jsevents/fswatch.go
       Note: |-
         fsnotify connected-emitter helper implementation recorded in Step 14.
@@ -86,6 +111,7 @@ LastUpdated: 2026-04-26T09:29:00-04:00
 WhatFor: Record the investigation and documentation work for EVT-001.
 WhenToUse: Read before resuming implementation or reviewing the event-emitter design.
 ---
+
 
 
 
@@ -1647,4 +1673,136 @@ pkg/doc/08-jsverbs-example-overview.md
 pkg/doc/11-jsverbs-example-reference.md
 pkg/doc/16-nodejs-primitives.md
 pkg/doc/17-connected-eventemitters-developer-guide.md
+```
+
+## Step 18: Added systematic `node:` aliases for Node-compatible modules
+
+I added systematic Node-style `node:` aliases for the modules that are Node-compatible or mostly compatible. The goal was to make the namespace clearer: Node-like modules now have Node-style names, while custom go-go-goja modules such as `time`, `timer`, `fswatch`, Watermill helpers, `exec`, and `database` keep custom names.
+
+This preserves the sandbox boundary. Data-only aliases such as `node:path` and `node:crypto` are available by default, while host-access aliases such as `node:fs`, `node:os`, and `node:process` remain opt-in exactly like their bare module names.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add systematic node aliases for the other node compatible (or mostly compatible) modules, just to cearly mark which ones are custom."
+
+**Assistant interpretation:** Extend the existing `node:events` alias pattern to other Node-compatible modules, but do not add `node:` aliases for custom go-go-goja-specific APIs.
+
+**Inferred user intent:** The user wants module names to communicate whether an API is trying to be Node-compatible or is intentionally custom.
+
+**Commit (code):** `3e2f797eb61792b40d3b061fa9632a56c346de49` — "Add systematic node module aliases"
+
+### What I did
+
+- Added default data-only aliases:
+  - `node:crypto`
+  - `node:path`
+  - `node:events` already existed and remains.
+- Added opt-in host aliases:
+  - `node:fs`
+  - `node:os`
+  - `node:process`
+- Kept custom modules without `node:` aliases:
+  - `time`
+  - `timer`
+  - `exec`
+  - `database`
+  - `fswatch`
+  - Watermill helper globals.
+- Updated the default registry module expansion so `DefaultRegistryModule("fs")` registers both `fs` and `node:fs`, and `DefaultRegistryModulesNamed("fs", "os")` registers both bare and Node-prefixed names.
+- Updated `ProcessModule()` so it registers both `process` and `node:process` while remaining opt-in.
+- Added alias module registrations for `crypto`, `fs`, `os`, and `path`.
+- Updated tests for default aliases, host opt-in aliases, and process alias behavior.
+- Updated the TypeScript declaration generator imports and bun-demo generated declarations so alias modules are represented.
+- Updated README and embedded docs to explain the alias policy.
+
+### Why
+
+- `node:` specifiers are the modern Node way to signal built-in modules.
+- Before this step, only `node:events` existed, which made the support look arbitrary.
+- A systematic policy helps developers understand that `node:path` and `node:crypto` are Node-like, while `timer` and `fswatch` are custom go-go-goja features.
+
+### What worked
+
+Targeted validation passed:
+
+```bash
+go test ./engine ./modules/fs ./modules/path ./modules/os ./modules/crypto ./cmd/gen-dts -count=1
+go test ./pkg/doc ./cmd/goja-repl ./cmd/jsverbs-example -count=1
+go run ./cmd/goja-repl help nodejs-primitives
+```
+
+Broader validation passed:
+
+```bash
+go test ./engine ./cmd/gen-dts ./pkg/doc ./cmd/goja-repl ./cmd/jsverbs-example ./modules/... -count=1
+make lint
+```
+
+The commit pre-commit hook also passed, including:
+
+```bash
+go generate ./...
+go test ./...
+```
+
+### What didn't work
+
+- I initially accidentally ran `gofmt` over Markdown files while validating, which produced parser errors such as:
+
+```text
+README.md:1:1: illegal character U+0023 '#'
+pkg/doc/16-nodejs-primitives.md:1:1: expected 'package', found '--'
+```
+
+No files were changed by that failed command. I reran `gofmt` only on Go files.
+
+### What I learned
+
+- `goja_nodejs` already supports `node:buffer`, `node:url`, and `node:util`, so this change only needed to cover go-go-goja's own Node-like modules.
+- The alias policy needs to distinguish compatibility from capability. A module can be Node-compatible but still host-access, so `node:fs` must remain opt-in.
+
+### What was tricky to build
+
+- The module registry needed alias expansion for bare opt-ins. Registering `node:fs` as a separate module is not enough if users reasonably expect `DefaultRegistryModule("fs")` to enable the Node-prefixed spelling too.
+- `ProcessModule()` is not part of `modules.DefaultRegistry`, so it needed a small custom `ModuleSpec` that registers both `process` and `node:process`.
+- TypeScript generation needed the alias modules to be imported/registered in `cmd/gen-dts`, otherwise strict generation would not find the selected alias module names.
+
+### What warrants a second pair of eyes
+
+- Review whether `DefaultRegistryModule("node:fs")` should also register bare `fs`. Currently bare `fs` registers the alias, but requesting the alias directly registers only that alias.
+- Review whether `node:process` and `process` should share strict CommonJS object identity. They currently expose the same shape and env data, but aliases are registered as separate module names.
+
+### What should be done in the future
+
+- If Node compatibility becomes a larger goal, add a compatibility matrix that says which APIs are complete, partial, or custom.
+- Consider whether TypeScript generation should automatically include known aliases when a canonical module is requested.
+
+### Code review instructions
+
+- Start with `engine/module_specs.go` and review `defaultRegistryModuleAliases`, `expandDefaultRegistryModuleNames`, and `ProcessModule()`.
+- Review alias registration in `modules/crypto`, `modules/fs`, `modules/os`, and `modules/path`.
+- Review tests in `engine/granular_modules_test.go` and `engine/nodejs_primitives_test.go`.
+- Validate with:
+  - `go test ./engine ./modules/fs ./modules/path ./modules/os ./modules/crypto ./cmd/gen-dts -count=1`
+  - `make lint`
+  - `go test ./... -count=1`
+
+### Technical details
+
+Important files:
+
+```text
+engine/module_specs.go
+engine/granular_modules_test.go
+engine/nodejs_primitives_test.go
+modules/crypto/crypto.go
+modules/fs/fs.go
+modules/os/os.go
+modules/path/path.go
+cmd/gen-dts/main.go
+cmd/bun-demo/generate.go
+cmd/bun-demo/js/src/types/goja-modules.d.ts
+pkg/doc/16-nodejs-primitives.md
+pkg/doc/17-connected-eventemitters-developer-guide.md
+README.md
 ```

@@ -153,3 +153,21 @@ Added embedded Glazed connected EventEmitter developer documentation and updated
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/17-connected-eventemitters-developer-guide.md — new embedded Glazed developer guide.
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 17 documentation diary.
 
+
+## 2026-04-26
+
+Added systematic node: aliases for Node-compatible modules while keeping custom modules unprefixed (commit 3e2f797).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/cmd/bun-demo/js/src/types/goja-modules.d.ts — generated alias declarations.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/engine/granular_modules_test.go — alias availability tests.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/engine/module_specs.go — node alias expansion and node:process registration.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/engine/nodejs_primitives_test.go — node:process and goja_nodejs alias tests.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/crypto/crypto.go — node:crypto alias.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/fs/fs.go — node:fs alias.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/os/os.go — node:os alias.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/path/path.go — node:path alias.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/16-nodejs-primitives.md — node alias docs.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 18 diary entry.
+
