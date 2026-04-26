@@ -139,7 +139,9 @@ func (m *module) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	})
 
 	mustSet(vm, constructor, "prototype", proto)
-	proto.DefineDataProperty("constructor", constructor, goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_FALSE)
+	if err := proto.DefineDataProperty("constructor", constructor, goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_FALSE); err != nil {
+		panic(vm.NewGoError(fmt.Errorf("events: define constructor property: %w", err)))
+	}
 	mustSet(vm, constructor, "EventEmitter", constructor)
 	mustSet(vm, constructor, "default", constructor)
 
@@ -232,13 +234,13 @@ func (e *EventEmitter) emit(name string, args []goja.Value) (bool, error) {
 
 func (e *EventEmitter) unhandledError(args []goja.Value) error {
 	if len(args) == 0 || goja.IsUndefined(args[0]) || goja.IsNull(args[0]) {
-		return fmt.Errorf("Unhandled error event")
+		return fmt.Errorf("unhandled error event")
 	}
 	obj := args[0].ToObject(e.vm)
 	if msg := obj.Get("message"); msg != nil && !goja.IsUndefined(msg) && !goja.IsNull(msg) {
-		return fmt.Errorf("Unhandled error event: %s", msg.String())
+		return fmt.Errorf("unhandled error event: %s", msg.String())
 	}
-	return fmt.Errorf("Unhandled error event: %s", args[0].String())
+	return fmt.Errorf("unhandled error event: %s", args[0].String())
 }
 
 func (e *EventEmitter) removeListenerEntry(name string, value goja.Value) (listenerEntry, bool) {
