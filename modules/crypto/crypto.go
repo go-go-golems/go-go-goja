@@ -1,9 +1,9 @@
 package cryptomod
 
 import (
-	"crypto/md5" //nolint:gosec // Node compatibility for createHash("md5").
+	"crypto/md5" // #nosec G501 -- Node compatibility for createHash("md5"); not used for internal security.
 	"crypto/rand"
-	"crypto/sha1" //nolint:gosec // Node compatibility for createHash("sha1").
+	"crypto/sha1" // #nosec G505 -- Node compatibility for createHash("sha1"); not used for internal security.
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
@@ -86,13 +86,13 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 func newHash(algorithm string) (hash.Hash, error) {
 	switch algorithm {
 	case "sha1":
-		return sha1.New(), nil
+		return sha1.New(), nil // #nosec G401 -- Node compatibility for caller-requested createHash("sha1").
 	case "sha256":
 		return sha256.New(), nil
 	case "sha512":
 		return sha512.New(), nil
 	case "md5":
-		return md5.New(), nil
+		return md5.New(), nil // #nosec G401 -- Node compatibility for caller-requested createHash("md5").
 	default:
 		return nil, fmt.Errorf("unsupported hash algorithm %q", algorithm)
 	}

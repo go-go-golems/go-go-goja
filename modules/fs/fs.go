@@ -207,7 +207,7 @@ func writeOptions(vm *goja.Runtime, value goja.Value) (goja.Value, uint32) {
 	}
 	obj := value.ToObject(vm)
 	if m := obj.Get("mode"); m != nil && !goja.IsUndefined(m) && !goja.IsNull(m) {
-		mode = uint32(m.ToInteger())
+		mode = fileModeOption(vm, m)
 	}
 	return encodingOption(vm, value), mode
 }
@@ -239,9 +239,18 @@ func mkdirOptions(vm *goja.Runtime, value goja.Value) (bool, uint32) {
 		recursive = r.ToBoolean()
 	}
 	if m := obj.Get("mode"); m != nil && !goja.IsUndefined(m) {
-		mode = uint32(m.ToInteger())
+		mode = fileModeOption(vm, m)
 	}
 	return recursive, mode
+}
+
+func fileModeOption(vm *goja.Runtime, value goja.Value) uint32 {
+	const maxUint32 = 1<<32 - 1
+	mode := value.ToInteger()
+	if mode < 0 || mode > maxUint32 {
+		panic(vm.NewTypeError("fs mode must be between 0 and 0o37777777777"))
+	}
+	return uint32(mode)
 }
 
 func fileMode(mode uint32) os.FileMode {

@@ -119,7 +119,9 @@ func (m *module) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	constructor := vm.ToValue(func(call goja.ConstructorCall) *goja.Object {
 		emitter := New(vm)
 		obj := vm.ToValue(emitter).(*goja.Object)
-		obj.SetPrototype(call.This.Prototype())
+		if err := obj.SetPrototype(call.This.Prototype()); err != nil {
+			panic(vm.NewGoError(fmt.Errorf("events: set emitter prototype: %w", err)))
+		}
 		emitter.object = obj
 		return obj
 	}).(*goja.Object)
