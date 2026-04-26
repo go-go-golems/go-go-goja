@@ -21,10 +21,14 @@ RelatedFiles:
       Note: Module blank imports and runtime lifecycle close behavior.
     - Path: modules/common.go
       Note: NativeModule registry interface for the events module.
+    - Path: modules/events/events.go
+      Note: Concrete implementation of the Go-native EventEmitter design.
     - Path: modules/timer/timer.go
       Note: Existing async owner-thread scheduling pattern.
     - Path: pkg/runtimeowner/runner.go
       Note: Runner Call/Post scheduling API used by the proposed bus.
+    - Path: testdata/jsverbs/events.js
+      Note: Executable examples demonstrating EventEmitter from jsverbs.
 ExternalSources:
     - local:01-event-emitter.md
     - local:evidence.txt
@@ -33,6 +37,7 @@ LastUpdated: 2026-04-26T10:02:00-04:00
 WhatFor: Guide a new engineer through implementing a Go-owned event bus with a JavaScript EventEmitter façade in go-go-goja.
 WhenToUse: Use before implementing require("events"), connected emitter factories, Watermill/fsnotify helpers, or any Go-to-JavaScript event dispatch path.
 ---
+
 
 
 # Event emitter module implementation guide

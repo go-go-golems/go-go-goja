@@ -58,3 +58,16 @@ Revised EVT-001 design so the events module is implemented natively in Go, with 
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/01-event-emitter-module-implementation-guide.md — Updated primary design for Go-native EventEmitter implementation.
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Recorded Go-native EventEmitter design revision.
 
+
+## 2026-04-26
+
+Implemented Go-native EventEmitter module, jsverbs examples, TypeScript declarations, docs, and validation (commits b37c256, 12c497d, a905896).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/cmd/bun-demo/js/src/types/goja-modules.d.ts — Generated declarations for events and node:events.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/events/events.go — Go-native EventEmitter module implementation.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/events/events_test.go — EventEmitter runtime integration tests.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/testdata/jsverbs/events.js — jsverbs EventEmitter example scripts.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Implementation diary updated with commands
+
