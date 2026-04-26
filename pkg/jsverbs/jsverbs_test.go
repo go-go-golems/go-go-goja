@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/dop251/goja"
 	noderequire "github.com/dop251/goja_nodejs/require"
@@ -644,7 +645,11 @@ func TestFSWatchJsverbUsesInstalledHelper(t *testing.T) {
 		WithModules(engine.DefaultRegistryModules()).
 		WithRuntimeInitializers(
 			jsevents.Install(),
-			jsevents.FSWatchHelper(jsevents.FSWatchOptions{Root: dir}),
+			jsevents.FSWatchHelper(jsevents.FSWatchOptions{
+				Root:           dir,
+				AllowRecursive: true,
+				MaxDebounce:    time.Second,
+			}),
 		)
 	if requireOpt != nil {
 		builder = builder.WithRequireOptions(requireOpt)
@@ -660,8 +665,12 @@ func TestFSWatchJsverbUsesInstalledHelper(t *testing.T) {
 	cmd := &Command{CommandDescription: desc, registry: registry, verb: verb}
 	parsedValues, err := runner.ParseCommandValues(cmd, runner.WithValuesForSections(map[string]map[string]interface{}{
 		"default": {
-			"dir":      dir,
-			"fileName": "from-jsverb.txt",
+			"dir":        dir,
+			"fileName":   "nested/from-jsverb.txt",
+			"recursive":  true,
+			"debounceMs": 25,
+			"include":    []string{"**/*.txt"},
+			"exclude":    []string{"**/ignored/**"},
 		},
 	}))
 	require.NoError(t, err)
@@ -675,7 +684,12 @@ func TestFSWatchJsverbUsesInstalledHelper(t *testing.T) {
 	require.Equal(t, "fsnotify", row["source"])
 	require.Equal(t, dir, row["watchPath"])
 	require.Contains(t, row["name"], "from-jsverb.txt")
+	require.Equal(t, "nested/from-jsverb.txt", row["relativeName"])
 	require.NotEmpty(t, row["op"])
+	require.Equal(t, true, row["recursive"])
+	require.Equal(t, true, row["connectionRecursive"])
+	require.EqualValues(t, 25, row["connectionDebounceMs"])
+	require.Equal(t, true, row["debounced"])
 	require.Equal(t, true, row["closeResult"])
 	require.GreaterOrEqual(t, row["count"], int64(1))
 }

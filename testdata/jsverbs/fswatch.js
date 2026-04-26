@@ -3,23 +3,33 @@ const fs = require("fs");
 const path = require("path");
 const timer = require("timer");
 
-async function watchAndWrite(dir, fileName) {
+async function watchAndWrite(dir, fileName, recursive, debounceMs, include, exclude) {
   const emitter = new EventEmitter();
   const events = [];
   const errors = [];
+  const options = {
+    recursive: !!recursive,
+    debounceMs: debounceMs || 0,
+    include: include || [],
+    exclude: exclude || []
+  };
 
   emitter.on("event", (ev) => {
-    if (String(ev.name).indexOf(fileName) >= 0) {
+    if (String(ev.name).indexOf(fileName) >= 0 || String(ev.relativeName).indexOf(fileName) >= 0) {
       events.push({
         source: ev.source,
         watchPath: ev.watchPath,
         name: ev.name,
+        relativeName: ev.relativeName,
         op: ev.op,
         create: ev.create,
         write: ev.write,
         remove: ev.remove,
         rename: ev.rename,
-        chmod: ev.chmod
+        chmod: ev.chmod,
+        recursive: ev.recursive,
+        debounced: ev.debounced,
+        count: ev.count
       });
     }
   });
@@ -27,11 +37,19 @@ async function watchAndWrite(dir, fileName) {
     errors.push(err && err.message ? err.message : String(err));
   });
 
-  const conn = fswatch.watch(dir, emitter);
+  const conn = fswatch.watch(dir, emitter, options);
   const file = path.join(dir, fileName);
+  const parent = path.dirname(file);
+  fs.mkdirSync(parent, { recursive: true });
+  if (options.recursive && parent !== dir) {
+    await timer.sleep(50);
+  }
   fs.writeFileSync(file, "created by fswatch jsverb");
+  if (options.debounceMs > 0) {
+    fs.writeFileSync(file, "updated by fswatch jsverb");
+  }
 
-  for (let i = 0; i < 100 && events.length === 0 && errors.length === 0; i++) {
+  for (let i = 0; i < 150 && events.length === 0 && errors.length === 0; i++) {
     await timer.sleep(10);
   }
 
@@ -50,9 +68,15 @@ async function watchAndWrite(dir, fileName) {
     source: first.source,
     watchPath: first.watchPath,
     name: first.name,
+    relativeName: first.relativeName,
     op: first.op,
     create: first.create,
     write: first.write,
+    recursive: first.recursive,
+    debounced: first.debounced,
+    rawCount: first.count,
+    connectionRecursive: conn.recursive,
+    connectionDebounceMs: conn.debounceMs,
     closeResult
   };
 }
@@ -68,6 +92,26 @@ __verb__("watchAndWrite", {
       argument: true,
       default: "fswatch-demo.txt",
       help: "File name to create inside the watched directory"
+    },
+    recursive: {
+      type: "bool",
+      default: false,
+      help: "Watch nested directories recursively"
+    },
+    debounceMs: {
+      type: "int",
+      default: 0,
+      help: "Trailing debounce window in milliseconds"
+    },
+    include: {
+      type: "stringList",
+      default: [],
+      help: "Glob patterns to include, for example **/*.js"
+    },
+    exclude: {
+      type: "stringList",
+      default: [],
+      help: "Glob patterns to exclude, for example **/node_modules/**"
     }
   }
 });
