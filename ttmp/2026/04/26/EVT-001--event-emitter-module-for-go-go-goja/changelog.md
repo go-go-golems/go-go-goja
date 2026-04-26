@@ -171,3 +171,16 @@ Added systematic node: aliases for Node-compatible modules while keeping custom 
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/16-nodejs-primitives.md — node alias docs.
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 18 diary entry.
 
+
+## 2026-04-26
+
+Addressed PR #31 review comments: guarded emit() with no event name, preserved symbol event identity, and fixed single-file fswatch relativeName filtering (commit 972a9ab).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/events/events.go — eventName key type and emit() guard.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/events/events_test.go — EventEmitter review regression tests.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/fswatch.go — watched-file basename relativeName fix.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/fswatch_test.go — single-file glob regression test.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 19 diary entry.
+

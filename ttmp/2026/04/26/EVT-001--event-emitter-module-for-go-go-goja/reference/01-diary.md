@@ -34,9 +34,13 @@ RelatedFiles:
     - Path: modules/crypto/crypto.go
       Note: crypto/node:crypto alias registration added in Step 18.
     - Path: modules/events/events.go
-      Note: Go-native EventEmitter implementation added in commit b37c256.
+      Note: |-
+        Go-native EventEmitter implementation added in commit b37c256.
+        PR #31 review fixes for missing emit names and symbol event-name identity.
     - Path: modules/events/events_test.go
-      Note: Runtime tests for EventEmitter semantics and Go adoption.
+      Note: |-
+        Runtime tests for EventEmitter semantics and Go adoption.
+        regression tests for emit() without event name and distinct symbol event names.
     - Path: modules/fs/fs.go
       Note: fs/node:fs alias registration added in Step 18.
     - Path: modules/os/os.go
@@ -66,10 +70,12 @@ RelatedFiles:
       Note: |-
         fsnotify connected-emitter helper implementation recorded in Step 14.
         recursive/debounce/glob implementation recorded in Step 16.
+        PR #31 review fix for watched-file relativeName basename behavior.
     - Path: pkg/jsevents/fswatch_test.go
       Note: |-
         fswatch helper tests recorded in Step 14.
         recursive/debounce/glob tests recorded in Step 16.
+        regression test for include glob matching when watching a single file.
     - Path: pkg/jsevents/manager.go
       Note: Connected-emitter manager and EmitterRef implementation added in commit 0a5f322.
     - Path: pkg/jsevents/manager_test.go
@@ -111,6 +117,7 @@ LastUpdated: 2026-04-26T09:29:00-04:00
 WhatFor: Record the investigation and documentation work for EVT-001.
 WhenToUse: Read before resuming implementation or reviewing the event-emitter design.
 ---
+
 
 
 
@@ -1806,3 +1813,59 @@ pkg/doc/16-nodejs-primitives.md
 pkg/doc/17-connected-eventemitters-developer-guide.md
 README.md
 ```
+
+## Step 19: Addressed PR #31 code review comments
+
+I addressed the automated review comments on PR #31. The review pointed out three concrete correctness issues: `emit()` could panic when called without arguments, symbol event names were stringified and therefore collapsed, and single-file fswatch filters saw an empty relative name instead of the watched file basename.
+
+**Commit (code):** `972a9ab0ca0e1690ddfaff72ff85019476ac3302` — "Address event emitter review feedback"
+
+### What I changed
+
+- Guarded JavaScript `EventEmitter.prototype.emit()` against missing event names.
+  - `new EventEmitter().emit()` now throws a JavaScript `TypeError` with `event name is required` instead of slicing `call.Arguments[1:]` and risking a Go panic.
+- Preserved distinct symbol event names.
+  - Replaced the internal listener map key from plain `string` to a typed `eventName` key that stores either a string or a `*goja.Symbol`.
+  - `Symbol("same")` and another `Symbol("same")` no longer share listeners.
+  - `eventNames()` returns symbol values back to JavaScript for symbol-backed listeners.
+  - Existing Go-facing helpers such as `Emit(string, ...)`, `AddGoListener(string, ...)`, `ListenerCount(string)`, and `Listeners(string, ...)` still use string names for Go callers.
+- Fixed `fswatch` relative names for single-file watches.
+  - Added `watchIsDir` state during watcher startup.
+  - When the watched path is a file and an event is reported for that same path, `relativeName` now returns `filepath.Base(watchPath)` instead of `""`.
+  - This lets include filters such as `include: ["**/*.js"]` match a watched file named `watched.js`.
+
+### Tests added
+
+- `TestEventEmitterEmitWithoutNameThrowsTypeError`
+- `TestEventEmitterPreservesSymbolEventNames`
+- `TestFSWatchHelperGlobFiltersWatchedFileByBasename`
+
+### Validation
+
+I ran targeted validation before committing:
+
+```bash
+go test ./modules/events ./pkg/jsevents -count=1
+go test ./modules/events ./pkg/jsevents ./engine ./pkg/jsverbs -count=1
+make lint
+```
+
+The commit pre-commit hook also passed:
+
+```bash
+go generate ./...
+go test ./...
+```
+
+### What was tricky
+
+- Symbols cannot be represented faithfully by `value.String()`, because two distinct symbols can share a description. The fix had to keep the underlying `*goja.Symbol` identity in the map key.
+- The public Go EventEmitter API was already string-oriented and used by connected emitter code. I kept that API stable and added symbol support only to the JavaScript-facing internal paths.
+- `fswatch.relativeName()` needed to keep directory behavior unchanged. For a watched directory, an event on the directory itself still returns `""`; for a watched file, the same relative relation now returns the file basename.
+
+### Code review instructions
+
+- Review `modules/events/events.go` around the new `eventName` key type and JavaScript method implementations.
+- Review `modules/events/events_test.go` for missing-name and symbol identity regressions.
+- Review `pkg/jsevents/fswatch.go` around `watchIsDir` and `relativeName`.
+- Review `pkg/jsevents/fswatch_test.go` for the single-file glob regression test.
