@@ -25,6 +25,10 @@ RelatedFiles:
       Note: Concrete implementation of the Go-native EventEmitter design.
     - Path: modules/timer/timer.go
       Note: Existing async owner-thread scheduling pattern.
+    - Path: pkg/jsevents/manager.go
+      Note: Concrete implementation of the connected-emitter manager design.
+    - Path: pkg/jsevents/watermill.go
+      Note: Concrete implementation of the Watermill connected-emitter helper.
     - Path: pkg/runtimeowner/runner.go
       Note: Runner Call/Post scheduling API used by the proposed bus.
     - Path: testdata/jsverbs/events.js
@@ -37,6 +41,7 @@ LastUpdated: 2026-04-26T10:02:00-04:00
 WhatFor: Guide a new engineer through implementing a Go-owned event bus with a JavaScript EventEmitter façade in go-go-goja.
 WhenToUse: Use before implementing require("events"), connected emitter factories, Watermill/fsnotify helpers, or any Go-to-JavaScript event dispatch path.
 ---
+
 
 
 

@@ -19,6 +19,14 @@ RelatedFiles:
       Note: Go-native EventEmitter implementation added in commit b37c256.
     - Path: modules/events/events_test.go
       Note: Runtime tests for EventEmitter semantics and Go adoption.
+    - Path: pkg/jsevents/manager.go
+      Note: Connected-emitter manager and EmitterRef implementation added in commit 0a5f322.
+    - Path: pkg/jsevents/manager_test.go
+      Note: Connected-emitter manager tests.
+    - Path: pkg/jsevents/watermill.go
+      Note: Opt-in Watermill helper added in commit 0a5f322.
+    - Path: pkg/jsevents/watermill_test.go
+      Note: Watermill helper tests.
     - Path: pkg/jsverbs/jsverbs_test.go
       Note: jsverbs regression coverage for EventEmitter examples.
     - Path: testdata/jsverbs/events.js
@@ -37,6 +45,7 @@ LastUpdated: 2026-04-26T09:29:00-04:00
 WhatFor: Record the investigation and documentation work for EVT-001.
 WhenToUse: Read before resuming implementation or reviewing the event-emitter design.
 ---
+
 
 
 
@@ -970,4 +979,121 @@ cmd/bun-demo/js/src/types/goja-modules.d.ts
 README.md
 pkg/doc/16-nodejs-primitives.md
 ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/tasks.md
+```
+
+## Step 12: Implemented connected-emitter manager and Watermill helper
+
+I implemented the next slice after the Go-native EventEmitter: a reusable connected-emitter manager plus an opt-in Watermill helper. The manager lets Go adopt a JavaScript-created Go-native EventEmitter and emit to it later through an `EmitterRef` without using JavaScript objects directly from background goroutines.
+
+The Watermill helper follows the clarified API direction: it does not configure default emitters or subscribe during runtime startup. Instead, JavaScript creates an EventEmitter and calls `watermill.connect(topic, emitter)`. The helper validates/adopts that emitter, starts the Watermill subscription, and forwards messages to the emitter's local `message` event with explicit `ack()` / `nack()` methods.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue beyond the base EventEmitter implementation by adding the connected-emitter infrastructure and Watermill helper described in the design.
+
+**Inferred user intent:** The user wants the next implementation slice toward resource-connected EventEmitters, especially the Watermill-connected emitter pattern.
+
+**Commit (code):** `0a5f3221d8b660025a1db324b02caec0c13da44a` — "Add connected emitter Watermill helpers"
+
+### What I did
+
+- Added `pkg/jsevents/manager.go`:
+  - `Install(...)` runtime initializer.
+  - `FromRuntime(...)` manager lookup.
+  - `Manager.AdoptEmitterOnOwner(...)` for JS-created Go-native EventEmitters.
+  - `EmitterRef.Emit(...)`, `EmitSync(...)`, `EmitWithBuilder(...)`, `EmitWithBuilderSync(...)`, and `Close(...)`.
+  - async error reporting via `WithErrorHandler(...)`.
+- Added `pkg/jsevents/watermill.go`:
+  - `WatermillHelper(...)` runtime initializer.
+  - JS global helper object with `connect(topic, emitter)`.
+  - per-connection context cancellation.
+  - Watermill message forwarding to `message` events.
+  - explicit JS `ack()` / `nack()` settlement methods.
+- Added tests:
+  - `pkg/jsevents/manager_test.go`
+  - `pkg/jsevents/watermill_test.go`
+- Fixed lint findings in `modules/events/events.go` from the first EventEmitter commit.
+- Marked tasks 12–15 complete.
+
+### Why
+
+- The user clarified that JS should be able to create an EventEmitter and pass it into a Go function.
+- The manager gives Go a safe handle to that emitter while preserving the goja ownership rule.
+- The Watermill helper demonstrates the intended general pattern without creating default global event buses.
+
+### What worked
+
+Targeted tests passed:
+
+```bash
+go test ./pkg/jsevents ./modules/events ./engine ./pkg/jsverbs -count=1
+```
+
+Lint passed:
+
+```bash
+make lint
+```
+
+The commit's pre-commit hook also ran `go generate ./...` and `go test ./...`, and both hook test/lint stages passed after fixing lint issues.
+
+### What didn't work
+
+The first commit attempt for this slice failed because lint reported issues in the earlier `modules/events/events.go` file:
+
+```text
+modules/events/events.go:142:26: Error return value of `proto.DefineDataProperty` is not checked (errcheck)
+modules/events/events.go:235:10: ST1005: error strings should not be capitalized
+modules/events/events.go:239:10: ST1005: error strings should not be capitalized
+modules/events/events.go:241:9: ST1005: error strings should not be capitalized
+```
+
+I fixed these by checking `DefineDataProperty` and lowercasing the unhandled error event messages.
+
+### What I learned
+
+- The clean helper API is `watermill.connect(topic, emitter)`, not a preconfigured `goEvents` namespace.
+- `EmitterRef.EmitWithBuilderSync(...)` is useful for Watermill because the JS message object needs owner-thread JS functions for `ack()` and `nack()`.
+- Once the local `goja` and `goja_nodejs` checkouts were updated, workspace-enabled tests and hooks pass normally.
+
+### What was tricky to build
+
+- The Watermill tests need a fake subscriber that behaves like Watermill by returning a subscription channel and respecting context cancellation.
+- Message settlement must be explicit and single-shot. The helper builds JS `ack()` / `nack()` closures with a `sync.Once`, and if dispatch fails or no listener exists, it nacks the message.
+- Background subscription goroutines never touch the JS emitter directly; they only call `EmitterRef` methods that schedule onto the runtime owner.
+
+### What warrants a second pair of eyes
+
+- Review whether `EmitterRef.Close(...)` should emit a local `close` event or just cancel/unregister. The Watermill helper emits `close` when the subscription channel closes, but explicit `Close()` currently focuses on cleanup.
+- Review whether Watermill's no-listener policy should always nack or be configurable.
+- Review manager shutdown behavior. It relies on runtime context cancellation and explicit connection close; a future improvement could close all registered refs from a runtime closer.
+
+### What should be done in the future
+
+- Add an fsnotify helper following the same JS-provided/Go-adopted emitter pattern.
+- Add documentation examples for `watermill.connect(topic, emitter)` once the helper API is considered stable.
+- Consider a richer connection object if helper users need status or diagnostics beyond `id` and `close()`.
+
+### Code review instructions
+
+- Start with `pkg/jsevents/manager.go` and confirm no background path touches goja values directly.
+- Review `pkg/jsevents/watermill.go` for subscription lifecycle and ack/nack behavior.
+- Review tests in `pkg/jsevents/manager_test.go` and `pkg/jsevents/watermill_test.go`.
+- Validate with:
+  - `go test ./pkg/jsevents ./modules/events ./engine ./pkg/jsverbs -count=1`
+  - `make lint`
+  - `go test ./... -count=1`
+
+### Technical details
+
+Key files:
+
+```text
+pkg/jsevents/manager.go
+pkg/jsevents/manager_test.go
+pkg/jsevents/watermill.go
+pkg/jsevents/watermill_test.go
+modules/events/events.go
 ```

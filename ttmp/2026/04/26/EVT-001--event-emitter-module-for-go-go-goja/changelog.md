@@ -71,3 +71,16 @@ Implemented Go-native EventEmitter module, jsverbs examples, TypeScript declarat
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/testdata/jsverbs/events.js — jsverbs EventEmitter example scripts.
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Implementation diary updated with commands
 
+
+## 2026-04-26
+
+Implemented connected-emitter manager and opt-in Watermill helper for JS-provided EventEmitter instances (commit 0a5f322).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/manager.go — Connected-emitter manager and EmitterRef implementation.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/manager_test.go — Connected-emitter manager tests.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/watermill.go — Opt-in Watermill helper exposing watermill.connect(topic
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/watermill_test.go — Watermill helper ack/nack and validation tests.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Recorded connected-emitter implementation step.
+

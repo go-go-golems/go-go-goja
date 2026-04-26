@@ -13,3 +13,7 @@
 - [x] Add jsverbs example scripts demonstrating EventEmitter usage
 - [x] Update docs/declarations for the events module
 - [x] Run targeted and full validation, update diary, and commit implementation
+- [x] Implement connected-emitter manager with EmitterRef adoption, owner-thread emit, and close lifecycle
+- [x] Implement opt-in Watermill helper that connects JS-provided EventEmitter instances
+- [x] Add connected-emitter and Watermill helper tests
+- [x] Validate connected-emitter slice, update diary, and commit
