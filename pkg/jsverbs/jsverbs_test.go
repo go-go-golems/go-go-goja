@@ -36,6 +36,9 @@ func TestScanDirDiscoversExpectedPaths(t *testing.T) {
 		"basics greet",
 		"basics list-issues",
 		"basics summarize",
+		"events event-timeline",
+		"events handled-error",
+		"events listener-summary",
 		"meta pkg-demo ping",
 		"nested with-helper render",
 	}, paths)
@@ -129,6 +132,22 @@ func TestFixtureCommandsExecute(t *testing.T) {
 			},
 		})
 		require.Equal(t, "repo:glazed", rows[0]["value"])
+	})
+
+	t.Run("event emitter timeline", func(t *testing.T) {
+		rows := runCommand(t, commandMap["events event-timeline"], map[string]map[string]interface{}{
+			"default": {
+				"prefix": "evt",
+				"count":  2,
+			},
+		})
+		require.Len(t, rows, 3)
+		require.Equal(t, "once", rows[0]["kind"])
+		require.Equal(t, "evt:0", rows[0]["value"])
+		require.Equal(t, "tick", rows[1]["kind"])
+		require.Equal(t, "evt:0", rows[1]["value"])
+		require.Equal(t, "tick", rows[2]["kind"])
+		require.Equal(t, "evt:1", rows[2]["value"])
 	})
 
 	t.Run("package metadata auto expose", func(t *testing.T) {
