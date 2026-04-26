@@ -17,6 +17,7 @@ import (
 	// callers must opt in via DefaultRegistryModules().
 	_ "github.com/go-go-golems/go-go-goja/modules/crypto"
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
+	_ "github.com/go-go-golems/go-go-goja/modules/events"
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
 	_ "github.com/go-go-golems/go-go-goja/modules/fs"
 	_ "github.com/go-go-golems/go-go-goja/modules/os"

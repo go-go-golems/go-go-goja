@@ -30,6 +30,10 @@ func TestNodeJSPrimitivesDefaultGlobalsAndRequires(t *testing.T) {
 		{name: "require url", code: `require("url").URL === URL ? "yes" : "no"`, want: "yes"},
 		{name: "require util", code: `require("util").format("%s:%d", "x", 3)`, want: "x:3"},
 		{name: "require process absent by default", code: `try { require("process"); "present" } catch (e) { "missing" }`, want: "missing"},
+		{name: "require node process absent by default", code: `try { require("node:process"); "present" } catch (e) { "missing" }`, want: "missing"},
+		{name: "require node buffer", code: `require("node:buffer").Buffer.from("xyz").toString()`, want: "xyz"},
+		{name: "require node url", code: `require("node:url").URL === URL ? "yes" : "no"`, want: "yes"},
+		{name: "require node util", code: `require("node:util").format("%s:%d", "x", 3)`, want: "x:3"},
 		{name: "process global absent by default", code: `typeof process`, want: "undefined"},
 	}
 
@@ -90,7 +94,7 @@ func TestProcessModuleIsOptIn(t *testing.T) {
 	defer func() { _ = rt.Close(context.Background()) }()
 
 	ret, err := rt.Owner.Call(context.Background(), "process-module", func(_ context.Context, vm *goja.Runtime) (any, error) {
-		value, runErr := vm.RunString(`typeof require("process").env === "object" && typeof process === "undefined" ? "ok" : "bad"`)
+		value, runErr := vm.RunString(`typeof require("process").env === "object" && typeof require("node:process").env === "object" && typeof process === "undefined" ? "ok" : "bad"`)
 		if runErr != nil {
 			return nil, runErr
 		}

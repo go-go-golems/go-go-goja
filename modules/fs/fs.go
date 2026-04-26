@@ -12,16 +12,21 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 )
 
-type m struct{}
+type m struct{ name string }
 
 var _ modules.NativeModule = (*m)(nil)
 var _ modules.TypeScriptDeclarer = (*m)(nil)
 
-func (m) Name() string { return "fs" }
+func (m m) Name() string {
+	if m.name != "" {
+		return m.name
+	}
+	return "fs"
+}
 
-func (m) TypeScriptModule() *spec.Module {
+func (m m) TypeScriptModule() *spec.Module {
 	return &spec.Module{
-		Name: "fs",
+		Name: m.Name(),
 		RawDTS: []string{
 			"interface FileStats {",
 			"  name: string;",
@@ -59,7 +64,7 @@ func (m) TypeScriptModule() *spec.Module {
 	}
 }
 
-func (m) Doc() string {
+func (m m) Doc() string {
 	return `
 The fs module provides promise-based and synchronous file system helpers.
 
@@ -202,7 +207,7 @@ func writeOptions(vm *goja.Runtime, value goja.Value) (goja.Value, uint32) {
 	}
 	obj := value.ToObject(vm)
 	if m := obj.Get("mode"); m != nil && !goja.IsUndefined(m) && !goja.IsNull(m) {
-		mode = uint32(m.ToInteger())
+		mode = fileModeOption(vm, m)
 	}
 	return encodingOption(vm, value), mode
 }
@@ -234,9 +239,18 @@ func mkdirOptions(vm *goja.Runtime, value goja.Value) (bool, uint32) {
 		recursive = r.ToBoolean()
 	}
 	if m := obj.Get("mode"); m != nil && !goja.IsUndefined(m) {
-		mode = uint32(m.ToInteger())
+		mode = fileModeOption(vm, m)
 	}
 	return recursive, mode
+}
+
+func fileModeOption(vm *goja.Runtime, value goja.Value) uint32 {
+	const maxUint32 = 1<<32 - 1
+	mode := value.ToInteger()
+	if mode < 0 || mode > maxUint32 {
+		panic(vm.NewTypeError("fs mode must be between 0 and 0o37777777777"))
+	}
+	return uint32(mode)
 }
 
 func fileMode(mode uint32) os.FileMode {
@@ -244,5 +258,6 @@ func fileMode(mode uint32) os.FileMode {
 }
 
 func init() {
-	modules.Register(&m{})
+	modules.Register(&m{name: "fs"})
+	modules.Register(&m{name: "node:fs"})
 }

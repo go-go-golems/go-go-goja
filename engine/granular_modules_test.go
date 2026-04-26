@@ -19,10 +19,14 @@ func TestDataOnlyModulesAreEnabledByDefault(t *testing.T) {
 	defer func() { _ = rt.Close(context.Background()) }()
 
 	tests := map[string]string{
-		`require("path").join("a", "b")`:                                     "a/b",
-		`typeof require("time").now()`:                                       "number",
-		`require("crypto").createHash("sha256").update("abc").digest("hex")`: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-		`typeof require("timer").sleep`:                                      "function",
+		`require("path").join("a", "b")`:                                          "a/b",
+		`require("node:path").join("a", "b")`:                                     "a/b",
+		`typeof require("time").now()`:                                            "number",
+		`require("crypto").createHash("sha256").update("abc").digest("hex")`:      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+		`require("node:crypto").createHash("sha256").update("abc").digest("hex")`: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+		`typeof require("events").EventEmitter`:                                   "function",
+		`typeof require("node:events").EventEmitter`:                              "function",
+		`typeof require("timer").sleep`:                                           "function",
 	}
 	for code, want := range tests {
 		ret, err := rt.Owner.Call(context.Background(), "data-only-default", func(_ context.Context, vm *goja.Runtime) (any, error) {
@@ -57,7 +61,7 @@ func TestHostAccessModulesRequireExplicitSelection(t *testing.T) {
 			function canRequire(name) {
 				try { require(name); return true; } catch (e) { return false; }
 			}
-			JSON.stringify({ fs: canRequire("fs"), os: canRequire("os"), exec: canRequire("exec"), database: canRequire("database") });
+			JSON.stringify({ fs: canRequire("fs"), nodeFs: canRequire("node:fs"), os: canRequire("os"), nodeOs: canRequire("node:os"), exec: canRequire("exec"), database: canRequire("database") });
 		`)
 		if runErr != nil {
 			return nil, runErr
@@ -67,7 +71,7 @@ func TestHostAccessModulesRequireExplicitSelection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run host absent smoke: %v", err)
 	}
-	if ret != `{"fs":false,"os":false,"exec":false,"database":false}` {
+	if ret != `{"fs":false,"nodeFs":false,"os":false,"nodeOs":false,"exec":false,"database":false}` {
 		t.Fatalf("host module availability = %v", ret)
 	}
 }
@@ -88,7 +92,7 @@ func TestDefaultRegistryModuleEnablesOneHostModule(t *testing.T) {
 			function canRequire(name) {
 				try { require(name); return true; } catch (e) { return false; }
 			}
-			JSON.stringify({ fs: canRequire("fs"), os: canRequire("os") });
+			JSON.stringify({ fs: canRequire("fs"), nodeFs: canRequire("node:fs"), os: canRequire("os"), nodeOs: canRequire("node:os") });
 		`)
 		if runErr != nil {
 			return nil, runErr
@@ -98,7 +102,7 @@ func TestDefaultRegistryModuleEnablesOneHostModule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run single-module smoke: %v", err)
 	}
-	if ret != `{"fs":true,"os":false}` {
+	if ret != `{"fs":true,"nodeFs":true,"os":false,"nodeOs":false}` {
 		t.Fatalf("single module availability = %v", ret)
 	}
 }
@@ -119,7 +123,7 @@ func TestDefaultRegistryModulesNamedEnablesSelectedHostModules(t *testing.T) {
 			function canRequire(name) {
 				try { require(name); return true; } catch (e) { return false; }
 			}
-			JSON.stringify({ fs: canRequire("fs"), os: canRequire("os"), exec: canRequire("exec") });
+			JSON.stringify({ fs: canRequire("fs"), nodeFs: canRequire("node:fs"), os: canRequire("os"), nodeOs: canRequire("node:os"), exec: canRequire("exec") });
 		`)
 		if runErr != nil {
 			return nil, runErr
@@ -129,7 +133,7 @@ func TestDefaultRegistryModulesNamedEnablesSelectedHostModules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run named-modules smoke: %v", err)
 	}
-	if ret != `{"fs":true,"os":true,"exec":false}` {
+	if ret != `{"fs":true,"nodeFs":true,"os":true,"nodeOs":true,"exec":false}` {
 		t.Fatalf("named module availability = %v", ret)
 	}
 }

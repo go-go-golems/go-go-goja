@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/dop251/goja"
 	noderequire "github.com/dop251/goja_nodejs/require"
@@ -16,6 +17,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/jsevents"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,6 +38,10 @@ func TestScanDirDiscoversExpectedPaths(t *testing.T) {
 		"basics greet",
 		"basics list-issues",
 		"basics summarize",
+		"events event-timeline",
+		"events handled-error",
+		"events listener-summary",
+		"fswatch watch-and-write",
 		"meta pkg-demo ping",
 		"nested with-helper render",
 	}, paths)
@@ -129,6 +135,22 @@ func TestFixtureCommandsExecute(t *testing.T) {
 			},
 		})
 		require.Equal(t, "repo:glazed", rows[0]["value"])
+	})
+
+	t.Run("event emitter timeline", func(t *testing.T) {
+		rows := runCommand(t, commandMap["events event-timeline"], map[string]map[string]interface{}{
+			"default": {
+				"prefix": "evt",
+				"count":  2,
+			},
+		})
+		require.Len(t, rows, 3)
+		require.Equal(t, "once", rows[0]["kind"])
+		require.Equal(t, "evt:0", rows[0]["value"])
+		require.Equal(t, "tick", rows[1]["kind"])
+		require.Equal(t, "evt:0", rows[1]["value"])
+		require.Equal(t, "tick", rows[2]["kind"])
+		require.Equal(t, "evt:1", rows[2]["value"])
 	})
 
 	t.Run("package metadata auto expose", func(t *testing.T) {
@@ -604,6 +626,72 @@ func TestInvokeInRuntimeReusesLiveRuntime(t *testing.T) {
 	value, ok := stillAlive.(goja.Value)
 	require.True(t, ok)
 	require.EqualValues(t, 42, value.ToInteger())
+}
+
+func TestFSWatchJsverbUsesInstalledHelper(t *testing.T) {
+	registry := mustRegistry(t)
+	verb, ok := registry.Verb("fswatch watch-and-write")
+	require.True(t, ok)
+
+	dir := t.TempDir()
+	requireOpt, err := engine.RequireOptionWithModuleRootsFromScript(
+		filepath.Join(repoRoot(t), "testdata", "jsverbs", "fswatch.js"),
+		engine.DefaultModuleRootsOptions(),
+	)
+	require.NoError(t, err)
+
+	builder := engine.NewBuilder().
+		WithRequireOptions(noderequire.WithLoader(registry.RequireLoader())).
+		WithModules(engine.DefaultRegistryModules()).
+		WithRuntimeInitializers(
+			jsevents.Install(),
+			jsevents.FSWatchHelper(jsevents.FSWatchOptions{
+				Root:           dir,
+				AllowRecursive: true,
+				MaxDebounce:    time.Second,
+			}),
+		)
+	if requireOpt != nil {
+		builder = builder.WithRequireOptions(requireOpt)
+	}
+	factory, err := builder.Build()
+	require.NoError(t, err)
+	rt, err := factory.NewRuntime(context.Background())
+	require.NoError(t, err)
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	desc, err := registry.CommandDescriptionForVerb(verb)
+	require.NoError(t, err)
+	cmd := &Command{CommandDescription: desc, registry: registry, verb: verb}
+	parsedValues, err := runner.ParseCommandValues(cmd, runner.WithValuesForSections(map[string]map[string]interface{}{
+		"default": {
+			"dir":        dir,
+			"fileName":   "nested/from-jsverb.txt",
+			"recursive":  true,
+			"debounceMs": 25,
+			"include":    []string{"**/*.txt"},
+			"exclude":    []string{"**/ignored/**"},
+		},
+	}))
+	require.NoError(t, err)
+
+	result, err := registry.InvokeInRuntime(context.Background(), rt, verb, parsedValues)
+	require.NoError(t, err)
+	rows, err := rowsFromResult(result)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	row := rowToMap(rows[0])
+	require.Equal(t, "fsnotify", row["source"])
+	require.Equal(t, dir, row["watchPath"])
+	require.Contains(t, row["name"], "from-jsverb.txt")
+	require.Equal(t, "nested/from-jsverb.txt", row["relativeName"])
+	require.NotEmpty(t, row["op"])
+	require.Equal(t, true, row["recursive"])
+	require.Equal(t, true, row["connectionRecursive"])
+	require.EqualValues(t, 25, row["connectionDebounceMs"])
+	require.Equal(t, true, row["debounced"])
+	require.Equal(t, true, row["closeResult"])
+	require.GreaterOrEqual(t, row["count"], int64(1))
 }
 
 func TestUnknownSectionStillFailsWhenAbsentFromBothCatalogs(t *testing.T) {

@@ -9,15 +9,20 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 )
 
-type m struct{}
+type m struct{ name string }
 
 var _ modules.NativeModule = (*m)(nil)
 var _ modules.TypeScriptDeclarer = (*m)(nil)
 
-func (m) Name() string { return "os" }
-func (m) Doc() string  { return `The os module exposes host operating-system helpers.` }
-func (m) TypeScriptModule() *spec.Module {
-	return &spec.Module{Name: "os", Functions: []spec.Function{
+func (m m) Name() string {
+	if m.name != "" {
+		return m.name
+	}
+	return "os"
+}
+func (m m) Doc() string { return `The os module exposes host operating-system helpers.` }
+func (m m) TypeScriptModule() *spec.Module {
+	return &spec.Module{Name: m.Name(), Functions: []spec.Function{
 		{Name: "homedir", Returns: spec.String()}, {Name: "tmpdir", Returns: spec.String()},
 		{Name: "platform", Returns: spec.String()}, {Name: "arch", Returns: spec.String()},
 		{Name: "hostname", Returns: spec.String()}, {Name: "release", Returns: spec.String()},
@@ -47,4 +52,7 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	}
 }
 
-func init() { modules.Register(&m{}) }
+func init() {
+	modules.Register(&m{name: "os"})
+	modules.Register(&m{name: "node:os"})
+}
