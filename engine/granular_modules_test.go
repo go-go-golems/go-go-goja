@@ -22,6 +22,8 @@ func TestDataOnlyModulesAreEnabledByDefault(t *testing.T) {
 		`require("path").join("a", "b")`:                                     "a/b",
 		`typeof require("time").now()`:                                       "number",
 		`require("crypto").createHash("sha256").update("abc").digest("hex")`: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+		`typeof require("events").EventEmitter`:                              "function",
+		`typeof require("node:events").EventEmitter`:                         "function",
 		`typeof require("timer").sleep`:                                      "function",
 	}
 	for code, want := range tests {

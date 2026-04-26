@@ -162,7 +162,7 @@ func DefaultRegistryModulesNamed(names ...string) ModuleSpec {
 	}
 }
 
-var dataOnlyDefaultRegistryModuleNames = []string{"crypto", "path", "time", "timer"}
+var dataOnlyDefaultRegistryModuleNames = []string{"crypto", "events", "node:events", "path", "time", "timer"}
 
 // DataOnlyDefaultRegistryModules returns the non-host-filesystem/non-process
 // primitives that are installed automatically for every engine runtime.
