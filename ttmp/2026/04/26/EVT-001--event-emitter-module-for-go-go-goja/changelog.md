@@ -95,3 +95,19 @@ Created fsnotify connected-emitter helper tasks and a detailed implementation gu
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Recorded fsnotify planning step.
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/tasks.md — Added FSWATCH-001 through FSWATCH-010 tasks.
 
+
+## 2026-04-26
+
+Implemented fsnotify connected-emitter helper and jsverbs example (commits 33819cb and 28058a7); updated docs and guide.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/03-async-patterns.md — connected-emitter pattern docs.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/16-nodejs-primitives.md — fswatch helper docs.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/fswatch.go — FSWatchHelper implementation.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/fswatch_test.go — FSWatchHelper tests.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsverbs/jsverbs_test.go — fswatch jsverbs runtime integration test.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/testdata/jsverbs/fswatch.js — fswatch jsverbs example.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md — fsnotify design guide updated to match implementation.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 14 implementation diary.
+

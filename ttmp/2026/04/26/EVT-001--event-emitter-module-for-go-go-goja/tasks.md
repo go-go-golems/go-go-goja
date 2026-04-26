@@ -18,12 +18,12 @@
 - [x] Add connected-emitter and Watermill helper tests
 - [x] Validate connected-emitter slice, update diary, and commit
 - [x] FSWATCH-001: Write fsnotify connected-emitter design and implementation guide
-- [ ] FSWATCH-002: Define FSWatchOptions, helper initializer API, and JavaScript contract
-- [ ] FSWATCH-003: Implement FSWatchHelper that installs fswatch.watch(path, emitter, options?)
-- [ ] FSWATCH-004: Validate and normalize watched paths with AllowPath and optional Root policy
-- [ ] FSWATCH-005: Adopt JS-created Go-native EventEmitter instances via Manager.AdoptEmitterOnOwner
-- [ ] FSWATCH-006: Implement watcher goroutine lifecycle, connection close, and runtime cancellation
-- [ ] FSWATCH-007: Emit fsnotify events with bitmask-derived booleans and local error/close events
-- [ ] FSWATCH-008: Add fswatch tests for event delivery, denied paths, invalid emitters, close, and add failures
-- [ ] FSWATCH-009: Add jsverbs or example script demonstrating fswatch helper usage in an embedding runtime
-- [ ] FSWATCH-010: Update docs and diary, run validation, and commit fsnotify helper slice
+- [x] FSWATCH-002: Define FSWatchOptions, helper initializer API, and JavaScript contract
+- [x] FSWATCH-003: Implement FSWatchHelper that installs fswatch.watch(path, emitter, options?)
+- [x] FSWATCH-004: Validate and normalize watched paths with AllowPath and optional Root policy
+- [x] FSWATCH-005: Adopt JS-created Go-native EventEmitter instances via Manager.AdoptEmitterOnOwner
+- [x] FSWATCH-006: Implement watcher goroutine lifecycle, connection close, and runtime cancellation
+- [x] FSWATCH-007: Emit fsnotify events with bitmask-derived booleans and local error/close events
+- [x] FSWATCH-008: Add fswatch tests for event delivery, denied paths, invalid emitters, close, and add failures
+- [x] FSWATCH-009: Add jsverbs or example script demonstrating fswatch helper usage in an embedding runtime
+- [x] FSWATCH-010: Update docs and diary, run validation, and commit fsnotify helper slice

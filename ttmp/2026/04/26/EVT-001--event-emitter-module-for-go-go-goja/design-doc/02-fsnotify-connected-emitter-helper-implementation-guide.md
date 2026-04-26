@@ -15,16 +15,31 @@ RelatedFiles:
       Note: External watcher API and non-recursive directory semantics.
     - Path: modules/events/events.go
       Note: Go-native EventEmitter that fswatch adopts from JavaScript.
+    - Path: pkg/doc/03-async-patterns.md
+      Note: Connected EventEmitter pattern documentation.
+    - Path: pkg/doc/16-nodejs-primitives.md
+      Note: Opt-in fswatch helper documentation.
+    - Path: pkg/jsevents/fswatch.go
+      Note: Implemented FSWatchHelper
+    - Path: pkg/jsevents/fswatch_test.go
+      Note: Test coverage for fswatch event delivery
     - Path: pkg/jsevents/manager.go
       Note: Existing connected-emitter manager that fswatch should reuse.
     - Path: pkg/jsevents/watermill.go
       Note: Existing helper pattern that fswatch should mirror.
+    - Path: pkg/jsverbs/jsverbs_test.go
+      Note: Runtime integration test that invokes the fswatch jsverb with the helper installed.
+    - Path: testdata/jsverbs/fswatch.js
+      Note: Runnable jsverbs example for fswatch.watch(path
+    - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md
+      Note: Updated design guide to match synchronous watcher setup behavior.
 ExternalSources: []
 Summary: Detailed design and implementation guide for an opt-in fsnotify helper that connects filesystem events to JS-created EventEmitter instances.
 LastUpdated: 2026-04-26T10:25:00-04:00
 WhatFor: Guide implementation and review of the fsnotify connected-emitter helper in pkg/jsevents.
 WhenToUse: Use before implementing fswatch.watch(path, emitter, options?) or reviewing filesystem watcher event delivery into JavaScript.
 ---
+
 
 
 # fsnotify connected emitter helper implementation guide
@@ -343,26 +358,39 @@ func (h *fsWatchHelper) InitRuntime(ctx *engine.RuntimeContext) error {
 Inside the JS-callable function:
 
 1. Decode and normalize the path.
-2. Adopt `call.Argument(1)` as a Go-native EventEmitter.
-3. Create `watchCtx, cancel := context.WithCancel(ctx.Context)`.
-4. Call `ref.SetCancel(cancel)`.
-5. Start watcher goroutine.
-6. Return connection object.
+2. Validate the optional `options` object. The first implementation rejects `{ recursive: true }` because recursive watching is intentionally out of scope.
+3. Adopt `call.Argument(1)` as a Go-native EventEmitter.
+4. Create the `fsnotify.Watcher` and call `watcher.Add(path)` synchronously while still handling the JavaScript call. This makes setup failures deterministic JavaScript exceptions instead of asynchronous `error` events.
+5. Create `watchCtx, cancel := context.WithCancel(ctx.Context)`.
+6. Call `ref.SetCancel(cancel)`.
+7. Start watcher goroutine to drain `Events` and `Errors`.
+8. Return connection object.
 
 Pseudocode:
 
 ```go
 func (h *fsWatchHelper) watch(call goja.FunctionCall) goja.Value {
-    path, err := normalizeWatchPath(call.Argument(0).String(), h.opts)
+    path, err := normalizeWatchPath(call.Argument(0), h.opts)
     if err != nil { panic(vm.NewGoError(err)) }
+    if err := validateFSWatchOptions(vm, call.Argument(2)); err != nil {
+        panic(vm.NewGoError(err))
+    }
 
     ref, err := manager.AdoptEmitterOnOwner(call.Argument(1))
     if err != nil { panic(vm.NewGoError(err)) }
 
+    watcher, err := fsnotify.NewWatcher()
+    if err != nil { panic(vm.NewGoError(err)) }
+    if err := watcher.Add(path); err != nil {
+        _ = watcher.Close()
+        _ = ref.Close(context.Background())
+        panic(vm.NewGoError(err))
+    }
+
     watchCtx, cancel := context.WithCancel(ctx.Context)
     ref.SetCancel(cancel)
 
-    go runFSWatcher(watchCtx, ref, path)
+    go runFSWatcher(watchCtx, ref, watcher, path)
 
     return fsWatchConnectionObject(vm, ref, path)
 }
@@ -387,25 +415,12 @@ func fsWatchConnectionObject(vm *goja.Runtime, ref *EmitterRef, path string) *go
 Pseudocode:
 
 ```go
-func runFSWatcher(ctx context.Context, ref *EmitterRef, path string) {
-    watcher, err := fsnotify.NewWatcher()
-    if err != nil {
-        _ = emitFSWatchError(ctx, ref, path, err)
-        _ = ref.Close(ctx)
-        return
-    }
+func runFSWatcher(ctx context.Context, ref *EmitterRef, watcher *fsnotify.Watcher, path string) {
     defer watcher.Close()
-
-    if err := watcher.Add(path); err != nil {
-        _ = emitFSWatchError(ctx, ref, path, err)
-        _ = ref.Close(ctx)
-        return
-    }
 
     for {
         select {
         case <-ctx.Done():
-            _ = ref.Emit(context.Background(), "close")
             return
         case ev, ok := <-watcher.Events:
             if !ok {
@@ -428,11 +443,11 @@ func runFSWatcher(ctx context.Context, ref *EmitterRef, path string) {
 
 Important detail: if `ctx` is canceled, `ref.Emit(ctx, "close")` may reject because `runtimeowner.Post` checks context cancellation. If close delivery matters, use `context.Background()` for the final close event or skip close event on explicit cancellation. The first implementation should choose and test one behavior.
 
-Recommended first-slice behavior:
+Implemented first-slice behavior:
 
-- Explicit `conn.close()` cancels and cleans up; do not guarantee a JS `close` event after explicit close.
+- Explicit `conn.close()` cancels and cleans up; it does not guarantee a JS `close` event after explicit close.
 - Channel closure emits `close` with `context.Background()` best-effort.
-- Add failure emits `error` before close because setup is still active.
+- `fsnotify.NewWatcher()` and `watcher.Add(path)` failures throw synchronously from `fswatch.watch(...)`. This avoids returning a connection object for a watcher that never started and makes tests/examples easier to reason about.
 
 ### Phase 4: Payload helpers
 
@@ -491,14 +506,12 @@ AllowPath: func(path string) bool { return false }
 
 Expect `not allowed`.
 
-#### Test 4: add failure emits error
+#### Test 4: add failure throws
 
-Call `fswatch.watch(nonExistentPath, emitter)` with an error listener registered. Because `watcher.Add` happens in the goroutine, the JS call may return a connection before the error arrives. Test with `require.Eventually` against a JS `errors` array.
+Call `fswatch.watch(nonExistentPath, emitter)` and assert the JavaScript call fails with a message containing `fswatch: watch`. The implementation creates the watcher and calls `watcher.Add(path)` synchronously before returning the connection object.
 
 ```js
 const emitter = new EventEmitter();
-globalThis.errors = [];
-emitter.on("error", err => errors.push(err.message));
 fswatch.watch("/definitely/missing", emitter);
 ```
 
@@ -573,7 +586,7 @@ The fsnotify helper slice is complete when:
 - `FSWatchHelper(...)` installs `fswatch.watch(...)` only when explicitly configured.
 - A JS-created `EventEmitter` can receive file events from a watched temp directory.
 - Denied paths and invalid emitters fail clearly.
-- Watcher add failures surface as `error` events.
+- Watcher add failures throw synchronously from `fswatch.watch(...)`.
 - `conn.close()` cancels watcher resources.
 - Tests pass:
 

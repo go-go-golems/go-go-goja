@@ -19,6 +19,14 @@ RelatedFiles:
       Note: Go-native EventEmitter implementation added in commit b37c256.
     - Path: modules/events/events_test.go
       Note: Runtime tests for EventEmitter semantics and Go adoption.
+    - Path: pkg/doc/03-async-patterns.md
+      Note: async connected-emitter docs updated in Step 14.
+    - Path: pkg/doc/16-nodejs-primitives.md
+      Note: primitive/helper docs updated in Step 14.
+    - Path: pkg/jsevents/fswatch.go
+      Note: fsnotify connected-emitter helper implementation recorded in Step 14.
+    - Path: pkg/jsevents/fswatch_test.go
+      Note: fswatch helper tests recorded in Step 14.
     - Path: pkg/jsevents/manager.go
       Note: Connected-emitter manager and EmitterRef implementation added in commit 0a5f322.
     - Path: pkg/jsevents/manager_test.go
@@ -28,9 +36,13 @@ RelatedFiles:
     - Path: pkg/jsevents/watermill_test.go
       Note: Watermill helper tests.
     - Path: pkg/jsverbs/jsverbs_test.go
-      Note: jsverbs regression coverage for EventEmitter examples.
+      Note: |-
+        jsverbs regression coverage for EventEmitter examples.
+        fswatch jsverbs runtime integration test recorded in Step 14.
     - Path: testdata/jsverbs/events.js
       Note: jsverbs EventEmitter examples added in commit 12c497d.
+    - Path: testdata/jsverbs/fswatch.js
+      Note: fswatch jsverbs example recorded in Step 14.
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md
       Note: fsnotify helper design created in Step 13.
     - Path: ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/scripts/01-gather-event-emitter-evidence.sh
@@ -49,6 +61,7 @@ LastUpdated: 2026-04-26T09:29:00-04:00
 WhatFor: Record the investigation and documentation work for EVT-001.
 WhenToUse: Read before resuming implementation or reviewing the event-emitter design.
 ---
+
 
 
 
@@ -1174,4 +1187,128 @@ Guide path:
 
 ```text
 go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md
+```
+
+## Step 14: Implemented the fsnotify connected-emitter helper
+
+I implemented the planned fsnotify helper as `pkg/jsevents.FSWatchHelper`. The helper installs an opt-in `fswatch` global with `fswatch.watch(path, emitter, options?)`, adopts a JavaScript-created Go-native EventEmitter, and forwards `fsnotify` filesystem events through the connected-emitter manager.
+
+I also added an executable jsverbs example that demonstrates the feature from JavaScript: the verb starts a watcher, writes a file, waits for an emitted event, and closes the connection. This keeps the feature visible as both a package-level helper and a script-facing workflow.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Continue work on FSWATCH-002, read docmgr and diary skills, commit at approrpiate intervals, make an example jsverb to show the feature. keep a diary as you work"
+
+**Assistant interpretation:** Resume the fsnotify slice from the API task, explicitly follow docmgr/diary workflow, implement the helper, add a jsverbs example, validate, and commit in focused intervals.
+
+**Inferred user intent:** The user wants the feature delivered with reviewable code slices, tests, a runnable JavaScript example, and durable ticket bookkeeping.
+
+**Commit (code):** `33819cbd6f1eba7e98c21f6c6fdd49ecde1c7ccc` — "Add fsnotify connected emitter helper"
+
+**Commit (example):** `28058a726afa74c52cb672af7023831d7e055d48` — "Add fswatch jsverb example"
+
+### What I did
+
+- Read the docmgr and diary skills before modifying ticket state.
+- Added `pkg/jsevents/fswatch.go`:
+  - `FSWatchOptions` with `GlobalName`, `Root`, and `AllowPath`.
+  - `FSWatchHelper(...)` runtime initializer.
+  - `fswatch.watch(path, emitter, options?)` JavaScript helper.
+  - path normalization and root escape checks.
+  - `{ recursive: true }` rejection for first-slice non-recursive behavior.
+  - synchronous `fsnotify.NewWatcher()` and `watcher.Add(path)` setup.
+  - background watcher loop that emits `event`, `error`, and best-effort `close` events only through `EmitterRef`.
+- Added `pkg/jsevents/fswatch_test.go`:
+  - file event delivery test.
+  - close stops delivery test.
+  - disallowed path test.
+  - root escape test.
+  - invalid emitter test.
+  - unsupported recursive option test.
+  - watcher add failure test.
+  - missing manager test.
+- Added `testdata/jsverbs/fswatch.js` with `watchAndWrite(...)`.
+- Updated `pkg/jsverbs/jsverbs_test.go` to discover and execute `fswatch watch-and-write` in a runtime that explicitly installs `jsevents.Install()` and `FSWatchHelper(...)`.
+- Updated docs:
+  - `pkg/doc/03-async-patterns.md`
+  - `pkg/doc/16-nodejs-primitives.md`
+- Updated the fsnotify design guide to match the implemented synchronous watcher setup behavior.
+- Marked FSWATCH-002 through FSWATCH-010 complete.
+
+### Why
+
+- `fswatch` is host access, so it must be installed explicitly by embedding code and constrained with path policy.
+- The connected-emitter manager already solved the owner-thread scheduling problem; the helper should reuse it rather than inventing a separate callback bridge.
+- Creating and adding the fsnotify watcher synchronously makes setup failures clear: `fswatch.watch(...)` throws instead of returning a connection that immediately errors.
+
+### What worked
+
+Targeted validation passed:
+
+```bash
+go test ./pkg/jsevents -run 'TestFSWatch' -count=1
+go test ./pkg/jsevents -count=1
+go test ./pkg/jsverbs -run 'TestScanDirDiscoversExpectedPaths|TestFSWatchJsverbUsesInstalledHelper' -count=1
+go test ./pkg/jsverbs -count=1
+go test ./pkg/jsevents ./modules/events ./engine ./pkg/jsverbs -count=1
+make lint
+```
+
+Both code commits also passed the lefthook pre-commit hook, including:
+
+```bash
+go generate ./...
+go test ./...
+```
+
+### What didn't work
+
+- N/A. The implementation and example compiled and passed targeted tests on the first run.
+- I did revise one design assumption during implementation: setup failures are synchronous throws rather than asynchronous `error` events. This is documented in the updated design guide.
+
+### What I learned
+
+- The jsverbs runtime can demonstrate host-installed helpers by using `InvokeInRuntime(...)` with a caller-owned runtime that installs the helper explicitly.
+- `fsnotify` tests are more reliable if `watcher.Add(path)` completes before JavaScript writes the test file. Synchronous watcher setup avoids the race where a file is written before the watch is active.
+
+### What was tricky to build
+
+- Close behavior needed care. `EmitterRef.Close(...)` marks the ref closed before canceling the watcher context, so explicit `conn.close()` should not promise a JavaScript `close` event. The helper treats close as Go-side resource cleanup and only emits best-effort `close` when fsnotify channels close independently.
+- Path policy needed both `Root` and `AllowPath`. `Root` handles relative path resolution and escape prevention, while `AllowPath` remains a caller-defined final approval hook.
+- The jsverbs example needed a custom runtime because default jsverbs command invocation does not install host-specific `fswatch` globals.
+
+### What warrants a second pair of eyes
+
+- Review `normalizeWatchPath(...)` for platform-specific path edge cases and symlink policy. It prevents lexical root escapes but does not resolve symlinks.
+- Review whether synchronous watcher setup is the desired long-term behavior. It is deterministic for tests and callers, but it does perform small filesystem setup work on the owner thread.
+- Review close behavior if callers expect an EventEmitter `close` event after explicit `conn.close()`.
+
+### What should be done in the future
+
+- Consider recursive watch support behind an explicit option by walking subdirectories and adding new directories when create events arrive.
+- Consider debouncing/coalescing helpers for high-volume filesystem event streams.
+- Consider richer connection diagnostics if scripts need watcher status beyond `id`, `path`, and `close()`.
+
+### Code review instructions
+
+- Start with `pkg/jsevents/fswatch.go`, especially `FSWatchHelper`, `normalizeWatchPath`, and `runFSWatcher`.
+- Review `pkg/jsevents/fswatch_test.go` for lifecycle and policy coverage.
+- Review `testdata/jsverbs/fswatch.js` and `TestFSWatchJsverbUsesInstalledHelper` to see the JavaScript-facing example.
+- Validate with:
+  - `go test ./pkg/jsevents ./modules/events ./engine ./pkg/jsverbs -count=1`
+  - `make lint`
+  - `go test ./... -count=1`
+
+### Technical details
+
+Important files:
+
+```text
+pkg/jsevents/fswatch.go
+pkg/jsevents/fswatch_test.go
+testdata/jsverbs/fswatch.js
+pkg/jsverbs/jsverbs_test.go
+pkg/doc/03-async-patterns.md
+pkg/doc/16-nodejs-primitives.md
+ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/02-fsnotify-connected-emitter-helper-implementation-guide.md
 ```

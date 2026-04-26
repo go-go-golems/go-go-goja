@@ -226,6 +226,41 @@ console.log(emitter.listenerCount("ready"));
 
 Supported methods include `on`/`addListener`, `once`, `off`/`removeListener`, `removeAllListeners`, `emit`, `listeners`, `rawListeners`, `listenerCount`, and `eventNames`. Emitting `"error"` without an error listener throws, matching the common Node EventEmitter behavior.
 
+### Connected EventEmitter helpers
+
+`pkg/jsevents` builds opt-in Go resource helpers on top of the Go-native EventEmitter. These helpers are not default primitives because they connect JavaScript to host resources. An embedding application installs the connected-emitter manager and whichever helpers it wants:
+
+```go
+factory, err := engine.NewBuilder().
+    WithRuntimeInitializers(
+        jsevents.Install(),
+        jsevents.FSWatchHelper(jsevents.FSWatchOptions{
+            Root: "/tmp/my-app-sandbox",
+        }),
+    ).
+    Build()
+```
+
+JavaScript creates the emitter and passes it to the helper. The helper adopts the emitter and schedules all Go-originated events back onto the runtime owner thread:
+
+```javascript
+const EventEmitter = require("events");
+
+const watcher = new EventEmitter();
+const conn = fswatch.watch("/tmp/my-app-sandbox", watcher);
+
+watcher.on("event", (ev) => {
+  console.log(ev.name, ev.op, ev.create, ev.write);
+});
+watcher.on("error", (err) => {
+  console.error(err.path, err.message);
+});
+
+conn.close();
+```
+
+`fswatch.watch(path, emitter, options?)` watches one file or directory with `github.com/fsnotify/fsnotify`. Directory watches are not recursive in the first implementation; `{ recursive: true }` is rejected. The returned connection has `id`, `path`, and idempotent `close()` fields. Configure `FSWatchOptions.Root` and/or `AllowPath` when scripts should only watch selected paths.
+
 ## Path APIs
 
 The `path` module helps scripts build and inspect filesystem paths without hand-writing separators. It uses Go's `path/filepath`, so it follows the host platform instead of forcing POSIX behavior.
