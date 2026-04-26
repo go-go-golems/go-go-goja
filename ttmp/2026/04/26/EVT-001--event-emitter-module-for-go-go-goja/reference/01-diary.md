@@ -32,17 +32,22 @@ RelatedFiles:
     - Path: engine/nodejs_primitives_test.go
       Note: node:process and goja_nodejs node alias tests added in Step 18.
     - Path: modules/crypto/crypto.go
-      Note: crypto/node:crypto alias registration added in Step 18.
+      Note: |-
+        crypto/node:crypto alias registration added in Step 18.
+        GoSec weak-hash findings documented with Node compatibility #nosec justifications.
     - Path: modules/events/events.go
       Note: |-
         Go-native EventEmitter implementation added in commit b37c256.
         PR #31 review fixes for missing emit names and symbol event-name identity.
+        GoSec G104 fix checks SetPrototype errors.
     - Path: modules/events/events_test.go
       Note: |-
         Runtime tests for EventEmitter semantics and Go adoption.
         regression tests for emit() without event name and distinct symbol event names.
     - Path: modules/fs/fs.go
-      Note: fs/node:fs alias registration added in Step 18.
+      Note: |-
+        fs/node:fs alias registration added in Step 18.
+        GoSec G115 fix validates JavaScript fs mode values before uint32 conversion.
     - Path: modules/os/os.go
       Note: os/node:os alias registration added in Step 18.
     - Path: modules/path/path.go
@@ -117,6 +122,7 @@ LastUpdated: 2026-04-26T09:29:00-04:00
 WhatFor: Record the investigation and documentation work for EVT-001.
 WhenToUse: Read before resuming implementation or reviewing the event-emitter design.
 ---
+
 
 
 
@@ -1869,3 +1875,38 @@ go test ./...
 - Review `modules/events/events_test.go` for missing-name and symbol identity regressions.
 - Review `pkg/jsevents/fswatch.go` around `watchIsDir` and `relativeName`.
 - Review `pkg/jsevents/fswatch_test.go` for the single-file glob regression test.
+
+## Step 20: Addressed GoSec CI findings
+
+I fixed the GoSec findings reported by CI after the PR review fixes.
+
+**Commit (code):** `dd175f0c36f3a7a5baf8081cec0e289950e10f09` — "Address gosec review findings"
+
+### What I changed
+
+- Fixed `G115` integer overflow warnings in `modules/fs/fs.go`.
+  - Added a `fileModeOption` helper that validates JavaScript `mode` values before converting `int64` to `uint32`.
+  - Invalid negative or too-large mode values now throw a JavaScript `TypeError` instead of silently wrapping.
+- Fixed `G401`, `G501`, and `G505` findings in `modules/crypto/crypto.go`.
+  - Kept `md5` and `sha1` for Node `createHash()` compatibility.
+  - Added explicit `#nosec` justifications saying these algorithms are caller-requested compatibility options and are not used for internal security.
+- Fixed `G104` in `modules/events/events.go`.
+  - Checked the error returned by `SetPrototype()` and converted failures into a Go-backed JavaScript error.
+
+### Validation
+
+I ran:
+
+```bash
+go test ./modules/fs ./modules/crypto ./modules/events -count=1
+go test ./engine ./pkg/jsverbs ./pkg/jsevents -count=1
+make lint
+gosec -exclude=G101,G304,G301,G306,G204,G703 -exclude-generated -exclude-dir=.history ./...
+```
+
+The code commit pre-commit hook also passed:
+
+```bash
+go generate ./...
+go test ./...
+```

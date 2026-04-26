@@ -184,3 +184,15 @@ Addressed PR #31 review comments: guarded emit() with no event name, preserved s
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/jsevents/fswatch_test.go — single-file glob regression test.
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 19 diary entry.
 
+
+## 2026-04-26
+
+Addressed GoSec CI findings for fs mode conversion, Node-compatible weak hash algorithms, and EventEmitter prototype error handling (commit dd175f0).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/crypto/crypto.go — #nosec justifications for caller-requested md5/sha1 compatibility.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/events/events.go — SetPrototype error now checked.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/modules/fs/fs.go — fileModeOption range-checks mode conversions.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 20 diary entry.
+
