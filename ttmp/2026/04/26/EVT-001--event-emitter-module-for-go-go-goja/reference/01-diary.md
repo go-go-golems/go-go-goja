@@ -13,6 +13,8 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../go.work
       Note: Workspace file showing goja_nodejs was added locally.
+    - Path: README.md
+      Note: connected EventEmitter/fswatch overview added in Step 17.
     - Path: cmd/bun-demo/js/src/types/goja-modules.d.ts
       Note: Generated TypeScript declarations now include events aliases.
     - Path: modules/events/events.go
@@ -23,10 +25,18 @@ RelatedFiles:
       Note: |-
         async connected-emitter docs updated in Step 14.
         docs update recorded in Step 16.
+        embedded async docs cross-link connected emitter guide.
+    - Path: pkg/doc/08-jsverbs-example-overview.md
+      Note: documents fswatch fixture custom-runtime caveat.
+    - Path: pkg/doc/11-jsverbs-example-reference.md
+      Note: documents connected-helper fixture embedding pattern.
     - Path: pkg/doc/16-nodejs-primitives.md
       Note: |-
         primitive/helper docs updated in Step 14.
         docs update recorded in Step 16.
+        links node primitives reference to connected emitter guide.
+    - Path: pkg/doc/17-connected-eventemitters-developer-guide.md
+      Note: new embedded Glazed developer guide exposed in goja-repl and jsverbs-example.
     - Path: pkg/jsevents/fswatch.go
       Note: |-
         fsnotify connected-emitter helper implementation recorded in Step 14.
@@ -76,6 +86,7 @@ LastUpdated: 2026-04-26T09:29:00-04:00
 WhatFor: Record the investigation and documentation work for EVT-001.
 WhenToUse: Read before resuming implementation or reviewing the event-emitter design.
 ---
+
 
 
 
@@ -1544,4 +1555,96 @@ pkg/jsverbs/jsverbs_test.go
 pkg/doc/03-async-patterns.md
 pkg/doc/16-nodejs-primitives.md
 ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/03-fswatch-recursion-debouncing-and-glob-filtering-guide.md
+```
+
+## Step 17: Added embedded Glazed developer documentation for connected emitters
+
+I updated the user-facing documentation that is embedded into the Glazed help system and exposed by both `goja-repl help ...` and `jsverbs-example help ...`. The main addition is a dedicated connected EventEmitter developer guide, so the implementation is no longer documented only through ticket design docs and scattered primitive/async references.
+
+I also updated adjacent docs and the README so developers can discover the feature from the main module reference, async-patterns guide, jsverbs reference, and repository overview.
+
+### Prompt Context
+
+**User prompt (verbatim):** "update other documentation that might need updating"
+
+**Assistant interpretation:** Add or revise any remaining public documentation affected by the EventEmitter/jsevents/fswatch work, especially embedded docs exposed through the help system.
+
+**Inferred user intent:** The user wants the feature to be discoverable by developers using the repo tools, not just recorded in docmgr ticket notes.
+
+**Commit (code):** N/A — documentation only.
+
+### What I did
+
+- Read the Glazed help-page authoring skill and verified current help conventions with:
+  - `glaze help how-to-write-good-documentation-pages`
+  - `glaze help writing-help-entries`
+- Added `pkg/doc/17-connected-eventemitters-developer-guide.md`.
+- Updated `pkg/doc/03-async-patterns.md` with See Also links.
+- Updated `pkg/doc/08-jsverbs-example-overview.md` to explain why the fswatch fixture needs a custom runtime.
+- Updated `pkg/doc/11-jsverbs-example-reference.md` with a connected-helper fixture section.
+- Updated `pkg/doc/16-nodejs-primitives.md` to link to the new developer guide.
+- Updated `README.md` with a connected fswatch helper example and a pointer to the new help topic.
+
+### Why
+
+- `pkg/doc` is embedded through `pkg/doc/doc.go` and loaded by both `goja-repl` and `jsverbs-example`.
+- A dedicated guide is easier to discover than the ticket-only design docs and gives developers a durable reference for helper authoring.
+
+### What worked
+
+The new help page is exposed in both CLIs:
+
+```bash
+go run ./cmd/goja-repl help connected-eventemitters-developer-guide
+go run ./cmd/jsverbs-example help connected-eventemitters-developer-guide
+```
+
+Validation passed:
+
+```bash
+go test ./pkg/doc ./cmd/goja-repl ./cmd/jsverbs-example -count=1
+```
+
+### What didn't work
+
+- N/A. The embedded help page loaded successfully in both help systems.
+
+### What I learned
+
+- The shared `pkg/doc` package is the right place for reusable developer docs because both `goja-repl` and `jsverbs-example` already call `sharedoc.AddDocToHelpSystem(...)`.
+
+### What was tricky to build
+
+- The documentation needed to distinguish the custom `fswatch` helper from Node's standard `fs.watch(...)` API while still making the JavaScript shape easy to understand.
+- The jsverbs documentation needed to state clearly that `testdata/jsverbs/fswatch.js` is a fixture/example that requires an embedding runtime with `FSWatchHelper`, not the default CLI runtime.
+
+### What warrants a second pair of eyes
+
+- Review whether the new guide should be `IsTopLevel: true` or whether it should stay discoverable only through cross-links.
+- Review whether the README example should include full imports or stay as a short illustrative snippet.
+
+### What should be done in the future
+
+- If `cmd/jsverbs-example` gains explicit `--enable-fswatch` flags, update the guide and jsverbs docs with a direct command-line fswatch example.
+
+### Code review instructions
+
+- Start with `pkg/doc/17-connected-eventemitters-developer-guide.md`.
+- Check cross-links in `pkg/doc/03-async-patterns.md`, `pkg/doc/08-jsverbs-example-overview.md`, `pkg/doc/11-jsverbs-example-reference.md`, and `pkg/doc/16-nodejs-primitives.md`.
+- Validate with:
+  - `go run ./cmd/goja-repl help connected-eventemitters-developer-guide`
+  - `go run ./cmd/jsverbs-example help connected-eventemitters-developer-guide`
+  - `go test ./pkg/doc ./cmd/goja-repl ./cmd/jsverbs-example -count=1`
+
+### Technical details
+
+Important files:
+
+```text
+README.md
+pkg/doc/03-async-patterns.md
+pkg/doc/08-jsverbs-example-overview.md
+pkg/doc/11-jsverbs-example-reference.md
+pkg/doc/16-nodejs-primitives.md
+pkg/doc/17-connected-eventemitters-developer-guide.md
 ```

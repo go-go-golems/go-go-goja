@@ -138,3 +138,18 @@ Implemented recursive fswatch, glob filtering, debounce, and typed Go payloads (
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/03-fswatch-recursion-debouncing-and-glob-filtering-guide.md — recursive/debounce/glob design guide.
 - /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 16 diary entry.
 
+
+## 2026-04-26
+
+Added embedded Glazed connected EventEmitter developer documentation and updated related public docs.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/README.md — connected EventEmitter/fswatch overview.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/03-async-patterns.md — connected emitter cross-links.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/08-jsverbs-example-overview.md — fswatch fixture caveat.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/11-jsverbs-example-reference.md — connected-helper fixture section.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/16-nodejs-primitives.md — connected emitter guide cross-link.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/pkg/doc/17-connected-eventemitters-developer-guide.md — new embedded Glazed developer guide.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Step 17 documentation diary.
+

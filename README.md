@@ -278,6 +278,36 @@ emitter.emit("ready", "again");
 
 The emitter implementation is Go-backed, so Go helper modules can also validate/adopt an EventEmitter that JavaScript created and then emit to it safely from the runtime owner thread.
 
+Connected helpers in `pkg/jsevents` build on that adoption path for host resources. For example, an embedding application can explicitly install an fsnotify-backed helper and let JavaScript wire listeners on its own emitter:
+
+```go
+factory, err := engine.NewBuilder().
+    WithRuntimeInitializers(
+        jsevents.Install(),
+        jsevents.FSWatchHelper(jsevents.FSWatchOptions{
+            Root:           "/tmp/my-app-sandbox",
+            AllowRecursive: true,
+        }),
+    ).
+    Build()
+```
+
+```js
+const EventEmitter = require("events");
+const watcher = new EventEmitter();
+const conn = fswatch.watch("/tmp/my-app-sandbox", watcher, {
+  recursive: true,
+  debounceMs: 100,
+  include: ["**/*.js"],
+  exclude: ["**/node_modules/**"]
+});
+
+watcher.on("event", (ev) => console.log(ev.relativeName, ev.op));
+conn.close();
+```
+
+See `goja-repl help connected-eventemitters-developer-guide` for the full developer guide, including owner-thread safety, typed payload structs, fswatch, and Watermill.
+
 ### Demo: `timer` module
 
 `go-go-goja` now ships a built-in `timer` module when you enable `DefaultRegistryModules()`:

@@ -426,3 +426,10 @@ js> // REPL continues immediately, "Done!" appears after 1 second
 ```
 
 For file-based scripts with async operations, ensure the runtime doesn't exit before Promises resolve by using top-level await or maintaining event loop activity.
+
+## See Also
+
+- `glaze help connected-eventemitters-developer-guide` for the full connected EventEmitter helper pattern, including fswatch and Watermill.
+- `glaze help nodejs-primitives` for built-in modules, EventEmitter, and host-access composition policy.
+- `glaze help creating-modules` for native module structure and registration.
+- `glaze help repl-usage` for interactive runtime usage.

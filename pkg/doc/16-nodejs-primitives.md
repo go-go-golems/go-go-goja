@@ -424,4 +424,5 @@ Smoke tests live next to each module and execute real JavaScript through a real 
 - `glaze help introduction` for the runtime overview.
 - `glaze help creating-modules` for the native module implementation pattern.
 - `glaze help async-patterns` for Promise settlement and owner-thread rules.
+- `glaze help connected-eventemitters-developer-guide` for connected helper design, fswatch, Watermill, typed payloads, and review checklists.
 - `glaze help repl-usage` for interactive JavaScript evaluation.
