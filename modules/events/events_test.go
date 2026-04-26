@@ -87,6 +87,42 @@ func TestUnhandledErrorEventThrows(t *testing.T) {
 	require.Contains(t, err.Error(), "boom")
 }
 
+func TestEventEmitterEmitWithoutNameThrowsTypeError(t *testing.T) {
+	rt := newRuntime(t)
+
+	_, err := runJSValue(t, rt, `
+		const EventEmitter = require("events");
+		new EventEmitter().emit();
+	`)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "event name is required")
+}
+
+func TestEventEmitterPreservesSymbolEventNames(t *testing.T) {
+	rt := newRuntime(t)
+
+	got := runJS(t, rt, `
+		const EventEmitter = require("events");
+		const ee = new EventEmitter();
+		const s1 = Symbol("same");
+		const s2 = Symbol("same");
+		const calls = [];
+		ee.on(s1, () => calls.push("s1"));
+		const emittedWrong = ee.emit(s2);
+		const emittedRight = ee.emit(s1);
+		const names = ee.eventNames();
+		JSON.stringify({
+			emittedWrong,
+			emittedRight,
+			calls,
+			count1: ee.listenerCount(s1),
+			count2: ee.listenerCount(s2),
+			eventNameIsSymbol: names.length === 1 && names[0] === s1
+		});
+	`)
+	require.JSONEq(t, `{"emittedWrong":false,"emittedRight":true,"calls":["s1"],"count1":1,"count2":0,"eventNameIsSymbol":true}`, got)
+}
+
 func TestGoCanAdoptJSCreatedEmitterAndEmitToIt(t *testing.T) {
 	rt := newRuntime(t)
 	var adopted *eventsmodule.EventEmitter

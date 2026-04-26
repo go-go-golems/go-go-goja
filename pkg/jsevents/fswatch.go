@@ -131,12 +131,13 @@ type pendingFSEvent struct {
 }
 
 type fsWatchState struct {
-	watchPath string
-	opts      fsWatchCallOptions
-	matcher   fsWatchGlobMatcher
-	hostOpts  FSWatchOptions
-	watcher   *fsnotify.Watcher
-	ref       *EmitterRef
+	watchPath  string
+	watchIsDir bool
+	opts       fsWatchCallOptions
+	matcher    fsWatchGlobMatcher
+	hostOpts   FSWatchOptions
+	watcher    *fsnotify.Watcher
+	ref        *EmitterRef
 
 	mu           sync.Mutex
 	watchedPaths map[string]struct{}
@@ -371,6 +372,7 @@ func (s *fsWatchState) start() error {
 	if s.hostOpts.IgnorePath != nil && s.hostOpts.IgnorePath(s.watchPath) {
 		return fmt.Errorf("fswatch: path %q is ignored", s.watchPath)
 	}
+	s.watchIsDir = info.IsDir()
 	if s.opts.Recursive && info.IsDir() {
 		return s.addRecursive(s.watchPath)
 	}
@@ -599,8 +601,14 @@ func (s *fsWatchState) eventPayload(event fsnotify.Event, count int, debounced b
 
 func (s *fsWatchState) relativeName(name string) string {
 	rel, err := filepath.Rel(s.watchPath, name)
-	if err != nil || rel == "." {
+	if err != nil {
 		return ""
+	}
+	if rel == "." {
+		if s.watchIsDir {
+			return ""
+		}
+		return filepath.ToSlash(filepath.Base(s.watchPath))
 	}
 	return filepath.ToSlash(rel)
 }

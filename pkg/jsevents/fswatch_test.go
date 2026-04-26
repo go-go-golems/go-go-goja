@@ -260,6 +260,31 @@ func TestFSWatchHelperGlobIncludeExcludeFiltersEvents(t *testing.T) {
 	require.NotContains(t, got, "node_modules/ignored.js")
 }
 
+func TestFSWatchHelperGlobFiltersWatchedFileByBasename(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "watched.js")
+	require.NoError(t, os.WriteFile(file, []byte("initial"), 0o644))
+	rt := newFSWatchRuntime(t, dir)
+
+	_, err := rt.Owner.Call(context.Background(), "jsevents.fswatch.file-glob", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, err := vm.RunString(fmt.Sprintf(`
+			const EventEmitter = require("events");
+			globalThis.events = [];
+			const watcher = new EventEmitter();
+			watcher.on("event", (ev) => events.push(ev.relativeName));
+			globalThis.conn = fswatch.watch(%q, watcher, { include: ["**/*.js"] });
+		`, file))
+		return nil, err
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(file, []byte("updated"), 0o644))
+	require.Eventually(t, func() bool {
+		got := runJS(t, rt, `JSON.stringify(globalThis.events)`)
+		return strings.Contains(got, "watched.js")
+	}, 3*time.Second, 20*time.Millisecond)
+}
+
 func TestFSWatchHelperRejectsInvalidGlobOptions(t *testing.T) {
 	dir := t.TempDir()
 	rt := newRecursiveFSWatchRuntime(t, dir)

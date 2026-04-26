@@ -25,7 +25,7 @@ var _ modules.TypeScriptDeclarer = (*module)(nil)
 type EventEmitter struct {
 	vm        *goja.Runtime
 	object    *goja.Object
-	listeners map[string][]listenerEntry
+	listeners map[eventName][]listenerEntry
 }
 
 type listenerEntry struct {
@@ -36,6 +36,43 @@ type listenerEntry struct {
 }
 
 var eventEmitterType = reflect.TypeOf((*EventEmitter)(nil))
+
+type eventName struct {
+	text   string
+	symbol *goja.Symbol
+}
+
+func eventNameFromString(name string) eventName {
+	return eventName{text: name}
+}
+
+func eventNameFromValue(value goja.Value) eventName {
+	if sym, ok := value.(*goja.Symbol); ok {
+		return eventName{symbol: sym}
+	}
+	if value == nil || goja.IsUndefined(value) {
+		return eventName{text: "undefined"}
+	}
+	return eventName{text: value.String()}
+}
+
+func (n eventName) isString(name string) bool {
+	return n.symbol == nil && n.text == name
+}
+
+func (n eventName) value(vm *goja.Runtime) goja.Value {
+	if n.symbol != nil {
+		return n.symbol
+	}
+	return vm.ToValue(n.text)
+}
+
+func (n eventName) sortKey() string {
+	if n.symbol != nil {
+		return fmt.Sprintf("symbol:%s:%p", n.symbol.String(), n.symbol)
+	}
+	return "string:" + n.text
+}
 
 func (m *module) Name() string { return m.name }
 
@@ -108,14 +145,21 @@ func (m *module) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 		if len(call.Arguments) == 0 || goja.IsUndefined(call.Argument(0)) {
 			emitter.RemoveAllListeners()
 		} else {
-			emitter.RemoveAllListeners(eventKey(call.Argument(0)))
+			emitter.removeAllListeners(eventNameFromValue(call.Argument(0)))
 		}
 		return call.This
 	})
 	mustSet(vm, proto, "emit", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) == 0 {
+			panic(vm.NewTypeError("event name is required"))
+		}
 		emitter := mustEmitter(vm, call.This)
-		name := eventKey(call.Argument(0))
-		ok, err := emitter.Emit(name, call.Arguments[1:]...)
+		name := eventNameFromValue(call.Argument(0))
+		var args []goja.Value
+		if len(call.Arguments) > 1 {
+			args = call.Arguments[1:]
+		}
+		ok, err := emitter.emit(name, args)
 		if err != nil {
 			panic(vm.NewGoError(err))
 		}
@@ -123,19 +167,19 @@ func (m *module) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	})
 	mustSet(vm, proto, "listeners", func(call goja.FunctionCall) goja.Value {
 		emitter := mustEmitter(vm, call.This)
-		return vm.ToValue(emitter.Listeners(eventKey(call.Argument(0)), true))
+		return vm.ToValue(emitter.listenersForName(eventNameFromValue(call.Argument(0)), true))
 	})
 	mustSet(vm, proto, "rawListeners", func(call goja.FunctionCall) goja.Value {
 		emitter := mustEmitter(vm, call.This)
-		return vm.ToValue(emitter.Listeners(eventKey(call.Argument(0)), false))
+		return vm.ToValue(emitter.listenersForName(eventNameFromValue(call.Argument(0)), false))
 	})
 	mustSet(vm, proto, "listenerCount", func(call goja.FunctionCall) goja.Value {
 		emitter := mustEmitter(vm, call.This)
-		return vm.ToValue(emitter.ListenerCount(eventKey(call.Argument(0))))
+		return vm.ToValue(emitter.listenerCount(eventNameFromValue(call.Argument(0))))
 	})
 	mustSet(vm, proto, "eventNames", func(call goja.FunctionCall) goja.Value {
 		emitter := mustEmitter(vm, call.This)
-		return vm.ToValue(emitter.EventNames())
+		return vm.ToValue(emitter.eventNameValues())
 	})
 
 	mustSet(vm, constructor, "prototype", proto)
@@ -155,7 +199,7 @@ func (m *module) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 func New(vm *goja.Runtime) *EventEmitter {
 	return &EventEmitter{
 		vm:        vm,
-		listeners: map[string][]listenerEntry{},
+		listeners: map[eventName][]listenerEntry{},
 	}
 }
 
@@ -185,7 +229,7 @@ func (e *EventEmitter) AddListenerValue(name string, value goja.Value) error {
 	if !ok {
 		return fmt.Errorf("listener must be a function")
 	}
-	e.addListener(name, listenerEntry{value: value, callable: callable})
+	e.addListener(eventNameFromString(name), listenerEntry{value: value, callable: callable})
 	return nil
 }
 
@@ -203,20 +247,20 @@ func (e *EventEmitter) Emit(name string, args ...goja.Value) (bool, error) {
 	if e == nil {
 		return false, fmt.Errorf("events: nil emitter")
 	}
-	return e.emit(name, args)
+	return e.emit(eventNameFromString(name), args)
 }
 
-func (e *EventEmitter) addListener(name string, entry listenerEntry) {
+func (e *EventEmitter) addListener(name eventName, entry listenerEntry) {
 	if e.listeners == nil {
-		e.listeners = map[string][]listenerEntry{}
+		e.listeners = map[eventName][]listenerEntry{}
 	}
 	e.listeners[name] = append(e.listeners[name], entry)
 }
 
-func (e *EventEmitter) emit(name string, args []goja.Value) (bool, error) {
+func (e *EventEmitter) emit(name eventName, args []goja.Value) (bool, error) {
 	list := append([]listenerEntry(nil), e.listeners[name]...)
 	if len(list) == 0 {
-		if name == "error" {
+		if name.isString("error") {
 			return false, e.unhandledError(args)
 		}
 		return false, nil
@@ -243,7 +287,7 @@ func (e *EventEmitter) unhandledError(args []goja.Value) error {
 	return fmt.Errorf("unhandled error event: %s", args[0].String())
 }
 
-func (e *EventEmitter) removeListenerEntry(name string, value goja.Value) (listenerEntry, bool) {
+func (e *EventEmitter) removeListenerEntry(name eventName, value goja.Value) (listenerEntry, bool) {
 	list := e.listeners[name]
 	for i, entry := range list {
 		if sameListener(entry, value) {
@@ -262,13 +306,17 @@ func (e *EventEmitter) removeListenerEntry(name string, value goja.Value) (liste
 
 // RemoveListener removes the first listener matching value.
 func (e *EventEmitter) RemoveListener(name string, value goja.Value) bool {
+	return e.removeListener(eventNameFromString(name), value)
+}
+
+func (e *EventEmitter) removeListener(name eventName, value goja.Value) bool {
 	removed, ok := e.removeListenerEntry(name, value)
-	if ok && name != "removeListener" {
+	if ok && !name.isString("removeListener") {
 		listener := removed.value
 		if removed.original != nil {
 			listener = removed.original
 		}
-		_, _ = e.emit("removeListener", []goja.Value{e.vm.ToValue(name), listener})
+		_, _ = e.emit(eventNameFromString("removeListener"), []goja.Value{name.value(e.vm), listener})
 	}
 	return ok
 }
@@ -276,14 +324,22 @@ func (e *EventEmitter) RemoveListener(name string, value goja.Value) bool {
 // RemoveAllListeners clears either one event's listeners or every listener.
 func (e *EventEmitter) RemoveAllListeners(names ...string) {
 	if len(names) == 0 {
-		e.listeners = map[string][]listenerEntry{}
+		e.listeners = map[eventName][]listenerEntry{}
 		return
 	}
-	delete(e.listeners, names[0])
+	e.removeAllListeners(eventNameFromString(names[0]))
+}
+
+func (e *EventEmitter) removeAllListeners(name eventName) {
+	delete(e.listeners, name)
 }
 
 // Listeners returns a copy of listener values for name.
 func (e *EventEmitter) Listeners(name string, unwrapOnce bool) []goja.Value {
+	return e.listenersForName(eventNameFromString(name), unwrapOnce)
+}
+
+func (e *EventEmitter) listenersForName(name eventName, unwrapOnce bool) []goja.Value {
 	list := e.listeners[name]
 	out := make([]goja.Value, 0, len(list))
 	for _, entry := range list {
@@ -298,31 +354,52 @@ func (e *EventEmitter) Listeners(name string, unwrapOnce bool) []goja.Value {
 
 // ListenerCount returns the number of registered listeners for name.
 func (e *EventEmitter) ListenerCount(name string) int {
+	return e.listenerCount(eventNameFromString(name))
+}
+
+func (e *EventEmitter) listenerCount(name eventName) int {
 	return len(e.listeners[name])
 }
 
-// EventNames returns sorted event names with at least one listener.
+// EventNames returns sorted string event names with at least one listener.
 func (e *EventEmitter) EventNames() []string {
 	names := make([]string, 0, len(e.listeners))
 	for name, list := range e.listeners {
-		if len(list) > 0 {
-			names = append(names, name)
+		if len(list) > 0 && name.symbol == nil {
+			names = append(names, name.text)
 		}
 	}
 	sort.Strings(names)
 	return names
 }
 
+func (e *EventEmitter) eventNameValues() []goja.Value {
+	names := make([]eventName, 0, len(e.listeners))
+	for name, list := range e.listeners {
+		if len(list) > 0 {
+			names = append(names, name)
+		}
+	}
+	sort.Slice(names, func(i, j int) bool {
+		return names[i].sortKey() < names[j].sortKey()
+	})
+	values := make([]goja.Value, 0, len(names))
+	for _, name := range names {
+		values = append(values, name.value(e.vm))
+	}
+	return values
+}
+
 func methodOn(vm *goja.Runtime, call goja.FunctionCall, once bool) goja.Value {
 	emitter := mustEmitter(vm, call.This)
-	name := eventKey(call.Argument(0))
+	name := eventNameFromValue(call.Argument(0))
 	listenerValue := call.Argument(1)
 	callable, ok := goja.AssertFunction(listenerValue)
 	if !ok {
 		panic(vm.NewTypeError("listener must be a function"))
 	}
-	if name != "newListener" {
-		if _, err := emitter.emit("newListener", []goja.Value{vm.ToValue(name), listenerValue}); err != nil {
+	if !name.isString("newListener") {
+		if _, err := emitter.emit(eventNameFromString("newListener"), []goja.Value{name.value(vm), listenerValue}); err != nil {
 			panic(err)
 		}
 	}
@@ -336,7 +413,7 @@ func methodOn(vm *goja.Runtime, call goja.FunctionCall, once bool) goja.Value {
 
 func methodRemoveListener(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
 	emitter := mustEmitter(vm, call.This)
-	emitter.RemoveListener(eventKey(call.Argument(0)), call.Argument(1))
+	emitter.removeListener(eventNameFromValue(call.Argument(0)), call.Argument(1))
 	return call.This
 }
 
@@ -353,13 +430,6 @@ func sameListener(entry listenerEntry, value goja.Value) bool {
 		return true
 	}
 	return entry.original != nil && entry.original.StrictEquals(value)
-}
-
-func eventKey(value goja.Value) string {
-	if value == nil || goja.IsUndefined(value) {
-		return "undefined"
-	}
-	return value.String()
 }
 
 func (e *EventEmitter) thisObject() goja.Value {
