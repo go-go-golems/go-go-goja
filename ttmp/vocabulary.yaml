@@ -83,6 +83,12 @@ topics:
       description: JavaScript native module system
     - slug: nodejs-compat
       description: Node.js API compatibility layer
+    - slug: event-emitter
+      description: Event emitter APIs, listener dispatch, and Go-to-JavaScript event bus design.
+    - slug: javascript
+      description: JavaScript runtime, modules, and API behavior.
+    - slug: module
+      description: Single module implementation and module-level API work.
 docTypes:
     - slug: index
       description: Ticket index documents

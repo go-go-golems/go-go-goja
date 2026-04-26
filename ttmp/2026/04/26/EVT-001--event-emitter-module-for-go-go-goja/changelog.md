@@ -1,0 +1,60 @@
+# Changelog
+
+## 2026-04-26
+
+- Initial workspace created
+
+
+## 2026-04-26
+
+Created EVT-001 ticket, imported event-emitter source brief, gathered runtime/module evidence, wrote detailed implementation guide and diary.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/01-event-emitter-module-implementation-guide.md — Primary intern-oriented design and implementation guide.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Chronological work diary.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/scripts/01-gather-event-emitter-evidence.sh — Reproducible evidence capture script.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/sources/local/01-event-emitter.md — Imported source brief.
+
+
+## 2026-04-26
+
+Validated EVT-001 with docmgr doctor after adding vocabulary entries and normalizing imported source frontmatter/numeric prefix.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/sources/local/01-event-emitter.md — Imported brief renamed with numeric prefix and docmgr frontmatter.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/tasks.md — Marked setup
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/vocabulary.yaml — Added event-emitter
+
+
+## 2026-04-26
+
+Uploaded EVT-001 document bundle to reMarkable under /ai/2026/04/26/EVT-001 and verified the cloud listing.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/01-event-emitter-module-implementation-guide.md — Included in the uploaded reMarkable bundle.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Included in the uploaded reMarkable bundle.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/sources/local/01-event-emitter.md — Included in the uploaded reMarkable bundle as source material.
+
+
+## 2026-04-26
+
+Revised EVT-001 design to use JS-called Go factory functions returning connected EventEmitter instances; Watermill is now an opt-in helper, not a default emitter.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/01-event-emitter-module-implementation-guide.md — Updated primary design around connected emitters.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Recorded design revision prompted by user clarification.
+
+
+## 2026-04-26
+
+Revised EVT-001 design so the events module is implemented natively in Go, with Go-backed EventEmitter objects and adoption of JS-created native emitters.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/design-doc/01-event-emitter-module-implementation-guide.md — Updated primary design for Go-native EventEmitter implementation.
+- /home/manuel/workspaces/2026-04-26/add-event-emitter-module/go-go-goja/ttmp/2026/04/26/EVT-001--event-emitter-module-for-go-go-goja/reference/01-diary.md — Recorded Go-native EventEmitter design revision.
+
