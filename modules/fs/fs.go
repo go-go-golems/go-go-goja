@@ -12,16 +12,21 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 )
 
-type m struct{}
+type m struct{ name string }
 
 var _ modules.NativeModule = (*m)(nil)
 var _ modules.TypeScriptDeclarer = (*m)(nil)
 
-func (m) Name() string { return "fs" }
+func (m m) Name() string {
+	if m.name != "" {
+		return m.name
+	}
+	return "fs"
+}
 
-func (m) TypeScriptModule() *spec.Module {
+func (m m) TypeScriptModule() *spec.Module {
 	return &spec.Module{
-		Name: "fs",
+		Name: m.Name(),
 		RawDTS: []string{
 			"interface FileStats {",
 			"  name: string;",
@@ -59,7 +64,7 @@ func (m) TypeScriptModule() *spec.Module {
 	}
 }
 
-func (m) Doc() string {
+func (m m) Doc() string {
 	return `
 The fs module provides promise-based and synchronous file system helpers.
 
@@ -244,5 +249,6 @@ func fileMode(mode uint32) os.FileMode {
 }
 
 func init() {
-	modules.Register(&m{})
+	modules.Register(&m{name: "fs"})
+	modules.Register(&m{name: "node:fs"})
 }

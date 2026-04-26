@@ -103,7 +103,9 @@ func NewRuntime(ctx context.Context) (*engine.Runtime, error) {
 
 ## EventEmitter module contract
 
-The `events` and `node:events` modules are data-only defaults. They are available in fresh runtimes and implement a Go-native subset of Node's EventEmitter:
+The `events` and `node:events` modules are data-only defaults. go-go-goja uses Node's `node:` prefix for Node-compatible or mostly-compatible built-ins such as `node:events`, `node:path`, `node:crypto`, and opt-in host modules such as `node:fs` and `node:os`. Custom helpers such as `fswatch`, `watermill`, `time`, and `timer` intentionally do not use a `node:` prefix.
+
+The EventEmitter module is available in fresh runtimes and implements a Go-native subset of Node's EventEmitter:
 
 ```javascript
 const EventEmitter = require("events");

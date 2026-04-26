@@ -11,10 +11,13 @@ import (
 	"strings"
 
 	"github.com/go-go-golems/go-go-goja/modules"
+	_ "github.com/go-go-golems/go-go-goja/modules/crypto"
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
 	_ "github.com/go-go-golems/go-go-goja/modules/events"
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
 	_ "github.com/go-go-golems/go-go-goja/modules/fs"
+	_ "github.com/go-go-golems/go-go-goja/modules/os"
+	_ "github.com/go-go-golems/go-go-goja/modules/path"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/render"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/validate"

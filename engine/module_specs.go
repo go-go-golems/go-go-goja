@@ -122,8 +122,7 @@ func (s namedDefaultRegistryModulesSpec) Register(reg *require.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}
-	for _, rawName := range s.names {
-		name := strings.TrimSpace(rawName)
+	for _, name := range expandDefaultRegistryModuleNames(s.names) {
 		if name == "" {
 			return fmt.Errorf("default registry module name is empty")
 		}
@@ -134,6 +133,38 @@ func (s namedDefaultRegistryModulesSpec) Register(reg *require.Registry) error {
 		reg.RegisterNativeModule(mod.Name(), mod.Loader)
 	}
 	return nil
+}
+
+var defaultRegistryModuleAliases = map[string][]string{
+	"crypto": {"node:crypto"},
+	"events": {"node:events"},
+	"fs":     {"node:fs"},
+	"os":     {"node:os"},
+	"path":   {"node:path"},
+}
+
+func expandDefaultRegistryModuleNames(names []string) []string {
+	ret := make([]string, 0, len(names))
+	seen := map[string]struct{}{}
+	add := func(rawName string) {
+		name := strings.TrimSpace(rawName)
+		if name == "" {
+			return
+		}
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		ret = append(ret, name)
+	}
+	for _, rawName := range names {
+		name := strings.TrimSpace(rawName)
+		add(name)
+		for _, alias := range defaultRegistryModuleAliases[name] {
+			add(alias)
+		}
+	}
+	return ret
 }
 
 // DefaultRegistryModule returns a ModuleSpec that registers one module from
@@ -162,7 +193,7 @@ func DefaultRegistryModulesNamed(names ...string) ModuleSpec {
 	}
 }
 
-var dataOnlyDefaultRegistryModuleNames = []string{"crypto", "events", "node:events", "path", "time", "timer"}
+var dataOnlyDefaultRegistryModuleNames = []string{"crypto", "node:crypto", "events", "node:events", "path", "node:path", "time", "timer"}
 
 // DataOnlyDefaultRegistryModules returns the non-host-filesystem/non-process
 // primitives that are installed automatically for every engine runtime.
@@ -198,15 +229,24 @@ func processModuleLoader(vm *goja.Runtime, moduleObj *goja.Object) {
 	_ = exports.Set("env", processObject(vm).Get("env"))
 }
 
-// ProcessModule returns a ModuleSpec that registers require("process") for this
-// runtime factory only. It is opt-in because process.env exposes host
-// environment variables.
-func ProcessModule() ModuleSpec {
-	return NativeModuleSpec{
-		ModuleID:   "native:process",
-		ModuleName: "process",
-		Loader:     processModuleLoader,
+type processModuleSpec struct{}
+
+func (processModuleSpec) ID() string { return "native:process" }
+
+func (processModuleSpec) Register(reg *require.Registry) error {
+	if reg == nil {
+		return fmt.Errorf("require registry is nil")
 	}
+	reg.RegisterNativeModule("process", processModuleLoader)
+	reg.RegisterNativeModule("node:process", processModuleLoader)
+	return nil
+}
+
+// ProcessModule returns a ModuleSpec that registers require("process") and
+// require("node:process") for this runtime factory only. It is opt-in because
+// process.env exposes host environment variables.
+func ProcessModule() ModuleSpec {
+	return processModuleSpec{}
 }
 
 type processEnvInitializer struct{}

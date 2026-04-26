@@ -8,19 +8,24 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 )
 
-type m struct{}
+type m struct{ name string }
 
 var _ modules.NativeModule = (*m)(nil)
 var _ modules.TypeScriptDeclarer = (*m)(nil)
 
-func (m) Name() string { return "path" }
+func (m m) Name() string {
+	if m.name != "" {
+		return m.name
+	}
+	return "path"
+}
 
-func (m) Doc() string {
+func (m m) Doc() string {
 	return `The path module provides host-platform filepath helpers: join, resolve, dirname, basename, extname, isAbsolute, relative, separator, and delimiter.`
 }
 
-func (m) TypeScriptModule() *spec.Module {
-	return &spec.Module{Name: "path", Functions: []spec.Function{
+func (m m) TypeScriptModule() *spec.Module {
+	return &spec.Module{Name: m.Name(), Functions: []spec.Function{
 		{Name: "join", Params: []spec.Param{{Name: "parts", Type: spec.String(), Variadic: true}}, Returns: spec.String()},
 		{Name: "resolve", Params: []spec.Param{{Name: "parts", Type: spec.String(), Variadic: true}}, Returns: spec.String()},
 		{Name: "dirname", Params: []spec.Param{{Name: "path", Type: spec.String()}}, Returns: spec.String()},
@@ -49,4 +54,7 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	_ = exports.Set("delimiter", string(filepath.ListSeparator))
 }
 
-func init() { modules.Register(&m{}) }
+func init() {
+	modules.Register(&m{name: "path"})
+	modules.Register(&m{name: "node:path"})
+}

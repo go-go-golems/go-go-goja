@@ -263,7 +263,7 @@ Important caveat:
 
 ### Demo: `events` module
 
-`go-go-goja` ships a Go-native subset of Node's EventEmitter API as `require("events")` and `require("node:events")`:
+`go-go-goja` ships a Go-native subset of Node's EventEmitter API as `require("events")` and `require("node:events")`. Node-compatible or mostly-compatible built-ins use both bare and `node:` names where appropriate (`node:events`, `node:path`, `node:crypto`, and opt-in `node:fs`/`node:os`), while custom helpers such as `fswatch`, `time`, and `timer` keep custom names:
 
 ```js
 const EventEmitter = require("events");

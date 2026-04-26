@@ -18,17 +18,22 @@ import (
 	"github.com/google/uuid"
 )
 
-type m struct{}
+type m struct{ name string }
 
 var _ modules.NativeModule = (*m)(nil)
 var _ modules.TypeScriptDeclarer = (*m)(nil)
 
-func (m) Name() string { return "crypto" }
-func (m) Doc() string {
+func (m m) Name() string {
+	if m.name != "" {
+		return m.name
+	}
+	return "crypto"
+}
+func (m m) Doc() string {
 	return `The crypto module provides randomUUID, randomBytes, and basic createHash support.`
 }
-func (m) TypeScriptModule() *spec.Module {
-	return &spec.Module{Name: "crypto", Functions: []spec.Function{
+func (m m) TypeScriptModule() *spec.Module {
+	return &spec.Module{Name: m.Name(), Functions: []spec.Function{
 		{Name: "randomUUID", Returns: spec.String()},
 		{Name: "randomBytes", Params: []spec.Param{{Name: "size", Type: spec.Number()}}, Returns: spec.Named("Buffer")},
 		{Name: "createHash", Params: []spec.Param{{Name: "algorithm", Type: spec.String()}}, Returns: spec.Unknown()},
@@ -93,4 +98,7 @@ func newHash(algorithm string) (hash.Hash, error) {
 	}
 }
 
-func init() { modules.Register(&m{}) }
+func init() {
+	modules.Register(&m{name: "crypto"})
+	modules.Register(&m{name: "node:crypto"})
+}

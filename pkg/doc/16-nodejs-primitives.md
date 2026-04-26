@@ -33,10 +33,9 @@ The factory always installs data-only primitives and safe globals:
 - `Buffer`, from `goja_nodejs/buffer`
 - `URL` and `URLSearchParams`, from `goja_nodejs/url`
 - `performance.now()`, implemented by go-go-goja
-- `require("crypto")`
-- `require("events")`
-- `require("node:events")`
-- `require("path")`
+- `require("crypto")` and `require("node:crypto")`
+- `require("events")` and `require("node:events")`
+- `require("path")` and `require("node:path")`
 - `require("time")`
 - `require("timer")`
 
@@ -62,7 +61,7 @@ factory, err := engine.NewBuilder().
     Build()
 ```
 
-Use only `ProcessEnv()` if scripts need the global `process` object but not `require("process")`. Use only `ProcessModule()` if scripts should be able to call `require("process")` but should not receive a global `process` binding.
+Use only `ProcessEnv()` if scripts need the global `process` object but not `require("process")`. Use only `ProcessModule()` if scripts should be able to call `require("process")` or `require("node:process")` but should not receive a global `process` binding.
 
 ## Embedding from Third-Party Packages
 
@@ -119,14 +118,14 @@ factory, err := engine.NewBuilder().
     Build()
 ```
 
-Use `ProcessEnv()` only when JavaScript should see host environment variables through global `process.env`. Use `ProcessModule()` when JavaScript should be able to import the same host environment capability with `require("process")`. Without these opt-ins, both global `process` and `require("process")` are unavailable.
+Use `ProcessEnv()` only when JavaScript should see host environment variables through global `process.env`. Use `ProcessModule()` when JavaScript should be able to import the same host environment capability with `require("process")` or `require("node:process")`. Without these opt-ins, global `process`, `require("process")`, and `require("node:process")` are unavailable.
 
 A runtime created this way can execute scripts such as:
 
 ```javascript
-const fs = require("fs");
-const path = require("path");
-const crypto = require("crypto");
+const fs = require("node:fs");
+const path = require("node:path");
+const crypto = require("node:crypto");
 
 const file = path.join("/tmp", crypto.randomUUID() + ".txt");
 fs.writeFileSync(file, Buffer.from("hello"));
@@ -141,18 +140,37 @@ This section lists the current built-in primitives, what each one is for, and ho
 
 | Primitive | How to access it | Purpose | Notes |
 |-----------|------------------|---------|-------|
-| `Buffer` | global, `require("buffer")` | Binary data | Installed globally by default. |
-| `URL`, `URLSearchParams` | global, `require("url")` | URL parsing | Installed globally by default. |
-| `util` | `require("util")` | Formatting helpers | Provided by goja_nodejs. |
-| `process` | opt-in `require("process")` with `engine.ProcessModule()`; opt-in global with `engine.ProcessEnv()` | Environment variables | Both module and global are opt-in. |
-| `fs` | opt-in `require("fs")` | Promise-based and sync file I/O | Host filesystem access; enable explicitly. |
+| `Buffer` | global, `require("buffer")`, `require("node:buffer")` | Binary data | Installed globally by default through goja_nodejs. |
+| `URL`, `URLSearchParams` | global, `require("url")`, `require("node:url")` | URL parsing | Installed globally by default through goja_nodejs. |
+| `util` | `require("util")`, `require("node:util")` | Formatting helpers | Provided by goja_nodejs. |
+| `process` / `node:process` | opt-in `require("process")` or `require("node:process")` with `engine.ProcessModule()`; opt-in global with `engine.ProcessEnv()` | Environment variables | Both module and global are opt-in. |
+| `fs` / `node:fs` | opt-in `require("fs")` or `require("node:fs")` | Promise-based and sync file I/O | Host filesystem access; enabling `fs` also registers `node:fs`. |
 | `events` / `node:events` | default `require("events")` or `require("node:events")` | Go-native EventEmitter | Data-only; helper modules may adopt emitters explicitly. |
-| `path` | default `require("path")` | Host-platform path helpers | Data-only; uses Go `filepath`; no `posix`/`win32` split yet. |
-| `os` | opt-in `require("os")` | Host OS information | Host info access; enable explicitly. |
-| `crypto` | default `require("crypto")` | UUIDs, random bytes, basic hashes | Data-only default primitive. |
+| `path` / `node:path` | default `require("path")` or `require("node:path")` | Host-platform path helpers | Data-only; uses Go `filepath`; no `posix`/`win32` split yet. |
+| `os` / `node:os` | opt-in `require("os")` or `require("node:os")` | Host OS information | Host info access; enabling `os` also registers `node:os`. |
+| `crypto` / `node:crypto` | default `require("crypto")` or `require("node:crypto")` | UUIDs, random bytes, basic hashes | Data-only default primitive. |
 | `time` | default `require("time")` | Explicit timing helper | Data-only; pairs with global `performance.now()`. |
 | `performance` | global | Monotonic elapsed timing | Provides `performance.now()`. |
 | `console.time*` | global `console` | Quick timing logs | Adds `time`, `timeLog`, and `timeEnd`. |
+
+## Node-prefixed aliases
+
+Modern Node.js supports `node:` specifiers such as `node:fs`, `node:path`, and `node:events` to make it explicit that a script wants a built-in module rather than a package from `node_modules`. go-go-goja follows that convention for modules that are Node-compatible or mostly Node-compatible.
+
+Data-only aliases are available by default:
+
+```javascript
+require("node:events");
+require("node:path");
+require("node:crypto");
+require("node:buffer");
+require("node:url");
+require("node:util");
+```
+
+Host-access aliases remain opt-in. Calling `engine.DefaultRegistryModule("fs")` registers both `fs` and `node:fs`; calling `engine.DefaultRegistryModulesNamed("fs", "os")` registers `fs`, `node:fs`, `os`, and `node:os`. `engine.ProcessModule()` registers both `process` and `node:process`.
+
+Custom go-go-goja modules do not receive `node:` aliases. For example, `time`, `timer`, `exec`, `database`, `fswatch`, and Watermill helpers are custom host/runtime features rather than Node built-ins.
 
 ## File System APIs
 
@@ -382,9 +400,9 @@ The runtime uses monotonic elapsed time from Go's `time` package, so measurement
 These primitives expose useful host capabilities. That is powerful, but it means embedders need a clear sandbox policy.
 
 - `fs` and `os` expose host filesystem and OS details and must be enabled explicitly.
-- `events`, `path`, `time`, `timer`, and `crypto` are enabled by default as data-only primitives.
+- `events`, `path`, and `crypto` are enabled by default with bare and `node:` names; `time` and `timer` are custom data-only primitives and have no `node:` aliases.
 - `crypto.randomBytes()` uses host randomness.
-- `require("process").env` requires explicit `engine.ProcessModule()` opt-in, and global `process` requires explicit `engine.ProcessEnv()` opt-in.
+- `require("process").env` and `require("node:process").env` require explicit `engine.ProcessModule()` opt-in, and global `process` requires explicit `engine.ProcessEnv()` opt-in.
 - `exec` and `database` remain selectable modules and should be treated as more sensitive than the data-only primitives documented here.
 
 If your application runs untrusted JavaScript, do not blindly expose `DefaultRegistryModules()`. Compose a smaller registry with `DefaultRegistryModule(...)` or `DefaultRegistryModulesNamed(...)` before evaluating untrusted scripts.
@@ -397,12 +415,12 @@ This section maps the JavaScript APIs back to Go files so maintainers can review
 |-----|------------|
 | Node core registration | `engine/nodejs_init.go` |
 | Global Buffer/URL/performance install | `engine/factory.go`, `engine/performance.go` |
-| Optional process module/global | `engine/module_specs.go`, `ProcessModule()`, `ProcessEnv()` |
-| fs | `modules/fs/fs.go`, `fs_async.go`, `fs_sync.go`, `fs_errors.go` |
-| events | `modules/events/events.go` |
-| path | `modules/path/path.go` |
-| os | `modules/os/os.go` |
-| crypto | `modules/crypto/crypto.go` |
+| Optional process / node:process module and process global | `engine/module_specs.go`, `ProcessModule()`, `ProcessEnv()` |
+| fs / node:fs | `modules/fs/fs.go`, `fs_async.go`, `fs_sync.go`, `fs_errors.go` |
+| events / node:events | `modules/events/events.go` |
+| path / node:path | `modules/path/path.go` |
+| os / node:os | `modules/os/os.go` |
+| crypto / node:crypto | `modules/crypto/crypto.go` |
 | time | `modules/time/time.go` |
 
 Smoke tests live next to each module and execute real JavaScript through a real runtime. Prefer adding tests there before changing module behavior.
@@ -411,9 +429,9 @@ Smoke tests live next to each module and execute real JavaScript through a real 
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| `require("fs")` fails | `fs` is host filesystem access and is not enabled by default | Add `.WithModules(engine.DefaultRegistryModule("fs"))` or `.WithModules(engine.DefaultRegistryModulesNamed("fs", ...))`. |
+| `require("fs")` or `require("node:fs")` fails | `fs` is host filesystem access and is not enabled by default | Add `.WithModules(engine.DefaultRegistryModule("fs"))` or `.WithModules(engine.DefaultRegistryModulesNamed("fs", ...))`; this registers both names. |
 | `process` is undefined | Global `process` is opt-in | Add `.WithRuntimeInitializers(engine.ProcessEnv())` if exposing global `process.env` is acceptable. |
-| `require("process")` fails | The process module is opt-in because it exposes host environment variables | Add `.WithModules(engine.ProcessModule())` only if scripts should be able to import `process.env`. |
+| `require("process")` or `require("node:process")` fails | The process module is opt-in because it exposes host environment variables | Add `.WithModules(engine.ProcessModule())` only if scripts should be able to import `process.env`. |
 | `fs.readFile(path)` returns a Buffer, not a string | Node-style default read behavior | Pass an encoding: `await fs.readFile(path, "utf8")`. |
 | `Buffer.isBuffer` is missing | goja_nodejs Buffer does not implement every Node helper | Check Buffer-like behavior with `length`, `toString()`, or add a helper if a package requires it. |
 | `path` behavior differs from POSIX examples | `path` uses host `filepath` | Add/use future `path.posix` for host-independent POSIX behavior. |
