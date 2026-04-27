@@ -23,7 +23,8 @@ The goal is to have a place where you can:
  ├── modules/             # ← add your Go-backed modules here
  │   ├── common.go        # registry plumbing (NativeModule, Register, …)
  │   ├── fs/              # example module 1: basic file-system helpers
- │   └── exec/            # example module 2: thin wrapper around os/exec
+ │   ├── exec/            # example module 2: thin wrapper around os/exec
+ │   ├── yaml/            # example module 3: YAML parse/stringify/validate
  ├── testdata/            # demo JS scripts used by Go tests
  ├── repl_test.go         # Go test that runs a JS script through the runner
  └── go.mod
@@ -286,3 +287,20 @@ exports.Set("sleep", func(ms int64) goja.Value {
 ```
 
 Use it as a concrete built-in and as a template for any async binding you need (HTTP fetchers, database calls, …).
+
+### Demo: `yaml` module
+
+`go-go-goja` ships a built-in `yaml` module when you enable `DefaultRegistryModules()`:
+
+```js
+const yaml = require("yaml");
+
+const config = yaml.parse("name: goja\nversion: 1.0");
+console.log(config.name); // "goja"
+
+const out = yaml.stringify({ host: "localhost", port: 8080 });
+console.log(out);
+
+const check = yaml.validate("[bad");
+console.log(check.valid); // false
+```

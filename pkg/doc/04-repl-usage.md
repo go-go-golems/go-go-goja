@@ -153,6 +153,31 @@ js> // "Finished!" appears after 500ms
 Finished!
 ```
 
+### YAML Parsing and Serialization
+
+The `yaml` module provides native YAML support for configuration files, API payloads, and data interchange:
+
+```javascript
+js> const yaml = require("yaml")
+
+js> const config = yaml.parse("name: goja\nversion: 1.0")
+js> config.name
+goja
+
+js> const out = yaml.stringify({ host: "localhost", port: 8080 })
+js> console.log(out)
+host: localhost
+port: 8080
+
+js> yaml.validate("[bad").valid
+false
+
+js> yaml.validate("hello: world").valid
+true
+```
+
+Use `goja-repl help yaml-module` for the full API reference.
+
 ## Multi-line Input
 
 The REPL supports multi-line JavaScript constructs:
@@ -197,7 +222,7 @@ Enable debug logging to see module registration and runtime details:
 
 ```bash
 go run ./cmd/goja-repl --log-level debug tui
-2024/01/15 10:30:45 engine initialised, modules: [fs, http, timer, uuid]
+2024/01/15 10:30:45 engine initialised, modules: [fs, http, timer, uuid, yaml]
 js> const fs = require("fs")
 2024/01/15 10:30:47 module loaded: fs
 ```
