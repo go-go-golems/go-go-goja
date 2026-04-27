@@ -61,6 +61,22 @@ topics:
       description: Upstream open-source contributions and patches
     - slug: parser
       description: JavaScript parser and lexer
+    - slug: help-system
+      description: Glazed rich help system, markdown-based CLI help rendering, short/long help flags
+    - slug: short-help
+      description: Short help rendering, shortHelpSections filtering, and global flag visibility in CLI help
+    - slug: jsverbs
+      description: JavaScript verbs — CLI commands defined in JS files and registered through go-go-goja
+    - slug: command-registration
+      description: How commands are registered with Cobra and Glazed, including parent command creation and flag group wiring
+    - slug: go-go-goja
+      description: go-go-goja project and runtime
+    - slug: modules
+      description: Native module system and module authoring
+    - slug: primitives
+      description: Primitive data format support (JSON, YAML, etc.)
+    - slug: yaml
+      description: YAML parsing and serialization
 docTypes:
     - slug: index
       description: Ticket index documents
