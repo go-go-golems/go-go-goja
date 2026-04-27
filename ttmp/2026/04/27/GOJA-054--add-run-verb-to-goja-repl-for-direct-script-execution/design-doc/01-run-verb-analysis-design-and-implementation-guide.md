@@ -648,6 +648,257 @@ func TestRunViaCobra(t *testing.T) {
 
 ---
 
+## 12. Big-Brother Review of the First Implementation Attempt
+
+This section reviews the first attempted implementation of `goja-repl run` that was started after this guide was written. The intent is constructive: identify what was directionally correct, what was incomplete or wrong, and what information the implementer was missing before continuing.
+
+### 12.1 What was implemented
+
+The first attempt added:
+
+- `cmd/goja-repl/cmd_run.go`
+- registration via `newRunCommand(out, opts)` in `cmd/goja-repl/root.go`
+- several tests in `cmd/goja-repl/root_test.go`
+
+The command shape was roughly:
+
+```go
+type runCommand struct {
+    *cmds.CommandDescription
+    commandSupport
+}
+
+func newRunCommand(out io.Writer, opts *rootOptions) *runCommand { ... }
+
+func (c *runCommand) Run(ctx context.Context, vals *values.Values) error {
+    // decode file/profile
+    // filepath.Abs + os.Stat + os.ReadFile
+    // engine.NewBuilder().WithModules(engine.DefaultRegistryModules())
+    // add module roots from script path
+    // apply plugin setup
+    // factory.NewRuntime(ctx)
+    // rt.VM.RunString(source)
+}
+```
+
+That is a useful spike, but it should not be treated as final.
+
+### 12.2 What was good
+
+The following parts were directionally correct:
+
+- **Command shape matched local Glazed conventions.** The command embeds `*cmds.CommandDescription`, implements `cmds.BareCommand`, uses `fields.New`, and decodes through `vals.DecodeSectionInto(schema.DefaultSlug, &settings)`.
+- **Command registration was placed in the right location.** `newRunCommand(out, opts)` belongs in the `commands := []cmds.Command{...}` slice in `cmd/goja-repl/root.go`.
+- **The implementation used a fresh runtime.** This matches the core product requirement: `run` should not require users to manually create a persistent REPL session.
+- **Script-path module roots were considered.** Using `engine.RequireOptionWithModuleRootsFromScript` is the right idea for file execution because local `require("./x")` and nearby `node_modules` should resolve relative to the script.
+- **Plugin setup was preserved.** Calling `host.NewRuntimeSetup(c.opts.PluginDirs, c.opts.AllowPluginModules)` means root-level plugin flags continue to work.
+- **Basic manual smoke test worked.** `go run ./cmd/goja-repl run ./testdata/yaml.js` successfully executed the YAML example.
+
+### 12.3 What was bad or incomplete
+
+The first attempt missed several important correctness and UX details.
+
+#### 12.3.1 `--profile` was advertised but not implemented
+
+The command exposes:
+
+```go
+fields.New("profile", fields.TypeString,
+    fields.WithDefault("interactive"),
+    fields.WithHelp("Execution profile: raw, interactive, or persistent"))
+```
+
+But the decoded `settings.Profile` is never used. The command always calls `rt.VM.RunString(...)`, which is raw direct VM execution. This is misleading CLI behavior.
+
+A correct implementation must choose one of these paths:
+
+1. **Remove `--profile` for the first version** and document that `run` uses direct runtime execution, or
+2. **Implement profile semantics properly** by delegating to the same replsession evaluation machinery used by `eval`/`tui`, or
+3. **Rename the flag** if it controls only a smaller aspect of execution.
+
+Do not ship a flag that does nothing.
+
+#### 12.3.2 Direct `rt.VM.RunString` bypasses runtime ownership discipline
+
+The runtime is built with an owner/event-loop model (`Runtime.Owner`, `Runtime.Loop`). Existing modules such as `timer` use `runtimebridge` and `runtimeowner` to schedule work back onto the owner thread. Directly calling `rt.VM.RunString` from the CLI goroutine may work for simple synchronous scripts, but it bypasses the established owner-thread execution pattern.
+
+A more robust run command should execute via:
+
+```go
+_, err := rt.Owner.Call(ctx, "goja-repl.run", func(_ context.Context, vm *goja.Runtime) (any, error) {
+    return vm.RunString(source)
+})
+```
+
+This better matches the runtime ownership model and avoids future surprises when scripts use async modules, plugins, or owner-sensitive APIs.
+
+#### 12.3.3 Output capture assumptions were wrong
+
+The tests assumed that passing a `bytes.Buffer` to `newRootCommand(out)` captures script `console.log` output. It does not. The goja console integration writes through its own sink (observed output included timestamps), not necessarily the Cobra command's `out` writer.
+
+The guide should require an explicit decision:
+
+- Is `run` allowed to write console output to process stdout/stderr directly?
+- Or must `run` route JS console output through the command's configured `io.Writer` for testability and embedding?
+
+For a proper CLI, the second option is better. For an MVP, document direct console behavior and do not write tests that assume `root.SetOut(out)` captures it.
+
+#### 12.3.4 Negative CLI tests triggered process-level failure behavior
+
+The first tests called `root.Execute()` expecting command errors to be returned normally. In practice, executing error cases through the Glazed/Cobra integration produced process-level test failure behavior: the test run emitted the command error and exited before normal `--- FAIL`/`--- PASS` reporting for the test.
+
+This means negative-path tests should not be written naively around `root.Execute()` unless the root/command is configured with the appropriate Cobra silence/error behavior and the Glazed wrapper is known not to call exit-like behavior.
+
+Better options:
+
+- Test `runCommand.Run(ctx, vals)` directly for missing file / syntax error.
+- Use a Cobra helper that sets `SilenceErrors = true` and `SilenceUsage = true`, if compatible with Glazed.
+- Factor run execution into a pure helper (`runScript(ctx, opts) error`) and unit-test that helper.
+
+#### 12.3.5 No source map / filename context
+
+`vm.RunString(string(sourceBytes))` gives anonymous script errors, e.g. `(anonymous): Line 1:15`. For a file runner, error messages should include the file path. Investigate whether goja supports named programs / parsing with filename, or wrap errors as:
+
+```go
+return fmt.Errorf("run %s: %w", scriptPath, err)
+```
+
+The attempted implementation wraps with `script execution failed`, but the internal JS stack still says anonymous.
+
+#### 12.3.6 `RequireOptionWithModuleRootsFromScript` errors were ignored
+
+The implementation does:
+
+```go
+requireOpt, err := engine.RequireOptionWithModuleRootsFromScript(scriptPath, moduleRootOpts)
+if err == nil && requireOpt != nil {
+    builder = builder.WithRequireOptions(requireOpt)
+}
+```
+
+Since `scriptPath` has already been resolved, errors should be unusual. If they happen, silently continuing makes module resolution surprising. Prefer returning a contextual error:
+
+```go
+requireOpt, err := engine.RequireOptionWithModuleRootsFromScript(scriptPath, engine.DefaultModuleRootsOptions())
+if err != nil {
+    return fmt.Errorf("resolve module roots from script: %w", err)
+}
+```
+
+#### 12.3.7 No path for top-level await / promises
+
+The first attempt runs the script and exits when `RunString` returns. If the script returns a pending promise or uses async helpers, the process may exit before intended async work completes unless the script itself blocks through an awaited construct supported by the evaluator.
+
+The existing replsession layer already contains promise waiting and timeout behavior. If `run` is expected to support top-level await or promise-returning scripts, the design must explicitly reuse or replicate that behavior.
+
+#### 12.3.8 The design said `persistent` profile, but the implementation cannot honor it
+
+A `persistent` profile implies session/store behavior. A direct ephemeral runtime cannot truthfully provide persistence. Either:
+
+- `run` should only accept `raw`/`interactive`, or
+- `persistent` should mean `run --session-id ...` / `run --persist ...`, which is a different feature.
+
+For MVP, do not advertise `persistent` on `run`.
+
+#### 12.3.9 Untracked build artifact was created
+
+A local `go build ./cmd/goja-repl` created an untracked `goja-repl` binary in the repo root. This should be removed and not committed. Prefer:
+
+```bash
+go build -o /tmp/goja-repl ./cmd/goja-repl
+```
+
+or rely on `go test` and `go run` during development.
+
+### 12.4 Missing information the implementer should have gathered
+
+Before implementing, they should have answered these questions:
+
+1. **How does Glazed's Cobra wrapper behave on command errors?** This matters for testing negative paths.
+2. **Where does `console.Enable(vm)` write output?** This matters for command output and test capture.
+3. **What does `profile` mean for a file runner?** If using direct `engine.Runtime`, profile is not automatically meaningful.
+4. **Should `run` support top-level await?** If yes, direct `RunString` is likely insufficient.
+5. **Should script errors include filenames?** A file runner should make file diagnostics first-class.
+6. **Does direct VM access violate owner-thread conventions?** The runtime owner exists for a reason; command execution should align with it.
+
+### 12.5 Recommended revised implementation plan
+
+The next implementation should be split into two layers.
+
+#### Layer 1: Pure run helper
+
+Create a helper that can be tested without Cobra:
+
+```go
+type runScriptOptions struct {
+    File               string
+    PluginDirs         []string
+    AllowPluginModules []string
+    UseModuleRoots     bool
+}
+
+func runScriptFile(ctx context.Context, opts runScriptOptions) error {
+    // resolve path
+    // read source
+    // build factory
+    // create runtime
+    // execute via rt.Owner.Call(...)
+}
+```
+
+Unit-test this helper for:
+
+- successful execution
+- missing file
+- syntax error
+- local module root behavior
+
+#### Layer 2: Glazed command adapter
+
+Keep the Glazed command thin:
+
+```go
+func (c *runCommand) Run(ctx context.Context, vals *values.Values) error {
+    settings := runSettings{}
+    if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
+        return err
+    }
+    return runScriptFile(ctx, runScriptOptions{
+        File: settings.File,
+        PluginDirs: c.opts.PluginDirs,
+        AllowPluginModules: c.opts.AllowPluginModules,
+        UseModuleRoots: true,
+    })
+}
+```
+
+This prevents CLI parser behavior from making core execution difficult to test.
+
+### 12.6 Revised MVP recommendation
+
+For the first shippable version:
+
+- Implement: `goja-repl run <file>`
+- Support root plugin flags
+- Support module roots from script path
+- Execute on runtime owner via `rt.Owner.Call`
+- Do **not** expose `--profile` yet unless it is actually implemented
+- Do **not** claim top-level await support until it is tested
+- Add help docs and README usage
+- Add tests at helper level, not only Cobra level
+
+### 12.7 Updated acceptance criteria
+
+- `go run ./cmd/goja-repl run ./testdata/yaml.js` exits 0.
+- Missing file returns a normal Go error from helper tests.
+- Syntax error returns a normal Go error from helper tests.
+- `go test ./cmd/goja-repl/... -count=1` passes.
+- `make lint` passes.
+- No untracked build artifacts remain.
+- No advertised flag is ignored.
+
+---
+
 ## Appendix A: Quick-Start Checklist for the Implementer
 
 - [ ] Create `cmd/goja-repl/cmd_run.go` with `runCommand`
