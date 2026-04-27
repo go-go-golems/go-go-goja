@@ -144,3 +144,60 @@ Implemented the `yaml` native module following the design doc exactly. Created `
   - `modules/yaml/yaml_test.go`
 - Modified files:
   - `engine/runtime.go`
+
+---
+
+## Step 3: reMarkable upload and final handoff
+
+Ran `docmgr doctor` — passed after adding vocabulary entries for `go-go-goja`, `modules`, `primitives`, and `yaml`. Verified `remarquee status` and cloud account. Performed dry-run bundle upload of design doc + diary, then performed actual upload. Verified remote listing: `/ai/2026/04/27/GOJA-053` contains `GOJA-053 YAML Primitive Module.pdf`. Updated tasks, changelog, and committed all doc changes.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Finalize delivery by uploading documentation to reMarkable.
+
+**Inferred user intent:** Complete the full workflow: ticket, docs, code, tests, diary, reMarkable.
+
+**Commit (docs):** `92b2642` — "docs(GOJA-053): add design doc, diary, and ticket bookkeeping for yaml module"
+
+### What I did
+- Ran `docmgr doctor --ticket GOJA-053 --stale-after 30` — 1 warning about unknown topics.
+- Added 4 vocabulary entries: `go-go-goja`, `modules`, `primitives`, `yaml`.
+- Re-ran `docmgr doctor` — all checks passed.
+- Verified `remarquee status` OK and `remarquee cloud account --non-interactive` authenticated.
+- Dry-run bundle upload succeeded.
+- Real bundle upload succeeded to `/ai/2026/04/27/GOJA-053`.
+- Verified with `remarquee cloud ls /ai/2026/04/27/GOJA-053 --long --non-interactive`.
+- Committed doc changes.
+
+### What worked
+- Bundle upload produced a single PDF with ToC from both markdown files.
+- reMarkable cloud path is clean and ticket-scoped.
+
+### What didn't work
+- Nothing.
+
+### What I learned
+- `docmgr doctor` validates vocabulary against `ttmp/vocabulary.yaml`. Missing entries must be added before doctor passes.
+- `remarquee upload bundle` with `--toc-depth 2` creates a nice navigable PDF.
+
+### What was tricky to build
+- Nothing.
+
+### What warrants a second pair of eyes
+- N/A — delivery complete.
+
+### What should be done in the future
+- N/A for this ticket.
+
+### Code review instructions
+- Review commits `6ed22e9` (code) and `92b2642` (docs).
+- Run `go test ./modules/yaml/... -count=1 -v` to validate.
+
+### Technical details
+- reMarkable remote path: `/ai/2026/04/27/GOJA-053`
+- Verified document: `GOJA-053 YAML Primitive Module.pdf`
+- Final commits:
+  - `6ed22e9` feat(modules): add yaml primitive support (enabled by default)
+  - `92b2642` docs(GOJA-053): add design doc, diary, and ticket bookkeeping for yaml module

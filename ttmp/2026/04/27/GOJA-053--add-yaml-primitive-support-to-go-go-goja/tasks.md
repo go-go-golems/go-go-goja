@@ -11,4 +11,4 @@
 - [x] Run `go mod tidy` to promote yaml.v3 to direct dependency
 - [x] Run full test suite and linter
 - [x] Update diary and relate files
-- [ ] Upload bundle to reMarkable
+- [x] Upload bundle to reMarkable
