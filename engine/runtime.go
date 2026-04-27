@@ -19,6 +19,7 @@ import (
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
 	_ "github.com/go-go-golems/go-go-goja/modules/fs"
 	_ "github.com/go-go-golems/go-go-goja/modules/timer"
+	_ "github.com/go-go-golems/go-go-goja/modules/yaml"
 )
 
 // Runtime is an owned runtime instance with explicit lifecycle.
