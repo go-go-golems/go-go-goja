@@ -12,3 +12,7 @@
 - [x] Run full test suite and linter
 - [x] Update diary and relate files
 - [x] Upload bundle to reMarkable
+- [x] Add example script (`testdata/yaml.js`)
+- [x] Add glazed help entry (`pkg/doc/16-yaml-module.md`)
+- [x] Update REPL usage doc with yaml examples
+- [x] Update README with yaml references

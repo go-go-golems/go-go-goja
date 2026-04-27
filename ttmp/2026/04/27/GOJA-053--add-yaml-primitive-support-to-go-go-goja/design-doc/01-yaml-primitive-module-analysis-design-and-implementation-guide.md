@@ -17,14 +17,21 @@ RelatedFiles:
       Note: Simplest module pattern to follow
     - Path: modules/timer/timer_test.go
       Note: Integration test pattern
+    - Path: pkg/doc/04-repl-usage.md
+      Note: REPL usage doc with yaml examples
+    - Path: pkg/doc/16-yaml-module.md
+      Note: Glazed help entry
     - Path: pkg/tsgen/spec/helpers.go
       Note: TypeScript declaration helpers
+    - Path: testdata/yaml.js
+      Note: Example script
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # YAML Primitive Module: Analysis, Design and Implementation Guide

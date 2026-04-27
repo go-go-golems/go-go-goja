@@ -13,12 +13,19 @@ RelatedFiles:
       Note: Native module implementation
     - Path: modules/yaml/yaml_test.go
       Note: Integration tests
+    - Path: pkg/doc/04-repl-usage.md
+      Note: REPL usage doc with yaml examples
+    - Path: pkg/doc/16-yaml-module.md
+      Note: Glazed help entry
+    - Path: testdata/yaml.js
+      Note: Example script
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Diary
@@ -201,3 +208,65 @@ Ran `docmgr doctor` — passed after adding vocabulary entries for `go-go-goja`,
 - Final commits:
   - `6ed22e9` feat(modules): add yaml primitive support (enabled by default)
   - `92b2642` docs(GOJA-053): add design doc, diary, and ticket bookkeeping for yaml module
+
+---
+
+## Step 4: Example script and glazed help entries
+
+User asked for an example script using the yaml module and updates to glazed help entries. Created `testdata/yaml.js` — a runnable example demonstrating `parse`, `stringify`, `validate`, round-trips, and custom indent options. Verified it runs successfully through the engine. Created `pkg/doc/16-yaml-module.md` — a full glazed help entry with frontmatter, API reference, type mappings, error handling, and a complete example. Updated `pkg/doc/04-repl-usage.md` to add a YAML section in the REPL module usage examples. Updated `README.md` to list `yaml/` in the folder layout and added a `yaml` demo section after the `timer` demo.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add an example script using yaml, and update whatever glazed help entries are necessary."
+
+**Assistant interpretation:** Create a runnable example script and update all documentation/help systems that should mention the new yaml module.
+
+**Inferred user intent:** Make the yaml module discoverable and usable for end users through examples and help.
+
+**Commit (code/docs):** `77b781b` — "docs(yaml): add example script, glazed help entry, and REPL usage docs"
+
+### What I did
+- Created `testdata/yaml.js` (~100 lines) with 6 test scenarios: parse, stringify, indent option, validate valid, validate invalid, round-trip.
+- Verified the script runs end-to-end via a temporary Go runner (then removed the runner).
+- Created `pkg/doc/16-yaml-module.md` with glazed frontmatter (`Slug: yaml-module`, `SectionType: GeneralTopic`) covering all three API functions.
+- Updated `pkg/doc/04-repl-usage.md` — inserted YAML section after timer/async section, updated debug mode module list to include yaml.
+- Updated `README.md` — added `yaml/` to folder layout, added yaml demo subsection after timer demo.
+
+### Why
+- `testdata/` is where existing example scripts live (`hello.js`, `database.js`).
+- `pkg/doc/*.md` files are embedded into the glazed help system via `go:embed` and loaded at REPL startup.
+- The REPL usage doc is the primary user-facing reference for module examples.
+
+### What worked
+- The yaml example script ran cleanly through the engine with all console output matching expectations.
+- The glazed help system picked up the new `16-yaml-module.md` automatically because `pkg/doc/doc.go` uses `//go:embed *`.
+
+### What didn't work
+- Nothing.
+
+### What I learned
+- Glazed help docs use YAML frontmatter with fields like `Slug`, `Topics`, `Commands`, `SectionType`. The `Slug` becomes the `goja-repl help <slug>` target.
+- The REPL `docs` module (introduced in GOJA-11) can surface these help pages programmatically via `docs.bySlug("default-help", "yaml-module")`.
+
+### What was tricky to build
+- Nothing.
+
+### What warrants a second pair of eyes
+- The `pkg/doc/16-yaml-module.md` frontmatter `Slug: yaml-module` — verify this doesn't conflict with any existing slugs.
+
+### What should be done in the future
+- Consider adding the yaml example script to CI as a smoke test.
+
+### Code review instructions
+- Review `testdata/yaml.js` for correctness and clarity.
+- Review `pkg/doc/16-yaml-module.md` for completeness and glazed frontmatter.
+- Verify `pkg/doc/04-repl-usage.md` YAML section renders correctly in the help TUI.
+
+### Technical details
+- Commit: `77b781b`
+- New files:
+  - `testdata/yaml.js`
+  - `pkg/doc/16-yaml-module.md`
+- Modified files:
+  - `pkg/doc/04-repl-usage.md`
+  - `README.md`
