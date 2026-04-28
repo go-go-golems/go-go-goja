@@ -89,6 +89,8 @@ topics:
       description: JavaScript runtime, modules, and API behavior.
     - slug: module
       description: Single module implementation and module-level API work.
+    - slug: go-go-goja
+      description: go-go-goja JavaScript runtime project
 docTypes:
     - slug: index
       description: Ticket index documents

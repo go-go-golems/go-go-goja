@@ -35,3 +35,13 @@ Step 3: Implemented run verb via helper + thin Glazed adapter, removed ignored p
 
 Step 4: Re-uploaded updated GOJA-054 design+diary bundle to reMarkable at /ai/2026/04/27/GOJA-054
 
+
+## 2026-04-27
+
+Step 5: Fixed run entry execution to load the script as a CommonJS module, preserving relative require('./sibling') resolution (commit 67aa741)
+
+### Related Files
+
+- /home/manuel/code/wesen/go-go-golems/go-go-goja/cmd/goja-repl/cmd_run.go — Entry script now loaded through rt.Require.Require
+- /home/manuel/code/wesen/go-go-golems/go-go-goja/cmd/goja-repl/root_test.go — Regression test for sibling relative require from different cwd
+

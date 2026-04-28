@@ -205,3 +205,68 @@ Reworked the initial spike into the shape recommended by the review. The final c
   - `go test ./cmd/goja-repl/... ./modules/yaml/... -count=1`
   - `make lint`
   - `go run ./cmd/goja-repl run ./testdata/yaml.js`
+
+---
+
+## Step 4: Fixed entry-file module context for relative requires
+
+A review pointed out that `runScriptFile` still executed the entry file with `vm.RunString`, which loses the entry file's filename/module context. That means `require("./sibling")` inside a script can resolve relative to the process working directory rather than the script directory. This is exactly the kind of behavior `goja-repl run <file>` should avoid.
+
+### Prompt Context
+
+**User prompt (verbatim):** "**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Execute entry file as module to preserve relative requires**
+
+Running the entry script with `vm.RunString(...)` loses the script's filename/module context, so `require('./foo')` inside that script resolves relative to the process working directory instead of the script directory. This breaks common one-shot script layouts (`script.js` + sibling modules) whenever `goja-repl run` is launched from another directory, even though module roots are derived from the script path. Load the entry file through the require module (or execute with the real source filename) so relative imports are anchored to the script file.
+
+Useful? React with 👍 / 👎.
+
+
+cmd/goja-repl/cmd_run.go
+    defer func() { _ = rt.Close(ctx) }()
+
+    _, err = rt.Owner.Call(ctx, "goja-repl.run", func(_ context.Context, vm *goja.Runtime) (any, error) {
+        return vm.RunString(string(sourceBytes))"
+
+**Assistant interpretation:** The reviewer identified a real P1 correctness issue in the `run` implementation: the entry script must be loaded as a CommonJS module or equivalent, not anonymous source text.
+
+**Inferred user intent:** Fix the module-context bug and preserve sibling relative requires for one-shot script layouts.
+
+**Commit (code):** `67aa741` — "fix(cmd/goja-repl): execute run entry as module"
+
+### What I did
+- Changed `runScriptFile` to call `rt.Require.Require(scriptPath)` inside `rt.Owner.Call` instead of reading the source and calling `vm.RunString`.
+- Kept the absolute path check before require so errors still include the entry path.
+- Added a regression test that creates `entry.js` plus sibling `sibling.js`, changes the process working directory to another directory, and verifies `require("./sibling")` resolves from the entry script directory.
+- Re-ran focused command tests, yaml tests, manual `goja-repl run ./testdata/yaml.js`, and lint.
+
+### What worked
+- Loading the absolute entry path through goja_nodejs `require` preserves `__filename`, `__dirname`, module cache behavior, and relative require anchoring.
+- The regression test fails for the old mental model and passes with module loading.
+
+### What didn't work
+- The prior `vm.RunString` implementation was insufficient despite module roots being derived from the script path. Module roots help global/bare lookup, but they do not make the entry source itself a module.
+
+### What I learned
+- For file execution, the entry point should be treated as a module unless there is a deliberate non-module execution mode.
+- The source filename matters because goja_nodejs derives relative require base paths from the current module's source name.
+
+### What was tricky to build
+- The regression test changes process working directory, so it must not run in parallel. Other tests in the package use `t.Parallel`, but this one intentionally does not.
+
+### What warrants a second pair of eyes
+- Whether `goja-repl run` should expose the entry module's exports in any future machine-readable mode. The current CLI ignores the returned exports, which is fine for an executable script.
+
+### What should be done in the future
+- Consider documenting that `run` executes the entry file as a CommonJS module.
+- Add script argv support and top-level await support in future tickets.
+
+### Code review instructions
+- Review `cmd/goja-repl/cmd_run.go` and confirm `rt.Require.Require(scriptPath)` is inside `rt.Owner.Call`.
+- Review `TestRunScriptFileResolvesRelativeRequireFromEntryDirectory` in `cmd/goja-repl/root_test.go`.
+
+### Technical details
+- Commit: `67aa741`
+- Validation:
+  - `go run ./cmd/goja-repl run ./testdata/yaml.js`
+  - `go test ./cmd/goja-repl/... ./modules/yaml/... -count=1`
+  - `make lint`
