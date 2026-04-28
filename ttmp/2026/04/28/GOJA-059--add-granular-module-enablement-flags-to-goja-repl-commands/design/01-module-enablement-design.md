@@ -16,8 +16,8 @@ RelatedFiles:
     - /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/cmd/goja-repl/cmd_run.go:run command builder uses DefaultRegistryModules()
     - /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go:TUI evaluator Config and runtime builder
 ExternalSources: []
-Summary: "Design for adding granular module enablement flags (--enable-module, --disable-module, --safe-mode) to all goja-repl commands, with a common Glazed schema shared across run, tui, eval, create, and future jsverbs."
-LastUpdated: 2026-04-28T09:00:00-04:00
+Summary: "Design for adding granular module enablement via a ModuleMiddleware pipeline to all goja-repl commands, deprecating the baroque DefaultRegistryModules / DefaultRegistryModulesNamed / DataOnlyDefaultRegistryModules / DefaultRegistryModule API family in favor of a single UseModuleMiddleware builder method."
+LastUpdated: 2026-04-28T09:15:00-04:00
 WhatFor: "Reference design for implementing module security controls in goja-repl"
 WhenToUse: "When adding flags, updating builder logic, or wiring module filtering into commands"
 ---
@@ -26,12 +26,7 @@ WhenToUse: "When adding flags, updating builder logic, or wiring module filterin
 
 ## Goal
 
-Allow users to selectively enable or disable native Go modules when running JS through goja-repl. Today, `run` and `tui` unconditionally load **all** modules via `engine.DefaultRegistryModules()`. We want:
-
-- `--enable-module fs,exec` — load only specific modules (whitelist)
-- `--disable-module fs,exec` — load all except specific modules (blacklist)
-- `--safe-mode` — load only `DataOnlyDefaultRegistryModules()` (crypto, events, path, time, timer)
-- Default behavior stays as-is (all modules) for backward compatibility
+Allow users to selectively enable or disable native Go modules when running JS through goja-repl. Today, `run` and `tui` unconditionally load **all** modules via `engine.DefaultRegistryModules()`. We will replace this with a composable `ModuleMiddleware` pipeline that gives fine-grained control over the module sandbox.
 
 ## Current State
 
@@ -54,20 +49,177 @@ Allow users to selectively enable or disable native Go modules when running JS t
 
 All paths currently use the same unconditional `DefaultRegistryModules()` spec.
 
-### Engine APIs already available
+### The old API family (being deprecated)
 
 ```go
 engine.DefaultRegistryModules()                          // all modules
 engine.DataOnlyDefaultRegistryModules()                  // safe only
 engine.DefaultRegistryModulesNamed("fs", "os")          // named only
 engine.DefaultRegistryModule("fs")                       // single module
-engine.ProcessModule()                                   // process require()
-engine.ProcessEnv()                                      // global process
 ```
 
-## Proposed Design
+This is baroque: four functions for four selection strategies, none composable.
 
-### 1. Common Glazed schema for module enablement
+## Proposed Design: ModuleMiddleware Pipeline
+
+### Core types
+
+```go
+// ModuleSelector chooses which modules to register from the full set of available names.
+type ModuleSelector func(available []string) []string
+
+// ModuleMiddleware wraps a selector. The standard pattern is f(next) returns a new selector.
+// This gives explicit control flow: each middleware decides whether to call next,
+// short-circuit, modify before/after, etc.
+type ModuleMiddleware func(next ModuleSelector) ModuleSelector
+```
+
+### Base selector
+
+```go
+// SelectAll is the identity selector — includes all available modules.
+func SelectAll(available []string) []string { return available }
+```
+
+### Built-in middlewares
+
+**Override middlewares** (do NOT call next — replace the entire selection):
+
+```go
+// MiddlewareSafe returns only data-safe modules.
+func MiddlewareSafe() ModuleMiddleware {
+    return func(next ModuleSelector) ModuleSelector {
+        return func(available []string) []string {
+            return intersect(available, safeModuleNames)  // doesn't call next
+        }
+    }
+}
+
+// MiddlewareOnly returns only the named modules.
+func MiddlewareOnly(names ...string) ModuleMiddleware {
+    return func(next ModuleSelector) ModuleSelector {
+        return func(available []string) []string {
+            return intersect(available, names)  // doesn't call next
+        }
+    }
+}
+```
+
+**Transform middlewares** (call next first, then modify the result):
+
+```go
+// MiddlewareExclude calls next, then removes named modules.
+func MiddlewareExclude(names ...string) ModuleMiddleware {
+    return func(next ModuleSelector) ModuleSelector {
+        return func(available []string) []string {
+            selected := next(available)
+            return filterOut(selected, names)
+        }
+    }
+}
+
+// MiddlewareAdd calls next, then appends named modules.
+func MiddlewareAdd(names ...string) ModuleMiddleware {
+    return func(next ModuleSelector) ModuleSelector {
+        return func(available []string) []string {
+            selected := next(available)
+            return append(selected, intersect(available, names)...)
+        }
+    }
+}
+
+// MiddlewareCustom calls next, then applies an arbitrary transformation.
+func MiddlewareCustom(fn func(selected []string) []string) ModuleMiddleware {
+    return func(next ModuleSelector) ModuleSelector {
+        return func(available []string) []string {
+            return fn(next(available))
+        }
+    }
+}
+```
+
+### Pipeline helper
+
+```go
+// Pipeline composes middlewares left-to-right: the first middleware in the list
+// executes first, wrapping the subsequent ones.
+func Pipeline(mws ...ModuleMiddleware) ModuleMiddleware {
+    return func(next ModuleSelector) ModuleSelector {
+        handler := next
+        for i := len(mws) - 1; i >= 0; i-- {
+            handler = mws[i](handler)
+        }
+        return handler
+    }
+}
+```
+
+### Builder integration
+
+```go
+func (b *FactoryBuilder) UseModuleMiddleware(mw ...ModuleMiddleware) *FactoryBuilder {
+    b.assertMutable()
+    b.moduleMiddlewares = append(b.moduleMiddlewares, mw...)
+    return b
+}
+```
+
+In `Build()`:
+
+```go
+selector := SelectAll
+for i := len(b.moduleMiddlewares) - 1; i >= 0; i-- {
+    selector = b.moduleMiddlewares[i](selector)
+}
+selected := selector(allRegisteredNames)
+
+for _, name := range selected {
+    specs = append(specs, DefaultRegistryModule(name))
+}
+```
+
+### Usage examples
+
+```go
+// Safe mode (data-only modules)
+engine.NewBuilder().UseModuleMiddleware(MiddlewareSafe())
+
+// All except exec and os
+engine.NewBuilder().UseModuleMiddleware(MiddlewareExclude("exec", "os"))
+
+// Only fs and database
+engine.NewBuilder().UseModuleMiddleware(MiddlewareOnly("fs", "database"))
+
+// Safe + fs, no yaml (pipeline, order matters!)
+engine.NewBuilder().UseModuleMiddleware(Pipeline(
+    MiddlewareSafe(),
+    MiddlewareAdd("fs"),
+    MiddlewareExclude("yaml"),
+))
+
+// Custom transformation
+engine.NewBuilder().UseModuleMiddleware(MiddlewareCustom(func(selected []string) []string {
+    sort.Strings(selected)
+    return unique(selected)
+}))
+```
+
+## CLI flag mapping
+
+| Flag | Middleware equivalent |
+|------|----------------------|
+| `--safe-mode` | `MiddlewareSafe()` |
+| `--enable-module fs,db` | `MiddlewareOnly("fs", "database")` |
+| `--disable-module fs` | `MiddlewareExclude("fs")` |
+| (default) | none (SelectAll) |
+
+### Validation rules
+
+- `--enable-module` and `--disable-module` are mutually exclusive
+- `--safe-mode` is mutually exclusive with both `--enable-module` and `--disable-module`
+- Module names are validated against `modules.ListDefaultModules()` + known aliases
+
+## Common Glazed schema
 
 Add to `rootOptions` (shared by all commands via `commandSupport`):
 
@@ -78,9 +230,9 @@ type rootOptions struct {
     AllowPluginModules []string
     
     // NEW: module enablement
-    EnableModules      []string  // --enable-module  (whitelist)
-    DisableModules     []string  // --disable-module (blacklist)
-    SafeMode           bool      // --safe-mode
+    EnableModules      []string  // --enable-module  (whitelist → MiddlewareOnly)
+    DisableModules     []string  // --disable-module (blacklist → MiddlewareExclude)
+    SafeMode           bool      // --safe-mode      (→ MiddlewareSafe)
 }
 ```
 
@@ -99,62 +251,46 @@ fields.New("safe-mode", fields.TypeBool,
 )
 ```
 
-**Validation rules:**
-- `--enable-module` and `--disable-module` are mutually exclusive
-- `--safe-mode` is mutually exclusive with both `--enable-module` and `--disable-module`
-- Module names are validated against `modules.ListDefaultModules()` + known aliases
+## Propagation paths
 
-### 2. Module selection logic
+### Path A: CLI commands (run, tui, eval, create, etc.)
 
-```go
-func selectModules(enable, disable []string, safeMode bool) []engine.ModuleSpec {
-    if safeMode {
-        return []engine.ModuleSpec{engine.DataOnlyDefaultRegistryModules()}
-    }
-    if len(enable) > 0 {
-        return []engine.ModuleSpec{engine.DefaultRegistryModulesNamed(enable...)}
-    }
-    if len(disable) > 0 {
-        all := allModuleNames()
-        allowed := filterOut(all, disable)
-        return []engine.ModuleSpec{engine.DefaultRegistryModulesNamed(allowed...)}
-    }
-    return []engine.ModuleSpec{engine.DefaultRegistryModules()}
-}
-```
-
-### 3. Propagation paths
-
-**Path A: CLI commands (run, tui, eval, create, etc.)**
-
-All commands go through `commandSupport.newAppWithOptions()` which builds the engine. We change:
+All commands go through `commandSupport.newAppWithOptions()` which builds the engine.
 
 ```go
-// root.go
-func (s commandSupport) moduleSpecs() []engine.ModuleSpec {
-    return selectModules(s.opts.EnableModules, s.opts.DisableModules, s.opts.SafeMode)
+func (s commandSupport) moduleMiddleware() ModuleMiddleware {
+    if s.opts.SafeMode {
+        return MiddlewareSafe()
+    }
+    if len(s.opts.EnableModules) > 0 {
+        return MiddlewareOnly(s.opts.EnableModules...)
+    }
+    if len(s.opts.DisableModules) > 0 {
+        return MiddlewareExclude(s.opts.DisableModules...)
+    }
+    return nil  // SelectAll (default)
 }
 
 func (s commandSupport) newAppWithOptions(options appSupportOptions) (*replapi.App, *repldb.Store, error) {
-    // ...
-    builder := engine.NewBuilder().WithModules(s.moduleSpecs()...)
+    builder := engine.NewBuilder().
+        UseModuleMiddleware(s.moduleMiddleware())
     // ...
 }
 ```
 
-**Path B: run command (bypasses replapi.App)**
+### Path B: run command (bypasses replapi.App)
 
-`cmd_run.go` builds its own engine. Change:
+`cmd_run.go` builds its own engine:
 
 ```go
 func runScriptFile(ctx context.Context, opts runScriptOptions) error {
-    moduleSpecs := selectModules(opts.EnableModules, opts.DisableModules, opts.SafeMode)
-    builder := engine.NewBuilder().WithModules(moduleSpecs...)
+    builder := engine.NewBuilder().
+        UseModuleMiddleware(opts.moduleMiddleware())
     // ...
 }
 ```
 
-**Path C: TUI evaluator**
+### Path C: TUI evaluator
 
 The evaluator Config needs the same fields:
 
@@ -170,47 +306,61 @@ type Config struct {
 And in `New()`:
 
 ```go
-moduleSpecs := selectModules(config.EnableModules, config.DisableModules, config.SafeMode)
-builder := ggjengine.NewBuilder().WithModules(moduleSpecs...)
+mw := buildMiddlewareFromConfig(config)
+builder := ggjengine.NewBuilder().UseModuleMiddleware(mw)
 ```
 
-### 4. jsverbs integration (future)
+### Process stays orthogonal
 
-The `jsverbs` subsystem (`pkg/jsverbs`) currently invokes JS through a caller-provided runtime. It does not control module loading. However, the registry could accept module enablement settings:
+`ProcessModule` and `ProcessEnv` remain separate concerns:
 
 ```go
-type RegistryConfig struct {
-    EnableModules  []string
-    DisableModules []string
-    SafeMode       bool
-}
+engine.NewBuilder().
+    UseModuleMiddleware(Pipeline(MiddlewareSafe(), MiddlewareAdd("fs"))).
+    WithProcess()  // adds process module + global.process
 ```
 
-When `Registry.Commands()` builds command descriptions, it could inject the module flags into each verb's Glazed parameters, and the invoker would pass them to the runtime builder.
+## Deprecation plan
 
-**This is out of scope for GOJA-059** — noted as follow-up.
+The old API family is deprecated but retained as thin wrappers:
+
+| Old API | New equivalent |
+|---------|---------------|
+| `DefaultRegistryModules()` | `UseModuleMiddleware(nil)` (or omit) |
+| `DataOnlyDefaultRegistryModules()` | `UseModuleMiddleware(MiddlewareSafe())` |
+| `DefaultRegistryModulesNamed(names...)` | `UseModuleMiddleware(MiddlewareOnly(names...))` |
+| `DefaultRegistryModule(name)` | `UseModuleMiddleware(MiddlewareOnly(name))` |
+
+Mark old functions with `// Deprecated: Use UseModuleMiddleware instead.`
 
 ## Files to modify
 
 | File | Change |
 |------|--------|
-| `cmd/goja-repl/root.go` | Add module flags to rootOptions; add moduleSpecs() helper; wire into newAppWithOptions |
+| `engine/module_middleware.go` | NEW: ModuleSelector, ModuleMiddleware, built-ins, Pipeline |
+| `engine/factory.go` | Add `UseModuleMiddleware`, integrate into Build |
+| `engine/module_specs.go` | Deprecate old API family, add wrappers |
+| `cmd/goja-repl/root.go` | Add module flags to rootOptions; add `moduleMiddleware()` helper; wire into newAppWithOptions |
 | `cmd/goja-repl/cmd_run.go` | Add module fields to runScriptOptions; wire into runScriptFile |
 | `pkg/repl/evaluators/javascript/evaluator.go` | Add module fields to Config; wire into builder |
-| `engine/module_specs.go` | Add `AllModuleNames()` helper or expand existing APIs |
 | `cmd/goja-repl/root_test.go` | Add tests for module flag behavior |
 | `pkg/doc/04-repl-usage.md` | Document module security model |
 
 ## Test plan
 
-1. **Unit**: `selectModules()` with all combinations of enable/disable/safe/none
-2. **Integration**: `go run ./cmd/goja-repl run --safe-mode ./testdata/yaml.js` → expect `yaml` require to fail
-3. **Integration**: `go run ./cmd/goja-repl run --disable-module fs ./script-using-fs.js` → expect fs require to fail
-4. **Integration**: `go run ./cmd/goja-repl run --enable-module fs,path ./script.js` → only fs and path available
-5. **TUI smoke**: Start TUI with `--safe-mode`, verify `require("fs")` throws
+1. **Unit**: Middleware composition (Safe → Add → Exclude, pipeline order)
+2. **Unit**: Middleware edge cases (empty names, unknown names, deduplication)
+3. **Integration**: `go run ./cmd/goja-repl run --safe-mode ./testdata/yaml.js` → expect `yaml` require to fail
+4. **Integration**: `go run ./cmd/goja-repl run --disable-module fs ./script-using-fs.js` → expect fs require to fail
+5. **Integration**: `go run ./cmd/goja-repl run --enable-module fs,path ./script.js` → only fs and path available
+6. **TUI smoke**: Start TUI with `--safe-mode`, verify `require("fs")` throws
 
 ## Open questions
 
 1. Should `--safe-mode` also disable plugins? (Probably yes — plugins are arbitrary Go code)
-2. Should we add a `--no-modules` flag to disable everything except core JS? (Nice-to-have)
+2. Should we add a `--no-modules` flag to disable everything except core JS? (Nice-to-have; could be `MiddlewareOnly()` with no names)
 3. How does this interact with `--allow-plugin-module`? (Orthogonal — plugin filtering stays separate)
+
+## Key insight
+
+The middleware pattern decouples **selection strategy** from **implementation**. Users can compose strategies arbitrarily: whitelist after blacklist, add then remove, or write entirely custom logic. The engine no longer needs a growing family of `DefaultRegistry*` functions — one method, infinite combinations.

@@ -11,34 +11,22 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: cmd/goja-repl/cmd_run.go
-      Note: run command builder with DefaultRegistryModules
-    - Path: cmd/goja-repl/cmd_run.go:run command with DefaultRegistryModules
-    - Path: cmd/goja-repl/root.go
-      Note: rootOptions and commandSupport shared app construction
-    - Path: cmd/goja-repl/root.go:rootOptions and shared app construction
-    - Path: engine/module_specs.go
-      Note: Engine module spec APIs (DefaultRegistryModules
-    - Path: engine/module_specs.go:Engine module spec APIs
-    - Path: pkg/repl/evaluators/javascript/evaluator.go
-      Note: TUI evaluator Config and runtime builder
-    - Path: pkg/repl/evaluators/javascript/evaluator.go:TUI evaluator runtime builder
+    - /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/engine/module_specs.go:Engine module spec APIs
+    - /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/cmd/goja-repl/root.go:rootOptions and commandSupport shared app construction
+    - /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/cmd/goja-repl/cmd_run.go:run command with DefaultRegistryModules
+    - /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go:TUI evaluator runtime builder
 ExternalSources: []
-Summary: 'Implementation diary for GOJA-059: adding granular module enablement flags to goja-repl commands.'
-LastUpdated: 2026-04-28T09:00:00-04:00
-WhatFor: Chronological record of investigation, design, implementation, and validation
-WhenToUse: When resuming work, reviewing decisions, or understanding why something was built a certain way
+Summary: "Implementation diary for GOJA-059: adding granular module enablement via a ModuleMiddleware pipeline to goja-repl commands."
+LastUpdated: 2026-04-28T09:15:00-04:00
+WhatFor: "Chronological record of investigation, design, implementation, and validation"
+WhenToUse: "When resuming work, reviewing decisions, or understanding why something was built a certain way"
 ---
-
-
-
-
 
 # Diary — GOJA-059: Add granular module enablement flags to goja-repl commands
 
 ## Goal
 
-Allow users to selectively enable or disable native Go modules (fs, exec, database, os, yaml, process) when using goja-repl `run`, `tui`, and other commands. The current behavior loads **all** modules unconditionally, which is convenient but not always safe.
+Allow users to selectively enable or disable native Go modules (fs, exec, database, os, yaml, process) when using goja-repl `run`, `tui`, and other commands. The current behavior loads **all** modules unconditionally.
 
 ## Step 1: Investigation — Current module loading behavior
 
@@ -100,10 +88,11 @@ N/A — investigation only.
 
 ### What should be done in the future
 
-- Step 2: Design the common Glazed schema for module enablement flags
-- Step 3: Implement the schema in `rootOptions` and propagate through all three engine-building paths
-- Step 4: Add tests for module filtering
-- Step 5: Update documentation
+- Step 2: Design the module enablement API
+- Step 3: Implement the API in the engine
+- Step 4: Wire through CLI flags to all three engine-building paths
+- Step 5: Add tests for module filtering
+- Step 6: Update documentation
 
 ### Code review instructions
 
@@ -136,4 +125,104 @@ engine.NewBuilder().WithModules(engine.DataOnlyDefaultRegistryModules())
 
 // Named modules
 engine.NewBuilder().WithModules(engine.DefaultRegistryModulesNamed("fs", "path"))
+```
+
+## Step 2: Design — From Strategy Enums to Middleware Pipeline
+
+### Prompt Context
+
+**User prompt (verbatim):** "the whole set of engine APIs is a bit baroque and could be unified, right? The engine.DefaultRegistryModules estc..."
+
+**Assistant interpretation:** The user wants a cleaner, unified API for module selection instead of the current grab-bag of four functions.
+
+**Inferred user intent:** Replace `DefaultRegistryModules()`, `DataOnlyDefaultRegistryModules()`, `DefaultRegistryModulesNamed()`, and `DefaultRegistryModule()` with a single, composable mechanism.
+
+### What I did
+
+- Proposed a `ModuleSelection` struct with a `SelectionStrategy` enum (All/Safe/Only/Except)
+- User pushed back: "can we chain multiple selections? Could ProcessModule and ProcessEnv just be two modules too?"
+- Proposed a `ModuleFilter` pipeline (pure functions over `[]string`)
+- User pushed for the `f(next Handler) Handler` pattern for explicit control flow
+- Landed on `ModuleMiddleware func(next ModuleSelector) ModuleSelector`
+- Updated the design doc with the full middleware pipeline approach
+
+### What worked
+
+- The `f(next) Handler` pattern maps cleanly to module selection:
+  - **Override middlewares** (Safe, Only) don't call next → replace entire selection
+  - **Transform middlewares** (Exclude, Add, Custom) call next → modify result
+- `Pipeline()` helper composes middlewares left-to-right
+- Old API can be deprecated as thin wrappers
+- CLI flags map 1:1 to middlewares:
+  - `--safe-mode` → `MiddlewareSafe()`
+  - `--enable-module fs,db` → `MiddlewareOnly("fs", "database")`
+  - `--disable-module fs` → `MiddlewareExclude("fs")`
+
+### What didn't work
+
+- Initial `ModuleSelection` enum approach was rejected as not composable enough
+- `ModuleFilter` pipeline was close but lacked explicit control flow
+- The `f(next Handler) Handler` pattern was the right abstraction
+
+### What I learned
+
+- The middleware pattern gives users **full control flow**: short-circuit, pre/post transform, arbitrary composition
+- Order matters: `Pipeline(Safe, Add("fs"))` is different from `Pipeline(Add("fs"), Safe)`
+- `ProcessModule` and `ProcessEnv` **cannot** be folded into module middleware because:
+  - `ProcessModule` is a `ModuleSpec` (factory-time registration)
+  - `ProcessEnv` is a `RuntimeInitializer` (per-runtime global variable)
+  - They stay orthogonal via `WithProcess()` builder method
+
+### What was tricky to build
+
+N/A — design discussion, no code yet.
+
+### What warrants a second pair of eyes
+
+- The `Pipeline` composition order: first middleware executes first, wrapping subsequent ones. This is standard HTTP middleware behavior but could be surprising.
+- Deprecation strategy: old functions will be thin wrappers calling `UseModuleMiddleware`. Need to ensure no behavioral changes.
+
+### What should be done in the future
+
+- Step 3: Implement `engine/module_middleware.go` with core types and built-ins
+- Step 4: Add `UseModuleMiddleware` to `FactoryBuilder`
+- Step 5: Deprecate old API family in `module_specs.go`
+- Step 6: Wire CLI flags through all three engine-building paths
+- Step 7: Write tests
+
+### Code review instructions
+
+N/A — design only.
+
+### Technical details
+
+**Core types:**
+```go
+type ModuleSelector func(available []string) []string
+type ModuleMiddleware func(next ModuleSelector) ModuleSelector
+```
+
+**Built-in middlewares:**
+```go
+func MiddlewareSafe() ModuleMiddleware       // override: data-only
+func MiddlewareOnly(names...) ModuleMiddleware // override: whitelist
+func MiddlewareExclude(names...) ModuleMiddleware // transform: blacklist
+func MiddlewareAdd(names...) ModuleMiddleware     // transform: append
+func MiddlewareCustom(fn) ModuleMiddleware        // transform: arbitrary
+```
+
+**Usage:**
+```go
+// Safe + fs, no yaml
+engine.NewBuilder().UseModuleMiddleware(Pipeline(
+    MiddlewareSafe(),
+    MiddlewareAdd("fs"),
+    MiddlewareExclude("yaml"),
+))
+
+// All except exec
+engine.NewBuilder().UseModuleMiddleware(MiddlewareExclude("exec"))
+
+// Only fs and db
+engine.NewBuilder().UseModuleMiddleware(MiddlewareOnly("fs", "database"))
 ```
