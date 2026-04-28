@@ -1,8 +1,29 @@
 ---
-date: 2026-04-27
-ticket: GOJA-054
-status: active
+Title: ""
+Ticket: ""
+Status: ""
+Topics: []
+DocType: ""
+Intent: ""
+Owners: []
+RelatedFiles:
+    - Path: README.md
+      Note: README run example
+    - Path: cmd/goja-repl/cmd_run.go
+      Note: Run command implementation
+    - Path: cmd/goja-repl/root.go
+      Note: Command registration
+    - Path: cmd/goja-repl/root_test.go
+      Note: Run command tests
+    - Path: pkg/doc/04-repl-usage.md
+      Note: Run command usage docs
+ExternalSources: []
+Summary: ""
+LastUpdated: 0001-01-01T00:00:00Z
+WhatFor: ""
+WhenToUse: ""
 ---
+
 
 # Diary
 
@@ -121,3 +142,66 @@ Then give me a concise rundown"
 ### Technical details
 - Updated document: `design-doc/01-run-verb-analysis-design-and-implementation-guide.md`
 - Current implementation files remain uncommitted and should be revised before commit.
+
+---
+
+## Step 3: Refactored and completed the run verb implementation
+
+Reworked the initial spike into the shape recommended by the review. The final command is a thin Glazed adapter over a pure `runScriptFile` helper. The ignored `--profile` flag was removed, script execution now goes through `rt.Owner.Call`, module-root errors are returned instead of silently ignored, and negative tests now target the helper directly instead of relying on fragile Cobra error behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** "perfect, continue."
+
+**Assistant interpretation:** Continue from the big-brother review by fixing the run-command spike and validating it.
+
+**Inferred user intent:** Finish the proper implementation, not just the documentation review.
+
+**Commit (code):** `4d85a9b` — "feat(cmd/goja-repl): add run verb for script files"
+
+### What I did
+- Rewrote `cmd/goja-repl/cmd_run.go` around `runScriptFile(ctx, runScriptOptions)`.
+- Removed the unimplemented `--profile` flag from the run command.
+- Kept root plugin flags (`--plugin-dir`, `--allow-plugin-module`) flowing into the factory build.
+- Used `engine.RequireOptionWithModuleRootsFromScript` and now return errors if module-root derivation fails.
+- Changed script execution to `rt.Owner.Call(ctx, "goja-repl.run", ...)`.
+- Registered `newRunCommand(out, opts)` in `cmd/goja-repl/root.go`.
+- Added tests for successful Cobra execution, helper-level missing-file error, helper-level syntax error, and run help.
+- Updated README and `pkg/doc/04-repl-usage.md` with `run` examples.
+
+### What worked
+- `go run ./cmd/goja-repl run ./testdata/yaml.js` executes successfully and prints the YAML example's OK output.
+- `go test ./cmd/goja-repl/... ./modules/yaml/... -count=1` passes.
+- `make lint` passes with 0 issues.
+
+### What didn't work
+- The previous negative Cobra tests were not retained because they made package-level test behavior brittle. The negative cases now test the helper directly.
+
+### What I learned
+- Keeping the Glazed command thin makes tests much cleaner and avoids parser/Cobra error-path surprises.
+- `run` MVP is better without `--profile` than with a misleading flag.
+
+### What was tricky to build
+- The main tricky part was not execution itself, but choosing the right testing seam. Helper-level tests are the stable seam for file-not-found and syntax-error behavior.
+
+### What warrants a second pair of eyes
+- Whether future `run` should support top-level await by reusing replsession's promise waiting logic.
+- Whether JS console output should be redirected to the command writer for embedders/tests.
+
+### What should be done in the future
+- Add stdin support (`goja-repl run -`).
+- Add script argument support.
+- Consider top-level await support with explicit timeout behavior.
+
+### Code review instructions
+- Start with `cmd/goja-repl/cmd_run.go`, especially `runScriptFile`.
+- Review `cmd/goja-repl/root_test.go` run tests.
+- Validate manually with `go run ./cmd/goja-repl run ./testdata/yaml.js`.
+
+### Technical details
+- New file: `cmd/goja-repl/cmd_run.go`
+- Modified files: `cmd/goja-repl/root.go`, `cmd/goja-repl/root_test.go`, `README.md`, `pkg/doc/04-repl-usage.md`
+- Validation:
+  - `go test ./cmd/goja-repl/... ./modules/yaml/... -count=1`
+  - `make lint`
+  - `go run ./cmd/goja-repl run ./testdata/yaml.js`

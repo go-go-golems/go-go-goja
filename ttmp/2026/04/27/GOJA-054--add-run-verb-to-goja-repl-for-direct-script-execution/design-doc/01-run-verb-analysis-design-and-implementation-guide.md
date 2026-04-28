@@ -9,8 +9,12 @@ Owners: []
 RelatedFiles:
     - Path: cmd/goja-repl/cmd_eval.go
       Note: Existing eval command pattern
+    - Path: cmd/goja-repl/cmd_run.go
+      Note: Run command implementation
     - Path: cmd/goja-repl/root.go
       Note: Root command wiring and commandSupport pattern
+    - Path: cmd/goja-repl/root_test.go
+      Note: Run command tests
     - Path: engine/factory.go
       Note: Factory.NewRuntime for ephemeral execution
     - Path: engine/module_roots.go
@@ -25,6 +29,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Run Verb: Analysis, Design and Implementation Guide
