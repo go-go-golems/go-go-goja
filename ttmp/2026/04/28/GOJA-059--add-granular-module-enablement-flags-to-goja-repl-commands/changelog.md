@@ -30,3 +30,14 @@ Step 2: Design refined to ModuleMiddleware pipeline pattern (f(next Handler) Han
 - /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/ttmp/2026/04/28/GOJA-059--add-granular-module-enablement-flags-to-goja-repl-commands/design/01-module-enablement-design.md — Updated design doc with middleware pipeline pattern
 - /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/ttmp/2026/04/28/GOJA-059--add-granular-module-enablement-flags-to-goja-repl-commands/reference/01-diary.md — Updated diary with Step 2 design evolution
 
+
+## 2026-04-28
+
+Step 3: Implemented engine/module_middleware.go with ModuleSelector, ModuleMiddleware, built-in middlewares (Safe, Only, Exclude, Add, Custom), Pipeline helper, and comprehensive unit tests. Added UseModuleMiddleware to FactoryBuilder. Deprecated old API family. Migrated all callers. (commit 9148dd6)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/engine/factory.go — UseModuleMiddleware integration in FactoryBuilder
+- /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/engine/module_middleware.go — Core middleware types and built-ins
+- /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/engine/module_specs.go — Deprecated old API family
+
