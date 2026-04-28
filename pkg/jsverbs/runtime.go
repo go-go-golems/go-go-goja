@@ -16,10 +16,12 @@ import (
 )
 
 func (r *Registry) invoke(ctx context.Context, verb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
-	factory, err := engine.NewBuilder().
-		WithRequireOptions(require.WithLoader(r.sourceLoader)).
-		UseModuleMiddleware(engine.MiddlewareSafe()).
-		Build()
+	builder := engine.NewBuilder().
+		WithRequireOptions(require.WithLoader(r.sourceLoader))
+	if r.ModuleMiddleware != nil {
+		builder = builder.UseModuleMiddleware(r.ModuleMiddleware)
+	}
+	factory, err := builder.Build()
 	if err != nil {
 		return nil, err
 	}
