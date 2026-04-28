@@ -1,7 +1,7 @@
 ---
 Title: Add granular module enablement flags to goja-repl commands
 Ticket: GOJA-059
-Status: active
+Status: complete
 Topics:
     - backend
     - cli
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-28T08:57:05.189938799-04:00
+LastUpdated: 2026-04-28T17:07:15.955301657-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Add granular module enablement flags to goja-repl commands
 
