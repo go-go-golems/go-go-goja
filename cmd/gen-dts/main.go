@@ -18,6 +18,7 @@ import (
 	_ "github.com/go-go-golems/go-go-goja/modules/fs"
 	_ "github.com/go-go-golems/go-go-goja/modules/os"
 	_ "github.com/go-go-golems/go-go-goja/modules/path"
+	_ "github.com/go-go-golems/go-go-goja/modules/yaml"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/render"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/validate"

@@ -42,34 +42,24 @@ High-level flow:
 ## Quick start
 Use these commands when you want to regenerate Bun demo declarations and verify they match the committed file.
 
-Generate declarations:
+Generate declarations for the bun demo:
 
 ```bash
 cd go-go-goja
-go run ./cmd/gen-dts \
-  --out ./cmd/bun-demo/js/src/types/goja-modules.d.ts \
-  --module fs,exec,database \
-  --strict
+go generate ./cmd/bun-demo
 ```
 
-Check mode (no file write; fails on drift):
+The canonical bun-demo module filter lives in `cmd/bun-demo/generate.go` on the `//go:generate go run ../gen-dts ...` line. Update that line when a new native module should be included in `cmd/bun-demo/js/src/types/goja-modules.d.ts`.
+
+Drift check mode is a normal Git diff check after generation:
 
 ```bash
 cd go-go-goja
-go run ./cmd/gen-dts \
-  --out ./cmd/bun-demo/js/src/types/goja-modules.d.ts \
-  --module fs,exec,database \
-  --strict \
-  --check
+go generate ./cmd/bun-demo
+git diff --exit-code cmd/bun-demo/js/src/types/goja-modules.d.ts
 ```
 
-Makefile wrappers:
-
-```bash
-cd go-go-goja
-make gen-dts
-make check-dts
-```
+For ad-hoc experiments, you can still call `cmd/gen-dts` directly with an explicit `--module` filter. Do not copy that command into another persistent build path; `go generate ./cmd/bun-demo` is the canonical repo workflow.
 
 ## Command reference
 This section explains what each flag does in practice and when you should use it.
@@ -119,7 +109,7 @@ func (m) TypeScriptModule() *spec.Module {
 ```
 
 ### 4) Generate and verify
-Run `make gen-dts` and then `make check-dts`. Commit both module code and generated declarations together.
+Run `go generate ./cmd/bun-demo` and then check the generated declaration diff. Commit both module code and generated declarations together.
 
 ## Strict mode behavior
 Strict mode validates descriptor presence for the selected module set. If you pass `--module fs,exec,database --strict`, those three modules must implement `TypeScriptDeclarer`.
@@ -133,13 +123,15 @@ Suggested CI command:
 
 ```bash
 cd go-go-goja
-make check-dts
+go generate ./cmd/bun-demo
+git diff --exit-code cmd/bun-demo/js/src/types/goja-modules.d.ts
 ```
 
 Recommended local workflow before pushing:
 - Update module exports and descriptors in the same PR.
-- Run `make gen-dts`.
-- Run `make check-dts`.
+- Update the `//go:generate` module filter in `cmd/bun-demo/generate.go` if the module belongs in the bun demo type bundle.
+- Run `go generate ./cmd/bun-demo`.
+- Run `git diff --exit-code cmd/bun-demo/js/src/types/goja-modules.d.ts` or review and commit the generated diff.
 - Run `go test ./cmd/gen-dts ./pkg/tsgen/... ./modules/... -count=1`.
 
 ## Relationship to Bun demo type files

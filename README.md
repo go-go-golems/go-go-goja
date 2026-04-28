@@ -98,21 +98,22 @@ Notes:
 
 ## TypeScript Declaration Generation
 
-Goja module declarations for the bun demo are generated from module-owned descriptors:
+Goja module declarations for the bun demo are generated from module-owned descriptors. The canonical generation entrypoint is `go generate` on the bun demo package:
 
 ```bash
 cd go-go-goja
-make gen-dts
+go generate ./cmd/bun-demo
 ```
 
-CI/drift check mode:
+Drift check mode is a normal Git diff check after generation:
 
 ```bash
 cd go-go-goja
-make check-dts
+go generate ./cmd/bun-demo
+git diff --exit-code cmd/bun-demo/js/src/types/goja-modules.d.ts
 ```
 
-The generator source is `cmd/gen-dts`, and modules opt in by implementing `modules.TypeScriptDeclarer`.
+The generator source is `cmd/gen-dts`, and modules opt in by implementing `modules.TypeScriptDeclarer`. The canonical module filter lives in `cmd/bun-demo/generate.go`; update that `//go:generate` line when a new module should be part of the bun demo type bundle.
 
 ### Script Module-Root Helper
 
