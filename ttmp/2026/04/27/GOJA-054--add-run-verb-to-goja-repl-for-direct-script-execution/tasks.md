@@ -14,4 +14,4 @@
 - [x] Update `pkg/doc/04-repl-usage.md` with `run` section
 - [x] Run tests and linter
 - [x] Update diary and relate files
-- [ ] Re-upload updated bundle to reMarkable
+- [x] Re-upload updated bundle to reMarkable
