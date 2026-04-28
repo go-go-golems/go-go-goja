@@ -67,13 +67,30 @@ go run ./cmd/goja-repl run ./testdata/yaml.js
 
 The `run` verb creates a fresh runtime, enables default native modules, derives module roots from the script path, executes the file, and closes the runtime.
 
+### Module Security Flags
+
+You can control which native modules are loaded using persistent CLI flags:
+
+```bash
+# Safe mode: only data-only modules (crypto, events, path, time, timer)
+go run ./cmd/goja-repl --safe-mode run ./script.js
+
+# Whitelist: only specific modules
+go run ./cmd/goja-repl --enable-module fs,path run ./script.js
+
+# Blacklist: all except specific modules
+go run ./cmd/goja-repl --disable-module fs,exec run ./script.js
+```
+
+These flags apply to all commands that build a runtime (`run`, `tui`, `eval`, `create`, etc.).
+
 ### Runtime API quick example (current)
 
 ```go
 ctx := context.Background()
 
 factory, err := engine.NewBuilder().
-    WithModules(engine.DefaultRegistryModules()).
+    UseModuleMiddleware(engine.MiddlewareSafe()).
     Build()
 if err != nil {
     return err
@@ -93,7 +110,10 @@ if err != nil {
 ```
 
 Notes:
-- `DefaultRegistryModules()` enables modules that registered themselves through `modules.Register(...)`.
+- `UseModuleMiddleware(engine.MiddlewareSafe())` enables only data-safe modules.
+- Use `UseModuleMiddleware(engine.MiddlewareOnly("fs", "path"))` for a whitelist.
+- Use `UseModuleMiddleware(engine.MiddlewareExclude("exec"))` for a blacklist.
+- The old `WithModules(engine.DefaultRegistryModules())` is deprecated; omit the middleware to load all modules (the default).
 - `rt` bundles `VM`, `Require`, `Loop`, and `Owner` for explicit lifecycle control.
 
 ## TypeScript Declaration Generation
@@ -180,7 +200,18 @@ Say we want to expose a simplistic `uuid` module that exports a single `v4()` fu
        _ "github.com/go-go-golems/go-go-goja/modules/uuid" // ← new module here
    )
    ```
-   The blank import is only required once. At runtime, enabling `engine.DefaultRegistryModules()` makes registered modules available to `require(...)`.
+   The blank import is only required once. At runtime, the default behavior (no middleware) makes all registered modules available to `require(...)`. Use `UseModuleMiddleware` to restrict the sandbox:
+
+   ```go
+   // All modules (default)
+   engine.NewBuilder()
+
+   // Safe mode only
+   engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe())
+
+   // Specific modules
+   engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("uuid"))
+   ```
 4. **Profit**
    ```js
    const { v4 } = require("uuid");
@@ -204,12 +235,18 @@ For Go-level tests, prefer constructing a runtime directly instead of shelling o
 ```go
 ctx := context.Background()
 
+// Safe mode (data-only modules)
 factory, err := engine.NewBuilder().
-    WithModules(engine.DefaultRegistryModules()).
+    UseModuleMiddleware(engine.MiddlewareSafe()).
     Build()
 if err != nil {
     t.Fatal(err)
 }
+
+// Or, to test a specific module:
+// factory, err := engine.NewBuilder().
+//     UseModuleMiddleware(engine.MiddlewareOnly("fs")).
+//     Build()
 
 rt, err := factory.NewRuntime(ctx)
 if err != nil {
