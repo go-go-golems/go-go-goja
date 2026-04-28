@@ -22,6 +22,7 @@ The goal is to have a place where you can:
  ├── engine/              # builder/factory/runtime ownership APIs
  ├── modules/             # ← add your Go-backed modules here
  │   ├── common.go        # registry plumbing (NativeModule, Register, …)
+ │   ├── events/          # Go-native Node-style EventEmitter
  │   ├── fs/              # example module 1: basic file-system helpers
  │   ├── exec/            # example module 2: thin wrapper around os/exec
  │   ├── yaml/            # example module 3: YAML parse/stringify/validate
@@ -268,6 +269,53 @@ Low-level `loop.RunOnLoop(...)` is still valid, but `runtimeowner.Runner` is pre
 Important caveat:
 
 - do not run blocking synchronous flows on the owner thread if those flows wait on background work that itself schedules back onto owner, or you can deadlock.
+
+### Demo: `events` module
+
+`go-go-goja` ships a Go-native subset of Node's EventEmitter API as `require("events")` and `require("node:events")`. Node-compatible or mostly-compatible built-ins use both bare and `node:` names where appropriate (`node:events`, `node:path`, `node:crypto`, and opt-in `node:fs`/`node:os`), while custom helpers such as `fswatch`, `time`, and `timer` keep custom names:
+
+```js
+const EventEmitter = require("events");
+const emitter = new EventEmitter();
+
+emitter.once("ready", (name) => console.log("first", name));
+emitter.on("ready", (name) => console.log("always", name));
+
+emitter.emit("ready", "goja");
+emitter.emit("ready", "again");
+```
+
+The emitter implementation is Go-backed, so Go helper modules can also validate/adopt an EventEmitter that JavaScript created and then emit to it safely from the runtime owner thread.
+
+Connected helpers in `pkg/jsevents` build on that adoption path for host resources. For example, an embedding application can explicitly install an fsnotify-backed helper and let JavaScript wire listeners on its own emitter:
+
+```go
+factory, err := engine.NewBuilder().
+    WithRuntimeInitializers(
+        jsevents.Install(),
+        jsevents.FSWatchHelper(jsevents.FSWatchOptions{
+            Root:           "/tmp/my-app-sandbox",
+            AllowRecursive: true,
+        }),
+    ).
+    Build()
+```
+
+```js
+const EventEmitter = require("events");
+const watcher = new EventEmitter();
+const conn = fswatch.watch("/tmp/my-app-sandbox", watcher, {
+  recursive: true,
+  debounceMs: 100,
+  include: ["**/*.js"],
+  exclude: ["**/node_modules/**"]
+});
+
+watcher.on("event", (ev) => console.log(ev.relativeName, ev.op));
+conn.close();
+```
+
+See `goja-repl help connected-eventemitters-developer-guide` for the full developer guide, including owner-thread safety, typed payload structs, fswatch, and Watermill.
 
 ### Demo: `timer` module
 

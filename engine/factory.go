@@ -6,9 +6,11 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/buffer"
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/dop251/goja_nodejs/url"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 )
@@ -187,6 +189,10 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	})
 
 	reg := require.NewRegistry(f.settings.requireOptions...)
+	if err := DataOnlyDefaultRegistryModules().Register(reg); err != nil {
+		_ = rt.Close(ctx)
+		return nil, fmt.Errorf("register data-only default modules: %w", err)
+	}
 	for _, mod := range f.modules {
 		if err := mod.Register(reg); err != nil {
 			_ = rt.Close(ctx)
@@ -210,6 +216,16 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 
 	reqMod := reg.Enable(vm)
 	console.Enable(vm)
+	buffer.Enable(vm)
+	url.Enable(vm)
+	if err := installPerformanceGlobals(vm); err != nil {
+		_ = rt.Close(ctx)
+		return nil, err
+	}
+	if err := installConsoleTimers(vm); err != nil {
+		_ = rt.Close(ctx)
+		return nil, err
+	}
 	rt.Require = reqMod
 
 	initCtx := &RuntimeContext{

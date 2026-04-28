@@ -112,9 +112,11 @@ jsverbs-example --log-level debug --dir ./testdata/jsverbs list
 | Relative `require()` fails | The helper file is outside the scanned directory or uses an unsupported resolution path | Keep helper files under the scanned tree and use relative imports like `./helper` |
 | A function is not listed | It is not top-level, starts with `_`, is only defined as an object method, or metadata parsing failed | Export it as a top-level function and check the scanner error output for invalid metadata |
 | A `__verb__` block seems to be ignored | The metadata used dynamic JavaScript instead of static literals | Restrict metadata to literal objects, arrays, strings, numbers, booleans, and `null` |
+| The `fswatch` fixture says `fswatch is not defined` | The default `jsverbs-example` runtime does not install host-specific connected helpers | Run the integration test or embed `pkg/jsverbs` with a runtime that installs `jsevents.Install()` and `jsevents.FSWatchHelper(...)`; see `connected-eventemitters-developer-guide`. |
 
 ## See Also
 
 - `glaze help jsverbs-example-fixture-format`
 - `glaze help jsverbs-example-developer-guide`
 - `glaze help jsverbs-example-reference`
+- `glaze help connected-eventemitters-developer-guide`

@@ -1,0 +1,143 @@
+name: publish-image
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+
+concurrency:
+  group: publish-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm -C web install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm -C web build
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Define image metadata
+        run: |
+          echo "GHCR_IMAGE=ghcr.io/${{ github.repository_owner }}/go-go-goja" >> "$GITHUB_ENV"
+          echo "SHORT_SHA=sha-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.GHCR_IMAGE }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=main,enable={{is_default_branch}}
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=go-go-goja
+            org.opencontainers.image.description=Goja REPL with interactive essay
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test loaded image
+        if: github.event_name == 'pull_request'
+        run: |
+          docker run -d --rm --name goja-essay-ci -p 127.0.0.1:8080:8080 "${GHCR_IMAGE}:${SHORT_SHA}"
+          trap 'docker logs goja-essay-ci || true; docker rm -f goja-essay-ci || true' EXIT
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8080/api/essay/sections/meet-a-session >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/api/essay/sections/meet-a-session >/dev/null
+          curl -fsS http://127.0.0.1:8080/essay/meet-a-session >/dev/null
+
+  gitops-pr:
+    name: Open GitOps PR
+    needs: docker
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Open GitOps pull requests for published image
+        env:
+          GH_TOKEN: ${{ secrets.GITOPS_PR_TOKEN }}
+          GITOPS_PR_GIT_AUTHOR_NAME: github-actions[bot]
+          GITOPS_PR_GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/go-go-goja
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::error::GITOPS_PR_TOKEN is not configured. Add it as a repository secret."
+            exit 1
+          fi
+          image_tag="sha-${GITHUB_SHA::7}"
+          python3 scripts/open_gitops_pr.py \
+            --config deploy/gitops-targets.json \
+            --all-targets \
+            --image "${GHCR_IMAGE}:${image_tag}" \
+            --push \
+            --open-pr

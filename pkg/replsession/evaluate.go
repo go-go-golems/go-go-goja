@@ -596,6 +596,9 @@ func (s *sessionState) waitPromise(ctx context.Context, promise *goja.Promise) (
 			return promiseSnapshot{State: promise.State(), Result: promise.Result()}, nil
 		})
 		if err != nil {
+			if cause := evaluationContextError(ctx); cause != nil {
+				return nil, cause
+			}
 			return nil, err
 		}
 		snapshot, ok := ret.(promiseSnapshot)

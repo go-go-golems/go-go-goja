@@ -187,6 +187,16 @@ Supported field types currently map to Glazed like this:
 - `stringList`, `list`, `[]string` -> string-list field
 - `choice` -> choice field
 - `choiceList` -> choice-list field
+- `objectFromFile` -> load one JSON/YAML object from a file and pass it to JavaScript as an object
+- `objectListFromFile` -> load a list of objects from one file
+- `objectListFromFiles` -> load object lists from multiple files
+- `stringFromFile` / `stringFromFiles` -> load string content from one or more files
+- `stringListFromFile` / `stringListFromFiles` -> load string lists from one or more files
+- `file` / `fileList` -> load Glazed file data values
+- `keyValue` -> parse key-value data
+- `date` -> date field
+- `intList` / `integerList` -> integer-list field
+- `floatList` / `numberList` -> float-list field
 
 If `choices` is set and no type is provided, the system treats the field as `choice`.
 
@@ -304,6 +314,29 @@ Preferred testing structure:
 
 That split in test style mirrors the split in command interfaces. If you add a new output behavior and the tests no longer read naturally, it is worth checking whether the command abstraction itself is still clean.
 
+## Connected-helper fixtures
+
+The `testdata/jsverbs/fswatch.js` fixture demonstrates a connected EventEmitter helper rather than a default JavaScript module. It scans like any other jsverb, but it only runs in a runtime that installs the helper explicitly.
+
+Use `Registry.InvokeInRuntime(...)` when a fixture needs host-specific runtime composition:
+
+```go
+factory, err := engine.NewBuilder().
+    WithRequireOptions(require.WithLoader(registry.RequireLoader())).
+    WithModules(engine.DefaultRegistryModules()).
+    WithRuntimeInitializers(
+        jsevents.Install(),
+        jsevents.FSWatchHelper(jsevents.FSWatchOptions{
+            Root:           dir,
+            AllowRecursive: true,
+            MaxDebounce:    time.Second,
+        }),
+    ).
+    Build()
+```
+
+This pattern keeps the fixture useful as JavaScript documentation without making host filesystem watching a default capability of every jsverbs command.
+
 ## Help integration
 
 The example runner loads the shared `pkg/doc` help pages into its help system.
@@ -321,3 +354,4 @@ This is a good pattern to preserve because it keeps reusable developer documenta
 - `glaze help jsverbs-example-overview`
 - `glaze help jsverbs-example-developer-guide`
 - `glaze help jsverbs-example-fixture-format`
+- `glaze help connected-eventemitters-developer-guide`

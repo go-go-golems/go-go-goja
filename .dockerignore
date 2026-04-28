@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# CI
+.github
+
+# Documentation
+*.md
+docs/
+
+# Node modules (will be installed in container)
+web/node_modules
+web/dist
+
+# Go build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.test
+*.out
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local environment
+.env
+.envrc
+
+# Temporary files
+*.tmp
+*.log
+
+# Ticket workspaces
+ttmp/

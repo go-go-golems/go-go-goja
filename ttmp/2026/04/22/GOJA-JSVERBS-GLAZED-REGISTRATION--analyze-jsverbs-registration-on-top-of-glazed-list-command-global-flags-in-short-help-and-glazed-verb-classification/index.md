@@ -7,13 +7,15 @@ Topics:
     - glazed
     - cli
     - help-system
+    - command-registration
+    - short-help
 DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-22T16:56:31.804934467-04:00
+LastUpdated: 2026-04-22T17:24:11.562524743-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -39,6 +41,8 @@ Current status: **active**
 - glazed
 - cli
 - help-system
+- command-registration
+- short-help
 
 ## Tasks
 

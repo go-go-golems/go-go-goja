@@ -127,6 +127,46 @@ __verb__("listIssues", {
 });
 ```
 
+File-backed object arguments use Glazed's `objectFromFile` field type. Glazed reads the JSON or YAML file before invoking the JavaScript function, so the verb receives a normal JavaScript object rather than a filename string:
+
+```js
+function inspectConfig(config) {
+  return [{
+    name: config.name,
+    nested: config.nested && config.nested.value,
+    itemCount: config.items ? config.items.length : 0
+  }];
+}
+
+__verb__("inspectConfig", {
+  short: "Inspect a JSON or YAML config file",
+  fields: {
+    config: {
+      type: "objectFromFile",
+      help: "Path to a JSON or YAML config file"
+    }
+  }
+});
+```
+
+Given a file like this:
+
+```json
+{
+  "name": "demo",
+  "nested": { "value": 42 },
+  "items": ["a", "b", "c"]
+}
+```
+
+run the command with the file path:
+
+```bash
+jsverbs-example --dir ./verbs objectfile inspect-config --config ./config.json
+```
+
+Inside JavaScript, `typeof config` is `"object"`, `config.name` is `"demo"`, and `config.items.length` is `3`.
+
 Text-output verbs look like this:
 
 ```js

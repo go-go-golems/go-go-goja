@@ -72,4 +72,10 @@ go run ./cmd/goja-repl tui
 js> const { v4 } = require("uuid"); console.log(v4());
 ```
 
-For comprehensive guidance on creating modules, using async patterns, and integrating with the runtime, explore the topics below.
+For comprehensive guidance on creating modules, using async patterns, using built-in Node.js-style primitives, and integrating with the runtime, explore the topics below.
+
+## Built-in Node.js-Style Primitives
+
+go-go-goja includes a practical set of built-in primitives for scripts that need common Node.js capabilities without custom Go bindings. Data-only primitives such as `require("path")`, `require("crypto")`, `require("time")`, and `performance.now()` are available in every engine runtime. Host-access primitives such as `require("fs")` and `require("os")` are enabled explicitly through the engine factory.
+
+See `nodejs-primitives` for the complete reference, including granular module selection, the `process.env` opt-in policy, and security notes for embedders.

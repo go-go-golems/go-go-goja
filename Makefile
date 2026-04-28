@@ -64,10 +64,10 @@ install-modules:
 		go build -o "$(DEFAULT_PLUGIN_DIR)/goja-plugin-examples-$$name" "./plugins/examples/$$name"; \
 	done
 gen-dts:
-	go run ./cmd/gen-dts --out ./cmd/bun-demo/js/src/types/goja-modules.d.ts --module fs,exec,database --strict
+	go run ./cmd/gen-dts --out ./cmd/bun-demo/js/src/types/goja-modules.d.ts --module fs,exec,database,events,node:events --strict
 
 check-dts:
-	go run ./cmd/gen-dts --out ./cmd/bun-demo/js/src/types/goja-modules.d.ts --module fs,exec,database --strict --check
+	go run ./cmd/gen-dts --out ./cmd/bun-demo/js/src/types/goja-modules.d.ts --module fs,exec,database,events,node:events --strict --check
 
 goreleaser:
 	goreleaser release --skip=sign --snapshot --clean

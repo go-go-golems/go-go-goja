@@ -62,6 +62,49 @@ In practice:
 - keep blocking orchestration off owner when possible;
 - route callback/value boundaries onto owner via `runner.Call`/`runner.Post`.
 
+### Connected EventEmitter pattern
+
+For long-lived Go resources that push events into JavaScript, prefer the connected-emitter pattern in `pkg/jsevents`:
+
+1. JavaScript creates a Go-native `EventEmitter` with `require("events")`.
+2. JavaScript passes that emitter to a Go-backed helper such as `fswatch.watch(path, emitter)`.
+3. Go adopts the emitter on the owner thread and returns a small connection object.
+4. Background goroutines never touch `goja.Runtime`, `goja.Value`, or JS callbacks directly; they call `EmitterRef.Emit(...)` instead.
+5. The connection's `close()` cancels the Go-side resource without removing JavaScript listeners from the emitter.
+
+Example JavaScript shape:
+
+```javascript
+const EventEmitter = require("events");
+const watcher = new EventEmitter();
+const conn = fswatch.watch("/tmp/demo", watcher, {
+  recursive: true,
+  debounceMs: 100,
+  include: ["**/*.js"],
+  exclude: ["**/node_modules/**"]
+});
+
+watcher.on("event", (ev) => console.log(ev.relativeName, ev.op, ev.debounced, ev.count));
+watcher.on("error", (err) => console.error(err.message));
+
+conn.close();
+```
+
+The embedding Go application must explicitly install the manager and helper:
+
+```go
+factory, err := engine.NewBuilder().
+    WithRuntimeInitializers(
+        jsevents.Install(),
+        jsevents.FSWatchHelper(jsevents.FSWatchOptions{
+            Root: "/tmp/demo",
+            AllowRecursive: true,
+            MaxDebounce: time.Second,
+        }),
+    ).
+    Build()
+```
+
 ## Promise-Based APIs
 
 Promises provide the most natural async experience for JavaScript developers. Create them using `vm.NewPromise()` and resolve/reject them from background goroutines.
@@ -383,3 +426,10 @@ js> // REPL continues immediately, "Done!" appears after 1 second
 ```
 
 For file-based scripts with async operations, ensure the runtime doesn't exit before Promises resolve by using top-level await or maintaining event loop activity.
+
+## See Also
+
+- `glaze help connected-eventemitters-developer-guide` for the full connected EventEmitter helper pattern, including fswatch and Watermill.
+- `glaze help nodejs-primitives` for built-in modules, EventEmitter, and host-access composition policy.
+- `glaze help creating-modules` for native module structure and registration.
+- `glaze help repl-usage` for interactive runtime usage.
