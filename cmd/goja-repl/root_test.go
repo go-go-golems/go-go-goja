@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -105,6 +107,77 @@ func TestEssayCommandHelp(t *testing.T) {
 	}
 	if !strings.Contains(rendered, "--addr") {
 		t.Fatalf("expected essay help to describe --addr, got %q", rendered)
+	}
+}
+
+func TestRunCommandExecutesScript(t *testing.T) {
+	t.Parallel()
+
+	script := filepath.Join(t.TempDir(), "test.js")
+	if err := os.WriteFile(script, []byte("const x = 1 + 1; x;"), 0644); err != nil {
+		t.Fatalf("write test script: %v", err)
+	}
+
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	root.SetArgs([]string{"run", script})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+}
+
+func TestRunScriptFileNotFound(t *testing.T) {
+	t.Parallel()
+
+	err := runScriptFile(context.Background(), runScriptOptions{
+		File: filepath.Join(t.TempDir(), "does-not-exist.js"),
+	})
+	if err == nil {
+		t.Fatal("expected missing file to fail")
+	}
+	if !strings.Contains(err.Error(), "script file not found") {
+		t.Fatalf("expected missing file error, got %v", err)
+	}
+}
+
+func TestRunScriptFileBadSyntax(t *testing.T) {
+	t.Parallel()
+
+	badScript := filepath.Join(t.TempDir(), "bad.js")
+	if err := os.WriteFile(badScript, []byte("const x = [bad;"), 0644); err != nil {
+		t.Fatalf("write bad script: %v", err)
+	}
+
+	err := runScriptFile(context.Background(), runScriptOptions{File: badScript})
+	if err == nil {
+		t.Fatal("expected bad syntax to fail")
+	}
+	if !strings.Contains(err.Error(), "run ") {
+		t.Fatalf("expected run error with filename context, got %v", err)
+	}
+}
+
+func TestRunCommandHelp(t *testing.T) {
+	t.Parallel()
+
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	root.SetArgs([]string{"run", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute run help: %v", err)
+	}
+	rendered := out.String()
+	if !strings.Contains(rendered, "Execute a JavaScript file") {
+		t.Fatalf("expected run help to describe command, got %q", rendered)
+	}
+	if !strings.Contains(rendered, "file") {
+		t.Fatalf("expected run help to describe file argument, got %q", rendered)
 	}
 }
 

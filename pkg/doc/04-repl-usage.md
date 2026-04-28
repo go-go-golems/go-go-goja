@@ -56,6 +56,22 @@ js> [1, 2, 3].map(x => x * 2)
 [2, 4, 6]
 ```
 
+### Running Script Files
+
+Use `goja-repl run <file>` when you want a one-shot runtime for a JavaScript file instead of a persistent REPL session:
+
+```bash
+go run ./cmd/goja-repl run ./testdata/yaml.js
+```
+
+`run` creates a fresh runtime, enables the default native modules, derives module roots from the script path, executes the file, and then closes the runtime. It does not require `goja-repl create`, a `session-id`, or a SQLite database.
+
+Root-level plugin flags still apply:
+
+```bash
+go run ./cmd/goja-repl --plugin-dir ./plugins run ./scripts/with-plugins.js
+```
+
 ### REPL Commands
 
 The REPL recognizes special commands prefixed with `:`:

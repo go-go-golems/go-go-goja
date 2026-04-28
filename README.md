@@ -58,6 +58,14 @@ hi
 
 The `--log-level debug` flag prints extra logs such as which modules were registered.
 
+Run a JavaScript file directly without creating a persistent session:
+
+```bash
+go run ./cmd/goja-repl run ./testdata/yaml.js
+```
+
+The `run` verb creates a fresh runtime, enables default native modules, derives module roots from the script path, executes the file, and closes the runtime.
+
 ### Runtime API quick example (current)
 
 ```go

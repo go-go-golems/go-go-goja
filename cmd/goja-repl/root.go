@@ -56,6 +56,7 @@ func newRootCommand(out io.Writer) (*cobra.Command, error) {
 		newSessionsCommand(out, opts),
 		newCreateCommand(out, opts),
 		newEvalCommand(out, opts),
+		newRunCommand(out, opts),
 		newSnapshotCommand(out, opts),
 		newHistoryCommand(out, opts),
 		newBindingsCommand(out, opts),
