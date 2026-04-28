@@ -214,7 +214,7 @@ A review pointed out that `runScriptFile` still executed the entry file with `vm
 
 ### Prompt Context
 
-**User prompt (verbatim):** "**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Execute entry file as module to preserve relative requires**
+**User prompt (verbatim):** "**[P1 Badge: https://img.shields.io/badge/P1-orange?style=flat] Execute entry file as module to preserve relative requires**
 
 Running the entry script with `vm.RunString(...)` loses the script's filename/module context, so `require('./foo')` inside that script resolves relative to the process working directory instead of the script directory. This breaks common one-shot script layouts (`script.js` + sibling modules) whenever `goja-repl run` is launched from another directory, even though module roots are derived from the script path. Load the entry file through the require module (or execute with the real source filename) so relative imports are anchored to the script file.
 
