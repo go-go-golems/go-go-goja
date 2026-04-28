@@ -242,3 +242,76 @@ func TestParseTUIProfile(t *testing.T) {
 		t.Fatal("expected invalid profile to fail")
 	}
 }
+
+func TestRunCommandSafeModeDisablesFs(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "test.js")
+	if err := os.WriteFile(script, []byte(`require("fs");`), 0644); err != nil {
+		t.Fatalf("write test script: %v", err)
+	}
+
+	err := runScriptFile(context.Background(), runScriptOptions{
+		File:           script,
+		SafeMode:       true,
+		UseModuleRoots: true,
+	})
+	if err == nil {
+		t.Fatal("expected fs require to fail in safe mode")
+	}
+	if !strings.Contains(err.Error(), "Invalid module") {
+		t.Fatalf("expected Invalid module error, got %v", err)
+	}
+}
+
+func TestRunCommandDisableModule(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "test.js")
+	if err := os.WriteFile(script, []byte(`require("fs");`), 0644); err != nil {
+		t.Fatalf("write test script: %v", err)
+	}
+
+	err := runScriptFile(context.Background(), runScriptOptions{
+		File:           script,
+		DisableModules: []string{"fs"},
+		UseModuleRoots: true,
+	})
+	if err == nil {
+		t.Fatal("expected fs require to fail when disabled")
+	}
+	if !strings.Contains(err.Error(), "Invalid module") {
+		t.Fatalf("expected Invalid module error, got %v", err)
+	}
+}
+
+func TestRunCommandEnableModule(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "test.js")
+	if err := os.WriteFile(script, []byte(`require("fs");`), 0644); err != nil {
+		t.Fatalf("write test script: %v", err)
+	}
+
+	err := runScriptFile(context.Background(), runScriptOptions{
+		File:           script,
+		EnableModules:  []string{"fs"},
+		UseModuleRoots: true,
+	})
+	if err != nil {
+		t.Fatalf("execute run with --enable-module fs: %v", err)
+	}
+}
+
+func TestRunCommandEnableModuleOnly(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "test.js")
+	if err := os.WriteFile(script, []byte(`require("fs"); require("os");`), 0644); err != nil {
+		t.Fatalf("write test script: %v", err)
+	}
+
+	err := runScriptFile(context.Background(), runScriptOptions{
+		File:           script,
+		EnableModules:  []string{"fs"},
+		UseModuleRoots: true,
+	})
+	if err == nil {
+		t.Fatal("expected os require to fail when not enabled")
+	}
+	if !strings.Contains(err.Error(), "Invalid module") {
+		t.Fatalf("expected Invalid module error, got %v", err)
+	}
+}
