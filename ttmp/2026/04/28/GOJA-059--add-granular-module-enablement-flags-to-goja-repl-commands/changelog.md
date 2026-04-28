@@ -41,3 +41,8 @@ Step 3: Implemented engine/module_middleware.go with ModuleSelector, ModuleMiddl
 - /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/engine/module_middleware.go — Core middleware types and built-ins
 - /home/manuel/workspaces/2026-04-28/add-run-verb/go-go-goja/engine/module_specs.go — Deprecated old API family
 
+
+## 2026-04-28
+
+Ticket closed
+
