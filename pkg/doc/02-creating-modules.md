@@ -238,6 +238,48 @@ import (
 
 The blank import ensures the module's `init()` function runs, registering it with the module system.
 
+## TypeScript Declarations
+
+If the module is user-facing, add a TypeScript descriptor next to the runtime implementation. This keeps editor completions and generated `.d.ts` files aligned with the actual Go exports.
+
+Implement `modules.TypeScriptDeclarer` on the same module type:
+
+```go
+import "github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
+
+type m struct{}
+
+var _ modules.NativeModule = (*m)(nil)
+var _ modules.TypeScriptDeclarer = (*m)(nil)
+
+func (m) TypeScriptModule() *spec.Module {
+    return &spec.Module{
+        Name: "example",
+        Functions: []spec.Function{
+            {
+                Name: "hello",
+                Params: []spec.Param{
+                    {Name: "name", Type: spec.String()},
+                },
+                Returns: spec.String(),
+            },
+        },
+    }
+}
+```
+
+The canonical declaration-generation workflow for this repository is `go generate` on the bun demo package:
+
+```bash
+go generate ./cmd/bun-demo
+```
+
+That command is defined in `cmd/bun-demo/generate.go`. If your new module should appear in `cmd/bun-demo/js/src/types/goja-modules.d.ts`, add its module name to the `//go:generate go run ../gen-dts ... --module ...` filter there, run generation, review the generated diff, and commit the updated `.d.ts` together with the module code.
+
+For the full declaration generator reference, see:
+
+    goja-repl help typescript-declaration-generator
+
 For asynchronous operations and Promise-based APIs, see:
 
     glaze help async-patterns

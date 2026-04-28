@@ -24,7 +24,8 @@ The goal is to have a place where you can:
  │   ├── common.go        # registry plumbing (NativeModule, Register, …)
  │   ├── events/          # Go-native Node-style EventEmitter
  │   ├── fs/              # example module 1: basic file-system helpers
- │   └── exec/            # example module 2: thin wrapper around os/exec
+ │   ├── exec/            # example module 2: thin wrapper around os/exec
+ │   ├── yaml/            # example module 3: YAML parse/stringify/validate
  ├── testdata/            # demo JS scripts used by Go tests
  ├── repl_test.go         # Go test that runs a JS script through the runner
  └── go.mod
@@ -58,6 +59,14 @@ hi
 
 The `--log-level debug` flag prints extra logs such as which modules were registered.
 
+Run a JavaScript file directly without creating a persistent session:
+
+```bash
+go run ./cmd/goja-repl run ./testdata/yaml.js
+```
+
+The `run` verb creates a fresh runtime, enables default native modules, derives module roots from the script path, executes the file, and closes the runtime.
+
 ### Runtime API quick example (current)
 
 ```go
@@ -89,21 +98,22 @@ Notes:
 
 ## TypeScript Declaration Generation
 
-Goja module declarations for the bun demo are generated from module-owned descriptors:
+Goja module declarations for the bun demo are generated from module-owned descriptors. The canonical generation entrypoint is `go generate` on the bun demo package:
 
 ```bash
 cd go-go-goja
-make gen-dts
+go generate ./cmd/bun-demo
 ```
 
-CI/drift check mode:
+Drift check mode is a normal Git diff check after generation:
 
 ```bash
 cd go-go-goja
-make check-dts
+go generate ./cmd/bun-demo
+git diff --exit-code cmd/bun-demo/js/src/types/goja-modules.d.ts
 ```
 
-The generator source is `cmd/gen-dts`, and modules opt in by implementing `modules.TypeScriptDeclarer`.
+The generator source is `cmd/gen-dts`, and modules opt in by implementing `modules.TypeScriptDeclarer`. The canonical module filter lives in `cmd/bun-demo/generate.go`; update that `//go:generate` line when a new module should be part of the bun demo type bundle.
 
 ### Script Module-Root Helper
 
@@ -334,3 +344,20 @@ exports.Set("sleep", func(ms int64) goja.Value {
 ```
 
 Use it as a concrete built-in and as a template for any async binding you need (HTTP fetchers, database calls, …).
+
+### Demo: `yaml` module
+
+`go-go-goja` ships a built-in `yaml` module when you enable `DefaultRegistryModules()`:
+
+```js
+const yaml = require("yaml");
+
+const config = yaml.parse("name: goja\nversion: 1.0");
+console.log(config.name); // "goja"
+
+const out = yaml.stringify({ host: "localhost", port: 8080 });
+console.log(out);
+
+const check = yaml.validate("[bad");
+console.log(check.valid); // false
+```

@@ -172,3 +172,9 @@ declare module "path" {
   export function relative(from: string, to: string): string;
   export function resolve(...parts: string[]): string;
 }
+
+declare module "yaml" {
+  export function parse(input: string): any;
+  export function stringify(value: any, options?: { indent?: number }): string;
+  export function validate(input: string): { errors?: string[]; valid: boolean };
+}

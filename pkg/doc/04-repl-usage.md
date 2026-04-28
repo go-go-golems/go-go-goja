@@ -56,6 +56,22 @@ js> [1, 2, 3].map(x => x * 2)
 [2, 4, 6]
 ```
 
+### Running Script Files
+
+Use `goja-repl run <file>` when you want a one-shot runtime for a JavaScript file instead of a persistent REPL session:
+
+```bash
+go run ./cmd/goja-repl run ./testdata/yaml.js
+```
+
+`run` creates a fresh runtime, enables the default native modules, derives module roots from the script path, executes the file, and then closes the runtime. It does not require `goja-repl create`, a `session-id`, or a SQLite database.
+
+Root-level plugin flags still apply:
+
+```bash
+go run ./cmd/goja-repl --plugin-dir ./plugins run ./scripts/with-plugins.js
+```
+
 ### REPL Commands
 
 The REPL recognizes special commands prefixed with `:`:
@@ -153,6 +169,31 @@ js> // "Finished!" appears after 500ms
 Finished!
 ```
 
+### YAML Parsing and Serialization
+
+The `yaml` module provides native YAML support for configuration files, API payloads, and data interchange:
+
+```javascript
+js> const yaml = require("yaml")
+
+js> const config = yaml.parse("name: goja\nversion: 1.0")
+js> config.name
+goja
+
+js> const out = yaml.stringify({ host: "localhost", port: 8080 })
+js> console.log(out)
+host: localhost
+port: 8080
+
+js> yaml.validate("[bad").valid
+false
+
+js> yaml.validate("hello: world").valid
+true
+```
+
+Use `goja-repl help yaml-module` for the full API reference.
+
 ## Multi-line Input
 
 The REPL supports multi-line JavaScript constructs:
@@ -197,7 +238,7 @@ Enable debug logging to see module registration and runtime details:
 
 ```bash
 go run ./cmd/goja-repl --log-level debug tui
-2024/01/15 10:30:45 engine initialised, modules: [fs, http, timer, uuid]
+2024/01/15 10:30:45 engine initialised, modules: [fs, http, timer, uuid, yaml]
 js> const fs = require("fs")
 2024/01/15 10:30:47 module loaded: fs
 ```
