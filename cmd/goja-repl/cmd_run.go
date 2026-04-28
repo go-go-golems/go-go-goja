@@ -91,11 +91,6 @@ func runScriptFile(ctx context.Context, opts runScriptOptions) error {
 		return fmt.Errorf("script file not found %q: %w", scriptPath, err)
 	}
 
-	sourceBytes, err := os.ReadFile(scriptPath)
-	if err != nil {
-		return fmt.Errorf("read script %q: %w", scriptPath, err)
-	}
-
 	builder := engine.NewBuilder().WithModules(engine.DefaultRegistryModules())
 	if opts.UseModuleRoots {
 		requireOpt, err := engine.RequireOptionWithModuleRootsFromScript(scriptPath, engine.DefaultModuleRootsOptions())
@@ -122,10 +117,11 @@ func runScriptFile(ctx context.Context, opts runScriptOptions) error {
 	defer func() { _ = rt.Close(ctx) }()
 
 	_, err = rt.Owner.Call(ctx, "goja-repl.run", func(_ context.Context, vm *goja.Runtime) (any, error) {
-		return vm.RunString(string(sourceBytes))
+		_ = vm
+		return rt.Require.Require(scriptPath)
 	})
 	if err != nil {
-		return fmt.Errorf("run %s: %w", scriptPath, err)
+		return fmt.Errorf("run %s as module: %w", scriptPath, err)
 	}
 
 	return nil

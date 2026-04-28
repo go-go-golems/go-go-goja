@@ -129,6 +129,42 @@ func TestRunCommandExecutesScript(t *testing.T) {
 	}
 }
 
+func TestRunScriptFileResolvesRelativeRequireFromEntryDirectory(t *testing.T) {
+	scriptDir := t.TempDir()
+	entryPath := filepath.Join(scriptDir, "entry.js")
+	siblingPath := filepath.Join(scriptDir, "sibling.js")
+	if err := os.WriteFile(siblingPath, []byte("module.exports = { value: 42 };"), 0644); err != nil {
+		t.Fatalf("write sibling script: %v", err)
+	}
+	entrySource := `
+const sibling = require("./sibling");
+if (sibling.value !== 42) {
+  throw new Error("relative require resolved incorrectly");
+}
+`
+	if err := os.WriteFile(entryPath, []byte(entrySource), 0644); err != nil {
+		t.Fatalf("write entry script: %v", err)
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get cwd: %v", err)
+	}
+	otherWD := t.TempDir()
+	if err := os.Chdir(otherWD); err != nil {
+		t.Fatalf("chdir other cwd: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalWD); err != nil {
+			t.Fatalf("restore cwd: %v", err)
+		}
+	}()
+
+	if err := runScriptFile(context.Background(), runScriptOptions{File: entryPath, UseModuleRoots: true}); err != nil {
+		t.Fatalf("run script with sibling require from other cwd: %v", err)
+	}
+}
+
 func TestRunScriptFileNotFound(t *testing.T) {
 	t.Parallel()
 
