@@ -15,7 +15,7 @@ import (
 
 func newFactory(t *testing.T) *engine.Factory {
 	t.Helper()
-	factory, err := engine.NewBuilder().WithModules(engine.DefaultRegistryModules()).Build()
+	factory, err := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

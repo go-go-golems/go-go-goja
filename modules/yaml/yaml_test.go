@@ -256,7 +256,7 @@ func newDefaultRuntime(t *testing.T) *gggengine.Runtime {
 	t.Helper()
 
 	factory, err := gggengine.NewBuilder().
-		WithModules(gggengine.DefaultRegistryModules()).
+		UseModuleMiddleware(gggengine.MiddlewareOnly("yaml")).
 		Build()
 	require.NoError(t, err)
 

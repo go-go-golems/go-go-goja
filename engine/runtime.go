@@ -14,7 +14,7 @@ import (
 
 	// Blank imports ensure module init() functions run so they can register
 	// themselves in modules.DefaultRegistry. Registration is still explicit:
-	// callers must opt in via DefaultRegistryModules().
+	// callers must opt in via UseModuleMiddleware (e.g. MiddlewareSafe).
 	_ "github.com/go-go-golems/go-go-goja/modules/crypto"
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
 	_ "github.com/go-go-golems/go-go-goja/modules/events"

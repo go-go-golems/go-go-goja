@@ -18,7 +18,7 @@ import (
 func (r *Registry) invoke(ctx context.Context, verb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
 	factory, err := engine.NewBuilder().
 		WithRequireOptions(require.WithLoader(r.sourceLoader)).
-		WithModules(engine.DefaultRegistryModules()).
+		UseModuleMiddleware(engine.MiddlewareSafe()).
 		Build()
 	if err != nil {
 		return nil, err

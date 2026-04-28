@@ -21,6 +21,7 @@ type FactoryBuilder struct {
 	settings builderSettings
 
 	modules                 []ModuleSpec
+	moduleMiddlewares       []ModuleMiddleware
 	runtimeModuleRegistrars []RuntimeModuleRegistrar
 	runtimeInitializers     []RuntimeInitializer
 	built                   bool
@@ -70,6 +71,20 @@ func (b *FactoryBuilder) WithModules(mods ...ModuleSpec) *FactoryBuilder {
 	return b
 }
 
+// UseModuleMiddleware appends module-selection middlewares. When middlewares are
+// present, the builder evaluates the pipeline at Build() time and converts the
+// resulting module names into NativeModuleSpec registrations. This is the
+// preferred way to control which default-registry modules are loaded.
+//
+// Middlewares are applied in order: the first middleware wraps the subsequent
+// ones. Override middlewares (Safe, Only) replace the selection; transform
+// middlewares (Exclude, Add, Custom) modify the result of the next handler.
+func (b *FactoryBuilder) UseModuleMiddleware(mw ...ModuleMiddleware) *FactoryBuilder {
+	b.assertMutable()
+	b.moduleMiddlewares = append(b.moduleMiddlewares, mw...)
+	return b
+}
+
 // WithRuntimeModuleRegistrars appends runtime-scoped module registration hooks.
 func (b *FactoryBuilder) WithRuntimeModuleRegistrars(registrars ...RuntimeModuleRegistrar) *FactoryBuilder {
 	b.assertMutable()
@@ -114,6 +129,19 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 		}
 		modules_ = append(modules_, mod)
 	}
+
+	// Evaluate module middleware pipeline and convert selected names to specs.
+	if len(b.moduleMiddlewares) > 0 {
+		selector := SelectAll
+		for i := len(b.moduleMiddlewares) - 1; i >= 0; i-- {
+			selector = b.moduleMiddlewares[i](selector)
+		}
+		selected := sortedUnique(selector(allRegisteredModuleNames()))
+		for _, name := range selected {
+			modules_ = append(modules_, DefaultRegistryModule(name))
+		}
+	}
+
 	runtimeRegistrars := make([]RuntimeModuleRegistrar, 0, len(b.runtimeModuleRegistrars))
 	for i, registrar := range b.runtimeModuleRegistrars {
 		if registrar == nil {

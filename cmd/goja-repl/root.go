@@ -120,7 +120,7 @@ func (s commandSupport) newAppWithOptions(options appSupportOptions) (*replapi.A
 		}
 	}
 	pluginSetup := host.NewRuntimeSetup(s.opts.PluginDirs, s.opts.AllowPluginModules)
-	builder := engine.NewBuilder().WithModules(engine.DefaultRegistryModules())
+	builder := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe())
 	if options.helpSystem != nil {
 		builder = builder.WithRuntimeModuleRegistrars(docaccessruntime.NewRegistrar(docaccessruntime.Config{
 			HelpSources: []docaccessruntime.HelpSource{{

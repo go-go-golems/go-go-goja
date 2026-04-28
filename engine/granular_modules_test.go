@@ -76,6 +76,7 @@ func TestHostAccessModulesRequireExplicitSelection(t *testing.T) {
 	}
 }
 
+//nolint:staticcheck // Tests the deprecated DefaultRegistryModule function directly.
 func TestDefaultRegistryModuleEnablesOneHostModule(t *testing.T) {
 	factory, err := NewBuilder().WithModules(DefaultRegistryModule("fs")).Build()
 	if err != nil {
@@ -107,6 +108,7 @@ func TestDefaultRegistryModuleEnablesOneHostModule(t *testing.T) {
 	}
 }
 
+//nolint:staticcheck // Tests the deprecated DefaultRegistryModulesNamed function directly.
 func TestDefaultRegistryModulesNamedEnablesSelectedHostModules(t *testing.T) {
 	factory, err := NewBuilder().WithModules(DefaultRegistryModulesNamed("fs", "os")).Build()
 	if err != nil {

@@ -261,7 +261,7 @@ func TestFsAsyncErrorObjectSmoke(t *testing.T) {
 
 func newRuntime(t *testing.T) *gggengine.Runtime {
 	t.Helper()
-	factory, err := gggengine.NewBuilder().WithModules(gggengine.DefaultRegistryModules()).Build()
+	factory, err := gggengine.NewBuilder().UseModuleMiddleware(gggengine.MiddlewareOnly("fs")).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

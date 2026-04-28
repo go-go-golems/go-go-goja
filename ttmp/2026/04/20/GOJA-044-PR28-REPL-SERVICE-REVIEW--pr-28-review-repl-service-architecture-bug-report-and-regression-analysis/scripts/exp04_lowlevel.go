@@ -18,7 +18,7 @@ func main() {
 	report := &testReport{}
 
 	// --- Bootstrap ---
-	factory, err := engine.NewBuilder().WithModules(engine.DefaultRegistryModules()).Build()
+	factory, err := engine.NewBuilder().WithModules(engine.DefaultRegistryModules()).Build() //nolint:staticcheck
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "FATAL: build factory: %v\n", err)
 		os.Exit(1)
@@ -475,7 +475,7 @@ func main() {
 	// T17: Timeout on infinite loop (raw mode)
 	// ================================================================
 	report.run("T17: Timeout on infinite loop (raw mode)", func() error {
-		rawFactory, _ := engine.NewBuilder().WithModules(engine.DefaultRegistryModules()).Build()
+		rawFactory, _ := engine.NewBuilder().WithModules(engine.DefaultRegistryModules()).Build() //nolint:staticcheck
 		opts := replsession.RawSessionOptions()
 		opts.Policy.Eval.TimeoutMS = 50
 		svc := replsession.NewService(rawFactory, zerolog.Nop(),

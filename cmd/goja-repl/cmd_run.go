@@ -91,7 +91,7 @@ func runScriptFile(ctx context.Context, opts runScriptOptions) error {
 		return fmt.Errorf("script file not found %q: %w", scriptPath, err)
 	}
 
-	builder := engine.NewBuilder().WithModules(engine.DefaultRegistryModules())
+	builder := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe())
 	if opts.UseModuleRoots {
 		requireOpt, err := engine.RequireOptionWithModuleRootsFromScript(scriptPath, engine.DefaultModuleRootsOptions())
 		if err != nil {
