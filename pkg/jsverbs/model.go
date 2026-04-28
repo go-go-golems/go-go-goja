@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/go-go-golems/go-go-goja/engine"
 )
 
 type ParameterKind string
@@ -81,6 +83,9 @@ type Registry struct {
 	verbsByKey         map[string]*VerbSpec
 	filesByModule      map[string]*FileSpec
 	options            ScanOptions
+	// ModuleMiddleware controls which native modules are available to jsverbs
+	// when the registry builds its own runtime. If nil, all modules are loaded.
+	ModuleMiddleware engine.ModuleMiddleware
 }
 
 type FileSpec struct {
