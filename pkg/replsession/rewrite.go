@@ -119,6 +119,8 @@ func finalExpressionStatement(result *jsparse.AnalysisResult, source string) (*a
 		return nil, "", false
 	}
 	exprSource := sourceSlice(source, int(exprStmt.Expression.Idx0()), int(exprStmt.Expression.Idx1()))
+	exprSource = strings.TrimSpace(exprSource)
+	exprSource = strings.TrimRight(exprSource, "; \t\r\n")
 	if strings.TrimSpace(exprSource) == "" {
 		return nil, "", false
 	}

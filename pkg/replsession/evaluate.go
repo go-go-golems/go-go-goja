@@ -2,6 +2,7 @@ package replsession
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -15,6 +16,7 @@ import (
 type executionOutcome struct {
 	Awaited        bool
 	LastValue      string
+	LastValueJSON  string
 	PersistedNames []string
 	HelperError    bool
 }
@@ -318,6 +320,7 @@ func (s *Service) evaluateInstrumented(ctx context.Context, state *sessionState,
 	cell.Execution = ExecutionReport{
 		Status:      executionStatus(execErr, outcome.HelperError),
 		Result:      outcome.LastValue,
+		ResultJSON:  outcome.LastValueJSON,
 		Error:       errorString(execErr),
 		DurationMS:  duration.Milliseconds(),
 		Awaited:     outcome.Awaited,
@@ -403,6 +406,7 @@ func (s *Service) evaluateRaw(ctx context.Context, state *sessionState, cell *Ce
 	cell.Execution = ExecutionReport{
 		Status:     executionStatus(execErr, false),
 		Result:     outcome.LastValue,
+		ResultJSON: outcome.LastValueJSON,
 		Error:      errorString(execErr),
 		DurationMS: duration.Milliseconds(),
 		Awaited:    outcome.Awaited,
@@ -507,6 +511,7 @@ func (s *sessionState) executeRaw(ctx context.Context, source string, policy Ses
 	if outcome.LastValue == "" && (value == nil || goja.IsUndefined(value) || goja.IsNull(value)) {
 		outcome.LastValue = "undefined"
 	}
+	outcome.LastValueJSON = s.resultEnvelopeJSON(ctx, value)
 	return outcome, nil
 }
 
@@ -529,12 +534,13 @@ func (s *sessionState) executeWrapped(ctx context.Context, rewrite RewriteReport
 			return outcome, err
 		}
 	}
-	persisted, lastValue, helperError, err := s.persistWrappedReturn(ctx, value, rewrite.BindingHelperName, rewrite.LastHelperName)
+	persisted, lastValue, lastValueJSON, helperError, err := s.persistWrappedReturn(ctx, value, rewrite.BindingHelperName, rewrite.LastHelperName)
 	if err != nil {
 		return outcome, err
 	}
 	outcome.PersistedNames = persisted
 	outcome.LastValue = lastValue
+	outcome.LastValueJSON = lastValueJSON
 	outcome.HelperError = helperError
 	return outcome, nil
 }
@@ -623,16 +629,17 @@ func (s *sessionState) waitPromise(ctx context.Context, promise *goja.Promise) (
 	}
 }
 
-func (s *sessionState) persistWrappedReturn(ctx context.Context, value goja.Value, bindingsKey string, lastKey string) ([]string, string, bool, error) {
+func (s *sessionState) persistWrappedReturn(ctx context.Context, value goja.Value, bindingsKey string, lastKey string) ([]string, string, string, bool, error) {
 	ret, err := s.runtime.Owner.Call(ctx, "replsession.persist-return", func(_ context.Context, vm *goja.Runtime) (any, error) {
 		if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
-			return persistResult{HelperError: true, LastValue: "undefined"}, nil
+			return persistResult{HelperError: true, LastValue: "undefined", LastValueJSON: resultEnvelopeJSON(vm, goja.Undefined())}, nil
 		}
 		obj := value.ToObject(vm)
 		bindingsValue := obj.Get(bindingsKey)
 		lastValue := obj.Get(lastKey)
+		lastValueJSON := resultEnvelopeJSON(vm, lastValue)
 		if bindingsValue == nil || goja.IsUndefined(bindingsValue) || goja.IsNull(bindingsValue) {
-			return persistResult{HelperError: true, LastValue: gojaValuePreview(lastValue, vm)}, nil
+			return persistResult{HelperError: true, LastValue: gojaValuePreview(lastValue, vm), LastValueJSON: lastValueJSON}, nil
 		}
 		bindingsObj := bindingsValue.ToObject(vm)
 		names := bindingsObj.Keys()
@@ -642,16 +649,72 @@ func (s *sessionState) persistWrappedReturn(ctx context.Context, value goja.Valu
 				return nil, setErr
 			}
 		}
-		return persistResult{Persisted: names, LastValue: gojaValuePreview(lastValue, vm)}, nil
+		return persistResult{Persisted: names, LastValue: gojaValuePreview(lastValue, vm), LastValueJSON: lastValueJSON}, nil
 	})
 	if err != nil {
-		return nil, "", false, err
+		return nil, "", "", false, err
 	}
 	result, ok := ret.(persistResult)
 	if !ok {
-		return nil, "", false, fmt.Errorf("unexpected persist result type %T", ret)
+		return nil, "", "", false, fmt.Errorf("unexpected persist result type %T", ret)
 	}
-	return result.Persisted, result.LastValue, result.HelperError, nil
+	return result.Persisted, result.LastValue, result.LastValueJSON, result.HelperError, nil
+}
+
+func (s *sessionState) resultEnvelopeJSON(ctx context.Context, value goja.Value) string {
+	ret, err := s.runtime.Owner.Call(ctx, "replsession.result-json", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		return resultEnvelopeJSON(vm, value), nil
+	})
+	if err != nil {
+		return resultErrorEnvelopeJSON(err)
+	}
+	jsonString, ok := ret.(string)
+	if !ok {
+		return resultErrorEnvelopeJSON(fmt.Errorf("unexpected result JSON type %T", ret))
+	}
+	return jsonString
+}
+
+func resultEnvelopeJSON(vm *goja.Runtime, value goja.Value) string {
+	if vm == nil {
+		return resultErrorEnvelopeJSON(fmt.Errorf("runtime is nil"))
+	}
+	jsonObject := vm.Get("JSON")
+	if jsonObject == nil || goja.IsUndefined(jsonObject) || goja.IsNull(jsonObject) {
+		return resultErrorEnvelopeJSON(fmt.Errorf("JSON global is not available"))
+	}
+	stringifyValue := jsonObject.ToObject(vm).Get("stringify")
+	stringify, ok := goja.AssertFunction(stringifyValue)
+	if !ok {
+		return resultErrorEnvelopeJSON(fmt.Errorf("JSON.stringify is not available"))
+	}
+	envelope := vm.NewObject()
+	if err := envelope.Set("result", value); err != nil {
+		return resultErrorEnvelopeJSON(err)
+	}
+	jsonValue, err := stringify(jsonObject, envelope)
+	if err != nil {
+		if exception, ok := err.(*goja.Exception); ok {
+			return resultErrorEnvelopeJSON(fmt.Errorf("result is not JSON-serializable: %s", rejectionMessage(exception.Value(), vm)))
+		}
+		return resultErrorEnvelopeJSON(fmt.Errorf("result is not JSON-serializable: %s", err.Error()))
+	}
+	if jsonValue == nil || goja.IsUndefined(jsonValue) || goja.IsNull(jsonValue) {
+		return resultErrorEnvelopeJSON(fmt.Errorf("result envelope serialized to undefined"))
+	}
+	return jsonValue.String()
+}
+
+func resultErrorEnvelopeJSON(err error) string {
+	message := "result is not JSON-serializable"
+	if err != nil && err.Error() != "" {
+		message = err.Error()
+	}
+	b, marshalErr := json.Marshal(map[string]string{"error": message})
+	if marshalErr != nil {
+		return `{"error":"result is not JSON-serializable"}`
+	}
+	return string(b)
 }
 
 func promisePreview(promise *goja.Promise) string {

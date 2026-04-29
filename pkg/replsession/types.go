@@ -51,6 +51,7 @@ type CellReport struct {
 type ExecutionReport struct {
 	Status      string         `json:"status"`
 	Result      string         `json:"result"`
+	ResultJSON  string         `json:"resultJson,omitempty"`
 	Error       string         `json:"error,omitempty"`
 	DurationMS  int64          `json:"durationMs"`
 	Awaited     bool           `json:"awaited"`
