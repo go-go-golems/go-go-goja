@@ -14,9 +14,10 @@ import (
 )
 
 type persistResult struct {
-	Persisted   []string
-	LastValue   string
-	HelperError bool
+	Persisted     []string
+	LastValue     string
+	LastValueJSON string
+	HelperError   bool
 }
 
 func (s *sessionState) snapshotGlobals(ctx context.Context) (map[string]GlobalStateView, error) {
