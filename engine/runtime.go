@@ -13,8 +13,9 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 
 	// Blank imports ensure module init() functions run so they can register
-	// themselves in modules.DefaultRegistry. Registration is still explicit:
-	// callers must opt in via UseModuleMiddleware (e.g. MiddlewareSafe).
+	// themselves in modules.DefaultRegistry. A plain NewBuilder().Build() exposes
+	// this default registry; callers can restrict it with UseModuleMiddleware
+	// (e.g. MiddlewareSafe or MiddlewareOnly).
 	_ "github.com/go-go-golems/go-go-goja/modules/crypto"
 	_ "github.com/go-go-golems/go-go-goja/modules/database"
 	_ "github.com/go-go-golems/go-go-goja/modules/events"

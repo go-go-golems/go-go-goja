@@ -71,7 +71,8 @@ func (b *FactoryBuilder) WithModules(mods ...ModuleSpec) *FactoryBuilder {
 	return b
 }
 
-// UseModuleMiddleware appends module-selection middlewares. When middlewares are
+// UseModuleMiddleware appends module-selection middlewares. A plain builder with
+// no explicit modules enables all default-registry modules; when middlewares are
 // present, the builder evaluates the pipeline at Build() time and converts the
 // resulting module names into NativeModuleSpec registrations. This is the
 // preferred way to control which default-registry modules are loaded.
@@ -131,7 +132,11 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 	}
 
 	// Evaluate module middleware pipeline and convert selected names to specs.
-	if len(b.moduleMiddlewares) > 0 {
+	// A plain NewBuilder().Build() preserves the historical default of exposing
+	// all default-registry modules. Calling UseModuleMiddleware narrows or
+	// transforms that selection; explicit WithModules(...) remains explicit and
+	// does not auto-append the default registry.
+	if len(b.moduleMiddlewares) > 0 || len(b.modules) == 0 {
 		selector := SelectAll
 		for i := len(b.moduleMiddlewares) - 1; i >= 0; i-- {
 			selector = b.moduleMiddlewares[i](selector)
