@@ -51,6 +51,17 @@ func TestMiddlewareOnlyWithAliases(t *testing.T) {
 	}
 }
 
+func TestMiddlewareOnlyWithDatabaseAlias(t *testing.T) {
+	available := []string{"database", "db", "fs"}
+	mw := MiddlewareOnly("db")
+	selected := mw(SelectAll)(available)
+
+	want := []string{"database", "db"}
+	if !slicesEqual(selected, want) {
+		t.Fatalf("MiddlewareOnly with database alias = %v, want %v", selected, want)
+	}
+}
+
 func TestMiddlewareOnlyIgnoresUnknown(t *testing.T) {
 	available := []string{"crypto", "fs"}
 	mw := MiddlewareOnly("fs", "nonexistent")

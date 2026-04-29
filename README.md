@@ -78,6 +78,9 @@ go run ./cmd/goja-repl --safe-mode run ./script.js
 # Whitelist: only specific modules
 go run ./cmd/goja-repl --enable-module fs,path run ./script.js
 
+# Whitelist in the TUI; db is an alias for the database module
+go run ./cmd/goja-repl tui --enable-module db
+
 # Blacklist: all except specific modules
 go run ./cmd/goja-repl --disable-module fs,exec run ./script.js
 ```

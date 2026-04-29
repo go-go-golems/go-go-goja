@@ -139,11 +139,13 @@ func (s namedDefaultRegistryModulesSpec) Register(reg *require.Registry) error {
 }
 
 var defaultRegistryModuleAliases = map[string][]string{
-	"crypto": {"node:crypto"},
-	"events": {"node:events"},
-	"fs":     {"node:fs"},
-	"os":     {"node:os"},
-	"path":   {"node:path"},
+	"crypto":   {"node:crypto"},
+	"database": {"db"},
+	"db":       {"database"},
+	"events":   {"node:events"},
+	"fs":       {"node:fs"},
+	"os":       {"node:os"},
+	"path":     {"node:path"},
 }
 
 func expandDefaultRegistryModuleNames(names []string) []string {

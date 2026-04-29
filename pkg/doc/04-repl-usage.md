@@ -83,6 +83,9 @@ go run ./cmd/goja-repl --safe-mode run ./script.js
 # Whitelist: load only specific modules
 go run ./cmd/goja-repl --enable-module fs,path run ./script.js
 
+# Whitelist in the TUI; db is an alias for the database module
+go run ./cmd/goja-repl tui --enable-module db
+
 # Blacklist: load all except specific modules
 go run ./cmd/goja-repl --disable-module fs,exec run ./script.js
 ```
@@ -98,7 +101,7 @@ These flags are persistent (available on all subcommands) and are applied when t
 **Module categories:**
 
 - **Safe (data-only):** `crypto`, `events`, `path`, `time`, `timer`
-- **Dangerous (host-access):** `fs`, `os`, `exec`, `database`, `yaml`
+- **Dangerous (host-access):** `fs`, `os`, `exec`, `database`/`db`, `yaml`
 - **Process exposure:** `process` (requires `WithProcess()`) 
 
 ### REPL Commands

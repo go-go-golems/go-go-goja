@@ -297,6 +297,22 @@ func TestRunCommandEnableModule(t *testing.T) {
 	}
 }
 
+func TestRunCommandEnableDatabaseAlias(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "test.js")
+	if err := os.WriteFile(script, []byte(`const db = require("db"); if (typeof db.query !== "function") throw new Error("missing query");`), 0644); err != nil {
+		t.Fatalf("write test script: %v", err)
+	}
+
+	err := runScriptFile(context.Background(), runScriptOptions{
+		File:           script,
+		EnableModules:  []string{"db"},
+		UseModuleRoots: true,
+	})
+	if err != nil {
+		t.Fatalf("execute run with --enable-module db: %v", err)
+	}
+}
+
 func TestRunCommandEnableModuleOnly(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "test.js")
 	if err := os.WriteFile(script, []byte(`require("fs"); require("os");`), 0644); err != nil {
