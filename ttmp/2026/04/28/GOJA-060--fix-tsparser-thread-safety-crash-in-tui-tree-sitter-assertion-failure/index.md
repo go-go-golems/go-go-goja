@@ -1,7 +1,7 @@
 ---
 Title: Fix TSParser thread-safety crash in TUI (tree-sitter assertion failure)
 Ticket: GOJA-060
-Status: active
+Status: complete
 Topics:
     - backend
     - bug
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-28T22:19:34.72992934-04:00
+LastUpdated: 2026-04-28T22:22:18.139566807-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Fix TSParser thread-safety crash in TUI (tree-sitter assertion failure)
 
