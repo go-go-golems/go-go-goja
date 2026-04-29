@@ -51,6 +51,52 @@ func TestServiceInstrumentedResultJSONForObject(t *testing.T) {
 	}
 }
 
+func TestServiceInstrumentedResultJSONForFunctionValue(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithDefaultSessionOptions(InteractiveSessionOptions()))
+
+	session, err := service.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	resp, err := service.Evaluate(ctx, session.ID, `function f() { return 1; } f`)
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if !strings.Contains(resp.Cell.Execution.ResultJSON, `"kind":"function"`) {
+		t.Fatalf("expected function metadata envelope, got %q", resp.Cell.Execution.ResultJSON)
+	}
+	if !strings.Contains(resp.Cell.Execution.ResultJSON, `"result":null`) {
+		t.Fatalf("expected null result placeholder, got %q", resp.Cell.Execution.ResultJSON)
+	}
+}
+
+func TestServiceInstrumentedResultJSONForUndefinedValue(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithDefaultSessionOptions(InteractiveSessionOptions()))
+
+	session, err := service.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	resp, err := service.Evaluate(ctx, session.ID, `undefined`)
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if !strings.Contains(resp.Cell.Execution.ResultJSON, `"kind":"undefined"`) {
+		t.Fatalf("expected undefined metadata envelope, got %q", resp.Cell.Execution.ResultJSON)
+	}
+	if !strings.Contains(resp.Cell.Execution.ResultJSON, `"result":null`) {
+		t.Fatalf("expected null result placeholder, got %q", resp.Cell.Execution.ResultJSON)
+	}
+}
+
 func TestServiceInstrumentedResultJSONReportsSerializationError(t *testing.T) {
 	t.Parallel()
 

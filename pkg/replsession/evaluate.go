@@ -679,6 +679,9 @@ func resultEnvelopeJSON(vm *goja.Runtime, value goja.Value) string {
 	if vm == nil {
 		return resultErrorEnvelopeJSON(fmt.Errorf("runtime is nil"))
 	}
+	if envelope, ok := nonJSONValueEnvelope(value, vm); ok {
+		return envelope
+	}
 	jsonObject := vm.Get("JSON")
 	if jsonObject == nil || goja.IsUndefined(jsonObject) || goja.IsNull(jsonObject) {
 		return resultErrorEnvelopeJSON(fmt.Errorf("JSON global is not available"))
@@ -703,6 +706,24 @@ func resultEnvelopeJSON(vm *goja.Runtime, value goja.Value) string {
 		return resultErrorEnvelopeJSON(fmt.Errorf("result envelope serialized to undefined"))
 	}
 	return jsonValue.String()
+}
+
+func nonJSONValueEnvelope(value goja.Value, vm *goja.Runtime) (string, bool) {
+	kind := runtimeValueKind(value)
+	switch kind {
+	case "undefined", "function", "unknown":
+		b, err := json.Marshal(map[string]any{
+			"result":  nil,
+			"kind":    kind,
+			"preview": gojaValuePreview(value, vm),
+		})
+		if err != nil {
+			return resultErrorEnvelopeJSON(err), true
+		}
+		return string(b), true
+	default:
+		return "", false
+	}
 }
 
 func resultErrorEnvelopeJSON(err error) string {
