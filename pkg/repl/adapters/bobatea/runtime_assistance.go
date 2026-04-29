@@ -19,6 +19,7 @@ type RuntimeAssistance struct {
 	runtime        *goja.Runtime
 	docHub         *docaccess.Hub
 	assist         *js.Assistance
+	tsMu           sync.Mutex
 	declaredMu     sync.RWMutex
 	declaredByName map[string]jsparse.CompletionCandidate
 }
@@ -46,6 +47,7 @@ func NewRuntimeAssistance(config RuntimeAssistanceConfig) (*RuntimeAssistance, e
 	}
 	ret.assist = js.NewAssistance(js.AssistanceConfig{
 		TSParser: tsParser,
+		TSMu:     &ret.tsMu,
 		WithRuntime: func(ctx context.Context, fn func(*goja.Runtime, *docaccess.Hub) error) error {
 			return fn(ret.runtime, ret.docHub)
 		},

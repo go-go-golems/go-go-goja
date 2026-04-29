@@ -3,6 +3,7 @@ package bobatea
 import (
 	"context"
 	"strings"
+	"sync"
 
 	"github.com/dop251/goja"
 	bobarepl "github.com/go-go-golems/bobatea/pkg/repl"
@@ -25,6 +26,7 @@ type REPLAPIAdapter struct {
 	app       *replapi.App
 	sessionID string
 	assist    *js.Assistance
+	tsMu      sync.Mutex
 }
 
 // NewREPLAPIAdapter creates a Bobatea evaluator backed by one replapi session.
@@ -40,25 +42,27 @@ func NewREPLAPIAdapter(app *replapi.App, sessionID string) (*REPLAPIAdapter, err
 	if err != nil {
 		return nil, errors.Wrap(err, "replapi adapter: create TypeScript parser")
 	}
-	return &REPLAPIAdapter{
+	ret := &REPLAPIAdapter{
 		app:       app,
 		sessionID: sessionID,
-		assist: js.NewAssistance(js.AssistanceConfig{
-			TSParser: tsParser,
-			WithRuntime: func(ctx context.Context, fn func(*goja.Runtime, *docaccess.Hub) error) error {
-				return app.WithRuntime(ctx, sessionID, func(runtime *engine.Runtime) error {
-					return fn(runtime.VM, js.DocHubFromRuntime(runtime))
-				})
-			},
-			BindingHints: func(ctx context.Context) ([]jsparse.CompletionCandidate, error) {
-				bindings, err := app.Bindings(ctx, sessionID)
-				if err != nil {
-					return nil, nil
-				}
-				return bindingHintCandidates(bindings), nil
-			},
-		}),
-	}, nil
+	}
+	ret.assist = js.NewAssistance(js.AssistanceConfig{
+		TSParser: tsParser,
+		TSMu:     &ret.tsMu,
+		WithRuntime: func(ctx context.Context, fn func(*goja.Runtime, *docaccess.Hub) error) error {
+			return app.WithRuntime(ctx, sessionID, func(runtime *engine.Runtime) error {
+				return fn(runtime.VM, js.DocHubFromRuntime(runtime))
+			})
+		},
+		BindingHints: func(ctx context.Context) ([]jsparse.CompletionCandidate, error) {
+			bindings, err := app.Bindings(ctx, sessionID)
+			if err != nil {
+				return nil, nil
+			}
+			return bindingHintCandidates(bindings), nil
+		},
+	})
+	return ret, nil
 }
 
 // App returns the underlying replapi app for advanced integrations.
