@@ -114,7 +114,7 @@ func New(config Config) (*Evaluator, error) {
 	} else if config.EnableModules {
 		// Create runtime with module support using explicit engine composition.
 		builder := ggjengine.NewBuilder().
-			WithModules(ggjengine.DefaultRegistryModules())
+			UseModuleMiddleware(ggjengine.MiddlewareSafe())
 		if len(config.PluginDirectories) > 0 {
 			builder = builder.WithRuntimeModuleRegistrars(host.NewRegistrar(host.Config{
 				Directories:  config.PluginDirectories,

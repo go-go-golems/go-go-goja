@@ -9,7 +9,7 @@ import (
 )
 
 func TestTimeModuleSmoke(t *testing.T) {
-	factory, err := gggengine.NewBuilder().WithModules(gggengine.DefaultRegistryModules()).Build()
+	factory, err := gggengine.NewBuilder().UseModuleMiddleware(gggengine.MiddlewareSafe()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

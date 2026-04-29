@@ -24,7 +24,7 @@ import (
 // newTestFactory creates a factory with default modules for testing.
 func newTestFactory(t *testing.T) *engine.Factory {
 	t.Helper()
-	factory, err := engine.NewBuilder().WithModules(engine.DefaultRegistryModules()).Build()
+	factory, err := engine.NewBuilder().WithModules(engine.DefaultRegistryModules()).Build() //nolint:staticcheck
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

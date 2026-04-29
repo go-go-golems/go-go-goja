@@ -72,6 +72,38 @@ Root-level plugin flags still apply:
 go run ./cmd/goja-repl --plugin-dir ./plugins run ./scripts/with-plugins.js
 ```
 
+### Module Security Flags
+
+By default, `run` (and all other `goja-repl` commands) load **all** registered native modules. You can restrict the module sandbox using persistent flags:
+
+```bash
+# Safe mode: load only data-only modules (crypto, events, path, time, timer)
+go run ./cmd/goja-repl --safe-mode run ./script.js
+
+# Whitelist: load only specific modules
+go run ./cmd/goja-repl --enable-module fs,path run ./script.js
+
+# Whitelist in the TUI; db is an alias for the database module
+go run ./cmd/goja-repl tui --enable-module db
+
+# Blacklist: load all except specific modules
+go run ./cmd/goja-repl --disable-module fs,exec run ./script.js
+```
+
+| Flag | Effect | Example |
+|------|--------|---------|
+| `--safe-mode` | Only data-safe modules (no filesystem, process, or DB access) | `--safe-mode` |
+| `--enable-module` | Whitelist — only these modules are loaded | `--enable-module fs,path` |
+| `--disable-module` | Blacklist — all modules except these are loaded | `--disable-module exec,os` |
+
+These flags are persistent (available on all subcommands) and are applied when the engine runtime is built. They affect `run`, `tui`, `eval`, `create`, and all other commands that construct a runtime.
+
+**Module categories:**
+
+- **Safe (data-only):** `crypto`, `events`, `path`, `time`, `timer`
+- **Dangerous (host-access):** `fs`, `os`, `exec`, `database`/`db`, `yaml`
+- **Process exposure:** `process` (requires `WithProcess()`) 
+
 ### REPL Commands
 
 The REPL recognizes special commands prefixed with `:`:

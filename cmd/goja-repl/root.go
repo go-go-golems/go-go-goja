@@ -29,6 +29,9 @@ type rootOptions struct {
 	DBPath             string
 	PluginDirs         []string
 	AllowPluginModules []string
+	EnableModules      []string
+	DisableModules     []string
+	SafeMode           bool
 }
 
 func newRootCommand(out io.Writer) (*cobra.Command, error) {
@@ -46,6 +49,9 @@ func newRootCommand(out io.Writer) (*cobra.Command, error) {
 	root.PersistentFlags().StringVar(&opts.DBPath, "db-path", "goja-repl.sqlite", "SQLite path for persistent REPL state")
 	root.PersistentFlags().StringSliceVar(&opts.PluginDirs, "plugin-dir", nil, fmt.Sprintf("plugin directory (defaults to %s/... when omitted)", host.DefaultDiscoveryRoot()))
 	root.PersistentFlags().StringSliceVar(&opts.AllowPluginModules, "allow-plugin-module", nil, "allow only the listed plugin module names")
+	root.PersistentFlags().StringSliceVar(&opts.EnableModules, "enable-module", nil, "enable only these native modules (comma-separated)")
+	root.PersistentFlags().StringSliceVar(&opts.DisableModules, "disable-module", nil, "disable these native modules (comma-separated)")
+	root.PersistentFlags().BoolVar(&opts.SafeMode, "safe-mode", false, "load only data-only modules (crypto, events, path, time, timer)")
 	if err := logging.AddLoggingSectionToRootCommand(root, "goja-repl"); err != nil {
 		return nil, err
 	}
@@ -103,6 +109,22 @@ type appSupportOptions struct {
 	helpSystem *help.HelpSystem
 }
 
+func (s commandSupport) moduleMiddleware() engine.ModuleMiddleware {
+	if s.opts == nil {
+		return nil
+	}
+	if s.opts.SafeMode {
+		return engine.MiddlewareSafe()
+	}
+	if len(s.opts.EnableModules) > 0 {
+		return engine.MiddlewareOnly(s.opts.EnableModules...)
+	}
+	if len(s.opts.DisableModules) > 0 {
+		return engine.MiddlewareExclude(s.opts.DisableModules...)
+	}
+	return nil
+}
+
 func (s commandSupport) newApp() (*replapi.App, *repldb.Store, error) {
 	return s.newAppWithOptions(appSupportOptions{
 		profile:   replapi.ProfilePersistent,
@@ -120,7 +142,10 @@ func (s commandSupport) newAppWithOptions(options appSupportOptions) (*replapi.A
 		}
 	}
 	pluginSetup := host.NewRuntimeSetup(s.opts.PluginDirs, s.opts.AllowPluginModules)
-	builder := engine.NewBuilder().WithModules(engine.DefaultRegistryModules())
+	builder := engine.NewBuilder()
+	if mw := s.moduleMiddleware(); mw != nil {
+		builder = builder.UseModuleMiddleware(mw)
+	}
 	if options.helpSystem != nil {
 		builder = builder.WithRuntimeModuleRegistrars(docaccessruntime.NewRegistrar(docaccessruntime.Config{
 			HelpSources: []docaccessruntime.HelpSource{{

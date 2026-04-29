@@ -44,7 +44,7 @@ func main() {
 
 	builder := pluginSetup.WithBuilder(engine.NewBuilder().
 		WithRequireOptions(require.WithLoader(embeddedSourceLoader)).
-		WithModules(engine.DefaultRegistryModules()))
+		UseModuleMiddleware(engine.MiddlewareSafe()))
 
 	factory, err := builder.Build()
 	if err != nil {

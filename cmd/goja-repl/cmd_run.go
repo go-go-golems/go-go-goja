@@ -55,6 +55,9 @@ type runScriptOptions struct {
 	File               string
 	PluginDirs         []string
 	AllowPluginModules []string
+	EnableModules      []string
+	DisableModules     []string
+	SafeMode           bool
 	UseModuleRoots     bool
 }
 
@@ -71,6 +74,9 @@ func (c *runCommand) Run(ctx context.Context, vals *values.Values) error {
 	if c.opts != nil {
 		opts.PluginDirs = c.opts.PluginDirs
 		opts.AllowPluginModules = c.opts.AllowPluginModules
+		opts.EnableModules = c.opts.EnableModules
+		opts.DisableModules = c.opts.DisableModules
+		opts.SafeMode = c.opts.SafeMode
 	}
 	return runScriptFile(ctx, opts)
 }
@@ -91,7 +97,14 @@ func runScriptFile(ctx context.Context, opts runScriptOptions) error {
 		return fmt.Errorf("script file not found %q: %w", scriptPath, err)
 	}
 
-	builder := engine.NewBuilder().WithModules(engine.DefaultRegistryModules())
+	builder := engine.NewBuilder()
+	if opts.SafeMode {
+		builder = builder.UseModuleMiddleware(engine.MiddlewareSafe())
+	} else if len(opts.EnableModules) > 0 {
+		builder = builder.UseModuleMiddleware(engine.MiddlewareOnly(opts.EnableModules...))
+	} else if len(opts.DisableModules) > 0 {
+		builder = builder.UseModuleMiddleware(engine.MiddlewareExclude(opts.DisableModules...))
+	}
 	if opts.UseModuleRoots {
 		requireOpt, err := engine.RequireOptionWithModuleRootsFromScript(scriptPath, engine.DefaultModuleRootsOptions())
 		if err != nil {

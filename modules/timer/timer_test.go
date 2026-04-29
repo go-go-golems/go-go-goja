@@ -94,7 +94,7 @@ func newDefaultRuntime(t *testing.T) *gggengine.Runtime {
 	t.Helper()
 
 	factory, err := gggengine.NewBuilder().
-		WithModules(gggengine.DefaultRegistryModules()).
+		UseModuleMiddleware(gggengine.MiddlewareSafe()).
 		Build()
 	require.NoError(t, err)
 

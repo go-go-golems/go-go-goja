@@ -28,7 +28,7 @@ func newRuntime(tb testing.TB, opts ...require.Option) (*goja.Runtime, *require.
 	tb.Helper()
 	factory, err := engine.NewBuilder().
 		WithRequireOptions(opts...).
-		WithModules(engine.DefaultRegistryModules()).
+		UseModuleMiddleware(engine.MiddlewareSafe()).
 		Build()
 	if err != nil {
 		tb.Fatalf("build factory: %v", err)
@@ -75,7 +75,7 @@ func BenchmarkRuntimeSpawn(b *testing.B) {
 
 	b.Run("EngineFactory", func(b *testing.B) {
 		factory, err := engine.NewBuilder().
-			WithModules(engine.DefaultRegistryModules()).
+			UseModuleMiddleware(engine.MiddlewareSafe()).
 			Build()
 		if err != nil {
 			b.Fatalf("build factory: %v", err)

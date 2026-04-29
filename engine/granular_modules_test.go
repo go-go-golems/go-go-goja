@@ -8,7 +8,7 @@ import (
 )
 
 func TestDataOnlyModulesAreEnabledByDefault(t *testing.T) {
-	factory, err := NewBuilder().Build()
+	factory, err := NewBuilder().UseModuleMiddleware(MiddlewareSafe()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -45,8 +45,39 @@ func TestDataOnlyModulesAreEnabledByDefault(t *testing.T) {
 	}
 }
 
-func TestHostAccessModulesRequireExplicitSelection(t *testing.T) {
+func TestDefaultBuilderEnablesAllDefaultRegistryModules(t *testing.T) {
 	factory, err := NewBuilder().Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "default-modules-present", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`
+			function canRequire(name) {
+				try { require(name); return true; } catch (e) { return false; }
+			}
+			JSON.stringify({ fs: canRequire("fs"), nodeFs: canRequire("node:fs"), os: canRequire("os"), nodeOs: canRequire("node:os"), exec: canRequire("exec"), database: canRequire("database"), db: canRequire("db") });
+		`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("run default module smoke: %v", err)
+	}
+	if ret != `{"fs":true,"nodeFs":true,"os":true,"nodeOs":true,"exec":true,"database":true,"db":true}` {
+		t.Fatalf("default module availability = %v", ret)
+	}
+}
+
+func TestSafeMiddlewareRestrictsHostAccessModules(t *testing.T) {
+	factory, err := NewBuilder().UseModuleMiddleware(MiddlewareSafe()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -61,7 +92,7 @@ func TestHostAccessModulesRequireExplicitSelection(t *testing.T) {
 			function canRequire(name) {
 				try { require(name); return true; } catch (e) { return false; }
 			}
-			JSON.stringify({ fs: canRequire("fs"), nodeFs: canRequire("node:fs"), os: canRequire("os"), nodeOs: canRequire("node:os"), exec: canRequire("exec"), database: canRequire("database") });
+			JSON.stringify({ fs: canRequire("fs"), nodeFs: canRequire("node:fs"), os: canRequire("os"), nodeOs: canRequire("node:os"), exec: canRequire("exec"), database: canRequire("database"), db: canRequire("db") });
 		`)
 		if runErr != nil {
 			return nil, runErr
@@ -71,11 +102,12 @@ func TestHostAccessModulesRequireExplicitSelection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run host absent smoke: %v", err)
 	}
-	if ret != `{"fs":false,"nodeFs":false,"os":false,"nodeOs":false,"exec":false,"database":false}` {
+	if ret != `{"fs":false,"nodeFs":false,"os":false,"nodeOs":false,"exec":false,"database":false,"db":false}` {
 		t.Fatalf("host module availability = %v", ret)
 	}
 }
 
+//nolint:staticcheck // Tests the deprecated DefaultRegistryModule function directly.
 func TestDefaultRegistryModuleEnablesOneHostModule(t *testing.T) {
 	factory, err := NewBuilder().WithModules(DefaultRegistryModule("fs")).Build()
 	if err != nil {
@@ -107,6 +139,7 @@ func TestDefaultRegistryModuleEnablesOneHostModule(t *testing.T) {
 	}
 }
 
+//nolint:staticcheck // Tests the deprecated DefaultRegistryModulesNamed function directly.
 func TestDefaultRegistryModulesNamedEnablesSelectedHostModules(t *testing.T) {
 	factory, err := NewBuilder().WithModules(DefaultRegistryModulesNamed("fs", "os")).Build()
 	if err != nil {

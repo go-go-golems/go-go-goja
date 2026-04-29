@@ -17,7 +17,7 @@ func TestDefaultDatabaseModuleConfigure(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "default.db")
 
 	factory, err := gggengine.NewBuilder().
-		WithModules(gggengine.DefaultRegistryModules()).
+		UseModuleMiddleware(gggengine.MiddlewareOnly("database")).
 		Build()
 	require.NoError(t, err)
 

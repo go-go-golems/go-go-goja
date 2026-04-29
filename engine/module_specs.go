@@ -98,10 +98,13 @@ func (s defaultRegistryModulesSpec) Register(reg *require.Registry) error {
 }
 
 // DefaultRegistryModules returns a ModuleSpec that registers every module from
-// go-go-goja/modules.DefaultRegistry. Prefer DefaultRegistryModule(name) or
-// DefaultRegistryModulesNamed(...) when embedding untrusted or semi-trusted
-// JavaScript, because the full default registry includes host-access modules
-// such as fs, os, exec, and database.
+// go-go-goja/modules.DefaultRegistry.
+//
+// Deprecated: Use UseModuleMiddleware with the appropriate middleware instead.
+// For example:
+//
+//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe())
+//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("fs", "os"))
 func DefaultRegistryModules() ModuleSpec {
 	return defaultRegistryModulesSpec{}
 }
@@ -136,11 +139,13 @@ func (s namedDefaultRegistryModulesSpec) Register(reg *require.Registry) error {
 }
 
 var defaultRegistryModuleAliases = map[string][]string{
-	"crypto": {"node:crypto"},
-	"events": {"node:events"},
-	"fs":     {"node:fs"},
-	"os":     {"node:os"},
-	"path":   {"node:path"},
+	"crypto":   {"node:crypto"},
+	"database": {"db"},
+	"db":       {"database"},
+	"events":   {"node:events"},
+	"fs":       {"node:fs"},
+	"os":       {"node:os"},
+	"path":     {"node:path"},
 }
 
 func expandDefaultRegistryModuleNames(names []string) []string {
@@ -169,6 +174,11 @@ func expandDefaultRegistryModuleNames(names []string) []string {
 
 // DefaultRegistryModule returns a ModuleSpec that registers one module from
 // modules.DefaultRegistry by its JavaScript require() name.
+//
+// Deprecated: Use UseModuleMiddleware with MiddlewareOnly instead.
+// For example:
+//
+//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("fs"))
 func DefaultRegistryModule(name string) ModuleSpec {
 	name = strings.TrimSpace(name)
 	return namedDefaultRegistryModulesSpec{
@@ -178,8 +188,12 @@ func DefaultRegistryModule(name string) ModuleSpec {
 }
 
 // DefaultRegistryModulesNamed returns a ModuleSpec that registers only the
-// named modules from modules.DefaultRegistry. Use this for granular sandbox
-// composition instead of DefaultRegistryModules().
+// named modules from modules.DefaultRegistry.
+//
+// Deprecated: Use UseModuleMiddleware with MiddlewareOnly instead.
+// For example:
+//
+//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("fs", "os"))
 func DefaultRegistryModulesNamed(names ...string) ModuleSpec {
 	trimmed := make([]string, 0, len(names))
 	for _, name := range names {
@@ -197,6 +211,11 @@ var dataOnlyDefaultRegistryModuleNames = []string{"crypto", "node:crypto", "even
 
 // DataOnlyDefaultRegistryModules returns the non-host-filesystem/non-process
 // primitives that are installed automatically for every engine runtime.
+//
+// Deprecated: Use UseModuleMiddleware with MiddlewareSafe instead.
+// For example:
+//
+//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe())
 func DataOnlyDefaultRegistryModules() ModuleSpec {
 	return namedDefaultRegistryModulesSpec{
 		id:    "data-only-default-registry-modules",

@@ -90,7 +90,7 @@ func (m *DBModule) Name() string {
 
 func (m *DBModule) TypeScriptModule() *spec.Module {
 	return &spec.Module{
-		Name: "database",
+		Name: m.Name(),
 		Functions: []spec.Function{
 			{
 				Name: "configure",
@@ -308,4 +308,5 @@ func flattenArgs(args []any) []any {
 
 func init() {
 	modules.Register(New())
+	modules.Register(New(WithName("db")))
 }
