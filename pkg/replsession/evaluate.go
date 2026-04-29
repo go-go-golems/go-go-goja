@@ -493,6 +493,7 @@ func (s *sessionState) executeRaw(ctx context.Context, source string, policy Ses
 	}
 	if value == nil {
 		outcome.LastValue = "undefined"
+		outcome.LastValueJSON = s.resultEnvelopeJSON(ctx, value)
 		return outcome, nil
 	}
 	if promise, ok := value.Export().(*goja.Promise); ok {
@@ -504,6 +505,7 @@ func (s *sessionState) executeRaw(ctx context.Context, source string, policy Ses
 			}
 		} else {
 			outcome.LastValue = promisePreview(promise)
+			outcome.LastValueJSON = s.resultEnvelopeJSON(ctx, value)
 			return outcome, nil
 		}
 	}
