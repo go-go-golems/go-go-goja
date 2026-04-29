@@ -15,7 +15,7 @@ require (
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-go-golems/bobatea v0.1.5
-	github.com/go-go-golems/glazed v1.2.3
+	github.com/go-go-golems/glazed v1.2.5
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.7.0
