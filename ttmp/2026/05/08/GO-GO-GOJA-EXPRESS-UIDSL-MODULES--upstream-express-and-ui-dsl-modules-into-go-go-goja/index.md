@@ -11,10 +11,6 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: ../../../../../../2026-05-03--goja-hosting-site/cmd/goja-site/main.go
-      Note: goja-site verbs command registration
-    - Path: ../../../../../../2026-05-03--goja-hosting-site/pkg/app/scripts.go
-      Note: Canonical multi-directory script loading helper
     - Path: modules/express
       Note: Runtime-scoped Express-style Goja module
     - Path: modules/uidsl
@@ -37,6 +33,7 @@ LastUpdated: 2026-05-08T14:29:03.028112443-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
