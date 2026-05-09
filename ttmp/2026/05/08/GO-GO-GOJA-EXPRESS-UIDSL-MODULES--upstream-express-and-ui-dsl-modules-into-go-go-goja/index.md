@@ -10,13 +10,28 @@ Topics:
 DocType: index
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: modules/express
+      Note: Runtime-scoped Express-style Goja module
+    - Path: modules/uidsl
+      Note: Reusable rich UI DSL module
+    - Path: pkg/gojahttp
+      Note: Upstream renderer-neutral HTTP host
+    - Path: ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/design-doc/02-merge-db-browser-and-goja-hosting-site-web-shells.md
+      Note: Design for retiring db-browser into the goja-site shell
+    - Path: ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md
+      Note: Running diary for extraction and shell merge work
+    - Path: ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/tasks.md
+      Note: Detailed task plan including shell merge phases
 ExternalSources: []
 Summary: ""
 LastUpdated: 2026-05-08T14:29:03.028112443-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
+
 
 # Upstream Express and ui.dsl modules into go-go-goja
 
