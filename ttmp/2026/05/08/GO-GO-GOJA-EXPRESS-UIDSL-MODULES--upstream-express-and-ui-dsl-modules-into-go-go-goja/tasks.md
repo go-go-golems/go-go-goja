@@ -116,13 +116,13 @@
 
 ### T15 — Generalize goja-site script loading
 
-- [ ] Add `ScriptDirs []string` to `pkg/app.Config`.
-- [ ] Refactor script discovery/loading into deterministic multi-directory helper.
-- [ ] Update `goja-site serve` to accept repeated `--scripts` values, replacing the single-directory-only model.
-- [ ] Update `serve-multi` config parsing to support script lists per site.
-- [ ] Add tests for multi-directory load ordering, missing dirs, non-dir paths, and duplicate files.
-- [ ] Validate and commit.
-- [ ] Update diary and changelog with commit hash.
+- [x] Add `ScriptDirs []string` to `pkg/app.Config`.
+- [x] Refactor script discovery/loading into deterministic multi-directory helper.
+- [x] Update `goja-site serve` to accept repeated `--scripts` values, replacing the single-directory-only model.
+- [x] Update `serve-multi` config parsing to support script lists per site.
+- [x] Add tests for multi-directory load ordering, missing dirs, non-dir paths, and duplicate files.
+- [x] Validate and commit.
+- [x] Update diary and changelog with commit hash.
 
 ### T16 — Add unified database policy selection
 

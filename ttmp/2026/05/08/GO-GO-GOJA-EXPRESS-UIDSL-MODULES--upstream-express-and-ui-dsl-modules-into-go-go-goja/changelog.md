@@ -87,3 +87,14 @@ T14: added goja-site verbs by wiring jsverbscli.NewLazyCommand into goja-site an
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/cmd/goja-site/main.go — goja-site verbs command integration
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T14 implementation diary
 
+
+## 2026-05-08
+
+T15: generalized goja-site script loading to repeatable script directories, updated multi-site config to scripts lists, and added script discovery tests (goja-hosting-site commit 67eff77dfa48f5fe4d521fef9cfd5aae99414051).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/cmd/goja-site/serve.go — Repeatable --scripts flag
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/pkg/app/scripts.go — Multi-directory script discovery
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T15 implementation diary
+

@@ -20,6 +20,80 @@ WhenToUse: "Read before continuing Express/ui.dsl upstreaming or downstream clea
 
 # Implementation Diary
 
+## 2026-05-08 - Generalize goja-site script loading
+
+Updated goja-site so the web shell can load route scripts from multiple script directories instead of exactly one. This removes one of the main remaining differences called out before the shell merge: goja-site can now compose shared script roots and app-specific script roots in a deterministic order.
+
+This step intentionally changes the app config and multi-site config shape to use script lists. It does not add compatibility aliases for the old single `scriptsDir` field because the selected direction is a cleanup/retirement path rather than preserving two shell APIs.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as previous steps)
+
+**Assistant interpretation:** Continue the merge tasks by replacing goja-site's single scripts directory model with multi-directory script loading.
+
+**Inferred user intent:** Make goja-site flexible enough to absorb db-browser examples and shared script libraries.
+
+**Commit (code):** 67eff77dfa48f5fe4d521fef9cfd5aae99414051 — "Support multiple goja-site script directories"
+
+### What I did
+
+- Changed `app.Config` from `ScriptsDir string` to `ScriptDirs []string`.
+- Added `pkg/app/scripts.go` with deterministic multi-directory script discovery.
+- Added tests for directory order, sorting within directories, deduplication, missing dirs, and non-directory paths.
+- Updated `LoadScripts` to use the new helper.
+- Updated `goja-site serve --scripts` to use `fields.TypeStringList` and accept repeatable script directories.
+- Updated multi-site config to use `scripts:` lists per site.
+- Updated `deploy/sites.yaml` and `deploy/sites.local.yaml` to the new shape.
+- Ran `go test ./... -count=1` in goja-hosting-site.
+
+### Why
+
+- The single-directory script model was one of the explicit remaining limitations before merging the shells.
+- Multiple script dirs allow shared libraries plus app-specific route scripts without copying files.
+
+### What worked
+
+- Script loading factored cleanly out of `server.go` into `scripts.go`.
+- Existing multi-site tests adapted cleanly to script lists.
+- Full goja-hosting-site tests passed.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The previous script loader was self-contained, so moving it into a helper avoided touching runtime construction.
+- Glazed already supports repeatable string-list flags with `fields.TypeStringList`.
+
+### What was tricky to build
+
+- Deduplication is done by cleaned absolute file path so repeating a directory does not double-load the same route script.
+- The helper preserves directory-order semantics while sorting only within each directory.
+
+### What warrants a second pair of eyes
+
+- Whether returning absolute paths to `vm.RunScript` is acceptable for script names in stack traces. It improves uniqueness but exposes absolute paths in errors.
+- Whether the multi-site config field should be named `scripts` or `scriptDirs` for clarity.
+
+### What should be done in the future
+
+- Add database policy selection so goja-site can serve db-browser-style read-only SQLite tools safely.
+
+### Code review instructions
+
+- Start with `pkg/app/scripts.go` and `pkg/app/scripts_test.go`.
+- Review `cmd/goja-site/serve.go` for `--scripts` flag decoding.
+- Review `pkg/app/multi_config.go` and deploy YAML for config shape changes.
+- Validate with `go test ./... -count=1` in goja-hosting-site.
+
+### Technical details
+
+- Empty script list defaults to `[]string{"./scripts"}` at the server/CLI boundary.
+- Missing directories and non-directory paths are hard errors.
+- Loading still only includes `.js` files.
+
 ## 2026-05-08 - Add `goja-site verbs`
 
 Wired the reusable jsverbs CLI shell into `goja-hosting-site`, making `goja-site verbs` available as the canonical command for repository-scanned JavaScript verbs. This is the first visible shell merge: goja-site can now run the built-in verbs that previously belonged to db-browser's command surface.
