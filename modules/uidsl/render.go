@@ -149,7 +149,7 @@ func renderAttrs(b *bytes.Buffer, attrs map[string]any) {
 			continue
 		}
 		value := attrValue(k, v)
-		if value == "" {
+		if value == "" && k != "value" {
 			continue
 		}
 		b.WriteByte(' ')
