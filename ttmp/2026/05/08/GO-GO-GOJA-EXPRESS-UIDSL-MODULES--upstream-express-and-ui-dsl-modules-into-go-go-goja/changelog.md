@@ -77,3 +77,13 @@ T13: extracted db-browser jsverbs CLI/runtime shell into go-go-goja/pkg/jsverbsc
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/pkg/jsverbscli — Reusable jsverbs CLI and runtime invocation package
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T13 implementation diary
 
+
+## 2026-05-08
+
+T14: added goja-site verbs by wiring jsverbscli.NewLazyCommand into goja-site and validating built-in hello/yaml/renderSampleTable/tables verbs (goja-hosting-site commit d62fa16c71d2f6567bca53915888910247667d3a).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/cmd/goja-site/main.go — goja-site verbs command integration
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T14 implementation diary
+

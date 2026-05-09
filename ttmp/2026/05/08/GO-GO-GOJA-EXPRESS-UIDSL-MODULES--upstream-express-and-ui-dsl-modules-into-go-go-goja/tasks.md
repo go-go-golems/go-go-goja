@@ -107,12 +107,12 @@
 
 ### T14 — Add `goja-site verbs`
 
-- [ ] Wire the migrated jsverbs CLI command into `cmd/goja-site/main.go`.
-- [ ] Ensure command help and logging integrate with existing goja-site root command.
-- [ ] Validate built-in verbs without a DB (`list`, `hello`, `yamlKeys`, `renderSampleTable`).
-- [ ] Validate DB-backed `tables` verb with a temp SQLite database.
-- [ ] Commit goja-site verbs integration.
-- [ ] Update diary and changelog with commit hash.
+- [x] Wire the migrated jsverbs CLI command into `cmd/goja-site/main.go`.
+- [x] Ensure command help and logging integrate with existing goja-site root command.
+- [x] Validate built-in verbs without a DB (`list`, `hello`, `yamlKeys`, `renderSampleTable`).
+- [x] Validate DB-backed `tables` verb with a temp SQLite database.
+- [x] Commit goja-site verbs integration.
+- [x] Update diary and changelog with commit hash.
 
 ### T15 — Generalize goja-site script loading
 

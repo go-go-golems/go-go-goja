@@ -20,6 +20,77 @@ WhenToUse: "Read before continuing Express/ui.dsl upstreaming or downstream clea
 
 # Implementation Diary
 
+## 2026-05-08 - Add `goja-site verbs`
+
+Wired the reusable jsverbs CLI shell into `goja-hosting-site`, making `goja-site verbs` available as the canonical command for repository-scanned JavaScript verbs. This is the first visible shell merge: goja-site can now run the built-in verbs that previously belonged to db-browser's command surface.
+
+The integration is intentionally small because the prior two steps moved discovery and command/runtime invocation into go-go-goja. goja-site only imports `pkg/jsverbscli` and adds the lazy command to its Cobra root.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as previous steps)
+
+**Assistant interpretation:** Continue task-by-task by integrating the extracted jsverbs shell into goja-site and validating built-in verbs.
+
+**Inferred user intent:** Make goja-site absorb db-browser's jsverbs command behavior so db-browser can later be retired.
+
+**Commit (code):** d62fa16c71d2f6567bca53915888910247667d3a — "Add jsverbs command to goja-site"
+
+### What I did
+
+- Added `github.com/go-go-golems/go-go-goja/pkg/jsverbscli` to `cmd/goja-site/main.go`.
+- Added `root.AddCommand(jsverbscli.NewLazyCommand())`.
+- Ran `go test ./... -count=1` in goja-hosting-site.
+- Validated:
+  - `go run ./cmd/goja-site verbs list --output json`.
+  - `go run ./cmd/goja-site verbs examples builtin hello --name Manuel`.
+  - `go run ./cmd/goja-site verbs examples builtin yaml-keys --text ...`.
+  - `go run ./cmd/goja-site verbs examples builtin render-sample-table`.
+  - `go run ./cmd/goja-site verbs --db "$DB" examples builtin tables` with a temp SQLite DB.
+
+### Why
+
+- This proves the extracted jsverbs packages are usable by the canonical shell.
+- It gives goja-site the most important db-browser-only CLI behavior before retiring db-browser.
+
+### What worked
+
+- The lazy command integrated with the existing root command without needing additional plumbing.
+- Built-in non-DB and DB-backed verbs all ran successfully.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The dynamic verb command already works with persistent flags such as `--db` before the dynamic verb path.
+- The built-in `renderSampleTable` confirms `ui.dsl` is useful in CLI contexts.
+
+### What was tricky to build
+
+- The command must stay lazy because repository flags and discovered verb paths are dynamic. Adding the lazy command at the root preserves the existing behavior from db-browser.
+
+### What warrants a second pair of eyes
+
+- Whether goja-site should expose extra help text documenting neutral repository config names now, or whether that should wait until db-browser examples/docs move.
+
+### What should be done in the future
+
+- Generalize goja-site web script loading from one scripts directory to multiple script directories.
+- Add database policy flags for serving so goja-site can cover db-browser's read-only generic SQLite browser use case.
+
+### Code review instructions
+
+- Review `cmd/goja-site/main.go` for command registration.
+- Review `go-go-goja/pkg/jsverbscli` if behavior questions arise.
+- Validate with the built-in `goja-site verbs` commands listed above.
+
+### Technical details
+
+- The command name is `verbs`.
+- Built-in verb paths currently include `examples builtin hello`, `examples builtin yaml-keys`, `examples builtin render-sample-table`, and `examples builtin tables`.
+
 ## 2026-05-08 - Extract reusable jsverbs CLI shell
 
 Continued the shell merge by extracting db-browser's jsverbs CLI command construction and runtime invocation layer into `go-go-goja/pkg/jsverbscli`. This package now builds the dynamic `verbs` Cobra/Glazed command tree on top of the reusable `pkg/jsverbs` scanner and the new `pkg/jsverbrepos` repository discovery package.
