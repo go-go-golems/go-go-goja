@@ -67,3 +67,13 @@ T12: extracted db-browser verb repository discovery into go-go-goja/pkg/jsverbre
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/pkg/jsverbrepos — Reusable jsverbs repository discovery package
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T12 implementation diary
 
+
+## 2026-05-08
+
+T13: extracted db-browser jsverbs CLI/runtime shell into go-go-goja/pkg/jsverbscli, wired it to pkg/jsverbrepos, and replaced deprecated module registration (commit d84a38f177a6e5e9cf375b14d1d7fb1f90fc4ae9).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/pkg/jsverbscli — Reusable jsverbs CLI and runtime invocation package
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T13 implementation diary
+

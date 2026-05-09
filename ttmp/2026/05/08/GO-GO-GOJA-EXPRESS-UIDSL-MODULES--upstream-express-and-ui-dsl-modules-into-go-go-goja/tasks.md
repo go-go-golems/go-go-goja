@@ -98,12 +98,12 @@
 
 ### T13 — Extract reusable jsverbs CLI/runtime invocation
 
-- [ ] Move db-browser `internal/verbcli` into reusable package location (`go-go-goja/pkg/jsverbscli` preferred, or `goja-hosting-site/pkg/verbcli` if blocked).
-- [ ] Update imports from db-browser `verbrepos` to the new neutral repository package.
-- [ ] Keep runtime invocation support for common modules, `ui.dsl`, and optional `database`/`db`.
-- [ ] Add or adapt command/list/runtime tests.
-- [ ] Validate focused tests and commit.
-- [ ] Update diary and changelog with commit hash.
+- [x] Move db-browser `internal/verbcli` into reusable package location (`go-go-goja/pkg/jsverbscli` preferred, or `goja-hosting-site/pkg/verbcli` if blocked).
+- [x] Update imports from db-browser `verbrepos` to the new neutral repository package.
+- [x] Keep runtime invocation support for common modules, `ui.dsl`, and optional `database`/`db`.
+- [x] Add or adapt command/list/runtime tests.
+- [x] Validate focused tests and commit.
+- [x] Update diary and changelog with commit hash.
 
 ### T14 — Add `goja-site verbs`
 

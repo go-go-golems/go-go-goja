@@ -20,6 +20,90 @@ WhenToUse: "Read before continuing Express/ui.dsl upstreaming or downstream clea
 
 # Implementation Diary
 
+## 2026-05-08 - Extract reusable jsverbs CLI shell
+
+Continued the shell merge by extracting db-browser's jsverbs CLI command construction and runtime invocation layer into `go-go-goja/pkg/jsverbscli`. This package now builds the dynamic `verbs` Cobra/Glazed command tree on top of the reusable `pkg/jsverbs` scanner and the new `pkg/jsverbrepos` repository discovery package.
+
+This step makes the next goja-site integration small: `cmd/goja-site` can import `pkg/jsverbscli` and add `jsverbscli.NewLazyCommand()` instead of copying db-browser internals.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as previous steps)
+
+**Assistant interpretation:** Continue the task list by moving the jsverbs command/runtime layer to a reusable package and committing it separately.
+
+**Inferred user intent:** Make `goja-site verbs` possible without keeping db-browser as the owner of jsverbs shell code.
+
+**Commit (code):** d84a38f177a6e5e9cf375b14d1d7fb1f90fc4ae9 — "Add reusable jsverbs CLI shell"
+
+### What I did
+
+- Copied db-browser `internal/verbcli` into `go-go-goja/pkg/jsverbscli`.
+- Renamed the package to `jsverbscli`.
+- Replaced db-browser repository imports with `github.com/go-go-golems/go-go-goja/pkg/jsverbrepos`.
+- Kept the per-invocation runtime factory with common modules, `ui.dsl`, and optional `database`/`db` modules.
+- Updated runtime setup to use `UseModuleMiddleware(engine.MiddlewareOnly(...))` instead of deprecated `engine.DefaultRegistryModulesNamed`.
+- Ran `go test ./pkg/jsverbscli -count=1` and `golangci-lint run ./pkg/jsverbscli`.
+- Committed the package; the go-go-goja pre-commit hook also ran full lint/generate/tests successfully.
+
+### Why
+
+- The `verbs` command is a generic Goja/jsverbs shell feature, not db-browser-specific behavior.
+- Moving it to go-go-goja lets goja-site add `verbs` with a very small integration change.
+
+### What worked
+
+- The command/list/runtime code was already mostly decoupled from db-browser.
+- Existing tests copied over and passed once imports were updated.
+- Full pre-commit validation passed after replacing deprecated module registration.
+
+### What didn't work
+
+- First commit attempt failed lint with:
+
+```text
+pkg/jsverbscli/runtime.go:54:3: SA1019: engine.DefaultRegistryModulesNamed is deprecated: Use UseModuleMiddleware with MiddlewareOnly instead.
+```
+
+I fixed this by switching the builder to:
+
+```go
+UseModuleMiddleware(engine.MiddlewareOnly("fs", "path", "time", "timer", "yaml"))
+```
+
+and keeping `WithModules(...)` only for configured database aliases.
+
+### What I learned
+
+- The extracted CLI package can stay independent of any web host; it only needs the jsverbs registry require loader and runtime modules.
+- `ui.dsl` is useful in CLI verbs too because built-in `renderSampleTable` renders HTML text.
+
+### What was tricky to build
+
+- The original db-browser runtime used a deprecated convenience module spec. In the reusable package, lint enforces the newer middleware path, so default module registration had to be split from explicit database module specs.
+
+### What warrants a second pair of eyes
+
+- Whether `RuntimeSettings` should be exported/configurable enough for goja-site before wiring the command.
+- Whether the CLI runtime should optionally register goja-site-specific modules like `kanban.dsl` later.
+
+### What should be done in the future
+
+- Wire `jsverbscli.NewLazyCommand()` into `cmd/goja-site/main.go`.
+- Validate `goja-site verbs list`, built-in non-DB verbs, and the DB-backed `tables` verb.
+
+### Code review instructions
+
+- Start with `pkg/jsverbscli/command.go` for lazy discovery and command generation.
+- Review `pkg/jsverbscli/runtime.go` for module registration and database write policy.
+- Validate with `go test ./pkg/jsverbscli -count=1`.
+
+### Technical details
+
+- `verbs` still supports leading `--repository` / `--verb-repository` flags before the dynamic verb path.
+- Each verb invocation gets a new runtime and closes it after invocation.
+- Filesystem repositories add repo and parent `node_modules` folders as require global folders.
+
 ## 2026-05-08 - Extract reusable jsverbs repository discovery
 
 Started the shell merge implementation by extracting db-browser's verb repository discovery into `go-go-goja`. This creates a neutral reusable package for discovering built-in, config-file, environment, and CLI-specified verb repositories without depending on db-browser.
