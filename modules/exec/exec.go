@@ -43,6 +43,7 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 
 	// run(cmd, args[]) -> string
 	modules.SetExport(exports, mod.Name(), "run", func(cmd string, args []string) (string, error) {
+		// #nosec G204 -- this module exists specifically to run caller-selected commands in trusted runtimes.
 		out, err := exec.Command(cmd, args...).CombinedOutput()
 		return string(out), err
 	})

@@ -2,20 +2,28 @@ package gojahttp
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
 )
 
-const multipartFormMemoryLimit = 32 << 20
+const (
+	maxRequestBodyBytes      = 64 << 20
+	multipartFormMemoryLimit = 32 << 20
+)
 
 func parseBody(r *http.Request) (any, string, error) {
 	if r.Body == nil {
 		return nil, "", nil
 	}
-	data, err := io.ReadAll(r.Body)
+	limited := &io.LimitedReader{R: r.Body, N: maxRequestBodyBytes + 1}
+	data, err := io.ReadAll(limited)
 	if err != nil {
 		return nil, "", err
+	}
+	if int64(len(data)) > maxRequestBodyBytes {
+		return nil, "", fmt.Errorf("request body exceeds %d bytes", maxRequestBodyBytes)
 	}
 	raw := string(data)
 	ct := strings.ToLower(r.Header.Get("Content-Type"))
@@ -38,7 +46,8 @@ func parseBody(r *http.Request) (any, string, error) {
 	}
 	if strings.Contains(ct, "multipart/form-data") {
 		r.Body = io.NopCloser(strings.NewReader(raw))
-		if err := r.ParseMultipartForm(multipartFormMemoryLimit); err != nil {
+		// Request body is capped above and ParseMultipartForm uses a bounded in-memory budget.
+		if err := r.ParseMultipartForm(multipartFormMemoryLimit); err != nil { // #nosec G120
 			return nil, raw, err
 		}
 		return postFormMap(r), raw, nil

@@ -71,7 +71,8 @@ func (m *SessionManager) Session(w http.ResponseWriter, r *http.Request) (*Sessi
 	if err != nil {
 		return nil, err
 	}
-	http.SetCookie(w, &http.Cookie{
+	// Secure is configurable so localhost HTTP development can receive the cookie; HttpOnly and SameSite are always set.
+	http.SetCookie(w, &http.Cookie{ // #nosec G124
 		Name:     m.opts.CookieName,
 		Value:    id,
 		Path:     m.opts.Path,

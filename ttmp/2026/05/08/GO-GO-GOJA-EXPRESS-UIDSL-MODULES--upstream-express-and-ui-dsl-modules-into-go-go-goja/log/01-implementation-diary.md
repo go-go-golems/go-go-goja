@@ -807,3 +807,49 @@ Remaining follow-ups:
 - Decide when to remove local replace directives after go-go-goja is tagged/released.
 - Run lint if desired.
 - Commit the upstream and downstream changes together or split into separate commits/PRs.
+
+## 2026-05-09 - gosec findings cleanup
+
+Ran `make gosec` after the PR #36 review fixes and addressed the reported security scanner findings in `go-go-goja`.
+
+What changed:
+
+- Added an explicit `pkg/gojahttp` request-body cap before parsing JSON, form, or multipart route bodies.
+- Kept multipart parsing with `ParseMultipartForm`, but documented the bounded body and memory budget for gosec's G120 finding.
+- Documented intentional scanner exceptions for configurable localhost session cookies, caller-selected generator output paths, operator-selected repl essay UI dist directories, benchmark task execution, the explicit `exec` JS module, and the protobuf generator tool install step.
+
+Validation performed:
+
+```text
+cd go-go-goja && gofmt -w pkg/gojahttp/body.go pkg/gojahttp/session.go pkg/replessay/handler.go cmd/gen-dts/main.go pkg/hashiplugin/contract/internal/cmd/generate/main.go modules/exec/exec.go cmd/goja-perf/phase1_run_command.go
+cd go-go-goja && go test ./pkg/gojahttp ./modules/express ./modules/exec ./cmd/gen-dts ./cmd/goja-perf ./pkg/replessay ./pkg/hashiplugin/contract/internal/cmd/generate -count=1
+cd go-go-goja && make gosec
+```
+
+Result: `make gosec` passes with zero issues.
+
+## 2026-05-09 - CI follow-up for replsession await timeout flake
+
+CI reported an intermittent `TestServiceRawAwaitPromiseTimeoutUsesEvalDeadline` failure where a raw top-level `await` that timed out was not marked as awaited.
+
+Root cause:
+
+- Raw top-level await is rewritten to an async IIFE before execution.
+- On a tight eval deadline, the evaluation can time out before `executeRaw` observes and waits on the returned Promise.
+- In that path, the status is correctly `timeout`, but the `Awaited` marker could stay false because it was only set after seeing the Promise object.
+
+Fix:
+
+- `evaluateRaw` now marks executions as awaited whenever the original cell source is a top-level await expression and top-level await support is enabled, even if timeout happens before Promise observation.
+- Added a small helper, `isTopLevelAwaitExpression`, and reused it in the raw await wrapper path.
+- Moved gosec suppressions for the cookie and multipart parser findings onto the flagged statement lines to make them robust across CI scanner versions.
+
+Validation performed:
+
+```text
+cd go-go-goja && go test ./pkg/replsession -run TestServiceRawAwaitPromiseTimeoutUsesEvalDeadline -count=100
+cd go-go-goja && go test ./pkg/gojahttp ./pkg/replsession -count=1
+cd go-go-goja && make gosec
+```
+
+Result: the previously flaky timeout test passed 100 consecutive runs and gosec still reports zero issues.

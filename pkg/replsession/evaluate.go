@@ -362,6 +362,9 @@ func (s *Service) evaluateRaw(ctx context.Context, state *sessionState, cell *Ce
 	state.consoleSink = nil
 	start := time.Now()
 	outcome, execErr := state.executeRaw(ctx, rewrite.TransformedSource, policy)
+	if policy.Eval.SupportTopLevelAwait && isTopLevelAwaitExpression(cell.Source) {
+		outcome.Awaited = true
+	}
 	duration := time.Since(start)
 	consoleEvents := append([]ConsoleEvent{}, state.consoleSink...)
 	state.consoleSink = nil
@@ -447,10 +450,15 @@ func (s *Service) evaluateRaw(ctx context.Context, state *sessionState, cell *Ce
 
 func wrapTopLevelAwaitExpression(source string) (string, bool) {
 	trimmed := strings.TrimSpace(source)
-	if strings.HasPrefix(trimmed, "await ") || strings.HasPrefix(trimmed, "await(") {
+	if isTopLevelAwaitExpression(trimmed) {
 		return "(async () => { return " + trimmed + "; })()", true
 	}
 	return source, false
+}
+
+func isTopLevelAwaitExpression(source string) bool {
+	trimmed := strings.TrimSpace(source)
+	return strings.HasPrefix(trimmed, "await ") || strings.HasPrefix(trimmed, "await(")
 }
 
 // buildAwaitIIFEWithCapture constructs an async IIFE that wraps a top-level

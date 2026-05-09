@@ -63,6 +63,7 @@ func run() error {
 }
 
 func installTool(toolDir, pkg string) error {
+	// #nosec G204 -- generator installs fixed Go tool package arguments controlled by this program.
 	cmd := exec.Command("go", "install", pkg)
 	cmd.Dir = "."
 	cmd.Stdout = os.Stdout
