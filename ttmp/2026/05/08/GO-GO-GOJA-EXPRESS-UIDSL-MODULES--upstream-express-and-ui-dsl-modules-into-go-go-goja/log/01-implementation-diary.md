@@ -20,6 +20,91 @@ WhenToUse: "Read before continuing Express/ui.dsl upstreaming or downstream clea
 
 # Implementation Diary
 
+## 2026-05-08 - Fix Kanban empty filter option and add Playwright smoke
+
+Added a repeatable browser-level smoke test for the Kanban example and fixed the empty-value rendering bug it exposed. The important regression was that the `All columns` option rendered without `value=""`, so submitting the search form sent `status=All columns` and filtered every card out.
+
+The new smoke script starts `goja-site`, drives Chromium via Playwright, checks seeded board counts, adds a card, searches for it, and moves it to Done through the precise-move UI.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, 1. and 2."
+
+**Assistant interpretation:** Fix the Kanban empty select value bug and add repeatable Playwright coverage for the Kanban example.
+
+**Inferred user intent:** Turn the manual Playwright finding into a regression fix and an executable E2E test.
+
+**Commit (code):** bcf26bc4f84e55decb4c634d7eec1573edab4bf4 — "Preserve empty value attributes in ui DSL"
+
+**Commit (test/script):** c53ebdcb013203be568e344293ba4afb1c97cf59 — "Add Kanban Playwright smoke test"
+
+### What I did
+
+- Fixed upstream `ui.dsl` attribute rendering so `value=""` is preserved for empty value attributes.
+- Added `modules/uidsl/render_attrs_test.go` covering `ui.option({ value: "", selected: true }, "All columns")`.
+- Added `2026-05-03--goja-hosting-site/scripts/playwright-kanban-smoke.sh`.
+- Updated `examples/kanban/README.md` with the smoke-test command and scope.
+- Ran the Playwright smoke script successfully.
+- Ran focused and full validations:
+  - `cd go-go-goja && go test ./modules/uidsl -count=1`
+  - `cd go-go-goja && golangci-lint run ./modules/uidsl`
+  - `cd 2026-05-03--goja-hosting-site && ./scripts/playwright-kanban-smoke.sh`
+  - `cd 2026-05-03--goja-hosting-site && go test ./... -count=1`
+  - `cd 2026-05-03--goja-hosting-site && GOWORK=off go test ./... -count=1`
+  - `cd 2026-05-03--goja-hosting-site && golangci-lint run ./pkg/app ./cmd/goja-site`
+
+### Why
+
+- The manual Playwright Kanban test found a real browser-form regression.
+- The bug belonged in upstream `ui.dsl` rendering because empty `value` attributes are valid and important HTML, especially for select options.
+- A repeatable smoke script keeps the Kanban workflow covered without requiring a committed Node dependency tree.
+
+### What worked
+
+- Preserving `value=""` fixed the `status=All columns` query bug.
+- The smoke script can install Playwright in a temporary npm workspace and leave the Go repo clean.
+- The script exercises the route runtime, SQLite persistence, `kanban.dsl`, browser DOM, form submission, and the Kanban precise-move client script.
+
+### What didn't work
+
+- The first smoke-script run failed because port `19111` was still occupied by a manually started test server.
+- A later script revision initially asserted `Done = 4` while still on a filtered/fragment-updated view and saw `Done = 0`; the fix was to navigate back to `/` after the move before asserting the full-board counts.
+
+### What I learned
+
+- The generic attribute renderer had been dropping all empty-string attributes, which is too aggressive for `value`.
+- The Kanban precise-move action updates a fragment in-place, so E2E assertions should be explicit about whether they expect filtered fragment state or full-page state.
+
+### What was tricky to build
+
+- Playwright is not a repo dependency, so the script creates a temp npm workspace and installs `playwright` there for the run.
+- The smoke test needs deterministic state, so it uses a fresh temp SQLite database each run.
+- The script must clean up the background `goja-site` process and report logs on failure.
+
+### What warrants a second pair of eyes
+
+- Whether `renderAttrs` should preserve other empty attributes besides `value`; currently the fix is intentionally narrow.
+- Whether the Playwright script should become CI coverage or remain a manual smoke due to browser/npm install time.
+- Whether `PORT` default `19111` is acceptable or should randomize and discover a free port.
+
+### What should be done in the future
+
+- Consider adding similar Playwright smoke scripts for the db-browser migrated examples.
+- If CI adopts this, cache Playwright dependencies or preinstall browsers in the CI image.
+
+### Code review instructions
+
+- Review `go-go-goja/modules/uidsl/render.go` first for the empty-value change.
+- Review `go-go-goja/modules/uidsl/render_attrs_test.go` for the regression test.
+- Review `2026-05-03--goja-hosting-site/scripts/playwright-kanban-smoke.sh` for process cleanup and browser assertions.
+- Validate with the commands listed above.
+
+### Technical details
+
+- The smoke script accepts `PORT`, `DB_PATH`, `LOG_PATH`, `KEEP_DB`, `PLAYWRIGHT_VERSION`, and `PLAYWRIGHT_TMP` environment overrides.
+- It defaults to Playwright `1.59.1` and port `19111`.
+- It asserts browser console warnings/errors are absent.
+
 ## 2026-05-08 - Retire db-browser shell
 
 Retired `db-browser` as an independent Go shell now that its reusable pieces, command surface, database policies, and examples have moved to `go-go-goja` and `goja-site`. The repository now contains a small retirement marker package and a README pointing users at the replacement commands.

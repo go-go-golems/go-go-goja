@@ -134,3 +134,15 @@ T18: retired db-browser in place by replacing README with migration guidance, re
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-07--db-browser/retired.go — Marker package for retired module
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T18 implementation diary
 
+
+## 2026-05-08
+
+Post-T18: fixed ui.dsl empty value attribute rendering for Kanban's All columns option and added a repeatable Kanban Playwright smoke script (go-go-goja commit bcf26bc4f84e55decb4c634d7eec1573edab4bf4; goja-site commit c53ebdcb013203be568e344293ba4afb1c97cf59).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/scripts/playwright-kanban-smoke.sh — Repeatable Kanban Playwright E2E smoke
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/modules/uidsl/render.go — Preserve empty value attributes
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/modules/uidsl/render_attrs_test.go — Regression test for empty option value
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — Post-T18 Playwright diary
+
