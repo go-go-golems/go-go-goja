@@ -74,7 +74,7 @@
 
 ### T10 — Commit upstream extraction baseline
 
-- [ ] Review and commit go-go-goja upstream packages/docs/docmgr updates.
+- [x] Review and commit go-go-goja upstream packages/docs/docmgr updates.
 - [x] Review and commit goja-hosting-site migration to upstream `gojahttp`, `express`, and `uidsl`.
 - [x] Review and commit db-browser migration to upstream `gojahttp`, `express`, and `uidsl`.
 - [x] Record baseline commit hashes in the implementation diary.
@@ -85,7 +85,7 @@
 - [x] Record selected options: Option A retire/delete db-browser; Option C support both dbguard and normal/simple DB policy.
 - [x] Add detailed implementation task list to the ticket.
 - [x] Relate design and diary files to the ticket.
-- [ ] Commit design/task/diary setup.
+- [x] Commit design/task/diary setup.
 
 ### T12 — Extract reusable jsverbs repository discovery
 

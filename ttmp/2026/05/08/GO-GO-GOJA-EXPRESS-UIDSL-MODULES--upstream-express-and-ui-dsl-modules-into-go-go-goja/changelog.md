@@ -48,3 +48,12 @@ Added shell merge design and detailed task plan using Option A (retire db-browse
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/design-doc/02-merge-db-browser-and-goja-hosting-site-web-shells.md — Shell merge design
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/tasks.md — Detailed task plan
 
+
+## 2026-05-08
+
+Committed baseline extraction and downstream migrations: go-go-goja 229fd920786ae83dc96bac1732bf80eda4c68307, goja-hosting-site dda6fa41cee1048b7e54087f535eed99432c1cbc, db-browser 4e3009f8ee68e119d31aa08f451644ace896fbee.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — Baseline commit hashes and setup diary
+

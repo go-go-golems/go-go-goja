@@ -34,7 +34,7 @@ This step did not change runtime behavior. It created the blueprint and task bre
 
 **Inferred user intent:** Collapse the now-similar web shells into one canonical implementation while preserving clear project management and review history.
 
-**Commit (code):** pending — design/task setup has been written and is ready to commit with the current baseline.
+**Commit (code):** 229fd920786ae83dc96bac1732bf80eda4c68307 — "Add upstream express and ui DSL modules"
 
 ### What I did
 
@@ -42,6 +42,9 @@ This step did not change runtime behavior. It created the blueprint and task bre
 - Added T10–T18 task sections covering baseline commits, jsverbs extraction, `goja-site verbs`, multi-script loading, DB policy selection, example migration, and db-browser retirement.
 - Related the design doc, diary, and task file to the ticket index.
 - Updated the ticket changelog.
+- Committed go-go-goja baseline/design as `229fd920786ae83dc96bac1732bf80eda4c68307`.
+- Committed goja-hosting-site migration as `dda6fa41cee1048b7e54087f535eed99432c1cbc`.
+- Committed db-browser migration as `4e3009f8ee68e119d31aa08f451644ace896fbee`.
 
 ### Why
 
@@ -56,7 +59,7 @@ This step did not change runtime behavior. It created the blueprint and task bre
 
 ### What didn't work
 
-- I accidentally checked tasks 45–47 before the baseline commits were created. I will satisfy those by committing the baseline immediately rather than leaving them stale.
+- I accidentally checked tasks 45–47 before the baseline commits were created. I then satisfied those tasks by committing the goja-hosting-site and db-browser migration baselines and recording the commit hashes here.
 
 ### What I learned
 
@@ -75,7 +78,6 @@ This step did not change runtime behavior. It created the blueprint and task bre
 
 ### What should be done in the future
 
-- Commit the current upstream/downstream baseline.
 - Start T12 by extracting neutral jsverbs repository discovery.
 
 ### Code review instructions
