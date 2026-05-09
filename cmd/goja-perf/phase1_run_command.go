@@ -103,6 +103,7 @@ func (c *phase1RunCommand) Run(ctx context.Context, vals *values.Values) error {
 
 func runPhase1Task(ctx context.Context, settings phase1CommandSettings, task phase1Task) phase1TaskResult {
 	started := time.Now()
+	// #nosec G204 -- goja-perf executes benchmark task commands from the explicit benchmark task list.
 	cmd := exec.CommandContext(ctx, task.Command, task.Args...)
 	cmd.Dir = settings.RepoRoot
 	output, err := cmd.CombinedOutput()

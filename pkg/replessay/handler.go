@@ -390,6 +390,7 @@ func resolveEssayUIDistFS() fs.FS {
 }
 
 func dirFSIfExists(path string) fs.FS {
+	// #nosec G703 -- path is an explicit operator-provided UI dist directory or repo-local fallback.
 	info, err := os.Stat(path)
 	if err != nil || !info.IsDir() {
 		return nil

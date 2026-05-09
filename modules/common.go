@@ -3,7 +3,6 @@ package modules
 import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
-	"github.com/rs/zerolog/log"
 )
 
 // NativeModule is the interface every sub-module must satisfy.
@@ -86,7 +85,6 @@ func (r *Registry) ListModules() []NativeModule {
 // Enable registers all modules from this registry with a goja_nodejs/require.Registry.
 func (r *Registry) Enable(gojaRegistry *require.Registry) {
 	for _, m := range r.modules {
-		log.Trace().Str("module", m.Name()).Msg("modules: registering native module")
 		gojaRegistry.RegisterNativeModule(m.Name(), m.Loader)
 	}
 }

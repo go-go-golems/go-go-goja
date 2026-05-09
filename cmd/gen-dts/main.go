@@ -195,6 +195,7 @@ func writeOrCheck(path string, content string, check bool) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
+	// #nosec G703 -- gen-dts intentionally writes to the caller-selected output path.
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
