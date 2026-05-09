@@ -148,9 +148,9 @@
 
 ### T18 — Retire db-browser as an independent shell
 
-- [ ] Remove or archive db-browser runtime packages after goja-site covers serve and verbs workflows.
-- [ ] Add a retirement README or repo-level note pointing users to goja-site, unless the repo is deleted outright.
-- [ ] Remove redundant db-browser validation scripts after equivalent goja-site scripts exist.
-- [ ] Run final validation across go-go-goja and goja-hosting-site.
-- [ ] Commit db-browser retirement.
-- [ ] Update diary and changelog with commit hash.
+- [x] Remove or archive db-browser runtime packages after goja-site covers serve and verbs workflows.
+- [x] Add a retirement README or repo-level note pointing users to goja-site, unless the repo is deleted outright.
+- [x] Remove redundant db-browser validation scripts after equivalent goja-site scripts exist.
+- [x] Run final validation across go-go-goja and goja-hosting-site.
+- [x] Commit db-browser retirement.
+- [x] Update diary and changelog with commit hash.

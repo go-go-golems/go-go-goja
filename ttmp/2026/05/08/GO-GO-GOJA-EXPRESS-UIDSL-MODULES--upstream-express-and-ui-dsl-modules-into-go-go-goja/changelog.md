@@ -122,3 +122,15 @@ T17: migrated db-browser generic browser, YAML dashboard, Playwright smoke app, 
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/pkg/app/server.go — Enabled yaml module for route scripts
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T17 implementation diary
 
+
+## 2026-05-08
+
+T18: retired db-browser in place by replacing README with migration guidance, removing duplicated runtime/examples/old validation scripts, adding a marker package, tidying goja-site standalone deps, and running final validation (db-browser commit 1b9e06350efcc0fd6e967311966859f689b61766; goja-site commit 48f5420d094b23c4cdf208a39fd7f94859ce7b52).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/go.mod — Standalone tidy after migration
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-07--db-browser/README.md — Retirement notice and migration commands
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-07--db-browser/retired.go — Marker package for retired module
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T18 implementation diary
+

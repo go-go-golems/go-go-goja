@@ -20,6 +20,100 @@ WhenToUse: "Read before continuing Express/ui.dsl upstreaming or downstream clea
 
 # Implementation Diary
 
+## 2026-05-08 - Retire db-browser shell
+
+Retired `db-browser` as an independent Go shell now that its reusable pieces, command surface, database policies, and examples have moved to `go-go-goja` and `goja-site`. The repository now contains a small retirement marker package and a README pointing users at the replacement commands.
+
+This completes the Option A path selected in the merge design: `db-browser` no longer carries a duplicate runtime stack, duplicate examples, or validation scripts that target the old shell.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as previous step: "continue")
+
+**Assistant interpretation:** Continue from example migration into the final retirement phase for db-browser.
+
+**Inferred user intent:** Finish the shell merge by removing the redundant db-browser implementation and validating the remaining canonical repos.
+
+**Commit (code):** 1b9e06350efcc0fd6e967311966859f689b61766 — "Retire db-browser shell"
+
+**Related commit:** 48f5420d094b23c4cdf208a39fd7f94859ce7b52 — "Tidy goja-site standalone dependencies"
+
+### What I did
+
+- Replaced `db-browser/README.md` with a retirement notice and goja-site migration commands.
+- Reduced `db-browser/go.mod` to a minimal module marker.
+- Added `db-browser/retired.go` so `go test ./...` still has a package to test.
+- Removed the old duplicated shell/runtime code:
+  - `cmd/db-browser`
+  - `internal/app`
+  - `internal/doc`
+  - `internal/verbcli`
+  - `internal/verbrepos`
+- Removed migrated examples from db-browser:
+  - `examples/generic-browser`
+  - `examples/yaml-dashboard`
+  - `examples/playwright-smoke`
+  - `examples/builtin-verbs`
+- Removed old db-browser validation script directories that targeted the retired runtime.
+- Ran final validation across the active repos:
+  - `cd go-go-goja && go test ./... -count=1`
+  - `cd 2026-05-03--goja-hosting-site && go test ./... -count=1`
+  - `cd 2026-05-03--goja-hosting-site && GOWORK=off go test ./... -count=1`
+  - `cd 2026-05-07--db-browser && go test ./... -count=1`
+
+### Why
+
+- Keeping db-browser's implementation after migrating its features would reintroduce exactly the shell duplication the design set out to remove.
+- A minimal marker package makes the retired repo explicit while keeping basic Go tooling healthy.
+
+### What worked
+
+- The retired db-browser module now tests cleanly with no runtime implementation.
+- go-go-goja and goja-site final test suites passed after the retirement.
+- The README is now the single entry point for users who land in the old repo.
+
+### What didn't work
+
+- After retiring db-browser, a standalone goja-site validation reported that `go.mod` needed tidy updates for transitive versions:
+  - `github.com/rs/zerolog v1.35.1`
+  - `github.com/yuin/goldmark v1.8.2`
+- Running `go mod tidy` in goja-site produced the minimal metadata update, which was committed separately as `48f5420d094b23c4cdf208a39fd7f94859ce7b52`.
+- A first attempt to leave db-browser with no Go packages made `go test ./...` exit with `go: warning: "./..." matched no packages`; adding `retired.go` fixed that.
+
+### What I learned
+
+- Retiring a Go module cleanly is nicer with a tiny marker package than with an empty module.
+- Keeping old ttmp validation scripts after removing their target runtime would be misleading, so deleting those scripts is clearer than preserving broken commands.
+
+### What was tricky to build
+
+- This was primarily deletion work, but the important constraint was keeping workspace and standalone Go tooling usable after removing packages and dependencies.
+- The goja-site tidy change was separate from the db-browser retirement but necessary for the final `GOWORK=off` validation to stay green.
+
+### What warrants a second pair of eyes
+
+- Whether any historical db-browser docs under `docs/` should also be archived, edited, or removed. I left them as historical reference.
+- Whether the db-browser repo should eventually be physically archived/deleted outside git, since this commit only retires the implementation in-place.
+- Whether old db-browser ttmp docs should be marked retired more aggressively.
+
+### What should be done in the future
+
+- Remove local `replace github.com/go-go-golems/go-go-goja => ../go-go-goja` directives after go-go-goja is tagged and downstream modules can depend on a released version.
+- Consider adding CI coverage for the migrated goja-site examples.
+
+### Code review instructions
+
+- Review `2026-05-07--db-browser/README.md` and `retired.go` first.
+- Confirm removed `cmd/`, `internal/`, and `examples/` content exists in `go-go-goja` and `goja-hosting-site` commits from earlier phases.
+- Review `2026-05-03--goja-hosting-site/go.mod` and `go.sum` for the minimal tidy update.
+- Validate with the final validation commands listed above.
+
+### Technical details
+
+- db-browser is still a valid Go module: `module github.com/go-go-golems/db-browser`, `go 1.26.1`.
+- The marker package is named `dbbrowser` because Go package names cannot contain hyphens.
+- Historical `docs/` and ticket documents remain in place for reference.
+
 ## 2026-05-08 - Migrate db-browser examples to goja-site
 
 Moved the db-browser example apps into goja-hosting-site so the canonical shell now carries the generic SQLite browser, YAML dashboard, Playwright smoke app, and editable verb examples. The migrated web examples all document and validate the new `goja-site serve --db-policy simple --readonly` flow.
