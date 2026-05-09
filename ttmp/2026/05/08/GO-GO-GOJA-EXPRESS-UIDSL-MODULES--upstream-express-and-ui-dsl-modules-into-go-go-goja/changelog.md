@@ -57,3 +57,13 @@ Committed baseline extraction and downstream migrations: go-go-goja 229fd920786a
 
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — Baseline commit hashes and setup diary
 
+
+## 2026-05-08
+
+T12: extracted db-browser verb repository discovery into go-go-goja/pkg/jsverbrepos with neutral GOJA_VERB_REPOSITORIES and .goja-verbs.yml names (commit d4aec1568fa1278d2a612780f2c68de27c46a7db).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/pkg/jsverbrepos — Reusable jsverbs repository discovery package
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T12 implementation diary
+

@@ -89,12 +89,12 @@
 
 ### T12 — Extract reusable jsverbs repository discovery
 
-- [ ] Move db-browser `internal/verbrepos` into reusable package location (`go-go-goja/pkg/jsverbrepos` preferred, or `goja-hosting-site/pkg/verbrepos` if blocked).
-- [ ] Rename db-browser-specific constants to neutral names (`GOJA_VERB_REPOSITORIES`, `.goja-verbs.yml`, `.goja-verbs.override.yml`).
-- [ ] Move embedded built-in verb scripts with the package.
-- [ ] Update repository discovery tests for the new package and neutral names.
-- [ ] Validate focused tests and commit.
-- [ ] Update diary and changelog with commit hash.
+- [x] Move db-browser `internal/verbrepos` into reusable package location (`go-go-goja/pkg/jsverbrepos` preferred, or `goja-hosting-site/pkg/verbrepos` if blocked).
+- [x] Rename db-browser-specific constants to neutral names (`GOJA_VERB_REPOSITORIES`, `.goja-verbs.yml`, `.goja-verbs.override.yml`).
+- [x] Move embedded built-in verb scripts with the package.
+- [x] Update repository discovery tests for the new package and neutral names.
+- [x] Validate focused tests and commit.
+- [x] Update diary and changelog with commit hash.
 
 ### T13 — Extract reusable jsverbs CLI/runtime invocation
 

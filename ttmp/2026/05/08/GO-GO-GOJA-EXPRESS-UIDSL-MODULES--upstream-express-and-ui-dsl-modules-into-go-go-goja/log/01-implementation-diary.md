@@ -20,6 +20,81 @@ WhenToUse: "Read before continuing Express/ui.dsl upstreaming or downstream clea
 
 # Implementation Diary
 
+## 2026-05-08 - Extract reusable jsverbs repository discovery
+
+Started the shell merge implementation by extracting db-browser's verb repository discovery into `go-go-goja`. This creates a neutral reusable package for discovering built-in, config-file, environment, and CLI-specified verb repositories without depending on db-browser.
+
+The extracted package keeps the same behavior but renames db-browser-specific configuration to goja-neutral names. It is now ready for the next step: moving the jsverbs CLI/runtime command layer to use this reusable repository package.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as previous step)
+
+**Assistant interpretation:** Continue the task list one item at a time, committing a focused reusable repository-discovery extraction.
+
+**Inferred user intent:** Move unique db-browser shell behavior into reusable/canonical locations so db-browser can later be retired.
+
+**Commit (code):** d4aec1568fa1278d2a612780f2c68de27c46a7db — "Add reusable jsverbs repository discovery"
+
+### What I did
+
+- Copied db-browser `internal/verbrepos` into `go-go-goja/pkg/jsverbrepos`.
+- Renamed the package to `jsverbrepos`.
+- Renamed configuration/env constants:
+  - `DB_BROWSER_VERB_REPOSITORIES` → `GOJA_VERB_REPOSITORIES`.
+  - `.db-browser.yml` → `.goja-verbs.yml`.
+  - `.db-browser.override.yml` → `.goja-verbs.override.yml`.
+- Moved embedded built-in verbs into `pkg/jsverbrepos/builtin`.
+- Updated tests for the neutral package names.
+- Ran `go test ./pkg/jsverbrepos -count=1`.
+- Committed the package; the go-go-goja pre-commit hook also ran lint, generate, and `go test ./...` successfully.
+
+### Why
+
+- Repository discovery is not db-browser-specific; it is part of a reusable jsverbs shell.
+- Neutral package/config names are needed before `goja-site verbs` can consume the behavior cleanly.
+
+### What worked
+
+- The package copied cleanly because it only depends on the standard library, `embed`, and `gopkg.in/yaml.v3`.
+- Existing tests were easy to adapt to the new package name and neutral constants.
+- Full go-go-goja pre-commit validation passed.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- `verbrepos` was already well factored: it has no dependency on db-browser runtime/app code.
+- This makes the upcoming `verbcli` extraction more likely to be straightforward, with import rewrites as the main change.
+
+### What was tricky to build
+
+- Avoiding compatibility aliases was intentional because the selected retirement path does not require preserving db-browser-specific config names unless requested later.
+- The embedded built-in scripts had user-facing text mentioning db-browser; I changed those descriptions to neutral goja wording.
+
+### What warrants a second pair of eyes
+
+- Whether we should add temporary aliases for `DB_BROWSER_VERB_REPOSITORIES` and `.db-browser.yml` despite the no-compatibility default.
+- Whether the built-in verbs belong in `go-go-goja/pkg/jsverbrepos` long-term or should become goja-site examples instead.
+
+### What should be done in the future
+
+- Extract `internal/verbcli` into a reusable `go-go-goja/pkg/jsverbscli` package and point it at `pkg/jsverbrepos`.
+
+### Code review instructions
+
+- Start with `pkg/jsverbrepos/bootstrap.go` constants and discovery order.
+- Review `pkg/jsverbrepos/bootstrap_test.go` for expected behavior.
+- Validate with `go test ./pkg/jsverbrepos -count=1`.
+
+### Technical details
+
+- Discovery order remains: built-in, config, env, CLI.
+- Duplicate repositories are deduped by embedded identity or cleaned absolute path.
+- CLI flags remain `--repository` and `--verb-repository`.
+
 ## 2026-05-08 - Shell merge design and task setup
 
 Created the design plan for merging the remaining `db-browser` and `goja-hosting-site` web shells after the shared runtime extraction. The design locks in the requested options: retire/delete `db-browser` as an independent shell, and keep both the existing `dbguard` policy and a simple read/write-gated database policy in the unified goja-site shell.

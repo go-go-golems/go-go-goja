@@ -17,6 +17,8 @@ RelatedFiles:
       Note: Reusable rich UI DSL module
     - Path: pkg/gojahttp
       Note: Upstream renderer-neutral HTTP host
+    - Path: pkg/jsverbrepos
+      Note: Reusable jsverbs repository discovery extracted from db-browser
     - Path: ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/design-doc/02-merge-db-browser-and-goja-hosting-site-web-shells.md
       Note: Design for retiring db-browser into the goja-site shell
     - Path: ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md
@@ -29,6 +31,7 @@ LastUpdated: 2026-05-08T14:29:03.028112443-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
