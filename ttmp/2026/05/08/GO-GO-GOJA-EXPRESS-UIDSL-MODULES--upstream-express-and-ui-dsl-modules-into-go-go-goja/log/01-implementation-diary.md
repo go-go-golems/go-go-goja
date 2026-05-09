@@ -20,6 +20,98 @@ WhenToUse: "Read before continuing Express/ui.dsl upstreaming or downstream clea
 
 # Implementation Diary
 
+## 2026-05-08 - Migrate db-browser examples to goja-site
+
+Moved the db-browser example apps into goja-hosting-site so the canonical shell now carries the generic SQLite browser, YAML dashboard, Playwright smoke app, and editable verb examples. The migrated web examples all document and validate the new `goja-site serve --db-policy simple --readonly` flow.
+
+This step also uncovered one missing piece in the goja-site server module vocabulary: the YAML dashboard needed `require("yaml")`, so the web server now enables the upstream YAML module just like the jsverbs runtime does.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue with the next open ticket phase after T16, which is T17/example migration.
+
+**Inferred user intent:** Keep moving through the shell-merge task list, validating and committing at useful phase boundaries.
+
+**Commit (code):** 46b34df74a2bdef9223643f0b395d2394243bc5f — "Migrate db-browser examples to goja-site"
+
+### What I did
+
+- Copied db-browser examples into goja-hosting-site:
+  - `examples/db-browser/generic-browser`
+  - `examples/db-browser/yaml-dashboard`
+  - `examples/db-browser/playwright-smoke`
+- Updated example READMEs to use `go run ./cmd/goja-site serve`, repeatable `--scripts`, and `--db-policy simple --readonly`.
+- Updated the YAML dashboard script to load `examples/db-browser/yaml-dashboard/dashboard.yaml` from its new path.
+- Added `examples/db-browser/README.md` explaining the migrated read-only SQLite app workflow.
+- Added user-visible local verb examples under `examples/verbs/builtin` and adapted their package path to `examples local-builtin ...` to avoid colliding with the embedded built-in verbs.
+- Added `examples/verbs/README.md` with `goja-site verbs --repository ...` examples.
+- Enabled the `yaml` module in goja-site's web server runtime middleware.
+- Added `pkg/app/modules_test.go` to verify web route scripts can `require("yaml")`.
+- Validated generic-browser, yaml-dashboard, and playwright-smoke through live `goja-site serve` + `curl` smoke tests.
+- Validated local verb examples with `goja-site verbs --repository examples/verbs/builtin`.
+
+### Why
+
+- db-browser cannot be retired until its useful examples live under the canonical shell.
+- The YAML dashboard is a concrete test that goja-site's web runtime module vocabulary matches the migrated apps' expectations.
+- Local verb examples give users editable examples without depending on the embedded Go package location.
+
+### What worked
+
+- The generic browser and Playwright smoke examples ran under simple read-only policy without code changes beyond README paths.
+- The local verb examples worked after renaming their package to `local-builtin`.
+- Full goja-hosting-site tests, standalone `GOWORK=off` tests, and focused lint passed.
+
+### What didn't work
+
+- The first YAML dashboard live smoke failed while loading the script:
+  - `Error: execute script .../examples/db-browser/yaml-dashboard/scripts/app.js: GoError: Invalid module at github.com/dop251/goja_nodejs/require.(*RequireModule).require-fm (native)`
+- Root cause: goja-site web serving enabled `fs`, `path`, `time`, and `timer`, but not `yaml`.
+- Fix: added `yaml` to `engine.MiddlewareOnly(...)` in `pkg/app/server.go` and added a unit test for route-level `require("yaml")`.
+
+### What I learned
+
+- The jsverbs runtime already exposed YAML, but the web runtime did not; migrating examples helped align those vocabularies.
+- Embedded built-in verbs are always loaded, so user-visible copies must use a different package path to avoid duplicate verb paths.
+
+### What was tricky to build
+
+- The examples were mostly portable, but path-sensitive assets such as `dashboard.yaml` needed explicit updates.
+- Local verb examples could not simply be byte-for-byte copies of embedded built-ins because `goja-site verbs` always scans the embedded repository before CLI repositories.
+- Live smoke tests need careful cleanup of background `go run ./cmd/goja-site serve` processes when a later example fails.
+
+### What warrants a second pair of eyes
+
+- Whether the local verb examples should be named `local-builtin` or something more tutorial-oriented.
+- Whether enabling `yaml` in all goja-site web runtimes is acceptable from a module-surface perspective.
+- Whether committing the small seeded `examples/db-browser/playwright-smoke/data/app.db` binary is preferred over adding a seed script.
+
+### What should be done in the future
+
+- Start the db-browser retirement phase by replacing or removing runtime code and pointing users at goja-site.
+- Consider adding a reusable smoke script under goja-site if these examples will be tested in CI.
+
+### Code review instructions
+
+- Review the migrated READMEs first to confirm the user-facing commands are correct.
+- Review `examples/db-browser/yaml-dashboard/scripts/app.js` for the updated YAML path.
+- Review `pkg/app/server.go` and `pkg/app/modules_test.go` for the YAML module change.
+- Review `examples/verbs/builtin/*.js` to confirm the package path avoids embedded duplicate commands.
+- Validate with:
+  - `cd 2026-05-03--goja-hosting-site && go test ./... -count=1`
+  - `cd 2026-05-03--goja-hosting-site && GOWORK=off go test ./... -count=1`
+  - `cd 2026-05-03--goja-hosting-site && golangci-lint run ./pkg/app ./cmd/goja-site`
+  - live `goja-site serve --db-policy simple --readonly` smoke tests for the three migrated web examples.
+
+### Technical details
+
+- Migrated web examples now live under `examples/db-browser/...`.
+- Local verb examples now use `__package__({ parents: ["examples"], name: "local-builtin" })`.
+- `goja-site verbs --repository examples/verbs/builtin list` now shows both embedded `examples builtin ...` and local `examples local-builtin ...` commands.
+- The web runtime middleware now enables `fs`, `path`, `time`, `timer`, and `yaml`.
+
 ## 2026-05-08 - Add goja-site database policy selection
 
 Implemented the unified database policy layer for the canonical goja-site shell. The app can now keep its existing guarded `dbguard` behavior while also serving db-browser-style SQLite tools through a simple read/write-gated policy.

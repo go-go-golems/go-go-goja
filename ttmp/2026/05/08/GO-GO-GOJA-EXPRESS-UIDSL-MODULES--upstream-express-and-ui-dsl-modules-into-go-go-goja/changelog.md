@@ -110,3 +110,15 @@ T16: added goja-site database policy selection with guarded and simple modes, si
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/pkg/app/database.go — Policy-specific database module construction and simple write gate
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T16 implementation diary
 
+
+## 2026-05-08
+
+T17: migrated db-browser generic browser, YAML dashboard, Playwright smoke app, and editable verb examples into goja-hosting-site; updated paths/commands, enabled yaml in the web runtime, and validated serve/verbs examples (goja-hosting-site commit 46b34df74a2bdef9223643f0b395d2394243bc5f).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/examples/db-browser — Moved db-browser web examples under goja-site
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/examples/verbs — User-visible local jsverbs examples
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/pkg/app/server.go — Enabled yaml module for route scripts
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T17 implementation diary
+

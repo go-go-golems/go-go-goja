@@ -137,14 +137,14 @@
 
 ### T17 — Migrate db-browser examples into goja-hosting-site
 
-- [ ] Move db-browser generic browser example to `goja-hosting-site/examples/db-browser/generic-browser`.
-- [ ] Move db-browser YAML dashboard example to `goja-hosting-site/examples/db-browser/yaml-dashboard`.
-- [ ] Move db-browser Playwright smoke example to `goja-hosting-site/examples/db-browser/playwright-smoke`.
-- [ ] Move/adapt built-in verb examples to `goja-hosting-site/examples/verbs` if they should be user-visible outside the embedded package.
-- [ ] Update paths in smoke scripts and documentation.
-- [ ] Validate migrated examples with `goja-site serve` and `goja-site verbs`.
-- [ ] Commit example migration.
-- [ ] Update diary and changelog with commit hash.
+- [x] Move db-browser generic browser example to `goja-hosting-site/examples/db-browser/generic-browser`.
+- [x] Move db-browser YAML dashboard example to `goja-hosting-site/examples/db-browser/yaml-dashboard`.
+- [x] Move db-browser Playwright smoke example to `goja-hosting-site/examples/db-browser/playwright-smoke`.
+- [x] Move/adapt built-in verb examples to `goja-hosting-site/examples/verbs` if they should be user-visible outside the embedded package.
+- [x] Update paths in smoke scripts and documentation.
+- [x] Validate migrated examples with `goja-site serve` and `goja-site verbs`.
+- [x] Commit example migration.
+- [x] Update diary and changelog with commit hash.
 
 ### T18 — Retire db-browser as an independent shell
 
