@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const multipartFormMemoryLimit = 32 << 20
+
 func parseBody(r *http.Request) (any, string, error) {
 	if r.Body == nil {
 		return nil, "", nil
@@ -27,20 +29,31 @@ func parseBody(r *http.Request) (any, string, error) {
 		}
 		return v, raw, nil
 	}
-	if strings.Contains(ct, "application/x-www-form-urlencoded") || strings.Contains(ct, "multipart/form-data") {
+	if strings.Contains(ct, "application/x-www-form-urlencoded") {
 		r.Body = io.NopCloser(strings.NewReader(raw))
 		if err := r.ParseForm(); err != nil {
 			return nil, raw, err
 		}
-		m := map[string]any{}
-		for k, vals := range r.PostForm {
-			if len(vals) == 1 {
-				m[k] = vals[0]
-			} else {
-				m[k] = vals
-			}
+		return postFormMap(r), raw, nil
+	}
+	if strings.Contains(ct, "multipart/form-data") {
+		r.Body = io.NopCloser(strings.NewReader(raw))
+		if err := r.ParseMultipartForm(multipartFormMemoryLimit); err != nil {
+			return nil, raw, err
 		}
-		return m, raw, nil
+		return postFormMap(r), raw, nil
 	}
 	return raw, raw, nil
+}
+
+func postFormMap(r *http.Request) map[string]any {
+	m := map[string]any{}
+	for k, vals := range r.PostForm {
+		if len(vals) == 1 {
+			m[k] = vals[0]
+		} else {
+			m[k] = vals
+		}
+	}
+	return m
 }

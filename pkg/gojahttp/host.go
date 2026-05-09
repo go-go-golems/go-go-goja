@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
@@ -76,22 +77,21 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res := NewResponse(w, h.renderer)
-	_, err = h.owner.Call(r.Context(), "http-handler", func(ctx context.Context, vm *goja.Runtime) (any, error) {
+	ret, err := h.owner.Call(r.Context(), "http-handler", func(ctx context.Context, vm *goja.Runtime) (any, error) {
 		result, err := route.Handler(goja.Undefined(), vm.ToValue(req.Map()), res.JSObject(vm))
 		if err != nil {
 			return nil, err
 		}
-		if !res.Sent() && !goja.IsUndefined(result) && !goja.IsNull(result) {
-			if _, ok := result.Export().(string); ok {
-				return nil, res.Send(vm, result)
-			}
-			return nil, res.HTML(vm, result)
+		if promise, ok := result.Export().(*goja.Promise); ok {
+			return promise, nil
 		}
-		if !res.Sent() {
-			return nil, res.End()
-		}
-		return nil, nil
+		return nil, h.finishHandlerResult(vm, res, result)
 	})
+	if err == nil {
+		if promise, ok := ret.(*goja.Promise); ok {
+			err = h.awaitAndFinishPromise(r.Context(), res, promise)
+		}
+	}
 	if err != nil && !res.Sent() {
 		if h.dev {
 			http.Error(w, fmt.Sprintf("JavaScript handler error: %v", err), http.StatusInternalServerError)
@@ -99,6 +99,61 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 	}
+}
+
+func (h *Host) finishHandlerResult(vm *goja.Runtime, res *Response, result goja.Value) error {
+	if !res.Sent() && !goja.IsUndefined(result) && !goja.IsNull(result) {
+		if _, ok := result.Export().(string); ok {
+			return res.Send(vm, result)
+		}
+		return res.HTML(vm, result)
+	}
+	if !res.Sent() {
+		return res.End()
+	}
+	return nil
+}
+
+func (h *Host) awaitAndFinishPromise(ctx context.Context, res *Response, promise *goja.Promise) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		ret, err := h.owner.Call(ctx, "http-handler.promise-state", func(_ context.Context, vm *goja.Runtime) (any, error) {
+			snapshot := promiseSnapshot{State: promise.State(), Result: promise.Result()}
+			if snapshot.State == goja.PromiseStateFulfilled {
+				return snapshot, h.finishHandlerResult(vm, res, snapshot.Result)
+			}
+			return snapshot, nil
+		})
+		if err != nil {
+			return err
+		}
+		snapshot := ret.(promiseSnapshot)
+		switch snapshot.State {
+		case goja.PromiseStatePending:
+			time.Sleep(5 * time.Millisecond)
+		case goja.PromiseStateRejected:
+			return fmt.Errorf("promise rejected: %s", valueString(snapshot.Result))
+		case goja.PromiseStateFulfilled:
+			return nil
+		}
+	}
+}
+
+type promiseSnapshot struct {
+	State  goja.PromiseState
+	Result goja.Value
+}
+
+func valueString(value goja.Value) string {
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return "undefined"
+	}
+	return value.String()
 }
 
 type headResponseWriter struct {
