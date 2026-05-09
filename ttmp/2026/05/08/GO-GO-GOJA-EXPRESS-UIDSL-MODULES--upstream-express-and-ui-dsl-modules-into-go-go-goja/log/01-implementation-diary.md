@@ -20,6 +20,100 @@ WhenToUse: "Read before continuing Express/ui.dsl upstreaming or downstream clea
 
 # Implementation Diary
 
+## 2026-05-08 - Add goja-site database policy selection
+
+Implemented the unified database policy layer for the canonical goja-site shell. The app can now keep its existing guarded `dbguard` behavior while also serving db-browser-style SQLite tools through a simple read/write-gated policy.
+
+This completes the core runtime side of the shell merge: scripts can come from multiple directories, `goja-site verbs` exists, and `goja-site serve` can choose between `guarded` and `simple` DB policies explicitly.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead with T16, read docmgr + diary skills, keep a diary, commit at appropriat eintervals."
+
+**Assistant interpretation:** Continue with ticket phase T16 by implementing database policy selection, following docmgr/diary process, validating, and committing code plus documentation updates separately.
+
+**Inferred user intent:** Make goja-site capable of replacing db-browser's simple SQLite serving mode while preserving existing dbguard-backed goja-hosting-site behavior.
+
+**Commit (code):** 5142843b00c96415f0138e881c9edeadbd650ba9 — "Add goja-site database policy selection"
+
+### What I did
+
+- Re-read the `docmgr` and `diary` skills before changing code.
+- Added `DBPolicy` to `pkg/app.Config` with `simple` and `guarded` values.
+- Added `pkg/app/database.go` to build database module specs and runtime registrars based on the selected policy.
+- Implemented the simple policy with a lightweight read/write gate around `database` and `db`.
+- Preserved guarded mode with `dbguard.NewMeteredDB` and the `db.guard` runtime module registrar.
+- Added `goja-site serve` flags: `--db-policy`, `--readonly`, and `--allow-writes`.
+- Extended multi-site `SiteConfig` with `dbPolicy`, `readonly`, and `allowWrites` fields.
+- Updated deploy YAML to make current sites explicitly `dbPolicy: guarded`.
+- Added tests for simple read-only rejection, simple write allowance, guarded `db.guard` registration, policy normalization, and multi-site policy normalization.
+- Ran `go test ./... -count=1`, `GOWORK=off go test ./... -count=1`, `go run ./cmd/goja-site serve --help`, and `golangci-lint run ./pkg/app ./cmd/goja-site`.
+
+### Why
+
+- The merge design selected Option C: keep both database policies instead of forcing generic SQLite browser workflows through dbguard or removing dbguard from existing goja-site apps.
+- Explicit policy flags make database write behavior visible at the CLI boundary.
+
+### What worked
+
+- Runtime construction factored into a small database-policy helper without changing script loading or HTTP dispatch.
+- Guarded mode stayed the default, preserving existing goja-site behavior.
+- Simple read-only mode rejects `db.exec(...)` writes while still allowing read queries.
+- The new tests validated both modes without needing a long-running server process.
+
+### What didn't work
+
+- `GOWORK=off go test ./... -count=1` initially failed because goja-site's `go.sum` was missing tree-sitter checksums pulled in by the earlier `goja-site verbs` integration:
+  - `missing go.sum entry for module providing package github.com/tree-sitter/go-tree-sitter`
+  - `missing go.sum entry for module providing package github.com/tree-sitter/tree-sitter-javascript/bindings/go`
+- Running `go mod tidy` in goja-hosting-site fixed the standalone module metadata.
+- `golangci-lint run ./pkg/app ./cmd/goja-site` initially found:
+  - `errcheck` on an existing `defer srv.Close(context.Background())` in `multi_server_test.go`;
+  - `staticcheck` QF1001 on the SQL token classifier.
+- I fixed both before committing.
+
+### What I learned
+
+- Go slices of concrete `engine.NativeModuleSpec` cannot be expanded into `WithModules(...ModuleSpec)`, so the database helper returns `[]engine.ModuleSpec`.
+- The prior `goja-site verbs` integration compiled in workspace mode but needed tidy metadata for standalone `GOWORK=off` validation.
+- The simple policy can be kept intentionally small while still guarding `Query` against obvious mutating statements such as `INSERT ... RETURNING`.
+
+### What was tricky to build
+
+- The write-gate semantics needed to preserve guarded defaults while making simple policy safe by default. The resulting normalization keeps empty policy as `guarded`, and forces simple policy to read-only unless `AllowWrites` is set.
+- `db.guard` is runtime-scoped, so guarded policy construction has to return both preconfigured database module specs and the extra runtime registrar.
+- The simple SQL classifier is deliberately conservative and token-based, not a full SQL parser; reviewers should treat it as a safety belt rather than a complete sandbox.
+
+### What warrants a second pair of eyes
+
+- Whether `--readonly` should also affect guarded mode. This implementation keeps guarded mode behavior unchanged and applies the read/write gate only to simple mode.
+- Whether simple read-only should allow `PRAGMA` in `Query`; it currently does, because db-browser-style inspection needs schema metadata.
+- Whether the CLI text should more strongly say that `--allow-writes` only matters for `--db-policy simple`.
+
+### What should be done in the future
+
+- Migrate db-browser examples to goja-site and make them use `--db-policy simple --readonly` by default.
+- Consider exposing the simple policy wrapper from a reusable package if jsverbs and web serving should share exactly the same DB gate.
+
+### Code review instructions
+
+- Start with `pkg/app/config.go` and `pkg/app/database.go` for policy semantics.
+- Review `pkg/app/server.go` to see how module specs and runtime registrars are assembled.
+- Review `cmd/goja-site/serve.go` for user-facing flags.
+- Review `pkg/app/database_test.go` for behavioral examples.
+- Validate with:
+  - `cd 2026-05-03--goja-hosting-site && go test ./... -count=1`
+  - `cd 2026-05-03--goja-hosting-site && GOWORK=off go test ./... -count=1`
+  - `cd 2026-05-03--goja-hosting-site && golangci-lint run ./pkg/app ./cmd/goja-site`
+
+### Technical details
+
+- `DBPolicyGuarded` remains the default when `DBPolicy` is empty.
+- `DBPolicySimple` exposes the same `database` and `db` modules but does not register `db.guard`.
+- `DBPolicyGuarded` exposes `database`, `db`, and `db.guard`.
+- Simple writes are allowed only when `AllowWrites && !ReadOnly`.
+- Simple read-only `Query` allows `SELECT`, `WITH`, `PRAGMA`, and `EXPLAIN`; other leading tokens are rejected.
+
 ## 2026-05-08 - Generalize goja-site script loading
 
 Updated goja-site so the web shell can load route scripts from multiple script directories instead of exactly one. This removes one of the main remaining differences called out before the shell merge: goja-site can now compose shared script roots and app-specific script roots in a deterministic order.

@@ -98,3 +98,15 @@ T15: generalized goja-site script loading to repeatable script directories, upda
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/pkg/app/scripts.go — Multi-directory script discovery
 - /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T15 implementation diary
 
+
+## 2026-05-08
+
+T16: added goja-site database policy selection with guarded and simple modes, simple read/write gate, serve flags, multi-site policy config, tests, lint, and standalone module tidy (goja-hosting-site commit 5142843b00c96415f0138e881c9edeadbd650ba9).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/cmd/goja-site/serve.go — Database policy CLI flags
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/pkg/app/config.go — DBPolicy config normalization
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/2026-05-03--goja-hosting-site/pkg/app/database.go — Policy-specific database module construction and simple write gate
+- /home/manuel/workspaces/2026-05-08/extract-express-goja/go-go-goja/ttmp/2026/05/08/GO-GO-GOJA-EXPRESS-UIDSL-MODULES--upstream-express-and-ui-dsl-modules-into-go-go-goja/log/01-implementation-diary.md — T16 implementation diary
+

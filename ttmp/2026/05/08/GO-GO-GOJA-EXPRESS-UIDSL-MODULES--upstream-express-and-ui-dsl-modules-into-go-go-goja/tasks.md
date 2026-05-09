@@ -126,14 +126,14 @@
 
 ### T16 — Add unified database policy selection
 
-- [ ] Add `DBPolicy` with `simple` and `guarded` modes to goja-site app config.
-- [ ] Implement simple read/write-gated DB wrapper for generic SQLite browser use.
-- [ ] Preserve guarded `dbguard` behavior and `db.guard` module registration.
-- [ ] Add CLI flags `--db-policy`, `--readonly`, and `--allow-writes` to `goja-site serve`.
-- [ ] Extend multi-site config with database policy fields.
-- [ ] Add tests for simple read-only rejection and guarded policy registration.
-- [ ] Validate and commit.
-- [ ] Update diary and changelog with commit hash.
+- [x] Add `DBPolicy` with `simple` and `guarded` modes to goja-site app config.
+- [x] Implement simple read/write-gated DB wrapper for generic SQLite browser use.
+- [x] Preserve guarded `dbguard` behavior and `db.guard` module registration.
+- [x] Add CLI flags `--db-policy`, `--readonly`, and `--allow-writes` to `goja-site serve`.
+- [x] Extend multi-site config with database policy fields.
+- [x] Add tests for simple read-only rejection and guarded policy registration.
+- [x] Validate and commit.
+- [x] Update diary and changelog with commit hash.
 
 ### T17 — Migrate db-browser examples into goja-hosting-site
 
