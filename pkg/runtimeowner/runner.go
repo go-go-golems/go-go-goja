@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 )
 
 type ownerCtxKey struct{}
@@ -159,33 +160,38 @@ func (r *runner) Post(ctx context.Context, op string, fn PostFunc) error {
 }
 
 func (r *runner) invoke(ctx context.Context, op string, fn CallFunc) (any, error) {
-	if !r.opts.RecoverPanics {
-		return fn(ctx, r.vm)
-	}
+	return runtimebridge.WithCallContext(r.vm, ctx, func() (any, error) {
+		if !r.opts.RecoverPanics {
+			return fn(ctx, r.vm)
+		}
 
-	var (
-		ret any
-		err error
-	)
-	func() {
-		defer func() {
-			if rec := recover(); rec != nil {
-				err = fmt.Errorf("runtimeowner %s: %w: %v", op, ErrPanicked, rec)
-				ret = nil
-			}
+		var (
+			ret any
+			err error
+		)
+		func() {
+			defer func() {
+				if rec := recover(); rec != nil {
+					err = fmt.Errorf("runtimeowner %s: %w: %v", op, ErrPanicked, rec)
+					ret = nil
+				}
+			}()
+			ret, err = fn(ctx, r.vm)
 		}()
-		ret, err = fn(ctx, r.vm)
-	}()
-	return ret, err
+		return ret, err
+	})
 }
 
 func (r *runner) invokePost(ctx context.Context, op string, fn PostFunc) {
-	if r.opts.RecoverPanics {
-		defer func() {
-			_ = recover()
-		}()
-	}
-	fn(ctx, r.vm)
+	_ = runtimebridge.WithCallContextVoid(r.vm, ctx, func() error {
+		if r.opts.RecoverPanics {
+			defer func() {
+				_ = recover()
+			}()
+		}
+		fn(ctx, r.vm)
+		return nil
+	})
 }
 
 func normalizeContext(ctx context.Context) context.Context {

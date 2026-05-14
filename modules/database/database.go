@@ -1,12 +1,14 @@
 package databasemod
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/modules"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 	_ "github.com/mattn/go-sqlite3" // Driver for sqlite3
 	"github.com/rs/zerolog/log"
@@ -15,6 +17,11 @@ import (
 type QueryExecer interface {
 	Query(query string, args ...any) (*sql.Rows, error)
 	Exec(query string, args ...any) (sql.Result, error)
+}
+
+type QueryExecerContext interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
 type Option func(*DBModule)
@@ -154,8 +161,12 @@ This module is preconfigured by Go and does not allow configure().
 func (m *DBModule) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
 	modules.SetExport(exports, m.Name(), "configure", m.Configure)
-	modules.SetExport(exports, m.Name(), "query", m.Query)
-	modules.SetExport(exports, m.Name(), "exec", m.Exec)
+	modules.SetExport(exports, m.Name(), "query", func(query string, args ...any) ([]map[string]any, error) {
+		return m.QueryContext(runtimebridge.CurrentContext(vm), query, args...)
+	})
+	modules.SetExport(exports, m.Name(), "exec", func(query string, args ...any) (map[string]any, error) {
+		return m.ExecContext(runtimebridge.CurrentContext(vm), query, args...)
+	})
 	modules.SetExport(exports, m.Name(), "close", m.Close)
 }
 
@@ -194,14 +205,22 @@ func (m *DBModule) Close() error {
 
 // Query executes a SQL query and returns results as JavaScript objects.
 func (m *DBModule) Query(query string, args ...any) ([]map[string]any, error) {
+	return m.QueryContext(context.Background(), query, args...)
+}
+
+// QueryContext executes a SQL query with ctx and returns results as JavaScript objects.
+func (m *DBModule) QueryContext(ctx context.Context, query string, args ...any) ([]map[string]any, error) {
 	if m == nil || m.queryExecer == nil {
 		return nil, fmt.Errorf("database not configured, call require('%s').configure(...) first", m.Name())
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	startTime := time.Now()
 	log.Debug().Str("module", m.Name()).Str("query", query).Msg("database: executing query")
 
-	rows, err := m.queryExecer.Query(query, flattenArgs(args)...)
+	rows, err := queryRows(ctx, m.queryExecer, query, flattenArgs(args)...)
 	if err != nil {
 		log.Error().Str("module", m.Name()).Str("query", query).Err(err).Msg("database: query error")
 		return nil, err
@@ -249,14 +268,22 @@ func (m *DBModule) Query(query string, args ...any) ([]map[string]any, error) {
 
 // Exec executes a SQL statement without returning rows.
 func (m *DBModule) Exec(query string, args ...any) (map[string]any, error) {
+	return m.ExecContext(context.Background(), query, args...)
+}
+
+// ExecContext executes a SQL statement with ctx without returning rows.
+func (m *DBModule) ExecContext(ctx context.Context, query string, args ...any) (map[string]any, error) {
 	if m == nil || m.queryExecer == nil {
 		return nil, fmt.Errorf("database not configured, call require('%s').configure(...) first", m.Name())
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	startTime := time.Now()
 	log.Debug().Str("module", m.Name()).Str("query", query).Msg("database: executing exec")
 
-	result, err := m.queryExecer.Exec(query, flattenArgs(args)...)
+	result, err := execResult(ctx, m.queryExecer, query, flattenArgs(args)...)
 	if err != nil {
 		log.Error().Str("module", m.Name()).Str("query", query).Err(err).Msg("database: exec error")
 		return map[string]any{
@@ -292,6 +319,26 @@ func (m *DBModule) closeOwnedConnection() error {
 	m.closeFn = nil
 	m.queryExecer = nil
 	return nil
+}
+
+func queryRows(ctx context.Context, qe QueryExecer, query string, args ...any) (*sql.Rows, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if qec, ok := qe.(QueryExecerContext); ok {
+		return qec.QueryContext(ctx, query, args...)
+	}
+	return qe.Query(query, args...)
+}
+
+func execResult(ctx context.Context, qe QueryExecer, query string, args ...any) (sql.Result, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if qec, ok := qe.(QueryExecerContext); ok {
+		return qec.ExecContext(ctx, query, args...)
+	}
+	return qe.Exec(query, args...)
 }
 
 func flattenArgs(args []any) []any {
