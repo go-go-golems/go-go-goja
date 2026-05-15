@@ -25,7 +25,7 @@ func Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
 	for _, tag := range tags {
 		tag := tag
-		_ = exports.Set(tag, func(call goja.FunctionCall) goja.Value { return vm.ToValue(elementFromCall(tag, call)) })
+		_ = exports.Set(tag, func(call goja.FunctionCall) goja.Value { return vm.ToValue(elementFromCall(vm, tag, call)) })
 	}
 	_ = exports.Set("fragment", func(call goja.FunctionCall) goja.Value {
 		return vm.ToValue(&Fragment{Children: nodesFromArgs(call.Arguments)})
@@ -33,7 +33,7 @@ func Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	_ = exports.Set("text", func(v any) *Text { return &Text{Value: fmt.Sprint(v)} })
 	_ = exports.Set("raw", func(s string) *RawHTML { return &RawHTML{Value: s} })
 	_ = exports.Set("render", func(v goja.Value) (string, error) { return RenderAny(vm, v) })
-	_ = exports.Set("page", func(call goja.FunctionCall) goja.Value { return vm.ToValue(pageFromCall(call)) })
+	_ = exports.Set("page", func(call goja.FunctionCall) goja.Value { return vm.ToValue(pageFromCall(vm, call)) })
 	_ = exports.Set("codeBlock", func(language string, source goja.Value, options ...map[string]any) goja.Value {
 		return vm.ToValue(codeBlockNode(language, source.Export(), firstOptions(options)))
 	})
@@ -69,28 +69,28 @@ func Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	_ = exports.Set("table", tableValue)
 }
 
-func elementFromCall(tag string, call goja.FunctionCall) *Element {
-	attrs := map[string]any{}
+func elementFromCall(vm *goja.Runtime, tag string, call goja.FunctionCall) *Element {
+	var attrs map[string]any
 	args := call.Arguments
-	if len(args) > 0 && isAttrs(args[0]) {
-		if m, ok := args[0].Export().(map[string]any); ok {
-			attrs = m
+	if len(args) > 0 {
+		if decoded, ok := attrsFromValue(vm, args[0]); ok {
+			attrs = decoded
+			args = args[1:]
 		}
-		args = args[1:]
 	}
 	return &Element{Tag: tag, Attrs: attrs, Children: nodesFromArgs(args)}
 }
 
-func pageFromCall(call goja.FunctionCall) *Document {
+func pageFromCall(vm *goja.Runtime, call goja.FunctionCall) *Document {
 	title := ""
 	args := call.Arguments
-	if len(args) > 0 && isAttrs(args[0]) {
-		if m, ok := args[0].Export().(map[string]any); ok {
+	if len(args) > 0 {
+		if m, ok := attrsFromValue(vm, args[0]); ok {
 			if t, ok := m["title"]; ok {
 				title = fmt.Sprint(t)
 			}
+			args = args[1:]
 		}
-		args = args[1:]
 	}
 	children := nodesFromArgs(args)
 	doc := &Document{Title: title}
@@ -124,16 +124,16 @@ func nodesFromArgs(args []goja.Value) []Node {
 	return out
 }
 
-func isAttrs(v goja.Value) bool {
+func attrsFromValue(_ *goja.Runtime, v goja.Value) (map[string]any, bool) {
 	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
-		return false
+		return nil, false
 	}
-	switch v.Export().(type) {
+	switch exported := v.Export().(type) {
 	case Node, string, []any, []Node, int, int64, float64, bool:
-		return false
+		return nil, false
 	case map[string]any:
-		return true
+		return exported, true
 	default:
-		return false
+		return nil, false
 	}
 }
