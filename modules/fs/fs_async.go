@@ -10,21 +10,25 @@ import (
 
 func asyncValue(vm *goja.Runtime, bindings runtimebridge.Bindings, op string, fn func() (any, error)) goja.Value {
 	promise, resolve, reject := vm.NewPromise()
+	callCtx := runtimebridge.CurrentContext(vm)
+	runtimeCtx := bindingContext(bindings)
 	go func() {
 		select {
-		case <-bindings.Context.Done():
+		case <-callCtx.Done():
+			return
+		case <-runtimeCtx.Done():
 			return
 		default:
 		}
 
 		value, err := fn()
 		if err != nil {
-			_ = bindings.Owner.Post(bindings.Context, op+".reject", func(context.Context, *goja.Runtime) {
+			_ = bindings.Owner.Post(callCtx, op+".reject", func(context.Context, *goja.Runtime) {
 				_ = reject(fsErrorValue(vm, err))
 			})
 			return
 		}
-		_ = bindings.Owner.Post(bindings.Context, op+".resolve", func(context.Context, *goja.Runtime) {
+		_ = bindings.Owner.Post(callCtx, op+".resolve", func(context.Context, *goja.Runtime) {
 			if value == nil {
 				_ = resolve(goja.Undefined())
 				return
@@ -37,25 +41,36 @@ func asyncValue(vm *goja.Runtime, bindings runtimebridge.Bindings, op string, fn
 
 func asyncReadFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path string, enc goja.Value) goja.Value {
 	promise, resolve, reject := vm.NewPromise()
+	callCtx := runtimebridge.CurrentContext(vm)
+	runtimeCtx := bindingContext(bindings)
 	go func() {
 		select {
-		case <-bindings.Context.Done():
+		case <-callCtx.Done():
+			return
+		case <-runtimeCtx.Done():
 			return
 		default:
 		}
 
 		data, err := readFileBytes(path)
 		if err != nil {
-			_ = bindings.Owner.Post(bindings.Context, "fs.readFile.reject", func(context.Context, *goja.Runtime) {
+			_ = bindings.Owner.Post(callCtx, "fs.readFile.reject", func(context.Context, *goja.Runtime) {
 				_ = reject(fsErrorValue(vm, err))
 			})
 			return
 		}
-		_ = bindings.Owner.Post(bindings.Context, "fs.readFile.resolve", func(context.Context, *goja.Runtime) {
+		_ = bindings.Owner.Post(callCtx, "fs.readFile.resolve", func(context.Context, *goja.Runtime) {
 			_ = resolve(buffer.EncodeBytes(vm, data, enc))
 		})
 	}()
 	return vm.ToValue(promise)
+}
+
+func bindingContext(bindings runtimebridge.Bindings) context.Context {
+	if bindings.Context != nil {
+		return bindings.Context
+	}
+	return context.Background()
 }
 
 func asyncWriteFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path string, data []byte, mode uint32) goja.Value {
