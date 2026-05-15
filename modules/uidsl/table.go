@@ -186,9 +186,9 @@ func (t *TableBuilder) node(vm *goja.Runtime, ctx RenderContext, rows []map[stri
 			if stringFromAny(ctx.Order["key"]) == column.Name && stringFromAny(ctx.Order["dir"]) == "asc" {
 				dir = "desc"
 			}
-			child = &Element{Tag: "a", Attrs: map[string]any{"href": queryHref(ctx.Query, map[string]any{"sort": column.Name, "dir": dir, "page": 1})}, Children: []Node{&Text{Value: label}}}
+			child = &Element{Tag: "a", Attrs: attrsFromMap(map[string]any{"href": queryHref(ctx.Query, map[string]any{"sort": column.Name, "dir": dir, "page": 1})}), Children: []Node{&Text{Value: label}}}
 		}
-		headCells = append(headCells, &Element{Tag: "th", Attrs: map[string]any{"data-column": column.Name}, Children: []Node{child}})
+		headCells = append(headCells, &Element{Tag: "th", Attrs: attrsFromMap(map[string]any{"data-column": column.Name}), Children: []Node{child}})
 	}
 	bodyRows := make([]Node, 0, len(rows))
 	for _, row := range rows {
@@ -198,20 +198,20 @@ func (t *TableBuilder) node(vm *goja.Runtime, ctx RenderContext, rows []map[stri
 			if column.Align != "" {
 				attrs["class"] = "align-" + column.Align
 			}
-			cells = append(cells, &Element{Tag: "td", Attrs: attrs, Children: []Node{cellNode(vm, row, row[column.Name], column)}})
+			cells = append(cells, &Element{Tag: "td", Attrs: attrsFromMap(attrs), Children: []Node{cellNode(vm, row, row[column.Name], column)}})
 		}
 		bodyRows = append(bodyRows, &Element{Tag: "tr", Children: cells})
 	}
 	if len(bodyRows) == 0 {
-		bodyRows = append(bodyRows, &Element{Tag: "tr", Attrs: map[string]any{"class": "ui-table-empty-row"}, Children: []Node{
-			&Element{Tag: "td", Attrs: map[string]any{"class": "ui-table-empty", "colspan": len(columns)}, Children: []Node{&Text{Value: "No rows match the current filters."}}},
+		bodyRows = append(bodyRows, &Element{Tag: "tr", Attrs: attrsFromMap(map[string]any{"class": "ui-table-empty-row"}), Children: []Node{
+			&Element{Tag: "td", Attrs: attrsFromMap(map[string]any{"class": "ui-table-empty", "colspan": len(columns)}), Children: []Node{&Text{Value: "No rows match the current filters."}}},
 		}})
 	}
 	attrs := map[string]any{"class": tableClass(t.features)}
 	if t.ID != "" {
 		attrs["id"] = t.ID
 	}
-	table := &Element{Tag: "table", Attrs: attrs, Children: []Node{
+	table := &Element{Tag: "table", Attrs: attrsFromMap(attrs), Children: []Node{
 		&Element{Tag: "thead", Children: []Node{&Element{Tag: "tr", Children: headCells}}},
 		&Element{Tag: "tbody", Children: bodyRows},
 	}}
@@ -417,12 +417,12 @@ func paginationNode(ctx RenderContext, total int) Node {
 	}
 	children := []Node{&Text{Value: fmt.Sprintf("Page %d of %d (%d rows)", page, pages, total)}}
 	if page > 1 {
-		children = append(children, &Text{Value: " "}, &Element{Tag: "a", Attrs: map[string]any{"href": queryHref(ctx.Query, map[string]any{"page": page - 1})}, Children: []Node{&Text{Value: "Previous"}}})
+		children = append(children, &Text{Value: " "}, &Element{Tag: "a", Attrs: attrsFromMap(map[string]any{"href": queryHref(ctx.Query, map[string]any{"page": page - 1})}), Children: []Node{&Text{Value: "Previous"}}})
 	}
 	if page < pages {
-		children = append(children, &Text{Value: " "}, &Element{Tag: "a", Attrs: map[string]any{"href": queryHref(ctx.Query, map[string]any{"page": page + 1})}, Children: []Node{&Text{Value: "Next"}}})
+		children = append(children, &Text{Value: " "}, &Element{Tag: "a", Attrs: attrsFromMap(map[string]any{"href": queryHref(ctx.Query, map[string]any{"page": page + 1})}), Children: []Node{&Text{Value: "Next"}}})
 	}
-	return &Element{Tag: "nav", Attrs: map[string]any{"class": "ui-table-pagination"}, Children: children}
+	return &Element{Tag: "nav", Attrs: attrsFromMap(map[string]any{"class": "ui-table-pagination"}), Children: children}
 }
 
 func cellNode(vm *goja.Runtime, row map[string]any, value any, col ColumnSpec) Node {
@@ -430,7 +430,7 @@ func cellNode(vm *goja.Runtime, row map[string]any, value any, col ColumnSpec) N
 	var child Node
 	switch col.Kind {
 	case "badge":
-		child = &Element{Tag: "span", Attrs: map[string]any{"class": []any{"ui-badge", "ui-badge--" + cssToken(text)}}, Children: []Node{&Text{Value: text}}}
+		child = &Element{Tag: "span", Attrs: attrsFromMap(map[string]any{"class": []any{"ui-badge", "ui-badge--" + cssToken(text)}}), Children: []Node{&Text{Value: text}}}
 	case "tags":
 		parts := splitTags(value)
 		children := make([]Node, 0, len(parts))
@@ -438,14 +438,14 @@ func cellNode(vm *goja.Runtime, row map[string]any, value any, col ColumnSpec) N
 			if i > 0 {
 				children = append(children, &Text{Value: " "})
 			}
-			children = append(children, &Element{Tag: "span", Attrs: map[string]any{"class": []any{"ui-tag", "ui-tag--" + cssToken(part)}}, Children: []Node{&Text{Value: part}}})
+			children = append(children, &Element{Tag: "span", Attrs: attrsFromMap(map[string]any{"class": []any{"ui-tag", "ui-tag--" + cssToken(part)}}), Children: []Node{&Text{Value: part}}})
 		}
 		child = &Fragment{Children: children}
 	default:
 		child = &Text{Value: text}
 	}
 	if href := linkHref(vm, row, value, col); href != "" {
-		return &Element{Tag: "a", Attrs: map[string]any{"href": href}, Children: []Node{child}}
+		return &Element{Tag: "a", Attrs: attrsFromMap(map[string]any{"href": href}), Children: []Node{child}}
 	}
 	return child
 }
@@ -483,11 +483,11 @@ func filtersNode(ctx RenderContext, columns []ColumnSpec) Node {
 	children := []Node{}
 	for _, key := range []string{"sort", "dir"} {
 		if value := stringFromAny(ctx.Query[key]); value != "" {
-			children = append(children, &Element{Tag: "input", Attrs: map[string]any{"type": "hidden", "name": key, "value": value}})
+			children = append(children, &Element{Tag: "input", Attrs: attrsFromMap(map[string]any{"type": "hidden", "name": key, "value": value})})
 		}
 	}
 	children = append(children,
-		&Element{Tag: "label", Children: []Node{&Text{Value: "Search "}, &Element{Tag: "input", Attrs: map[string]any{"type": "search", "name": "q", "value": stringFromAny(ctx.Filter["q"]), "placeholder": "all columns"}}}},
+		&Element{Tag: "label", Children: []Node{&Text{Value: "Search "}, &Element{Tag: "input", Attrs: attrsFromMap(map[string]any{"type": "search", "name": "q", "value": stringFromAny(ctx.Filter["q"]), "placeholder": "all columns"})}}},
 	)
 	for _, column := range columns {
 		if !column.Filterable {
@@ -498,14 +498,14 @@ func filtersNode(ctx RenderContext, columns []ColumnSpec) Node {
 			label = column.Name
 		}
 		name := "filter." + column.Name
-		children = append(children, &Element{Tag: "label", Children: []Node{&Text{Value: label + " "}, &Element{Tag: "input", Attrs: map[string]any{"type": "search", "name": name, "value": stringFromAny(ctx.Filter[column.Name])}}}})
+		children = append(children, &Element{Tag: "label", Children: []Node{&Text{Value: label + " "}, &Element{Tag: "input", Attrs: attrsFromMap(map[string]any{"type": "search", "name": name, "value": stringFromAny(ctx.Filter[column.Name])})}}})
 	}
 	children = append(children,
-		&Element{Tag: "button", Attrs: map[string]any{"type": "submit"}, Children: []Node{&Text{Value: "Filter"}}},
+		&Element{Tag: "button", Attrs: attrsFromMap(map[string]any{"type": "submit"}), Children: []Node{&Text{Value: "Filter"}}},
 		&Text{Value: " "},
-		&Element{Tag: "a", Attrs: map[string]any{"href": "?"}, Children: []Node{&Text{Value: "Clear"}}},
+		&Element{Tag: "a", Attrs: attrsFromMap(map[string]any{"href": "?"}), Children: []Node{&Text{Value: "Clear"}}},
 	)
-	return &Element{Tag: "form", Attrs: map[string]any{"class": "ui-table-filters", "method": "get"}, Children: children}
+	return &Element{Tag: "form", Attrs: attrsFromMap(map[string]any{"class": "ui-table-filters", "method": "get"}), Children: children}
 }
 
 func filterRows(rows []map[string]any, columns []ColumnSpec, filter map[string]any) []map[string]any {

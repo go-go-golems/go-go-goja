@@ -125,9 +125,29 @@ func renderNode(b *bytes.Buffer, n Node) error {
 	return nil
 }
 
-func renderAttrs(b *bytes.Buffer, attrs map[string]any) {
+func renderAttrs(b *bytes.Buffer, attrs []Attr) {
+	for _, attr := range attrs {
+		if attr.Key == "" {
+			continue
+		}
+		b.WriteByte(' ')
+		b.WriteString(attr.Key)
+		if attr.Bool {
+			continue
+		}
+		b.WriteString("=\"")
+		b.WriteString(html.EscapeString(attr.Value))
+		b.WriteByte('"')
+	}
+}
+
+func Attrs(attrs map[string]any) []Attr {
+	return attrsFromMap(attrs)
+}
+
+func attrsFromMap(attrs map[string]any) []Attr {
 	if len(attrs) == 0 {
-		return
+		return nil
 	}
 	keys := make([]string, 0, len(attrs))
 	for k := range attrs {
@@ -136,6 +156,7 @@ func renderAttrs(b *bytes.Buffer, attrs map[string]any) {
 		}
 	}
 	sort.Strings(keys)
+	out := make([]Attr, 0, len(keys))
 	for _, k := range keys {
 		v := attrs[k]
 		if v == nil {
@@ -143,8 +164,7 @@ func renderAttrs(b *bytes.Buffer, attrs map[string]any) {
 		}
 		if bv, ok := v.(bool); ok {
 			if bv {
-				b.WriteByte(' ')
-				b.WriteString(k)
+				out = append(out, Attr{Key: k, Bool: true})
 			}
 			continue
 		}
@@ -152,12 +172,9 @@ func renderAttrs(b *bytes.Buffer, attrs map[string]any) {
 		if value == "" && k != "value" {
 			continue
 		}
-		b.WriteByte(' ')
-		b.WriteString(k)
-		b.WriteString("=\"")
-		b.WriteString(html.EscapeString(value))
-		b.WriteByte('"')
+		out = append(out, Attr{Key: k, Value: value})
 	}
+	return out
 }
 
 func attrValue(k string, v any) string {

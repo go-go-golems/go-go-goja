@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 )
 
 type queueScheduler struct {
@@ -144,6 +145,29 @@ func TestRunnerCallSuccess(t *testing.T) {
 	}
 	if got.(int) != 42 {
 		t.Fatalf("unexpected value: %v", got)
+	}
+}
+
+func TestRunnerCallSetsRuntimebridgeCurrentContext(t *testing.T) {
+	vm := goja.New()
+	s := newQueueScheduler(vm)
+	defer s.Close()
+	defer runtimebridge.Delete(vm)
+
+	type ctxKey string
+	ctx := context.WithValue(context.Background(), ctxKey("request"), "abc")
+	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	got, err := r.Call(ctx, "test.current-context", func(callCtx context.Context, vm *goja.Runtime) (any, error) {
+		if callCtx.Value(ctxKey("request")) != "abc" {
+			t.Fatalf("call ctx value = %#v, want abc", callCtx.Value(ctxKey("request")))
+		}
+		return runtimebridge.CurrentContext(vm).Value(ctxKey("request")), nil
+	})
+	if err != nil {
+		t.Fatalf("Call returned error: %v", err)
+	}
+	if got != "abc" {
+		t.Fatalf("CurrentContext value = %#v, want abc", got)
 	}
 }
 

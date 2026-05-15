@@ -51,22 +51,22 @@ func codeBlockNode(language string, source any, opts map[string]any) Node {
 		preAttrs["style"] = map[string]any{"max-height": options.MaxHeight, "overflow": "auto"}
 	}
 	sourceText := stringifySource(source)
-	code := &Element{Tag: "code", Attrs: map[string]any{"class": "language-" + lang}, Children: highlightCode(lang, sourceText)}
+	code := &Element{Tag: "code", Attrs: attrsFromMap(map[string]any{"class": "language-" + lang}), Children: highlightCode(lang, sourceText)}
 	if options.Title == "" && !options.Copy {
 		preAttrs["class"] = classes
-		return &Element{Tag: "pre", Attrs: preAttrs, Children: []Node{code}}
+		return &Element{Tag: "pre", Attrs: attrsFromMap(preAttrs), Children: []Node{code}}
 	}
 	captionChildren := []Node{}
 	if options.Title != "" {
-		captionChildren = append(captionChildren, &Element{Tag: "span", Attrs: map[string]any{"class": "ui-codeblock__title"}, Children: []Node{&Text{Value: options.Title}}})
+		captionChildren = append(captionChildren, &Element{Tag: "span", Attrs: attrsFromMap(map[string]any{"class": "ui-codeblock__title"}), Children: []Node{&Text{Value: options.Title}}})
 	}
 	if options.Copy {
-		captionChildren = append(captionChildren, &Element{Tag: "button", Attrs: map[string]any{"class": "ui-codeblock__copy", "type": "button"}, Children: []Node{&Text{Value: "Copy"}}})
+		captionChildren = append(captionChildren, &Element{Tag: "button", Attrs: attrsFromMap(map[string]any{"class": "ui-codeblock__copy", "type": "button"}), Children: []Node{&Text{Value: "Copy"}}})
 	}
 	preAttrs["class"] = "ui-codeblock__pre"
-	return &Element{Tag: "figure", Attrs: map[string]any{"class": classes}, Children: []Node{
-		&Element{Tag: "figcaption", Attrs: map[string]any{"class": "ui-codeblock__caption"}, Children: captionChildren},
-		&Element{Tag: "pre", Attrs: preAttrs, Children: []Node{code}},
+	return &Element{Tag: "figure", Attrs: attrsFromMap(map[string]any{"class": classes}), Children: []Node{
+		&Element{Tag: "figcaption", Attrs: attrsFromMap(map[string]any{"class": "ui-codeblock__caption"}), Children: captionChildren},
+		&Element{Tag: "pre", Attrs: attrsFromMap(preAttrs), Children: []Node{code}},
 	}}
 }
 
@@ -95,7 +95,7 @@ func badgeNode(value any, opts map[string]any) Node {
 	if title := stringFromAny(opts["title"]); title != "" {
 		attrs["title"] = title
 	}
-	return &Element{Tag: "span", Attrs: attrs, Children: []Node{&Text{Value: text}}}
+	return &Element{Tag: "span", Attrs: attrsFromMap(attrs), Children: []Node{&Text{Value: text}}}
 }
 
 type tabSpec struct {
@@ -112,7 +112,7 @@ func tabsNode(id string, value goja.Value, opts map[string]any) (Node, error) {
 		return nil, err
 	}
 	if len(tabs) == 0 {
-		return &Element{Tag: "div", Attrs: map[string]any{"class": []any{"ui-tabs", stringFromAny(opts["class"])}, "id": baseID}}, nil
+		return &Element{Tag: "div", Attrs: attrsFromMap(map[string]any{"class": []any{"ui-tabs", stringFromAny(opts["class"])}, "id": baseID})}, nil
 	}
 	assignTabIDs(tabs)
 	selected := selectedTabIndex(tabs, opts["selected"])
@@ -122,17 +122,17 @@ func tabsNode(id string, value goja.Value, opts map[string]any) (Node, error) {
 	}
 	children := []Node{tabsStyleNode(baseID, tabs)}
 	children = append(children, tabInputNodes(baseID, tabs, selected)...)
-	children = append(children, &Element{Tag: "div", Attrs: map[string]any{"class": "ui-tabs__tablist", "role": "tablist"}, Children: tabLabelNodes(baseID, tabs)})
+	children = append(children, &Element{Tag: "div", Attrs: attrsFromMap(map[string]any{"class": "ui-tabs__tablist", "role": "tablist"}), Children: tabLabelNodes(baseID, tabs)})
 	panels := make([]Node, 0, len(tabs))
 	for i, tab := range tabs {
 		panelClasses := []any{"ui-tabs__panel"}
 		if i == selected {
 			panelClasses = append(panelClasses, "ui-tabs__panel--active")
 		}
-		panels = append(panels, &Element{Tag: "section", Attrs: map[string]any{"class": panelClasses, "data-tab": tab.ID}, Children: []Node{tab.Content}})
+		panels = append(panels, &Element{Tag: "section", Attrs: attrsFromMap(map[string]any{"class": panelClasses, "data-tab": tab.ID}), Children: []Node{tab.Content}})
 	}
-	children = append(children, &Element{Tag: "div", Attrs: map[string]any{"class": "ui-tabs__panels"}, Children: panels})
-	return &Element{Tag: "div", Attrs: map[string]any{"class": classes, "id": baseID}, Children: children}, nil
+	children = append(children, &Element{Tag: "div", Attrs: attrsFromMap(map[string]any{"class": "ui-tabs__panels"}), Children: panels})
+	return &Element{Tag: "div", Attrs: attrsFromMap(map[string]any{"class": classes, "id": baseID}), Children: children}, nil
 }
 
 func parseTabs(value goja.Value) ([]tabSpec, error) {
@@ -214,7 +214,7 @@ func tabInputNodes(baseID string, tabs []tabSpec, selected int) []Node {
 		if tab.Disabled {
 			inputAttrs["disabled"] = true
 		}
-		children = append(children, &Element{Tag: "input", Attrs: inputAttrs})
+		children = append(children, &Element{Tag: "input", Attrs: attrsFromMap(inputAttrs)})
 	}
 	return children
 }
@@ -227,7 +227,7 @@ func tabLabelNodes(baseID string, tabs []tabSpec) []Node {
 		if tab.Disabled {
 			labelClasses = append(labelClasses, "ui-tabs__tab--disabled")
 		}
-		children = append(children, &Element{Tag: "label", Attrs: map[string]any{"class": labelClasses, "for": inputID}, Children: []Node{&Text{Value: tab.Label}}})
+		children = append(children, &Element{Tag: "label", Attrs: attrsFromMap(map[string]any{"class": labelClasses, "for": inputID}), Children: []Node{&Text{Value: tab.Label}}})
 	}
 	return children
 }
@@ -241,7 +241,7 @@ func tabsStyleNode(baseID string, tabs []tabSpec) Node {
 		fmt.Fprintf(&b, "#%s:checked~.ui-tabs__panels>[data-tab=\"%s\"]{display:block;}\n", inputID, tab.ID)
 		fmt.Fprintf(&b, "#%s:checked~.ui-tabs__tablist>label[for=\"%s\"]{background:#fff;font-weight:900;}\n", inputID, inputID)
 	}
-	return &Element{Tag: "style", Attrs: map[string]any{"class": "ui-tabs__style"}, Children: []Node{&RawHTML{Value: b.String()}}}
+	return &Element{Tag: "style", Attrs: attrsFromMap(map[string]any{"class": "ui-tabs__style"}), Children: []Node{&RawHTML{Value: b.String()}}}
 }
 
 func jsonBlockSource(value goja.Value) string {
@@ -393,7 +393,7 @@ func highlightJSON(source string) []Node {
 }
 
 func tokenNode(kind string, text string) Node {
-	return &Element{Tag: "span", Attrs: map[string]any{"class": []any{"ui-codeblock__token", "ui-codeblock__token--" + kind}}, Children: []Node{&Text{Value: text}}}
+	return &Element{Tag: "span", Attrs: attrsFromMap(map[string]any{"class": []any{"ui-codeblock__token", "ui-codeblock__token--" + kind}}), Children: []Node{&Text{Value: text}}}
 }
 
 func scanString(source string, i int) int {

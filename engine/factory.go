@@ -15,6 +15,14 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 )
 
+type runtimebridgeOwner struct {
+	owner runtimeowner.Runner
+}
+
+func (o runtimebridgeOwner) Post(ctx context.Context, op string, fn func(context.Context, *goja.Runtime)) error {
+	return o.owner.Post(ctx, op, runtimeowner.PostFunc(fn))
+}
+
 // FactoryBuilder composes explicit module and runtime initializer configuration
 // before producing an immutable Factory.
 type FactoryBuilder struct {
@@ -218,7 +226,7 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	runtimebridge.Store(vm, runtimebridge.Bindings{
 		Context: runtimeCtx,
 		Loop:    loop,
-		Owner:   owner,
+		Owner:   runtimebridgeOwner{owner: owner},
 	})
 
 	reg := require.NewRegistry(f.settings.requireOptions...)

@@ -36,9 +36,14 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 			panic(vm.NewGoError(fmt.Errorf("timer module requires runtime owner bindings")))
 		}
 
+		callCtx := runtimebridge.CurrentContext(vm)
+		runtimeCtx := bindings.Context
+		if runtimeCtx == nil {
+			runtimeCtx = context.Background()
+		}
 		go func() {
 			if ms < 0 {
-				_ = bindings.Owner.Post(bindings.Context, "timer.sleep.reject", func(context.Context, *goja.Runtime) {
+				_ = bindings.Owner.Post(callCtx, "timer.sleep.reject", func(context.Context, *goja.Runtime) {
 					_ = reject(vm.ToValue("timer.sleep: duration must be >= 0"))
 				})
 				return
@@ -48,10 +53,12 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 			defer timer.Stop()
 
 			select {
-			case <-bindings.Context.Done():
+			case <-callCtx.Done():
+				return
+			case <-runtimeCtx.Done():
 				return
 			case <-timer.C:
-				_ = bindings.Owner.Post(bindings.Context, "timer.sleep.resolve", func(context.Context, *goja.Runtime) {
+				_ = bindings.Owner.Post(callCtx, "timer.sleep.resolve", func(context.Context, *goja.Runtime) {
 					_ = resolve(goja.Undefined())
 				})
 			}

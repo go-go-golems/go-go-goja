@@ -9,7 +9,7 @@ import (
 
 func TestRenderEscapesTextAndAttributes(t *testing.T) {
 	vm := goja.New()
-	node := vm.ToValue(&Element{Tag: "div", Attrs: map[string]any{"class": "a&b", "hidden": true}, Children: []Node{&Text{Value: "<hello>"}}})
+	node := vm.ToValue(&Element{Tag: "div", Attrs: attrsFromMap(map[string]any{"class": "a&b", "hidden": true}), Children: []Node{&Text{Value: "<hello>"}}})
 	got, err := RenderAny(vm, node)
 	if err != nil {
 		t.Fatal(err)
