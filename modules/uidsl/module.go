@@ -70,7 +70,7 @@ func Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 }
 
 func elementFromCall(vm *goja.Runtime, tag string, call goja.FunctionCall) *Element {
-	var attrs map[string]any
+	var attrs []Attr
 	args := call.Arguments
 	if len(args) > 0 {
 		if decoded, ok := attrsFromValue(vm, args[0]); ok {
@@ -85,7 +85,7 @@ func pageFromCall(vm *goja.Runtime, call goja.FunctionCall) *Document {
 	title := ""
 	args := call.Arguments
 	if len(args) > 0 {
-		if m, ok := attrsFromValue(vm, args[0]); ok {
+		if m, ok := attrsMapFromValue(args[0]); ok {
 			if t, ok := m["title"]; ok {
 				title = fmt.Sprint(t)
 			}
@@ -124,7 +124,15 @@ func nodesFromArgs(args []goja.Value) []Node {
 	return out
 }
 
-func attrsFromValue(_ *goja.Runtime, v goja.Value) (map[string]any, bool) {
+func attrsFromValue(_ *goja.Runtime, v goja.Value) ([]Attr, bool) {
+	m, ok := attrsMapFromValue(v)
+	if !ok {
+		return nil, false
+	}
+	return attrsFromMap(m), true
+}
+
+func attrsMapFromValue(v goja.Value) (map[string]any, bool) {
 	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
 		return nil, false
 	}

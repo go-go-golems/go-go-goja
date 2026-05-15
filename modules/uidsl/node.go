@@ -11,9 +11,15 @@ type Document struct {
 
 func (*Document) isNode() {}
 
+type Attr struct {
+	Key   string
+	Value string
+	Bool  bool
+}
+
 type Element struct {
 	Tag      string
-	Attrs    map[string]any
+	Attrs    []Attr
 	Children []Node
 }
 

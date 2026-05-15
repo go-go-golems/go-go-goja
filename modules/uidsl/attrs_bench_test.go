@@ -56,7 +56,7 @@ func BenchmarkRenderAttrsAttrs9(b *testing.B) {
 		"role":       "listitem",
 		"tabindex":   "0",
 	}
-	el := &Element{Tag: "div", Attrs: attrs, Children: []Node{&Text{Value: "node-1"}}}
+	el := &Element{Tag: "div", Attrs: attrsFromMap(attrs), Children: []Node{&Text{Value: "node-1"}}}
 	vm := goja.New()
 	value := vm.ToValue(el)
 	b.ReportAllocs()
