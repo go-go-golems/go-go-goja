@@ -17,7 +17,7 @@
 - [x] Implement Phase 2: buildspec YAML parsing, defaults, normalization, and validation.
 - [x] Implement Phase 3: provider API and fixture provider package.
 - [x] Implement Phase 4: deterministic go.mod/main.go/embed generation with golden tests.
-- [ ] Implement Phase 5: pure xgoja generated app runtime with REPL/jsverbs command support.
+- [x] Implement Phase 5: pure xgoja generated app runtime with REPL/jsverbs command support.
 - [ ] Implement Phase 6: go mod tidy/go build execution and workdir diagnostics.
 - [ ] Implement Phase 7: doctor, inspect, and list-modules diagnostics.
 - [ ] Implement Phase 8: STDBIN adapter and Cobra attach modes after pure mode works.

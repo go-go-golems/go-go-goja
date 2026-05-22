@@ -55,6 +55,14 @@ RelatedFiles:
       Note: Phase 1 command wiring smoke tests
     - Path: go-go-goja/pkg/hashiplugin/host/registrar.go
       Note: Out-of-process plugin path inspected as an alternative boundary
+    - Path: go-go-goja/pkg/xgoja/app/factory.go
+      Note: Runtime factory that registers selected provider modules into goja require
+    - Path: go-go-goja/pkg/xgoja/app/root.go
+      Note: Generated pure xgoja root command with eval/modules/verbs commands
+    - Path: go-go-goja/pkg/xgoja/app/root_test.go
+      Note: Generated app runtime tests using fixture provider
+    - Path: go-go-goja/pkg/xgoja/app/spec.go
+      Note: Runtime spec shape consumed by generated binaries
     - Path: go-go-goja/pkg/xgoja/providerapi/module.go
       Note: Provider module factory contract
     - Path: go-go-goja/pkg/xgoja/providerapi/registry.go
@@ -63,6 +71,8 @@ RelatedFiles:
       Note: Provider API validation tests
     - Path: go-go-goja/pkg/xgoja/providerapi/verbs.go
       Note: Provider verb source contract
+    - Path: go-go-goja/pkg/xgoja/testprovider/provider.go
+      Note: Public fixture provider used by generated program integration test
     - Path: go-go-goja/ttmp/2026/05/22/XGOJA-001--create-xgoja-compile-time-goja-module-composition-builder/design-doc/01-xgoja-analysis-design-and-implementation-guide.md
       Note: Primary deliverable produced in Step 1
 ExternalSources:
@@ -72,6 +82,7 @@ LastUpdated: 2026-05-22T19:06:53-04:00
 WhatFor: Use this diary to resume the xgoja design/implementation work without redoing the initial investigation.
 WhenToUse: Read before implementing xgoja, changing the design guide, or continuing ticket XGOJA-001.
 ---
+
 
 
 
@@ -843,4 +854,114 @@ Current dry-run workspace command shape:
 
 ```bash
 xgoja build -f xgoja.yaml --work-dir /tmp/xgoja-work --dry-run
+```
+
+## Step 8: Add the minimal generated app runtime
+
+This step made generated xgoja programs do real runtime work. I added a small public `pkg/xgoja/app` package that decodes the embedded spec, builds a runtime factory from registered providers, registers selected provider modules into a goja `require` registry, and exposes a generated root command with `eval`, `modules`, and a minimal configured verb-source listing command.
+
+The generated app runtime is intentionally minimal. It does not yet reuse the full `engine.Factory` because importing `engine` currently triggers the repository's pre-existing `goja_nodejs`/`goja` dependency mismatch. Instead, this phase uses `goja.New()` plus `goja_nodejs/require.Registry` directly, which is sufficient to prove compile-time provider composition and `require("module")` execution in generated binaries.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue from deterministic generation into a first generated pure xgoja runtime that can register provider modules and run JavaScript against them.
+
+**Inferred user intent:** Make the generated output more than source text by proving a generated program can import a provider, register modules, and execute JavaScript.
+
+**Commit (code):** `cbfa2b8df1c93c9275083a08caa84554ad9ce29e` — "Add xgoja generated app runtime"
+
+### What I did
+
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/spec.go` with the JSON spec shape consumed by generated binaries.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/factory.go` with `RuntimeFactory` and `NewRuntime`.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root.go` with generated app commands:
+  - `eval [source]` evaluates JavaScript in a selected runtime profile.
+  - `modules` lists registered provider modules.
+  - configured `verbs` command lists configured JS verb sources when enabled.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root_test.go` testing eval/modules/verbs behavior with a fixture provider.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/testprovider/provider.go` as a public fixture provider importable by generated programs.
+- Updated generated `main.go` rendering to call `app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})` instead of only printing provider count.
+- Added a generator integration test that writes a generated module to a temp directory, runs `go mod tidy`, then runs:
+
+```bash
+go run . eval 'require("hello").greet("intern")'
+```
+
+### Why
+
+- The generated code needs a public runtime package because it cannot import `cmd/xgoja/internal/...` from outside the go-go-goja module tree.
+- A generated binary should prove the central xgoja claim: selected Go provider packages are imported at build time, registered at startup, and available to JavaScript through `require(...)`.
+- A public fixture provider makes generated-program tests possible without depending on external repos.
+
+### What worked
+
+- The generated app tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.003s
+?   	github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider	[no test files]
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.002s
+```
+
+- The generated-program integration test passed after `go mod tidy` and `go run . eval ...` in a temporary generated module.
+- `require("hello").greet("intern")` returned `hello intern`, proving provider module registration works end to end.
+
+### What didn't work
+
+- My first implementation used `engine.Factory` inside `pkg/xgoja/app`, but that failed to compile because importing `engine` pulled in `goja_nodejs/buffer`, which pulled in `goja_nodejs/goutil`, which currently expects missing symbols in the resolved goja package:
+
+```text
+# github.com/dop251/goja_nodejs/goutil
+../../../../go/pkg/mod/github.com/dop251/goja_nodejs@v0.0.0-20260212111938-1f56ff5bcf14/goutil/argtypes.go:14:10: undefined: goja.IsNumber
+../../../../go/pkg/mod/github.com/dop251/goja_nodejs@v0.0.0-20260212111938-1f56ff5bcf14/goutil/argtypes.go:81:11: undefined: goja.IsBigInt
+../../../../go/pkg/mod/github.com/dop251/goja_nodejs@v0.0.0-20260212111938-1f56ff5bcf14/goutil/argtypes.go:94:10: undefined: goja.IsString
+```
+
+- I corrected course by avoiding `engine` for this minimal generated app runtime and using `goja.New()` plus `require.NewRegistry()` directly.
+
+### What I learned
+
+- Generated app code needs to depend only on public packages. This exposed an important boundary: anything generated binaries need cannot live under `cmd/xgoja/internal`.
+- The pre-existing dependency mismatch is not only a pre-commit issue; it also constrains which existing runtime packages xgoja can import safely right now.
+- A minimal direct goja runtime is enough to validate provider composition before reintegrating with the richer `engine` runtime lifecycle.
+
+### What was tricky to build
+
+- The name `Runtime` was initially used both for the app spec runtime profile and the live runtime wrapper, causing a Go redeclaration error. I renamed the live runtime wrapper to `JSRuntime`.
+- Testing generated code requires a provider package outside `internal`; otherwise generated temp modules cannot import the fixture provider due to Go internal visibility rules.
+
+### What warrants a second pair of eyes
+
+- Review whether the direct goja runtime should remain for generated binaries or be replaced with `engine.Factory` after the goja/goja_nodejs dependency mismatch is fixed.
+- Review the minimal `verbs` command. It currently lists configured sources rather than mounting and executing jsverbs commands.
+- Review whether `eval` should be renamed `repl` or whether a true interactive REPL should be added as a separate command.
+
+### What should be done in the future
+
+- Implement full jsverbs mounting against the generated runtime factory.
+- Add a true REPL command or wire to the existing REPL stack once dependency constraints are resolved.
+- Fix the repository-wide goja/goja_nodejs mismatch so generated app runtime can reuse `engine.Factory` safely.
+
+### Code review instructions
+
+- Start in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/factory.go` to review module registration semantics.
+- Then review generated main changes in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/main.go`.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja
+go test ./pkg/xgoja/app ./pkg/xgoja/testprovider ./cmd/xgoja/internal/generate -count=1
+```
+
+### Technical details
+
+Generated program smoke path in the generator test:
+
+```text
+WriteAll(tempdir, spec, Options{XGojaReplace: repoRoot})
+cd tempdir
+go mod tidy
+go run . eval 'require("hello").greet("intern")'
 ```
