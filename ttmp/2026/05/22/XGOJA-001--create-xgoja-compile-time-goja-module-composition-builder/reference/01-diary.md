@@ -21,12 +21,15 @@ RelatedFiles:
       Note: |-
         Glazed build command skeleton
         Build command now writes generated workspace when --work-dir is provided
+        Build command now generates workspace and invokes go mod tidy/go build
     - Path: go-go-goja/cmd/xgoja/cmd_doctor.go
       Note: Glazed doctor command skeleton
     - Path: go-go-goja/cmd/xgoja/cmd_inspect.go
       Note: Buildinfo inspect command
     - Path: go-go-goja/cmd/xgoja/cmd_list_modules.go
       Note: Glazed list-modules command skeleton
+    - Path: go-go-goja/cmd/xgoja/internal/buildexec/buildexec.go
+      Note: Go command execution helpers for go mod tidy and go build
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/load.go
       Note: Spec loading
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/load_test.go
@@ -52,7 +55,9 @@ RelatedFiles:
     - Path: go-go-goja/cmd/xgoja/root.go
       Note: Glazed/Cobra root wiring for xgoja
     - Path: go-go-goja/cmd/xgoja/root_test.go
-      Note: Phase 1 command wiring smoke tests
+      Note: |-
+        Phase 1 command wiring smoke tests
+        Build command integration test verifies output binary creation
     - Path: go-go-goja/pkg/hashiplugin/host/registrar.go
       Note: Out-of-process plugin path inspected as an alternative boundary
     - Path: go-go-goja/pkg/xgoja/app/factory.go
@@ -82,6 +87,7 @@ LastUpdated: 2026-05-22T19:06:53-04:00
 WhatFor: Use this diary to resume the xgoja design/implementation work without redoing the initial investigation.
 WhenToUse: Read before implementing xgoja, changing the design guide, or continuing ticket XGOJA-001.
 ---
+
 
 
 
@@ -964,4 +970,104 @@ WriteAll(tempdir, spec, Options{XGojaReplace: repoRoot})
 cd tempdir
 go mod tidy
 go run . eval 'require("hello").greet("intern")'
+```
+
+## Step 9: Implement go command build execution
+
+This step completed the first end-to-end `xgoja build` path. The command now validates the spec, writes a generated workspace, runs `go mod tidy`, runs `go build`, creates the output directory, and reports the output binary path.
+
+The build command uses a local replace for the current `go-go-goja` repository when generating the temporary module. That makes the in-repo development flow work immediately: generated binaries can import `pkg/xgoja/app`, `pkg/xgoja/providerapi`, and local fixture providers without requiring a published module version.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue from generated runtime support into build execution so xgoja can compile the generated program.
+
+**Inferred user intent:** Make `xgoja build` produce an actual binary for at least the pure generated app path.
+
+**Commit (code):** `c3195eeb84f5d4ff634dc0cf293ad28313f8b9aa` — "Build generated xgoja binaries"
+
+### What I did
+
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildexec/buildexec.go` with:
+  - `GoModTidy(ctx, dir)`.
+  - `GoBuild(ctx, dir, output, tags, ldflags)`.
+  - command/result capture and error wrapping with combined output.
+- Updated `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/cmd_build.go` so `build` now:
+  - validates the spec,
+  - creates a temp workspace if `--work-dir` is omitted,
+  - writes generated files,
+  - preserves the workspace when `--keep-work` is set,
+  - passes a local replace for the current repository into generation,
+  - runs `go mod tidy`,
+  - resolves the output path to an absolute path,
+  - creates the output directory,
+  - runs `go build -o <output> .`.
+- Updated `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/root_test.go` with an integration test that builds a binary from a spec importing `pkg/xgoja/testprovider`.
+
+### Why
+
+- The generated files need to be exercised through the real Go toolchain. Otherwise the generator can drift into producing source that looks correct but does not compile.
+- The local replace is required during in-repo development because there is not yet a published `go-go-goja` version containing the new `pkg/xgoja` packages.
+
+### What worked
+
+- Focused tests passed, including the build integration test:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	0.457s
+?   	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildexec	[no test files]
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.003s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.333s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi	0.003s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.003s
+?   	github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider	[no test files]
+?   	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/testprovider	[no test files]
+```
+
+- The build test verified that the output binary path exists after `xgoja build` completes.
+
+### What didn't work
+
+- N/A during this step. The build integration passed after output paths were resolved to absolute paths before invoking `go build` from the generated workspace.
+
+### What I learned
+
+- `go build -o` runs relative to the generated workspace, so user-provided relative output paths must be resolved before executing inside that workspace.
+- The build command needs to distinguish generated workspace location from final artifact location. Those paths are often intentionally different.
+
+### What was tricky to build
+
+- Finding the repository root for the local replace has to work when tests execute from package directories and users execute from arbitrary subdirectories. The current implementation walks upward from `os.Getwd()` until it finds `go.mod`.
+- Cleanup rules are important: generated temp workspaces are removed by default, but `--keep-work` preserves them for debugging.
+
+### What warrants a second pair of eyes
+
+- Review whether the default local replace should always be emitted or should be controlled by a flag once xgoja is released.
+- Review command output expectations for `build`; it currently writes human-readable status rather than structured Glazed rows.
+
+### What should be done in the future
+
+- Add richer diagnostics around failed `go mod tidy` and `go build` commands.
+- Add a `--verbose` flag to print command output on success.
+- Add support for copying or embedding JS verb source directories during generation.
+
+### Code review instructions
+
+- Start in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/cmd_build.go`.
+- Then review `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildexec/buildexec.go`.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja
+go test ./cmd/xgoja ./cmd/xgoja/internal/buildexec ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/providerapi ./pkg/xgoja/app ./pkg/xgoja/testprovider ./cmd/xgoja/internal/testprovider -count=1
+```
+
+### Technical details
+
+Build command flow:
+
+```text
+LoadFile -> WriteAll -> go mod tidy -> mkdir -p output dir -> go build -o output .
 ```
