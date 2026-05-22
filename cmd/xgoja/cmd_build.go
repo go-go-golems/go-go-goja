@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 )
 
 type buildCommand struct {
@@ -69,6 +70,21 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	_, err := fmt.Fprintf(c.out, "xgoja build is wired; generation is not implemented yet (file=%s, output=%s, dry-run=%t)\n", settings.File, settings.Output, settings.DryRun)
-	return err
+	spec, report, err := buildspec.LoadFile(settings.File)
+	if report != nil {
+		_, _ = fmt.Fprintf(c.out, "validated %d check(s) for %s\n", len(report.Checks), settings.File)
+	}
+	if err != nil {
+		return err
+	}
+	output := settings.Output
+	if output == "" {
+		output = spec.Target.Output
+	}
+	if settings.DryRun {
+		_, err = fmt.Fprintf(c.out, "xgoja dry run ok: name=%s target=%s output=%s runtimes=%d packages=%d\n", spec.Name, spec.Target.Kind, output, len(spec.Runtimes), len(spec.Packages))
+		return err
+	}
+	_, _ = fmt.Fprintf(c.out, "xgoja build spec is valid: name=%s target=%s output=%s\n", spec.Name, spec.Target.Kind, output)
+	return fmt.Errorf("code generation and go build execution are not implemented yet")
 }

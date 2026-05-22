@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
@@ -9,6 +10,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 )
 
 type listModulesCommand struct {
@@ -54,10 +56,30 @@ func (c *listModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *va
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	return gp.AddRow(ctx, types.NewRow(
-		types.MRP("file", settings.File),
-		types.MRP("profile", settings.Profile),
-		types.MRP("status", "pending"),
-		types.MRP("message", "module listing is wired; spec parsing is pending"),
-	))
+	spec, _, err := buildspec.LoadFile(settings.File)
+	if err != nil {
+		return err
+	}
+	profiles := spec.Runtimes
+	if settings.Profile != "" {
+		runtime, ok := spec.Runtimes[settings.Profile]
+		if !ok {
+			return fmt.Errorf("unknown runtime profile %q", settings.Profile)
+		}
+		profiles = map[string]buildspec.Runtime{settings.Profile: runtime}
+	}
+	for profile, runtime := range profiles {
+		for _, mod := range runtime.Modules {
+			if addErr := gp.AddRow(ctx, types.NewRow(
+				types.MRP("file", settings.File),
+				types.MRP("profile", profile),
+				types.MRP("package", mod.Package),
+				types.MRP("module", mod.Name),
+				types.MRP("alias", mod.Alias()),
+			)); addErr != nil {
+				return addErr
+			}
+		}
+	}
+	return nil
 }

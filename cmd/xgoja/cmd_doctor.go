@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 )
 
 type doctorCommand struct {
@@ -51,10 +52,20 @@ func (c *doctorCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	return gp.AddRow(ctx, types.NewRow(
-		types.MRP("check", "command-wiring"),
-		types.MRP("status", "ok"),
-		types.MRP("file", settings.File),
-		types.MRP("message", "doctor command is wired; spec validation is pending"),
-	))
+	_, report, err := buildspec.LoadFile(settings.File)
+	if report == nil {
+		return err
+	}
+	for _, check := range report.Checks {
+		if addErr := gp.AddRow(ctx, types.NewRow(
+			types.MRP("check", check.Name),
+			types.MRP("status", string(check.Status)),
+			types.MRP("path", check.Path),
+			types.MRP("file", settings.File),
+			types.MRP("message", check.Message),
+		)); addErr != nil {
+			return addErr
+		}
+	}
+	return err
 }

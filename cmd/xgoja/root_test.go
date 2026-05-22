@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -31,13 +32,14 @@ func TestBuildCommandWired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new root command: %v", err)
 	}
-	root.SetArgs([]string{"build", "-f", "fixture.yaml", "--output", "./dist/fixture", "--dry-run"})
+	specPath := writeValidSpec(t)
+	root.SetArgs([]string{"build", "-f", specPath, "--output", "./dist/fixture", "--dry-run"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute build: %v", err)
 	}
 	rendered := out.String()
-	if !strings.Contains(rendered, "fixture.yaml") || !strings.Contains(rendered, "./dist/fixture") {
-		t.Fatalf("expected build output to mention decoded settings, got %q", rendered)
+	if !strings.Contains(rendered, "xgoja dry run ok") || !strings.Contains(rendered, "./dist/fixture") {
+		t.Fatalf("expected build output to mention dry-run plan, got %q", rendered)
 	}
 }
 
@@ -47,7 +49,8 @@ func TestDoctorCommandWired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new root command: %v", err)
 	}
-	root.SetArgs([]string{"doctor", "-f", "fixture.yaml", "--output", "json"})
+	specPath := writeValidSpec(t)
+	root.SetArgs([]string{"doctor", "-f", specPath, "--output", "json"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute doctor: %v", err)
 	}
@@ -71,8 +74,41 @@ func TestListModulesCommandWired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new root command: %v", err)
 	}
-	root.SetArgs([]string{"list-modules", "-f", "fixture.yaml", "--profile", "repl", "--output", "json"})
+	specPath := writeValidSpec(t)
+	root.SetArgs([]string{"list-modules", "-f", specPath, "--profile", "repl", "--output", "json"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute list-modules: %v", err)
 	}
+}
+
+func writeValidSpec(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	verbsDir := filepath.Join(dir, "verbs")
+	if err := os.Mkdir(verbsDir, 0o755); err != nil {
+		t.Fatalf("mkdir verbs: %v", err)
+	}
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: fixture
+packages:
+  - id: core
+    import: github.com/go-go-golems/go-go-goja/xgoja
+runtimes:
+  repl:
+    modules:
+      - package: core
+        name: fs
+commands:
+  repl:
+    enabled: true
+    runtime: repl
+jsverbs:
+  - id: local
+    path: ./verbs
+    embed: true
+`), 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+	return specPath
 }
