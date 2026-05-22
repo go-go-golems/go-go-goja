@@ -10,6 +10,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate"
 )
 
 type buildCommand struct {
@@ -81,10 +82,16 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	if output == "" {
 		output = spec.Target.Output
 	}
+	if settings.WorkDir != "" {
+		if err := generate.WriteAll(settings.WorkDir, spec, generate.Options{}); err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(c.out, "generated build workspace: %s\n", settings.WorkDir)
+	}
 	if settings.DryRun {
 		_, err = fmt.Fprintf(c.out, "xgoja dry run ok: name=%s target=%s output=%s runtimes=%d packages=%d\n", spec.Name, spec.Target.Kind, output, len(spec.Runtimes), len(spec.Packages))
 		return err
 	}
 	_, _ = fmt.Fprintf(c.out, "xgoja build spec is valid: name=%s target=%s output=%s\n", spec.Name, spec.Target.Kind, output)
-	return fmt.Errorf("code generation and go build execution are not implemented yet")
+	return fmt.Errorf("go build execution is not implemented yet")
 }

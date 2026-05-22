@@ -14,37 +14,37 @@ type Spec struct {
 }
 
 type GoSpec struct {
-	Version string   `yaml:"version"`
-	Module  string   `yaml:"module"`
-	Tags    []string `yaml:"tags"`
-	LDFlags []string `yaml:"ldflags"`
+	Version string   `yaml:"version" json:"version"`
+	Module  string   `yaml:"module" json:"module"`
+	Tags    []string `yaml:"tags" json:"tags,omitempty"`
+	LDFlags []string `yaml:"ldflags" json:"ldflags,omitempty"`
 }
 
 type TargetSpec struct {
-	Kind    string `yaml:"kind"`
-	Import  string `yaml:"import"`
-	Version string `yaml:"version"`
-	Root    string `yaml:"root"`
-	Output  string `yaml:"output"`
+	Kind    string `yaml:"kind" json:"kind"`
+	Import  string `yaml:"import" json:"import,omitempty"`
+	Version string `yaml:"version" json:"version,omitempty"`
+	Root    string `yaml:"root" json:"root,omitempty"`
+	Output  string `yaml:"output" json:"output"`
 }
 
 type PackageSpec struct {
-	ID       string `yaml:"id"`
-	Import   string `yaml:"import"`
-	Version  string `yaml:"version"`
-	Register string `yaml:"register"`
-	Replace  string `yaml:"replace"`
+	ID       string `yaml:"id" json:"id"`
+	Import   string `yaml:"import" json:"import"`
+	Version  string `yaml:"version" json:"version,omitempty"`
+	Register string `yaml:"register" json:"register"`
+	Replace  string `yaml:"replace" json:"replace,omitempty"`
 }
 
 type Runtime struct {
-	Modules []ModuleInstance `yaml:"modules"`
+	Modules []ModuleInstance `yaml:"modules" json:"modules"`
 }
 
 type ModuleInstance struct {
-	Package string         `yaml:"package"`
-	Name    string         `yaml:"name"`
-	As      string         `yaml:"as"`
-	Config  map[string]any `yaml:"config"`
+	Package string         `yaml:"package" json:"package"`
+	Name    string         `yaml:"name" json:"name"`
+	As      string         `yaml:"as" json:"as,omitempty"`
+	Config  map[string]any `yaml:"config" json:"config,omitempty"`
 }
 
 func (m ModuleInstance) Alias() string {
@@ -59,21 +59,21 @@ func (m ModuleInstance) Ref() string {
 }
 
 type CommandsSpec struct {
-	Repl    CommandSpec `yaml:"repl"`
-	JSVerbs CommandSpec `yaml:"jsverbs"`
+	Repl    CommandSpec `yaml:"repl" json:"repl"`
+	JSVerbs CommandSpec `yaml:"jsverbs" json:"jsverbs"`
 }
 
 type CommandSpec struct {
-	Enabled bool   `yaml:"enabled"`
-	Runtime string `yaml:"runtime"`
-	Name    string `yaml:"name"`
-	Mount   string `yaml:"mount"`
+	Enabled bool   `yaml:"enabled" json:"enabled"`
+	Runtime string `yaml:"runtime" json:"runtime,omitempty"`
+	Name    string `yaml:"name" json:"name,omitempty"`
+	Mount   string `yaml:"mount" json:"mount,omitempty"`
 }
 
 type JSVerbSourceSpec struct {
-	ID      string `yaml:"id"`
-	Path    string `yaml:"path"`
-	Embed   bool   `yaml:"embed"`
-	Package string `yaml:"package"`
-	Source  string `yaml:"source"`
+	ID      string `yaml:"id" json:"id"`
+	Path    string `yaml:"path" json:"path,omitempty"`
+	Embed   bool   `yaml:"embed" json:"embed"`
+	Package string `yaml:"package" json:"package,omitempty"`
+	Source  string `yaml:"source" json:"source,omitempty"`
 }

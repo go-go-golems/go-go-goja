@@ -33,13 +33,19 @@ func TestBuildCommandWired(t *testing.T) {
 		t.Fatalf("new root command: %v", err)
 	}
 	specPath := writeValidSpec(t)
-	root.SetArgs([]string{"build", "-f", specPath, "--output", "./dist/fixture", "--dry-run"})
+	workDir := filepath.Join(t.TempDir(), "work")
+	root.SetArgs([]string{"build", "-f", specPath, "--output", "./dist/fixture", "--work-dir", workDir, "--dry-run"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute build: %v", err)
 	}
 	rendered := out.String()
-	if !strings.Contains(rendered, "xgoja dry run ok") || !strings.Contains(rendered, "./dist/fixture") {
+	if !strings.Contains(rendered, "xgoja dry run ok") || !strings.Contains(rendered, "./dist/fixture") || !strings.Contains(rendered, "generated build workspace") {
 		t.Fatalf("expected build output to mention dry-run plan, got %q", rendered)
+	}
+	for _, name := range []string{"go.mod", "main.go", "xgoja.gen.json"} {
+		if _, err := os.Stat(filepath.Join(workDir, name)); err != nil {
+			t.Fatalf("expected generated %s: %v", name, err)
+		}
 	}
 }
 
