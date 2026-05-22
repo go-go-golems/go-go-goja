@@ -1,0 +1,32 @@
+# Changelog
+
+## 2026-05-22
+
+- Initial workspace created.
+- Created the xgoja analysis/design/implementation guide for a new intern.
+- Recorded the initial investigation and design-writing step in the diary.
+- Added implementation tasks for the recommended xgoja build phases.
+- Related key source files and the source article to the design and diary docs.
+- Added `xgoja` to the docmgr topic vocabulary after doctor reported it as unknown.
+- Validated the ticket with `docmgr doctor --ticket XGOJA-001 --stale-after 30`.
+- Uploaded the documentation bundle to reMarkable at `/ai/2026/05/22/XGOJA-001`.
+
+## 2026-05-22
+
+Created intern-facing xgoja design and implementation guide, diary, and phased task list
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/ttmp/2026/05/22/XGOJA-001--create-xgoja-compile-time-goja-module-composition-builder/design-doc/01-xgoja-analysis-design-and-implementation-guide.md — Primary xgoja design guide
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/ttmp/2026/05/22/XGOJA-001--create-xgoja-compile-time-goja-module-composition-builder/reference/01-diary.md — Chronological investigation diary
+
+
+## 2026-05-22
+
+Scope decision: build xgoja inside go-go-goja at cmd/xgoja using Glazed
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja — Planned command location for implementation
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/ttmp/2026/05/22/XGOJA-001--create-xgoja-compile-time-goja-module-composition-builder/reference/01-diary.md — Diary will track implementation steps
+

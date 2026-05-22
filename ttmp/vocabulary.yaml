@@ -95,6 +95,8 @@ topics:
       description: Server-rendered UI DSL modules and components
     - slug: web-ui
       description: Web user interface and HTTP UI concerns
+    - slug: xgoja
+      description: Compile-time goja module composition builder and generated binary tooling
 docTypes:
     - slug: index
       description: Ticket index documents
