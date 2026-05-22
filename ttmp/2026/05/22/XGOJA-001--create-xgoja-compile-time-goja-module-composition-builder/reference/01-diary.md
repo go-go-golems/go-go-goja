@@ -1071,3 +1071,70 @@ Build command flow:
 ```text
 LoadFile -> WriteAll -> go mod tidy -> mkdir -p output dir -> go build -o output .
 ```
+
+## Step 10: Close the first diagnostics phase
+
+This step records that the initial diagnostics phase is complete. The diagnostic commands were implemented incrementally during earlier phases: `doctor` emits structured buildspec validation checks, `inspect` reads Go build metadata from installed binaries, and `list-modules` reports modules selected by runtime profile.
+
+There was no new code in this step. The work here was bookkeeping: marking the diagnostics task complete now that the three command surfaces exist and are covered by focused command smoke tests.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue the implementation sequence and keep task state accurate as implemented phases become complete.
+
+**Inferred user intent:** Preserve a clear work ledger so the next continuation starts at the remaining adapter/Cobra target work rather than rechecking completed diagnostics.
+
+### What I did
+
+- Marked task 15 complete.
+- Updated the changelog to note that the initial `doctor`, `inspect`, and `list-modules` diagnostics are implemented.
+
+### Why
+
+- The task list should reflect the actual implementation state. `doctor`, `inspect`, and `list-modules` now exist and are exercised by targeted tests.
+
+### What worked
+
+- `docmgr task check --ticket XGOJA-001 --id 15` marked the diagnostics task complete.
+- `docmgr changelog update` recorded the diagnostic command completion.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The diagnostics implementation was spread across earlier phases rather than landing as a single code commit. Recording this step prevents the task list from lagging behind the code state.
+
+### What was tricky to build
+
+- The boundary between Phase 2 validation and Phase 7 diagnostics is blurry: once `doctor` was wired to buildspec validation, most of Phase 7's first version was already complete.
+
+### What warrants a second pair of eyes
+
+- Review whether `doctor` should return partial rows before returning a non-zero error for invalid specs in every output mode.
+- Review whether `inspect` should expose more `debug/buildinfo` settings such as VCS revision, dirty state, and dependency rows.
+
+### What should be done in the future
+
+- Add richer provider-aware diagnostics after provider inspection is implemented.
+- Add JSON-stable tests for diagnostic row content if the Glazed output capture path is improved.
+
+### Code review instructions
+
+- Review diagnostic commands in:
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/cmd_doctor.go`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/cmd_inspect.go`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/cmd_list_modules.go`
+
+### Technical details
+
+Current diagnostic command surface:
+
+```bash
+xgoja doctor -f xgoja.yaml --output json
+xgoja inspect ./dist/my-binary --output json
+xgoja list-modules -f xgoja.yaml --profile repl --output table
+```
