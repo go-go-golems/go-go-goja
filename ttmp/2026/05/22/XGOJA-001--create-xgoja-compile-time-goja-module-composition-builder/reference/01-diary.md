@@ -25,6 +25,16 @@ RelatedFiles:
       Note: Buildinfo inspect command
     - Path: go-go-goja/cmd/xgoja/cmd_list_modules.go
       Note: Glazed list-modules command skeleton
+    - Path: go-go-goja/cmd/xgoja/internal/buildspec/load.go
+      Note: Spec loading
+    - Path: go-go-goja/cmd/xgoja/internal/buildspec/load_test.go
+      Note: Buildspec validation tests
+    - Path: go-go-goja/cmd/xgoja/internal/buildspec/report.go
+      Note: Validation report and error model
+    - Path: go-go-goja/cmd/xgoja/internal/buildspec/spec.go
+      Note: Typed xgoja YAML schema structs
+    - Path: go-go-goja/cmd/xgoja/internal/buildspec/validate.go
+      Note: Phase 2 static validation rules
     - Path: go-go-goja/cmd/xgoja/main.go
       Note: xgoja CLI entrypoint added in Phase 1
     - Path: go-go-goja/cmd/xgoja/root.go
@@ -42,6 +52,7 @@ LastUpdated: 2026-05-22T19:06:53-04:00
 WhatFor: Use this diary to resume the xgoja design/implementation work without redoing the initial investigation.
 WhenToUse: Read before implementing xgoja, changing the design guide, or continuing ticket XGOJA-001.
 ---
+
 
 
 
@@ -466,4 +477,129 @@ Successful validation output:
 
 ```text
 ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	0.034s
+```
+
+## Step 5: Implement buildspec parsing and validation
+
+This step made `xgoja.yaml` real enough for the CLI to reason about. I added command-local buildspec types, YAML loading, defaults, static validation, a report model, and tests for valid specs plus common validation failures.
+
+The CLI now uses that parser. `xgoja doctor` emits structured validation rows, `xgoja list-modules` lists modules selected by runtime profiles, and `xgoja build --dry-run` validates the spec and prints the planned target. Actual generated Go code and `go build` execution remain intentionally deferred to the generation/build phases.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue task-by-task implementation after the Phase 1 skeleton by adding the next planned layer: YAML schema parsing and validation.
+
+**Inferred user intent:** Make the new xgoja CLI useful for validating specs before implementing provider APIs and code generation.
+
+**Commit (code):** `8df99c88d8e9ac01fdc721149fbdcae15cb98abb` — "Add xgoja buildspec validation"
+
+### What I did
+
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildspec/spec.go` with typed structs for:
+  - `Spec`, `GoSpec`, `TargetSpec`, `PackageSpec`, `Runtime`, `ModuleInstance`, `CommandsSpec`, and `JSVerbSourceSpec`.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildspec/load.go` for:
+  - YAML file loading.
+  - Absolute/base directory tracking.
+  - Defaults for name, Go version/module, target kind/output, package register function, and command names.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildspec/validate.go` for static checks:
+  - Supported target kinds.
+  - Required target output/import/root fields.
+  - Required and unique package IDs.
+  - Required package imports.
+  - Existing local `replace` paths.
+  - Required runtime profiles and modules.
+  - Unknown package references from runtime modules.
+  - Duplicate module aliases per runtime.
+  - Enabled command runtime references.
+  - JS verb source ID uniqueness and embedded path existence.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildspec/report.go` for structured validation checks and `ValidationError`.
+- Updated `build`, `doctor`, and `list-modules` commands to use `buildspec.LoadFile`.
+- Added buildspec unit tests and updated command smoke tests to create temporary valid specs.
+- Ran:
+  - `gofmt -w go-go-goja/cmd/xgoja`
+  - `cd go-go-goja && go test ./cmd/xgoja ./cmd/xgoja/internal/buildspec -count=1`
+  - `cd go-go-goja && go run ./cmd/xgoja doctor -f <temp>/xgoja.yaml --output json`
+
+### Why
+
+- The buildspec schema is the user-facing contract. Parsing and validation need to exist before provider API inspection or code generation can be meaningful.
+- Putting the package under `cmd/xgoja/internal/buildspec` keeps the API command-local while the design stabilizes.
+- Structured reports let `doctor` produce machine-readable output through Glazed.
+
+### What worked
+
+- Package tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	0.035s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.002s
+```
+
+- Manual `doctor` smoke produced JSON rows for name, target, package import, runtime, command runtime, and JS verb path checks.
+- `build --dry-run` now validates a real spec instead of only reporting command wiring.
+
+### What didn't work
+
+- N/A during this step. The package-level tests passed on the first run after the command tests were updated to create real temporary specs.
+
+### What I learned
+
+- Keeping validation as a `Report` plus optional `ValidationError` lets command code emit partial diagnostics while still returning failure for invalid specs.
+- For v1, provider-module existence cannot be proven statically because the provider API is not implemented yet. The current validation checks package references and aliases, not whether a provider actually advertises `web.fetch`.
+
+### What was tricky to build
+
+- The validator has to distinguish embedded JS verb source paths from runtime filesystem sources. Embedded paths must exist at build time because generation will copy/embed them; non-embedded paths may be runtime-only and are currently reported as OK without an existence check.
+- Defaults need to be useful without hiding important decisions. The loader defaults `target.kind` to `xgoja` and `target.output` to `dist/<name>`, but still requires at least one provider package and one runtime profile.
+
+### What warrants a second pair of eyes
+
+- Review whether package IDs should be allowed to default from import path basename or whether explicit IDs should remain required.
+- Review whether non-embedded JS verb paths should be warnings when missing instead of unconditional OK/runtime-only.
+- Review the default generated module path `example.com/generated/<name>` before generation starts.
+
+### What should be done in the future
+
+- Add provider API registration so validation can verify that selected modules actually exist in provider packages.
+- Add golden fixtures under `testdata` once generation starts.
+- Decide whether validation should include Go import path syntax checks beyond non-empty strings.
+
+### Code review instructions
+
+- Start in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildspec/validate.go` to review validation semantics.
+- Then check command integration in:
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/cmd_build.go`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/cmd_doctor.go`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/cmd_list_modules.go`
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja
+go test ./cmd/xgoja ./cmd/xgoja/internal/buildspec -count=1
+```
+
+### Technical details
+
+Example minimal valid spec used for smoke testing:
+
+```yaml
+name: demo
+packages:
+  - id: core
+    import: github.com/go-go-golems/go-go-goja/xgoja
+runtimes:
+  repl:
+    modules:
+      - package: core
+        name: fs
+commands:
+  repl:
+    enabled: true
+    runtime: repl
+jsverbs:
+  - id: local
+    path: ./verbs
+    embed: true
 ```

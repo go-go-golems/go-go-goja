@@ -39,3 +39,13 @@ Implemented Phase 1 xgoja Glazed CLI skeleton under cmd/xgoja
 
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja — New xgoja command package
 
+
+## 2026-05-22
+
+Implemented Phase 2 buildspec parsing, defaults, validation, and CLI integration
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja — Commands now load and validate xgoja.yaml
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildspec — Buildspec parser and validator
+

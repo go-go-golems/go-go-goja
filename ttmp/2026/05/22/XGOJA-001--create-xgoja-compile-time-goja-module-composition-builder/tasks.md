@@ -14,7 +14,7 @@
 
 - [x] Decide whether xgoja starts as a new repository or as a package inside go-go-goja.
 - [x] Implement Phase 1: CLI skeleton and command wiring.
-- [ ] Implement Phase 2: buildspec YAML parsing, defaults, normalization, and validation.
+- [x] Implement Phase 2: buildspec YAML parsing, defaults, normalization, and validation.
 - [ ] Implement Phase 3: provider API and fixture provider package.
 - [ ] Implement Phase 4: deterministic go.mod/main.go/embed generation with golden tests.
 - [ ] Implement Phase 5: pure xgoja generated app runtime with REPL/jsverbs command support.
