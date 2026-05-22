@@ -35,6 +35,8 @@ RelatedFiles:
       Note: Typed xgoja YAML schema structs
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/validate.go
       Note: Phase 2 static validation rules
+    - Path: go-go-goja/cmd/xgoja/internal/testprovider/provider.go
+      Note: Fixture provider package for future xgoja integration tests
     - Path: go-go-goja/cmd/xgoja/main.go
       Note: xgoja CLI entrypoint added in Phase 1
     - Path: go-go-goja/cmd/xgoja/root.go
@@ -43,6 +45,14 @@ RelatedFiles:
       Note: Phase 1 command wiring smoke tests
     - Path: go-go-goja/pkg/hashiplugin/host/registrar.go
       Note: Out-of-process plugin path inspected as an alternative boundary
+    - Path: go-go-goja/pkg/xgoja/providerapi/module.go
+      Note: Provider module factory contract
+    - Path: go-go-goja/pkg/xgoja/providerapi/registry.go
+      Note: Provider registry API for packages
+    - Path: go-go-goja/pkg/xgoja/providerapi/registry_test.go
+      Note: Provider API validation tests
+    - Path: go-go-goja/pkg/xgoja/providerapi/verbs.go
+      Note: Provider verb source contract
     - Path: go-go-goja/ttmp/2026/05/22/XGOJA-001--create-xgoja-compile-time-goja-module-composition-builder/design-doc/01-xgoja-analysis-design-and-implementation-guide.md
       Note: Primary deliverable produced in Step 1
 ExternalSources:
@@ -52,6 +62,7 @@ LastUpdated: 2026-05-22T19:06:53-04:00
 WhatFor: Use this diary to resume the xgoja design/implementation work without redoing the initial investigation.
 WhenToUse: Read before implementing xgoja, changing the design guide, or continuing ticket XGOJA-001.
 ---
+
 
 
 
@@ -602,4 +613,106 @@ jsverbs:
   - id: local
     path: ./verbs
     embed: true
+```
+
+## Step 6: Add the provider API and fixture provider
+
+This step added the first source-level API that xgoja provider packages can import. Unlike the buildspec package, the provider API cannot live under `cmd/xgoja/internal`, because real provider packages outside the command tree need to import it. I put it under `pkg/xgoja/providerapi` so generated binaries and provider packages have a stable import path inside the existing `go-go-goja` module.
+
+The API is deliberately small. A provider registers a package ID and entries. Entries can be native modules or JS verb sources. The registry validates duplicate packages, duplicate modules, duplicate verb sources, empty names, and missing module factories.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue the implementation sequence by adding the provider registration contract and a fixture provider package after buildspec validation.
+
+**Inferred user intent:** Establish the compile-time composition contract that generated xgoja programs will call when importing selected provider packages.
+
+**Commit (code):** `d202f5fb8aa386c916aa3125cf5f70386f4b6daf` — "Add xgoja provider API"
+
+### What I did
+
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/providerapi/module.go` with:
+  - `ModuleFactory`.
+  - `ModuleContext`.
+  - `HostServices` placeholder.
+  - `Module` entry type.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/providerapi/verbs.go` with `VerbSource`.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/providerapi/registry.go` with:
+  - `Registry`.
+  - `Package`.
+  - `Entry`.
+  - `Package(...)` registration.
+  - `ResolveModule(...)`, `ResolveVerbSource(...)`, and `Packages()`.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/providerapi/registry_test.go` covering happy path and invalid registration cases.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/testprovider/provider.go` as a fixture provider with a `hello` module and `verbs` source.
+- Ran:
+  - `gofmt -w go-go-goja/pkg/xgoja/providerapi go-go-goja/cmd/xgoja/internal/testprovider`
+  - `cd go-go-goja && go test ./pkg/xgoja/providerapi ./cmd/xgoja/internal/testprovider -count=1`
+
+### Why
+
+- Provider packages outside `cmd/xgoja` must be able to import the registration API, so `pkg/xgoja/providerapi` is the right place for this contract.
+- The generated program will eventually call provider `Register(registry)` functions. This step defines the registry they receive.
+- A fixture provider gives future generator/runtime tests a simple provider that compiles without depending on external repos.
+
+### What worked
+
+- Provider API tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi	0.002s
+?   	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/testprovider	[no test files]
+```
+
+- The registry catches duplicate package IDs, duplicate module names, duplicate verb source names, empty package IDs, empty module names, missing module factories, and empty verb source names.
+
+### What didn't work
+
+- N/A. The first compile/test pass for this step succeeded.
+
+### What I learned
+
+- The provider API must be outside `cmd/xgoja/internal`; otherwise provider packages in sibling or external repositories could not import it because of Go's `internal` package visibility rules.
+- Keeping `HostServices` as an empty interface placeholder avoids prematurely designing the host/adapter API before generated runtime wiring exists.
+
+### What was tricky to build
+
+- The API has to be strict enough to catch bad provider declarations early without over-designing future runtime behavior. I required module factories now because a module without a factory cannot ever become a require loader, but I did not require verb sources to have an `fs.FS` yet because provider-shipped verb sources may be selected later and filesystem sources are represented in the buildspec.
+
+### What warrants a second pair of eyes
+
+- Review whether `HostServices` should remain a placeholder or become a concrete interface before generated runtime construction starts.
+- Review whether `ModuleFactory` should return `require.ModuleLoader` directly or a higher-level xgoja module object.
+- Review whether provider `Package` should include metadata such as provider version or import path.
+
+### What should be done in the future
+
+- Wire generated code to call provider `Register` functions.
+- Add provider-aware validation so `xgoja doctor` can verify selected modules and package-provided verb sources.
+- Add runtime plan construction that turns selected provider modules into `engine.NativeModuleSpec` values.
+
+### Code review instructions
+
+- Start in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/providerapi/registry.go`.
+- Then review the test cases in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/providerapi/registry_test.go`.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja
+go test ./pkg/xgoja/providerapi ./cmd/xgoja/internal/testprovider -count=1
+```
+
+### Technical details
+
+Provider package shape:
+
+```go
+func Register(registry *providerapi.Registry) error {
+    return registry.Package("fixture",
+        providerapi.Module{Name: "hello", DefaultAs: "hello", New: newHelloModule},
+        providerapi.VerbSource{Name: "verbs", Root: "verbs"},
+    )
+}
 ```
