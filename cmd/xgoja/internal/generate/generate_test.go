@@ -2,6 +2,7 @@ package generate
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func TestRenderMainRegistersProviders(t *testing.T) {
 		"core.Register(registry)",
 		"web.Register(registry)",
 		"const embeddedSpecJSON = `",
-		"xgoja generated binary registered %d provider package(s)",
+		"app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
@@ -71,6 +72,43 @@ func TestWriteAll(t *testing.T) {
 		if len(data) == 0 {
 			t.Fatalf("generated %s is empty", name)
 		}
+	}
+}
+
+func TestGeneratedProgramRunsFixtureProvider(t *testing.T) {
+	repoRoot, err := filepath.Abs("../../../..")
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	dir := t.TempDir()
+	spec := &buildspec.Spec{
+		Name:   "fixture",
+		Go:     buildspec.GoSpec{Version: "1.26", Module: "example.com/generated/fixture"},
+		Target: buildspec.TargetSpec{Kind: "xgoja", Output: "dist/fixture"},
+		Packages: []buildspec.PackageSpec{
+			{ID: "fixture", Import: "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider", Register: "Register"},
+		},
+		Runtimes: map[string]buildspec.Runtime{
+			"repl": {Modules: []buildspec.ModuleInstance{{Package: "fixture", Name: "hello", As: "hello"}}},
+		},
+		Commands: buildspec.CommandsSpec{Repl: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "repl"}},
+	}
+	if err := WriteAll(dir, spec, Options{XGojaModuleVersion: "v0.0.0", XGojaReplace: repoRoot}); err != nil {
+		t.Fatalf("write generated program: %v", err)
+	}
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("go mod tidy: %v\n%s", err, out)
+	}
+	cmd = exec.Command("go", "run", ".", "eval", `require("hello").greet("intern")`)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go run generated program: %v\n%s", err, out)
+	}
+	if strings.TrimSpace(string(out)) != "hello intern" {
+		t.Fatalf("generated output = %q", out)
 	}
 }
 

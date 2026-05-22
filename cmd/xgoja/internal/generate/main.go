@@ -17,6 +17,7 @@ func RenderMain(spec *buildspec.Spec) string {
 	b.WriteString("import (\n")
 	b.WriteString("\t\"fmt\"\n")
 	b.WriteString("\t\"os\"\n\n")
+	b.WriteString("\t\"github.com/go-go-golems/go-go-goja/pkg/xgoja/app\"\n")
 	b.WriteString("\t\"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi\"\n")
 	for _, pkg := range spec.Packages {
 		fmt.Fprintf(&b, "\t%s \"%s\"\n", aliases[pkg.ID], pkg.Import)
@@ -30,8 +31,12 @@ func RenderMain(spec *buildspec.Spec) string {
 	for _, pkg := range spec.Packages {
 		fmt.Fprintf(&b, "\tmust(%s.%s(registry))\n", aliases[pkg.ID], pkg.Register)
 	}
-	b.WriteString("\tfmt.Fprintf(os.Stdout, \"xgoja generated binary registered %d provider package(s)\\n\", len(registry.Packages()))\n")
-	b.WriteString("\t_ = embeddedSpecJSON\n")
+	b.WriteString("\troot, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})\n")
+	b.WriteString("\tmust(err)\n")
+	b.WriteString("\tif err := root.Execute(); err != nil {\n")
+	b.WriteString("\t\tfmt.Fprintln(os.Stderr, err)\n")
+	b.WriteString("\t\tos.Exit(1)\n")
+	b.WriteString("\t}\n")
 	b.WriteString("}\n\n")
 	b.WriteString("func must(err error) {\n")
 	b.WriteString("\tif err != nil {\n")
