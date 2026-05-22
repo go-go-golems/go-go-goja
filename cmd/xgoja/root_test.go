@@ -49,6 +49,23 @@ func TestBuildCommandWired(t *testing.T) {
 	}
 }
 
+func TestBuildCommandBuildsBinary(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeBuildableSpec(t)
+	outputPath := filepath.Join(t.TempDir(), "fixture")
+	root.SetArgs([]string{"build", "-f", specPath, "--output", outputPath})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute build: %v", err)
+	}
+	if _, err := os.Stat(outputPath); err != nil {
+		t.Fatalf("expected output binary: %v", err)
+	}
+}
+
 func TestDoctorCommandWired(t *testing.T) {
 	out := &bytes.Buffer{}
 	root, err := newRootCommand(out)
@@ -85,6 +102,31 @@ func TestListModulesCommandWired(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute list-modules: %v", err)
 	}
+}
+
+func writeBuildableSpec(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: fixture
+packages:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+runtimes:
+  repl:
+    modules:
+      - package: fixture
+        name: hello
+        as: hello
+commands:
+  repl:
+    enabled: true
+    runtime: repl
+`), 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+	return specPath
 }
 
 func writeValidSpec(t *testing.T) string {
