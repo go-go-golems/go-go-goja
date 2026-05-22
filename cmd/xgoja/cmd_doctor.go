@@ -1,0 +1,60 @@
+package main
+
+import (
+	"context"
+
+	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/fields"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/types"
+)
+
+type doctorCommand struct {
+	*cmds.CommandDescription
+}
+
+var _ cmds.GlazeCommand = (*doctorCommand)(nil)
+
+type doctorSettings struct {
+	File string `glazed:"file"`
+}
+
+func newDoctorCommand() *doctorCommand {
+	sections, err := commandSections()
+	if err != nil {
+		panic(err)
+	}
+	return &doctorCommand{CommandDescription: cmds.NewCommandDescription("doctor",
+		cmds.WithShort("Validate an xgoja spec and report problems"),
+		cmds.WithLong(`
+Doctor validates the xgoja specification before a full build. Phase 1 emits the
+wired command shape; schema validation is added in the buildspec task.
+
+Examples:
+  xgoja doctor -f xgoja.yaml
+  xgoja doctor -f xgoja.yaml --output json
+`),
+		cmds.WithFlags(
+			fields.New("file", fields.TypeString,
+				fields.WithDefault("xgoja.yaml"),
+				fields.WithShortFlag("f"),
+				fields.WithHelp("Path to the xgoja build specification")),
+		),
+		cmds.WithSections(sections...),
+	)}
+}
+
+func (c *doctorCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.Values, gp middlewares.Processor) error {
+	settings := doctorSettings{}
+	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
+		return err
+	}
+	return gp.AddRow(ctx, types.NewRow(
+		types.MRP("check", "command-wiring"),
+		types.MRP("status", "ok"),
+		types.MRP("file", settings.File),
+		types.MRP("message", "doctor command is wired; spec validation is pending"),
+	))
+}
