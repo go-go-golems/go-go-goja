@@ -16,7 +16,7 @@
 - [x] Implement Phase 1: CLI skeleton and command wiring.
 - [x] Implement Phase 2: buildspec YAML parsing, defaults, normalization, and validation.
 - [x] Implement Phase 3: provider API and fixture provider package.
-- [ ] Implement Phase 4: deterministic go.mod/main.go/embed generation with golden tests.
+- [x] Implement Phase 4: deterministic go.mod/main.go/embed generation with golden tests.
 - [ ] Implement Phase 5: pure xgoja generated app runtime with REPL/jsverbs command support.
 - [ ] Implement Phase 6: go mod tidy/go build execution and workdir diagnostics.
 - [ ] Implement Phase 7: doctor, inspect, and list-modules diagnostics.

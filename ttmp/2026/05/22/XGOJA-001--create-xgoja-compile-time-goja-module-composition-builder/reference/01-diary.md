@@ -18,7 +18,9 @@ RelatedFiles:
     - Path: go-go-goja/cmd/xgoja
       Note: Implementation target selected by user prompt
     - Path: go-go-goja/cmd/xgoja/cmd_build.go
-      Note: Glazed build command skeleton
+      Note: |-
+        Glazed build command skeleton
+        Build command now writes generated workspace when --work-dir is provided
     - Path: go-go-goja/cmd/xgoja/cmd_doctor.go
       Note: Glazed doctor command skeleton
     - Path: go-go-goja/cmd/xgoja/cmd_inspect.go
@@ -35,6 +37,14 @@ RelatedFiles:
       Note: Typed xgoja YAML schema structs
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/validate.go
       Note: Phase 2 static validation rules
+    - Path: go-go-goja/cmd/xgoja/internal/generate/generate.go
+      Note: Generated workspace writer for go.mod/main.go/spec files
+    - Path: go-go-goja/cmd/xgoja/internal/generate/generate_test.go
+      Note: Generation tests covering go.mod/main.go/spec/workspace output
+    - Path: go-go-goja/cmd/xgoja/internal/generate/gomod.go
+      Note: Deterministic generated go.mod renderer
+    - Path: go-go-goja/cmd/xgoja/internal/generate/main.go
+      Note: Deterministic generated main.go and embedded spec renderers
     - Path: go-go-goja/cmd/xgoja/internal/testprovider/provider.go
       Note: Fixture provider package for future xgoja integration tests
     - Path: go-go-goja/cmd/xgoja/main.go
@@ -62,6 +72,7 @@ LastUpdated: 2026-05-22T19:06:53-04:00
 WhatFor: Use this diary to resume the xgoja design/implementation work without redoing the initial investigation.
 WhenToUse: Read before implementing xgoja, changing the design guide, or continuing ticket XGOJA-001.
 ---
+
 
 
 
@@ -715,4 +726,121 @@ func Register(registry *providerapi.Registry) error {
         providerapi.VerbSource{Name: "verbs", Root: "verbs"},
     )
 }
+```
+
+## Step 7: Implement deterministic generated workspace files
+
+This step added the Phase 4 generator. `xgoja` can now render a generated `go.mod`, generated `main.go`, and normalized embedded spec JSON from the parsed buildspec. The build command also has a small integration point: `xgoja build --dry-run --work-dir <dir>` validates the spec and writes those generated files without attempting `go build` yet.
+
+The generated `main.go` is still a bootstrap placeholder. It imports selected provider packages, creates a provider registry, calls each provider's configured register function, and prints how many provider packages registered. The full runtime app is intentionally deferred to Phase 5, where provider modules will be turned into actual runtime profiles and commands.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue the implementation sequence with Phase 4 generation after provider API work.
+
+**Inferred user intent:** Make the builder produce deterministic source files that can later be compiled by the build-execution phase.
+
+**Commit (code):** `c6c006e492cc2d8629b1e1fc2eb405086dc6a015` — "Add xgoja source generation"
+
+### What I did
+
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/generate.go` with `WriteAll` for generated workspace files.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/gomod.go` with deterministic `go.mod` rendering.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/main.go` with:
+  - generated `main.go` rendering,
+  - embedded spec JSON rendering,
+  - provider import alias generation,
+  - raw string escaping.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/generate_test.go` covering `go.mod`, `main.go`, embedded spec, and workspace writing.
+- Added JSON tags to buildspec structs so embedded spec output uses stable lower-case field names rather than Go struct field names.
+- Updated `xgoja build` so `--work-dir` writes generated `go.mod`, `main.go`, and `xgoja.gen.json`; `--dry-run` then exits without compiling.
+- Updated command tests to assert the generated files exist when `--work-dir` is passed.
+
+### Why
+
+- Generation must be deterministic before it can be safely coupled to `go mod tidy` and `go build`.
+- Keeping generation in its own internal package makes it easier to golden-test without executing the Go toolchain.
+- The generated bootstrap should be readable and disposable, matching the design guide's xgoja mental model.
+
+### What worked
+
+- Focused tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	0.038s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.002s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.002s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi	0.002s
+?   	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/testprovider	[no test files]
+```
+
+- The first generator test failure caught that embedded JSON was using Go struct field names (`Kind`, `Import`, etc.) because the buildspec structs only had YAML tags. Adding JSON tags fixed the output shape.
+
+### What didn't work
+
+- Initial embedded spec test failed with output like:
+
+```json
+{
+  "target": {
+    "Kind": "xgoja",
+    "Import": "",
+    "Version": "",
+    "Root": "",
+    "Output": "dist/fixture"
+  }
+}
+```
+
+- The expected shape was lower-case JSON such as `"kind": "xgoja"`. I fixed this by adding explicit JSON tags to buildspec structs.
+
+### What I learned
+
+- Even though YAML tags are enough for parsing `xgoja.yaml`, embedded JSON needs separate JSON tags. Without them, the generated runtime spec is technically valid JSON but not the intended public shape.
+- Deriving provider module paths from provider package imports is inherently heuristic. The current renderer trims a trailing `/xgoja` package path for module requirements, which matches the intended provider package layout but may need a future explicit `module:` field.
+
+### What was tricky to build
+
+- `go.mod` generation has incomplete information: YAML names provider package import paths, but Go `require` directives need module paths. I used a pragmatic first rule: if the provider import ends with `/xgoja`, require the parent module path; otherwise require the import path. This is documented as an area needing review.
+- The generated `main.go` must compile eventually, but the runtime app does not exist yet. The placeholder therefore only registers providers and references the embedded spec. Phase 5 will replace the placeholder behavior with real app wiring.
+
+### What warrants a second pair of eyes
+
+- Review the `providerModulePath` heuristic in `generate/gomod.go` before relying on it for external providers.
+- Review whether the spec should gain an explicit `module:` field per package to avoid guessing Go module paths from package import paths.
+- Review the generated `main.go` shape before Phase 5 adds runtime command wiring.
+
+### What should be done in the future
+
+- Implement Phase 5 runtime app wiring so generated binaries can create runtime profiles and expose REPL/jsverbs commands.
+- Add true golden files if the generated output grows larger; current tests assert key deterministic fragments.
+- Copy/embed JS verb source directories into generated workspaces once generated runtime support needs them.
+
+### Code review instructions
+
+- Start in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/gomod.go` for dependency rendering.
+- Then review `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/main.go` for generated source shape.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja
+go test ./cmd/xgoja ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/providerapi ./cmd/xgoja/internal/testprovider -count=1
+```
+
+### Technical details
+
+Generated files from `WriteAll`:
+
+```text
+go.mod
+main.go
+xgoja.gen.json
+```
+
+Current dry-run workspace command shape:
+
+```bash
+xgoja build -f xgoja.yaml --work-dir /tmp/xgoja-work --dry-run
 ```
