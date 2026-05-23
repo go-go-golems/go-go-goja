@@ -10,6 +10,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/help"
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/go-go-golems/glazed/pkg/settings"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/doc"
 	"github.com/spf13/cobra"
 )
 
@@ -54,6 +55,9 @@ buildspec validation and code generation are added in follow-up phases.`,
 	}
 
 	helpSystem := help.NewHelpSystem()
+	if err := doc.AddDocToHelpSystem(helpSystem); err != nil {
+		return nil, err
+	}
 	help_cmd.SetupCobraRootCommand(helpSystem, root)
 
 	return root, nil

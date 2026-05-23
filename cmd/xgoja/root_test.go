@@ -26,6 +26,24 @@ func TestRootHelp(t *testing.T) {
 	}
 }
 
+func TestBundledHelpTopic(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	root.SetArgs([]string{"help", "xgoja-buildspec"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute help topic: %v", err)
+	}
+	rendered := out.String()
+	for _, want := range []string{"xgoja buildspec reference", "Runtime filesystem source", "Provider-shipped source"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expected bundled help to contain %q, got %q", want, rendered)
+		}
+	}
+}
+
 func TestBuildCommandWired(t *testing.T) {
 	out := &bytes.Buffer{}
 	root, err := newRootCommand(out)
