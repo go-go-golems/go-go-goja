@@ -61,7 +61,7 @@ func TestGeneratedRootModulesCommand(t *testing.T) {
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute modules: %v", err)
 	}
-	if got := out.String(); got != "fixture.hello\n" {
+	if got := out.String(); got != "fixture.hello\nfixture.owner-check\n" {
 		t.Fatalf("modules output = %q", got)
 	}
 }
@@ -75,7 +75,7 @@ func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
+  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}, {"package": "fixture", "name": "owner-check", "as": "owner-check"}]}},
   "commands": {"repl": {"enabled": true, "runtime": "repl", "name": "repl"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
   "jsverbs": [{"id": "provider", "package": "fixture", "source": "verbs"}]
 }`
@@ -87,6 +87,15 @@ func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
 	root.SetArgs([]string{"verbs", "tools", "provider-greet", "--name", "intern"})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute provider verb: %v", err)
+	}
+
+	root, err = NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	if err != nil {
+		t.Fatalf("new root for owner verb: %v", err)
+	}
+	root.SetArgs([]string{"verbs", "tools", "owner-ping"})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute provider owner verb: %v", err)
 	}
 }
 

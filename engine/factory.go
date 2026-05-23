@@ -19,6 +19,10 @@ type runtimebridgeOwner struct {
 	owner runtimeowner.Runner
 }
 
+func (o runtimebridgeOwner) Call(ctx context.Context, op string, fn func(context.Context, *goja.Runtime) (any, error)) (any, error) {
+	return o.owner.Call(ctx, op, runtimeowner.CallFunc(fn))
+}
+
 func (o runtimebridgeOwner) Post(ctx context.Context, op string, fn func(context.Context, *goja.Runtime)) error {
 	return o.owner.Post(ctx, op, runtimeowner.PostFunc(fn))
 }

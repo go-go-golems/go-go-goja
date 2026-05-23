@@ -107,6 +107,20 @@ func TestGeneratedProgramRunsProviderVerbSource(t *testing.T) {
 	runGeneratedCommand(t, spec, "verbs", "tools", "provider-greet", "--name", "intern")
 }
 
+func TestGeneratedProgramRunsProviderVerbWithOwnerBindings(t *testing.T) {
+	spec := buildableSpec("xgoja", "", "")
+	spec.Runtimes["repl"] = buildspec.Runtime{Modules: []buildspec.ModuleInstance{
+		{Package: "fixture", Name: "hello", As: "hello"},
+		{Package: "fixture", Name: "owner-check", As: "owner-check"},
+	}}
+	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	spec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "provider", Package: "fixture", Source: "verbs"}}
+	_, out := runGeneratedCommandWithOutput(t, spec, "verbs", "tools", "owner-ping")
+	if strings.TrimSpace(string(out)) != "pong" {
+		t.Fatalf("owner-ping output = %q", out)
+	}
+}
+
 func TestGeneratedProgramRunsEmbeddedVerbSource(t *testing.T) {
 	baseDir := t.TempDir()
 	verbsDir := filepath.Join(baseDir, "verbs")

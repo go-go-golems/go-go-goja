@@ -13,6 +13,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 )
 
 func (r *Registry) invoke(ctx context.Context, verb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
@@ -134,6 +135,29 @@ func (r *Registry) InvokeInGojaRuntime(ctx context.Context, vm *goja.Runtime, re
 	if err != nil {
 		return nil, err
 	}
+	if bindings, ok := runtimebridge.Lookup(vm); ok && bindings.Owner != nil {
+		ret, err := bindings.Owner.Call(ctx, "jsverbs.invoke", func(_ context.Context, vm *goja.Runtime) (interface{}, error) {
+			return r.invokeInGojaRuntime(vm, req, verb, args)
+		})
+		if err != nil {
+			return nil, err
+		}
+		if promise, ok := ret.(*goja.Promise); ok {
+			return waitForPromiseWithOwner(ctx, bindings.Owner, promise)
+		}
+		return ret, nil
+	}
+	ret, err := r.invokeInGojaRuntime(vm, req, verb, args)
+	if err != nil {
+		return nil, err
+	}
+	if promise, ok := ret.(*goja.Promise); ok {
+		return waitForPromiseDirect(ctx, promise)
+	}
+	return ret, nil
+}
+
+func (r *Registry) invokeInGojaRuntime(vm *goja.Runtime, req *require.RequireModule, verb *VerbSpec, args []interface{}) (interface{}, error) {
 	if _, err := req.Require(verb.File.ModulePath); err != nil {
 		return nil, err
 	}
@@ -164,7 +188,7 @@ func (r *Registry) InvokeInGojaRuntime(ctx context.Context, vm *goja.Runtime, re
 		return nil, nil
 	}
 	if promise, ok := result.Export().(*goja.Promise); ok {
-		return waitForPromiseDirect(ctx, promise)
+		return promise, nil
 	}
 	return result.Export(), nil
 }
@@ -296,6 +320,37 @@ func waitForPromise(ctx context.Context, runtime *engine.Runtime, promise *goja.
 		}
 
 		ret, err := runtime.Owner.Call(ctx, "jsverbs.promise-state", func(_ context.Context, vm *goja.Runtime) (interface{}, error) {
+			return promiseSnapshot{
+				State:  promise.State(),
+				Result: promise.Result(),
+			}, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		snapshot := ret.(promiseSnapshot)
+		switch snapshot.State {
+		case goja.PromiseStatePending:
+			time.Sleep(5 * time.Millisecond)
+		case goja.PromiseStateRejected:
+			return nil, fmt.Errorf("promise rejected: %s", valueString(snapshot.Result))
+		case goja.PromiseStateFulfilled:
+			if snapshot.Result == nil || goja.IsUndefined(snapshot.Result) || goja.IsNull(snapshot.Result) {
+				return nil, nil
+			}
+			return snapshot.Result.Export(), nil
+		}
+	}
+}
+
+func waitForPromiseWithOwner(ctx context.Context, owner runtimebridge.OwnerRunner, promise *goja.Promise) (interface{}, error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		ret, err := owner.Call(ctx, "jsverbs.promise-state", func(context.Context, *goja.Runtime) (interface{}, error) {
 			return promiseSnapshot{
 				State:  promise.State(),
 				Result: promise.Result(),

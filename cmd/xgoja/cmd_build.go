@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
+	"strings"
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
@@ -24,11 +26,13 @@ type buildCommand struct {
 var _ cmds.BareCommand = (*buildCommand)(nil)
 
 type buildSettings struct {
-	File     string `glazed:"file"`
-	Output   string `glazed:"output"`
-	WorkDir  string `glazed:"work-dir"`
-	KeepWork bool   `glazed:"keep-work"`
-	DryRun   bool   `glazed:"dry-run"`
+	File         string `glazed:"file"`
+	Output       string `glazed:"output"`
+	WorkDir      string `glazed:"work-dir"`
+	KeepWork     bool   `glazed:"keep-work"`
+	DryRun       bool   `glazed:"dry-run"`
+	XGojaVersion string `glazed:"xgoja-version"`
+	XGojaReplace string `glazed:"xgoja-replace"`
 }
 
 func newBuildCommand(out io.Writer) *buildCommand {
@@ -39,12 +43,14 @@ func newBuildCommand(out io.Writer) *buildCommand {
 Build reads xgoja.yaml, generates a temporary Go program that imports selected
 module provider packages, and compiles a custom binary.
 
-Phase 1 wires the Glazed command surface. Spec validation and generation are
-implemented in the next tasks.
+By default, generated go.mod requires the go-go-goja module version recorded in
+this xgoja binary. When developing from a local checkout, pass --xgoja-replace
+to point generated builds at that checkout.
 
 Examples:
   xgoja build -f xgoja.yaml
-  xgoja build -f examples/webrepl/xgoja.yaml --output ./dist/webrepl
+  xgoja build -f examples/xgoja/provider-shipped-jsverbs/xgoja.yaml --output ./dist/provider
+  xgoja build -f xgoja.yaml --xgoja-replace /path/to/go-go-goja --keep-work
   xgoja build -f xgoja.yaml --dry-run --keep-work
 `),
 			cmds.WithFlags(
@@ -62,6 +68,11 @@ Examples:
 				fields.New("dry-run", fields.TypeBool,
 					fields.WithDefault(false),
 					fields.WithHelp("Validate and print the planned build without compiling")),
+				fields.New("xgoja-version", fields.TypeString,
+					fields.WithDefault(defaultXGojaModuleVersion()),
+					fields.WithHelp("go-go-goja module version required by generated go.mod when --xgoja-replace is not set")),
+				fields.New("xgoja-replace", fields.TypeString,
+					fields.WithHelp("Optional local replacement path for github.com/go-go-golems/go-go-goja in generated go.mod")),
 			),
 		),
 		out: out,
@@ -98,11 +109,7 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	defer cleanup()
 
-	repoRoot, err := repositoryRoot()
-	if err != nil {
-		return err
-	}
-	if err := generate.WriteAll(workDir, spec, generate.Options{XGojaReplace: repoRoot}); err != nil {
+	if err := generate.WriteAll(workDir, spec, generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace}); err != nil {
 		return err
 	}
 	_, _ = fmt.Fprintf(c.out, "generated build workspace: %s\n", workDir)
@@ -128,18 +135,21 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	return err
 }
 
-func repositoryRoot() (string, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("resolve working directory: %w", err)
-	}
-	for dir := cwd; ; dir = filepath.Dir(dir) {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir, nil
+func defaultXGojaModuleVersion() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if isModuleVersion(info.Main.Version) {
+			return info.Main.Version
 		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("could not find go-go-goja repository root from %s", cwd)
+		for _, dep := range info.Deps {
+			if dep.Path == "github.com/go-go-golems/go-go-goja" && isModuleVersion(dep.Version) {
+				return dep.Version
+			}
 		}
 	}
+	return "v0.0.0"
+}
+
+func isModuleVersion(value string) bool {
+	value = strings.TrimSpace(value)
+	return strings.HasPrefix(value, "v") && len(value) > 1
 }

@@ -17,6 +17,8 @@ Flags:
 - --output
 - --work-dir
 - --keep-work
+- --xgoja-version
+- --xgoja-replace
 IsTopLevel: true
 IsTemplate: false
 ShowPerDefault: true
@@ -250,6 +252,7 @@ The validator checks supported target kinds, package uniqueness, known runtime p
 | `duplicate alias` | Two modules in one runtime resolve to the same `require()` name. | Set distinct `as` values. |
 | embedded source path error | `embed: true` uses a path missing at build time. | Fix `path` relative to the spec file or use an absolute path. |
 | provider verb source has no filesystem | The provider registered metadata but no `FS`. | Register `providerapi.VerbSource{FS: ..., Root: ...}`. |
+| generated build cannot resolve `github.com/go-go-golems/go-go-goja v0.0.0` | You are running xgoja from source, so no released module version is recorded in the binary. | Pass `--xgoja-replace /path/to/go-go-goja` while developing locally, or build with a released xgoja binary. |
 | generated build fails | The generated module cannot resolve imports or replacements. | Re-run with `--keep-work` and inspect generated `go.mod` and `main.go`. |
 
 ## See also

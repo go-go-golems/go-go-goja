@@ -16,6 +16,7 @@ import (
 // pkg/runtimeowner. That keeps runtimebridge usable from runtimeowner itself
 // for current-call context tracking without creating an import cycle.
 type OwnerRunner interface {
+	Call(ctx context.Context, op string, fn func(context.Context, *goja.Runtime) (any, error)) (any, error)
 	Post(ctx context.Context, op string, fn func(context.Context, *goja.Runtime)) error
 }
 

@@ -75,7 +75,11 @@ func TestBuildCommandBuildsBinary(t *testing.T) {
 	}
 	specPath := writeBuildableSpec(t)
 	outputPath := filepath.Join(t.TempDir(), "fixture")
-	root.SetArgs([]string{"build", "-f", specPath, "--output", outputPath})
+	repoRoot, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	root.SetArgs([]string{"build", "-f", specPath, "--output", outputPath, "--xgoja-replace", repoRoot})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute build: %v", err)
 	}

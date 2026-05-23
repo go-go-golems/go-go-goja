@@ -10,3 +10,12 @@ function providerGreet(name) {
   const hello = require("hello")
   return hello.greet(name)
 }
+
+__verb__("ownerPing", {
+  name: "owner-ping",
+  output: "text"
+})
+function ownerPing() {
+  const owner = require("owner-check")
+  return owner.pingAsync()
+}

@@ -56,13 +56,19 @@ func newEvalCommand(factory *RuntimeFactory, spec *Spec) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			value, err := rt.VM.RunString(args[0])
+			defer func() { _ = rt.Close(context.Background()) }()
+			ret, err := rt.Owner.Call(cmd.Context(), "xgoja.eval", func(_ context.Context, vm *goja.Runtime) (any, error) {
+				value, err := vm.RunString(args[0])
+				if err != nil {
+					return nil, err
+				}
+				if value != nil && !goja.IsUndefined(value) && !goja.IsNull(value) {
+					return value.Export(), nil
+				}
+				return nil, nil
+			})
 			if err != nil {
 				return err
-			}
-			var ret any
-			if value != nil && !goja.IsUndefined(value) && !goja.IsNull(value) {
-				ret = value.Export()
 			}
 			if ret != nil {
 				fmt.Fprintln(cmd.OutOrStdout(), ret)
@@ -142,6 +148,7 @@ func buildVerbCommands(providers *providerapi.Registry, factory *RuntimeFactory,
 				if err != nil {
 					return nil, err
 				}
+				defer func() { _ = rt.Close(context.Background()) }()
 				return registry.InvokeInGojaRuntime(ctx, rt.VM, rt.Require, verb, parsedValues)
 			})
 			if err != nil {

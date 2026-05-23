@@ -82,10 +82,16 @@ This reports modules selected by the spec. Use it to confirm that the runtime pr
 
 ## 4. Build the binary
 
-Run:
+Run from an installed xgoja binary:
 
 ```bash
 xgoja build -f xgoja.yaml --keep-work
+```
+
+When testing from a local checkout before a release, point generated builds at that checkout:
+
+```bash
+xgoja build -f xgoja.yaml --keep-work --xgoja-replace /path/to/go-go-goja
 ```
 
 `--keep-work` leaves the generated workspace on disk. Use it while learning or debugging because it lets you inspect generated `go.mod`, generated `main.go`, copied embedded jsverb files, and the embedded spec JSON.
