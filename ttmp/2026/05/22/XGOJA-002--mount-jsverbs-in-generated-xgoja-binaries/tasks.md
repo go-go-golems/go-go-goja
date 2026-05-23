@@ -9,3 +9,6 @@
 - [x] Replace the generated app's placeholder verbs command with real jsverbs scanning and command mounting for filesystem sources.
 - [x] Add tests proving a mounted JS verb can require an xgoja provider module and execute as a generated subcommand.
 - [x] Update ticket validation/changelog and upload the updated diary to reMarkable.
+- [x] Mount provider-shipped verb sources selected by package/source
+- [x] Copy and embed local jsverbs when embed: true
+- [x] Validate provider and embedded jsverb mounting with generated-binary tests

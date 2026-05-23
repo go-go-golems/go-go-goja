@@ -33,3 +33,13 @@ Validated jsverbs mounting work and uploaded updated diary to reMarkable
 
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/ttmp/2026/05/22/XGOJA-002--mount-jsverbs-in-generated-xgoja-binaries/reference/01-diary.md — Updated implementation diary
 
+
+## 2026-05-22
+
+Implemented provider-shipped verb sources and embed:true local jsverbs, with generated-binary validation (commit c63c043).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/generate.go — Embedded source copying
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root.go — Source selection and mounting logic
+
