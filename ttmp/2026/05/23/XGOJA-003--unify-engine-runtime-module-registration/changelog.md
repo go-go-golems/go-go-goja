@@ -37,3 +37,8 @@ Hardened xgoja engine reuse so generated runtimes disable implicit engine defaul
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/factory.go — Disables implicit engine defaults for xgoja-generated runtimes
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root_test.go — Verifies xgoja exposes only spec-selected modules
 
+
+## 2026-05-23
+
+Ticket closed
+

@@ -1,7 +1,7 @@
 ---
 Title: Unify engine runtime module registration
 Ticket: XGOJA-003
-Status: active
+Status: complete
 Topics:
     - xgoja
     - goja
@@ -15,10 +15,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-23T18:01:58.492469675-04:00
+LastUpdated: 2026-05-23T18:16:27.411629583-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Unify engine runtime module registration
 
