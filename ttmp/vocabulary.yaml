@@ -97,6 +97,8 @@ topics:
       description: Web user interface and HTTP UI concerns
     - slug: xgoja
       description: Compile-time goja module composition builder and generated binary tooling
+    - slug: runtime
+      description: Runtime construction, lifecycle, and execution context behavior
 docTypes:
     - slug: index
       description: Ticket index documents
