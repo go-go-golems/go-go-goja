@@ -12,3 +12,4 @@
 - [x] Mount provider-shipped verb sources selected by package/source
 - [x] Copy and embed local jsverbs when embed: true
 - [x] Validate provider and embedded jsverb mounting with generated-binary tests
+- [x] Bundle concise xgoja Glazed help entries in the xgoja binary

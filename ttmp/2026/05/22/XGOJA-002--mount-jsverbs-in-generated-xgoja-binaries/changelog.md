@@ -43,3 +43,13 @@ Implemented provider-shipped verb sources and embed:true local jsverbs, with gen
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/generate.go — Embedded source copying
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root.go — Source selection and mounting logic
 
+
+## 2026-05-23
+
+Added three bundled xgoja Glazed help entries: overview, buildspec reference, and tutorial (commit 573d02c).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/doc — Bundled help pages
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/root.go — Help system integration
+
