@@ -181,7 +181,7 @@ A runtime initializer is not necessarily a module registration. It runs after `r
 
 ### Decision 4: xgoja should use `engine.Runtime` safely
 
-After the engine module contract is runtime-aware, xgoja can create engine runtimes without losing its explicit module-selection semantics. The xgoja runtime factory should build an engine factory with explicit modules only. Because `engine.FactoryBuilder.Build` only auto-adds default registry modules when no modules are supplied or when module middleware is used, xgoja must always pass spec-selected modules explicitly and must not use default-selection middleware implicitly.
+After the engine module contract is runtime-aware, xgoja can create engine runtimes without losing its explicit module-selection semantics. The xgoja runtime factory should build an engine factory with explicit modules only. Because `engine.FactoryBuilder.Build` preserves the historical default-registry fallback for normal engine callers, xgoja disables both implicit default-registry selection and automatic data-only default modules when constructing its internal engine builder.
 
 The xgoja adapter module should look like this:
 
@@ -278,7 +278,7 @@ builder = builder.WithModules(config.RuntimeModules...)
 
 Before: xgoja created its own runtime with `goja.New`, event loop, owner, runtimebridge, and a `require.Registry`.
 
-After: xgoja translates selected provider modules into engine runtime modules and calls `engine.Factory.NewRuntime`.
+After: xgoja translates selected provider modules into engine runtime modules, constructs the engine builder with `WithImplicitDefaultRegistryModules(false)` and `WithDataOnlyDefaultRegistryModules(false)`, and calls `engine.Factory.NewRuntime`.
 
 ## Implementation Plan
 
