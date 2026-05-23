@@ -29,7 +29,7 @@ const ui = require("ui");
 
 ```go
 factory, err := engine.NewBuilder().
-    WithRuntimeModuleRegistrars(uidsl.NewRegistrar()).
+    WithModules(uidsl.NewRegistrar()).
     Build()
 ```
 

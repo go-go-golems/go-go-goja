@@ -127,7 +127,7 @@ Method metadata is now intentionally split by role:
 
 ### 2. Entry points choose whether plugins are enabled
 
-The runtime is not globally plugin-aware by default. An entrypoint opts in by constructing a registrar and attaching it to the engine builder.
+The runtime is not globally plugin-aware by default. An entrypoint opts in by constructing a runtime module spec and attaching it to the engine builder.
 
 Current wired entrypoints:
 
@@ -139,7 +139,7 @@ That means plugin support is explicit at composition time.
 
 ### 3. The engine provides the runtime-scoped seam
 
-`engine.RuntimeModuleRegistrar` is the central extension seam. A registrar receives:
+`engine.RuntimeModuleSpec` is the central extension seam. A runtime module spec receives:
 
 - the runtime context,
 - the runtime-owned `require.Registry`,
@@ -181,8 +181,7 @@ cmd/goja-repl tui
     |
     v
 engine.NewBuilder()
-    .WithModules(...)
-    .WithRuntimeModuleRegistrars(host.NewRegistrar(...))
+    .WithModules(..., host.NewRegistrar(...))
     |
     v
 Factory.Build()
@@ -194,10 +193,7 @@ Factory.NewRuntime(ctx)
 fresh require.Registry is created
     |
     v
-static modules are registered
-    |
-    v
-runtime registrars run
+runtime module specs register modules
     |
     v
 host registrar discovers and starts plugin clients
@@ -212,13 +208,13 @@ registry is enabled on the runtime
 JavaScript code can call require("plugin:echo")
 ```
 
-The order matters. The registrar phase must happen before `reg.Enable(vm)` because that is when native modules are registered into the runtime's `require` system.
+The order matters. The runtime module registration phase must happen before `reg.Enable(vm)` because that is when native modules are registered into the runtime's `require` system.
 
 ## Key types and responsibilities
 
 This section maps the main code objects to their jobs.
 
-### `engine.RuntimeModuleRegistrar`
+### `engine.RuntimeModuleSpec`
 
 File: `engine/runtime_modules.go`
 
@@ -230,8 +226,8 @@ Purpose:
 
 Why it matters:
 
-- plugin modules are not static global modules,
-- a registrar can create per-runtime state safely,
+- plugin modules are runtime-selected modules,
+- a module spec can create per-runtime state safely,
 - the seam is generic enough to reuse for other dynamic module sources later.
 
 ### `engine.Runtime.AddCloser`
@@ -504,7 +500,7 @@ Do not skip the validation layer. Reification should assume the manifest is alre
 | Problem | Cause | Solution |
 |---|---|---|
 | Plugin support feels hard to trace across files | The feature spans engine, transport, host policy, and CLI wiring | Read the files in the order listed in the `Read this first` section |
-| A new entrypoint cannot see plugins | The entrypoint builds a runtime but never attaches a registrar | Add `WithRuntimeModuleRegistrars(host.NewRegistrar(...))` or set `PluginDirectories` on the evaluator config |
+| A new entrypoint cannot see plugins | The entrypoint builds a runtime but never attaches the plugin runtime module spec | Add `WithModules(host.NewRegistrar(...))` or set `PluginDirectories` on the evaluator config |
 | A plugin starts but registration fails | Manifest validation rejected the module shape | Start in `pkg/hashiplugin/host/validate.go` and compare the plugin manifest to the current rules |
 | Runtime closes but a plugin process remains alive | Cleanup registration was skipped or a new integration path bypassed owned runtime shutdown | Confirm the runtime path uses `engine.Runtime` and registers closers through `AddCloser(...)` |
 | A transport change breaks host code | Transport and host policy concerns got mixed together | Keep `contract` and `shared` narrow, and push policy back into `pkg/hashiplugin/host` |

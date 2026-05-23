@@ -28,7 +28,7 @@ host := gojahttp.NewHost(gojahttp.HostOptions{
 })
 
 factory, err := engine.NewBuilder().
-    WithRuntimeModuleRegistrars(
+    WithModules(
         express.NewRegistrar(host),
         uidsl.NewRegistrar(),
     ).
