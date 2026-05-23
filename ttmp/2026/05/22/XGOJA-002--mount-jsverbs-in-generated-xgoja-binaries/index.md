@@ -1,7 +1,7 @@
 ---
 Title: Mount jsverbs in generated xgoja binaries
 Ticket: XGOJA-002
-Status: active
+Status: complete
 Topics:
     - xgoja
     - jsverbs
@@ -15,10 +15,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-22T20:07:17.198647012-04:00
+LastUpdated: 2026-05-23T00:20:43.476797619-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Mount jsverbs in generated xgoja binaries
 
