@@ -58,3 +58,21 @@ Added three bundled xgoja Glazed help entries: overview, buildspec reference, an
 
 Ticket closed
 
+
+## 2026-05-23
+
+Added intern-facing xgoja system guide and prepared it for reMarkable review.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/ttmp/2026/05/22/XGOJA-002--mount-jsverbs-in-generated-xgoja-binaries/design-doc/02-xgoja-intern-system-guide.md — New textbook-style system guide
+
+
+## 2026-05-23
+
+Uploaded XGOJA 002 Intern System Guide to reMarkable at /ai/2026/05/23/XGOJA-002.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/ttmp/2026/05/22/XGOJA-002--mount-jsverbs-in-generated-xgoja-binaries/design-doc/02-xgoja-intern-system-guide.md — Uploaded guide source
+
