@@ -76,3 +76,13 @@ Uploaded XGOJA 002 Intern System Guide to reMarkable at /ai/2026/05/23/XGOJA-002
 
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/ttmp/2026/05/22/XGOJA-002--mount-jsverbs-in-generated-xgoja-binaries/design-doc/02-xgoja-intern-system-guide.md — Uploaded guide source
 
+
+## 2026-05-23
+
+Shortened bundled xgoja help topic slugs from xgoja-* to overview/buildspec/tutorial (commit 12061ee).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/doc — Bundled help slug changes
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/ttmp/2026/05/22/XGOJA-002--mount-jsverbs-in-generated-xgoja-binaries/design-doc/02-xgoja-intern-system-guide.md — Updated guide topic list
+
