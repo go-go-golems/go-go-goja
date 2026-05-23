@@ -82,7 +82,7 @@ type Config struct {
 	PluginReporter     *host.ReportCollector
 	HelpSources        []docaccessruntime.HelpSource
 	JSDocSources       []docaccessruntime.JSDocSource
-	RuntimeRegistrars  []ggjengine.RuntimeModuleRegistrar
+	RuntimeModules     []ggjengine.RuntimeModuleSpec
 	CustomModules      map[string]interface{}
 	// Runtime, when set, reuses an existing VM instead of creating a new one.
 	Runtime *goja.Runtime
@@ -98,7 +98,7 @@ func DefaultConfig() Config {
 		PluginAllowModules: nil,
 		HelpSources:        nil,
 		JSDocSources:       nil,
-		RuntimeRegistrars:  nil,
+		RuntimeModules:     nil,
 		CustomModules:      make(map[string]interface{}),
 		Runtime:            nil,
 	}
@@ -116,20 +116,20 @@ func New(config Config) (*Evaluator, error) {
 		builder := ggjengine.NewBuilder().
 			UseModuleMiddleware(ggjengine.MiddlewareSafe())
 		if len(config.PluginDirectories) > 0 {
-			builder = builder.WithRuntimeModuleRegistrars(host.NewRegistrar(host.Config{
+			builder = builder.WithModules(host.NewRegistrar(host.Config{
 				Directories:  config.PluginDirectories,
 				AllowModules: config.PluginAllowModules,
 				Report:       config.PluginReporter,
 			}))
 		}
 		if len(config.PluginDirectories) > 0 || len(config.HelpSources) > 0 || len(config.JSDocSources) > 0 {
-			builder = builder.WithRuntimeModuleRegistrars(docaccessruntime.NewRegistrar(docaccessruntime.Config{
+			builder = builder.WithModules(docaccessruntime.NewRegistrar(docaccessruntime.Config{
 				HelpSources:  append([]docaccessruntime.HelpSource(nil), config.HelpSources...),
 				JSDocSources: append([]docaccessruntime.JSDocSource(nil), config.JSDocSources...),
 			}))
 		}
-		if len(config.RuntimeRegistrars) > 0 {
-			builder = builder.WithRuntimeModuleRegistrars(config.RuntimeRegistrars...)
+		if len(config.RuntimeModules) > 0 {
+			builder = builder.WithModules(config.RuntimeModules...)
 		}
 		factory, err := builder.Build()
 		if err != nil {

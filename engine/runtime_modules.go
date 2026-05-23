@@ -9,14 +9,16 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 )
 
-// RuntimeModuleRegistrar registers runtime-scoped modules into a require
-// registry before it is enabled for a concrete VM instance.
-type RuntimeModuleRegistrar interface {
+// RuntimeModuleSpec registers one or more require() modules for a concrete
+// runtime instance. All engine modules are runtime-aware: they receive the VM,
+// event loop, owner, lifecycle context, closer registry, and value bag before
+// the require registry is enabled.
+type RuntimeModuleSpec interface {
 	ID() string
-	RegisterRuntimeModules(ctx *RuntimeModuleContext, reg *require.Registry) error
+	RegisterRuntimeModule(ctx *RuntimeModuleContext, reg *require.Registry) error
 }
 
-// RuntimeModuleContext exposes runtime-scoped objects to module registrars.
+// RuntimeModuleContext exposes runtime-scoped objects to module specs.
 type RuntimeModuleContext struct {
 	Context   context.Context
 	VM        *goja.Runtime

@@ -149,7 +149,7 @@ func buildVerbCommands(providers *providerapi.Registry, factory *RuntimeFactory,
 					return nil, err
 				}
 				defer func() { _ = rt.Close(context.Background()) }()
-				return registry.InvokeInGojaRuntime(ctx, rt.VM, rt.Require, verb, parsedValues)
+				return registry.InvokeInRuntime(ctx, rt, verb, parsedValues)
 			})
 			if err != nil {
 				return nil, err

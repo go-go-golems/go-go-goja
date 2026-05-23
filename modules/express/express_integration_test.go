@@ -15,7 +15,7 @@ import (
 
 func TestExpressRouteReturnsHTMLNode(t *testing.T) {
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Renderer: uidsl.RenderAny})
-	factory, err := engine.NewBuilder().WithRuntimeModuleRegistrars(NewRegistrar(host), uidsl.NewRegistrar()).Build()
+	factory, err := engine.NewBuilder().WithModules(NewRegistrar(host), uidsl.NewRegistrar()).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestExpressRouteReturnsHTMLNode(t *testing.T) {
 
 func TestExpressPostJSONEcho(t *testing.T) {
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Renderer: uidsl.RenderAny})
-	factory, err := engine.NewBuilder().WithRuntimeModuleRegistrars(NewRegistrar(host), uidsl.NewRegistrar()).Build()
+	factory, err := engine.NewBuilder().WithModules(NewRegistrar(host), uidsl.NewRegistrar()).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestExpressPostJSONEcho(t *testing.T) {
 
 func TestExpressRouteAwaitsReturnedPromise(t *testing.T) {
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Renderer: uidsl.RenderAny})
-	factory, err := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("timer")).WithRuntimeModuleRegistrars(NewRegistrar(host), uidsl.NewRegistrar()).Build()
+	factory, err := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("timer")).WithModules(NewRegistrar(host), uidsl.NewRegistrar()).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestExpressRouteAwaitsReturnedPromise(t *testing.T) {
 
 func TestExpressRouteAwaitsPromiseThatSendsResponse(t *testing.T) {
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Renderer: uidsl.RenderAny})
-	factory, err := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("timer")).WithRuntimeModuleRegistrars(NewRegistrar(host), uidsl.NewRegistrar()).Build()
+	factory, err := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("timer")).WithModules(NewRegistrar(host), uidsl.NewRegistrar()).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestExpressRouteAwaitsPromiseThatSendsResponse(t *testing.T) {
 
 func TestHeadFallsBackToGetWithoutBody(t *testing.T) {
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Renderer: uidsl.RenderAny})
-	factory, err := engine.NewBuilder().WithRuntimeModuleRegistrars(NewRegistrar(host), uidsl.NewRegistrar()).Build()
+	factory, err := engine.NewBuilder().WithModules(NewRegistrar(host), uidsl.NewRegistrar()).Build()
 	if err != nil {
 		t.Fatal(err)
 	}

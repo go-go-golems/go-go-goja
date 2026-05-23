@@ -24,7 +24,7 @@ func TestSessionCookieIssuedAndReused(t *testing.T) {
 		Renderer: uidsl.RenderAny,
 		Sessions: gojahttp.SessionOptions{CookieName: cookieName},
 	})
-	factory, err := engine.NewBuilder().WithRuntimeModuleRegistrars(express.NewRegistrar(host), uidsl.NewRegistrar()).Build()
+	factory, err := engine.NewBuilder().WithModules(express.NewRegistrar(host), uidsl.NewRegistrar()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

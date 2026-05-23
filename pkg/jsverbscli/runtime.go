@@ -50,7 +50,7 @@ func newRuntimeFactory(repo ScannedRepository, settings *RuntimeSettings) (*engi
 	}
 
 	cleanup := func() {}
-	moduleSpecs := []engine.ModuleSpec{}
+	moduleSpecs := []engine.RuntimeModuleSpec{}
 	if settings.DBPath != "" {
 		db, err := sql.Open("sqlite3", settings.DBPath)
 		if err != nil {
@@ -81,7 +81,7 @@ func newRuntimeFactory(repo ScannedRepository, settings *RuntimeSettings) (*engi
 		WithRequireOptions(noderequire.WithLoader(repo.Registry.RequireLoader())).
 		UseModuleMiddleware(engine.MiddlewareOnly("fs", "path", "time", "timer", "yaml")).
 		WithModules(moduleSpecs...).
-		WithRuntimeModuleRegistrars(uidsl.NewRegistrar())
+		WithModules(uidsl.NewRegistrar())
 	factory, err := builder.Build()
 	if err != nil {
 		cleanup()
