@@ -1,10 +1,15 @@
 package testprovider
 
 import (
+	"embed"
+
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
+
+//go:embed verbs/*.js
+var verbsFS embed.FS
 
 func Register(registry *providerapi.Registry) error {
 	return registry.Package("fixture",
@@ -19,6 +24,6 @@ func Register(registry *providerapi.Registry) error {
 				}, nil
 			},
 		},
-		providerapi.VerbSource{Name: "verbs", Root: "verbs"},
+		providerapi.VerbSource{Name: "verbs", Root: "verbs", FS: verbsFS},
 	)
 }

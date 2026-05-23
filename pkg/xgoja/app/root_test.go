@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
 
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider"
@@ -62,6 +63,70 @@ func TestGeneratedRootModulesCommand(t *testing.T) {
 	}
 	if got := out.String(); got != "fixture.hello\n" {
 		t.Fatalf("modules output = %q", got)
+	}
+}
+
+func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	specJSON := `{
+  "name": "fixture",
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
+  "commands": {"repl": {"enabled": true, "runtime": "repl", "name": "repl"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
+  "jsverbs": [{"id": "provider", "package": "fixture", "source": "verbs"}]
+}`
+	out := &bytes.Buffer{}
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	root.SetArgs([]string{"verbs", "tools", "provider-greet", "--name", "intern"})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute provider verb: %v", err)
+	}
+}
+
+func TestGeneratedRootMountsEmbeddedJSVerbs(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	embedded := fstest.MapFS{
+		"xgoja_embed/jsverbs/local/tools.js": &fstest.MapFile{Data: []byte(`
+__package__({ name: "tools" })
+__verb__("embeddedGreet", {
+  name: "embedded-greet",
+  output: "text",
+  fields: {
+    name: { type: "string", required: true }
+  }
+})
+function embeddedGreet(name) {
+  const hello = require("hello")
+  return hello.greet(name)
+}
+`)},
+	}
+	specJSON := `{
+  "name": "fixture",
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
+  "commands": {"repl": {"enabled": true, "runtime": "repl", "name": "repl"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
+  "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
+}`
+	out := &bytes.Buffer{}
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out, EmbeddedJSVerbs: embedded})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	root.SetArgs([]string{"verbs", "tools", "embedded-greet", "--name", "intern"})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute embedded verb: %v", err)
 	}
 }
 

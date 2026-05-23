@@ -1,21 +1,33 @@
 package app
 
 import (
+	"io/fs"
+
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/spf13/cobra"
 )
 
 type Host struct {
-	Providers *providerapi.Registry
-	Spec      *Spec
-	Factory   *RuntimeFactory
+	Providers       *providerapi.Registry
+	Spec            *Spec
+	Factory         *RuntimeFactory
+	EmbeddedJSVerbs fs.FS
+}
+
+type HostOptions struct {
+	EmbeddedJSVerbs fs.FS
 }
 
 func NewHost(providers *providerapi.Registry, spec *Spec) *Host {
+	return NewHostWithOptions(providers, spec, HostOptions{})
+}
+
+func NewHostWithOptions(providers *providerapi.Registry, spec *Spec, opts HostOptions) *Host {
 	return &Host{
-		Providers: providers,
-		Spec:      spec,
-		Factory:   NewRuntimeFactory(providers, spec),
+		Providers:       providers,
+		Spec:            spec,
+		Factory:         NewRuntimeFactory(providers, spec),
+		EmbeddedJSVerbs: opts.EmbeddedJSVerbs,
 	}
 }
 
@@ -48,5 +60,5 @@ func (h *Host) AttachVerbs(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	root.AddCommand(newVerbsCommand(h.Factory, h.Spec))
+	root.AddCommand(newVerbsCommand(h.Providers, h.Factory, h.Spec, h.EmbeddedJSVerbs))
 }

@@ -58,6 +58,27 @@ func TestRenderEmbeddedSpecStableShape(t *testing.T) {
 	}
 }
 
+func TestRenderMainIncludesEmbeddedVerbFS(t *testing.T) {
+	spec := buildableSpec("xgoja", "", "")
+	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	spec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true}}
+	got := RenderMain(spec)
+	for _, want := range []string{
+		`"embed"`,
+		`//go:embed xgoja_embed/jsverbs/*`,
+		`var embeddedJSVerbs embed.FS`,
+		`EmbeddedJSVerbs: embeddedJSVerbs`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
+		}
+	}
+	embeddedSpec := RenderEmbeddedSpec(spec)
+	if !strings.Contains(embeddedSpec, `"path": "xgoja_embed/jsverbs/local"`) {
+		t.Fatalf("expected embedded spec to rewrite local embedded path, got:\n%s", embeddedSpec)
+	}
+}
+
 func TestWriteAll(t *testing.T) {
 	dir := t.TempDir()
 	if err := WriteAll(dir, fixtureSpec(), Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
@@ -79,6 +100,45 @@ func TestGeneratedProgramRunsFixtureProvider(t *testing.T) {
 	runGeneratedEval(t, buildableSpec("xgoja", "", ""))
 }
 
+func TestGeneratedProgramRunsProviderVerbSource(t *testing.T) {
+	spec := buildableSpec("xgoja", "", "")
+	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	spec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "provider", Package: "fixture", Source: "verbs"}}
+	runGeneratedCommand(t, spec, "verbs", "tools", "provider-greet", "--name", "intern")
+}
+
+func TestGeneratedProgramRunsEmbeddedVerbSource(t *testing.T) {
+	baseDir := t.TempDir()
+	verbsDir := filepath.Join(baseDir, "verbs")
+	if err := os.MkdirAll(verbsDir, 0o755); err != nil {
+		t.Fatalf("mkdir verbs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(verbsDir, "tools.js"), []byte(`
+__package__({ name: "tools" })
+__verb__("embeddedGreet", {
+  name: "embedded-greet",
+  output: "text",
+  fields: {
+    name: { type: "string", required: true }
+  }
+})
+function embeddedGreet(name) {
+  const hello = require("hello")
+  return hello.greet(name)
+}
+`), 0o644); err != nil {
+		t.Fatalf("write verb: %v", err)
+	}
+	spec := buildableSpec("xgoja", "", "")
+	spec.BaseDir = baseDir
+	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	spec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true}}
+	dir := runGeneratedCommand(t, spec, "verbs", "tools", "embedded-greet", "--name", "intern")
+	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "jsverbs", "local", "tools.js")); err != nil {
+		t.Fatalf("embedded verb was not copied: %v", err)
+	}
+}
+
 func TestGeneratedCobraTargetAttachesCommands(t *testing.T) {
 	runGeneratedEval(t, buildableSpec("cobra", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testcobra", "NewRootCommand"))
 }
@@ -88,6 +148,21 @@ func TestGeneratedAdapterTargetUsesAdapterBuild(t *testing.T) {
 }
 
 func runGeneratedEval(t *testing.T, spec *buildspec.Spec) {
+	t.Helper()
+	dir, out := runGeneratedCommandWithOutput(t, spec, "eval", `require("hello").greet("intern")`)
+	_ = dir
+	if strings.TrimSpace(string(out)) != "hello intern" {
+		t.Fatalf("generated output = %q", out)
+	}
+}
+
+func runGeneratedCommand(t *testing.T, spec *buildspec.Spec, args ...string) string {
+	t.Helper()
+	dir, _ := runGeneratedCommandWithOutput(t, spec, args...)
+	return dir
+}
+
+func runGeneratedCommandWithOutput(t *testing.T, spec *buildspec.Spec, args ...string) (string, []byte) {
 	t.Helper()
 	repoRoot, err := filepath.Abs("../../../..")
 	if err != nil {
@@ -102,15 +177,13 @@ func runGeneratedEval(t *testing.T, spec *buildspec.Spec) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("go mod tidy: %v\n%s", err, out)
 	}
-	cmd = exec.Command("go", "run", ".", "eval", `require("hello").greet("intern")`)
+	cmd = exec.Command("go", append([]string{"run", "."}, args...)...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go run generated program: %v\n%s", err, out)
 	}
-	if strings.TrimSpace(string(out)) != "hello intern" {
-		t.Fatalf("generated output = %q", out)
-	}
+	return dir, out
 }
 
 func buildableSpec(kind, targetImport, root string) *buildspec.Spec {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"sort"
 
 	"github.com/dop251/goja"
@@ -18,9 +19,10 @@ import (
 )
 
 type Options struct {
-	Providers *providerapi.Registry
-	SpecJSON  string
-	Out       io.Writer
+	Providers       *providerapi.Registry
+	SpecJSON        string
+	Out             io.Writer
+	EmbeddedJSVerbs fs.FS
 }
 
 func NewRootCommand(opts Options) (*cobra.Command, error) {
@@ -31,7 +33,7 @@ func NewRootCommand(opts Options) (*cobra.Command, error) {
 	if err := json.Unmarshal([]byte(opts.SpecJSON), spec); err != nil {
 		return nil, fmt.Errorf("decode embedded xgoja spec: %w", err)
 	}
-	host := NewHost(opts.Providers, spec)
+	host := NewHostWithOptions(opts.Providers, spec, HostOptions{EmbeddedJSVerbs: opts.EmbeddedJSVerbs})
 	root := &cobra.Command{
 		Use:   spec.Name,
 		Short: "Generated xgoja binary",
@@ -93,12 +95,12 @@ func newModulesCommand(providers *providerapi.Registry, spec *Spec) *cobra.Comma
 	}
 }
 
-func newVerbsCommand(factory *RuntimeFactory, spec *Spec) *cobra.Command {
+func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, spec *Spec, embeddedJSVerbs fs.FS) *cobra.Command {
 	root := &cobra.Command{
 		Use:   commandName(spec.Commands.JSVerbs, "verbs"),
 		Short: "Run configured JavaScript verb commands",
 	}
-	mounted, err := buildVerbCommands(factory, spec)
+	mounted, err := buildVerbCommands(providers, factory, spec, embeddedJSVerbs)
 	if err != nil {
 		root.RunE = func(cmd *cobra.Command, args []string) error { return err }
 		return root
@@ -122,15 +124,15 @@ func newVerbsCommand(factory *RuntimeFactory, spec *Spec) *cobra.Command {
 	return root
 }
 
-func buildVerbCommands(factory *RuntimeFactory, spec *Spec) ([]cmds.Command, error) {
+func buildVerbCommands(providers *providerapi.Registry, factory *RuntimeFactory, spec *Spec, embeddedJSVerbs fs.FS) ([]cmds.Command, error) {
 	commands := []cmds.Command{}
 	for _, source := range spec.JSVerbs {
-		if source.Path == "" {
-			continue
-		}
-		registry, err := jsverbs.ScanDir(source.Path)
+		registry, err := scanVerbSource(providers, embeddedJSVerbs, source)
 		if err != nil {
-			return nil, fmt.Errorf("scan jsverb source %s: %w", source.ID, err)
+			return nil, err
+		}
+		if registry == nil {
+			continue
 		}
 		for _, verb := range registry.Verbs() {
 			verb := verb
@@ -149,6 +151,44 @@ func buildVerbCommands(factory *RuntimeFactory, spec *Spec) ([]cmds.Command, err
 		}
 	}
 	return commands, nil
+}
+
+func scanVerbSource(providers *providerapi.Registry, embeddedJSVerbs fs.FS, source JSVerbSourceSpec) (*jsverbs.Registry, error) {
+	if source.Package != "" || source.Source != "" {
+		if providers == nil {
+			return nil, fmt.Errorf("scan jsverb source %s: providers registry is required", source.ID)
+		}
+		providerSource, ok := providers.ResolveVerbSource(source.Package, source.Source)
+		if !ok {
+			return nil, fmt.Errorf("scan jsverb source %s: unknown provider verb source %s.%s", source.ID, source.Package, source.Source)
+		}
+		if providerSource.FS == nil {
+			return nil, fmt.Errorf("scan jsverb source %s: provider verb source %s.%s has no filesystem", source.ID, source.Package, source.Source)
+		}
+		registry, err := jsverbs.ScanFS(providerSource.FS, providerSource.Root)
+		if err != nil {
+			return nil, fmt.Errorf("scan provider jsverb source %s (%s.%s): %w", source.ID, source.Package, source.Source, err)
+		}
+		return registry, nil
+	}
+	if source.Path == "" {
+		return nil, nil
+	}
+	if source.Embed {
+		if embeddedJSVerbs == nil {
+			return nil, fmt.Errorf("scan jsverb source %s: embedded jsverbs filesystem is not configured", source.ID)
+		}
+		registry, err := jsverbs.ScanFS(embeddedJSVerbs, source.Path)
+		if err != nil {
+			return nil, fmt.Errorf("scan embedded jsverb source %s: %w", source.ID, err)
+		}
+		return registry, nil
+	}
+	registry, err := jsverbs.ScanDir(source.Path)
+	if err != nil {
+		return nil, fmt.Errorf("scan jsverb source %s: %w", source.ID, err)
+	}
+	return registry, nil
 }
 
 func firstRuntime(spec *Spec) string {
