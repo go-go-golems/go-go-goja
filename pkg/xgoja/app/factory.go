@@ -67,7 +67,10 @@ func (f *RuntimeFactory) NewRuntime(ctx context.Context, profile string, opts ..
 		}
 		modules = append(modules, providerRuntimeModuleSpec{instance: instance, module: module})
 	}
-	builder := engine.NewBuilder().WithModules(modules...)
+	builder := engine.NewBuilder(
+		engine.WithImplicitDefaultRegistryModules(false),
+		engine.WithDataOnlyDefaultRegistryModules(false),
+	).WithModules(modules...)
 	if len(opts) > 0 {
 		builder = builder.WithRequireOptions(opts...)
 	}

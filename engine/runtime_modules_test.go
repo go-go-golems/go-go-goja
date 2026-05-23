@@ -268,3 +268,28 @@ func TestRuntimeInitializersPersistValuesWithoutRegistrarState(t *testing.T) {
 		t.Fatalf("runtime initializer-only = %#v, %v", got, ok)
 	}
 }
+
+func TestBuilderCanDisableImplicitDefaultModules(t *testing.T) {
+	factory, err := NewBuilder(
+		WithImplicitDefaultRegistryModules(false),
+		WithDataOnlyDefaultRegistryModules(false),
+	).Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() {
+		_ = rt.Close(context.Background())
+	}()
+
+	if _, err := rt.Require.Require("fs"); err == nil {
+		t.Fatalf("require(fs) succeeded, want missing module")
+	}
+	if _, err := rt.Require.Require("path"); err == nil {
+		t.Fatalf("require(path) succeeded, want missing module")
+	}
+}

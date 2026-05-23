@@ -139,7 +139,7 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 	// all default-registry modules. Calling UseModuleMiddleware narrows or
 	// transforms that selection; explicit WithModules(...) remains explicit and
 	// does not auto-append the default registry.
-	if len(b.moduleMiddlewares) > 0 || len(b.modules) == 0 {
+	if len(b.moduleMiddlewares) > 0 || (len(b.modules) == 0 && b.settings.implicitDefaultRegistryModules) {
 		selector := SelectAll
 		for i := len(b.moduleMiddlewares) - 1; i >= 0; i-- {
 			selector = b.moduleMiddlewares[i](selector)
@@ -169,7 +169,9 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 
 	return &Factory{
 		settings: builderSettings{
-			requireOptions: append([]require.Option(nil), b.settings.requireOptions...),
+			requireOptions:                 append([]require.Option(nil), b.settings.requireOptions...),
+			implicitDefaultRegistryModules: b.settings.implicitDefaultRegistryModules,
+			dataOnlyDefaultRegistryModules: b.settings.dataOnlyDefaultRegistryModules,
 		},
 		modules:             append([]RuntimeModuleSpec(nil), modules_...),
 		runtimeInitializers: append([]RuntimeInitializer(nil), inits...),
@@ -222,9 +224,11 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		AddCloser: rt.AddCloser,
 		Values:    runtimeValues,
 	}
-	if err := DataOnlyDefaultRegistryModules().RegisterRuntimeModule(moduleCtx, reg); err != nil {
-		_ = rt.Close(ctx)
-		return nil, fmt.Errorf("register data-only default modules: %w", err)
+	if f.settings.dataOnlyDefaultRegistryModules {
+		if err := DataOnlyDefaultRegistryModules().RegisterRuntimeModule(moduleCtx, reg); err != nil {
+			_ = rt.Close(ctx)
+			return nil, fmt.Errorf("register data-only default modules: %w", err)
+		}
 	}
 	for _, mod := range f.modules {
 		if err := mod.RegisterRuntimeModule(moduleCtx, reg); err != nil {

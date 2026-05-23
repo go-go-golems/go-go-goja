@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -63,6 +64,31 @@ func TestGeneratedRootModulesCommand(t *testing.T) {
 	}
 	if got := out.String(); got != "fixture.hello\nfixture.owner-check\n" {
 		t.Fatalf("modules output = %q", got)
+	}
+}
+
+func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	spec := &Spec{}
+	if err := json.Unmarshal([]byte(fixtureSpecJSON), spec); err != nil {
+		t.Fatalf("parse spec: %v", err)
+	}
+	rt, err := NewRuntimeFactory(registry, spec).NewRuntime(context.Background(), "repl")
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() {
+		_ = rt.Close(context.Background())
+	}()
+
+	if _, err := rt.Require.Require("hello"); err != nil {
+		t.Fatalf("require hello: %v", err)
+	}
+	if _, err := rt.Require.Require("path"); err == nil {
+		t.Fatalf("require path succeeded, want xgoja spec-selected modules only")
 	}
 }
 
