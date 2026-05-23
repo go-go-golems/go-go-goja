@@ -363,9 +363,9 @@ Bundled help entries live in:
 The help topics are intentionally few:
 
 ```text
-xgoja-overview
-xgoja-buildspec
-xgoja-tutorial
+overview
+buildspec
+tutorial
 ```
 
 ### `xgoja build`

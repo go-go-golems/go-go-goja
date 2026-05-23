@@ -1,6 +1,6 @@
 ---
 Title: "xgoja tutorial"
-Slug: xgoja-tutorial
+Slug: tutorial
 Short: "Build and run a generated xgoja binary with provider modules and JavaScript verbs."
 Topics:
 - xgoja
@@ -227,5 +227,5 @@ If the generated build fails, the generated source usually shows whether the pro
 
 ## See also
 
-- `xgoja-overview` for the architecture.
-- `xgoja-buildspec` for the complete spec reference.
+- `overview` for the architecture.
+- `buildspec` for the complete spec reference.

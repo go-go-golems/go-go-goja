@@ -1,6 +1,6 @@
 ---
 Title: "xgoja overview"
-Slug: xgoja-overview
+Slug: overview
 Short: "How xgoja builds custom goja-powered binaries from provider packages and runtime profiles."
 Topics:
 - xgoja
@@ -98,5 +98,5 @@ Do not use `xgoja` as a dynamic Go plugin loader. The reliable extension boundar
 
 ## See also
 
-- `xgoja-buildspec` for the YAML reference.
-- `xgoja-tutorial` for an end-to-end build flow.
+- `buildspec` for the YAML reference.
+- `tutorial` for an end-to-end build flow.

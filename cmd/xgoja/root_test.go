@@ -32,7 +32,7 @@ func TestBundledHelpTopic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new root command: %v", err)
 	}
-	root.SetArgs([]string{"help", "xgoja-buildspec"})
+	root.SetArgs([]string{"help", "buildspec"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute help topic: %v", err)
 	}

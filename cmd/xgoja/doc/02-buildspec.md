@@ -1,6 +1,6 @@
 ---
 Title: "xgoja buildspec reference"
-Slug: xgoja-buildspec
+Slug: buildspec
 Short: "Reference for xgoja.yaml packages, runtimes, commands, targets, and jsverb source modes."
 Topics:
 - xgoja
@@ -257,5 +257,5 @@ The validator checks supported target kinds, package uniqueness, known runtime p
 
 ## See also
 
-- `xgoja-overview` for the system model.
-- `xgoja-tutorial` for a runnable workflow.
+- `overview` for the system model.
+- `tutorial` for a runnable workflow.
