@@ -25,7 +25,7 @@ func NewRootCommand(opts Options) (*cobra.Command, error) {
 	if err := json.Unmarshal([]byte(opts.SpecJSON), spec); err != nil {
 		return nil, fmt.Errorf("decode embedded xgoja spec: %w", err)
 	}
-	factory := NewRuntimeFactory(opts.Providers, spec)
+	host := NewHost(opts.Providers, spec)
 	root := &cobra.Command{
 		Use:   spec.Name,
 		Short: "Generated xgoja binary",
@@ -33,11 +33,7 @@ func NewRootCommand(opts Options) (*cobra.Command, error) {
 	if opts.Out != nil {
 		root.SetOut(opts.Out)
 	}
-	root.AddCommand(newEvalCommand(factory, spec))
-	root.AddCommand(newModulesCommand(opts.Providers, spec))
-	if spec.Commands.JSVerbs.Enabled {
-		root.AddCommand(newVerbsCommand(spec))
-	}
+	host.AttachDefaultCommands(root)
 	return root, nil
 }
 

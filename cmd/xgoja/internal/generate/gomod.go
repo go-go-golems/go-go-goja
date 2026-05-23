@@ -21,6 +21,9 @@ func RenderGoMod(spec *buildspec.Spec, opts Options) string {
 	fmt.Fprintf(&b, "go %s\n\n", spec.Go.Version)
 
 	requires := map[string]string{xgojaRuntimeModule: opts.XGojaModuleVersion}
+	if (spec.Target.Kind == "adapter" || spec.Target.Kind == "cobra") && strings.TrimSpace(spec.Target.Version) != "" {
+		requires[providerModulePath(spec.Target.Import)] = spec.Target.Version
+	}
 	for _, pkg := range spec.Packages {
 		version := strings.TrimSpace(pkg.Version)
 		if version == "" {

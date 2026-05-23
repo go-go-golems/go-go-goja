@@ -76,23 +76,24 @@ func TestWriteAll(t *testing.T) {
 }
 
 func TestGeneratedProgramRunsFixtureProvider(t *testing.T) {
+	runGeneratedEval(t, buildableSpec("xgoja", "", ""))
+}
+
+func TestGeneratedCobraTargetAttachesCommands(t *testing.T) {
+	runGeneratedEval(t, buildableSpec("cobra", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testcobra", "NewRootCommand"))
+}
+
+func TestGeneratedAdapterTargetUsesAdapterBuild(t *testing.T) {
+	runGeneratedEval(t, buildableSpec("adapter", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testadapter", ""))
+}
+
+func runGeneratedEval(t *testing.T, spec *buildspec.Spec) {
+	t.Helper()
 	repoRoot, err := filepath.Abs("../../../..")
 	if err != nil {
 		t.Fatalf("repo root: %v", err)
 	}
 	dir := t.TempDir()
-	spec := &buildspec.Spec{
-		Name:   "fixture",
-		Go:     buildspec.GoSpec{Version: "1.26", Module: "example.com/generated/fixture"},
-		Target: buildspec.TargetSpec{Kind: "xgoja", Output: "dist/fixture"},
-		Packages: []buildspec.PackageSpec{
-			{ID: "fixture", Import: "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider", Register: "Register"},
-		},
-		Runtimes: map[string]buildspec.Runtime{
-			"repl": {Modules: []buildspec.ModuleInstance{{Package: "fixture", Name: "hello", As: "hello"}}},
-		},
-		Commands: buildspec.CommandsSpec{Repl: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "repl"}},
-	}
 	if err := WriteAll(dir, spec, Options{XGojaModuleVersion: "v0.0.0", XGojaReplace: repoRoot}); err != nil {
 		t.Fatalf("write generated program: %v", err)
 	}
@@ -109,6 +110,21 @@ func TestGeneratedProgramRunsFixtureProvider(t *testing.T) {
 	}
 	if strings.TrimSpace(string(out)) != "hello intern" {
 		t.Fatalf("generated output = %q", out)
+	}
+}
+
+func buildableSpec(kind, targetImport, root string) *buildspec.Spec {
+	return &buildspec.Spec{
+		Name:   "fixture",
+		Go:     buildspec.GoSpec{Version: "1.26", Module: "example.com/generated/fixture"},
+		Target: buildspec.TargetSpec{Kind: kind, Import: targetImport, Root: root, Output: "dist/fixture"},
+		Packages: []buildspec.PackageSpec{
+			{ID: "fixture", Import: "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider", Register: "Register"},
+		},
+		Runtimes: map[string]buildspec.Runtime{
+			"repl": {Modules: []buildspec.ModuleInstance{{Package: "fixture", Name: "hello", As: "hello"}}},
+		},
+		Commands: buildspec.CommandsSpec{Repl: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "repl"}},
 	}
 }
 
