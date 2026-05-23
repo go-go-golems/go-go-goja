@@ -3,7 +3,6 @@ package generate
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
@@ -179,15 +178,6 @@ func importAliases(packages []buildspec.PackageSpec) map[string]string {
 		aliases[pkg.ID] = alias
 	}
 	return aliases
-}
-
-func sortedRuntimeNames(runtimes map[string]buildspec.Runtime) []string {
-	names := make([]string, 0, len(runtimes))
-	for name := range runtimes {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
 }
 
 func sanitizeIdentifier(value string) string {
