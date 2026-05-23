@@ -1,13 +1,13 @@
 ---
-Title: Create xgoja compile-time goja module composition builder
-Ticket: XGOJA-001
-Status: complete
+Title: Mount jsverbs in generated xgoja binaries
+Ticket: XGOJA-002
+Status: active
 Topics:
-    - goja
     - xgoja
-    - architecture
+    - jsverbs
+    - goja
     - cli
-    - modules
+    - glazed
     - documentation
 DocType: index
 Intent: long-term
@@ -15,13 +15,12 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-22T20:07:10.977421115-04:00
+LastUpdated: 2026-05-22T20:07:17.198647012-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
 
-
-# Create xgoja compile-time goja module composition builder
+# Mount jsverbs in generated xgoja binaries
 
 ## Overview
 
@@ -38,11 +37,11 @@ Current status: **active**
 
 ## Topics
 
-- goja
 - xgoja
-- architecture
+- jsverbs
+- goja
 - cli
-- modules
+- glazed
 - documentation
 
 ## Tasks
