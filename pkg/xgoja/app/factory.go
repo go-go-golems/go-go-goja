@@ -24,7 +24,7 @@ func NewRuntimeFactory(providers *providerapi.Registry, spec *Spec) *RuntimeFact
 	return &RuntimeFactory{providers: providers, spec: spec}
 }
 
-func (f *RuntimeFactory) NewRuntime(ctx context.Context, profile string) (*JSRuntime, error) {
+func (f *RuntimeFactory) NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*JSRuntime, error) {
 	if f == nil || f.providers == nil || f.spec == nil {
 		return nil, fmt.Errorf("xgoja runtime factory is not initialized")
 	}
@@ -33,7 +33,7 @@ func (f *RuntimeFactory) NewRuntime(ctx context.Context, profile string) (*JSRun
 		return nil, fmt.Errorf("unknown runtime profile %q", profile)
 	}
 	vm := goja.New()
-	registry := require.NewRegistry()
+	registry := require.NewRegistry(opts...)
 	for _, instance := range runtime.Modules {
 		module, ok := f.providers.ResolveModule(instance.Package, instance.Name)
 		if !ok {

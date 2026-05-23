@@ -48,5 +48,5 @@ func (h *Host) AttachVerbs(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	root.AddCommand(newVerbsCommand(h.Spec))
+	root.AddCommand(newVerbsCommand(h.Factory, h.Spec))
 }

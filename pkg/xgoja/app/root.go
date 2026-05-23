@@ -1,12 +1,18 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
 
 	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/require"
+	glazedcli "github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/spf13/cobra"
 )
@@ -87,9 +93,18 @@ func newModulesCommand(providers *providerapi.Registry, spec *Spec) *cobra.Comma
 	}
 }
 
-func newVerbsCommand(spec *Spec) *cobra.Command {
-	return &cobra.Command{
+func newVerbsCommand(factory *RuntimeFactory, spec *Spec) *cobra.Command {
+	root := &cobra.Command{
 		Use:   commandName(spec.Commands.JSVerbs, "verbs"),
+		Short: "Run configured JavaScript verb commands",
+	}
+	mounted, err := buildVerbCommands(factory, spec)
+	if err != nil {
+		root.RunE = func(cmd *cobra.Command, args []string) error { return err }
+		return root
+	}
+	list := &cobra.Command{
+		Use:   "sources",
 		Short: "List configured JavaScript verb sources",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			for _, source := range spec.JSVerbs {
@@ -98,6 +113,42 @@ func newVerbsCommand(spec *Spec) *cobra.Command {
 			return nil
 		},
 	}
+	root.AddCommand(list)
+	if err := glazedcli.AddCommandsToRootCommand(root, mounted, nil, glazedcli.WithParserConfig(glazedcli.CobraParserConfig{
+		MiddlewaresFunc: glazedcli.CobraCommandDefaultMiddlewares,
+	})); err != nil {
+		root.RunE = func(cmd *cobra.Command, args []string) error { return err }
+	}
+	return root
+}
+
+func buildVerbCommands(factory *RuntimeFactory, spec *Spec) ([]cmds.Command, error) {
+	commands := []cmds.Command{}
+	for _, source := range spec.JSVerbs {
+		if source.Path == "" {
+			continue
+		}
+		registry, err := jsverbs.ScanDir(source.Path)
+		if err != nil {
+			return nil, fmt.Errorf("scan jsverb source %s: %w", source.ID, err)
+		}
+		for _, verb := range registry.Verbs() {
+			verb := verb
+			registry := registry
+			cmd, err := registry.CommandForVerbWithInvoker(verb, func(ctx context.Context, _ *jsverbs.Registry, verb *jsverbs.VerbSpec, parsedValues *values.Values) (interface{}, error) {
+				rt, err := factory.NewRuntime(ctx, spec.Commands.JSVerbs.Runtime, require.WithLoader(registry.RequireLoader()))
+				if err != nil {
+					return nil, err
+				}
+				return registry.InvokeInGojaRuntime(ctx, rt.VM, rt.Require, verb, parsedValues)
+			})
+			if err != nil {
+				return nil, err
+			}
+			commands = append(commands, cmd)
+		}
+	}
+	return commands, nil
 }
 
 func firstRuntime(spec *Spec) string {

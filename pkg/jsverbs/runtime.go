@@ -109,6 +109,66 @@ func (r *Registry) InvokeInRuntime(ctx context.Context, runtime *engine.Runtime,
 	return ret, nil
 }
 
+// InvokeInGojaRuntime invokes a verb inside a caller-owned goja runtime and
+// require module. It is intended for lightweight hosts such as generated xgoja
+// binaries that do not use engine.Runtime but still need jsverbs command
+// binding, source overlay injection, and argument conversion semantics.
+func (r *Registry) InvokeInGojaRuntime(ctx context.Context, vm *goja.Runtime, req *require.RequireModule, verb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
+	if r == nil {
+		return nil, fmt.Errorf("registry is nil")
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("goja runtime is nil")
+	}
+	if req == nil {
+		return nil, fmt.Errorf("require module is nil")
+	}
+	if verb == nil {
+		return nil, fmt.Errorf("verb is nil")
+	}
+	plan, err := buildVerbBindingPlan(r, verb)
+	if err != nil {
+		return nil, err
+	}
+	args, err := buildArguments(parsedValues, plan, r.RootDir)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := req.Require(verb.File.ModulePath); err != nil {
+		return nil, err
+	}
+	registryValue := vm.Get("__glazedVerbRegistry")
+	if registryValue == nil || goja.IsUndefined(registryValue) || goja.IsNull(registryValue) {
+		return nil, fmt.Errorf("js verb registry not initialized")
+	}
+	registryObject := registryValue.ToObject(vm)
+	entryValue := registryObject.Get(verb.File.ModulePath)
+	if entryValue == nil || goja.IsUndefined(entryValue) || goja.IsNull(entryValue) {
+		return nil, fmt.Errorf("js verb module entry missing for %s", verb.File.ModulePath)
+	}
+	entryObject := entryValue.ToObject(vm)
+	fnValue := entryObject.Get(verb.FunctionName)
+	fn, ok := goja.AssertFunction(fnValue)
+	if !ok {
+		return nil, fmt.Errorf("js function %s not captured for %s", verb.FunctionName, verb.File.RelPath)
+	}
+	jsArgs := make([]goja.Value, 0, len(args))
+	for _, arg := range args {
+		jsArgs = append(jsArgs, vm.ToValue(arg))
+	}
+	result, err := fn(goja.Undefined(), jsArgs...)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, nil
+	}
+	if promise, ok := result.Export().(*goja.Promise); ok {
+		return waitForPromiseDirect(ctx, promise)
+	}
+	return result.Export(), nil
+}
+
 func buildArguments(parsedValues *values.Values, plan *VerbBindingPlan, rootDir string) ([]interface{}, error) {
 	sectionValues := map[string]map[string]interface{}{}
 	if parsedValues == nil {
@@ -255,6 +315,28 @@ func waitForPromise(ctx context.Context, runtime *engine.Runtime, promise *goja.
 				return nil, nil
 			}
 			return snapshot.Result.Export(), nil
+		}
+	}
+}
+
+func waitForPromiseDirect(ctx context.Context, promise *goja.Promise) (interface{}, error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		switch promise.State() {
+		case goja.PromiseStatePending:
+			time.Sleep(5 * time.Millisecond)
+		case goja.PromiseStateRejected:
+			return nil, fmt.Errorf("promise rejected: %s", valueString(promise.Result()))
+		case goja.PromiseStateFulfilled:
+			result := promise.Result()
+			if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+				return nil, nil
+			}
+			return result.Export(), nil
 		}
 	}
 }
