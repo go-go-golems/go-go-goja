@@ -237,3 +237,65 @@ function greet(name) {
   return hello.greet(name)
 }
 ```
+
+## Step 3: Validate and upload the jsverbs mounting diary
+
+This step completed ticket bookkeeping for the first real jsverbs mounting implementation. The code and docs were already updated; this step marked the final validation/upload task complete and prepared the diary for reMarkable delivery.
+
+All ticket tasks are now complete. I did not close `XGOJA-002` automatically because the user asked to close the previous ticket and create/work this new one; closing the new ticket can be done after review if desired.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Keep the new ticket's tasks, changelog, and diary synchronized as implementation work lands.
+
+**Inferred user intent:** Preserve the same delivery discipline as XGOJA-001, including a readable diary on reMarkable.
+
+### What I did
+
+- Marked task 7 complete.
+- Updated the ticket changelog with validation/upload bookkeeping.
+- Re-ran focused tests and docmgr doctor before committing the implementation diary.
+
+### Why
+
+- The ticket should show all implementation tasks complete and have the final diary uploaded for review.
+
+### What worked
+
+- `docmgr task check --ticket XGOJA-002 --id 7` succeeded and reported all tasks complete.
+- `docmgr doctor --ticket XGOJA-002 --stale-after 30` passed before the code/doc commits.
+- Focused tests passed with `GOWORK=off`.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The first real jsverbs mounting pass is complete for filesystem sources, but future tickets should still handle embedded source generation and provider-shipped verb sources.
+
+### What was tricky to build
+
+- The final task is procedural rather than code-heavy, but it is important because the user explicitly asked for ongoing diary maintenance.
+
+### What warrants a second pair of eyes
+
+- Decide whether to close `XGOJA-002` immediately or keep it active until the implementation has been reviewed.
+
+### What should be done in the future
+
+- Close `XGOJA-002` after review if no further work is needed in this ticket.
+
+### Code review instructions
+
+- Review Step 2 for the implementation details and validation command.
+
+### Technical details
+
+Final focused validation command:
+
+```bash
+GOWORK=off go test ./pkg/jsverbs ./pkg/xgoja/app ./cmd/xgoja/internal/generate ./cmd/xgoja ./cmd/xgoja/internal/buildspec ./pkg/xgoja/providerapi ./pkg/xgoja/testprovider ./pkg/xgoja/testcobra ./pkg/xgoja/testadapter -count=1
+```

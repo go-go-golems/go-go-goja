@@ -24,3 +24,12 @@ Implemented direct jsverbs mounting for filesystem sources in generated xgoja ap
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/jsverbs/runtime.go — Direct jsverbs invocation API
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root.go — Filesystem source mounting
 
+
+## 2026-05-22
+
+Validated jsverbs mounting work and uploaded updated diary to reMarkable
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/ttmp/2026/05/22/XGOJA-002--mount-jsverbs-in-generated-xgoja-binaries/reference/01-diary.md — Updated implementation diary
+
