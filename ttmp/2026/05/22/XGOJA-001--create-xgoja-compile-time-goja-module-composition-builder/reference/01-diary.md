@@ -43,11 +43,15 @@ RelatedFiles:
     - Path: go-go-goja/cmd/xgoja/internal/generate/generate.go
       Note: Generated workspace writer for go.mod/main.go/spec files
     - Path: go-go-goja/cmd/xgoja/internal/generate/generate_test.go
-      Note: Generation tests covering go.mod/main.go/spec/workspace output
+      Note: |-
+        Generation tests covering go.mod/main.go/spec/workspace output
+        Generated program tests for pure
     - Path: go-go-goja/cmd/xgoja/internal/generate/gomod.go
       Note: Deterministic generated go.mod renderer
     - Path: go-go-goja/cmd/xgoja/internal/generate/main.go
-      Note: Deterministic generated main.go and embedded spec renderers
+      Note: |-
+        Deterministic generated main.go and embedded spec renderers
+        Generated main renderer now supports xgoja
     - Path: go-go-goja/cmd/xgoja/internal/testprovider/provider.go
       Note: Fixture provider package for future xgoja integration tests
     - Path: go-go-goja/cmd/xgoja/main.go
@@ -62,6 +66,8 @@ RelatedFiles:
       Note: Out-of-process plugin path inspected as an alternative boundary
     - Path: go-go-goja/pkg/xgoja/app/factory.go
       Note: Runtime factory that registers selected provider modules into goja require
+    - Path: go-go-goja/pkg/xgoja/app/host.go
+      Note: Host object used by generated adapter and Cobra attach modes
     - Path: go-go-goja/pkg/xgoja/app/root.go
       Note: Generated pure xgoja root command with eval/modules/verbs commands
     - Path: go-go-goja/pkg/xgoja/app/root_test.go
@@ -76,6 +82,10 @@ RelatedFiles:
       Note: Provider API validation tests
     - Path: go-go-goja/pkg/xgoja/providerapi/verbs.go
       Note: Provider verb source contract
+    - Path: go-go-goja/pkg/xgoja/testadapter/adapter.go
+      Note: Fixture adapter target used by generated adapter-mode tests
+    - Path: go-go-goja/pkg/xgoja/testcobra/root.go
+      Note: Fixture Cobra target used by generated attach-mode tests
     - Path: go-go-goja/pkg/xgoja/testprovider/provider.go
       Note: Public fixture provider used by generated program integration test
     - Path: go-go-goja/ttmp/2026/05/22/XGOJA-001--create-xgoja-compile-time-goja-module-composition-builder/design-doc/01-xgoja-analysis-design-and-implementation-guide.md
@@ -87,6 +97,7 @@ LastUpdated: 2026-05-22T19:06:53-04:00
 WhatFor: Use this diary to resume the xgoja design/implementation work without redoing the initial investigation.
 WhenToUse: Read before implementing xgoja, changing the design guide, or continuing ticket XGOJA-001.
 ---
+
 
 
 
@@ -1137,4 +1148,122 @@ Current diagnostic command surface:
 xgoja doctor -f xgoja.yaml --output json
 xgoja inspect ./dist/my-binary --output json
 xgoja list-modules -f xgoja.yaml --profile repl --output table
+```
+
+## Step 11: Implement adapter and Cobra attach target modes
+
+This step completed the planned target-mode coverage for the first xgoja implementation. Generated programs now support three target kinds: pure `xgoja`, `adapter`, and `cobra`. The pure mode still delegates to `app.NewRootCommand`; adapter mode calls an imported target `Build(context.Context, *app.Host)` function; Cobra mode calls an imported root constructor and attaches xgoja commands to the returned root command.
+
+The key addition is the public `app.Host` object. It packages the provider registry, decoded spec, and runtime factory, and exposes attachment helpers so existing applications can opt into xgoja commands without generated code needing to know their internals.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Finish the remaining Phase 8 implementation by adding generated adapter and Cobra attach modes after the pure generated app path works.
+
+**Inferred user intent:** Complete the planned first-pass implementation so xgoja can build pure binaries and source-level integrations with existing applications.
+
+**Commit (code):** `9fc3ee721fb464238f027b4f34556b4954c3fcc1` — "Add xgoja adapter and cobra targets"
+
+### What I did
+
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/host.go` with:
+  - `Host`.
+  - `NewHost`.
+  - `AttachDefaultCommands`.
+  - `AttachEval`.
+  - `AttachModules`.
+  - `AttachVerbs`.
+- Updated `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root.go` to use `Host.AttachDefaultCommands` for pure generated roots.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/testcobra/root.go` as a fixture Cobra root package.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/testadapter/adapter.go` as a fixture adapter package implementing `Build(context.Context, *app.Host) (*cobra.Command, error)`.
+- Updated `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/main.go` so generated `main.go` supports:
+  - `target.kind: xgoja`
+  - `target.kind: adapter`
+  - `target.kind: cobra`
+- Updated `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/gomod.go` so target packages with explicit versions are included in generated `go.mod` requirements.
+- Updated `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/generate_test.go` with generated-program smoke tests for pure, Cobra attach, and adapter modes.
+
+### Why
+
+- The original design called for target modes beyond pure generated binaries. Adapter mode is the safe way to rebuild an existing STDBIN with source-level hooks; Cobra mode is the lighter-weight path for applications that only expose a root command constructor.
+- A public host object keeps the generated code simple. Generated code imports a target package, constructs `app.Host`, and lets either the target adapter or host helpers attach xgoja commands.
+
+### What worked
+
+- Targeted tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	0.496s
+?   	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildexec	[no test files]
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.003s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.955s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi	0.002s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.003s
+?   	github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider	[no test files]
+?   	github.com/go-go-golems/go-go-goja/pkg/xgoja/testcobra	[no test files]
+?   	github.com/go-go-golems/go-go-goja/pkg/xgoja/testadapter	[no test files]
+?   	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/testprovider	[no test files]
+```
+
+- The generated-program tests run `go mod tidy` and `go run . eval 'require("hello").greet("intern")'` for all three target modes.
+- Task 16 is now complete, and docmgr reported that all tasks are complete.
+
+### What didn't work
+
+- No code failure in this step. The only correction was structural: generated adapter mode needs `context` imported, while pure and Cobra modes do not. The renderer now conditionally imports `context` only for adapter mode.
+
+### What I learned
+
+- Cobra attach mode is straightforward once the app package exposes attachment helpers. The generated code can call `target.NewRootCommand()` and then `host.AttachDefaultCommands(root)`.
+- Adapter mode should keep the adapter in control. The generated code constructs the host and calls `target.Build(context.Background(), host)`, letting the existing application decide where/how to attach xgoja commands.
+
+### What was tricky to build
+
+- Generated imports must be target-mode aware. Pure mode does not import a target package; adapter and Cobra modes do. Adapter mode also needs `context`.
+- The generated `main.go` needs a decoded spec for adapter and Cobra host construction, while pure mode can delegate decoding to `app.NewRootCommand`. I added a shared generated `decodeSpec()` helper.
+
+### What warrants a second pair of eyes
+
+- Review the adapter contract signature before treating it as stable:
+  - `Build(context.Context, *app.Host) (*cobra.Command, error)`.
+- Review whether Cobra mode should support constructors returning `(*cobra.Command, error)` in addition to `*cobra.Command`.
+- Review whether `Host.AttachDefaultCommands` should be more configurable per target mode.
+
+### What should be done in the future
+
+- Add documentation examples for pure, adapter, and Cobra specs.
+- Add support for real jsverbs mounting instead of listing configured verb sources.
+- Add support for richer REPL behavior beyond `eval`.
+
+### Code review instructions
+
+- Start in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/main.go` to review generated target-mode code.
+- Then inspect `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/host.go` for the attachment API.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja
+go test ./cmd/xgoja ./cmd/xgoja/internal/buildexec ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/providerapi ./pkg/xgoja/app ./pkg/xgoja/testprovider ./pkg/xgoja/testcobra ./pkg/xgoja/testadapter ./cmd/xgoja/internal/testprovider -count=1
+```
+
+### Technical details
+
+Generated adapter-mode sketch:
+
+```go
+spec := decodeSpec()
+host := app.NewHost(registry, spec)
+root, err := target.Build(context.Background(), host)
+must(err)
+```
+
+Generated Cobra-mode sketch:
+
+```go
+spec := decodeSpec()
+host := app.NewHost(registry, spec)
+root := target.NewRootCommand()
+host.AttachDefaultCommands(root)
 ```
