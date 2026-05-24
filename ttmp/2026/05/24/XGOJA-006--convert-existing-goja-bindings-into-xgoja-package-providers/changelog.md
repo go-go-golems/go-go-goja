@@ -27,3 +27,13 @@ Implemented first-party core and guarded host xgoja providers with examples, doc
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/providers/core/core.go — Core provider
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/providers/host/host.go — Host provider guards and config schema
 
+
+## 2026-05-24
+
+Added multiple-runtimes xgoja example showing safe eval and host run command profiles.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/examples/xgoja/multiple-runtimes/Makefile — Smoke test proves safe runtime rejects fs and host runtime allows it
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/examples/xgoja/multiple-runtimes/xgoja.yaml — Multiple runtime profile example
+

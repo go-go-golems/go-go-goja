@@ -11,6 +11,7 @@ Each example directory has its own `README.md`, `Makefile`, and `xgoja.yaml`.
 - `provider-shipped-jsverbs/` — JS verbs live inside a Go provider package and are selected by `package`/`source`.
 - `core-provider/` — generated binary using the safe first-party core provider (`path`, `yaml`, `crypto`, etc.).
 - `host-provider/` — generated binary using guarded host-capability modules (`fs`, `exec`, `database`) with explicit config.
+- `multiple-runtimes/` — one generated binary with separate safe and host runtime profiles mapped to different commands.
 
 ## Run all examples
 

@@ -223,3 +223,96 @@ config:
 config:
   allowConfigure: true
 ```
+
+## Step 3: Add a multiple-runtimes xgoja example
+
+This step added a dedicated example that demonstrates the runtime-profile boundary in a generated xgoja binary. The example compiles both the core and host provider packages into one binary, but maps different commands to different runtime profiles so each command sees only the modules selected for its profile.
+
+The smoke test proves the important behavior directly: `eval` can use `path` from the safe runtime, `eval` cannot require `fs`, and `run` can require `fs` because it is bound to the host runtime. This makes the xgoja composition model visible without needing an interactive REPL session.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes"
+
+**Assistant interpretation:** Add the proposed `examples/xgoja/multiple-runtimes/` example.
+
+**Inferred user intent:** Provide a runnable example that showcases multiple runtime profiles in one generated xgoja binary.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Added `examples/xgoja/multiple-runtimes/xgoja.yaml`.
+- Added `examples/xgoja/multiple-runtimes/Makefile`.
+- Added `examples/xgoja/multiple-runtimes/README.md`.
+- Added `examples/xgoja/multiple-runtimes/scripts/host-run.js`.
+- Updated `examples/xgoja/README.md` to list the new example.
+- Validated with:
+
+```bash
+make -C examples/xgoja/multiple-runtimes smoke
+```
+
+### Why
+
+- Existing examples show one runtime profile per generated binary.
+- The central xgoja model is stronger when users can see that compiled-in provider modules and command-visible runtime modules are separate concepts.
+
+### What worked
+
+- The example built successfully.
+- `eval` succeeded with `path`.
+- `eval` failed to require `fs`, as expected.
+- `run` succeeded with `fs` through the host runtime profile.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The current `doctor` and `list-modules` output clearly shows command-to-runtime mapping and per-profile module selection, which makes this example useful as documentation as well as a smoke test.
+
+### What was tricky to build
+
+- The negative smoke test needed to assert failure without making `make` fail. The Makefile wraps the `eval 'require("fs")'` call and treats a non-zero exit as expected.
+
+### What warrants a second pair of eyes
+
+- Review whether the example should also enable mounted jsverbs against one of the runtime profiles in a future extension.
+
+### What should be done in the future
+
+- Include this example in any broader provider example smoke loop.
+
+### Code review instructions
+
+- Start with `examples/xgoja/multiple-runtimes/xgoja.yaml`.
+- Confirm `commands.eval.runtime` is `safe` and `commands.run.runtime` is `host`.
+- Run `make -C examples/xgoja/multiple-runtimes smoke`.
+
+### Technical details
+
+The runtime profiles are:
+
+```yaml
+runtimes:
+  safe:
+    modules:
+      - package: go-go-goja-core
+        name: path
+        as: path
+      - package: go-go-goja-core
+        name: yaml
+        as: yaml
+  host:
+    modules:
+      - package: go-go-goja-core
+        name: path
+        as: path
+      - package: go-go-goja-host
+        name: fs
+        as: fs
+        config:
+          allow: true
+```
