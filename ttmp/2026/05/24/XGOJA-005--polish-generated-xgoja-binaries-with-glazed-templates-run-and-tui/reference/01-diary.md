@@ -50,7 +50,7 @@ Keep a diary as you work."
 
 **Inferred user intent:** Make generated xgoja binaries product-quality Glazed CLIs and keep the implementation teachable, reviewable, and documented.
 
-**Commit (code):** Pending for this step.
+**Commit (code):** 00cf191 — "Docs: add generated xgoja polish ticket"
 
 ### What I did
 
@@ -143,7 +143,7 @@ I briefly marked the final validation/upload task complete because the upload su
 
 **Inferred user intent:** Make the analysis/design package available for reading and review outside the repository.
 
-**Commit (code):** Pending for docs/ticket step.
+**Commit (code):** 00cf191 — "Docs: add generated xgoja polish ticket"
 
 ### What I did
 
@@ -219,7 +219,7 @@ The important change is readability. The generated Go source now lives in `templ
 
 **Inferred user intent:** Make the generated binary source easier to maintain before adding more root-command features.
 
-**Commit (code):** Pending for this step.
+**Commit (code):** 08afa45 — "Render generated xgoja main with templates"
 
 ### What I did
 
@@ -303,7 +303,7 @@ The generated runtime help docs are intentionally small and runtime-focused. The
 
 **Inferred user intent:** Generated binaries should behave like first-class Glazed CLIs, including standard logging flags and `help` topics.
 
-**Commit (code):** Pending for this step.
+**Commit (code):** 011a9c8 — "Install generated xgoja help and logging"
 
 ### What I did
 
