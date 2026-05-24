@@ -188,3 +188,87 @@ ok  github.com/go-go-golems/go-goja/cmd/xgoja/internal/generate
 ok  github.com/go-go-golems/go-goja/pkg/xgoja/app
 ?   github.com/go-go-golems/go-goja/pkg/xgoja/testprovider [no test files]
 ```
+
+## Step 3: Remove obsolete jsverbs bare-Goja invocation API
+
+This step removed the transitional `Registry.InvokeInGojaRuntime` API. That method existed so generated xgoja binaries could invoke jsverbs before xgoja reused `engine.Runtime`. After XGOJA-003, the generated app runtime is engine-backed and the canonical path is `Registry.InvokeInRuntime(ctx, runtime, verb, values)`.
+
+The cleanup leaves one jsverbs host invocation API for caller-owned managed runtimes. It also removes the direct-runtime test that existed only to exercise the deleted bare-Goja path.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue the cleanup by removing transition-only jsverbs API rather than keeping a compatibility wrapper.
+
+**Inferred user intent:** Make `engine.Runtime` the unambiguous runtime abstraction for jsverbs hosts.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Removed from `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/jsverbs/runtime.go`:
+  - exported `Registry.InvokeInGojaRuntime(...)`,
+  - private `invokeInGojaRuntime(...)`,
+  - private `waitForPromiseWithOwner(...)`,
+  - private `waitForPromiseDirect(...)`,
+  - now-unused `runtimebridge` import.
+- Deleted `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/jsverbs/runtime_direct_test.go`.
+- Ran `gofmt`.
+- Verified no active docs/code still reference the deleted names with `rg`.
+- Marked task 2 complete.
+- Updated the changelog.
+- Validated with:
+
+```bash
+GOWORK=off go test ./pkg/jsverbs ./pkg/jsverbscli ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1
+```
+
+### Why
+
+- `InvokeInGojaRuntime` encoded the old lightweight runtime boundary.
+- Current xgoja runtime construction uses `engine.Runtime`, which includes owner scheduling, runtimebridge bindings, lifecycle context, and close semantics.
+- Keeping both exported invocation APIs would make new hosts wonder whether they should construct raw Goja runtimes or managed engine runtimes.
+
+### What worked
+
+- Focused jsverbs/xgoja tests passed after deleting the API and test.
+- Active code already used `InvokeInRuntime`, so no call sites needed migration.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The bare-Goja invocation code was fully isolated in `pkg/jsverbs/runtime.go` and its direct test.
+- Public docs did not contain active `InvokeInGojaRuntime` examples, so this tranche did not require public doc rewrites.
+
+### What was tricky to build
+
+- The only subtlety was preserving promise handling for `InvokeInRuntime`. The deleted helper functions had similar polling logic, but `waitForPromise(ctx, runtime, promise)` remains and uses `runtime.Owner.Call`, which is the canonical managed-runtime path.
+
+### What warrants a second pair of eyes
+
+- Check that no downstream package in this repository still needs raw-Goja jsverbs invocation. This was intentionally a hard cutover.
+
+### What should be done in the future
+
+- Remove deprecated engine default-registry wrappers and rewrite docs/tests to middleware-based module selection.
+
+### Code review instructions
+
+- Start in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/jsverbs/runtime.go`.
+- Confirm `InvokeInRuntime` still uses `runtime.Owner.Call` and `waitForPromise`.
+- Confirm `pkg/jsverbs/runtime_direct_test.go` is deleted because it tested only the removed API.
+
+### Technical details
+
+Validation output:
+
+```text
+ok  github.com/go-go-golems/go-go-goja/pkg/jsverbs
+ok  github.com/go-go-golems/go-go-goja/pkg/jsverbscli
+ok  github.com/go-go-golems/go-go-goja/pkg/xgoja/app
+ok  github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate
+```

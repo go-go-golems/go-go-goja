@@ -13,7 +13,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/engine"
-	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 )
 
 func (r *Registry) invoke(ctx context.Context, verb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
@@ -108,89 +107,6 @@ func (r *Registry) InvokeInRuntime(ctx context.Context, runtime *engine.Runtime,
 		return waitForPromise(ctx, runtime, promise)
 	}
 	return ret, nil
-}
-
-// InvokeInGojaRuntime invokes a verb inside a caller-owned goja runtime and
-// require module. It is intended for lightweight hosts such as generated xgoja
-// binaries that do not use engine.Runtime but still need jsverbs command
-// binding, source overlay injection, and argument conversion semantics.
-func (r *Registry) InvokeInGojaRuntime(ctx context.Context, vm *goja.Runtime, req *require.RequireModule, verb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
-	if r == nil {
-		return nil, fmt.Errorf("registry is nil")
-	}
-	if vm == nil {
-		return nil, fmt.Errorf("goja runtime is nil")
-	}
-	if req == nil {
-		return nil, fmt.Errorf("require module is nil")
-	}
-	if verb == nil {
-		return nil, fmt.Errorf("verb is nil")
-	}
-	plan, err := buildVerbBindingPlan(r, verb)
-	if err != nil {
-		return nil, err
-	}
-	args, err := buildArguments(parsedValues, plan, r.RootDir)
-	if err != nil {
-		return nil, err
-	}
-	if bindings, ok := runtimebridge.Lookup(vm); ok && bindings.Owner != nil {
-		ret, err := bindings.Owner.Call(ctx, "jsverbs.invoke", func(_ context.Context, vm *goja.Runtime) (interface{}, error) {
-			return r.invokeInGojaRuntime(vm, req, verb, args)
-		})
-		if err != nil {
-			return nil, err
-		}
-		if promise, ok := ret.(*goja.Promise); ok {
-			return waitForPromiseWithOwner(ctx, bindings.Owner, promise)
-		}
-		return ret, nil
-	}
-	ret, err := r.invokeInGojaRuntime(vm, req, verb, args)
-	if err != nil {
-		return nil, err
-	}
-	if promise, ok := ret.(*goja.Promise); ok {
-		return waitForPromiseDirect(ctx, promise)
-	}
-	return ret, nil
-}
-
-func (r *Registry) invokeInGojaRuntime(vm *goja.Runtime, req *require.RequireModule, verb *VerbSpec, args []interface{}) (interface{}, error) {
-	if _, err := req.Require(verb.File.ModulePath); err != nil {
-		return nil, err
-	}
-	registryValue := vm.Get("__glazedVerbRegistry")
-	if registryValue == nil || goja.IsUndefined(registryValue) || goja.IsNull(registryValue) {
-		return nil, fmt.Errorf("js verb registry not initialized")
-	}
-	registryObject := registryValue.ToObject(vm)
-	entryValue := registryObject.Get(verb.File.ModulePath)
-	if entryValue == nil || goja.IsUndefined(entryValue) || goja.IsNull(entryValue) {
-		return nil, fmt.Errorf("js verb module entry missing for %s", verb.File.ModulePath)
-	}
-	entryObject := entryValue.ToObject(vm)
-	fnValue := entryObject.Get(verb.FunctionName)
-	fn, ok := goja.AssertFunction(fnValue)
-	if !ok {
-		return nil, fmt.Errorf("js function %s not captured for %s", verb.FunctionName, verb.File.RelPath)
-	}
-	jsArgs := make([]goja.Value, 0, len(args))
-	for _, arg := range args {
-		jsArgs = append(jsArgs, vm.ToValue(arg))
-	}
-	result, err := fn(goja.Undefined(), jsArgs...)
-	if err != nil {
-		return nil, err
-	}
-	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
-		return nil, nil
-	}
-	if promise, ok := result.Export().(*goja.Promise); ok {
-		return promise, nil
-	}
-	return result.Export(), nil
 }
 
 func buildArguments(parsedValues *values.Values, plan *VerbBindingPlan, rootDir string) ([]interface{}, error) {
@@ -339,59 +255,6 @@ func waitForPromise(ctx context.Context, runtime *engine.Runtime, promise *goja.
 				return nil, nil
 			}
 			return snapshot.Result.Export(), nil
-		}
-	}
-}
-
-func waitForPromiseWithOwner(ctx context.Context, owner runtimebridge.OwnerRunner, promise *goja.Promise) (interface{}, error) {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		ret, err := owner.Call(ctx, "jsverbs.promise-state", func(context.Context, *goja.Runtime) (interface{}, error) {
-			return promiseSnapshot{
-				State:  promise.State(),
-				Result: promise.Result(),
-			}, nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		snapshot := ret.(promiseSnapshot)
-		switch snapshot.State {
-		case goja.PromiseStatePending:
-			time.Sleep(5 * time.Millisecond)
-		case goja.PromiseStateRejected:
-			return nil, fmt.Errorf("promise rejected: %s", valueString(snapshot.Result))
-		case goja.PromiseStateFulfilled:
-			if snapshot.Result == nil || goja.IsUndefined(snapshot.Result) || goja.IsNull(snapshot.Result) {
-				return nil, nil
-			}
-			return snapshot.Result.Export(), nil
-		}
-	}
-}
-
-func waitForPromiseDirect(ctx context.Context, promise *goja.Promise) (interface{}, error) {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		switch promise.State() {
-		case goja.PromiseStatePending:
-			time.Sleep(5 * time.Millisecond)
-		case goja.PromiseStateRejected:
-			return nil, fmt.Errorf("promise rejected: %s", valueString(promise.Result()))
-		case goja.PromiseStateFulfilled:
-			result := promise.Result()
-			if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
-				return nil, nil
-			}
-			return result.Export(), nil
 		}
 	}
 }

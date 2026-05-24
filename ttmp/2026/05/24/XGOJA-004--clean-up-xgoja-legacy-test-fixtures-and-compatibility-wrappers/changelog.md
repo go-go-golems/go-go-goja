@@ -26,3 +26,13 @@ Step 2: Deleted legacy internal xgoja testprovider and tracked .orig artifact fi
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/runtime.go.orig — Deleted tracked stale compatibility artifact
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/modules/exports.go.orig — Deleted tracked stale artifact
 
+
+## 2026-05-24
+
+Step 3: Removed obsolete jsverbs InvokeInGojaRuntime lightweight invocation API and direct runtime test.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/jsverbs/runtime.go — Removed obsolete bare-Goja invocation path
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/jsverbs/runtime_direct_test.go — Deleted direct runtime test for removed API
+
