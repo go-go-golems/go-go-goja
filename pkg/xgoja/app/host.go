@@ -35,6 +35,9 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 	if root == nil || h == nil || h.Spec == nil {
 		return
 	}
+	if err := installRootFramework(root, h.Spec); err != nil {
+		root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error { return err }
+	}
 	if h.Spec.Commands.Repl.Enabled {
 		h.AttachEval(root)
 	}

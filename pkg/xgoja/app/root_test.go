@@ -111,6 +111,31 @@ func TestGeneratedRootRespectsDisabledReplCommand(t *testing.T) {
 	}
 }
 
+func TestGeneratedRootInstallsHelpAndLogging(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	out := &bytes.Buffer{}
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: fixtureSpecJSON, Out: out})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	if root.PersistentPreRunE == nil {
+		t.Fatalf("expected generated root to initialize logging with PersistentPreRunE")
+	}
+	if root.PersistentFlags().Lookup("log-level") == nil {
+		t.Fatalf("expected generated root to expose glazed logging flags")
+	}
+	root.SetArgs([]string{"help", "runtime-overview"})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute generated help: %v", err)
+	}
+	if got := out.String(); !bytes.Contains([]byte(got), []byte("generated xgoja runtime overview")) {
+		t.Fatalf("expected generated help topic, got %q", got)
+	}
+}
+
 func TestGeneratedRootModulesCommand(t *testing.T) {
 	registry := providerapi.NewRegistry()
 	if err := testprovider.Register(registry); err != nil {

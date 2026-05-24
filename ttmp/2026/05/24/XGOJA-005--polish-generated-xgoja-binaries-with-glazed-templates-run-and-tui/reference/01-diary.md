@@ -288,3 +288,85 @@ Validation output:
 ok  github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate
 ok  github.com/go-go-golems/go-go-goja/cmd/xgoja
 ```
+
+## Step 4: Install Glazed logging and generated runtime help
+
+This step made generated xgoja roots install Glazed logging flags and a generated-runtime help system. The change lives in `pkg/xgoja/app`, not in generated `main.go`, so xgoja, cobra, and adapter target modes all pass through the same host command attachment path.
+
+The generated runtime help docs are intentionally small and runtime-focused. They explain runtime profiles and JavaScript verb mounting from the perspective of someone using the generated binary, not someone using the builder CLI.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue by adding generated binary help and logging framework support.
+
+**Inferred user intent:** Generated binaries should behave like first-class Glazed CLIs, including standard logging flags and `help` topics.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/framework.go`.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/doc/doc.go` and runtime help markdown files.
+- Updated `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/host.go` so `AttachDefaultCommands` installs the framework before attaching commands.
+- Added a regression test in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root_test.go` that checks:
+  - `PersistentPreRunE` is installed,
+  - `--log-level` exists,
+  - `help runtime-overview` renders the generated runtime help topic.
+- Marked task 2 complete.
+- Updated the changelog.
+- Validated with:
+
+```bash
+GOWORK=off go test ./pkg/xgoja/app ./cmd/xgoja/internal/generate ./cmd/xgoja -count=1
+```
+
+### Why
+
+- Logging/help belongs in reusable generated-runtime support, not every generated `main.go`.
+- Adapter and Cobra target modes call `host.AttachDefaultCommands`, so installing the framework there gives all target modes the same behavior.
+
+### What worked
+
+- Focused tests passed.
+- The framework installer uses an annotation guard so repeated calls do not duplicate flags/help setup.
+- Existing target mode generated-build tests continued to pass.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The generated runtime help docs should be separate from builder docs. Builder docs explain `xgoja build`; generated runtime docs explain the final binary's command surface and runtime profiles.
+
+### What was tricky to build
+
+- Target roots supplied by adapter/cobra modes may already define a `PersistentPreRunE`. The framework installer chains the existing hook before `logging.InitLoggerFromCobra` instead of replacing it.
+
+### What warrants a second pair of eyes
+
+- Check whether the generated runtime help docs should be expanded or whether existing builder help should move into a public package later.
+- Check whether the annotation key is sufficient for preventing duplicate install when adapter code calls `AttachDefaultCommands` more than once.
+
+### What should be done in the future
+
+- Convert support commands to Glazed command objects where practical.
+- Add `run` and TUI commands.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/app/framework.go`.
+- Verify `chainPersistentPreRun` preserves target-provided behavior.
+- Run the focused test command above.
+
+### Technical details
+
+Validation output:
+
+```text
+ok  github.com/go-go-golems/go-go-goja/pkg/xgoja/app
+ok  github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate
+ok  github.com/go-go-golems/go-go-goja/cmd/xgoja
+```

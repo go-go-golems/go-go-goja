@@ -34,3 +34,15 @@ Step 3: Converted generated main.go rendering from inline strings to an embedded
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/templates.go — Template data and execution helper
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/templates/main.go.tmpl — Generated main.go template
 
+
+## 2026-05-24
+
+Step 4: Installed Glazed logging flags and generated runtime help system in xgoja app roots.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/framework.go — Root framework installer
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/host.go — AttachDefaultCommands installs root framework
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root_test.go — Help/logging regression test
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/doc/doc.go — Generated runtime help docs
+
