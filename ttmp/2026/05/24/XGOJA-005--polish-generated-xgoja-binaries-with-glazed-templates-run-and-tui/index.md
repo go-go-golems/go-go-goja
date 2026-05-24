@@ -1,7 +1,7 @@
 ---
 Title: Polish generated xgoja binaries with Glazed templates run and TUI
 Ticket: XGOJA-005
-Status: active
+Status: complete
 Topics:
     - xgoja
     - glazed
@@ -16,10 +16,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-24T14:11:57.498470043-04:00
+LastUpdated: 2026-05-24T14:37:44.041441741-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Polish generated xgoja binaries with Glazed templates run and TUI
 

@@ -93,3 +93,8 @@ Phase 4: Documented generated run/tui commands and extended xgoja examples to sm
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/examples/xgoja — Examples now enable and smoke-test generated run commands
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/doc/01-runtime-overview.md — Generated runtime help documents run and TUI
 
+
+## 2026-05-24
+
+Completed generated xgoja polish: templates, generated help/logging, Glazed modules, run, TUI, docs, examples, and validation.
+

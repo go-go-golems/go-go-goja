@@ -624,7 +624,7 @@ The unit tests do not start a full interactive terminal session. Instead, they v
 
 **Inferred user intent:** Generated binaries should offer an interactive terminal REPL, not only one-shot eval/run commands.
 
-**Commit (code):** Pending for this step.
+**Commit (code):** `629d0e5` — "Add generated xgoja TUI command"
 
 ### What I did
 
@@ -709,7 +709,7 @@ The runnable examples now enable `commands.run` and execute a small script throu
 
 **Inferred user intent:** Keep runnable examples and bundled help in sync with the generated command surface.
 
-**Commit (code):** Pending for this step.
+**Commit (code):** `2cad7c0` — "Document generated xgoja run and TUI commands"
 
 ### What I did
 
@@ -773,3 +773,88 @@ Example smoke validation passed for:
 - `runtime-filesystem`,
 - `embedded-jsverbs`,
 - `provider-shipped-jsverbs`.
+
+## Step 10: Validate and close XGOJA-005
+
+This step ran the final focused validation set, reran all xgoja example smokes, verified the embedded-jsverbs binary remains self-contained, and closed the ticket. It also checked the generated template import path and confirmed it uses the correct `go-go-goja` module path.
+
+The ticket is now complete. Remaining local noise is limited to the pre-existing untracked `.idea/` directory, which was intentionally not staged.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 5)
+
+**Assistant interpretation:** Finish the XGOJA-005 implementation loop by validating, closing the ticket, and recording the outcome.
+
+**Inferred user intent:** Leave the feature in a reviewable, documented, and tested state.
+
+**Commit (code):** Pending for documentation closure.
+
+### What I did
+
+- Verified `cmd/xgoja/internal/generate/templates/main.go.tmpl` imports the correct provider API path:
+  - `github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi`.
+- Ran the canonical focused validation command:
+
+```bash
+GOWORK=off go test ./engine ./pkg/runtimebridge ./pkg/jsverbs ./pkg/xgoja/app ./cmd/xgoja/internal/generate ./cmd/xgoja ./cmd/xgoja/internal/buildspec ./pkg/xgoja/providerapi ./pkg/xgoja/testprovider ./pkg/xgoja/testcobra ./pkg/xgoja/testadapter ./modules/express ./modules/uidsl ./pkg/hashiplugin/host ./pkg/repl/evaluators/javascript ./pkg/docaccess/runtime ./pkg/jsverbscli ./pkg/gojahttp ./pkg/doc -count=1
+```
+
+- Reran example smokes:
+
+```bash
+for dir in runtime-filesystem embedded-jsverbs provider-shipped-jsverbs; do make -C examples/xgoja/$dir smoke; done
+make -C examples/xgoja/embedded-jsverbs prove-self-contained
+```
+
+- Ran:
+
+```bash
+docmgr doctor --ticket XGOJA-005 --stale-after 30
+```
+
+- Marked task 8 complete.
+- Closed `XGOJA-005` with `docmgr ticket close`.
+
+### Why
+
+- The ticket should only close after code, generated-build tests, examples, and docmgr hygiene pass.
+
+### What worked
+
+- Canonical focused validation passed.
+- All three example smoke targets passed.
+- Embedded-jsverbs self-contained proof passed.
+- `docmgr doctor` reported all checks passed.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The generated command polish is now covered at three levels: app unit tests, generated temp-build tests, and runnable examples.
+
+### What was tricky to build
+
+- The full repository still has a known workspace mismatch unless `GOWORK=off` is used. Final validation explicitly used `GOWORK=off`, matching the established constraint for this workspace.
+
+### What warrants a second pair of eyes
+
+- Review `pkg/xgoja/app/tui.go` for lifecycle ownership and future `replapi` integration decisions.
+- Review generated `run` script-local module resolution behavior for edge cases involving symlinks or non-file paths.
+
+### What should be done in the future
+
+- Push the completed local branch when ready.
+- Optionally upload the final updated XGOJA-005 diary to reMarkable.
+
+### Code review instructions
+
+- Start with the commits for XGOJA-005 in chronological order.
+- Review generated-source rendering first, then `pkg/xgoja/app` command plumbing, then docs/examples.
+- Re-run the focused validation command and example smoke loop above.
+
+### Technical details
+
+Final validation passed for the canonical focused package set and all three xgoja example smoke targets.

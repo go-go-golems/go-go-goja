@@ -18,4 +18,4 @@
 ## Phase 4: Documentation, examples, and closure
 
 - [x] Update buildspec docs, examples, and tests for new generated commands
-- [ ] Run focused validation, example smokes, docmgr doctor, and close the ticket
+- [x] Run focused validation, example smokes, docmgr doctor, and close the ticket
