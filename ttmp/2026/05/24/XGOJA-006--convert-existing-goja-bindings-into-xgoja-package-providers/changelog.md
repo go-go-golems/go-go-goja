@@ -37,3 +37,12 @@ Added multiple-runtimes xgoja example showing safe eval and host run command pro
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/examples/xgoja/multiple-runtimes/Makefile — Smoke test proves safe runtime rejects fs and host runtime allows it
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/examples/xgoja/multiple-runtimes/xgoja.yaml — Multiple runtime profile example
 
+
+## 2026-05-24
+
+Added bundled xgoja provider authoring help topic.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/doc/04-providers.md — Provider authoring CLI help
+

@@ -316,3 +316,70 @@ runtimes:
         config:
           allow: true
 ```
+
+## Step 4: Add bundled provider authoring help
+
+This step added a bundled Glazed help page for xgoja provider authors. The page explains the `providerapi.Register` contract, how provider package IDs relate to `packages[].id`, how runtime profiles select modules, how to adapt existing `modules.NativeModule` implementations, how to decode module config, and how to register provider-shipped JavaScript verbs.
+
+The documentation is available from the xgoja CLI itself as `xgoja help providers`. It also points readers to the new first-party provider examples and the multiple-runtimes example, so authors can move from conceptual API shape to runnable buildspecs quickly.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do provider authoring docs."
+
+**Assistant interpretation:** Add user-facing xgoja help documentation that explains how to write provider packages.
+
+**Inferred user intent:** Make provider authoring discoverable from the CLI and reduce the friction for converting more Goja bindings into xgoja providers.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Added `cmd/xgoja/doc/04-providers.md`.
+- Followed the Glazed help page conventions for frontmatter, section type, troubleshooting, and see-also links.
+- Validated the help page by running:
+
+```bash
+GOWORK=off go test ./cmd/xgoja -count=1
+GOWORK=off go run ./cmd/xgoja help providers
+```
+
+### Why
+
+- XGOJA-006 now has concrete provider packages, so future provider work needs clear authoring documentation.
+- Bundled CLI help is easier to discover than only ticket documentation.
+
+### What worked
+
+- `xgoja help providers` renders the new help page.
+- The xgoja package test passed.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The xgoja doc package already embeds `*.md`, so adding a new help page required no Go wiring changes.
+
+### What was tricky to build
+
+- The page needed to distinguish provider package IDs from local-looking labels. In xgoja today, `packages[].id` must match the provider ID used by `registry.Package(...)`; treating it as an arbitrary local alias causes runtime module resolution failures.
+
+### What warrants a second pair of eyes
+
+- Review whether the docs should promise `ModuleContext.Host` semantics now or keep that section conservative until target-mode host-service examples exist.
+
+### What should be done in the future
+
+- Add a provider catalog and security matrix reference doc for XGOJA-006.
+- Consider linking `providers` from other xgoja help pages more prominently.
+
+### Code review instructions
+
+- Review `cmd/xgoja/doc/04-providers.md`.
+- Validate with `GOWORK=off go run ./cmd/xgoja help providers`.
+
+### Technical details
+
+The new help topic uses slug `providers` and `SectionType: Tutorial`.

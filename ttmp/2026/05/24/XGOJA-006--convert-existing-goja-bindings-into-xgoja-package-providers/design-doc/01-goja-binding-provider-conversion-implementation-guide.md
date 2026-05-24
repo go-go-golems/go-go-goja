@@ -19,6 +19,8 @@ RelatedFiles:
       Note: Example host-coupled high-value provider candidate
     - Path: ../../../../../../../../../../code/wesen/go-go-golems/loupedeck/runtime/js/registrar.go
       Note: Example external runtime registrar candidate for provider conversion
+    - Path: cmd/xgoja/doc/04-providers.md
+      Note: Bundled xgoja provider authoring help page
     - Path: examples/xgoja/core-provider/xgoja.yaml
       Note: Generated xgoja smoke example for core provider
     - Path: examples/xgoja/host-provider/xgoja.yaml
@@ -41,6 +43,7 @@ LastUpdated: 2026-05-24T14:40:34.442824097-04:00
 WhatFor: Use this guide when turning existing Goja-facing Go packages into xgoja package providers selectable from xgoja.yaml.
 WhenToUse: Before implementing provider wrappers for existing Goja modules, especially packages in sibling go-go-golems repositories.
 ---
+
 
 
 
