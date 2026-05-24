@@ -36,3 +36,16 @@ Step 3: Removed obsolete jsverbs InvokeInGojaRuntime lightweight invocation API 
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/jsverbs/runtime.go — Removed obsolete bare-Goja invocation path
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/jsverbs/runtime_direct_test.go — Deleted direct runtime test for removed API
 
+
+## 2026-05-24
+
+Step 4: Hard-cutover removed deprecated engine DefaultRegistry* wrappers and modules.EnableAll; updated docs/tests to middleware-based module selection.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/factory.go — Switched internal factory default module construction to private helpers
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/granular_modules_test.go — Updated tests to exercise MiddlewareOnly instead of deprecated wrappers
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/module_specs.go — Removed exported deprecated DefaultRegistry helpers and kept private module specs
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/modules/common.go — Removed modules.EnableAll compatibility helper
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/doc/16-nodejs-primitives.md — Updated public module-selection guidance
+

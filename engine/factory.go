@@ -146,7 +146,7 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 		}
 		selected := sortedUnique(selector(allRegisteredModuleNames()))
 		for _, name := range selected {
-			modules_ = append(modules_, DefaultRegistryModule(name))
+			modules_ = append(modules_, defaultRegistryModule(name))
 		}
 	}
 
@@ -225,7 +225,7 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		Values:    runtimeValues,
 	}
 	if f.settings.dataOnlyDefaultRegistryModules {
-		if err := DataOnlyDefaultRegistryModules().RegisterRuntimeModule(moduleCtx, reg); err != nil {
+		if err := dataOnlyDefaultRegistryModules().RegisterRuntimeModule(moduleCtx, reg); err != nil {
 			_ = rt.Close(ctx)
 			return nil, fmt.Errorf("register data-only default modules: %w", err)
 		}

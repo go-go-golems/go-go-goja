@@ -82,7 +82,7 @@ import (
 
 func NewRuntime(ctx context.Context) (*engine.Runtime, error) {
     factory, err := engine.NewBuilder().
-        WithModules(engine.DefaultRegistryModules()).
+        Build().
         WithRuntimeInitializers(
             jsevents.Install(),
             jsevents.FSWatchHelper(jsevents.FSWatchOptions{

@@ -323,7 +323,7 @@ Use `Registry.InvokeInRuntime(...)` when a fixture needs host-specific runtime c
 ```go
 factory, err := engine.NewBuilder().
     WithRequireOptions(require.WithLoader(registry.RequireLoader())).
-    WithModules(engine.DefaultRegistryModules()).
+    Build().
     WithRuntimeInitializers(
         jsevents.Install(),
         jsevents.FSWatchHelper(jsevents.FSWatchOptions{

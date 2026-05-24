@@ -77,32 +77,6 @@ func (s NativeModuleSpec) RegisterRuntimeModule(_ *RuntimeModuleContext, reg *re
 	return nil
 }
 
-type defaultRegistryModulesSpec struct{}
-
-func (s defaultRegistryModulesSpec) ID() string {
-	return "default-registry-modules"
-}
-
-func (s defaultRegistryModulesSpec) RegisterRuntimeModule(_ *RuntimeModuleContext, reg *require.Registry) error {
-	if reg == nil {
-		return fmt.Errorf("require registry is nil")
-	}
-	modules.EnableAll(reg)
-	return nil
-}
-
-// DefaultRegistryModules returns a RuntimeModuleSpec that registers every module from
-// go-go-goja/modules.DefaultRegistry.
-//
-// Deprecated: Use UseModuleMiddleware with the appropriate middleware instead.
-// For example:
-//
-//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe())
-//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("fs", "os"))
-func DefaultRegistryModules() RuntimeModuleSpec {
-	return defaultRegistryModulesSpec{}
-}
-
 type namedDefaultRegistryModulesSpec struct {
 	id    string
 	names []string
@@ -166,14 +140,7 @@ func expandDefaultRegistryModuleNames(names []string) []string {
 	return ret
 }
 
-// DefaultRegistryModule returns a RuntimeModuleSpec that registers one module from
-// modules.DefaultRegistry by its JavaScript require() name.
-//
-// Deprecated: Use UseModuleMiddleware with MiddlewareOnly instead.
-// For example:
-//
-//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("fs"))
-func DefaultRegistryModule(name string) RuntimeModuleSpec {
+func defaultRegistryModule(name string) RuntimeModuleSpec {
 	name = strings.TrimSpace(name)
 	return namedDefaultRegistryModulesSpec{
 		id:    "default-registry-module:" + name,
@@ -181,14 +148,7 @@ func DefaultRegistryModule(name string) RuntimeModuleSpec {
 	}
 }
 
-// DefaultRegistryModulesNamed returns a RuntimeModuleSpec that registers only the
-// named modules from modules.DefaultRegistry.
-//
-// Deprecated: Use UseModuleMiddleware with MiddlewareOnly instead.
-// For example:
-//
-//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("fs", "os"))
-func DefaultRegistryModulesNamed(names ...string) RuntimeModuleSpec {
+func defaultRegistryModulesNamed(names ...string) RuntimeModuleSpec {
 	trimmed := make([]string, 0, len(names))
 	for _, name := range names {
 		if strings.TrimSpace(name) != "" {
@@ -203,18 +163,8 @@ func DefaultRegistryModulesNamed(names ...string) RuntimeModuleSpec {
 
 var dataOnlyDefaultRegistryModuleNames = []string{"crypto", "node:crypto", "events", "node:events", "path", "node:path", "time", "timer"}
 
-// DataOnlyDefaultRegistryModules returns the non-host-filesystem/non-process
-// primitives that are installed automatically for every engine runtime.
-//
-// Deprecated: Use UseModuleMiddleware with MiddlewareSafe instead.
-// For example:
-//
-//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe())
-func DataOnlyDefaultRegistryModules() RuntimeModuleSpec {
-	return namedDefaultRegistryModulesSpec{
-		id:    "data-only-default-registry-modules",
-		names: append([]string(nil), dataOnlyDefaultRegistryModuleNames...),
-	}
+func dataOnlyDefaultRegistryModules() RuntimeModuleSpec {
+	return defaultRegistryModulesNamed(dataOnlyDefaultRegistryModuleNames...)
 }
 
 // DataOnlyDefaultRegistryModuleNames returns a copy of the module names that

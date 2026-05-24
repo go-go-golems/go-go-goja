@@ -116,7 +116,7 @@ Notes:
 - `UseModuleMiddleware(engine.MiddlewareSafe())` enables only data-safe modules.
 - Use `UseModuleMiddleware(engine.MiddlewareOnly("fs", "path"))` for a whitelist.
 - Use `UseModuleMiddleware(engine.MiddlewareExclude("exec"))` for a blacklist.
-- The old `WithModules(engine.DefaultRegistryModules())` is deprecated; omit the middleware to load all modules (the default).
+- Omit module middleware to load all default-registry modules.
 - `rt` bundles `VM`, `Require`, `Loop`, and `Owner` for explicit lifecycle control.
 
 ## TypeScript Declaration Generation
@@ -360,7 +360,7 @@ See `goja-repl help connected-eventemitters-developer-guide` for the full develo
 
 ### Demo: `timer` module
 
-`go-go-goja` now ships a built-in `timer` module when you enable `DefaultRegistryModules()`:
+`go-go-goja` now ships a built-in `timer` module when you enable `the default builder`:
 
 ```js
 const { sleep } = require("timer");
@@ -387,7 +387,7 @@ Use it as a concrete built-in and as a template for any async binding you need (
 
 ### Demo: `yaml` module
 
-`go-go-goja` ships a built-in `yaml` module when you enable `DefaultRegistryModules()`:
+`go-go-goja` ships a built-in `yaml` module when you enable `the default builder`:
 
 ```js
 const yaml = require("yaml");

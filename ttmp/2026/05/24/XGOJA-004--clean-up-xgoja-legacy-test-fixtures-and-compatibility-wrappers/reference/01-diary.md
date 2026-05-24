@@ -272,3 +272,111 @@ ok  github.com/go-go-golems/go-go-goja/pkg/jsverbscli
 ok  github.com/go-go-golems/go-go-goja/pkg/xgoja/app
 ok  github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate
 ```
+
+## Step 4: Remove deprecated engine default-registry wrappers
+
+This step completed the hard cutover for module-selection APIs. The exported `engine.DefaultRegistryModules`, `engine.DefaultRegistryModule`, `engine.DefaultRegistryModulesNamed`, and `engine.DataOnlyDefaultRegistryModules` helpers were removed. The engine still has private helper specs internally, but public code now selects default-registry modules through builder middleware.
+
+I also removed `modules.EnableAll`, because its only active role was to support the deprecated all-default wrapper. Public docs and tests now point at `UseModuleMiddleware(engine.MiddlewareSafe())`, `UseModuleMiddleware(engine.MiddlewareOnly(...))`, or a plain `engine.NewBuilder().Build()` for the all-default trusted-runtime case.
+
+### Prompt Context
+
+**User prompt (verbatim):** "hard cutover btw, continue"
+
+**Assistant interpretation:** Do not leave compatibility wrappers for the cleanup targets; remove the deprecated public APIs and update callers/docs immediately.
+
+**Inferred user intent:** Ensure the cleanup actually simplifies the API surface instead of preserving old names as aliases.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Removed exported deprecated wrappers from `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/module_specs.go`:
+  - `DefaultRegistryModules()`
+  - `DefaultRegistryModule(name string)`
+  - `DefaultRegistryModulesNamed(names ...string)`
+  - `DataOnlyDefaultRegistryModules()`
+- Added/kept private internal helpers:
+  - `defaultRegistryModule(name string)`
+  - `defaultRegistryModulesNamed(names ...string)`
+  - `dataOnlyDefaultRegistryModules()`
+- Updated `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/factory.go` to use the private helpers.
+- Removed `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/modules/common.go` package-level `EnableAll` helper.
+- Updated `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/granular_modules_test.go` so direct wrapper tests became middleware-selection tests.
+- Updated public docs in:
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/README.md`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/doc/bun-goja-bundling-playbook.md`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/doc/11-jsverbs-example-reference.md`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/doc/16-nodejs-primitives.md`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/doc/16-yaml-module.md`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/doc/17-connected-eventemitters-developer-guide.md`
+- Marked tasks 3, 4, and 5 complete.
+- Ran focused engine/module validation, full focused xgoja/runtime validation, and all xgoja example smokes.
+
+### Why
+
+- Middleware is now the canonical public API for selecting default-registry modules.
+- Deprecated wrappers encouraged old composition examples and duplicated the new middleware vocabulary.
+- `modules.EnableAll` was a compatibility helper with no active caller after the wrapper removal.
+
+### What worked
+
+- `GOWORK=off go test ./engine ./modules/... -count=1` passed.
+- The full focused xgoja/runtime suite passed.
+- All three xgoja example smokes passed.
+- A search for removed public helper calls no longer reports active docs/code references; remaining matches are private helper names or unrelated option names.
+
+### What didn't work
+
+- A mechanical documentation replacement initially produced `Build().Build()` in one bundling playbook bullet. I corrected that bullet to `engine.NewBuilder().WithRequireOptions(require.WithLoader(loader)).Build()`.
+- The same replacement made a README bullet say "The old `Build()` is deprecated". I corrected it to explain that omitting middleware loads all default-registry modules.
+- The first commit attempt failed in the pre-commit hook because historical `ttmp/.../scripts` Go packages still called `engine.DefaultRegistryModules()`:
+
+```text
+ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/04-engine-runtimeowner-interrupt-sync-loop/main.go:16:57: undefined: engine.DefaultRegistryModules
+ttmp/2026/04/20/GOJA-044-PR28-REPL-SERVICE-REVIEW--pr-28-review-repl-service-architecture-bug-report-and-regression-analysis/scripts/exp04_lowlevel.go:21:57: undefined: engine.DefaultRegistryModules
+ttmp/2026/04/20/GOJA-050--fuzzing-go-go-goja-replapi-analysis-design-and-implementation-guide/scripts/01-basic-replapi-fuzz/main.go:32:57: undefined: engine.DefaultRegistryModules
+```
+
+  I updated those historical script packages to use the plain `engine.NewBuilder().Build()` all-default path.
+
+### What I learned
+
+- Most active code had already moved to middleware after XGOJA-003; the remaining references were mostly docs and tests written to exercise the deprecated helpers directly.
+- The internal engine still benefits from small private RuntimeModuleSpec helpers because middleware resolves selected module names before runtime creation.
+
+### What was tricky to build
+
+- The hard cutover had to remove exported wrappers while preserving engine behavior. A plain `engine.NewBuilder().Build()` still needs to expose all default-registry modules, and every runtime still needs the data-only default modules unless explicitly disabled. The solution was to keep private helper specs and update only internal factory construction to call those helpers.
+
+### What warrants a second pair of eyes
+
+- Review the public docs for wording around trusted all-default runtimes versus restricted middleware-based runtimes.
+- Review the public API break in `engine/module_specs.go`; this is intentional but should be called out if downstream code consumes the deprecated helpers.
+
+### What should be done in the future
+
+- Run `docmgr doctor` and close XGOJA-004 if no follow-up cleanup remains.
+
+### Code review instructions
+
+- Start in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/module_specs.go` to confirm only private default-registry helper functions remain.
+- Then review `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/factory.go` for unchanged runtime construction behavior.
+- Review `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/granular_modules_test.go` for middleware-based coverage.
+- Validate with:
+
+```bash
+GOWORK=off go test ./engine ./modules/... -count=1
+GOWORK=off go test ./engine ./pkg/runtimebridge ./pkg/jsverbs ./pkg/xgoja/app ./cmd/xgoja/internal/generate ./cmd/xgoja ./cmd/xgoja/internal/buildspec ./pkg/xgoja/providerapi ./pkg/xgoja/testprovider ./pkg/xgoja/testcobra ./pkg/xgoja/testadapter ./modules/express ./modules/uidsl ./pkg/hashiplugin/host ./pkg/repl/evaluators/javascript ./pkg/docaccess/runtime ./pkg/jsverbscli ./pkg/gojahttp ./pkg/doc -count=1
+for dir in runtime-filesystem embedded-jsverbs provider-shipped-jsverbs; do make -C examples/xgoja/$dir smoke; done
+```
+
+### Technical details
+
+The remaining search hits for `DefaultRegistryModule` are private implementation names or option names:
+
+```text
+engine/module_specs.go: dataOnlyDefaultRegistryModuleNames, defaultRegistryModule, defaultRegistryModulesNamed
+engine/options.go: WithImplicitDefaultRegistryModules, WithDataOnlyDefaultRegistryModules
+engine/factory.go: dataOnlyDefaultRegistryModules()
+```

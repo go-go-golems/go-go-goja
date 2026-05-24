@@ -39,18 +39,18 @@ The factory always installs data-only primitives and safe globals:
 - `require("time")`
 - `require("timer")`
 
-A plain `engine.NewBuilder().Build()` enables the full default registry, including host-access modules. For a tighter sandbox, enable modules one at a time with `engine.DefaultRegistryModule(name)`, select a named group with `engine.DefaultRegistryModulesNamed(...)`, or use `UseModuleMiddleware(engine.MiddlewareSafe())`:
+A plain `engine.NewBuilder().Build()` enables the full default registry, including host-access modules. For a tighter sandbox, select an explicit module set with `UseModuleMiddleware(engine.MiddlewareOnly(...))` or use `UseModuleMiddleware(engine.MiddlewareSafe())`:
 
 ```go
 factory, err := engine.NewBuilder().
     WithModules(
-        engine.DefaultRegistryModule("fs"),
-        engine.DefaultRegistryModule("os"),
+        engine.MiddlewareOnly("fs"),
+        engine.MiddlewareOnly("os"),
     ).
     Build()
 ```
 
-You can still explicitly enable every module in `modules.DefaultRegistry` with `engine.DefaultRegistryModules()`, but that includes host-access modules such as `fs`, `os`, `exec`, and `database`/`db`. Use the all-modules default only when the JavaScript code is trusted enough for that level of access.
+The default builder includes every module in `modules.DefaultRegistry`, including host-access modules such as `fs`, `os`, `exec`, and `database`/`db`. Use the all-modules default only when the JavaScript code is trusted enough for that level of access.
 
 The `process` module and global are not installed by default. Enable them only when exposing host environment variables is acceptable:
 
@@ -92,7 +92,7 @@ If your package wants file and OS access, opt in explicitly:
 
 ```go
 factory, err := engine.NewBuilder().
-    WithModules(engine.DefaultRegistryModulesNamed("fs", "os")).
+    UseModuleMiddleware(engine.MiddlewareOnly("fs", "os")).
     Build()
 ```
 
@@ -100,7 +100,7 @@ For a single module, use:
 
 ```go
 factory, err := engine.NewBuilder().
-    WithModules(engine.DefaultRegistryModule("fs")).
+    UseModuleMiddleware(engine.MiddlewareOnly("fs")).
     Build()
 ```
 
@@ -111,7 +111,7 @@ If the application wants process environment access, opt in explicitly. For both
 ```go
 factory, err := engine.NewBuilder().
     WithModules(
-        engine.DefaultRegistryModule("fs"),
+        engine.MiddlewareOnly("fs"),
         engine.ProcessModule(),
     ).
     WithRuntimeInitializers(engine.ProcessEnv()).
@@ -132,7 +132,7 @@ fs.writeFileSync(file, Buffer.from("hello"));
 console.log(fs.readFileSync(file, "utf8"));
 ```
 
-For a tighter sandbox, do not rely on the all-modules default or `DefaultRegistryModules()`. Instead, use `UseModuleMiddleware(engine.MiddlewareSafe())`, register only the modules your application wants through `DefaultRegistryModule`/`DefaultRegistryModulesNamed`, or provide explicit `engine.NativeModuleSpec` values.
+For a tighter sandbox, do not rely on the all-modules default builder. Instead, use `UseModuleMiddleware(engine.MiddlewareSafe())`, register only the modules your application wants through `UseModuleMiddleware(engine.MiddlewareOnly(...))`, or provide explicit `engine.NativeModuleSpec` values.
 
 ## Available Primitives
 
@@ -168,7 +168,7 @@ require("node:url");
 require("node:util");
 ```
 
-Host-access aliases are part of the default registry unless you restrict it. Calling `engine.DefaultRegistryModule("fs")` registers both `fs` and `node:fs`; calling `engine.DefaultRegistryModulesNamed("fs", "os")` registers `fs`, `node:fs`, `os`, and `node:os`. `engine.ProcessModule()` registers both `process` and `node:process`.
+Host-access aliases are part of the default registry unless you restrict it. Calling `engine.MiddlewareOnly("fs")` registers both `fs` and `node:fs`; calling `engine.MiddlewareOnly("fs", "os")` registers `fs`, `node:fs`, `os`, and `node:os`. `engine.ProcessModule()` registers both `process` and `node:process`.
 
 Custom go-go-goja modules do not receive `node:` aliases. For example, `time`, `timer`, `exec`, `database`, `fswatch`, and Watermill helpers are custom host/runtime features rather than Node built-ins.
 
@@ -405,7 +405,7 @@ These primitives expose useful host capabilities. That is powerful, but it means
 - `require("process").env` and `require("node:process").env` require explicit `engine.ProcessModule()` opt-in, and global `process` requires explicit `engine.ProcessEnv()` opt-in.
 - `exec` and `database` remain selectable modules and should be treated as more sensitive than the data-only primitives documented here.
 
-If your application runs untrusted JavaScript, do not blindly use the all-modules default or `DefaultRegistryModules()`. Compose a smaller registry with `UseModuleMiddleware(engine.MiddlewareSafe())`, `DefaultRegistryModule(...)`, or `DefaultRegistryModulesNamed(...)` before evaluating untrusted scripts.
+If your application runs untrusted JavaScript, do not blindly use the all-modules default builder. Compose a smaller registry with `UseModuleMiddleware(engine.MiddlewareSafe())` or `UseModuleMiddleware(engine.MiddlewareOnly(...))` before evaluating untrusted scripts.
 
 ## Implementation Map
 
@@ -429,7 +429,7 @@ Smoke tests live next to each module and execute real JavaScript through a real 
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| `require("fs")` or `require("node:fs")` fails | The runtime was built with safe/only middleware or an explicit module set that excluded `fs` | Add `.UseModuleMiddleware(engine.MiddlewareOnly("fs", ...))`, `.WithModules(engine.DefaultRegistryModule("fs"))`, or `.WithModules(engine.DefaultRegistryModulesNamed("fs", ...))`; this registers both names. |
+| `require("fs")` or `require("node:fs")` fails | The runtime was built with safe/only middleware or an explicit module set that excluded `fs` | Add `.UseModuleMiddleware(engine.MiddlewareOnly("fs", ...))`; this registers both names. |
 | `process` is undefined | Global `process` is opt-in | Add `.WithRuntimeInitializers(engine.ProcessEnv())` if exposing global `process.env` is acceptable. |
 | `require("process")` or `require("node:process")` fails | The process module is opt-in because it exposes host environment variables | Add `.WithModules(engine.ProcessModule())` only if scripts should be able to import `process.env`. |
 | `fs.readFile(path)` returns a Buffer, not a string | Node-style default read behavior | Pass an encoding: `await fs.readFile(path, "utf8")`. |

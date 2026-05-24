@@ -107,9 +107,8 @@ func TestSafeMiddlewareRestrictsHostAccessModules(t *testing.T) {
 	}
 }
 
-//nolint:staticcheck // Tests the deprecated DefaultRegistryModule function directly.
-func TestDefaultRegistryModuleEnablesOneHostModule(t *testing.T) {
-	factory, err := NewBuilder().WithModules(DefaultRegistryModule("fs")).Build()
+func TestMiddlewareOnlyEnablesOneHostModule(t *testing.T) {
+	factory, err := NewBuilder().UseModuleMiddleware(MiddlewareOnly("fs")).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -139,9 +138,8 @@ func TestDefaultRegistryModuleEnablesOneHostModule(t *testing.T) {
 	}
 }
 
-//nolint:staticcheck // Tests the deprecated DefaultRegistryModulesNamed function directly.
-func TestDefaultRegistryModulesNamedEnablesSelectedHostModules(t *testing.T) {
-	factory, err := NewBuilder().WithModules(DefaultRegistryModulesNamed("fs", "os")).Build()
+func TestMiddlewareOnlyEnablesSelectedHostModules(t *testing.T) {
+	factory, err := NewBuilder().UseModuleMiddleware(MiddlewareOnly("fs", "os")).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

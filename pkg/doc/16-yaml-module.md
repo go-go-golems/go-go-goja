@@ -15,7 +15,7 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-The `yaml` module provides native YAML parsing and serialization for go-go-goja runtimes. It is enabled by default when you use `engine.DefaultRegistryModules()`.
+The `yaml` module provides native YAML parsing and serialization for go-go-goja runtimes. It is enabled by default when you use `engine.NewBuilder().Build()`.
 
 ## Loading the module
 
