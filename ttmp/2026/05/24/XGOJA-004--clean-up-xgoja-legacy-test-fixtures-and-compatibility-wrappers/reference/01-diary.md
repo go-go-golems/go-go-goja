@@ -109,3 +109,82 @@ find cmd/xgoja/internal/testprovider pkg/xgoja/testprovider -type f -maxdepth 5 
 rg -n "internal/testprovider|pkg/xgoja/testprovider|testprovider" cmd/xgoja pkg/xgoja examples ttmp -S
 rg -n "Deprecated|deprecated|legacy|compat|backwards|backward|wrapper|WithRuntimeModuleRegistrars|RegisterRuntimeModules|RuntimeModuleRegistrar|engine.ModuleSpec|ModuleSpec|InvokeInGojaRuntime|DataOnlyDefaultRegistryModules|ImplicitDefault" engine pkg cmd modules -S
 ```
+
+## Step 2: Delete legacy fixture and tracked artifact files
+
+This step removed the safest cleanup targets first. The internal xgoja test provider was an early fixture package that became obsolete once generated-binary tests needed a public importable provider under `pkg/xgoja/testprovider`. The tracked `.orig` files were stale editor/merge artifacts and one of them still contained merge-conflict markers.
+
+The important result is that the active xgoja fixture surface is now unambiguous: tests and examples use `pkg/xgoja/testprovider`. The repository also no longer carries tracked backup files that are not part of the build.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue the hard-cutover cleanup by implementing the low-risk deletion task first.
+
+**Inferred user intent:** Remove obviously dead code and artifact files before tackling exported API cleanup.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Deleted:
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/testprovider/provider.go`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/config.go.orig`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/engine/runtime.go.orig`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/modules/exports.go.orig`
+- Marked task 1 complete.
+- Updated the XGOJA-004 changelog.
+- Validated with:
+
+```bash
+GOWORK=off go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/testprovider -count=1
+```
+
+### Why
+
+- `cmd/xgoja/internal/testprovider` was no longer imported by active code.
+- `pkg/xgoja/testprovider` is the current fixture provider and supports provider-shipped verbs and owner-binding tests.
+- Tracked `.orig` files are repository noise and should not be maintained.
+
+### What worked
+
+- Focused xgoja tests passed after deletion.
+- No active code referenced the deleted internal provider.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The duplicate fixture provider was already documented as older in the intern guide, but it had not yet been removed from the repository.
+- The `.orig` files were tracked, not just untracked local editor backups.
+
+### What was tricky to build
+
+- Nothing was technically tricky in this step. The main caution was checking active references before deleting the internal provider.
+
+### What warrants a second pair of eyes
+
+- N/A
+
+### What should be done in the future
+
+- Remove the obsolete `InvokeInGojaRuntime` path next.
+
+### Code review instructions
+
+- Verify that no active imports reference `cmd/xgoja/internal/testprovider`.
+- Verify focused xgoja tests pass.
+
+### Technical details
+
+Validation output:
+
+```text
+ok  github.com/go-go-golems/go-go-goja/cmd/xgoja
+ok  github.com/go-go-golems/go-goja/cmd/xgoja/internal/generate
+ok  github.com/go-go-golems/go-goja/pkg/xgoja/app
+?   github.com/go-go-golems/go-goja/pkg/xgoja/testprovider [no test files]
+```
