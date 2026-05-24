@@ -40,7 +40,7 @@ I created XGOJA-004 and wrote an implementation guide that separates low-risk fi
 
 **Inferred user intent:** Keep cleanup work disciplined and reviewable rather than mixing it into prior xgoja feature commits.
 
-**Commit (code):** Pending for docs/ticket creation.
+**Commit (code):** 798bd71 — "Docs: add xgoja cleanup ticket"
 
 ### What I did
 
@@ -124,7 +124,7 @@ The important result is that the active xgoja fixture surface is now unambiguous
 
 **Inferred user intent:** Remove obviously dead code and artifact files before tackling exported API cleanup.
 
-**Commit (code):** Pending for this step.
+**Commit (code):** 70c96de — "Remove legacy xgoja fixture artifacts"
 
 ### What I did
 
@@ -203,7 +203,7 @@ The cleanup leaves one jsverbs host invocation API for caller-owned managed runt
 
 **Inferred user intent:** Make `engine.Runtime` the unambiguous runtime abstraction for jsverbs hosts.
 
-**Commit (code):** Pending for this step.
+**Commit (code):** c93c30d — "Remove obsolete jsverbs direct runtime API"
 
 ### What I did
 
@@ -287,7 +287,7 @@ I also removed `modules.EnableAll`, because its only active role was to support 
 
 **Inferred user intent:** Ensure the cleanup actually simplifies the API surface instead of preserving old names as aliases.
 
-**Commit (code):** Pending for this step.
+**Commit (code):** 5f90179 — "Remove deprecated default registry wrappers"
 
 ### What I did
 

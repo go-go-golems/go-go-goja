@@ -49,3 +49,18 @@ Step 4: Hard-cutover removed deprecated engine DefaultRegistry* wrappers and mod
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/modules/common.go — Removed modules.EnableAll compatibility helper
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/doc/16-nodejs-primitives.md — Updated public module-selection guidance
 
+
+## 2026-05-24
+
+Completed XGOJA-004 cleanup and added cleanup topic vocabulary (commits 798bd71, 70c96de, c93c30d, 5f90179).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/ttmp/2026/05/24/XGOJA-004--clean-up-xgoja-legacy-test-fixtures-and-compatibility-wrappers/reference/01-diary.md — Finalized commit references
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/ttmp/vocabulary.yaml — Added cleanup topic
+
+
+## 2026-05-24
+
+Ticket closed
+

@@ -99,6 +99,8 @@ topics:
       description: Compile-time goja module composition builder and generated binary tooling
     - slug: runtime
       description: Runtime construction, lifecycle, and execution context behavior
+    - slug: cleanup
+      description: Cleanup and removal of dead code, obsolete compatibility APIs, and repository artifacts.
 docTypes:
     - slug: index
       description: Ticket index documents
