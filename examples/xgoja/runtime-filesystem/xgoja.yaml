@@ -22,6 +22,9 @@ commands:
     enabled: true
     runtime: repl
     name: verbs
+  repl:
+    enabled: true
+    runtime: repl
 jsverbs:
   - id: local-dev
     path: ./verbs

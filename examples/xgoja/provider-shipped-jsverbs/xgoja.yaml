@@ -25,6 +25,9 @@ commands:
     enabled: true
     runtime: repl
     name: verbs
+  repl:
+    enabled: true
+    runtime: repl
 jsverbs:
   - id: provider-defaults
     package: fixture
