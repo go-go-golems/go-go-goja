@@ -370,3 +370,69 @@ ok  github.com/go-go-golems/go-go-goja/pkg/xgoja/app
 ok  github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate
 ok  github.com/go-go-golems/go-go-goja/cmd/xgoja
 ```
+
+## Step 5: Reorganize tasks into implementation phases
+
+I reorganized the task list into phases before continuing code work. The previous list was correct but flat; the user asked to add phases and tasks, so the ticket now separates planning, root framework, runtime execution commands, and final documentation/validation.
+
+This makes the remaining work easier to review because each commit can point at a phase rather than a single long TODO list.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add phases and tasks to the ticket, the implement one by one, keeping a diary, committing at appropriate intervals."
+
+**Assistant interpretation:** Structure the ticket into explicit phases, then continue implementation incrementally with diary updates and commits.
+
+**Inferred user intent:** Keep the larger generated-binary polish work organized and avoid ad hoc implementation order.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Rewrote `tasks.md` into four phases:
+  - Phase 1: planning and generated-source readability.
+  - Phase 2: generated root framework.
+  - Phase 3: runtime execution commands.
+  - Phase 4: documentation, examples, and closure.
+- Preserved the completed status for the ticket/guide/upload, template rendering, and logging/help tasks.
+
+### Why
+
+- The remaining work crosses CLI framework, command output, runtime execution, and TUI integration.
+- Explicit phases make it clearer what is done and what remains.
+
+### What worked
+
+- The ticket now reflects the implementation order already being followed.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The final validation/upload task was better split conceptually: the guide upload is complete, but final validation and closure remain pending.
+
+### What was tricky to build
+
+- N/A
+
+### What warrants a second pair of eyes
+
+- Check whether the current phase grouping matches expected review boundaries.
+
+### What should be done in the future
+
+- Continue with Phase 2: Glazed command plumbing for the generated `modules` command while preserving jsverb Glazed mounting.
+
+### Code review instructions
+
+- Review `tasks.md` before reviewing the next code commit.
+
+### Technical details
+
+Task file:
+
+```text
+ttmp/2026/05/24/XGOJA-005--polish-generated-xgoja-binaries-with-glazed-templates-run-and-tui/tasks.md
+```
