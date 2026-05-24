@@ -204,3 +204,87 @@ Remote document path:
 ```text
 /ai/2026/05/24/XGOJA-005/XGOJA 005 Generated Binary Polish Guide.pdf
 ```
+
+## Step 3: Convert generated main.go rendering to templates
+
+This step replaced the generated `main.go` inline string renderer with an embedded Go template. The generated program's behavior remains the same: it imports provider packages, registers them with `providerapi.Registry`, embeds the normalized app spec, optionally embeds local jsverbs, creates the root command, and executes it.
+
+The important change is readability. The generated Go source now lives in `templates/main.go.tmpl`, while `templates.go` prepares explicit template data and formats the generated source with `go/format`. Future changes for logging, help, run, and TUI can now be made in a Go-shaped template instead of a long sequence of `b.WriteString` calls.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Start implementation with the requested generated-code readability refactor.
+
+**Inferred user intent:** Make the generated binary source easier to maintain before adding more root-command features.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/templates/main.go.tmpl`.
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/templates.go` with:
+  - embedded template FS,
+  - `mainTemplateData`,
+  - provider import data,
+  - template execution,
+  - `go/format` formatting of generated source.
+- Replaced the body of `RenderMain` in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/generate/main.go` with a call to the template renderer.
+- Marked task 1 complete.
+- Updated the changelog.
+- Validated with:
+
+```bash
+GOWORK=off go test ./cmd/xgoja/internal/generate ./cmd/xgoja -count=1
+```
+
+### Why
+
+- The existing string-builder renderer worked but was difficult to read and would become more fragile as generated roots gain logging/help/run/TUI behavior.
+- A template lets reviewers inspect generated Go structure directly.
+
+### What worked
+
+- Existing generated-build tests passed unchanged.
+- The template renderer preserved all three target modes:
+  - `xgoja`,
+  - `cobra`,
+  - `adapter`.
+- Embedded jsverb generation still passed.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The existing generated source was already small enough that template data can stay simple and explicit.
+- Formatting generated source immediately catches template syntax/layout mistakes during tests.
+
+### What was tricky to build
+
+- The template needs to emit different imports for target modes. `context` is only needed for adapter mode, `embed` is only needed for embedded jsverbs, and the target import is only needed for adapter/cobra modes. Making these booleans explicit in `mainTemplateData` keeps the template readable.
+
+### What warrants a second pair of eyes
+
+- Review whether panicking from `RenderMain` on template errors is acceptable. It matches the previous `RenderEmbeddedSpec` panic style for impossible render-time errors, but returning `(string, error)` could be considered in a future API cleanup.
+
+### What should be done in the future
+
+- Add generated root framework installation for Glazed logging and help.
+
+### Code review instructions
+
+- Read `templates/main.go.tmpl` first; it is the generated program shape.
+- Then read `templates.go` to see how data is prepared.
+- Compare generated binary tests for xgoja/cobra/adapter target modes.
+
+### Technical details
+
+Validation output:
+
+```text
+ok  github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate
+ok  github.com/go-go-golems/go-go-goja/cmd/xgoja
+```

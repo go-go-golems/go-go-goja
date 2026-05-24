@@ -2,7 +2,7 @@
 
 ## TODO
 
-- [ ] Convert generated main.go rendering from inline string writes to Go templates
+- [x] Convert generated main.go rendering from inline string writes to Go templates
 - [ ] Install Glazed logging and help system in generated binaries
 - [ ] Expose modules and generated jsverbs through Glazed command plumbing consistently
 - [ ] Add generated run command for executing JavaScript files with runtime-profile modules
