@@ -46,3 +46,15 @@ Step 4: Installed Glazed logging flags and generated runtime help system in xgoj
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root_test.go — Help/logging regression test
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/doc/doc.go — Generated runtime help docs
 
+
+## 2026-05-24
+
+Phase 2: Converted generated modules command to Glazed command plumbing while preserving jsverb Glazed mounting.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/glazed.go — shared Glazed-to-Cobra helper
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/host.go — attaches generated modules command through Glazed Cobra builder
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root.go — modules command is now a GlazeCommand
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root_test.go — updated modules command regression test for Glazed table output
+

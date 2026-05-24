@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -141,17 +142,20 @@ func TestGeneratedRootModulesCommand(t *testing.T) {
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: fixtureSpecJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: fixtureSpecJSON})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
 	root.SetArgs([]string{"modules"})
-	if err := root.ExecuteContext(context.Background()); err != nil {
-		t.Fatalf("execute modules: %v", err)
-	}
-	if got := out.String(); got != "fixture.hello\nfixture.owner-check\n" {
-		t.Fatalf("modules output = %q", got)
+	got := captureStdout(t, func() {
+		if err := root.ExecuteContext(context.Background()); err != nil {
+			t.Fatalf("execute modules: %v", err)
+		}
+	})
+	for _, want := range []string{"fixture", "hello", "owner-check", "fixture.hello", "fixture.owner-check"} {
+		if !bytes.Contains([]byte(got), []byte(want)) {
+			t.Fatalf("modules output should contain %q, got %q", want, got)
+		}
 	}
 }
 
@@ -295,4 +299,25 @@ function greet(name) {
 	// The Glazed writer command currently writes through the framework output path
 	// rather than this root's bytes.Buffer. Successful execution proves the
 	// mounted command scanned, built, created an xgoja runtime, and invoked JS.
+}
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe stdout: %v", err)
+	}
+	os.Stdout = w
+	defer func() { os.Stdout = old }()
+
+	fn()
+	if err := w.Close(); err != nil {
+		t.Fatalf("close stdout writer: %v", err)
+	}
+	data, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	return string(data)
 }

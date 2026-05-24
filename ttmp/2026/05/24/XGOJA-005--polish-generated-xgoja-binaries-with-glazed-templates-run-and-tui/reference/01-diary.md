@@ -436,3 +436,91 @@ Task file:
 ```text
 ttmp/2026/05/24/XGOJA-005--polish-generated-xgoja-binaries-with-glazed-templates-run-and-tui/tasks.md
 ```
+
+## Step 6: Convert generated modules command to Glazed plumbing
+
+This step continued Phase 2 by converting the generated `modules` command from a hand-written Cobra command to a Glazed `GlazeCommand`. JavaScript verbs were already mounted through Glazed; now the modules support command also uses the same Glazed-to-Cobra command construction path.
+
+The command output is now table-oriented by default because it flows through Glazed output processing. The regression test was updated to capture stdout and assert the generated table contains the expected package, module, and require identifiers.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 5)
+
+**Assistant interpretation:** Implement the next phased task and keep the diary/commit trail current.
+
+**Inferred user intent:** Move generated binary support commands toward the same Glazed conventions as the rest of the CLI.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/glazed.go` with a shared `buildGlazedCobraCommand` helper.
+- Replaced the plain Cobra `newModulesCommand` with a `cmds.GlazeCommand` implementation in `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root.go`.
+- Updated `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/host.go` so `AttachModules` builds the modules command through Glazed.
+- Updated `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root_test.go` to capture Glazed stdout table output.
+- Marked the Phase 2 modules/jsverbs task complete.
+- Validated with:
+
+```bash
+GOWORK=off go test ./pkg/xgoja/app ./pkg/jsverbs ./cmd/xgoja/internal/generate -count=1
+```
+
+### Why
+
+- Generated binaries should use Glazed command plumbing for generated command surfaces where practical.
+- The `modules` command is row-oriented, so it is a natural `GlazeCommand`.
+
+### What worked
+
+- Focused tests passed.
+- The command now emits structured rows with `package`, `module`, and `require` columns.
+- Existing jsverb Glazed mounting remains unchanged.
+
+### What didn't work
+
+- The old modules test expected `root.SetOut(out)` to capture line-oriented output. Glazed output processing wrote to stdout in the test, so the test initially failed with an empty buffer and a visible table:
+
+```text
++---------+-------------+---------------------+
+| package | module      | require             |
++---------+-------------+---------------------+
+| fixture | hello       | fixture.hello       |
+| fixture | owner-check | fixture.owner-check |
++---------+-------------+---------------------+
+root_test.go:154: modules output = ""
+```
+
+  I updated the test to capture stdout for this Glazed command and assert on table content.
+
+### What I learned
+
+- Glazed row commands are the right shape for modules output, but tests need to account for the Glazed output middleware rather than direct Cobra writer usage.
+
+### What was tricky to build
+
+- The generated support command now has a build step (`cli.BuildCobraCommand`) that can fail. Because `Host.AttachModules` does not return an error, it attaches a small error stub command when Glazed command construction fails. This keeps the attachment API stable while surfacing the failure if the command is invoked.
+
+### What warrants a second pair of eyes
+
+- Check whether `Host.AttachModules` should eventually return an error instead of attaching an error stub. Changing it would affect adapter/cobra target integration.
+
+### What should be done in the future
+
+- Start Phase 3 by adding a generated `run` command.
+
+### Code review instructions
+
+- Review `pkg/xgoja/app/glazed.go` first.
+- Then review `modulesCommand` in `pkg/xgoja/app/root.go`.
+- Run the focused validation command above.
+
+### Technical details
+
+Validation output:
+
+```text
+ok  github.com/go-go-golems/go-go-goja/pkg/xgoja/app
+ok  github.com/go-go-golems/go-goja/pkg/jsverbs
+ok  github.com/go-go-golems/go-goja/cmd/xgoja/internal/generate
+```

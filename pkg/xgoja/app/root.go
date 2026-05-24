@@ -13,6 +13,8 @@ import (
 	glazedcli "github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/spf13/cobra"
@@ -81,25 +83,46 @@ func newEvalCommand(factory *RuntimeFactory, spec *Spec) *cobra.Command {
 	return cmd
 }
 
-func newModulesCommand(providers *providerapi.Registry, spec *Spec) *cobra.Command {
-	return &cobra.Command{
-		Use:   "modules",
-		Short: "List provider modules registered in this generated binary",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			_ = spec
-			for _, pkg := range providers.Packages() {
-				names := make([]string, 0, len(pkg.Modules))
-				for name := range pkg.Modules {
-					names = append(names, name)
-				}
-				sort.Strings(names)
-				for _, name := range names {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s.%s\n", pkg.ID, name)
-				}
-			}
-			return nil
-		},
+type modulesCommand struct {
+	*cmds.CommandDescription
+	providers *providerapi.Registry
+}
+
+var _ cmds.GlazeCommand = (*modulesCommand)(nil)
+
+func newModulesCommand(providers *providerapi.Registry, spec *Spec) cmds.Command {
+	_ = spec
+	return &modulesCommand{
+		CommandDescription: cmds.NewCommandDescription("modules",
+			cmds.WithShort("List provider modules registered in this generated binary"),
+			cmds.WithLong("List provider modules compiled into this generated xgoja binary."),
+		),
+		providers: providers,
 	}
+}
+
+func (c *modulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.Values, gp middlewares.Processor) error {
+	_ = vals
+	if c.providers == nil {
+		return fmt.Errorf("providers registry is required")
+	}
+	for _, pkg := range c.providers.Packages() {
+		names := make([]string, 0, len(pkg.Modules))
+		for name := range pkg.Modules {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			if err := gp.AddRow(ctx, types.NewRow(
+				types.MRP("package", pkg.ID),
+				types.MRP("module", name),
+				types.MRP("require", fmt.Sprintf("%s.%s", pkg.ID, name)),
+			)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, spec *Spec, embeddedJSVerbs fs.FS) *cobra.Command {

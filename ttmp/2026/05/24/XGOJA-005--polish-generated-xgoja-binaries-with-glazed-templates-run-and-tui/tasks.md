@@ -8,7 +8,7 @@
 ## Phase 2: Generated root framework
 
 - [x] Install Glazed logging and help system in generated binaries
-- [ ] Expose modules through Glazed command plumbing while preserving jsverb Glazed mounting
+- [x] Expose modules through Glazed command plumbing while preserving jsverb Glazed mounting
 
 ## Phase 3: Runtime execution commands
 

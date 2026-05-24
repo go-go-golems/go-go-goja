@@ -58,7 +58,12 @@ func (h *Host) AttachModules(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	root.AddCommand(newModulesCommand(h.Providers, h.Spec))
+	cmd, err := buildGlazedCobraCommand(newModulesCommand(h.Providers, h.Spec))
+	if err != nil {
+		root.AddCommand(commandErrorStub("modules", "List provider modules registered in this generated binary", err))
+		return
+	}
+	root.AddCommand(cmd)
 }
 
 func (h *Host) AttachVerbs(root *cobra.Command) {
