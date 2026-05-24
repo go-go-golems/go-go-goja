@@ -101,6 +101,10 @@ topics:
       description: Runtime construction, lifecycle, and execution context behavior
     - slug: cleanup
       description: Cleanup and removal of dead code, obsolete compatibility APIs, and repository artifacts.
+    - slug: logging
+      description: Logging setup, log-level configuration, and logger initialization.
+    - slug: templates
+      description: Code generation templates and template-driven source rendering.
 docTypes:
     - slug: index
       description: Ticket index documents
