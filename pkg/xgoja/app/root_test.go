@@ -137,6 +137,42 @@ func TestGeneratedRootInstallsHelpAndLogging(t *testing.T) {
 	}
 }
 
+func TestGeneratedRootTUIHelp(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	specJSON := `{
+  "name": "fixture",
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {
+    "repl": {
+      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
+    }
+  },
+  "commands": {
+    "repl": {"enabled": true, "runtime": "repl", "name": "repl"},
+    "tui": {"enabled": true, "runtime": "repl", "name": "tui"},
+    "jsverbs": {"enabled": false}
+  }
+}`
+	out := &bytes.Buffer{}
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	root.SetArgs([]string{"tui", "--help"})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute tui help: %v", err)
+	}
+	for _, want := range []string{"interactive TUI REPL", "--runtime", "--alt-screen"} {
+		if !bytes.Contains(out.Bytes(), []byte(want)) {
+			t.Fatalf("expected TUI help to contain %q, got %q", want, out.String())
+		}
+	}
+}
+
 func TestGeneratedRootRunCommandExecutesScriptFile(t *testing.T) {
 	registry := providerapi.NewRegistry()
 	if err := testprovider.Register(registry); err != nil {

@@ -13,7 +13,7 @@
 ## Phase 3: Runtime execution commands
 
 - [x] Add generated run command for executing JavaScript files with runtime-profile modules
-- [ ] Add generated TUI REPL command based on goja-repl Bubble Tea integration
+- [x] Add generated TUI REPL command based on goja-repl Bubble Tea integration
 
 ## Phase 4: Documentation, examples, and closure
 

@@ -71,3 +71,14 @@ Phase 3: Added generated run command for JavaScript files using xgoja runtime pr
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/run.go — Generated runtime run command
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/spec.go — Runtime command spec includes run
 
+
+## 2026-05-24
+
+Phase 3: Added generated TUI REPL command backed by an xgoja runtime-profile evaluator.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/host.go — Attaches TUI command when enabled
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root_test.go — TUI help regression test
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/tui.go — Generated runtime TUI command and evaluator adapter
+

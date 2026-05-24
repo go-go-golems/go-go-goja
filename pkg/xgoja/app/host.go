@@ -44,6 +44,9 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 	if h.Spec.Commands.Run.Enabled {
 		h.AttachRun(root)
 	}
+	if h.Spec.Commands.TUI.Enabled {
+		h.AttachTUI(root)
+	}
 	h.AttachModules(root)
 	if h.Spec.Commands.JSVerbs.Enabled {
 		h.AttachVerbs(root)
@@ -64,6 +67,18 @@ func (h *Host) AttachRun(root *cobra.Command) {
 	cmd, err := buildGlazedCobraCommand(newRunCommand(h.Factory, h.Spec))
 	if err != nil {
 		root.AddCommand(commandErrorStub(commandName(h.Spec.Commands.Run, "run"), "Execute a JavaScript file in a generated xgoja runtime", err))
+		return
+	}
+	root.AddCommand(cmd)
+}
+
+func (h *Host) AttachTUI(root *cobra.Command) {
+	if root == nil || h == nil {
+		return
+	}
+	cmd, err := buildGlazedCobraCommand(newTUICommand(h.Factory, h.Spec))
+	if err != nil {
+		root.AddCommand(commandErrorStub(commandName(h.Spec.Commands.TUI, "tui"), "Run an interactive TUI REPL for a generated xgoja runtime", err))
 		return
 	}
 	root.AddCommand(cmd)

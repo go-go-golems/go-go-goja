@@ -609,3 +609,88 @@ ok  github.com/go-go-golems/go-go-goja/pkg/xgoja/app
 ok  github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec
 ok  github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate
 ```
+
+## Step 8: Add generated TUI REPL command
+
+This step added a generated `tui` command. The command starts the Bubble Tea REPL UI using a runtime-profile-backed xgoja evaluator. The evaluator creates an `engine.Runtime` through `app.RuntimeFactory`, then adapts the existing JavaScript evaluator to Bobatea's REPL interfaces while preserving the generated binary's runtime module policy.
+
+The unit tests do not start a full interactive terminal session. Instead, they verify that the TUI command is attached and has Glazed/Cobra help for `--runtime` and `--alt-screen`. This keeps automated validation non-interactive while still checking the generated command surface.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 5)
+
+**Assistant interpretation:** Complete Phase 3 by adding a TUI REPL command modeled on `cmd/goja-repl/tui.go`.
+
+**Inferred user intent:** Generated binaries should offer an interactive terminal REPL, not only one-shot eval/run commands.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/tui.go`.
+- Implemented a Glazed `BareCommand` named from `commands.tui.name` with flags:
+  - `--runtime`,
+  - `--alt-screen`.
+- Added a direct xgoja TUI evaluator adapter that:
+  - creates a runtime through `RuntimeFactory.NewRuntime`,
+  - passes the existing VM into the JavaScript Bobatea evaluator,
+  - closes the engine runtime when the TUI evaluator closes.
+- Reused Bubble Tea, Bobatea REPL, eventbus, timeline, and quiet in-memory Watermill bus patterns from `cmd/goja-repl/tui.go`.
+- Updated `Host.AttachDefaultCommands` to attach TUI when `commands.tui.enabled` is true.
+- Added a non-interactive TUI help test.
+- Marked task 6 complete.
+- Validated with:
+
+```bash
+GOWORK=off go test ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1
+```
+
+### Why
+
+- The generated binary should expose an interactive REPL mode.
+- The TUI must use buildspec-selected runtime modules instead of constructing a broad default engine runtime.
+- A direct xgoja evaluator keeps runtime policy exact for the first implementation.
+
+### What worked
+
+- TUI command help renders and includes the expected flags.
+- Focused app and generated-binary tests passed.
+- The adapter composes with existing Bobatea evaluator interfaces.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The existing `pkg/repl/adapters/bobatea.JavaScriptEvaluator` can be reused with an existing VM. This lets xgoja provide a profile-selected runtime while still using the existing Bobatea REPL-facing evaluator behavior.
+
+### What was tricky to build
+
+- The evaluator ownership boundary needed care. The JavaScript evaluator receives an existing VM, so it does not own the `engine.Runtime`. The wrapper therefore closes both the evaluator and the xgoja runtime explicitly.
+
+### What warrants a second pair of eyes
+
+- Review whether the direct xgoja evaluator should eventually integrate with `replapi` for persistent history.
+- Review whether `EnableModules: true` plus `Runtime: rt.VM` in the JavaScript evaluator config is the clearest way to reuse an existing xgoja VM.
+
+### What should be done in the future
+
+- Update docs/examples for `run` and `tui` commands.
+- Run full focused validation and example smokes.
+
+### Code review instructions
+
+- Start in `pkg/xgoja/app/tui.go`.
+- Compare the run loop with `cmd/goja-repl/tui.go`.
+- Confirm the runtime is created through `RuntimeFactory.NewRuntime`.
+
+### Technical details
+
+Validation output:
+
+```text
+ok  github.com/go-go-golems/go-go-goja/pkg/xgoja/app
+ok  github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate
+```
