@@ -73,7 +73,7 @@ Example consumer inside Goja:
 ```go
 factory, err := engine.NewBuilder().
     WithRequireOptions(require.WithLoader(embeddedSourceLoader)).
-    WithModules(engine.DefaultRegistryModules()).
+    Build().
     Build()
 if err != nil {
     log.Fatalf("build factory: %v", err)
@@ -103,7 +103,7 @@ use a reusable factory to reduce setup overhead:
 ```go
 factory, err := engine.NewBuilder().
     WithRequireOptions(require.WithLoader(embeddedSourceLoader)).
-    WithModules(engine.DefaultRegistryModules()).
+    Build().
     Build()
 if err != nil {
     log.Fatalf("build factory: %v", err)
@@ -340,7 +340,7 @@ func embeddedSourceLoader(path string) ([]byte, error) {
 
 factory, err := engine.NewBuilder().
     WithRequireOptions(require.WithLoader(embeddedSourceLoader)).
-    WithModules(engine.DefaultRegistryModules()).
+    Build().
     Build()
 if err != nil {
     log.Fatalf("build engine factory: %v", err)
@@ -421,7 +421,7 @@ This section summarizes the integration points between Goja and the bundled outp
 - Target: ES5 (`--target=es5`).
 
 **Goja loader**
-- `engine.NewBuilder().WithRequireOptions(require.WithLoader(loader)).WithModules(engine.DefaultRegistryModules()).Build()` configures runtime creation.
+- `engine.NewBuilder().WithRequireOptions(require.WithLoader(loader)).Build()` configures runtime creation.
 - `factory.NewRuntime(context.Background())` creates an owned runtime that should be closed explicitly.
 - `require.ModuleFileDoesNotExistError` signals to Goja that the module path is missing.
 

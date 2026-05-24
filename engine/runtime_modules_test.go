@@ -10,7 +10,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 )
 
-type testRuntimeModuleRegistrar struct {
+type testRuntimeModuleSpec struct {
 	mu     sync.Mutex
 	nextID int
 	closed []int
@@ -25,7 +25,7 @@ func (f testRegistrarFunc) ID() string {
 	return f.id
 }
 
-func (f testRegistrarFunc) RegisterRuntimeModules(ctx *RuntimeModuleContext, reg *require.Registry) error {
+func (f testRegistrarFunc) RegisterRuntimeModule(ctx *RuntimeModuleContext, reg *require.Registry) error {
 	return f.fn(ctx, reg)
 }
 
@@ -42,11 +42,11 @@ func (f testRuntimeInitializerFunc) InitRuntime(ctx *RuntimeContext) error {
 	return f.fn(ctx)
 }
 
-func (r *testRuntimeModuleRegistrar) ID() string {
+func (r *testRuntimeModuleSpec) ID() string {
 	return "test-runtime-registrar"
 }
 
-func (r *testRuntimeModuleRegistrar) RegisterRuntimeModules(ctx *RuntimeModuleContext, reg *require.Registry) error {
+func (r *testRuntimeModuleSpec) RegisterRuntimeModule(ctx *RuntimeModuleContext, reg *require.Registry) error {
 	r.mu.Lock()
 	r.nextID++
 	id := r.nextID
@@ -65,7 +65,7 @@ func (r *testRuntimeModuleRegistrar) RegisterRuntimeModules(ctx *RuntimeModuleCo
 	})
 }
 
-func (r *testRuntimeModuleRegistrar) closedIDs() []int {
+func (r *testRuntimeModuleSpec) closedIDs() []int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	out := make([]int, len(r.closed))
@@ -73,11 +73,11 @@ func (r *testRuntimeModuleRegistrar) closedIDs() []int {
 	return out
 }
 
-func TestRuntimeModuleRegistrarRegistersPerRuntime(t *testing.T) {
-	registrar := &testRuntimeModuleRegistrar{}
+func TestRuntimeModuleSpecRegistersPerRuntime(t *testing.T) {
+	registrar := &testRuntimeModuleSpec{}
 
 	factory, err := NewBuilder().
-		WithRuntimeModuleRegistrars(registrar).
+		WithModules(registrar).
 		Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
@@ -154,9 +154,9 @@ func TestRuntimeCloseRunsClosersInReverseOrder(t *testing.T) {
 }
 
 func TestRuntimeCloseRunsRegistrarClosers(t *testing.T) {
-	registrar := &testRuntimeModuleRegistrar{}
+	registrar := &testRuntimeModuleSpec{}
 	factory, err := NewBuilder().
-		WithRuntimeModuleRegistrars(registrar).
+		WithModules(registrar).
 		Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
@@ -178,10 +178,10 @@ func TestRuntimeCloseRunsRegistrarClosers(t *testing.T) {
 }
 
 func TestRuntimePersistsRegistrarValues(t *testing.T) {
-	registrar := &testRuntimeModuleRegistrar{}
+	registrar := &testRuntimeModuleSpec{}
 
 	factory, err := NewBuilder().
-		WithRuntimeModuleRegistrars(registrar, testRegistrarFunc{id: "value-registrar", fn: func(ctx *RuntimeModuleContext, reg *require.Registry) error {
+		WithModules(registrar, testRegistrarFunc{id: "value-registrar", fn: func(ctx *RuntimeModuleContext, reg *require.Registry) error {
 			ctx.SetValue("runtime-id", 42)
 			return nil
 		}}).
@@ -209,7 +209,7 @@ func TestRuntimePersistsRegistrarValues(t *testing.T) {
 
 func TestRuntimeInitializersCanReadAndWriteRuntimeValues(t *testing.T) {
 	factory, err := NewBuilder().
-		WithRuntimeModuleRegistrars(testRegistrarFunc{id: "seed-values", fn: func(ctx *RuntimeModuleContext, reg *require.Registry) error {
+		WithModules(testRegistrarFunc{id: "seed-values", fn: func(ctx *RuntimeModuleContext, reg *require.Registry) error {
 			ctx.SetValue("phase", "registered")
 			return nil
 		}}).
@@ -266,5 +266,30 @@ func TestRuntimeInitializersPersistValuesWithoutRegistrarState(t *testing.T) {
 
 	if got, ok := rt.Value("initializer-only"); !ok || got != "present" {
 		t.Fatalf("runtime initializer-only = %#v, %v", got, ok)
+	}
+}
+
+func TestBuilderCanDisableImplicitDefaultModules(t *testing.T) {
+	factory, err := NewBuilder(
+		WithImplicitDefaultRegistryModules(false),
+		WithDataOnlyDefaultRegistryModules(false),
+	).Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() {
+		_ = rt.Close(context.Background())
+	}()
+
+	if _, err := rt.Require.Require("fs"); err == nil {
+		t.Fatalf("require(fs) succeeded, want missing module")
+	}
+	if _, err := rt.Require.Require("path"); err == nil {
+		t.Fatalf("require(path) succeeded, want missing module")
 	}
 }

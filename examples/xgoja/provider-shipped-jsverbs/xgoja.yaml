@@ -1,0 +1,34 @@
+name: provider-shipped-jsverbs
+target:
+  kind: xgoja
+  output: dist/provider-shipped-jsverbs
+packages:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+runtimes:
+  repl:
+    modules:
+      - package: fixture
+        name: hello
+        as: hello
+      - package: fixture
+        name: owner-check
+        as: owner-check
+commands:
+  eval:
+    enabled: true
+    runtime: repl
+  run:
+    enabled: true
+    runtime: repl
+  jsverbs:
+    enabled: true
+    runtime: repl
+    name: verbs
+  repl:
+    enabled: true
+    runtime: repl
+jsverbs:
+  - id: provider-defaults
+    package: fixture
+    source: verbs

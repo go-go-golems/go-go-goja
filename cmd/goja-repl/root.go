@@ -147,7 +147,7 @@ func (s commandSupport) newAppWithOptions(options appSupportOptions) (*replapi.A
 		builder = builder.UseModuleMiddleware(mw)
 	}
 	if options.helpSystem != nil {
-		builder = builder.WithRuntimeModuleRegistrars(docaccessruntime.NewRegistrar(docaccessruntime.Config{
+		builder = builder.WithModules(docaccessruntime.NewRegistrar(docaccessruntime.Config{
 			HelpSources: []docaccessruntime.HelpSource{{
 				ID:      "default-help",
 				Title:   "Default Help",

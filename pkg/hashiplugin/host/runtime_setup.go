@@ -40,7 +40,7 @@ func (s RuntimeSetup) WithBuilder(builder *engine.FactoryBuilder) *engine.Factor
 	if len(s.Directories) == 0 {
 		return builder
 	}
-	return builder.WithRuntimeModuleRegistrars(NewRegistrar(Config{
+	return builder.WithModules(NewRegistrar(Config{
 		Directories:  s.Directories,
 		AllowModules: s.AllowModules,
 		Report:       s.Reporter,

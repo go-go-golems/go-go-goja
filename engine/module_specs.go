@@ -13,12 +13,6 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 )
 
-// ModuleSpec is a static registration unit applied at factory build time.
-type ModuleSpec interface {
-	ID() string
-	Register(reg *require.Registry) error
-}
-
 // RuntimeInitializer is a per-runtime initialization hook executed after VM and
 // require setup.
 type RuntimeInitializer interface {
@@ -68,7 +62,7 @@ func (s NativeModuleSpec) ID() string {
 	return "native:" + strings.TrimSpace(s.ModuleName)
 }
 
-func (s NativeModuleSpec) Register(reg *require.Registry) error {
+func (s NativeModuleSpec) RegisterRuntimeModule(_ *RuntimeModuleContext, reg *require.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}
@@ -83,32 +77,6 @@ func (s NativeModuleSpec) Register(reg *require.Registry) error {
 	return nil
 }
 
-type defaultRegistryModulesSpec struct{}
-
-func (s defaultRegistryModulesSpec) ID() string {
-	return "default-registry-modules"
-}
-
-func (s defaultRegistryModulesSpec) Register(reg *require.Registry) error {
-	if reg == nil {
-		return fmt.Errorf("require registry is nil")
-	}
-	modules.EnableAll(reg)
-	return nil
-}
-
-// DefaultRegistryModules returns a ModuleSpec that registers every module from
-// go-go-goja/modules.DefaultRegistry.
-//
-// Deprecated: Use UseModuleMiddleware with the appropriate middleware instead.
-// For example:
-//
-//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe())
-//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("fs", "os"))
-func DefaultRegistryModules() ModuleSpec {
-	return defaultRegistryModulesSpec{}
-}
-
 type namedDefaultRegistryModulesSpec struct {
 	id    string
 	names []string
@@ -121,7 +89,7 @@ func (s namedDefaultRegistryModulesSpec) ID() string {
 	return "default-registry-modules:" + strings.Join(s.names, ",")
 }
 
-func (s namedDefaultRegistryModulesSpec) Register(reg *require.Registry) error {
+func (s namedDefaultRegistryModulesSpec) RegisterRuntimeModule(_ *RuntimeModuleContext, reg *require.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}
@@ -172,14 +140,7 @@ func expandDefaultRegistryModuleNames(names []string) []string {
 	return ret
 }
 
-// DefaultRegistryModule returns a ModuleSpec that registers one module from
-// modules.DefaultRegistry by its JavaScript require() name.
-//
-// Deprecated: Use UseModuleMiddleware with MiddlewareOnly instead.
-// For example:
-//
-//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("fs"))
-func DefaultRegistryModule(name string) ModuleSpec {
+func defaultRegistryModule(name string) RuntimeModuleSpec {
 	name = strings.TrimSpace(name)
 	return namedDefaultRegistryModulesSpec{
 		id:    "default-registry-module:" + name,
@@ -187,14 +148,7 @@ func DefaultRegistryModule(name string) ModuleSpec {
 	}
 }
 
-// DefaultRegistryModulesNamed returns a ModuleSpec that registers only the
-// named modules from modules.DefaultRegistry.
-//
-// Deprecated: Use UseModuleMiddleware with MiddlewareOnly instead.
-// For example:
-//
-//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("fs", "os"))
-func DefaultRegistryModulesNamed(names ...string) ModuleSpec {
+func defaultRegistryModulesNamed(names ...string) RuntimeModuleSpec {
 	trimmed := make([]string, 0, len(names))
 	for _, name := range names {
 		if strings.TrimSpace(name) != "" {
@@ -209,18 +163,8 @@ func DefaultRegistryModulesNamed(names ...string) ModuleSpec {
 
 var dataOnlyDefaultRegistryModuleNames = []string{"crypto", "node:crypto", "events", "node:events", "path", "node:path", "time", "timer"}
 
-// DataOnlyDefaultRegistryModules returns the non-host-filesystem/non-process
-// primitives that are installed automatically for every engine runtime.
-//
-// Deprecated: Use UseModuleMiddleware with MiddlewareSafe instead.
-// For example:
-//
-//	engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe())
-func DataOnlyDefaultRegistryModules() ModuleSpec {
-	return namedDefaultRegistryModulesSpec{
-		id:    "data-only-default-registry-modules",
-		names: append([]string(nil), dataOnlyDefaultRegistryModuleNames...),
-	}
+func dataOnlyDefaultRegistryModules() RuntimeModuleSpec {
+	return defaultRegistryModulesNamed(dataOnlyDefaultRegistryModuleNames...)
 }
 
 // DataOnlyDefaultRegistryModuleNames returns a copy of the module names that
@@ -252,7 +196,7 @@ type processModuleSpec struct{}
 
 func (processModuleSpec) ID() string { return "native:process" }
 
-func (processModuleSpec) Register(reg *require.Registry) error {
+func (processModuleSpec) RegisterRuntimeModule(_ *RuntimeModuleContext, reg *require.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}
@@ -261,10 +205,10 @@ func (processModuleSpec) Register(reg *require.Registry) error {
 	return nil
 }
 
-// ProcessModule returns a ModuleSpec that registers require("process") and
+// ProcessModule returns a RuntimeModuleSpec that registers require("process") and
 // require("node:process") for this runtime factory only. It is opt-in because
 // process.env exposes host environment variables.
-func ProcessModule() ModuleSpec {
+func ProcessModule() RuntimeModuleSpec {
 	return processModuleSpec{}
 }
 

@@ -19,6 +19,10 @@ type runtimebridgeOwner struct {
 	owner runtimeowner.Runner
 }
 
+func (o runtimebridgeOwner) Call(ctx context.Context, op string, fn func(context.Context, *goja.Runtime) (any, error)) (any, error) {
+	return o.owner.Call(ctx, op, runtimeowner.CallFunc(fn))
+}
+
 func (o runtimebridgeOwner) Post(ctx context.Context, op string, fn func(context.Context, *goja.Runtime)) error {
 	return o.owner.Post(ctx, op, runtimeowner.PostFunc(fn))
 }
@@ -28,19 +32,17 @@ func (o runtimebridgeOwner) Post(ctx context.Context, op string, fn func(context
 type FactoryBuilder struct {
 	settings builderSettings
 
-	modules                 []ModuleSpec
-	moduleMiddlewares       []ModuleMiddleware
-	runtimeModuleRegistrars []RuntimeModuleRegistrar
-	runtimeInitializers     []RuntimeInitializer
-	built                   bool
+	modules             []RuntimeModuleSpec
+	moduleMiddlewares   []ModuleMiddleware
+	runtimeInitializers []RuntimeInitializer
+	built               bool
 }
 
 // Factory creates runtime instances from an immutable build plan.
 type Factory struct {
-	settings                builderSettings
-	modules                 []ModuleSpec
-	runtimeModuleRegistrars []RuntimeModuleRegistrar
-	runtimeInitializers     []RuntimeInitializer
+	settings            builderSettings
+	modules             []RuntimeModuleSpec
+	runtimeInitializers []RuntimeInitializer
 }
 
 // NewBuilder starts a new explicit runtime composition flow.
@@ -72,8 +74,8 @@ func (b *FactoryBuilder) WithRequireOptions(opts ...require.Option) *FactoryBuil
 	return b
 }
 
-// WithModules appends static module registrations.
-func (b *FactoryBuilder) WithModules(mods ...ModuleSpec) *FactoryBuilder {
+// WithModules appends runtime-aware module registrations.
+func (b *FactoryBuilder) WithModules(mods ...RuntimeModuleSpec) *FactoryBuilder {
 	b.assertMutable()
 	b.modules = append(b.modules, mods...)
 	return b
@@ -91,13 +93,6 @@ func (b *FactoryBuilder) WithModules(mods ...ModuleSpec) *FactoryBuilder {
 func (b *FactoryBuilder) UseModuleMiddleware(mw ...ModuleMiddleware) *FactoryBuilder {
 	b.assertMutable()
 	b.moduleMiddlewares = append(b.moduleMiddlewares, mw...)
-	return b
-}
-
-// WithRuntimeModuleRegistrars appends runtime-scoped module registration hooks.
-func (b *FactoryBuilder) WithRuntimeModuleRegistrars(registrars ...RuntimeModuleRegistrar) *FactoryBuilder {
-	b.assertMutable()
-	b.runtimeModuleRegistrars = append(b.runtimeModuleRegistrars, registrars...)
 	return b
 }
 
@@ -131,7 +126,7 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 	}
 	b.assertMutable()
 
-	modules_ := make([]ModuleSpec, 0, len(b.modules))
+	modules_ := make([]RuntimeModuleSpec, 0, len(b.modules))
 	for i, mod := range b.modules {
 		if mod == nil {
 			return nil, fmt.Errorf("module spec at index %d is nil", i)
@@ -144,24 +139,17 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 	// all default-registry modules. Calling UseModuleMiddleware narrows or
 	// transforms that selection; explicit WithModules(...) remains explicit and
 	// does not auto-append the default registry.
-	if len(b.moduleMiddlewares) > 0 || len(b.modules) == 0 {
+	if len(b.moduleMiddlewares) > 0 || (len(b.modules) == 0 && b.settings.implicitDefaultRegistryModules) {
 		selector := SelectAll
 		for i := len(b.moduleMiddlewares) - 1; i >= 0; i-- {
 			selector = b.moduleMiddlewares[i](selector)
 		}
 		selected := sortedUnique(selector(allRegisteredModuleNames()))
 		for _, name := range selected {
-			modules_ = append(modules_, DefaultRegistryModule(name))
+			modules_ = append(modules_, defaultRegistryModule(name))
 		}
 	}
 
-	runtimeRegistrars := make([]RuntimeModuleRegistrar, 0, len(b.runtimeModuleRegistrars))
-	for i, registrar := range b.runtimeModuleRegistrars {
-		if registrar == nil {
-			return nil, fmt.Errorf("runtime module registrar at index %d is nil", i)
-		}
-		runtimeRegistrars = append(runtimeRegistrars, registrar)
-	}
 	inits := make([]RuntimeInitializer, 0, len(b.runtimeInitializers))
 	for i, init := range b.runtimeInitializers {
 		if init == nil {
@@ -173,9 +161,6 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 	if err := validateUniqueIDs(modules_, "module"); err != nil {
 		return nil, err
 	}
-	if err := validateUniqueIDs(runtimeRegistrars, "runtime module registrar"); err != nil {
-		return nil, err
-	}
 	if err := validateUniqueIDs(inits, "runtime initializer"); err != nil {
 		return nil, err
 	}
@@ -184,11 +169,12 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 
 	return &Factory{
 		settings: builderSettings{
-			requireOptions: append([]require.Option(nil), b.settings.requireOptions...),
+			requireOptions:                 append([]require.Option(nil), b.settings.requireOptions...),
+			implicitDefaultRegistryModules: b.settings.implicitDefaultRegistryModules,
+			dataOnlyDefaultRegistryModules: b.settings.dataOnlyDefaultRegistryModules,
 		},
-		modules:                 append([]ModuleSpec(nil), modules_...),
-		runtimeModuleRegistrars: append([]RuntimeModuleRegistrar(nil), runtimeRegistrars...),
-		runtimeInitializers:     append([]RuntimeInitializer(nil), inits...),
+		modules:             append([]RuntimeModuleSpec(nil), modules_...),
+		runtimeInitializers: append([]RuntimeInitializer(nil), inits...),
 	}, nil
 }
 
@@ -230,16 +216,6 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	})
 
 	reg := require.NewRegistry(f.settings.requireOptions...)
-	if err := DataOnlyDefaultRegistryModules().Register(reg); err != nil {
-		_ = rt.Close(ctx)
-		return nil, fmt.Errorf("register data-only default modules: %w", err)
-	}
-	for _, mod := range f.modules {
-		if err := mod.Register(reg); err != nil {
-			_ = rt.Close(ctx)
-			return nil, fmt.Errorf("register module %q: %w", mod.ID(), err)
-		}
-	}
 	moduleCtx := &RuntimeModuleContext{
 		Context:   runtimeCtx,
 		VM:        vm,
@@ -248,10 +224,16 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		AddCloser: rt.AddCloser,
 		Values:    runtimeValues,
 	}
-	for _, registrar := range f.runtimeModuleRegistrars {
-		if err := registrar.RegisterRuntimeModules(moduleCtx, reg); err != nil {
+	if f.settings.dataOnlyDefaultRegistryModules {
+		if err := dataOnlyDefaultRegistryModules().RegisterRuntimeModule(moduleCtx, reg); err != nil {
 			_ = rt.Close(ctx)
-			return nil, fmt.Errorf("runtime module registrar %q: %w", registrar.ID(), err)
+			return nil, fmt.Errorf("register data-only default modules: %w", err)
+		}
+	}
+	for _, mod := range f.modules {
+		if err := mod.RegisterRuntimeModule(moduleCtx, reg); err != nil {
+			_ = rt.Close(ctx)
+			return nil, fmt.Errorf("register module %q: %w", mod.ID(), err)
 		}
 	}
 

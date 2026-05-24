@@ -55,7 +55,7 @@ func (r *Registrar) ID() string {
 	return "docaccess-registrar"
 }
 
-func (r *Registrar) RegisterRuntimeModules(ctx *engine.RuntimeModuleContext, reg *require.Registry) error {
+func (r *Registrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleContext, reg *require.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}

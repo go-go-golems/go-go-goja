@@ -1,0 +1,82 @@
+package app
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"github.com/dop251/goja_nodejs/require"
+	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
+)
+
+type JSRuntime = engine.Runtime
+
+type RuntimeFactory struct {
+	providers *providerapi.Registry
+	spec      *Spec
+}
+
+type providerRuntimeModuleSpec struct {
+	instance ModuleInstance
+	module   providerapi.Module
+}
+
+func (s providerRuntimeModuleSpec) ID() string {
+	return fmt.Sprintf("xgoja:%s.%s:%s", s.instance.Package, s.instance.Name, s.instance.Alias())
+}
+
+func (s providerRuntimeModuleSpec) RegisterRuntimeModule(ctx *engine.RuntimeModuleContext, reg *require.Registry) error {
+	if reg == nil {
+		return fmt.Errorf("require registry is nil")
+	}
+	config, err := json.Marshal(s.instance.Config)
+	if err != nil {
+		return fmt.Errorf("marshal config for %s.%s: %w", s.instance.Package, s.instance.Name, err)
+	}
+	loader, err := s.module.New(providerapi.ModuleContext{
+		Context: ctx.Context,
+		Name:    s.instance.Name,
+		As:      s.instance.Alias(),
+		Config:  config,
+	})
+	if err != nil {
+		return fmt.Errorf("create module %s.%s: %w", s.instance.Package, s.instance.Name, err)
+	}
+	reg.RegisterNativeModule(s.instance.Alias(), loader)
+	return nil
+}
+
+func NewRuntimeFactory(providers *providerapi.Registry, spec *Spec) *RuntimeFactory {
+	return &RuntimeFactory{providers: providers, spec: spec}
+}
+
+func (f *RuntimeFactory) NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*JSRuntime, error) {
+	if f == nil || f.providers == nil || f.spec == nil {
+		return nil, fmt.Errorf("xgoja runtime factory is not initialized")
+	}
+	runtime, ok := f.spec.Runtimes[profile]
+	if !ok {
+		return nil, fmt.Errorf("unknown runtime profile %q", profile)
+	}
+	modules := make([]engine.RuntimeModuleSpec, 0, len(runtime.Modules))
+	for _, instance := range runtime.Modules {
+		module, ok := f.providers.ResolveModule(instance.Package, instance.Name)
+		if !ok {
+			return nil, fmt.Errorf("runtime %s references unknown provider module %s.%s", profile, instance.Package, instance.Name)
+		}
+		modules = append(modules, providerRuntimeModuleSpec{instance: instance, module: module})
+	}
+	builder := engine.NewBuilder(
+		engine.WithImplicitDefaultRegistryModules(false),
+		engine.WithDataOnlyDefaultRegistryModules(false),
+	).WithModules(modules...)
+	if len(opts) > 0 {
+		builder = builder.WithRequireOptions(opts...)
+	}
+	runtimeFactory, err := builder.Build()
+	if err != nil {
+		return nil, err
+	}
+	return runtimeFactory.NewRuntime(ctx)
+}

@@ -106,10 +106,3 @@ func GetModule(name string) NativeModule {
 func ListDefaultModules() []NativeModule {
 	return DefaultRegistry.ListModules()
 }
-
-// EnableAll iterates over every module in the default registry and adds it
-// to the provided require.Registry. This maintains compatibility with the
-// previous package-level function.
-func EnableAll(reg *require.Registry) {
-	DefaultRegistry.Enable(reg)
-}

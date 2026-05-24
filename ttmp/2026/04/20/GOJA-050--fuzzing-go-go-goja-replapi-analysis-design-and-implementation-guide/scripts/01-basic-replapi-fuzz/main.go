@@ -29,7 +29,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	factory, err := engine.NewBuilder().WithModules(engine.DefaultRegistryModules()).Build() //nolint:staticcheck
+	factory, err := engine.NewBuilder().Build()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "build factory: %v\n", err)
 		os.Exit(1)

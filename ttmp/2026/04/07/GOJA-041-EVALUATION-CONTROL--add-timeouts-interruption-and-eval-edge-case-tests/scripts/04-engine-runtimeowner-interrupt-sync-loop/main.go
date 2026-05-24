@@ -13,7 +13,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	factory, err := engine.NewBuilder().WithModules(engine.DefaultRegistryModules()).Build() //nolint:staticcheck
+	factory, err := engine.NewBuilder().Build()
 	if err != nil {
 		panic(err)
 	}
