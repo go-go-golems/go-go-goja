@@ -138,9 +138,9 @@ func validateRuntimes(report *Report, spec *Spec, packageIDs map[string]PackageS
 }
 
 func validateCommands(report *Report, spec *Spec) {
-	validateCommandRuntime(report, "commands.repl", spec.Commands.Repl, spec.Runtimes)
+	validateCommandRuntime(report, "commands.eval", spec.Commands.Eval, spec.Runtimes)
 	validateCommandRuntime(report, "commands.run", spec.Commands.Run, spec.Runtimes)
-	validateCommandRuntime(report, "commands.tui", spec.Commands.TUI, spec.Runtimes)
+	validateCommandRuntime(report, "commands.repl", spec.Commands.Repl, spec.Runtimes)
 	validateCommandRuntime(report, "commands.jsverbs", spec.Commands.JSVerbs, spec.Runtimes)
 }
 

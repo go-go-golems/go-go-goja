@@ -38,14 +38,14 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 	if err := installRootFramework(root, h.Spec); err != nil {
 		root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error { return err }
 	}
-	if h.Spec.Commands.Repl.Enabled {
+	if h.Spec.Commands.Eval.Enabled {
 		h.AttachEval(root)
 	}
 	if h.Spec.Commands.Run.Enabled {
 		h.AttachRun(root)
 	}
-	if h.Spec.Commands.TUI.Enabled {
-		h.AttachTUI(root)
+	if h.Spec.Commands.Repl.Enabled {
+		h.AttachRepl(root)
 	}
 	h.AttachModules(root)
 	if h.Spec.Commands.JSVerbs.Enabled {
@@ -72,13 +72,13 @@ func (h *Host) AttachRun(root *cobra.Command) {
 	root.AddCommand(cmd)
 }
 
-func (h *Host) AttachTUI(root *cobra.Command) {
+func (h *Host) AttachRepl(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
 	cmd, err := buildGlazedCobraCommand(newTUICommand(h.Factory, h.Spec))
 	if err != nil {
-		root.AddCommand(commandErrorStub(commandName(h.Spec.Commands.TUI, "tui"), "Run an interactive TUI REPL for a generated xgoja runtime", err))
+		root.AddCommand(commandErrorStub(commandName(h.Spec.Commands.Repl, "repl"), "Run an interactive TUI REPL for a generated xgoja runtime", err))
 		return
 	}
 	root.AddCommand(cmd)

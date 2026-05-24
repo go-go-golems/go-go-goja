@@ -7,9 +7,9 @@ Topics:
 - runtime
 - cli
 Commands:
-- repl
+- eval
 - run
-- tui
+- repl
 - modules
 - verbs
 IsTopLevel: true
@@ -20,14 +20,14 @@ SectionType: Application
 
 A generated xgoja binary is a normal Go command-line program built from an `xgoja.yaml` file. It imports selected provider packages, registers their native Goja modules, embeds a normalized runtime specification, and creates commands that execute JavaScript against named runtime profiles.
 
-A runtime profile selects which provider modules are available to a command invocation. Commands such as `repl`, `run`, and mounted JavaScript verbs create a fresh runtime for the selected profile, execute the requested JavaScript, and close the runtime afterwards.
+A runtime profile selects which provider modules are available to a command invocation. Commands such as `eval`, `run`, `repl`, and mounted JavaScript verbs create a fresh runtime for the selected profile, execute the requested JavaScript, and close the runtime afterwards. The `repl` command is the rich interactive terminal REPL, while `eval` is one-shot string evaluation.
 
 ## Common commands
 
 - `modules` lists provider modules compiled into the binary.
-- `repl` or the configured evaluation command evaluates one JavaScript source string.
+- `eval` or the configured evaluation command evaluates one JavaScript source string.
 - `run` executes a JavaScript file with the selected runtime profile and script-local module roots.
-- `tui` starts an interactive Bubble Tea REPL backed by the selected runtime profile.
+- `repl` starts an interactive Bubble Tea REPL backed by the selected runtime profile.
 - `verbs` or the configured verbs command exposes JavaScript verbs from configured sources.
 - `help` lists bundled runtime help topics.
 

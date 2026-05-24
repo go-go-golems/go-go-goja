@@ -48,7 +48,7 @@ func TestRenderGoModUsesModuleRootsForSubpackageImports(t *testing.T) {
 		Runtimes: map[string]buildspec.Runtime{
 			"repl": {Modules: []buildspec.ModuleInstance{{Package: "provider", Name: "hello", As: "hello"}}},
 		},
-		Commands: buildspec.CommandsSpec{Repl: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "repl"}},
+		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "eval"}},
 	}
 	got := RenderGoMod(spec, Options{XGojaModuleVersion: "v0.1.0"})
 	for _, want := range []string{
@@ -200,10 +200,10 @@ func TestGeneratedProgramRunsFixtureProvider(t *testing.T) {
 
 func TestGeneratedProgramUsesConfiguredReplCommandName(t *testing.T) {
 	spec := buildableSpec("xgoja", "", "")
-	spec.Commands.Repl.Name = "runjs"
+	spec.Commands.Eval.Name = "runjs"
 	_, out := runGeneratedCommandWithOutput(t, spec, "runjs", `require("hello").greet("intern")`)
 	if strings.TrimSpace(string(out)) != "hello intern" {
-		t.Fatalf("configured repl output = %q", out)
+		t.Fatalf("configured eval output = %q", out)
 	}
 }
 
@@ -274,7 +274,7 @@ func TestGeneratedAdapterTargetUsesAdapterBuild(t *testing.T) {
 
 func runGeneratedEval(t *testing.T, spec *buildspec.Spec) {
 	t.Helper()
-	dir, out := runGeneratedCommandWithOutput(t, spec, "repl", `require("hello").greet("intern")`)
+	dir, out := runGeneratedCommandWithOutput(t, spec, "eval", `require("hello").greet("intern")`)
 	_ = dir
 	if strings.TrimSpace(string(out)) != "hello intern" {
 		t.Fatalf("generated output = %q", out)
@@ -330,7 +330,7 @@ func buildableSpec(kind, targetImport, root string) *buildspec.Spec {
 		Runtimes: map[string]buildspec.Runtime{
 			"repl": {Modules: []buildspec.ModuleInstance{{Package: "fixture", Name: "hello", As: "hello"}}},
 		},
-		Commands: buildspec.CommandsSpec{Repl: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "repl"}},
+		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "eval"}},
 	}
 }
 
@@ -349,6 +349,6 @@ func fixtureSpec() *buildspec.Spec {
 		Runtimes: map[string]buildspec.Runtime{
 			"repl": {Modules: []buildspec.ModuleInstance{{Package: "web", Name: "fetch", As: "fetch"}}},
 		},
-		Commands: buildspec.CommandsSpec{Repl: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "repl"}},
+		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "eval"}},
 	}
 }

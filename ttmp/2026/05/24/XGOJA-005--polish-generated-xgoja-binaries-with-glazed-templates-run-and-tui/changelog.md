@@ -98,3 +98,14 @@ Phase 4: Documented generated run/tui commands and extended xgoja examples to sm
 
 Completed generated xgoja polish: templates, generated help/logging, Glazed modules, run, TUI, docs, examples, and validation.
 
+
+## 2026-05-24
+
+Renamed generated command schema: commands.eval is one-shot evaluation and commands.repl is the rich Bubble Tea REPL.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildspec/spec.go — Buildspec command schema rename
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/host.go — Generated command attachment follows eval/repl semantics
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/spec.go — Generated runtime command schema rename
+

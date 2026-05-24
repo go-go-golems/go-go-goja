@@ -15,7 +15,7 @@ runtimes:
         name: owner-check
         as: owner-check
 commands:
-  repl:
+  eval:
     enabled: true
     runtime: repl
   run:

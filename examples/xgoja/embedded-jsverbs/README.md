@@ -14,7 +14,7 @@ The smoke target:
 
 1. validates `xgoja.yaml`,
 2. builds `dist/embedded-jsverbs` with a local `go-go-goja` replace,
-3. runs `repl` against the fixture provider module,
+3. runs `eval` against the fixture provider module,
 4. runs `run scripts/run.js` through the generated runtime,
 5. runs the embedded verb from the generated binary.
 

@@ -12,7 +12,7 @@ runtimes:
         name: hello
         as: hello
 commands:
-  repl:
+  eval:
     enabled: true
     runtime: repl
   run:

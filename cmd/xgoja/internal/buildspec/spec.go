@@ -59,9 +59,9 @@ func (m ModuleInstance) Ref() string {
 }
 
 type CommandsSpec struct {
-	Repl    CommandSpec `yaml:"repl" json:"repl"`
+	Eval    CommandSpec `yaml:"eval" json:"eval"`
 	Run     CommandSpec `yaml:"run" json:"run"`
-	TUI     CommandSpec `yaml:"tui" json:"tui"`
+	Repl    CommandSpec `yaml:"repl" json:"repl"`
 	JSVerbs CommandSpec `yaml:"jsverbs" json:"jsverbs"`
 }
 

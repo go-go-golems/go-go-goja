@@ -18,7 +18,7 @@ build:
 	$(XGOJA) build -f $(CURDIR)/xgoja.yaml --output $(BIN) --xgoja-replace $(REPO_ROOT) --keep-work
 
 run:
-	$(BIN) repl 'require("hello").greet("provider")'
+	$(BIN) eval 'require("hello").greet("provider")'
 	$(BIN) run $(CURDIR)/scripts/run.js
 	$(BIN) verbs tools provider-greet --name provider
 	$(BIN) verbs tools owner-ping

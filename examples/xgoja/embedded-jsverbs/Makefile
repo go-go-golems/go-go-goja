@@ -18,7 +18,7 @@ build:
 	$(XGOJA) build -f $(CURDIR)/xgoja.yaml --output $(BIN) --xgoja-replace $(REPO_ROOT) --keep-work
 
 run:
-	$(BIN) repl 'require("hello").greet("embedded")'
+	$(BIN) eval 'require("hello").greet("embedded")'
 	$(BIN) run $(CURDIR)/scripts/run.js
 	$(BIN) verbs tools embedded-greet --name embedded
 

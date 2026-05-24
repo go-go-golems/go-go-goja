@@ -25,7 +25,7 @@ const fixtureSpecJSON = `{
     }
   },
   "commands": {
-    "repl": {"enabled": true, "runtime": "repl", "name": "repl"},
+    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -40,7 +40,7 @@ func TestGeneratedRootEvalUsesProviderModule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
-	root.SetArgs([]string{"repl", `require("hello").greet("intern")`})
+	root.SetArgs([]string{"eval", `require("hello").greet("intern")`})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute eval: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestGeneratedRootRespectsConfiguredReplCommandName(t *testing.T) {
     }
   },
   "commands": {
-    "repl": {"enabled": true, "runtime": "repl", "name": "runjs"},
+    "eval": {"enabled": true, "runtime": "repl", "name": "runjs"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -97,7 +97,7 @@ func TestGeneratedRootRespectsDisabledReplCommand(t *testing.T) {
     }
   },
   "commands": {
-    "repl": {"enabled": false, "runtime": "repl", "name": "runjs"},
+    "eval": {"enabled": false, "runtime": "repl", "name": "runjs"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -107,7 +107,7 @@ func TestGeneratedRootRespectsDisabledReplCommand(t *testing.T) {
 	}
 	for _, cmd := range root.Commands() {
 		if cmd.Name() == "runjs" || cmd.Name() == "eval" {
-			t.Fatalf("repl command %q attached despite commands.repl.enabled=false", cmd.Name())
+			t.Fatalf("eval command %q attached despite commands.eval.enabled=false", cmd.Name())
 		}
 	}
 }
@@ -153,7 +153,6 @@ func TestGeneratedRootTUIHelp(t *testing.T) {
   },
   "commands": {
     "repl": {"enabled": true, "runtime": "repl", "name": "repl"},
-    "tui": {"enabled": true, "runtime": "repl", "name": "tui"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -162,13 +161,13 @@ func TestGeneratedRootTUIHelp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
-	root.SetArgs([]string{"tui", "--help"})
+	root.SetArgs([]string{"repl", "--help"})
 	if err := root.ExecuteContext(context.Background()); err != nil {
-		t.Fatalf("execute tui help: %v", err)
+		t.Fatalf("execute repl help: %v", err)
 	}
 	for _, want := range []string{"interactive TUI REPL", "--runtime", "--alt-screen"} {
 		if !bytes.Contains(out.Bytes(), []byte(want)) {
-			t.Fatalf("expected TUI help to contain %q, got %q", want, out.String())
+			t.Fatalf("expected REPL help to contain %q, got %q", want, out.String())
 		}
 	}
 }
@@ -202,7 +201,7 @@ if (hello.greet(helper.name) !== "hello intern") {
     }
   },
   "commands": {
-    "repl": {"enabled": true, "runtime": "repl", "name": "repl"},
+    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
     "run": {"enabled": true, "runtime": "repl", "name": "run"},
     "jsverbs": {"enabled": false}
   }
@@ -274,7 +273,7 @@ func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
   "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}, {"package": "fixture", "name": "owner-check", "as": "owner-check"}]}},
-  "commands": {"repl": {"enabled": true, "runtime": "repl", "name": "repl"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
+  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
   "jsverbs": [{"id": "provider", "package": "fixture", "source": "verbs"}]
 }`
 	out := &bytes.Buffer{}
@@ -323,7 +322,7 @@ function embeddedGreet(name) {
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
   "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
-  "commands": {"repl": {"enabled": true, "runtime": "repl", "name": "repl"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
+  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
   "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
 }`
 	out := &bytes.Buffer{}
@@ -364,7 +363,7 @@ function greet(name) {
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
   "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
-  "commands": {"repl": {"enabled": true, "runtime": "repl", "name": "repl"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
+  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
   "jsverbs": [{"id": "local", "path": %q, "embed": false}]
 }`, verbsDir)
 	out := &bytes.Buffer{}

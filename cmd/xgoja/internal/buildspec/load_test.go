@@ -28,7 +28,7 @@ runtimes:
         name: yaml
         as: yml
 commands:
-  repl:
+  eval:
     enabled: true
     runtime: repl
 jsverbs:
@@ -52,8 +52,8 @@ jsverbs:
 	if spec.Target.Kind != "xgoja" {
 		t.Fatalf("default target kind = %q", spec.Target.Kind)
 	}
-	if spec.Commands.Repl.Name != "repl" {
-		t.Fatalf("default repl command name = %q", spec.Commands.Repl.Name)
+	if spec.Commands.Eval.Name != "eval" {
+		t.Fatalf("default eval command name = %q", spec.Commands.Eval.Name)
 	}
 	if spec.Runtimes["repl"].Modules[1].Alias() != "yml" {
 		t.Fatalf("module alias = %q", spec.Runtimes["repl"].Modules[1].Alias())

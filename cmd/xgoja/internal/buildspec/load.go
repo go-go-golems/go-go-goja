@@ -61,14 +61,14 @@ func applyDefaults(spec *Spec) {
 			spec.Packages[i].Register = "Register"
 		}
 	}
-	if spec.Commands.Repl.Enabled && strings.TrimSpace(spec.Commands.Repl.Name) == "" {
-		spec.Commands.Repl.Name = "repl"
+	if spec.Commands.Eval.Enabled && strings.TrimSpace(spec.Commands.Eval.Name) == "" {
+		spec.Commands.Eval.Name = "eval"
 	}
 	if spec.Commands.Run.Enabled && strings.TrimSpace(spec.Commands.Run.Name) == "" {
 		spec.Commands.Run.Name = "run"
 	}
-	if spec.Commands.TUI.Enabled && strings.TrimSpace(spec.Commands.TUI.Name) == "" {
-		spec.Commands.TUI.Name = "tui"
+	if spec.Commands.Repl.Enabled && strings.TrimSpace(spec.Commands.Repl.Name) == "" {
+		spec.Commands.Repl.Name = "repl"
 	}
 	if spec.Commands.JSVerbs.Enabled && strings.TrimSpace(spec.Commands.JSVerbs.Name) == "" {
 		spec.Commands.JSVerbs.Name = "verbs"

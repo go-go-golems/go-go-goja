@@ -48,18 +48,18 @@ runtimes:
         name: hello
         as: hello
 commands:
-  repl:
+  eval:
     enabled: true
     runtime: repl
-    name: repl
+    name: eval
   run:
     enabled: true
     runtime: repl
     name: run
-  tui:
+  repl:
     enabled: true
     runtime: repl
-    name: tui
+    name: repl
   jsverbs:
     enabled: true
     runtime: repl
@@ -135,18 +135,18 @@ The `commands` section enables generated command families.
 
 ```yaml
 commands:
-  repl:
+  eval:
     enabled: true
     runtime: main
-    name: repl
+    name: eval
   run:
     enabled: true
     runtime: main
     name: run
-  tui:
+  repl:
     enabled: true
     runtime: main
-    name: tui
+    name: repl
   jsverbs:
     enabled: true
     runtime: main
@@ -155,11 +155,11 @@ commands:
 
 `runtime` must reference an existing runtime profile when the command is enabled. `name` controls the command name exposed by the generated binary.
 
-The `repl` command spec controls the JavaScript evaluation command. When enabled, `commands.repl.name` is the command name exposed by the generated binary and `commands.repl.runtime` selects the runtime profile used by that command.
+The `eval` command spec controls one-shot JavaScript string evaluation. When enabled, `commands.eval.name` is the command name exposed by the generated binary and `commands.eval.runtime` selects the runtime profile used by that command.
 
 The `run` command spec controls file execution. It creates a fresh runtime from the selected profile and executes the given JavaScript file with script-local module roots, so sibling `require("./helper")` calls resolve next to the script.
 
-The `tui` command spec controls the interactive Bubble Tea REPL. It uses the selected runtime profile for `require()` visibility and is intended for terminal sessions; automated tests should validate command construction or help output rather than launching the interactive program.
+The `repl` command spec controls the interactive Bubble Tea REPL. It uses the selected runtime profile for `require()` visibility and is intended for terminal sessions; automated tests should validate command construction or help output rather than launching the interactive program.
 
 ## Target modes
 

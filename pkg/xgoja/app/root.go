@@ -49,7 +49,7 @@ func NewRootCommand(opts Options) (*cobra.Command, error) {
 
 func newEvalCommand(factory *RuntimeFactory, spec *Spec) *cobra.Command {
 	profile := firstRuntime(spec)
-	cmdName := commandName(spec.Commands.Repl, "eval")
+	cmdName := commandName(spec.Commands.Eval, "eval")
 	cmd := &cobra.Command{
 		Use:   cmdName + " [source]",
 		Short: "Evaluate JavaScript in a generated xgoja runtime",
@@ -223,8 +223,8 @@ func scanVerbSource(providers *providerapi.Registry, embeddedJSVerbs fs.FS, sour
 }
 
 func firstRuntime(spec *Spec) string {
-	if spec.Commands.Repl.Enabled && spec.Commands.Repl.Runtime != "" {
-		return spec.Commands.Repl.Runtime
+	if spec.Commands.Eval.Enabled && spec.Commands.Eval.Runtime != "" {
+		return spec.Commands.Eval.Runtime
 	}
 	names := make([]string, 0, len(spec.Runtimes))
 	for name := range spec.Runtimes {

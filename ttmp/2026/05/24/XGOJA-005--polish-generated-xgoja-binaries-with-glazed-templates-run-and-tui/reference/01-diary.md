@@ -858,3 +858,103 @@ docmgr doctor --ticket XGOJA-005 --stale-after 30
 ### Technical details
 
 Final validation passed for the canonical focused package set and all three xgoja example smoke targets.
+
+## Step 11: Rename generated command schema from repl/tui to eval/repl
+
+This step corrected the generated xgoja command schema so names match behavior. One-shot JavaScript string execution is now configured by `commands.eval`, while the rich Bubble Tea interactive REPL is configured by `commands.repl`. The previous `commands.repl`/`commands.tui` split was misleading because `repl` referred to eval and `tui` referred to the actual REPL.
+
+The implementation updates buildspec parsing, embedded runtime specs, generated app command attachment, tests, docs, and runnable examples. Existing examples now call generated `eval` for one-shot expressions and leave `commands.repl` disabled unless an interactive terminal REPL is desired.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Updat the xgoja.yaml schema to be `commands.repl` -> `commands.eval`, `commands.tui` -> `commands.repl` because repl is not just eval, it's the rich repl."
+
+**Assistant interpretation:** Rename the xgoja buildspec command keys so eval and rich REPL semantics are represented accurately.
+
+**Inferred user intent:** Avoid confusing generated command schemas and make `repl` mean the rich interactive REPL rather than one-shot evaluation.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Changed buildspec command fields from `Repl`, `Run`, `TUI`, `JSVerbs` to `Eval`, `Run`, `Repl`, `JSVerbs`.
+- Changed runtime app spec JSON fields the same way.
+- Updated defaults:
+  - `commands.eval.name` defaults to `eval`,
+  - `commands.repl.name` defaults to `repl`.
+- Updated validation paths:
+  - `commands.eval`,
+  - `commands.run`,
+  - `commands.repl`,
+  - `commands.jsverbs`.
+- Updated generated app attachment:
+  - `commands.eval` attaches the one-shot eval command,
+  - `commands.repl` attaches the rich Bubble Tea REPL command.
+- Updated tests, docs, and xgoja examples.
+
+### Why
+
+- `repl` should refer to the rich interactive REPL, not the one-shot eval command.
+- The schema should match user expectations and generated command behavior.
+
+### What worked
+
+- Focused tests passed:
+
+```bash
+GOWORK=off go test ./cmd/xgoja/internal/buildspec ./pkg/xgoja/app ./cmd/xgoja/internal/generate ./cmd/xgoja -count=1
+```
+
+- Example smokes passed:
+
+```bash
+for dir in runtime-filesystem embedded-jsverbs provider-shipped-jsverbs; do make -C examples/xgoja/$dir smoke; done
+```
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The generated command internals were already close to the intended split: the eval implementation had a fallback command name of `eval`, while the schema still called it `repl`. The change mostly aligned the public schema with the actual command roles.
+
+### What was tricky to build
+
+- The word `repl` appears both as a runtime profile name in examples and as a command key. The runtime profile name can stay `repl`; only the command schema changed. Tests and docs needed careful updates to avoid accidentally renaming runtime profiles.
+
+### What warrants a second pair of eyes
+
+- Review whether any external specs still use the old `commands.repl` key for eval and need migration notes.
+- Review whether to keep any backwards-compatibility loader shim. This implementation intentionally does not add one.
+
+### What should be done in the future
+
+- Mention this schema rename in PR notes.
+- If released users already exist, add a migration note to release docs.
+
+### Code review instructions
+
+- Start in `cmd/xgoja/internal/buildspec/spec.go` and `pkg/xgoja/app/spec.go`.
+- Then review `pkg/xgoja/app/host.go`, `pkg/xgoja/app/root.go`, and `pkg/xgoja/app/tui.go` for command attachment semantics.
+- Validate with the focused test command and example smoke loop above.
+
+### Technical details
+
+New schema shape:
+
+```yaml
+commands:
+  eval:
+    enabled: true
+    runtime: repl
+  run:
+    enabled: true
+    runtime: repl
+  repl:
+    enabled: true
+    runtime: repl
+  jsverbs:
+    enabled: true
+    runtime: repl
+```

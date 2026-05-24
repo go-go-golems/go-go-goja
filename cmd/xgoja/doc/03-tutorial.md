@@ -48,18 +48,18 @@ runtimes:
         name: hello
         as: hello
 commands:
-  repl:
+  eval:
     enabled: true
     runtime: repl
-    name: repl
+    name: eval
   run:
     enabled: true
     runtime: repl
     name: run
-  tui:
+  repl:
     enabled: true
     runtime: repl
-    name: tui
+    name: repl
   jsverbs:
     enabled: true
     runtime: repl
@@ -115,7 +115,7 @@ The output binary is written to `target.output`, for example:
 Run a simple expression against the generated runtime:
 
 ```bash
-./dist/fixture repl 'require("hello").greet("intern")'
+./dist/fixture eval 'require("hello").greet("intern")'
 ```
 
 Execute a JavaScript file with the generated `run` command:
@@ -133,10 +133,10 @@ The generated binary creates a fresh goja runtime, registers the modules selecte
 For an interactive terminal session, run:
 
 ```bash
-./dist/fixture tui
+./dist/fixture repl
 ```
 
-The TUI command starts a Bubble Tea REPL backed by the same runtime-profile module policy.
+The REPL command starts a Bubble Tea terminal UI backed by the same runtime-profile module policy.
 
 ## 6. Add a runtime filesystem jsverb source
 

@@ -37,9 +37,9 @@ type tuiSettings struct {
 }
 
 func newTUICommand(factory *RuntimeFactory, spec *Spec) cmds.Command {
-	profile := commandRuntime(spec.Commands.TUI, firstRuntime(spec))
+	profile := commandRuntime(spec.Commands.Repl, firstRuntime(spec))
 	return &tuiCommand{
-		CommandDescription: cmds.NewCommandDescription(commandName(spec.Commands.TUI, "tui"),
+		CommandDescription: cmds.NewCommandDescription(commandName(spec.Commands.Repl, "repl"),
 			cmds.WithShort("Run an interactive TUI REPL for a generated xgoja runtime"),
 			cmds.WithLong(`
 TUI starts a Bubble Tea JavaScript REPL backed by a generated xgoja runtime
