@@ -79,6 +79,56 @@ func TestRenderMainIncludesEmbeddedVerbFS(t *testing.T) {
 	}
 }
 
+func TestRenderEmbeddedSpecAvoidsEmbeddedVerbRootCollisions(t *testing.T) {
+	spec := buildableSpec("xgoja", "", "")
+	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	spec.JSVerbs = []buildspec.JSVerbSourceSpec{
+		{ID: "local-dev", Path: "verbs-a", Embed: true},
+		{ID: "local_dev", Path: "verbs-b", Embed: true},
+	}
+	got := RenderEmbeddedSpec(spec)
+	for _, want := range []string{
+		`"path": "xgoja_embed/jsverbs/local_dev"`,
+		`"path": "xgoja_embed/jsverbs/local_dev_2"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected embedded spec to contain %q, got:\n%s", want, got)
+		}
+	}
+}
+
+func TestWriteAllCopiesEmbeddedVerbSourcesToCollisionFreeRoots(t *testing.T) {
+	baseDir := t.TempDir()
+	for _, dir := range []string{"verbs-a", "verbs-b"} {
+		verbsDir := filepath.Join(baseDir, dir)
+		if err := os.MkdirAll(verbsDir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+		if err := os.WriteFile(filepath.Join(verbsDir, "tools.js"), []byte(`__package__({ name: "tools" })`), 0o644); err != nil {
+			t.Fatalf("write %s verb: %v", dir, err)
+		}
+	}
+	spec := buildableSpec("xgoja", "", "")
+	spec.BaseDir = baseDir
+	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	spec.JSVerbs = []buildspec.JSVerbSourceSpec{
+		{ID: "local-dev", Path: "verbs-a", Embed: true},
+		{ID: "local_dev", Path: "verbs-b", Embed: true},
+	}
+	dir := t.TempDir()
+	if err := WriteAll(dir, spec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
+		t.Fatalf("write all: %v", err)
+	}
+	for _, path := range []string{
+		filepath.Join(dir, "xgoja_embed", "jsverbs", "local_dev", "tools.js"),
+		filepath.Join(dir, "xgoja_embed", "jsverbs", "local_dev_2", "tools.js"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected collision-free embedded verb copy %s: %v", path, err)
+		}
+	}
+}
+
 func TestWriteAll(t *testing.T) {
 	dir := t.TempDir()
 	if err := WriteAll(dir, fixtureSpec(), Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
@@ -98,6 +148,15 @@ func TestWriteAll(t *testing.T) {
 
 func TestGeneratedProgramRunsFixtureProvider(t *testing.T) {
 	runGeneratedEval(t, buildableSpec("xgoja", "", ""))
+}
+
+func TestGeneratedProgramUsesConfiguredReplCommandName(t *testing.T) {
+	spec := buildableSpec("xgoja", "", "")
+	spec.Commands.Repl.Name = "runjs"
+	_, out := runGeneratedCommandWithOutput(t, spec, "runjs", `require("hello").greet("intern")`)
+	if strings.TrimSpace(string(out)) != "hello intern" {
+		t.Fatalf("configured repl output = %q", out)
+	}
 }
 
 func TestGeneratedProgramRunsProviderVerbSource(t *testing.T) {
@@ -163,7 +222,7 @@ func TestGeneratedAdapterTargetUsesAdapterBuild(t *testing.T) {
 
 func runGeneratedEval(t *testing.T, spec *buildspec.Spec) {
 	t.Helper()
-	dir, out := runGeneratedCommandWithOutput(t, spec, "eval", `require("hello").greet("intern")`)
+	dir, out := runGeneratedCommandWithOutput(t, spec, "repl", `require("hello").greet("intern")`)
 	_ = dir
 	if strings.TrimSpace(string(out)) != "hello intern" {
 		t.Fatalf("generated output = %q", out)

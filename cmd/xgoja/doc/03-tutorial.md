@@ -107,7 +107,7 @@ The output binary is written to `target.output`, for example:
 Run a simple expression against the generated runtime:
 
 ```bash
-./dist/fixture eval 'require("hello").greet("intern")'
+./dist/fixture repl 'require("hello").greet("intern")'
 ```
 
 The generated binary creates a fresh goja runtime, registers the modules selected by the command's runtime profile, evaluates the source, and prints a non-null result.

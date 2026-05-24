@@ -39,12 +39,75 @@ func TestGeneratedRootEvalUsesProviderModule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
-	root.SetArgs([]string{"eval", `require("hello").greet("intern")`})
+	root.SetArgs([]string{"repl", `require("hello").greet("intern")`})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute eval: %v", err)
 	}
 	if got := out.String(); got != "hello intern\n" {
 		t.Fatalf("eval output = %q", got)
+	}
+}
+
+func TestGeneratedRootRespectsConfiguredReplCommandName(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	specJSON := `{
+  "name": "fixture",
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {
+    "repl": {
+      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
+    }
+  },
+  "commands": {
+    "repl": {"enabled": true, "runtime": "repl", "name": "runjs"},
+    "jsverbs": {"enabled": false}
+  }
+}`
+	out := &bytes.Buffer{}
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	root.SetArgs([]string{"runjs", `require("hello").greet("intern")`})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute configured repl command: %v", err)
+	}
+	if got := out.String(); got != "hello intern\n" {
+		t.Fatalf("configured repl output = %q", got)
+	}
+}
+
+func TestGeneratedRootRespectsDisabledReplCommand(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	specJSON := `{
+  "name": "fixture",
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {
+    "repl": {
+      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
+    }
+  },
+  "commands": {
+    "repl": {"enabled": false, "runtime": "repl", "name": "runjs"},
+    "jsverbs": {"enabled": false}
+  }
+}`
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	for _, cmd := range root.Commands() {
+		if cmd.Name() == "runjs" || cmd.Name() == "eval" {
+			t.Fatalf("repl command %q attached despite commands.repl.enabled=false", cmd.Name())
+		}
 	}
 }
 

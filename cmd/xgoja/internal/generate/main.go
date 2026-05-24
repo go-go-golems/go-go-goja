@@ -126,9 +126,10 @@ func runtimeSpec(spec *buildspec.Spec) *buildspec.Spec {
 	clone := *spec
 	if len(spec.JSVerbs) > 0 {
 		clone.JSVerbs = append([]buildspec.JSVerbSourceSpec(nil), spec.JSVerbs...)
+		roots := embeddedJSVerbRoots(spec)
 		for i := range clone.JSVerbs {
-			if clone.JSVerbs[i].Embed && clone.JSVerbs[i].Path != "" && clone.JSVerbs[i].Package == "" && clone.JSVerbs[i].Source == "" {
-				clone.JSVerbs[i].Path = embeddedJSVerbRoot(clone.JSVerbs[i].ID)
+			if root := roots[i]; root != "" {
+				clone.JSVerbs[i].Path = root
 			}
 		}
 	}
@@ -147,12 +148,31 @@ func hasEmbeddedJSVerbSources(spec *buildspec.Spec) bool {
 	return false
 }
 
-func embeddedJSVerbRoot(id string) string {
-	name := sanitizeIdentifier(id)
-	if name == "" {
-		name = "source"
+func embeddedJSVerbRoots(spec *buildspec.Spec) map[int]string {
+	roots := map[int]string{}
+	if spec == nil {
+		return roots
 	}
-	return "xgoja_embed/jsverbs/" + name
+	used := map[string]struct{}{}
+	for i, source := range spec.JSVerbs {
+		if !source.Embed || strings.TrimSpace(source.Path) == "" || strings.TrimSpace(source.Package) != "" || strings.TrimSpace(source.Source) != "" {
+			continue
+		}
+		base := sanitizeIdentifier(source.ID)
+		if base == "" {
+			base = "source"
+		}
+		name := base
+		for suffix := 2; ; suffix++ {
+			if _, ok := used[name]; !ok {
+				break
+			}
+			name = fmt.Sprintf("%s_%d", base, suffix)
+		}
+		used[name] = struct{}{}
+		roots[i] = "xgoja_embed/jsverbs/" + name
+	}
+	return roots
 }
 
 func importAliases(packages []buildspec.PackageSpec) map[string]string {

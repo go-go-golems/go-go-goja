@@ -47,15 +47,17 @@ func WriteAll(dir string, spec *buildspec.Spec, opts Options) error {
 }
 
 func copyEmbeddedJSVerbs(dir string, spec *buildspec.Spec) error {
-	for _, source := range spec.JSVerbs {
-		if !source.Embed || strings.TrimSpace(source.Path) == "" || strings.TrimSpace(source.Package) != "" || strings.TrimSpace(source.Source) != "" {
+	roots := embeddedJSVerbRoots(spec)
+	for i, source := range spec.JSVerbs {
+		root := roots[i]
+		if root == "" {
 			continue
 		}
 		src, err := resolveSourcePath(spec.BaseDir, source.Path)
 		if err != nil {
 			return fmt.Errorf("resolve embedded jsverb source %s: %w", source.ID, err)
 		}
-		dst := filepath.Join(dir, filepath.FromSlash(embeddedJSVerbRoot(source.ID)))
+		dst := filepath.Join(dir, filepath.FromSlash(root))
 		if err := copyDir(dst, src); err != nil {
 			return fmt.Errorf("copy embedded jsverb source %s: %w", source.ID, err)
 		}

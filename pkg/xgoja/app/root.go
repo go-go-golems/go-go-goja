@@ -47,8 +47,9 @@ func NewRootCommand(opts Options) (*cobra.Command, error) {
 
 func newEvalCommand(factory *RuntimeFactory, spec *Spec) *cobra.Command {
 	profile := firstRuntime(spec)
+	cmdName := commandName(spec.Commands.Repl, "eval")
 	cmd := &cobra.Command{
-		Use:   "eval [source]",
+		Use:   cmdName + " [source]",
 		Short: "Evaluate JavaScript in a generated xgoja runtime",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

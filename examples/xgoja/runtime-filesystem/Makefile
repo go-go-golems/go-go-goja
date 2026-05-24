@@ -18,7 +18,7 @@ build:
 	$(XGOJA) build -f $(CURDIR)/xgoja.yaml --output $(BIN) --xgoja-replace $(REPO_ROOT) --keep-work
 
 run:
-	$(BIN) eval 'require("hello").greet("filesystem")'
+	$(BIN) repl 'require("hello").greet("filesystem")'
 	cd $(CURDIR) && $(BIN) verbs tools greet --name filesystem
 
 clean:

@@ -35,7 +35,9 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 	if root == nil || h == nil || h.Spec == nil {
 		return
 	}
-	h.AttachEval(root)
+	if h.Spec.Commands.Repl.Enabled {
+		h.AttachEval(root)
+	}
 	h.AttachModules(root)
 	if h.Spec.Commands.JSVerbs.Enabled {
 		h.AttachVerbs(root)

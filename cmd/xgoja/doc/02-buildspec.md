@@ -139,7 +139,7 @@ commands:
 
 `runtime` must reference an existing runtime profile when the command is enabled. `name` controls the command name exposed by the generated binary.
 
-The current generated application uses `eval` as the JavaScript evaluation command. The `repl` command spec controls the runtime profile and naming convention used by this command family.
+The `repl` command spec controls the JavaScript evaluation command. When enabled, `commands.repl.name` is the command name exposed by the generated binary and `commands.repl.runtime` selects the runtime profile used by that command.
 
 ## Target modes
 
