@@ -19,6 +19,7 @@ build:
 
 run:
 	$(BIN) repl 'require("hello").greet("filesystem")'
+	$(BIN) run $(CURDIR)/scripts/run.js
 	cd $(CURDIR) && $(BIN) verbs tools greet --name filesystem
 
 clean:

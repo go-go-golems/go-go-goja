@@ -82,3 +82,14 @@ Phase 3: Added generated TUI REPL command backed by an xgoja runtime-profile eva
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root_test.go — TUI help regression test
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/tui.go — Generated runtime TUI command and evaluator adapter
 
+
+## 2026-05-24
+
+Phase 4: Documented generated run/tui commands and extended xgoja examples to smoke-test run scripts.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/doc/02-buildspec.md — Builder buildspec reference now documents run and TUI command specs
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/examples/xgoja — Examples now enable and smoke-test generated run commands
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/doc/01-runtime-overview.md — Generated runtime help documents run and TUI
+

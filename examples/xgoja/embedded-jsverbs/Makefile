@@ -19,6 +19,7 @@ build:
 
 run:
 	$(BIN) repl 'require("hello").greet("embedded")'
+	$(BIN) run $(CURDIR)/scripts/run.js
 	$(BIN) verbs tools embedded-greet --name embedded
 
 prove-self-contained: build

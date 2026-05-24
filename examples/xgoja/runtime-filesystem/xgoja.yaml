@@ -15,6 +15,9 @@ commands:
   repl:
     enabled: true
     runtime: repl
+  run:
+    enabled: true
+    runtime: repl
   jsverbs:
     enabled: true
     runtime: repl

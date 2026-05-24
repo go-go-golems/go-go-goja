@@ -52,6 +52,14 @@ commands:
     enabled: true
     runtime: repl
     name: repl
+  run:
+    enabled: true
+    runtime: repl
+    name: run
+  tui:
+    enabled: true
+    runtime: repl
+    name: tui
   jsverbs:
     enabled: true
     runtime: repl
@@ -110,7 +118,25 @@ Run a simple expression against the generated runtime:
 ./dist/fixture repl 'require("hello").greet("intern")'
 ```
 
-The generated binary creates a fresh goja runtime, registers the modules selected by the command's runtime profile, evaluates the source, and prints a non-null result.
+Execute a JavaScript file with the generated `run` command:
+
+```bash
+cat > script.js <<'EOF'
+const hello = require("hello")
+console.log(hello.greet("file"))
+EOF
+./dist/fixture run script.js
+```
+
+The generated binary creates a fresh goja runtime, registers the modules selected by the command's runtime profile, evaluates the source, and prints a non-null result. The `run` command also adds script-local module roots so `require("./helper")` resolves relative to the script file.
+
+For an interactive terminal session, run:
+
+```bash
+./dist/fixture tui
+```
+
+The TUI command starts a Bubble Tea REPL backed by the same runtime-profile module policy.
 
 ## 6. Add a runtime filesystem jsverb source
 

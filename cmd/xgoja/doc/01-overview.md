@@ -17,7 +17,7 @@ ShowPerDefault: true
 SectionType: Application
 ---
 
-`xgoja` builds custom goja-powered command-line programs by generating a normal Go program and compiling it with the Go toolchain. The generated program imports selected provider packages, registers their native modules, embeds a normalized runtime specification, and exposes commands such as the configured `repl`/evaluation command, `modules`, and configured JavaScript verbs.
+`xgoja` builds custom goja-powered command-line programs by generating a normal Go program and compiling it with the Go toolchain. The generated program imports selected provider packages, registers their native modules, embeds a normalized runtime specification, and exposes commands such as the configured `repl`/evaluation command, `run`, `tui`, `modules`, and configured JavaScript verbs.
 
 The design is intentionally compile-time oriented. Go-backed native modules are selected before the generated binary is built. JavaScript code can still be loaded at runtime or embedded into the generated binary, but the Go packages that implement native `require()` modules are ordinary Go imports in the generated source.
 
@@ -85,6 +85,8 @@ Profiles make the capability surface explicit. A module compiled into the binary
 A pure xgoja generated binary currently provides these command families:
 
 - the configured `commands.repl.name` command evaluates a JavaScript string in a selected runtime profile.
+- the configured `commands.run.name` command executes a JavaScript file with script-local module resolution.
+- the configured `commands.tui.name` command starts an interactive Bubble Tea REPL for a selected runtime profile.
 - `modules` lists provider modules registered in the binary.
 - the configured `jsverbs` command mounts JavaScript functions as Glazed/Cobra commands when enabled.
 

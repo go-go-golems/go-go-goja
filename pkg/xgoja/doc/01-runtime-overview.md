@@ -8,6 +8,8 @@ Topics:
 - cli
 Commands:
 - repl
+- run
+- tui
 - modules
 - verbs
 IsTopLevel: true
@@ -24,6 +26,8 @@ A runtime profile selects which provider modules are available to a command invo
 
 - `modules` lists provider modules compiled into the binary.
 - `repl` or the configured evaluation command evaluates one JavaScript source string.
+- `run` executes a JavaScript file with the selected runtime profile and script-local module roots.
+- `tui` starts an interactive Bubble Tea REPL backed by the selected runtime profile.
 - `verbs` or the configured verbs command exposes JavaScript verbs from configured sources.
 - `help` lists bundled runtime help topics.
 

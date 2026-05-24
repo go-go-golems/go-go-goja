@@ -15,7 +15,8 @@ The smoke target:
 1. validates `xgoja.yaml`,
 2. builds `dist/runtime-filesystem` with a local `go-go-goja` replace,
 3. runs `repl` against the fixture provider module,
-4. runs the filesystem verb from `verbs/tools.js`.
+4. runs `run scripts/run.js` through the generated runtime,
+5. runs the filesystem verb from `verbs/tools.js`.
 
 Expected final lines:
 
