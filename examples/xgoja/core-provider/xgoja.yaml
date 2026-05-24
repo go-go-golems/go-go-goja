@@ -18,6 +18,9 @@ runtimes:
         name: crypto
         as: crypto
 commands:
+  repl:
+    enabled: true
+    runtime: main
   eval:
     enabled: true
     runtime: main
