@@ -41,6 +41,9 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 	if h.Spec.Commands.Repl.Enabled {
 		h.AttachEval(root)
 	}
+	if h.Spec.Commands.Run.Enabled {
+		h.AttachRun(root)
+	}
 	h.AttachModules(root)
 	if h.Spec.Commands.JSVerbs.Enabled {
 		h.AttachVerbs(root)
@@ -52,6 +55,18 @@ func (h *Host) AttachEval(root *cobra.Command) {
 		return
 	}
 	root.AddCommand(newEvalCommand(h.Factory, h.Spec))
+}
+
+func (h *Host) AttachRun(root *cobra.Command) {
+	if root == nil || h == nil {
+		return
+	}
+	cmd, err := buildGlazedCobraCommand(newRunCommand(h.Factory, h.Spec))
+	if err != nil {
+		root.AddCommand(commandErrorStub(commandName(h.Spec.Commands.Run, "run"), "Execute a JavaScript file in a generated xgoja runtime", err))
+		return
+	}
+	root.AddCommand(cmd)
 }
 
 func (h *Host) AttachModules(root *cobra.Command) {

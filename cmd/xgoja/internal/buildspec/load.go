@@ -64,6 +64,12 @@ func applyDefaults(spec *Spec) {
 	if spec.Commands.Repl.Enabled && strings.TrimSpace(spec.Commands.Repl.Name) == "" {
 		spec.Commands.Repl.Name = "repl"
 	}
+	if spec.Commands.Run.Enabled && strings.TrimSpace(spec.Commands.Run.Name) == "" {
+		spec.Commands.Run.Name = "run"
+	}
+	if spec.Commands.TUI.Enabled && strings.TrimSpace(spec.Commands.TUI.Name) == "" {
+		spec.Commands.TUI.Name = "tui"
+	}
 	if spec.Commands.JSVerbs.Enabled && strings.TrimSpace(spec.Commands.JSVerbs.Name) == "" {
 		spec.Commands.JSVerbs.Name = "verbs"
 	}

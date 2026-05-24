@@ -524,3 +524,88 @@ ok  github.com/go-go-golems/go-go-goja/pkg/xgoja/app
 ok  github.com/go-go-golems/go-goja/pkg/jsverbs
 ok  github.com/go-go-golems/go-goja/cmd/xgoja/internal/generate
 ```
+
+## Step 7: Add generated run command
+
+This step added a generated `run` command for executing JavaScript files in an xgoja runtime profile. The command follows the `cmd/goja-repl run` execution model, but uses `app.RuntimeFactory` so it honors the generated binary's buildspec-selected provider modules.
+
+The command also configures module roots from the script path. That lets a script required by absolute path import sibling JavaScript files with relative `require()` calls.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 5)
+
+**Assistant interpretation:** Continue Phase 3 by implementing the file-execution command before the TUI command.
+
+**Inferred user intent:** Generated binaries should support both one-liner evaluation and running real script files.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Added `Run` and `TUI` command specs to builder and runtime specs so command configuration can grow without another schema break:
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildspec/spec.go`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/spec.go`
+- Added defaults/validation for `commands.run` and `commands.tui`:
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildspec/load.go`
+  - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildspec/validate.go`
+- Added `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/run.go`.
+- Updated `Host.AttachDefaultCommands` to attach run when `commands.run.enabled` is true.
+- Added a regression test that runs a script file requiring both:
+  - a sibling JavaScript helper module,
+  - the provider-backed `hello` module from the runtime profile.
+- Marked task 5 complete.
+- Validated with:
+
+```bash
+GOWORK=off go test ./pkg/xgoja/app ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate -count=1
+```
+
+### Why
+
+- `repl` evaluates one source string; real scripts need file execution and module-root handling.
+- The run command must not bypass xgoja runtime policy by constructing a generic engine builder with default modules.
+
+### What worked
+
+- The run command executed a script from disk and resolved a sibling `require("./helper")`.
+- The same script could also require the buildspec-selected provider module `hello`.
+- Focused tests passed.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- `engine.RequireOptionWithModuleRootsFromScript` is reusable for generated xgoja runtimes because `RuntimeFactory.NewRuntime` accepts additional `require.Option` values.
+
+### What was tricky to build
+
+- The command has to combine generated-runtime policy with script-local resolution. The runtime profile decides provider modules; the extra require option only adds script roots. It must not add implicit engine default modules.
+
+### What warrants a second pair of eyes
+
+- Review the schema default choice: `run` now has a default name when enabled, but it is not enabled automatically.
+- Review whether generated examples should enable `run` in all specs or only in one example.
+
+### What should be done in the future
+
+- Add the generated TUI command.
+- Update public docs and examples to show `commands.run`.
+
+### Code review instructions
+
+- Start in `pkg/xgoja/app/run.go`.
+- Confirm the runtime is created through `factory.NewRuntime(ctx, profile, requireOpt)`.
+- Confirm the test covers sibling `require()` and provider `require()`.
+
+### Technical details
+
+Validation output:
+
+```text
+ok  github.com/go-go-golems/go-go-goja/pkg/xgoja/app
+ok  github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec
+ok  github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate
+```

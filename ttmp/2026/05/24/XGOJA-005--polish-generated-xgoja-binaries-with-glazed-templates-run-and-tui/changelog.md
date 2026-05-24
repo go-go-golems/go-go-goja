@@ -58,3 +58,16 @@ Phase 2: Converted generated modules command to Glazed command plumbing while pr
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root.go — modules command is now a GlazeCommand
 - /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root_test.go — updated modules command regression test for Glazed table output
 
+
+## 2026-05-24
+
+Phase 3: Added generated run command for JavaScript files using xgoja runtime profiles and script module roots.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/cmd/xgoja/internal/buildspec/spec.go — Builder command spec includes run
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/host.go — Attaches run command when enabled
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/root_test.go — Run command regression test
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/run.go — Generated runtime run command
+- /home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/app/spec.go — Runtime command spec includes run
+

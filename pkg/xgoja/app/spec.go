@@ -38,6 +38,8 @@ func (m ModuleInstance) Alias() string {
 
 type CommandsSpec struct {
 	Repl    CommandSpec `json:"repl"`
+	Run     CommandSpec `json:"run"`
+	TUI     CommandSpec `json:"tui"`
 	JSVerbs CommandSpec `json:"jsverbs"`
 }
 

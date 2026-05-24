@@ -137,6 +137,50 @@ func TestGeneratedRootInstallsHelpAndLogging(t *testing.T) {
 	}
 }
 
+func TestGeneratedRootRunCommandExecutesScriptFile(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "helper.js"), []byte(`exports.name = "intern"`), 0o644); err != nil {
+		t.Fatalf("write helper: %v", err)
+	}
+	script := filepath.Join(dir, "main.js")
+	if err := os.WriteFile(script, []byte(`
+const helper = require("./helper")
+const hello = require("hello")
+if (hello.greet(helper.name) !== "hello intern") {
+  throw new Error("unexpected greeting")
+}
+`), 0o644); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+	specJSON := `{
+  "name": "fixture",
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {
+    "repl": {
+      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
+    }
+  },
+  "commands": {
+    "repl": {"enabled": true, "runtime": "repl", "name": "repl"},
+    "run": {"enabled": true, "runtime": "repl", "name": "run"},
+    "jsverbs": {"enabled": false}
+  }
+}`
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	root.SetArgs([]string{"run", script})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+}
+
 func TestGeneratedRootModulesCommand(t *testing.T) {
 	registry := providerapi.NewRegistry()
 	if err := testprovider.Register(registry); err != nil {
