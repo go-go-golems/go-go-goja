@@ -27,6 +27,54 @@ func TestRenderGoModDeterministic(t *testing.T) {
 	}
 }
 
+func TestRenderGoModUsesModuleRootsForSubpackageImports(t *testing.T) {
+	spec := &buildspec.Spec{
+		Name: "subpackage-fixture",
+		Go: buildspec.GoSpec{
+			Version: "1.26",
+			Module:  "example.com/generated/subpackage-fixture",
+		},
+		Target: buildspec.TargetSpec{
+			Kind:    "cobra",
+			Import:  "github.com/acme/cobra-host/cmd/app/root",
+			Version: "v0.8.0",
+			Root:    "NewRootCommand",
+			Output:  "dist/subpackage-fixture",
+		},
+		Packages: []buildspec.PackageSpec{
+			{ID: "provider", Import: "github.com/acme/widgets/pkg/xgoja/testprovider", Version: "v1.2.3", Register: "Register", Replace: "../widgets"},
+			{ID: "provider2", Import: "github.com/acme/other/pkg/xgoja", Version: "v2.0.0", Register: "Register", Replace: "../other"},
+		},
+		Runtimes: map[string]buildspec.Runtime{
+			"repl": {Modules: []buildspec.ModuleInstance{{Package: "provider", Name: "hello", As: "hello"}}},
+		},
+		Commands: buildspec.CommandsSpec{Repl: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "repl"}},
+	}
+	got := RenderGoMod(spec, Options{XGojaModuleVersion: "v0.1.0"})
+	for _, want := range []string{
+		"github.com/acme/cobra-host v0.8.0",
+		"github.com/acme/widgets v1.2.3",
+		"github.com/acme/other v2.0.0",
+		"replace github.com/acme/widgets => ../widgets",
+		"replace github.com/acme/other => ../other",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected go.mod to contain %q, got:\n%s", want, got)
+		}
+	}
+	for _, notWant := range []string{
+		"github.com/acme/cobra-host/cmd/app/root v0.8.0",
+		"github.com/acme/widgets/pkg/xgoja/testprovider v1.2.3",
+		"github.com/acme/other/pkg/xgoja v2.0.0",
+		"replace github.com/acme/widgets/pkg/xgoja/testprovider => ../widgets",
+		"replace github.com/acme/other/pkg/xgoja => ../other",
+	} {
+		if strings.Contains(got, notWant) {
+			t.Fatalf("go.mod should use module roots, but contained %q:\n%s", notWant, got)
+		}
+	}
+}
+
 func TestRenderMainRegistersProviders(t *testing.T) {
 	got := RenderMain(fixtureSpec())
 	for _, want := range []string{

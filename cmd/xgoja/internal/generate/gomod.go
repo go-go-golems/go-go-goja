@@ -66,7 +66,15 @@ func RenderGoMod(spec *buildspec.Spec, opts Options) string {
 }
 
 func providerModulePath(importPath string) string {
-	importPath = strings.TrimSpace(importPath)
+	importPath = strings.Trim(path.Clean(strings.TrimSpace(importPath)), "/")
+	if importPath == "." {
+		return ""
+	}
+	for _, marker := range []string{"/pkg/", "/cmd/", "/internal/"} {
+		if idx := strings.Index(importPath, marker); idx >= 0 {
+			return importPath[:idx]
+		}
+	}
 	if strings.HasSuffix(importPath, "/xgoja") {
 		return path.Dir(importPath)
 	}
