@@ -261,11 +261,15 @@ function embeddedGreet(name) {
 }
 
 func TestGeneratedCobraTargetAttachesCommands(t *testing.T) {
-	runGeneratedEval(t, buildableSpec("cobra", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testcobra", "NewRootCommand"))
+	spec := buildableSpec("cobra", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testcobra", "NewRootCommand")
+	runGeneratedEval(t, spec)
+	runGeneratedFixtureCommand(t, spec, "testcobra fixture")
 }
 
 func TestGeneratedAdapterTargetUsesAdapterBuild(t *testing.T) {
-	runGeneratedEval(t, buildableSpec("adapter", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testadapter", ""))
+	spec := buildableSpec("adapter", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testadapter", "")
+	runGeneratedEval(t, spec)
+	runGeneratedFixtureCommand(t, spec, "testadapter fixture")
 }
 
 func runGeneratedEval(t *testing.T, spec *buildspec.Spec) {
@@ -274,6 +278,14 @@ func runGeneratedEval(t *testing.T, spec *buildspec.Spec) {
 	_ = dir
 	if strings.TrimSpace(string(out)) != "hello intern" {
 		t.Fatalf("generated output = %q", out)
+	}
+}
+
+func runGeneratedFixtureCommand(t *testing.T, spec *buildspec.Spec, want string) {
+	t.Helper()
+	_, out := runGeneratedCommandWithOutput(t, spec, "fixture")
+	if strings.TrimSpace(string(out)) != want {
+		t.Fatalf("generated fixture output = %q, want %q", out, want)
 	}
 }
 
