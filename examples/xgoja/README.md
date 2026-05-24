@@ -9,6 +9,8 @@ Each example directory has its own `README.md`, `Makefile`, and `xgoja.yaml`.
 - `runtime-filesystem/` — JS verbs stay on disk and are scanned by the generated binary at runtime.
 - `embedded-jsverbs/` — local JS verbs are copied into the generated workspace and embedded into the binary.
 - `provider-shipped-jsverbs/` — JS verbs live inside a Go provider package and are selected by `package`/`source`.
+- `core-provider/` — generated binary using the safe first-party core provider (`path`, `yaml`, `crypto`, etc.).
+- `host-provider/` — generated binary using guarded host-capability modules (`fs`, `exec`, `database`) with explicit config.
 
 ## Run all examples
 

@@ -19,12 +19,20 @@ RelatedFiles:
       Note: Example host-coupled high-value provider candidate
     - Path: ../../../../../../../../../../code/wesen/go-go-golems/loupedeck/runtime/js/registrar.go
       Note: Example external runtime registrar candidate for provider conversion
+    - Path: examples/xgoja/core-provider/xgoja.yaml
+      Note: Generated xgoja smoke example for core provider
+    - Path: examples/xgoja/host-provider/xgoja.yaml
+      Note: Generated xgoja smoke example for guarded host provider
     - Path: modules/common.go
       Note: Existing first-party NativeModule registry pattern to adapt into providers
     - Path: pkg/xgoja/providerapi/module.go
       Note: Module factory and context contract provider wrappers must implement
     - Path: pkg/xgoja/providerapi/registry.go
       Note: Provider package registry contract used by generated xgoja binaries
+    - Path: pkg/xgoja/providers/core/core.go
+      Note: First-party safe/core provider implementation
+    - Path: pkg/xgoja/providers/host/host.go
+      Note: Guarded host-capability provider implementation
     - Path: pkg/xgoja/testprovider/provider.go
       Note: Reference provider implementation with modules and provider-shipped jsverbs
 ExternalSources: []
@@ -33,6 +41,7 @@ LastUpdated: 2026-05-24T14:40:34.442824097-04:00
 WhatFor: Use this guide when turning existing Goja-facing Go packages into xgoja package providers selectable from xgoja.yaml.
 WhenToUse: Before implementing provider wrappers for existing Goja modules, especially packages in sibling go-go-golems repositories.
 ---
+
 
 
 # Goja Binding Provider Conversion Implementation Guide
@@ -584,3 +593,81 @@ For each provider PR, reviewers should check:
 - Should provider config schemas be free-form JSON examples for now, or should `providerapi` grow a stronger schema type?
 - Should generated xgoja support provider-level default runtime profiles, or should every runtime profile remain fully explicit?
 - Should app-coupled providers use `ModuleContext.Host` immediately, or should they wait for target-mode host-service examples?
+
+## Implementation Note: First-Party Core and Host Providers
+
+The first provider tranche implements two first-party provider packages inside `go-go-goja`:
+
+- `pkg/xgoja/providers/core` with provider package ID `go-go-goja-core`.
+- `pkg/xgoja/providers/host` with provider package ID `go-go-goja-host`.
+
+### Core provider
+
+The core provider exposes data-oriented modules from `go-go-goja/modules/*`:
+
+- `path`
+- `node:path`
+- `yaml`
+- `crypto`
+- `node:crypto`
+- `time`
+- `timer`
+- `events`
+- `node:events`
+
+The provider adapts the existing `modules.NativeModule` registry. It imports the relevant module packages for their `init()` registration, looks up each module by name, and exposes it as a `providerapi.Module`. This preserves the existing loader implementations while making each module selectable by an xgoja runtime profile.
+
+### Host provider
+
+The host provider exposes host-capability modules separately from the core provider:
+
+- `fs`
+- `node:fs`
+- `exec`
+- `database`
+- `db`
+
+The host provider intentionally requires explicit config for dangerous capabilities:
+
+```yaml
+runtimes:
+  main:
+    modules:
+      - package: go-go-goja-host
+        name: fs
+        as: fs
+        config:
+          allow: true
+      - package: go-go-goja-host
+        name: exec
+        as: exec
+        config:
+          allow: true
+          allowedCommands:
+            - echo
+      - package: go-go-goja-host
+        name: database
+        as: database
+        config:
+          allowConfigure: true
+```
+
+Security semantics:
+
+- `fs` and `node:fs` require `config.allow: true`. This is an explicit acknowledgement gate; it is not a path sandbox.
+- `exec` requires `config.allow: true`. If `allowedCommands` is non-empty, exact command names must appear in the allow-list.
+- `database` and `db` disable JavaScript `configure()` by default. Set `config.allowConfigure: true` to let JavaScript open driver/data-source pairs such as sqlite3 in-memory databases.
+
+### Examples
+
+Two generated-binary smoke examples exercise these providers:
+
+- `examples/xgoja/core-provider`
+- `examples/xgoja/host-provider`
+
+Run them with:
+
+```bash
+make -C examples/xgoja/core-provider smoke
+make -C examples/xgoja/host-provider smoke
+```

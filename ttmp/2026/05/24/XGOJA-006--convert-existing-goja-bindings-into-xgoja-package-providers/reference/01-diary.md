@@ -102,3 +102,124 @@ The guide is documentation-only. It references existing provider API concepts fr
 - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/providerapi/registry.go`
 - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/providerapi/module.go`
 - `/home/manuel/workspaces/2026-05-22/xgoja/go-go-goja/pkg/xgoja/testprovider/provider.go`
+
+## Step 2: Implement first-party core and guarded host providers
+
+This step implemented the first concrete XGOJA-006 provider tranche. It added a safe/core provider for data-oriented first-party modules and a separate host provider for filesystem, process execution, and database capabilities. The provider split keeps ordinary helpers such as `path`, `yaml`, and `crypto` separate from modules that can touch the host machine.
+
+The host provider is intentionally explicit. `fs` requires `config.allow: true`, `exec` requires `config.allow: true` and can enforce an exact command allow-list, and `database` disables JavaScript `configure()` unless `config.allowConfigure: true` is set. The examples under `examples/xgoja/` build real generated binaries and run smoke scripts through the generated `run` command.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Implement htis part of XGOJA-006 and make an examples/xgoja/... to test them:\n\n\n\n    Implement first-party safe/core providers for simple go-go-goja/modules/* modules\n    Implement guarded host-capability providers for fs, exec, and database with explicit config/security docs"
+
+**Assistant interpretation:** Implement the first-party provider tranche from XGOJA-006 and add runnable xgoja examples that prove generated binaries can use them.
+
+**Inferred user intent:** Move from planning to usable provider packages, while keeping host-capability modules explicit and reviewable.
+
+**Commit (code):** Pending for this step.
+
+### What I did
+
+- Added `pkg/xgoja/providers/core`.
+- Added `pkg/xgoja/providers/host`.
+- Added provider unit tests for registration and guard behavior.
+- Added `examples/xgoja/core-provider` with:
+  - `xgoja.yaml`,
+  - `Makefile`,
+  - `README.md`,
+  - `scripts/core-smoke.js`.
+- Added `examples/xgoja/host-provider` with:
+  - `xgoja.yaml`,
+  - `Makefile`,
+  - `README.md`,
+  - `scripts/host-smoke.js`.
+- Updated `examples/xgoja/README.md` to list the new provider examples.
+- Updated this design guide with an implementation note for the first tranche.
+- Marked related XGOJA-006 tasks complete.
+
+### Why
+
+- `xgoja` needs first-party provider packages that generated binaries can import directly.
+- Host-capability modules should not be mixed into the safe/core provider set.
+- Smoke examples prove provider wrappers work through generated source, generated `go.mod`, runtime profiles, and generated commands.
+
+### What worked
+
+- Focused tests passed:
+
+```bash
+GOWORK=off go test ./pkg/xgoja/providers/core ./pkg/xgoja/providers/host ./cmd/xgoja/internal/generate ./cmd/xgoja -count=1
+```
+
+- Provider examples passed:
+
+```bash
+make -C examples/xgoja/core-provider smoke
+make -C examples/xgoja/host-provider smoke
+```
+
+### What didn't work
+
+- The first example attempt used spec package IDs `core` and `host`, while the providers registered package IDs `go-go-goja-core` and `go-go-goja-host`. Generated runtime lookup failed with:
+
+```text
+runtime main references unknown provider module core.path
+```
+
+- The fix was to make the example `packages[].id` match the provider package IDs registered by the provider code.
+
+### What I learned
+
+- `packages[].id` in `xgoja.yaml` must match the provider package ID passed to `registry.Package(...)`. It is not just a local alias.
+- The existing `modules.NativeModule` registry adapts cleanly to `providerapi.Module` for safe/core modules.
+
+### What was tricky to build
+
+- `exec` needed more than a simple wrapper because the existing module runs caller-selected commands directly. The host provider therefore implements a guarded loader with an optional exact command allow-list.
+- `fs` cannot currently enforce path roots through the existing module. The guard is an explicit acknowledgement gate, not a sandbox, and the docs say this directly.
+- `database` has useful existing options, so the provider disables `configure()` by default and enables it only with `config.allowConfigure: true`.
+
+### What warrants a second pair of eyes
+
+- Review whether the provider package IDs should be shorter (`core`, `host`) or stay globally descriptive (`go-go-goja-core`, `go-go-goja-host`).
+- Review whether `fs` should grow path-root enforcement before being recommended beyond trusted local use.
+- Review whether `exec.allowedCommands` should resolve absolute paths or command basenames before matching.
+
+### What should be done in the future
+
+- Add the reproducible inventory script for the remaining XGOJA-006 candidates.
+- Consider adding path-root guards to the filesystem module or provider.
+- Continue with external simple providers such as `cozodb-goja`, `workspace-manager`, and `pinocchio`.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/providers/core/core.go` and `pkg/xgoja/providers/host/host.go`.
+- Review `examples/xgoja/core-provider/xgoja.yaml` and `examples/xgoja/host-provider/xgoja.yaml` for runtime profile selection and host config.
+- Validate with the focused test command and both example smoke targets.
+
+### Technical details
+
+Provider package IDs:
+
+- `go-go-goja-core`
+- `go-go-goja-host`
+
+Host config examples:
+
+```yaml
+config:
+  allow: true
+```
+
+```yaml
+config:
+  allow: true
+  allowedCommands:
+    - echo
+```
+
+```yaml
+config:
+  allowConfigure: true
+```

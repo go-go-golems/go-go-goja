@@ -1,0 +1,26 @@
+name: core-provider
+target:
+  kind: xgoja
+  output: dist/core-provider
+packages:
+  - id: go-go-goja-core
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
+runtimes:
+  main:
+    modules:
+      - package: go-go-goja-core
+        name: path
+        as: path
+      - package: go-go-goja-core
+        name: yaml
+        as: yaml
+      - package: go-go-goja-core
+        name: crypto
+        as: crypto
+commands:
+  eval:
+    enabled: true
+    runtime: main
+  run:
+    enabled: true
+    runtime: main

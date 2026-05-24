@@ -8,14 +8,14 @@
 
 ## Phase 2: Provider adapter conventions
 
-- [ ] Decide provider wrapper location conventions: source repo vs first-party `go-go-goja/pkg/xgoja/providers/...`
-- [ ] Define provider ID, module alias, config-schema, and documentation naming conventions
+- [x] Decide provider wrapper location conventions: source repo vs first-party `go-go-goja/pkg/xgoja/providers/...`
+- [x] Define provider ID, module alias, config-schema, and documentation naming conventions
 - [ ] Decide whether to add reusable adapter helpers for `modules.NativeModule`, `Register(reg, opts)`, and runtime registrars
 
 ## Phase 3: Simple provider implementations
 
-- [ ] Implement first-party safe/core providers for simple `go-go-goja/modules/*` modules
-- [ ] Implement guarded host-capability providers for `fs`, `exec`, and `database` with explicit config/security docs
+- [x] Implement first-party safe/core providers for simple `go-go-goja/modules/*` modules
+- [x] Implement guarded host-capability providers for `fs`, `exec`, and `database` with explicit config/security docs
 - [ ] Implement external simple providers for `cozodb-goja`, `workspace-manager`, `pinocchio`, `smailnail`, `goja-git`, and `devctl-logjs` as appropriate
 
 ## Phase 4: Multi-module provider sets
@@ -34,15 +34,15 @@
 
 ## Phase 6: Tests, examples, and security review
 
-- [ ] Add generated xgoja build/run smoke tests for every implemented provider
-- [ ] Add `examples/xgoja/providers/<provider>/` examples or per-repo equivalent Makefile smokes
+- [x] Add generated xgoja build/run smoke tests for every implemented provider
+- [x] Add `examples/xgoja/providers/<provider>/` examples or per-repo equivalent Makefile smokes
 - [ ] Add provider security matrix covering filesystem, process, network, credential, device, and server/listener capabilities
-- [ ] Document config fields, defaults, failure modes, and dangerous capabilities for every provider
+- [x] Document config fields, defaults, failure modes, and dangerous capabilities for every provider
 
 ## Phase 7: Validation and closure
 
-- [ ] Run focused Go tests for modified repositories/packages
-- [ ] Run generated xgoja provider smokes with `GOWORK=off` where needed
-- [ ] Update diary/changelog after each implementation tranche
-- [ ] Run `docmgr doctor --ticket XGOJA-006 --stale-after 30`
+- [x] Run focused Go tests for modified repositories/packages
+- [x] Run generated xgoja provider smokes with `GOWORK=off` where needed
+- [x] Update diary/changelog after each implementation tranche
+- [x] Run `docmgr doctor --ticket XGOJA-006 --stale-after 30`
 - [ ] Close XGOJA-006 after docs, examples, validation, and security review are complete
