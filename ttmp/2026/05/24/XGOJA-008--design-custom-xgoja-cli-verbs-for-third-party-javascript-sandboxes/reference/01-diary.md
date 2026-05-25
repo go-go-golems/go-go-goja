@@ -738,3 +738,68 @@ Focused validation command:
 ```bash
 go test ./pkg/xgoja/providerapi -count=1
 ```
+
+## Step 12: Implemented runtime-profile section aggregation helpers
+
+I implemented the app-layer helpers that connect provider capabilities to runtime profiles. This completes the missing descriptor-resolution part from phase 1 and most of phase 2.
+
+### Prompt Context
+
+**User prompt (verbatim):** same implementation prompt as Step 10.
+
+**Assistant interpretation:** Continue implementing the XGOJA-008 plan in small validated slices.
+
+**Inferred user intent:** Build the capability substrate before changing built-in command behavior.
+
+**Commit (code):** Runtime-profile aggregation helper slice committed after focused tests.
+
+### What I did
+
+- Added `pkg/xgoja/app/module_sections.go`.
+- Added runtime profile descriptor resolution through `RuntimeFactory.selectedModuleDescriptors`.
+- Added section aggregation through `RuntimeFactory.sectionsForRuntimeProfile`.
+- Added `appendUniqueSections` with nil/empty/duplicate slug validation.
+- Added `initRuntimeFromSections` that calls `RuntimeInitializerCapability` for selected module descriptors.
+- Added a concrete `runtimeHandle` adapter around `*app.JSRuntime`.
+- Added focused tests in `pkg/xgoja/app/module_sections_test.go`.
+
+### Why
+
+- Built-in `run`, `repl`, and `jsverbs` all need the same mechanics: resolve selected modules, collect Glazed sections, then run runtime initializers after runtime creation.
+
+### What worked
+
+- Focused app tests passed:
+  - `go test ./pkg/xgoja/app -run 'TestRuntimeFactoryCollectsSectionsForRuntimeProfile|TestRuntimeFactoryRejectsDuplicateSectionSlugs|TestInitRuntimeFromSections' -count=1`
+
+### What didn't work
+
+- Nothing blocked this slice. The helpers are not wired into commands yet; that is phase 3.
+
+### What I learned
+
+- Section collision checking belongs at aggregation time so built-ins and custom command providers can share the same failure mode.
+
+### What was tricky to build
+
+- The helper has to remain generic and not import provider-specific packages. Errors therefore include package/module/capability IDs for diagnosis.
+
+### What warrants a second pair of eyes
+
+- Whether duplicate slugs should be hard errors or whether explicit namespacing/remapping should be allowed later.
+
+### What should be done in the future
+
+- Wire these helpers into `run` first and add a fixture capability that proves `DecodeSectionInto` flows from CLI flags to runtime initialization.
+
+### Code review instructions
+
+- Review `module_sections.go` for error messages and capability iteration order.
+
+### Technical details
+
+Focused validation command:
+
+```bash
+go test ./pkg/xgoja/app -run 'TestRuntimeFactoryCollectsSectionsForRuntimeProfile|TestRuntimeFactoryRejectsDuplicateSectionSlugs|TestInitRuntimeFromSections' -count=1
+```

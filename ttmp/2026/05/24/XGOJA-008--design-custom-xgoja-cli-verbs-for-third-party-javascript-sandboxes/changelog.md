@@ -87,3 +87,13 @@ Implemented providerapi module capability registration interfaces and focused te
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/registry.go — Registry now stores and resolves package capabilities
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/registry_test.go — Added capability registration and validation tests
 
+
+## 2026-05-25
+
+Implemented app runtime-profile section aggregation and runtime initializer helpers with focused tests.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/module_sections.go — Added selected module descriptor resolution section aggregation and runtime initializer helpers
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/module_sections_test.go — Added focused aggregation and initializer tests
+

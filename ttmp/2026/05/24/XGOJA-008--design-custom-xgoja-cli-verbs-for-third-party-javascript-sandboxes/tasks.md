@@ -26,19 +26,19 @@
 - [x] P1.4 Add `InitializedModule` and `ComponentInitializerCapability` for command-provider domain objects
 - [x] P1.5 Extend `providerapi.Package` to store package-level capabilities
 - [x] P1.6 Add validation for duplicate or empty capability IDs
-- [ ] P1.7 Add registry helpers to resolve runtime module descriptors from app runtime specs
+- [x] P1.7 Add registry helpers to resolve runtime module descriptors from app runtime specs
 - [x] P1.8 Add providerapi unit tests for capability registration, cloning, and validation errors
 - [x] P1.9 Run focused providerapi tests
 - [x] P1.10 Commit provider API capability slice
 
 ## Implementation phase 2 — built-in runtime-profile section aggregation helpers
 
-- [ ] P2.1 Add app helper to collect module descriptors for a runtime profile
-- [ ] P2.2 Add app helper to collect `ConfigSectionCapability` sections for a runtime profile
-- [ ] P2.3 Add app helper to call `RuntimeInitializerCapability.InitRuntimeFromSections`
-- [ ] P2.4 Add section slug/prefix collision checks with useful error messages
-- [ ] P2.5 Add tests for aggregation order and collision behavior
-- [ ] P2.6 Run focused app helper tests
+- [x] P2.1 Add app helper to collect module descriptors for a runtime profile
+- [x] P2.2 Add app helper to collect `ConfigSectionCapability` sections for a runtime profile
+- [x] P2.3 Add app helper to call `RuntimeInitializerCapability.InitRuntimeFromSections`
+- [x] P2.4 Add section slug/prefix collision checks with useful error messages
+- [x] P2.5 Add tests for aggregation order and collision behavior
+- [x] P2.6 Run focused app helper tests
 - [ ] P2.7 Commit built-in aggregation helper slice
 
 ## Implementation phase 3 — apply module sections to built-in `run`
