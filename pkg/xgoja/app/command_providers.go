@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	glazedcli "github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/spf13/cobra"
 )
@@ -114,17 +117,73 @@ func applyMountToCommands(commands []cmds.Command, mount string) []cmds.Command 
 	if mount == "" {
 		return commands
 	}
+	mounted := make([]cmds.Command, 0, len(commands))
 	for _, command := range commands {
-		if command == nil || command.Description() == nil {
-			continue
-		}
-		desc := command.Description()
-		if len(desc.Parents) > 0 && desc.Parents[0] == mount {
-			continue
-		}
+		mounted = append(mounted, commandWithMount(command, mount))
+	}
+	return mounted
+}
+
+func commandWithMount(command cmds.Command, mount string) cmds.Command {
+	if command == nil || command.Description() == nil {
+		return command
+	}
+	desc := command.Description().Clone(true)
+	if len(desc.Parents) == 0 || desc.Parents[0] != mount {
 		desc.Parents = append([]string{mount}, desc.Parents...)
 	}
-	return commands
+	base := mountedCommandBase{command: command, description: desc}
+	if _, ok := command.(cmds.GlazeCommand); ok {
+		return mountedGlazeCommand{mountedCommandBase: base}
+	}
+	if _, ok := command.(cmds.WriterCommand); ok {
+		return mountedWriterCommand{mountedCommandBase: base}
+	}
+	if _, ok := command.(cmds.BareCommand); ok {
+		return mountedBareCommand{mountedCommandBase: base}
+	}
+	return mountedCommand{mountedCommandBase: base}
+}
+
+type mountedCommandBase struct {
+	command     cmds.Command
+	description *cmds.CommandDescription
+}
+
+func (c mountedCommandBase) Description() *cmds.CommandDescription {
+	return c.description
+}
+
+func (c mountedCommandBase) ToYAML(w io.Writer) error {
+	return c.description.ToYAML(w)
+}
+
+type mountedCommand struct {
+	mountedCommandBase
+}
+
+type mountedBareCommand struct {
+	mountedCommandBase
+}
+
+func (c mountedBareCommand) Run(ctx context.Context, vals *values.Values) error {
+	return c.command.(cmds.BareCommand).Run(ctx, vals)
+}
+
+type mountedWriterCommand struct {
+	mountedCommandBase
+}
+
+func (c mountedWriterCommand) RunIntoWriter(ctx context.Context, vals *values.Values, w io.Writer) error {
+	return c.command.(cmds.WriterCommand).RunIntoWriter(ctx, vals, w)
+}
+
+type mountedGlazeCommand struct {
+	mountedCommandBase
+}
+
+func (c mountedGlazeCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.Values, gp middlewares.Processor) error {
+	return c.command.(cmds.GlazeCommand).RunIntoGlazeProcessor(ctx, vals, gp)
 }
 
 func commandProviderUse(instance CommandProviderInstance, mount string) string {

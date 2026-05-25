@@ -11,6 +11,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func TestApplyMountToCommandsDoesNotMutateProviderDescriptions(t *testing.T) {
+	original := &fixtureBareCommand{
+		CommandDescription: cmds.NewCommandDescription("ping", cmds.WithShort("Ping")),
+		run:                func(context.Context, *values.Values) error { return nil },
+	}
+
+	mounted := applyMountToCommands([]cmds.Command{original}, "fixture")
+	if len(original.Description().Parents) != 0 {
+		t.Fatalf("original parents mutated: %#v", original.Description().Parents)
+	}
+	if len(mounted) != 1 {
+		t.Fatalf("mounted commands = %d", len(mounted))
+	}
+	if mounted[0] == original {
+		t.Fatal("expected mounted wrapper, got original command")
+	}
+	if got := mounted[0].Description().Parents; len(got) != 1 || got[0] != "fixture" {
+		t.Fatalf("mounted parents = %#v", got)
+	}
+	if _, ok := mounted[0].(cmds.BareCommand); !ok {
+		t.Fatalf("mounted command lost BareCommand interface: %T", mounted[0])
+	}
+}
+
 func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 	called := false
 	registry := providerapi.NewRegistry()
