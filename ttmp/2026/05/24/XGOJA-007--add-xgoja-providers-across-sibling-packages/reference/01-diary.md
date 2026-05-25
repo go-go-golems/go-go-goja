@@ -118,3 +118,90 @@ docmgr doc add --ticket XGOJA-007 --doc-type design-doc --title "XGoja Provider 
 docmgr doc add --ticket XGOJA-007 --doc-type reference --title "Diary"
 go-go-goja/ttmp/2026/05/24/XGOJA-007--add-xgoja-providers-across-sibling-packages/scripts/01-inventory-target-goja-bindings.sh > go-go-goja/ttmp/2026/05/24/XGOJA-007--add-xgoja-providers-across-sibling-packages/sources/01-inventory-target-goja-bindings.txt
 ```
+
+## Step 2: Wrote the intern implementation guide
+
+I wrote the primary design document for the ticket. The guide explains the xgoja provider model, the provider API contracts, the runtime selection flow, and a repository-by-repository implementation plan for `workspace-manager`, `goja-git`, `go-minitrace`, `loupedeck`, and `geppetto`.
+
+The guide is intentionally implementation-oriented. It includes package classifications, API references, ASCII diagrams, pseudocode, config/security rules, phased rollout steps, test commands, and review checklists so a new intern can start with the simplest providers and avoid accidentally exposing host capabilities.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Turn the inventory and existing xgoja provider docs into a clear, technical implementation guide for future provider work.
+
+**Inferred user intent:** The user wants durable onboarding and design material that reduces the chance of unsafe or inconsistent provider wrappers across sibling repositories.
+
+**Commit (code):** b765b76 — "docs: create xgoja provider rollout ticket" covered ticket setup before this step; the final guide content will be committed after validation.
+
+### What I did
+
+- Read `go-go-goja/cmd/xgoja/doc/04-providers.md` to capture the current provider authoring contract.
+- Read provider API files in `go-go-goja/pkg/xgoja/providerapi` and runtime files in `go-go-goja/pkg/xgoja/app`.
+- Read target implementation files in each sibling repository.
+- Rewrote `design-doc/01-xgoja-provider-implementation-guide-for-sibling-packages.md` with the final analysis/design content.
+- Related key source files to the design document with `docmgr doc relate`.
+- Marked the research/inventory/design tasks complete.
+- Updated the changelog with the design-doc creation milestone.
+
+### Why
+
+- The target repositories have different JavaScript integration shapes: direct global object, `require.Registry` module, command-local module loader, runtime registrar, and rich host-coupled module.
+- A one-size-fits-all provider recipe would either be too vague or unsafe.
+- The intern guide needed to distinguish simple loader extraction from host-service design work.
+
+### What worked
+
+- The existing xgoja provider docs already define the core contract: `Register(*providerapi.Registry) error`, `providerapi.Module`, runtime profile module selection, config decoding, provider-shipped verbs, and generated smoke validation.
+- `workspace-manager` and `geppetto` both already have `Register(reg, opts)` shapes, so the recommended first refactor is a public `NewLoader(opts)` helper.
+- `loupedeck` has clear module-name constants and a registrar, making it possible to split safe modules from host-coupled modules.
+
+### What didn't work
+
+- `goja-git` does not currently use a CommonJS native module; it installs a global `git` object through `InstallGit(rt)`. The guide therefore recommends a source refactor to `NewGitObject(rt)` and `NewLoader()` before adding the provider.
+- `go-minitrace` keeps the `minitrace` loader under `cmd/.../query/js_runtime.go`, so it is not yet a reusable import surface. The guide recommends extracting it into `pkg/minitracejs` before provider work.
+
+### What I learned
+
+- `providerapi.ModuleContext.Host` exists but has no concrete typed examples in the current provider docs. Host-coupled packages should define explicit local host service interfaces and test missing-host behavior.
+- Generated xgoja smoke tests are the strongest validation because provider registry tests alone do not prove that `xgoja.yaml`, generated imports, runtime profile selection, and `require(...)` aliases work together.
+
+### What was tricky to build
+
+- The hardest part was preventing the guide from over-promising a simple provider wrapper for host-coupled systems. `loupedeck`, `go-minitrace`, and `geppetto` need host state that cannot safely be inferred from static config.
+- The guide therefore separates first-pass provider work from later host-services work and explicitly labels standalone generated smoke tests as difficult or inappropriate where host services are required.
+
+### What warrants a second pair of eyes
+
+- Review the proposed provider IDs and package paths before implementation begins, especially whether `loupedeck` should use one provider ID or split IDs.
+- Review the security posture for `goja-git`: an acknowledgement-only `allowWrite` guard may be acceptable for trusted local automation, but path root sandboxing would be safer.
+- Review whether `geppetto` should expose a helper-only subset before the full inference-capable provider.
+
+### What should be done in the future
+
+- Run `docmgr doctor --ticket XGOJA-007 --stale-after 30` and resolve vocabulary/frontmatter warnings.
+- Upload the design guide and diary to reMarkable.
+- If implementation starts in this ticket, begin with `workspace-manager` and commit that provider independently.
+
+### Code review instructions
+
+- Start with the design doc executive summary and provider classification table.
+- Cross-check repository-specific claims against the related source files in the design-doc frontmatter.
+- Validate docs with `docmgr doctor --ticket XGOJA-007 --stale-after 30`.
+
+### Technical details
+
+Key design document path:
+
+```text
+go-go-goja/ttmp/2026/05/24/XGOJA-007--add-xgoja-providers-across-sibling-packages/design-doc/01-xgoja-provider-implementation-guide-for-sibling-packages.md
+```
+
+Key bookkeeping commands used:
+
+```bash
+docmgr doc relate --doc go-go-goja/ttmp/2026/05/24/XGOJA-007--add-xgoja-providers-across-sibling-packages/design-doc/01-xgoja-provider-implementation-guide-for-sibling-packages.md --file-note "..."
+docmgr changelog update --ticket XGOJA-007 --entry "Created intern-oriented xgoja provider implementation guide and inventory evidence (commit b765b76 for setup)." --file-note "..."
+docmgr task check --ticket XGOJA-007 --id 3
+```

@@ -105,6 +105,18 @@ topics:
       description: Logging setup, log-level configuration, and logger initialization.
     - slug: templates
       description: Code generation templates and template-driven source rendering.
+    - slug: geppetto
+      description: 'XGOJA-007 target topic: geppetto'
+    - slug: go-minitrace
+      description: 'XGOJA-007 target topic: go-minitrace'
+    - slug: goja-git
+      description: 'XGOJA-007 target topic: goja-git'
+    - slug: loupedeck
+      description: 'XGOJA-007 target topic: loupedeck'
+    - slug: providers
+      description: 'XGOJA-007 target topic: providers'
+    - slug: workspace-manager
+      description: 'XGOJA-007 target topic: workspace-manager'
 docTypes:
     - slug: index
       description: Ticket index documents
