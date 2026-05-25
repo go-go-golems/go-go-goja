@@ -22,17 +22,17 @@
 
 ## discord-bot command provider/runtime bridge
 
-- [ ] Add helper to collect selected module config sections in `discord-bot/pkg/xgoja/provider`.
-- [ ] Wrap provider-owned bot commands to carry parsed values into runtime creation.
-- [ ] Run selected module runtime initializers after xgoja runtime creation.
+- [x] Add helper to collect selected module config sections in `discord-bot/pkg/xgoja/provider`.
+- [x] Wrap provider-owned bot commands to carry parsed values into runtime creation.
+- [x] Run selected module runtime initializers after xgoja runtime creation.
 - [ ] Add focused provider tests for section exposure and initializer invocation.
 
 ## Discord outbound runtime API
 
-- [ ] Add session-bound outbound ops to `RuntimeState`.
-- [ ] Expose top-level `discord.channels.send(channelId, payload)` from `require("discord")`.
-- [ ] Attach outbound ops from live `discordgo.Session` in `bot.NewWithScript` / `jsdiscord.Host`.
-- [ ] Add tests for top-level outbound API using fake DiscordOps or test session hooks.
+- [x] Add session-bound outbound ops to `RuntimeState`.
+- [x] Expose top-level `discord.channels.send(channelId, payload)` from `require("discord")`.
+- [x] Attach outbound ops from live `discordgo.Session` in `bot.NewWithScript` / `jsdiscord.Host`.
+- [x] Add tests for top-level outbound API using fake DiscordOps or test session hooks.
 
 ## Example and manual test
 
@@ -45,8 +45,8 @@
 ## Final validation
 
 - [x] Run focused go-go-goja tests.
-- [ ] Run focused discord-bot tests.
-- [ ] Run generated example smoke.
+- [x] Run focused discord-bot tests.
+- [x] Run generated example smoke.
 - [x] Update diary/changelog after each slice.
 - [x] Commit at appropriate intervals.
 - [ ] Run `docmgr doctor --ticket XGOJA-011 --stale-after 30`.

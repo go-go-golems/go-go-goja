@@ -30,3 +30,33 @@ Implemented go-go-goja HTTP provider with express module and http listen Glazed 
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/capabilities.go — Added optional RuntimeCloserRegistry
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providers/http/http.go — New xgoja HTTP provider registering express and http section
 
+
+## 2026-05-25
+
+Wired discord-bot command provider to selected xgoja module sections and runtime initializers.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/pkg/xgoja/provider/provider.go — Command provider now aggregates selected module sections and initializes runtime capabilities
+
+
+## 2026-05-25
+
+Added top-level discord.channels.send outbound API for session-bound Discord sends.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/internal/bot/bot.go — Live bot construction attaches session outbound ops
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/internal/jsdiscord/runtime.go — RuntimeState now exposes discord.channels.send
+
+
+## 2026-05-25
+
+Updated generated Discord xgoja example to mount express and expose GET / plus POST /say.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/examples/xgoja/discord-bot-provider/bots/fs-express-smoke/index.js — Sample bot registers real Express routes
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/examples/xgoja/discord-bot-provider/xgoja.yaml — Example selects go-go-goja-http express module
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providers/http/http.go — Discovery runtimes keep HTTP disabled when parsed values are absent
+

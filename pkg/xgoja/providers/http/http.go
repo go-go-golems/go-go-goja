@@ -80,8 +80,9 @@ func (c *capability) InitRuntimeFromSections(ctx context.Context, vals *values.V
 	if handle == nil || handle.Runtime() == nil {
 		return fmt.Errorf("http provider runtime handle is nil")
 	}
-	cfg := settings{Enabled: true, Listen: "127.0.0.1:8787"}
+	cfg := settings{Enabled: false, Listen: "127.0.0.1:8787"}
 	if vals != nil {
+		cfg.Enabled = true
 		if err := vals.DecodeSectionInto("http", &cfg); err != nil {
 			return err
 		}
