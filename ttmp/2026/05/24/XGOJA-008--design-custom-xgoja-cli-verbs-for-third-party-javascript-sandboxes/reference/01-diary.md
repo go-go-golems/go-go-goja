@@ -1078,3 +1078,75 @@ Focused validation command:
 ```bash
 go test ./pkg/xgoja/providerapi ./pkg/xgoja/app ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate -count=1
 ```
+
+## Step 17: Added reusable testprovider capability and Writer/Glaze command fixtures
+
+I filled the remaining phase 6 fixture gap by extending the public xgoja `testprovider`. It now exposes a module configuration section, a runtime initializer, and a command set provider with Bare, Writer, and Glaze commands.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue."
+
+**Assistant interpretation:** Continue from the command-provider implementation slice and complete practical command-provider fixtures before examples/docs.
+
+**Inferred user intent:** Ensure the implementation has enough reusable fixture coverage to support generated examples and future provider authoring docs.
+
+**Commit (code):** Fixture provider update committed after focused tests.
+
+### What I did
+
+- Added `FixtureCapability` to `pkg/xgoja/testprovider`:
+  - exposes a `fixture` Glazed section with `--fixture-value`;
+  - decodes `FixtureSettings` with `DecodeSectionInto`;
+  - initializes Goja runtimes by setting `globalThis.fixtureValue`.
+- Added a `CommandSetProvider` named `tools` to `testprovider`.
+- Added three command fixtures:
+  - `bare` as `cmds.BareCommand`;
+  - `write` as `cmds.WriterCommand`;
+  - `rows` as `cmds.GlazeCommand`.
+- Made the fixture command provider aggregate selected module sections from `CommandSetContext.SelectedModules`.
+- Fixed duplicate package capability application across runtime profiles with multiple modules from the same package. Capabilities are now attached only once per package per runtime descriptor list.
+
+### Why
+
+- Generated examples need a real provider that exercises all three Glazed command styles and module-provided sections.
+- Existing provider-shipped jsverbs tests select two fixture modules from the same provider package, which exposed that package-level capabilities must not duplicate sections for each module instance.
+
+### What worked
+
+- Focused tests passed:
+  - `go test ./pkg/xgoja/testprovider ./pkg/xgoja/app -count=1`
+
+### What didn't work
+
+- Initially, adding a package-level `fixture` section to every selected module caused duplicate section aggregation when a runtime selected both `hello` and `owner-check` from the fixture package. This surfaced as an existing jsverbs test failing because command mounting failed before the verb command was attached.
+
+### What I learned
+
+- Package-level capabilities need package-level de-duplication when converted into runtime module descriptors.
+- The `testprovider` is now a useful documentation/example provider, not only a basic module provider.
+
+### What was tricky to build
+
+- Keeping the fixture command provider independent of app-layer helpers. It aggregates sections directly from the capability interfaces in `CommandSetContext.SelectedModules`.
+
+### What warrants a second pair of eyes
+
+- Whether capability de-duplication should live in `selectedModuleDescriptors` as implemented, or in a more explicit package descriptor layer later.
+
+### What should be done in the future
+
+- Add generated examples that use the new fixture capability and command provider.
+
+### Code review instructions
+
+- Review `pkg/xgoja/testprovider/provider.go` for how provider authors should expose sections and Glazed commands.
+- Review `pkg/xgoja/app/module_sections.go` for package capability de-duplication semantics.
+
+### Technical details
+
+Focused validation command:
+
+```bash
+go test ./pkg/xgoja/testprovider ./pkg/xgoja/app -count=1
+```

@@ -82,7 +82,7 @@
 - [x] P6.6 Add `Host.AttachCommandProviders`
 - [x] P6.7 Implement mount-parent prefix application or document command-owned parents
 - [x] P6.8 Add fixture command provider returning a `BareCommand`
-- [ ] P6.9 Add fixture command provider returning `WriterCommand`/`GlazeCommand` examples if practical
+- [x] P6.9 Add fixture command provider returning `WriterCommand`/`GlazeCommand` examples if practical
 - [x] P6.10 Add generated app tests for command provider attachment
 - [x] P6.11 Run focused command provider tests
 - [x] P6.12 Commit command provider slice
