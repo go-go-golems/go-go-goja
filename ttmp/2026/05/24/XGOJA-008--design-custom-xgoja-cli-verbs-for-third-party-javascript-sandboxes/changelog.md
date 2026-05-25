@@ -161,3 +161,22 @@ Added generated examples docs and validation tests for module sections and comma
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/command-provider/xgoja.yaml — New generated example for provider-shipped Glazed command sets
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/module-sections/xgoja.yaml — New generated example for module-provided sections on run and jsverbs
 
+
+## 2026-05-25
+
+Recorded final implementation status caveats and validation results before delivery.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/24/XGOJA-008--design-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes/design-doc/01-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes.md — Added implementation status validation commands and caveats
+
+
+## 2026-05-25
+
+Uploaded final XGOJA-008 implementation bundle to reMarkable.
+
+
+## 2026-05-25
+
+Implemented provider capabilities module sections built-in command aggregation commandProviders docs examples validation and final reMarkable upload.
+

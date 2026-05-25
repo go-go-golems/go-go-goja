@@ -1419,3 +1419,40 @@ Do not start with Loupedeck or Discord. Use fixtures first: one built-in `run`/`
 
 - `ttmp/2026/05/24/XGOJA-008--design-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes/scripts/01-inventory-custom-sandbox-commands.sh`
 - `ttmp/2026/05/24/XGOJA-008--design-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes/sources/01-inventory-custom-sandbox-commands.txt`
+
+## Implementation status after initial rollout
+
+The first implementation pass landed the provider capability and command-provider surfaces described above.
+
+Implemented pieces:
+
+- `providerapi.ModuleCapability` plus package-level `providerapi.WithCapability(...)` registration.
+- `providerapi.ConfigSectionCapability` for module-owned Glazed sections.
+- `providerapi.RuntimeInitializerCapability` for configuring an existing JavaScript runtime from parsed Glazed values.
+- `providerapi.ComponentInitializerCapability` and `InitializedModule` as the typed handoff shape for provider-owned domain objects.
+- `providerapi.CommandSetProvider`, `CommandSet`, and `CommandSetContext` for provider-shipped Glazed commands.
+- Runtime-profile section aggregation for generated `run`, `repl`, and `jsverbs` commands.
+- Runtime initializer execution before built-in `run`, `repl`, and `jsverbs` JavaScript evaluation.
+- Buildspec and generated-source support for `commandProviders`.
+- Generated examples:
+  - `examples/xgoja/module-sections` for built-in command section aggregation.
+  - `examples/xgoja/command-provider` for provider-shipped Bare, Writer, and Glaze command styles.
+
+Important implementation notes:
+
+- Capability IDs and section slugs are validated early; duplicate section slugs remain hard errors.
+- Package-level capabilities are de-duplicated per selected runtime profile so selecting two modules from the same package does not append the same package section twice.
+- `eval` remains a raw Cobra command and does not yet participate in module section aggregation.
+- Runtime-profile schemas are still derived from the configured command runtime profile; overriding a runtime at invocation time does not dynamically reshape available flags.
+- Command provider mount prefixing mutates returned command descriptions in place; providers should construct fresh commands per `New` call.
+- `CommandSetContext.RuntimeFactory` is still intentionally loose (`any`) and should be narrowed after real package adapters exercise the API.
+
+Validation completed during rollout:
+
+```bash
+go test ./pkg/xgoja/testprovider ./pkg/xgoja/app -count=1
+make -C examples/xgoja/module-sections smoke
+make -C examples/xgoja/command-provider smoke
+go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi -count=1
+go test ./...   # via pre-commit hook
+```

@@ -1,7 +1,7 @@
 ---
 Title: Design custom xgoja CLI verbs for third-party JavaScript sandboxes
 Ticket: XGOJA-008
-Status: active
+Status: complete
 Topics:
     - xgoja
     - goja
@@ -18,10 +18,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-24T23:31:14.862289291-04:00
+LastUpdated: 2026-05-25T11:27:20.127669053-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Design custom xgoja CLI verbs for third-party JavaScript sandboxes
 

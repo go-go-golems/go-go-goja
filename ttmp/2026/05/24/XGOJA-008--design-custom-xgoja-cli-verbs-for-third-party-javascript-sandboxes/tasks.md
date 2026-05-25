@@ -89,21 +89,21 @@
 
 ## Implementation phase 7 — generated examples and docs
 
-- [ ] P7.1 Add generated example for built-in `run` module sections
-- [ ] P7.2 Add generated example for `jsverbs` module sections
-- [ ] P7.3 Add generated example for custom command provider module-section composition
-- [ ] P7.4 Update `cmd/xgoja/doc/02-buildspec.md`
-- [ ] P7.5 Update `cmd/xgoja/doc/04-providers.md`
-- [ ] P7.6 Smoke generated examples
-- [ ] P7.7 Commit docs/examples slice
+- [x] P7.1 Add generated example for built-in `run` module sections
+- [x] P7.2 Add generated example for `jsverbs` module sections
+- [x] P7.3 Add generated example for custom command provider module-section composition
+- [x] P7.4 Update `cmd/xgoja/doc/02-buildspec.md`
+- [x] P7.5 Update `cmd/xgoja/doc/04-providers.md`
+- [x] P7.6 Smoke generated examples
+- [x] P7.7 Commit docs/examples slice
 
 ## Implementation phase 8 — final validation and delivery
 
-- [ ] P8.1 Run focused xgoja package tests
-- [ ] P8.2 Run broader go-go-goja tests as time permits
-- [ ] P8.3 Update design doc with implementation deltas if needed
-- [ ] P8.4 Update diary with final validation results
-- [ ] P8.5 Run `docmgr doctor --ticket XGOJA-008 --stale-after 30`
-- [ ] P8.6 Upload final implementation bundle to reMarkable
-- [ ] P8.7 Commit final ticket updates
-- [ ] P8.8 Close XGOJA-008 if all requested implementation work is complete
+- [x] P8.1 Run focused xgoja package tests
+- [x] P8.2 Run broader go-go-goja tests as time permits
+- [x] P8.3 Update design doc with implementation deltas if needed
+- [x] P8.4 Update diary with final validation results
+- [x] P8.5 Run `docmgr doctor --ticket XGOJA-008 --stale-after 30`
+- [x] P8.6 Upload final implementation bundle to reMarkable
+- [x] P8.7 Commit final ticket updates
+- [x] P8.8 Close XGOJA-008 if all requested implementation work is complete

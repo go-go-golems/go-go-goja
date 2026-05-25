@@ -1225,3 +1225,87 @@ make -C examples/xgoja/module-sections smoke
 make -C examples/xgoja/command-provider smoke
 go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi -count=1
 ```
+
+## Step 19: Final validation checkpoint before delivery
+
+I ran the final local validation and updated the design guide with implementation status and caveats.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue."
+
+**Assistant interpretation:** Continue into final validation and delivery preparation for XGOJA-008.
+
+**Inferred user intent:** Make sure the ticket has a closed-loop implementation record before final upload and closure.
+
+### What I did
+
+- Added an implementation-status section to the XGOJA-008 design guide.
+- Marked completed examples, docs, and validation tasks in `tasks.md`.
+- Relied on pre-commit hook validation from the latest two commits for broad repo coverage.
+
+### What worked
+
+Validation already completed in this final slice:
+
+```bash
+go test ./pkg/xgoja/testprovider ./pkg/xgoja/app -count=1
+make -C examples/xgoja/module-sections smoke
+make -C examples/xgoja/command-provider smoke
+go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi -count=1
+```
+
+The pre-commit hooks also ran:
+
+```bash
+golangci-lint run -v
+go generate ./...
+go test ./...
+```
+
+### What didn't work
+
+No new blocker. Remaining caveats are documented in the design guide: raw Cobra `eval`, static command schemas for runtime override behavior, mutable command mount prefixing, and loose `RuntimeFactory any` typing.
+
+### What should be done in the future
+
+- Implement real package adapters, starting with loupedeck or discord-bot.
+- Narrow `CommandSetContext.RuntimeFactory` after real adapters validate what provider authors need.
+
+### Code review instructions
+
+- Review the design-guide implementation status section.
+- Review the latest commits and run the two example smoke targets if desired.
+
+## Step 20: Uploaded final implementation bundle to reMarkable
+
+I delivered the final XGOJA-008 implementation bundle to reMarkable.
+
+### What I did
+
+- Ran `docmgr doctor --ticket XGOJA-008 --stale-after 30` successfully.
+- Uploaded the final implementation bundle with design guide, diary, tasks, changelog, xgoja docs, and example READMEs.
+
+### Upload result
+
+```text
+OK: uploaded XGOJA-008 implementation final.pdf -> /ai/2026/05/24/XGOJA-008
+```
+
+### Notes
+
+Per the reMarkable workflow, the successful `OK: uploaded` line is treated as sufficient verification.
+
+## Step 21: Closed XGOJA-008
+
+I closed the ticket after implementation, documentation, validation, and reMarkable upload were complete.
+
+### Closure command
+
+```bash
+docmgr ticket close --ticket XGOJA-008 --changelog-entry "Implemented provider capabilities module sections built-in command aggregation commandProviders docs examples validation and final reMarkable upload."
+```
+
+### Final state
+
+XGOJA-008 is closed with implementation caveats documented for future work.
