@@ -354,3 +354,16 @@ GOWORK=off go run ./cmd/xgoja help tutorial-providing-commands
 ```
 
 Result: passed.
+
+## Step 13: Broad validation after cleanup phases
+
+### Commands
+
+```bash
+go test ./pkg/xgoja/provider ./internal/jsdiscord ./pkg/botcli -count=1   # in discord-bot
+go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1                         # in go-go-goja
+```
+
+### Result
+
+Both passed.

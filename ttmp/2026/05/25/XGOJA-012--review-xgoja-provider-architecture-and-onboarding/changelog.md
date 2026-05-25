@@ -109,3 +109,12 @@ Reorganized bundled xgoja help docs into overview, user guide, and focused tutor
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/05-tutorial-providing-commands.md — new provider command tutorial
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/root_test.go — bundled help test now targets user-guide
 
+
+## 2026-05-25
+
+Ran broad xgoja and Discord adapter validation after cleanup phases.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-012--review-xgoja-provider-architecture-and-onboarding/reference/01-diary.md — validation notes updated
+

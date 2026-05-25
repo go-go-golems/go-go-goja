@@ -149,14 +149,14 @@
 
 ### Phase 9: Validation and closeout
 
-- [ ] Run focused tests after each phase.
-- [ ] Run broad xgoja tests:
-  - [ ] `go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`.
-- [ ] Run Discord adapter tests after providerapi changes:
-  - [ ] `go test ./pkg/xgoja/provider ./internal/jsdiscord ./pkg/botcli -count=1` in `discord-bot`.
+- [x] Run focused tests after each phase.
+- [x] Run broad xgoja tests:
+  - [x] `go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`.
+- [x] Run Discord adapter tests after providerapi changes:
+  - [x] `go test ./pkg/xgoja/provider ./internal/jsdiscord ./pkg/botcli -count=1` in `discord-bot`.
 - [x] Run generated example smoke tests.
-- [ ] Update XGOJA-012 diary after each phase.
-- [ ] Update XGOJA-012 report if the implementation changes the recommendations.
+- [x] Update XGOJA-012 diary after each phase.
+- [x] Update XGOJA-012 report if the implementation changes the recommendations.
 - [ ] Upload final bundle to reMarkable.
 - [ ] Run `docmgr doctor --ticket XGOJA-012 --stale-after 30`.
 - [ ] Commit at appropriate intervals.
