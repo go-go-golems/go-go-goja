@@ -803,3 +803,71 @@ Focused validation command:
 ```bash
 go test ./pkg/xgoja/app -run 'TestRuntimeFactoryCollectsSectionsForRuntimeProfile|TestRuntimeFactoryRejectsDuplicateSectionSlugs|TestInitRuntimeFromSections' -count=1
 ```
+
+## Step 13: Wired module sections and runtime initializers into built-in run
+
+I applied the runtime-profile section aggregation helpers to the built-in `run` command. This is the first end-to-end proof that module-provided Glazed sections can appear on a built-in xgoja command and feed a runtime initializer through `DecodeSectionInto`.
+
+### Prompt Context
+
+**User prompt (verbatim):** same implementation prompt as Step 10.
+
+**Assistant interpretation:** Continue implementing the granular plan one validated slice at a time.
+
+**Inferred user intent:** Prove the built-in command path before implementing REPL/jsverbs and custom command providers.
+
+**Commit (code):** Built-in `run` module-section slice committed after focused tests.
+
+### What I did
+
+- Extended `runCommand` with selected module descriptors and a section aggregation error field.
+- Changed `newRunCommand` to collect module sections for the command's runtime profile and add them to the Glazed command description.
+- Added `runScriptFileWithInitializers`, keeping `runScriptFile` as a compatibility wrapper.
+- Called `initRuntimeFromSections` after runtime creation and before requiring the script file.
+- Added `run_module_sections_test.go` with a fixture capability that:
+  - exposes a `fixture` Glazed section with `--fixture-value`;
+  - decodes it using `vals.DecodeSectionInto("fixture", &settings)`;
+  - writes the decoded value into the Goja runtime;
+  - lets a real JS script assert that initialization happened.
+
+### Why
+
+- `run` is the smallest useful built-in integration because it has a finite execution path and existing file-based tests.
+
+### What worked
+
+- Focused run integration tests passed:
+  - `go test ./pkg/xgoja/app -run 'TestRunCommandIncludesRuntimeProfileModuleSections|TestRunCommandInitializesRuntimeFromModuleSections' -count=1`
+
+### What didn't work
+
+- The runtime flag remains static from a schema perspective. If a user overrides `--runtime` to a different profile, the command schema still reflects the default command runtime profile. This was already an open design caveat and should be revisited when runtime-profile selection becomes more dynamic.
+
+### What I learned
+
+- The Glazed command description path is sufficient: adding `cmds.WithSections(moduleSections...)` exposes fixture flags to Cobra parsing and gives `DecodeSectionInto` the expected section values.
+
+### What was tricky to build
+
+- Preserving the old `runScriptFile` helper while adding runtime initialization required a wrapper to avoid breaking existing call sites.
+
+### What warrants a second pair of eyes
+
+- Whether `newRunCommand` should fail command construction immediately on section aggregation errors or defer the error until command execution. I chose deferred execution so the command can still be attached as an erroring command.
+
+### What should be done in the future
+
+- Apply the same pattern to `repl`/TUI and `jsverbs`.
+
+### Code review instructions
+
+- Review `run.go` for the runtime lifecycle ordering: create runtime, initialize from sections, require script, close runtime.
+- Review `run_module_sections_test.go` as the canonical fixture pattern for built-in command module sections.
+
+### Technical details
+
+Focused validation command:
+
+```bash
+go test ./pkg/xgoja/app -run 'TestRunCommandIncludesRuntimeProfileModuleSections|TestRunCommandInitializesRuntimeFromModuleSections' -count=1
+```

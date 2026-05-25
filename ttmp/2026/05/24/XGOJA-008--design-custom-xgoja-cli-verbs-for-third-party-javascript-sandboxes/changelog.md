@@ -97,3 +97,13 @@ Implemented app runtime-profile section aggregation and runtime initializer help
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/module_sections.go — Added selected module descriptor resolution section aggregation and runtime initializer helpers
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/module_sections_test.go — Added focused aggregation and initializer tests
 
+
+## 2026-05-25
+
+Wired module-provided Glazed sections and runtime initializers into the built-in run command.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/run.go — Run command now aggregates runtime-profile module sections and calls runtime initializers
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/run_module_sections_test.go — Added run command fixture tests for module sections and DecodeSectionInto initialization
+

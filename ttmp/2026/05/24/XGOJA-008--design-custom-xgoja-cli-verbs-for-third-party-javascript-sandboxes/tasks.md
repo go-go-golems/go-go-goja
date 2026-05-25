@@ -39,18 +39,18 @@
 - [x] P2.4 Add section slug/prefix collision checks with useful error messages
 - [x] P2.5 Add tests for aggregation order and collision behavior
 - [x] P2.6 Run focused app helper tests
-- [ ] P2.7 Commit built-in aggregation helper slice
+- [x] P2.7 Commit built-in aggregation helper slice
 
 ## Implementation phase 3 — apply module sections to built-in `run`
 
-- [ ] P3.1 Extend `runCommand` to store selected module descriptors
-- [ ] P3.2 Append runtime-profile module sections to `run` command description
-- [ ] P3.3 Call runtime initializers before executing the script
-- [ ] P3.4 Add fixture provider/module for section exposure and runtime initialization
-- [ ] P3.5 Add app tests proving `run --help` exposes fixture flags
-- [ ] P3.6 Add app tests proving `run` decodes fixture settings via `DecodeSectionInto`
-- [ ] P3.7 Run focused `run` tests
-- [ ] P3.8 Commit `run` built-in module-section slice
+- [x] P3.1 Extend `runCommand` to store selected module descriptors
+- [x] P3.2 Append runtime-profile module sections to `run` command description
+- [x] P3.3 Call runtime initializers before executing the script
+- [x] P3.4 Add fixture provider/module for section exposure and runtime initialization
+- [x] P3.5 Add app tests proving `run --help` exposes fixture flags
+- [x] P3.6 Add app tests proving `run` decodes fixture settings via `DecodeSectionInto`
+- [x] P3.7 Run focused `run` tests
+- [x] P3.8 Commit `run` built-in module-section slice
 
 ## Implementation phase 4 — apply module sections to `repl` / TUI
 
