@@ -89,14 +89,14 @@
 
 ### Phase 5: Clarify discovery-vs-execution side effects
 
-- [ ] Find all places where runtime initializers can be called with nil parsed values.
-- [ ] Document the exact convention:
-  - [ ] `vals == nil` means runtime construction is happening without command parsed values, usually for discovery/help/list or host preloading.
-  - [ ] Providers must not start irreversible side effects in this mode.
-- [ ] Add tests for the HTTP provider:
-  - [ ] nil values keep HTTP disabled.
-  - [ ] non-nil values enable HTTP by default.
-  - [ ] explicit `--http-enabled=false` suppresses HTTP.
+- [x] Find all places where runtime initializers can be called with nil parsed values.
+- [x] Document the exact convention:
+  - [x] `vals == nil` means runtime construction is happening without command parsed values, usually for discovery/help/list or host preloading.
+  - [x] Providers must not start irreversible side effects in this mode.
+- [x] Add tests for the HTTP provider:
+  - [x] nil values keep HTTP disabled.
+  - [x] non-nil values enable HTTP by default.
+  - [x] explicit `--http-enabled=false` suppresses HTTP.
 - [ ] Consider replacing the implicit nil convention with an explicit phase later, but do not expand the API unless tests show the need.
 
 ### Phase 6: Fix provider documentation signatures and concepts

@@ -57,3 +57,12 @@ Renamed package-scoped capability API and removed unused component initializer a
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/capabilities.go — ModuleCapability renamed to PackageCapability and component initializer removed
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/registry.go — Registry now exposes package capability naming
 
+
+## 2026-05-25
+
+Added HTTP provider tests for discovery-vs-execution side-effect convention.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providers/http/http_test.go — HTTP provider now tests nil values
+

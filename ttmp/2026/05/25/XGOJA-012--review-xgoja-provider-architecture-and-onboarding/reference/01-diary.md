@@ -198,3 +198,28 @@ go test ./pkg/xgoja/provider -count=1   # in discord-bot
 ```
 
 Result: passed.
+
+## Step 8: Tested discovery-vs-execution HTTP settings behavior
+
+### Intent
+
+The HTTP provider uses an implicit convention: when `InitRuntimeFromSections` receives `vals == nil`, the runtime is being created without parsed command values. This can happen during discovery/preload paths in host-owned runners. Providers should avoid irreversible side effects in that mode.
+
+For the HTTP provider this means: do not enable the HTTP server when values are nil.
+
+### What changed
+
+Added
+ focused tests in `pkg/xgoja/providers/http/http_test.go`:
+
+- `TestCapabilityDisablesHTTPWhenValuesAreNil` verifies nil values force disabled settings.
+- `TestCapabilityEnablesHTTPByDefaultWhenValuesArePresent` verifies ordinary command values preserve the default `enabled=true` and default listen address.
+- `TestCapabilityAllowsExplicitHTTPDisable` verifies explicit disable wins even when parsed command values exist.
+
+### Validation
+
+```bash
+go test ./pkg/xgoja/providers/http -count=1
+```
+
+Result: passed.
