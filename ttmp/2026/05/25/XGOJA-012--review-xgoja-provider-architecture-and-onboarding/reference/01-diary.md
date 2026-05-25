@@ -367,3 +367,25 @@ go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1                         # in go
 ### Result
 
 Both passed.
+
+## Step 14: Final docmgr doctor and reMarkable upload
+
+### Commands
+
+```bash
+docmgr doctor --ticket XGOJA-012 --stale-after 30
+remarquee upload bundle \
+  design/01-xgoja-provider-architecture-review-and-onboarding-guide.md \
+  tasks.md \
+  changelog.md \
+  reference/01-diary.md \
+  --name "XGOJA-012 xgoja provider cleanup final" \
+  --remote-dir "/ai/2026/05/25/XGOJA-012" \
+  --toc-depth 2 \
+  --non-interactive
+```
+
+### Result
+
+- `docmgr doctor`: passed.
+- reMarkable upload: `OK: uploaded XGOJA-012 xgoja provider cleanup final.pdf -> /ai/2026/05/25/XGOJA-012`.

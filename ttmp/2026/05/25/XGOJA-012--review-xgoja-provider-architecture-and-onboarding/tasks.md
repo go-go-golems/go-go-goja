@@ -157,6 +157,6 @@
 - [x] Run generated example smoke tests.
 - [x] Update XGOJA-012 diary after each phase.
 - [x] Update XGOJA-012 report if the implementation changes the recommendations.
-- [ ] Upload final bundle to reMarkable.
-- [ ] Run `docmgr doctor --ticket XGOJA-012 --stale-after 30`.
-- [ ] Commit at appropriate intervals.
+- [x] Upload final bundle to reMarkable.
+- [x] Run `docmgr doctor --ticket XGOJA-012 --stale-after 30`.
+- [x] Commit at appropriate intervals.
