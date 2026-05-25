@@ -535,3 +535,107 @@ Provider IDs and module names now implemented:
 | loupedeck | `loupedeck` | `loupedeck/easing`, `loupedeck/gfx` | no for current safe subset |
 | geppetto | `geppetto` | `geppetto` | yes |
 | go-minitrace | `go-minitrace` | `minitrace` | yes |
+
+## Step 6: Generated xgoja smoke examples and ticket closure prep
+
+I added generated xgoja smoke examples for the providers that can run in a standalone generated binary today: `workspace-manager`, `goja-git`, and the safe `loupedeck` provider subset. These examples validate `xgoja doctor`, `xgoja list-modules`, generated build, and runtime `require(...)` behavior.
+
+This was still part of the provider-rollout ticket, not the new custom-CLI-verbs design work. The only xgoja implementation change made here was a small generator fix discovered by the smoke examples: provider package `replace` paths were being written relative to the temporary generated build directory instead of the source `xgoja.yaml` directory.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead. then close the ticket.
+
+Then createa new ticket to allow xgoja to generate custom CLI verbs (not just the repl / run / ...) that thirdparty packages that run goja sandboxes provide.
+
+I am not exactly sure what the structure of such a thing would be, but for example, loupedeck/ discord-bot/ css-visual-diff/ go-minitrace/ are all packages that allow the user to run JS scripts within a certain context. 
+
+Investigate, and suggeset a set of design patterns and approaches to make that possible with xgoja.
+
+Create  a detailed analysis / design / implementation guide that is for a new intern, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file references. It should be very clear and technical. Store in the ticket and the nupload to remarkable.
+
+Keep a diary as yuo work."
+
+**Assistant interpretation:** First finish and close XGOJA-007 by adding generated smoke tests; then start a separate research/design ticket for custom CLI verbs.
+
+**Inferred user intent:** The user wants the provider ticket closed with real generated-binary evidence before moving into a new design investigation.
+
+**Commit (code):**
+- workspace-manager `55e2856` — "test: add xgoja smoke for wsm provider"
+- goja-git `eefd185` — "test: add xgoja smoke for git provider"
+- loupedeck `2c43f39` — "test: add xgoja smoke for loupedeck provider"
+- go-go-goja `879075f` — "fix: resolve relative provider replaces from spec directory"
+
+### What I did
+
+- Added `workspace-manager/examples/xgoja/wsm-provider` with `xgoja.yaml`, `Makefile`, README, and smoke script.
+- Added `goja-git/examples/xgoja/git-provider` with `xgoja.yaml`, `Makefile`, README, and smoke script.
+- Moved the `goja-git` provider from module-root `provider` to `pkg/provider` so xgoja's module-root inference can replace the whole `github.com/go-go-golems/goja-git` module correctly.
+- Added public `loupedeck/pkg/xgoja/provider` wrapper around `runtime/js/provider` so generated binaries can import a public provider path without making the module root ambiguous.
+- Added `loupedeck/examples/xgoja/loupedeck-provider` with `xgoja.yaml`, `Makefile`, README, and smoke script.
+- Fixed xgoja generated `go.mod` rendering so relative provider `replace` paths resolve from the source spec directory before being written into the temporary generated build workspace.
+
+### Why
+
+- Unit tests prove provider registration and loader construction, but generated smoke tests prove the real xgoja path: doctor, generated imports, generated `go.mod`, provider registration, runtime profile module selection, and JavaScript `require(...)`.
+- The relative replace fix was needed because generated builds run from a temporary directory; a raw `replace: ../../..` was being interpreted from `/tmp/xgoja-build-*`, not from the example directory.
+
+### What worked
+
+Generated smoke examples passed:
+
+```bash
+cd workspace-manager && make -C examples/xgoja/wsm-provider smoke
+cd goja-git && make -C examples/xgoja/git-provider smoke
+cd loupedeck && make -C examples/xgoja/loupedeck-provider smoke
+```
+
+Focused xgoja generator validation also passed before committing the fix:
+
+```bash
+cd go-go-goja
+GOWORK=off go test ./cmd/xgoja/internal/generate ./cmd/xgoja/internal/buildspec ./cmd/xgoja -count=1
+```
+
+The go-go-goja pre-commit hook also ran full lint and tests successfully when committing the generator fix.
+
+### What didn't work
+
+- The first workspace-manager generated smoke failed with:
+  - `go: github.com/go-go-golems/workspace-manager@v0.0.0 (replaced by ../../..): reading /go.mod: open /go.mod: no such file or directory`
+- The root cause was relative package replacement being interpreted in the temporary generated workspace.
+- The first goja-git generated smoke failed because the provider lived at module-root `provider`, so `providerModulePath` inferred the provider module as `github.com/go-go-golems/goja-git/provider` instead of `github.com/go-go-golems/goja-git`. Moving it to `pkg/provider` fixed the generated module replacement.
+
+### What I learned
+
+- Provider packages should live under a subdirectory that xgoja can map back to the Go module root (`/pkg/`, `/cmd/`, `/internal/`, or `/xgoja`).
+- Generated examples are useful not only for provider validation but also for finding buildspec/generator path assumptions.
+
+### What was tricky to build
+
+- xgoja generated builds are intentionally isolated in `/tmp`, so all relative paths in source specs must be normalized before rendering generated `go.mod`.
+- A provider path at module root plus an extra suffix not recognized by `providerModulePath` can make xgoja infer the wrong module path. The safest convention is to put public provider wrappers under `pkg/xgoja/provider` or `pkg/provider`.
+
+### What warrants a second pair of eyes
+
+- Review the generator change in `go-go-goja/cmd/xgoja/internal/generate/gomod.go` to ensure resolving relative package replaces at render time is correct for all target modes.
+- Review provider package path conventions and decide whether the buildspec docs should explicitly recommend `pkg/xgoja/provider`.
+
+### What should be done in the future
+
+- Add host-services-aware generated smoke support after xgoja grows a custom host/target command design. This is the subject of the new ticket requested by the user.
+
+### Code review instructions
+
+- Run the three provider smoke commands listed above.
+- Review `go-go-goja/cmd/xgoja/internal/generate/gomod.go` and its new test before reviewing example files.
+- Confirm XGOJA-007 can be closed after the docmgr diary and changelog are committed.
+
+### Technical details
+
+The generated-smoke examples intentionally avoid host-coupled providers:
+
+- `geppetto` needs provider `HostServices`.
+- `go-minitrace` needs a live SQL connection via provider `HostServices`.
+
+Those cases are a direct input to the next ticket about custom CLI verbs / third-party sandbox host integration.

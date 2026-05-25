@@ -1,7 +1,7 @@
 ---
 Title: Add xgoja providers across sibling packages
 Ticket: XGOJA-007
-Status: active
+Status: complete
 Topics:
     - xgoja
     - goja
@@ -17,10 +17,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-24T22:30:32.234895551-04:00
+LastUpdated: 2026-05-24T23:31:02.877947746-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Add xgoja providers across sibling packages
 

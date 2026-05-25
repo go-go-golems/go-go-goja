@@ -52,3 +52,20 @@ Phases 2-5: implemented goja-git, loupedeck, geppetto, and go-minitrace xgoja pr
 - /home/manuel/workspaces/2026-05-24/add-js-providers/goja-git/provider/provider.go — goja-git provider
 - /home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/runtime/js/provider/provider.go — loupedeck safe-module provider
 
+
+## 2026-05-24
+
+Added generated xgoja smoke examples for workspace-manager, goja-git, and loupedeck; fixed relative provider replace rendering (go-go-goja commit 879075f).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/internal/generate/gomod.go — Fix relative package replace resolution
+- /home/manuel/workspaces/2026-05-24/add-js-providers/goja-git/examples/xgoja/git-provider/xgoja.yaml — Goja-git generated smoke
+- /home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/examples/xgoja/loupedeck-provider/xgoja.yaml — Loupedeck generated smoke
+- /home/manuel/workspaces/2026-05-24/add-js-providers/workspace-manager/examples/xgoja/wsm-provider/xgoja.yaml — Workspace-manager generated smoke
+
+
+## 2026-05-24
+
+Ticket closed
+
