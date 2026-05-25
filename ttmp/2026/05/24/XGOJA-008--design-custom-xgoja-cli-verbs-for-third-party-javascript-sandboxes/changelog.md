@@ -67,3 +67,12 @@ Validated and uploaded the built-in module-section revision to reMarkable.
 
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/24/XGOJA-008--design-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes/reference/01-diary.md — Recorded validation and reMarkable upload of built-in module-section revision
 
+
+## 2026-05-25
+
+Expanded implementation tasks into granular phases for provider capabilities built-ins command providers examples and final validation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/24/XGOJA-008--design-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes/tasks.md — Granular XGOJA-008 implementation phases
+

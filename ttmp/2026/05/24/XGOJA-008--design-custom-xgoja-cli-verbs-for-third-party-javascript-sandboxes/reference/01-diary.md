@@ -619,3 +619,46 @@ I uploaded a fresh reMarkable bundle after validating the revised design that no
 ### What should be done in the future
 
 - Implement the fixture path for built-in `run` and `jsverbs` before adapting real packages.
+
+## Step 10: Implementation kickoff and granular phase plan
+
+The user asked to turn XGOJA-008 into a granular implementation plan, then implement it one piece at a time with appropriate commits and a detailed diary. I expanded `tasks.md` from high-level design checkboxes into eight implementation phases.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Add detailed phases and tasks for the XGOJA-008 ticket if you haven't already, kind of granular so that we can keep track of where we are at fairly precisely. Then implement them one by one, committing at appropriate intervals, keeping a etailed diary"
+
+**Assistant interpretation:** Add phase-level and task-level tracking to the ticket, then begin implementation incrementally.
+
+**Inferred user intent:** The user wants the ticket to become an executable work plan with precise progress checkpoints, not just a design document.
+
+**Commit (code):** Planning update to be committed before implementation.
+
+### What I did
+
+- Rewrote `tasks.md` with granular phases:
+  - phase 0: planning/checkpoints;
+  - phase 1: provider API capabilities;
+  - phase 2: built-in runtime-profile section aggregation helpers;
+  - phase 3: built-in `run` integration;
+  - phase 4: `repl`/TUI integration;
+  - phase 5: `jsverbs` integration;
+  - phase 6: command set providers;
+  - phase 7: generated examples and docs;
+  - phase 8: final validation and delivery.
+
+### Why
+
+- The design has multiple separable surfaces. Granular tasks make it possible to commit and validate each slice independently.
+
+### What worked
+
+- The phase plan gives a sane implementation order: capabilities first, helpers second, built-ins third, command providers later.
+
+### What warrants a second pair of eyes
+
+- Whether command set providers should move earlier. I kept them after built-ins because module sections are foundational and can be validated with `run` before adding another command-provider surface.
+
+### What should be done in the future
+
+- Implement phase 1 and commit it separately before modifying app runtime commands.
