@@ -76,3 +76,14 @@ Updated provider/buildspec docs for renamed capability API, providerutil, runtim
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/02-buildspec.md — command provider section no longer mentions component initializers
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/04-providers.md — provider docs now use current signatures and WithPackageCapability
 
+
+## 2026-05-25
+
+Added runtime factory regression test and refreshed XGOJA-012 report/provider docs for the implemented cleanup API.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/04-providers.md — provider guide now includes decision table and current command provider signature
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/command_providers_test.go — command provider test now exercises typed RuntimeFactory
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-012--review-xgoja-provider-architecture-and-onboarding/design/01-xgoja-provider-architecture-review-and-onboarding-guide.md — review updated to implementation status
+

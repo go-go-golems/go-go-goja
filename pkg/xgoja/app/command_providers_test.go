@@ -47,6 +47,19 @@ func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 				if len(ctx.SelectedModules) != 1 {
 					t.Fatalf("selected modules = %#v", ctx.SelectedModules)
 				}
+				if ctx.RuntimeFactory == nil {
+					t.Fatal("expected typed runtime factory")
+				}
+				runtime, err := ctx.RuntimeFactory.NewRuntime(ctx.Context, ctx.RuntimeProfile)
+				if err != nil {
+					t.Fatalf("new runtime from typed runtime factory: %v", err)
+				}
+				if runtime == nil || runtime.VM == nil {
+					t.Fatalf("runtime = %#v", runtime)
+				}
+				if err := runtime.Close(ctx.Context); err != nil {
+					t.Fatalf("close runtime: %v", err)
+				}
 				return &providerapi.CommandSet{Commands: []cmds.Command{&fixtureBareCommand{
 					CommandDescription: cmds.NewCommandDescription(
 						"ping",

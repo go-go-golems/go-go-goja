@@ -30,7 +30,7 @@ LastUpdated: 2026-05-25T18:20:00-04:00
 
 ## 1. Purpose of this review
 
-This report is written for the next maintainer who is taking over xgoja after a burst of implementation work. The previous phase added a lot: provider packages across sibling repositories, module capabilities, Glazed command set providers, runtime-profile section aggregation, runtime initializers, runtime closers, a first-party HTTP/Express provider, and a real `discord-bot` adapter that runs xgoja-selected modules inside an existing Discord JavaScript runner.
+This report is written for the next maintainer who is taking over xgoja after a burst of implementation work. The previous phase added a lot: provider packages across sibling repositories, package capabilities, Glazed command set providers, runtime-profile section aggregation, runtime initializers, runtime closers, a first-party HTTP/Express provider, and a real `discord-bot` adapter that runs xgoja-selected modules inside an existing Discord JavaScript runner.
 
 That is enough functionality to be useful, but it is also enough abstraction to get lost. The goal of this document is to make the system legible. It explains what was built, how the main pieces fit together, which ideas are solid, which ideas are still rough, where the code is duplicated or confusing, and what a new intern should fix first.
 
@@ -44,10 +44,10 @@ The most important working example is `discord-bot`. It already had its own Java
 
 The main risks are not in the concept. The risks are in ergonomics and clarity:
 
-- Some abstractions have names that are technically accurate but hard to teach quickly, especially `ModuleDescriptor`, `ModuleCapability`, `RuntimeInitializerCapability`, and `ComponentInitializerCapability`.
+- Some abstractions were hard to teach quickly, especially package-scoped capability registration and provider-owned runtime factories; this ticket has started simplifying those names and types.
 - The app layer and a real external adapter (`discord-bot`) now duplicate section aggregation and runtime-initializer logic.
-- The provider API is still partly unstable: `CommandSetContext.RuntimeFactory` is `any`, capabilities are package-scoped, and the command-provider helper story is not yet public.
-- Documentation exists but has at least one stale signature and does not yet have a single “start here as a provider author” path.
+- The provider API was still partly unstable: runtime factory typing, package-scoped capability naming, and command-provider helper reuse needed cleanup. The implementation now has a typed `providerapi.RuntimeFactory`, `PackageCapability`, and shared `providerutil` helpers.
+- Documentation exists and the most stale provider API signatures have been fixed, but it still needs a single “start here as a provider author” path.
 - Generated examples are valuable but uneven. Some demonstrate features well; others are smoke-test oriented and do not fully explain the design choices.
 
 The recommended next phase is not another feature. It is a stabilization phase: release the provider APIs, repair docs, extract shared helper logic, improve naming/onboarding, and add regression tests around side effects and lifecycle.
@@ -80,7 +80,7 @@ Files:
 - `go-go-goja/pkg/xgoja/app/run.go`
 - `go-go-goja/pkg/xgoja/app/tui.go`
 
-This layer turns the generated embedded spec into a working CLI. It builds runtime profiles, attaches built-in commands, mounts provider-owned command sets, and initializes module capabilities.
+This layer turns the generated embedded spec into a working CLI. It builds runtime profiles, attaches built-in commands, mounts provider-owned command sets, and initializes package capabilities attached to selected modules.
 
 ### 3.3 Buildspec and code generation layer
 
@@ -212,17 +212,17 @@ The module API should be treated as stable. It is the foundation everything else
 Modules alone are not enough for stateful integrations. Some modules need flags. Some need runtime initialization. Some need cleanup. That led to capabilities in `providerapi/capabilities.go`.
 
 ```go
-type ModuleCapability interface {
+type PackageCapability interface {
     CapabilityID() string
 }
 
 type ConfigSectionCapability interface {
-    ModuleCapability
+    PackageCapability
     ConfigSections(SectionContext) ([]schema.Section, error)
 }
 
 type RuntimeInitializerCapability interface {
-    ModuleCapability
+    PackageCapability
     InitRuntimeFromSections(context.Context, *values.Values, RuntimeHandle) error
 }
 ```
@@ -308,28 +308,14 @@ type CommandSetContext struct {
     RuntimeProfile  string
     Config          json.RawMessage
     Providers       *Registry
-    RuntimeFactory  any
+    RuntimeFactory  RuntimeFactory
     SelectedModules []ModuleDescriptor
 }
 ```
 
 The system mounts provider commands in `pkg/xgoja/app/command_providers.go`. That code resolves the command provider, determines the mount path, builds the command set, wraps commands to add the mount prefix, and adds them to the root command through Glazed.
 
-The abstraction is powerful and necessary. It lets xgoja generate a binary that feels like the domain package rather than a generic JavaScript shell. The weakness is `RuntimeFactory any`. The type is intentionally loose, but it pushes type assertions into real adapters.
-
-In `discord-bot/pkg/xgoja/provider/provider.go`:
-
-```go
-type xgojaRuntimeFactory interface {
-    NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*engine.Runtime, error)
-}
-
-if factory, ok := ctx.RuntimeFactory.(xgojaRuntimeFactory); ok {
-    runtimeFactory = &xgojaBotRuntimeFactory{factory: factory, profile: profile, selectedModules: ctx.SelectedModules}
-}
-```
-
-This worked and avoided premature coupling, but it is not a satisfying long-term public API. A new adapter author has to guess what `RuntimeFactory` actually is.
+The abstraction is powerful and necessary. It lets xgoja generate a binary that feels like the domain package rather than a generic JavaScript shell. XGOJA-012 tightened the context by replacing the old loose runtime-factory field with a typed `providerapi.RuntimeFactory`. Provider-owned commands can now call `NewRuntime(ctx, profile, opts...)` without local type assertions.
 
 ## 9. The Discord bot case study
 
@@ -426,14 +412,14 @@ sequenceDiagram
     participant JS as bot script
 
     XHost->>Provider: New(CommandSetContext with SelectedModules)
-    Provider->>Provider: collect selected module sections
+    Provider->>Provider: collect selected module sections via providerutil
     Provider-->>XHost: Glazed commands
     User->>Command: bots fs-express-smoke run --http-listen 127.0.0.1:8787
     Command->>Adapter: parsed values available during Run
     Command->>JSHost: load bot with runtime factory
     JSHost->>Adapter: NewRuntime(require options)
     Adapter->>XFactory: NewRuntime(profile=bot)
-    Adapter->>Adapter: init selected module capabilities from parsed values
+    Adapter->>Adapter: init selected package capabilities from parsed values
     JSHost->>JS: require bot script
 ```
 
@@ -482,60 +468,38 @@ This abstraction is justified.
 
 The Discord adapter proves this. Without command set providers, every domain package would be forced through generic `run` or `jsverbs`, losing domain-specific commands.
 
-The abstraction should stay, but the context type should be tightened.
+The abstraction should stay; the context type has now been tightened with a typed runtime factory.
 
 ## 12. What is confusing, rough, or over-architected
 
-### 12.1 `RuntimeFactory any` is too vague for a public API
+### 12.1 RuntimeFactory is now typed for provider-owned commands
 
-**Problem:** `CommandSetContext.RuntimeFactory` is typed as `any`. Real providers need to type assert it to an interface with `NewRuntime(...)`. This was acceptable while the API was being discovered, but it is confusing for new provider authors.
+**Original problem:** `CommandSetContext.RuntimeFactory` was typed as `any`. Real providers had to type assert it to an interface with `NewRuntime(...)`. That was acceptable while the API was being discovered, but confusing for new provider authors.
+
+**Implementation status:** fixed in XGOJA-012. `providerapi.RuntimeFactory` is now a named interface and `CommandSetContext.RuntimeFactory` uses it directly.
 
 **Where to look:**
 
-- `go-go-goja/pkg/xgoja/providerapi/commands.go`, `CommandSetContext.RuntimeFactory any`
-- `discord-bot/pkg/xgoja/provider/provider.go`, local `xgojaRuntimeFactory` interface and type assertion
+- `go-go-goja/pkg/xgoja/providerapi/commands.go`, `providerapi.RuntimeFactory`
+- `go-go-goja/pkg/xgoja/app/command_providers.go`, passes the concrete xgoja app runtime factory through the typed interface
+- `discord-bot/pkg/xgoja/provider/provider.go`, uses the typed providerapi interface directly
 
 **Example:**
-
-```go
-type CommandSetContext struct {
-    RuntimeFactory  any
-    SelectedModules []ModuleDescriptor
-}
-```
-
-```go
-if factory, ok := ctx.RuntimeFactory.(xgojaRuntimeFactory); ok {
-    runtimeFactory = &xgojaBotRuntimeFactory{factory: factory, profile: profile, selectedModules: ctx.SelectedModules}
-}
-```
-
-**Why it matters:** A provider author cannot know what to expect from `RuntimeFactory` without reading xgoja internals or copying `discord-bot`. This weakens onboarding and makes the API feel unfinished.
-
-**Cleanup sketch:** define a providerapi-level runtime factory interface that does not expose the concrete app package.
-
-```go
-// providerapi/commands.go or runtime.go
-type RuntimeFactory interface {
-    NewRuntime(ctx context.Context, profile string, opts ...require.Option) (Runtime, error)
-}
-
-type Runtime interface {
-    RuntimeHandle
-    RequireModule() *require.RequireModule // optional if needed
-    Close(context.Context) error
-}
-```
-
-If exposing `engine.Runtime` is acceptable, use that directly:
 
 ```go
 type RuntimeFactory interface {
     NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*engine.Runtime, error)
 }
+
+type CommandSetContext struct {
+    RuntimeFactory  RuntimeFactory
+    SelectedModules []ModuleDescriptor
+}
 ```
 
-The first option is cleaner but more work. The second option is pragmatic.
+**Why it matters:** A provider author can now see what to expect from `RuntimeFactory` in `providerapi` without reading xgoja app internals or copying the Discord adapter.
+
+This intentionally exposes `engine.Runtime` because real adapters already need the concrete runtime and require options. A smaller facade can be reconsidered later if providers start depending on too much engine internals.
 
 ### 12.2 Section aggregation is duplicated between app and Discord adapter
 
@@ -568,77 +532,46 @@ func CollectConfigSections(descriptors []providerapi.ModuleDescriptor, ctx provi
 func InitRuntime(ctx context.Context, vals *values.Values, handle providerapi.RuntimeHandle, descriptors []providerapi.ModuleDescriptor) error
 ```
 
-Then both xgoja app and `discord-bot` use the same helper.
+Implementation status: fixed in XGOJA-012. Both xgoja app and `discord-bot` now use `pkg/xgoja/providerutil` for section collection and runtime initializer invocation.
 
-### 12.3 Capabilities are package-scoped, but the type name says module capability
+### 12.3 Capabilities are now named as package-scoped capabilities
 
-**Problem:** `ModuleCapability` values are registered with `providerapi.WithCapability(...)` at package level. During descriptor construction, xgoja attaches package capabilities to selected modules from that package once per package. The type name says “module capability,” but the registration semantics are package-level.
+**Original problem:** capabilities were registered at package level, but the old type name suggested module-local semantics. During descriptor construction, xgoja attaches package capabilities to selected modules from that package once per package. The implementation now names this honestly as `PackageCapability`.
 
 **Where to look:**
 
-- `go-go-goja/pkg/xgoja/providerapi/capabilities.go`, `WithCapability`
+- `go-go-goja/pkg/xgoja/providerapi/capabilities.go`, `WithPackageCapability`
 - `go-go-goja/pkg/xgoja/app/module_sections.go`, `selectedModuleDescriptors`
 
 **Example:**
 
 ```go
-func WithCapability(capability ModuleCapability) Entry {
+func WithPackageCapability(capability PackageCapability) Entry {
     return capabilityEntry{capability: capability}
 }
 ```
 
 ```go
 if _, ok := capabilitiesUsed[instance.Package]; !ok {
-    capabilities, _ = f.providers.ResolveCapabilities(instance.Package)
+    capabilities, _ = f.providers.ResolvePackageCapabilities(instance.Package)
     capabilitiesUsed[instance.Package] = struct{}{}
 }
 ```
 
 **Why it matters:** This is subtle. A provider package with multiple modules may not want every capability associated with every module. The current deduplication avoids duplicate application per package, but the conceptual model is not obvious.
 
-**Cleanup sketch:** either rename the abstraction or add module-scoped registration.
+**Implementation status:** fixed with the simpler Option A. The public API is now `PackageCapability`, `WithPackageCapability`, `ResolvePackageCapabilities`, and `ModuleDescriptor.PackageCapabilities`. Module-specific binding can be added later only if a real provider needs it.
 
-Option A: rename for honesty:
+### 12.4 Removed unused domain-object initializer abstraction
 
-```go
-type PackageCapability interface { CapabilityID() string }
-```
+**Original problem:** an extra initializer abstraction existed for hypothetical provider-owned Go domain objects. The main implemented flow only used config sections, runtime initializers, runtime handles, and runtime closers. Keeping an unused second initializer kind made onboarding harder.
 
-Option B: support both:
+**Implementation status:** removed in XGOJA-012. Providers should use:
 
-```go
-type ModuleCapabilityBinding struct {
-    Modules []string // empty means package-wide
-    Capability Capability
-}
-```
-
-Option A is simpler. Option B is more expressive.
-
-### 12.4 Component initializers exist but are not yet exercised enough
-
-**Problem:** `ComponentInitializerCapability` exists in `providerapi/capabilities.go`, but the main implemented flow uses `ConfigSectionCapability` and `RuntimeInitializerCapability`. Component initializers may be the right idea for future domain objects, but today they add conceptual weight without many examples.
-
-**Where to look:**
-
-- `go-go-goja/pkg/xgoja/providerapi/capabilities.go`
-- `go-go-goja/pkg/xgoja/testprovider/provider.go`
-
-**Why it matters:** New readers see another initializer concept and have to ask: “When do I use runtime initializer vs component initializer?” The answer is not obvious from docs.
-
-**Cleanup sketch:** document the decision table or defer the abstraction until a real adapter uses it.
-
-```text
-Use RuntimeInitializerCapability when:
-  - the runtime already exists
-  - you need to mutate JS globals, register cleanup, or configure runtime-scoped resources
-
-Use ComponentInitializerCapability when:
-  - a provider-owned command needs a Go object that is not a JS runtime mutation
-  - the object may be used before or without creating JS runtime
-```
-
-If no non-test provider uses component initializers soon, consider marking it experimental in docs.
+- `ConfigSectionCapability` to contribute command-time Glazed flags.
+- `RuntimeInitializerCapability` to configure an existing JavaScript runtime from parsed values.
+- `RuntimeCloserRegistry` through the handle when a runtime-scoped resource needs cleanup.
+- Provider-owned command code directly when it needs non-runtime Go state.
 
 ### 12.5 Discovery vs execution side effects are under-documented
 
@@ -675,38 +608,21 @@ type RuntimeInitContext struct {
 
 This may be too much API for now. At minimum, document: `vals == nil` means no parsed command invocation is available; providers must avoid irreversible side effects.
 
-### 12.6 Docs contain stale API signatures
+### 12.6 Provider docs now show current API signatures
 
-**Problem:** The provider authoring doc has stale examples. It shows `ConfigSections(context.Context, providerapi.SectionContext)` and `InitRuntimeFromSections(_ context.Context, handle providerapi.RuntimeHandle, values *values.Values)`, but the actual interfaces are `ConfigSections(SectionContext)` and `InitRuntimeFromSections(context.Context, *values.Values, RuntimeHandle)`.
+**Original problem:** the provider authoring doc showed outdated examples for config sections, runtime initializers, command provider factories, and capability registration. A new provider author could copy those snippets and hit compiler errors.
 
-**Where to look:**
+**Implementation status:** fixed in XGOJA-012. `cmd/xgoja/doc/04-providers.md` now shows:
 
-- `go-go-goja/cmd/xgoja/doc/04-providers.md`
-- `go-go-goja/pkg/xgoja/providerapi/capabilities.go`
+- `ConfigSections(providerapi.SectionContext)`.
+- `InitRuntimeFromSections(context.Context, *values.Values, providerapi.RuntimeHandle)`.
+- `providerapi.WithPackageCapability(...)`.
+- `CommandSetProvider.New func(providerapi.CommandSetContext)`.
+- the typed `providerapi.RuntimeFactory`.
+- the `values == nil` discovery/preload convention.
+- a decision table for choosing modules, static config, config sections, runtime initializers, runtime closers, and command set providers.
 
-**Stale doc snippet:**
-
-```go
-func (Capability) ConfigSections(context.Context, providerapi.SectionContext) ([]schema.Section, error) { ... }
-
-func (Capability) InitRuntimeFromSections(_ context.Context, handle providerapi.RuntimeHandle, values *values.Values) error { ... }
-```
-
-**Actual API:**
-
-```go
-type ConfigSectionCapability interface {
-    ConfigSections(SectionContext) ([]schema.Section, error)
-}
-
-type RuntimeInitializerCapability interface {
-    InitRuntimeFromSections(context.Context, *values.Values, RuntimeHandle) error
-}
-```
-
-**Why it matters:** This is exactly the kind of issue that blocks onboarding. A new provider author will copy the doc and get compiler errors.
-
-**Cleanup sketch:** add a doc test or example provider that the docs are generated from. At minimum, fix the signatures immediately.
+**Remaining cleanup:** the docs still need to be reorganized into a stronger overview/user-guide/tutorial structure, and the examples need a numbered curriculum.
 
 ### 12.7 The generated examples are useful but not yet arranged as an onboarding path
 
@@ -800,7 +716,7 @@ Suggested table:
 | Configure runtime from parsed flags | `RuntimeInitializerCapability` | module factory config if value is command-specific |
 | Clean up runtime-owned resources | `RuntimeCloserRegistry` | global process hooks |
 | Add package-owned domain commands | `CommandSetProvider` | built-in `run` command |
-| Create a non-runtime Go object for domain commands | `ComponentInitializerCapability` | hidden globals |
+| Create non-runtime Go state for domain commands | provider-owned command code | hidden globals |
 
 ### 13.3 Docs should distinguish three config channels
 
@@ -856,7 +772,7 @@ pkg/xgoja/providerutil/
 
 Medium risk.
 
-- Replace `RuntimeFactory any` with a named interface, or add a typed accessor helper.
+- Keep `providerapi.RuntimeFactory` documented with examples for built-ins, command providers, and existing-runner adapters.
 - Update `discord-bot` to use the typed interface.
 - Document how host adapters should request xgoja runtimes.
 
@@ -868,7 +784,7 @@ Medium to high risk; do after release if possible.
 
 - Decide whether capabilities are package-scoped or module-scoped.
 - Rename or extend APIs accordingly.
-- Mark `ComponentInitializerCapability` experimental unless it gets a real production user.
+- Keep removed unused initializer abstractions out of public docs unless a real production provider needs them.
 
 ### Phase 5: Lifecycle and side-effect hardening
 

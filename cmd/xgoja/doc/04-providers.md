@@ -259,6 +259,17 @@ func Register(registry *providerapi.Registry) error {
 
 Use `values.Values.DecodeSectionInto` instead of reaching into raw maps. The provider owns the section schema and should keep decoding logic typed and local to the provider. Section slugs are global within one command; duplicate slugs are rejected. Shared helpers in `pkg/xgoja/providerutil` can collect sections and run runtime initializers for provider-owned command sets.
 
+## Choose the right provider extension point
+
+| Need | Use | Notes |
+| --- | --- | --- |
+| Expose one JavaScript `require(...)` module | `providerapi.Module` | The simplest and most common provider contribution. |
+| Configure a module statically from `xgoja.yaml` | `ModuleContext.Config` | Use for buildspec/runtime-profile settings such as allowlists or base paths. |
+| Add command-line flags for selected modules | `ConfigSectionCapability` | The section is appended to built-in commands and provider-owned commands that opt in. |
+| Apply parsed command values to a JS runtime | `RuntimeInitializerCapability` | Use `DecodeSectionInto`; avoid side effects when `values == nil`. |
+| Clean up runtime-scoped resources | `RuntimeCloserRegistry` through `RuntimeHandle` | Register HTTP servers, file watchers, or sessions for shutdown. |
+| Add domain-specific CLI commands | `CommandSetProvider` | Return Glazed commands; use `RuntimeFactory` when those commands need xgoja runtimes. |
+
 ## Ship Glazed command sets
 
 For package-owned verbs that need custom Go services, command wiring, or non-JavaScript behavior, register a command set provider. xgoja mounts returned Glazed commands into the generated root command.
@@ -270,7 +281,7 @@ func Register(registry *providerapi.Registry) error {
         providerapi.CommandSetProvider{
             Name:         "tools",
             DefaultMount: "my-provider",
-            New: func(ctx context.Context, c providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+            New: func(c providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
                 cmd, err := cmds.NewBareCommand(
                     &cmds.CommandDescription{Name: "hello", Short: "Say hello"},
                     func(ctx context.Context, parsed *types.ParsedLayers) error {
@@ -298,7 +309,7 @@ commandProviders:
     runtimeProfile: main
 ```
 
-Command providers can return `cmds.BareCommand`, `cmds.WriterCommand`, or `cmds.GlazeCommand`. They receive the selected module descriptors for `runtimeProfile` and a typed `providerapi.RuntimeFactory`, so package-owned commands can participate in the same runtime-profile composition as built-in xgoja commands.
+Command providers can return `cmds.BareCommand`, `cmds.WriterCommand`, or `cmds.GlazeCommand`. They receive the selected module descriptors for `runtimeProfile` and a typed `providerapi.RuntimeFactory`, so package-owned commands can participate in the same runtime-profile composition as built-in xgoja commands. The built-in xgoja app uses this factory for `eval`, `run`, `repl`, and `jsverbs`; the Discord adapter wraps it in `xgojaBotRuntimeFactory` so `botcli` can create bot runtimes with the selected `discord`, `ui`, `fs`, and `express` modules.
 
 ## Split safe and host-capability providers
 

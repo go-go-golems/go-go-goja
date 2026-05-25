@@ -41,11 +41,11 @@
 - [x] Change `CommandSetContext.RuntimeFactory any` to the typed interface.
 - [x] Update `pkg/xgoja/app/command_providers.go` to pass the concrete factory through the typed field.
 - [x] Update `discord-bot/pkg/xgoja/provider/provider.go` to remove the local type assertion and use the typed providerapi interface directly.
-- [ ] Add or update tests proving command providers receive a non-nil typed runtime factory.
-- [ ] Document concrete RuntimeFactory examples in the report/docs:
-  - [ ] Built-in xgoja app runtime factory for `eval`/`run`/`repl`.
-  - [ ] Discord adapter `xgojaBotRuntimeFactory` wrapping xgoja factory for `botcli`.
-  - [ ] Generated command-provider example/testprovider path.
+- [x] Add or update tests proving command providers receive a non-nil typed runtime factory.
+- [x] Document concrete RuntimeFactory examples in the report/docs:
+  - [x] Built-in xgoja app runtime factory for `eval`/`run`/`repl`.
+  - [x] Discord adapter `xgojaBotRuntimeFactory` wrapping xgoja factory for `botcli`.
+  - [x] Generated command-provider example/testprovider path.
 
 ### Phase 2: Move shared section/init helpers to providerapi-adjacent utility
 
@@ -85,7 +85,7 @@
 - [x] Remove `InitializedModule` if no non-test code uses it.
 - [x] Remove or simplify testprovider fixtures that exist only to exercise component initializers.
 - [x] Search with `rg "ComponentInitializer|InitializedModule"` across the workspace.
-- [ ] Update XGOJA docs/report so the concept no longer appears as a public abstraction.
+- [x] Update XGOJA docs/report so the concept no longer appears as a public abstraction.
 
 ### Phase 5: Clarify discovery-vs-execution side effects
 
@@ -101,19 +101,19 @@
 
 ### Phase 6: Fix provider documentation signatures and concepts
 
-- [ ] Update `cmd/xgoja/doc/04-providers.md` stale signatures:
-  - [ ] `ConfigSections(providerapi.SectionContext)`.
-  - [ ] `InitRuntimeFromSections(context.Context, *values.Values, providerapi.RuntimeHandle)`.
-- [ ] Update terminology after renaming:
-  - [ ] package capability vs module config vs runtime initializer.
-- [ ] Add a decision table:
-  - [ ] simple module.
-  - [ ] static module config.
-  - [ ] command-time config section.
-  - [ ] runtime initializer.
-  - [ ] runtime closer.
-  - [ ] command set provider.
-- [ ] Add a concrete RuntimeFactory explanation and examples.
+- [x] Update `cmd/xgoja/doc/04-providers.md` stale signatures:
+  - [x] `ConfigSections(providerapi.SectionContext)`.
+  - [x] `InitRuntimeFromSections(context.Context, *values.Values, providerapi.RuntimeHandle)`.
+- [x] Update terminology after renaming:
+  - [x] package capability vs module config vs runtime initializer.
+- [x] Add a decision table:
+  - [x] simple module.
+  - [x] static module config.
+  - [x] command-time config section.
+  - [x] runtime initializer.
+  - [x] runtime closer.
+  - [x] command set provider.
+- [x] Add a concrete RuntimeFactory explanation and examples.
 
 ### Phase 7: Number and reorganize examples
 

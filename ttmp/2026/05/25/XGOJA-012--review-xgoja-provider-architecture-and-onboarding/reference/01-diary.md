@@ -247,3 +247,41 @@ Updated:
 ### Validation
 
 Ran `go test ./cmd/xgoja/... -count=1`; result: passed. Also grepped docs and `pkg/xgoja` for stale capability/component-initializer names; result: clean.
+
+## Step 10: Added runtime factory regression coverage and refreshed the review/report docs
+
+### Intent
+
+After typing `providerapi.RuntimeFactory`, I wanted a direct regression test that command set providers receive a non-nil typed factory and can use it to instantiate the selected runtime profile. I also needed to update the long-form XGOJA-012 report so it no longer described the old API as current reality.
+
+### What changed
+
+Code/test changes:
+
+- Extended `pkg/xgoja/app/command_providers_test.go`.
+- The command provider test now asserts `ctx.RuntimeFactory != nil`.
+- It calls `ctx.RuntimeFactory.NewRuntime(ctx.Context, ctx.RuntimeProfile)` and verifies the returned runtime and VM are non-nil.
+- It closes the runtime after the assertion.
+- Cleaned the `WithPackageCapability` comment in `providerapi/capabilities.go` to avoid saying “module capability”.
+
+Docs/report changes:
+
+- Updated the XGOJA-012 architecture review to describe the implemented typed runtime factory, `PackageCapability`, and `providerutil` changes.
+- Removed the old domain-object initializer concept as a public recommendation and replaced it with a note that provider-owned command code should own non-runtime Go state directly.
+- Updated the provider guide with a decision table covering:
+  - simple modules,
+  - static module config,
+  - command-time config sections,
+  - runtime initializers,
+  - runtime closers,
+  - command set providers.
+- Fixed the command set provider example signature to `New: func(c providerapi.CommandSetContext) ...`.
+- Added concrete RuntimeFactory explanation for built-ins and the Discord adapter.
+
+### Validation
+
+```bash
+go test ./pkg/xgoja/app ./pkg/xgoja/providerapi ./cmd/xgoja/... -count=1
+```
+
+Result: passed.

@@ -69,7 +69,7 @@ type capabilityEntry struct {
 	capability PackageCapability
 }
 
-// WithPackageCapability registers a package-level module capability. Capabilities are
+// WithPackageCapability registers a package-level capability. Capabilities are
 // package-scoped for now and are attached to selected module descriptors for
 // every selected module from that package.
 func WithPackageCapability(capability PackageCapability) Entry {
