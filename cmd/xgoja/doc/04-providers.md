@@ -207,6 +207,94 @@ jsverbs:
 
 Provider-shipped verbs are useful when a package has a stable Go module API plus higher-level JavaScript commands that should travel with it.
 
+## Expose module configuration sections
+
+A provider can expose Glazed configuration sections for modules in a runtime profile. Built-in `run`, `repl`, and `jsverbs` commands append those sections to their command descriptions and call provider initializers before JavaScript executes.
+
+```go
+type Settings struct {
+    Value string `glazed.parameter:"value"`
+}
+
+type Capability struct{}
+
+func (Capability) CapabilityID() string { return "my-provider.config" }
+
+func (Capability) ConfigSections(context.Context, providerapi.SectionContext) ([]schema.Section, error) {
+    section, err := schema.NewSection("my-provider",
+        schema.WithTitle("My provider"),
+        schema.WithPrefix("my-provider-"),
+        schema.WithStringField("value", fields.WithDefault("default")),
+    )
+    if err != nil {
+        return nil, err
+    }
+    return []schema.Section{section}, nil
+}
+
+func (Capability) InitRuntimeFromSections(_ context.Context, handle providerapi.RuntimeHandle, values *values.Values) error {
+    var settings Settings
+    if err := values.DecodeSectionInto("my-provider", &settings); err != nil {
+        return err
+    }
+    return handle.Runtime().Set("providerValue", settings.Value)
+}
+```
+
+Register the capability with the package:
+
+```go
+func Register(registry *providerapi.Registry) error {
+    return registry.Package("my-provider",
+        providerapi.Module{...},
+        providerapi.WithCapability(Capability{}),
+    )
+}
+```
+
+Use `values.Values.DecodeSectionInto` instead of reaching into raw maps. The provider owns the section schema and should keep decoding logic typed and local to the provider. Section slugs are global within one command; duplicate slugs are rejected.
+
+## Ship Glazed command sets
+
+For package-owned verbs that need custom Go services, command wiring, or non-JavaScript behavior, register a command set provider. xgoja mounts returned Glazed commands into the generated root command.
+
+```go
+func Register(registry *providerapi.Registry) error {
+    return registry.Package("my-provider",
+        providerapi.Module{...},
+        providerapi.CommandSetProvider{
+            Name:         "tools",
+            DefaultMount: "my-provider",
+            New: func(ctx context.Context, c providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+                cmd, err := cmds.NewBareCommand(
+                    &cmds.CommandDescription{Name: "hello", Short: "Say hello"},
+                    func(ctx context.Context, parsed *types.ParsedLayers) error {
+                        return nil
+                    },
+                )
+                if err != nil {
+                    return nil, err
+                }
+                return &providerapi.CommandSet{Commands: []cmds.Command{cmd}}, nil
+            },
+        },
+    )
+}
+```
+
+Buildspec usage:
+
+```yaml
+commandProviders:
+  - id: my-tools
+    package: my-provider
+    name: tools
+    mount: tools
+    runtimeProfile: main
+```
+
+Command providers can return `cmds.BareCommand`, `cmds.WriterCommand`, or `cmds.GlazeCommand`. They receive selected module descriptors for `runtimeProfile`, so they can aggregate module config sections or use component initializer capabilities supplied by the selected packages.
+
 ## Split safe and host-capability providers
 
 Keep dangerous modules separate from safe helpers. A generated binary can compile both providers, but each command should select only the runtime profile it needs.

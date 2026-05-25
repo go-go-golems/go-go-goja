@@ -12,11 +12,13 @@ Each example directory has its own `README.md`, `Makefile`, and `xgoja.yaml`.
 - `core-provider/` — generated binary using the safe first-party core provider (`path`, `yaml`, `crypto`, etc.).
 - `host-provider/` — generated binary using guarded host-capability modules (`fs`, `exec`, `database`) with explicit config.
 - `multiple-runtimes/` — one generated binary with separate safe and host runtime profiles mapped to different commands.
+- `module-sections/` — provider module Glazed sections and runtime initializers on built-in `run` and `jsverbs` commands.
+- `command-provider/` — provider-shipped Glazed command set mounted into the generated root command.
 
 ## Run all examples
 
 ```bash
-for dir in runtime-filesystem embedded-jsverbs provider-shipped-jsverbs; do
+for dir in runtime-filesystem embedded-jsverbs provider-shipped-jsverbs module-sections command-provider; do
   make -C examples/xgoja/$dir smoke
 done
 ```

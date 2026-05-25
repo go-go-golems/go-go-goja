@@ -82,6 +82,8 @@ commands:
 
 `jsverbs` configures JavaScript verb sources that are mounted under the generated jsverbs command.
 
+`commandProviders` mounts Glazed command sets supplied by provider packages.
+
 ## Packages
 
 Each package entry gives xgoja enough information to import and register a provider package.
@@ -160,6 +162,31 @@ The `eval` command spec controls one-shot JavaScript string evaluation. When ena
 The `run` command spec controls file execution. It creates a fresh runtime from the selected profile and executes the given JavaScript file with script-local module roots, so sibling `require("./helper")` calls resolve next to the script.
 
 The `repl` command spec controls the interactive Bubble Tea REPL. It uses the selected runtime profile for `require()` visibility and is intended for terminal sessions; automated tests should validate command construction or help output rather than launching the interactive program.
+
+Provider modules may expose Glazed configuration sections for the selected runtime profile. xgoja appends those sections to `run`, `repl`, and `jsverbs` commands and runs provider-owned runtime initializers before JavaScript executes. For example, a provider section with prefix `fixture-` can add flags such as `--fixture-value` to built-in commands.
+
+## Command providers
+
+Provider packages can also ship whole Glazed command sets. The `commandProviders` section selects those providers and mounts them into the generated root command.
+
+```yaml
+commandProviders:
+  - id: fixture-tools
+    package: fixture
+    name: tools
+    mount: fixture
+    runtimeProfile: main
+```
+
+Fields:
+
+- `id` is a unique buildspec-local command provider entry ID.
+- `package` references a package ID from `packages`.
+- `name` is the command set provider name registered by that package.
+- `mount` optionally overrides the provider's default mount path. A single segment such as `fixture` creates commands under `fixture ...`; a slash-delimited path can mount deeper.
+- `runtimeProfile` optionally selects the runtime profile passed to the provider. If omitted, xgoja uses the first runtime profile.
+
+Command providers return Glazed command values, so provider authors can expose `BareCommand`, `WriterCommand`, or `GlazeCommand` commands. If a `runtimeProfile` is selected, xgoja passes the selected module descriptors to the provider so those commands can reuse module-provided sections and component initializers.
 
 ## Target modes
 
@@ -262,7 +289,7 @@ Run validation before building:
 xgoja doctor -f xgoja.yaml
 ```
 
-The validator checks supported target kinds, package uniqueness, known runtime package IDs, duplicate runtime aliases, enabled command runtime references, jsverb source IDs, and local paths for embedded sources.
+The validator checks supported target kinds, package uniqueness, known runtime package IDs, duplicate runtime aliases, enabled command runtime references, command provider package/runtime references, jsverb source IDs, and local paths for embedded sources.
 
 ## Troubleshooting
 
@@ -272,6 +299,7 @@ The validator checks supported target kinds, package uniqueness, known runtime p
 | `duplicate alias` | Two modules in one runtime resolve to the same `require()` name. | Set distinct `as` values. |
 | embedded source path error | `embed: true` uses a path missing at build time. | Fix `path` relative to the spec file or use an absolute path. |
 | provider verb source has no filesystem | The provider registered metadata but no `FS`. | Register `providerapi.VerbSource{FS: ..., Root: ...}`. |
+| command provider not mounted | `commandProviders[].package` or `commandProviders[].name` does not match a registered command set provider, or mounting failed during generated command construction. | Verify the provider registration and run the generated binary with `--help` to inspect the command tree. |
 | generated build cannot resolve `github.com/go-go-golems/go-go-goja v0.0.0` | You are running xgoja from source, so no released module version is recorded in the binary. | Pass `--xgoja-replace /path/to/go-go-goja` while developing locally, or build with a released xgoja binary. |
 | generated build fails | The generated module cannot resolve imports or replacements. | Re-run with `--keep-work` and inspect generated `go.mod` and `main.go`. |
 

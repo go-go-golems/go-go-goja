@@ -148,3 +148,16 @@ Added reusable testprovider module section capability and Bare Writer Glaze comm
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/module_sections.go — Deduplicated package-level capabilities across selected runtime modules
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/testprovider/provider.go — Added fixture config section runtime initializer and Bare Writer Glaze command provider
 
+
+## 2026-05-25
+
+Added generated examples docs and validation tests for module sections and commandProviders.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/02-buildspec.md — Documented commandProviders and built-in module section aggregation
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/04-providers.md — Documented capability interfaces DecodeSectionInto and command set providers
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/internal/buildspec/validate_test.go — Added commandProviders validation tests
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/command-provider/xgoja.yaml — New generated example for provider-shipped Glazed command sets
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/module-sections/xgoja.yaml — New generated example for module-provided sections on run and jsverbs
+

@@ -1150,3 +1150,78 @@ Focused validation command:
 ```bash
 go test ./pkg/xgoja/testprovider ./pkg/xgoja/app -count=1
 ```
+
+## Step 18: Added generated examples and provider/buildspec documentation
+
+I added runnable generated examples for the newly implemented XGOJA-008 surfaces and updated the xgoja help docs.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue."
+
+**Assistant interpretation:** Continue from fixture completion into examples, docs, and validation coverage.
+
+**Inferred user intent:** Make the new provider capability and command-provider APIs usable by future package authors, not just tested internally.
+
+### What I did
+
+- Added `examples/xgoja/module-sections`:
+  - demonstrates module-provided Glazed sections on built-in `run`;
+  - demonstrates the same runtime initializer path on generated `jsverbs`;
+  - smoke proves `--fixture-value` initializes `globalThis.fixtureValue`.
+- Added `examples/xgoja/command-provider`:
+  - mounts fixture `CommandSetProvider{Name: "tools"}` under `fixture`;
+  - smokes Bare, Writer, and Glaze command styles;
+  - proves provider commands receive module-provided section flags.
+- Updated `examples/xgoja/README.md` to list the new examples.
+- Updated `cmd/xgoja/doc/02-buildspec.md` with `commandProviders`, module-section aggregation, validation, and troubleshooting notes.
+- Updated `cmd/xgoja/doc/04-providers.md` with provider capability examples, `DecodeSectionInto`, runtime initializer guidance, and command set provider authoring notes.
+- Added buildspec validation tests for command provider entries.
+
+### Why
+
+- The implementation now has runnable generated-binary coverage and author-facing docs.
+- The buildspec reference needed to describe the new `commandProviders` field before final ticket close.
+
+### What worked
+
+- Generated examples passed:
+  - `make -C examples/xgoja/module-sections smoke`
+  - `make -C examples/xgoja/command-provider smoke`
+- Focused tests passed:
+  - `go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi -count=1`
+
+### What didn't work
+
+- No new blocker. The only minor issue is cosmetic: the `module-sections` JS verb text output has no trailing newline, so Make's directory message appears adjacent to `hello verb`.
+
+### What I learned
+
+- The generated examples are the clearest explanation of the design: one example for built-ins using module sections, one for provider-owned Glazed commands.
+
+### What was tricky to build
+
+- Keeping the command-provider example minimal required disabling built-in command families while still declaring a runtime profile for provider command context.
+
+### What warrants a second pair of eyes
+
+- The docs intentionally keep examples concise; a future longer guide could show component initializer capabilities in a real provider.
+
+### What should be done in the future
+
+- Consider adding a full tutorial page once real packages like loupedeck or discord-bot adopt command providers.
+
+### Code review instructions
+
+- Run both new example smoke targets.
+- Review `cmd/xgoja/doc/02-buildspec.md` and `cmd/xgoja/doc/04-providers.md` for API accuracy.
+
+### Technical details
+
+Validation commands:
+
+```bash
+make -C examples/xgoja/module-sections smoke
+make -C examples/xgoja/command-provider smoke
+go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi -count=1
+```
