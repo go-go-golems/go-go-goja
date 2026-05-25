@@ -21,26 +21,26 @@
 
 ### Phase 0: Re-read and confirm target shape
 
-- [ ] Re-read `design/01-xgoja-provider-architecture-review-and-onboarding-guide.md` sections 8, 12, and 13.
-- [ ] Confirm the intended naming changes before editing APIs:
-  - [ ] Keep the general capability concept understood, but avoid overusing it in docs.
-  - [ ] Rename current package-scoped `ModuleCapability` concept to `PackageCapability` (Option A from section 12.3).
-  - [ ] Remove `ComponentInitializerCapability` and `InitializedModule` unless a real provider needs them.
-- [ ] Write a short migration note in the XGOJA-012 diary before making code changes.
+- [x] Re-read `design/01-xgoja-provider-architecture-review-and-onboarding-guide.md` sections 8, 12, and 13.
+- [x] Confirm the intended naming changes before editing APIs:
+  - [x] Keep the general capability concept understood, but avoid overusing it in docs.
+  - [x] Rename current package-scoped `ModuleCapability` concept to `PackageCapability` (Option A from section 12.3).
+  - [x] Remove `ComponentInitializerCapability` and `InitializedModule` unless a real provider needs them.
+- [x] Write a short migration note in the XGOJA-012 diary before making code changes.
 
 ### Phase 1: Explain and type `RuntimeFactory`
 
-- [ ] Inspect current `RuntimeFactory` creation path:
-  - [ ] `pkg/xgoja/app/factory.go` — concrete `RuntimeFactory` type and `NewRuntime` method.
-  - [ ] `pkg/xgoja/app/host.go` / root setup — where `Host` stores and passes the factory.
-  - [ ] `pkg/xgoja/app/command_providers.go` — where `CommandSetContext.RuntimeFactory` is populated.
-  - [ ] `discord-bot/pkg/xgoja/provider/provider.go` — current type assertion from `any`.
-- [ ] Add a typed provider-facing runtime factory interface to `providerapi`, for example:
-  - [ ] `type RuntimeFactory interface { NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*engine.Runtime, error) }` if accepting `engine` dependency is OK.
+- [x] Inspect current `RuntimeFactory` creation path:
+  - [x] `pkg/xgoja/app/factory.go` — concrete `RuntimeFactory` type and `NewRuntime` method.
+  - [x] `pkg/xgoja/app/host.go` / root setup — where `Host` stores and passes the factory.
+  - [x] `pkg/xgoja/app/command_providers.go` — where `CommandSetContext.RuntimeFactory` is populated.
+  - [x] `discord-bot/pkg/xgoja/provider/provider.go` — current type assertion from `any`.
+- [x] Add a typed provider-facing runtime factory interface to `providerapi`, for example:
+  - [x] `type RuntimeFactory interface { NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*engine.Runtime, error) }` if accepting `engine` dependency is OK.
   - [ ] Or a smaller `RuntimeFactory` / `Runtime` facade if avoiding concrete `engine.Runtime` in providerapi is preferred.
-- [ ] Change `CommandSetContext.RuntimeFactory any` to the typed interface.
-- [ ] Update `pkg/xgoja/app/command_providers.go` to pass the concrete factory through the typed field.
-- [ ] Update `discord-bot/pkg/xgoja/provider/provider.go` to remove the local type assertion and use the typed providerapi interface directly.
+- [x] Change `CommandSetContext.RuntimeFactory any` to the typed interface.
+- [x] Update `pkg/xgoja/app/command_providers.go` to pass the concrete factory through the typed field.
+- [x] Update `discord-bot/pkg/xgoja/provider/provider.go` to remove the local type assertion and use the typed providerapi interface directly.
 - [ ] Add or update tests proving command providers receive a non-nil typed runtime factory.
 - [ ] Document concrete RuntimeFactory examples in the report/docs:
   - [ ] Built-in xgoja app runtime factory for `eval`/`run`/`repl`.

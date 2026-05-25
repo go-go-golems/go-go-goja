@@ -6,13 +6,22 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/go-go-goja/engine"
 )
 
 // CommandSetProviderFactory constructs package-owned Glazed commands for a
 // generated xgoja binary.
 type CommandSetProviderFactory func(CommandSetContext) (*CommandSet, error)
+
+// RuntimeFactory creates xgoja runtimes from named runtime profiles. Command
+// set providers use it when they own domain-specific commands but still want
+// those commands to run JavaScript with xgoja-selected modules.
+type RuntimeFactory interface {
+	NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*engine.Runtime, error)
+}
 
 // CommandSetContext is passed to command set providers when generated xgoja
 // attaches custom commands.
@@ -25,7 +34,7 @@ type CommandSetContext struct {
 	Config          json.RawMessage
 	Host            HostServices
 	Providers       *Registry
-	RuntimeFactory  any
+	RuntimeFactory  RuntimeFactory
 	SelectedModules []ModuleDescriptor
 }
 

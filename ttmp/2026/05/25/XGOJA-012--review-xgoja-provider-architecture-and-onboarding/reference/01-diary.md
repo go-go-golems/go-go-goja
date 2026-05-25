@@ -68,3 +68,45 @@ The user clarified the desired direction for the follow-up work:
 - Reorganize xgoja docs into overview, user guide/reference, and tutorials.
 
 The ticket task list was expanded into a detailed multi-phase checklist so the next session can start from the task file without reconstructing context.
+
+## Step 5: Typed provider-facing RuntimeFactory
+
+### Intent
+
+The user approved a hard cutover to a concrete provider-facing runtime factory shape:
+
+```go
+type RuntimeFactory interface {
+    NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*engine.Runtime, error)
+}
+```
+
+This removes the temporary `any` field from `providerapi.CommandSetContext` and makes command-provider authors able to see exactly what runtime service xgoja offers.
+
+### What changed
+
+In `go-go-goja/pkg/xgoja/providerapi/commands.go`:
+
+- Added `providerapi.RuntimeFactory`.
+- Changed `CommandSetContext.RuntimeFactory` from `any` to `RuntimeFactory`.
+
+In `discord-bot/pkg/xgoja/provider/provider.go`:
+
+- Removed the local `xgojaRuntimeFactory` interface.
+- Removed the runtime factory type assertion.
+- The Discord command provider now uses `ctx.RuntimeFactory` directly when constructing `xgojaBotRuntimeFactory`.
+
+### Why this is simpler
+
+Before this change, the command-provider API said only “there may be some runtime factory-like object here.” The real contract was hidden in the Discord adapter as a local interface. That made the API harder to learn and easy to misuse.
+
+After this change, the API says directly: command providers can create xgoja runtimes by calling `NewRuntime(ctx, profile, opts...)`.
+
+### Validation
+
+```bash
+go test ./pkg/xgoja/providerapi ./pkg/xgoja/app -count=1
+go test ./pkg/xgoja/provider -count=1   # in discord-bot
+```
+
+Result: passed.

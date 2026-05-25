@@ -26,3 +26,13 @@ Uploaded xgoja architecture review report to reMarkable and passed docmgr doctor
 
 Expanded XGOJA-012 into detailed implementation plan for RuntimeFactory typing, provider utilities, capability cleanup, docs, and numbered examples.
 
+
+## 2026-05-25
+
+Typed CommandSetContext.RuntimeFactory and removed Discord adapter's local runtime-factory type assertion.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/pkg/xgoja/provider/provider.go — Discord provider now uses providerapi.RuntimeFactory directly
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/commands.go — RuntimeFactory interface added and CommandSetContext.RuntimeFactory typed
+
