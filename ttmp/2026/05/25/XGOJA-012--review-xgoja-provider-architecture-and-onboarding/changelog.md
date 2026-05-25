@@ -98,3 +98,14 @@ Renamed xgoja examples into numbered onboarding curriculum and validated all exa
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/08-provider-shipped-jsverbs — provider-shipped JS verbs endpoint example
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/README.md — numbered learning path and smoke loop
 
+
+## 2026-05-25
+
+Reorganized bundled xgoja help docs into overview, user guide, and focused tutorials.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/02-user-guide.md — full xgoja user guide and buildspec reference
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/05-tutorial-providing-commands.md — new provider command tutorial
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/root_test.go — bundled help test now targets user-guide
+

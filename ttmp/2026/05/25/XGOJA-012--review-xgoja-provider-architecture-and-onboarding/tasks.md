@@ -133,19 +133,19 @@
 
 ### Phase 8: Reorganize xgoja docs
 
-- [ ] Restructure docs into:
-  - [ ] `overview` — what xgoja is and when to use it.
-  - [ ] `user-guide` — extensive guide and reference for generated binaries, APIs, and file format.
-  - [ ] `tutorials/using-xgoja-yaml` — building a generated binary from YAML.
-  - [ ] `tutorials/providing-package-and-modules` — writing a provider package and modules.
-  - [ ] `tutorials/providing-commands` — writing a command set provider.
-- [ ] Preserve existing useful content from:
-  - [ ] `cmd/xgoja/doc/01-overview.md`.
-  - [ ] `cmd/xgoja/doc/02-buildspec.md`.
-  - [ ] `cmd/xgoja/doc/03-tutorial.md`.
-  - [ ] `cmd/xgoja/doc/04-providers.md`.
-- [ ] Update embedded doc registration if filenames/slugs change.
-- [ ] Run doc/help smoke commands if available.
+- [x] Restructure docs into:
+  - [x] `overview` — what xgoja is and when to use it.
+  - [x] `user-guide` — extensive guide and reference for generated binaries, APIs, and file format.
+  - [x] `tutorials/using-xgoja-yaml` — building a generated binary from YAML.
+  - [x] `tutorials/providing-package-and-modules` — writing a provider package and modules.
+  - [x] `tutorials/providing-commands` — writing a command set provider.
+- [x] Preserve existing useful content from:
+  - [x] `cmd/xgoja/doc/01-overview.md`.
+  - [x] `cmd/xgoja/doc/02-buildspec.md`.
+  - [x] `cmd/xgoja/doc/03-tutorial.md`.
+  - [x] `cmd/xgoja/doc/04-providers.md`.
+- [x] Update embedded doc registration if filenames/slugs change.
+- [x] Run doc/help smoke commands if available.
 
 ### Phase 9: Validation and closeout
 

@@ -325,3 +325,32 @@ done
 ```
 
 Result: passed.
+
+## Step 12: Reorganized xgoja help docs into overview, user guide, and tutorials
+
+### Intent
+
+Phase 8 called for moving from numbered historical docs to a clearer help structure: overview, user guide/reference, and focused tutorials.
+
+### What changed
+
+Renamed and retitled the bundled help pages:
+
+- `01-overview.md` remains `overview`.
+- `02-buildspec.md` -> `02-user-guide.md` with slug `user-guide`.
+- `03-tutorial.md` -> `03-tutorial-using-xgoja-yaml.md` with slug `tutorial-using-xgoja-yaml`.
+- `04-providers.md` -> `04-tutorial-providing-package-and-modules.md` with slug `tutorial-providing-package-and-modules`.
+- Added `05-tutorial-providing-commands.md` with slug `tutorial-providing-commands`.
+- Added `06-buildspec-reference.md` as a quick-reference pointer to the full user guide.
+
+Updated references in provider docs and the xgoja help test to use the new `user-guide` topic. The embed pattern already loads `*.md`, so no code-level doc registration change was needed beyond filenames/slugs.
+
+### Validation
+
+```bash
+go test ./cmd/xgoja/... -count=1
+GOWORK=off go run ./cmd/xgoja help user-guide
+GOWORK=off go run ./cmd/xgoja help tutorial-providing-commands
+```
+
+Result: passed.

@@ -1,7 +1,7 @@
 ---
-Title: "xgoja provider authoring"
-Slug: providers
-Short: "How to expose Goja bindings as xgoja provider packages."
+Title: "Tutorial: providing xgoja packages and modules"
+Slug: tutorial-providing-package-and-modules
+Short: "How to expose Goja bindings as xgoja provider packages and modules."
 Topics:
 - xgoja
 - goja
@@ -381,8 +381,9 @@ xgoja build -f examples/xgoja/my-provider/xgoja.yaml --xgoja-replace /path/to/go
 ## See also
 
 - `xgoja help overview`
-- `xgoja help buildspec`
-- `xgoja help tutorial`
+- `xgoja help user-guide`
+- `xgoja help tutorial-using-xgoja-yaml`
+- `xgoja help tutorial-providing-commands`
 - `examples/xgoja/01-core-provider/`
 - `examples/xgoja/02-host-provider/`
 - `examples/xgoja/03-multiple-runtimes/`

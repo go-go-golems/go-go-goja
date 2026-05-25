@@ -1,6 +1,6 @@
 ---
-Title: "xgoja buildspec reference"
-Slug: buildspec
+Title: "xgoja user guide and buildspec reference"
+Slug: user-guide
 Short: "Reference for xgoja.yaml packages, runtimes, commands, targets, and jsverb source modes."
 Topics:
 - xgoja
