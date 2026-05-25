@@ -33,4 +33,4 @@
 - [x] Run focused `discord-bot` tests.
 - [x] Run generated example smoke.
 - [x] Update diary/changelog.
-- [ ] Commit implementation.
+- [x] Commit implementation.

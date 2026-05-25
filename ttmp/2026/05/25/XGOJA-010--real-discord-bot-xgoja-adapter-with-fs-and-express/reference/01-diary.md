@@ -163,3 +163,12 @@ The first tmux attempt passed credentials as flags. I immediately changed the Ma
 
 - Commit both repos.
 - Decide whether to add a real express HTTP host lifecycle in this ticket or a follow-up.
+
+
+## Closeout: XGOJA-010 superseded-by-XGOJA-011 scope split
+
+XGOJA-010 delivered the real `discord-bot` xgoja adapter: the `discord` and `ui` modules, the `bots` command set provider, runtime-profile bridging into `botcli`, the generated Discord bot example, focused tests, and a live tmux run.
+
+The original title also mentioned Express. During implementation we clarified the architecture: `discord-bot` should not own or know about Express. HTTP/Express belongs in xgoja/go-go-goja, while Discord exposes non-Express-specific outbound APIs. That follow-up work was moved to and completed in XGOJA-011.
+
+Therefore this ticket is complete for its Discord-adapter portion and superseded by XGOJA-011 for the Express/HTTP portion.
