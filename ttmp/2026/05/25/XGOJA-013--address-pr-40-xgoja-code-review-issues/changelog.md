@@ -22,3 +22,13 @@ Fixed PR 40 review issues: runtime override initializers now use selected profil
 
 Closed after addressing PR 40 review comments, adding regression tests, nearby runtime override hardening, and validation.
 
+
+## 2026-05-25
+
+Fixed follow-up PR 40 review issue: command providers now receive the resolved fallback runtime profile in CommandSetContext.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/command_providers.go — CommandSetContext.RuntimeProfile now uses resolved fallback profile
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/command_providers_test.go — regression test covers omitted command provider runtimeProfile with RuntimeFactory.NewRuntime
+

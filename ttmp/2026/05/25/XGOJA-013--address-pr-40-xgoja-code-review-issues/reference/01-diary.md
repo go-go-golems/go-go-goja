@@ -90,3 +90,27 @@ go test ./pkg/xgoja/provider ./internal/jsdiscord ./pkg/botcli -count=1
 ```
 
 All passed.
+
+## Step 3: Fixed defaulted command provider runtime profile in context
+
+A follow-up Codex comment found another subtle defaulting bug in `pkg/xgoja/app/command_providers.go`.
+
+When `commandProviders[].runtimeProfile` was omitted, `selectedModulesForCommandProvider` correctly selected modules from `firstRuntime(spec)`, but `CommandSetContext.RuntimeProfile` was still passed as the raw trimmed buildspec field, i.e. the empty string. Providers that used `ctx.RuntimeFactory.NewRuntime(ctx.Context, ctx.RuntimeProfile)` would then fail with `unknown runtime profile ""` even though xgoja had already selected fallback modules.
+
+Fix:
+
+- Added `Host.runtimeProfileForCommandProvider(instance)` as the single defaulting helper.
+- `newCommandSet` now passes the resolved profile into `CommandSetContext.RuntimeProfile`.
+- `selectedModulesForCommandProvider` uses the same helper.
+
+Regression test:
+
+- `TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext` omits `RuntimeProfile`, asserts the provider receives `fallback`, and creates a runtime through `ctx.RuntimeFactory.NewRuntime(ctx.Context, ctx.RuntimeProfile)`.
+
+Validation:
+
+```bash
+go test ./pkg/xgoja/app -run 'TestHostAttachCommandProviders(Default|Mounts)' -count=1
+```
+
+Result: passed.

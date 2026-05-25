@@ -54,6 +54,7 @@ func (h *Host) newCommandSet(instance CommandProviderInstance, provider provider
 	if err != nil {
 		return nil, fmt.Errorf("marshal command provider config %s: %w", instance.ID, err)
 	}
+	profile := h.runtimeProfileForCommandProvider(instance)
 	selected, err := h.selectedModulesForCommandProvider(instance)
 	if err != nil {
 		return nil, err
@@ -63,7 +64,7 @@ func (h *Host) newCommandSet(instance CommandProviderInstance, provider provider
 		PackageID:       instance.Package,
 		Name:            instance.Name,
 		Mount:           mount,
-		RuntimeProfile:  strings.TrimSpace(instance.RuntimeProfile),
+		RuntimeProfile:  profile,
 		Config:          config,
 		Providers:       h.Providers,
 		RuntimeFactory:  h.Factory,
@@ -78,11 +79,16 @@ func (h *Host) newCommandSet(instance CommandProviderInstance, provider provider
 	return set, nil
 }
 
-func (h *Host) selectedModulesForCommandProvider(instance CommandProviderInstance) ([]providerapi.ModuleDescriptor, error) {
+func (h *Host) runtimeProfileForCommandProvider(instance CommandProviderInstance) string {
 	profile := strings.TrimSpace(instance.RuntimeProfile)
 	if profile == "" {
 		profile = firstRuntime(h.Spec)
 	}
+	return profile
+}
+
+func (h *Host) selectedModulesForCommandProvider(instance CommandProviderInstance) ([]providerapi.ModuleDescriptor, error) {
+	profile := h.runtimeProfileForCommandProvider(instance)
 	if profile == "" {
 		return nil, nil
 	}

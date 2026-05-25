@@ -35,6 +35,56 @@ func TestApplyMountToCommandsDoesNotMutateProviderDescriptions(t *testing.T) {
 	}
 }
 
+func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := registry.Package("fixture",
+		providerapi.Module{Name: "mod", New: noopSectionModule},
+		providerapi.CommandSetProvider{
+			Name:         "tools",
+			DefaultMount: "tools",
+			New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+				if ctx.RuntimeProfile != "fallback" {
+					t.Fatalf("runtime profile = %q", ctx.RuntimeProfile)
+				}
+				if len(ctx.SelectedModules) != 1 || ctx.SelectedModules[0].ModuleID != "mod" {
+					t.Fatalf("selected modules = %#v", ctx.SelectedModules)
+				}
+				runtime, err := ctx.RuntimeFactory.NewRuntime(ctx.Context, ctx.RuntimeProfile)
+				if err != nil {
+					t.Fatalf("new runtime from defaulted command provider profile: %v", err)
+				}
+				if runtime == nil || runtime.VM == nil {
+					t.Fatalf("runtime = %#v", runtime)
+				}
+				if err := runtime.Close(ctx.Context); err != nil {
+					t.Fatalf("close runtime: %v", err)
+				}
+				return &providerapi.CommandSet{Commands: []cmds.Command{&fixtureBareCommand{
+					CommandDescription: cmds.NewCommandDescription("ping", cmds.WithShort("Ping")),
+					run:                func(context.Context, *values.Values) error { return nil },
+				}}}, nil
+			},
+		},
+	); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	spec := &Spec{
+		Runtimes: map[string]Runtime{"fallback": {Modules: []ModuleInstance{{Package: "fixture", Name: "mod"}}}},
+		CommandProviders: []CommandProviderInstance{{
+			ID:      "fixture-tools",
+			Package: "fixture",
+			Name:    "tools",
+			Mount:   "fixture",
+		}},
+	}
+	root := &cobra.Command{Use: "test"}
+	NewHost(registry, spec).AttachDefaultCommands(root)
+	root.SetArgs([]string{"fixture", "ping"})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute command provider command: %v", err)
+	}
+}
+
 func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 	called := false
 	registry := providerapi.NewRegistry()
