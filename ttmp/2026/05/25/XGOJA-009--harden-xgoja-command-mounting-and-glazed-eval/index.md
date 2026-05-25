@@ -1,7 +1,7 @@
 ---
 Title: Harden xgoja command mounting and Glazed eval
 Ticket: XGOJA-009
-Status: active
+Status: complete
 Topics:
     - xgoja
     - goja
@@ -22,10 +22,11 @@ RelatedFiles:
       Note: Converted eval to Glazed command with module sections and runtime initializers
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-25T11:39:35.440707306-04:00
+LastUpdated: 2026-05-25T11:45:14.617944845-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Harden xgoja command mounting and Glazed eval

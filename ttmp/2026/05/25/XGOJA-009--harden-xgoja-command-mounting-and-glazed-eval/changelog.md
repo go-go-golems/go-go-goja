@@ -23,3 +23,8 @@ Broader xgoja validation passed after eval and command mount cleanup.
 
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-009--harden-xgoja-command-mounting-and-glazed-eval/reference/01-diary.md — Recorded validation commands and outcome
 
+
+## 2026-05-25
+
+Fixed pre-adapter caveats by converting eval to Glazed module-section command and cloning command-provider mount descriptions.
+
