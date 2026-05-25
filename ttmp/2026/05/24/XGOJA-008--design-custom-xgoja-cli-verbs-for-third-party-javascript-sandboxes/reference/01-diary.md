@@ -1006,3 +1006,75 @@ Focused validation command:
 ```bash
 go test ./pkg/xgoja/app -run 'TestJSVerbsCommandsIncludeRuntimeProfileModuleSections|TestJSVerbsInitializeRuntimeFromModuleSections' -count=1
 ```
+
+## Step 16: Implemented first custom command set provider slice
+
+I started phase 6 and implemented the first custom Glazed command provider path. This adds provider API registration, runtime spec support, host attachment, mount prefixing, and a fixture `BareCommand` test.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue."
+
+**Assistant interpretation:** Continue from built-in command section integration into command set providers.
+
+**Inferred user intent:** Move from runtime-profile sections to package-owned custom command trees while keeping work incremental.
+
+**Commit (code):** Command provider slice committed after focused tests.
+
+### What I did
+
+- Added `providerapi.CommandSetProvider`, `CommandSet`, and `CommandSetContext`.
+- Extended `providerapi.Package` and `Registry` with command set provider storage and resolution.
+- Added app/runtime spec support for `commandProviders`.
+- Added buildspec support for `commandProviders` and validation for IDs, package references, names, and runtime profile references.
+- Added embedded spec rendering for command providers.
+- Added `Host.AttachCommandProviders` after built-ins.
+- Added command provider context construction with selected runtime-profile module descriptors.
+- Added simple mount-parent prefixing for returned Glazed commands.
+- Added a fixture test that mounts a package-provided `BareCommand` under a configured parent and executes it.
+
+### Why
+
+- This proves the revised design's core custom command-provider boundary: providers return Glazed commands, and xgoja mounts them through Glazed/Cobra integration.
+
+### What worked
+
+- Focused tests passed:
+  - `go test ./pkg/xgoja/providerapi ./pkg/xgoja/app ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate -count=1`
+
+### What didn't work
+
+- I did not yet add WriterCommand/GlazeCommand fixture examples. The first slice validates `BareCommand`, which is the expected dominant case.
+- Mount prefixing currently mutates command descriptions in place. That is acceptable for the fixture but may need a clone strategy before broad provider reuse.
+
+### What I learned
+
+- Command provider attachment can reuse `glazedcli.AddCommandsToRootCommand`; no raw Cobra return type is necessary.
+- Embedding `commandProviders` in the runtime spec is enough for generated xgoja binaries because provider imports already happen at package registration time.
+
+### What was tricky to build
+
+- Selecting modules for command providers: I implemented runtime-profile selection plus optional module filtering by `package.module` or alias.
+
+### What warrants a second pair of eyes
+
+- Whether `CommandSetContext.RuntimeFactory` should be `any` as currently implemented or a small typed interface.
+- Whether command-provider config should be decoded by xgoja or left as raw JSON for providers.
+- Whether mount prefixing should clone command descriptions rather than mutating them.
+
+### What should be done in the future
+
+- Add WriterCommand and GlazeCommand fixtures if needed.
+- Add generated examples and docs after the API shape settles.
+
+### Code review instructions
+
+- Review `providerapi/commands.go`, `app/command_providers.go`, and `command_providers_test.go` as the main command-provider implementation slice.
+
+### Technical details
+
+Focused validation command:
+
+```bash
+go test ./pkg/xgoja/providerapi ./pkg/xgoja/app ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate -count=1
+```

@@ -51,6 +51,7 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 	if h.Spec.Commands.JSVerbs.Enabled {
 		h.AttachVerbs(root)
 	}
+	h.AttachCommandProviders(root)
 }
 
 func (h *Host) AttachEval(root *cobra.Command) {

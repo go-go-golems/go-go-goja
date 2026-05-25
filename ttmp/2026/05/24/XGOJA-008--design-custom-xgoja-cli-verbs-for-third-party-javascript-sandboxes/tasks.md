@@ -74,18 +74,18 @@
 
 ## Implementation phase 6 — command set providers
 
-- [ ] P6.1 Add `providerapi.CommandSetProvider`, `CommandSet`, and `CommandSetContext`
-- [ ] P6.2 Extend registry package storage with command set providers
-- [ ] P6.3 Add duplicate/missing factory validation and unit tests
-- [ ] P6.4 Add app spec/buildspec `commandProviders` support
-- [ ] P6.5 Add generated main wiring for command providers
-- [ ] P6.6 Add `Host.AttachCommandProviders`
-- [ ] P6.7 Implement mount-parent prefix application or document command-owned parents
-- [ ] P6.8 Add fixture command provider returning a `BareCommand`
+- [x] P6.1 Add `providerapi.CommandSetProvider`, `CommandSet`, and `CommandSetContext`
+- [x] P6.2 Extend registry package storage with command set providers
+- [x] P6.3 Add duplicate/missing factory validation and unit tests
+- [x] P6.4 Add app spec/buildspec `commandProviders` support
+- [x] P6.5 Add generated main wiring for command providers
+- [x] P6.6 Add `Host.AttachCommandProviders`
+- [x] P6.7 Implement mount-parent prefix application or document command-owned parents
+- [x] P6.8 Add fixture command provider returning a `BareCommand`
 - [ ] P6.9 Add fixture command provider returning `WriterCommand`/`GlazeCommand` examples if practical
-- [ ] P6.10 Add generated app tests for command provider attachment
-- [ ] P6.11 Run focused command provider tests
-- [ ] P6.12 Commit command provider slice
+- [x] P6.10 Add generated app tests for command provider attachment
+- [x] P6.11 Run focused command provider tests
+- [x] P6.12 Commit command provider slice
 
 ## Implementation phase 7 — generated examples and docs
 

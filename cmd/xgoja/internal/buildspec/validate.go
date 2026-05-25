@@ -19,6 +19,7 @@ func Validate(spec *Spec) *Report {
 	packageIDs := validatePackages(report, spec)
 	validateRuntimes(report, spec, packageIDs)
 	validateCommands(report, spec)
+	validateCommandProviders(report, spec, packageIDs)
 	validateJSVerbs(report, spec, packageIDs)
 
 	return report
@@ -158,6 +159,39 @@ func validateCommandRuntime(report *Report, path string, command CommandSpec, ru
 		return
 	}
 	report.AddOK("command-runtime", path+".runtime", command.Runtime)
+}
+
+func validateCommandProviders(report *Report, spec *Spec, packageIDs map[string]PackageSpec) {
+	ids := map[string]struct{}{}
+	for i, provider := range spec.CommandProviders {
+		path := fmt.Sprintf("commandProviders[%d]", i)
+		id := strings.TrimSpace(provider.ID)
+		if id == "" {
+			report.AddError("command-provider-id", path+".id", "command provider id is required")
+		} else if _, ok := ids[id]; ok {
+			report.AddError("command-provider-id", path+".id", fmt.Sprintf("duplicate command provider id %q", id))
+		} else {
+			ids[id] = struct{}{}
+		}
+		if strings.TrimSpace(provider.Package) == "" {
+			report.AddError("command-provider-package", path+".package", "command provider package is required")
+		} else if _, ok := packageIDs[provider.Package]; !ok {
+			report.AddError("command-provider-package", path+".package", fmt.Sprintf("unknown package id %q", provider.Package))
+		}
+		if strings.TrimSpace(provider.Name) == "" {
+			report.AddError("command-provider-name", path+".name", "command provider name is required")
+		}
+		if strings.TrimSpace(provider.RuntimeProfile) != "" {
+			if _, ok := spec.Runtimes[provider.RuntimeProfile]; !ok {
+				report.AddError("command-provider-runtime", path+".runtimeProfile", fmt.Sprintf("unknown runtime profile %q", provider.RuntimeProfile))
+			} else {
+				report.AddOK("command-provider-runtime", path+".runtimeProfile", provider.RuntimeProfile)
+			}
+		}
+	}
+	if len(spec.CommandProviders) > 0 {
+		report.AddOK("command-providers", "commandProviders", fmt.Sprintf("%d command provider(s) declared", len(spec.CommandProviders)))
+	}
 }
 
 func validateJSVerbs(report *Report, spec *Spec, packageIDs map[string]PackageSpec) {

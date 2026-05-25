@@ -127,3 +127,14 @@ Wired module-provided Glazed sections and runtime initializers into generated js
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/jsverbs_module_sections_test.go — Added jsverbs fixture tests for module sections and runtime initialization
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/root.go — jsverbs command construction now appends module sections and initializes runtimes
 
+
+## 2026-05-25
+
+Implemented first custom Glazed command set provider slice with registry spec host attachment and fixture test.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/command_providers.go — Added host attachment for custom command providers
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/command_providers_test.go — Added fixture BareCommand provider attachment test
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/commands.go — Added command set provider API
+
