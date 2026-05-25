@@ -1,6 +1,6 @@
 ---
-Title: "xgoja tutorial"
-Slug: tutorial
+Title: "Tutorial: using xgoja.yaml"
+Slug: tutorial-using-xgoja-yaml
 Short: "Build and run a generated xgoja binary with provider modules and JavaScript verbs."
 Topics:
 - xgoja

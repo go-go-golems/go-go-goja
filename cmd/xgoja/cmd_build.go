@@ -49,7 +49,7 @@ to point generated builds at that checkout.
 
 Examples:
   xgoja build -f xgoja.yaml
-  xgoja build -f examples/xgoja/provider-shipped-jsverbs/xgoja.yaml --output ./dist/provider
+  xgoja build -f examples/xgoja/08-provider-shipped-jsverbs/xgoja.yaml --output ./dist/provider
   xgoja build -f xgoja.yaml --xgoja-replace /path/to/go-go-goja --keep-work
   xgoja build -f xgoja.yaml --dry-run --keep-work
 `),

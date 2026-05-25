@@ -1,12 +1,13 @@
 package app
 
 type Spec struct {
-	Name     string             `json:"name"`
-	Target   TargetSpec         `json:"target"`
-	Packages []PackageSpec      `json:"packages"`
-	Runtimes map[string]Runtime `json:"runtimes"`
-	Commands CommandsSpec       `json:"commands"`
-	JSVerbs  []JSVerbSourceSpec `json:"jsverbs,omitempty"`
+	Name             string                    `json:"name"`
+	Target           TargetSpec                `json:"target"`
+	Packages         []PackageSpec             `json:"packages"`
+	Runtimes         map[string]Runtime        `json:"runtimes"`
+	Commands         CommandsSpec              `json:"commands"`
+	CommandProviders []CommandProviderInstance `json:"commandProviders,omitempty"`
+	JSVerbs          []JSVerbSourceSpec        `json:"jsverbs,omitempty"`
 }
 
 type TargetSpec struct {
@@ -48,6 +49,17 @@ type CommandSpec struct {
 	Runtime string `json:"runtime,omitempty"`
 	Name    string `json:"name,omitempty"`
 	Mount   string `json:"mount,omitempty"`
+}
+
+type CommandProviderInstance struct {
+	ID             string         `json:"id"`
+	Package        string         `json:"package"`
+	Name           string         `json:"name"`
+	Mount          string         `json:"mount,omitempty"`
+	RuntimeProfile string         `json:"runtimeProfile,omitempty"`
+	Modules        []string       `json:"modules,omitempty"`
+	Config         map[string]any `json:"config,omitempty"`
+	Lazy           bool           `json:"lazy,omitempty"`
 }
 
 type JSVerbSourceSpec struct {

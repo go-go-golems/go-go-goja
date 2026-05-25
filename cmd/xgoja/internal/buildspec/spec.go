@@ -3,14 +3,15 @@ package buildspec
 import "fmt"
 
 type Spec struct {
-	Name     string             `yaml:"name"`
-	Go       GoSpec             `yaml:"go"`
-	Target   TargetSpec         `yaml:"target"`
-	Packages []PackageSpec      `yaml:"packages"`
-	Runtimes map[string]Runtime `yaml:"runtimes"`
-	Commands CommandsSpec       `yaml:"commands"`
-	JSVerbs  []JSVerbSourceSpec `yaml:"jsverbs"`
-	BaseDir  string             `yaml:"-"`
+	Name             string                    `yaml:"name"`
+	Go               GoSpec                    `yaml:"go"`
+	Target           TargetSpec                `yaml:"target"`
+	Packages         []PackageSpec             `yaml:"packages"`
+	Runtimes         map[string]Runtime        `yaml:"runtimes"`
+	Commands         CommandsSpec              `yaml:"commands"`
+	CommandProviders []CommandProviderInstance `yaml:"commandProviders"`
+	JSVerbs          []JSVerbSourceSpec        `yaml:"jsverbs"`
+	BaseDir          string                    `yaml:"-"`
 }
 
 type GoSpec struct {
@@ -70,6 +71,17 @@ type CommandSpec struct {
 	Runtime string `yaml:"runtime" json:"runtime,omitempty"`
 	Name    string `yaml:"name" json:"name,omitempty"`
 	Mount   string `yaml:"mount" json:"mount,omitempty"`
+}
+
+type CommandProviderInstance struct {
+	ID             string         `yaml:"id" json:"id"`
+	Package        string         `yaml:"package" json:"package"`
+	Name           string         `yaml:"name" json:"name"`
+	Mount          string         `yaml:"mount" json:"mount,omitempty"`
+	RuntimeProfile string         `yaml:"runtimeProfile" json:"runtimeProfile,omitempty"`
+	Modules        []string       `yaml:"modules" json:"modules,omitempty"`
+	Config         map[string]any `yaml:"config" json:"config,omitempty"`
+	Lazy           bool           `yaml:"lazy" json:"lazy,omitempty"`
 }
 
 type JSVerbSourceSpec struct {

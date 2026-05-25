@@ -7,14 +7,17 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 )
 
-func TestRegistryPackageRegistersModulesAndVerbSources(t *testing.T) {
+func TestRegistryPackageRegistersModulesVerbSourcesAndCapabilities(t *testing.T) {
 	registry := NewRegistry()
 	if err := registry.Package("core",
 		Module{Name: "fs", DefaultAs: "fs", New: noopFactory},
 		Module{Name: "yaml", DefaultAs: "yaml", New: noopFactory},
 		VerbSource{Name: "builtin", Root: "verbs"},
+		WithPackageCapability(testCapability{id: "settings"}),
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
@@ -33,9 +36,19 @@ func TestRegistryPackageRegistersModulesAndVerbSources(t *testing.T) {
 	if source.Root != "verbs" {
 		t.Fatalf("verb source root = %q", source.Root)
 	}
+	capabilities, ok := registry.ResolvePackageCapabilities("core")
+	if !ok {
+		t.Fatal("expected core capabilities")
+	}
+	if len(capabilities) != 1 || capabilities[0].CapabilityID() != "settings" {
+		t.Fatalf("capabilities = %#v", capabilities)
+	}
 	packages := registry.Packages()
 	if len(packages) != 1 || packages[0].ID != "core" {
 		t.Fatalf("packages = %#v", packages)
+	}
+	if len(packages[0].PackageCapabilities) != 1 {
+		t.Fatalf("cloned package capabilities = %#v", packages[0].PackageCapabilities)
 	}
 }
 
@@ -58,6 +71,11 @@ func TestRegistryRejectsDuplicates(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "duplicate verb source") {
 		t.Fatalf("expected duplicate verb source error, got %v", err)
 	}
+
+	err = NewRegistry().Package("caps", WithPackageCapability(testCapability{id: "settings"}), WithPackageCapability(testCapability{id: "settings"}))
+	if err == nil || !strings.Contains(err.Error(), "duplicate capability") {
+		t.Fatalf("expected duplicate capability error, got %v", err)
+	}
 }
 
 func TestRegistryRejectsInvalidEntries(t *testing.T) {
@@ -73,6 +91,12 @@ func TestRegistryRejectsInvalidEntries(t *testing.T) {
 	if err := NewRegistry().Package("core", VerbSource{Name: ""}); err == nil || !strings.Contains(err.Error(), "verb source name") {
 		t.Fatalf("expected verb source name error, got %v", err)
 	}
+	if err := NewRegistry().Package("core", WithPackageCapability(nil)); err == nil || !strings.Contains(err.Error(), "capability is nil") {
+		t.Fatalf("expected nil capability error, got %v", err)
+	}
+	if err := NewRegistry().Package("core", WithPackageCapability(testCapability{id: ""})); err == nil || !strings.Contains(err.Error(), "capability id") {
+		t.Fatalf("expected empty capability id error, got %v", err)
+	}
 }
 
 func noopFactory(ModuleContext) (require.ModuleLoader, error) {
@@ -87,4 +111,25 @@ func TestModuleFactoryReceivesContextShape(t *testing.T) {
 	if loader == nil {
 		t.Fatal("expected loader")
 	}
+}
+
+type testCapability struct {
+	id string
+}
+
+func (c testCapability) CapabilityID() string { return c.id }
+
+func (c testCapability) ConfigSections(SectionContext) ([]schema.Section, error) { return nil, nil }
+
+func (c testCapability) InitRuntimeFromSections(context.Context, *values.Values, RuntimeHandle) error {
+	return nil
+}
+
+func TestCapabilityInterfaces(t *testing.T) {
+	var capability PackageCapability = testCapability{id: "settings"}
+	if capability.CapabilityID() != "settings" {
+		t.Fatalf("capability id = %q", capability.CapabilityID())
+	}
+	var _ ConfigSectionCapability = testCapability{}
+	var _ RuntimeInitializerCapability = testCapability{}
 }

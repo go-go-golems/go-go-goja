@@ -1,6 +1,7 @@
 package app
 
 import (
+	"io"
 	"io/fs"
 
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
@@ -12,10 +13,12 @@ type Host struct {
 	Spec            *Spec
 	Factory         *RuntimeFactory
 	EmbeddedJSVerbs fs.FS
+	Out             io.Writer
 }
 
 type HostOptions struct {
 	EmbeddedJSVerbs fs.FS
+	Out             io.Writer
 }
 
 func NewHost(providers *providerapi.Registry, spec *Spec) *Host {
@@ -28,6 +31,7 @@ func NewHostWithOptions(providers *providerapi.Registry, spec *Spec, opts HostOp
 		Spec:            spec,
 		Factory:         NewRuntimeFactory(providers, spec),
 		EmbeddedJSVerbs: opts.EmbeddedJSVerbs,
+		Out:             opts.Out,
 	}
 }
 
@@ -51,13 +55,23 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 	if h.Spec.Commands.JSVerbs.Enabled {
 		h.AttachVerbs(root)
 	}
+	h.AttachCommandProviders(root)
 }
 
 func (h *Host) AttachEval(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	root.AddCommand(newEvalCommand(h.Factory, h.Spec))
+	out := h.Out
+	if out == nil {
+		out = root.OutOrStdout()
+	}
+	cmd, err := buildGlazedCobraCommand(newEvalCommand(h.Factory, h.Spec, out))
+	if err != nil {
+		root.AddCommand(commandErrorStub(commandName(h.Spec.Commands.Eval, "eval"), "Evaluate JavaScript in a generated xgoja runtime", err))
+		return
+	}
+	root.AddCommand(cmd)
 }
 
 func (h *Host) AttachRun(root *cobra.Command) {

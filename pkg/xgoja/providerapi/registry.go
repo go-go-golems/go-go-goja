@@ -16,9 +16,11 @@ type Registry struct {
 }
 
 type Package struct {
-	ID          string
-	Modules     map[string]Module
-	VerbSources map[string]VerbSource
+	ID                  string
+	Modules             map[string]Module
+	VerbSources         map[string]VerbSource
+	PackageCapabilities map[string]PackageCapability
+	CommandSetProviders map[string]CommandSetProvider
 }
 
 func NewRegistry() *Registry {
@@ -37,9 +39,11 @@ func (r *Registry) Package(id string, entries ...Entry) error {
 		return fmt.Errorf("duplicate provider package %q", id)
 	}
 	pkg := &Package{
-		ID:          id,
-		Modules:     map[string]Module{},
-		VerbSources: map[string]VerbSource{},
+		ID:                  id,
+		Modules:             map[string]Module{},
+		VerbSources:         map[string]VerbSource{},
+		PackageCapabilities: map[string]PackageCapability{},
+		CommandSetProviders: map[string]CommandSetProvider{},
 	}
 	for i, entry := range entries {
 		if entry == nil {
@@ -76,6 +80,29 @@ func (r *Registry) ResolveVerbSource(packageID, sourceName string) (VerbSource, 
 	}
 	source, ok := pkg.VerbSources[strings.TrimSpace(sourceName)]
 	return source, ok
+}
+
+func (r *Registry) ResolvePackageCapabilities(packageID string) ([]PackageCapability, bool) {
+	if r == nil {
+		return nil, false
+	}
+	pkg := r.packages[strings.TrimSpace(packageID)]
+	if pkg == nil {
+		return nil, false
+	}
+	return pkg.sortedCapabilities(), true
+}
+
+func (r *Registry) ResolveCommandSetProvider(packageID, providerName string) (CommandSetProvider, bool) {
+	if r == nil {
+		return CommandSetProvider{}, false
+	}
+	pkg := r.packages[strings.TrimSpace(packageID)]
+	if pkg == nil {
+		return CommandSetProvider{}, false
+	}
+	provider, ok := pkg.CommandSetProviders[strings.TrimSpace(providerName)]
+	return provider, ok
 }
 
 func (r *Registry) Packages() []Package {
@@ -134,17 +161,65 @@ func (p *Package) addVerbSource(source VerbSource) error {
 	return nil
 }
 
+func (p *Package) addCapability(capability PackageCapability) error {
+	id, err := normalizeCapabilityID(capability)
+	if err != nil {
+		return err
+	}
+	if _, ok := p.PackageCapabilities[id]; ok {
+		return fmt.Errorf("duplicate capability %q", id)
+	}
+	p.PackageCapabilities[id] = capability
+	return nil
+}
+
+func (p *Package) addCommandSetProvider(provider CommandSetProvider) error {
+	provider, err := normalizeCommandSetProvider(provider)
+	if err != nil {
+		return err
+	}
+	if _, ok := p.CommandSetProviders[provider.Name]; ok {
+		return fmt.Errorf("duplicate command set provider %q", provider.Name)
+	}
+	p.CommandSetProviders[provider.Name] = provider
+	return nil
+}
+
 func (p *Package) clone() Package {
 	out := Package{
-		ID:          p.ID,
-		Modules:     map[string]Module{},
-		VerbSources: map[string]VerbSource{},
+		ID:                  p.ID,
+		Modules:             map[string]Module{},
+		VerbSources:         map[string]VerbSource{},
+		PackageCapabilities: map[string]PackageCapability{},
+		CommandSetProviders: map[string]CommandSetProvider{},
 	}
 	for name, module := range p.Modules {
 		out.Modules[name] = module
 	}
 	for name, source := range p.VerbSources {
 		out.VerbSources[name] = source
+	}
+	for name, capability := range p.PackageCapabilities {
+		out.PackageCapabilities[name] = capability
+	}
+	for name, provider := range p.CommandSetProviders {
+		out.CommandSetProviders[name] = provider
+	}
+	return out
+}
+
+func (p *Package) sortedCapabilities() []PackageCapability {
+	if p == nil || len(p.PackageCapabilities) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(p.PackageCapabilities))
+	for id := range p.PackageCapabilities {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	out := make([]PackageCapability, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, p.PackageCapabilities[id])
 	}
 	return out
 }

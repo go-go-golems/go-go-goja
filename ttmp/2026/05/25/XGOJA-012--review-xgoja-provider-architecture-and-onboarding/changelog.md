@@ -1,0 +1,134 @@
+# Changelog
+
+## 2026-05-25
+
+- Initial workspace created
+
+
+## 2026-05-25
+
+Created xgoja provider architecture review and onboarding report.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/pkg/xgoja/provider/provider.go — Reviewed existing-runner adapter pattern
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/module_sections.go — Reviewed module section aggregation and runtime initializer flow
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/capabilities.go — Reviewed capability abstractions
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-012--review-xgoja-provider-architecture-and-onboarding/design/01-xgoja-provider-architecture-review-and-onboarding-guide.md — Architecture review report with mental model
+
+
+## 2026-05-25
+
+Uploaded xgoja architecture review report to reMarkable and passed docmgr doctor.
+
+
+## 2026-05-25
+
+Expanded XGOJA-012 into detailed implementation plan for RuntimeFactory typing, provider utilities, capability cleanup, docs, and numbered examples.
+
+
+## 2026-05-25
+
+Typed CommandSetContext.RuntimeFactory and removed Discord adapter's local runtime-factory type assertion.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/pkg/xgoja/provider/provider.go — Discord provider now uses providerapi.RuntimeFactory directly
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/commands.go — RuntimeFactory interface added and CommandSetContext.RuntimeFactory typed
+
+
+## 2026-05-25
+
+Extracted shared providerutil helpers for module config sections and runtime initializers.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/pkg/xgoja/provider/provider.go — Discord adapter now uses providerutil
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/module_sections.go — Built-in command path now uses providerutil
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerutil/sections.go — Shared section collection and runtime initializer helpers
+
+
+## 2026-05-25
+
+Renamed package-scoped capability API and removed unused component initializer abstraction.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/capabilities.go — ModuleCapability renamed to PackageCapability and component initializer removed
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/registry.go — Registry now exposes package capability naming
+
+
+## 2026-05-25
+
+Added HTTP provider tests for discovery-vs-execution side-effect convention.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providers/http/http_test.go — HTTP provider now tests nil values
+
+
+## 2026-05-25
+
+Updated provider/buildspec docs for renamed capability API, providerutil, runtime factory, and runtime-initializer semantics.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/02-buildspec.md — command provider section no longer mentions component initializers
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/04-providers.md — provider docs now use current signatures and WithPackageCapability
+
+
+## 2026-05-25
+
+Added runtime factory regression test and refreshed XGOJA-012 report/provider docs for the implemented cleanup API.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/04-providers.md — provider guide now includes decision table and current command provider signature
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/command_providers_test.go — command provider test now exercises typed RuntimeFactory
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-012--review-xgoja-provider-architecture-and-onboarding/design/01-xgoja-provider-architecture-review-and-onboarding-guide.md — review updated to implementation status
+
+
+## 2026-05-25
+
+Renamed xgoja examples into numbered onboarding curriculum and validated all example smoke tests.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/01-core-provider — safe provider starting example
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/08-provider-shipped-jsverbs — provider-shipped JS verbs endpoint example
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/README.md — numbered learning path and smoke loop
+
+
+## 2026-05-25
+
+Reorganized bundled xgoja help docs into overview, user guide, and focused tutorials.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/02-user-guide.md — full xgoja user guide and buildspec reference
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/05-tutorial-providing-commands.md — new provider command tutorial
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/root_test.go — bundled help test now targets user-guide
+
+
+## 2026-05-25
+
+Ran broad xgoja and Discord adapter validation after cleanup phases.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-012--review-xgoja-provider-architecture-and-onboarding/reference/01-diary.md — validation notes updated
+
+
+## 2026-05-25
+
+Uploaded final cleanup bundle to reMarkable and reran docmgr doctor successfully.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-012--review-xgoja-provider-architecture-and-onboarding/tasks.md — final validation/upload tasks checked
+
+
+## 2026-05-25
+
+Closed after implementing typed RuntimeFactory, providerutil, PackageCapability rename, removal of unused initializer abstraction, HTTP discovery tests, provider docs refresh, numbered examples, help topic reorganization, validation, and final reMarkable upload.
+

@@ -1,7 +1,7 @@
 ---
-Title: "xgoja provider authoring"
-Slug: providers
-Short: "How to expose Goja bindings as xgoja provider packages."
+Title: "Tutorial: providing xgoja packages and modules"
+Slug: tutorial-providing-package-and-modules
+Short: "How to expose Goja bindings as xgoja provider packages and modules."
 Topics:
 - xgoja
 - goja
@@ -207,6 +207,110 @@ jsverbs:
 
 Provider-shipped verbs are useful when a package has a stable Go module API plus higher-level JavaScript commands that should travel with it.
 
+## Expose module configuration sections
+
+A provider can expose Glazed configuration sections for modules in a runtime profile. Built-in `run`, `repl`, and `jsverbs` commands append those sections to their command descriptions and call provider initializers before JavaScript executes.
+
+```go
+type Settings struct {
+    Value string `glazed.parameter:"value"`
+}
+
+type Capability struct{}
+
+func (Capability) CapabilityID() string { return "my-provider.config" }
+
+func (Capability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+    section, err := schema.NewSection("my-provider",
+        schema.WithTitle("My provider"),
+        schema.WithPrefix("my-provider-"),
+        schema.WithStringField("value", fields.WithDefault("default")),
+    )
+    if err != nil {
+        return nil, err
+    }
+    return []schema.Section{section}, nil
+}
+
+func (Capability) InitRuntimeFromSections(_ context.Context, values *values.Values, handle providerapi.RuntimeHandle) error {
+    if values == nil {
+        // Runtime construction without parsed command values is a discovery/preload mode.
+        // Avoid irreversible side effects here.
+        return nil
+    }
+    var settings Settings
+    if err := values.DecodeSectionInto("my-provider", &settings); err != nil {
+        return err
+    }
+    return handle.Runtime().Set("providerValue", settings.Value)
+}
+```
+
+Register the capability with the package:
+
+```go
+func Register(registry *providerapi.Registry) error {
+    return registry.Package("my-provider",
+        providerapi.Module{...},
+        providerapi.WithPackageCapability(Capability{}),
+    )
+}
+```
+
+Use `values.Values.DecodeSectionInto` instead of reaching into raw maps. The provider owns the section schema and should keep decoding logic typed and local to the provider. Section slugs are global within one command; duplicate slugs are rejected. Shared helpers in `pkg/xgoja/providerutil` can collect sections and run runtime initializers for provider-owned command sets.
+
+## Choose the right provider extension point
+
+| Need | Use | Notes |
+| --- | --- | --- |
+| Expose one JavaScript `require(...)` module | `providerapi.Module` | The simplest and most common provider contribution. |
+| Configure a module statically from `xgoja.yaml` | `ModuleContext.Config` | Use for buildspec/runtime-profile settings such as allowlists or base paths. |
+| Add command-line flags for selected modules | `ConfigSectionCapability` | The section is appended to built-in commands and provider-owned commands that opt in. |
+| Apply parsed command values to a JS runtime | `RuntimeInitializerCapability` | Use `DecodeSectionInto`; avoid side effects when `values == nil`. |
+| Clean up runtime-scoped resources | `RuntimeCloserRegistry` through `RuntimeHandle` | Register HTTP servers, file watchers, or sessions for shutdown. |
+| Add domain-specific CLI commands | `CommandSetProvider` | Return Glazed commands; use `RuntimeFactory` when those commands need xgoja runtimes. |
+
+## Ship Glazed command sets
+
+For package-owned verbs that need custom Go services, command wiring, or non-JavaScript behavior, register a command set provider. xgoja mounts returned Glazed commands into the generated root command.
+
+```go
+func Register(registry *providerapi.Registry) error {
+    return registry.Package("my-provider",
+        providerapi.Module{...},
+        providerapi.CommandSetProvider{
+            Name:         "tools",
+            DefaultMount: "my-provider",
+            New: func(c providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+                cmd, err := cmds.NewBareCommand(
+                    &cmds.CommandDescription{Name: "hello", Short: "Say hello"},
+                    func(ctx context.Context, parsed *types.ParsedLayers) error {
+                        return nil
+                    },
+                )
+                if err != nil {
+                    return nil, err
+                }
+                return &providerapi.CommandSet{Commands: []cmds.Command{cmd}}, nil
+            },
+        },
+    )
+}
+```
+
+Buildspec usage:
+
+```yaml
+commandProviders:
+  - id: my-tools
+    package: my-provider
+    name: tools
+    mount: tools
+    runtimeProfile: main
+```
+
+Command providers can return `cmds.BareCommand`, `cmds.WriterCommand`, or `cmds.GlazeCommand`. They receive the selected module descriptors for `runtimeProfile` and a typed `providerapi.RuntimeFactory`, so package-owned commands can participate in the same runtime-profile composition as built-in xgoja commands. The built-in xgoja app uses this factory for `eval`, `run`, `repl`, and `jsverbs`; the Discord adapter wraps it in `xgojaBotRuntimeFactory` so `botcli` can create bot runtimes with the selected `discord`, `ui`, `fs`, and `express` modules.
+
 ## Split safe and host-capability providers
 
 Keep dangerous modules separate from safe helpers. A generated binary can compile both providers, but each command should select only the runtime profile it needs.
@@ -244,7 +348,7 @@ commands:
     runtime: host
 ```
 
-In this shape, `eval` cannot `require("fs")`, while `run` can. See `examples/xgoja/multiple-runtimes/` for a runnable example.
+In this shape, `eval` cannot `require("fs")`, while `run` can. See `examples/xgoja/03-multiple-runtimes/` for a runnable example.
 
 ## Validate a provider
 
@@ -277,8 +381,9 @@ xgoja build -f examples/xgoja/my-provider/xgoja.yaml --xgoja-replace /path/to/go
 ## See also
 
 - `xgoja help overview`
-- `xgoja help buildspec`
-- `xgoja help tutorial`
-- `examples/xgoja/core-provider/`
-- `examples/xgoja/host-provider/`
-- `examples/xgoja/multiple-runtimes/`
+- `xgoja help user-guide`
+- `xgoja help tutorial-using-xgoja-yaml`
+- `xgoja help tutorial-providing-commands`
+- `examples/xgoja/01-core-provider/`
+- `examples/xgoja/02-host-provider/`
+- `examples/xgoja/03-multiple-runtimes/`

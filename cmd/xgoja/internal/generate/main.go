@@ -19,19 +19,21 @@ func RenderMain(spec *buildspec.Spec) string {
 func RenderEmbeddedSpec(spec *buildspec.Spec) string {
 	spec = runtimeSpec(spec)
 	payload := struct {
-		Name     string                       `json:"name"`
-		Target   buildspec.TargetSpec         `json:"target"`
-		Packages []buildspec.PackageSpec      `json:"packages"`
-		Runtimes map[string]buildspec.Runtime `json:"runtimes"`
-		Commands buildspec.CommandsSpec       `json:"commands"`
-		JSVerbs  []buildspec.JSVerbSourceSpec `json:"jsverbs,omitempty"`
+		Name             string                              `json:"name"`
+		Target           buildspec.TargetSpec                `json:"target"`
+		Packages         []buildspec.PackageSpec             `json:"packages"`
+		Runtimes         map[string]buildspec.Runtime        `json:"runtimes"`
+		Commands         buildspec.CommandsSpec              `json:"commands"`
+		CommandProviders []buildspec.CommandProviderInstance `json:"commandProviders,omitempty"`
+		JSVerbs          []buildspec.JSVerbSourceSpec        `json:"jsverbs,omitempty"`
 	}{
-		Name:     spec.Name,
-		Target:   spec.Target,
-		Packages: spec.Packages,
-		Runtimes: spec.Runtimes,
-		Commands: spec.Commands,
-		JSVerbs:  spec.JSVerbs,
+		Name:             spec.Name,
+		Target:           spec.Target,
+		Packages:         spec.Packages,
+		Runtimes:         spec.Runtimes,
+		Commands:         spec.Commands,
+		CommandProviders: spec.CommandProviders,
+		JSVerbs:          spec.JSVerbs,
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {

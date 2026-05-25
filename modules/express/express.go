@@ -1,6 +1,7 @@
 package express
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 )
 
 type Option func(*Registrar)
@@ -49,6 +52,37 @@ func (r *Registrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleContext, reg 
 	reg.RegisterNativeModule(name, r.loader)
 	return nil
 }
+
+func NewLoader(host *gojahttp.Host, opts ...Option) require.ModuleLoader {
+	registrar := NewRegistrar(host, opts...)
+	return func(vm *goja.Runtime, moduleObj *goja.Object) {
+		if host != nil {
+			if bindings, ok := runtimebridge.Lookup(vm); ok && bindings.Owner != nil {
+				host.SetRuntime(runtimebridgeOwnerAdapter{owner: bindings.Owner})
+			}
+		}
+		registrar.loader(vm, moduleObj)
+	}
+}
+
+type runtimebridgeOwnerAdapter struct {
+	owner runtimebridge.OwnerRunner
+}
+
+func (a runtimebridgeOwnerAdapter) Call(ctx context.Context, op string, fn runtimeowner.CallFunc) (any, error) {
+	return a.owner.Call(ctx, op, func(ctx context.Context, vm *goja.Runtime) (any, error) {
+		return fn(ctx, vm)
+	})
+}
+
+func (a runtimebridgeOwnerAdapter) Post(ctx context.Context, op string, fn runtimeowner.PostFunc) error {
+	return a.owner.Post(ctx, op, func(ctx context.Context, vm *goja.Runtime) {
+		fn(ctx, vm)
+	})
+}
+
+func (a runtimebridgeOwnerAdapter) Shutdown(context.Context) error { return nil }
+func (a runtimebridgeOwnerAdapter) IsClosed() bool                 { return false }
 
 func (r *Registrar) loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)

@@ -32,12 +32,12 @@ func TestBundledHelpTopic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new root command: %v", err)
 	}
-	root.SetArgs([]string{"help", "buildspec"})
+	root.SetArgs([]string{"help", "user-guide"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute help topic: %v", err)
 	}
 	rendered := out.String()
-	for _, want := range []string{"xgoja buildspec reference", "Runtime filesystem source", "Provider-shipped source"} {
+	for _, want := range []string{"xgoja user guide and buildspec reference", "Runtime filesystem source", "Provider-shipped source"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("expected bundled help to contain %q, got %q", want, rendered)
 		}

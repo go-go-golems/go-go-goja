@@ -1,0 +1,109 @@
+# Tasks
+
+## Completed design/research
+
+- [x] Add tasks here
+- [x] Investigate current xgoja generated command architecture and jsverbs support
+- [x] Inventory third-party sandbox command patterns in loupedeck discord-bot css-visual-diff and go-minitrace
+- [x] Design extension patterns for custom generated CLI verbs and host services
+- [x] Write intern-oriented implementation guide with diagrams APIs pseudocode and file references
+- [x] Validate ticket docs and upload bundle to reMarkable
+- [x] Revise command-provider design to return Glazed commands instead of Cobra commands
+- [x] Revise design for module-provided Glazed config sections and DecodeSectionInto initialization
+- [x] Revise design so built-in run repl jsverbs aggregate module-provided Glazed sections
+
+## Implementation phase 0 — planning and checkpoints
+
+- [x] P0.1 Expand this task list into granular implementation phases
+- [x] P0.2 Add diary entry for implementation kickoff and scope boundaries
+- [x] P0.3 Commit planning-only ticket updates
+
+## Implementation phase 1 — provider API capabilities
+
+- [x] P1.1 Add `providerapi.SectionContext`, `ModuleDescriptor`, and `ModuleCapability`
+- [x] P1.2 Add `ConfigSectionCapability` for module-provided Glazed sections
+- [x] P1.3 Add `RuntimeHandle` and `RuntimeInitializerCapability` for built-in runtime initialization
+- [x] P1.4 Add `InitializedModule` and `ComponentInitializerCapability` for command-provider domain objects
+- [x] P1.5 Extend `providerapi.Package` to store package-level capabilities
+- [x] P1.6 Add validation for duplicate or empty capability IDs
+- [x] P1.7 Add registry helpers to resolve runtime module descriptors from app runtime specs
+- [x] P1.8 Add providerapi unit tests for capability registration, cloning, and validation errors
+- [x] P1.9 Run focused providerapi tests
+- [x] P1.10 Commit provider API capability slice
+
+## Implementation phase 2 — built-in runtime-profile section aggregation helpers
+
+- [x] P2.1 Add app helper to collect module descriptors for a runtime profile
+- [x] P2.2 Add app helper to collect `ConfigSectionCapability` sections for a runtime profile
+- [x] P2.3 Add app helper to call `RuntimeInitializerCapability.InitRuntimeFromSections`
+- [x] P2.4 Add section slug/prefix collision checks with useful error messages
+- [x] P2.5 Add tests for aggregation order and collision behavior
+- [x] P2.6 Run focused app helper tests
+- [x] P2.7 Commit built-in aggregation helper slice
+
+## Implementation phase 3 — apply module sections to built-in `run`
+
+- [x] P3.1 Extend `runCommand` to store selected module descriptors
+- [x] P3.2 Append runtime-profile module sections to `run` command description
+- [x] P3.3 Call runtime initializers before executing the script
+- [x] P3.4 Add fixture provider/module for section exposure and runtime initialization
+- [x] P3.5 Add app tests proving `run --help` exposes fixture flags
+- [x] P3.6 Add app tests proving `run` decodes fixture settings via `DecodeSectionInto`
+- [x] P3.7 Run focused `run` tests
+- [x] P3.8 Commit `run` built-in module-section slice
+
+## Implementation phase 4 — apply module sections to `repl` / TUI
+
+- [x] P4.1 Extend `tuiCommand` to store selected module descriptors
+- [x] P4.2 Append runtime-profile module sections to `repl` command description
+- [x] P4.3 Thread parsed values into TUI runtime creation
+- [x] P4.4 Call runtime initializers before starting the REPL/TUI session
+- [x] P4.5 Add tests for `repl --help` exposing fixture flags without launching TUI
+- [x] P4.6 Run focused TUI command tests
+- [x] P4.7 Commit `repl` module-section slice
+
+## Implementation phase 5 — apply module sections to `jsverbs`
+
+- [x] P5.1 Extend jsverb command construction to append runtime-profile module sections
+- [x] P5.2 Ensure verb-declared sections and module sections are collision checked
+- [x] P5.3 Call runtime initializers before `registry.InvokeInRuntime`
+- [x] P5.4 Add fixture jsverb integration test exposing module flags
+- [x] P5.5 Add fixture jsverb integration test proving initializer runs
+- [x] P5.6 Run focused jsverbs tests
+- [x] P5.7 Commit `jsverbs` module-section slice
+
+## Implementation phase 6 — command set providers
+
+- [x] P6.1 Add `providerapi.CommandSetProvider`, `CommandSet`, and `CommandSetContext`
+- [x] P6.2 Extend registry package storage with command set providers
+- [x] P6.3 Add duplicate/missing factory validation and unit tests
+- [x] P6.4 Add app spec/buildspec `commandProviders` support
+- [x] P6.5 Add generated main wiring for command providers
+- [x] P6.6 Add `Host.AttachCommandProviders`
+- [x] P6.7 Implement mount-parent prefix application or document command-owned parents
+- [x] P6.8 Add fixture command provider returning a `BareCommand`
+- [x] P6.9 Add fixture command provider returning `WriterCommand`/`GlazeCommand` examples if practical
+- [x] P6.10 Add generated app tests for command provider attachment
+- [x] P6.11 Run focused command provider tests
+- [x] P6.12 Commit command provider slice
+
+## Implementation phase 7 — generated examples and docs
+
+- [x] P7.1 Add generated example for built-in `run` module sections
+- [x] P7.2 Add generated example for `jsverbs` module sections
+- [x] P7.3 Add generated example for custom command provider module-section composition
+- [x] P7.4 Update `cmd/xgoja/doc/02-buildspec.md`
+- [x] P7.5 Update `cmd/xgoja/doc/04-providers.md`
+- [x] P7.6 Smoke generated examples
+- [x] P7.7 Commit docs/examples slice
+
+## Implementation phase 8 — final validation and delivery
+
+- [x] P8.1 Run focused xgoja package tests
+- [x] P8.2 Run broader go-go-goja tests as time permits
+- [x] P8.3 Update design doc with implementation deltas if needed
+- [x] P8.4 Update diary with final validation results
+- [x] P8.5 Run `docmgr doctor --ticket XGOJA-008 --stale-after 30`
+- [x] P8.6 Upload final implementation bundle to reMarkable
+- [x] P8.7 Commit final ticket updates
+- [x] P8.8 Close XGOJA-008 if all requested implementation work is complete
