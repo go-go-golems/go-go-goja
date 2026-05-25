@@ -17,3 +17,8 @@ Fixed PR 40 review issues: runtime override initializers now use selected profil
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/tui.go — repl/TUI recomputes selected descriptors for parsed runtime
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerutil/sections.go — package capability section/init application deduped by package and capability
 
+
+## 2026-05-25
+
+Closed after addressing PR 40 review comments, adding regression tests, nearby runtime override hardening, and validation.
+
