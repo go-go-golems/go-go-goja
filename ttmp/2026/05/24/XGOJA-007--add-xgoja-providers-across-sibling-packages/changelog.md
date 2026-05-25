@@ -40,3 +40,15 @@ Phase 1: implemented workspace-manager xgoja provider (workspace-manager commit 
 
 - /home/manuel/workspaces/2026-05-24/add-js-providers/workspace-manager/pkg/wsmjs/provider/provider.go — Provider implementation
 
+
+## 2026-05-24
+
+Phases 2-5: implemented goja-git, loupedeck, geppetto, and go-minitrace xgoja providers with focused validation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/geppetto/pkg/js/modules/geppetto/provider/provider.go — geppetto host-services provider
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-minitrace/pkg/minitracejs/provider/provider.go — go-minitrace host-services provider
+- /home/manuel/workspaces/2026-05-24/add-js-providers/goja-git/provider/provider.go — goja-git provider
+- /home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/runtime/js/provider/provider.go — loupedeck safe-module provider
+
