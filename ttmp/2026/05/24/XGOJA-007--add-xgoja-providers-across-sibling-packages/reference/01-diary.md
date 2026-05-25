@@ -205,3 +205,99 @@ docmgr doc relate --doc go-go-goja/ttmp/2026/05/24/XGOJA-007--add-xgoja-provider
 docmgr changelog update --ticket XGOJA-007 --entry "Created intern-oriented xgoja provider implementation guide and inventory evidence (commit b765b76 for setup)." --file-note "..."
 docmgr task check --ticket XGOJA-007 --id 3
 ```
+
+## Step 3: Validated and uploaded the ticket bundle
+
+I validated the ticket with docmgr and uploaded the final document bundle to reMarkable. The upload included the ticket index, primary implementation guide, diary, tasks, and changelog as one PDF with a table of contents.
+
+This closes the requested documentation delivery loop. No provider source code was implemented in this pass; the result is a committed ticket and an uploaded guide for future implementation work.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Validate the ticket docs, deliver them to reMarkable, and record the delivery evidence.
+
+**Inferred user intent:** The user wants the guide available both in the repository ticket workspace and on the reMarkable device for offline review.
+
+**Commit (code):** 47206c7 — "docs: add xgoja provider implementation guide"
+
+### What I did
+
+- Ran `docmgr doctor --ticket XGOJA-007 --stale-after 30`.
+- Added missing topic vocabulary entries for `geppetto`, `go-minitrace`, `goja-git`, `loupedeck`, `providers`, and `workspace-manager`.
+- Re-ran `docmgr doctor --ticket XGOJA-007 --stale-after 30` and got `All checks passed`.
+- Uploaded a reMarkable bundle with `remarquee upload bundle`.
+- Marked the validation and upload tasks complete.
+- Updated the changelog with the validation and upload milestones.
+
+### Why
+
+- Docmgr validation catches frontmatter and vocabulary issues that make the ticket harder to search later.
+- The reMarkable upload provides the requested reading copy.
+- Recording the exact upload output makes the delivery auditable without running extra cloud listing commands.
+
+### What worked
+
+- After adding vocabulary entries, `docmgr doctor` passed cleanly.
+- `remarquee upload bundle` succeeded with:
+  - `OK: uploaded XGOJA-007 xgoja providers guide.pdf -> /ai/2026/05/24/XGOJA-007`
+
+### What didn't work
+
+- The first doctor run warned about unknown topic vocabulary values:
+  - `geppetto`
+  - `go-minitrace`
+  - `goja-git`
+  - `loupedeck`
+  - `providers`
+  - `workspace-manager`
+- The fix was to add these as docmgr topic vocabulary entries and rerun doctor.
+
+### What I learned
+
+- Ticket-specific package names should be added to vocabulary when they are used as doc topics.
+- The current reMarkable upload workflow does not need a post-upload listing when the upload command returns `OK: uploaded ...`.
+
+### What was tricky to build
+
+- The only validation issue was vocabulary hygiene. It was straightforward, but it affected the ticket index and every ticket doc through inherited topics.
+- The final commit and upload ordering matters: commit the guide before upload, then record upload evidence and commit that final bookkeeping separately.
+
+### What warrants a second pair of eyes
+
+- Review whether the vocabulary descriptions should be expanded beyond `XGOJA-007 target topic: ...` if these topics will be reused broadly.
+- Review the open questions in the guide before implementation starts.
+
+### What should be done in the future
+
+- Start provider implementation with `workspace-manager`, then `goja-git`, then safe `loupedeck` modules.
+- Create separate implementation commits per repository/provider.
+
+### Code review instructions
+
+- Verify the guide path and reMarkable upload destination listed in this diary.
+- Run `docmgr doctor --ticket XGOJA-007 --stale-after 30` before making follow-up doc changes.
+
+### Technical details
+
+Validation command:
+
+```bash
+docmgr doctor --ticket XGOJA-007 --stale-after 30
+```
+
+Upload command:
+
+```bash
+remarquee upload bundle \
+  go-go-goja/ttmp/2026/05/24/XGOJA-007--add-xgoja-providers-across-sibling-packages/index.md \
+  go-go-goja/ttmp/2026/05/24/XGOJA-007--add-xgoja-providers-across-sibling-packages/design-doc/01-xgoja-provider-implementation-guide-for-sibling-packages.md \
+  go-go-goja/ttmp/2026/05/24/XGOJA-007--add-xgoja-providers-across-sibling-packages/reference/01-diary.md \
+  go-go-goja/ttmp/2026/05/24/XGOJA-007--add-xgoja-providers-across-sibling-packages/tasks.md \
+  go-go-goja/ttmp/2026/05/24/XGOJA-007--add-xgoja-providers-across-sibling-packages/changelog.md \
+  --name "XGOJA-007 xgoja providers guide" \
+  --remote-dir "/ai/2026/05/24/XGOJA-007" \
+  --toc-depth 2 \
+  --non-interactive
+```

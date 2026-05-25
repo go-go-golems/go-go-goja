@@ -22,3 +22,12 @@ Docmgr doctor passed after adding target package topics to vocabulary.
 
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/vocabulary.yaml — Added target package topic slugs required by XGOJA-007 doctor validation
 
+
+## 2026-05-24
+
+Uploaded XGOJA-007 guide bundle to reMarkable at /ai/2026/05/24/XGOJA-007.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/24/XGOJA-007--add-xgoja-providers-across-sibling-packages/design-doc/01-xgoja-provider-implementation-guide-for-sibling-packages.md — Uploaded in reMarkable bundle
+

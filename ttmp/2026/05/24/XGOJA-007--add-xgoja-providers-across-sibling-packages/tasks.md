@@ -6,4 +6,4 @@
 - [x] Inventory target packages and classify provider patterns
 - [x] Write intern-oriented implementation guide with diagrams, APIs, file references, and pseudocode
 - [x] Run docmgr validation and fix vocabulary/frontmatter issues
-- [ ] Upload final bundle to reMarkable
+- [x] Upload final bundle to reMarkable
