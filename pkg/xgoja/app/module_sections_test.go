@@ -16,8 +16,8 @@ import (
 
 func TestRuntimeFactoryCollectsSectionsForRuntimeProfile(t *testing.T) {
 	factory := newSectionTestFactory(t,
-		providerapi.WithCapability(sectionCapability{id: "alpha", slug: "alpha"}),
-		providerapi.WithCapability(sectionCapability{id: "beta", slug: "beta"}),
+		providerapi.WithPackageCapability(sectionCapability{id: "alpha", slug: "alpha"}),
+		providerapi.WithPackageCapability(sectionCapability{id: "beta", slug: "beta"}),
 	)
 	sections, descriptors, err := factory.sectionsForRuntimeProfile("run", "main")
 	if err != nil {
@@ -36,8 +36,8 @@ func TestRuntimeFactoryCollectsSectionsForRuntimeProfile(t *testing.T) {
 
 func TestRuntimeFactoryRejectsDuplicateSectionSlugs(t *testing.T) {
 	factory := newSectionTestFactory(t,
-		providerapi.WithCapability(sectionCapability{id: "one", slug: "dup"}),
-		providerapi.WithCapability(sectionCapability{id: "two", slug: "dup"}),
+		providerapi.WithPackageCapability(sectionCapability{id: "one", slug: "dup"}),
+		providerapi.WithPackageCapability(sectionCapability{id: "two", slug: "dup"}),
 	)
 	_, _, err := factory.sectionsForRuntimeProfile("run", "main")
 	if err == nil || !strings.Contains(err.Error(), "duplicate config section slug") {
@@ -58,9 +58,9 @@ func TestInitRuntimeFromSectionsCallsRuntimeInitializers(t *testing.T) {
 		},
 	}
 	descriptors := []providerapi.ModuleDescriptor{{
-		PackageID:    "fixture",
-		ModuleID:     "mod",
-		Capabilities: []providerapi.ModuleCapability{capability},
+		PackageID:           "fixture",
+		ModuleID:            "mod",
+		PackageCapabilities: []providerapi.PackageCapability{capability},
 	}}
 	rt := &JSRuntime{VM: goja.New()}
 	if err := initRuntimeFromSections(context.Background(), values.New(), rt, descriptors); err != nil {
@@ -75,7 +75,7 @@ func TestInitRuntimeFromSectionsWrapsInitializerErrors(t *testing.T) {
 	descriptors := []providerapi.ModuleDescriptor{{
 		PackageID: "fixture",
 		ModuleID:  "mod",
-		Capabilities: []providerapi.ModuleCapability{runtimeInitCapability{
+		PackageCapabilities: []providerapi.PackageCapability{runtimeInitCapability{
 			id: "init",
 			fn: func(context.Context, *values.Values, providerapi.RuntimeHandle) error {
 				return fmt.Errorf("boom")

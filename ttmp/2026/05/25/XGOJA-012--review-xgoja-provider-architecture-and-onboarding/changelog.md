@@ -47,3 +47,13 @@ Extracted shared providerutil helpers for module config sections and runtime ini
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/module_sections.go — Built-in command path now uses providerutil
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerutil/sections.go — Shared section collection and runtime initializer helpers
 
+
+## 2026-05-25
+
+Renamed package-scoped capability API and removed unused component initializer abstraction.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/capabilities.go — ModuleCapability renamed to PackageCapability and component initializer removed
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/registry.go — Registry now exposes package capability naming
+

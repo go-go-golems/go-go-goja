@@ -17,7 +17,7 @@ func TestRegistryPackageRegistersModulesVerbSourcesAndCapabilities(t *testing.T)
 		Module{Name: "fs", DefaultAs: "fs", New: noopFactory},
 		Module{Name: "yaml", DefaultAs: "yaml", New: noopFactory},
 		VerbSource{Name: "builtin", Root: "verbs"},
-		WithCapability(testCapability{id: "settings"}),
+		WithPackageCapability(testCapability{id: "settings"}),
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestRegistryPackageRegistersModulesVerbSourcesAndCapabilities(t *testing.T)
 	if source.Root != "verbs" {
 		t.Fatalf("verb source root = %q", source.Root)
 	}
-	capabilities, ok := registry.ResolveCapabilities("core")
+	capabilities, ok := registry.ResolvePackageCapabilities("core")
 	if !ok {
 		t.Fatal("expected core capabilities")
 	}
@@ -47,8 +47,8 @@ func TestRegistryPackageRegistersModulesVerbSourcesAndCapabilities(t *testing.T)
 	if len(packages) != 1 || packages[0].ID != "core" {
 		t.Fatalf("packages = %#v", packages)
 	}
-	if len(packages[0].Capabilities) != 1 {
-		t.Fatalf("cloned package capabilities = %#v", packages[0].Capabilities)
+	if len(packages[0].PackageCapabilities) != 1 {
+		t.Fatalf("cloned package capabilities = %#v", packages[0].PackageCapabilities)
 	}
 }
 
@@ -72,7 +72,7 @@ func TestRegistryRejectsDuplicates(t *testing.T) {
 		t.Fatalf("expected duplicate verb source error, got %v", err)
 	}
 
-	err = NewRegistry().Package("caps", WithCapability(testCapability{id: "settings"}), WithCapability(testCapability{id: "settings"}))
+	err = NewRegistry().Package("caps", WithPackageCapability(testCapability{id: "settings"}), WithPackageCapability(testCapability{id: "settings"}))
 	if err == nil || !strings.Contains(err.Error(), "duplicate capability") {
 		t.Fatalf("expected duplicate capability error, got %v", err)
 	}
@@ -91,10 +91,10 @@ func TestRegistryRejectsInvalidEntries(t *testing.T) {
 	if err := NewRegistry().Package("core", VerbSource{Name: ""}); err == nil || !strings.Contains(err.Error(), "verb source name") {
 		t.Fatalf("expected verb source name error, got %v", err)
 	}
-	if err := NewRegistry().Package("core", WithCapability(nil)); err == nil || !strings.Contains(err.Error(), "capability is nil") {
+	if err := NewRegistry().Package("core", WithPackageCapability(nil)); err == nil || !strings.Contains(err.Error(), "capability is nil") {
 		t.Fatalf("expected nil capability error, got %v", err)
 	}
-	if err := NewRegistry().Package("core", WithCapability(testCapability{id: ""})); err == nil || !strings.Contains(err.Error(), "capability id") {
+	if err := NewRegistry().Package("core", WithPackageCapability(testCapability{id: ""})); err == nil || !strings.Contains(err.Error(), "capability id") {
 		t.Fatalf("expected empty capability id error, got %v", err)
 	}
 }
@@ -126,7 +126,7 @@ func (c testCapability) InitRuntimeFromSections(context.Context, *values.Values,
 }
 
 func TestCapabilityInterfaces(t *testing.T) {
-	var capability ModuleCapability = testCapability{id: "settings"}
+	var capability PackageCapability = testCapability{id: "settings"}
 	if capability.CapabilityID() != "settings" {
 		t.Fatalf("capability id = %q", capability.CapabilityID())
 	}

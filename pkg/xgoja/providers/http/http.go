@@ -32,7 +32,7 @@ func Register(registry *providerapi.Registry) error {
 				return capability.NewExpressLoader(), nil
 			},
 		},
-		providerapi.WithCapability(capability),
+		providerapi.WithPackageCapability(capability),
 	)
 }
 

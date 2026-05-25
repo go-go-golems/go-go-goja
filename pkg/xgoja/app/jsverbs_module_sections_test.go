@@ -57,7 +57,7 @@ func newJSVerbsSectionRegistry(t *testing.T) *providerapi.Registry {
 		providerapi.Module{Name: "mod", New: func(providerapi.ModuleContext) (require.ModuleLoader, error) {
 			return func(vm *goja.Runtime, module *goja.Object) {}, nil
 		}},
-		providerapi.WithCapability(runFixtureCapability{}),
+		providerapi.WithPackageCapability(runFixtureCapability{}),
 	); err != nil {
 		t.Fatalf("register fixture package: %v", err)
 	}

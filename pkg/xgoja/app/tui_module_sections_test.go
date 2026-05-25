@@ -9,7 +9,7 @@ import (
 )
 
 func TestTUICommandIncludesRuntimeProfileModuleSections(t *testing.T) {
-	factory := newSectionTestFactory(t, providerapi.WithCapability(runFixtureCapability{}))
+	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runFixtureCapability{}))
 	cmd := newTUICommand(factory, factory.spec)
 	section, ok := cmd.Description().Schema.Get("fixture")
 	if !ok {
@@ -22,7 +22,7 @@ func TestTUICommandIncludesRuntimeProfileModuleSections(t *testing.T) {
 
 func TestNewXGojaTUIEvaluatorInitializesRuntimeFromModuleSections(t *testing.T) {
 	called := false
-	factory := newSectionTestFactory(t, providerapi.WithCapability(runtimeInitCapability{
+	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runtimeInitCapability{
 		id: "tui-init",
 		fn: func(context.Context, *values.Values, providerapi.RuntimeHandle) error {
 			called = true

@@ -27,17 +27,17 @@ func (f *RuntimeFactory) selectedModuleDescriptors(profile string) ([]providerap
 		if !ok {
 			return nil, fmt.Errorf("runtime %s references unknown provider module %s.%s", profile, instance.Package, instance.Name)
 		}
-		capabilities := []providerapi.ModuleCapability(nil)
+		capabilities := []providerapi.PackageCapability(nil)
 		if _, ok := capabilitiesUsed[instance.Package]; !ok {
-			capabilities, _ = f.providers.ResolveCapabilities(instance.Package)
+			capabilities, _ = f.providers.ResolvePackageCapabilities(instance.Package)
 			capabilitiesUsed[instance.Package] = struct{}{}
 		}
 		descriptors = append(descriptors, providerapi.ModuleDescriptor{
-			PackageID:    instance.Package,
-			ModuleID:     instance.Name,
-			As:           instance.Alias(),
-			Module:       module,
-			Capabilities: capabilities,
+			PackageID:           instance.Package,
+			ModuleID:            instance.Name,
+			As:                  instance.Alias(),
+			Module:              module,
+			PackageCapabilities: capabilities,
 		})
 	}
 	return descriptors, nil

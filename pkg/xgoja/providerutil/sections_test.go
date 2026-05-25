@@ -15,8 +15,8 @@ import (
 
 func TestCollectConfigSectionsRejectsDuplicateSlugs(t *testing.T) {
 	descriptors := []providerapi.ModuleDescriptor{
-		{PackageID: "pkg-a", ModuleID: "mod-a", Capabilities: []providerapi.ModuleCapability{sectionCapability{slug: "shared"}}},
-		{PackageID: "pkg-b", ModuleID: "mod-b", Capabilities: []providerapi.ModuleCapability{sectionCapability{slug: "shared"}}},
+		{PackageID: "pkg-a", ModuleID: "mod-a", PackageCapabilities: []providerapi.PackageCapability{sectionCapability{slug: "shared"}}},
+		{PackageID: "pkg-b", ModuleID: "mod-b", PackageCapabilities: []providerapi.PackageCapability{sectionCapability{slug: "shared"}}},
 	}
 	_, err := CollectConfigSections(descriptors, providerapi.SectionContext{CommandName: "run"}, nil)
 	if err == nil || !strings.Contains(err.Error(), "duplicate config section slug") {
@@ -25,7 +25,7 @@ func TestCollectConfigSectionsRejectsDuplicateSlugs(t *testing.T) {
 }
 
 func TestCollectConfigSectionsRejectsNilSection(t *testing.T) {
-	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", Capabilities: []providerapi.ModuleCapability{nilSectionCapability{}}}}
+	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{nilSectionCapability{}}}}
 	_, err := CollectConfigSections(descriptors, providerapi.SectionContext{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "nil config section") {
 		t.Fatalf("expected nil section error, got %v", err)
@@ -33,7 +33,7 @@ func TestCollectConfigSectionsRejectsNilSection(t *testing.T) {
 }
 
 func TestCollectConfigSectionsRejectsEmptySlug(t *testing.T) {
-	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", Capabilities: []providerapi.ModuleCapability{emptySlugCapability{}}}}
+	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{emptySlugCapability{}}}}
 	_, err := CollectConfigSections(descriptors, providerapi.SectionContext{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "empty slug") {
 		t.Fatalf("expected empty slug error, got %v", err)
@@ -44,7 +44,7 @@ func TestInitRuntimeFromSectionsCallsInitializers(t *testing.T) {
 	initializer := &runtimeInitCapability{}
 	handle := fakeRuntimeHandle{vm: goja.New()}
 	vals := values.New()
-	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", Capabilities: []providerapi.ModuleCapability{initializer}}}
+	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{initializer}}}
 	if err := InitRuntimeFromSections(context.Background(), vals, handle, descriptors); err != nil {
 		t.Fatalf("init runtime: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestInitRuntimeFromSectionsCallsInitializers(t *testing.T) {
 
 func TestInitRuntimeFromSectionsWrapsErrors(t *testing.T) {
 	boom := errors.New("boom")
-	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", Capabilities: []providerapi.ModuleCapability{&runtimeInitCapability{err: boom}}}}
+	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{&runtimeInitCapability{err: boom}}}}
 	err := InitRuntimeFromSections(context.Background(), values.New(), fakeRuntimeHandle{vm: goja.New()}, descriptors)
 	if err == nil || !strings.Contains(err.Error(), "pkg.mod capability runtime-init") || !errors.Is(err, boom) {
 		t.Fatalf("expected wrapped initializer error, got %v", err)
@@ -63,7 +63,7 @@ func TestInitRuntimeFromSectionsWrapsErrors(t *testing.T) {
 }
 
 func TestInitRuntimeFromSectionsNoopsWithoutInitializers(t *testing.T) {
-	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", Capabilities: []providerapi.ModuleCapability{sectionCapability{slug: "section"}}}}
+	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{sectionCapability{slug: "section"}}}}
 	if err := InitRuntimeFromSections(context.Background(), values.New(), fakeRuntimeHandle{vm: goja.New()}, descriptors); err != nil {
 		t.Fatalf("expected no-op, got %v", err)
 	}

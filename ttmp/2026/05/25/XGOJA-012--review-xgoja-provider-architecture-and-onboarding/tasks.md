@@ -66,25 +66,25 @@
 
 ### Phase 3: Rename package-scoped capabilities to PackageCapability
 
-- [ ] Rename `ModuleCapability` to `PackageCapability` in `pkg/xgoja/providerapi/capabilities.go`.
-- [ ] Rename `ModuleDescriptor.Capabilities []ModuleCapability` to `[]PackageCapability` or `PackageCapabilities`.
-- [ ] Rename helper internals and registry APIs as needed:
-  - [ ] `WithCapability` can remain as a compatibility helper or become `WithPackageCapability`.
-  - [ ] `ResolveCapabilities` can remain or become `ResolvePackageCapabilities`.
-- [ ] Update all implementors:
-  - [ ] `pkg/xgoja/providers/http`.
-  - [ ] `pkg/xgoja/testprovider`.
-  - [ ] app tests.
-  - [ ] discord-bot provider tests.
-- [ ] Run focused tests after each batch.
-- [ ] Consider leaving type aliases temporarily if churn is too high.
+- [x] Rename `ModuleCapability` to `PackageCapability` in `pkg/xgoja/providerapi/capabilities.go`.
+- [x] Rename `ModuleDescriptor.Capabilities []ModuleCapability` to `[]PackageCapability` or `PackageCapabilities`.
+- [x] Rename helper internals and registry APIs as needed:
+  - [x] `WithCapability` can remain as a compatibility helper or become `WithPackageCapability`.
+  - [x] `ResolveCapabilities` can remain or become `ResolvePackageCapabilities`.
+- [x] Update all implementors:
+  - [x] `pkg/xgoja/providers/http`.
+  - [x] `pkg/xgoja/testprovider`.
+  - [x] app tests.
+  - [x] discord-bot provider tests.
+- [x] Run focused tests after each batch.
+- [x] Consider leaving type aliases temporarily if churn is too high.
 
 ### Phase 4: Remove unused component initializer abstraction
 
-- [ ] Remove `ComponentInitializerCapability` from `providerapi/capabilities.go`.
-- [ ] Remove `InitializedModule` if no non-test code uses it.
-- [ ] Remove or simplify testprovider fixtures that exist only to exercise component initializers.
-- [ ] Search with `rg "ComponentInitializer|InitializedModule"` across the workspace.
+- [x] Remove `ComponentInitializerCapability` from `providerapi/capabilities.go`.
+- [x] Remove `InitializedModule` if no non-test code uses it.
+- [x] Remove or simplify testprovider fixtures that exist only to exercise component initializers.
+- [x] Search with `rg "ComponentInitializer|InitializedModule"` across the workspace.
 - [ ] Update XGOJA docs/report so the concept no longer appears as a public abstraction.
 
 ### Phase 5: Clarify discovery-vs-execution side effects

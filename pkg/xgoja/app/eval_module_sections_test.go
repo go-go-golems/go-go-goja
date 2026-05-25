@@ -9,7 +9,7 @@ import (
 )
 
 func TestEvalCommandIncludesRuntimeProfileModuleSections(t *testing.T) {
-	factory := newSectionTestFactory(t, providerapi.WithCapability(runFixtureCapability{}))
+	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runFixtureCapability{}))
 	cmd := newEvalCommand(factory, factory.spec, nil)
 	section, ok := cmd.Description().Schema.Get("fixture")
 	if !ok {
@@ -21,7 +21,7 @@ func TestEvalCommandIncludesRuntimeProfileModuleSections(t *testing.T) {
 }
 
 func TestEvalCommandInitializesRuntimeFromModuleSections(t *testing.T) {
-	factory := newSectionTestFactory(t, providerapi.WithCapability(runFixtureCapability{}))
+	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runFixtureCapability{}))
 	out := &bytes.Buffer{}
 	cmd, err := buildGlazedCobraCommand(newEvalCommand(factory, factory.spec, out))
 	if err != nil {

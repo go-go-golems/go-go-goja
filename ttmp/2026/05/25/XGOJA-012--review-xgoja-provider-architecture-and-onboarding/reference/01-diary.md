@@ -154,3 +154,47 @@ go test ./pkg/xgoja/provider -count=1   # in discord-bot
 ```
 
 Result: passed.
+
+## Step 7: Renamed package-scoped capabilities and removed component initializer abstraction
+
+### Intent
+
+The review found that `ModuleCapability` was misleading: capabilities are registered at provider package level through `WithCapability(...)`, not on individual `Module` values. The user selected the hard-cutover route with no compatibility wrappers.
+
+The review also found that `ComponentInitializerCapability` and `InitializedModule` were not used by a real provider and added conceptual weight.
+
+### What changed
+
+In `go-go-goja/pkg/xgoja/providerapi`:
+
+- `ModuleCapability` -> `PackageCapability`.
+- `WithCapability(...)` -> `WithPackageCapability(...)`.
+- `ResolveCapabilities(...)` -> `ResolvePackageCapabilities(...)`.
+- `ModuleDescriptor.Capabilities` -> `ModuleDescriptor.PackageCapabilities`.
+- `Package.Capabilities` -> `Package.PackageCapabilities`.
+- Removed `ComponentInitializerCapability`.
+- Removed `InitializedModule`.
+
+Updated uses in:
+
+- `pkg/xgoja/app`.
+- `pkg/xgoja/providerutil`.
+- `pkg/xgoja/providers/http`.
+- `pkg/xgoja/testprovider`.
+- `pkg/xgoja/providerapi` tests.
+- `discord-bot/pkg/xgoja/provider` tests.
+
+### Why this is simpler
+
+The API now says what it does. Capabilities are package capabilities that xgoja attaches to selected module descriptors from that package. There is no longer a misleading “module capability” name suggesting module-local registration.
+
+Removing component initializers narrows the public API to concepts with real users: config sections, runtime initializers, runtime handles/closers, modules, and command sets.
+
+### Validation
+
+```bash
+go test ./pkg/xgoja/providerapi ./pkg/xgoja/providerutil ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1
+go test ./pkg/xgoja/provider -count=1   # in discord-bot
+```
+
+Result: passed.

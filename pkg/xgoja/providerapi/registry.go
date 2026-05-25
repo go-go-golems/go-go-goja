@@ -19,7 +19,7 @@ type Package struct {
 	ID                  string
 	Modules             map[string]Module
 	VerbSources         map[string]VerbSource
-	Capabilities        map[string]ModuleCapability
+	PackageCapabilities map[string]PackageCapability
 	CommandSetProviders map[string]CommandSetProvider
 }
 
@@ -42,7 +42,7 @@ func (r *Registry) Package(id string, entries ...Entry) error {
 		ID:                  id,
 		Modules:             map[string]Module{},
 		VerbSources:         map[string]VerbSource{},
-		Capabilities:        map[string]ModuleCapability{},
+		PackageCapabilities: map[string]PackageCapability{},
 		CommandSetProviders: map[string]CommandSetProvider{},
 	}
 	for i, entry := range entries {
@@ -82,7 +82,7 @@ func (r *Registry) ResolveVerbSource(packageID, sourceName string) (VerbSource, 
 	return source, ok
 }
 
-func (r *Registry) ResolveCapabilities(packageID string) ([]ModuleCapability, bool) {
+func (r *Registry) ResolvePackageCapabilities(packageID string) ([]PackageCapability, bool) {
 	if r == nil {
 		return nil, false
 	}
@@ -161,15 +161,15 @@ func (p *Package) addVerbSource(source VerbSource) error {
 	return nil
 }
 
-func (p *Package) addCapability(capability ModuleCapability) error {
+func (p *Package) addCapability(capability PackageCapability) error {
 	id, err := normalizeCapabilityID(capability)
 	if err != nil {
 		return err
 	}
-	if _, ok := p.Capabilities[id]; ok {
+	if _, ok := p.PackageCapabilities[id]; ok {
 		return fmt.Errorf("duplicate capability %q", id)
 	}
-	p.Capabilities[id] = capability
+	p.PackageCapabilities[id] = capability
 	return nil
 }
 
@@ -190,7 +190,7 @@ func (p *Package) clone() Package {
 		ID:                  p.ID,
 		Modules:             map[string]Module{},
 		VerbSources:         map[string]VerbSource{},
-		Capabilities:        map[string]ModuleCapability{},
+		PackageCapabilities: map[string]PackageCapability{},
 		CommandSetProviders: map[string]CommandSetProvider{},
 	}
 	for name, module := range p.Modules {
@@ -199,8 +199,8 @@ func (p *Package) clone() Package {
 	for name, source := range p.VerbSources {
 		out.VerbSources[name] = source
 	}
-	for name, capability := range p.Capabilities {
-		out.Capabilities[name] = capability
+	for name, capability := range p.PackageCapabilities {
+		out.PackageCapabilities[name] = capability
 	}
 	for name, provider := range p.CommandSetProviders {
 		out.CommandSetProviders[name] = provider
@@ -208,18 +208,18 @@ func (p *Package) clone() Package {
 	return out
 }
 
-func (p *Package) sortedCapabilities() []ModuleCapability {
-	if p == nil || len(p.Capabilities) == 0 {
+func (p *Package) sortedCapabilities() []PackageCapability {
+	if p == nil || len(p.PackageCapabilities) == 0 {
 		return nil
 	}
-	ids := make([]string, 0, len(p.Capabilities))
-	for id := range p.Capabilities {
+	ids := make([]string, 0, len(p.PackageCapabilities))
+	for id := range p.PackageCapabilities {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	out := make([]ModuleCapability, 0, len(ids))
+	out := make([]PackageCapability, 0, len(ids))
 	for _, id := range ids {
-		out = append(out, p.Capabilities[id])
+		out = append(out, p.PackageCapabilities[id])
 	}
 	return out
 }

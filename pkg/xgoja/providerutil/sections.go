@@ -20,7 +20,7 @@ func CollectConfigSections(descriptors []providerapi.ModuleDescriptor, base prov
 		seen = map[string]string{}
 	}
 	for _, descriptor := range descriptors {
-		for _, capability := range descriptor.Capabilities {
+		for _, capability := range descriptor.PackageCapabilities {
 			sectionCapability, ok := capability.(providerapi.ConfigSectionCapability)
 			if !ok {
 				continue
@@ -71,7 +71,7 @@ func InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle pr
 		return fmt.Errorf("runtime handle is nil")
 	}
 	for _, descriptor := range descriptors {
-		for _, capability := range descriptor.Capabilities {
+		for _, capability := range descriptor.PackageCapabilities {
 			initializer, ok := capability.(providerapi.RuntimeInitializerCapability)
 			if !ok {
 				continue

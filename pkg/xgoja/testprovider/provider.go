@@ -67,7 +67,7 @@ func Register(registry *providerapi.Registry) error {
 				}, nil
 			},
 		},
-		providerapi.WithCapability(FixtureCapability{}),
+		providerapi.WithPackageCapability(FixtureCapability{}),
 		providerapi.CommandSetProvider{
 			Name:         "tools",
 			DefaultMount: "fixture",
@@ -135,7 +135,7 @@ func sectionsFromSelectedModules(ctx providerapi.CommandSetContext) ([]schema.Se
 	sections := []schema.Section{}
 	seen := map[string]struct{}{}
 	for _, module := range ctx.SelectedModules {
-		for _, capability := range module.Capabilities {
+		for _, capability := range module.PackageCapabilities {
 			sectionCapability, ok := capability.(providerapi.ConfigSectionCapability)
 			if !ok {
 				continue
