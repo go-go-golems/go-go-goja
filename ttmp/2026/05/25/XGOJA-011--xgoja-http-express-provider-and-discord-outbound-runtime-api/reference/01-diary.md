@@ -59,3 +59,29 @@ OK: uploaded XGOJA-011 HTTP Express Discord outbound design.pdf -> /ai/2026/05/2
 ```
 
 No tmux session is running for this new ticket yet.
+
+## Step 3: Implemented xgoja HTTP provider slice
+
+### What changed
+
+- Added optional `providerapi.RuntimeCloserRegistry` so provider runtime initializers can register cleanup hooks without changing the core `RuntimeHandle` contract.
+- Implemented that optional closer registry on the xgoja app runtime handle.
+- Added `modules/express.NewLoader(host, ...)`, which adapts runtimebridge owner bindings into the runtimeowner interface required by `gojahttp.Host`.
+- Added `pkg/xgoja/providers/http` with package ID `go-go-goja-http`.
+- Registered an `express` module and an HTTP config capability.
+- Added Glazed section `http` with prefixed flags:
+  - `--http-enabled`
+  - `--http-listen`
+- The express loader starts an HTTP server for the runtime and the runtime closer shuts it down.
+
+### Validation
+
+```bash
+go test ./pkg/xgoja/providers/http ./modules/express ./pkg/xgoja/app ./pkg/xgoja/providerapi -count=1
+```
+
+Result: passed.
+
+### Notes
+
+This slice only adds xgoja-owned HTTP/Express. The Discord bot command provider still needs to aggregate module sections for provider-owned commands and initialize selected module capabilities when it creates runtimes through xgoja.

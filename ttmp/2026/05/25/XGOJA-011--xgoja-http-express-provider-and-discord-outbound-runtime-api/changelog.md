@@ -19,3 +19,14 @@ Created design and implementation guide for xgoja-owned Express provider and Dis
 
 Uploaded XGOJA-011 design bundle to reMarkable.
 
+
+## 2026-05-25
+
+Implemented go-go-goja HTTP provider with express module and http listen Glazed section.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/modules/express/express.go — Exported NewLoader for provider module use
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/capabilities.go — Added optional RuntimeCloserRegistry
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providers/http/http.go — New xgoja HTTP provider registering express and http section
+

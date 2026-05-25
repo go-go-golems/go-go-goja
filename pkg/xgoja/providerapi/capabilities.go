@@ -51,6 +51,12 @@ type RuntimeHandle interface {
 	Close(context.Context) error
 }
 
+// RuntimeCloserRegistry is an optional extension implemented by runtime handles
+// that can attach cleanup hooks to the underlying engine runtime.
+type RuntimeCloserRegistry interface {
+	AddCloser(func(context.Context) error) error
+}
+
 // RuntimeInitializerCapability is used by built-in xgoja commands such as run,
 // repl, jsverbs, and eventually eval. The runtime already exists; the module
 // configures it from parsed Glazed sections.

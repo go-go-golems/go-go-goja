@@ -10,15 +10,15 @@
 
 ## go-go-goja HTTP provider
 
-- [ ] Add optional `RuntimeCloserRegistry` interface to providerapi.
-- [ ] Implement `RuntimeCloserRegistry` on app runtime handle.
-- [ ] Export or otherwise expose an Express loader from `modules/express`.
-- [ ] Add `pkg/xgoja/providers/http` package.
-- [ ] Register provider package ID `go-go-goja-http`.
-- [ ] Register `express` module.
-- [ ] Add HTTP Glazed config section with `--http-listen` and `--http-enabled`.
-- [ ] Start an HTTP server for the runtime and register runtime closer shutdown.
-- [ ] Add focused provider tests.
+- [x] Add optional `RuntimeCloserRegistry` interface to providerapi.
+- [x] Implement `RuntimeCloserRegistry` on app runtime handle.
+- [x] Export or otherwise expose an Express loader from `modules/express`.
+- [x] Add `pkg/xgoja/providers/http` package.
+- [x] Register provider package ID `go-go-goja-http`.
+- [x] Register `express` module.
+- [x] Add HTTP Glazed config section with `--http-listen` and `--http-enabled`.
+- [x] Start an HTTP server for the runtime and register runtime closer shutdown.
+- [x] Add focused provider tests.
 
 ## discord-bot command provider/runtime bridge
 
@@ -44,9 +44,9 @@
 
 ## Final validation
 
-- [ ] Run focused go-go-goja tests.
+- [x] Run focused go-go-goja tests.
 - [ ] Run focused discord-bot tests.
 - [ ] Run generated example smoke.
-- [ ] Update diary/changelog after each slice.
-- [ ] Commit at appropriate intervals.
+- [x] Update diary/changelog after each slice.
+- [x] Commit at appropriate intervals.
 - [ ] Run `docmgr doctor --ticket XGOJA-011 --stale-after 30`.
