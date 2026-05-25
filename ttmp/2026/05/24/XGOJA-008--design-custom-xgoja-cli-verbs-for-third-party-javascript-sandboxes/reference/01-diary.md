@@ -515,3 +515,107 @@ After revising the design, I validated the ticket and uploaded a fresh bundle to
 ### What should be done in the future
 
 - Implement the fixture command provider plus fixture configurable module as the first slice.
+
+## Step 8: Revised design so built-in commands aggregate module sections
+
+The user asked whether the module-provided Glazed sections design also applies to built-in `repl`, `run`, and `jsverbs`. I clarified that the previous draft covered custom command providers explicitly but did not state the built-in command behavior strongly enough. I revised the design so built-ins that create a runtime also aggregate module sections from their selected runtime profile and initialize modules from parsed section values.
+
+### Prompt Context
+
+**User prompt (verbatim):** "does this also cover adding the glazed sections to the repl / run / jsverbs ?"
+
+**Follow-up prompt (verbatim):** "update the document for all these considerations, and then upload to remarkable"
+
+**Assistant interpretation:** Update XGOJA-008 so module-provided sections are a general runtime-profile feature, not only a custom-command-provider feature.
+
+**Inferred user intent:** Built-in generated commands should expose the same module-specific flags that custom command providers can expose.
+
+**Commit (code):** N/A — design doc revision; committed after validation/upload.
+
+### What I did
+
+- Added a third revision note explaining built-in command aggregation.
+- Added a dedicated "Built-in command section aggregation" section.
+- Added `RuntimeInitializerCapability` for `run`, `repl`, `jsverbs`, and eventually `eval`.
+- Split initialization concepts into:
+  - `RuntimeInitializerCapability` for built-in runtime mutation;
+  - `ComponentInitializerCapability` for custom command provider orchestration.
+- Added buildspec guidance for `commands.*.moduleSections`.
+- Added pseudocode for `run`, `repl`, and `jsverbs` behavior.
+- Updated implementation phases, testing strategy, safety rules, open questions, and first implementation slice.
+
+### Why
+
+- `run`, `repl`, and `jsverbs` all create runtimes from profiles, so they should expose module-specific runtime settings from those profiles.
+- xgoja still stays generic: it aggregates sections and calls runtime initializers but does not know what the settings mean.
+
+### What worked
+
+- The design now has one consistent rule: commands that create a runtime may aggregate selected module sections and call runtime initializers.
+
+### What didn't work
+
+- The previous draft's section composition examples focused too much on package-owned command providers and could be read as excluding built-ins.
+
+### What I learned
+
+- There are two initializer shapes: runtime mutation for built-ins, and component/object initialization for package-owned custom commands.
+
+### What was tricky to build
+
+- Avoiding a single overloaded `InitFromSections` API. Splitting runtime and component initializers makes intent clearer.
+
+### What warrants a second pair of eyes
+
+- Whether `moduleSections` should default to true for all runtime-creating built-ins.
+- Whether `eval` should be converted from raw Cobra to Glazed in the first implementation slice.
+- How `jsverbs` should merge verb sections with module sections when slugs collide.
+
+### What should be done in the future
+
+- Implement the built-in `run` fixture first, then `jsverbs`, then custom command provider fixtures.
+
+### Code review instructions
+
+- Review the new "Built-in command section aggregation" section, `RuntimeInitializerCapability`, and the revised first implementation slice.
+
+### Technical details
+
+The core rule added to the design is:
+
+```text
+Any command that creates a runtime from a runtime profile may aggregate Glazed sections from the modules selected by that profile, expose those sections on the command, and call module runtime initializers after the runtime is created.
+```
+
+## Step 9: Uploaded the built-in module-section revision
+
+I uploaded a fresh reMarkable bundle after validating the revised design that now includes built-in `run`, `repl`, and `jsverbs` section aggregation.
+
+### Prompt Context
+
+**User prompt (verbatim):** "update the document for all these considerations, and then upload to remarkable"
+
+**Assistant interpretation:** Publish the revised XGOJA-008 design that includes built-in command behavior.
+
+**Inferred user intent:** The tablet copy should include the latest architecture, including built-in command aggregation of module-provided sections.
+
+**Commit (code):** N/A — docs committed after this entry.
+
+### What I did
+
+- Ran `docmgr doctor --ticket XGOJA-008 --stale-after 30`.
+- Uploaded the revised bundle to `/ai/2026/05/24/XGOJA-008`.
+
+### What worked
+
+- `docmgr doctor` passed.
+- Upload succeeded with:
+  - `OK: uploaded XGOJA-008 built-in module sections design.pdf -> /ai/2026/05/24/XGOJA-008`
+
+### What warrants a second pair of eyes
+
+- Whether to remove earlier PDFs from the tablet to avoid reading outdated revisions.
+
+### What should be done in the future
+
+- Implement the fixture path for built-in `run` and `jsverbs` before adapting real packages.

@@ -29,9 +29,9 @@ RelatedFiles:
     - Path: ../../../../../../../../../../go-minitrace/cmd/go-minitrace/cmds/query/js_runtime.go
       Note: Minitrace command-local JS runtime and jsverb invocation
 ExternalSources: []
-Summary: Design guide for extending generated xgoja binaries with custom Glazed command sets and module-provided Glazed configuration sections supplied by third-party Goja sandbox packages.
-LastUpdated: 2026-05-25T00:35:00-04:00
-WhatFor: Use this guide when designing or implementing xgoja support for package-provided custom Glazed commands and composable module configuration sections beyond built-in eval run repl and generic jsverbs.
+Summary: Design guide for extending generated xgoja binaries with custom Glazed command sets and module-provided Glazed configuration sections for both custom and built-in commands.
+LastUpdated: 2026-05-25T00:55:00-04:00
+WhatFor: Use this guide when designing or implementing xgoja support for package-provided custom Glazed commands and composable module configuration sections across eval run repl jsverbs and custom command providers.
 WhenToUse: Before changing xgoja buildspecs provider APIs or generated command attachment for third-party sandbox command sets.
 ---
 
@@ -43,11 +43,14 @@ This document was revised after review to keep the extension point inside the Go
 
 A second revision adds **module-provided Glazed configuration sections**. This is important because xgoja cannot code-generate arbitrary semantic integrations such as "run a Discord bot controlled by a Loupedeck". Instead, xgoja compiles selected providers and passes their descriptors to a package-owned command provider. A command provider such as Loupedeck can inspect the selected modules, ask each module for extra Glazed sections, include those sections in its final command, and later initialize each module by decoding its own section with `values.Values.DecodeSectionInto`.
 
+A third revision clarifies that module-provided sections are **not only for custom command providers**. They should also be available to built-in xgoja commands (`run`, `repl`, `jsverbs`, and eventually `eval`) based on the command's selected runtime profile. Built-ins aggregate sections from the modules in that profile, expose them as CLI flags, create the runtime, and then call module runtime initializers with the parsed `*values.Values` before executing the script, opening the REPL, or invoking a JS verb.
+
 This is the better boundary because:
 
 - command schemas, flags, arguments, parents, help text, and output behavior stay in Glazed;
 - packages can return structured row output when appropriate (`GlazeCommand`), direct writer output when needed (`WriterCommand`), or normal side-effect/session commands (`BareCommand`);
 - modules can expose reusable config sections without owning the final command tree;
+- built-in xgoja commands can expose module-specific runtime options without hard-coding module semantics;
 - command providers can compose selected modules without xgoja understanding domain semantics;
 - xgoja can reuse `glazedcli.AddCommandsToRootCommand` and `glazedcli.BuildCobraCommandFromCommand`;
 - command providers do not need to construct Cobra directly except for rare app-root integration code outside this provider API;
@@ -69,10 +72,12 @@ The recommended design is to add a **Glazed command provider** layer next to the
 
 ```text
 provider package
-  ├─ providerapi.Module entries          -> require(...) modules selected by runtime profiles
-  ├─ providerapi.ModuleConfig sections   -> extra Glazed sections exposed by selected modules
-  ├─ providerapi.VerbSource entries      -> generic JavaScript verb files scanned by xgoja
-  └─ providerapi.CommandSetProvider      -> package-owned Glazed command sets that can compose selected modules
+  ├─ providerapi.Module entries             -> require(...) modules selected by runtime profiles
+  ├─ providerapi.ConfigSectionCapability    -> extra Glazed sections exposed by selected modules
+  ├─ providerapi.RuntimeInitializerCapability -> initialize run/repl/jsverbs runtimes from parsed sections
+  ├─ providerapi.ComponentInitializerCapability -> initialize package-level components for custom commands
+  ├─ providerapi.VerbSource entries         -> generic JavaScript verb files scanned by xgoja
+  └─ providerapi.CommandSetProvider         -> package-owned Glazed command sets that can compose selected modules
 ```
 
 A command set provider should be able to contribute custom generated CLI commands such as:
@@ -90,6 +95,8 @@ my-generated-binary
 The key idea is that xgoja should not try to understand every third-party sandbox. It should provide a stable generated-binary host contract and let packages adapt their own command sets into Glazed commands.
 
 For cross-package compositions, the command provider owns the orchestration. xgoja does not synthesize a bespoke `DiscordLoupedeckBotCommand`. Instead, the generated binary compiles a Loupedeck command provider and a Discord module provider; the Loupedeck command provider can discover that the Discord module was selected, import its Glazed configuration section, and call its typed initializer at runtime.
+
+For built-in execution commands, xgoja owns the orchestration but only at the generic runtime level. `run`, `repl`, and `jsverbs` can aggregate sections from the selected runtime profile and call runtime initializer capabilities. They still do not know what Discord, Loupedeck, CSS visual diff, or minitrace settings mean.
 
 ## Problem statement
 
@@ -173,7 +180,7 @@ type DiscordSettings struct {
     Script    string `glazed:"bot-script"`
 }
 
-func (m *DiscordModule) InitFromSections(ctx context.Context, vals *values.Values) (providerapi.InitializedModule, error) {
+func (m *DiscordModule) InitComponentFromSections(ctx context.Context, vals *values.Values) (providerapi.InitializedModule, error) {
     var cfg DiscordSettings
     if err := vals.DecodeSectionInto("discord", &cfg); err != nil {
         return nil, err
@@ -183,6 +190,98 @@ func (m *DiscordModule) InitFromSections(ctx context.Context, vals *values.Value
 ```
 
 This makes sections the contract and keeps initialization typed, local, and testable.
+
+## Built-in command section aggregation
+
+Module-provided sections should apply to both custom command providers and built-in xgoja commands. The rule should be:
+
+> Any command that creates a runtime from a runtime profile may aggregate Glazed sections from the modules selected by that profile, expose those sections on the command, and call module runtime initializers after the runtime is created.
+
+This covers:
+
+- `run`: add module sections to the `run` command and initialize modules before executing the file.
+- `repl`: add module sections to the REPL command and initialize modules before handing control to the user.
+- `jsverbs`: add module sections to every generated verb command for the jsverbs runtime profile and initialize modules before invoking the verb.
+- `eval`: should eventually be converted from raw Cobra to a Glazed `BareCommand` so it can follow the same path.
+
+The built-in commands do not need to understand domain semantics. They only need generic helper functions:
+
+```go
+func SectionsForRuntimeProfile(ctx SectionContext, profile string) ([]schema.Section, []ModuleDescriptor, error)
+
+func InitRuntimeFromSections(
+    ctx context.Context,
+    vals *values.Values,
+    rt RuntimeHandle,
+    modules []ModuleDescriptor,
+) error
+```
+
+Then `run` can be shaped like this:
+
+```go
+func newRunCommand(factory *RuntimeFactory, spec *Spec) cmds.Command {
+    profile := commandRuntime(spec.Commands.Run, firstRuntime(spec))
+    moduleSections, selected, err := factory.SectionsForRuntimeProfile(profile)
+    if err != nil { return errorCommand(err) }
+
+    sections := append([]schema.Section{run.DefaultSection(profile)}, moduleSections...)
+
+    return &runCommand{
+        CommandDescription: cmds.NewCommandDescription(
+            "run",
+            cmds.WithSections(sections...),
+        ),
+        selectedModules: selected,
+    }
+}
+
+func (c *runCommand) Run(ctx context.Context, vals *values.Values) error {
+    var settings runSettings
+    if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
+        return err
+    }
+
+    rt, err := c.factory.NewRuntime(ctx, settings.Runtime)
+    if err != nil { return err }
+    defer rt.Close(ctx)
+
+    if err := providerapi.InitRuntimeFromSections(ctx, vals, rt, c.selectedModules); err != nil {
+        return err
+    }
+
+    return rt.RunFile(ctx, settings.File)
+}
+```
+
+For `jsverbs`, the generated command's schema should be:
+
+```text
+verb-declared sections
++ xgoja command/default section
++ module sections from spec.Commands.JSVerbs.Runtime
+```
+
+and the invoker should initialize the runtime from parsed values before calling `registry.InvokeInRuntime`.
+
+This gives a generated CLI like:
+
+```text
+xgoja run ./bot.js \
+  --runtime main \
+  --discord-token-env DISCORD_BOT_TOKEN \
+  --discord-guild-id 123
+
+xgoja repl \
+  --runtime main \
+  --discord-token-env DISCORD_BOT_TOKEN
+
+xgoja verbs announce \
+  --discord-token-env DISCORD_BOT_TOKEN \
+  --discord-channel-id 456
+```
+
+The command-specific code remains generic. The module owns section shape and typed decoding; the built-in command only exposes and forwards parsed sections.
 
 ## Current xgoja architecture
 
@@ -346,6 +445,7 @@ import (
     "context"
     "encoding/json"
 
+    "github.com/dop251/goja"
     "github.com/go-go-golems/glazed/pkg/cli"
     "github.com/go-go-golems/glazed/pkg/cmds"
     "github.com/go-go-golems/glazed/pkg/cmds/schema"
@@ -399,9 +499,24 @@ type ConfigSectionCapability interface {
     ConfigSections(SectionContext) ([]schema.Section, error)
 }
 
-type InitializerCapability interface {
+// RuntimeInitializerCapability is used by built-in xgoja commands such as
+// run/repl/jsverbs/eval. The runtime already exists; the module configures it
+// from parsed Glazed sections.
+type RuntimeInitializerCapability interface {
     ModuleCapability
-    InitFromSections(context.Context, *values.Values) (InitializedModule, error)
+    InitRuntimeFromSections(context.Context, *values.Values, RuntimeHandle) error
+}
+
+// ComponentInitializerCapability is used by package-owned command providers
+// that need initialized domain objects, not only JS runtime mutation.
+type ComponentInitializerCapability interface {
+    ModuleCapability
+    InitComponentFromSections(context.Context, *values.Values) (InitializedModule, error)
+}
+
+type RuntimeHandle interface {
+    Runtime() *goja.Runtime
+    Close(context.Context) error
 }
 
 type InitializedModule interface {
@@ -410,7 +525,7 @@ type InitializedModule interface {
 }
 ```
 
-The important design point is that command providers do not know all possible modules at compile time. They know only the capability interfaces they care about. For example, a Loupedeck command provider can ask selected modules for `ConfigSectionCapability`, include those sections, and at runtime ask compatible modules to initialize themselves through `InitializerCapability`.
+The important design point is that command providers and built-ins do not know all possible modules at compile time. They know only the capability interfaces they care about. For example, a Loupedeck command provider can ask selected modules for `ConfigSectionCapability`, include those sections, and at runtime ask compatible modules to initialize domain objects through `ComponentInitializerCapability`. Built-in `run`, `repl`, and `jsverbs` commands use the same sections but call `RuntimeInitializerCapability` after creating the runtime.
 
 `Registry.Package` would accept `CommandSetProvider` entries alongside `Module`, `VerbSource`, and module capabilities:
 
@@ -431,14 +546,15 @@ func Register(reg *providerapi.Registry) error {
 }
 ```
 
-A Discord provider would expose a module capability, not a Loupedeck-specific command:
+A Discord provider would expose module capabilities, not a Loupedeck-specific command:
 
 ```go
 func Register(reg *providerapi.Registry) error {
     return reg.Package("discord",
         providerapi.Module{...},
         discord.NewConfigSectionCapability(),
-        discord.NewInitializerCapability(),
+        discord.NewRuntimeInitializerCapability(),
+        discord.NewComponentInitializerCapability(), // optional, for package-level orchestration
     )
 }
 ```
@@ -510,6 +626,26 @@ type CommandProviderInstance struct {
 
 `RuntimeProfile` or `ModuleSelector` tells xgoja which selected modules should be visible to the command provider. If omitted, the provider can receive the default profile's selected modules. This lets a command provider compose only the modules intentionally selected by the generated binary author.
 
+Built-in commands do not need a separate selector if they already have a runtime profile. They aggregate module sections from their effective runtime:
+
+```yaml
+commands:
+  run:
+    enabled: true
+    runtime: main
+    moduleSections: true
+  repl:
+    enabled: true
+    runtime: main
+    moduleSections: true
+  jsverbs:
+    enabled: true
+    runtime: main
+    moduleSections: true
+```
+
+`moduleSections` can default to `true` for commands that create a runtime. A generated binary author can disable it for very small or safety-sensitive binaries.
+
 ### Generated runtime flow
 
 ```text
@@ -525,8 +661,14 @@ generated main.go
   v
 providerapi.Registry
   |
-  | ResolveCommandSetProvider(package, name)
-  | ResolveSelectedModules(runtimeProfile/modules)
+  | built-ins: ResolveSelectedModules(command.runtime)
+  | custom: ResolveCommandSetProvider(package, name)
+  | custom: ResolveSelectedModules(runtimeProfile/modules)
+  v
+xgoja app.Host.AttachDefaultCommands(root)
+  |
+  | run/repl/jsverbs aggregate module sections
+  | run/repl/jsverbs call RuntimeInitializerCapability after runtime creation
   v
 xgoja app.Host.AttachCommandProviders(root)
   |
@@ -544,7 +686,7 @@ Cobra commands generated by Glazed bridge
   |
   | at execution time, command Run(ctx, vals)
   | decodes own section with DecodeSectionInto
-  | asks selected modules to InitFromSections(ctx, vals)
+  | asks selected modules to InitComponentFromSections(ctx, vals)
   v
 initialized module graph owned by package command
 ```
@@ -713,7 +855,15 @@ func (DiscordCapability) ConfigSections(ctx providerapi.SectionContext) ([]schem
     return []schema.Section{section}, nil
 }
 
-func (DiscordCapability) InitFromSections(ctx context.Context, vals *values.Values) (providerapi.InitializedModule, error) {
+func (DiscordCapability) InitRuntimeFromSections(ctx context.Context, vals *values.Values, rt providerapi.RuntimeHandle) error {
+    var cfg DiscordSettings
+    if err := vals.DecodeSectionInto("discord", &cfg); err != nil {
+        return err
+    }
+    return discord.InstallRuntimeGlobals(ctx, rt.Runtime(), cfg)
+}
+
+func (DiscordCapability) InitComponentFromSections(ctx context.Context, vals *values.Values) (providerapi.InitializedModule, error) {
     var cfg DiscordSettings
     if err := vals.DecodeSectionInto("discord", &cfg); err != nil {
         return nil, err
@@ -724,7 +874,46 @@ func (DiscordCapability) InitFromSections(ctx context.Context, vals *values.Valu
 
 This is preferred over having the final command read individual values with `vals.GetString`. The provider that owns the section also owns decoding and validation of the section.
 
-### Pattern F: Command provider composing selected module sections
+### Pattern F: Built-in command composing runtime-profile module sections
+
+Use when a built-in xgoja command creates a runtime from a profile. The command adds its own base section, appends sections from selected modules, and calls runtime initializers after creating the runtime.
+
+```go
+func newReplCommand(factory *RuntimeFactory, spec *Spec) cmds.Command {
+    profile := commandRuntime(spec.Commands.Repl, firstRuntime(spec))
+    moduleSections, selected, err := factory.SectionsForRuntimeProfile(profile)
+    if err != nil { return errorCommand(err) }
+
+    return &replCommand{
+        CommandDescription: cmds.NewCommandDescription(
+            "repl",
+            cmds.WithSections(append([]schema.Section{repl.DefaultSection(profile)}, moduleSections...)...),
+        ),
+        selectedModules: selected,
+    }
+}
+
+func (c *replCommand) Run(ctx context.Context, vals *values.Values) error {
+    var cfg replSettings
+    if err := vals.DecodeSectionInto(schema.DefaultSlug, &cfg); err != nil {
+        return err
+    }
+
+    rt, err := c.factory.NewRuntime(ctx, cfg.Runtime)
+    if err != nil { return err }
+    defer rt.Close(ctx)
+
+    if err := providerapi.InitRuntimeFromSections(ctx, vals, rt, c.selectedModules); err != nil {
+        return err
+    }
+
+    return startREPL(ctx, rt)
+}
+```
+
+`run` and `jsverbs` follow the same shape. `jsverbs` differs only because the base sections come from the JavaScript verb metadata before module sections are appended.
+
+### Pattern G: Command provider composing selected module sections
 
 Use when a command provider owns an orchestration surface and wants selected modules to participate. Example: a Loupedeck command provider exposes `loupe bot`, includes its own Loupedeck section, discovers the selected Discord module's section, then initializes Discord and binds it to the deck.
 
@@ -773,9 +962,9 @@ func (c *LoupedeckBotCommand) Run(ctx context.Context, vals *values.Values) erro
 
     for _, mod := range c.modules {
         for _, cap := range mod.Capabilities {
-            initCap, ok := cap.(providerapi.InitializerCapability)
+            initCap, ok := cap.(providerapi.ComponentInitializerCapability)
             if !ok { continue }
-            initialized, err := initCap.InitFromSections(ctx, vals)
+            initialized, err := initCap.InitComponentFromSections(ctx, vals)
             if err != nil { return err }
             defer initialized.Close(ctx)
 
@@ -805,7 +994,7 @@ xgoja loupe bot \
 
 xgoja did not generate Discord/Loupedeck glue. It only made the selected module descriptors available to the Loupedeck command provider.
 
-### Pattern G: Catalog command provider
+### Pattern H: Catalog command provider
 
 Use when command metadata is not only in JS source annotations but in a package catalog. This matches `go-minitrace`.
 
@@ -824,7 +1013,7 @@ providerapi.CommandSetProvider{
 
 ## Implementation plan
 
-### Phase 1: Add command-set provider API to providerapi
+### Phase 1: Add command-set and module capability APIs to providerapi
 
 Files:
 
@@ -836,7 +1025,7 @@ Tasks:
 
 1. Add `CommandSetProvider` entry type.
 2. Add `CommandSet` return type containing `[]cmds.Command` and optional parser config.
-3. Add module capability interfaces for `ConfigSections` and `InitFromSections`.
+3. Add module capability interfaces for `ConfigSections`, `InitRuntimeFromSections`, and `InitComponentFromSections`.
 4. Extend `Package` with `CommandSetProviders map[string]CommandSetProvider` and module capability metadata.
 5. Add `ResolveCommandSetProvider(packageID, name string)` and selected-module descriptor resolution.
 6. Add tests for duplicate names, missing factory, capability registration, and package cloning.
@@ -858,7 +1047,27 @@ Tasks:
 4. Include command providers and selected module descriptors in embedded spec JSON.
 5. Add docs in `cmd/xgoja/doc/02-buildspec.md`.
 
-### Phase 3: Attach custom command providers in generated app
+### Phase 3: Add built-in command section aggregation
+
+Files:
+
+- `go-go-goja/pkg/xgoja/app/run.go`
+- `go-go-goja/pkg/xgoja/app/tui.go`
+- `go-go-goja/pkg/xgoja/app/root.go`
+- `go-go-goja/pkg/xgoja/app/factory.go`
+- new `go-go-goja/pkg/xgoja/app/module_sections.go`
+
+Tasks:
+
+1. Add helpers that resolve selected module descriptors for a runtime profile.
+2. Add helpers that collect `ConfigSectionCapability` sections for a runtime profile.
+3. Add helpers that call `RuntimeInitializerCapability.InitRuntimeFromSections` after runtime creation.
+4. Update `run` to append module sections and initialize runtime before executing the file.
+5. Update `repl`/TUI to append module sections and initialize runtime before starting the session.
+6. Update `jsverbs` so each generated verb command appends module sections for `spec.Commands.JSVerbs.Runtime` and initializes runtime before `InvokeInRuntime`.
+7. Convert `eval` to a Glazed `BareCommand` or document why `eval` is excluded from module section aggregation in the first slice.
+
+### Phase 4: Attach custom command providers in generated app
 
 Files:
 
@@ -909,7 +1118,7 @@ func (h *Host) AttachCommandProviders(root *cobra.Command) {
 }
 ```
 
-### Phase 4: Add fixture providers and examples
+### Phase 5: Add fixture providers and examples
 
 Create a first-party fixture command provider under `go-go-goja/pkg/xgoja/testprovider`. Include both a command provider fixture and a module capability fixture so the first implementation proves section composition, not only command mounting.
 
@@ -959,11 +1168,11 @@ xgoja build -f examples/xgoja/custom-command-provider/xgoja.yaml --xgoja-replace
 ./dist/custom-command-provider tools echo hello
 ```
 
-### Phase 5: Adapt real packages
+### Phase 6: Adapt real packages
 
 Recommended order:
 
-1. `discord-bot`: expose a Discord module capability with `ConfigSections` and `InitFromSections` first; only then refactor existing bot commands to return `[]cmds.Command` where useful.
+1. `discord-bot`: expose a Discord module capability with `ConfigSections`, `InitRuntimeFromSections`, and optionally `InitComponentFromSections` first; only then refactor existing bot commands to return `[]cmds.Command` where useful.
 2. `loupedeck`: expose a Loupedeck control section and a command provider that can aggregate selected module sections; wrap live scene/controller invokers as `BareCommand`.
 3. `css-visual-diff`: move or wrap internal `verbcli` through a public package returning `[]cmds.Command`, and expose browser/artifact config sections through module capabilities.
 4. `go-minitrace`: expose query catalog commands as `GlazeCommand` values after catalog/DB config is public and safe; expose database/runtime settings as typed sections decoded with `DecodeSectionInto`.
@@ -992,7 +1201,7 @@ func Register(reg *providerapi.Registry) error {
 }
 ```
 
-The `Run` method of `NewBotControllerCommand` decodes Loupedeck settings with `DecodeSectionInto("loupedeck", &settings)`, initializes a deck controller, then initializes any selected modules that implement `InitializerCapability`.
+The `Run` method of `NewBotControllerCommand` decodes Loupedeck settings with `DecodeSectionInto("loupedeck", &settings)`, initializes a deck controller, then initializes any selected modules that implement `ComponentInitializerCapability`.
 
 ### Discord adapter
 
@@ -1012,7 +1221,15 @@ func (BotCapability) ConfigSections(ctx providerapi.SectionContext) ([]schema.Se
     return []schema.Section{discord.Section()}, nil
 }
 
-func (BotCapability) InitFromSections(ctx context.Context, vals *values.Values) (providerapi.InitializedModule, error) {
+func (BotCapability) InitRuntimeFromSections(ctx context.Context, vals *values.Values, rt providerapi.RuntimeHandle) error {
+    var cfg discord.Settings
+    if err := vals.DecodeSectionInto("discord", &cfg); err != nil {
+        return err
+    }
+    return discord.InstallRuntimeGlobals(ctx, rt.Runtime(), cfg)
+}
+
+func (BotCapability) InitComponentFromSections(ctx context.Context, vals *values.Values) (providerapi.InitializedModule, error) {
     var cfg discord.Settings
     if err := vals.DecodeSectionInto("discord", &cfg); err != nil {
         return nil, err
@@ -1084,14 +1301,16 @@ providerapi.CommandSetProvider{
 
 1. Command-set providers and module capabilities must declare config schemas/sections for dangerous capabilities.
 2. Section slugs and prefixes must be stable and collision-checked before mounting commands.
-3. Runtime code must decode typed structs with `values.Values.DecodeSectionInto`, not scattered field accessors.
-4. Long-running `BareCommand` implementations must honor `ctx` cancellation.
-5. Commands that open devices, browsers, Discord sessions, or databases must close them with `defer` or command lifecycle hooks.
-6. Commands that emit rows should be `GlazeCommand`, not `BareCommand` that prints JSON manually.
-7. Commands that need textual output should be `WriterCommand` and use the supplied writer.
-8. Generated xgoja should not pass global mutable state implicitly.
-9. Provider command factories should fail early when required host services are missing.
-10. Mount and section collisions should be doctor errors, not runtime surprises.
+3. Built-in commands must apply the same section aggregation rules as custom command providers when they create runtimes.
+4. Runtime initializers must run after runtime creation and before script execution, REPL startup, or JS verb invocation.
+5. Runtime code must decode typed structs with `values.Values.DecodeSectionInto`, not scattered field accessors.
+6. Long-running `BareCommand` implementations must honor `ctx` cancellation.
+7. Commands that open devices, browsers, Discord sessions, or databases must close them with `defer` or command lifecycle hooks.
+8. Commands that emit rows should be `GlazeCommand`, not `BareCommand` that prints JSON manually.
+9. Commands that need textual output should be `WriterCommand` and use the supplied writer.
+10. Generated xgoja should not pass global mutable state implicitly.
+11. Provider command factories should fail early when required host services are missing.
+12. Mount and section collisions should be doctor errors, not runtime surprises.
 
 ## Testing strategy
 
@@ -1101,6 +1320,8 @@ providerapi.CommandSetProvider{
 - buildspec validation tests, including selected module profile/selector tests;
 - generated main rendering tests;
 - app host command attachment tests with fixture provider;
+- built-in `run`, `repl`, and `jsverbs` section aggregation tests;
+- runtime initializer invocation tests for built-in commands;
 - config section aggregation and section collision tests;
 - `DecodeSectionInto` fixture initializer tests;
 - `applyMountPrefix` tests for command parent rewriting.
@@ -1109,6 +1330,8 @@ providerapi.CommandSetProvider{
 
 - generated fixture command-provider binary;
 - generated provider with generic xgoja commands plus custom provider commands;
+- generated fixture where built-in `run` exposes a selected module's section and calls its runtime initializer;
+- generated fixture where `jsverbs` exposes selected module sections on discovered verb commands;
 - generated fixture where a command provider imports selected module sections;
 - mount collision and section collision negative tests;
 - config validation negative test;
@@ -1133,23 +1356,28 @@ providerapi.CommandSetProvider{
 7. What is the exact buildspec syntax for selecting modules visible to a command provider: `runtimeProfile`, explicit `modules`, or both?
 8. Should module initializers receive command-provider config, or only parsed Glazed section values?
 9. How should initialized modules advertise optional domain interfaces like `loupedeck.Bindable` without creating import cycles?
+10. Should `moduleSections` default to true for all runtime-creating built-ins, or only when explicitly enabled?
+11. Should `eval` be converted to a Glazed command in the first implementation slice or left as a raw Cobra exception?
+12. How should `jsverbs` merge verb-declared sections with module-provided sections if slugs collide?
 
 ## Recommended first implementation slice
 
 The smallest useful slice is:
 
-1. Add command-set provider registry support.
-2. Add `commandProviders` buildspec list.
-3. Add `Host.AttachCommandProviders` using `glazedcli.AddCommandsToRootCommand`.
-4. Add a fixture provider returning:
+1. Add module capability registry support first: `ConfigSectionCapability` and `RuntimeInitializerCapability`.
+2. Add helper functions for runtime-profile section aggregation and runtime initialization.
+3. Update built-in `run` with a fixture module section and `DecodeSectionInto` runtime initializer.
+4. Update built-in `jsverbs` with the same fixture module section path.
+5. Add command-set provider registry support and `commandProviders` buildspec list.
+6. Add `Host.AttachCommandProviders` using `glazedcli.AddCommandsToRootCommand`.
+7. Add a fixture command provider returning:
    - one `BareCommand`,
    - one `WriterCommand`,
    - one `GlazeCommand`.
-5. Add a fixture module that exposes a Glazed config section and initializes from `DecodeSectionInto`.
-6. Add a generated example where the fixture command provider imports selected module sections.
-7. Add generated example and docs.
+8. Add a fixture module that exposes a Glazed config section and initializes from `DecodeSectionInto` for both built-ins and custom command providers.
+9. Add generated examples and docs.
 
-Do not start with Loupedeck or Discord. Use a fixture first, then adapt one real package after the generated-binary mechanics are stable.
+Do not start with Loupedeck or Discord. Use fixtures first: one built-in `run`/`jsverbs` fixture and one custom command-provider fixture. Then adapt one real package after the generated-binary mechanics are stable.
 
 ## References
 

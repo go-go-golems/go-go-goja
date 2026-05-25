@@ -11,3 +11,4 @@
 - [x] Validate ticket docs and upload bundle to reMarkable
 - [x] Revise command-provider design to return Glazed commands instead of Cobra commands
 - [x] Revise design for module-provided Glazed config sections and DecodeSectionInto initialization
+- [x] Revise design so built-in run repl jsverbs aggregate module-provided Glazed sections
