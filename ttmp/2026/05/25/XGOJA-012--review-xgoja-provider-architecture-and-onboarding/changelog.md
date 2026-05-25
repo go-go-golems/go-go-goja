@@ -87,3 +87,14 @@ Added runtime factory regression test and refreshed XGOJA-012 report/provider do
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/command_providers_test.go — command provider test now exercises typed RuntimeFactory
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-012--review-xgoja-provider-architecture-and-onboarding/design/01-xgoja-provider-architecture-review-and-onboarding-guide.md — review updated to implementation status
 
+
+## 2026-05-25
+
+Renamed xgoja examples into numbered onboarding curriculum and validated all example smoke tests.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/01-core-provider — safe provider starting example
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/08-provider-shipped-jsverbs — provider-shipped JS verbs endpoint example
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/examples/xgoja/README.md — numbered learning path and smoke loop
+

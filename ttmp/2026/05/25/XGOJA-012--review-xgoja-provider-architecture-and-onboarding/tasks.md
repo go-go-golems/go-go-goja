@@ -117,19 +117,19 @@
 
 ### Phase 7: Number and reorganize examples
 
-- [ ] Rename or copy examples into a numbered learning path:
-  - [ ] `01-core-provider` — safe modules and simple runtime profile.
-  - [ ] `02-host-provider` — guarded host modules.
-  - [ ] `03-multiple-runtimes` — separate runtime profiles per command.
-  - [ ] `04-module-sections` — config sections and runtime initializers.
-  - [ ] `05-command-provider` — provider-owned Glazed command sets.
-  - [ ] `06-runtime-filesystem` — runtime disk JS verb discovery, if still relevant here.
-  - [ ] `07-embedded-jsverbs` — embedded JS verbs, if still relevant here.
-  - [ ] `08-provider-shipped-jsverbs` — provider-shipped JS verb sources.
-- [ ] Update `examples/xgoja/README.md` as a numbered curriculum, not just a list.
-- [ ] Update Makefile smoke loops to use new names.
-- [ ] Decide whether to keep compatibility directories or only rename in one breaking pass.
-- [ ] Run all example smoke tests.
+- [x] Rename or copy examples into a numbered learning path:
+  - [x] `01-core-provider` — safe modules and simple runtime profile.
+  - [x] `02-host-provider` — guarded host modules.
+  - [x] `03-multiple-runtimes` — separate runtime profiles per command.
+  - [x] `04-module-sections` — config sections and runtime initializers.
+  - [x] `05-command-provider` — provider-owned Glazed command sets.
+  - [x] `06-runtime-filesystem` — runtime disk JS verb discovery, if still relevant here.
+  - [x] `07-embedded-jsverbs` — embedded JS verbs, if still relevant here.
+  - [x] `08-provider-shipped-jsverbs` — provider-shipped JS verb sources.
+- [x] Update `examples/xgoja/README.md` as a numbered curriculum, not just a list.
+- [x] Update Makefile smoke loops to use new names.
+- [x] Decide whether to keep compatibility directories or only rename in one breaking pass.
+- [x] Run all example smoke tests.
 
 ### Phase 8: Reorganize xgoja docs
 
@@ -154,7 +154,7 @@
   - [ ] `go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`.
 - [ ] Run Discord adapter tests after providerapi changes:
   - [ ] `go test ./pkg/xgoja/provider ./internal/jsdiscord ./pkg/botcli -count=1` in `discord-bot`.
-- [ ] Run generated example smoke tests.
+- [x] Run generated example smoke tests.
 - [ ] Update XGOJA-012 diary after each phase.
 - [ ] Update XGOJA-012 report if the implementation changes the recommendations.
 - [ ] Upload final bundle to reMarkable.

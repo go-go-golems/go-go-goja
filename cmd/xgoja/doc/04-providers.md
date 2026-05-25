@@ -348,7 +348,7 @@ commands:
     runtime: host
 ```
 
-In this shape, `eval` cannot `require("fs")`, while `run` can. See `examples/xgoja/multiple-runtimes/` for a runnable example.
+In this shape, `eval` cannot `require("fs")`, while `run` can. See `examples/xgoja/03-multiple-runtimes/` for a runnable example.
 
 ## Validate a provider
 
@@ -383,6 +383,6 @@ xgoja build -f examples/xgoja/my-provider/xgoja.yaml --xgoja-replace /path/to/go
 - `xgoja help overview`
 - `xgoja help buildspec`
 - `xgoja help tutorial`
-- `examples/xgoja/core-provider/`
-- `examples/xgoja/host-provider/`
-- `examples/xgoja/multiple-runtimes/`
+- `examples/xgoja/01-core-provider/`
+- `examples/xgoja/02-host-provider/`
+- `examples/xgoja/03-multiple-runtimes/`

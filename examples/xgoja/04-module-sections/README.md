@@ -13,5 +13,5 @@ The smoke test proves all built-in non-interactive paths:
 Run:
 
 ```bash
-make -C examples/xgoja/module-sections smoke
+make -C examples/xgoja/04-module-sections smoke
 ```

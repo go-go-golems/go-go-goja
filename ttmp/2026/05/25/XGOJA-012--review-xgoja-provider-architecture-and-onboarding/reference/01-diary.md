@@ -285,3 +285,43 @@ go test ./pkg/xgoja/app ./pkg/xgoja/providerapi ./cmd/xgoja/... -count=1
 ```
 
 Result: passed.
+
+## Step 11: Numbered xgoja examples as an onboarding curriculum
+
+### Intent
+
+The examples were useful but read like a smoke-test pile. Phase 7 called for turning them into a numbered path that starts with simple provider composition and ends with JS verb distribution variants.
+
+### What changed
+
+Renamed the examples in one breaking pass, without compatibility directories:
+
+- `core-provider` -> `01-core-provider`
+- `host-provider` -> `02-host-provider`
+- `multiple-runtimes` -> `03-multiple-runtimes`
+- `module-sections` -> `04-module-sections`
+- `command-provider` -> `05-command-provider`
+- `runtime-filesystem` -> `06-runtime-filesystem`
+- `embedded-jsverbs` -> `07-embedded-jsverbs`
+- `provider-shipped-jsverbs` -> `08-provider-shipped-jsverbs`
+
+Updated references in:
+
+- `examples/xgoja/README.md`
+- `cmd/xgoja/doc/04-providers.md`
+- `cmd/xgoja/cmd_build.go`
+- per-example README command snippets
+
+The new `examples/xgoja/README.md` explains the examples as a learning path and includes an all-example smoke loop using the numbered names.
+
+### Validation
+
+Ran all numbered example smokes:
+
+```bash
+for dir in 01-core-provider 02-host-provider 03-multiple-runtimes 04-module-sections 05-command-provider 06-runtime-filesystem 07-embedded-jsverbs 08-provider-shipped-jsverbs; do
+  make -C examples/xgoja/$dir smoke
+done
+```
+
+Result: passed.

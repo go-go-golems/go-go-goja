@@ -13,5 +13,5 @@ The same provider also exposes the `fixture` module section, so all three comman
 Run:
 
 ```bash
-make -C examples/xgoja/command-provider smoke
+make -C examples/xgoja/05-command-provider smoke
 ```
