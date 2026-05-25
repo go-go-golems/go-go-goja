@@ -97,7 +97,7 @@
   - [x] nil values keep HTTP disabled.
   - [x] non-nil values enable HTTP by default.
   - [x] explicit `--http-enabled=false` suppresses HTTP.
-- [ ] Consider replacing the implicit nil convention with an explicit phase later, but do not expand the API unless tests show the need.
+- [x] Consider replacing the implicit nil convention with an explicit phase later, but do not expand the API unless tests show the need. Deferred: tests support the current convention, so no new phase API was added.
 
 ### Phase 6: Fix provider documentation signatures and concepts
 

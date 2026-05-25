@@ -389,3 +389,7 @@ remarquee upload bundle \
 
 - `docmgr doctor`: passed.
 - reMarkable upload: `OK: uploaded XGOJA-012 xgoja provider cleanup final.pdf -> /ai/2026/05/25/XGOJA-012`.
+
+## Step 15: Deferred explicit runtime phase API
+
+I considered replacing `values == nil` with an explicit runtime-initializer phase enum. The current tests now cover the HTTP side-effect behavior, and no second provider currently needs a richer phase object. To keep the API simple, I deferred the explicit phase API and kept the documented convention.
