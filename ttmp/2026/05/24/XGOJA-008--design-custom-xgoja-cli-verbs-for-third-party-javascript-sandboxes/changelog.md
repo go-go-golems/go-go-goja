@@ -31,3 +31,21 @@ Revised command-provider design to return Glazed command sets instead of raw Cob
 
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/24/XGOJA-008--design-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes/design-doc/01-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes.md — Revised Glazed command-set provider design
 
+
+## 2026-05-25
+
+Added module-provided Glazed configuration sections and DecodeSectionInto initialization to the command-provider design.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/24/XGOJA-008--design-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes/design-doc/01-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes.md — Added configurable module capability and Discord/Loupedeck composition design
+
+
+## 2026-05-25
+
+Validated and uploaded the module-section design revision to reMarkable.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/24/XGOJA-008--design-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes/reference/01-diary.md — Recorded validation and reMarkable upload of module-section revision
+

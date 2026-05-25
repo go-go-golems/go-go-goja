@@ -29,9 +29,9 @@ RelatedFiles:
     - Path: ../../../../../../../../../../go-minitrace/cmd/go-minitrace/cmds/query/js_runtime.go
       Note: Minitrace command-local JS runtime and jsverb invocation
 ExternalSources: []
-Summary: Design guide for extending generated xgoja binaries with custom Glazed command sets supplied by third-party Goja sandbox packages.
-LastUpdated: 2026-05-25T00:10:00-04:00
-WhatFor: Use this guide when designing or implementing xgoja support for package-provided custom Glazed commands beyond built-in eval run repl and generic jsverbs.
+Summary: Design guide for extending generated xgoja binaries with custom Glazed command sets and module-provided Glazed configuration sections supplied by third-party Goja sandbox packages.
+LastUpdated: 2026-05-25T00:35:00-04:00
+WhatFor: Use this guide when designing or implementing xgoja support for package-provided custom Glazed commands and composable module configuration sections beyond built-in eval run repl and generic jsverbs.
 WhenToUse: Before changing xgoja buildspecs provider APIs or generated command attachment for third-party sandbox command sets.
 ---
 
@@ -41,12 +41,17 @@ WhenToUse: Before changing xgoja buildspecs provider APIs or generated command a
 
 This document was revised after review to keep the extension point inside the Go-Go-Golems / Glazed command ecosystem. The original draft proposed that provider command factories return `*cobra.Command`. The revised design instead has providers return **Glazed commands** (`cmds.Command` values implemented as `cmds.BareCommand`, `cmds.WriterCommand`, or `cmds.GlazeCommand`, usually `BareCommand`) plus optional grouping metadata. xgoja remains responsible for converting those Glazed commands into Cobra commands with the same parser and middleware path already used by generated xgoja jsverbs.
 
+A second revision adds **module-provided Glazed configuration sections**. This is important because xgoja cannot code-generate arbitrary semantic integrations such as "run a Discord bot controlled by a Loupedeck". Instead, xgoja compiles selected providers and passes their descriptors to a package-owned command provider. A command provider such as Loupedeck can inspect the selected modules, ask each module for extra Glazed sections, include those sections in its final command, and later initialize each module by decoding its own section with `values.Values.DecodeSectionInto`.
+
 This is the better boundary because:
 
 - command schemas, flags, arguments, parents, help text, and output behavior stay in Glazed;
 - packages can return structured row output when appropriate (`GlazeCommand`), direct writer output when needed (`WriterCommand`), or normal side-effect/session commands (`BareCommand`);
+- modules can expose reusable config sections without owning the final command tree;
+- command providers can compose selected modules without xgoja understanding domain semantics;
 - xgoja can reuse `glazedcli.AddCommandsToRootCommand` and `glazedcli.BuildCobraCommandFromCommand`;
-- command providers do not need to construct Cobra directly except for rare app-root integration code outside this provider API.
+- command providers do not need to construct Cobra directly except for rare app-root integration code outside this provider API;
+- runtime code should decode typed settings with `DecodeSectionInto`, not scattered `GetString`/`GetBool` accessors.
 
 ## Executive summary
 
@@ -64,9 +69,10 @@ The recommended design is to add a **Glazed command provider** layer next to the
 
 ```text
 provider package
-  ├─ providerapi.Module entries       -> require(...) modules selected by runtime profiles
-  ├─ providerapi.VerbSource entries   -> generic JavaScript verb files scanned by xgoja
-  └─ providerapi.CommandSetProvider   -> package-owned Glazed command sets
+  ├─ providerapi.Module entries          -> require(...) modules selected by runtime profiles
+  ├─ providerapi.ModuleConfig sections   -> extra Glazed sections exposed by selected modules
+  ├─ providerapi.VerbSource entries      -> generic JavaScript verb files scanned by xgoja
+  └─ providerapi.CommandSetProvider      -> package-owned Glazed command sets that can compose selected modules
 ```
 
 A command set provider should be able to contribute custom generated CLI commands such as:
@@ -83,6 +89,8 @@ my-generated-binary
 
 The key idea is that xgoja should not try to understand every third-party sandbox. It should provide a stable generated-binary host contract and let packages adapt their own command sets into Glazed commands.
 
+For cross-package compositions, the command provider owns the orchestration. xgoja does not synthesize a bespoke `DiscordLoupedeckBotCommand`. Instead, the generated binary compiles a Loupedeck command provider and a Discord module provider; the Loupedeck command provider can discover that the Discord module was selected, import its Glazed configuration section, and call its typed initializer at runtime.
+
 ## Problem statement
 
 The xgoja provider work in XGOJA-007 made packages importable as module providers. That solved this problem:
@@ -96,6 +104,8 @@ It did not solve this different problem:
 The difference matters. `require("loupedeck/gfx")` is a module. A Loupedeck scene runner with hardware/session flags is an application command. `require("discord")` is a module. `discord-bot bots support run --bot-token ...` is an application command that opens a Discord session and stays alive until cancelled.
 
 If xgoja only supports generic `run` and `jsverbs`, package authors will keep re-implementing command mounting outside xgoja. The generated binary will not be a useful composition target for real package-specific JS sandboxes.
+
+There is a second problem: final commands often need configuration from more than one provider. A Loupedeck-controlled Discord bot needs Loupedeck hardware/profile/mapping settings and Discord token/guild/channel/script settings. xgoja cannot know how those domains interact, but it can let selected modules expose Glazed sections and typed initialization hooks so a package-owned command provider can compose them.
 
 ## Glazed command types: the target return value
 
@@ -140,6 +150,39 @@ glazedcli.AddCommandsToRootCommand(root, commandSet.Commands, nil,
 ```
 
 This keeps xgoja command generation aligned with `jsverbs`, `modules`, and existing Go-Go-Golems CLI patterns.
+
+## Module-provided Glazed sections
+
+Command providers are only half of the composition story. Modules should also be able to contribute Glazed sections that describe provider-specific runtime configuration. Those sections become part of the final command schema when a command provider chooses to include them.
+
+This solves the Discord + Loupedeck case:
+
+- the Discord module provider exposes a `discord` section with token, guild, channel, script, intents, and similar settings;
+- the Loupedeck module or command provider exposes a `loupedeck` section with device, profile, page, and mapping settings;
+- the Loupedeck command provider owns the final `loupe bot` command;
+- while building that command, it iterates over selected xgoja modules, asks them for extra sections, and adds compatible sections to the command description;
+- in `Run`, the Loupedeck command decodes its own section and asks each participating module to initialize itself from the same parsed `*values.Values`.
+
+The final command does **not** call `vals.GetString("discord-token")` manually. Each provider owns a typed settings struct and decodes its own section:
+
+```go
+type DiscordSettings struct {
+    TokenEnv  string `glazed:"token-env"`
+    GuildID   string `glazed:"guild-id"`
+    ChannelID string `glazed:"channel-id"`
+    Script    string `glazed:"bot-script"`
+}
+
+func (m *DiscordModule) InitFromSections(ctx context.Context, vals *values.Values) (providerapi.InitializedModule, error) {
+    var cfg DiscordSettings
+    if err := vals.DecodeSectionInto("discord", &cfg); err != nil {
+        return nil, err
+    }
+    return NewDiscordBot(ctx, cfg)
+}
+```
+
+This makes sections the contract and keeps initialization typed, local, and testable.
 
 ## Current xgoja architecture
 
@@ -291,7 +334,10 @@ Design implication:
 
 ### New provider API concepts
 
-Add a command-set provider entry type to `pkg/xgoja/providerapi`.
+Add two related extension points to `pkg/xgoja/providerapi`:
+
+1. **Command set providers**: package-owned factories that return Glazed commands.
+2. **Module configuration capabilities**: module-owned descriptors that expose Glazed sections and typed initialization hooks.
 
 ```go
 package providerapi
@@ -302,6 +348,8 @@ import (
 
     "github.com/go-go-golems/glazed/pkg/cli"
     "github.com/go-go-golems/glazed/pkg/cmds"
+    "github.com/go-go-golems/glazed/pkg/cmds/schema"
+    "github.com/go-go-golems/glazed/pkg/cmds/values"
 )
 
 type CommandSetProviderFactory func(CommandSetContext) (*CommandSet, error)
@@ -315,6 +363,11 @@ type CommandSetContext struct {
     Host HostServices
     Providers *Registry
     RuntimeFactory RuntimeFactoryLike
+
+    // SelectedModules are the modules selected by the buildspec/runtime profile
+    // for the command provider's execution context. Command providers can ask
+    // these modules for extra Glazed sections and initialization hooks.
+    SelectedModules []ModuleDescriptor
 }
 
 type CommandSetProvider struct {
@@ -329,25 +382,63 @@ type CommandSet struct {
     Commands []cmds.Command
     ParserConfig *cli.CobraParserConfig
 }
+
+type ModuleDescriptor struct {
+    PackageID string
+    ModuleID string
+    Module Module
+    Capabilities []ModuleCapability
+}
+
+type ModuleCapability interface {
+    CapabilityID() string
+}
+
+type ConfigSectionCapability interface {
+    ModuleCapability
+    ConfigSections(SectionContext) ([]schema.Section, error)
+}
+
+type InitializerCapability interface {
+    ModuleCapability
+    InitFromSections(context.Context, *values.Values) (InitializedModule, error)
+}
+
+type InitializedModule interface {
+    ModuleID() string
+    Close(context.Context) error
+}
 ```
 
-`Registry.Package` would accept `CommandSetProvider` entries alongside `Module` and `VerbSource` entries:
+The important design point is that command providers do not know all possible modules at compile time. They know only the capability interfaces they care about. For example, a Loupedeck command provider can ask selected modules for `ConfigSectionCapability`, include those sections, and at runtime ask compatible modules to initialize themselves through `InitializerCapability`.
+
+`Registry.Package` would accept `CommandSetProvider` entries alongside `Module`, `VerbSource`, and module capabilities:
 
 ```go
 func Register(reg *providerapi.Registry) error {
     return reg.Package("loupedeck",
         providerapi.Module{...},
         providerapi.CommandSetProvider{
-            Name: "scene-verbs",
+            Name: "bot-controller",
             DefaultMount: "loupe",
             New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
-                bootstrap, err := loupedeckcmd.BootstrapFromConfig(ctx.Config)
+                cmd, err := loupedeckcmd.NewBotControllerCommand(ctx)
                 if err != nil { return nil, err }
-                commands, err := loupedeckcmd.BuildGlazedCommands(bootstrap)
-                if err != nil { return nil, err }
-                return &providerapi.CommandSet{Commands: commands}, nil
+                return &providerapi.CommandSet{Commands: []cmds.Command{cmd}}, nil
             },
         },
+    )
+}
+```
+
+A Discord provider would expose a module capability, not a Loupedeck-specific command:
+
+```go
+func Register(reg *providerapi.Registry) error {
+    return reg.Package("discord",
+        providerapi.Module{...},
+        discord.NewConfigSectionCapability(),
+        discord.NewInitializerCapability(),
     )
 }
 ```
@@ -410,10 +501,14 @@ type CommandProviderInstance struct {
     Package string `yaml:"package" json:"package"`
     Name string `yaml:"name" json:"name"`
     Mount string `yaml:"mount" json:"mount,omitempty"`
+    RuntimeProfile string `yaml:"runtimeProfile" json:"runtimeProfile,omitempty"`
+    ModuleSelector []string `yaml:"modules" json:"modules,omitempty"`
     Config map[string]any `yaml:"config" json:"config,omitempty"`
     Lazy bool `yaml:"lazy" json:"lazy,omitempty"`
 }
 ```
+
+`RuntimeProfile` or `ModuleSelector` tells xgoja which selected modules should be visible to the command provider. If omitted, the provider can receive the default profile's selected modules. This lets a command provider compose only the modules intentionally selected by the generated binary author.
 
 ### Generated runtime flow
 
@@ -421,7 +516,8 @@ type CommandProviderInstance struct {
 xgoja.yaml
   |
   | packages[] import provider packages
-  | commandProviders[] select provider command sets
+  | runtimeProfiles[] select modules
+  | commandProviders[] select provider command sets and module profile/selector
   v
 generated main.go
   |
@@ -430,19 +526,27 @@ generated main.go
 providerapi.Registry
   |
   | ResolveCommandSetProvider(package, name)
+  | ResolveSelectedModules(runtimeProfile/modules)
   v
 xgoja app.Host.AttachCommandProviders(root)
   |
-  | provider.New(CommandSetContext{...})
+  | provider.New(CommandSetContext{SelectedModules: ...})
   v
-[]cmds.Command supplied by package
+package-owned command provider
   |
-  | optional mount parent prefix applied by xgoja
+  | asks selected modules for ConfigSections(...)
+  | builds []cmds.Command with those sections
   v
 glazedcli.AddCommandsToRootCommand(root, commands, ...)
   |
   v
 Cobra commands generated by Glazed bridge
+  |
+  | at execution time, command Run(ctx, vals)
+  | decodes own section with DecodeSectionInto
+  | asks selected modules to InitFromSections(ctx, vals)
+  v
+initialized module graph owned by package command
 ```
 
 ### Why not return Cobra?
@@ -456,6 +560,20 @@ Returning Cobra would work mechanically, but it would bypass the ecosystem conve
 - Existing `jsverbs.Registry.CommandForVerbWithInvoker` return type (`cmds.Command`).
 
 A command provider that needs long-running behavior can still implement `BareCommand`. It does not need Cobra to block, handle context cancellation, or manage side effects.
+
+### Why not generate cross-product commands?
+
+xgoja should not generate semantic glue such as `DiscordLoupedeckBotCommand`. That would require xgoja to know how Discord bots, Loupedeck controls, browser workflows, and minitrace query engines interact. The number of possible combinations grows as more packages add providers.
+
+Instead, xgoja should provide a generic composition substrate:
+
+- generated code imports and registers providers;
+- the buildspec chooses command providers and modules;
+- modules expose sections and initialization hooks;
+- a package-owned command provider decides which capabilities it understands;
+- the command provider wires initialized modules together at runtime.
+
+This keeps xgoja simple and makes integration semantics live in the package that owns them.
 
 ### Why not only extend generic jsverbs?
 
@@ -563,7 +681,131 @@ cmdProvider.New = func(ctx providerapi.CommandSetContext) (*providerapi.CommandS
 
 This pattern bridges generic xgoja runtime profiles with package-specific script discovery.
 
-### Pattern E: Catalog command provider
+### Pattern E: Module-provided configuration sections
+
+Use when a module wants to be configurable by an ultimate command that it does not own. The module exports sections and typed initialization logic. The final command provider chooses whether to include and initialize it.
+
+```go
+type DiscordSettings struct {
+    TokenEnv  string `glazed:"token-env"`
+    GuildID   string `glazed:"guild-id"`
+    ChannelID string `glazed:"channel-id"`
+    Script    string `glazed:"bot-script"`
+}
+
+type DiscordCapability struct{}
+
+func (DiscordCapability) CapabilityID() string { return "discord.bot" }
+
+func (DiscordCapability) ConfigSections(ctx providerapi.SectionContext) ([]schema.Section, error) {
+    section, err := schema.NewSection(
+        "discord",
+        "Discord",
+        schema.WithPrefix("discord-"),
+        schema.WithFields(
+            fields.New("token-env", fields.TypeString, fields.WithDefault("DISCORD_BOT_TOKEN")),
+            fields.New("guild-id", fields.TypeString),
+            fields.New("channel-id", fields.TypeString),
+            fields.New("bot-script", fields.TypeString),
+        ),
+    )
+    if err != nil { return nil, err }
+    return []schema.Section{section}, nil
+}
+
+func (DiscordCapability) InitFromSections(ctx context.Context, vals *values.Values) (providerapi.InitializedModule, error) {
+    var cfg DiscordSettings
+    if err := vals.DecodeSectionInto("discord", &cfg); err != nil {
+        return nil, err
+    }
+    return discord.NewBot(ctx, cfg)
+}
+```
+
+This is preferred over having the final command read individual values with `vals.GetString`. The provider that owns the section also owns decoding and validation of the section.
+
+### Pattern F: Command provider composing selected module sections
+
+Use when a command provider owns an orchestration surface and wants selected modules to participate. Example: a Loupedeck command provider exposes `loupe bot`, includes its own Loupedeck section, discovers the selected Discord module's section, then initializes Discord and binds it to the deck.
+
+```go
+type LoupedeckBotCommand struct {
+    *cmds.CommandDescription
+    modules []providerapi.ModuleDescriptor
+}
+
+func NewBotControllerCommand(ctx providerapi.CommandSetContext) (cmds.BareCommand, error) {
+    sections := []schema.Section{loupedeck.ControlSection()}
+
+    for _, mod := range ctx.SelectedModules {
+        for _, cap := range mod.Capabilities {
+            sectionCap, ok := cap.(providerapi.ConfigSectionCapability)
+            if !ok { continue }
+            moduleSections, err := sectionCap.ConfigSections(providerapi.SectionContext{
+                CommandProviderID: ctx.Name,
+                ModuleID: mod.ModuleID,
+            })
+            if err != nil { return nil, err }
+            sections = append(sections, moduleSections...)
+        }
+    }
+
+    return &LoupedeckBotCommand{
+        CommandDescription: cmds.NewCommandDescription(
+            "bot",
+            cmds.WithParents("loupe"),
+            cmds.WithShort("Run a Loupedeck-controlled bot"),
+            cmds.WithSections(sections...),
+        ),
+        modules: ctx.SelectedModules,
+    }, nil
+}
+
+func (c *LoupedeckBotCommand) Run(ctx context.Context, vals *values.Values) error {
+    var loupeCfg loupedeck.ControlSettings
+    if err := vals.DecodeSectionInto("loupedeck", &loupeCfg); err != nil {
+        return err
+    }
+
+    deck, err := loupedeck.NewController(ctx, loupeCfg)
+    if err != nil { return err }
+    defer deck.Close(ctx)
+
+    for _, mod := range c.modules {
+        for _, cap := range mod.Capabilities {
+            initCap, ok := cap.(providerapi.InitializerCapability)
+            if !ok { continue }
+            initialized, err := initCap.InitFromSections(ctx, vals)
+            if err != nil { return err }
+            defer initialized.Close(ctx)
+
+            if bindable, ok := initialized.(loupedeck.Bindable); ok {
+                if err := bindable.BindToLoupedeck(ctx, deck); err != nil {
+                    return err
+                }
+            }
+        }
+    }
+
+    return deck.Run(ctx)
+}
+```
+
+The generated CLI can then expose both section prefixes on one final command:
+
+```text
+xgoja loupe bot \
+  --loupe-device auto \
+  --loupe-profile streaming \
+  --discord-token-env DISCORD_BOT_TOKEN \
+  --discord-guild-id 123 \
+  --discord-channel-id 456 \
+  --discord-bot-script ./bot.js
+```
+
+xgoja did not generate Discord/Loupedeck glue. It only made the selected module descriptors available to the Loupedeck command provider.
+
+### Pattern G: Catalog command provider
 
 Use when command metadata is not only in JS source annotations but in a package catalog. This matches `go-minitrace`.
 
@@ -594,9 +836,10 @@ Tasks:
 
 1. Add `CommandSetProvider` entry type.
 2. Add `CommandSet` return type containing `[]cmds.Command` and optional parser config.
-3. Extend `Package` with `CommandSetProviders map[string]CommandSetProvider`.
-4. Add `ResolveCommandSetProvider(packageID, name string)`.
-5. Add tests for duplicate names, missing factory, and package cloning.
+3. Add module capability interfaces for `ConfigSections` and `InitFromSections`.
+4. Extend `Package` with `CommandSetProviders map[string]CommandSetProvider` and module capability metadata.
+5. Add `ResolveCommandSetProvider(packageID, name string)` and selected-module descriptor resolution.
+6. Add tests for duplicate names, missing factory, capability registration, and package cloning.
 
 ### Phase 2: Add buildspec support
 
@@ -610,9 +853,10 @@ Files:
 Tasks:
 
 1. Add `CommandProviders []CommandProviderInstance` to buildspec and runtime app spec.
-2. Validate package ID, provider name, duplicate IDs, mount collisions, and config shape.
-3. Include command providers in embedded spec JSON.
-4. Add docs in `cmd/xgoja/doc/02-buildspec.md`.
+2. Add command-provider runtime profile or module selector fields.
+3. Validate package ID, provider name, duplicate IDs, mount collisions, selected module IDs, and config shape.
+4. Include command providers and selected module descriptors in embedded spec JSON.
+5. Add docs in `cmd/xgoja/doc/02-buildspec.md`.
 
 ### Phase 3: Attach custom command providers in generated app
 
@@ -628,7 +872,8 @@ Tasks:
 2. For each selected command provider:
    - resolve provider entry;
    - marshal config;
-   - construct `CommandSetContext`;
+   - resolve selected module descriptors and their capabilities;
+   - construct `CommandSetContext` with `SelectedModules`;
    - call provider factory;
    - apply mount prefix to command parents if needed;
    - pass the resulting commands to `glazedcli.AddCommandsToRootCommand`.
@@ -651,6 +896,7 @@ func (h *Host) AttachCommandProviders(root *cobra.Command) {
             Config: data,
             Providers: h.Providers,
             RuntimeFactory: h.Factory,
+            SelectedModules: h.ResolveSelectedModules(inst),
         })
         if err != nil { addErrorStub(...); continue }
         commands := applyMountPrefix(set.Commands, inst.Mount)
@@ -665,7 +911,7 @@ func (h *Host) AttachCommandProviders(root *cobra.Command) {
 
 ### Phase 4: Add fixture providers and examples
 
-Create a first-party fixture command provider under `go-go-goja/pkg/xgoja/testprovider`.
+Create a first-party fixture command provider under `go-go-goja/pkg/xgoja/testprovider`. Include both a command provider fixture and a module capability fixture so the first implementation proves section composition, not only command mounting.
 
 Example provider:
 
@@ -674,9 +920,20 @@ providerapi.CommandSetProvider{
     Name: "echo-tools",
     DefaultMount: "tools",
     New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+        sections := []schema.Section{fixture.CommandSection()}
+        for _, mod := range ctx.SelectedModules {
+            for _, cap := range mod.Capabilities {
+                if sc, ok := cap.(providerapi.ConfigSectionCapability); ok {
+                    ss, err := sc.ConfigSections(providerapi.SectionContext{})
+                    if err != nil { return nil, err }
+                    sections = append(sections, ss...)
+                }
+            }
+        }
         cmd := &echoCommand{CommandDescription: cmds.NewCommandDescription(
             "echo",
             cmds.WithParents("tools"),
+            cmds.WithSections(sections...),
             cmds.WithArguments(fields.New("message", fields.TypeString, fields.WithIsArgument(true))),
         )}
         return &providerapi.CommandSet{Commands: []cmds.Command{cmd}}, nil
@@ -706,50 +963,89 @@ xgoja build -f examples/xgoja/custom-command-provider/xgoja.yaml --xgoja-replace
 
 Recommended order:
 
-1. `discord-bot`: it already has many Glazed command pieces (`list`, `help`, synthetic run commands, jsverb commands). Refactor `NewBotsCommand` internals to expose `BuildBotCommands(...) []cmds.Command` publicly.
-2. `loupedeck`: expose `BuildSceneCommands(...) []cmds.Command` and wrap live scene invokers as `BareCommand`.
-3. `css-visual-diff`: move or wrap internal `verbcli` through a public package returning `[]cmds.Command`.
-4. `go-minitrace`: expose query catalog commands as `GlazeCommand` values after catalog/DB config is public and safe.
+1. `discord-bot`: expose a Discord module capability with `ConfigSections` and `InitFromSections` first; only then refactor existing bot commands to return `[]cmds.Command` where useful.
+2. `loupedeck`: expose a Loupedeck control section and a command provider that can aggregate selected module sections; wrap live scene/controller invokers as `BareCommand`.
+3. `css-visual-diff`: move or wrap internal `verbcli` through a public package returning `[]cmds.Command`, and expose browser/artifact config sections through module capabilities.
+4. `go-minitrace`: expose query catalog commands as `GlazeCommand` values after catalog/DB config is public and safe; expose database/runtime settings as typed sections decoded with `DecodeSectionInto`.
 
 ## API sketches for real package adapters
 
 ### Loupedeck adapter
 
+The Loupedeck package should provide a normal command set provider for its own commands. Some of those commands can compose selected module sections.
+
 ```go
 func Register(reg *providerapi.Registry) error {
     return reg.Package("loupedeck",
+        providerapi.Module{...},
+        loupedeck.NewControlConfigCapability(),
         providerapi.CommandSetProvider{
-            Name: "scene-verbs",
+            Name: "bot-controller",
             DefaultMount: "loupe",
             New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
-                cfg := DecodeConfig(ctx.Config)
-                bootstrap := verbs.BootstrapFromConfig(cfg.Repositories)
-                commands, err := verbs.BuildGlazedCommands(bootstrap)
+                cmd, err := loupedeckcmd.NewBotControllerCommand(ctx)
                 if err != nil { return nil, err }
-                return &providerapi.CommandSet{Commands: commands}, nil
+                return &providerapi.CommandSet{Commands: []cmds.Command{cmd}}, nil
             },
         },
     )
 }
 ```
 
+The `Run` method of `NewBotControllerCommand` decodes Loupedeck settings with `DecodeSectionInto("loupedeck", &settings)`, initializes a deck controller, then initializes any selected modules that implement `InitializerCapability`.
+
 ### Discord adapter
 
+The Discord package should not need to know about Loupedeck. It exposes a module, a section, and an initializer. If the initialized Discord object wants to participate in Loupedeck control, it can also implement a small domain interface such as `loupedeck.Bindable`.
+
 ```go
-providerapi.CommandSetProvider{
-    Name: "bots",
-    DefaultMount: "bots",
-    New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
-        cfg := DecodeConfig(ctx.Config)
-        bootstrap := botcli.Bootstrap{Repositories: cfg.Repositories}
-        commands, err := botcli.BuildBotCommands(bootstrap,
-            botcli.WithAppName("discord"),
-            botcli.WithRuntimeFactory(newXGojaAwareRuntimeFactory(ctx)),
-        )
-        if err != nil { return nil, err }
-        return &providerapi.CommandSet{Commands: commands}, nil
-    },
+func Register(reg *providerapi.Registry) error {
+    return reg.Package("discord",
+        providerapi.Module{...},
+        providerapi.ModuleCapability(discord.BotCapability{}),
+    )
 }
+
+type BotCapability struct{}
+
+func (BotCapability) ConfigSections(ctx providerapi.SectionContext) ([]schema.Section, error) {
+    return []schema.Section{discord.Section()}, nil
+}
+
+func (BotCapability) InitFromSections(ctx context.Context, vals *values.Values) (providerapi.InitializedModule, error) {
+    var cfg discord.Settings
+    if err := vals.DecodeSectionInto("discord", &cfg); err != nil {
+        return nil, err
+    }
+    return discord.NewBot(ctx, cfg)
+}
+```
+
+The generated buildspec selects both providers, but the Loupedeck command provider owns orchestration:
+
+```yaml
+runtimeProfiles:
+  - id: main
+    modules:
+      - loupedeck
+      - discord
+
+commandProviders:
+  - id: loupe-bot
+    package: loupedeck
+    name: bot-controller
+    mount: loupe
+    runtimeProfile: main
+```
+
+Resulting CLI:
+
+```text
+xgoja loupe bot \
+  --loupe-device auto \
+  --discord-token-env DISCORD_BOT_TOKEN \
+  --discord-guild-id 123 \
+  --discord-channel-id 456
 ```
 
 ### CSS visual diff adapter
@@ -786,32 +1082,38 @@ providerapi.CommandSetProvider{
 
 ## Safety and lifecycle rules
 
-1. Command-set providers must declare config schemas for dangerous capabilities.
-2. Long-running `BareCommand` implementations must honor `ctx` cancellation.
-3. Commands that open devices, browsers, Discord sessions, or databases must close them with `defer` or command lifecycle hooks.
-4. Commands that emit rows should be `GlazeCommand`, not `BareCommand` that prints JSON manually.
-5. Commands that need textual output should be `WriterCommand` and use the supplied writer.
-6. Generated xgoja should not pass global mutable state implicitly.
-7. Provider command factories should fail early when required host services are missing.
-8. Mount collisions should be doctor errors, not runtime surprises.
+1. Command-set providers and module capabilities must declare config schemas/sections for dangerous capabilities.
+2. Section slugs and prefixes must be stable and collision-checked before mounting commands.
+3. Runtime code must decode typed structs with `values.Values.DecodeSectionInto`, not scattered field accessors.
+4. Long-running `BareCommand` implementations must honor `ctx` cancellation.
+5. Commands that open devices, browsers, Discord sessions, or databases must close them with `defer` or command lifecycle hooks.
+6. Commands that emit rows should be `GlazeCommand`, not `BareCommand` that prints JSON manually.
+7. Commands that need textual output should be `WriterCommand` and use the supplied writer.
+8. Generated xgoja should not pass global mutable state implicitly.
+9. Provider command factories should fail early when required host services are missing.
+10. Mount and section collisions should be doctor errors, not runtime surprises.
 
 ## Testing strategy
 
 ### Unit tests
 
-- provider registry tests for command-set provider entries;
-- buildspec validation tests;
+- provider registry tests for command-set provider entries and module capabilities;
+- buildspec validation tests, including selected module profile/selector tests;
 - generated main rendering tests;
 - app host command attachment tests with fixture provider;
+- config section aggregation and section collision tests;
+- `DecodeSectionInto` fixture initializer tests;
 - `applyMountPrefix` tests for command parent rewriting.
 
 ### Integration tests
 
 - generated fixture command-provider binary;
 - generated provider with generic xgoja commands plus custom provider commands;
-- mount collision negative test;
+- generated fixture where a command provider imports selected module sections;
+- mount collision and section collision negative tests;
 - config validation negative test;
-- `BareCommand`, `WriterCommand`, and `GlazeCommand` fixture commands.
+- `BareCommand`, `WriterCommand`, and `GlazeCommand` fixture commands;
+- fixture module initializer that decodes with `DecodeSectionInto`.
 
 ### Real package smoke tests
 
@@ -822,12 +1124,15 @@ providerapi.CommandSetProvider{
 
 ## Open questions
 
-1. Should command-set providers be entries in `providerapi.Package`, or should they live in a separate registry?
+1. Should command-set providers and module capabilities be entries in `providerapi.Package`, or should capabilities live in a separate registry?
 2. Should `CommandSetContext` expose the full xgoja `RuntimeFactory`, or a narrower interface?
 3. How exactly should xgoja apply `mount` to Glazed command parents without mutating provider-owned command descriptions unexpectedly?
 4. Should command-set providers be allowed to customize parser config, or should generated xgoja enforce one parser configuration?
 5. How should generated xgoja represent command-provider host services in pure standalone binaries?
 6. Should command providers support embedded filesystem sources like `jsverbs.embed`?
+7. What is the exact buildspec syntax for selecting modules visible to a command provider: `runtimeProfile`, explicit `modules`, or both?
+8. Should module initializers receive command-provider config, or only parsed Glazed section values?
+9. How should initialized modules advertise optional domain interfaces like `loupedeck.Bindable` without creating import cycles?
 
 ## Recommended first implementation slice
 
@@ -840,7 +1145,9 @@ The smallest useful slice is:
    - one `BareCommand`,
    - one `WriterCommand`,
    - one `GlazeCommand`.
-5. Add generated example and docs.
+5. Add a fixture module that exposes a Glazed config section and initializes from `DecodeSectionInto`.
+6. Add a generated example where the fixture command provider imports selected module sections.
+7. Add generated example and docs.
 
 Do not start with Loupedeck or Discord. Use a fixture first, then adapt one real package after the generated-binary mechanics are stable.
 
