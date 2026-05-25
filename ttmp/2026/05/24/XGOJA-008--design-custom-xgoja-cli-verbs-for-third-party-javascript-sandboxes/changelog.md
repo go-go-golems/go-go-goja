@@ -180,3 +180,12 @@ Uploaded final XGOJA-008 implementation bundle to reMarkable.
 
 Implemented provider capabilities module sections built-in command aggregation commandProviders docs examples validation and final reMarkable upload.
 
+
+## 2026-05-25
+
+Added reference explaining remaining XGOJA-008 implementation caveats and next-step recommendations.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/24/XGOJA-008--design-custom-xgoja-cli-verbs-for-third-party-javascript-sandboxes/reference/02-implementation-caveats-explained.md — New caveats reference document
+
