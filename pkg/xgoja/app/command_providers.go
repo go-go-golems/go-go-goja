@@ -63,6 +63,7 @@ func (h *Host) newCommandSet(instance CommandProviderInstance, provider provider
 		PackageID:       instance.Package,
 		Name:            instance.Name,
 		Mount:           mount,
+		RuntimeProfile:  strings.TrimSpace(instance.RuntimeProfile),
 		Config:          config,
 		Providers:       h.Providers,
 		RuntimeFactory:  h.Factory,
