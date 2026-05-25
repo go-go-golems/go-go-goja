@@ -192,3 +192,28 @@ Results:
 ### Follow-up observation
 
 While testing with a live server already bound to port 8787, command discovery runtimes initially tried to start HTTP with default settings before parsed command values were available. The HTTP provider now treats `nil` parsed values as a discovery/default-construction phase and keeps HTTP disabled until real Glazed values are supplied. This prevents discovery-only runtimes from competing with the live HTTP server.
+
+## Step 7: Added focused Discord provider bridge tests and finalized validation
+
+### What changed
+
+Added focused tests in `discord-bot/pkg/xgoja/provider/provider_test.go` for:
+
+- selected module Glazed section collection; and
+- runtime initializer invocation through `initSelectedModules(...)` with the created xgoja runtime handle.
+
+### Validation
+
+```bash
+go test ./pkg/xgoja/provider -count=1
+go test ./...   # pre-commit
+make -C examples/xgoja/discord-bot-provider smoke
+```
+
+Results: passed.
+
+### Final ticket state
+
+- `docmgr doctor --ticket XGOJA-011 --stale-after 30` passed.
+- Final reMarkable bundle uploaded as `XGOJA-011 HTTP Express Discord outbound final.pdf` to `/ai/2026/05/25/XGOJA-011`.
+- Live tmux session `xgoja-discord-bot` is running with the generated xgoja binary.

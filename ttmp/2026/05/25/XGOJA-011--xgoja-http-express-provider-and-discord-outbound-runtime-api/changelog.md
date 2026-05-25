@@ -60,3 +60,17 @@ Updated generated Discord xgoja example to mount express and expose GET / plus P
 - /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/examples/xgoja/discord-bot-provider/xgoja.yaml — Example selects go-go-goja-http express module
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providers/http/http.go — Discovery runtimes keep HTTP disabled when parsed values are absent
 
+
+## 2026-05-25
+
+Added focused Discord provider tests and completed final validation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/pkg/xgoja/provider/provider_test.go — Tests cover selected module sections and runtime initializer bridge
+
+
+## 2026-05-25
+
+Implemented xgoja HTTP/Express provider, Discord outbound runtime API, generated example, tests, live tmux validation, and reMarkable final upload.
+

@@ -25,7 +25,7 @@
 - [x] Add helper to collect selected module config sections in `discord-bot/pkg/xgoja/provider`.
 - [x] Wrap provider-owned bot commands to carry parsed values into runtime creation.
 - [x] Run selected module runtime initializers after xgoja runtime creation.
-- [ ] Add focused provider tests for section exposure and initializer invocation.
+- [x] Add focused provider tests for section exposure and initializer invocation.
 
 ## Discord outbound runtime API
 
@@ -36,11 +36,11 @@
 
 ## Example and manual test
 
-- [ ] Update `examples/xgoja/discord-bot-provider/xgoja.yaml` to include `go-go-goja-http` express module.
-- [ ] Update sample bot JS to register `/` and `/say` Express endpoints.
-- [ ] Update Makefile with `--http-listen 127.0.0.1:8787`.
-- [ ] Smoke generated build/list/help/eval.
-- [ ] Run generated bot in tmux and tell the user session name and test URL.
+- [x] Update `examples/xgoja/discord-bot-provider/xgoja.yaml` to include `go-go-goja-http` express module.
+- [x] Update sample bot JS to register `/` and `/say` Express endpoints.
+- [x] Update Makefile with `--http-listen 127.0.0.1:8787`.
+- [x] Smoke generated build/list/help/eval.
+- [x] Run generated bot in tmux and tell the user session name and test URL.
 
 ## Final validation
 
@@ -49,4 +49,4 @@
 - [x] Run generated example smoke.
 - [x] Update diary/changelog after each slice.
 - [x] Commit at appropriate intervals.
-- [ ] Run `docmgr doctor --ticket XGOJA-011 --stale-after 30`.
+- [x] Run `docmgr doctor --ticket XGOJA-011 --stale-after 30`.
