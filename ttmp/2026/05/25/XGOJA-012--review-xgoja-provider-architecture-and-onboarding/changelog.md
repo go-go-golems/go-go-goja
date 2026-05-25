@@ -21,3 +21,8 @@ Created xgoja provider architecture review and onboarding report.
 
 Uploaded xgoja architecture review report to reMarkable and passed docmgr doctor.
 
+
+## 2026-05-25
+
+Expanded XGOJA-012 into detailed implementation plan for RuntimeFactory typing, provider utilities, capability cleanup, docs, and numbered examples.
+

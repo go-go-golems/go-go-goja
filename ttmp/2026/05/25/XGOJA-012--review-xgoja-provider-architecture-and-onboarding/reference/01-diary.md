@@ -52,3 +52,19 @@ The report was written as `design/01-xgoja-provider-architecture-review-and-onbo
 - concrete cleanup opportunities with file references and solution sketches;
 - documentation and onboarding recommendations;
 - suggested implementation sequence for the next maintainer.
+
+## Step 4: Added detailed follow-up implementation plan
+
+The user clarified the desired direction for the follow-up work:
+
+- Keep capabilities conceptually understood, but simplify naming and public API where possible.
+- Explain `RuntimeFactory`: what it is, why it was temporarily typed as `any`, how it is created, and concrete examples from built-in xgoja and Discord adapter paths.
+- Move duplicated section aggregation/runtime initialization helper logic into a shared provider-facing utility.
+- Use Option A for capability naming: rename the package-scoped capability concept to `PackageCapability`.
+- Remove `ComponentInitializerCapability` and `InitializedModule` unless a real provider needs them.
+- Clarify discovery-vs-execution side effects, especially why `InitRuntimeFromSections` can currently see `vals == nil`.
+- Fix stale provider docs.
+- Rename/reorganize examples as a numbered learning path.
+- Reorganize xgoja docs into overview, user guide/reference, and tutorials.
+
+The ticket task list was expanded into a detailed multi-phase checklist so the next session can start from the task file without reconstructing context.
