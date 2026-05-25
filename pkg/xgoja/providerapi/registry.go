@@ -16,9 +16,10 @@ type Registry struct {
 }
 
 type Package struct {
-	ID          string
-	Modules     map[string]Module
-	VerbSources map[string]VerbSource
+	ID           string
+	Modules      map[string]Module
+	VerbSources  map[string]VerbSource
+	Capabilities map[string]ModuleCapability
 }
 
 func NewRegistry() *Registry {
@@ -37,9 +38,10 @@ func (r *Registry) Package(id string, entries ...Entry) error {
 		return fmt.Errorf("duplicate provider package %q", id)
 	}
 	pkg := &Package{
-		ID:          id,
-		Modules:     map[string]Module{},
-		VerbSources: map[string]VerbSource{},
+		ID:           id,
+		Modules:      map[string]Module{},
+		VerbSources:  map[string]VerbSource{},
+		Capabilities: map[string]ModuleCapability{},
 	}
 	for i, entry := range entries {
 		if entry == nil {
@@ -76,6 +78,17 @@ func (r *Registry) ResolveVerbSource(packageID, sourceName string) (VerbSource, 
 	}
 	source, ok := pkg.VerbSources[strings.TrimSpace(sourceName)]
 	return source, ok
+}
+
+func (r *Registry) ResolveCapabilities(packageID string) ([]ModuleCapability, bool) {
+	if r == nil {
+		return nil, false
+	}
+	pkg := r.packages[strings.TrimSpace(packageID)]
+	if pkg == nil {
+		return nil, false
+	}
+	return pkg.sortedCapabilities(), true
 }
 
 func (r *Registry) Packages() []Package {
@@ -134,17 +147,49 @@ func (p *Package) addVerbSource(source VerbSource) error {
 	return nil
 }
 
+func (p *Package) addCapability(capability ModuleCapability) error {
+	id, err := normalizeCapabilityID(capability)
+	if err != nil {
+		return err
+	}
+	if _, ok := p.Capabilities[id]; ok {
+		return fmt.Errorf("duplicate capability %q", id)
+	}
+	p.Capabilities[id] = capability
+	return nil
+}
+
 func (p *Package) clone() Package {
 	out := Package{
-		ID:          p.ID,
-		Modules:     map[string]Module{},
-		VerbSources: map[string]VerbSource{},
+		ID:           p.ID,
+		Modules:      map[string]Module{},
+		VerbSources:  map[string]VerbSource{},
+		Capabilities: map[string]ModuleCapability{},
 	}
 	for name, module := range p.Modules {
 		out.Modules[name] = module
 	}
 	for name, source := range p.VerbSources {
 		out.VerbSources[name] = source
+	}
+	for name, capability := range p.Capabilities {
+		out.Capabilities[name] = capability
+	}
+	return out
+}
+
+func (p *Package) sortedCapabilities() []ModuleCapability {
+	if p == nil || len(p.Capabilities) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(p.Capabilities))
+	for id := range p.Capabilities {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	out := make([]ModuleCapability, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, p.Capabilities[id])
 	}
 	return out
 }

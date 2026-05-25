@@ -16,20 +16,20 @@
 
 - [x] P0.1 Expand this task list into granular implementation phases
 - [x] P0.2 Add diary entry for implementation kickoff and scope boundaries
-- [ ] P0.3 Commit planning-only ticket updates
+- [x] P0.3 Commit planning-only ticket updates
 
 ## Implementation phase 1 — provider API capabilities
 
-- [ ] P1.1 Add `providerapi.SectionContext`, `ModuleDescriptor`, and `ModuleCapability`
-- [ ] P1.2 Add `ConfigSectionCapability` for module-provided Glazed sections
-- [ ] P1.3 Add `RuntimeHandle` and `RuntimeInitializerCapability` for built-in runtime initialization
-- [ ] P1.4 Add `InitializedModule` and `ComponentInitializerCapability` for command-provider domain objects
-- [ ] P1.5 Extend `providerapi.Package` to store package-level capabilities
-- [ ] P1.6 Add validation for duplicate or empty capability IDs
+- [x] P1.1 Add `providerapi.SectionContext`, `ModuleDescriptor`, and `ModuleCapability`
+- [x] P1.2 Add `ConfigSectionCapability` for module-provided Glazed sections
+- [x] P1.3 Add `RuntimeHandle` and `RuntimeInitializerCapability` for built-in runtime initialization
+- [x] P1.4 Add `InitializedModule` and `ComponentInitializerCapability` for command-provider domain objects
+- [x] P1.5 Extend `providerapi.Package` to store package-level capabilities
+- [x] P1.6 Add validation for duplicate or empty capability IDs
 - [ ] P1.7 Add registry helpers to resolve runtime module descriptors from app runtime specs
-- [ ] P1.8 Add providerapi unit tests for capability registration, cloning, and validation errors
-- [ ] P1.9 Run focused providerapi tests
-- [ ] P1.10 Commit provider API capability slice
+- [x] P1.8 Add providerapi unit tests for capability registration, cloning, and validation errors
+- [x] P1.9 Run focused providerapi tests
+- [x] P1.10 Commit provider API capability slice
 
 ## Implementation phase 2 — built-in runtime-profile section aggregation helpers
 

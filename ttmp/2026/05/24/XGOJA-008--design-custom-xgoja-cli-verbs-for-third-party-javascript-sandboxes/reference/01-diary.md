@@ -662,3 +662,79 @@ The user asked to turn XGOJA-008 into a granular implementation plan, then imple
 ### What should be done in the future
 
 - Implement phase 1 and commit it separately before modifying app runtime commands.
+
+## Step 11: Implemented providerapi capability registration slice
+
+I started implementation with the provider API foundation. This is the smallest safe code slice because built-in command aggregation and command providers both need a registry-level way to advertise module sections and initialization hooks.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Add detailed phases and tasks for the XGOJA-008 ticket if you haven't already, kind of granular so that we can keep track of where we are at fairly precisely. Then implement them one by one, committing at appropriate intervals, keeping a etailed diary"
+
+**Assistant interpretation:** Begin implementing the granular task plan, committing completed slices separately.
+
+**Inferred user intent:** Make progress in small, reviewable chunks while keeping the ticket state and diary accurate.
+
+**Commit (code):** Provider API capability slice committed after focused tests.
+
+### What I did
+
+- Added `pkg/xgoja/providerapi/capabilities.go`.
+- Added:
+  - `SectionContext`;
+  - `ModuleDescriptor`;
+  - `ModuleCapability`;
+  - `ConfigSectionCapability`;
+  - `RuntimeHandle`;
+  - `RuntimeInitializerCapability`;
+  - `ComponentInitializerCapability`;
+  - `InitializedModule`;
+  - `WithCapability` registry entry wrapper.
+- Extended `providerapi.Package` with `Capabilities map[string]ModuleCapability`.
+- Added duplicate capability validation and empty/nil capability validation.
+- Added `Registry.ResolveCapabilities(packageID)`.
+- Updated providerapi tests for registration, cloning, duplicate validation, invalid entries, and interface conformance.
+
+### Why
+
+- The design requires selected modules to expose Glazed sections and runtime/component initialization hooks without xgoja knowing package semantics.
+- Capabilities must be registered before app-layer built-ins can aggregate sections from runtime profiles.
+
+### What worked
+
+- Focused provider API tests passed:
+  - `go test ./pkg/xgoja/providerapi -count=1`
+
+### What didn't work
+
+- I did not complete `P1.7` yet. Runtime module descriptor resolution belongs closer to the app layer because it needs `app.Spec` runtime profiles and module instances.
+
+### What I learned
+
+- Capabilities need an exported wrapper (`WithCapability`) because external packages cannot satisfy providerapi's unexported `Entry.applyToPackage` method directly.
+
+### What was tricky to build
+
+- Avoiding an import cycle: `providerapi` cannot depend on `app` or `engine`, so `RuntimeHandle` is intentionally minimal and interface-based.
+
+### What warrants a second pair of eyes
+
+- Whether capabilities should be package-scoped, as implemented here, or module-instance-scoped in a later refinement.
+- Whether `RuntimeHandle.Runtime() *goja.Runtime` is the right low-level exposure or whether it should be narrower.
+
+### What should be done in the future
+
+- Implement app-layer runtime profile descriptor resolution and section aggregation helpers next.
+
+### Code review instructions
+
+- Review `providerapi/capabilities.go` and `providerapi/registry.go` for API shape and validation behavior.
+- Check whether `WithCapability` is a good enough authoring API for third-party packages.
+
+### Technical details
+
+Focused validation command:
+
+```bash
+go test ./pkg/xgoja/providerapi -count=1
+```
