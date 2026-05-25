@@ -217,3 +217,41 @@ Results: passed.
 - `docmgr doctor --ticket XGOJA-011 --stale-after 30` passed.
 - Final reMarkable bundle uploaded as `XGOJA-011 HTTP Express Discord outbound final.pdf` to `/ai/2026/05/25/XGOJA-011`.
 - Live tmux session `xgoja-discord-bot` is running with the generated xgoja binary.
+
+## Step 8: Added disk-backed retro form with Discord channel picker
+
+### What changed
+
+After the initial retro `/say` page, the example was refined so presentation lives on disk and the form can choose real Discord channels by name:
+
+- `discord-bot/examples/xgoja/discord-bot-provider/bots/fs-express-smoke/index.js` now loads `./web/index.html` and `./web/retro.css` through `require("fs")` instead of embedding large HTML/CSS strings.
+- Added disk assets:
+  - `discord-bot/examples/xgoja/discord-bot-provider/web/index.html`
+  - `discord-bot/examples/xgoja/discord-bot-provider/web/retro.css`
+- Added `GET /channels` in the sample bot. It calls top-level `discord.channels.list(...)`, filters to sendable text/news/thread channel types, and returns `{ ok, channels }` JSON for the browser dropdown.
+- Extended the Discord JS runtime outbound API with `discord.channels.list(guildID?)`.
+- `bot.NewWithScript` now passes the configured guild ID into the JS host as the default guild, so browser code can call `/channels` without asking the user to type a guild ID.
+- The HTML page now has a retro black-and-white channel dropdown plus a collapsible manual channel ID override.
+
+### Why
+
+The UI should be maintainable as ordinary frontend files, and users should not need to copy/paste opaque Discord channel IDs for common use. Keeping the assets on disk also demonstrates that the xgoja `fs` provider and xgoja `express` provider compose naturally in the same generated Discord bot.
+
+### Validation
+
+```bash
+go test ./internal/jsdiscord ./internal/bot ./pkg/xgoja/provider -count=1
+make -C examples/xgoja/discord-bot-provider smoke
+make -C examples/xgoja/discord-bot-provider tmux-run
+curl http://127.0.0.1:8787/
+curl http://127.0.0.1:8787/channels
+```
+
+Results:
+
+- Focused tests passed.
+- Generated smoke passed.
+- Pre-commit `go test ./...` and `golangci-lint` passed in `discord-bot`.
+- The live `xgoja-discord-bot` tmux session was restarted.
+- `GET /` returns the disk-backed HTML page.
+- `GET /channels` returns named text channels from the configured guild.

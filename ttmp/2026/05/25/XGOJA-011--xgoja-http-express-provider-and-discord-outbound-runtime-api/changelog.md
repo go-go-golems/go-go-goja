@@ -74,3 +74,14 @@ Added focused Discord provider tests and completed final validation.
 
 Implemented xgoja HTTP/Express provider, Discord outbound runtime API, generated example, tests, live tmux validation, and reMarkable final upload.
 
+
+## 2026-05-25
+
+Added disk-backed retro say form with Discord channel-name dropdown.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/examples/xgoja/discord-bot-provider/bots/fs-express-smoke/index.js — Routes now load HTML/CSS from disk and expose /channels
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/examples/xgoja/discord-bot-provider/web/index.html — Retro form now loads channel choices from /channels
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/internal/jsdiscord/runtime.go — Top-level discord.channels.list API added
+
