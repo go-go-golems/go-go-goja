@@ -26,10 +26,9 @@ import (
 
 type tuiCommand struct {
 	*cmds.CommandDescription
-	factory         *RuntimeFactory
-	spec            *Spec
-	selectedModules []providerapi.ModuleDescriptor
-	sectionErr      error
+	factory    *RuntimeFactory
+	spec       *Spec
+	sectionErr error
 }
 
 var _ cmds.BareCommand = (*tuiCommand)(nil)
@@ -41,7 +40,7 @@ type tuiSettings struct {
 
 func newTUICommand(factory *RuntimeFactory, spec *Spec) cmds.Command {
 	profile := commandRuntime(spec.Commands.Repl, firstRuntime(spec))
-	moduleSections, selectedModules, sectionErr := factory.sectionsForRuntimeProfile("repl", profile)
+	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("repl", profile)
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Run an interactive TUI REPL for a generated xgoja runtime"),
 		cmds.WithLong(`
@@ -65,7 +64,6 @@ available through require().
 		CommandDescription: cmds.NewCommandDescription(commandName(spec.Commands.Repl, "repl"), options...),
 		factory:            factory,
 		spec:               spec,
-		selectedModules:    selectedModules,
 		sectionErr:         sectionErr,
 	}
 }
@@ -78,7 +76,11 @@ func (c *tuiCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	return runTUI(ctx, c.factory, c.spec, settings.Runtime, settings.AltScreen, vals, c.selectedModules)
+	selectedModules, err := c.factory.selectedModuleDescriptors(settings.Runtime)
+	if err != nil {
+		return err
+	}
+	return runTUI(ctx, c.factory, c.spec, settings.Runtime, settings.AltScreen, vals, selectedModules)
 }
 
 func runTUI(ctx context.Context, factory *RuntimeFactory, spec *Spec, profile string, altScreen bool, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {

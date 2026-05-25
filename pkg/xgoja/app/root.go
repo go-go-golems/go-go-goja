@@ -51,10 +51,9 @@ func NewRootCommand(opts Options) (*cobra.Command, error) {
 
 type evalCommand struct {
 	*cmds.CommandDescription
-	factory         *RuntimeFactory
-	out             io.Writer
-	selectedModules []providerapi.ModuleDescriptor
-	sectionErr      error
+	factory    *RuntimeFactory
+	out        io.Writer
+	sectionErr error
 }
 
 var _ cmds.BareCommand = (*evalCommand)(nil)
@@ -66,7 +65,7 @@ type evalSettings struct {
 
 func newEvalCommand(factory *RuntimeFactory, spec *Spec, out io.Writer) cmds.Command {
 	profile := commandRuntime(spec.Commands.Eval, firstRuntime(spec))
-	moduleSections, selectedModules, sectionErr := factory.sectionsForRuntimeProfile("eval", profile)
+	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("eval", profile)
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Evaluate JavaScript in a generated xgoja runtime"),
 		cmds.WithLong(`
@@ -95,7 +94,6 @@ before evaluation and runtime initializers run before the JavaScript source.
 		CommandDescription: cmds.NewCommandDescription(commandName(spec.Commands.Eval, "eval"), options...),
 		factory:            factory,
 		out:                out,
-		selectedModules:    selectedModules,
 		sectionErr:         sectionErr,
 	}
 }
@@ -108,7 +106,11 @@ func (c *evalCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	return evalSourceWithInitializers(ctx, c.factory, settings.Runtime, settings.Source, vals, c.selectedModules, c.out)
+	selectedModules, err := c.factory.selectedModuleDescriptors(settings.Runtime)
+	if err != nil {
+		return err
+	}
+	return evalSourceWithInitializers(ctx, c.factory, settings.Runtime, settings.Source, vals, selectedModules, c.out)
 }
 
 func evalSourceWithInitializers(ctx context.Context, factory *RuntimeFactory, profile string, source string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, out io.Writer) error {

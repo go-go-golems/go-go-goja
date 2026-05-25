@@ -1,0 +1,141 @@
+# Commands with runtime settings and selected module descriptor usage
+pkg/xgoja/app/tui_module_sections_test.go:32:	descriptors, err := factory.selectedModuleDescriptors("main")
+pkg/xgoja/app/module_sections_test.go:22:	sections, descriptors, err := factory.sectionsForRuntimeProfile("run", "main")
+pkg/xgoja/app/module_sections_test.go:42:	_, _, err := factory.sectionsForRuntimeProfile("run", "main")
+pkg/xgoja/app/module_sections_test.go:64:	descriptors, err := factory.selectedModuleDescriptors("main")
+pkg/xgoja/app/module_sections_test.go:76:	sections, _, err := factory.sectionsForRuntimeProfile("run", "main")
+pkg/xgoja/app/module_sections.go:15:func (f *RuntimeFactory) selectedModuleDescriptors(profile string) ([]providerapi.ModuleDescriptor, error) {
+pkg/xgoja/app/module_sections.go:41:func (f *RuntimeFactory) sectionsForRuntimeProfile(commandName, profile string) ([]schema.Section, []providerapi.ModuleDescriptor, error) {
+pkg/xgoja/app/module_sections.go:42:	descriptors, err := f.selectedModuleDescriptors(profile)
+pkg/xgoja/app/command_providers.go:57:	selected, err := h.selectedModulesForCommandProvider(instance)
+pkg/xgoja/app/command_providers.go:81:func (h *Host) selectedModulesForCommandProvider(instance CommandProviderInstance) ([]providerapi.ModuleDescriptor, error) {
+pkg/xgoja/app/command_providers.go:89:	descriptors, err := h.Factory.selectedModuleDescriptors(profile)
+pkg/xgoja/app/root.go:63:	Runtime string `glazed:"runtime"`
+pkg/xgoja/app/root.go:68:	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("eval", profile)
+pkg/xgoja/app/root.go:109:	selectedModules, err := c.factory.selectedModuleDescriptors(settings.Runtime)
+pkg/xgoja/app/root.go:113:	return evalSourceWithInitializers(ctx, c.factory, settings.Runtime, settings.Source, vals, selectedModules, c.out)
+pkg/xgoja/app/root.go:116:func evalSourceWithInitializers(ctx context.Context, factory *RuntimeFactory, profile string, source string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, out io.Writer) error {
+pkg/xgoja/app/root.go:128:	if vals != nil && len(selectedModules) > 0 {
+pkg/xgoja/app/root.go:129:		if err := initRuntimeFromSections(ctx, vals, rt, selectedModules); err != nil {
+pkg/xgoja/app/root.go:228:	moduleSections, selectedModules, err := factory.sectionsForRuntimeProfile("jsverbs", profile)
+pkg/xgoja/app/root.go:250:				if len(selectedModules) > 0 {
+pkg/xgoja/app/root.go:251:					if err := initRuntimeFromSections(ctx, parsedValues, rt, selectedModules); err != nil {
+pkg/xgoja/app/run.go:29:	Runtime string `glazed:"runtime"`
+pkg/xgoja/app/run.go:34:	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("run", profile)
+pkg/xgoja/app/run.go:74:	selectedModules, err := c.factory.selectedModuleDescriptors(settings.Runtime)
+pkg/xgoja/app/run.go:78:	return runScriptFileWithInitializers(ctx, c.factory, settings.Runtime, settings.File, vals, selectedModules)
+pkg/xgoja/app/run.go:81:func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory, profile string, file string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {
+pkg/xgoja/app/run.go:107:	if vals != nil && len(selectedModules) > 0 {
+pkg/xgoja/app/run.go:108:		if err := initRuntimeFromSections(ctx, vals, rt, selectedModules); err != nil {
+pkg/xgoja/app/spec.go:49:	Runtime string `json:"runtime,omitempty"`
+pkg/xgoja/app/tui.go:43:	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("repl", profile)
+pkg/xgoja/app/tui.go:79:	selectedModules, err := c.factory.selectedModuleDescriptors(settings.Runtime)
+pkg/xgoja/app/tui.go:83:	return runTUI(ctx, c.factory, c.spec, settings.Runtime, settings.AltScreen, vals, selectedModules)
+pkg/xgoja/app/tui.go:86:func runTUI(ctx context.Context, factory *RuntimeFactory, spec *Spec, profile string, altScreen bool, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {
+pkg/xgoja/app/tui.go:95:	adapter, err := newXGojaTUIEvaluator(ctx, factory, profile, vals, selectedModules)
+pkg/xgoja/app/tui.go:151:func newXGojaTUIEvaluator(ctx context.Context, factory *RuntimeFactory, profile string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) (*xgojaTUIEvaluator, error) {
+pkg/xgoja/app/tui.go:156:	if vals != nil && len(selectedModules) > 0 {
+pkg/xgoja/app/tui.go:157:		if err := initRuntimeFromSections(ctx, vals, rt, selectedModules); err != nil {
+
+# Provider capability iteration sites
+pkg/xgoja/providers/http/http_test.go:21:	caps, ok := registry.ResolvePackageCapabilities(PackageID)
+pkg/xgoja/providers/http/http_test.go:43:	if err := capability.InitRuntimeFromSections(context.Background(), nil, nil); err == nil {
+pkg/xgoja/providers/http/http_test.go:51:	if err := capability.InitRuntimeFromSections(context.Background(), nil, testRuntimeHandle{vm: vm}); err != nil {
+pkg/xgoja/providers/http/http_test.go:66:	if err := capability.InitRuntimeFromSections(context.Background(), vals, testRuntimeHandle{vm: vm}); err != nil {
+pkg/xgoja/providers/http/http_test.go:81:	if err := capability.InitRuntimeFromSections(context.Background(), vals, testRuntimeHandle{vm: vm}); err != nil {
+pkg/xgoja/providers/http/http.go:78:func (c *capability) InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+pkg/xgoja/providerapi/capabilities.go:32:	PackageCapabilities []PackageCapability
+pkg/xgoja/providerapi/capabilities.go:65:	InitRuntimeFromSections(context.Context, *values.Values, RuntimeHandle) error
+pkg/xgoja/providerapi/registry.go:22:	PackageCapabilities map[string]PackageCapability
+pkg/xgoja/providerapi/registry.go:45:		PackageCapabilities: map[string]PackageCapability{},
+pkg/xgoja/providerapi/registry.go:85:func (r *Registry) ResolvePackageCapabilities(packageID string) ([]PackageCapability, bool) {
+pkg/xgoja/providerapi/registry.go:169:	if _, ok := p.PackageCapabilities[id]; ok {
+pkg/xgoja/providerapi/registry.go:172:	p.PackageCapabilities[id] = capability
+pkg/xgoja/providerapi/registry.go:193:		PackageCapabilities: map[string]PackageCapability{},
+pkg/xgoja/providerapi/registry.go:202:	for name, capability := range p.PackageCapabilities {
+pkg/xgoja/providerapi/registry.go:203:		out.PackageCapabilities[name] = capability
+pkg/xgoja/providerapi/registry.go:212:	if p == nil || len(p.PackageCapabilities) == 0 {
+pkg/xgoja/providerapi/registry.go:215:	ids := make([]string, 0, len(p.PackageCapabilities))
+pkg/xgoja/providerapi/registry.go:216:	for id := range p.PackageCapabilities {
+pkg/xgoja/providerapi/registry.go:222:		out = append(out, p.PackageCapabilities[id])
+pkg/xgoja/providerutil/sections.go:13:// CollectConfigSections collects Glazed config sections from the capabilities
+pkg/xgoja/providerutil/sections.go:17:func CollectConfigSections(descriptors []providerapi.ModuleDescriptor, base providerapi.SectionContext, seen map[string]string) ([]schema.Section, error) {
+pkg/xgoja/providerutil/sections.go:24:		for _, capability := range descriptor.PackageCapabilities {
+pkg/xgoja/providerutil/sections.go:74:// InitRuntimeFromSections runs all runtime initializer capabilities attached to
+pkg/xgoja/providerutil/sections.go:76:func InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeHandle, descriptors []providerapi.ModuleDescriptor) error {
+pkg/xgoja/providerutil/sections.go:82:		for _, capability := range descriptor.PackageCapabilities {
+pkg/xgoja/providerutil/sections.go:93:			if err := initializer.InitRuntimeFromSections(ctx, vals, handle); err != nil {
+pkg/xgoja/providerapi/registry_test.go:39:	capabilities, ok := registry.ResolvePackageCapabilities("core")
+pkg/xgoja/providerapi/registry_test.go:50:	if len(packages[0].PackageCapabilities) != 1 {
+pkg/xgoja/providerapi/registry_test.go:51:		t.Fatalf("cloned package capabilities = %#v", packages[0].PackageCapabilities)
+pkg/xgoja/providerapi/registry_test.go:124:func (c testCapability) InitRuntimeFromSections(context.Context, *values.Values, RuntimeHandle) error {
+pkg/xgoja/providerutil/sections_test.go:16:func TestCollectConfigSectionsRejectsDuplicateSlugs(t *testing.T) {
+pkg/xgoja/providerutil/sections_test.go:18:		{PackageID: "pkg-a", ModuleID: "mod-a", PackageCapabilities: []providerapi.PackageCapability{sectionCapability{slug: "shared"}}},
+pkg/xgoja/providerutil/sections_test.go:19:		{PackageID: "pkg-b", ModuleID: "mod-b", PackageCapabilities: []providerapi.PackageCapability{sectionCapability{slug: "shared"}}},
+pkg/xgoja/providerutil/sections_test.go:21:	_, err := CollectConfigSections(descriptors, providerapi.SectionContext{CommandName: "run"}, nil)
+pkg/xgoja/providerutil/sections_test.go:27:func TestCollectConfigSectionsRejectsNilSection(t *testing.T) {
+pkg/xgoja/providerutil/sections_test.go:28:	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{nilSectionCapability{}}}}
+pkg/xgoja/providerutil/sections_test.go:29:	_, err := CollectConfigSections(descriptors, providerapi.SectionContext{}, nil)
+pkg/xgoja/providerutil/sections_test.go:35:func TestCollectConfigSectionsDedupesSamePackageCapability(t *testing.T) {
+pkg/xgoja/providerutil/sections_test.go:38:		{PackageID: "pkg", ModuleID: "first", PackageCapabilities: []providerapi.PackageCapability{capability}},
+pkg/xgoja/providerutil/sections_test.go:39:		{PackageID: "pkg", ModuleID: "second", PackageCapabilities: []providerapi.PackageCapability{capability}},
+pkg/xgoja/providerutil/sections_test.go:41:	sections, err := CollectConfigSections(descriptors, providerapi.SectionContext{}, nil)
+pkg/xgoja/providerutil/sections_test.go:53:func TestCollectConfigSectionsRejectsEmptySlug(t *testing.T) {
+pkg/xgoja/providerutil/sections_test.go:54:	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{emptySlugCapability{}}}}
+pkg/xgoja/providerutil/sections_test.go:55:	_, err := CollectConfigSections(descriptors, providerapi.SectionContext{}, nil)
+pkg/xgoja/providerutil/sections_test.go:61:func TestInitRuntimeFromSectionsCallsInitializers(t *testing.T) {
+pkg/xgoja/providerutil/sections_test.go:65:	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{initializer}}}
+pkg/xgoja/providerutil/sections_test.go:66:	if err := InitRuntimeFromSections(context.Background(), vals, handle, descriptors); err != nil {
+pkg/xgoja/providerutil/sections_test.go:74:func TestInitRuntimeFromSectionsWrapsErrors(t *testing.T) {
+pkg/xgoja/providerutil/sections_test.go:76:	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{&runtimeInitCapability{err: boom}}}}
+pkg/xgoja/providerutil/sections_test.go:77:	err := InitRuntimeFromSections(context.Background(), values.New(), fakeRuntimeHandle{vm: goja.New()}, descriptors)
+pkg/xgoja/providerutil/sections_test.go:83:func TestInitRuntimeFromSectionsNoopsWithoutInitializers(t *testing.T) {
+pkg/xgoja/providerutil/sections_test.go:84:	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{sectionCapability{slug: "section"}}}}
+pkg/xgoja/providerutil/sections_test.go:85:	if err := InitRuntimeFromSections(context.Background(), values.New(), fakeRuntimeHandle{vm: goja.New()}, descriptors); err != nil {
+pkg/xgoja/providerutil/sections_test.go:90:func TestInitRuntimeFromSectionsDedupesSamePackageCapability(t *testing.T) {
+pkg/xgoja/providerutil/sections_test.go:93:		{PackageID: "pkg", ModuleID: "first", PackageCapabilities: []providerapi.PackageCapability{initializer}},
+pkg/xgoja/providerutil/sections_test.go:94:		{PackageID: "pkg", ModuleID: "second", PackageCapabilities: []providerapi.PackageCapability{initializer}},
+pkg/xgoja/providerutil/sections_test.go:96:	if err := InitRuntimeFromSections(context.Background(), values.New(), fakeRuntimeHandle{vm: goja.New()}, descriptors); err != nil {
+pkg/xgoja/providerutil/sections_test.go:153:func (c *runtimeInitCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+pkg/xgoja/testprovider/provider.go:97:func (FixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+pkg/xgoja/testprovider/provider.go:138:		for _, capability := range module.PackageCapabilities {
+pkg/xgoja/app/run_module_sections_test.go:108:func (runFixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+pkg/xgoja/app/run_module_sections_test.go:120:func (c prefixedRunFixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+pkg/xgoja/app/module_sections.go:29:		capabilities, _ := f.providers.ResolvePackageCapabilities(instance.Package)
+pkg/xgoja/app/module_sections.go:35:			PackageCapabilities: capabilities,
+pkg/xgoja/app/module_sections.go:46:	sections, err := providerutil.CollectConfigSections(descriptors, providerapi.SectionContext{
+pkg/xgoja/app/module_sections.go:82:	return providerutil.InitRuntimeFromSections(ctx, vals, runtimeHandle{rt: rt}, descriptors)
+pkg/xgoja/app/module_sections_test.go:48:func TestRuntimeFactoryAttachesPackageCapabilitiesToEverySelectedModule(t *testing.T) {
+pkg/xgoja/app/module_sections_test.go:72:		if len(descriptor.PackageCapabilities) != 1 {
+pkg/xgoja/app/module_sections_test.go:73:			t.Fatalf("descriptor %s capabilities = %#v", descriptor.ModuleID, descriptor.PackageCapabilities)
+pkg/xgoja/app/module_sections_test.go:85:func TestInitRuntimeFromSectionsCallsRuntimeInitializers(t *testing.T) {
+pkg/xgoja/app/module_sections_test.go:100:		PackageCapabilities: []providerapi.PackageCapability{capability},
+pkg/xgoja/app/module_sections_test.go:111:func TestInitRuntimeFromSectionsWrapsInitializerErrors(t *testing.T) {
+pkg/xgoja/app/module_sections_test.go:115:		PackageCapabilities: []providerapi.PackageCapability{runtimeInitCapability{
+pkg/xgoja/app/module_sections_test.go:170:func (c runtimeInitCapability) InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+
+# Tests touching runtime overrides / module sections
+pkg/xgoja/app/eval_module_sections_test.go:39:func TestEvalCommandRuntimeOverrideInitializesSelectedRuntimeProfile(t *testing.T) {
+pkg/xgoja/app/eval_module_sections_test.go:40:	factory := newRuntimeOverrideFactory(t)
+pkg/xgoja/app/run_module_sections_test.go:44:func TestRunCommandRuntimeOverrideInitializesSelectedRuntimeProfile(t *testing.T) {
+pkg/xgoja/app/run_module_sections_test.go:45:	factory := newRuntimeOverrideFactory(t)
+pkg/xgoja/app/run_module_sections_test.go:64:func newRuntimeOverrideFactory(t *testing.T) *RuntimeFactory {
+pkg/xgoja/app/module_sections_test.go:22:	sections, descriptors, err := factory.sectionsForRuntimeProfile("run", "main")
+pkg/xgoja/app/module_sections_test.go:42:	_, _, err := factory.sectionsForRuntimeProfile("run", "main")
+pkg/xgoja/app/module_sections_test.go:48:func TestRuntimeFactoryAttachesPackageCapabilitiesToEverySelectedModule(t *testing.T) {
+pkg/xgoja/app/module_sections_test.go:72:		if len(descriptor.PackageCapabilities) != 1 {
+pkg/xgoja/app/module_sections_test.go:73:			t.Fatalf("descriptor %s capabilities = %#v", descriptor.ModuleID, descriptor.PackageCapabilities)
+pkg/xgoja/app/module_sections_test.go:76:	sections, _, err := factory.sectionsForRuntimeProfile("run", "main")
+pkg/xgoja/app/module_sections_test.go:100:		PackageCapabilities: []providerapi.PackageCapability{capability},
+pkg/xgoja/app/module_sections_test.go:115:		PackageCapabilities: []providerapi.PackageCapability{runtimeInitCapability{
+pkg/xgoja/providerutil/sections_test.go:18:		{PackageID: "pkg-a", ModuleID: "mod-a", PackageCapabilities: []providerapi.PackageCapability{sectionCapability{slug: "shared"}}},
+pkg/xgoja/providerutil/sections_test.go:19:		{PackageID: "pkg-b", ModuleID: "mod-b", PackageCapabilities: []providerapi.PackageCapability{sectionCapability{slug: "shared"}}},
+pkg/xgoja/providerutil/sections_test.go:28:	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{nilSectionCapability{}}}}
+pkg/xgoja/providerutil/sections_test.go:38:		{PackageID: "pkg", ModuleID: "first", PackageCapabilities: []providerapi.PackageCapability{capability}},
+pkg/xgoja/providerutil/sections_test.go:39:		{PackageID: "pkg", ModuleID: "second", PackageCapabilities: []providerapi.PackageCapability{capability}},
+pkg/xgoja/providerutil/sections_test.go:54:	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{emptySlugCapability{}}}}
+pkg/xgoja/providerutil/sections_test.go:65:	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{initializer}}}
+pkg/xgoja/providerutil/sections_test.go:76:	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{&runtimeInitCapability{err: boom}}}}
+pkg/xgoja/providerutil/sections_test.go:84:	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{sectionCapability{slug: "section"}}}}
+pkg/xgoja/providerutil/sections_test.go:93:		{PackageID: "pkg", ModuleID: "first", PackageCapabilities: []providerapi.PackageCapability{initializer}},
+pkg/xgoja/providerutil/sections_test.go:94:		{PackageID: "pkg", ModuleID: "second", PackageCapabilities: []providerapi.PackageCapability{initializer}},

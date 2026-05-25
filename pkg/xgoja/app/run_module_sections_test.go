@@ -41,8 +41,51 @@ func TestRunCommandInitializesRuntimeFromModuleSections(t *testing.T) {
 	}
 }
 
+func TestRunCommandRuntimeOverrideInitializesSelectedRuntimeProfile(t *testing.T) {
+	factory := newRuntimeOverrideFactory(t)
+	cmd, err := buildGlazedCobraCommand(newRunCommand(factory, factory.spec))
+	if err != nil {
+		t.Fatalf("build cobra command: %v", err)
+	}
+	script := filepath.Join(t.TempDir(), "check.js")
+	if err := os.WriteFile(script, []byte(`if (globalThis.fixtureValue !== "override:ok") { throw new Error("fixtureValue=" + globalThis.fixtureValue); }`), 0o644); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+	cmd.SetArgs([]string{script, "--runtime", "override", "--fixture-value", "ok"})
+	if err := cmd.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("run command: %v", err)
+	}
+}
+
 type runFixtureSettings struct {
 	Value string `glazed:"value"`
+}
+
+func newRuntimeOverrideFactory(t *testing.T) *RuntimeFactory {
+	t.Helper()
+	registry := providerapi.NewRegistry()
+	if err := registry.Package("defaultpkg",
+		providerapi.Module{Name: "mod", New: noopSectionModule},
+		providerapi.WithPackageCapability(prefixedRunFixtureCapability{prefix: "default:"}),
+	); err != nil {
+		t.Fatalf("register default provider: %v", err)
+	}
+	if err := registry.Package("overridepkg",
+		providerapi.Module{Name: "mod", New: noopSectionModule},
+		providerapi.WithPackageCapability(prefixedRunFixtureCapability{prefix: "override:"}),
+	); err != nil {
+		t.Fatalf("register override provider: %v", err)
+	}
+	return NewRuntimeFactory(registry, &Spec{
+		Commands: CommandsSpec{
+			Eval: CommandSpec{Runtime: "default"},
+			Run:  CommandSpec{Runtime: "default"},
+		},
+		Runtimes: map[string]Runtime{
+			"default":  {Modules: []ModuleInstance{{Package: "defaultpkg", Name: "mod", As: "fixture"}}},
+			"override": {Modules: []ModuleInstance{{Package: "overridepkg", Name: "mod", As: "fixture"}}},
+		},
+	})
 }
 
 type runFixtureCapability struct{}
@@ -63,6 +106,22 @@ func (runFixtureCapability) ConfigSections(providerapi.SectionContext) ([]schema
 }
 
 func (runFixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+	return setFixtureValue(vals, handle, "")
+}
+
+type prefixedRunFixtureCapability struct{ prefix string }
+
+func (c prefixedRunFixtureCapability) CapabilityID() string { return "fixture.run" }
+
+func (c prefixedRunFixtureCapability) ConfigSections(ctx providerapi.SectionContext) ([]schema.Section, error) {
+	return (runFixtureCapability{}).ConfigSections(ctx)
+}
+
+func (c prefixedRunFixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+	return setFixtureValue(vals, handle, c.prefix)
+}
+
+func setFixtureValue(vals *values.Values, handle providerapi.RuntimeHandle, prefix string) error {
 	var settings runFixtureSettings
 	if err := vals.DecodeSectionInto("fixture", &settings); err != nil {
 		return err
@@ -71,7 +130,7 @@ func (runFixtureCapability) InitRuntimeFromSections(_ context.Context, vals *val
 	if runtime == nil {
 		runtime = goja.New()
 	}
-	if err := runtime.Set("fixtureValue", settings.Value); err != nil {
+	if err := runtime.Set("fixtureValue", prefix+settings.Value); err != nil {
 		return err
 	}
 	return nil

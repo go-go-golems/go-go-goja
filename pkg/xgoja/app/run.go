@@ -17,10 +17,9 @@ import (
 
 type runCommand struct {
 	*cmds.CommandDescription
-	factory         *RuntimeFactory
-	spec            *Spec
-	selectedModules []providerapi.ModuleDescriptor
-	sectionErr      error
+	factory    *RuntimeFactory
+	spec       *Spec
+	sectionErr error
 }
 
 var _ cmds.BareCommand = (*runCommand)(nil)
@@ -32,7 +31,7 @@ type runSettings struct {
 
 func newRunCommand(factory *RuntimeFactory, spec *Spec) cmds.Command {
 	profile := commandRuntime(spec.Commands.Run, firstRuntime(spec))
-	moduleSections, selectedModules, sectionErr := factory.sectionsForRuntimeProfile("run", profile)
+	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("run", profile)
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Execute a JavaScript file in a generated xgoja runtime"),
 		cmds.WithLong(`
@@ -60,7 +59,6 @@ sibling JavaScript files can be required by relative path.
 		CommandDescription: cmds.NewCommandDescription(commandName(spec.Commands.Run, "run"), options...),
 		factory:            factory,
 		spec:               spec,
-		selectedModules:    selectedModules,
 		sectionErr:         sectionErr,
 	}
 }
@@ -73,7 +71,11 @@ func (c *runCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	return runScriptFileWithInitializers(ctx, c.factory, settings.Runtime, settings.File, vals, c.selectedModules)
+	selectedModules, err := c.factory.selectedModuleDescriptors(settings.Runtime)
+	if err != nil {
+		return err
+	}
+	return runScriptFileWithInitializers(ctx, c.factory, settings.Runtime, settings.File, vals, selectedModules)
 }
 
 func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory, profile string, file string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {

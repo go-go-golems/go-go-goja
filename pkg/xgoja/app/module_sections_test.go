@@ -45,6 +45,43 @@ func TestRuntimeFactoryRejectsDuplicateSectionSlugs(t *testing.T) {
 	}
 }
 
+func TestRuntimeFactoryAttachesPackageCapabilitiesToEverySelectedModule(t *testing.T) {
+	capability := sectionCapability{id: "settings", slug: "fixture"}
+	registry := providerapi.NewRegistry()
+	if err := registry.Package("fixture",
+		providerapi.Module{Name: "first", New: noopSectionModule},
+		providerapi.Module{Name: "second", New: noopSectionModule},
+		providerapi.WithPackageCapability(capability),
+	); err != nil {
+		t.Fatalf("register fixture provider: %v", err)
+	}
+	factory := NewRuntimeFactory(registry, &Spec{Runtimes: map[string]Runtime{
+		"main": {Modules: []ModuleInstance{
+			{Package: "fixture", Name: "first", As: "first"},
+			{Package: "fixture", Name: "second", As: "second"},
+		}},
+	}})
+	descriptors, err := factory.selectedModuleDescriptors("main")
+	if err != nil {
+		t.Fatalf("selected descriptors: %v", err)
+	}
+	if len(descriptors) != 2 {
+		t.Fatalf("descriptors = %#v", descriptors)
+	}
+	for _, descriptor := range descriptors {
+		if len(descriptor.PackageCapabilities) != 1 {
+			t.Fatalf("descriptor %s capabilities = %#v", descriptor.ModuleID, descriptor.PackageCapabilities)
+		}
+	}
+	sections, _, err := factory.sectionsForRuntimeProfile("run", "main")
+	if err != nil {
+		t.Fatalf("sections should dedupe same package capability: %v", err)
+	}
+	if got := sectionSlugs(sections); strings.Join(got, ",") != "fixture" {
+		t.Fatalf("section slugs = %v", got)
+	}
+}
+
 func TestInitRuntimeFromSectionsCallsRuntimeInitializers(t *testing.T) {
 	called := false
 	capability := runtimeInitCapability{

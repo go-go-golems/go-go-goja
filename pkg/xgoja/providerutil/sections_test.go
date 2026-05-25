@@ -32,6 +32,24 @@ func TestCollectConfigSectionsRejectsNilSection(t *testing.T) {
 	}
 }
 
+func TestCollectConfigSectionsDedupesSamePackageCapability(t *testing.T) {
+	capability := &countingSectionCapability{slug: "settings"}
+	descriptors := []providerapi.ModuleDescriptor{
+		{PackageID: "pkg", ModuleID: "first", PackageCapabilities: []providerapi.PackageCapability{capability}},
+		{PackageID: "pkg", ModuleID: "second", PackageCapabilities: []providerapi.PackageCapability{capability}},
+	}
+	sections, err := CollectConfigSections(descriptors, providerapi.SectionContext{}, nil)
+	if err != nil {
+		t.Fatalf("collect config sections: %v", err)
+	}
+	if capability.calls != 1 {
+		t.Fatalf("capability calls = %d", capability.calls)
+	}
+	if len(sections) != 1 || sections[0].GetSlug() != "settings" {
+		t.Fatalf("sections = %#v", sections)
+	}
+}
+
 func TestCollectConfigSectionsRejectsEmptySlug(t *testing.T) {
 	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{emptySlugCapability{}}}}
 	_, err := CollectConfigSections(descriptors, providerapi.SectionContext{}, nil)
@@ -69,10 +87,39 @@ func TestInitRuntimeFromSectionsNoopsWithoutInitializers(t *testing.T) {
 	}
 }
 
+func TestInitRuntimeFromSectionsDedupesSamePackageCapability(t *testing.T) {
+	initializer := &runtimeInitCapability{}
+	descriptors := []providerapi.ModuleDescriptor{
+		{PackageID: "pkg", ModuleID: "first", PackageCapabilities: []providerapi.PackageCapability{initializer}},
+		{PackageID: "pkg", ModuleID: "second", PackageCapabilities: []providerapi.PackageCapability{initializer}},
+	}
+	if err := InitRuntimeFromSections(context.Background(), values.New(), fakeRuntimeHandle{vm: goja.New()}, descriptors); err != nil {
+		t.Fatalf("init runtime: %v", err)
+	}
+	if initializer.calls != 1 {
+		t.Fatalf("initializer calls = %d", initializer.calls)
+	}
+}
+
 type sectionCapability struct{ slug string }
 
 func (c sectionCapability) CapabilityID() string { return "section" }
 func (c sectionCapability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+	section, err := schema.NewSection(c.slug, "Section", schema.WithFields(fields.New("value", fields.TypeString)))
+	if err != nil {
+		return nil, err
+	}
+	return []schema.Section{section}, nil
+}
+
+type countingSectionCapability struct {
+	slug  string
+	calls int
+}
+
+func (c *countingSectionCapability) CapabilityID() string { return "counting-section" }
+func (c *countingSectionCapability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+	c.calls++
 	section, err := schema.NewSection(c.slug, "Section", schema.WithFields(fields.New("value", fields.TypeString)))
 	if err != nil {
 		return nil, err
@@ -96,6 +143,7 @@ func (emptySlugCapability) ConfigSections(providerapi.SectionContext) ([]schema.
 
 type runtimeInitCapability struct {
 	called bool
+	calls  int
 	vals   *values.Values
 	handle providerapi.RuntimeHandle
 	err    error
@@ -104,6 +152,7 @@ type runtimeInitCapability struct {
 func (c runtimeInitCapability) CapabilityID() string { return "runtime-init" }
 func (c *runtimeInitCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
 	c.called = true
+	c.calls++
 	c.vals = vals
 	c.handle = handle
 	return c.err

@@ -19,20 +19,27 @@ func CollectConfigSections(descriptors []providerapi.ModuleDescriptor, base prov
 	if seen == nil {
 		seen = map[string]string{}
 	}
+	applied := map[string]struct{}{}
 	for _, descriptor := range descriptors {
 		for _, capability := range descriptor.PackageCapabilities {
 			sectionCapability, ok := capability.(providerapi.ConfigSectionCapability)
 			if !ok {
 				continue
 			}
+			id := capability.CapabilityID()
+			key := packageCapabilityKey(descriptor.PackageID, id)
+			if _, ok := applied[key]; ok {
+				continue
+			}
+			applied[key] = struct{}{}
 			sectionContext := base
 			sectionContext.PackageID = descriptor.PackageID
 			sectionContext.ModuleID = descriptor.ModuleID
 			moduleSections, err := sectionCapability.ConfigSections(sectionContext)
 			if err != nil {
-				return nil, fmt.Errorf("collect config sections for %s.%s capability %s: %w", descriptor.PackageID, descriptor.ModuleID, capability.CapabilityID(), err)
+				return nil, fmt.Errorf("collect config sections for %s.%s capability %s: %w", descriptor.PackageID, descriptor.ModuleID, id, err)
 			}
-			source := fmt.Sprintf("%s.%s capability %s", descriptor.PackageID, descriptor.ModuleID, capability.CapabilityID())
+			source := fmt.Sprintf("%s.%s capability %s", descriptor.PackageID, descriptor.ModuleID, id)
 			if err := AppendUniqueSections(&sections, seen, moduleSections, source); err != nil {
 				return nil, err
 			}
@@ -70,16 +77,27 @@ func InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle pr
 	if handle == nil || handle.Runtime() == nil {
 		return fmt.Errorf("runtime handle is nil")
 	}
+	applied := map[string]struct{}{}
 	for _, descriptor := range descriptors {
 		for _, capability := range descriptor.PackageCapabilities {
 			initializer, ok := capability.(providerapi.RuntimeInitializerCapability)
 			if !ok {
 				continue
 			}
+			id := capability.CapabilityID()
+			key := packageCapabilityKey(descriptor.PackageID, id)
+			if _, ok := applied[key]; ok {
+				continue
+			}
+			applied[key] = struct{}{}
 			if err := initializer.InitRuntimeFromSections(ctx, vals, handle); err != nil {
-				return fmt.Errorf("initialize runtime from sections for %s.%s capability %s: %w", descriptor.PackageID, descriptor.ModuleID, capability.CapabilityID(), err)
+				return fmt.Errorf("initialize runtime from sections for %s.%s capability %s: %w", descriptor.PackageID, descriptor.ModuleID, id, err)
 			}
 		}
 	}
 	return nil
+}
+
+func packageCapabilityKey(packageID, capabilityID string) string {
+	return packageID + "\x00" + capabilityID
 }
