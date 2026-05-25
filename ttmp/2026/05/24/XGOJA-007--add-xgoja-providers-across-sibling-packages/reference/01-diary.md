@@ -14,13 +14,20 @@ Topics:
 DocType: reference
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: workspace-manager/pkg/wsmjs/module/module.go
+      Note: Added NewLoader helper while preserving Register
+    - Path: workspace-manager/pkg/wsmjs/provider/provider.go
+      Note: New xgoja provider wrapper for wsm require module
+    - Path: workspace-manager/pkg/wsmjs/provider/provider_test.go
+      Note: Provider registry loader and config tests
 ExternalSources: []
 Summary: Chronological investigation diary for XGOJA-007.
 LastUpdated: 2026-05-24T22:45:00-04:00
 WhatFor: Track the evidence-gathering and documentation workflow for adding xgoja providers to sibling packages.
 WhenToUse: Read before resuming XGOJA-007 work or reviewing the implementation guide.
 ---
+
 
 # Diary
 
@@ -300,4 +307,92 @@ remarquee upload bundle \
   --remote-dir "/ai/2026/05/24/XGOJA-007" \
   --toc-depth 2 \
   --non-interactive
+```
+
+## Step 4: Phase 1 workspace-manager provider
+
+I implemented the first provider phase in `workspace-manager`. This was the lowest-risk target because the repository already had a CommonJS-style module registered as `require("wsm")`; the main code change was to expose the existing unexported loader through a public `NewLoader` function and wrap it in an xgoja provider package.
+
+The provider registers package ID `workspace-manager` with module name `wsm`, decodes an optional `defaultJobs` config value, and returns the existing module loader. The test suite verifies provider registration, loader export installation, and invalid config behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead, add phases + tasks to the ticket if not done already, and then go through them. commit at appropriate intervals, keep a diary"
+
+**Assistant interpretation:** Add concrete phase tasks to XGOJA-007, then begin implementing the planned providers while committing coherent increments and recording each phase in the diary.
+
+**Inferred user intent:** The user wants the ticket to transition from planning into implementation while preserving the same documentation/diary discipline.
+
+**Commit (code):** 6bce6b0 — "feat: add xgoja provider for wsm module"
+
+### What I did
+
+- Added phase tasks to `XGOJA-007` for `workspace-manager`, `goja-git`, `loupedeck`, `geppetto`, and `go-minitrace`.
+- Added `NewLoader(opts Options) require.ModuleLoader` to `workspace-manager/pkg/wsmjs/module/module.go`.
+- Changed the existing `Register(reg, opts)` implementation to call `NewLoader(opts)`.
+- Added `workspace-manager/pkg/wsmjs/provider/provider.go` with `Register(*providerapi.Registry) error`.
+- Added `workspace-manager/pkg/wsmjs/provider/provider_test.go`.
+- Ran `go test ./pkg/wsmjs/... -count=1` in `workspace-manager`.
+- Marked Phase 1 complete in the ticket and related the modified files to this diary.
+
+### Why
+
+- Exposing a public loader factory keeps the old API intact while making the module compatible with xgoja provider factories.
+- The provider wrapper is intentionally small: it adapts config into existing `module.Options` and delegates all JS API behavior to the existing module.
+- Tests catch the important provider contract points without requiring destructive workspace operations.
+
+### What worked
+
+- The existing module code was already organized around an internal `Loader(vm, moduleObj)` method, so `NewLoader` was a tiny refactor.
+- Normal workspace-mode tests passed:
+  - `go test ./pkg/wsmjs/... -count=1`
+
+### What didn't work
+
+- Running `GOWORK=off go test ./pkg/wsmjs/provider -count=1` initially failed because `workspace-manager/go.mod` does not yet require `github.com/go-go-golems/go-go-goja`:
+  - `no required module provides package github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi`
+- Trying `GOWORK=off go get github.com/go-go-golems/go-go-goja@v0.4.17` pulled in broad dependency upgrades because `go-go-goja v0.4.17` requires Go 1.26.1 and newer transitive versions. I reverted those unrelated `go.mod`/`go.sum` changes to keep the implementation commit focused.
+- This means Phase 1 currently validates in the workspace (`go.work`) but still needs a dependency-management decision before `workspace-manager` can be built standalone outside the workspace.
+
+### What I learned
+
+- The local workspace can resolve the `go-go-goja` provider API through `go.work`, but standalone module hygiene needs a separate dependency update strategy.
+- `go-go-goja/pkg/xgoja/providerapi` exists in released `go-go-goja v0.4.17`, but adopting that release in `workspace-manager` is not a tiny one-line change because of Go/toolchain and dependency updates.
+
+### What was tricky to build
+
+- The implementation itself was straightforward; dependency hygiene was the tricky part.
+- I chose not to commit broad dependency upgrades in the `workspace-manager` provider commit because they would obscure the actual provider changes and might affect unrelated CLI/runtime behavior.
+
+### What warrants a second pair of eyes
+
+- Decide whether to accept the `go-go-goja v0.4.17` dependency update in `workspace-manager`, wait for a coordinated workspace dependency bump, or use a local replace strategy for generated examples.
+- Review whether `defaultJobs: 0` should mean service default or should be rejected. The current implementation treats zero as default and rejects only negative values.
+
+### What should be done in the future
+
+- Add a generated xgoja smoke example once dependency strategy is settled.
+- Update `workspace-manager` docs with provider usage and the `defaultJobs` config field.
+
+### Code review instructions
+
+- Start with `workspace-manager/pkg/wsmjs/module/module.go` and confirm `Register` behavior is unchanged except for delegating to `NewLoader`.
+- Review `workspace-manager/pkg/wsmjs/provider/provider.go` for provider ID, module name, config schema, and config validation.
+- Run `cd workspace-manager && go test ./pkg/wsmjs/... -count=1` from the workspace root.
+
+### Technical details
+
+Validation command:
+
+```bash
+cd workspace-manager
+go test ./pkg/wsmjs/... -count=1
+```
+
+Known standalone-module caveat:
+
+```bash
+cd workspace-manager
+GOWORK=off go test ./pkg/wsmjs/provider -count=1
+# fails until go.mod/go.sum adopt a go-go-goja version containing pkg/xgoja/providerapi
 ```
