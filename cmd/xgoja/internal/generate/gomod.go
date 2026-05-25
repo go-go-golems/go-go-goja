@@ -3,6 +3,7 @@ package generate
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -48,7 +49,7 @@ func RenderGoMod(spec *buildspec.Spec, opts Options) string {
 	}
 	for _, pkg := range spec.Packages {
 		if strings.TrimSpace(pkg.Replace) != "" {
-			replaces[providerModulePath(pkg.Import)] = pkg.Replace
+			replaces[providerModulePath(pkg.Import)] = resolveReplacePath(spec.BaseDir, pkg.Replace)
 		}
 	}
 	if len(replaces) > 0 {
@@ -79,6 +80,14 @@ func providerModulePath(importPath string) string {
 		return path.Dir(importPath)
 	}
 	return importPath
+}
+
+func resolveReplacePath(baseDir, replace string) string {
+	replace = strings.TrimSpace(replace)
+	if replace == "" || filepath.IsAbs(replace) || strings.TrimSpace(baseDir) == "" {
+		return replace
+	}
+	return filepath.Join(baseDir, replace)
 }
 
 func filepathSlash(value string) string {

@@ -27,6 +27,16 @@ func TestRenderGoModDeterministic(t *testing.T) {
 	}
 }
 
+func TestRenderGoModResolvesRelativePackageReplaceFromSpecBaseDir(t *testing.T) {
+	spec := fixtureSpec()
+	spec.BaseDir = filepath.Join(string(filepath.Separator), "tmp", "example")
+	got := RenderGoMod(spec, Options{XGojaModuleVersion: "v0.1.0"})
+	want := "replace github.com/go-go-golems/web-stuff => /tmp/web-stuff"
+	if !strings.Contains(got, want) {
+		t.Fatalf("expected go.mod to contain %q, got:\n%s", want, got)
+	}
+}
+
 func TestRenderGoModUsesModuleRootsForSubpackageImports(t *testing.T) {
 	spec := &buildspec.Spec{
 		Name: "subpackage-fixture",
