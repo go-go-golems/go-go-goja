@@ -259,3 +259,146 @@ Upload command result:
 ```text
 OK: uploaded XGOJA-008 custom xgoja CLI verbs design.pdf -> /ai/2026/05/24/XGOJA-008
 ```
+
+## Step 4: Revised design to return Glazed commands instead of Cobra commands
+
+The user pointed out that command providers should return Glazed commands instead of raw Cobra commands so the design stays inside the Go-Go-Golems command ecosystem. I agreed and revised the design around `cmds.Command`, with concrete support for `cmds.BareCommand`, `cmds.WriterCommand`, and `cmds.GlazeCommand`.
+
+This revision changes the central abstraction from `CommandProvider.New(...) (*cobra.Command, error)` to `CommandSetProvider.New(...) (*CommandSet, error)`, where `CommandSet.Commands` is a `[]cmds.Command`. xgoja then remains responsible for mounting those commands into the generated Cobra root through `glazedcli.AddCommandsToRootCommand`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "can we revise this design to return GlazedCommand (Bare, Writer, Glaze, depending. Usually Bare) instead of a cobra.Command, that way we stay within our ecosystem"
+
+**Assistant interpretation:** Update the XGOJA-008 design so provider packages return Glazed command values rather than constructing Cobra subtrees directly.
+
+**Inferred user intent:** The user wants xgoja custom command providers to preserve Glazed schemas, middleware, output processors, and help conventions instead of bypassing them with raw Cobra.
+
+**Commit (code):** N/A — design doc revision; committed after validation/upload.
+
+### What I did
+
+- Rewrote the design document around `providerapi.CommandSetProvider` and `providerapi.CommandSet`.
+- Added a revision note explaining why Glazed commands are the correct boundary.
+- Added API sketches for `[]cmds.Command` return values.
+- Updated implementation phases to use `glazedcli.AddCommandsToRootCommand`.
+- Added explicit guidance for `BareCommand`, `WriterCommand`, and `GlazeCommand` usage.
+- Added Glazed API references to the document.
+
+### Why
+
+- Glazed commands already encode the command description, schema, parsing, output expectations, and serialization behavior we need.
+- Existing `jsverbs` already produces `cmds.Command`, so command providers should align with that path.
+- Raw Cobra should remain an integration detail at the generated xgoja host boundary.
+
+### What worked
+
+- The revised design is cleaner: providers return domain commands, xgoja mounts them.
+- It gives package authors a clear default: use `BareCommand` for side-effecting sandbox/session commands.
+
+### What didn't work
+
+- The original design's `*cobra.Command` return type would have forced providers to own parser configuration and would have encouraged bypassing Glazed output conventions.
+
+### What I learned
+
+- The right xgoja abstraction is not "custom Cobra provider" but "custom Glazed command set provider".
+- Mounting should be represented by Glazed command parents or an xgoja mount prefix applied to command descriptions.
+
+### What was tricky to build
+
+- Lazy command discovery still needs thought. The revised design keeps lazy discovery possible by returning a `BareCommand` that performs discovery in `Run`, rather than returning a lazy Cobra command.
+
+### What warrants a second pair of eyes
+
+- Review the proposed `CommandSet` shape, especially whether provider-level parser config should be allowed.
+- Review how xgoja should prepend a buildspec `mount` to Glazed command parents without mutating shared command descriptions.
+
+### What should be done in the future
+
+- Implement the fixture slice with one `BareCommand`, one `WriterCommand`, and one `GlazeCommand`.
+
+### Code review instructions
+
+- Focus on the revised sections: revision note, Glazed command types, proposed API concepts, mount semantics, and implementation phases.
+
+### Technical details
+
+The revised central API sketch is:
+
+```go
+type CommandSetProvider struct {
+    Name string
+    DefaultMount string
+    Description string
+    ConfigSchema json.RawMessage
+    New CommandSetProviderFactory
+}
+
+type CommandSet struct {
+    Commands []cmds.Command
+    ParserConfig *cli.CobraParserConfig
+}
+```
+
+## Step 5: Validated and uploaded the Glazed-command revision
+
+I validated the revised ticket and uploaded a new reMarkable bundle with a distinct name so it does not overwrite or depend on the earlier Cobra-oriented draft. The revised bundle is the one to use going forward.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Validate and deliver the revised Glazed-command design.
+
+**Inferred user intent:** The user wants the design artifact updated everywhere, including the reMarkable reading copy.
+
+**Commit (code):** N/A — docs committed after this entry.
+
+### What I did
+
+- Ran `docmgr doctor --ticket XGOJA-008 --stale-after 30`.
+- Uploaded the revised bundle to reMarkable.
+- Kept the earlier upload intact and used a new name for the revised Glazed-command-provider version.
+
+### Why
+
+- The prior PDF had the obsolete Cobra-returning API. The revised PDF needs to be available for review.
+
+### What worked
+
+- `docmgr doctor` passed.
+- Upload succeeded with:
+  - `OK: uploaded XGOJA-008 custom xgoja Glazed command providers design.pdf -> /ai/2026/05/24/XGOJA-008`
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The reMarkable upload command can publish a revised design as a new PDF name without needing to inspect remote state.
+
+### What was tricky to build
+
+- Avoiding ambiguity between the old Cobra-oriented PDF and the revised Glazed-command PDF. The new filename explicitly says `Glazed command providers`.
+
+### What warrants a second pair of eyes
+
+- Confirm whether to delete the older Cobra-oriented PDF from reMarkable or leave both for history.
+
+### What should be done in the future
+
+- Implement the fixture command-set provider API based on the revised design.
+
+### Code review instructions
+
+- Use the revised bundle name for review: `XGOJA-008 custom xgoja Glazed command providers design.pdf`.
+
+### Technical details
+
+Upload result:
+
+```text
+OK: uploaded XGOJA-008 custom xgoja Glazed command providers design.pdf -> /ai/2026/05/24/XGOJA-008
+```

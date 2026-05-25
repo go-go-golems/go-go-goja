@@ -16,27 +16,37 @@ DocType: design-doc
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: css-visual-diff/internal/cssvisualdiff/verbcli/command.go
-      Note: CSS visual diff workflow verb command tree
-    - Path: discord-bot/pkg/botcli/command_root.go
-      Note: Discord bot repository command-tree generation
-    - Path: go-go-goja/pkg/xgoja/app/host.go
-      Note: Current fixed xgoja command attachment boundary
-    - Path: go-go-goja/pkg/xgoja/app/root.go
-      Note: Current eval and generic jsverbs command implementation
-    - Path: go-minitrace/cmd/go-minitrace/cmds/query/js_runtime.go
+    - Path: ../../../../../../../../../../go-go-goja/pkg/xgoja/app/host.go
+      Note: Current generated xgoja command attachment boundary
+    - Path: ../../../../../../../../../../go-go-goja/pkg/xgoja/app/root.go
+      Note: Current eval run modules and generic jsverbs command implementation
+    - Path: ../../../../../../../../../../loupedeck/cmd/loupedeck/cmds/verbs/command.go
+      Note: Loupedeck package-owned dynamic scene verb command tree built from Glazed commands
+    - Path: ../../../../../../../../../../discord-bot/pkg/botcli/command_root.go
+      Note: Discord bot repository command-tree generation using Glazed command descriptions
+    - Path: ../../../../../../../../../../css-visual-diff/internal/cssvisualdiff/verbcli/command.go
+      Note: CSS visual diff workflow verb command tree using Glazed commands
+    - Path: ../../../../../../../../../../go-minitrace/cmd/go-minitrace/cmds/query/js_runtime.go
       Note: Minitrace command-local JS runtime and jsverb invocation
-    - Path: loupedeck/cmd/loupedeck/cmds/verbs/command.go
-      Note: Loupedeck package-owned dynamic scene verb command tree
 ExternalSources: []
-Summary: Design guide for extending generated xgoja binaries with custom CLI command trees supplied by third-party Goja sandbox packages.
-LastUpdated: 2026-05-24T23:55:00-04:00
-WhatFor: Use this guide when designing or implementing xgoja support for package-provided custom CLI verbs beyond built-in eval run repl and generic jsverbs.
-WhenToUse: Before changing xgoja buildspecs provider APIs or generated command attachment for third-party sandbox command trees.
+Summary: Design guide for extending generated xgoja binaries with custom Glazed command sets supplied by third-party Goja sandbox packages.
+LastUpdated: 2026-05-25T00:10:00-04:00
+WhatFor: Use this guide when designing or implementing xgoja support for package-provided custom Glazed commands beyond built-in eval run repl and generic jsverbs.
+WhenToUse: Before changing xgoja buildspecs provider APIs or generated command attachment for third-party sandbox command sets.
 ---
 
-
 # Custom xgoja CLI verbs for third-party JavaScript sandboxes
+
+## Revision note
+
+This document was revised after review to keep the extension point inside the Go-Go-Golems / Glazed command ecosystem. The original draft proposed that provider command factories return `*cobra.Command`. The revised design instead has providers return **Glazed commands** (`cmds.Command` values implemented as `cmds.BareCommand`, `cmds.WriterCommand`, or `cmds.GlazeCommand`, usually `BareCommand`) plus optional grouping metadata. xgoja remains responsible for converting those Glazed commands into Cobra commands with the same parser and middleware path already used by generated xgoja jsverbs.
+
+This is the better boundary because:
+
+- command schemas, flags, arguments, parents, help text, and output behavior stay in Glazed;
+- packages can return structured row output when appropriate (`GlazeCommand`), direct writer output when needed (`WriterCommand`), or normal side-effect/session commands (`BareCommand`);
+- xgoja can reuse `glazedcli.AddCommandsToRootCommand` and `glazedcli.BuildCobraCommandFromCommand`;
+- command providers do not need to construct Cobra directly except for rare app-root integration code outside this provider API.
 
 ## Executive summary
 
@@ -48,30 +58,30 @@ Generated xgoja binaries currently know how to attach a fixed set of command fam
 - `modules`: list compiled provider modules.
 - `jsverbs`: scan configured JavaScript verb sources and mount those verbs under one command tree.
 
-That is enough for generic JavaScript execution, but it is not enough for packages that already own richer JavaScript sandboxes. Packages such as `loupedeck`, `discord-bot`, `css-visual-diff`, and `go-minitrace` have package-specific command trees, discovery rules, host services, runtime factories, long-running sessions, and safety policies. The user wants xgoja to generate binaries that can expose those package-provided commands instead of only generic xgoja commands.
+That is enough for generic JavaScript execution, but it is not enough for packages that already own richer JavaScript sandboxes. Packages such as `loupedeck`, `discord-bot`, `css-visual-diff`, and `go-minitrace` have package-specific command sets, discovery rules, host services, runtime factories, long-running sessions, and safety policies. The user wants xgoja to generate binaries that can expose those package-provided commands instead of only generic xgoja commands.
 
-The recommended design is to add a **command provider** layer next to the existing module-provider layer:
+The recommended design is to add a **Glazed command provider** layer next to the existing module-provider layer:
 
 ```text
 provider package
   ├─ providerapi.Module entries       -> require(...) modules selected by runtime profiles
   ├─ providerapi.VerbSource entries   -> generic JavaScript verb files scanned by xgoja
-  └─ providerapi.CommandProvider      -> package-owned Cobra/Glazed command trees
+  └─ providerapi.CommandSetProvider   -> package-owned Glazed command sets
 ```
 
-A command provider should be able to contribute custom generated CLI commands such as:
+A command set provider should be able to contribute custom generated CLI commands such as:
 
 ```text
 my-generated-binary
   run <file>                         # generic xgoja run, if enabled
   repl                               # generic xgoja repl, if enabled
-  loupe scenes <scene> run ...       # loupedeck-owned scene runner
-  bots <bot> run --bot-token ...     # discord-bot-owned bot runner
-  cvd verbs compare-page ...         # css-visual-diff workflow verbs
+  loupe scenes <scene> run ...       # loupedeck-owned scene command set
+  bots <bot> run --bot-token ...     # discord-bot-owned bot command set
+  cvd verbs compare-page ...         # css-visual-diff workflow command set
   minitrace query <command> ...      # go-minitrace query command catalog
 ```
 
-The key idea is that xgoja should not try to understand every third-party sandbox. It should provide a stable generated-binary host contract and let packages adapt their own command trees into it.
+The key idea is that xgoja should not try to understand every third-party sandbox. It should provide a stable generated-binary host contract and let packages adapt their own command sets into Glazed commands.
 
 ## Problem statement
 
@@ -83,9 +93,53 @@ It did not solve this different problem:
 
 > A generated xgoja binary can expose package-specific CLI commands that create the correct sandbox, attach host services, discover JavaScript scripts, parse package-specific flags, and execute the JavaScript in the package's intended context.
 
-The difference matters. `require("loupedeck/gfx")` is a module. `loupedeck run ./scene.js --duration 10s --send-interval 0ms` is an application command. `require("discord")` is a module. `discord-bot bots support run --bot-token ...` is an application command that opens a Discord session and stays alive until cancelled.
+The difference matters. `require("loupedeck/gfx")` is a module. A Loupedeck scene runner with hardware/session flags is an application command. `require("discord")` is a module. `discord-bot bots support run --bot-token ...` is an application command that opens a Discord session and stays alive until cancelled.
 
 If xgoja only supports generic `run` and `jsverbs`, package authors will keep re-implementing command mounting outside xgoja. The generated binary will not be a useful composition target for real package-specific JS sandboxes.
+
+## Glazed command types: the target return value
+
+The provider API should use the existing Glazed command interfaces from `glazed/pkg/cmds`:
+
+```go
+type Command interface {
+    Description() *CommandDescription
+    ToYAML(w io.Writer) error
+}
+
+type BareCommand interface {
+    Command
+    Run(ctx context.Context, parsedValues *values.Values) error
+}
+
+type WriterCommand interface {
+    Command
+    RunIntoWriter(ctx context.Context, parsedValues *values.Values, w io.Writer) error
+}
+
+type GlazeCommand interface {
+    Command
+    RunIntoGlazeProcessor(ctx context.Context, parsedValues *values.Values, gp middlewares.Processor) error
+}
+```
+
+Use these as follows:
+
+- **BareCommand**: default for side-effect commands, long-running sessions, device control, bot runners, browser workflows, and commands that print/log manually.
+- **WriterCommand**: use when command output is textual or file-like and must write to `cmd.OutOrStdout()`.
+- **GlazeCommand**: use when command output is structured rows and should support normal `--output`, `--fields`, processors, and table/json/yaml rendering.
+
+xgoja should mount provider commands using Glazed's Cobra bridge:
+
+```go
+glazedcli.AddCommandsToRootCommand(root, commandSet.Commands, nil,
+    glazedcli.WithParserConfig(glazedcli.CobraParserConfig{
+        MiddlewaresFunc: glazedcli.CobraCommandDefaultMiddlewares,
+    }),
+)
+```
+
+This keeps xgoja command generation aligned with `jsverbs`, `modules`, and existing Go-Go-Golems CLI patterns.
 
 ## Current xgoja architecture
 
@@ -160,8 +214,9 @@ Evidence:
 
 Design implication:
 
-- xgoja should not flatten Loupedeck to generic `run`. The package needs to contribute a command provider that can mount its scene runner and verb repository scanner.
-- The Loupedeck command provider needs hardware/session config flags and lifecycle cancellation.
+- xgoja should not flatten Loupedeck to generic `run`.
+- Loupedeck should contribute `cmds.Command` values: probably `BareCommand` for live scene/session commands, with `cmds.WithParents("loupe")` or a buildspec mount prefix.
+- Existing Loupedeck code currently builds a Cobra tree directly in places. The adapter should expose the same command semantics as Glazed commands before xgoja mounts them.
 
 ### discord-bot
 
@@ -181,9 +236,9 @@ Evidence:
 
 Design implication:
 
-- Discord needs a command provider that can contribute a `bots` subtree, not just one command.
-- It needs host config for tokens, guilds, sync-on-start behavior, and runtime module customization.
-- It already has the right adapter idea: a command provider can expose `NewBotsCommand(bootstrap, opts...)` and let xgoja mount it.
+- Discord should expose `[]cmds.Command` for discovered bot commands rather than a pre-built `*cobra.Command`.
+- `bots list` and `bots help` are good `GlazeCommand` candidates because they emit structured rows.
+- `bots <bot> run` is a `BareCommand` because it opens a long-running session and blocks on context cancellation.
 
 ### css-visual-diff
 
@@ -202,7 +257,8 @@ Evidence:
 Design implication:
 
 - The current code is under `internal`, so xgoja cannot import it from a generated binary outside the module.
-- A public adapter package is required, such as `pkg/cssvisualdiff/xgoja` or `pkg/xgoja/provider`, which wraps `verbcli.NewLazyCommand` or exposes command-provider entries.
+- A public adapter package is required, such as `pkg/cssvisualdiff/xgoja` or `pkg/xgoja/provider`, which returns `[]cmds.Command` rather than Cobra.
+- Browser/artifact workflows are usually `BareCommand` or `WriterCommand`; metadata/listing commands can be `GlazeCommand`.
 
 ### go-minitrace
 
@@ -218,15 +274,15 @@ Evidence:
 
 Design implication:
 
-- Minitrace custom CLI verbs are not just arbitrary JS files. They are catalog-defined query commands that need a prepared DuckDB connection and structured output processor.
-- xgoja needs a way for a command provider to own runtime setup and result emission.
+- Minitrace custom CLI verbs are catalog-defined query commands that need a prepared DuckDB connection and structured output processor.
+- Minitrace command providers should primarily return `GlazeCommand` implementations because query results are rows.
 
 ## Design goals
 
-1. Allow generated xgoja binaries to mount package-provided command trees.
+1. Allow generated xgoja binaries to mount package-provided Glazed command sets.
 2. Keep xgoja generic: it should not know Loupedeck, Discord, CSS visual diff, or minitrace semantics.
-3. Reuse existing Glazed/Cobra command structures.
-4. Support lazy discovery for expensive or environment-dependent command trees.
+3. Reuse existing Glazed command structures and Cobra bridging.
+4. Support lazy discovery for expensive or environment-dependent command sets.
 5. Support host services and command-provider config explicitly.
 6. Keep provider modules, generic jsverbs, and custom command providers composable but separate.
 7. Preserve generated-binary reproducibility: imports and command providers must be declared in `xgoja.yaml`.
@@ -235,55 +291,94 @@ Design implication:
 
 ### New provider API concepts
 
-Add a command-provider entry type to `pkg/xgoja/providerapi`.
+Add a command-set provider entry type to `pkg/xgoja/providerapi`.
 
 ```go
 package providerapi
 
-import "github.com/spf13/cobra"
+import (
+    "context"
+    "encoding/json"
 
-type CommandProviderContext struct {
+    "github.com/go-go-golems/glazed/pkg/cli"
+    "github.com/go-go-golems/glazed/pkg/cmds"
+)
+
+type CommandSetProviderFactory func(CommandSetContext) (*CommandSet, error)
+
+type CommandSetContext struct {
     Context context.Context
     PackageID string
     Name string
+    Mount string
     Config json.RawMessage
     Host HostServices
     Providers *Registry
     RuntimeFactory RuntimeFactoryLike
-    EmbeddedFS fs.FS
 }
 
-type CommandProvider struct {
+type CommandSetProvider struct {
     Name string
     DefaultMount string
     Description string
     ConfigSchema json.RawMessage
-    New func(CommandProviderContext) (*cobra.Command, error)
+    New CommandSetProviderFactory
+}
+
+type CommandSet struct {
+    Commands []cmds.Command
+    ParserConfig *cli.CobraParserConfig
 }
 ```
 
-`Registry.Package` would accept `CommandProvider` entries alongside `Module` and `VerbSource` entries:
+`Registry.Package` would accept `CommandSetProvider` entries alongside `Module` and `VerbSource` entries:
 
 ```go
 func Register(reg *providerapi.Registry) error {
     return reg.Package("loupedeck",
         providerapi.Module{...},
-        providerapi.CommandProvider{
+        providerapi.CommandSetProvider{
             Name: "scene-verbs",
             DefaultMount: "loupe",
-            New: func(ctx providerapi.CommandProviderContext) (*cobra.Command, error) {
-                bootstrap, err := loupedeeckcmd.BootstrapFromConfig(ctx.Config)
+            New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+                bootstrap, err := loupedeckcmd.BootstrapFromConfig(ctx.Config)
                 if err != nil { return nil, err }
-                return loupedeckverbs.NewCommand(bootstrap)
+                commands, err := loupedeckcmd.BuildGlazedCommands(bootstrap)
+                if err != nil { return nil, err }
+                return &providerapi.CommandSet{Commands: commands}, nil
             },
         },
     )
 }
 ```
 
+### Parent/mount semantics
+
+Because providers return Glazed commands, grouping should be expressed with command metadata, not nested Cobra objects.
+
+Two options are acceptable:
+
+1. Provider commands set parents themselves:
+
+```go
+cmds.NewCommandDescription("run", cmds.WithParents("loupe", "scenes"), ...)
+```
+
+2. xgoja applies the buildspec `mount` as a parent prefix:
+
+```yaml
+commandProviders:
+  - id: loupe-scenes
+    package: loupedeck
+    name: scene-verbs
+    mount: loupe
+```
+
+xgoja should prefer option 2 for generated-binary composition because it lets the buildspec decide where a provider command set lives. Implementation-wise, xgoja can clone command descriptions and prepend the mount parent to each command's parents before passing the commands to `AddCommandsToRootCommand`.
+
 ### New buildspec section
 
-Add a top-level `customCommands` or `commandProviders` section. Prefer `commandProviders` because it says where commands come from.
+Add a top-level `commandProviders` section.
 
 ```yaml
 commandProviders:
@@ -305,22 +400,6 @@ commandProviders:
       repositories:
         - path: ./examples/discord-bots
       tokenEnv: DISCORD_BOT_TOKEN
-
-  - id: cvd-workflows
-    package: css-visual-diff
-    name: workflows
-    mount: cvd
-    config:
-      repositories:
-        - path: ./visual-tests
-
-  - id: trace-query
-    package: go-minitrace
-    name: query-catalog
-    mount: trace
-    config:
-      catalog: ./queries
-      dbPath: :memory:
 ```
 
 Suggested Go struct:
@@ -342,7 +421,7 @@ type CommandProviderInstance struct {
 xgoja.yaml
   |
   | packages[] import provider packages
-  | commandProviders[] select provider command trees
+  | commandProviders[] select provider command sets
   v
 generated main.go
   |
@@ -350,18 +429,33 @@ generated main.go
   v
 providerapi.Registry
   |
-  | ResolveCommandProvider(package, name)
+  | ResolveCommandSetProvider(package, name)
   v
 xgoja app.Host.AttachCommandProviders(root)
   |
-  | provider.New(CommandProviderContext{...})
+  | provider.New(CommandSetContext{...})
   v
-*cobra.Command subtree supplied by package
+[]cmds.Command supplied by package
   |
-  | package-specific runtime factory / host services
+  | optional mount parent prefix applied by xgoja
   v
-Goja sandbox executes user JS in package context
+glazedcli.AddCommandsToRootCommand(root, commands, ...)
+  |
+  v
+Cobra commands generated by Glazed bridge
 ```
+
+### Why not return Cobra?
+
+Returning Cobra would work mechanically, but it would bypass the ecosystem conventions we already rely on:
+
+- Glazed schemas for flags and arguments.
+- Glazed output processors for row-producing commands.
+- Consistent environment/config/default middlewares.
+- Glazed help and command description serialization.
+- Existing `jsverbs.Registry.CommandForVerbWithInvoker` return type (`cmds.Command`).
+
+A command provider that needs long-running behavior can still implement `BareCommand`. It does not need Cobra to block, handle context cancellation, or manage side effects.
 
 ### Why not only extend generic jsverbs?
 
@@ -374,7 +468,7 @@ scan JS metadata -> build Glazed command -> xgoja RuntimeFactory -> InvokeInRunt
 Third-party sandboxes often need this shape instead:
 
 ```text
-package discovery -> package-specific command description -> package-specific runtime/session/host -> package-specific result handling
+package discovery -> package-specific Glazed command -> package-specific runtime/session/host -> package-specific result handling
 ```
 
 For example:
@@ -384,52 +478,52 @@ For example:
 - CSS visual diff verbs need browser lifecycle and artifact paths.
 - Minitrace query commands need a prepared database connection and structured row processor.
 
-Trying to force these through generic jsverbs would create hidden host-service hacks. A command-provider API makes the boundary explicit.
+Trying to force these through generic jsverbs would create hidden host-service hacks. A Glazed command-set provider API makes the boundary explicit while staying inside the command ecosystem.
 
 ## Design patterns
 
-### Pattern A: Static command tree provider
+### Pattern A: Static Glazed command set provider
 
 Use when a package has fixed commands and static config.
 
 ```go
-providerapi.CommandProvider{
+providerapi.CommandSetProvider{
     Name: "tools",
     DefaultMount: "tools",
-    New: func(ctx providerapi.CommandProviderContext) (*cobra.Command, error) {
-        return mypkg.NewToolsCommand(mypkg.OptionsFromConfig(ctx.Config))
+    New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+        cmd, err := mypkg.NewFooCommand(mypkg.OptionsFromConfig(ctx.Config)) // returns cmds.Command
+        if err != nil { return nil, err }
+        return &providerapi.CommandSet{Commands: []cmds.Command{cmd}}, nil
     },
 }
 ```
 
 Good for simple package-owned command groups.
 
-### Pattern B: Lazy discovery command provider
+### Pattern B: Lazy Glazed command provider
 
-Use when command discovery depends on filesystem repositories, config files, environment, or CLI flags. This is the closest match for Loupedeck and CSS visual diff.
+Use when command discovery depends on filesystem repositories, config files, environment, or CLI flags. The provider still returns a Glazed command. That command performs lazy discovery in `Run`.
 
 ```go
-func NewLazyProviderCommand(ctx providerapi.CommandProviderContext) (*cobra.Command, error) {
-    return &cobra.Command{
-        Use: "verbs",
-        DisableFlagParsing: true,
-        RunE: func(cmd *cobra.Command, args []string) error {
-            bootstrap, remaining, err := DiscoverBootstrapFromArgsAndConfig(args, ctx.Config)
-            if err != nil { return err }
-            resolved, err := NewCommand(bootstrap)
-            if err != nil { return err }
-            resolved.SetArgs(remaining)
-            return resolved.ExecuteContext(cmd.Context())
-        },
-    }, nil
+type lazyVerbCommand struct {
+    *cmds.CommandDescription
+    cfg Config
+}
+
+func (c *lazyVerbCommand) Run(ctx context.Context, vals *values.Values) error {
+    bootstrap, remaining, err := DiscoverBootstrapFromValues(vals, c.cfg)
+    if err != nil { return err }
+    commands, err := BuildDiscoveredCommands(bootstrap)
+    if err != nil { return err }
+    return DispatchToDiscoveredCommand(ctx, commands, remaining)
 }
 ```
 
 Benefits:
 
-- Fast generated binary startup.
-- Discovery can respect runtime working directory and CLI flags.
-- Expensive scanners run only when the command is used.
+- The generated binary still mounts a Glazed command.
+- Discovery can happen lazily.
+- The command can remain testable without constructing Cobra directly.
 
 ### Pattern C: Host-services command provider
 
@@ -457,12 +551,13 @@ if !ok {
 Use when the provider needs xgoja-selected modules plus package-specific runtime behavior.
 
 ```go
-cmdProvider.New = func(ctx providerapi.CommandProviderContext) (*cobra.Command, error) {
-    return NewVerbsCommand(Options{
-        RuntimeFactory: func(runCtx context.Context, source Source) (*engine.Runtime, error) {
+cmdProvider.New = func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+    cmd := &runVerbCommand{
+        runtimeFactory: func(runCtx context.Context, source Source) (*engine.Runtime, error) {
             return ctx.RuntimeFactory.NewRuntime(runCtx, "main", require.WithLoader(source.RequireLoader()))
         },
-    })
+    }
+    return &providerapi.CommandSet{Commands: []cmds.Command{cmd}}, nil
 }
 ```
 
@@ -473,21 +568,21 @@ This pattern bridges generic xgoja runtime profiles with package-specific script
 Use when command metadata is not only in JS source annotations but in a package catalog. This matches `go-minitrace`.
 
 ```go
-providerapi.CommandProvider{
+providerapi.CommandSetProvider{
     Name: "query-catalog",
     DefaultMount: "query",
-    New: func(ctx providerapi.CommandProviderContext) (*cobra.Command, error) {
+    New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
         cfg := DecodeConfig(ctx.Config)
-        catalog, err := LoadCatalog(cfg.CatalogPath)
+        commands, err := minitracequery.BuildCatalogGlazedCommands(cfg.CatalogPath, cfg.RuntimeSettings)
         if err != nil { return nil, err }
-        return minitracequery.NewCatalogCommand(catalog, cfg.RuntimeSettings)
+        return &providerapi.CommandSet{Commands: commands}, nil
     },
 }
 ```
 
 ## Implementation plan
 
-### Phase 1: Add command-provider API to providerapi
+### Phase 1: Add command-set provider API to providerapi
 
 Files:
 
@@ -497,10 +592,11 @@ Files:
 
 Tasks:
 
-1. Add `CommandProvider` entry type.
-2. Extend `Package` with `CommandProviders map[string]CommandProvider`.
-3. Add `ResolveCommandProvider(packageID, name string)`.
-4. Add tests for duplicate names, missing factory, and package cloning.
+1. Add `CommandSetProvider` entry type.
+2. Add `CommandSet` return type containing `[]cmds.Command` and optional parser config.
+3. Extend `Package` with `CommandSetProviders map[string]CommandSetProvider`.
+4. Add `ResolveCommandSetProvider(packageID, name string)`.
+5. Add tests for duplicate names, missing factory, and package cloning.
 
 ### Phase 2: Add buildspec support
 
@@ -524,7 +620,7 @@ Files:
 
 - `go-go-goja/pkg/xgoja/app/host.go`
 - `go-go-goja/pkg/xgoja/app/root.go`
-- possibly new `go-go-goja/pkg/xgoja/app/command_providers.go`
+- new `go-go-goja/pkg/xgoja/app/command_providers.go`
 
 Tasks:
 
@@ -532,10 +628,10 @@ Tasks:
 2. For each selected command provider:
    - resolve provider entry;
    - marshal config;
-   - construct `CommandProviderContext`;
+   - construct `CommandSetContext`;
    - call provider factory;
-   - apply mount name if needed;
-   - add subtree to root.
+   - apply mount prefix to command parents if needed;
+   - pass the resulting commands to `glazedcli.AddCommandsToRootCommand`.
 3. Detect collisions with built-ins and previous custom providers.
 4. Add generated app tests with a fixture command provider.
 
@@ -544,20 +640,25 @@ Pseudocode:
 ```go
 func (h *Host) AttachCommandProviders(root *cobra.Command) {
     for _, inst := range h.Spec.CommandProviders {
-        provider, ok := h.Providers.ResolveCommandProvider(inst.Package, inst.Name)
+        provider, ok := h.Providers.ResolveCommandSetProvider(inst.Package, inst.Name)
         if !ok { addErrorStub(...); continue }
         data := marshalConfig(inst.Config)
-        cmd, err := provider.New(providerapi.CommandProviderContext{
+        set, err := provider.New(providerapi.CommandSetContext{
             Context: context.Background(),
             PackageID: inst.Package,
             Name: inst.Name,
+            Mount: inst.Mount,
             Config: data,
             Providers: h.Providers,
             RuntimeFactory: h.Factory,
         })
         if err != nil { addErrorStub(...); continue }
-        if inst.Mount != "" { cmd.Use = inst.Mount }
-        root.AddCommand(cmd)
+        commands := applyMountPrefix(set.Commands, inst.Mount)
+        parserConfig := defaultParserConfig()
+        if set.ParserConfig != nil { parserConfig = *set.ParserConfig }
+        if err := glazedcli.AddCommandsToRootCommand(root, commands, nil, glazedcli.WithParserConfig(parserConfig)); err != nil {
+            root.AddCommand(commandErrorStub(inst.Mount, "Attach custom command provider", err))
+        }
     }
 }
 ```
@@ -569,15 +670,16 @@ Create a first-party fixture command provider under `go-go-goja/pkg/xgoja/testpr
 Example provider:
 
 ```go
-providerapi.CommandProvider{
+providerapi.CommandSetProvider{
     Name: "echo-tools",
     DefaultMount: "tools",
-    New: func(ctx providerapi.CommandProviderContext) (*cobra.Command, error) {
-        return &cobra.Command{
-            Use: "tools",
-            Short: "Fixture tools",
-            RunE: ...,
-        }, nil
+    New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+        cmd := &echoCommand{CommandDescription: cmds.NewCommandDescription(
+            "echo",
+            cmds.WithParents("tools"),
+            cmds.WithArguments(fields.New("message", fields.TypeString, fields.WithIsArgument(true))),
+        )}
+        return &providerapi.CommandSet{Commands: []cmds.Command{cmd}}, nil
     },
 }
 ```
@@ -597,17 +699,17 @@ Validation:
 ```bash
 xgoja doctor -f examples/xgoja/custom-command-provider/xgoja.yaml
 xgoja build -f examples/xgoja/custom-command-provider/xgoja.yaml --xgoja-replace .
-./dist/custom-command-provider tools echo --message hello
+./dist/custom-command-provider tools echo hello
 ```
 
 ### Phase 5: Adapt real packages
 
 Recommended order:
 
-1. `loupedeck`: expose `pkg/xgoja/commands` wrapping `cmd/loupedeck/cmds/verbs.NewLazyCommand` and optionally the scene `run` command.
-2. `css-visual-diff`: move or wrap internal `verbcli` through a public package.
-3. `discord-bot`: expose `pkg/xgoja/commands` wrapping `pkg/botcli.NewBotsCommand`.
-4. `go-minitrace`: expose query catalog command provider after catalog/DB config is public and safe.
+1. `discord-bot`: it already has many Glazed command pieces (`list`, `help`, synthetic run commands, jsverb commands). Refactor `NewBotsCommand` internals to expose `BuildBotCommands(...) []cmds.Command` publicly.
+2. `loupedeck`: expose `BuildSceneCommands(...) []cmds.Command` and wrap live scene invokers as `BareCommand`.
+3. `css-visual-diff`: move or wrap internal `verbcli` through a public package returning `[]cmds.Command`.
+4. `go-minitrace`: expose query catalog commands as `GlazeCommand` values after catalog/DB config is public and safe.
 
 ## API sketches for real package adapters
 
@@ -616,13 +718,15 @@ Recommended order:
 ```go
 func Register(reg *providerapi.Registry) error {
     return reg.Package("loupedeck",
-        providerapi.CommandProvider{
+        providerapi.CommandSetProvider{
             Name: "scene-verbs",
             DefaultMount: "loupe",
-            New: func(ctx providerapi.CommandProviderContext) (*cobra.Command, error) {
+            New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
                 cfg := DecodeConfig(ctx.Config)
                 bootstrap := verbs.BootstrapFromConfig(cfg.Repositories)
-                return verbs.NewCommand(bootstrap)
+                commands, err := verbs.BuildGlazedCommands(bootstrap)
+                if err != nil { return nil, err }
+                return &providerapi.CommandSet{Commands: commands}, nil
             },
         },
     )
@@ -632,16 +736,18 @@ func Register(reg *providerapi.Registry) error {
 ### Discord adapter
 
 ```go
-providerapi.CommandProvider{
+providerapi.CommandSetProvider{
     Name: "bots",
     DefaultMount: "bots",
-    New: func(ctx providerapi.CommandProviderContext) (*cobra.Command, error) {
+    New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
         cfg := DecodeConfig(ctx.Config)
         bootstrap := botcli.Bootstrap{Repositories: cfg.Repositories}
-        return botcli.NewBotsCommand(bootstrap,
+        commands, err := botcli.BuildBotCommands(bootstrap,
             botcli.WithAppName("discord"),
             botcli.WithRuntimeFactory(newXGojaAwareRuntimeFactory(ctx)),
         )
+        if err != nil { return nil, err }
+        return &providerapi.CommandSet{Commands: commands}, nil
     },
 }
 ```
@@ -649,12 +755,14 @@ providerapi.CommandProvider{
 ### CSS visual diff adapter
 
 ```go
-providerapi.CommandProvider{
+providerapi.CommandSetProvider{
     Name: "workflows",
     DefaultMount: "cvd",
-    New: func(ctx providerapi.CommandProviderContext) (*cobra.Command, error) {
+    New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
         bootstrap := verbcli.BootstrapFromConfig(ctx.Config)
-        return verbcli.NewCommand(bootstrap)
+        commands, err := verbcli.BuildGlazedCommands(bootstrap)
+        if err != nil { return nil, err }
+        return &providerapi.CommandSet{Commands: commands}, nil
     },
 }
 ```
@@ -664,67 +772,75 @@ This requires moving the adapter out of `internal` or making generated binaries 
 ### Minitrace adapter
 
 ```go
-providerapi.CommandProvider{
+providerapi.CommandSetProvider{
     Name: "query-catalog",
     DefaultMount: "query",
-    New: func(ctx providerapi.CommandProviderContext) (*cobra.Command, error) {
+    New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
         cfg := DecodeConfig(ctx.Config)
-        return minitracecmd.NewQueryCatalogCommand(cfg.CatalogPath, cfg.RuntimeSettings)
+        commands, err := minitracecmd.BuildQueryCatalogCommands(cfg.CatalogPath, cfg.RuntimeSettings)
+        if err != nil { return nil, err }
+        return &providerapi.CommandSet{Commands: commands}, nil
     },
 }
 ```
 
 ## Safety and lifecycle rules
 
-1. Command providers must declare config schemas for dangerous capabilities.
-2. Long-running commands must honor `cmd.Context()` and OS cancellation.
+1. Command-set providers must declare config schemas for dangerous capabilities.
+2. Long-running `BareCommand` implementations must honor `ctx` cancellation.
 3. Commands that open devices, browsers, Discord sessions, or databases must close them with `defer` or command lifecycle hooks.
-4. Generated xgoja should not pass global mutable state implicitly.
-5. Provider command factories should fail early when required host services are missing.
-6. Lazy commands should preserve help/output behavior when resolving into real command trees.
-7. Mount collisions should be doctor errors, not runtime surprises.
+4. Commands that emit rows should be `GlazeCommand`, not `BareCommand` that prints JSON manually.
+5. Commands that need textual output should be `WriterCommand` and use the supplied writer.
+6. Generated xgoja should not pass global mutable state implicitly.
+7. Provider command factories should fail early when required host services are missing.
+8. Mount collisions should be doctor errors, not runtime surprises.
 
 ## Testing strategy
 
 ### Unit tests
 
-- provider registry tests for command provider entries;
+- provider registry tests for command-set provider entries;
 - buildspec validation tests;
 - generated main rendering tests;
-- app host command attachment tests with fixture provider.
+- app host command attachment tests with fixture provider;
+- `applyMountPrefix` tests for command parent rewriting.
 
 ### Integration tests
 
-- generated fixture command provider binary;
+- generated fixture command-provider binary;
 - generated provider with generic xgoja commands plus custom provider commands;
 - mount collision negative test;
-- config validation negative test.
+- config validation negative test;
+- `BareCommand`, `WriterCommand`, and `GlazeCommand` fixture commands.
 
 ### Real package smoke tests
 
-- Loupedeck command provider with fake/no-hardware mode first.
 - Discord `bots list` and `bots <name> help` without opening a network session.
+- Loupedeck command provider with fake/no-hardware metadata command first.
 - CSS visual diff `verbs --help` or a no-browser metadata command.
 - Minitrace query command against an in-memory test database.
 
 ## Open questions
 
-1. Should command providers be entries in `providerapi.Package`, or should they live in a separate registry?
-2. Should generated xgoja pass `RuntimeFactory` into command providers directly, or only a narrower interface?
-3. Should command providers be allowed to mutate root persistent flags?
-4. How should generated xgoja represent command-provider host services in pure standalone binaries?
-5. Should custom command provider config support embedding filesystem sources like `jsverbs.embed`?
-6. Should command providers be able to opt into lazy construction to support dynamic help?
+1. Should command-set providers be entries in `providerapi.Package`, or should they live in a separate registry?
+2. Should `CommandSetContext` expose the full xgoja `RuntimeFactory`, or a narrower interface?
+3. How exactly should xgoja apply `mount` to Glazed command parents without mutating provider-owned command descriptions unexpectedly?
+4. Should command-set providers be allowed to customize parser config, or should generated xgoja enforce one parser configuration?
+5. How should generated xgoja represent command-provider host services in pure standalone binaries?
+6. Should command providers support embedded filesystem sources like `jsverbs.embed`?
 
 ## Recommended first implementation slice
 
 The smallest useful slice is:
 
-1. Add command-provider registry support.
+1. Add command-set provider registry support.
 2. Add `commandProviders` buildspec list.
-3. Add `Host.AttachCommandProviders`.
-4. Add a fixture command provider and generated example.
-5. Add docs.
+3. Add `Host.AttachCommandProviders` using `glazedcli.AddCommandsToRootCommand`.
+4. Add a fixture provider returning:
+   - one `BareCommand`,
+   - one `WriterCommand`,
+   - one `GlazeCommand`.
+5. Add generated example and docs.
 
 Do not start with Loupedeck or Discord. Use a fixture first, then adapt one real package after the generated-binary mechanics are stable.
 
@@ -741,6 +857,11 @@ Do not start with Loupedeck or Discord. Use a fixture first, then adapt one real
 - `go-go-goja/cmd/xgoja/internal/buildspec/spec.go`
 - `go-go-goja/cmd/xgoja/internal/buildspec/validate.go`
 - `go-go-goja/cmd/xgoja/internal/generate/main.go`
+
+### Glazed command APIs
+
+- `glazed/pkg/cmds/cmds.go`
+- `glazed/pkg/cli/cobra.go`
 
 ### Existing sandbox command implementations
 
