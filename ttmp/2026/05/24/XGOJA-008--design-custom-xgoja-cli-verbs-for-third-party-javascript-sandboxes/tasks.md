@@ -64,13 +64,13 @@
 
 ## Implementation phase 5 — apply module sections to `jsverbs`
 
-- [ ] P5.1 Extend jsverb command construction to append runtime-profile module sections
-- [ ] P5.2 Ensure verb-declared sections and module sections are collision checked
-- [ ] P5.3 Call runtime initializers before `registry.InvokeInRuntime`
-- [ ] P5.4 Add fixture jsverb integration test exposing module flags
-- [ ] P5.5 Add fixture jsverb integration test proving initializer runs
-- [ ] P5.6 Run focused jsverbs tests
-- [ ] P5.7 Commit `jsverbs` module-section slice
+- [x] P5.1 Extend jsverb command construction to append runtime-profile module sections
+- [x] P5.2 Ensure verb-declared sections and module sections are collision checked
+- [x] P5.3 Call runtime initializers before `registry.InvokeInRuntime`
+- [x] P5.4 Add fixture jsverb integration test exposing module flags
+- [x] P5.5 Add fixture jsverb integration test proving initializer runs
+- [x] P5.6 Run focused jsverbs tests
+- [x] P5.7 Commit `jsverbs` module-section slice
 
 ## Implementation phase 6 — command set providers
 

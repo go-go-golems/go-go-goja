@@ -938,3 +938,71 @@ Focused validation command:
 ```bash
 go test ./pkg/xgoja/app -run 'TestTUICommandIncludesRuntimeProfileModuleSections|TestNewXGojaTUIEvaluatorInitializesRuntimeFromModuleSections|TestGeneratedRootTUIHelp' -count=1
 ```
+
+## Step 15: Wired module sections and runtime initializers into jsverbs
+
+I implemented phase 5 for the built-in `jsverbs` command tree. Discovered JavaScript verb commands now receive module-provided Glazed sections from the configured jsverbs runtime profile, and the runtime is initialized from parsed section values before invoking the verb.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue."
+
+**Assistant interpretation:** Continue implementing the next pending XGOJA-008 phase after REPL/TUI.
+
+**Inferred user intent:** Finish the built-in command coverage before moving on to custom command providers.
+
+**Commit (code):** jsverbs module-section slice committed after focused tests.
+
+### What I did
+
+- Updated `buildVerbCommands` to resolve the effective jsverbs runtime profile with `commandRuntime`.
+- Collected module-provided sections once for that runtime profile.
+- Added those sections to each generated jsverb command description after `CommandForVerbWithInvoker` builds the verb command.
+- Added collision checking between verb-declared sections and module-provided sections via `addSectionsToCommandDescription`.
+- Called `initRuntimeFromSections` after runtime creation and before `registry.InvokeInRuntime`.
+- Added fixture tests proving:
+  - generated jsverb commands include module-provided sections;
+  - invoking a jsverb with `--fixture-value ok` initializes the runtime and lets JS see `globalThis.fixtureValue`.
+
+### Why
+
+- `jsverbs` commands are the most important dynamic built-in command path. They need to combine verb-declared sections and module-provided runtime sections in one final Glazed command.
+
+### What worked
+
+- Focused tests passed:
+  - `go test ./pkg/xgoja/app -run 'TestJSVerbsCommandsIncludeRuntimeProfileModuleSections|TestJSVerbsInitializeRuntimeFromModuleSections' -count=1`
+
+### What didn't work
+
+- No implementation blocker. This still inherits the broader design caveat that sections are based on the configured jsverbs runtime profile, not a runtime selected dynamically per verb invocation.
+
+### What I learned
+
+- `CommandForVerbWithInvoker` returns ordinary Glazed commands, so appending module sections to the returned command description is enough to integrate with existing parsing.
+
+### What was tricky to build
+
+- Ensuring module sections are appended only after the jsverb command is built, so collisions with verb-declared section slugs can be detected before mounting.
+
+### What warrants a second pair of eyes
+
+- Whether module sections should appear before or after verb-declared sections in help output.
+- Whether duplicate slugs should always be fatal for jsverbs or whether an explicit remapping mechanism is needed.
+
+### What should be done in the future
+
+- Start phase 6: add custom Glazed command set providers.
+
+### Code review instructions
+
+- Review `root.go` around `buildVerbCommands` for runtime profile selection and initializer ordering.
+- Review `jsverbs_module_sections_test.go` for the embedded verb fixture and CLI-level assertion.
+
+### Technical details
+
+Focused validation command:
+
+```bash
+go test ./pkg/xgoja/app -run 'TestJSVerbsCommandsIncludeRuntimeProfileModuleSections|TestJSVerbsInitializeRuntimeFromModuleSections' -count=1
+```

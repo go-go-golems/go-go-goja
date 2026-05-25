@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
+	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
@@ -82,6 +83,28 @@ func appendUniqueSections(out *[]schema.Section, seen map[string]string, section
 		seen[slug] = source
 		*out = append(*out, section)
 	}
+	return nil
+}
+
+func addSectionsToCommandDescription(desc *cmds.CommandDescription, sections []schema.Section, source string) error {
+	if desc == nil {
+		return fmt.Errorf("command description is nil")
+	}
+	seen := map[string]string{}
+	if desc.Schema != nil {
+		desc.Schema.ForEach(func(slug string, _ schema.Section) {
+			seen[slug] = "command schema"
+		})
+	}
+	return appendSectionsToCommandDescription(desc, seen, sections, source)
+}
+
+func appendSectionsToCommandDescription(desc *cmds.CommandDescription, seen map[string]string, sections []schema.Section, source string) error {
+	collected := []schema.Section{}
+	if err := appendUniqueSections(&collected, seen, sections, source); err != nil {
+		return err
+	}
+	desc.SetSections(collected...)
 	return nil
 }
 

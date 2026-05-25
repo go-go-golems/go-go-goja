@@ -155,6 +155,11 @@ func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, s
 }
 
 func buildVerbCommands(providers *providerapi.Registry, factory *RuntimeFactory, spec *Spec, embeddedJSVerbs fs.FS) ([]cmds.Command, error) {
+	profile := commandRuntime(spec.Commands.JSVerbs, firstRuntime(spec))
+	moduleSections, selectedModules, err := factory.sectionsForRuntimeProfile("jsverbs", profile)
+	if err != nil {
+		return nil, err
+	}
 	commands := []cmds.Command{}
 	for _, source := range spec.JSVerbs {
 		registry, err := scanVerbSource(providers, embeddedJSVerbs, source)
@@ -168,15 +173,25 @@ func buildVerbCommands(providers *providerapi.Registry, factory *RuntimeFactory,
 			verb := verb
 			registry := registry
 			cmd, err := registry.CommandForVerbWithInvoker(verb, func(ctx context.Context, _ *jsverbs.Registry, verb *jsverbs.VerbSpec, parsedValues *values.Values) (interface{}, error) {
-				rt, err := factory.NewRuntime(ctx, spec.Commands.JSVerbs.Runtime, require.WithLoader(registry.RequireLoader()))
+				rt, err := factory.NewRuntime(ctx, profile, require.WithLoader(registry.RequireLoader()))
 				if err != nil {
 					return nil, err
 				}
 				defer func() { _ = rt.Close(context.Background()) }()
+				if len(selectedModules) > 0 {
+					if err := initRuntimeFromSections(ctx, parsedValues, rt, selectedModules); err != nil {
+						return nil, err
+					}
+				}
 				return registry.InvokeInRuntime(ctx, rt, verb, parsedValues)
 			})
 			if err != nil {
 				return nil, err
+			}
+			if len(moduleSections) > 0 {
+				if err := addSectionsToCommandDescription(cmd.Description(), moduleSections, "jsverbs runtime profile "+profile); err != nil {
+					return nil, err
+				}
 			}
 			commands = append(commands, cmd)
 		}
