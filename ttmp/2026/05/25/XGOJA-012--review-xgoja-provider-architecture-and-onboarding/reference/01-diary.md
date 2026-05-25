@@ -223,3 +223,27 @@ go test ./pkg/xgoja/providers/http -count=1
 ```
 
 Result: passed.
+
+## Step 9: Updated stale provider documentation signatures
+
+### Intent
+
+The provider docs still showed old capability signatures and referenced component initializers after the API cleanup. That would mislead the next provider author.
+
+### What changed
+
+Updated:
+
+- `cmd/xgoja/doc/04-providers.md`
+  - `ConfigSections(providerapi.SectionContext)` signature.
+  - `InitRuntimeFromSections(context.Context, *values.Values, providerapi.RuntimeHandle)` argument order.
+  - `WithPackageCapability(...)` registration helper.
+  - nil-values discovery/preload side-effect convention.
+  - `providerutil` as the shared helper package.
+  - typed `providerapi.RuntimeFactory` for command providers.
+- `cmd/xgoja/doc/02-buildspec.md`
+  - command providers now mention selected module descriptors plus runtime initializers/runtime factory, not component initializers.
+
+### Validation
+
+Ran `go test ./cmd/xgoja/... -count=1`; result: passed. Also grepped docs and `pkg/xgoja` for stale capability/component-initializer names; result: clean.

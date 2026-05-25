@@ -186,7 +186,7 @@ Fields:
 - `mount` optionally overrides the provider's default mount path. A single segment such as `fixture` creates commands under `fixture ...`; a slash-delimited path can mount deeper.
 - `runtimeProfile` optionally selects the runtime profile passed to the provider. If omitted, xgoja uses the first runtime profile.
 
-Command providers return Glazed command values, so provider authors can expose `BareCommand`, `WriterCommand`, or `GlazeCommand` commands. If a `runtimeProfile` is selected, xgoja passes the selected module descriptors to the provider so those commands can reuse module-provided sections and component initializers.
+Command providers return Glazed command values, so provider authors can expose `BareCommand`, `WriterCommand`, or `GlazeCommand` commands. If a `runtimeProfile` is selected, xgoja passes the selected module descriptors and a typed runtime factory to the provider so those commands can reuse module-provided sections and runtime initializers.
 
 ## Target modes
 

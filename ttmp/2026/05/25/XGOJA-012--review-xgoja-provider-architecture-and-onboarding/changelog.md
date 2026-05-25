@@ -66,3 +66,13 @@ Added HTTP provider tests for discovery-vs-execution side-effect convention.
 
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providers/http/http_test.go — HTTP provider now tests nil values
 
+
+## 2026-05-25
+
+Updated provider/buildspec docs for renamed capability API, providerutil, runtime factory, and runtime-initializer semantics.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/02-buildspec.md — command provider section no longer mentions component initializers
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/04-providers.md — provider docs now use current signatures and WithPackageCapability
+

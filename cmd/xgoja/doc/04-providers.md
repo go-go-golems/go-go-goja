@@ -220,7 +220,7 @@ type Capability struct{}
 
 func (Capability) CapabilityID() string { return "my-provider.config" }
 
-func (Capability) ConfigSections(context.Context, providerapi.SectionContext) ([]schema.Section, error) {
+func (Capability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
     section, err := schema.NewSection("my-provider",
         schema.WithTitle("My provider"),
         schema.WithPrefix("my-provider-"),
@@ -232,7 +232,12 @@ func (Capability) ConfigSections(context.Context, providerapi.SectionContext) ([
     return []schema.Section{section}, nil
 }
 
-func (Capability) InitRuntimeFromSections(_ context.Context, handle providerapi.RuntimeHandle, values *values.Values) error {
+func (Capability) InitRuntimeFromSections(_ context.Context, values *values.Values, handle providerapi.RuntimeHandle) error {
+    if values == nil {
+        // Runtime construction without parsed command values is a discovery/preload mode.
+        // Avoid irreversible side effects here.
+        return nil
+    }
     var settings Settings
     if err := values.DecodeSectionInto("my-provider", &settings); err != nil {
         return err
@@ -247,12 +252,12 @@ Register the capability with the package:
 func Register(registry *providerapi.Registry) error {
     return registry.Package("my-provider",
         providerapi.Module{...},
-        providerapi.WithCapability(Capability{}),
+        providerapi.WithPackageCapability(Capability{}),
     )
 }
 ```
 
-Use `values.Values.DecodeSectionInto` instead of reaching into raw maps. The provider owns the section schema and should keep decoding logic typed and local to the provider. Section slugs are global within one command; duplicate slugs are rejected.
+Use `values.Values.DecodeSectionInto` instead of reaching into raw maps. The provider owns the section schema and should keep decoding logic typed and local to the provider. Section slugs are global within one command; duplicate slugs are rejected. Shared helpers in `pkg/xgoja/providerutil` can collect sections and run runtime initializers for provider-owned command sets.
 
 ## Ship Glazed command sets
 
@@ -293,7 +298,7 @@ commandProviders:
     runtimeProfile: main
 ```
 
-Command providers can return `cmds.BareCommand`, `cmds.WriterCommand`, or `cmds.GlazeCommand`. They receive selected module descriptors for `runtimeProfile`, so they can aggregate module config sections or use component initializer capabilities supplied by the selected packages.
+Command providers can return `cmds.BareCommand`, `cmds.WriterCommand`, or `cmds.GlazeCommand`. They receive the selected module descriptors for `runtimeProfile` and a typed `providerapi.RuntimeFactory`, so package-owned commands can participate in the same runtime-profile composition as built-in xgoja commands.
 
 ## Split safe and host-capability providers
 
