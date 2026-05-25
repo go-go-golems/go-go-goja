@@ -1,0 +1,1145 @@
+### geppetto
+module: module github.com/go-go-golems/geppetto
+./go.sum:97:github.com/dop251/goja v0.0.0-20251103141225-af2ceb9156d7 h1:jxmXU5V9tXxJnydU5v/m9SG8TRUa/Z7IXODBpMs/P+U=
+./go.sum:98:github.com/dop251/goja v0.0.0-20251103141225-af2ceb9156d7/go.mod h1:MxLav0peU43GgvwVgNbLAj1s/bSGboKkhuULvq/7hx4=
+./go.sum:99:github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0 h1:fuHXpEVTTk7TilRdfGRLHpiTD6tnT0ihEowCfWjlFvw=
+./go.sum:100:github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0/go.mod h1:Tb7Xxye4LX7cT3i8YLvmPMGCV92IOi4CDZvm/V8ylc0=
+./go.sum:123:github.com/go-go-golems/go-go-goja v0.4.15 h1:0PNFBk4yRpfvi3o/cP5ciduyJGB3b52EINGTpBcgOYg=
+./go.sum:124:github.com/go-go-golems/go-go-goja v0.4.15/go.mod h1:mnEFH70HM3+JROMsBSBNTV8REF0K4YSYes6d0NS900o=
+./Makefile:81:	go get github.com/go-go-golems/go-go-goja@latest
+./go.mod:10:	github.com/dop251/goja v0.0.0-20251103141225-af2ceb9156d7
+./go.mod:11:	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
+./go.mod:15:	github.com/go-go-golems/go-go-goja v0.4.15
+./cmd/examples/scopedjs-tool/main.go:10:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./cmd/examples/scopedjs-tool/main.go:11:	ggjmodules "github.com/go-go-golems/go-go-goja/modules"
+./cmd/examples/scopedjs-tool/main.go:12:	_ "github.com/go-go-golems/go-go-goja/modules/fs"
+./cmd/examples/scopedjs-tool/main.go:79:			if err := b.AddNativeModule(fsModule); err != nil {
+./cmd/examples/scopedjs-dbserver/main.go:10:	"github.com/dop251/goja"
+./cmd/examples/scopedjs-dbserver/main.go:11:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./cmd/examples/scopedjs-dbserver/main.go:12:	ggjmodules "github.com/go-go-golems/go-go-goja/modules"
+./cmd/examples/scopedjs-dbserver/main.go:13:	_ "github.com/go-go-golems/go-go-goja/modules/fs"
+./cmd/examples/scopedjs-dbserver/main.go:33:func (m *webserverModule) Loader(_ *goja.Runtime, moduleObj *goja.Object) {
+./cmd/examples/scopedjs-dbserver/main.go:34:	exports := moduleObj.Get("exports").(*goja.Object)
+./cmd/examples/scopedjs-dbserver/main.go:58:func (m *obsidianModule) Loader(_ *goja.Runtime, moduleObj *goja.Object) {
+./cmd/examples/scopedjs-dbserver/main.go:59:	exports := moduleObj.Get("exports").(*goja.Object)
+./cmd/examples/scopedjs-dbserver/main.go:130:			if err := b.AddNativeModule(fsModule); err != nil {
+./cmd/examples/scopedjs-dbserver/main.go:133:			if err := b.AddNativeModule(&webserverModule{}); err != nil {
+./cmd/examples/scopedjs-dbserver/main.go:136:			if err := b.AddNativeModule(&obsidianModule{}); err != nil {
+./pkg/inference/tools/scopedjs/schema_test.go:8:	"github.com/dop251/goja"
+./pkg/inference/tools/scopedjs/schema_test.go:9:	"github.com/dop251/goja_nodejs/require"
+./pkg/inference/tools/scopedjs/schema_test.go:10:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/inference/tools/scopedjs/schema_test.go:11:	ggjmodules "github.com/go-go-golems/go-go-goja/modules"
+./pkg/inference/tools/scopedjs/schema_test.go:14:type testNativeModule struct{}
+./pkg/inference/tools/scopedjs/schema_test.go:16:func (testNativeModule) Name() string { return "fs-lite" }
+./pkg/inference/tools/scopedjs/schema_test.go:18:func (testNativeModule) Doc() string { return "Lightweight file helper module." }
+./pkg/inference/tools/scopedjs/schema_test.go:20:func (testNativeModule) Loader(*goja.Runtime, *goja.Object) {}
+./pkg/inference/tools/scopedjs/schema_test.go:28:var _ ggjmodules.NativeModule = (*testNativeModule)(nil)
+./pkg/inference/tools/scopedjs/schema_test.go:69:	if err := b.AddModule("", func(_ *require.Registry) error { return nil }, ModuleDoc{}); err == nil {
+./pkg/inference/tools/scopedjs/schema_test.go:75:	if err := b.AddModule("db", func(_ *require.Registry) error { return nil }, ModuleDoc{
+./pkg/inference/tools/scopedjs/schema_test.go:96:	if err := b.AddNativeModule(testNativeModule{}); err != nil {
+./pkg/inference/tools/scopedjs/schema_test.go:97:		t.Fatalf("AddNativeModule failed: %v", err)
+./cmd/tools/gen-meta/main.go:774:import "github.com/dop251/goja"
+./cmd/tools/gen-meta/main.go:777:func (m *moduleRuntime) installConsts(exports *goja.Object) {
+./pkg/inference/tools/scopedjs/runtime.go:9:	"github.com/dop251/goja"
+./pkg/inference/tools/scopedjs/runtime.go:10:	"github.com/dop251/goja_nodejs/require"
+./pkg/inference/tools/scopedjs/runtime.go:11:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/inference/tools/scopedjs/runtime.go:12:	ggjmodules "github.com/go-go-golems/go-go-goja/modules"
+./pkg/inference/tools/scopedjs/runtime.go:24:func (s registeredModuleSpec) Register(reg *require.Registry) error {
+./pkg/inference/tools/scopedjs/runtime.go:108:		specs = append(specs, gojengine.NativeModuleSpec{
+./pkg/inference/tools/scopedjs/runtime.go:110:			ModuleName: strings.TrimSpace(mod.Name()),
+./pkg/inference/tools/scopedjs/runtime.go:139:		if _, err := rt.Owner.Call(ctx, "scopedjs.bootstrap."+name, func(_ context.Context, vm *goja.Runtime) (any, error) {
+./pkg/inference/tools/scopedjs/runtime.go:163:func ModuleDocFromNativeModule(mod ggjmodules.NativeModule) ModuleDoc {
+./pkg/inference/tools/scopedjs/runtime_test.go:12:	"github.com/dop251/goja"
+./pkg/inference/tools/scopedjs/runtime_test.go:13:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/inference/tools/scopedjs/runtime_test.go:14:	ggjmodules "github.com/go-go-golems/go-go-goja/modules"
+./pkg/inference/tools/scopedjs/runtime_test.go:23:func (mathModule) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+./pkg/inference/tools/scopedjs/runtime_test.go:24:	exports := moduleObj.Get("exports").(*goja.Object)
+./pkg/inference/tools/scopedjs/runtime_test.go:39:			if err := b.AddNativeModule(mathModule{}); err != nil {
+./pkg/inference/tools/scopedjs/tool_test.go:10:	"github.com/dop251/goja"
+./pkg/inference/tools/scopedjs/tool_test.go:12:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/inference/tools/scopedjs/tool_test.go:43:			if err := b.AddNativeModule(mathModule{}); err != nil {
+./pkg/inference/tools/scopedjs/tool_test.go:299:	ret, err := rt.Owner.Call(context.Background(), "test.read-phase", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./pkg/inference/tools/scopedjs/tool_test.go:314:	_, err := rt.Owner.Call(context.Background(), "test.release-phase", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./pkg/inference/tools/scopedjs/tool_test.go:315:		fn, ok := goja.AssertFunction(vm.Get("__releaseWait"))
+./pkg/inference/tools/scopedjs/tool_test.go:319:		_, err := fn(goja.Undefined())
+./pkg/inference/tools/scopedjs/eval.go:11:	"github.com/dop251/goja"
+./pkg/inference/tools/scopedjs/eval.go:12:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/inference/tools/scopedjs/eval.go:19:	promise *goja.Promise
+./pkg/inference/tools/scopedjs/eval.go:23:	State  goja.PromiseState
+./pkg/inference/tools/scopedjs/eval.go:24:	Result goja.Value
+./pkg/inference/tools/scopedjs/eval.go:72:	_, err := rt.Owner.Call(ctx, "scopedjs.prepare", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./pkg/inference/tools/scopedjs/eval.go:82:				if err := consoleObj.Set(level, func(call goja.FunctionCall) goja.Value {
+./pkg/inference/tools/scopedjs/eval.go:84:					return goja.Undefined()
+./pkg/inference/tools/scopedjs/eval.go:102:	_, err := rt.Owner.Call(ctx, "scopedjs.cleanup", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./pkg/inference/tools/scopedjs/eval.go:117:	ret, err := rt.Owner.Call(ctx, "scopedjs.eval", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./pkg/inference/tools/scopedjs/eval.go:122:		if promise, ok := v.Export().(*goja.Promise); ok {
+./pkg/inference/tools/scopedjs/eval.go:140:func waitForPromise(ctx context.Context, rt *gojengine.Runtime, promise *goja.Promise) (any, error) {
+./pkg/inference/tools/scopedjs/eval.go:148:		ret, err := rt.Owner.Call(ctx, "scopedjs.promise-state", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./pkg/inference/tools/scopedjs/eval.go:162:		case goja.PromiseStatePending:
+./pkg/inference/tools/scopedjs/eval.go:164:		case goja.PromiseStateRejected:
+./pkg/inference/tools/scopedjs/eval.go:166:		case goja.PromiseStateFulfilled:
+./pkg/inference/tools/scopedjs/eval.go:178:func exportValue(v goja.Value) any {
+./pkg/inference/tools/scopedjs/eval.go:179:	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+./pkg/inference/tools/scopedjs/eval.go:188:func valueString(v goja.Value) string {
+./pkg/inference/tools/scopedjs/eval.go:189:	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+./pkg/inference/tools/scopedjs/eval.go:195:func isJSErrorValue(v goja.Value) bool {
+./pkg/inference/tools/scopedjs/eval.go:196:	obj, ok := v.(*goja.Object)
+./pkg/inference/tools/scopedjs/eval.go:209:func stringifyConsoleArgs(args []goja.Value) string {
+./pkg/inference/tools/scopedjs/eval.go:215:		if arg == nil || goja.IsUndefined(arg) || goja.IsNull(arg) {
+./pkg/inference/tools/scopedjs/eval.go:285:	original goja.Value
+./pkg/inference/tools/scopedjs/executor.go:8:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/inference/tools/scopedjs/schema.go:7:	"github.com/dop251/goja_nodejs/require"
+./pkg/inference/tools/scopedjs/schema.go:8:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/inference/tools/scopedjs/schema.go:9:	ggjmodules "github.com/go-go-golems/go-go-goja/modules"
+./pkg/inference/tools/scopedjs/schema.go:105:type ModuleRegistrar func(*require.Registry) error
+./pkg/inference/tools/scopedjs/schema.go:129:	nativeModules    []ggjmodules.NativeModule
+./pkg/inference/tools/scopedjs/builder.go:7:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/inference/tools/scopedjs/builder.go:8:	ggjmodules "github.com/go-go-golems/go-go-goja/modules"
+./pkg/inference/tools/scopedjs/builder.go:33:func (b *Builder) AddNativeModule(mod ggjmodules.NativeModule) error {
+./pkg/events/registry.go:37:func RegisterEventCodec(typeName string, dec EventCodec) error {
+./pkg/events/registry.go:49:func RegisterEventEncoder(typeName string, enc EventEncoder) error {
+./pkg/events/registry.go:62:func RegisterEventFactory(typeName string, factory func() Event) error {
+./pkg/inference/tools/scopedjs/tool.go:11:func RegisterPrebuilt[Scope any, Meta any](reg tools.ToolRegistry, spec EnvironmentSpec[Scope, Meta], handle *BuildResult[Meta], opts EvalOptionOverrides) error {
+./pkg/inference/tools/scopeddb/tool.go:11:func RegisterPrebuilt[Scope any, Meta any](reg tools.ToolRegistry, spec DatasetSpec[Scope, Meta], db *sql.DB, opts QueryOptions) error {
+./pkg/doc/topics/14-js-api-user-guide.md:8:- goja
+./pkg/doc/topics/13-js-api-reference.md:4:Short: Reference for the native `require("geppetto")` API exposed through goja.
+./pkg/doc/topics/13-js-api-reference.md:8:- goja
+./pkg/doc/tutorials/06-using-scoped-tool-databases.md:622:func RegisterSupportHistoryTool(ctx context.Context, reg tools.ToolRegistry, accountID string) (scopeddb.BuildResult[SupportMeta], error) {
+./pkg/js/modules/geppetto/module.go:7:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/module.go:8:	"github.com/dop251/goja_nodejs/require"
+./pkg/js/modules/geppetto/module.go:16:	"github.com/go-go-golems/geppetto/pkg/js/runtimebridge"
+./pkg/js/modules/geppetto/module.go:18:	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
+./pkg/js/modules/geppetto/module.go:24:	// ModuleName is the name used from JavaScript: require("geppetto").
+./pkg/js/modules/geppetto/module.go:25:	ModuleName = "geppetto"
+./pkg/js/modules/geppetto/module.go:35:	Runner                   runtimeowner.Runner
+./pkg/js/modules/geppetto/module.go:52:func Register(reg *require.Registry, opts Options) {
+./pkg/js/modules/geppetto/module.go:57:	reg.RegisterNativeModule(ModuleName, mod.Loader)
+./pkg/js/modules/geppetto/module.go:65:	vm     *goja.Runtime
+./pkg/js/modules/geppetto/module.go:66:	runner runtimeowner.Runner
+./pkg/js/modules/geppetto/module.go:67:	bridge *runtimebridge.Bridge
+./pkg/js/modules/geppetto/module.go:91:func newRuntime(vm *goja.Runtime, opts Options) *moduleRuntime {
+./pkg/js/modules/geppetto/module.go:119:		m.bridge = runtimebridge.New(m.runner)
+./pkg/js/modules/geppetto/module.go:130:// Loader is the native-module entrypoint for goja_nodejs require.
+./pkg/js/modules/geppetto/module.go:131:func (m *module) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+./pkg/js/modules/geppetto/module.go:133:	exports := moduleObj.Get("exports").(*goja.Object)
+./pkg/js/modules/geppetto/module.go:137:func (m *moduleRuntime) installExports(exports *goja.Object) {
+./pkg/js/modules/geppetto/module.go:200:func (m *moduleRuntime) mustSet(o *goja.Object, key string, v any) {
+./pkg/js/modules/geppetto/module.go:206:func (m *moduleRuntime) attachRef(o *goja.Object, ref any) {
+./pkg/js/modules/geppetto/module.go:207:	// Set the value first so goja stores the Go pointer as-is (m.vm.ToValue
+./pkg/js/modules/geppetto/module.go:212:		goja.FLAG_FALSE, // writable
+./pkg/js/modules/geppetto/module.go:213:		goja.FLAG_FALSE, // enumerable
+./pkg/js/modules/geppetto/module.go:214:		goja.FLAG_FALSE, // configurable
+./pkg/js/modules/geppetto/module.go:218:func (m *moduleRuntime) getRef(v goja.Value) any {
+./pkg/js/modules/geppetto/module.go:219:	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+./pkg/js/modules/geppetto/module.go:222:	if obj, ok := v.(*goja.Object); ok {
+./pkg/js/modules/geppetto/module.go:224:		if raw != nil && !goja.IsUndefined(raw) && !goja.IsNull(raw) {
+./pkg/js/modules/geppetto/api_owner_bridge.go:7:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_owner_bridge.go:8:	"github.com/go-go-golems/geppetto/pkg/js/runtimebridge"
+./pkg/js/modules/geppetto/api_owner_bridge.go:11:func (m *moduleRuntime) requireBridge(op string) (*runtimebridge.Bridge, error) {
+./pkg/js/modules/geppetto/api_owner_bridge.go:26:	return bridge.Call(ctx, op, func(callCtx context.Context, _ *goja.Runtime) (any, error) {
+./pkg/js/modules/geppetto/api_owner_bridge.go:39:	return bridge.Post(ctx, op, func(callCtx context.Context, _ *goja.Runtime) {
+./pkg/js/modules/geppetto/codec.go:10:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/codec.go:310:func (m *moduleRuntime) decodeTurnValue(v goja.Value) (*turns.Turn, error) {
+./pkg/js/modules/geppetto/codec.go:311:	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+./pkg/js/modules/geppetto/codec.go:395:func (m *moduleRuntime) encodeTurnValue(t *turns.Turn) (goja.Value, error) {
+./pkg/js/modules/geppetto/codec.go:399:func (m *moduleRuntime) encodeTurnsValue(ts []*turns.Turn) (goja.Value, error) {
+./pkg/js/modules/geppetto/codec.go:407:func (m *moduleRuntime) toJSValue(v any) goja.Value {
+./pkg/js/modules/geppetto/codec.go:409:		return goja.Null()
+./pkg/js/modules/geppetto/codec.go:412:	case goja.Value:
+./pkg/js/modules/geppetto/api_tools_registry.go:9:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_tools_registry.go:15:func (m *moduleRuntime) toolsCreateRegistry(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_tools_registry.go:23:	m.mustSet(o, "register", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_tools_registry.go:32:	m.mustSet(o, "useGoTools", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_tools_registry.go:34:		if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_tools_registry.go:46:	m.mustSet(o, "list", func(goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_tools_registry.go:59:	m.mustSet(o, "call", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_tools_registry.go:65:		if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
+./pkg/js/modules/geppetto/api_tools_registry.go:94:func (r *toolRegistryRef) register(v goja.Value, _ map[string]any) error {
+./pkg/js/modules/geppetto/api_tools_registry.go:101:	if d := obj.Get("description"); d != nil && !goja.IsUndefined(d) && !goja.IsNull(d) {
+./pkg/js/modules/geppetto/api_tools_registry.go:105:	handler, ok := goja.AssertFunction(handlerValue)
+./pkg/js/modules/geppetto/api_tools_registry.go:136:			ret, invokeErr := handler(goja.Undefined(), r.api.vm.ToValue(in), r.api.toJSValue(toolCtx))
+./pkg/js/modules/geppetto/api_tools_registry.go:140:			if ret == nil || goja.IsUndefined(ret) || goja.IsNull(ret) {
+./pkg/js/modules/geppetto/api_tools_registry.go:156:	if parameters != nil && !goja.IsUndefined(parameters) && !goja.IsNull(parameters) {
+./pkg/js/modules/geppetto/module_test.go:11:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/module_test.go:12:	"github.com/dop251/goja_nodejs/require"
+./pkg/js/modules/geppetto/module_test.go:20:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/js/modules/geppetto/module_test.go:21:	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
+./pkg/js/modules/geppetto/module_test.go:25:	vm     *goja.Runtime
+./pkg/js/modules/geppetto/module_test.go:26:	runner runtimeowner.Runner
+./pkg/js/modules/geppetto/module_test.go:33:		t.Fatalf("failed creating go-go-goja factory: %v", err)
+./pkg/js/modules/geppetto/module_test.go:37:		t.Fatalf("failed creating go-go-goja runtime: %v", err)
+./pkg/js/modules/geppetto/module_test.go:56:		t.Fatalf("failed creating go-go-goja factory: %v", err)
+./pkg/js/modules/geppetto/module_test.go:60:		t.Fatalf("failed creating go-go-goja runtime: %v", err)
+./pkg/js/modules/geppetto/module_test.go:75:func mustRunJS(t *testing.T, rt *jsRuntime, src string) goja.Value {
+./pkg/js/modules/geppetto/module_test.go:85:	State  goja.PromiseState
+./pkg/js/modules/geppetto/module_test.go:93:		ret, err := rt.runner.Call(context.Background(), "module_test.PromiseState", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./pkg/js/modules/geppetto/module_test.go:98:			if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+./pkg/js/modules/geppetto/module_test.go:101:			p, ok := v.Export().(*goja.Promise)
+./pkg/js/modules/geppetto/module_test.go:118:		if snap.State == goja.PromiseStateFulfilled {
+./pkg/js/modules/geppetto/module_test.go:121:		if snap.State == goja.PromiseStateRejected {
+./pkg/js/modules/geppetto/module_test.go:133:	ret, err := rt.runner.Call(context.Background(), "module_test.EvalExpr", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./pkg/js/modules/geppetto/module_test.go:138:		if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+./pkg/js/modules/geppetto/module_test.go:534:	if snap.State != goja.PromiseStateFulfilled {
+./pkg/js/modules/geppetto/module_test.go:587:	if snap.State != goja.PromiseStateFulfilled {
+./pkg/js/modules/geppetto/module_test.go:1338:	if snap.State != goja.PromiseStateFulfilled {
+./pkg/js/modules/geppetto/api_tool_hooks.go:10:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_tool_hooks.go:132:		ret, invokeErr := e.hooks.Before(goja.Undefined(), e.api.toJSValue(payload))
+./pkg/js/modules/geppetto/api_tool_hooks.go:136:		if ret == nil || goja.IsUndefined(ret) || goja.IsNull(ret) {
+./pkg/js/modules/geppetto/api_tool_hooks.go:193:		ret, invokeErr := e.hooks.After(goja.Undefined(), e.api.toJSValue(payload))
+./pkg/js/modules/geppetto/api_tool_hooks.go:197:		if ret == nil || goja.IsUndefined(ret) || goja.IsNull(ret) {
+./pkg/js/modules/geppetto/api_tool_hooks.go:264:		ret, invokeErr := e.hooks.OnError(goja.Undefined(), e.api.toJSValue(payload))
+./pkg/js/modules/geppetto/api_tool_hooks.go:268:		if ret == nil || goja.IsUndefined(ret) || goja.IsNull(ret) {
+./pkg/js/modules/geppetto/api_schemas.go:8:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_schemas.go:34:func (m *moduleRuntime) schemasListMiddlewares(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_schemas.go:56:func (m *moduleRuntime) schemasListExtensions(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_runtime_metadata.go:7:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_runtime_metadata.go:15:func (m *moduleRuntime) newResolvedEngineProfileObject(resolved *profiles.ResolvedEngineProfile) *goja.Object {
+./pkg/js/modules/geppetto/api_runtime_metadata.go:51:func (m *moduleRuntime) requireResolvedEngineProfile(v goja.Value) (*profiles.ResolvedEngineProfile, error) {
+./pkg/js/modules/geppetto/api_runtime_metadata.go:128:func (m *moduleRuntime) newModelInfoObject(info *aistepssettings.ModelInfo) *goja.Object {
+./pkg/js/modules/geppetto/api_types.go:9:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_types.go:62:	listeners map[string][]goja.Callable
+./pkg/js/modules/geppetto/api_types.go:68:	Fn   goja.Callable
+./pkg/js/modules/geppetto/api_types.go:103:	Before     goja.Callable
+./pkg/js/modules/geppetto/api_types.go:104:	After      goja.Callable
+./pkg/js/modules/geppetto/api_types.go:105:	OnError    goja.Callable
+./pkg/js/modules/geppetto/api_types.go:134:	fn  goja.Callable
+./pkg/js/modules/geppetto/api_types.go:143:		v, err := e.fn(goja.Undefined(), arg)
+./pkg/js/modules/geppetto/api_types.go:147:		if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+./pkg/js/modules/geppetto/api_middlewares.go:8:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_middlewares.go:15:func (m *moduleRuntime) middlewareFromJS(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_middlewares.go:19:	fn, ok := goja.AssertFunction(call.Arguments[0])
+./pkg/js/modules/geppetto/api_middlewares.go:31:func (m *moduleRuntime) middlewareFromGo(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_middlewares.go:37:	if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
+./pkg/js/modules/geppetto/api_middlewares.go:44:func (m *moduleRuntime) newJSMiddlewareObject(ref *jsMiddlewareRef) goja.Value {
+./pkg/js/modules/geppetto/api_middlewares.go:52:func (m *moduleRuntime) newGoMiddlewareObject(ref *goMiddlewareRef) goja.Value {
+./pkg/js/modules/geppetto/api_middlewares.go:77:func (m *moduleRuntime) decodeMiddlewareSpecValue(v goja.Value) (any, error) {
+./pkg/js/modules/geppetto/api_middlewares.go:78:	if fn, ok := goja.AssertFunction(v); ok {
+./pkg/js/modules/geppetto/api_middlewares.go:92:func (m *moduleRuntime) middlewareObjectFromSpec(spec any) (goja.Value, error) {
+./pkg/js/modules/geppetto/api_middlewares.go:114:func (m *moduleRuntime) resolveMiddleware(v goja.Value) (middleware.Middleware, error) {
+./pkg/js/modules/geppetto/api_middlewares.go:130:func (m *moduleRuntime) jsMiddleware(name string, fn goja.Callable) middleware.Middleware {
+./pkg/js/modules/geppetto/api_middlewares.go:173:				nextFn := func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_middlewares.go:175:					if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_middlewares.go:192:				ret, err := fn(goja.Undefined(), jsTurn, m.vm.ToValue(nextFn), m.toJSValue(ctxPayload))
+./pkg/js/modules/geppetto/api_middlewares.go:196:				if ret == nil || goja.IsUndefined(ret) || goja.IsNull(ret) {
+./pkg/js/modules/geppetto/api_engines.go:9:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_engines.go:19:func (m *moduleRuntime) requireEngineRef(v goja.Value) (*engineRef, error) {
+./pkg/js/modules/geppetto/api_engines.go:31:func (m *moduleRuntime) requireToolRegistry(v goja.Value) (tools.ToolRegistry, error) {
+./pkg/js/modules/geppetto/api_engines.go:262:func (m *moduleRuntime) newEngineObject(ref *engineRef) goja.Value {
+./pkg/js/modules/geppetto/api_engines.go:275:func (m *moduleRuntime) engineEcho(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_engines.go:277:	if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_engines.go:304:func (m *moduleRuntime) engineFromConfig(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_engines.go:305:	if len(call.Arguments) < 1 || goja.IsUndefined(call.Arguments[0]) || goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_engines.go:319:func (m *moduleRuntime) engineFromResolvedProfile(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_engines.go:320:	if len(call.Arguments) < 1 || goja.IsUndefined(call.Arguments[0]) || goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_engines.go:362:func (m *moduleRuntime) engineFromProfile(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_engines.go:375:	if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_engines.go:399:	return m.engineFromResolvedProfile(goja.FunctionCall{Arguments: []goja.Value{m.newResolvedEngineProfileObject(resolved)}})
+./pkg/js/modules/geppetto/api_engines.go:402:func (m *moduleRuntime) engineFromFunction(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_engines.go:406:	fn, ok := goja.AssertFunction(call.Arguments[0])
+./pkg/js/modules/geppetto/api_builder_options.go:8:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_builder_options.go:14:func (m *moduleRuntime) applyBuilderOptions(b *builderRef, v goja.Value) error {
+./pkg/js/modules/geppetto/api_builder_options.go:20:	// the goja object to preserve non-enumerable __geppetto_ref. Using
+./pkg/js/modules/geppetto/api_builder_options.go:23:	if engVal := obj.Get("engine"); engVal != nil && !goja.IsUndefined(engVal) && !goja.IsNull(engVal) {
+./pkg/js/modules/geppetto/api_builder_options.go:30:	if mwsVal := obj.Get("middlewares"); mwsVal != nil && !goja.IsUndefined(mwsVal) && !goja.IsNull(mwsVal) {
+./pkg/js/modules/geppetto/api_builder_options.go:34:			if lengthVal != nil && !goja.IsUndefined(lengthVal) {
+./pkg/js/modules/geppetto/api_builder_options.go:38:					if item == nil || goja.IsUndefined(item) || goja.IsNull(item) {
+./pkg/js/modules/geppetto/api_builder_options.go:50:	if regVal := obj.Get("tools"); regVal != nil && !goja.IsUndefined(regVal) && !goja.IsNull(regVal) {
+./pkg/js/modules/geppetto/api_builder_options.go:57:	if tlRaw := obj.Get("toolLoop"); tlRaw != nil && !goja.IsUndefined(tlRaw) && !goja.IsNull(tlRaw) {
+./pkg/js/modules/geppetto/api_builder_options.go:60:	if thRaw := obj.Get("toolHooks"); thRaw != nil && !goja.IsUndefined(thRaw) && !goja.IsNull(thRaw) {
+./pkg/js/modules/geppetto/api_builder_options.go:67:	if persisterRaw := obj.Get("persister"); persisterRaw != nil && !goja.IsUndefined(persisterRaw) && !goja.IsNull(persisterRaw) {
+./pkg/js/modules/geppetto/api_builder_options.go:74:	if sinksRaw := obj.Get("eventSinks"); sinksRaw != nil && !goja.IsUndefined(sinksRaw) && !goja.IsNull(sinksRaw) {
+./pkg/js/modules/geppetto/api_builder_options.go:81:	if sinkRaw := obj.Get("eventSink"); sinkRaw != nil && !goja.IsUndefined(sinkRaw) && !goja.IsNull(sinkRaw) {
+./pkg/js/modules/geppetto/api_builder_options.go:88:	if snapshotHookRaw := obj.Get("snapshotHook"); snapshotHookRaw != nil && !goja.IsUndefined(snapshotHookRaw) && !goja.IsNull(snapshotHookRaw) {
+./pkg/js/modules/geppetto/api_builder_options.go:105:func (m *moduleRuntime) decodeEventSinksValue(v goja.Value) ([]events.EventSink, error) {
+./pkg/js/modules/geppetto/api_builder_options.go:106:	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+./pkg/js/modules/geppetto/api_builder_options.go:118:	if lengthVal == nil || goja.IsUndefined(lengthVal) {
+./pkg/js/modules/geppetto/api_builder_options.go:129:		if item == nil || goja.IsUndefined(item) || goja.IsNull(item) {
+./pkg/js/modules/geppetto/api_builder_options.go:191:func (m *moduleRuntime) applyToolLoopSettings(b *builderRef, cfg map[string]any, raw goja.Value) {
+./pkg/js/modules/geppetto/api_builder_options.go:235:	var hooksRaw goja.Value
+./pkg/js/modules/geppetto/api_builder_options.go:236:	if raw != nil && !goja.IsUndefined(raw) && !goja.IsNull(raw) {
+./pkg/js/modules/geppetto/api_builder_options.go:238:			if hv := obj.Get("hooks"); hv != nil && !goja.IsUndefined(hv) && !goja.IsNull(hv) {
+./pkg/js/modules/geppetto/api_builder_options.go:243:	if hooksRaw != nil && !goja.IsUndefined(hooksRaw) && !goja.IsNull(hooksRaw) {
+./pkg/js/modules/geppetto/api_builder_options.go:255:func (m *moduleRuntime) parseToolHooks(v goja.Value) (*jsToolHooks, error) {
+./pkg/js/modules/geppetto/api_builder_options.go:256:	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+./pkg/js/modules/geppetto/api_builder_options.go:266:	if fn, ok := goja.AssertFunction(obj.Get("beforeToolCall")); ok {
+./pkg/js/modules/geppetto/api_builder_options.go:269:	if fn, ok := goja.AssertFunction(obj.Get("afterToolCall")); ok {
+./pkg/js/modules/geppetto/api_builder_options.go:272:	if fn, ok := goja.AssertFunction(obj.Get("onToolError")); ok {
+./pkg/js/modules/geppetto/api_builder_options.go:276:	if hv := obj.Get("hookErrorPolicy"); hv != nil && !goja.IsUndefined(hv) && !goja.IsNull(hv) {
+./pkg/js/modules/geppetto/api_builder_options.go:281:	if hv := obj.Get("onHookError"); hv != nil && !goja.IsUndefined(hv) && !goja.IsNull(hv) {
+./pkg/js/modules/geppetto/api_builder_options.go:286:	if b := obj.Get("failOpen"); b != nil && !goja.IsUndefined(b) && !goja.IsNull(b) {
+./pkg/js/modules/geppetto/api_builder_options.go:290:	if rv := obj.Get("maxHookRetries"); rv != nil && !goja.IsUndefined(rv) && !goja.IsNull(rv) {
+./pkg/js/embeddings-js.go:8:	"github.com/dop251/goja"
+./pkg/js/embeddings-js.go:9:	"github.com/dop251/goja_nodejs/eventloop"
+./pkg/js/embeddings-js.go:15:	runtime  *goja.Runtime
+./pkg/js/embeddings-js.go:21:func RegisterEmbeddings(runtime *goja.Runtime, globalName string, provider embeddings.Provider, loop *eventloop.EventLoop) error {
+./pkg/js/embeddings-js.go:49:func (w *JSEmbeddingsWrapper) generateEmbedding(call goja.FunctionCall) goja.Value {
+./pkg/js/embeddings-js.go:63:func (w *JSEmbeddingsWrapper) getModel(call goja.FunctionCall) goja.Value {
+./pkg/js/embeddings-js.go:78:func (w *JSEmbeddingsWrapper) generateEmbeddingAsync(call goja.FunctionCall) goja.Value {
+./pkg/js/embeddings-js.go:86:	w.loop.RunOnLoop(func(*goja.Runtime) {
+./pkg/js/embeddings-js.go:90:				w.loop.RunOnLoop(func(*goja.Runtime) {
+./pkg/js/embeddings-js.go:99:			w.loop.RunOnLoop(func(*goja.Runtime) {
+./pkg/js/embeddings-js.go:111:func (w *JSEmbeddingsWrapper) generateEmbeddingWithCallbacks(call goja.FunctionCall) goja.Value {
+./pkg/js/embeddings-js.go:119:	var onSuccess, onError goja.Callable
+./pkg/js/embeddings-js.go:123:		if onSuccess, ok = goja.AssertFunction(onSuccessVal); !ok {
+./pkg/js/embeddings-js.go:129:		if onError, ok = goja.AssertFunction(onErrorVal); !ok {
+./pkg/js/embeddings-js.go:152:	w.loop.RunOnLoop(func(*goja.Runtime) {
+./pkg/js/embeddings-js.go:164:					w.loop.RunOnLoop(func(*goja.Runtime) {
+./pkg/js/embeddings-js.go:165:						_, callErr := onError(goja.Undefined(), w.runtime.ToValue(err.Error()))
+./pkg/js/embeddings-js.go:181:				w.loop.RunOnLoop(func(*goja.Runtime) {
+./pkg/js/embeddings-js.go:182:					_, callErr := onSuccess(goja.Undefined(), w.runtime.ToValue(embeddingInterface))
+./pkg/js/embeddings-js.go:192:	return w.runtime.ToValue(func(call goja.FunctionCall) goja.Value {
+./pkg/js/embeddings-js.go:194:		return goja.Undefined()
+./pkg/js/modules/geppetto/api_turns.go:4:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_turns.go:8:func (m *moduleRuntime) turnsNormalize(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_turns.go:27:func (m *moduleRuntime) turnsNewTurn(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_turns.go:28:	if len(call.Arguments) == 0 || goja.IsUndefined(call.Arguments[0]) || goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_turns.go:43:func (m *moduleRuntime) turnsAppendBlock(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_turns.go:63:func (m *moduleRuntime) turnsNewUserBlock(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_turns.go:71:func (m *moduleRuntime) turnsNewSystemBlock(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_turns.go:79:func (m *moduleRuntime) turnsNewAssistantBlock(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_turns.go:87:func (m *moduleRuntime) turnsNewToolCallBlock(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_turns.go:97:func (m *moduleRuntime) turnsNewToolUseBlock(call goja.FunctionCall) goja.Value {
+./pkg/doc/tutorials/05-js-api-getting-started.md:8:- goja
+./pkg/doc/tutorials/05-js-api-getting-started.md:81:Your JS does not run in Node.js in this workflow. It runs inside goja, hosted by `geppetto-js-lab`.
+./pkg/doc/tutorials/05-js-api-getting-started.md:115:    +--> configures goja runtime
+./pkg/js/runtimebridge/bridge.go:1:package runtimebridge
+./pkg/js/runtimebridge/bridge.go:7:	"github.com/dop251/goja"
+./pkg/js/runtimebridge/bridge.go:8:	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
+./pkg/js/runtimebridge/bridge.go:11:// Bridge wraps a runtimeowner.Runner with helpers tailored for goja callback usage.
+./pkg/js/runtimebridge/bridge.go:13:	runner runtimeowner.Runner
+./pkg/js/runtimebridge/bridge.go:16:func New(runner runtimeowner.Runner) *Bridge {
+./pkg/js/runtimebridge/bridge.go:18:		panic("runtimebridge: runner is nil")
+./pkg/js/runtimebridge/bridge.go:23:func (b *Bridge) Runner() runtimeowner.Runner {
+./pkg/js/runtimebridge/bridge.go:27:func (b *Bridge) Call(ctx context.Context, op string, fn runtimeowner.CallFunc) (any, error) {
+./pkg/js/runtimebridge/bridge.go:29:		return nil, fmt.Errorf("runtimebridge %s: nil bridge", op)
+./pkg/js/runtimebridge/bridge.go:34:func (b *Bridge) Post(ctx context.Context, op string, fn runtimeowner.PostFunc) error {
+./pkg/js/runtimebridge/bridge.go:36:		return fmt.Errorf("runtimebridge %s: nil bridge", op)
+./pkg/js/runtimebridge/bridge.go:41:func (b *Bridge) InvokeCallable(ctx context.Context, op string, fn goja.Callable, this goja.Value, args ...goja.Value) (goja.Value, error) {
+./pkg/js/runtimebridge/bridge.go:43:		return nil, fmt.Errorf("runtimebridge %s: nil callable", op)
+./pkg/js/runtimebridge/bridge.go:45:	ret, err := b.Call(ctx, op, func(_ context.Context, _ *goja.Runtime) (any, error) {
+./pkg/js/runtimebridge/bridge.go:58:	v, ok := ret.(goja.Value)
+./pkg/js/runtimebridge/bridge.go:60:		return nil, fmt.Errorf("runtimebridge %s: expected goja.Value, got %T", op, ret)
+./pkg/js/runtimebridge/bridge.go:66:func (b *Bridge) ToJSValue(ctx context.Context, op string, convert func(*goja.Runtime) goja.Value) (goja.Value, error) {
+./pkg/js/runtimebridge/bridge.go:68:		return nil, fmt.Errorf("runtimebridge %s: nil converter", op)
+./pkg/js/runtimebridge/bridge.go:70:	ret, err := b.Call(ctx, op, func(_ context.Context, vm *goja.Runtime) (any, error) {
+./pkg/js/runtimebridge/bridge.go:79:	v, ok := ret.(goja.Value)
+./pkg/js/runtimebridge/bridge.go:81:		return nil, fmt.Errorf("runtimebridge %s: expected goja.Value, got %T", op, ret)
+./pkg/js/modules/geppetto/consts_gen.go:5:import "github.com/dop251/goja"
+./pkg/js/modules/geppetto/consts_gen.go:8:func (m *moduleRuntime) installConsts(exports *goja.Object) {
+./pkg/js/runtime/runtime.go:7:	"github.com/dop251/goja_nodejs/require"
+./pkg/js/runtime/runtime.go:9:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/js/runtime/runtime.go:10:	ggmodules "github.com/go-go-golems/go-go-goja/modules"
+./pkg/js/runtime/runtime.go:14:// go-go-goja owned runtime builder.
+./pkg/js/runtime/runtime.go:23:	// IncludeDefaultModules enables go-go-goja default native modules in
+./pkg/js/modules/geppetto/api_events.go:8:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_events.go:15:		listeners: map[string][]goja.Callable{},
+./pkg/js/modules/geppetto/api_events.go:19:func (m *moduleRuntime) eventsCollector(goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_events.go:27:	m.mustSet(obj, "on", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_events.go:32:		cb, ok := goja.AssertFunction(call.Arguments[1])
+./pkg/js/modules/geppetto/api_events.go:40:	m.mustSet(obj, "clear", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_events.go:41:		if len(call.Arguments) > 0 && call.Arguments[0] != nil && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_events.go:49:	m.mustSet(obj, "close", func(goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_events.go:51:		return goja.Undefined()
+./pkg/js/modules/geppetto/api_events.go:59:func (c *jsEventCollector) subscribe(eventType string, fn goja.Callable) {
+./pkg/js/modules/geppetto/api_events.go:96:		c.listeners = map[string][]goja.Callable{}
+./pkg/js/modules/geppetto/api_events.go:117:	callbacks := make([]goja.Callable, 0, len(c.listeners[eventType])+len(c.listeners["*"]))
+./pkg/js/modules/geppetto/api_events.go:133:			_, _ = cb(goja.Undefined(), jsPayload)
+./pkg/js/runtime/runtime_test.go:8:	"github.com/dop251/goja"
+./pkg/js/runtime/runtime_test.go:9:	gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/js/runtime/runtime_test.go:34:					return ctx.VM.Set("registerSemReducer", func(call goja.FunctionCall) goja.Value {
+./pkg/js/runtime/runtime_test.go:36:						return goja.Undefined()
+./pkg/js/modules/geppetto/api_profiles.go:8:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_profiles.go:35:func (m *moduleRuntime) profilesListRegistries(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_profiles.go:47:func (m *moduleRuntime) profilesGetRegistry(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_profiles.go:54:	if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_profiles.go:68:func (m *moduleRuntime) profilesListEngineProfiles(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_profiles.go:75:	if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_profiles.go:89:func (m *moduleRuntime) profilesGetEngineProfile(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_profiles.go:94:	if len(call.Arguments) < 1 || goja.IsUndefined(call.Arguments[0]) || goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_profiles.go:104:	if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
+./pkg/js/modules/geppetto/api_profiles.go:118:func (m *moduleRuntime) profilesResolve(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_profiles.go:131:	if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_profiles.go:191:func (m *moduleRuntime) profilesConnectStack(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_profiles.go:192:	if len(call.Arguments) < 1 || goja.IsUndefined(call.Arguments[0]) || goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_profiles.go:233:func (m *moduleRuntime) profilesDisconnectStack(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_profiles.go:241:	return goja.Undefined()
+./pkg/js/modules/geppetto/api_profiles.go:244:func (m *moduleRuntime) profilesGetConnectedSources(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_runner.go:7:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_runner.go:11:func (m *moduleRuntime) runnerResolveRuntime(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_runner.go:13:	if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_runner.go:36:func (m *moduleRuntime) runnerPrepare(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_runner.go:44:func (m *moduleRuntime) runnerRun(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_runner.go:64:func (m *moduleRuntime) runnerStart(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_runner.go:76:func (m *moduleRuntime) prepareRunnerCall(call goja.FunctionCall) (*preparedRunRef, error) {
+./pkg/js/modules/geppetto/api_runner.go:77:	if len(call.Arguments) < 1 || goja.IsUndefined(call.Arguments[0]) || goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_runner.go:83:func (m *moduleRuntime) prepareRunnerOptions(v goja.Value) (*preparedRunRef, error) {
+./pkg/js/modules/geppetto/api_runner.go:96:	if runtimeVal != nil && !goja.IsUndefined(runtimeVal) && !goja.IsNull(runtimeVal) {
+./pkg/js/modules/geppetto/api_runner.go:111:	if sessionIDVal := obj.Get("sessionId"); sessionIDVal != nil && !goja.IsUndefined(sessionIDVal) && !goja.IsNull(sessionIDVal) {
+./pkg/js/modules/geppetto/api_runner.go:131:func (m *moduleRuntime) requireRunnerResolvedRuntime(v goja.Value) (*runnerResolvedRuntimeRef, error) {
+./pkg/js/modules/geppetto/api_runner.go:167:func (m *moduleRuntime) buildPreparedTurn(obj *goja.Object, runtimeMetadata map[string]any) (*turns.Turn, error) {
+./pkg/js/modules/geppetto/api_runner.go:170:	if seedVal != nil && !goja.IsUndefined(seedVal) && !goja.IsNull(seedVal) {
+./pkg/js/modules/geppetto/api_runner.go:178:	if promptVal := obj.Get("prompt"); promptVal != nil && !goja.IsUndefined(promptVal) && !goja.IsNull(promptVal) {
+./pkg/js/modules/geppetto/api_runner.go:199:func (m *moduleRuntime) newPreparedRunObject(prepared *preparedRunRef) goja.Value {
+./pkg/js/modules/geppetto/api_runner.go:211:	m.mustSet(o, "run", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_runner.go:226:	m.mustSet(o, "start", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_runner.go:236:func (m *moduleRuntime) attachPreparedRunToHandle(prepared *preparedRunRef, handle goja.Value) goja.Value {
+./pkg/js/modules/geppetto/api_runner.go:249:func (m *moduleRuntime) resolveRunnerRuntime(obj *goja.Object, input map[string]any) (*runnerResolvedRuntimeRef, error) {
+./pkg/js/modules/geppetto/api_runner.go:266:		if mwsVal == nil || goja.IsUndefined(mwsVal) || goja.IsNull(mwsVal) {
+./pkg/js/modules/geppetto/api_runner.go:297:func (m *moduleRuntime) decodeRunnerMiddlewareSpecs(v goja.Value) ([]any, error) {
+./pkg/js/modules/geppetto/api_runner.go:303:	if lengthVal == nil || goja.IsUndefined(lengthVal) {
+./pkg/js/modules/geppetto/api_runner.go:310:		if item == nil || goja.IsUndefined(item) || goja.IsNull(item) {
+./pkg/js/modules/geppetto/api_runner.go:322:func (m *moduleRuntime) newRunnerResolvedRuntimeObject(ref *runnerResolvedRuntimeRef) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:9:	"github.com/dop251/goja"
+./pkg/js/modules/geppetto/api_sessions.go:18:func (m *moduleRuntime) createBuilder(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:20:	if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_sessions.go:28:func (m *moduleRuntime) createSession(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:30:	if len(call.Arguments) == 0 || goja.IsUndefined(call.Arguments[0]) || goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_sessions.go:43:func (m *moduleRuntime) runInference(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:63:	if len(call.Arguments) > 2 && !goja.IsUndefined(call.Arguments[2]) && !goja.IsNull(call.Arguments[2]) {
+./pkg/js/modules/geppetto/api_sessions.go:84:func (m *moduleRuntime) newBuilderObject(b *builderRef) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:87:	m.mustSet(o, "withEngine", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:98:	m.mustSet(o, "useMiddleware", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:109:	m.mustSet(o, "useGoMiddleware", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:125:	m.mustSet(o, "withTools", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:134:		if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
+./pkg/js/modules/geppetto/api_sessions.go:139:	m.mustSet(o, "withToolLoop", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:140:		if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_sessions.go:145:	m.mustSet(o, "withToolHooks", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:146:		if len(call.Arguments) < 1 || goja.IsUndefined(call.Arguments[0]) || goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_sessions.go:165:	m.mustSet(o, "withPersister", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:176:	m.mustSet(o, "withEventSink", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:187:	m.mustSet(o, "withSnapshotHook", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:198:	m.mustSet(o, "buildSession", func(goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:261:func (m *moduleRuntime) requireTurnPersister(v goja.Value) (enginebuilder.TurnPersister, error) {
+./pkg/js/modules/geppetto/api_sessions.go:271:func (m *moduleRuntime) requireEventSink(v goja.Value) (events.EventSink, error) {
+./pkg/js/modules/geppetto/api_sessions.go:281:func (m *moduleRuntime) requireSnapshotHook(v goja.Value) (toolloop.SnapshotHook, error) {
+./pkg/js/modules/geppetto/api_sessions.go:291:func (m *moduleRuntime) newSessionObject(sr *sessionRef) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:294:	m.mustSet(o, "append", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:310:	m.mustSet(o, "latest", func(goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:318:	m.mustSet(o, "turnCount", func(goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:321:	m.mustSet(o, "turns", func(goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:329:	m.mustSet(o, "getTurn", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:336:			return goja.Null()
+./pkg/js/modules/geppetto/api_sessions.go:344:	m.mustSet(o, "turnsRange", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:347:		if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_sessions.go:350:		if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
+./pkg/js/modules/geppetto/api_sessions.go:374:	m.mustSet(o, "isRunning", func(goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:377:	m.mustSet(o, "cancelActive", func(goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:381:		return goja.Undefined()
+./pkg/js/modules/geppetto/api_sessions.go:383:	m.mustSet(o, "run", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:386:		if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_sessions.go:406:	m.mustSet(o, "start", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:409:		if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_sessions.go:421:	m.mustSet(o, "runAsync", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:424:		if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/js/modules/geppetto/api_sessions.go:452:func (sr *sessionRef) runAsync(seed *turns.Turn) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:480:func (sr *sessionRef) start(seed *turns.Turn, opts runOptions) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:504:	sr.api.mustSet(handleObj, "cancel", func(goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:508:		return goja.Undefined()
+./pkg/js/modules/geppetto/api_sessions.go:510:	sr.api.mustSet(handleObj, "on", func(call goja.FunctionCall) goja.Value {
+./pkg/js/modules/geppetto/api_sessions.go:515:		cb, ok := goja.AssertFunction(call.Arguments[1])
+./pkg/js/modules/geppetto/api_sessions.go:598:func (m *moduleRuntime) parseRunOptions(args []goja.Value, idx int) (runOptions, error) {
+./pkg/js/modules/geppetto/api_sessions.go:600:	if len(args) <= idx || args[idx] == nil || goja.IsUndefined(args[idx]) || goja.IsNull(args[idx]) {
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:9:- goja
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:20:This guide explains how to create your own scoped JavaScript tool in Geppetto using `pkg/inference/tools/scopedjs`. The audience is a new intern who knows Go, is comfortable reading code, but has not yet internalized how Geppetto turns a prepared goja runtime into one LLM-facing tool such as `eval_fs_demo` or `eval_dbserver`.
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:72:  AddNativeModule(...)
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:79:  create goja runtime
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:106:| `pkg/inference/tools/scopedjs/runtime.go` | `BuildRuntime(...)` and the code that converts builder state into a live goja runtime |
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:126:    gojengine "github.com/go-go-golems/go-go-goja/engine"
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:127:    ggjmodules "github.com/go-go-golems/go-go-goja/modules"
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:128:    _ "github.com/go-go-golems/go-go-goja/modules/fs"  // side-effect import: registers the fs module
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:135:Important: the blank import `_ "github.com/go-go-golems/go-go-goja/modules/fs"` is required for the `fs` module to be available via `ggjmodules.GetModule("fs")`. Without it, `GetModule` returns nil. Add similar blank imports for any other go-go-goja modules you want to use.
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:270:| `AddNativeModule(...)` | Existing go-go-goja native modules | `fs`, a custom native module |
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:271:| `AddModule(...)` | Manual `require(...)` registration | A one-off module not implemented as `NativeModule` |
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:283:if err := b.AddNativeModule(fsModule); err != nil {
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:290:- you bring a `go-go-goja` native module
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:292:- `BuildRuntime(...)` installs it into the goja `require` registry
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:354:    if err := b.AddNativeModule(fsModule); err != nil {
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:358:    if err := b.AddNativeModule(customModule); err != nil {
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:387:`BuildRuntime(...)` turns your spec and scope into a live goja runtime plus manifest metadata. The implementation lives in `pkg/inference/tools/scopedjs/runtime.go`.
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:614:        if err := b.AddNativeModule(fsModule); err != nil {
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:679:    b.AddNativeModule(fsModule)
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:680:    b.AddNativeModule(webserverModule)
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:681:    b.AddNativeModule(obsidianModule)
+./pkg/doc/tutorials/07-build-scopedjs-eval-tools.md:799:| `require("fs")` or another module fails | the module was never registered in `Configure(...)` | call `AddNativeModule(...)` or `AddModule(...)` |
+
+### workspace-manager
+module: module github.com/go-go-golems/workspace-manager
+./cmd/wsm/cmds/git/rebase/root.go:9:func Register(root *cobra.Command) error {
+./cmd/wsm/cmds/git/root.go:11:func Register(root *cobra.Command) error {
+./cmd/wsm/cmds/git/branch/root.go:9:func Register(root *cobra.Command) error {
+./cmd/wsm/cmds/workspace/root.go:9:func Register(root *cobra.Command) error {
+./cmd/wsm/cmds/js/root.go:9:func Register(root *cobra.Command) error {
+./cmd/wsm/cmds/registry/root.go:10:func Register(root *cobra.Command) error {
+./cmd/wsm/cmds/registry/list/root.go:9:func Register(root *cobra.Command) error {
+./pkg/wsmjs/module/module.go:8:	"github.com/dop251/goja"
+./pkg/wsmjs/module/module.go:9:	"github.com/dop251/goja_nodejs/require"
+./pkg/wsmjs/module/module.go:16:	// ModuleName is the JS module identifier used with require("wsm").
+./pkg/wsmjs/module/module.go:17:	ModuleName = "wsm"
+./pkg/wsmjs/module/module.go:28:func Register(reg *require.Registry, opts Options) {
+./pkg/wsmjs/module/module.go:33:	reg.RegisterNativeModule(ModuleName, mod.Loader)
+./pkg/wsmjs/module/module.go:41:	vm             *goja.Runtime
+./pkg/wsmjs/module/module.go:49:func (m *module) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+./pkg/wsmjs/module/module.go:51:	exports := moduleObj.Get("exports").(*goja.Object)
+./pkg/wsmjs/module/module.go:55:func (m *moduleRuntime) installExports(exports *goja.Object) {
+./pkg/wsmjs/module/module.go:64:func (m *moduleRuntime) createManager(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:66:	if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+./pkg/wsmjs/module/module.go:77:func (m *moduleRuntime) discover(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:92:func (m *moduleRuntime) createWorkspace(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:120:func (m *moduleRuntime) status(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:134:func (m *moduleRuntime) newManagerObject(manager *service.Manager) goja.Value {
+./pkg/wsmjs/module/module.go:138:	discoverFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:152:	createWorkspaceFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:178:	statusFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:191:	listWorkspacesFn := func(goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:200:	listRepositoriesFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:212:	loadWorkspaceFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:233:	infoFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:245:	addFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:265:	removeFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:285:	deleteFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:301:	forkFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:320:	mergeFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:337:	commitFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:357:	diffFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:371:	logFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:385:	branchCreateFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:402:	branchSwitchFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:418:	branchListFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:431:	rebaseRunFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:448:	rebaseStatusFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:461:	rebaseContinueFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:474:	rebaseAbortFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:538:func (m *moduleRuntime) newWorkspaceHandleObject(manager *service.Manager, workspaceName string) goja.Value {
+./pkg/wsmjs/module/module.go:542:	nameFn := func(goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:545:	pathFn := func(goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:553:	infoFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:565:	statusFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:577:	addFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:594:	removeFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:611:	deleteFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:624:	mergeFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:638:	commitFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:658:	diffFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:672:	logFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:686:	branchCreateFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:703:	branchSwitchFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:719:	branchListFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:732:	rebaseRunFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:749:	rebaseStatusFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:762:	rebaseContinueFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:775:	rebaseAbortFn := func(call goja.FunctionCall) goja.Value {
+./pkg/wsmjs/module/module.go:834:func (m *moduleRuntime) buildConstsObject() *goja.Object {
+./pkg/wsmjs/module/module.go:862:func (m *moduleRuntime) mustSet(o *goja.Object, key string, v any) {
+./pkg/wsmjs/module/module.go:868:func (m *moduleRuntime) attachRef(o *goja.Object, ref any) {
+./pkg/wsmjs/module/module.go:871:		goja.FLAG_FALSE,
+./pkg/wsmjs/module/module.go:872:		goja.FLAG_FALSE,
+./pkg/wsmjs/module/module.go:873:		goja.FLAG_FALSE,
+./pkg/wsmjs/module/module.go:877:func (m *moduleRuntime) toJSValue(v any) goja.Value {
+./pkg/wsmjs/module/module.go:879:		return goja.Null()
+./pkg/wsmjs/module/module.go:900:func decodeMapArg(call goja.FunctionCall, idx int) map[string]any {
+./pkg/wsmjs/module/module.go:905:	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+./pkg/wsmjs/module/module_test.go:7:	"github.com/dop251/goja"
+./pkg/wsmjs/module/module_test.go:8:	"github.com/dop251/goja_nodejs/require"
+./pkg/wsmjs/module/module_test.go:13:	vm := goja.New()
+./pkg/wsmjs/module/module_test.go:73:	vm := goja.New()
+./pkg/wsmjs/module/module_test.go:128:	vm := goja.New()
+./pkg/wsmjs/module/module_test.go:180:	vm := goja.New()
+./pkg/wsmjs/module/module_test.go:199:		if goja.IsUndefined(got) || goja.IsNull(got) {
+./go.sum:104:github.com/dop251/goja v0.0.0-20260226184354-913bd86fb70c h1:hIlkLbQ+tYoUqlG42LnxwGcohL5jaGqD8mGeJWavm8A=
+./go.sum:105:github.com/dop251/goja v0.0.0-20260226184354-913bd86fb70c/go.mod h1:MxLav0peU43GgvwVgNbLAj1s/bSGboKkhuULvq/7hx4=
+./go.sum:106:github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14 h1:3U8dTgyNBhEQ/GVw0jZW5q+93Zw2gAZPRWhJ9TwV3rM=
+./go.sum:107:github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14/go.mod h1:Tb7Xxye4LX7cT3i8YLvmPMGCV92IOi4CDZvm/V8ylc0=
+./pkg/wsmjs/runner/runner.go:8:	"github.com/dop251/goja"
+./pkg/wsmjs/runner/runner.go:9:	"github.com/dop251/goja_nodejs/console"
+./pkg/wsmjs/runner/runner.go:10:	"github.com/dop251/goja_nodejs/require"
+./pkg/wsmjs/runner/runner.go:27:	vm := goja.New()
+./pkg/wsmjs/runner/runner.go:37:	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
+./pkg/docs/04-architecture-overview.md:136:├── module/     goja native module (require("wsm"))
+./pkg/docs/04-architecture-overview.md:143:- **`module/module.go`** -- Registers a goja native module that maps JS calls
+./pkg/docs/04-architecture-overview.md:146:- **`runner/runner.go`** -- `RunFile()` bootstraps a goja runtime, registers
+./pkg/docs/03-js-api-and-runner.md:20:WSM includes an embedded JavaScript runtime (goja). Scripts can call workspace
+./pkg/docs/06-troubleshooting.md:237:available inside the runner's goja environment.
+./go.mod:11:	github.com/dop251/goja v0.0.0-20260226184354-913bd86fb70c
+./go.mod:12:	github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14
+
+### goja-git
+module: module github.com/go-go-golems/goja-git
+./TEST-RESULTS.md:5:This document summarizes the comprehensive test results for the git filter-repo implementation in goja-git.
+./TEST-RESULTS.md:37:ok      github.com/go-go-golems/goja-git/filterrepo     0.064s
+./TEST-RESULTS.md:77:Creating source repository at: /home/ubuntu/goja-git/test-filterrepo/src-basic
+./TEST-RESULTS.md:84:  Output dir: /home/ubuntu/goja-git/test-filterrepo/out-basic
+./TEST-RESULTS.md:104:Creating source repository at: /home/ubuntu/goja-git/test-filterrepo/src-extract
+./TEST-RESULTS.md:111:  Output dir: /home/ubuntu/goja-git/test-filterrepo/out-extract
+./TEST-RESULTS.md:135:Creating source repository at: /home/ubuntu/goja-git/test-filterrepo/src-prune
+./TEST-RESULTS.md:146:  Output dir: /home/ubuntu/goja-git/test-filterrepo/out-prune
+./TEST-RESULTS.md:172:Creating source repository at: /home/ubuntu/goja-git/test-filterrepo/src-deep
+./TEST-RESULTS.md:179:  Output dir: /home/ubuntu/goja-git/test-filterrepo/out-deep
+./TEST-RESULTS.md:206:Creating monorepo at: /home/ubuntu/goja-git/test-filterrepo/src-monorepo
+./TEST-RESULTS.md:219:  Output dir: /home/ubuntu/goja-git/test-filterrepo/out-project-a
+./scripts-filterrepo/04-deep-paths.js:7:const srcDir = "/home/ubuntu/goja-git/test-filterrepo/src-deep";
+./scripts-filterrepo/04-deep-paths.js:41:const outDir = "/home/ubuntu/goja-git/test-filterrepo/out-deep";
+./scripts-filterrepo/05-complete-workflow.js:7:const srcDir = "/home/ubuntu/goja-git/test-filterrepo/src-monorepo";
+./scripts-filterrepo/05-complete-workflow.js:69:const outDir = "/home/ubuntu/goja-git/test-filterrepo/out-project-a";
+./scripts-filterrepo/03-prune-empty.js:7:const srcDir = "/home/ubuntu/goja-git/test-filterrepo/src-prune";
+./scripts-filterrepo/03-prune-empty.js:53:const outDir = "/home/ubuntu/goja-git/test-filterrepo/out-prune";
+./scripts-filterrepo/01-basic-filter-rename.js:7:const srcDir = "/home/ubuntu/goja-git/test-filterrepo/src-basic";
+./scripts-filterrepo/01-basic-filter-rename.js:35:const outDir = "/home/ubuntu/goja-git/test-filterrepo/out-basic";
+./scripts-filterrepo/02-extract-to-root.js:7:const srcDir = "/home/ubuntu/goja-git/test-filterrepo/src-extract";
+./scripts-filterrepo/02-extract-to-root.js:35:const outDir = "/home/ubuntu/goja-git/test-filterrepo/out-extract";
+./scripts-filterrepo/setup-test-files.sh:9:mkdir -p /home/ubuntu/goja-git/test-filterrepo/src-basic/cmd/a
+./scripts-filterrepo/setup-test-files.sh:10:echo "file1 content" > /home/ubuntu/goja-git/test-filterrepo/src-basic/cmd/a/file1.txt
+./scripts-filterrepo/setup-test-files.sh:11:echo "file2 content" > /home/ubuntu/goja-git/test-filterrepo/src-basic/cmd/a/file2.txt
+./scripts-filterrepo/setup-test-files.sh:12:echo "file3 content" > /home/ubuntu/goja-git/test-filterrepo/src-basic/cmd/a/file3.txt
+./scripts-filterrepo/setup-test-files.sh:15:mkdir -p /home/ubuntu/goja-git/test-filterrepo/src-extract/cmd/a
+./scripts-filterrepo/setup-test-files.sh:16:echo "package main" > /home/ubuntu/goja-git/test-filterrepo/src-extract/cmd/a/main.go
+./scripts-filterrepo/setup-test-files.sh:17:echo "# Project A" > /home/ubuntu/goja-git/test-filterrepo/src-extract/cmd/a/README.md
+./scripts-filterrepo/setup-test-files.sh:18:echo "key: value" > /home/ubuntu/goja-git/test-filterrepo/src-extract/cmd/a/config.yaml
+./scripts-filterrepo/setup-test-files.sh:21:mkdir -p /home/ubuntu/goja-git/test-filterrepo/src-prune/other
+./scripts-filterrepo/setup-test-files.sh:22:mkdir -p /home/ubuntu/goja-git/test-filterrepo/src-prune/cmd/a
+./scripts-filterrepo/setup-test-files.sh:23:mkdir -p /home/ubuntu/goja-git/test-filterrepo/src-prune/docs
+./scripts-filterrepo/setup-test-files.sh:24:echo "other file 1" > /home/ubuntu/goja-git/test-filterrepo/src-prune/other/file1.txt
+./scripts-filterrepo/setup-test-files.sh:25:echo "other file 2" > /home/ubuntu/goja-git/test-filterrepo/src-prune/other/file2.txt
+./scripts-filterrepo/setup-test-files.sh:26:echo "package main" > /home/ubuntu/goja-git/test-filterrepo/src-prune/cmd/a/app.go
+./scripts-filterrepo/setup-test-files.sh:27:echo "package utils" > /home/ubuntu/goja-git/test-filterrepo/src-prune/cmd/a/utils.go
+./scripts-filterrepo/setup-test-files.sh:28:echo "# Documentation" > /home/ubuntu/goja-git/test-filterrepo/src-prune/docs/README.md
+./scripts-filterrepo/setup-test-files.sh:31:mkdir -p /home/ubuntu/goja-git/test-filterrepo/src-deep/pkg/api/v1/middleware
+./scripts-filterrepo/setup-test-files.sh:32:echo "package handler" > /home/ubuntu/goja-git/test-filterrepo/src-deep/pkg/api/v1/handler.go
+./scripts-filterrepo/setup-test-files.sh:33:echo "package types" > /home/ubuntu/goja-git/test-filterrepo/src-deep/pkg/api/v1/types.go
+./scripts-filterrepo/setup-test-files.sh:34:echo "package middleware" > /home/ubuntu/goja-git/test-filterrepo/src-deep/pkg/api/v1/middleware/auth.go
+./scripts-filterrepo/setup-test-files.sh:35:echo "package middleware" > /home/ubuntu/goja-git/test-filterrepo/src-deep/pkg/api/v1/middleware/logging.go
+./scripts-filterrepo/setup-test-files.sh:38:mkdir -p /home/ubuntu/goja-git/test-filterrepo/src-monorepo/projects/project-a
+./scripts-filterrepo/setup-test-files.sh:39:mkdir -p /home/ubuntu/goja-git/test-filterrepo/src-monorepo/projects/project-b
+./scripts-filterrepo/setup-test-files.sh:40:mkdir -p /home/ubuntu/goja-git/test-filterrepo/src-monorepo/docs
+./scripts-filterrepo/setup-test-files.sh:41:echo "# Monorepo" > /home/ubuntu/goja-git/test-filterrepo/src-monorepo/README.md
+./scripts-filterrepo/setup-test-files.sh:42:echo "package main" > /home/ubuntu/goja-git/test-filterrepo/src-monorepo/projects/project-a/main.go
+./scripts-filterrepo/setup-test-files.sh:43:echo "package utils" > /home/ubuntu/goja-git/test-filterrepo/src-monorepo/projects/project-a/utils.go
+./scripts-filterrepo/setup-test-files.sh:44:echo "key: value" > /home/ubuntu/goja-git/test-filterrepo/src-monorepo/projects/project-a/config.yaml
+./scripts-filterrepo/setup-test-files.sh:45:echo "package main" > /home/ubuntu/goja-git/test-filterrepo/src-monorepo/projects/project-b/main.go
+./scripts-filterrepo/setup-test-files.sh:46:echo "package server" > /home/ubuntu/goja-git/test-filterrepo/src-monorepo/projects/project-b/server.go
+./scripts-filterrepo/setup-test-files.sh:47:echo "# Architecture" > /home/ubuntu/goja-git/test-filterrepo/src-monorepo/docs/architecture.md
+./go.sum:16:github.com/dop251/goja v0.0.0-20241024094426-79f3a7efcdbd h1:QMSNEh9uQkDjyPwu/J541GgSH+4hw+0skJDIj9HJ3mE=
+./go.sum:17:github.com/dop251/goja v0.0.0-20241024094426-79f3a7efcdbd/go.mod h1:MxLav0peU43GgvwVgNbLAj1s/bSGboKkhuULvq/7hx4=
+./scripts/add-commit.js:1:const repo = git.open({ Dir: "/home/ubuntu/goja-git/test-repo" });
+./scripts/05-complete-workflow.js:8:  Dir: "/home/ubuntu/goja-git/test-repo"
+./scripts/03-log-and-history.js:7:  Dir: "/home/ubuntu/goja-git/test-repo"
+./scripts/02-branching.js:7:  Dir: "/home/ubuntu/goja-git/test-repo"
+./scripts/04-tags-and-diff.js:7:  Dir: "/home/ubuntu/goja-git/test-repo"
+./scripts/01-init-and-commit.js:9:    Dir: "/home/ubuntu/goja-git/test-repo",
+./scripts/01-init-and-commit.js:16:    Dir: "/home/ubuntu/goja-git/test-repo"
+./main.go:7:	"github.com/dop251/goja"
+./main.go:23:	rt := goja.New()
+./main.go:30:	console.Set("log", func(call goja.FunctionCall) goja.Value {
+./main.go:36:		return goja.Undefined()
+./main.go:51:	rt.Set("__internal_stringify", func(call goja.FunctionCall) goja.Value {
+./main.go:67:		if ex, ok := err.(*goja.Exception); ok {
+./gitmodule.go:9:	"github.com/dop251/goja"
+./gitmodule.go:14:	"github.com/go-go-golems/goja-git/filterrepo"
+./gitmodule.go:19:	rt *goja.Runtime
+./gitmodule.go:96:	rt   *goja.Runtime
+./gitmodule.go:101:// InstallGit installs the git module into the goja runtime
+./gitmodule.go:102:func InstallGit(rt *goja.Runtime) {
+./gitmodule.go:113:func (m *GitModule) Open(call goja.FunctionCall) goja.Value {
+./gitmodule.go:129:func (m *GitModule) Init(call goja.FunctionCall) goja.Value {
+./gitmodule.go:162:func (m *GitModule) newRepoValue(dir string, repo *git.Repository) goja.Value {
+./gitmodule.go:201:func (h *RepoHandle) Status(call goja.FunctionCall) goja.Value {
+./gitmodule.go:225:func (h *RepoHandle) Add(call goja.FunctionCall) goja.Value {
+./gitmodule.go:245:	return goja.Undefined()
+./gitmodule.go:249:func (h *RepoHandle) Commit(call goja.FunctionCall) goja.Value {
+./gitmodule.go:289:func (h *RepoHandle) Log(call goja.FunctionCall) goja.Value {
+./gitmodule.go:291:	if !goja.IsUndefined(call.Argument(0)) && !goja.IsNull(call.Argument(0)) {
+./gitmodule.go:334:func (h *RepoHandle) Checkout(call goja.FunctionCall) goja.Value {
+./gitmodule.go:357:	return goja.Undefined()
+./gitmodule.go:361:func (h *RepoHandle) Diff(call goja.FunctionCall) goja.Value {
+./gitmodule.go:436:func (h *RepoHandle) BranchList(call goja.FunctionCall) goja.Value {
+./gitmodule.go:452:func (h *RepoHandle) BranchCreate(call goja.FunctionCall) goja.Value {
+./gitmodule.go:477:	return goja.Undefined()
+./gitmodule.go:481:func (h *RepoHandle) BranchCurrent(call goja.FunctionCall) goja.Value {
+./gitmodule.go:495:func (h *RepoHandle) TagList(call goja.FunctionCall) goja.Value {
+./gitmodule.go:511:func (h *RepoHandle) TagCreate(call goja.FunctionCall) goja.Value {
+./gitmodule.go:540:func (h *RepoHandle) RefsResolve(call goja.FunctionCall) goja.Value {
+./gitmodule.go:581:// mustExport exports a goja value to a Go struct, panicking on error
+./gitmodule.go:582:func (m *GitModule) mustExport(v goja.Value, dst any) {
+./gitmodule.go:583:	if goja.IsUndefined(v) || goja.IsNull(v) {
+./gitmodule.go:592:// mustExport exports a goja value to a Go struct, panicking on error
+./gitmodule.go:593:func (h *RepoHandle) mustExport(v goja.Value, dst any) {
+./gitmodule.go:594:	if goja.IsUndefined(v) || goja.IsNull(v) {
+./gitmodule.go:604:func (h *RepoHandle) FilterRepo(call goja.FunctionCall) goja.Value {
+./README.md:3:A JavaScript wrapper for Git operations using [goja](https://github.com/dop251/goja) (Go JavaScript VM) and [go-git](https://github.com/go-git/go-git).
+./README.md:29:go build -o goja-git .
+./README.md:37:./goja-git <script.js>
+./README.md:220:./goja-git scripts/01-init-and-commit.js
+./README.md:223:./goja-git scripts/02-branching.js
+./README.md:226:./goja-git scripts/03-log-and-history.js
+./README.md:229:./goja-git scripts/04-tags-and-diff.js
+./README.md:232:./goja-git scripts/05-complete-workflow.js
+./README.md:239:The JavaScript API uses **capitalized property names** (e.g., `Dir`, `Message`, `Name`) to match Go struct field names. This is a requirement of goja's `ExportTo` function, which performs exact case-sensitive matching.
+./README.md:280:- **goja** - ECMAScript 5.1+ implementation in Go
+./README.md:313:./goja-git scripts-filterrepo/01-basic-filter-rename.js
+./README.md:314:./goja-git scripts-filterrepo/02-extract-to-root.js
+./README.md:315:./goja-git scripts-filterrepo/03-prune-empty.js
+./README.md:316:./goja-git scripts-filterrepo/04-deep-paths.js
+./README.md:317:./goja-git scripts-filterrepo/05-complete-workflow.js
+./README.md:346:- [goja](https://github.com/dop251/goja) - ECMAScript 5.1+ implementation in Go
+./go.mod:1:module github.com/go-go-golems/goja-git
+./go.mod:12:	github.com/dop251/goja v0.0.0-20241024094426-79f3a7efcdbd // indirect
+
+### go-minitrace
+module: module github.com/go-go-golems/go-minitrace
+./cmd/go-minitrace/cmds/query/js_runtime.go:11:	"github.com/dop251/goja"
+./cmd/go-minitrace/cmds/query/js_runtime.go:12:	noderequire "github.com/dop251/goja_nodejs/require"
+./cmd/go-minitrace/cmds/query/js_runtime.go:18:	gggengine "github.com/go-go-golems/go-go-goja/engine"
+./cmd/go-minitrace/cmds/query/js_runtime.go:19:	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+./cmd/go-minitrace/cmds/query/js_runtime.go:37:	if strings.TrimSpace(command.JS.OutputMode) == jsverbs.OutputModeText {
+./cmd/go-minitrace/cmds/query/js_runtime.go:48:	registry, err := jsverbs.ScanFS(root.FS, root.RootDir)
+./cmd/go-minitrace/cmds/query/js_runtime.go:65:			gggengine.NativeModuleSpec{
+./cmd/go-minitrace/cmds/query/js_runtime.go:67:				ModuleName: "minitrace",
+./cmd/go-minitrace/cmds/query/js_runtime.go:68:				Loader:     minitraceModuleLoader(ctx, conn, command, runtimeSettings),
+./cmd/go-minitrace/cmds/query/js_runtime.go:88:func findRegistryVerb(registry *jsverbs.Registry, command *minitracecmd.MinitraceCommand) (*jsverbs.VerbSpec, error) {
+./cmd/go-minitrace/cmds/query/js_runtime.go:151:func minitraceModuleLoader(
+./cmd/go-minitrace/cmds/query/js_runtime.go:156:) noderequire.ModuleLoader {
+./cmd/go-minitrace/cmds/query/js_runtime.go:157:	return func(vm *goja.Runtime, moduleObj *goja.Object) {
+./cmd/go-minitrace/cmds/query/js_runtime.go:158:		exports := moduleObj.Get("exports").(*goja.Object)
+./go.mod:9:	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
+./go.mod:10:	github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14
+./go.mod:14:	github.com/go-go-golems/go-go-goja v0.4.15
+./pkg/doc/js-api-reference.md:11:- goja
+./pkg/doc/js-api-reference.md:161:DuckDB access from go-go-goja. Registered in the default module set.
+./pkg/doc/js-api-reference.md:216:These modules are registered by go-go-goja's default registry but are less commonly needed in command handlers:
+./go.sum:102:github.com/dop251/goja v0.0.0-20260311135729-065cd970411c h1:OcLmPfx1T1RmZVHHFwWMPaZDdRf0DBMZOFMVWJa7Pdk=
+./go.sum:103:github.com/dop251/goja v0.0.0-20260311135729-065cd970411c/go.mod h1:MxLav0peU43GgvwVgNbLAj1s/bSGboKkhuULvq/7hx4=
+./go.sum:104:github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14 h1:3U8dTgyNBhEQ/GVw0jZW5q+93Zw2gAZPRWhJ9TwV3rM=
+./go.sum:105:github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14/go.mod h1:Tb7Xxye4LX7cT3i8YLvmPMGCV92IOi4CDZvm/V8ylc0=
+./go.sum:131:github.com/go-go-golems/go-go-goja v0.4.15 h1:0PNFBk4yRpfvi3o/cP5ciduyJGB3b52EINGTpBcgOYg=
+./go.sum:132:github.com/go-go-golems/go-go-goja v0.4.15/go.mod h1:mnEFH70HM3+JROMsBSBNTV8REF0K4YSYes6d0NS900o=
+./pkg/minitracecmd/types.go:9:	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+./pkg/minitracecmd/types.go:127:			case "", jsverbs.OutputModeGlaze, jsverbs.OutputModeText:
+./pkg/minitracecmd/parse_javascript.go:10:	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+./pkg/minitracecmd/parse_javascript.go:19:	registry, err := jsverbs.ScanSources([]jsverbs.SourceFile{{
+./pkg/minitracecmd/parse_javascript.go:32:	nonNilVerbs := make([]*jsverbs.VerbSpec, 0, len(verbs))
+./web/src/mocks/data.ts:130:      "Create a new ticket to add hashicorp plugin support to go-go-goja, so that we can register plugins into a runtime",
+./web/src/mocks/data.ts:144:      working_directory: "~/workspaces/2026-03-18/add-goja-plugins",
+
+### loupedeck
+module: module github.com/go-go-golems/loupedeck
+./cmd/loupedeck/cmds/verbs/bootstrap.go:12:	"github.com/dop251/goja_nodejs/require"
+./cmd/loupedeck/cmds/verbs/bootstrap.go:14:	"github.com/go-go-golems/go-go-goja/engine"
+./cmd/loupedeck/cmds/verbs/bootstrap.go:15:	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+./cmd/loupedeck/cmds/verbs/bootstrap.go:42:	Registry   *jsverbs.Registry
+./cmd/loupedeck/cmds/verbs/bootstrap.go:47:	Verb       *jsverbs.VerbSpec
+./cmd/loupedeck/cmds/verbs/bootstrap.go:312:	opts := jsverbs.DefaultScanOptions()
+./cmd/loupedeck/cmds/verbs/bootstrap.go:318:			registry *jsverbs.Registry
+./cmd/loupedeck/cmds/verbs/bootstrap.go:322:			registry, err = jsverbs.ScanFS(repo.EmbeddedFS, repo.EmbeddedAt, opts)
+./cmd/loupedeck/cmds/verbs/bootstrap.go:324:			registry, err = jsverbs.ScanDir(repo.RootDir, opts)
+./cmd/loupedeck/cmds/verbs/command.go:18:	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+./cmd/loupedeck/cmds/verbs/command.go:23:type invokerFactory func(repo scannedRepository, verb *jsverbs.VerbSpec, verbDescription *cmds.CommandDescription) jsverbs.VerbInvoker
+./cmd/loupedeck/cmds/verbs/command.go:221:func liveSceneInvokerFactory(repo scannedRepository, verb *jsverbs.VerbSpec, verbDescription *cmds.CommandDescription) jsverbs.VerbInvoker {
+./cmd/loupedeck/cmds/verbs/command.go:224:	return func(ctx context.Context, _ *jsverbs.Registry, _ *jsverbs.VerbSpec, parsedValues *values.Values) (interface{}, error) {
+./cmd/loupedeck/cmds/verbs/command.go:252:	case jsverbs.OutputModeText:
+./cmd/loupedeck/cmds/verbs/command.go:285:func verbSourceLabel(repo scannedRepository, verb *jsverbs.VerbSpec) string {
+./cmd/loupedeck/cmds/verbs/command_test.go:13:	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+./cmd/loupedeck/cmds/verbs/command_test.go:97:	commands, err := buildCommands(discovered, func(repo scannedRepository, verb *jsverbs.VerbSpec, _ *cmds.CommandDescription) jsverbs.VerbInvoker {
+./cmd/loupedeck/cmds/verbs/command_test.go:98:		return func(ctx context.Context, _ *jsverbs.Registry, _ *jsverbs.VerbSpec, parsedValues *values.Values) (interface{}, error) {
+./cmd/loupedeck/cmds/verbs/command_test.go:156:	root, err := newCommandWithInvokerFactory(mustBootstrap(t), func(_ scannedRepository, _ *jsverbs.VerbSpec, _ *cmds.CommandDescription) jsverbs.VerbInvoker {
+./cmd/loupedeck/cmds/verbs/command_test.go:157:		return func(ctx context.Context, _ *jsverbs.Registry, _ *jsverbs.VerbSpec, _ *values.Values) (interface{}, error) {
+./cmd/loupedeck/cmds/verbs/bootstrap_test.go:11:	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+./cmd/loupedeck/cmds/verbs/bootstrap_test.go:105:	opts := jsverbs.DefaultScanOptions()
+./cmd/loupedeck/cmds/verbs/bootstrap_test.go:108:	registry, err := jsverbs.ScanFS(examples.ScriptsFS, "js", opts)
+./cmd/loupedeck/cmds/run/command.go:13:	"github.com/go-go-golems/go-go-goja/engine"
+./cmd/loupedeck/cmds/run/session.go:21:	"github.com/go-go-golems/go-go-goja/engine"
+./cmd/loupedeck/cmds/run/session.go:22:	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+./cmd/loupedeck/cmds/run/session.go:151:func RunAnnotatedVerbScene(ctx context.Context, identity SceneIdentity, opts SessionOptions, runtimeOptions []engine.Option, registry *jsverbs.Registry, verb *jsverbs.VerbSpec, parsedValues *values.Values) (any, error) {
+./Makefile:64:	GOWORK=off go get github.com/go-go-golems/go-go-goja@latest
+./pkg/scriptmeta/scriptmeta.go:13:	"github.com/dop251/goja_nodejs/require"
+./pkg/scriptmeta/scriptmeta.go:17:	"github.com/go-go-golems/go-go-goja/engine"
+./pkg/scriptmeta/scriptmeta.go:18:	"github.com/go-go-golems/go-go-goja/pkg/jsdoc/batch"
+./pkg/scriptmeta/scriptmeta.go:19:	jsdocexport "github.com/go-go-golems/go-go-goja/pkg/jsdoc/export"
+./pkg/scriptmeta/scriptmeta.go:20:	jsdocmodel "github.com/go-go-golems/go-go-goja/pkg/jsdoc/model"
+./pkg/scriptmeta/scriptmeta.go:21:	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+./pkg/scriptmeta/scriptmeta.go:87:func ScanVerbRegistry(path string) (*Target, *jsverbs.Registry, error) {
+./pkg/scriptmeta/scriptmeta.go:92:	opts := jsverbs.DefaultScanOptions()
+./pkg/scriptmeta/scriptmeta.go:94:	registry, err := jsverbs.ScanDir(target.RootDir, opts)
+./pkg/scriptmeta/scriptmeta.go:101:func EntryVerbs(target *Target, registry *jsverbs.Registry) []*jsverbs.VerbSpec {
+./pkg/scriptmeta/scriptmeta.go:105:	ret := []*jsverbs.VerbSpec{}
+./pkg/scriptmeta/scriptmeta.go:117:func FindVerb(target *Target, registry *jsverbs.Registry, selector string) (*jsverbs.VerbSpec, error) {
+./pkg/scriptmeta/scriptmeta.go:129:		matches := []*jsverbs.VerbSpec{}
+./pkg/scriptmeta/scriptmeta.go:152:		return nil, fmt.Errorf("no explicit jsverbs found for %s", target.Path)
+./pkg/scriptmeta/scriptmeta.go:162:func EngineOptionsForTarget(target *Target, registry *jsverbs.Registry) ([]engine.Option, error) {
+./docs/help/topics/01-loupedeck-js-api-reference.md:4:Short: Reference for the currently implemented goja modules, retained UI primitives, animation helpers, and live-runner behavior.
+./docs/help/topics/01-loupedeck-js-api-reference.md:8:- goja
+./docs/help/topics/01-loupedeck-js-api-reference.md:35:The current JS layer runs inside a goja VM that is owned by an explicit runtime-owner abstraction. Hardware events, animation callbacks, and reactive closures are all serialized back onto that owner thread before they execute JavaScript.
+./docs/help/topics/01-loupedeck-js-api-reference.md:41:-> goja runtime
+./go.mod:8:	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
+./go.mod:9:	github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14
+./go.mod:11:	github.com/go-go-golems/go-go-goja v0.4.14
+./pkg/jsmetrics/jsmetrics.go:8:	"github.com/dop251/goja"
+./pkg/jsmetrics/jsmetrics.go:9:	"github.com/dop251/goja_nodejs/require"
+./pkg/jsmetrics/jsmetrics.go:14:func Lookup(vm *goja.Runtime) (*metrics.Collector, bool) {
+./pkg/jsmetrics/jsmetrics.go:22:func RegisterModules(registry *require.Registry, prefix string) {
+./pkg/jsmetrics/jsmetrics.go:27:func RegisterLowLevelModuleAs(registry *require.Registry, name string) {
+./pkg/jsmetrics/jsmetrics.go:28:	registry.RegisterNativeModule(name, func(runtime *goja.Runtime, module *goja.Object) {
+./pkg/jsmetrics/jsmetrics.go:33:		exports := module.Get("exports").(*goja.Object)
+./pkg/jsmetrics/jsmetrics.go:34:		_ = exports.Set("now", func(goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:37:		_ = exports.Set("inc", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:40:			if arg := call.Argument(1); !goja.IsUndefined(arg) && !goja.IsNull(arg) {
+./pkg/jsmetrics/jsmetrics.go:44:			return goja.Undefined()
+./pkg/jsmetrics/jsmetrics.go:46:		_ = exports.Set("observeMillis", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:48:			return goja.Undefined()
+./pkg/jsmetrics/jsmetrics.go:50:		_ = exports.Set("trace", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:52:			return goja.Undefined()
+./pkg/jsmetrics/jsmetrics.go:54:		_ = exports.Set("time", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:56:			fn, ok := goja.AssertFunction(call.Argument(1))
+./pkg/jsmetrics/jsmetrics.go:61:			result, err := fn(goja.Undefined())
+./pkg/jsmetrics/jsmetrics.go:68:		_ = exports.Set("counted", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:70:			fn, ok := goja.AssertFunction(call.Argument(1))
+./pkg/jsmetrics/jsmetrics.go:75:			result, err := fn(goja.Undefined())
+./pkg/jsmetrics/jsmetrics.go:84:func RegisterSceneModuleAs(registry *require.Registry, name string) {
+./pkg/jsmetrics/jsmetrics.go:85:	registry.RegisterNativeModule(name, func(runtime *goja.Runtime, module *goja.Object) {
+./pkg/jsmetrics/jsmetrics.go:90:		exports := module.Get("exports").(*goja.Object)
+./pkg/jsmetrics/jsmetrics.go:91:		_ = exports.Set("reasonCategory", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:94:		_ = exports.Set("create", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:104:func helperObject(runtime *goja.Runtime, collector *metrics.Collector, prefix string) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:112:	_ = obj.Set("prefix", func(goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:115:	_ = obj.Set("reasonCategory", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:118:	_ = obj.Set("inc", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:121:		if arg := call.Argument(1); !goja.IsUndefined(arg) && !goja.IsNull(arg) {
+./pkg/jsmetrics/jsmetrics.go:125:		return goja.Undefined()
+./pkg/jsmetrics/jsmetrics.go:127:	_ = obj.Set("observeMillis", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:129:		return goja.Undefined()
+./pkg/jsmetrics/jsmetrics.go:131:	_ = obj.Set("trace", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:133:		return goja.Undefined()
+./pkg/jsmetrics/jsmetrics.go:135:	_ = obj.Set("time", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:137:		fn, ok := goja.AssertFunction(call.Argument(1))
+./pkg/jsmetrics/jsmetrics.go:142:		result, err := fn(goja.Undefined())
+./pkg/jsmetrics/jsmetrics.go:149:	_ = obj.Set("timeTile", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:151:		fn, ok := goja.AssertFunction(call.Argument(1))
+./pkg/jsmetrics/jsmetrics.go:156:		result, err := fn(goja.Undefined())
+./pkg/jsmetrics/jsmetrics.go:163:	_ = obj.Set("recordLoopTick", func(goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:165:		return goja.Undefined()
+./pkg/jsmetrics/jsmetrics.go:167:	_ = obj.Set("recordActivation", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:172:		return goja.Undefined()
+./pkg/jsmetrics/jsmetrics.go:174:	_ = obj.Set("recordRebuild", func(call goja.FunctionCall) goja.Value {
+./pkg/jsmetrics/jsmetrics.go:184:		if goja.IsUndefined(arg) || goja.IsNull(arg) {
+./pkg/jsmetrics/jsmetrics.go:185:			return goja.Undefined()
+./pkg/jsmetrics/jsmetrics.go:187:		fn, ok := goja.AssertFunction(arg)
+./pkg/jsmetrics/jsmetrics.go:192:		result, err := fn(goja.Undefined())
+./pkg/jsmetrics/jsmetrics.go:202:func fieldsFromArg(runtime *goja.Runtime, value goja.Value) map[string]string {
+./pkg/jsmetrics/jsmetrics.go:203:	if goja.IsUndefined(value) || goja.IsNull(value) {
+./pkg/jsmetrics/jsmetrics.go:218:		case goja.IsUndefined(v):
+./pkg/jsmetrics/jsmetrics.go:220:		case goja.IsNull(v):
+./docs/help/topics/03-annotated-scene-scripts-and-jsverbs.md:2:Title: Annotated scene scripts with jsverbs and jsdoc
+./docs/help/topics/03-annotated-scene-scripts-and-jsverbs.md:3:Slug: loupedeck-jsverbs-scenes
+./docs/help/topics/03-annotated-scene-scripts-and-jsverbs.md:8:- goja
+./docs/help/topics/03-annotated-scene-scripts-and-jsverbs.md:43:Use `verbs` when the script declares explicit jsverbs metadata:
+./docs/help/topics/03-annotated-scene-scripts-and-jsverbs.md:166:The generated command help comes from jsverbs metadata, while the session/device flags come from loupedeck. Runtime commands now default to `--duration 0s`, meaning they keep running until interrupted unless you opt into a timeout:
+./go.sum:82:github.com/dop251/goja v0.0.0-20260311135729-065cd970411c h1:OcLmPfx1T1RmZVHHFwWMPaZDdRf0DBMZOFMVWJa7Pdk=
+./go.sum:83:github.com/dop251/goja v0.0.0-20260311135729-065cd970411c/go.mod h1:MxLav0peU43GgvwVgNbLAj1s/bSGboKkhuULvq/7hx4=
+./go.sum:84:github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14 h1:3U8dTgyNBhEQ/GVw0jZW5q+93Zw2gAZPRWhJ9TwV3rM=
+./go.sum:85:github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14/go.mod h1:Tb7Xxye4LX7cT3i8YLvmPMGCV92IOi4CDZvm/V8ylc0=
+./go.sum:95:github.com/go-go-golems/go-go-goja v0.4.14 h1:2RjHAGkvD3Z1Er28Vsn2octaBcg+gSifXIDadou/v5E=
+./go.sum:96:github.com/go-go-golems/go-go-goja v0.4.14/go.mod h1:imhQlDCN4O6jUH/rnExpblrfyzOzAIgA3axgp3l+Q7I=
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:3:Slug: reusable-goja-js-metrics-subpackage
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:4:Short: Use the extracted `pkg/jsmetrics` and `runtime/metrics` packages to add reusable counters and timings to a goja runtime, including scene-oriented helpers and prefix-based module registration.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:6:- goja
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:26:The reusable JavaScript metrics stack in this repository is now split into two layers on purpose. `runtime/metrics` is the generic in-process collector for counters and timing windows. `pkg/jsmetrics` is the goja-facing bridge that looks up a collector through `runtimebridge`, registers native modules, and exposes both a low-level `metrics` API and a higher-level `scene-metrics` helper API. This split matters because it keeps the instrumentation substrate portable: the current Loupedeck runtime registers these modules under the `loupedeck/...` prefix, but the underlying implementation is no longer conceptually owned by the Loupedeck environment and is intended to be movable into `go-go-goja` later.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:30:Adding counters and timings directly to one application runtime is easy. Reusing them across multiple goja hosts is harder unless the implementation is deliberate about boundaries. The main problem is that app-specific module code tends to accidentally depend on app-specific environment objects, which makes later extraction painful.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:35:- `pkg/jsmetrics` exposes that collector to JavaScript through `runtimebridge`.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:38:That architecture is what makes the package reusable in future goja runtimes, including a later move into `go-go-goja`.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:45:- `pkg/jsmetrics/jsmetrics.go` — generic goja/runtimebridge integration and module registration
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:68:This layer does not know anything about goja, module names, or application semantics. It is just a concurrency-safe place to accumulate observations.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:72:`pkg/jsmetrics` uses a runtime-scoped VM lookup to find a collector from a running goja VM.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:74:In the current Loupedeck runtime, that lookup goes through the VM's `LoupeDeckEnvironment` rather than a collector-specific key in `runtimebridge.Values`.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:76:This package is still reusable, but the current Loupedeck runtime now resolves the collector through the VM's environment lookup instead of storing a second copy inside `runtimebridge.Values`.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:251:## Integrating it into your own goja runtime
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:253:The easiest way to reuse this package in another goja setup is to follow the same shape as the current Loupedeck runtime.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:268:registry := new(require.Registry)
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:317:vm := goja.New()
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:321:registry := new(require.Registry)
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:326:owner := runtimeowner.NewRunner(vm, loop, runtimeowner.Options{Name: "myapp-runtime"})
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:335:_, err := owner.Call(ctx, "vm.run", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:353:The important lesson is not the exact logging output. The important lesson is that the metrics module only needs a collector bound through `runtimebridge`, so it can travel with any owner-thread goja runtime.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:389:- narrow goja-native module exposure
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:398:That narrowness is a feature. It makes the package easy to carry into other goja runtimes without dragging in a large policy surface.
+./docs/help/topics/02-reusable-goja-js-metrics-subpackage.md:414:- `pkg/jsmetrics/jsmetrics.go` — Source of truth for the reusable goja binding and module registration logic
+./README.md:147:The repo includes Glazed-formatted help pages for the current goja-based Loupedeck runtime under:
+./README.md:151:- `docs/help/topics/02-reusable-goja-js-metrics-subpackage.md` — guide to the reusable JS metrics collector/binding packages and how to embed them into your own goja runtime
+./docs/help/tutorials/01-build-your-first-live-loupedeck-js-script.md:4:Short: Build and run a small reactive script on a real Loupedeck Live with the current goja-based runtime.
+./docs/help/tutorials/01-build-your-first-live-loupedeck-js-script.md:8:- goja
+./docs/help/tutorials/01-build-your-first-live-loupedeck-js-script.md:112:The live hardware entry point is now `cmd/loupedeck`, with the hardware runner exposed as the `run` subcommand. It loads the script into the owned goja runtime, attaches the host runtime to the deck, and flushes retained UI to the main display on a timer.
+./docs/help/tutorials/01-build-your-first-live-loupedeck-js-script.md:201:-> owned goja runtime
+./docs/help/tutorials/01-build-your-first-live-loupedeck-js-script.md:265:- the goja VM is treated as **single-threaded** and all callbacks are serialized through the owner runner
+./runtime/js/module_metrics/module.go:4:	"github.com/dop251/goja_nodejs/require"
+./runtime/js/module_metrics/module.go:8:const ModuleName = "loupedeck/metrics"
+./runtime/js/module_metrics/module.go:10:func Register(registry *require.Registry) {
+./runtime/js/module_metrics/module.go:11:	jsmetrics.RegisterLowLevelModuleAs(registry, ModuleName)
+./runtime/js/jsverbs_integration_test.go:59:	_, err = rt.RunString(context.Background(), `globalThis.__jsverbsStillAlive = 42;`)
+./runtime/js/module_anim/module.go:9:	"github.com/dop251/goja"
+./runtime/js/module_anim/module.go:10:	"github.com/dop251/goja_nodejs/require"
+./runtime/js/module_anim/module.go:11:	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
+./runtime/js/module_anim/module.go:12:	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
+./runtime/js/module_anim/module.go:17:const ModuleName = "loupedeck/anim"
+./runtime/js/module_anim/module.go:19:func Register(registry *require.Registry) {
+./runtime/js/module_anim/module.go:20:	registry.RegisterNativeModule(ModuleName, func(runtime *goja.Runtime, module *goja.Object) {
+./runtime/js/module_anim/module.go:21:		bindings, ok := runtimebridge.Lookup(runtime)
+./runtime/js/module_anim/module.go:29:		exports := module.Get("exports").(*goja.Object)
+./runtime/js/module_anim/module.go:30:		_ = exports.Set("to", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_anim/module.go:31:			ownerCtx := runtimeowner.OwnerContext(bindings.Owner, bindings.Context)
+./runtime/js/module_anim/module.go:39:		_ = exports.Set("loop", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_anim/module.go:41:			fn, ok := goja.AssertFunction(call.Argument(1))
+./runtime/js/module_anim/module.go:46:				_ = bindings.Owner.Post(bindings.Context, "anim.loop.callback", func(_ context.Context, vm *goja.Runtime) {
+./runtime/js/module_anim/module.go:47:					_, err := fn(goja.Undefined(), vm.ToValue(v))
+./runtime/js/module_anim/module.go:55:		_ = exports.Set("timeline", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_anim/module.go:58:			_ = obj.Set("to", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_anim/module.go:59:				ownerCtx := runtimeowner.OwnerContext(bindings.Owner, bindings.Context)
+./runtime/js/module_anim/module.go:67:			_ = obj.Set("play", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_anim/module.go:75:func numericTarget(bindings runtimebridge.Bindings, ownerCtx context.Context, runtime *goja.Runtime, value goja.Value) (func() float64, func(float64)) {
+./runtime/js/module_anim/module.go:77:	getValue, ok := goja.AssertFunction(obj.Get("get"))
+./runtime/js/module_anim/module.go:81:	setValue, ok := goja.AssertFunction(obj.Get("set"))
+./runtime/js/module_anim/module.go:86:		result, err := bindings.Owner.Call(ownerCtx, "anim.target.get", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_anim/module.go:99:		_, err := bindings.Owner.Call(ownerCtx, "anim.target.set", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_anim/module.go:104:			if errors.Is(err, runtimeowner.ErrClosed) || errors.Is(err, runtimeowner.ErrScheduleRejected) || errors.Is(err, runtimeowner.ErrCanceled) {
+./runtime/js/module_anim/module.go:113:func easingFromArg(bindings runtimebridge.Bindings, ownerCtx context.Context, runtime *goja.Runtime, value goja.Value) easing.Func {
+./runtime/js/module_anim/module.go:114:	if goja.IsUndefined(value) || goja.IsNull(value) {
+./runtime/js/module_anim/module.go:117:	fn, ok := goja.AssertFunction(value)
+./runtime/js/module_anim/module.go:122:		result, err := bindings.Owner.Call(ownerCtx, "anim.easing", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_anim/module.go:123:			result, err := fn(goja.Undefined(), vm.ToValue(t))
+./runtime/js/module_anim/module.go:136:func handleObject(runtime *goja.Runtime, handle interface{ Stop() }) goja.Value {
+./runtime/js/module_anim/module.go:138:	_ = obj.Set("stop", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_anim/module.go:140:		return goja.Undefined()
+./runtime/js/module_easing/module.go:4:	"github.com/dop251/goja"
+./runtime/js/module_easing/module.go:5:	"github.com/dop251/goja_nodejs/require"
+./runtime/js/module_easing/module.go:9:const ModuleName = "loupedeck/easing"
+./runtime/js/module_easing/module.go:11:func Register(registry *require.Registry) {
+./runtime/js/module_easing/module.go:12:	registry.RegisterNativeModule(ModuleName, func(runtime *goja.Runtime, module *goja.Object) {
+./runtime/js/module_easing/module.go:13:		exports := module.Get("exports").(*goja.Object)
+./runtime/js/module_easing/module.go:18:		_ = exports.Set("steps", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_easing/module.go:24:func easingFunc(runtime *goja.Runtime, fn easing.Func) func(goja.FunctionCall) goja.Value {
+./runtime/js/module_easing/module.go:25:	return func(call goja.FunctionCall) goja.Value {
+./runtime/js/runtime.go:7:	"github.com/dop251/goja"
+./runtime/js/runtime.go:8:	"github.com/go-go-golems/go-go-goja/engine"
+./runtime/js/runtime.go:20:		WithRuntimeModuleRegistrars(NewRegistrar(env))
+./runtime/js/runtime.go:40:func (r *Runtime) RunString(ctx context.Context, src string) (goja.Value, error) {
+./runtime/js/runtime.go:44:	result, err := r.Owner.Call(ctx, "vm.run-string", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/runtime.go:51:		return goja.Undefined(), nil
+./runtime/js/runtime.go:53:	if value, ok := result.(goja.Value); ok {
+./runtime/js/runtime_test.go:13:	"github.com/dop251/goja"
+./runtime/js/runtime_test.go:14:	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
+./runtime/js/runtime_test.go:76:	bindings, ok := runtimebridge.Lookup(rt.VM)
+./runtime/js/runtime_test.go:282:	stop, ok := goja.AssertFunction(loopHandle.Get("stop"))
+./runtime/js/runtime_test.go:319:	at, ok := goja.AssertFunction(base.Get("at"))
+./runtime/js/runtime_test.go:330:	widthFn, ok := goja.AssertFunction(base.Get("width"))
+./runtime/js/runtime_test.go:365:	pathFn, ok := goja.AssertFunction(fontObj.Get("path"))
+./runtime/js/runtime_test.go:747:	if _, ok := runtimebridge.Lookup(rt.VM); !ok {
+./runtime/js/runtime_test.go:753:	if _, ok := runtimebridge.Lookup(rt.VM); ok {
+./runtime/js/registrar.go:7:	"github.com/dop251/goja"
+./runtime/js/registrar.go:8:	"github.com/dop251/goja_nodejs/require"
+./runtime/js/registrar.go:9:	"github.com/go-go-golems/go-go-goja/engine"
+./runtime/js/registrar.go:32:func (r Registrar) RegisterRuntimeModules(ctx *engine.RuntimeModuleContext, reg *require.Registry) error {
+./runtime/js/registrar.go:62:func installMetadataSentinels(vm *goja.Runtime) error {
+./runtime/js/registrar.go:67:		if err := vm.Set(name, func(goja.FunctionCall) goja.Value { return goja.Undefined() }); err != nil {
+./runtime/js/registrar.go:71:	return vm.Set("doc", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_state/module.go:7:	"github.com/dop251/goja"
+./runtime/js/module_state/module.go:8:	"github.com/dop251/goja_nodejs/require"
+./runtime/js/module_state/module.go:9:	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
+./runtime/js/module_state/module.go:10:	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
+./runtime/js/module_state/module.go:15:const ModuleName = "loupedeck/state"
+./runtime/js/module_state/module.go:17:func Register(registry *require.Registry) {
+./runtime/js/module_state/module.go:18:	registry.RegisterNativeModule(ModuleName, func(runtime *goja.Runtime, module *goja.Object) {
+./runtime/js/module_state/module.go:19:		bindings, ok := runtimebridge.Lookup(runtime)
+./runtime/js/module_state/module.go:27:		ownerCtx := runtimeowner.OwnerContext(bindings.Owner, bindings.Context)
+./runtime/js/module_state/module.go:28:		exports := module.Get("exports").(*goja.Object)
+./runtime/js/module_state/module.go:29:		_ = exports.Set("signal", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_state/module.go:34:		_ = exports.Set("computed", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_state/module.go:35:			fn, ok := goja.AssertFunction(call.Argument(0))
+./runtime/js/module_state/module.go:40:				result, err := bindings.Owner.Call(ownerCtx, "state.computed", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_state/module.go:41:					value, err := fn(goja.Undefined())
+./runtime/js/module_state/module.go:53:			_ = obj.Set("get", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_state/module.go:58:		_ = exports.Set("batch", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_state/module.go:59:			fn, ok := goja.AssertFunction(call.Argument(0))
+./runtime/js/module_state/module.go:64:				_, err := bindings.Owner.Call(ownerCtx, "state.batch", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_state/module.go:65:					_, err := fn(goja.Undefined())
+./runtime/js/module_state/module.go:72:			return goja.Undefined()
+./runtime/js/module_state/module.go:74:		_ = exports.Set("watch", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_state/module.go:75:			fn, ok := goja.AssertFunction(call.Argument(0))
+./runtime/js/module_state/module.go:80:				_, err := bindings.Owner.Call(ownerCtx, "state.watch", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_state/module.go:81:					_, err := fn(goja.Undefined())
+./runtime/js/module_state/module.go:89:			_ = obj.Set("stop", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_state/module.go:91:				return goja.Undefined()
+./runtime/js/module_state/module.go:98:func signalObject(bindings runtimebridge.Bindings, ownerCtx context.Context, runtime *goja.Runtime, sig *reactive.Signal[any]) goja.Value {
+./runtime/js/module_state/module.go:100:	_ = obj.Set("get", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_state/module.go:103:	_ = obj.Set("set", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_state/module.go:105:		return goja.Undefined()
+./runtime/js/module_state/module.go:107:	_ = obj.Set("update", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_state/module.go:108:		fn, ok := goja.AssertFunction(call.Argument(0))
+./runtime/js/module_state/module.go:113:			result, err := bindings.Owner.Call(ownerCtx, "signal.update", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_state/module.go:114:				value, err := fn(goja.Undefined(), vm.ToValue(current))
+./runtime/js/module_state/module.go:125:		return goja.Undefined()
+./runtime/js/module_state/module.go:130:func exportValue(value goja.Value) any {
+./runtime/js/module_state/module.go:131:	if goja.IsUndefined(value) || goja.IsNull(value) {
+./runtime/js/module_gfx/module.go:4:	"github.com/dop251/goja"
+./runtime/js/module_gfx/module.go:5:	"github.com/dop251/goja_nodejs/require"
+./runtime/js/module_gfx/module.go:11:const ModuleName = "loupedeck/gfx"
+./runtime/js/module_gfx/module.go:13:func Register(registry *require.Registry) {
+./runtime/js/module_gfx/module.go:14:	registry.RegisterNativeModule(ModuleName, func(runtime *goja.Runtime, module *goja.Object) {
+./runtime/js/module_gfx/module.go:15:		exports := module.Get("exports").(*goja.Object)
+./runtime/js/module_gfx/module.go:16:		_ = exports.Set("surface", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:22:		_ = exports.Set("font", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:33:func fontObject(runtime *goja.Runtime, loaded *gfx.LoadedFont) goja.Value {
+./runtime/js/module_gfx/module.go:36:	_ = obj.Set("path", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:39:	_ = obj.Set("size", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:45:func LoadedFontFromValue(value goja.Value, runtime *goja.Runtime) *gfx.LoadedFont {
+./runtime/js/module_gfx/module.go:55:func fontOptionsFromValue(runtime *goja.Runtime, value goja.Value) gfx.FontOptions {
+./runtime/js/module_gfx/module.go:56:	if goja.IsUndefined(value) || goja.IsNull(value) {
+./runtime/js/module_gfx/module.go:68:func textFaceFromValue(runtime *goja.Runtime, value goja.Value) gfx.TextOptions {
+./runtime/js/module_gfx/module.go:69:	if goja.IsUndefined(value) || goja.IsNull(value) {
+./runtime/js/module_gfx/module.go:75:	if fontValue != nil && !goja.IsUndefined(fontValue) && !goja.IsNull(fontValue) {
+./runtime/js/module_gfx/module.go:84:func surfaceObject(runtime *goja.Runtime, surface *gfx.Surface) goja.Value {
+./runtime/js/module_gfx/module.go:86:	_ = obj.Set("width", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:89:	_ = obj.Set("height", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:92:	_ = obj.Set("clear", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:94:		return goja.Undefined()
+./runtime/js/module_gfx/module.go:96:	_ = obj.Set("batch", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:97:		fn, ok := goja.AssertFunction(call.Argument(0))
+./runtime/js/module_gfx/module.go:103:			_, callbackErr = fn(goja.Undefined())
+./runtime/js/module_gfx/module.go:108:		return goja.Undefined()
+./runtime/js/module_gfx/module.go:110:	_ = obj.Set("set", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:116:		return goja.Undefined()
+./runtime/js/module_gfx/module.go:118:	_ = obj.Set("add", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:124:		return goja.Undefined()
+./runtime/js/module_gfx/module.go:126:	_ = obj.Set("fillRect", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:134:		return goja.Undefined()
+./runtime/js/module_gfx/module.go:136:	_ = obj.Set("line", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:144:		return goja.Undefined()
+./runtime/js/module_gfx/module.go:146:	_ = obj.Set("crosshatch", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:155:		return goja.Undefined()
+./runtime/js/module_gfx/module.go:157:	_ = obj.Set("text", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:161:		return goja.Undefined()
+./runtime/js/module_gfx/module.go:163:	_ = obj.Set("compositeAdd", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:166:		return goja.Undefined()
+./runtime/js/module_gfx/module.go:168:	_ = obj.Set("at", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_gfx/module.go:175:func SurfaceFromValue(value goja.Value, runtime *goja.Runtime) *gfx.Surface {
+./runtime/js/module_gfx/module.go:185:func textOptionsFromValue(runtime *goja.Runtime, value goja.Value) gfx.TextOptions {
+./runtime/js/module_gfx/module.go:186:	if goja.IsUndefined(value) || goja.IsNull(value) {
+./runtime/js/module_gfx/module.go:222:func intProp(obj *goja.Object, name string) int {
+./runtime/js/module_gfx/module.go:224:	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+./runtime/js/module_gfx/module.go:230:func boolProp(obj *goja.Object, name string) bool {
+./runtime/js/module_gfx/module.go:232:	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+./runtime/js/module_gfx/module.go:238:func floatProp(obj *goja.Object, name string) float64 {
+./runtime/js/module_gfx/module.go:240:	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+./runtime/js/module_present/module.go:8:	"github.com/dop251/goja"
+./runtime/js/module_present/module.go:9:	"github.com/dop251/goja_nodejs/require"
+./runtime/js/module_present/module.go:10:	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
+./runtime/js/module_present/module.go:11:	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
+./runtime/js/module_present/module.go:15:const ModuleName = "loupedeck/present"
+./runtime/js/module_present/module.go:17:func Register(registry *require.Registry) {
+./runtime/js/module_present/module.go:18:	registry.RegisterNativeModule(ModuleName, func(runtime *goja.Runtime, module *goja.Object) {
+./runtime/js/module_present/module.go:19:		bindings, ok := runtimebridge.Lookup(runtime)
+./runtime/js/module_present/module.go:27:		exports := module.Get("exports").(*goja.Object)
+./runtime/js/module_present/module.go:28:		_ = exports.Set("invalidate", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_present/module.go:31:			return goja.Undefined()
+./runtime/js/module_present/module.go:33:		_ = exports.Set("onFrame", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_present/module.go:34:			fn, ok := goja.AssertFunction(call.Argument(0))
+./runtime/js/module_present/module.go:38:			ownerCtx := runtimeowner.OwnerContext(bindings.Owner, bindings.Context)
+./runtime/js/module_present/module.go:40:				_, err := bindings.Owner.Call(ownerCtx, "present.onFrame", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_present/module.go:41:					_, err := fn(goja.Undefined(), vm.ToValue(reason))
+./runtime/js/module_present/module.go:45:					if errors.Is(err, runtimeowner.ErrClosed) || errors.Is(err, runtimeowner.ErrScheduleRejected) || errors.Is(err, runtimeowner.ErrCanceled) {
+./runtime/js/module_present/module.go:52:			return goja.Undefined()
+./runtime/js/module_ui/module.go:8:	"github.com/dop251/goja"
+./runtime/js/module_ui/module.go:9:	"github.com/dop251/goja_nodejs/require"
+./runtime/js/module_ui/module.go:10:	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
+./runtime/js/module_ui/module.go:11:	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
+./runtime/js/module_ui/module.go:18:const ModuleName = "loupedeck/ui"
+./runtime/js/module_ui/module.go:20:func Register(registry *require.Registry) {
+./runtime/js/module_ui/module.go:21:	registry.RegisterNativeModule(ModuleName, func(runtime *goja.Runtime, module *goja.Object) {
+./runtime/js/module_ui/module.go:22:		bindings, ok := runtimebridge.Lookup(runtime)
+./runtime/js/module_ui/module.go:30:		ownerCtx := runtimeowner.OwnerContext(bindings.Owner, bindings.Context)
+./runtime/js/module_ui/module.go:31:		exports := module.Get("exports").(*goja.Object)
+./runtime/js/module_ui/module.go:32:		_ = exports.Set("page", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:36:			if fn, ok := goja.AssertFunction(call.Argument(1)); ok {
+./runtime/js/module_ui/module.go:37:				if _, err := fn(goja.Undefined(), obj); err != nil {
+./runtime/js/module_ui/module.go:43:		_ = exports.Set("show", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:47:			return goja.Undefined()
+./runtime/js/module_ui/module.go:49:		_ = exports.Set("onButton", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:55:			fn, ok := goja.AssertFunction(call.Argument(1))
+./runtime/js/module_ui/module.go:60:				_ = bindings.Owner.Post(bindings.Context, "ui.onButton.callback", func(_ context.Context, vm *goja.Runtime) {
+./runtime/js/module_ui/module.go:64:					_, err := fn(goja.Undefined(), event)
+./runtime/js/module_ui/module.go:72:		_ = exports.Set("onTouch", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:78:			fn, ok := goja.AssertFunction(call.Argument(1))
+./runtime/js/module_ui/module.go:83:				_ = bindings.Owner.Post(bindings.Context, "ui.onTouch.callback", func(_ context.Context, vm *goja.Runtime) {
+./runtime/js/module_ui/module.go:89:					_, err := fn(goja.Undefined(), event)
+./runtime/js/module_ui/module.go:97:		_ = exports.Set("onKnob", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:103:			fn, ok := goja.AssertFunction(call.Argument(1))
+./runtime/js/module_ui/module.go:108:				_ = bindings.Owner.Post(bindings.Context, "ui.onKnob.callback", func(_ context.Context, vm *goja.Runtime) {
+./runtime/js/module_ui/module.go:112:					_, err := fn(goja.Undefined(), event)
+./runtime/js/module_ui/module.go:123:func pageObject(bindings runtimebridge.Bindings, ownerCtx context.Context, runtime *goja.Runtime, env *envpkg.LoupeDeckEnvironment, page *ui.Page) *goja.Object {
+./runtime/js/module_ui/module.go:125:	_ = obj.Set("tile", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:130:		if fn, ok := goja.AssertFunction(call.Argument(2)); ok {
+./runtime/js/module_ui/module.go:131:			if _, err := fn(goja.Undefined(), tileObj); err != nil {
+./runtime/js/module_ui/module.go:137:	_ = obj.Set("display", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:141:		if fn, ok := goja.AssertFunction(call.Argument(1)); ok {
+./runtime/js/module_ui/module.go:142:			if _, err := fn(goja.Undefined(), displayObj); err != nil {
+./runtime/js/module_ui/module.go:151:func displayObject(bindings runtimebridge.Bindings, ownerCtx context.Context, runtime *goja.Runtime, env *envpkg.LoupeDeckEnvironment, display *ui.Display) *goja.Object {
+./runtime/js/module_ui/module.go:153:	_ = obj.Set("text", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:154:		if fn, ok := goja.AssertFunction(call.Argument(0)); ok {
+./runtime/js/module_ui/module.go:156:				result, err := bindings.Owner.Call(ownerCtx, "ui.display.text", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_ui/module.go:157:					value, err := fn(goja.Undefined())
+./runtime/js/module_ui/module.go:171:		return goja.Undefined()
+./runtime/js/module_ui/module.go:173:	_ = obj.Set("icon", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:174:		if fn, ok := goja.AssertFunction(call.Argument(0)); ok {
+./runtime/js/module_ui/module.go:176:				result, err := bindings.Owner.Call(ownerCtx, "ui.display.icon", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_ui/module.go:177:					value, err := fn(goja.Undefined())
+./runtime/js/module_ui/module.go:191:		return goja.Undefined()
+./runtime/js/module_ui/module.go:193:	_ = obj.Set("visible", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:194:		if fn, ok := goja.AssertFunction(call.Argument(0)); ok {
+./runtime/js/module_ui/module.go:196:				result, err := bindings.Owner.Call(ownerCtx, "ui.display.visible", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_ui/module.go:197:					value, err := fn(goja.Undefined())
+./runtime/js/module_ui/module.go:211:		return goja.Undefined()
+./runtime/js/module_ui/module.go:213:	_ = obj.Set("surface", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:215:		if goja.IsNull(arg) || goja.IsUndefined(arg) {
+./runtime/js/module_ui/module.go:220:		return goja.Undefined()
+./runtime/js/module_ui/module.go:222:	_ = obj.Set("layer", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:226:		if goja.IsNull(arg) || goja.IsUndefined(arg) {
+./runtime/js/module_ui/module.go:231:		return goja.Undefined()
+./runtime/js/module_ui/module.go:233:	_ = obj.Set("tile", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:238:		if fn, ok := goja.AssertFunction(call.Argument(2)); ok {
+./runtime/js/module_ui/module.go:239:			if _, err := fn(goja.Undefined(), tileObj); err != nil {
+./runtime/js/module_ui/module.go:248:func tileObject(bindings runtimebridge.Bindings, ownerCtx context.Context, runtime *goja.Runtime, _ *envpkg.LoupeDeckEnvironment, tile *ui.Tile) *goja.Object {
+./runtime/js/module_ui/module.go:250:	_ = obj.Set("text", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:251:		if fn, ok := goja.AssertFunction(call.Argument(0)); ok {
+./runtime/js/module_ui/module.go:253:				result, err := bindings.Owner.Call(ownerCtx, "ui.tile.text", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_ui/module.go:254:					value, err := fn(goja.Undefined())
+./runtime/js/module_ui/module.go:268:		return goja.Undefined()
+./runtime/js/module_ui/module.go:270:	_ = obj.Set("icon", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:271:		if fn, ok := goja.AssertFunction(call.Argument(0)); ok {
+./runtime/js/module_ui/module.go:273:				result, err := bindings.Owner.Call(ownerCtx, "ui.tile.icon", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_ui/module.go:274:					value, err := fn(goja.Undefined())
+./runtime/js/module_ui/module.go:288:		return goja.Undefined()
+./runtime/js/module_ui/module.go:290:	_ = obj.Set("visible", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:291:		if fn, ok := goja.AssertFunction(call.Argument(0)); ok {
+./runtime/js/module_ui/module.go:293:				result, err := bindings.Owner.Call(ownerCtx, "ui.tile.visible", func(_ context.Context, vm *goja.Runtime) (any, error) {
+./runtime/js/module_ui/module.go:294:					value, err := fn(goja.Undefined())
+./runtime/js/module_ui/module.go:308:		return goja.Undefined()
+./runtime/js/module_ui/module.go:310:	_ = obj.Set("surface", func(call goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:312:		if goja.IsNull(arg) || goja.IsUndefined(arg) {
+./runtime/js/module_ui/module.go:317:		return goja.Undefined()
+./runtime/js/module_ui/module.go:322:func subscriptionObject(runtime *goja.Runtime, sub Subscription) goja.Value {
+./runtime/js/module_ui/module.go:324:	_ = obj.Set("close", func(goja.FunctionCall) goja.Value {
+./runtime/js/module_ui/module.go:326:		return goja.Undefined()
+./runtime/js/module_ui/module.go:335:func stringify(value goja.Value) string {
+./runtime/js/module_ui/module.go:336:	if goja.IsUndefined(value) || goja.IsNull(value) {
+./runtime/js/module_ui/module.go:345:func layerOptionsFromValue(value goja.Value, runtime *goja.Runtime) ui.LayerOptions {
+./runtime/js/module_ui/module.go:346:	if goja.IsUndefined(value) || goja.IsNull(value) {
+./runtime/js/module_ui/module.go:353:	if (rValue == nil || goja.IsUndefined(rValue) || goja.IsNull(rValue)) &&
+./runtime/js/module_ui/module.go:354:		(gValue == nil || goja.IsUndefined(gValue) || goja.IsNull(gValue)) &&
+./runtime/js/module_ui/module.go:355:		(bValue == nil || goja.IsUndefined(bValue) || goja.IsNull(bValue)) {
+./runtime/js/module_ui/module.go:359:	if av := obj.Get("a"); av != nil && !goja.IsUndefined(av) && !goja.IsNull(av) {
+./runtime/js/env/env.go:4:	"github.com/dop251/goja"
+./runtime/js/env/env.go:22:func Lookup(vm *goja.Runtime) (*LoupeDeckEnvironment, bool) {
+./runtime/js/module_scene_metrics/module.go:4:	"github.com/dop251/goja_nodejs/require"
+./runtime/js/module_scene_metrics/module.go:8:const ModuleName = "loupedeck/scene-metrics"
+./runtime/js/module_scene_metrics/module.go:10:func Register(registry *require.Registry) {
+./runtime/js/module_scene_metrics/module.go:11:	jsmetrics.RegisterSceneModuleAs(registry, ModuleName)
+./runtime/js/env/bridge.go:6:	"github.com/dop251/goja"
+./runtime/js/env/bridge.go:11:func Store(vm *goja.Runtime, env *LoupeDeckEnvironment) {
+./runtime/js/env/bridge.go:18:func Delete(vm *goja.Runtime) {
+
