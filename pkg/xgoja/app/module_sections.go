@@ -3,13 +3,13 @@ package app
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerutil"
 )
 
 func (f *RuntimeFactory) selectedModuleDescriptors(profile string) ([]providerapi.ModuleDescriptor, error) {
@@ -48,47 +48,14 @@ func (f *RuntimeFactory) sectionsForRuntimeProfile(commandName, profile string) 
 	if err != nil {
 		return nil, nil, err
 	}
-	sections := []schema.Section{}
-	seen := map[string]string{}
-	for _, descriptor := range descriptors {
-		for _, capability := range descriptor.Capabilities {
-			sectionCapability, ok := capability.(providerapi.ConfigSectionCapability)
-			if !ok {
-				continue
-			}
-			moduleSections, err := sectionCapability.ConfigSections(providerapi.SectionContext{
-				CommandName:    commandName,
-				RuntimeProfile: profile,
-				PackageID:      descriptor.PackageID,
-				ModuleID:       descriptor.ModuleID,
-			})
-			if err != nil {
-				return nil, nil, fmt.Errorf("collect config sections for %s.%s capability %s: %w", descriptor.PackageID, descriptor.ModuleID, capability.CapabilityID(), err)
-			}
-			if err := appendUniqueSections(&sections, seen, moduleSections, fmt.Sprintf("%s.%s capability %s", descriptor.PackageID, descriptor.ModuleID, capability.CapabilityID())); err != nil {
-				return nil, nil, err
-			}
-		}
+	sections, err := providerutil.CollectConfigSections(descriptors, providerapi.SectionContext{
+		CommandName:    commandName,
+		RuntimeProfile: profile,
+	}, nil)
+	if err != nil {
+		return nil, nil, err
 	}
 	return sections, descriptors, nil
-}
-
-func appendUniqueSections(out *[]schema.Section, seen map[string]string, sections []schema.Section, source string) error {
-	for _, section := range sections {
-		if section == nil {
-			return fmt.Errorf("%s returned nil config section", source)
-		}
-		slug := strings.TrimSpace(section.GetSlug())
-		if slug == "" {
-			return fmt.Errorf("%s returned config section with empty slug", source)
-		}
-		if previous, ok := seen[slug]; ok {
-			return fmt.Errorf("duplicate config section slug %q from %s; already provided by %s", slug, source, previous)
-		}
-		seen[slug] = source
-		*out = append(*out, section)
-	}
-	return nil
 }
 
 func addSectionsToCommandDescription(desc *cmds.CommandDescription, sections []schema.Section, source string) error {
@@ -106,7 +73,7 @@ func addSectionsToCommandDescription(desc *cmds.CommandDescription, sections []s
 
 func appendSectionsToCommandDescription(desc *cmds.CommandDescription, seen map[string]string, sections []schema.Section, source string) error {
 	collected := []schema.Section{}
-	if err := appendUniqueSections(&collected, seen, sections, source); err != nil {
+	if err := providerutil.AppendUniqueSections(&collected, seen, sections, source); err != nil {
 		return err
 	}
 	desc.SetSections(collected...)
@@ -117,19 +84,7 @@ func initRuntimeFromSections(ctx context.Context, vals *values.Values, rt *JSRun
 	if rt == nil {
 		return fmt.Errorf("runtime is nil")
 	}
-	handle := runtimeHandle{rt: rt}
-	for _, descriptor := range descriptors {
-		for _, capability := range descriptor.Capabilities {
-			initializer, ok := capability.(providerapi.RuntimeInitializerCapability)
-			if !ok {
-				continue
-			}
-			if err := initializer.InitRuntimeFromSections(ctx, vals, handle); err != nil {
-				return fmt.Errorf("initialize runtime from sections for %s.%s capability %s: %w", descriptor.PackageID, descriptor.ModuleID, capability.CapabilityID(), err)
-			}
-		}
-	}
-	return nil
+	return providerutil.InitRuntimeFromSections(ctx, vals, runtimeHandle{rt: rt}, descriptors)
 }
 
 type runtimeHandle struct {

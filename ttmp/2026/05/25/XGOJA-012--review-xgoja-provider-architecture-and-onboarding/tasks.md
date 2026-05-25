@@ -49,20 +49,20 @@
 
 ### Phase 2: Move shared section/init helpers to providerapi-adjacent utility
 
-- [ ] Create a reusable package, likely `pkg/xgoja/providerutil` rather than `providerapi` if imports would make `providerapi` too heavy.
-- [ ] Move/copy generic helpers from app into the utility:
-  - [ ] collect config sections from `[]providerapi.ModuleDescriptor`.
-  - [ ] duplicate slug detection.
-  - [ ] runtime initializer invocation.
-  - [ ] standard error wrapping with package/module/capability IDs.
-- [ ] Replace app usage in `pkg/xgoja/app/module_sections.go` with providerutil helpers.
-- [ ] Replace Discord adapter usage in `discord-bot/pkg/xgoja/provider/provider.go` with providerutil helpers.
-- [ ] Add unit tests for:
-  - [ ] duplicate section slug rejection.
-  - [ ] nil section rejection.
-  - [ ] empty slug rejection.
-  - [ ] runtime initializer error wrapping.
-  - [ ] no-op behavior when no matching capabilities exist.
+- [x] Create a reusable package, likely `pkg/xgoja/providerutil` rather than `providerapi` if imports would make `providerapi` too heavy.
+- [x] Move/copy generic helpers from app into the utility:
+  - [x] collect config sections from `[]providerapi.ModuleDescriptor`.
+  - [x] duplicate slug detection.
+  - [x] runtime initializer invocation.
+  - [x] standard error wrapping with package/module/capability IDs.
+- [x] Replace app usage in `pkg/xgoja/app/module_sections.go` with providerutil helpers.
+- [x] Replace Discord adapter usage in `discord-bot/pkg/xgoja/provider/provider.go` with providerutil helpers.
+- [x] Add unit tests for:
+  - [x] duplicate section slug rejection.
+  - [x] nil section rejection.
+  - [x] empty slug rejection.
+  - [x] runtime initializer error wrapping.
+  - [x] no-op behavior when no matching capabilities exist.
 
 ### Phase 3: Rename package-scoped capabilities to PackageCapability
 

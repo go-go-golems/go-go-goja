@@ -36,3 +36,14 @@ Typed CommandSetContext.RuntimeFactory and removed Discord adapter's local runti
 - /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/pkg/xgoja/provider/provider.go — Discord provider now uses providerapi.RuntimeFactory directly
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerapi/commands.go — RuntimeFactory interface added and CommandSetContext.RuntimeFactory typed
 
+
+## 2026-05-25
+
+Extracted shared providerutil helpers for module config sections and runtime initializers.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/pkg/xgoja/provider/provider.go — Discord adapter now uses providerutil
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/module_sections.go — Built-in command path now uses providerutil
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/providerutil/sections.go — Shared section collection and runtime initializer helpers
+

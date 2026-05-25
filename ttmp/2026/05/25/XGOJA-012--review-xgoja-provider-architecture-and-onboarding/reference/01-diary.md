@@ -110,3 +110,47 @@ go test ./pkg/xgoja/provider -count=1   # in discord-bot
 ```
 
 Result: passed.
+
+## Step 6: Extracted providerutil section/init helpers
+
+### Intent
+
+The review identified duplicated logic between xgoja built-in commands and the Discord command provider. Both need to:
+
+1. collect module-provided Glazed sections from selected module descriptors;
+2. reject duplicate or malformed section slugs; and
+3. run selected runtime initializer capabilities after runtime creation.
+
+Because external adapters need this behavior too, the shared logic should not remain private to `pkg/xgoja/app`.
+
+### What changed
+
+Added `go-go-goja/pkg/xgoja/providerutil` with:
+
+- `CollectConfigSections(...)`
+- `AppendUniqueSections(...)`
+- `InitRuntimeFromSections(...)`
+
+Updated `go-go-goja/pkg/xgoja/app/module_sections.go` to use `providerutil` for config-section collection, duplicate checks, and runtime initializer invocation.
+
+Updated `discord-bot/pkg/xgoja/provider/provider.go` to use `providerutil` instead of maintaining local copies of `collectModuleSections` and initializer walking logic.
+
+### Tests added
+
+`go-go-goja/pkg/xgoja/providerutil/sections_test.go` covers:
+
+- duplicate section slug rejection;
+- nil section rejection;
+- empty slug rejection;
+- runtime initializer invocation;
+- runtime initializer error wrapping; and
+- no-op behavior when there are no runtime initializers.
+
+### Validation
+
+```bash
+go test ./pkg/xgoja/providerutil ./pkg/xgoja/app -count=1
+go test ./pkg/xgoja/provider -count=1   # in discord-bot
+```
+
+Result: passed.
