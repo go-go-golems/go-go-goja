@@ -107,3 +107,13 @@ Wired module-provided Glazed sections and runtime initializers into the built-in
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/run.go — Run command now aggregates runtime-profile module sections and calls runtime initializers
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/run_module_sections_test.go — Added run command fixture tests for module sections and DecodeSectionInto initialization
 
+
+## 2026-05-25
+
+Wired module-provided Glazed sections and runtime initializers into the built-in repl/TUI command.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/tui.go — REPL/TUI command now aggregates runtime-profile module sections and initializes runtimes
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/xgoja/app/tui_module_sections_test.go — Added REPL/TUI fixture tests for module sections and runtime initialization
+

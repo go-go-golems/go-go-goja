@@ -54,13 +54,13 @@
 
 ## Implementation phase 4 — apply module sections to `repl` / TUI
 
-- [ ] P4.1 Extend `tuiCommand` to store selected module descriptors
-- [ ] P4.2 Append runtime-profile module sections to `repl` command description
-- [ ] P4.3 Thread parsed values into TUI runtime creation
-- [ ] P4.4 Call runtime initializers before starting the REPL/TUI session
-- [ ] P4.5 Add tests for `repl --help` exposing fixture flags without launching TUI
-- [ ] P4.6 Run focused TUI command tests
-- [ ] P4.7 Commit `repl` module-section slice
+- [x] P4.1 Extend `tuiCommand` to store selected module descriptors
+- [x] P4.2 Append runtime-profile module sections to `repl` command description
+- [x] P4.3 Thread parsed values into TUI runtime creation
+- [x] P4.4 Call runtime initializers before starting the REPL/TUI session
+- [x] P4.5 Add tests for `repl --help` exposing fixture flags without launching TUI
+- [x] P4.6 Run focused TUI command tests
+- [x] P4.7 Commit `repl` module-section slice
 
 ## Implementation phase 5 — apply module sections to `jsverbs`
 

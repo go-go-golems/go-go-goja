@@ -19,14 +19,17 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	jsadapter "github.com/go-go-golems/go-go-goja/pkg/repl/adapters/bobatea"
 	jsevaluator "github.com/go-go-golems/go-go-goja/pkg/repl/evaluators/javascript"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 )
 
 type tuiCommand struct {
 	*cmds.CommandDescription
-	factory *RuntimeFactory
-	spec    *Spec
+	factory         *RuntimeFactory
+	spec            *Spec
+	selectedModules []providerapi.ModuleDescriptor
+	sectionErr      error
 }
 
 var _ cmds.BareCommand = (*tuiCommand)(nil)
@@ -38,37 +41,47 @@ type tuiSettings struct {
 
 func newTUICommand(factory *RuntimeFactory, spec *Spec) cmds.Command {
 	profile := commandRuntime(spec.Commands.Repl, firstRuntime(spec))
-	return &tuiCommand{
-		CommandDescription: cmds.NewCommandDescription(commandName(spec.Commands.Repl, "repl"),
-			cmds.WithShort("Run an interactive TUI REPL for a generated xgoja runtime"),
-			cmds.WithLong(`
+	moduleSections, selectedModules, sectionErr := factory.sectionsForRuntimeProfile("repl", profile)
+	options := []cmds.CommandDescriptionOption{
+		cmds.WithShort("Run an interactive TUI REPL for a generated xgoja runtime"),
+		cmds.WithLong(`
 TUI starts a Bubble Tea JavaScript REPL backed by a generated xgoja runtime
 profile. The selected runtime profile controls which provider modules are
 available through require().
 `),
-			cmds.WithFlags(
-				fields.New("runtime", fields.TypeString,
-					fields.WithDefault(profile),
-					fields.WithHelp("Runtime profile to use")),
-				fields.New("alt-screen", fields.TypeBool,
-					fields.WithDefault(true),
-					fields.WithHelp("Run the TUI in the terminal alt screen")),
-			),
+		cmds.WithFlags(
+			fields.New("runtime", fields.TypeString,
+				fields.WithDefault(profile),
+				fields.WithHelp("Runtime profile to use")),
+			fields.New("alt-screen", fields.TypeBool,
+				fields.WithDefault(true),
+				fields.WithHelp("Run the TUI in the terminal alt screen")),
 		),
-		factory: factory,
-		spec:    spec,
+	}
+	if sectionErr == nil && len(moduleSections) > 0 {
+		options = append(options, cmds.WithSections(moduleSections...))
+	}
+	return &tuiCommand{
+		CommandDescription: cmds.NewCommandDescription(commandName(spec.Commands.Repl, "repl"), options...),
+		factory:            factory,
+		spec:               spec,
+		selectedModules:    selectedModules,
+		sectionErr:         sectionErr,
 	}
 }
 
 func (c *tuiCommand) Run(ctx context.Context, vals *values.Values) error {
+	if c.sectionErr != nil {
+		return c.sectionErr
+	}
 	settings := tuiSettings{}
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	return runTUI(ctx, c.factory, c.spec, settings.Runtime, settings.AltScreen)
+	return runTUI(ctx, c.factory, c.spec, settings.Runtime, settings.AltScreen, vals, c.selectedModules)
 }
 
-func runTUI(ctx context.Context, factory *RuntimeFactory, spec *Spec, profile string, altScreen bool) error {
+func runTUI(ctx context.Context, factory *RuntimeFactory, spec *Spec, profile string, altScreen bool, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -77,7 +90,7 @@ func runTUI(ctx context.Context, factory *RuntimeFactory, spec *Spec, profile st
 	}
 	logutil.InitTUILoggingToDiscard(zerolog.ErrorLevel)
 
-	adapter, err := newXGojaTUIEvaluator(ctx, factory, profile)
+	adapter, err := newXGojaTUIEvaluator(ctx, factory, profile, vals, selectedModules)
 	if err != nil {
 		return err
 	}
@@ -133,10 +146,16 @@ type xgojaTUIEvaluator struct {
 	evaluator     *jsadapter.JavaScriptEvaluator
 }
 
-func newXGojaTUIEvaluator(ctx context.Context, factory *RuntimeFactory, profile string) (*xgojaTUIEvaluator, error) {
+func newXGojaTUIEvaluator(ctx context.Context, factory *RuntimeFactory, profile string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) (*xgojaTUIEvaluator, error) {
 	rt, err := factory.NewRuntime(ctx, profile)
 	if err != nil {
 		return nil, fmt.Errorf("create runtime: %w", err)
+	}
+	if vals != nil && len(selectedModules) > 0 {
+		if err := initRuntimeFromSections(ctx, vals, rt, selectedModules); err != nil {
+			_ = rt.Close(ctx)
+			return nil, err
+		}
 	}
 	evaluator, err := jsadapter.NewJavaScriptEvaluator(jsevaluator.Config{
 		EnableModules: true,

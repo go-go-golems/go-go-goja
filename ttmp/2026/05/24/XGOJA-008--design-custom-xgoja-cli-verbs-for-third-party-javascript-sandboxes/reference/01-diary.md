@@ -871,3 +871,70 @@ Focused validation command:
 ```bash
 go test ./pkg/xgoja/app -run 'TestRunCommandIncludesRuntimeProfileModuleSections|TestRunCommandInitializesRuntimeFromModuleSections' -count=1
 ```
+
+## Step 14: Wired module sections and runtime initializers into repl/TUI
+
+I continued with phase 4 and applied the same runtime-profile module-section pattern to the generated `repl` command, which currently launches the Bubble Tea TUI REPL.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue."
+
+**Assistant interpretation:** Continue implementing the XGOJA-008 task plan from the next pending phase.
+
+**Inferred user intent:** Keep progressing one slice at a time with tests, diary entries, and commits.
+
+**Commit (code):** REPL/TUI module-section slice committed after focused tests.
+
+### What I did
+
+- Extended `tuiCommand` with selected module descriptors and a deferred section aggregation error.
+- Changed `newTUICommand` to aggregate module-provided Glazed sections for the REPL runtime profile.
+- Threaded parsed Glazed values and selected module descriptors through `runTUI` into `newXGojaTUIEvaluator`.
+- Called `initRuntimeFromSections` after TUI runtime creation and before constructing the JavaScript evaluator.
+- Added tests proving:
+  - the REPL command description includes a fixture module section;
+  - `newXGojaTUIEvaluator` invokes runtime initializers without launching the full TUI.
+
+### Why
+
+- `repl` creates a runtime just like `run`, so it should expose selected module configuration flags and initialize the runtime before the user starts interacting with it.
+
+### What worked
+
+- Focused tests passed:
+  - `go test ./pkg/xgoja/app -run 'TestTUICommandIncludesRuntimeProfileModuleSections|TestNewXGojaTUIEvaluatorInitializesRuntimeFromModuleSections|TestGeneratedRootTUIHelp' -count=1`
+
+### What didn't work
+
+- I did not attempt to launch the full Bubble Tea program in tests. Instead, I tested the evaluator creation boundary, which is where runtime initialization happens.
+
+### What I learned
+
+- The TUI path has a cleaner test seam at `newXGojaTUIEvaluator` than at `runTUI`, because `runTUI` starts the interactive program and event bus.
+
+### What was tricky to build
+
+- Threading parsed values into the evaluator without changing the user-visible TUI lifecycle.
+
+### What warrants a second pair of eyes
+
+- Whether the interactive TUI should expose module section values in its UI/help somehow beyond ordinary Cobra help.
+- Whether overriding `--runtime` at invocation time should trigger dynamic section selection in the future.
+
+### What should be done in the future
+
+- Apply the same section aggregation and runtime initializer path to `jsverbs`.
+
+### Code review instructions
+
+- Review `tui.go` for lifecycle ordering: parse values, create runtime, initialize runtime, create evaluator, start TUI.
+- Review `tui_module_sections_test.go` to confirm the test avoids launching interactive UI while still covering initializer behavior.
+
+### Technical details
+
+Focused validation command:
+
+```bash
+go test ./pkg/xgoja/app -run 'TestTUICommandIncludesRuntimeProfileModuleSections|TestNewXGojaTUIEvaluatorInitializesRuntimeFromModuleSections|TestGeneratedRootTUIHelp' -count=1
+```
