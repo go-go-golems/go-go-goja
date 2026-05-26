@@ -9,57 +9,163 @@ import (
 	"github.com/dop251/goja_nodejs/eventloop"
 )
 
-// OwnerRunner is the owner-thread scheduling subset exposed to modules that
-// need to settle asynchronous JavaScript values from background goroutines.
+// RuntimeOwner is the owner-thread scheduling subset exposed to modules that
+// need to execute JavaScript or settle asynchronous JavaScript values from
+// background goroutines.
 //
 // It intentionally lives in runtimebridge instead of importing
 // pkg/runtimeowner. That keeps runtimebridge usable from runtimeowner itself
 // for current-call context tracking without creating an import cycle.
-type OwnerRunner interface {
+type RuntimeOwner interface {
 	Call(ctx context.Context, op string, fn func(context.Context, *goja.Runtime) (any, error)) (any, error)
 	Post(ctx context.Context, op string, fn func(context.Context, *goja.Runtime)) error
 }
 
-// Bindings exposes runtime-owned scheduling primitives for modules that need
-// async owner-thread settlement.
-type Bindings struct {
-	Context context.Context
-	Loop    *eventloop.EventLoop
-	Owner   OwnerRunner
+// RuntimeServices exposes runtime-owned scheduling primitives for native
+// modules that need async owner-thread settlement.
+type RuntimeServices struct {
+	LifetimeContext context.Context
+	Loop            *eventloop.EventLoop
+	Owner           RuntimeOwner
 }
 
-var bindingsByVM sync.Map
+// Lifetime returns the runtime lifetime context, or context.Background when no
+// lifetime context was registered. It is the context for runtime-owned work,
+// not a generic context for callbacks into JavaScript.
+func (svc RuntimeServices) Lifetime() context.Context {
+	if svc.LifetimeContext != nil {
+		return svc.LifetimeContext
+	}
+	return context.Background()
+}
 
-// Store registers runtime bindings for a concrete VM.
-func Store(vm *goja.Runtime, bindings Bindings) {
+// CallWithCurrentContext invokes fn through the runtime owner using the current
+// owner-entry context for vm.
+func (svc RuntimeServices) CallWithCurrentContext(vm *goja.Runtime, op string, fn func(context.Context, *goja.Runtime) (any, error)) (any, error) {
+	if svc.Owner == nil {
+		return nil, errors.New("runtimebridge: missing owner")
+	}
+	return svc.Owner.Call(CurrentOwnerContext(vm), op, fn)
+}
+
+// PostWithCurrentContext posts fn through the runtime owner using the current
+// owner-entry context for vm.
+func (svc RuntimeServices) PostWithCurrentContext(vm *goja.Runtime, op string, fn func(context.Context, *goja.Runtime)) error {
+	if svc.Owner == nil {
+		return errors.New("runtimebridge: missing owner")
+	}
+	return svc.Owner.Post(CurrentOwnerContext(vm), op, fn)
+}
+
+// CallWithLifetimeContext invokes fn with the runtime lifetime context.
+func (svc RuntimeServices) CallWithLifetimeContext(op string, fn func(context.Context, *goja.Runtime) (any, error)) (any, error) {
+	return svc.CallWithCustomContext(svc.Lifetime(), op, fn)
+}
+
+// PostWithLifetimeContext posts fn with the runtime lifetime context.
+func (svc RuntimeServices) PostWithLifetimeContext(op string, fn func(context.Context, *goja.Runtime)) error {
+	return svc.PostWithCustomContext(svc.Lifetime(), op, fn)
+}
+
+// CallWithCustomContext invokes fn with an explicit caller-provided context. A
+// nil context falls back to the runtime lifetime context.
+func (svc RuntimeServices) CallWithCustomContext(ctx context.Context, op string, fn func(context.Context, *goja.Runtime) (any, error)) (any, error) {
+	if svc.Owner == nil {
+		return nil, errors.New("runtimebridge: missing owner")
+	}
+	linked := svc.contextLinkedToLifetime(ctx)
+	defer linked.cancel()
+	return svc.Owner.Call(linked.ctx, op, fn)
+}
+
+// PostWithCustomContext posts fn with an explicit caller-provided context. A
+// nil context falls back to the runtime lifetime context.
+func (svc RuntimeServices) PostWithCustomContext(ctx context.Context, op string, fn func(context.Context, *goja.Runtime)) error {
+	if svc.Owner == nil {
+		return errors.New("runtimebridge: missing owner")
+	}
+	if fn == nil {
+		return errors.New("runtimebridge: nil function")
+	}
+	linked := svc.contextLinkedToLifetime(ctx)
+	posted := false
+	defer func() {
+		if !posted {
+			linked.cancel()
+		}
+	}()
+	if err := svc.Owner.Post(linked.ctx, op, func(ctx context.Context, vm *goja.Runtime) {
+		defer linked.stop()
+		fn(ctx, vm)
+	}); err != nil {
+		return err
+	}
+	posted = true
+	return nil
+}
+
+type linkedContext struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	stop   func()
+}
+
+func (svc RuntimeServices) contextLinkedToLifetime(ctx context.Context) linkedContext {
+	lifetime := svc.Lifetime()
+	if ctx == nil || ctx == lifetime {
+		return linkedContext{ctx: lifetime, cancel: func() {}, stop: func() {}}
+	}
+	select {
+	case <-lifetime.Done():
+		return linkedContext{ctx: lifetime, cancel: func() {}, stop: func() {}}
+	default:
+	}
+	linked, cancel := context.WithCancel(ctx)
+	stop := context.AfterFunc(lifetime, cancel)
+	return linkedContext{
+		ctx: linked,
+		cancel: func() {
+			_ = stop()
+			cancel()
+		},
+		stop: func() {
+			_ = stop()
+		},
+	}
+}
+
+var servicesByVM sync.Map
+
+// Store registers runtime services for a concrete VM.
+func Store(vm *goja.Runtime, services RuntimeServices) {
 	if vm == nil {
 		return
 	}
-	bindingsByVM.Store(vm, bindings)
+	servicesByVM.Store(vm, services)
 }
 
-// Lookup returns the bindings registered for a concrete VM.
-func Lookup(vm *goja.Runtime) (Bindings, bool) {
+// Lookup returns the services registered for a concrete VM.
+func Lookup(vm *goja.Runtime) (RuntimeServices, bool) {
 	if vm == nil {
-		return Bindings{}, false
+		return RuntimeServices{}, false
 	}
-	value, ok := bindingsByVM.Load(vm)
+	value, ok := servicesByVM.Load(vm)
 	if !ok {
-		return Bindings{}, false
+		return RuntimeServices{}, false
 	}
-	bindings, ok := value.(Bindings)
+	services, ok := value.(RuntimeServices)
 	if !ok {
-		return Bindings{}, false
+		return RuntimeServices{}, false
 	}
-	return bindings, true
+	return services, true
 }
 
-// Delete removes runtime bindings for a concrete VM.
+// Delete removes runtime services for a concrete VM.
 func Delete(vm *goja.Runtime) {
 	if vm == nil {
 		return
 	}
-	bindingsByVM.Delete(vm)
+	servicesByVM.Delete(vm)
 	callContextsByVM.Delete(vm)
 }
 
@@ -70,14 +176,19 @@ type callContextStack struct {
 
 var callContextsByVM sync.Map
 
-// CurrentContext returns the context active for the current owner call on vm.
-// If no owner call context is active, it falls back to the runtime lifecycle
-// context stored in Bindings. If neither exists, it returns context.Background().
-//
-// Native modules can call this from JavaScript-exported functions to inherit
-// HTTP cancellation, deadlines, and OpenTelemetry parent spans without exposing
-// Go context objects to JavaScript authors.
-func CurrentContext(vm *goja.Runtime) context.Context {
+// LifetimeContext returns the registered runtime lifetime context for vm.
+func LifetimeContext(vm *goja.Runtime) context.Context {
+	if services, ok := Lookup(vm); ok {
+		return services.Lifetime()
+	}
+	return context.Background()
+}
+
+// CurrentOwnerContext returns the context active for the current owner call on
+// vm. If no owner call context is active, it falls back to the runtime lifetime
+// context. Native modules should call this from JavaScript-exported functions
+// to inherit request/command cancellation, deadlines, and tracing metadata.
+func CurrentOwnerContext(vm *goja.Runtime) context.Context {
 	if vm == nil {
 		return context.Background()
 	}
@@ -86,10 +197,7 @@ func CurrentContext(vm *goja.Runtime) context.Context {
 			return ctx
 		}
 	}
-	if bindings, ok := Lookup(vm); ok && bindings.Context != nil {
-		return bindings.Context
-	}
-	return context.Background()
+	return LifetimeContext(vm)
 }
 
 // WithCallContext makes ctx the current owner-call context for vm while fn
@@ -103,7 +211,7 @@ func WithCallContext(vm *goja.Runtime, ctx context.Context, fn func() (any, erro
 		return nil, errors.New("runtimebridge: nil function")
 	}
 	if ctx == nil {
-		ctx = CurrentContext(vm)
+		ctx = CurrentOwnerContext(vm)
 	}
 	st := getCallContextStack(vm)
 	st.push(ctx)

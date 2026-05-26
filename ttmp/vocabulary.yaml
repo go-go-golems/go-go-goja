@@ -117,6 +117,14 @@ topics:
       description: 'XGOJA-007 target topic: providers'
     - slug: workspace-manager
       description: 'XGOJA-007 target topic: workspace-manager'
+    - slug: typography
+      description: Visual typographic design, font treatment, spacing, and page composition for rendered documents
+    - slug: layout
+      description: Page/information layout approaches, grid systems, and spatial arrangement of content
+    - slug: semantic-yaml
+      description: Intent-encoded YAML document format that separates semantic content from typographic presentation
+    - slug: information-design
+      description: Design discipline focused on making complex information clear, accessible, and easy to navigate
 docTypes:
     - slug: index
       description: Ticket index documents

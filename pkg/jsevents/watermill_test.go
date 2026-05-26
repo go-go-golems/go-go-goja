@@ -185,7 +185,7 @@ func TestWatermillHelperRequiresManager(t *testing.T) {
 		WithRuntimeInitializers(jsevents.WatermillHelper(jsevents.WatermillOptions{Subscriber: sub})).
 		Build()
 	require.NoError(t, err)
-	_, err = factory.NewRuntime(context.Background())
+	_, err = factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "manager is not installed")
 }

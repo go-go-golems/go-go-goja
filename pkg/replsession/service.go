@@ -143,7 +143,7 @@ func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOpti
 		}
 	}
 
-	rt, err := s.factory.NewRuntime(ctx)
+	rt, err := s.factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
 	if err != nil {
 		return nil, errors.Wrap(err, "create runtime")
 	}

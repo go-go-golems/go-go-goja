@@ -26,7 +26,7 @@ func (r *Registry) invoke(ctx context.Context, verb *VerbSpec, parsedValues *val
 		return nil, err
 	}
 
-	runtime, err := factory.NewRuntime(ctx)
+	runtime, err := factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
 	if err != nil {
 		return nil, err
 	}

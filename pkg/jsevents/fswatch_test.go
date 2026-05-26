@@ -384,7 +384,7 @@ func TestFSWatchHelperRequiresManager(t *testing.T) {
 		WithRuntimeInitializers(jsevents.FSWatchHelper(jsevents.FSWatchOptions{})).
 		Build()
 	require.NoError(t, err)
-	_, err = factory.NewRuntime(context.Background())
+	_, err = factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "manager is not installed")
 }

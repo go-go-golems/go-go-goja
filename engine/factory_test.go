@@ -23,7 +23,7 @@ func TestFactoryWithRequireOptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}

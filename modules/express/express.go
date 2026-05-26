@@ -57,8 +57,8 @@ func NewLoader(host *gojahttp.Host, opts ...Option) require.ModuleLoader {
 	registrar := NewRegistrar(host, opts...)
 	return func(vm *goja.Runtime, moduleObj *goja.Object) {
 		if host != nil {
-			if bindings, ok := runtimebridge.Lookup(vm); ok && bindings.Owner != nil {
-				host.SetRuntime(runtimebridgeOwnerAdapter{owner: bindings.Owner})
+			if runtimeServices, ok := runtimebridge.Lookup(vm); ok && runtimeServices.Owner != nil {
+				host.SetRuntime(runtimebridgeOwnerAdapter{owner: runtimeServices.Owner})
 			}
 		}
 		registrar.loader(vm, moduleObj)
@@ -66,7 +66,7 @@ func NewLoader(host *gojahttp.Host, opts ...Option) require.ModuleLoader {
 }
 
 type runtimebridgeOwnerAdapter struct {
-	owner runtimebridge.OwnerRunner
+	owner runtimebridge.RuntimeOwner
 }
 
 func (a runtimebridgeOwnerAdapter) Call(ctx context.Context, op string, fn runtimeowner.CallFunc) (any, error) {
@@ -81,6 +81,7 @@ func (a runtimebridgeOwnerAdapter) Post(ctx context.Context, op string, fn runti
 	})
 }
 
+func (a runtimebridgeOwnerAdapter) WaitIdle(context.Context) error { return nil }
 func (a runtimebridgeOwnerAdapter) Shutdown(context.Context) error { return nil }
 func (a runtimebridgeOwnerAdapter) IsClosed() bool                 { return false }
 

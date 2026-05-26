@@ -187,7 +187,7 @@ engine.NewBuilder()
 Factory.Build()
     |
     v
-Factory.NewRuntime(ctx)
+Factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
     |
     v
 fresh require.Registry is created

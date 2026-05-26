@@ -17,15 +17,16 @@ type CallFunc func(context.Context, *goja.Runtime) (any, error)
 // PostFunc is executed against the runtime owner context without a return value.
 type PostFunc func(context.Context, *goja.Runtime)
 
-// Runner provides safe request/response and fire-and-forget execution against a goja runtime.
-type Runner interface {
+// RuntimeOwner provides safe request/response and fire-and-forget execution against a goja runtime.
+type RuntimeOwner interface {
 	Call(ctx context.Context, op string, fn CallFunc) (any, error)
 	Post(ctx context.Context, op string, fn PostFunc) error
+	WaitIdle(ctx context.Context) error
 	Shutdown(ctx context.Context) error
 	IsClosed() bool
 }
 
-// Options configures a runner.
+// Options configures a runtime owner.
 type Options struct {
 	Name          string
 	MaxWait       int64 // milliseconds; <=0 disables implicit timeout

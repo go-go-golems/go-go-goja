@@ -591,7 +591,7 @@ func TestInvokeInRuntimeReusesLiveRuntime(t *testing.T) {
 	}
 	factory, err := builder.Build()
 	require.NoError(t, err)
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	require.NoError(t, err)
 	defer func() { _ = rt.Close(context.Background()) }()
 
@@ -656,7 +656,7 @@ func TestFSWatchJsverbUsesInstalledHelper(t *testing.T) {
 	}
 	factory, err := builder.Build()
 	require.NoError(t, err)
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	require.NoError(t, err)
 	defer func() { _ = rt.Close(context.Background()) }()
 

@@ -98,7 +98,7 @@ func newDefaultRuntime(t *testing.T) *gggengine.Runtime {
 		Build()
 	require.NoError(t, err)
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, rt.Close(context.Background()))

@@ -162,10 +162,10 @@ func (m *DBModule) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
 	modules.SetExport(exports, m.Name(), "configure", m.Configure)
 	modules.SetExport(exports, m.Name(), "query", func(query string, args ...any) ([]map[string]any, error) {
-		return m.QueryContext(runtimebridge.CurrentContext(vm), query, args...)
+		return m.QueryContext(runtimebridge.CurrentOwnerContext(vm), query, args...)
 	})
 	modules.SetExport(exports, m.Name(), "exec", func(query string, args ...any) (map[string]any, error) {
-		return m.ExecContext(runtimebridge.CurrentContext(vm), query, args...)
+		return m.ExecContext(runtimebridge.CurrentOwnerContext(vm), query, args...)
 	})
 	modules.SetExport(exports, m.Name(), "close", m.Close)
 }

@@ -23,7 +23,7 @@ func TestDefaultDatabaseModuleConfigure(t *testing.T) {
 		Build()
 	require.NoError(t, err)
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rt.Close(context.Background())) }()
 
@@ -65,7 +65,7 @@ func TestPreconfiguredModuleRequireByName(t *testing.T) {
 		Build()
 	require.NoError(t, err)
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rt.Close(context.Background())) }()
 
@@ -114,7 +114,7 @@ func TestPreconfiguredModuleExecReceivesOwnerCallContext(t *testing.T) {
 		Build()
 	require.NoError(t, err)
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rt.Close(context.Background())) }()
 
@@ -152,7 +152,7 @@ func TestPreconfiguredModuleExecAfterAwaitReceivesOriginalCallContext(t *testing
 		Build()
 	require.NoError(t, err)
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rt.Close(context.Background())) }()
 

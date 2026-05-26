@@ -12,7 +12,7 @@ func TestDataOnlyModulesAreEnabledByDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestDefaultBuilderEnablesAllDefaultRegistryModules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestSafeMiddlewareRestrictsHostAccessModules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestMiddlewareOnlyEnablesOneHostModule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestMiddlewareOnlyEnablesSelectedHostModules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}

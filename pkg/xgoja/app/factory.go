@@ -78,5 +78,5 @@ func (f *RuntimeFactory) NewRuntime(ctx context.Context, profile string, opts ..
 	if err != nil {
 		return nil, err
 	}
-	return runtimeFactory.NewRuntime(ctx)
+	return runtimeFactory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
 }

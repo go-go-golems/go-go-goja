@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 type ownerCtxKey struct{}
 
 type ownerCtxValue struct {
-	r   *runner
+	r   *runtimeOwner
 	gid uint64
 }
 
@@ -25,14 +26,17 @@ type callResult struct {
 	err   error
 }
 
-type runner struct {
+type runtimeOwner struct {
 	vm        *goja.Runtime
 	scheduler Scheduler
 	opts      Options
 	closed    atomic.Bool
+
+	idleMu sync.Mutex
+	active int
 }
 
-func NewRunner(vm *goja.Runtime, scheduler Scheduler, opts Options) Runner {
+func NewRuntimeOwner(vm *goja.Runtime, scheduler Scheduler, opts Options) RuntimeOwner {
 	if vm == nil {
 		panic("runtimeowner: vm is nil")
 	}
@@ -42,17 +46,39 @@ func NewRunner(vm *goja.Runtime, scheduler Scheduler, opts Options) Runner {
 	if opts.Name == "" {
 		opts.Name = "runtime"
 	}
-	return &runner{vm: vm, scheduler: scheduler, opts: opts}
+	return &runtimeOwner{vm: vm, scheduler: scheduler, opts: opts}
 }
 
-func (r *runner) IsClosed() bool {
+func (r *runtimeOwner) IsClosed() bool {
 	if r == nil {
 		return true
 	}
 	return r.closed.Load()
 }
 
-func (r *runner) Shutdown(context.Context) error {
+func (r *runtimeOwner) WaitIdle(ctx context.Context) error {
+	if r == nil {
+		return nil
+	}
+	ctx = normalizeContext(ctx)
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		r.idleMu.Lock()
+		active := r.active
+		r.idleMu.Unlock()
+		if active == 0 {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("runtimeowner wait idle: %w: %v", ErrCanceled, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func (r *runtimeOwner) Shutdown(context.Context) error {
 	if r == nil {
 		return nil
 	}
@@ -60,9 +86,9 @@ func (r *runner) Shutdown(context.Context) error {
 	return nil
 }
 
-func (r *runner) Call(ctx context.Context, op string, fn CallFunc) (any, error) {
+func (r *runtimeOwner) Call(ctx context.Context, op string, fn CallFunc) (any, error) {
 	if r == nil || fn == nil {
-		return nil, fmt.Errorf("runtimeowner %s: nil runner or function", op)
+		return nil, fmt.Errorf("runtimeowner %s: nil runtime owner or function", op)
 	}
 	if r.closed.Load() {
 		return nil, ErrClosed
@@ -106,9 +132,9 @@ func (r *runner) Call(ctx context.Context, op string, fn CallFunc) (any, error) 
 	}
 }
 
-func (r *runner) Post(ctx context.Context, op string, fn PostFunc) error {
+func (r *runtimeOwner) Post(ctx context.Context, op string, fn PostFunc) error {
 	if r == nil || fn == nil {
-		return fmt.Errorf("runtimeowner %s: nil runner or function", op)
+		return fmt.Errorf("runtimeowner %s: nil runtime owner or function", op)
 	}
 	if r.closed.Load() {
 		return ErrClosed
@@ -159,7 +185,9 @@ func (r *runner) Post(ctx context.Context, op string, fn PostFunc) error {
 	return nil
 }
 
-func (r *runner) invoke(ctx context.Context, op string, fn CallFunc) (any, error) {
+func (r *runtimeOwner) invoke(ctx context.Context, op string, fn CallFunc) (any, error) {
+	r.beginActive()
+	defer r.endActive()
 	return runtimebridge.WithCallContext(r.vm, ctx, func() (any, error) {
 		if !r.opts.RecoverPanics {
 			return fn(ctx, r.vm)
@@ -182,7 +210,9 @@ func (r *runner) invoke(ctx context.Context, op string, fn CallFunc) (any, error
 	})
 }
 
-func (r *runner) invokePost(ctx context.Context, op string, fn PostFunc) {
+func (r *runtimeOwner) invokePost(ctx context.Context, op string, fn PostFunc) {
+	r.beginActive()
+	defer r.endActive()
 	_ = runtimebridge.WithCallContextVoid(r.vm, ctx, func() error {
 		if r.opts.RecoverPanics {
 			defer func() {
@@ -194,6 +224,20 @@ func (r *runner) invokePost(ctx context.Context, op string, fn PostFunc) {
 	})
 }
 
+func (r *runtimeOwner) beginActive() {
+	r.idleMu.Lock()
+	r.active++
+	r.idleMu.Unlock()
+}
+
+func (r *runtimeOwner) endActive() {
+	r.idleMu.Lock()
+	if r.active > 0 {
+		r.active--
+	}
+	r.idleMu.Unlock()
+}
+
 func normalizeContext(ctx context.Context) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
@@ -201,14 +245,14 @@ func normalizeContext(ctx context.Context) context.Context {
 	return ctx
 }
 
-func (r *runner) withOwnerContext(ctx context.Context) context.Context {
+func (r *runtimeOwner) withOwnerContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ownerCtxKey{}, ownerCtxValue{
 		r:   r,
 		gid: currentGoroutineID(),
 	})
 }
 
-func (r *runner) isOwnerContext(ctx context.Context) bool {
+func (r *runtimeOwner) isOwnerContext(ctx context.Context) bool {
 	v, ok := ctx.Value(ownerCtxKey{}).(ownerCtxValue)
 	if !ok || v.r != r || v.gid == 0 {
 		return false
@@ -221,9 +265,9 @@ type ownerContexter interface {
 }
 
 // OwnerContext marks ctx as belonging to the current owner goroutine for this
-// runner. It should only be used at known owner-thread entry points (for
+// runtime owner. It should only be used at known owner-thread entry points (for
 // example, inside native module exports invoked directly by the VM).
-func OwnerContext(r Runner, ctx context.Context) context.Context {
+func OwnerContext(r RuntimeOwner, ctx context.Context) context.Context {
 	ctx = normalizeContext(ctx)
 	if oc, ok := r.(ownerContexter); ok {
 		return oc.withOwnerContext(ctx)

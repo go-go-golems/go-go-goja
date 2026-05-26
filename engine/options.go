@@ -1,6 +1,42 @@
 package engine
 
-import "github.com/dop251/goja_nodejs/require"
+import (
+	"context"
+
+	"github.com/dop251/goja_nodejs/require"
+)
+
+type runtimeOptions struct {
+	startupContext  context.Context
+	lifetimeContext context.Context
+}
+
+// RuntimeOption configures creation of one runtime instance.
+type RuntimeOption func(*runtimeOptions)
+
+// WithStartupContext sets the context used while constructing a runtime and
+// running runtime initializers. If omitted, context.Background is used.
+func WithStartupContext(ctx context.Context) RuntimeOption {
+	return func(o *runtimeOptions) {
+		o.startupContext = ctx
+	}
+}
+
+// WithLifetimeContext sets the parent context for runtime-owned resources. The
+// runtime derives its own cancelable lifetime context from this parent and also
+// cancels it during Runtime.Close.
+func WithLifetimeContext(ctx context.Context) RuntimeOption {
+	return func(o *runtimeOptions) {
+		o.lifetimeContext = ctx
+	}
+}
+
+func defaultRuntimeOptions() runtimeOptions {
+	return runtimeOptions{
+		startupContext:  context.Background(),
+		lifetimeContext: context.Background(),
+	}
+}
 
 type builderSettings struct {
 	requireOptions                 []require.Option

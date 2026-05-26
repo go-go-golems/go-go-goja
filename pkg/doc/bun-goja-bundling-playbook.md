@@ -79,7 +79,7 @@ if err != nil {
     log.Fatalf("build factory: %v", err)
 }
 
-rt, err := factory.NewRuntime(context.Background())
+rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 if err != nil {
     log.Fatalf("new runtime: %v", err)
 }
@@ -109,7 +109,7 @@ if err != nil {
     log.Fatalf("build factory: %v", err)
 }
 
-rt, err := factory.NewRuntime(context.Background())
+rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 if err != nil {
     log.Fatalf("new runtime: %v", err)
 }
@@ -346,7 +346,7 @@ if err != nil {
     log.Fatalf("build engine factory: %v", err)
 }
 
-rt, err := factory.NewRuntime(context.Background())
+rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 if err != nil {
     log.Fatalf("create runtime: %v", err)
 }
@@ -422,7 +422,7 @@ This section summarizes the integration points between Goja and the bundled outp
 
 **Goja loader**
 - `engine.NewBuilder().WithRequireOptions(require.WithLoader(loader)).Build()` configures runtime creation.
-- `factory.NewRuntime(context.Background())` creates an owned runtime that should be closed explicitly.
+- `factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))` creates an owned runtime that should be closed explicitly.
 - `require.ModuleFileDoesNotExistError` signals to Goja that the module path is missing.
 
 **Makefile targets**

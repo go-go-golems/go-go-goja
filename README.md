@@ -36,10 +36,10 @@ The canonical API is explicit runtime composition:
 1. create a builder (`engine.NewBuilder(...)`)
 2. add module/runtime options (`WithModules(...)`, `WithRuntimeInitializers(...)`, ...)
 3. build an immutable factory (`Build()`)
-4. create an owned runtime (`factory.NewRuntime(ctx)`)
+4. create an owned runtime with explicit contexts (`factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))`)
 5. close runtime explicitly (`rt.Close(ctx)`)
 
-Legacy convenience wrappers (`engine.New()`, `engine.NewWithOptions(...)`, `engine.Open(...)`) were removed.
+`WithStartupContext` controls runtime construction and initializers. `WithLifetimeContext` controls runtime-owned resources and cancellation after construction. Legacy convenience wrappers (`engine.New()`, `engine.NewWithOptions(...)`, `engine.Open(...)`) were removed.
 
 ---
 
@@ -99,7 +99,7 @@ if err != nil {
     return err
 }
 
-rt, err := factory.NewRuntime(ctx)
+rt, err := factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
 if err != nil {
     return err
 }
@@ -251,7 +251,7 @@ if err != nil {
 //     UseModuleMiddleware(engine.MiddlewareOnly("fs")).
 //     Build()
 
-rt, err := factory.NewRuntime(ctx)
+rt, err := factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
 if err != nil {
     t.Fatal(err)
 }
@@ -279,33 +279,44 @@ MIT (see LICENSE file).
 
 `goja` lets Go code create real JavaScript `Promise`s or invoke JS callbacks later, but all VM access must happen on the runtime owner thread.
 
-The recommended reusable pattern is `pkg/runtimeowner`:
+The recommended reusable pattern for native modules is `pkg/runtimebridge.RuntimeServices`. Runtime services are stored for each VM by the engine and expose the runtime owner, event loop, and lifetime context:
 
 ```go
-runner := runtimeowner.NewRunner(vm, loop, runtimeowner.Options{
-    Name:          "my-module",
-    RecoverPanics: true,
-})
+runtimeServices, ok := runtimebridge.Lookup(vm)
+if !ok || runtimeServices.Owner == nil {
+    panic(vm.NewGoError(fmt.Errorf("module requires runtime services")))
+}
 
 promise, resolve, reject := vm.NewPromise()
+callCtx := runtimebridge.CurrentOwnerContext(vm)
+
 go func() {
     out, err := slowWork()
-    _ = runner.Post(context.Background(), "myModule.settle", func(context.Context, *goja.Runtime) {
-        if err != nil {
+    if err != nil {
+        _ = runtimeServices.PostWithCustomContext(callCtx, "myModule.reject", func(context.Context, *goja.Runtime) {
             _ = reject(vm.ToValue(err.Error()))
-            return
-        }
+        })
+        return
+    }
+    _ = runtimeServices.PostWithCustomContext(callCtx, "myModule.resolve", func(context.Context, *goja.Runtime) {
         _ = resolve(vm.ToValue(out))
     })
 }()
 return vm.ToValue(promise)
 ```
 
-Low-level `loop.RunOnLoop(...)` is still valid, but `runtimeowner.Runner` is preferred for:
+Embedders that already own a `*goja.Runtime` and scheduler can use `runtimeowner.NewRuntimeOwner(...)` directly. Low-level `loop.RunOnLoop(...)` is still valid, but `runtimeowner.RuntimeOwner` is preferred for:
 
 - cancellation-aware `Call`/`Post`,
+- `WaitIdle(ctx)` during shutdown,
 - standardized errors (`ErrClosed`, `ErrScheduleRejected`, etc.),
 - owner-context fast-path for nested calls.
+
+Choose contexts deliberately:
+
+- `CallWithCurrentContext` / `PostWithCurrentContext` inherit the current owner-entry context.
+- `CallWithLifetimeContext` / `PostWithLifetimeContext` are for runtime-owned background work.
+- `CallWithCustomContext` / `PostWithCustomContext` are for explicit request/event/operation contexts.
 
 Important caveat:
 
