@@ -41,13 +41,13 @@ WhenToUse: "Use while executing or reviewing XGOJA-014."
 
 ## Phase 2 — loupedeck command provider
 
-- [ ] Update `loupedeck` dependency to `github.com/go-go-golems/go-go-goja v0.5.0`.
-- [ ] Export a non-Cobra annotated verb command-list helper from `cmd/loupedeck/cmds/verbs`.
-- [ ] Register `providerapi.CommandSetProvider{Name: "scenes"}` in the loupedeck xgoja provider.
-- [ ] Decode command provider config (`includeRun`, `repositories`).
-- [ ] Add construction-only tests that do not open hardware sessions.
-- [ ] Run focused loupedeck validation.
-- [ ] Commit loupedeck implementation.
+- [x] Update `loupedeck` dependency to `github.com/go-go-golems/go-go-goja v0.5.0`.
+- [x] Export a non-Cobra annotated verb command-list helper from `cmd/loupedeck/cmds/verbs`.
+- [x] Register `providerapi.CommandSetProvider{Name: "scenes"}` in the loupedeck xgoja provider.
+- [x] Decode command provider config (`includeRun`, `repositories`).
+- [x] Add construction-only tests that do not open hardware sessions.
+- [x] Run focused loupedeck validation.
+- [x] Commit loupedeck implementation.
 
 ## Phase 3 — css-visual-diff provider and command provider
 

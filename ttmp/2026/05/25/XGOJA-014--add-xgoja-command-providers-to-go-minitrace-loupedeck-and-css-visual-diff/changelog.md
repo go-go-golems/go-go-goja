@@ -24,3 +24,4 @@ WhenToUse: "Use for review summaries and ticket closeout."
 - Added package-specific implementation guides for all three repositories.
 - Added an initial task plan and implementation diary.
 - Implemented `go-minitrace` command provider `go-minitrace.queries` with catalog command construction, tests, and dependency update to `go-go-goja v0.5.0`.
+- Implemented `loupedeck` command provider `loupedeck.scenes` with optional `run`, annotated scene verb commands, construction tests, and dependency update to `go-go-goja v0.5.0`.
