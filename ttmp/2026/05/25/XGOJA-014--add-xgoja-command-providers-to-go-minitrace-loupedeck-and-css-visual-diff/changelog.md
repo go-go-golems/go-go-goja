@@ -131,3 +131,16 @@ Validated Loupedeck generated xgoja web/hardware UI: runtime modules now use Run
 - /home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/runtime/js/module_ui/module.go — Uses RuntimeServices helpers for retained UI callbacks and hardware events
 - /home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/runtime/js/provider/provider.go — Adds xgoja hardware capability and loupedeck/ui modules
 
+
+## 2026-05-26
+
+Swept downstream repositories for go-go-goja runtime API cleanup and committed migrations in Geppetto, Discord Bot, go-minitrace, and css-visual-diff.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/css-visual-diff/internal/cssvisualdiff/jsapi/module.go — css-visual-diff RuntimeServices migration
+- /home/manuel/workspaces/2026-05-24/add-js-providers/discord-bot/internal/jsdiscord/runtime.go — Discord runtimebridge context helper migration
+- /home/manuel/workspaces/2026-05-24/add-js-providers/geppetto/pkg/js/runtime/runtime.go — Geppetto explicit runtime context construction
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/reference/01-diary.md — Diary records downstream runtime API sweep
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-minitrace/cmd/go-minitrace/cmds/query/js_runtime.go — go-minitrace explicit runtime context construction
+
