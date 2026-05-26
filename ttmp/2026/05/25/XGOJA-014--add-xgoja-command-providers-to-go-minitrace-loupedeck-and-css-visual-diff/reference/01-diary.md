@@ -942,6 +942,8 @@ I updated the diary before continuing so this small cleanup and the next phase r
 
 **Commit (code):** c0e34d5 — "refactor: link runtime service contexts to lifetime"
 
+**Commit (code):** b466ccb — "refactor: wait for runtime owner idle on close"
+
 ### What I did
 
 - Updated this diary before making further code changes.

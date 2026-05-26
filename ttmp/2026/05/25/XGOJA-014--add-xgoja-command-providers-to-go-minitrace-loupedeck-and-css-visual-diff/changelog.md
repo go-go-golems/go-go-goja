@@ -106,3 +106,15 @@ Linked runtime service operation contexts to runtime lifetime cancellation, clea
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimeowner/runner.go — Internal runtime owner naming cleanup
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/reference/01-diary.md — Diary continuation for runtime lifetime linking
 
+
+## 2026-05-26
+
+Added RuntimeOwner.WaitIdle active-call tracking and runtime Close idle-wait/interrupt behavior for bounded shutdown after lifetime cancellation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/engine/runtime.go — Close waits for idle and interrupts active JavaScript if needed
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimeowner/runner.go — Tracks active owner calls for WaitIdle
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimeowner/types.go — RuntimeOwner now exposes WaitIdle
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/reference/01-diary.md — Diary updated with WaitIdle shutdown step
+
