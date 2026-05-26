@@ -1,0 +1,2376 @@
+schema_version: semantic-document/v1
+document:
+  id: xgoja-014-goja-context-ownership-guide
+  title: Goja context ownership and runtime package composition guide
+  subtitle: Runtime ownership, cancellation, shutdown, and package composition
+  version: '2'
+  source_markdown: ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/design-doc/01-goja-context-ownership-and-runtime-package-composition-guide.md
+  source_ticket: XGOJA-014
+  generated_at: '2026-05-26T12:32:23+00:00'
+  audience:
+  - new intern
+  - go-go-goja maintainer
+  - runtime package author
+  - designer/typesetter
+  intent: teach-and-guide-implementation
+  density: high
+  reading_modes:
+  - deep_read
+  - implementation_reference
+  - code_review_checklist
+  frontmatter:
+    Title: Goja context ownership and runtime package composition guide
+    Ticket: XGOJA-014
+    Status: complete
+    Topics:
+    - xgoja
+    - providers
+    - command-registration
+    - goja
+    - documentation
+    DocType: design-doc
+    Intent: long-term
+    Owners: []
+    RelatedFiles:
+    - Path: ../../../../../../../loupedeck/runtime/js/module_state/module.go
+      Note: Downstream state callback context pattern included in migration guidance
+    - Path: ../../../../../../../loupedeck/runtime/js/module_ui/module.go
+      Note: |-
+        Example of how stale context capture in reactive callbacks can deadlock a composed runtime
+        Downstream deadlock case used as teaching example
+    - Path: engine/factory.go
+      Note: |-
+        Creates runtimes, event loops, owner runners, lifecycle contexts, and runtimebridge bindings
+        Runtime creation path creates owner loop
+    - Path: engine/runtime.go
+      Note: |-
+        Owns runtime shutdown, closers, runtime lifecycle cancellation, and runtimebridge cleanup
+        Runtime close path owns lifecycle cancellation
+    - Path: modules/timer/timer.go
+      Note: |-
+        Good example of capturing call and runtime lifecycle contexts for async promise settlement
+        Good async promise context pattern analyzed
+    - Path: pkg/gojahttp/host.go
+      Note: |-
+        Bridges HTTP requests into the single JS owner with request-scoped contexts
+        HTTP request context enters the runtime owner and is used as a model event source
+    - Path: pkg/jsverbs/runtime.go
+      Note: |-
+        Invokes JS verbs inside caller-owned runtimes and waits for returned promises
+        InvokeInRuntime owner-call and promise-wait behavior analyzed
+    - Path: pkg/runtimebridge/runtimebridge.go
+      Note: |-
+        Stores per-runtime bindings and current call contexts; central source of the context confusion
+        Central runtime bindings/current-context API reviewed for lifecycle vs current owner context
+    - Path: pkg/runtimeowner/runner.go
+      Note: |-
+        Serializes all VM access through Owner.Call/Post and marks owner contexts
+        Owner serialization and context-marker reentrancy implementation reviewed
+    - Path: pkg/xgoja/providers/http/http.go
+      Note: |-
+        Example package capability that starts an external server and attaches runtime cleanup
+        Runtime package capability/resource cleanup model analyzed
+    ExternalSources: []
+    Summary: Deep design guide for context ownership, runtime owner scheduling, async callbacks, and package composition in go-go-goja/xgoja.
+    LastUpdated: 2026-05-26 08:35:00-04:00
+    WhatFor: Onboard an intern to go-go-goja context management and define a safer API direction before adding more mixed runtime packages such as express, discord, and loupedeck.
+    WhenToUse: Use before modifying runtimebridge, runtimeowner, xgoja provider initialization, async native modules, or event-source integrations.
+semantic_vocabulary:
+  section_roles:
+  - summary
+  - problem-statement
+  - concept-foundation
+  - architecture-map
+  - case-study
+  - strengths-analysis
+  - gap-analysis
+  - risk-analysis
+  - proposed-architecture
+  - authoring-guidelines
+  - api-reference
+  - implementation-plan
+  - migration-guide
+  - diagram-section
+  - test-strategy
+  - open-questions
+  - conclusion
+  - exposition
+  block_types:
+  - prose
+  - principle
+  - quote
+  - definition
+  - risk
+  - decision
+  - code
+  - command
+  - diagram
+  - table
+  - bullet_list
+  - ordered_list
+  - checklist
+  importance:
+  - critical
+  - high
+  - medium
+  - low
+sections:
+- id: goja-context-ownership-and-runtime-package-composition-guide
+  title: Goja context ownership and runtime package composition guide
+  level: 1
+  role: exposition
+  importance: high
+  blocks: []
+  sections:
+  - id: 1-executive-summary
+    title: 1. Executive summary
+    level: 2
+    role: summary
+    importance: critical
+    blocks:
+    - id: b0001
+      type: prose
+      intent: explain
+      content: '`go-go-goja` is becoming a runtime composition framework, not just a JavaScript helper library. A generated xgoja binary can now combine packages that open HTTP servers, talk to Discord, listen to hardware, resolve timers, run filesystem work, and expose package-owned Glazed commands. That power changes the context problem. A runtime no longer has a single obvious caller. It can be entered by a CLI command, an HTTP request, a Discord gateway event, a Loupedeck button press, a timer goroutine, or a cleanup hook.'
+    - id: b0002
+      type: prose
+      intent: explain
+      content: 'The current system has the right basic pieces: a single owner runner protects the `goja.Runtime`; a lifecycle context cancels runtime-owned resources; a current-call context stack lets native modules inherit request/command cancellation; and provider capabilities attach runtime-specific resources such as HTTP servers. The problem is that the API names do not clearly tell authors which context they should use in each situation. In particular, `runtimebridge.Bindings.Context` looks like “the context to pass to owner calls,” but it is actually the runtime lifecycle context. Passing it into `Owner.Call` from code that is already executing on the owner goroutine can deadlock if the runner only detects reentrancy through the context marker.'
+    - id: b0003
+      type: principle
+      intent: remember
+      content: 'The proper design change is to make context intent explicit. We should distinguish four ideas in the API: runtime lifecycle context, current owner-entry context, captured operation context, and cleanup context. We should add safe helpers for calling/posting to the JS owner, rename or deprecate ambiguous fields, link lifecycle cancellation into every active owner call, harden the runtime owner against same-goroutine reentrant calls even when the caller passes the wrong context, and document module-authoring rules for synchronous callbacks, async promises, subscriptions, and external event sources.'
+    - id: b0004
+      type: principle
+      intent: remember
+      content: 'The most important design rule is:'
+    - id: b0005
+      type: principle
+      intent: remember
+      content: '> A native module should not treat `Bindings.Context` as “the context for JavaScript callbacks.” It should either use the current owner-entry context while executing inside JS, capture an operation/subscription context deliberately, or use the lifecycle context deliberately for runtime-owned background work.'
+    sections: []
+    summary: '`go-go-goja` is becoming a runtime composition framework, not just a JavaScript helper library. A generated xgoja binary can now combine packages that open HTTP servers, talk to Discord, listen to hardware, resolve timer'
+  - id: 2-what-problem-this-document-solves
+    title: 2. What problem this document solves
+    level: 2
+    role: problem-statement
+    importance: high
+    blocks:
+    - id: b0006
+      type: prose
+      intent: explain
+      content: This document is a map for a new intern who needs to work on `go-go-goja` without accidentally making context handling worse. It explains the current architecture, why it exists, where the current API is ambiguous, how the Loupedeck issue exposed the ambiguity, and how to redesign the API so mixed runtime packages remain understandable.
+    - id: b0007
+      type: prose
+      intent: explain
+      content: 'The goal is not just to fix one deadlock. The goal is to establish vocabulary and API boundaries that will still hold when a single runtime mixes packages like these:'
+    - id: b0008
+      type: bullet_list
+      intent: enumerate
+      content: |-
+        - `express`, which receives HTTP requests from many goroutines and calls JS route handlers.
+        - `discord`, which receives gateway events and calls JS bot handlers.
+        - `loupedeck/ui`, which receives hardware events and reactive render updates.
+        - `timer`, which resolves promises after sleeps.
+        - `fs`, which performs work in goroutines and settles promises back on the JS owner.
+        - `jsverbs`, which invokes command functions and waits for promises.
+    - id: b0009
+      type: prose
+      intent: explain
+      content: If we do not clarify context ownership now, every new package will invent its own slightly different rule. Some of those rules will work in isolation and fail when packages are combined.
+    sections: []
+    summary: This document is a map for a new intern who needs to work on `go-go-goja` without accidentally making context handling worse. It explains the current architecture, why it exists, where the current API is ambiguous, how t
+  - id: 3-conceptual-model-serialized-vm-ownership-with-multiple-entry-sources
+    title: '3. Conceptual model: serialized VM ownership with multiple entry sources'
+    level: 2
+    role: concept-foundation
+    importance: high
+    blocks:
+    - id: b0010
+      type: prose
+      intent: explain
+      content: Goja runtimes are not thread-safe. A `*goja.Runtime` must be accessed by one goroutine at a time. In `go-go-goja`, `runtimeowner.Runner` is the component that serializes VM access. Code outside the owner path does not call methods on the VM directly; it submits work through `Owner.Call` when it needs a result or `Owner.Post` when it only needs to enqueue work.
+    - id: b0011
+      type: prose
+      intent: explain
+      content: 'The complication is that a composed xgoja runtime can be entered by several sources, each with different lifetime and cancellation semantics:'
+    - id: b0012
+      type: diagram
+      intent: explain-flow
+      language: text
+      diagram_type: ascii_sequence
+      content: |2-
+                                  ┌───────────────────────────┐
+        CLI command ─────────────▶│                           │
+        HTTP request ────────────▶│                           │
+        Discord event ───────────▶│      runtimeowner.Runner  │────▶ goja.Runtime
+        Loupedeck event ─────────▶│      Owner.Call/Post      │
+        Timer goroutine ─────────▶│                           │
+        FS goroutine ────────────▶│                           │
+        Cleanup hook ────────────▶│                           │
+                                  └───────────────────────────┘
+    - id: b0013
+      type: prose
+      intent: explain
+      content: Each entry source has a different cancellation source. An HTTP request should stop if the client disconnects. A CLI command should stop if the command context is canceled. A runtime-owned background server should stop when the runtime closes. A cleanup hook should receive a close context and should not depend on an already-canceled request context.
+    - id: b0014
+      type: prose
+      intent: explain
+      content: A single `context.Context` cannot represent all of those lifetimes at once. The design must name the differences and specify which context is passed at each boundary.
+    sections: []
+    summary: Goja runtimes are not thread-safe. A `*goja.Runtime` must be accessed by one goroutine at a time. In `go-go-goja`, `runtimeowner.Runner` is the component that serializes VM access. Code outside the owner path does not ca
+  - id: 4-vocabulary-the-four-contexts-we-need-to-name
+    title: '4. Vocabulary: the four contexts we need to name'
+    level: 2
+    role: concept-foundation
+    importance: critical
+    blocks: []
+    sections:
+    - id: 4-1-runtime-lifecycle-context
+      title: 4.1 Runtime lifecycle context
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0015
+        type: prose
+        intent: explain
+        content: The runtime lifecycle context lives as long as the runtime. It is created when the runtime is created and canceled when `Runtime.Close` runs. In current code, `engine.Factory.NewRuntime` creates it with `context.WithCancel(context.Background())` and stores it in both `engine.Runtime` and `runtimebridge.Bindings.Context` (`engine/factory.go:202-217`). `engine.Runtime.Context()` exposes it (`engine/runtime.go:49-55`), and `Runtime.Close` cancels it before running closers and stopping the owner/event loop (`engine/runtime.go:73-113`).
+      - id: b0016
+        type: prose
+        intent: explain
+        content: 'This context is good for runtime-owned resources:'
+      - id: b0017
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - an HTTP server owned by the runtime;
+          - a Discord session owned by the runtime;
+          - a Loupedeck hardware listener owned by the runtime;
+          - a filesystem watcher owned by the runtime;
+          - cancellation of goroutines that should not outlive the runtime.
+      - id: b0018
+        type: prose
+        intent: explain
+        content: It is not automatically the right context for a JS callback. It says “the runtime still exists,” not “this HTTP request is still alive” or “this CLI invocation is still active.”
+      sections: []
+      summary: The runtime lifecycle context lives as long as the runtime. It is created when the runtime is created and canceled when `Runtime.Close` runs. In current code, `engine.Factory.NewRuntime` creates it with `context.WithCanc
+    - id: 4-2-current-owner-entry-context
+      title: 4.2 Current owner-entry context
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0019
+        type: prose
+        intent: explain
+        content: The current owner-entry context is the context of the currently executing entry into the VM. `runtimeowner.Runner.Call` receives a context, marks it as an owner context, and executes the callback through `runtimebridge.WithCallContext` (`runtimeowner/runner.go:63-104`, `runtimeowner/runner.go:162-188`). While that callback is running, `runtimebridge.CurrentContext(vm)` returns that active context (`runtimebridge/runtimebridge.go:73-89`).
+      - id: b0020
+        type: prose
+        intent: explain
+        content: 'Examples:'
+      - id: b0021
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `xgoja run` enters the VM with the command context (`pkg/xgoja/app/run.go:102-116`).
+          - `xgoja eval` enters the VM with the command context (`pkg/xgoja/app/root.go:116-145`).
+          - `jsverbs.InvokeInRuntime` enters the VM with the command context (`pkg/jsverbs/runtime.go:46-110`).
+          - `gojahttp.Host.ServeHTTP` enters the VM with `r.Context()` (`pkg/gojahttp/host.go:79-93`).
+      - id: b0022
+        type: prose
+        intent: explain
+        content: This context is the right default inside JavaScript-facing native functions. If a module function is called by JS and it needs cancellation, deadlines, trace spans, or same-owner reentrancy, it should start by asking for the current owner-entry context.
+      sections: []
+      summary: The current owner-entry context is the context of the currently executing entry into the VM. `runtimeowner.Runner.Call` receives a context, marks it as an owner context, and executes the callback through `runtimebridge.W
+    - id: 4-3-captured-operation-or-subscription-context
+      title: 4.3 Captured operation or subscription context
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0023
+        type: prose
+        intent: explain
+        content: Some native module functions begin an operation that finishes later. `timer.sleep(ms)` is a good example. The JS function is called now, but the promise resolves later from a goroutine. The timer module captures the current call context while the JS function is executing, captures the lifecycle context separately, and then waits for either cancellation or the timer (`modules/timer/timer.go:31-67`). The filesystem async helpers use the same pattern (`modules/fs/fs_async.go:11-74`).
+      - id: b0024
+        type: prose
+        intent: explain
+        content: This captured context is not “current” anymore when the goroutine runs. It is deliberately captured because it describes the operation that created the promise. If the operation belongs to an HTTP request, canceling the request should cancel the operation. If the operation belongs to a CLI command, Ctrl-C should cancel it. The lifecycle context is also checked so runtime shutdown cancels it.
+      - id: b0025
+        type: prose
+        intent: explain
+        content: Subscriptions are trickier. A hardware event handler registered during startup may be intended to survive many individual events until the runtime closes. If it captures a short HTTP request context, it may die too early. If it captures only the lifecycle context, it may ignore cancellation of the setup operation. The API should force the module author to choose.
+      sections: []
+      summary: Some native module functions begin an operation that finishes later. `timer.sleep(ms)` is a good example. The JS function is called now, but the promise resolves later from a goroutine. The timer module captures the curr
+    - id: 4-4-cleanup-context
+      title: 4.4 Cleanup context
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0026
+        type: prose
+        intent: explain
+        content: 'Cleanup context is passed into `Runtime.Close(ctx)` and runtime closers. It answers a different question: “how long should cleanup be allowed to take?” The HTTP provider registers a runtime closer that calls `server.Shutdown(ctx)` (`pkg/xgoja/providers/http/http.go:94-99`, `pkg/xgoja/providers/http/http.go:155-170`). That `ctx` should come from the close operation, not from the request that happened to start the server.'
+      - id: b0027
+        type: prose
+        intent: explain
+        content: Cleanup context should not be conflated with current owner-entry context or lifecycle context. The lifecycle context is usually already canceled when cleanup begins.
+      sections: []
+      summary: 'Cleanup context is passed into `Runtime.Close(ctx)` and runtime closers. It answers a different question: “how long should cleanup be allowed to take?” The HTTP provider registers a runtime closer that calls `server.Shut'
+  - id: 5-current-implementation-map
+    title: 5. Current implementation map
+    level: 2
+    role: architecture-map
+    importance: high
+    blocks: []
+    sections:
+    - id: 5-1-runtime-creation-path
+      title: 5.1 Runtime creation path
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0028
+        type: prose
+        intent: explain
+        content: The runtime creation path starts in `engine.Factory.NewRuntime`.
+      - id: b0029
+        type: code
+        intent: show-example
+        language: text
+        content: |-
+          Factory.NewRuntime(ctx)
+            ├─ create goja.Runtime
+            ├─ create goja_nodejs event loop
+            ├─ create runtimeowner.Runner
+            ├─ create runtime lifecycle context
+            ├─ store runtimebridge.Bindings{Context, Loop, Owner}
+            ├─ register native modules
+            ├─ enable require/console/buffer/url
+            ├─ run runtime initializers
+            └─ return *engine.Runtime
+      - id: b0030
+        type: prose
+        intent: explain
+        content: 'The important file references are:'
+      - id: b0031
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `engine/factory.go:190-199` creates the VM, event loop, and owner runner.
+          - `engine/factory.go:202-217` creates the lifecycle context and stores runtimebridge bindings.
+          - `engine/factory.go:219-239` registers modules using `RuntimeModuleContext`.
+          - `engine/factory.go:241-270` enables globals and runs runtime initializers.
+          - `engine/runtime.go:28-46` defines the owned runtime fields.
+          - `engine/runtime.go:73-113` defines runtime shutdown and cleanup ordering.
+      - id: b0032
+        type: prose
+        intent: explain
+        content: The important design fact is that `NewRuntime(ctx)` currently does not make `ctx` the runtime lifecycle context. It creates a new background-rooted lifecycle context. That is a defensible choice because the runtime may outlive the create call. But it should be documented. If we want runtime creation cancellation and lifecycle cancellation to be related, we need an explicit option, not an accidental reuse.
+      sections: []
+      summary: The runtime creation path starts in `engine.Factory.NewRuntime`.
+    - id: 5-2-owner-runner-path
+      title: 5.2 Owner runner path
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0033
+        type: prose
+        intent: explain
+        content: The owner runner serializes all VM access.
+      - id: b0034
+        type: code
+        intent: show-example
+        language: text
+        content: |-
+          Owner.Call(ctx, op, fn)
+            ├─ normalize ctx
+            ├─ optionally apply MaxWait deadline
+            ├─ if ctx says current goroutine already owns VM: invoke directly
+            ├─ otherwise schedule fn on event loop
+            ├─ event-loop callback wraps ctx with owner marker
+            ├─ invoke fn through runtimebridge.WithCallContext
+            └─ return result/error to caller
+      - id: b0035
+        type: prose
+        intent: explain
+        content: The current reentrancy check is context-based. `runner.isOwnerContext(ctx)` looks for an owner marker in the context and compares the recorded goroutine id to the current goroutine (`runtimeowner/runner.go:198-207`). That works only if the caller passes the context that contains the marker. If code running on the owner goroutine passes `context.Background()` or the lifecycle context, the runner does not know it is already on the owner goroutine. It schedules behind itself and can deadlock.
+      - id: b0036
+        type: prose
+        intent: explain
+        content: 'That design explains the Loupedeck failure: the UI module called back into JS from within a JS invocation, but it used a context that did not carry the owner marker.'
+      sections:
+      - id: 5-2-1-what-a-runner-is
+        title: 5.2.1 What a Runner is
+        level: 4
+        role: exposition
+        importance: high
+        blocks:
+        - id: b0037
+          type: prose
+          intent: explain
+          content: A `Runner` is the runtime-owned serialized execution API for the VM. It is not a general goroutine runner. It is specifically the component that controls when code may touch the `*goja.Runtime`.
+        - id: b0038
+          type: prose
+          intent: explain
+          content: 'Current shape:'
+        - id: b0039
+          type: code
+          intent: show-api-or-pseudocode
+          language: go
+          content: |-
+            type Runner interface {
+                Call(ctx context.Context, op string, fn CallFunc) (any, error)
+                Post(ctx context.Context, op string, fn PostFunc) error
+                Shutdown(context.Context) error
+                IsClosed() bool
+            }
+        - id: b0040
+          type: prose
+          intent: explain
+          content: 'The methods have distinct semantics:'
+        - id: b0041
+          type: bullet_list
+          intent: enumerate
+          content: |-
+            - `Call` schedules VM work and waits for a returned value or error. It is used by `xgoja eval`, `xgoja run`, `jsverbs.InvokeInRuntime`, HTTP route dispatch, and REPL evaluation.
+            - `Post` schedules VM work without waiting for a returned value. It is used by background goroutines that need to settle promises or deliver external events.
+            - `Shutdown` marks the runner closed so new calls should not be accepted.
+            - `IsClosed` reports whether new calls are expected to fail.
+        - id: b0042
+          type: prose
+          intent: explain
+          content: 'The runner should eventually also expose shutdown coordination, either directly or through the owning `engine.Runtime`:'
+        - id: b0043
+          type: code
+          intent: show-api-or-pseudocode
+          language: go
+          content: |-
+            type Runner interface {
+                Call(ctx context.Context, op string, fn CallFunc) (any, error)
+                Post(ctx context.Context, op string, fn PostFunc) error
+                Shutdown(context.Context) error
+                IsClosed() bool
+
+                // Proposed, or implemented on a private concrete type used by engine.Runtime.
+                WaitIdle(ctx context.Context) error
+                Interrupt(reason any)
+            }
+        - id: b0044
+          type: prose
+          intent: explain
+          content: '`WaitIdle` would let `Runtime.Close` wait for active owner entries to unwind after lifecycle cancellation. `Interrupt` would be a last-resort call to `goja.Runtime.Interrupt` when active JavaScript does not cooperate with cancellation.'
+        sections: []
+        summary: A `Runner` is the runtime-owned serialized execution API for the VM. It is not a general goroutine runner. It is specifically the component that controls when code may touch the `*goja.Runtime`.
+      summary: The owner runner serializes all VM access.
+    - id: 5-3-runtime-bridge-path
+      title: 5.3 Runtime bridge path
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0045
+        type: prose
+        intent: explain
+        content: '`runtimebridge` stores per-VM bindings and current call context.'
+      - id: b0046
+        type: prose
+        intent: explain
+        content: 'Current API:'
+      - id: b0047
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          type Bindings struct {
+              Context context.Context
+              Loop    *eventloop.EventLoop
+              Owner   OwnerRunner
+          }
+
+          func Store(vm *goja.Runtime, bindings Bindings)
+          func Lookup(vm *goja.Runtime) (Bindings, bool)
+          func CurrentContext(vm *goja.Runtime) context.Context
+          func WithCallContext(vm *goja.Runtime, ctx context.Context, fn func() (any, error)) (any, error)
+      - id: b0048
+        type: prose
+        intent: explain
+        content: The current comments say that `CurrentContext` returns the active owner-call context and falls back to the runtime lifecycle context (`runtimebridge/runtimebridge.go:73-89`). That comment is correct, but the field name `Bindings.Context` is too vague. A reader naturally assumes it is the context to pass to owner calls. It is actually the lifecycle fallback.
+      - id: b0049
+        type: prose
+        intent: explain
+        content: There is also a subtle global-stack issue. `callContextsByVM` stores a stack per VM, not per goroutine (`runtimebridge/runtimebridge.go:57-71`, `runtimebridge/runtimebridge.go:122-145`). Because only the owner goroutine should call JS-facing module functions, this works for the intended path. But a helper named `CurrentContext(vm)` is tempting to call from background goroutines. If a background goroutine calls it while an HTTP request is active on the owner, it may observe the active request context even though that goroutine is not part of the request. The API should make that misuse harder.
+      sections: []
+      summary: '`runtimebridge` stores per-VM bindings and current call context.'
+    - id: 5-4-xgoja-runtime-factory-and-module-sections
+      title: 5.4 xgoja runtime factory and module sections
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0050
+        type: prose
+        intent: explain
+        content: The xgoja app runtime factory creates engine runtimes from named runtime profiles. It turns configured provider modules into engine module specs (`pkg/xgoja/app/factory.go:50-81`). Module descriptors also carry package capabilities so built-in commands can collect Glazed config sections and run runtime initializers (`pkg/xgoja/app/module_sections.go:15-83`).
+      - id: b0051
+        type: prose
+        intent: explain
+        content: 'This is the layer where packages such as HTTP, Discord, and Loupedeck become runtime-relevant. A provider can say:'
+      - id: b0052
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - “If my module is selected, add these command-line sections.”
+          - “After the runtime exists and values are parsed, initialize my runtime state.”
+          - “Register cleanup with the runtime.”
+      - id: b0053
+        type: prose
+        intent: explain
+        content: The HTTP provider is the cleanest current example. It exposes an `http` section, decodes `http-enabled` and `http-listen`, stores per-runtime settings, starts the server when `express` is required, and registers a shutdown closer (`pkg/xgoja/providers/http/http.go:62-99`, `pkg/xgoja/providers/http/http.go:102-155`).
+      sections: []
+      summary: The xgoja app runtime factory creates engine runtimes from named runtime profiles. It turns configured provider modules into engine module specs (`pkg/xgoja/app/factory.go:50-81`). Module descriptors also carry package c
+    - id: 5-5-js-verbs-path
+      title: 5.5 JS verbs path
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0054
+        type: prose
+        intent: explain
+        content: '`jsverbs.InvokeInRuntime` is the path used by generated command-provider examples and package-owned command providers. It invokes a JavaScript function in an already-created runtime (`pkg/jsverbs/runtime.go:46-110`). If the function returns a promise, it polls promise state via repeated owner calls (`pkg/jsverbs/runtime.go:227-260`).'
+      - id: b0055
+        type: prose
+        intent: explain
+        content: This means the JS verb body itself is already executing inside `Owner.Call`. Any native module called synchronously by the verb is already on the owner goroutine. If that native module calls back into JS synchronously, it must preserve the current owner context or rely on a reentrancy-safe owner.
+      - id: b0056
+        type: prose
+        intent: explain
+        content: This is not a flaw in `InvokeInRuntime`; it is the correct way to protect the VM. The flaw is that module authors have too many ways to call back into the owner and too few safe defaults.
+      sections: []
+      summary: '`jsverbs.InvokeInRuntime` is the path used by generated command-provider examples and package-owned command providers. It invokes a JavaScript function in an already-created runtime (`pkg/jsverbs/runtime.go:46-110`). If '
+  - id: 6-the-loupedeck-failure-as-a-teaching-example
+    title: 6. The Loupedeck failure as a teaching example
+    level: 2
+    role: case-study
+    importance: high
+    blocks:
+    - id: b0057
+      type: prose
+      intent: explain
+      content: 'The Loupedeck demo wants one JS file to define shared state and expose it to both web and hardware UI. The simplified shape is:'
+    - id: b0058
+      type: code
+      intent: show-js-example
+      language: js
+      content: |-
+        const state = require("loupedeck/state");
+        const ui = require("loupedeck/ui");
+        const express = require("express");
+
+        const scene = state.signal("waiting");
+
+        ui.page("web-switcher", page => {
+          page.tile(0, 0, tile => {
+            tile.text(() => scene.get() === "dealt" ? "DEALT" : "WAIT");
+          });
+        });
+
+        express.app().post("/deal", () => {
+          scene.set("dealt");
+        });
+    - id: b0059
+      type: prose
+      intent: explain
+      content: 'The observed log showed:'
+    - id: b0060
+      type: code
+      intent: show-example
+      language: text
+      content: |-
+        webSceneSwitcher starting ...
+        creating hardware UI page
+        configuring tile 0,0
+    - id: b0061
+      type: prose
+      intent: explain
+      content: 'Then the command timed out with:'
+    - id: b0062
+      type: code
+      intent: show-example
+      language: text
+      content: 'Error: runtimeowner jsverbs.invoke: runtime call canceled: context canceled'
+    - id: b0063
+      type: prose
+      intent: explain
+      content: The important clue is that the failure happens even with `--deck-enabled=false`. The real deck is not the first problem. The problem appears while installing a reactive tile text callback. The UI module registers a watcher that immediately evaluates the callback. That callback needs to call JS. If it calls `Owner.Call` with the lifecycle context rather than the active owner-entry context, the owner runner does not recognize that it is already on the owner goroutine.
+    - id: b0064
+      type: prose
+      intent: explain
+      content: 'The deadlock sequence is:'
+    - id: b0065
+      type: code
+      intent: show-example
+      language: text
+      content: |-
+        1. jsverbs.InvokeInRuntime calls Owner.Call(commandCtx, "jsverbs.invoke", ...).
+        2. Owner enters the JS function webSceneSwitcher(...).
+        3. JS calls ui.page(...), page.tile(...), tile.text(() => ...).
+        4. tile.text registers a reactive watcher.
+        5. The watcher immediately asks Owner.Call(lifecycleCtx, "ui.tile.text", ...).
+        6. lifecycleCtx does not contain the owner marker.
+        7. Owner schedules ui.tile.text behind the currently running jsverbs.invoke call.
+        8. jsverbs.invoke cannot finish because it is waiting for tile.text.
+        9. tile.text cannot start because jsverbs.invoke owns the only JS thread.
+    - id: b0066
+      type: prose
+      intent: explain
+      content: This is the exact “waiting for yourself” pattern the API should prevent.
+    sections: []
+    summary: 'The Loupedeck demo wants one JS file to define shared state and expose it to both web and hardware UI. The simplified shape is:'
+  - id: 7-what-the-current-code-already-does-well
+    title: 7. What the current code already does well
+    level: 2
+    role: strengths-analysis
+    importance: high
+    blocks:
+    - id: b0067
+      type: prose
+      intent: explain
+      content: Before redesigning, it is worth recognizing what is sound.
+    - id: b0068
+      type: bullet_list
+      intent: enumerate
+      content: |-
+        - The VM owner abstraction is the right foundation. All external event sources should enter JavaScript through a single serialized path.
+        - `runtimebridge.CurrentContext(vm)` is the right idea for JavaScript-facing native functions. Modules such as `database` use it to inherit the active call context for SQL operations (`modules/database/database.go:160-169`).
+        - Async modules already show the two-context pattern. `timer` and async `fs` capture the active call context for the operation and keep the lifecycle context as a shutdown signal (`modules/timer/timer.go:39-64`, `modules/fs/fs_async.go:13-38`).
+        - xgoja package capabilities are a good place to attach runtime resources. The HTTP provider registers cleanup through `RuntimeCloserRegistry` rather than leaking servers (`pkg/xgoja/providers/http/http.go:94-99`).
+        - HTTP request handling enters JavaScript with `r.Context()`, which is the correct request-scoped context (`pkg/gojahttp/host.go:79-93`).
+    - id: b0069
+      type: prose
+      intent: explain
+      content: The redesign should preserve these strengths. We do not need a new concurrency model. We need clearer vocabulary, safer entry points, and guardrails.
+    sections: []
+    summary: Before redesigning, it is worth recognizing what is sound.
+  - id: 8-current-gaps-and-risks
+    title: 8. Current gaps and risks
+    level: 2
+    role: gap-analysis
+    importance: high
+    blocks: []
+    sections:
+    - id: 8-1-bindings-context-is-ambiguous
+      title: 8.1 `Bindings.Context` is ambiguous
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0070
+        type: prose
+        intent: explain
+        content: '`Bindings.Context` is currently the lifecycle context, but the name does not say that. The field sits next to `Bindings.Owner`, so authors naturally write:'
+      - id: b0071
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: bindings.Owner.Call(bindings.Context, "some.callback", fn)
+      - id: b0072
+        type: prose
+        intent: explain
+        content: That line looks reasonable and can be wrong. The API should not make the wrong line look idiomatic.
+      sections: []
+      summary: '`Bindings.Context` is currently the lifecycle context, but the name does not say that. The field sits next to `Bindings.Owner`, so authors naturally write:'
+    - id: 8-2-reentrancy-depends-on-passing-the-right-context
+      title: 8.2 Reentrancy depends on passing the right context
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0073
+        type: prose
+        intent: explain
+        content: '`Owner.Call` can invoke directly when it sees an owner marker in the context (`runtimeowner/runner.go:75-77`). If a module passes a stale context, the runner cannot tell it is already on the owner goroutine. A core runtime primitive should be more defensive.'
+      sections: []
+      summary: '`Owner.Call` can invoke directly when it sees an owner marker in the context (`runtimeowner/runner.go:75-77`). If a module passes a stale context, the runner cannot tell it is already on the owner goroutine. A core runti'
+    - id: 8-3-currentcontext-vm-is-dynamic-but-not-clearly-scoped-to-the-owner-goroutine
+      title: 8.3 `CurrentContext(vm)` is dynamic but not clearly scoped to the owner goroutine
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0074
+        type: prose
+        intent: explain
+        content: The current per-VM context stack is conceptually the “current owner call stack.” The API name does not say “owner.” A background goroutine can call it, and the implementation may return an active owner context from another goroutine. That could cause accidental request-context leakage into unrelated background work.
+      sections: []
+      summary: The current per-VM context stack is conceptually the “current owner call stack.” The API name does not say “owner.” A background goroutine can call it, and the implementation may return an active owner context from anoth
+    - id: 8-4-external-event-source-semantics-are-underspecified
+      title: 8.4 External event source semantics are underspecified
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0075
+        type: prose
+        intent: explain
+        content: HTTP, Discord, and hardware events all call into JS, but they have different cancellation semantics.
+      - id: b0076
+        type: table
+        intent: compare-or-classify
+        content: |-
+          | Event source | Best context for JS handler | Why |
+          | --- | --- | --- |
+          | HTTP route | `http.Request.Context()` | Cancel if client disconnects or server times out. |
+          | CLI command invocation | command context | Cancel if user interrupts command. |
+          | Timer promise settlement | captured operation context plus lifecycle guard | Cancel if original operation or runtime closes. |
+          | FS async promise settlement | captured operation context plus lifecycle guard | Same as timer. |
+          | Discord gateway event | event/session context plus lifecycle guard | Cancel if Discord session/runtime shuts down. |
+          | Loupedeck hardware event | event/listener context plus lifecycle guard | Cancel if hardware listener/runtime shuts down. |
+          | Runtime cleanup | close context | Bound cleanup time independently of event/request contexts. |
+      - id: b0077
+        type: prose
+        intent: explain
+        content: Without an explicit guide, package authors will copy whichever example is closest, even if the event semantics differ.
+      sections: []
+      summary: HTTP, Discord, and hardware events all call into JS, but they have different cancellation semantics.
+    - id: 8-5-promise-waiting-is-currently-polling
+      title: 8.5 Promise waiting is currently polling
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0078
+        type: prose
+        intent: explain
+        content: '`jsverbs.waitForPromise` and `gojahttp.awaitAndFinishPromise` poll promise state with repeated owner calls (`pkg/jsverbs/runtime.go:227-260`, `pkg/gojahttp/host.go:117-145`). This is acceptable for the current prototype, and the code says so, but it matters for context design. Promise waiting should be cancellable by the entry context, and promise settlement should not require a request context after the request is gone.'
+      sections: []
+      summary: '`jsverbs.waitForPromise` and `gojahttp.awaitAndFinishPromise` poll promise state with repeated owner calls (`pkg/jsverbs/runtime.go:227-260`, `pkg/gojahttp/host.go:117-145`). This is acceptable for the current prototype,'
+    - id: 8-6-runtime-initializer-context-is-not-the-same-as-runtime-lifecycle
+      title: 8.6 Runtime initializer context is not the same as runtime lifecycle
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0079
+        type: prose
+        intent: explain
+        content: '`RuntimeInitializerCapability.InitRuntimeFromSections(ctx, vals, handle)` receives the command invocation context that is building/configuring the runtime (`pkg/xgoja/providerapi/capabilities.go:60-66`). The `RuntimeHandle` exposes the concrete `goja.Runtime` and cleanup. That initializer context should be used for setup work, not stored blindly as the lifecycle for future events.'
+      sections: []
+      summary: '`RuntimeInitializerCapability.InitRuntimeFromSections(ctx, vals, handle)` receives the command invocation context that is building/configuring the runtime (`pkg/xgoja/providerapi/capabilities.go:60-66`). The `RuntimeHand'
+  - id: 9-proposed-api-direction
+    title: 9. Proposed API direction
+    level: 2
+    role: proposed-architecture
+    importance: critical
+    blocks:
+    - id: b0080
+      type: prose
+      intent: explain
+      content: The proper change is to turn context intent into names and methods.
+    sections:
+    - id: 9-1-rename-lifecycle-context-in-runtimebridge-bindings
+      title: 9.1 Rename lifecycle context in runtimebridge bindings
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0081
+        type: prose
+        intent: explain
+        content: 'Proposed shape:'
+      - id: b0082
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          type Bindings struct {
+              // LifecycleContext is canceled when the runtime closes. It is the right
+              // context for runtime-owned goroutines and fallback cancellation, not a
+              // generic context for JavaScript callbacks.
+              LifecycleContext context.Context
+
+              // Deprecated: use LifecycleContext. Context used to mean runtime lifecycle
+              // context and should not be passed blindly to Owner.Call/Post.
+              Context context.Context
+
+              Loop  *eventloop.EventLoop
+              Owner OwnerRunner
+          }
+
+          func (b Bindings) RuntimeContext() context.Context {
+              if b.LifecycleContext != nil {
+                  return b.LifecycleContext
+              }
+              if b.Context != nil {
+                  return b.Context
+              }
+              return context.Background()
+          }
+      - id: b0083
+        type: prose
+        intent: explain
+        content: Migration can be soft. First write both fields in `runtimebridge.Store`, update modules to read `RuntimeContext()`, and mark `Context` deprecated. Later remove direct use.
+      sections: []
+      summary: 'Proposed shape:'
+    - id: 9-2-add-owner-call-helpers-with-explicit-intent
+      title: 9.2 Add owner-call helpers with explicit intent
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0084
+        type: prose
+        intent: explain
+        content: The common operation “call JS with the current owner-entry context” should be one method, not three manual steps.
+      - id: b0085
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          func (b Bindings) CallCurrent(
+              vm *goja.Runtime,
+              op string,
+              fn func(context.Context, *goja.Runtime) (any, error),
+          ) (any, error) {
+              if b.Owner == nil {
+                  return nil, errors.New("runtimebridge: missing owner")
+              }
+              return b.Owner.Call(CurrentOwnerContext(vm), op, fn)
+          }
+
+          func (b Bindings) PostCurrent(
+              vm *goja.Runtime,
+              op string,
+              fn func(context.Context, *goja.Runtime),
+          ) error {
+              if b.Owner == nil {
+                  return errors.New("runtimebridge: missing owner")
+              }
+              return b.Owner.Post(CurrentOwnerContext(vm), op, fn)
+          }
+      - id: b0086
+        type: prose
+        intent: explain
+        content: 'But “current” should be reserved for owner-thread code. For background event sources, provide lifecycle/event helpers:'
+      - id: b0087
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          func (b Bindings) CallLifecycle(op string, fn CallFunc) (any, error) {
+              return b.Owner.Call(b.RuntimeContext(), op, fn)
+          }
+
+          func (b Bindings) PostLifecycle(op string, fn PostFunc) error {
+              return b.Owner.Post(b.RuntimeContext(), op, fn)
+          }
+
+          func (b Bindings) PostWithContext(ctx context.Context, op string, fn PostFunc) error {
+              if ctx == nil {
+                  ctx = b.RuntimeContext()
+              }
+              return b.Owner.Post(ctx, op, fn)
+          }
+      - id: b0088
+        type: prose
+        intent: explain
+        content: 'The naming forces the caller to decide:'
+      - id: b0089
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `CallCurrent`: I am inside a JS/native call and want the current owner-entry context.
+          - `PostWithContext`: I have a captured operation/event context and want to use it.
+          - `PostLifecycle`: this is runtime-owned background work.
+      sections: []
+      summary: The common operation “call JS with the current owner-entry context” should be one method, not three manual steps.
+    - id: 9-3-make-current-context-owner-goroutine-aware
+      title: 9.3 Make current context owner-goroutine aware
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0090
+        type: prose
+        intent: explain
+        content: Current `CurrentContext(vm)` should become stricter. It should only return the dynamic owner-entry context when called from the owner goroutine for that entry. From other goroutines, it should fall back to lifecycle context unless the caller passes an explicitly captured context.
+      - id: b0091
+        type: prose
+        intent: explain
+        content: 'Conceptual implementation:'
+      - id: b0092
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          type callContextFrame struct {
+              ctx context.Context
+              ownerGID uint64
+          }
+
+          func CurrentOwnerContext(vm *goja.Runtime) context.Context {
+              if frame := topFrame(vm); frame != nil && frame.ownerGID == currentGoroutineID() {
+                  return frame.ctx
+              }
+              return LifecycleContext(vm)
+          }
+      - id: b0093
+        type: prose
+        intent: explain
+        content: This closes the accidental leak where a background goroutine observes the top owner context from an unrelated HTTP request.
+      - id: b0094
+        type: prose
+        intent: explain
+        content: The runtimebridge package currently avoids importing runtimeowner to prevent a cycle. That is fine. The current goroutine id helper can move to a small internal package, or runtimebridge can record whether the context contains a marker by calling a tiny no-cycle interface exposed by runtimeowner. The design goal matters more than the exact package boundary.
+      sections: []
+      summary: Current `CurrentContext(vm)` should become stricter. It should only return the dynamic owner-entry context when called from the owner goroutine for that entry. From other goroutines, it should fall back to lifecycle cont
+    - id: 9-4-harden-runtimeowner-runner-call-against-same-goroutine-reentrancy
+      title: 9.4 Harden `runtimeowner.Runner.Call` against same-goroutine reentrancy
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0095
+        type: prose
+        intent: explain
+        content: The owner runner should not depend only on the context marker. It should also know whether the current goroutine is actively executing owner work for this runner.
+      - id: b0096
+        type: prose
+        intent: explain
+        content: 'Conceptual fields:'
+      - id: b0097
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          type runner struct {
+              vm        *goja.Runtime
+              scheduler Scheduler
+              opts      Options
+              closed    atomic.Bool
+
+              activeOwnerGID atomic.Uint64
+          }
+      - id: b0098
+        type: prose
+        intent: explain
+        content: 'Conceptual flow:'
+      - id: b0099
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          func (r *runner) Call(ctx context.Context, op string, fn CallFunc) (any, error) {
+              ctx = normalizeContext(ctx)
+
+              if r.isOwnerContext(ctx) || r.isActiveOwnerGoroutine() {
+                  ctx = r.ensureOwnerContext(ctx)
+                  return r.invoke(ctx, op, fn)
+              }
+
+              return r.scheduleAndWait(ctx, op, fn)
+          }
+      - id: b0100
+        type: prose
+        intent: explain
+        content: 'The scheduled callback records the owner goroutine while it runs:'
+      - id: b0101
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          accepted := r.scheduler.RunOnLoop(func(vm *goja.Runtime) {
+              ownerCtx := r.withOwnerContext(ctx)
+              r.activeOwnerGID.Store(currentGoroutineID())
+              defer r.activeOwnerGID.Store(0)
+              v, err := r.invoke(ownerCtx, op, fn)
+              resultCh <- callResult{value: v, err: err}
+          })
+      - id: b0102
+        type: prose
+        intent: explain
+        content: This is the defensive runtime fix. Even if a native module author passes the lifecycle context from inside JS, the runner will detect that scheduling would be self-deadlock and invoke directly.
+      - id: b0103
+        type: prose
+        intent: explain
+        content: The helper API is still necessary because it preserves the correct cancellation/tracing context. The runner hardening makes mistakes non-fatal.
+      sections: []
+      summary: The owner runner should not depend only on the context marker. It should also know whether the current goroutine is actively executing owner work for this runner.
+    - id: 9-5-introduce-an-event-source-contract
+      title: 9.5 Introduce an event source contract
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0104
+        type: prose
+        intent: explain
+        content: For runtime packages that introduce external callbacks, add a small guideline and optional helper type.
+      - id: b0105
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          type EventSourceContext struct {
+              Runtime context.Context
+              Event   context.Context
+          }
+
+          func (c EventSourceContext) Context() context.Context {
+              if c.Event != nil {
+                  return c.Event
+              }
+              if c.Runtime != nil {
+                  return c.Runtime
+              }
+              return context.Background()
+          }
+      - id: b0106
+        type: prose
+        intent: explain
+        content: HTTP creates event contexts from `r.Context()`. Discord creates them from the gateway/session event. Loupedeck creates them from the hardware listener lifecycle or from per-event cancellation if available. Timers and fs operations capture the current owner-entry context at operation creation time.
+      - id: b0107
+        type: principle
+        intent: remember
+        content: The key is that each event source declares its policy instead of accidentally inheriting whatever context happens to be on a global stack.
+      sections: []
+      summary: For runtime packages that introduce external callbacks, add a small guideline and optional helper type.
+    - id: 9-6-link-runtime-lifecycle-cancellation-into-every-owner-call
+      title: 9.6 Link runtime lifecycle cancellation into every owner call
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0108
+        type: prose
+        intent: explain
+        content: The next design improvement is to make every owner entry observe runtime shutdown automatically. Today, `Owner.Call(ctx, op, fn)` uses the caller's `ctx` as the active owner-entry context. If an HTTP request is active and `Runtime.Close` cancels the runtime lifecycle context, the active call does not necessarily see that cancellation unless the request context is also canceled or the native module explicitly checks both contexts.
+      - id: b0109
+        type: principle
+        intent: remember
+        content: 'The desired invariant is stronger:'
+      - id: b0110
+        type: principle
+        intent: remember
+        content: '> Every owner entry runs under an effective context that is canceled when either the caller context is canceled or the runtime lifecycle context is canceled.'
+      - id: b0111
+        type: prose
+        intent: explain
+        content: In Go terms, this requires a linked context. Go's standard `context` package has parent-child cancellation but no built-in context that is canceled when either of two unrelated parents is canceled. We can implement that small primitive in `runtimebridge` or `runtimeowner`.
+      - id: b0112
+        type: prose
+        intent: explain
+        content: 'API sketch:'
+      - id: b0113
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          func LinkContexts(a, b context.Context) (context.Context, context.CancelFunc) {
+              if a == nil {
+                  a = context.Background()
+              }
+              if b == nil {
+                  b = context.Background()
+              }
+              ctx, cancel := context.WithCancelCause(context.Background())
+              go func() {
+                  select {
+                  case <-a.Done():
+                      cancel(context.Cause(a))
+                  case <-b.Done():
+                      cancel(context.Cause(b))
+                  case <-ctx.Done():
+                  }
+              }()
+              return ctx, cancel
+          }
+      - id: b0114
+        type: prose
+        intent: explain
+        content: 'The runner would use it at the owner-entry boundary:'
+      - id: b0115
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          func (r *runner) Call(ctx context.Context, op string, fn CallFunc) (any, error) {
+              effectiveCtx, cancel := runtimebridge.LinkContexts(ctx, r.lifecycleCtx)
+              defer cancel()
+              return r.callWithEffectiveContext(effectiveCtx, op, fn)
+          }
+      - id: b0116
+        type: prose
+        intent: explain
+        content: 'The same applies to `Post`, but with a different cancellation tradeoff. `Post` may return before the scheduled function runs. If the effective context is canceled immediately by `defer cancel()`, the posted work may never run. Therefore `Post` should not create a short-lived linked context that is canceled when `Post` returns. It should either:'
+      - id: b0117
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - link the supplied context with lifecycle and let the scheduled callback own the cancel function; or
+          - reject posts when lifecycle is already canceled and otherwise pass a context whose cancellation is driven by the supplied context or lifecycle, not by `Post` returning.
+      - id: b0118
+        type: prose
+        intent: explain
+        content: 'A concrete `Post` shape:'
+      - id: b0119
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          func (r *runner) Post(ctx context.Context, op string, fn PostFunc) error {
+              effectiveCtx, cancel := runtimebridge.LinkContexts(ctx, r.lifecycleCtx)
+              accepted := r.scheduler.RunOnLoop(func(vm *goja.Runtime) {
+                  defer cancel()
+                  if effectiveCtx.Err() != nil {
+                      return
+                  }
+                  r.invokePost(r.withOwnerContext(effectiveCtx), op, fn)
+              })
+              if !accepted {
+                  cancel()
+                  return ErrScheduleRejected
+              }
+              return nil
+          }
+      - id: b0120
+        type: prose
+        intent: explain
+        content: This changes the module-authoring model in a useful way. A module that captures `runtimebridge.CurrentOwnerContext(vm)` during an HTTP handler gets a context that is canceled by either request cancellation or runtime close. The module no longer needs to manually combine the request context and lifecycle context for every operation.
+      - id: b0121
+        type: prose
+        intent: explain
+        content: 'Sequence diagram:'
+      - id: b0122
+        type: diagram
+        intent: explain-flow
+        language: text
+        diagram_type: ascii_sequence
+        content: |-
+          HTTP client      gojahttp.Host        runtimeowner.Runner       JS/native code        Runtime.Close
+              |                 |                       |                       |                    |
+              | GET /route      |                       |                       |                    |
+              |---------------->|                       |                       |                    |
+              |                 | Owner.Call(r.ctx)     |                       |                    |
+              |                 |---------------------->|                       |                    |
+              |                 |                       | effective ctx =       |                    |
+              |                 |                       | r.ctx OR lifecycle    |                    |
+              |                 |                       |                       |                    |
+              |                 |                       | run fn(effective ctx) |                    |
+              |                 |                       |---------------------->|                    |
+              |                 |                       |                       | JS/native running  |
+              |                 |                       |                       |                    |
+              |                 |                       |                       | Close(closeCtx)    |
+              |                 |                       |                       |<-------------------|
+              |                 |                       | lifecycle canceled    |                    |
+              |                 |                       |---------------------->|                    |
+              |                 |                       |                       | ctx.Done closes    |
+              |                 |                       |                       | cooperative unwind |
+              |                 |                       |<----------------------|                    |
+              |                 | response/error        |                       |                    |
+              |<----------------|                       |                       |                    |
+      - id: b0123
+        type: prose
+        intent: explain
+        content: This is cooperative cancellation. It affects code that checks context or waits on operations that check context. It does not preempt a pure JavaScript loop by itself.
+      sections: []
+      summary: The next design improvement is to make every owner entry observe runtime shutdown automatically. Today, `Owner.Call(ctx, op, fn)` uses the caller's `ctx` as the active owner-entry context. If an HTTP request is active an
+    - id: 9-7-add-bounded-runtime-shutdown-with-active-call-waiting-and-optional-interrupt
+      title: 9.7 Add bounded runtime shutdown with active-call waiting and optional interrupt
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0124
+        type: prose
+        intent: explain
+        content: 'Runtime shutdown should become a two-stage process: graceful cancellation first, forced interruption only if graceful shutdown does not complete in time.'
+      - id: b0125
+        type: prose
+        intent: explain
+        content: 'The current code cancels the lifecycle context, deletes runtimebridge bindings, runs closers, shuts down the owner, and stops the loop (`engine/runtime.go:73-113`). That ordering can stop the event loop while an active call or package closer might still need owner access. The safer shutdown protocol is:'
+      - id: b0126
+        type: code
+        intent: show-example
+        language: text
+        content: |-
+          Runtime.Close(closeCtx)
+            1. mark runtime closing so new Owner.Call/Post entries are rejected
+            2. cancel runtime lifecycle context
+            3. linked active owner contexts observe cancellation
+            4. wait for active owner calls to finish, bounded by closeCtx
+            5. if calls are still active, call goja.Runtime.Interrupt(reason)
+            6. wait briefly again for interrupted JS to unwind
+            7. run runtime closers while owner/loop are still available if possible
+            8. shutdown owner and stop event loop
+            9. delete runtimebridge bindings after no more owner work can run
+      - id: b0127
+        type: prose
+        intent: explain
+        content: There are two ordering choices to settle during implementation.
+      - id: b0128
+        type: prose
+        intent: explain
+        content: First, closers may need owner access. For example, a runtime package might need to unregister JS-visible resources, flush a final event, or resolve/reject pending promises. If the event loop is already stopped, that cleanup cannot run. Therefore closers should run before final loop stop. However, lifecycle cancellation should happen before closers so background goroutines begin exiting.
+      - id: b0129
+        type: prose
+        intent: explain
+        content: Second, `runtimebridge.Delete(vm)` should happen only after active owner work and owner-dependent closers are done. Deleting bindings too early means cleanup code cannot look up owner/lifecycle bindings for finalization. This is a change from the current ordering in `engine.Runtime.Close`.
+      - id: b0130
+        type: prose
+        intent: explain
+        content: 'Proposed close pseudocode:'
+      - id: b0131
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          func (r *Runtime) Close(closeCtx context.Context) error {
+              r.closeOnce.Do(func() {
+                  r.markClosing()
+
+                  // Cause linked active calls and runtime-owned goroutines to see shutdown.
+                  r.runtimeCtxCancel()
+
+                  // Give cooperative code a chance to leave the VM.
+                  if err := r.Owner.WaitIdle(closeCtx); err != nil {
+                      r.VM.Interrupt("runtime closing")
+                      _ = r.Owner.WaitIdle(shortGraceContext(closeCtx))
+                  }
+
+                  // Run provider/module cleanup while owner and loop still exist.
+                  retErr = errors.Join(retErr, r.runClosers(closeCtx))
+
+                  retErr = errors.Join(retErr, r.Owner.Shutdown(closeCtx))
+                  r.Loop.Stop()
+                  runtimebridge.Delete(r.VM)
+              })
+              return retErr
+          }
+      - id: b0132
+        type: prose
+        intent: explain
+        content: '`goja.Runtime.Interrupt` should not be the first shutdown mechanism. It should be a fallback for JavaScript that does not cooperatively observe cancellation. The normal path should be context cancellation plus `WaitIdle`.'
+      - id: b0133
+        type: prose
+        intent: explain
+        content: 'The shutdown behavior should be documented as:'
+      - id: b0134
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - Runtime close cancels the lifecycle context.
+          - Active owner calls see cancellation through their effective current owner context.
+          - Native modules and promise waiters should return promptly when that context is canceled.
+          - Pure JavaScript CPU loops require `goja.Runtime.Interrupt` to stop.
+          - Shutdown must be bounded by the close context.
+      sections: []
+      summary: 'Runtime shutdown should become a two-stage process: graceful cancellation first, forced interruption only if graceful shutdown does not complete in time.'
+    summary: The proper change is to turn context intent into names and methods.
+  - id: 10-proposed-module-authoring-rules
+    title: 10. Proposed module-authoring rules
+    level: 2
+    role: authoring-guidelines
+    importance: high
+    blocks: []
+    sections:
+    - id: rule-1-do-not-call-js-directly-from-background-goroutines
+      title: 'Rule 1: Do not call JS directly from background goroutines'
+      level: 3
+      role: authoring-rule
+      importance: medium
+      blocks:
+      - id: b0135
+        type: prose
+        intent: explain
+        content: Only the owner runner may touch `goja.Runtime`, `goja.Value`, `goja.Promise` settlement functions, or JS callbacks. A background goroutine must use `Owner.Post` or `Owner.Call`.
+      - id: b0136
+        type: prose
+        intent: explain
+        content: 'Bad:'
+      - id: b0137
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          go func() {
+              _, _ = jsCallback(goja.Undefined()) // unsafe
+          }()
+      - id: b0138
+        type: prose
+        intent: explain
+        content: 'Good:'
+      - id: b0139
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          go func() {
+              _ = bindings.PostWithContext(operationCtx, "module.callback", func(ctx context.Context, vm *goja.Runtime) {
+                  _, _ = jsCallback(goja.Undefined())
+              })
+          }()
+      sections: []
+      summary: Only the owner runner may touch `goja.Runtime`, `goja.Value`, `goja.Promise` settlement functions, or JS callbacks. A background goroutine must use `Owner.Post` or `Owner.Call`.
+    - id: rule-2-inside-js-facing-functions-use-current-owner-context
+      title: 'Rule 2: Inside JS-facing functions, use current owner context'
+      level: 3
+      role: authoring-rule
+      importance: high
+      blocks:
+      - id: b0140
+        type: prose
+        intent: explain
+        content: A function exported to JS is executing as part of a current owner entry. If it needs to call back into JS synchronously, it should use `CallCurrent`.
+      - id: b0141
+        type: prose
+        intent: explain
+        content: 'Good:'
+      - id: b0142
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          _ = exports.Set("register", func(call goja.FunctionCall) goja.Value {
+              fn, _ := goja.AssertFunction(call.Argument(0))
+              result, err := bindings.CallCurrent(vm, "module.register.initial", func(ctx context.Context, vm *goja.Runtime) (any, error) {
+                  value, err := fn(goja.Undefined())
+                  if err != nil {
+                      return nil, err
+                  }
+                  return value.Export(), nil
+              })
+              if err != nil {
+                  panic(vm.NewGoError(err))
+              }
+              return vm.ToValue(result)
+          })
+      sections: []
+      summary: A function exported to JS is executing as part of a current owner entry. If it needs to call back into JS synchronously, it should use `CallCurrent`.
+    - id: rule-3-for-async-promises-capture-operation-context-at-creation-time
+      title: 'Rule 3: For async promises, capture operation context at creation time'
+      level: 3
+      role: authoring-rule
+      importance: high
+      blocks:
+      - id: b0143
+        type: prose
+        intent: explain
+        content: 'The `timer` pattern is the model:'
+      - id: b0144
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          callCtx := runtimebridge.CurrentOwnerContext(vm)
+          runtimeCtx := bindings.RuntimeContext()
+
+          promise, resolve, reject := vm.NewPromise()
+          go func() {
+              select {
+              case <-callCtx.Done():
+                  return
+              case <-runtimeCtx.Done():
+                  return
+              case result := <-workDone:
+                  _ = bindings.PostWithContext(callCtx, "module.resolve", func(context.Context, *goja.Runtime) {
+                      _ = resolve(vm.ToValue(result))
+                  })
+              }
+          }()
+          return vm.ToValue(promise)
+      - id: b0145
+        type: prose
+        intent: explain
+        content: 'This says: the operation belongs to the current JS call, but it must also stop when the runtime closes.'
+      sections: []
+      summary: 'The `timer` pattern is the model:'
+    - id: rule-4-for-long-lived-subscriptions-choose-lifecycle-or-subscription-context-deliberately
+      title: 'Rule 4: For long-lived subscriptions, choose lifecycle or subscription context deliberately'
+      level: 3
+      role: authoring-rule
+      importance: high
+      blocks:
+      - id: b0146
+        type: prose
+        intent: explain
+        content: 'A subscription registered during startup can be runtime-owned:'
+      - id: b0147
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          subscriptionCtx := bindings.RuntimeContext()
+          sub := source.OnEvent(func(event Event) {
+              _ = bindings.PostWithContext(subscriptionCtx, "source.event", func(ctx context.Context, vm *goja.Runtime) {
+                  _, _ = handler(goja.Undefined(), vm.ToValue(event))
+              })
+          })
+      - id: b0148
+        type: prose
+        intent: explain
+        content: A subscription registered during an HTTP request should usually not outlive that request unless the API explicitly says it does. If it should outlive the request, it should not use `r.Context()` silently.
+      sections: []
+      summary: 'A subscription registered during startup can be runtime-owned:'
+    - id: rule-5-runtime-initializers-configure-resources-they-should-not-store-command-contexts-as-lifetimes
+      title: 'Rule 5: Runtime initializers configure resources; they should not store command contexts as lifetimes'
+      level: 3
+      role: authoring-rule
+      importance: high
+      blocks:
+      - id: b0149
+        type: prose
+        intent: explain
+        content: '`InitRuntimeFromSections(ctx, vals, handle)` receives the setup command context. Use it to perform setup that should stop if the command is canceled. Do not store it as the lifetime for future server requests or hardware events. Use the runtime lifecycle context for those resources and register closers through `RuntimeCloserRegistry`.'
+      sections: []
+      summary: '`InitRuntimeFromSections(ctx, vals, handle)` receives the setup command context. Use it to perform setup that should stop if the command is canceled. Do not store it as the lifetime for future server requests or hardware'
+    - id: rule-6-closers-use-close-context
+      title: 'Rule 6: Closers use close context'
+      level: 3
+      role: authoring-rule
+      importance: high
+      blocks:
+      - id: b0150
+        type: prose
+        intent: explain
+        content: A closer receives the context passed to `Runtime.Close(ctx)`. Use that for shutdown deadlines. Do not use a captured request context for cleanup.
+      sections: []
+      summary: A closer receives the context passed to `Runtime.Close(ctx)`. Use that for shutdown deadlines. Do not use a captured request context for cleanup.
+  - id: 11-proposed-api-reference-for-the-intern-to-implement
+    title: 11. Proposed API reference for the intern to implement
+    level: 2
+    role: proposed-architecture
+    importance: critical
+    blocks:
+    - id: b0151
+      type: prose
+      intent: explain
+      content: This is an implementation sketch, not final code.
+    sections:
+    - id: 11-1-runtimebridge-bindings
+      title: 11.1 `runtimebridge.Bindings`
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0152
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          package runtimebridge
+
+          type Bindings struct {
+              LifecycleContext context.Context
+
+              // Deprecated: use LifecycleContext or RuntimeContext().
+              Context context.Context
+
+              Loop  *eventloop.EventLoop
+              Owner OwnerRunner
+          }
+
+          func (b Bindings) RuntimeContext() context.Context {
+              switch {
+              case b.LifecycleContext != nil:
+                  return b.LifecycleContext
+              case b.Context != nil:
+                  return b.Context
+              default:
+                  return context.Background()
+              }
+          }
+
+          func (b Bindings) CallCurrent(vm *goja.Runtime, op string, fn CallFunc) (any, error) {
+              if b.Owner == nil {
+                  return nil, errors.New("runtimebridge: missing owner")
+              }
+              return b.Owner.Call(CurrentOwnerContext(vm), op, fn)
+          }
+
+          func (b Bindings) PostCurrent(vm *goja.Runtime, op string, fn PostFunc) error {
+              if b.Owner == nil {
+                  return errors.New("runtimebridge: missing owner")
+              }
+              return b.Owner.Post(CurrentOwnerContext(vm), op, fn)
+          }
+
+          func (b Bindings) CallWithContext(ctx context.Context, op string, fn CallFunc) (any, error) {
+              if b.Owner == nil {
+                  return nil, errors.New("runtimebridge: missing owner")
+              }
+              if ctx == nil {
+                  ctx = b.RuntimeContext()
+              }
+              return b.Owner.Call(ctx, op, fn)
+          }
+
+          func (b Bindings) PostWithContext(ctx context.Context, op string, fn PostFunc) error {
+              if b.Owner == nil {
+                  return errors.New("runtimebridge: missing owner")
+              }
+              if ctx == nil {
+                  ctx = b.RuntimeContext()
+              }
+              return b.Owner.Post(ctx, op, fn)
+          }
+      sections: []
+    - id: 11-2-context-accessors
+      title: 11.2 Context accessors
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0153
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          func LifecycleContext(vm *goja.Runtime) context.Context
+          func CurrentOwnerContext(vm *goja.Runtime) context.Context
+
+          // Deprecated: use CurrentOwnerContext for JS-facing code or LifecycleContext
+          // for runtime-owned background work.
+          func CurrentContext(vm *goja.Runtime) context.Context
+      - id: b0154
+        type: prose
+        intent: explain
+        content: '`CurrentContext` can remain as an alias during migration, but docs should steer new code to the explicit names.'
+      sections: []
+      summary: '`CurrentContext` can remain as an alias during migration, but docs should steer new code to the explicit names.'
+    - id: 11-3-runner-lifecycle-and-shutdown-coordination
+      title: 11.3 Runner lifecycle and shutdown coordination
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0155
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          type Runner interface {
+              Call(ctx context.Context, op string, fn CallFunc) (any, error)
+              Post(ctx context.Context, op string, fn PostFunc) error
+              Shutdown(context.Context) error
+              IsClosed() bool
+
+              // Proposed. This may stay on the concrete runner type if we do not want to
+              // expose it to all package authors.
+              WaitIdle(ctx context.Context) error
+              Interrupt(reason any)
+          }
+      - id: b0156
+        type: prose
+        intent: explain
+        content: '`Call` and `Post` should internally link the supplied context with the runtime lifecycle context. `WaitIdle` should let `engine.Runtime.Close` wait for active calls to leave before stopping the event loop. `Interrupt` should call `goja.Runtime.Interrupt` as a last resort after cooperative cancellation and waiting fail.'
+      - id: b0157
+        type: prose
+        intent: explain
+        content: 'We may not want to expose owner-goroutine introspection publicly. Same-goroutine reentrancy detection can stay internal to the concrete runner. The public concept should be simpler: use `Call`, `Post`, and the runtime close protocol; do not ask arbitrary code to reason about goroutine identity.'
+      sections: []
+      summary: '`Call` and `Post` should internally link the supplied context with the runtime lifecycle context. `WaitIdle` should let `engine.Runtime.Close` wait for active calls to leave before stopping the event loop. `Interrupt` sh'
+    summary: This is an implementation sketch, not final code.
+  - id: 12-implementation-plan
+    title: 12. Implementation plan
+    level: 2
+    role: implementation-plan
+    importance: critical
+    blocks: []
+    sections:
+    - id: phase-1-add-safe-names-without-behavior-changes
+      title: 'Phase 1: Add safe names without behavior changes'
+      level: 3
+      role: implementation-phase
+      importance: medium
+      blocks:
+      - id: b0158
+        type: prose
+        intent: explain
+        content: 'Files:'
+      - id: b0159
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `go-go-goja/pkg/runtimebridge/runtimebridge.go`
+          - `go-go-goja/pkg/runtimebridge/runtimebridge_test.go`
+          - `go-go-goja/engine/factory.go`
+      - id: b0160
+        type: prose
+        intent: explain
+        content: 'Steps:'
+      - id: b0161
+        type: ordered_list
+        intent: enumerate
+        content: |-
+          1. Add `LifecycleContext` to `runtimebridge.Bindings`.
+          2. Add `RuntimeContext()` method.
+          3. Update `engine.Factory.NewRuntime` to store both `LifecycleContext: runtimeCtx` and `Context: runtimeCtx` for compatibility.
+          4. Add `CallCurrent`, `PostCurrent`, `CallWithContext`, and `PostWithContext` helpers.
+          5. Add tests proving:
+             - `RuntimeContext` prefers `LifecycleContext` over deprecated `Context`.
+             - `CallCurrent` uses active owner context.
+             - `PostWithContext(nil, ...)` falls back to lifecycle context.
+      sections: []
+      summary: 'Files:'
+    - id: phase-2-rename-concepts-in-documentation-and-comments
+      title: 'Phase 2: Rename concepts in documentation and comments'
+      level: 3
+      role: implementation-phase
+      importance: medium
+      blocks:
+      - id: b0162
+        type: prose
+        intent: explain
+        content: 'Files:'
+      - id: b0163
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `go-go-goja/pkg/runtimebridge/runtimebridge.go`
+          - `go-go-goja/pkg/runtimeowner/types.go`
+          - `go-go-goja/pkg/jsverbs/runtime.go`
+          - `go-go-goja/pkg/gojahttp/host.go`
+      - id: b0164
+        type: prose
+        intent: explain
+        content: 'Steps:'
+      - id: b0165
+        type: ordered_list
+        intent: enumerate
+        content: |-
+          1. Update comments to distinguish lifecycle, owner-entry, operation, and cleanup contexts.
+          2. Add a warning to `InvokeInRuntime`: modules invoked from it are already on the owner and should use current owner context for nested JS callbacks.
+          3. Add a native module authoring guide in docs or help pages.
+      sections: []
+      summary: 'Files:'
+    - id: phase-3-migrate-modules-away-from-direct-bindings-context
+      title: 'Phase 3: Migrate modules away from direct `Bindings.Context`'
+      level: 3
+      role: implementation-phase
+      importance: high
+      blocks:
+      - id: b0166
+        type: prose
+        intent: explain
+        content: 'Files to start with:'
+      - id: b0167
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `go-go-goja/modules/timer/timer.go`
+          - `go-go-goja/modules/fs/fs_async.go`
+          - `go-go-goja/modules/database/database.go`
+          - `go-go-goja/pkg/gojahttp/host.go`
+          - downstream `loupedeck/runtime/js/module_ui/module.go`
+          - downstream `loupedeck/runtime/js/module_state/module.go`
+      - id: b0168
+        type: prose
+        intent: explain
+        content: 'Steps:'
+      - id: b0169
+        type: ordered_list
+        intent: enumerate
+        content: |-
+          1. Replace lifecycle reads with `bindings.RuntimeContext()`.
+          2. Replace nested owner callbacks with `bindings.CallCurrent(vm, ...)` when called synchronously from JS-facing code.
+          3. Replace promise settlements with `bindings.PostWithContext(capturedCtx, ...)`.
+          4. Replace runtime-owned external event callbacks with `bindings.PostWithContext(subscriptionCtx, ...)` or `PostLifecycle`.
+      sections: []
+      summary: 'Files to start with:'
+    - id: phase-4-harden-runner-reentrancy
+      title: 'Phase 4: Harden runner reentrancy'
+      level: 3
+      role: implementation-phase
+      importance: high
+      blocks:
+      - id: b0170
+        type: prose
+        intent: explain
+        content: 'Files:'
+      - id: b0171
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `go-go-goja/pkg/runtimeowner/runner.go`
+          - `go-go-goja/pkg/runtimeowner/runner_test.go`
+      - id: b0172
+        type: prose
+        intent: explain
+        content: 'Steps:'
+      - id: b0173
+        type: ordered_list
+        intent: enumerate
+        content: |-
+          1. Track active owner goroutine during scheduled callbacks.
+          2. If `Call` or `Post` is invoked from that goroutine, invoke directly even when the passed context lacks the owner marker.
+          3. Preserve the best available context:
+             - if the caller passed a marked owner context, use it;
+             - otherwise wrap the passed context with owner marker;
+             - if there is an active runtimebridge current context, consider using it for call stack continuity.
+          4. Add a regression test that fails under current behavior:
+      - id: b0174
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          func TestRunnerCallFromOwnerWithLifecycleContextDoesNotDeadlock(t *testing.T) {
+              // Start outer Owner.Call(commandCtx, ...).
+              // Inside it, call Owner.Call(lifecycleCtx, ...).
+              // It should run inline and return, not schedule behind itself.
+          }
+      sections: []
+      summary: 'Files:'
+    - id: phase-5-link-owner-call-contexts-with-runtime-lifecycle
+      title: 'Phase 5: Link owner-call contexts with runtime lifecycle'
+      level: 3
+      role: implementation-phase
+      importance: high
+      blocks:
+      - id: b0175
+        type: prose
+        intent: explain
+        content: 'Files:'
+      - id: b0176
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `go-go-goja/pkg/runtimeowner/runner.go`
+          - `go-go-goja/pkg/runtimeowner/types.go`
+          - `go-go-goja/engine/factory.go`
+          - `go-go-goja/pkg/runtimebridge/runtimebridge.go`
+      - id: b0177
+        type: prose
+        intent: explain
+        content: 'Steps:'
+      - id: b0178
+        type: ordered_list
+        intent: enumerate
+        content: |-
+          1. Add lifecycle context to the runner's options or constructor.
+          2. Implement a `LinkContexts` helper that returns a context canceled by either caller context or lifecycle context.
+          3. Use linked context for `Call`.
+          4. Use linked context carefully for `Post`, with cancellation owned by the scheduled callback rather than by the returning `Post` call.
+          5. Add tests proving active calls observe lifecycle cancellation.
+          6. Add tests proving posted callbacks do not receive a context canceled merely because `Post` returned.
+      sections: []
+      summary: 'Files:'
+    - id: phase-6-add-bounded-shutdown-coordination-and-interrupt-fallback
+      title: 'Phase 6: Add bounded shutdown coordination and interrupt fallback'
+      level: 3
+      role: implementation-phase
+      importance: high
+      blocks:
+      - id: b0179
+        type: prose
+        intent: explain
+        content: 'Files:'
+      - id: b0180
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `go-go-goja/engine/runtime.go`
+          - `go-go-goja/pkg/runtimeowner/runner.go`
+          - `go-go-goja/pkg/runtimeowner/runner_test.go`
+      - id: b0181
+        type: prose
+        intent: explain
+        content: 'Steps:'
+      - id: b0182
+        type: ordered_list
+        intent: enumerate
+        content: |-
+          1. Track active owner entries in the runner.
+          2. Add `WaitIdle(ctx)` on the concrete runner or public interface.
+          3. Add `Interrupt(reason)` wrapper around `goja.Runtime.Interrupt`.
+          4. Change `Runtime.Close` ordering so lifecycle cancellation happens first, active calls are given a bounded chance to finish, interrupt is used only as a fallback, closers run while owner/loop are still available, and runtimebridge bindings are deleted after owner-dependent cleanup.
+          5. Add tests for cooperative active-call shutdown.
+          6. Add tests for non-cooperative JavaScript requiring interrupt.
+          7. Add tests for closers that need owner access.
+      sections: []
+      summary: 'Files:'
+    - id: phase-7-make-currentownercontext-goroutine-aware
+      title: 'Phase 7: Make `CurrentOwnerContext` goroutine-aware'
+      level: 3
+      role: implementation-phase
+      importance: high
+      blocks:
+      - id: b0183
+        type: prose
+        intent: explain
+        content: 'Files:'
+      - id: b0184
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `go-go-goja/pkg/runtimebridge/runtimebridge.go`
+          - possibly a small internal goroutine-id helper package
+      - id: b0185
+        type: prose
+        intent: explain
+        content: 'Steps:'
+      - id: b0186
+        type: ordered_list
+        intent: enumerate
+        content: |-
+          1. Store goroutine id in call-context frames.
+          2. Return dynamic context only to the goroutine that owns the current frame.
+          3. Return lifecycle context from background goroutines.
+          4. Add tests with two goroutines: one owner call holds a context; a background goroutine calling `CurrentOwnerContext(vm)` should see lifecycle context, not the owner entry.
+      sections: []
+      summary: 'Files:'
+    - id: phase-8-add-mixed-package-integration-tests
+      title: 'Phase 8: Add mixed-package integration tests'
+      level: 3
+      role: implementation-phase
+      importance: medium
+      blocks:
+      - id: b0187
+        type: prose
+        intent: explain
+        content: 'Target tests:'
+      - id: b0188
+        type: ordered_list
+        intent: enumerate
+        content: |-
+          1. `jsverbs + timer`: a verb awaits `timer.sleep`; cancellation cancels the wait.
+          2. `jsverbs + express`: a verb starts HTTP server; request handlers use request contexts.
+          3. `express + timer`: an HTTP handler awaits a timer; request cancellation cancels the timer.
+          4. `loupedeck/ui-style reactive callback`: a native module synchronously registers a callback that calls back into JS during an owner call; no deadlock.
+          5. `external event + runtime close`: a fake hardware/Discord event source posts to JS until runtime close; close cancels future delivery.
+      sections: []
+      summary: 'Target tests:'
+  - id: 13-migration-examples
+    title: 13. Migration examples
+    level: 2
+    role: migration-guide
+    importance: high
+    blocks: []
+    sections:
+    - id: 13-1-loupedeck-ui-reactive-binding
+      title: 13.1 Loupedeck UI reactive binding
+      level: 3
+      role: case-study
+      importance: high
+      blocks:
+      - id: b0189
+        type: prose
+        intent: explain
+        content: 'Before:'
+      - id: b0190
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          ownerCtx := bindings.Context
+
+          tile.BindText(func() string {
+              result, err := bindings.Owner.Call(ownerCtx, "ui.tile.text", func(_ context.Context, vm *goja.Runtime) (any, error) {
+                  value, err := fn(goja.Undefined())
+                  if err != nil {
+                      return nil, err
+                  }
+                  return stringify(value), nil
+              })
+              if err != nil {
+                  panic(runtime.NewGoError(err))
+              }
+              return result.(string)
+          })
+      - id: b0191
+        type: prose
+        intent: explain
+        content: 'After:'
+      - id: b0192
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          tile.BindText(func() string {
+              result, err := bindings.CallCurrent(runtime, "ui.tile.text", func(_ context.Context, vm *goja.Runtime) (any, error) {
+                  value, err := fn(goja.Undefined())
+                  if err != nil {
+                      return nil, err
+                  }
+                  return stringify(value), nil
+              })
+              if err != nil {
+                  panic(runtime.NewGoError(err))
+              }
+              return result.(string)
+          })
+      - id: b0193
+        type: prose
+        intent: explain
+        content: 'The after version says exactly what is happening: this callback is evaluating JS in the current owner-entry context if it is already inside one, or with the lifecycle fallback if it is later called from outside.'
+      sections: []
+      summary: 'Before:'
+    - id: 13-2-timer-promise
+      title: 13.2 Timer promise
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0194
+        type: prose
+        intent: explain
+        content: 'Before-current code is already close:'
+      - id: b0195
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          callCtx := runtimebridge.CurrentContext(vm)
+          runtimeCtx := bindings.Context
+      - id: b0196
+        type: prose
+        intent: explain
+        content: 'After:'
+      - id: b0197
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          operationCtx := runtimebridge.CurrentOwnerContext(vm)
+          runtimeCtx := bindings.RuntimeContext()
+      - id: b0198
+        type: prose
+        intent: explain
+        content: 'The names tell the story: the operation belongs to the current owner entry, and the runtime context cancels on runtime shutdown.'
+      sections: []
+      summary: 'Before-current code is already close:'
+    - id: 13-3-http-route-handler
+      title: 13.3 HTTP route handler
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0199
+        type: prose
+        intent: explain
+        content: 'Current code is conceptually right:'
+      - id: b0200
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          ret, err := h.owner.Call(r.Context(), "http-handler", func(ctx context.Context, vm *goja.Runtime) (any, error) {
+              result, err := route.Handler(goja.Undefined(), vm.ToValue(req.Map()), res.JSObject(vm))
+              ...
+          })
+      - id: b0201
+        type: prose
+        intent: explain
+        content: The route handler should run under the HTTP request context. If JavaScript calls `timer.sleep` inside the route, the timer should capture that request context and stop if the client disconnects.
+      sections: []
+      summary: 'Current code is conceptually right:'
+    - id: 13-4-discord-loupedeck-event-source
+      title: 13.4 Discord/Loupedeck event source
+      level: 3
+      role: case-study
+      importance: high
+      blocks:
+      - id: b0202
+        type: prose
+        intent: explain
+        content: 'A Discord or hardware event callback should not call `CurrentContext(vm)` from the event goroutine. It should choose an event context explicitly:'
+      - id: b0203
+        type: code
+        intent: show-api-or-pseudocode
+        language: go
+        content: |-
+          listenerCtx := bindings.RuntimeContext()
+
+          session.OnMessage(func(msg Message) {
+              eventCtx := listenerCtx // or a per-event context if the source provides one
+              _ = bindings.PostWithContext(eventCtx, "discord.message", func(ctx context.Context, vm *goja.Runtime) {
+                  _, err := handler(goja.Undefined(), vm.ToValue(msg))
+                  if err != nil {
+                      // report/log error; do not panic uncontrolled from event goroutine
+                  }
+              })
+          })
+      sections: []
+      summary: 'A Discord or hardware event callback should not call `CurrentContext(vm)` from the event goroutine. It should choose an event context explicitly:'
+  - id: 14-diagrams
+    title: 14. Diagrams
+    level: 2
+    role: diagram-section
+    importance: high
+    blocks: []
+    sections:
+    - id: 14-1-runtime-creation-and-lifecycle
+      title: 14.1 Runtime creation and lifecycle
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0204
+        type: diagram
+        intent: explain-flow
+        language: text
+        diagram_type: ascii
+        content: |-
+          xgoja command / provider command
+                    │
+                    ▼
+          RuntimeFactory.NewRuntime(profile)
+                    │
+                    ▼
+          engine.Factory.NewRuntime(ctx)
+                    │
+                    ├─ VM: *goja.Runtime
+                    ├─ Loop: eventloop.EventLoop
+                    ├─ Owner: runtimeowner.Runner
+                    ├─ LifecycleContext: context.WithCancel(background)
+                    ├─ runtimebridge.Store(VM, Bindings{LifecycleContext, Loop, Owner})
+                    ├─ require registry + selected modules
+                    └─ runtime initializers
+                    │
+                    ▼
+          *engine.Runtime
+                    │
+                    └─ Close(closeCtx)
+                         ├─ cancel LifecycleContext
+                         ├─ delete runtimebridge bindings
+                         ├─ run closers in reverse order
+                         ├─ shutdown Owner
+                         └─ stop Loop
+      sections: []
+    - id: 14-2-owner-entry-and-current-context
+      title: 14.2 Owner entry and current context
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0205
+        type: diagram
+        intent: explain-flow
+        language: text
+        diagram_type: ascii
+        content: |-
+          HTTP request context r.Context()
+                    │
+                    ▼
+          Owner.Call(r.Context(), "http-handler", fn)
+                    │
+                    ├─ wrap ctx with owner marker
+                    ├─ push current call context for VM
+                    ├─ run JS route handler
+                    │    └─ native module calls runtimebridge.CurrentOwnerContext(vm)
+                    │         └─ returns r.Context() with owner marker
+                    └─ pop current call context
+      sections: []
+    - id: 14-3-the-deadlock-we-want-to-make-impossible
+      title: 14.3 The deadlock we want to make impossible
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0206
+        type: diagram
+        intent: explain-flow
+        language: text
+        diagram_type: ascii
+        content: |-
+          Owner goroutine is running jsverbs.invoke
+                    │
+                    ▼
+          JS calls tile.text(() => ...)
+                    │
+                    ▼
+          tile.text calls Owner.Call(lifecycleCtx, "ui.tile.text", ...)
+                    │
+                    ├─ lifecycleCtx has no owner marker
+                    ├─ runner schedules ui.tile.text on owner loop
+                    └─ caller waits
+
+          But owner loop cannot process ui.tile.text because it is still running jsverbs.invoke.
+      - id: b0207
+        type: prose
+        intent: explain
+        content: 'The safe helper or runner hardening changes the middle step:'
+      - id: b0208
+        type: diagram
+        intent: explain-flow
+        language: text
+        diagram_type: ascii
+        content: |-
+          tile.text calls bindings.CallCurrent(vm, "ui.tile.text", ...)
+                    │
+                    ├─ current context has owner marker
+                    └─ runner invokes directly
+      sections: []
+      summary: 'The safe helper or runner hardening changes the middle step:'
+  - id: 15-test-strategy
+    title: 15. Test strategy
+    level: 2
+    role: test-strategy
+    importance: high
+    blocks: []
+    sections:
+    - id: 15-1-unit-tests-for-context-names
+      title: 15.1 Unit tests for context names
+      level: 3
+      role: exposition
+      importance: high
+      blocks:
+      - id: b0209
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `runtimebridge.CurrentOwnerContext` returns lifecycle outside owner calls.
+          - `runtimebridge.CurrentOwnerContext` returns call context inside owner calls.
+          - `Bindings.RuntimeContext` prefers `LifecycleContext` and falls back to deprecated `Context`.
+          - Background goroutines do not accidentally observe another goroutine's owner-entry context.
+      sections: []
+    - id: 15-2-unit-tests-for-reentrancy
+      title: 15.2 Unit tests for reentrancy
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0210
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - Nested `Owner.Call` with current owner context invokes directly.
+          - Nested `Owner.Call` with lifecycle context invokes directly after hardening.
+          - Nested `Owner.Post` with lifecycle context does not schedule behind itself.
+          - Reentrant calls preserve panic recovery behavior.
+      sections: []
+    - id: 15-3-native-module-pattern-tests
+      title: 15.3 Native module pattern tests
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0211
+        type: prose
+        intent: explain
+        content: 'Create a small test module that exposes:'
+      - id: b0212
+        type: code
+        intent: show-js-example
+        language: js
+        content: |-
+          const m = require("test/reentrant");
+          m.bind(() => "ok");
+      - id: b0213
+        type: prose
+        intent: explain
+        content: The Go implementation should synchronously evaluate the callback during binding. Run it through `jsverbs.InvokeInRuntime`. The test should fail on the old self-deadlock path and pass after `CallCurrent`/runner hardening.
+      sections: []
+      summary: 'Create a small test module that exposes:'
+    - id: 15-4-mixed-package-tests
+      title: 15.4 Mixed package tests
+      level: 3
+      role: exposition
+      importance: medium
+      blocks:
+      - id: b0214
+        type: prose
+        intent: explain
+        content: 'Use generated or app-level tests for these paths:'
+      - id: b0215
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `jsverbs + express + timer`: verb starts Express; HTTP handler awaits timer.
+          - `jsverbs + express + fs`: route writes a file; close cancels server.
+          - fake `discord` + express: Discord event updates runtime state, HTTP reads it.
+          - fake `loupedeck` + express: hardware event updates runtime state, HTTP reads it.
+      - id: b0216
+        type: prose
+        intent: explain
+        content: The goal is not to test every package in full. The goal is to test every class of context transition.
+      sections: []
+      summary: 'Use generated or app-level tests for these paths:'
+  - id: 16-implementation-risks-and-tradeoffs
+    title: 16. Implementation risks and tradeoffs
+    level: 2
+    role: risk-analysis
+    importance: high
+    blocks: []
+    sections:
+    - id: risk-same-goroutine-detection-uses-goroutine-ids
+      title: 'Risk: same-goroutine detection uses goroutine IDs'
+      level: 3
+      role: risk-analysis
+      importance: high
+      blocks:
+      - id: b0217
+        type: prose
+        intent: explain
+        content: The current code already uses goroutine IDs in owner context markers (`runtimeowner/runner.go:198-220`). Hardening reentrancy would extend that pattern. Goroutine ID parsing is not a public Go API. The project already accepted this tradeoff for owner context checks. If we want to avoid it, the event loop scheduler would need to expose an owner-thread token or reentrant execution facility.
+      sections: []
+      summary: The current code already uses goroutine IDs in owner context markers (`runtimeowner/runner.go:198-220`). Hardening reentrancy would extend that pattern. Goroutine ID parsing is not a public Go API. The project already ac
+    - id: risk-making-currentcontext-goroutine-aware-can-change-behavior
+      title: 'Risk: making `CurrentContext` goroutine-aware can change behavior'
+      level: 3
+      role: risk-analysis
+      importance: high
+      blocks:
+      - id: b0218
+        type: prose
+        intent: explain
+        content: If background code currently calls `CurrentContext(vm)` and relies on seeing an active request context, that code is probably relying on accidental behavior. Still, this is a behavior change. The migration should add explicit helper names first, then tighten behavior with tests and release notes.
+      sections: []
+      summary: If background code currently calls `CurrentContext(vm)` and relies on seeing an active request context, that code is probably relying on accidental behavior. Still, this is a behavior change. The migration should add exp
+    - id: risk-too-many-helper-methods-can-confuse-authors
+      title: 'Risk: too many helper methods can confuse authors'
+      level: 3
+      role: risk-analysis
+      importance: high
+      blocks:
+      - id: b0219
+        type: prose
+        intent: explain
+        content: 'The API should not expose ten nearly identical ways to call the owner. The minimum useful set is:'
+      - id: b0220
+        type: bullet_list
+        intent: enumerate
+        content: |-
+          - `RuntimeContext()` for lifecycle.
+          - `CurrentOwnerContext(vm)` for JS-facing functions.
+          - `CallCurrent` / `PostCurrent` for sync code already in JS.
+          - `CallWithContext` / `PostWithContext` for explicit external event or operation contexts.
+      - id: b0221
+        type: prose
+        intent: explain
+        content: Avoid adding more until real use cases prove they are needed.
+      sections: []
+      summary: 'The API should not expose ten nearly identical ways to call the owner. The minimum useful set is:'
+    - id: risk-context-cannot-solve-resource-ownership-by-itself
+      title: 'Risk: context cannot solve resource ownership by itself'
+      level: 3
+      role: risk-analysis
+      importance: high
+      blocks:
+      - id: b0222
+        type: prose
+        intent: explain
+        content: Context tells goroutines when to stop; it does not define who owns a resource. Runtime packages still need explicit closers, subscription handles, and cleanup order. The xgoja provider capability pattern should remain the resource ownership layer.
+      sections: []
+      summary: Context tells goroutines when to stop; it does not define who owns a resource. Runtime packages still need explicit closers, subscription handles, and cleanup order. The xgoja provider capability pattern should remain th
+  - id: 17-recommended-naming-decisions
+    title: 17. Recommended naming decisions
+    level: 2
+    role: exposition
+    importance: high
+    blocks:
+    - id: b0223
+      type: prose
+      intent: explain
+      content: 'Use these names consistently:'
+    - id: b0224
+      type: table
+      intent: compare-or-classify
+      content: |-
+        | Concept | Recommended API name | Avoid |
+        | --- | --- | --- |
+        | Runtime lifetime | `LifecycleContext`, `RuntimeContext()` | `Context` |
+        | Current JS owner entry | `CurrentOwnerContext(vm)` | `CurrentContext(vm)` as the only name |
+        | Captured async work | `operationCtx` | `ctx` without qualifier |
+        | External event callback | `eventCtx` or `listenerCtx` | `CurrentContext(vm)` from event goroutine |
+        | Cleanup deadline | `closeCtx` | lifecycle context |
+        | Serialized VM access | `Owner.Call` / `Owner.Post` behind helpers | direct `goja.Runtime` access |
+    - id: b0225
+      type: prose
+      intent: explain
+      content: 'The point of the table is not aesthetics. Good names keep code review honest. A line like this should raise an eyebrow:'
+    - id: b0226
+      type: code
+      intent: show-api-or-pseudocode
+      language: go
+      content: bindings.Owner.Call(bindings.Context, "callback", fn)
+    - id: b0227
+      type: prose
+      intent: explain
+      content: 'A line like this explains itself:'
+    - id: b0228
+      type: code
+      intent: show-api-or-pseudocode
+      language: go
+      content: bindings.CallCurrent(vm, "ui.tile.text", fn)
+    sections: []
+    summary: 'Use these names consistently:'
+  - id: 18-suggested-intern-task-list
+    title: 18. Suggested intern task list
+    level: 2
+    role: exposition
+    importance: high
+    blocks:
+    - id: b0229
+      type: ordered_list
+      intent: enumerate
+      content: |-
+        1. Read this document end-to-end.
+        2. Read `pkg/runtimebridge/runtimebridge.go` and identify every public symbol.
+        3. Read `pkg/runtimeowner/runner.go` and trace `Call`, `Post`, `invoke`, and `withOwnerContext`.
+        4. Read `engine/factory.go` and `engine/runtime.go` to understand runtime lifecycle creation and close order.
+        5. Read `modules/timer/timer.go` and `modules/fs/fs_async.go` as good async context examples.
+        6. Read `pkg/gojahttp/host.go` as the HTTP event-source example.
+        7. Reproduce the Loupedeck hang or review the ELI5 doc in `reference/02-eli5-loupedeck-web-hardware-issue.md`.
+        8. Implement Phase 1 safe names and helper methods.
+        9. Migrate one small module, preferably `timer`, to the new names without behavior change.
+        10. Add reentrancy tests for `runtimeowner`.
+        11. Harden `runtimeowner.Call` and `Post`.
+        12. Migrate Loupedeck UI/state to the helper API.
+        13. Run focused tests in `go-go-goja` and `loupedeck`.
+        14. Add a generated xgoja integration test if possible.
+    sections: []
+  - id: 19-open-questions
+    title: 19. Open questions
+    level: 2
+    role: open-questions
+    importance: high
+    blocks:
+    - id: b0230
+      type: ordered_list
+      intent: enumerate
+      content: |-
+        1. Should `engine.Factory.NewRuntime(ctx)` optionally derive the runtime lifecycle context from `ctx`, or should lifecycle always be independent? The current implementation uses an independent background-rooted lifecycle. That is often correct for long-lived runtimes, but a short-lived CLI runtime may reasonably want lifecycle cancellation when the command context is canceled.
+        2. Should `CurrentContext(vm)` be kept as compatibility alias forever, or should it be deprecated in favor of `CurrentOwnerContext(vm)` and `LifecycleContext(vm)`?
+        3. Should owner reentrancy hardening be implemented before helper migration, or after? Doing it first makes the system safer immediately. Doing helpers first makes tests easier to express and documents desired behavior.
+        4. Should `WaitIdle` and `Interrupt` be public on `runtimeowner.Runner`, or should they remain private methods used only by `engine.Runtime.Close`? Keeping them private reduces API surface; exposing them helps advanced embedders.
+        5. What should the default graceful shutdown timeout be when callers pass a close context without a deadline? The runtime can require callers to provide one, or it can define a conservative default.
+        6. Should `Runtime.Close` run closers before or after `WaitIdle`? This guide recommends lifecycle cancel, wait, interrupt if needed, then closers while the loop is still alive, but some resource closers may need to run immediately after lifecycle cancellation to unblock active calls.
+        7. How should errors from external event callbacks be reported? HTTP has a response path. Hardware and Discord events need logging or event-emitter error channels.
+        8. Should promise waiting move from polling to a central async job/settlement abstraction? Polling works now, but mixed event packages may benefit from a clearer promise bridge.
+    sections: []
+  - id: 20-bottom-line
+    title: 20. Bottom line
+    level: 2
+    role: conclusion
+    importance: critical
+    blocks:
+    - id: b0231
+      type: prose
+      intent: explain
+      content: 'The system is not fundamentally out of control. It has the right primitive: a single owner runner around the Goja VM. What is getting out of hand is the vocabulary. `context.Context` is carrying too many meanings without enough names.'
+    - id: b0232
+      type: prose
+      intent: explain
+      content: 'The design direction is:'
+    - id: b0233
+      type: bullet_list
+      intent: enumerate
+      content: |-
+        - name runtime lifecycle context explicitly;
+        - name current owner-entry context explicitly;
+        - capture operation/subscription contexts deliberately;
+        - keep cleanup context separate;
+        - provide helper APIs that make correct owner calls easy;
+        - harden the owner runner so a wrong context does not deadlock the VM;
+        - test mixed event-source packages as first-class runtime compositions.
+    - id: b0234
+      type: prose
+      intent: explain
+      content: 'Once those rules are encoded in API names and tests, combining `express`, `discord`, `loupedeck`, `timer`, `fs`, and package-owned command providers becomes much less mysterious. Each package can be reviewed by asking one question at every boundary: “Which context is this, and who owns the work it controls?”'
+    sections: []
+    summary: 'The system is not fundamentally out of control. It has the right primitive: a single owner runner around the Goja VM. What is getting out of hand is the vocabulary. `context.Context` is carrying too many meanings without'

@@ -60,3 +60,13 @@ Expanded context ownership guide with linked lifecycle/call contexts, Runner def
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimeowner/runner.go — Runner semantics
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/design-doc/01-goja-context-ownership-and-runtime-package-composition-guide.md — Updated guide with runtime shutdown and cancellation design
 
+
+## 2026-05-26
+
+Added full semantic YAML rendition of the context ownership guide and a compact schema spec for designer-facing layout workflows.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/design-doc/01-goja-context-ownership-and-runtime-package-composition-guide.semantic.yaml — Full semantic content export
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/reference/03-semantic-document-yaml-schema-spec.md — Schema specification and usage guide
+
