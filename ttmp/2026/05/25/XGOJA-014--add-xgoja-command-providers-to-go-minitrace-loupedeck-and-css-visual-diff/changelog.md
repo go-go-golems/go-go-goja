@@ -38,3 +38,14 @@ WhenToUse: "Use for review summaries and ticket closeout."
 
 Generated command-provider smokes complete for go-minitrace, loupedeck, and css-visual-diff; all focused validations and doc doctor passed.
 
+
+## 2026-05-26
+
+Added deep go-go-goja context ownership/runtime package composition guide for future API hardening and Loupedeck deadlock follow-up.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimebridge/runtimebridge.go — Primary API analyzed for context naming and helper proposal
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimeowner/runner.go — Primary implementation analyzed for reentrancy-hardening proposal
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/design-doc/01-goja-context-ownership-and-runtime-package-composition-guide.md — New intern-oriented design and implementation guide
+
