@@ -49,3 +49,14 @@ Added deep go-go-goja context ownership/runtime package composition guide for fu
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimeowner/runner.go — Primary implementation analyzed for reentrancy-hardening proposal
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/design-doc/01-goja-context-ownership-and-runtime-package-composition-guide.md — New intern-oriented design and implementation guide
 
+
+## 2026-05-26
+
+Expanded context ownership guide with linked lifecycle/call contexts, Runner definition, WaitIdle/Interrupt shutdown design, and removed analogies for precise textbook style.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/engine/runtime.go — Proposed Runtime.Close ordering and cleanup semantics
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimeowner/runner.go — Runner semantics
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/design-doc/01-goja-context-ownership-and-runtime-package-composition-guide.md — Updated guide with runtime shutdown and cancellation design
+
