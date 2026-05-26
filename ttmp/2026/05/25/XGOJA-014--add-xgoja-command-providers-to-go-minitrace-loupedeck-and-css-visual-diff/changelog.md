@@ -118,3 +118,16 @@ Added RuntimeOwner.WaitIdle active-call tracking and runtime Close idle-wait/int
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimeowner/types.go — RuntimeOwner now exposes WaitIdle
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/reference/01-diary.md — Diary updated with WaitIdle shutdown step
 
+
+## 2026-05-26
+
+Validated Loupedeck generated xgoja web/hardware UI: runtime modules now use RuntimeServices helpers, non-hardware smoke passes, and hardware test passed on /dev/ttyACM0.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/reference/01-diary.md — Diary records Loupedeck hardware validation
+- /home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/examples/xgoja/loupedeck-command-provider/verbs/web-scene-switcher.js — Generated example shares state between web UI and hardware UI
+- /home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/runtime/js/module_state/module.go — Uses RuntimeServices helpers for reactive state callbacks
+- /home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/runtime/js/module_ui/module.go — Uses RuntimeServices helpers for retained UI callbacks and hardware events
+- /home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/runtime/js/provider/provider.go — Adds xgoja hardware capability and loupedeck/ui modules
+

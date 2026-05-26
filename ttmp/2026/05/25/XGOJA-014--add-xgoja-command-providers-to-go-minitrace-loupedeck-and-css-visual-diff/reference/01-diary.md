@@ -24,7 +24,7 @@ RelatedFiles:
     Note: Generated css-visual-diff command-provider smoke buildspec
 ExternalSources: []
 Summary: "Strict-format implementation diary for XGOJA-014 command providers and generated smoke examples."
-LastUpdated: 2026-05-26T13:30:00-04:00
+LastUpdated: 2026-05-26T13:50:00-04:00
 WhatFor: "Preserve investigation context, commands run, decisions, errors, and validation outcomes."
 WhenToUse: "Read before resuming XGOJA-014 work or reviewing the implementation."
 ---
@@ -1007,4 +1007,148 @@ Useful scoped search:
 ```bash
 rg -n "runtimebridge\.Bindings|runtimebridge\.Lookup\(|\bbindings\b" modules/fs modules/timer modules/express pkg/xgoja/testprovider --glob '*.go'
 go test ./pkg/runtimebridge ./pkg/runtimeowner ./engine ./modules/timer ./modules/fs ./modules/express ./pkg/xgoja/... ./pkg/jsverbs ./pkg/jsverbscli ./pkg/gojahttp ./pkg/replsession ./pkg/repl/evaluators/javascript ./cmd/xgoja -count=1
+```
+
+
+## Step 12: Apply runtime services cleanup to the Loupedeck hardware UI example
+
+This step returned to the original Loupedeck blocker after the central go-go-goja runtime context refactor was in place. The generated `web-scene-switcher` command had been hanging at the first `loupedeck/ui` tile binding because the UI module entered the runtime owner with stale/lifetime-style context while already inside a JavaScript owner call.
+
+I updated the Loupedeck runtime modules to use `runtimebridge.RuntimeServices` and the explicit current/lifetime helper methods, then validated both the CI-safe generated smoke path and a real hardware-backed run against `/dev/ttyACM0`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Continue from the completed go-go-goja runtime context refactor into the Loupedeck hardware/web UI task and validate the real generated command-provider example.
+
+**Inferred user intent:** The user wanted the WIP Loupedeck `loupedeck/ui` example to stop hanging, keep the non-hardware smoke safe, and prove the hardware path against the attached deck.
+
+**Commit (code):** 4dcbf36 — "feat: wire loupedeck xgoja hardware ui"
+
+### What I did
+
+- Updated Loupedeck runtime modules to the new go-go-goja API:
+  - `runtimebridge.Bindings` -> `runtimebridge.RuntimeServices`
+  - `runtimebridge.CurrentContext` -> `runtimebridge.CurrentOwnerContext` / helper methods
+  - direct `Owner.Call` / `Owner.Post` in native modules -> `CallWithCurrentContext` and `PostWithLifetimeContext`
+- Exported `Loader()` helpers for `loupedeck/state` and `loupedeck/ui` so the xgoja provider can register them as package modules.
+- Added the xgoja package hardware capability for Loupedeck:
+  - config section `loupedeck-hardware`
+  - `--deck-enabled`
+  - `--deck-device`
+  - writer/render timing flags
+  - runtime environment storage and cleanup
+  - hardware connection, host attach, render loop, display clearing, and closer registration
+- Updated the generated command-provider example:
+  - runtime includes `loupedeck/state` and `loupedeck/ui`
+  - `web-scene-switcher.js` builds a retained hardware UI page and web UI from shared JS state
+  - `make smoke` stays hardware-disabled and CI-safe
+  - `make test-hardware` runs with `--deck-enabled=true`
+  - `make hardware` runs an interactive hardware-backed demo
+
+### Why
+
+- The previous generated example proved command-provider mounting but not real `loupedeck/ui` usage.
+- The user explicitly did not want `--deck-enabled=false` to be treated as the final hardware solution; it is only for automated smoke safety.
+- The central runtime context helpers made the correct native-module call intent explicit enough to fix the hang.
+
+### What worked
+
+- Focused Loupedeck Go validation passed:
+
+```bash
+cd loupedeck
+go test ./runtime/js ./runtime/js/module_state ./runtime/js/module_ui ./runtime/js/provider ./cmd/loupedeck/cmds/verbs -count=1
+```
+
+- The generated non-hardware smoke passed and no longer hung at `configuring tile 0,0`:
+
+```bash
+cd loupedeck
+make -C examples/xgoja/loupedeck-command-provider smoke
+```
+
+- The attached hardware was detected:
+
+```text
+Bus 003 Device 020: ID 2ec2:0004 Loupedeck Loupedeck Live
+/dev/ttyACM0
+```
+
+- The generated hardware test passed against the real deck:
+
+```bash
+cd loupedeck
+make -C examples/xgoja/loupedeck-command-provider test-hardware DECK_DEVICE=/dev/ttyACM0
+```
+
+### What didn't work
+
+- Before the central runtime context cleanup, the same example timed out with:
+
+```text
+Error: runtimeowner jsverbs.invoke: runtime call canceled: context canceled
+```
+
+- The debug log stopped at:
+
+```text
+configuring tile 0,0
+```
+
+- After the fix, hardware close logs this expected listener shutdown message when the serial/websocket connection is closed during cleanup:
+
+```text
+WARN Read error, exiting error="Port has been closed"
+loupedeck listen failed: websocket read failed: Port has been closed
+```
+
+### What I learned
+
+- `loupedeck/ui` tile/display binding callbacks may run during page construction while a current owner call is already active; using `CallWithCurrentContext` avoids scheduling a nested call onto the owner and deadlocking.
+- Hardware event callbacks are not part of the current JavaScript call stack, so `PostWithLifetimeContext` is the correct default for button/touch/knob callbacks.
+
+### What was tricky to build
+
+- The key subtlety was not just renaming types. The module code had to stop capturing a context during module load/page creation and instead choose the owner-entry context at callback execution time.
+- The hardware capability also had to keep cleanup ordered: close presentation/rendering, clear displays, close the deck connection, and remove the runtime environment when the runtime closes.
+
+### What warrants a second pair of eyes
+
+- Review `runtime/js/provider/provider.go` hardware setup and closer ordering, especially the goroutine that logs `deckConn.Listen()` errors after close.
+- Review whether `PostWithLifetimeContext` is the right context for all hardware event callbacks, or whether future button/touch events should receive their own explicit event contexts.
+- Review whether nil left/right displays should be omitted from the render target map for devices with different display sets.
+
+### What should be done in the future
+
+- Optionally make the hardware listen-loop close path suppress the expected "Port has been closed" message during normal shutdown.
+- Run `make hardware` interactively and manually verify physical button/touch controls in addition to the web-triggered hardware test.
+
+### Code review instructions
+
+- Start with:
+  - `/home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/runtime/js/module_ui/module.go`
+  - `/home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/runtime/js/module_state/module.go`
+  - `/home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/runtime/js/provider/provider.go`
+  - `/home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/examples/xgoja/loupedeck-command-provider/verbs/web-scene-switcher.js`
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck
+go test ./runtime/js ./runtime/js/module_state ./runtime/js/module_ui ./runtime/js/provider ./cmd/loupedeck/cmds/verbs -count=1
+make -C examples/xgoja/loupedeck-command-provider smoke
+make -C examples/xgoja/loupedeck-command-provider test-hardware DECK_DEVICE=/dev/ttyACM0
+```
+
+### Technical details
+
+The important native-module pattern is now:
+
+```go
+runtimeServices, ok := runtimebridge.Lookup(runtime)
+// JS-facing retained callbacks:
+runtimeServices.CallWithCurrentContext(runtime, "ui.tile.text", func(ctx context.Context, vm *goja.Runtime) (any, error) { ... })
+// hardware/event callbacks:
+runtimeServices.PostWithLifetimeContext("ui.onButton.callback", func(ctx context.Context, vm *goja.Runtime) { ... })
 ```
