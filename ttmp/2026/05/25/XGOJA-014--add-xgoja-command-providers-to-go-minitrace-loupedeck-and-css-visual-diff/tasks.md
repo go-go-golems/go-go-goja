@@ -51,20 +51,20 @@ WhenToUse: "Use while executing or reviewing XGOJA-014."
 
 ## Phase 3 — css-visual-diff provider and command provider
 
-- [ ] Update `css-visual-diff` dependency to `github.com/go-go-golems/go-go-goja v0.5.0`.
-- [ ] Extract loader-friendly module installation helpers for `css-visual-diff`, `diff`, and `report`.
-- [ ] Add public `pkg/xgoja/provider` package registering modules and command provider.
-- [ ] Export a non-Cobra verb command-list helper from `internal/cssvisualdiff/verbcli`.
-- [ ] Implement `css-visual-diff.verbs` command provider using xgoja `RuntimeFactory` when available.
-- [ ] Add provider/module/command construction tests.
-- [ ] Run focused css-visual-diff validation.
-- [ ] Commit css-visual-diff implementation.
+- [x] Update `css-visual-diff` dependency to `github.com/go-go-golems/go-go-goja v0.5.0`.
+- [x] Extract loader-friendly module installation helpers for `css-visual-diff`, `diff`, and `report`.
+- [x] Add public `pkg/xgoja/provider` package registering modules and command provider.
+- [x] Export a non-Cobra verb command-list helper from `internal/cssvisualdiff/verbcli`.
+- [x] Implement `css-visual-diff.verbs` command provider using xgoja `RuntimeFactory` when available.
+- [x] Add provider/module/command construction tests.
+- [x] Run focused css-visual-diff validation.
+- [x] Commit css-visual-diff implementation.
 
 ## Phase 4 — Cross-repo validation and closeout
 
-- [ ] Update diary and changelog after each phase.
-- [ ] Run all focused package validations again.
-- [ ] Run `docmgr doctor --ticket XGOJA-014 --stale-after 30`.
-- [ ] Commit final docs.
+- [x] Update diary and changelog after each phase.
+- [x] Run all focused package validations again.
+- [x] Run `docmgr doctor --ticket XGOJA-014 --stale-after 30`.
+- [x] Commit final docs.
 - [ ] Optionally upload final guide bundle to reMarkable.
 - [ ] Close XGOJA-014 when all package work is complete.

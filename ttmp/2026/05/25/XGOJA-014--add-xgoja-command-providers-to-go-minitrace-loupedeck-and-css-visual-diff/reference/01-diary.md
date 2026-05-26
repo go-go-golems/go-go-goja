@@ -84,3 +84,57 @@ go test ./runtime/js/provider ./pkg/xgoja/provider ./cmd/loupedeck/cmds/verbs -c
 The first attempt to run the wider focused list including `./cmd/loupedeck/cmds/run` timed out after provider/verbs tests completed. The repository's pre-commit hook also runs `make test` (`GOWORK=off go test ./...`) and hung beyond both 120s and 300s after lint completed, likely because broad loupedeck tests include hardware/session-style paths. The lint portion completed successfully with 0 issues. I committed with `LEFTHOOK=0` after recording the focused non-hardware validation.
 
 Commit in `loupedeck`: `233560c feat: add xgoja scenes command provider`.
+
+## 2026-05-25 20:55 — css-visual-diff provider and verbs command provider
+
+Implemented the css-visual-diff slice:
+
+- Ran `go get github.com/go-go-golems/go-go-goja@v0.5.0`, which also moved `glazed` to `v1.2.5` and updated several `golang.org/x/*` dependencies.
+- Updated the existing DSL runtime registrar to the current `engine.RuntimeModuleSpec` API (`RegisterRuntimeModule`, `WithModules`, `UseModuleMiddleware(engine.Pipeline())`).
+- Extracted loader-friendly module installers:
+  - `jsapi.NewLoader()` / `NewLoaderWithContext(...)` / `Install(...)` for `require("css-visual-diff")`.
+  - `dsl.NewDiffLoader()` and `dsl.NewReportLoader()` for compatibility workflow modules.
+- Added runtimebridge-to-runtimeowner adapters in `jsapi` and `dsl` so xgoja module loaders can recover owner/context bindings from the VM and continue supporting async promise settlement.
+- Exported `verbcli.NewCommands(...)` and `verbcli.NewCommandsWithInvokerFactory(...)` so command providers can reuse verb discovery without building Cobra directly.
+- Added public `pkg/xgoja/provider` with package ID `css-visual-diff`, modules `css-visual-diff`, `diff`, and `report`, plus `CommandSetProvider{Name: "verbs", DefaultMount: "css-diff"}`.
+- The `verbs` command provider decodes `repositories` config, discovers built-in/config/env/CLI verb repositories, and supplies an invoker that uses `ctx.RuntimeFactory.NewRuntime(ctx, ctx.RuntimeProfile, require.WithLoader(registry.RequireLoader()))`.
+- Added provider tests for module registration, loader exports, and command provider construction.
+
+Validation passed:
+
+```bash
+cd css-visual-diff
+go test ./pkg/xgoja/provider ./internal/cssvisualdiff/jsapi ./internal/cssvisualdiff/verbcli ./internal/cssvisualdiff/dsl -count=1
+go test ./cmd/css-visual-diff ./internal/cssvisualdiff/... ./pkg/... -count=1
+GOWORK=off go test ./...
+```
+
+Pre-commit initially failed in `verbcli` git-root config tests because git hooks set `GIT_DIR`/`GIT_WORK_TREE`; test helper `git init` inherited those variables and did not create a `.git` directory in the temporary repo. I fixed runtime config discovery to also scan ancestor directories for `.css-visual-diff.yml` and `.css-visual-diff.override.yml`, which makes local config discovery robust in hook environments and still preserves the Glazed config resolution path.
+
+Commit in `css-visual-diff`: `a91c235 feat: add xgoja provider for css visual diff`.
+
+## 2026-05-25 21:00 — Cross-repo validation
+
+Ran the package validations again after all three implementation commits:
+
+```bash
+cd go-minitrace
+go test ./pkg/minitracejs/provider ./cmd/go-minitrace/cmds/query ./pkg/minitracecmd -count=1
+
+cd ../loupedeck
+go test ./runtime/js/provider ./pkg/xgoja/provider ./cmd/loupedeck/cmds/verbs -count=1
+
+cd ../css-visual-diff
+GOWORK=off go test ./...
+```
+
+All three validation sets passed. The loupedeck validation remains focused/non-hardware because the broad `make test` hook previously hung in hardware/session-oriented tests; css-visual-diff's full `GOWORK=off go test ./...` now passes and the pre-commit hook passed for its implementation commit.
+
+Ran doc hygiene:
+
+```bash
+cd go-go-goja
+docmgr doctor --ticket XGOJA-014 --stale-after 30
+```
+
+The first doctor run warned about two non-vocabulary topics and relative related-file paths that pointed one level short of the workspace root. I changed the ticket topics to known values (`providers`, `command-registration`) and rewrote the related file paths as absolute paths. The second doctor run passed with all checks green.

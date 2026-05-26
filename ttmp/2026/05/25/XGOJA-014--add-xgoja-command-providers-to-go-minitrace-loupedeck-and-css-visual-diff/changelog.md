@@ -25,3 +25,5 @@ WhenToUse: "Use for review summaries and ticket closeout."
 - Added an initial task plan and implementation diary.
 - Implemented `go-minitrace` command provider `go-minitrace.queries` with catalog command construction, tests, and dependency update to `go-go-goja v0.5.0`.
 - Implemented `loupedeck` command provider `loupedeck.scenes` with optional `run`, annotated scene verb commands, construction tests, and dependency update to `go-go-goja v0.5.0`.
+- Implemented public `css-visual-diff` xgoja provider with `css-visual-diff`, `diff`, and `report` modules plus `css-visual-diff.verbs` command provider using xgoja `RuntimeFactory`.
+- Fixed css-visual-diff local verb repository config discovery to remain robust when git hooks set `GIT_DIR`/`GIT_WORK_TREE`.
