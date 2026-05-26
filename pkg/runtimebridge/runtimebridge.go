@@ -73,9 +73,7 @@ func (svc RuntimeServices) CallWithCustomContext(ctx context.Context, op string,
 	if svc.Owner == nil {
 		return nil, errors.New("runtimebridge: missing owner")
 	}
-	if ctx == nil {
-		ctx = svc.Lifetime()
-	}
+	ctx = svc.contextLinkedToLifetime(ctx)
 	return svc.Owner.Call(ctx, op, fn)
 }
 
@@ -85,10 +83,29 @@ func (svc RuntimeServices) PostWithCustomContext(ctx context.Context, op string,
 	if svc.Owner == nil {
 		return errors.New("runtimebridge: missing owner")
 	}
-	if ctx == nil {
-		ctx = svc.Lifetime()
-	}
+	ctx = svc.contextLinkedToLifetime(ctx)
 	return svc.Owner.Post(ctx, op, fn)
+}
+
+func (svc RuntimeServices) contextLinkedToLifetime(ctx context.Context) context.Context {
+	lifetime := svc.Lifetime()
+	if ctx == nil || ctx == lifetime {
+		return lifetime
+	}
+	select {
+	case <-lifetime.Done():
+		return lifetime
+	default:
+	}
+	linked, cancel := context.WithCancel(ctx)
+	go func() {
+		select {
+		case <-lifetime.Done():
+			cancel()
+		case <-linked.Done():
+		}
+	}()
+	return linked
 }
 
 var servicesByVM sync.Map

@@ -16,7 +16,7 @@ import (
 type ownerCtxKey struct{}
 
 type ownerCtxValue struct {
-	r   *runner
+	r   *runtimeOwner
 	gid uint64
 }
 
@@ -25,7 +25,7 @@ type callResult struct {
 	err   error
 }
 
-type runner struct {
+type runtimeOwner struct {
 	vm        *goja.Runtime
 	scheduler Scheduler
 	opts      Options
@@ -42,17 +42,17 @@ func NewRuntimeOwner(vm *goja.Runtime, scheduler Scheduler, opts Options) Runtim
 	if opts.Name == "" {
 		opts.Name = "runtime"
 	}
-	return &runner{vm: vm, scheduler: scheduler, opts: opts}
+	return &runtimeOwner{vm: vm, scheduler: scheduler, opts: opts}
 }
 
-func (r *runner) IsClosed() bool {
+func (r *runtimeOwner) IsClosed() bool {
 	if r == nil {
 		return true
 	}
 	return r.closed.Load()
 }
 
-func (r *runner) Shutdown(context.Context) error {
+func (r *runtimeOwner) Shutdown(context.Context) error {
 	if r == nil {
 		return nil
 	}
@@ -60,9 +60,9 @@ func (r *runner) Shutdown(context.Context) error {
 	return nil
 }
 
-func (r *runner) Call(ctx context.Context, op string, fn CallFunc) (any, error) {
+func (r *runtimeOwner) Call(ctx context.Context, op string, fn CallFunc) (any, error) {
 	if r == nil || fn == nil {
-		return nil, fmt.Errorf("runtimeowner %s: nil runner or function", op)
+		return nil, fmt.Errorf("runtimeowner %s: nil runtime owner or function", op)
 	}
 	if r.closed.Load() {
 		return nil, ErrClosed
@@ -106,9 +106,9 @@ func (r *runner) Call(ctx context.Context, op string, fn CallFunc) (any, error) 
 	}
 }
 
-func (r *runner) Post(ctx context.Context, op string, fn PostFunc) error {
+func (r *runtimeOwner) Post(ctx context.Context, op string, fn PostFunc) error {
 	if r == nil || fn == nil {
-		return fmt.Errorf("runtimeowner %s: nil runner or function", op)
+		return fmt.Errorf("runtimeowner %s: nil runtime owner or function", op)
 	}
 	if r.closed.Load() {
 		return ErrClosed
@@ -159,7 +159,7 @@ func (r *runner) Post(ctx context.Context, op string, fn PostFunc) error {
 	return nil
 }
 
-func (r *runner) invoke(ctx context.Context, op string, fn CallFunc) (any, error) {
+func (r *runtimeOwner) invoke(ctx context.Context, op string, fn CallFunc) (any, error) {
 	return runtimebridge.WithCallContext(r.vm, ctx, func() (any, error) {
 		if !r.opts.RecoverPanics {
 			return fn(ctx, r.vm)
@@ -182,7 +182,7 @@ func (r *runner) invoke(ctx context.Context, op string, fn CallFunc) (any, error
 	})
 }
 
-func (r *runner) invokePost(ctx context.Context, op string, fn PostFunc) {
+func (r *runtimeOwner) invokePost(ctx context.Context, op string, fn PostFunc) {
 	_ = runtimebridge.WithCallContextVoid(r.vm, ctx, func() error {
 		if r.opts.RecoverPanics {
 			defer func() {
@@ -201,14 +201,14 @@ func normalizeContext(ctx context.Context) context.Context {
 	return ctx
 }
 
-func (r *runner) withOwnerContext(ctx context.Context) context.Context {
+func (r *runtimeOwner) withOwnerContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ownerCtxKey{}, ownerCtxValue{
 		r:   r,
 		gid: currentGoroutineID(),
 	})
 }
 
-func (r *runner) isOwnerContext(ctx context.Context) bool {
+func (r *runtimeOwner) isOwnerContext(ctx context.Context) bool {
 	v, ok := ctx.Value(ownerCtxKey{}).(ownerCtxValue)
 	if !ok || v.r != r || v.gid == 0 {
 		return false
@@ -221,7 +221,7 @@ type ownerContexter interface {
 }
 
 // OwnerContext marks ctx as belonging to the current owner goroutine for this
-// runner. It should only be used at known owner-thread entry points (for
+// runtime owner. It should only be used at known owner-thread entry points (for
 // example, inside native module exports invoked directly by the VM).
 func OwnerContext(r RuntimeOwner, ctx context.Context) context.Context {
 	ctx = normalizeContext(ctx)

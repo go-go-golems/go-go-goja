@@ -54,10 +54,10 @@ func Register(registry *providerapi.Registry) error {
 						}
 						callCtx := runtimebridge.CurrentOwnerContext(vm)
 						go func() {
-							if err := runtimeServices.Owner.Post(callCtx, "owner-check.ping", func(context.Context, *goja.Runtime) {
+							if err := runtimeServices.PostWithCustomContext(callCtx, "owner-check.ping", func(context.Context, *goja.Runtime) {
 								_ = resolve("pong")
 							}); err != nil {
-								_ = runtimeServices.Owner.Post(context.Background(), "owner-check.ping.reject", func(context.Context, *goja.Runtime) {
+								_ = runtimeServices.PostWithCustomContext(context.Background(), "owner-check.ping.reject", func(context.Context, *goja.Runtime) {
 									_ = reject(vm.ToValue(fmt.Sprintf("post failed: %v", err)))
 								})
 							}

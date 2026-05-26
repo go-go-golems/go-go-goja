@@ -148,7 +148,7 @@ func TestRunnerCallSuccess(t *testing.T) {
 	}
 }
 
-func TestRunnerCallSetsRuntimebridgeCurrentContext(t *testing.T) {
+func TestRuntimeOwnerCallSetsRuntimebridgeCurrentContext(t *testing.T) {
 	vm := goja.New()
 	s := newQueueScheduler(vm)
 	defer s.Close()
@@ -233,7 +233,7 @@ func TestRunnerShutdown(t *testing.T) {
 		t.Fatalf("Shutdown error: %v", err)
 	}
 	if !r.IsClosed() {
-		t.Fatalf("runner should be closed")
+		t.Fatalf("runtime owner should be closed")
 	}
 	_, err := r.Call(context.Background(), "test.closed", func(context.Context, *goja.Runtime) (any, error) {
 		return nil, nil

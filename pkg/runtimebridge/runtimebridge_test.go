@@ -3,11 +3,23 @@ package runtimebridge
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/dop251/goja"
 )
 
 type contextKey string
+
+type fakeRuntimeOwner struct{}
+
+func (fakeRuntimeOwner) Call(ctx context.Context, _ string, fn func(context.Context, *goja.Runtime) (any, error)) (any, error) {
+	return fn(ctx, goja.New())
+}
+
+func (fakeRuntimeOwner) Post(ctx context.Context, _ string, fn func(context.Context, *goja.Runtime)) error {
+	fn(ctx, goja.New())
+	return nil
+}
 
 func TestCurrentOwnerContextFallsBackToLifetimeContext(t *testing.T) {
 	vm := goja.New()
@@ -49,6 +61,48 @@ func TestWithCallContextPushesAndRestoresNestedContext(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("WithCallContext() returned error: %v", err)
+	}
+}
+
+func TestRuntimeServicesCallWithCustomContextCancelsWhenLifetimeCancels(t *testing.T) {
+	lifetimeCtx, cancelLifetime := context.WithCancel(context.Background())
+	svc := RuntimeServices{
+		LifetimeContext: lifetimeCtx,
+		Owner:           fakeRuntimeOwner{},
+	}
+
+	customCtx := context.WithValue(context.Background(), contextKey("request"), "custom")
+	_, err := svc.CallWithCustomContext(customCtx, "test.cancel", func(ctx context.Context, _ *goja.Runtime) (any, error) {
+		if got := ctx.Value(contextKey("request")); got != "custom" {
+			t.Fatalf("linked context value = %#v, want custom", got)
+		}
+		cancelLifetime()
+		select {
+		case <-ctx.Done():
+			return nil, nil
+		case <-time.After(2 * time.Second):
+			t.Fatalf("linked context did not cancel when lifetime canceled")
+			return nil, nil
+		}
+	})
+	if err != nil {
+		t.Fatalf("CallWithCustomContext() returned error: %v", err)
+	}
+}
+
+func TestRuntimeServicesPostWithNilContextUsesLifetimeContext(t *testing.T) {
+	lifetimeCtx := context.WithValue(context.Background(), contextKey("lifecycle"), "runtime")
+	svc := RuntimeServices{
+		LifetimeContext: lifetimeCtx,
+		Owner:           fakeRuntimeOwner{},
+	}
+
+	if err := svc.PostWithCustomContext(nil, "test.nil", func(ctx context.Context, _ *goja.Runtime) {
+		if got := ctx.Value(contextKey("lifecycle")); got != "runtime" {
+			t.Fatalf("post context value = %#v, want runtime", got)
+		}
+	}); err != nil {
+		t.Fatalf("PostWithCustomContext() returned error: %v", err)
 	}
 }
 

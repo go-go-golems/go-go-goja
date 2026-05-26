@@ -23,12 +23,12 @@ func asyncValue(vm *goja.Runtime, runtimeServices runtimebridge.RuntimeServices,
 
 		value, err := fn()
 		if err != nil {
-			_ = runtimeServices.Owner.Post(callCtx, op+".reject", func(context.Context, *goja.Runtime) {
+			_ = runtimeServices.PostWithCustomContext(callCtx, op+".reject", func(context.Context, *goja.Runtime) {
 				_ = reject(fsErrorValue(vm, err))
 			})
 			return
 		}
-		_ = runtimeServices.Owner.Post(callCtx, op+".resolve", func(context.Context, *goja.Runtime) {
+		_ = runtimeServices.PostWithCustomContext(callCtx, op+".resolve", func(context.Context, *goja.Runtime) {
 			if value == nil {
 				_ = resolve(goja.Undefined())
 				return
@@ -54,12 +54,12 @@ func asyncReadFile(vm *goja.Runtime, runtimeServices runtimebridge.RuntimeServic
 
 		data, err := readFileBytes(path)
 		if err != nil {
-			_ = runtimeServices.Owner.Post(callCtx, "fs.readFile.reject", func(context.Context, *goja.Runtime) {
+			_ = runtimeServices.PostWithCustomContext(callCtx, "fs.readFile.reject", func(context.Context, *goja.Runtime) {
 				_ = reject(fsErrorValue(vm, err))
 			})
 			return
 		}
-		_ = runtimeServices.Owner.Post(callCtx, "fs.readFile.resolve", func(context.Context, *goja.Runtime) {
+		_ = runtimeServices.PostWithCustomContext(callCtx, "fs.readFile.resolve", func(context.Context, *goja.Runtime) {
 			_ = resolve(buffer.EncodeBytes(vm, data, enc))
 		})
 	}()

@@ -99,14 +99,14 @@ func (r *Runtime) Close(ctx context.Context) error {
 		if r.runtimeCtxCancel != nil {
 			r.runtimeCtxCancel()
 		}
-		if r.VM != nil {
-			runtimebridge.Delete(r.VM)
-		}
 
 		for i := len(closers) - 1; i >= 0; i-- {
 			if err := closers[i](ctx); err != nil {
 				retErr = errors.Join(retErr, err)
 			}
+		}
+		if r.VM != nil {
+			runtimebridge.Delete(r.VM)
 		}
 		if r.Owner != nil {
 			if err := r.Owner.Shutdown(ctx); err != nil {

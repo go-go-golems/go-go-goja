@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 )
 
 func TestBuilderWithRequireOptions(t *testing.T) {
@@ -101,6 +102,37 @@ func TestRuntimeContextUsesLifetimeContext(t *testing.T) {
 	case <-runtimeCtx.Done():
 	case <-time.After(2 * time.Second):
 		t.Fatalf("runtime context did not follow lifetime context cancellation")
+	}
+}
+
+func TestRuntimeCloseRunsClosersBeforeDeletingRuntimeServices(t *testing.T) {
+	factory, err := NewBuilder().Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+
+	closerSawServices := false
+	if err := rt.AddCloser(func(context.Context) error {
+		services, ok := runtimebridge.Lookup(rt.VM)
+		closerSawServices = ok && services.Owner != nil
+		return nil
+	}); err != nil {
+		t.Fatalf("add closer: %v", err)
+	}
+
+	if err := rt.Close(context.Background()); err != nil {
+		t.Fatalf("close runtime: %v", err)
+	}
+	if !closerSawServices {
+		t.Fatalf("closer did not see runtime services before cleanup")
+	}
+	if _, ok := runtimebridge.Lookup(rt.VM); ok {
+		t.Fatalf("runtime services still registered after close")
 	}
 }
 

@@ -24,7 +24,7 @@ RelatedFiles:
     Note: Generated css-visual-diff command-provider smoke buildspec
 ExternalSources: []
 Summary: "Strict-format implementation diary for XGOJA-014 command providers and generated smoke examples."
-LastUpdated: 2026-05-26T13:10:00-04:00
+LastUpdated: 2026-05-26T13:30:00-04:00
 WhatFor: "Preserve investigation context, commands run, decisions, errors, and validation outcomes."
 WhenToUse: "Read before resuming XGOJA-014 work or reviewing the implementation."
 ---
@@ -793,7 +793,9 @@ Keep a diary as you go, commit at appropriate intervals. No backwards compatibil
 
 **Commit (code):** 4615867 — "refactor: clarify runtime context ownership api"
 
-**Commit (code):** pending — "refactor: finish runtime service naming cleanup"
+**Commit (code):** e17d4f8 — "refactor: finish runtime service naming cleanup"
+
+**Commit (docs):** 1274630 — "docs: record runtime context cleanup"
 
 ### What I did
 
@@ -921,4 +923,85 @@ _ = bindings.Owner.Post(ctx, "module.resolve", fn)
 services, ok := runtimebridge.Lookup(vm)
 ctx := runtimebridge.CurrentOwnerContext(vm)
 _ = services.PostWithCustomContext(ctx, "module.resolve", fn)
+```
+
+
+## Step 11: Continue naming cleanup after runtime services rename
+
+This step records the follow-up cleanup requested after the first runtime context refactor commit. The public API was already moved to `RuntimeServices`, but a few local variables in native modules still used the old `bindings` name, which made the code read like the old concept still existed.
+
+I updated the diary before continuing so this small cleanup and the next phase remain reviewable. The next implementation pass will remove remaining runtime-owner naming residue around internal runner terminology and then continue toward the shutdown/cancellation improvements from the context-ownership design.
+
+### Prompt Context
+
+**User prompt (verbatim):** "update your diary, then continue."
+
+**Assistant interpretation:** Record the just-finished runtime service naming cleanup in the strict diary, then continue the refactor rather than stopping at the previous commits.
+
+**Inferred user intent:** Keep the chronological documentation current while continuing to simplify the runtime context/owner implementation.
+
+**Commit (code):** pending — follow-up runtime-owner/internal cancellation cleanup not committed yet
+
+### What I did
+
+- Updated this diary before making further code changes.
+- Recorded that `e17d4f8` completed the runtime-services local variable cleanup and `1274630` recorded the changelog update.
+- Re-ran a search for old public runtime context API names and found no remaining `runtimebridge.Bindings`, `NewRunner`, or public `Runner` call sites in runtimebridge/native-module code.
+- Renamed the internal runtime owner implementation from `runner` to `runtimeOwner`, updated remaining test/error strings, and kept the public constructor as `NewRuntimeOwner`.
+- Changed native async modules to use `RuntimeServices.PostWithCustomContext(...)` instead of reaching through `RuntimeServices.Owner.Post(...)` directly.
+- Linked custom/current runtime service contexts to the runtime lifetime context, so operation contexts cancel when runtime lifetime is canceled.
+- Changed runtime close ordering so runtime closers run after lifetime cancellation but before `runtimebridge.Delete`, allowing closers to still access runtime services during cleanup.
+
+### Why
+
+- The user explicitly asked for diary-first continuation.
+- This refactor is intentionally naming-heavy, so stale local names are correctness risks for future reviewers even when the code compiles.
+
+### What worked
+
+- Current tree has the runtime context cleanup commits in place:
+
+```text
+4615867 refactor: clarify runtime context ownership api
+e17d4f8 refactor: finish runtime service naming cleanup
+1274630 docs: record runtime context cleanup
+```
+
+### What didn't work
+
+- `rg` still reports many unrelated `bindings` identifiers in JavaScript parser, inspector, REPL session, and database code. Those are lexical/session bindings, not `runtimebridge.Bindings`, and should not be renamed as part of this runtime-services cleanup.
+
+### What I learned
+
+- The right search for this cleanup is not a blanket `bindings`; it must be scoped to runtimebridge/native-module use. Otherwise it catches unrelated language-binding and REPL-binding concepts.
+
+### What was tricky to build
+
+- The tricky part is avoiding over-renaming. `bindings` is a legitimate term in parser and REPL code, but it is misleading when the value has type `runtimebridge.RuntimeServices`.
+
+### What warrants a second pair of eyes
+
+- Review whether the internal runtime owner implementation should still be named `runner`, even though the public API is now `RuntimeOwner`.
+
+### What should be done in the future
+
+- Continue with linked call/lifetime cancellation and bounded runtime shutdown after removing leftover runtime-owner naming residue.
+
+### Code review instructions
+
+- Check runtime service naming in:
+  - `modules/fs/fs.go`
+  - `modules/fs/fs_async.go`
+  - `modules/timer/timer.go`
+  - `modules/express/express.go`
+  - `pkg/xgoja/testprovider/provider.go`
+- Ignore unrelated parser/session `bindings` names unless they refer to `runtimebridge.RuntimeServices`.
+
+### Technical details
+
+Useful scoped search:
+
+```bash
+rg -n "runtimebridge\.Bindings|runtimebridge\.Lookup\(|\bbindings\b" modules/fs modules/timer modules/express pkg/xgoja/testprovider --glob '*.go'
+go test ./pkg/runtimebridge ./pkg/runtimeowner ./engine ./modules/timer ./modules/fs ./modules/express ./pkg/xgoja/... ./pkg/jsverbs ./pkg/jsverbscli ./pkg/gojahttp ./pkg/replsession ./pkg/repl/evaluators/javascript ./cmd/xgoja -count=1
 ```

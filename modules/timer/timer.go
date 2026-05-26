@@ -40,7 +40,7 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 		runtimeCtx := runtimeServices.Lifetime()
 		go func() {
 			if ms < 0 {
-				_ = runtimeServices.Owner.Post(callCtx, "timer.sleep.reject", func(context.Context, *goja.Runtime) {
+				_ = runtimeServices.PostWithCustomContext(callCtx, "timer.sleep.reject", func(context.Context, *goja.Runtime) {
 					_ = reject(vm.ToValue("timer.sleep: duration must be >= 0"))
 				})
 				return
@@ -55,7 +55,7 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 			case <-runtimeCtx.Done():
 				return
 			case <-timer.C:
-				_ = runtimeServices.Owner.Post(callCtx, "timer.sleep.resolve", func(context.Context, *goja.Runtime) {
+				_ = runtimeServices.PostWithCustomContext(callCtx, "timer.sleep.resolve", func(context.Context, *goja.Runtime) {
 					_ = resolve(goja.Undefined())
 				})
 			}
