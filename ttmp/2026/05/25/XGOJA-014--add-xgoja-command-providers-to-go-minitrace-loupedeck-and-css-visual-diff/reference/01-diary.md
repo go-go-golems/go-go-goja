@@ -138,3 +138,15 @@ docmgr doctor --ticket XGOJA-014 --stale-after 30
 ```
 
 The first doctor run warned about two non-vocabulary topics and relative related-file paths that pointed one level short of the workspace root. I changed the ticket topics to known values (`providers`, `command-registration`) and rewrote the related file paths as absolute paths. The second doctor run passed with all checks green.
+
+## 2026-05-25 21:10 — Real generated smoke-test follow-up
+
+The user correctly pointed out that the previous validation did not include any real generated xgoja command-provider smoke tests. I added `design/04-generated-command-provider-smoke-tests.md` and expanded the ticket tasks.
+
+The smoke-test design now requires:
+
+- a go-minitrace generated xgoja example whose command-provider jsverb queries a minitrace archive and writes a Markdown report with `require("fs")`;
+- a loupedeck generated xgoja example whose command-provider jsverb runs in an xgoja runtime profile, opens an Express webserver, switches scene state when a web endpoint is hit, writes a marker/report, and exits without hardware;
+- a css-visual-diff generated xgoja example whose command-provider verb runs through the generated binary and writes visual artifacts.
+
+The loupedeck example requires implementation work, because the first `loupedeck.scenes` provider used the existing live hardware verb invoker. For the smoke to be real and non-hardware, the provider must use `CommandSetContext.RuntimeFactory` for annotated verbs and initialize selected module package capabilities such as the xgoja HTTP provider.

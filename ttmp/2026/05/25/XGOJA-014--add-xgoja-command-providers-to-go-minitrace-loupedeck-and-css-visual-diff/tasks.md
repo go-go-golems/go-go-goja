@@ -60,7 +60,19 @@ WhenToUse: "Use while executing or reviewing XGOJA-014."
 - [x] Run focused css-visual-diff validation.
 - [x] Commit css-visual-diff implementation.
 
-## Phase 4 — Cross-repo validation and closeout
+## Phase 4 — Generated command-provider smoke tests
+
+- [x] Write generated smoke-test design for all three command providers.
+- [ ] Add generated xgoja go-minitrace command-provider example with JS Markdown report writer.
+- [ ] Smoke go-minitrace generated binary and assert Markdown output.
+- [ ] Upgrade loupedeck command provider to support xgoja RuntimeFactory-based verb execution.
+- [ ] Add generated xgoja loupedeck command-provider example with Express-driven scene switching.
+- [ ] Smoke loupedeck generated binary and assert HTTP-triggered scene/report output.
+- [ ] Add generated xgoja css-visual-diff command-provider example with visual artifact output.
+- [ ] Smoke css-visual-diff generated binary and assert artifacts.
+- [ ] Commit smoke-test implementation at package boundaries.
+
+## Phase 5 — Cross-repo validation and closeout
 
 - [x] Update diary and changelog after each phase.
 - [x] Run all focused package validations again.
