@@ -81,3 +81,16 @@ Updated context ownership guide with explicit WithStartupContext/WithLifetimeCon
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimebridge/runtimebridge.go — Planned RuntimeServices and explicit context helper changes
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/design-doc/01-goja-context-ownership-and-runtime-package-composition-guide.md — Updated API decisions and implementation plan
 
+
+## 2026-05-26
+
+Implemented runtime context API cleanup: RuntimeOwner naming, RuntimeServices naming, explicit startup/lifetime NewRuntime options, migration help entry, and runtimeServices local variable cleanup.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/cmd/xgoja/doc/07-migrating-runtime-context-api.md — Glazed help migration entry
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/engine/factory.go — NewRuntime startup/lifetime option handling
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimebridge/runtimebridge.go — RuntimeServices and explicit context helper API
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimeowner/types.go — RuntimeOwner interface rename
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/reference/01-diary.md — Diary step for runtime context cleanup
+
