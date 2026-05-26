@@ -46,6 +46,8 @@ rt, err := factory.NewRuntime(
 
 `WithStartupContext` controls construction and runtime initializers. `WithLifetimeContext` controls runtime-owned resources after construction. `Runtime.Close(closeCtx)` is still the explicit cleanup operation.
 
+`Runtime.Close` cancels the lifetime context, waits briefly for active owner calls to finish, interrupts active JavaScript if needed, runs registered closers while runtime services are still available, then removes runtimebridge services and stops the owner/event loop.
+
 ## Runtime owner rename
 
 The owner interface is now named for what it owns:
@@ -54,7 +56,7 @@ The owner interface is now named for what it owns:
 runtimeowner.RuntimeOwner
 ```
 
-Use `RuntimeOwner` instead of `Runner` in public API surfaces. The owner still provides serialized access to the `*goja.Runtime`:
+Use `RuntimeOwner` instead of `Runner` in public API surfaces. Use `runtimeowner.NewRuntimeOwner(...)` instead of `runtimeowner.NewRunner(...)` when embedding a raw VM and scheduler. The owner still provides serialized access to the `*goja.Runtime`:
 
 ```go
 ret, err := rt.Owner.Call(ctx, "my.operation", func(ctx context.Context, vm *goja.Runtime) (any, error) {
@@ -83,6 +85,24 @@ _ = services.PostWithCustomContext(ctx, "module.resolve", fn)
 ```
 
 There is no compatibility `Context` field. Use `services.Lifetime()` when work is runtime-owned.
+
+For background work that settles a Promise created during a JS call, usually capture the owner-entry context first, then post settlement with a custom context:
+
+```go
+callCtx := runtimebridge.CurrentOwnerContext(vm)
+go func() {
+    value, err := slowWork()
+    if err != nil {
+        _ = services.PostWithCustomContext(callCtx, "module.reject", func(context.Context, *goja.Runtime) {
+            _ = reject(vm.ToValue(err.Error()))
+        })
+        return
+    }
+    _ = services.PostWithCustomContext(callCtx, "module.resolve", func(context.Context, *goja.Runtime) {
+        _ = resolve(vm.ToValue(value))
+    })
+}()
+```
 
 ## Choosing the right helper
 
@@ -129,6 +149,7 @@ services.PostWithCustomContext(ctx, "op", fn)
 | `undefined: runtimebridge.CurrentContext` | The ambiguous helper was removed. | Use `runtimebridge.CurrentOwnerContext(vm)` or `runtimebridge.LifetimeContext(vm)`. |
 | `undefined: runtimebridge.Bindings` | Runtime services were renamed. | Use `runtimebridge.RuntimeServices`. |
 | Native callback deadlocks during setup | The callback may be entering the owner with lifetime context from inside an owner call. | Use `CallWithCurrentContext` for JS-facing synchronous callbacks. |
+| Goroutines accumulate around linked contexts | Older local code linked contexts with a goroutine per call/post. | Use current `RuntimeServices` helpers; they use lifetime cancellation hooks and unregister them after calls/callbacks complete. |
 
 ## See also
 

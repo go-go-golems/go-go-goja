@@ -95,7 +95,7 @@ func NewRuntime(ctx context.Context) (*engine.Runtime, error) {
     if err != nil {
         return nil, err
     }
-    return factory.NewRuntime(ctx)
+    return factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
 }
 ```
 
