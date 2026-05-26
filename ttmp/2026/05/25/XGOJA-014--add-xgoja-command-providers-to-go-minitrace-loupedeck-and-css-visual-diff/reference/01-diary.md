@@ -940,7 +940,7 @@ I updated the diary before continuing so this small cleanup and the next phase r
 
 **Inferred user intent:** Keep the chronological documentation current while continuing to simplify the runtime context/owner implementation.
 
-**Commit (code):** pending — follow-up runtime-owner/internal cancellation cleanup not committed yet
+**Commit (code):** c0e34d5 — "refactor: link runtime service contexts to lifetime"
 
 ### What I did
 

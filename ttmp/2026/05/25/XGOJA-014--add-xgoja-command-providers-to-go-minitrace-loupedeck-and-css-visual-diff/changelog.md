@@ -94,3 +94,15 @@ Implemented runtime context API cleanup: RuntimeOwner naming, RuntimeServices na
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimeowner/types.go — RuntimeOwner interface rename
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/reference/01-diary.md — Diary step for runtime context cleanup
 
+
+## 2026-05-26
+
+Linked runtime service operation contexts to runtime lifetime cancellation, cleaned remaining internal runtime-owner runner naming, and kept runtime services available to closers during shutdown.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/engine/runtime.go — Runs closers before deleting runtime services
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimebridge/runtimebridge.go — Links custom/current operation contexts to runtime lifetime
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimeowner/runner.go — Internal runtime owner naming cleanup
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/reference/01-diary.md — Diary continuation for runtime lifetime linking
+
