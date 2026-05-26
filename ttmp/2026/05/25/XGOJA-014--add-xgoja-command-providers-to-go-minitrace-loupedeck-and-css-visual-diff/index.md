@@ -29,8 +29,8 @@ RelatedFiles:
     - Path: /home/manuel/workspaces/2026-05-24/add-js-providers/loupedeck/runtime/js/provider/provider.go
       Note: Existing loupedeck xgoja provider to receive the scenes command provider
 ExternalSources: []
-Summary: Track implementation of xgoja command providers for go-minitrace, loupedeck, and css-visual-diff.
-LastUpdated: 2026-05-25T20:05:00-04:00
+Summary: Track implementation and generated smoke validation of xgoja command providers for go-minitrace, loupedeck, and css-visual-diff.
+LastUpdated: 2026-05-25T22:05:00-04:00
 WhatFor: Coordinate cross-repository command-provider implementation and validation.
 WhenToUse: Use when reviewing or resuming XGOJA-014 work.
 ---
@@ -50,7 +50,7 @@ Add xgoja `CommandSetProvider` support to three sibling packages. `go-minitrace`
 
 ## Status
 
-Current status: **active**
+Current status: **active** — command-provider implementations and generated smoke examples are complete; closeout is pending doc hygiene/final commit.
 
 ## Topics
 
@@ -76,3 +76,9 @@ See [changelog.md](./changelog.md) for recent changes and decisions.
 - scripts/ - Temporary code and tooling
 - various/ - Working notes and research
 - archive/ - Deprecated or reference-only artifacts
+
+## Generated smoke examples
+
+- `go-minitrace/examples/xgoja/minitrace-command-provider` mounts `go-minitrace.queries` and writes a Markdown minitrace report.
+- `loupedeck/examples/xgoja/loupedeck-command-provider` mounts `loupedeck.scenes` and uses Express to switch a simulated scene.
+- `css-visual-diff/examples/xgoja/css-visual-diff-command-provider` mounts `css-visual-diff.verbs` and writes Markdown/JSON review artifacts.

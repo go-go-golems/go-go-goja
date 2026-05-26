@@ -3,20 +3,33 @@ Title: Generated xgoja command-provider smoke tests
 Ticket: XGOJA-014
 Status: active
 Topics:
-  - xgoja
-  - command-registration
-  - testing
-  - jsverbs
+    - xgoja
+    - command-registration
+    - testing
+    - jsverbs
 DocType: design-doc
 Intent: implementation
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: ../../../../../../../css-visual-diff/examples/xgoja/css-visual-diff-command-provider/verbs/visual-smoke.js
+      Note: css-visual-diff report/fs artifact smoke verb
+    - Path: ../../../../../../../css-visual-diff/examples/xgoja/css-visual-diff-command-provider/xgoja.yaml
+      Note: Generated css-visual-diff command-provider smoke buildspec
+    - Path: ../../../../../../../go-minitrace/examples/xgoja/minitrace-command-provider/queries/reports/markdown-summary.js
+      Note: go-minitrace JS verb writes Markdown with minitrace and fs modules
+    - Path: ../../../../../../../go-minitrace/examples/xgoja/minitrace-command-provider/xgoja.yaml
+      Note: Generated go-minitrace command-provider smoke buildspec
+    - Path: ../../../../../../../loupedeck/examples/xgoja/loupedeck-command-provider/verbs/web-scene-switcher.js
+      Note: Loupedeck Express scene-switching smoke verb
+    - Path: ../../../../../../../loupedeck/examples/xgoja/loupedeck-command-provider/xgoja.yaml
+      Note: Generated loupedeck command-provider smoke buildspec
 ExternalSources: []
-Summary: "Design for real generated-binary smoke tests for the go-minitrace, loupedeck, and css-visual-diff command providers."
-LastUpdated: 2026-05-25T21:10:00-04:00
-WhatFor: "Define end-to-end xgoja examples that prove command providers mount and execute through generated binaries."
-WhenToUse: "Use while adding real smoke examples for XGOJA-014."
+Summary: Design for real generated-binary smoke tests for the go-minitrace, loupedeck, and css-visual-diff command providers.
+LastUpdated: 2026-05-25T22:05:00-04:00
+WhatFor: Define end-to-end xgoja examples that prove command providers mount and execute through generated binaries.
+WhenToUse: Use while adding real smoke examples for XGOJA-014.
 ---
+
 
 # Generated xgoja command-provider smoke tests
 
@@ -102,10 +115,11 @@ Buildspec:
 
 Interesting command:
 
-- Local jsverb reads two local HTML fixture files or uses data URLs, compares a region, and writes artifacts to `dist/artifacts`.
-- Smoke asserts an artifact JSON/Markdown file exists and contains expected text.
+- Local jsverb uses the `report` compatibility module plus host `fs` to render a deterministic review brief and JSON evidence file under `dist/artifacts`.
+- The first attempt to run a full browser-backed `diff.compareRegion` against local HTML fixtures hung in Chromium after the first screenshot, so the committed generated-binary smoke intentionally stays deterministic and non-browser while still exercising the css-visual-diff command provider, runtime profile, `report` module, and artifact writing path.
+- A separate browser-backed generated smoke can be added later once the Chromium/file fixture hang is isolated.
 
-This proves the public css-visual-diff provider can be consumed by xgoja and execute command-provider verbs through `RuntimeFactory`.
+This proves the public css-visual-diff provider can be consumed by xgoja and execute command-provider verbs through `RuntimeFactory`; it does not claim to cover chromedp browser comparison end-to-end.
 
 ## Task sequencing
 
@@ -113,3 +127,10 @@ This proves the public css-visual-diff provider can be consumed by xgoja and exe
 2. Upgrade the loupedeck command provider to xgoja-aware verb execution and add its generated web-scene smoke.
 3. Add the css-visual-diff generated example and smoke it.
 4. Run focused validations and update the diary after each package.
+
+
+## Implementation results
+
+- go-minitrace smoke committed as `4b4dca3 test: add xgoja query command smoke`; `make -C examples/xgoja/minitrace-command-provider smoke` passed.
+- loupedeck smoke committed as `33ac9df test: add xgoja loupedeck command smoke`; `make -C examples/xgoja/loupedeck-command-provider smoke` passed.
+- css-visual-diff smoke committed as `daada9e test: add xgoja css diff command smoke`; `make -C examples/xgoja/css-visual-diff-command-provider smoke` passed.
