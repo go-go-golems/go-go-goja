@@ -131,7 +131,7 @@ func TestOwnerContextAllowsReentrantCall(t *testing.T) {
 	}
 }
 
-func TestRunnerCallSuccess(t *testing.T) {
+func TestRuntimeOwnerCallSuccess(t *testing.T) {
 	vm := goja.New()
 	s := newQueueScheduler(vm)
 	defer s.Close()
@@ -171,7 +171,7 @@ func TestRuntimeOwnerCallSetsRuntimebridgeCurrentContext(t *testing.T) {
 	}
 }
 
-func TestRunnerCallCanceled(t *testing.T) {
+func TestRuntimeOwnerCallCanceled(t *testing.T) {
 	vm := goja.New()
 	s := newQueueScheduler(vm)
 	defer s.Close()
@@ -192,7 +192,7 @@ func TestRunnerCallCanceled(t *testing.T) {
 	}
 }
 
-func TestRunnerCallScheduleRejected(t *testing.T) {
+func TestRuntimeOwnerCallScheduleRejected(t *testing.T) {
 	vm := goja.New()
 	r := NewRuntimeOwner(vm, rejectScheduler{}, Options{RecoverPanics: true})
 	_, err := r.Call(context.Background(), "test.reject", func(context.Context, *goja.Runtime) (any, error) {
@@ -206,7 +206,7 @@ func TestRunnerCallScheduleRejected(t *testing.T) {
 	}
 }
 
-func TestRunnerCallPanicRecovered(t *testing.T) {
+func TestRuntimeOwnerCallPanicRecovered(t *testing.T) {
 	vm := goja.New()
 	s := newQueueScheduler(vm)
 	defer s.Close()
@@ -223,7 +223,7 @@ func TestRunnerCallPanicRecovered(t *testing.T) {
 	}
 }
 
-func TestRunnerShutdown(t *testing.T) {
+func TestRuntimeOwnerShutdown(t *testing.T) {
 	vm := goja.New()
 	s := newQueueScheduler(vm)
 	defer s.Close()
@@ -243,7 +243,7 @@ func TestRunnerShutdown(t *testing.T) {
 	}
 }
 
-func TestRunnerPost(t *testing.T) {
+func TestRuntimeOwnerPost(t *testing.T) {
 	vm := goja.New()
 	s := newQueueScheduler(vm)
 	defer s.Close()
@@ -263,7 +263,46 @@ func TestRunnerPost(t *testing.T) {
 	}
 }
 
-func TestRunnerCallSkipsCanceledQueuedInvocation(t *testing.T) {
+func TestRuntimeOwnerWaitIdleWaitsForActiveCall(t *testing.T) {
+	vm := goja.New()
+	s := newQueueScheduler(vm)
+	defer s.Close()
+
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
+	started := make(chan struct{})
+	release := make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		_, err := r.Call(context.Background(), "test.wait-idle.active", func(context.Context, *goja.Runtime) (any, error) {
+			close(started)
+			<-release
+			return nil, nil
+		})
+		done <- err
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(1 * time.Second):
+		t.Fatalf("call did not start")
+	}
+
+	waitCtx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if err := r.WaitIdle(waitCtx); !errors.Is(err, ErrCanceled) {
+		t.Fatalf("WaitIdle while active = %v, want ErrCanceled", err)
+	}
+
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("Call returned error: %v", err)
+	}
+	if err := r.WaitIdle(context.Background()); err != nil {
+		t.Fatalf("WaitIdle after release: %v", err)
+	}
+}
+
+func TestRuntimeOwnerCallSkipsCanceledQueuedInvocation(t *testing.T) {
 	vm := goja.New()
 	s := newManualScheduler(vm)
 	defer s.Close()
@@ -293,7 +332,7 @@ func TestRunnerCallSkipsCanceledQueuedInvocation(t *testing.T) {
 	}
 }
 
-func TestRunnerPostKeepsTimeoutContextAliveUntilQueuedExecution(t *testing.T) {
+func TestRuntimeOwnerPostKeepsTimeoutContextAliveUntilQueuedExecution(t *testing.T) {
 	vm := goja.New()
 	s := newManualScheduler(vm)
 	defer s.Close()
@@ -325,7 +364,7 @@ func TestRunnerPostKeepsTimeoutContextAliveUntilQueuedExecution(t *testing.T) {
 	}
 }
 
-func TestRunnerCallWithLeakedOwnerContextStillSchedules(t *testing.T) {
+func TestRuntimeOwnerCallWithLeakedOwnerContextStillSchedules(t *testing.T) {
 	vm := goja.New()
 	s := newQueueScheduler(vm)
 	defer s.Close()
@@ -374,7 +413,7 @@ func TestRunnerCallWithLeakedOwnerContextStillSchedules(t *testing.T) {
 	}
 }
 
-func TestRunnerPostWithLeakedOwnerContextStillSchedules(t *testing.T) {
+func TestRuntimeOwnerPostWithLeakedOwnerContextStillSchedules(t *testing.T) {
 	vm := goja.New()
 	s := newQueueScheduler(vm)
 	defer s.Close()

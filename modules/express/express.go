@@ -81,6 +81,7 @@ func (a runtimebridgeOwnerAdapter) Post(ctx context.Context, op string, fn runti
 	})
 }
 
+func (a runtimebridgeOwnerAdapter) WaitIdle(context.Context) error { return nil }
 func (a runtimebridgeOwnerAdapter) Shutdown(context.Context) error { return nil }
 func (a runtimebridgeOwnerAdapter) IsClosed() bool                 { return false }
 

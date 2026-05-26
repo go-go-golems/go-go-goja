@@ -8,7 +8,7 @@ import (
 	"github.com/dop251/goja"
 )
 
-func TestRunnerConcurrentCallStress(t *testing.T) {
+func TestRuntimeOwnerConcurrentCallStress(t *testing.T) {
 	vm := goja.New()
 	s := newQueueScheduler(vm)
 	defer s.Close()

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
@@ -99,6 +100,11 @@ func (r *Runtime) Close(ctx context.Context) error {
 		if r.runtimeCtxCancel != nil {
 			r.runtimeCtxCancel()
 		}
+		if r.Owner != nil {
+			if err := r.waitOwnerIdleOrInterrupt(ctx); err != nil {
+				retErr = errors.Join(retErr, err)
+			}
+		}
 
 		for i := len(closers) - 1; i >= 0; i-- {
 			if err := closers[i](ctx); err != nil {
@@ -119,4 +125,38 @@ func (r *Runtime) Close(ctx context.Context) error {
 	})
 
 	return retErr
+}
+
+func (r *Runtime) waitOwnerIdleOrInterrupt(ctx context.Context) error {
+	if r == nil || r.Owner == nil {
+		return nil
+	}
+	waitCtx, cancel := closeWaitContext(ctx)
+	defer cancel()
+	if err := r.Owner.WaitIdle(waitCtx); err == nil {
+		return nil
+	}
+	if r.VM == nil {
+		return nil
+	}
+	interruptErr := fmt.Errorf("runtime close interrupted active JavaScript")
+	r.VM.Interrupt(interruptErr)
+	defer r.VM.ClearInterrupt()
+
+	waitCtx, cancel = closeWaitContext(ctx)
+	defer cancel()
+	if err := r.Owner.WaitIdle(waitCtx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func closeWaitContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if _, ok := ctx.Deadline(); ok {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, 250*time.Millisecond)
 }

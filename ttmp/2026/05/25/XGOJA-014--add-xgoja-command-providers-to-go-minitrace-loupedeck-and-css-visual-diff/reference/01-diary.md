@@ -950,7 +950,8 @@ I updated the diary before continuing so this small cleanup and the next phase r
 - Renamed the internal runtime owner implementation from `runner` to `runtimeOwner`, updated remaining test/error strings, and kept the public constructor as `NewRuntimeOwner`.
 - Changed native async modules to use `RuntimeServices.PostWithCustomContext(...)` instead of reaching through `RuntimeServices.Owner.Post(...)` directly.
 - Linked custom/current runtime service contexts to the runtime lifetime context, so operation contexts cancel when runtime lifetime is canceled.
-- Changed runtime close ordering so runtime closers run after lifetime cancellation but before `runtimebridge.Delete`, allowing closers to still access runtime services during cleanup.
+- Added `RuntimeOwner.WaitIdle(ctx)` and active-call tracking so shutdown can wait for in-flight owner calls.
+- Changed runtime close ordering so runtime close cancels lifetime, waits briefly for owner idleness, interrupts active JavaScript if necessary, then runs closers before `runtimebridge.Delete`, allowing closers to still access runtime services during cleanup.
 
 ### Why
 

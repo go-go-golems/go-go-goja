@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -30,6 +31,9 @@ type runtimeOwner struct {
 	scheduler Scheduler
 	opts      Options
 	closed    atomic.Bool
+
+	idleMu sync.Mutex
+	active int
 }
 
 func NewRuntimeOwner(vm *goja.Runtime, scheduler Scheduler, opts Options) RuntimeOwner {
@@ -50,6 +54,28 @@ func (r *runtimeOwner) IsClosed() bool {
 		return true
 	}
 	return r.closed.Load()
+}
+
+func (r *runtimeOwner) WaitIdle(ctx context.Context) error {
+	if r == nil {
+		return nil
+	}
+	ctx = normalizeContext(ctx)
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		r.idleMu.Lock()
+		active := r.active
+		r.idleMu.Unlock()
+		if active == 0 {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("runtimeowner wait idle: %w: %v", ErrCanceled, ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
 
 func (r *runtimeOwner) Shutdown(context.Context) error {
@@ -160,6 +186,8 @@ func (r *runtimeOwner) Post(ctx context.Context, op string, fn PostFunc) error {
 }
 
 func (r *runtimeOwner) invoke(ctx context.Context, op string, fn CallFunc) (any, error) {
+	r.beginActive()
+	defer r.endActive()
 	return runtimebridge.WithCallContext(r.vm, ctx, func() (any, error) {
 		if !r.opts.RecoverPanics {
 			return fn(ctx, r.vm)
@@ -183,6 +211,8 @@ func (r *runtimeOwner) invoke(ctx context.Context, op string, fn CallFunc) (any,
 }
 
 func (r *runtimeOwner) invokePost(ctx context.Context, op string, fn PostFunc) {
+	r.beginActive()
+	defer r.endActive()
 	_ = runtimebridge.WithCallContextVoid(r.vm, ctx, func() error {
 		if r.opts.RecoverPanics {
 			defer func() {
@@ -192,6 +222,20 @@ func (r *runtimeOwner) invokePost(ctx context.Context, op string, fn PostFunc) {
 		fn(ctx, r.vm)
 		return nil
 	})
+}
+
+func (r *runtimeOwner) beginActive() {
+	r.idleMu.Lock()
+	r.active++
+	r.idleMu.Unlock()
+}
+
+func (r *runtimeOwner) endActive() {
+	r.idleMu.Lock()
+	if r.active > 0 {
+		r.active--
+	}
+	r.idleMu.Unlock()
 }
 
 func normalizeContext(ctx context.Context) context.Context {

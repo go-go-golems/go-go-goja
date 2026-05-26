@@ -21,6 +21,7 @@ type PostFunc func(context.Context, *goja.Runtime)
 type RuntimeOwner interface {
 	Call(ctx context.Context, op string, fn CallFunc) (any, error)
 	Post(ctx context.Context, op string, fn PostFunc) error
+	WaitIdle(ctx context.Context) error
 	Shutdown(ctx context.Context) error
 	IsClosed() bool
 }
