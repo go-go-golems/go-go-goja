@@ -97,7 +97,8 @@ func TestRuntimeServicesPostWithNilContextUsesLifetimeContext(t *testing.T) {
 		Owner:           fakeRuntimeOwner{},
 	}
 
-	if err := svc.PostWithCustomContext(nil, "test.nil", func(ctx context.Context, _ *goja.Runtime) {
+	var nilCtx context.Context
+	if err := svc.PostWithCustomContext(nilCtx, "test.nil", func(ctx context.Context, _ *goja.Runtime) {
 		if got := ctx.Value(contextKey("lifecycle")); got != "runtime" {
 			t.Fatalf("post context value = %#v, want runtime", got)
 		}
