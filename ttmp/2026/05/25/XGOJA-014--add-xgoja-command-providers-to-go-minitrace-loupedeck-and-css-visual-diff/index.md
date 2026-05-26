@@ -1,7 +1,7 @@
 ---
 Title: Add xgoja command providers to go-minitrace, loupedeck, and css-visual-diff
 Ticket: XGOJA-014
-Status: active
+Status: complete
 Topics:
     - xgoja
     - providers
@@ -30,10 +30,11 @@ RelatedFiles:
       Note: Existing loupedeck xgoja provider to receive the scenes command provider
 ExternalSources: []
 Summary: Track implementation and generated smoke validation of xgoja command providers for go-minitrace, loupedeck, and css-visual-diff.
-LastUpdated: 2026-05-25T22:05:00-04:00
+LastUpdated: 2026-05-25T20:59:55.558616886-04:00
 WhatFor: Coordinate cross-repository command-provider implementation and validation.
 WhenToUse: Use when reviewing or resuming XGOJA-014 work.
 ---
+
 
 
 
@@ -50,7 +51,7 @@ Add xgoja `CommandSetProvider` support to three sibling packages. `go-minitrace`
 
 ## Status
 
-Current status: **active** — command-provider implementations and generated smoke examples are complete; closeout is pending doc hygiene/final commit.
+Current status: **complete** — command-provider implementations, generated smoke examples, focused validations, and doc hygiene are complete.
 
 ## Topics
 

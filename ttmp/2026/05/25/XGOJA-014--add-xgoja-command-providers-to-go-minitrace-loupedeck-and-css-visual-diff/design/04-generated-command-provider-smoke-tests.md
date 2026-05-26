@@ -1,7 +1,7 @@
 ---
 Title: Generated xgoja command-provider smoke tests
 Ticket: XGOJA-014
-Status: active
+Status: complete
 Topics:
     - xgoja
     - command-registration
@@ -25,7 +25,7 @@ RelatedFiles:
       Note: Generated loupedeck command-provider smoke buildspec
 ExternalSources: []
 Summary: Design for real generated-binary smoke tests for the go-minitrace, loupedeck, and css-visual-diff command providers.
-LastUpdated: 2026-05-25T22:05:00-04:00
+LastUpdated: 2026-05-25T22:10:00-04:00
 WhatFor: Define end-to-end xgoja examples that prove command providers mount and execute through generated binaries.
 WhenToUse: Use while adding real smoke examples for XGOJA-014.
 ---

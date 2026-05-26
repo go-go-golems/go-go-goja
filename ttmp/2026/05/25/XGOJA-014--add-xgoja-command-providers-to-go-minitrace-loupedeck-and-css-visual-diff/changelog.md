@@ -1,7 +1,7 @@
 ---
 Title: XGOJA-014 changelog
 Ticket: XGOJA-014
-Status: active
+Status: complete
 Topics:
   - xgoja
   - command-providers
@@ -11,7 +11,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Changelog for XGOJA-014."
-LastUpdated: 2026-05-25T22:05:00-04:00
+LastUpdated: 2026-05-25T22:10:00-04:00
 WhatFor: "Track notable implementation and documentation changes."
 WhenToUse: "Use for review summaries and ticket closeout."
 ---
@@ -33,3 +33,8 @@ WhenToUse: "Use for review summaries and ticket closeout."
 - Upgraded `loupedeck.scenes` annotated verb execution to use xgoja `RuntimeFactory` when available, then added `loupedeck/examples/xgoja/loupedeck-command-provider`, whose generated binary opens an Express route and switches a non-hardware scene after `/deal`; smoke passed and was committed as `33ac9df test: add xgoja loupedeck command smoke`.
 - Added `css-visual-diff/examples/xgoja/css-visual-diff-command-provider`, whose generated binary mounts `css-visual-diff.verbs` and writes Markdown/JSON review artifacts with the `report` and `fs` modules; smoke passed and was committed as `daada9e test: add xgoja css diff command smoke`.
 - Re-ran focused package validations after the generated smokes; go-minitrace provider/query tests, loupedeck provider/verbs tests, and css-visual-diff provider/jsapi/verbcli/dsl tests passed.
+
+## 2026-05-25
+
+Generated command-provider smokes complete for go-minitrace, loupedeck, and css-visual-diff; all focused validations and doc doctor passed.
+

@@ -1,7 +1,7 @@
 ---
 Title: go-minitrace xgoja command provider implementation guide
 Ticket: XGOJA-014
-Status: active
+Status: complete
 Topics:
   - xgoja
   - command-providers

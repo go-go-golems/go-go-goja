@@ -1,7 +1,7 @@
 ---
 Title: XGOJA-014 tasks
 Ticket: XGOJA-014
-Status: active
+Status: complete
 Topics:
   - xgoja
   - command-providers
@@ -11,7 +11,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Task list for adding command providers to go-minitrace, loupedeck, and css-visual-diff."
-LastUpdated: 2026-05-25T22:05:00-04:00
+LastUpdated: 2026-05-25T22:10:00-04:00
 WhatFor: "Track implementation progress package by package."
 WhenToUse: "Use while executing or reviewing XGOJA-014."
 ---
@@ -78,5 +78,5 @@ WhenToUse: "Use while executing or reviewing XGOJA-014."
 - [x] Run all focused package validations again.
 - [x] Run `docmgr doctor --ticket XGOJA-014 --stale-after 30`.
 - [x] Commit final docs.
-- [ ] Optionally upload final guide bundle to reMarkable.
-- [ ] Close XGOJA-014 when all package work is complete.
+- [x] Skip optional reMarkable upload for this closeout.
+- [x] Close XGOJA-014 when all package work is complete.
