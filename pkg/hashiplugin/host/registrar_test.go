@@ -28,7 +28,7 @@ func TestRegistrarRegistersPluginModuleIntoRuntime(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestRegistrarLoadsSDKAuthoredExamplePlugin(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestRegistrarLoadsStatefulKVExamplePlugin(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestRegistrarSurfacesPluginHandlerErrors(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -290,7 +290,7 @@ func TestRegistrarRejectsInvalidManifest(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	_, err = factory.NewRuntime(context.Background())
+	_, err = factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	if err == nil {
 		t.Fatalf("expected invalid plugin manifest error")
 	}
@@ -313,7 +313,7 @@ func TestRegistrarRejectsModuleOutsideAllowlist(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	_, err = factory.NewRuntime(context.Background())
+	_, err = factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	if err == nil {
 		t.Fatalf("expected allowlist error")
 	}
@@ -336,7 +336,7 @@ func TestRegistrarRejectsDuplicateModuleNames(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	_, err = factory.NewRuntime(context.Background())
+	_, err = factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	if err == nil {
 		t.Fatalf("expected duplicate module error")
 	}

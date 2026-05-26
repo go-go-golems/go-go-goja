@@ -33,7 +33,7 @@ type Runtime struct {
 	VM      *goja.Runtime
 	Require *require.RequireModule
 	Loop    *eventloop.EventLoop
-	Owner   runtimeowner.Runner
+	Owner   runtimeowner.RuntimeOwner
 	Values  map[string]any
 
 	runtimeCtx       context.Context

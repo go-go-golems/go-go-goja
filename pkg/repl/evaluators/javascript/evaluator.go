@@ -135,7 +135,7 @@ func New(config Config) (*Evaluator, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to build runtime factory")
 		}
-		ownedRuntime, err = factory.NewRuntime(context.Background())
+		ownedRuntime, err = factory.NewRuntime(ggjengine.WithStartupContext(context.Background()), ggjengine.WithLifetimeContext(context.Background()))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create runtime")
 		}

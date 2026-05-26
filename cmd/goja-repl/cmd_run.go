@@ -123,7 +123,7 @@ func runScriptFile(ctx context.Context, opts runScriptOptions) error {
 		return fmt.Errorf("build engine factory: %w", err)
 	}
 
-	rt, err := factory.NewRuntime(ctx)
+	rt, err := factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
 	if err != nil {
 		return fmt.Errorf("create runtime: %w", err)
 	}

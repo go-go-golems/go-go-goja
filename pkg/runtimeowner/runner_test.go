@@ -161,7 +161,7 @@ func TestRunnerCallSetsRuntimebridgeCurrentContext(t *testing.T) {
 		if callCtx.Value(ctxKey("request")) != "abc" {
 			t.Fatalf("call ctx value = %#v, want abc", callCtx.Value(ctxKey("request")))
 		}
-		return runtimebridge.CurrentContext(vm).Value(ctxKey("request")), nil
+		return runtimebridge.CurrentOwnerContext(vm).Value(ctxKey("request")), nil
 	})
 	if err != nil {
 		t.Fatalf("Call returned error: %v", err)

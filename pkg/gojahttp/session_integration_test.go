@@ -28,7 +28,7 @@ func TestSessionCookieIssuedAndReused(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}

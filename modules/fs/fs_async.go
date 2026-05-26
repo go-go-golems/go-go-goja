@@ -8,9 +8,9 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 )
 
-func asyncValue(vm *goja.Runtime, bindings runtimebridge.Bindings, op string, fn func() (any, error)) goja.Value {
+func asyncValue(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, op string, fn func() (any, error)) goja.Value {
 	promise, resolve, reject := vm.NewPromise()
-	callCtx := runtimebridge.CurrentContext(vm)
+	callCtx := runtimebridge.CurrentOwnerContext(vm)
 	runtimeCtx := bindingContext(bindings)
 	go func() {
 		select {
@@ -39,9 +39,9 @@ func asyncValue(vm *goja.Runtime, bindings runtimebridge.Bindings, op string, fn
 	return vm.ToValue(promise)
 }
 
-func asyncReadFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path string, enc goja.Value) goja.Value {
+func asyncReadFile(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, path string, enc goja.Value) goja.Value {
 	promise, resolve, reject := vm.NewPromise()
-	callCtx := runtimebridge.CurrentContext(vm)
+	callCtx := runtimebridge.CurrentOwnerContext(vm)
 	runtimeCtx := bindingContext(bindings)
 	go func() {
 		select {
@@ -66,68 +66,65 @@ func asyncReadFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path strin
 	return vm.ToValue(promise)
 }
 
-func bindingContext(bindings runtimebridge.Bindings) context.Context {
-	if bindings.Context != nil {
-		return bindings.Context
-	}
-	return context.Background()
+func bindingContext(bindings runtimebridge.RuntimeServices) context.Context {
+	return bindings.Lifetime()
 }
 
-func asyncWriteFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path string, data []byte, mode uint32) goja.Value {
+func asyncWriteFile(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, path string, data []byte, mode uint32) goja.Value {
 	return asyncValue(vm, bindings, "fs.writeFile", func() (any, error) {
 		return nil, writeFileBytes(path, data, fileMode(mode))
 	})
 }
 
-func asyncExists(vm *goja.Runtime, bindings runtimebridge.Bindings, path string) goja.Value {
+func asyncExists(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, path string) goja.Value {
 	return asyncValue(vm, bindings, "fs.exists", func() (any, error) {
 		return existsSync(path), nil
 	})
 }
 
-func asyncMkdir(vm *goja.Runtime, bindings runtimebridge.Bindings, path string, recursive bool, mode uint32) goja.Value {
+func asyncMkdir(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, path string, recursive bool, mode uint32) goja.Value {
 	return asyncValue(vm, bindings, "fs.mkdir", func() (any, error) {
 		return nil, mkdirSync(path, recursive, fileMode(mode))
 	})
 }
 
-func asyncReaddir(vm *goja.Runtime, bindings runtimebridge.Bindings, path string) goja.Value {
+func asyncReaddir(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, path string) goja.Value {
 	return asyncValue(vm, bindings, "fs.readdir", func() (any, error) {
 		return readdirSync(path)
 	})
 }
 
-func asyncStat(vm *goja.Runtime, bindings runtimebridge.Bindings, path string) goja.Value {
+func asyncStat(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, path string) goja.Value {
 	return asyncValue(vm, bindings, "fs.stat", func() (any, error) {
 		return statSync(path)
 	})
 }
 
-func asyncUnlink(vm *goja.Runtime, bindings runtimebridge.Bindings, path string) goja.Value {
+func asyncUnlink(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, path string) goja.Value {
 	return asyncValue(vm, bindings, "fs.unlink", func() (any, error) {
 		return nil, unlinkSync(path)
 	})
 }
 
-func asyncAppendFile(vm *goja.Runtime, bindings runtimebridge.Bindings, path string, data []byte, mode uint32) goja.Value {
+func asyncAppendFile(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, path string, data []byte, mode uint32) goja.Value {
 	return asyncValue(vm, bindings, "fs.appendFile", func() (any, error) {
 		return nil, appendFileBytes(path, data, fileMode(mode))
 	})
 }
 
-func asyncRename(vm *goja.Runtime, bindings runtimebridge.Bindings, oldPath, newPath string) goja.Value {
+func asyncRename(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, oldPath, newPath string) goja.Value {
 	return asyncValue(vm, bindings, "fs.rename", func() (any, error) {
 		return nil, renameSync(oldPath, newPath)
 	})
 }
 
-func asyncCopyFile(vm *goja.Runtime, bindings runtimebridge.Bindings, src, dst string) goja.Value {
+func asyncCopyFile(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, src, dst string) goja.Value {
 	return asyncValue(vm, bindings, "fs.copyFile", func() (any, error) {
 		return nil, copyFileSync(src, dst)
 	})
 }
 
-func asyncRm(vm *goja.Runtime, bindings runtimebridge.Bindings, path string, recursive, force bool) goja.Value {
+func asyncRm(vm *goja.Runtime, bindings runtimebridge.RuntimeServices, path string, recursive, force bool) goja.Value {
 	return asyncValue(vm, bindings, "fs.rm", func() (any, error) {
 		return nil, rmSync(path, recursive, force)
 	})

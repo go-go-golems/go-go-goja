@@ -54,7 +54,7 @@ module.exports = {
 		panic(err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	if err != nil {
 		panic(err)
 	}

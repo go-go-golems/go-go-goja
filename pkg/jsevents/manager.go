@@ -23,7 +23,7 @@ type ValueBuilder func(vm *goja.Runtime) ([]goja.Value, error)
 // Manager owns connected EventEmitter references for one goja runtime.
 type Manager struct {
 	ctx     context.Context
-	owner   runtimeowner.Runner
+	owner   runtimeowner.RuntimeOwner
 	onError ErrorHandler
 
 	nextID atomic.Uint64

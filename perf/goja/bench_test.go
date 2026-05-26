@@ -33,7 +33,7 @@ func newRuntime(tb testing.TB, opts ...require.Option) (*goja.Runtime, *require.
 	if err != nil {
 		tb.Fatalf("build factory: %v", err)
 	}
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	if err != nil {
 		tb.Fatalf("new runtime: %v", err)
 	}
@@ -81,7 +81,7 @@ func BenchmarkRuntimeSpawn(b *testing.B) {
 			b.Fatalf("build factory: %v", err)
 		}
 		for i := 0; i < b.N; i++ {
-			rt, err := factory.NewRuntime(context.Background())
+			rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 			if err != nil {
 				b.Fatalf("new runtime: %v", err)
 			}

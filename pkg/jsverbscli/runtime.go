@@ -30,7 +30,7 @@ func runtimeInvokerFactory(settings *RuntimeSettings) InvokerFactory {
 			}
 			defer cleanup()
 
-			rt, err := factory.NewRuntime(ctx)
+			rt, err := factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
 			if err != nil {
 				return nil, err
 			}

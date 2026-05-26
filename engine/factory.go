@@ -16,7 +16,7 @@ import (
 )
 
 type runtimebridgeOwner struct {
-	owner runtimeowner.Runner
+	owner runtimeowner.RuntimeOwner
 }
 
 func (o runtimebridgeOwner) Call(ctx context.Context, op string, fn func(context.Context, *goja.Runtime) (any, error)) (any, error) {
@@ -180,12 +180,28 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 
 // NewRuntime creates a new owned runtime instance from this factory's frozen
 // composition plan.
-func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
+func (f *Factory) NewRuntime(opts ...RuntimeOption) (*Runtime, error) {
 	if f == nil {
 		return nil, fmt.Errorf("factory is nil")
 	}
-	if ctx == nil {
-		ctx = context.Background()
+	settings := defaultRuntimeOptions()
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&settings)
+		}
+	}
+	startupCtx := settings.startupContext
+	if startupCtx == nil {
+		startupCtx = context.Background()
+	}
+	lifetimeCtx := settings.lifetimeContext
+	if lifetimeCtx == nil {
+		lifetimeCtx = context.Background()
+	}
+	select {
+	case <-startupCtx.Done():
+		return nil, startupCtx.Err()
+	default:
 	}
 
 	vm := goja.New()
@@ -197,7 +213,7 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		RecoverPanics: true,
 	})
 	// #nosec G118 -- the runtime owns this cancel func and calls it on close and on setup failures.
-	runtimeCtx, runtimeCtxCancel := context.WithCancel(context.Background())
+	runtimeCtx, runtimeCtxCancel := context.WithCancel(lifetimeCtx)
 	runtimeValues := map[string]any{}
 
 	rt := &Runtime{
@@ -209,15 +225,15 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 		runtimeCtxCancel: runtimeCtxCancel,
 	}
 
-	runtimebridge.Store(vm, runtimebridge.Bindings{
-		Context: runtimeCtx,
-		Loop:    loop,
-		Owner:   runtimebridgeOwner{owner: owner},
+	runtimebridge.Store(vm, runtimebridge.RuntimeServices{
+		LifetimeContext: runtimeCtx,
+		Loop:            loop,
+		Owner:           runtimebridgeOwner{owner: owner},
 	})
 
 	reg := require.NewRegistry(f.settings.requireOptions...)
 	moduleCtx := &RuntimeModuleContext{
-		Context:   runtimeCtx,
+		Context:   startupCtx,
 		VM:        vm,
 		Loop:      loop,
 		Owner:     owner,
@@ -226,13 +242,13 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	}
 	if f.settings.dataOnlyDefaultRegistryModules {
 		if err := dataOnlyDefaultRegistryModules().RegisterRuntimeModule(moduleCtx, reg); err != nil {
-			_ = rt.Close(ctx)
+			_ = rt.Close(startupCtx)
 			return nil, fmt.Errorf("register data-only default modules: %w", err)
 		}
 	}
 	for _, mod := range f.modules {
 		if err := mod.RegisterRuntimeModule(moduleCtx, reg); err != nil {
-			_ = rt.Close(ctx)
+			_ = rt.Close(startupCtx)
 			return nil, fmt.Errorf("register module %q: %w", mod.ID(), err)
 		}
 	}
@@ -242,17 +258,17 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	buffer.Enable(vm)
 	url.Enable(vm)
 	if err := installPerformanceGlobals(vm); err != nil {
-		_ = rt.Close(ctx)
+		_ = rt.Close(startupCtx)
 		return nil, err
 	}
 	if err := installConsoleTimers(vm); err != nil {
-		_ = rt.Close(ctx)
+		_ = rt.Close(startupCtx)
 		return nil, err
 	}
 	rt.Require = reqMod
 
 	initCtx := &RuntimeContext{
-		Context: runtimeCtx,
+		Context: startupCtx,
 		VM:      vm,
 		Require: reqMod,
 		Loop:    loop,
@@ -261,7 +277,7 @@ func (f *Factory) NewRuntime(ctx context.Context) (*Runtime, error) {
 	}
 	for _, init := range f.runtimeInitializers {
 		if err := init.InitRuntime(initCtx); err != nil {
-			_ = rt.Close(ctx)
+			_ = rt.Close(startupCtx)
 			return nil, fmt.Errorf("runtime initializer %q: %w", init.ID(), err)
 		}
 	}

@@ -51,7 +51,7 @@ func main() {
 		log.Fatalf("build engine factory: %v", err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
 	if err != nil {
 		log.Fatalf("create runtime: %v", err)
 	}

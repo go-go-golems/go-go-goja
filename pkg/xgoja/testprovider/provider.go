@@ -52,7 +52,7 @@ func Register(registry *providerapi.Registry) error {
 							_ = reject(vm.ToValue("missing runtime owner bindings"))
 							return vm.ToValue(promise)
 						}
-						callCtx := runtimebridge.CurrentContext(vm)
+						callCtx := runtimebridge.CurrentOwnerContext(vm)
 						go func() {
 							if err := bindings.Owner.Post(callCtx, "owner-check.ping", func(context.Context, *goja.Runtime) {
 								_ = resolve("pong")

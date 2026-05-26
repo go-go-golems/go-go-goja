@@ -66,7 +66,7 @@ func NewLoader(host *gojahttp.Host, opts ...Option) require.ModuleLoader {
 }
 
 type runtimebridgeOwnerAdapter struct {
-	owner runtimebridge.OwnerRunner
+	owner runtimebridge.RuntimeOwner
 }
 
 func (a runtimebridgeOwnerAdapter) Call(ctx context.Context, op string, fn runtimeowner.CallFunc) (any, error) {

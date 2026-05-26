@@ -36,11 +36,8 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 			panic(vm.NewGoError(fmt.Errorf("timer module requires runtime owner bindings")))
 		}
 
-		callCtx := runtimebridge.CurrentContext(vm)
-		runtimeCtx := bindings.Context
-		if runtimeCtx == nil {
-			runtimeCtx = context.Background()
-		}
+		callCtx := runtimebridge.CurrentOwnerContext(vm)
+		runtimeCtx := bindings.Lifetime()
 		go func() {
 			if ms < 0 {
 				_ = bindings.Owner.Post(callCtx, "timer.sleep.reject", func(context.Context, *goja.Runtime) {

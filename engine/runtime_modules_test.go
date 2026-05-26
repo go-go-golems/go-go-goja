@@ -83,7 +83,7 @@ func TestRuntimeModuleSpecRegistersPerRuntime(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	rt1, err := factory.NewRuntime(context.Background())
+	rt1, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime 1: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestRuntimeModuleSpecRegistersPerRuntime(t *testing.T) {
 		_ = rt1.Close(context.Background())
 	}()
 
-	rt2, err := factory.NewRuntime(context.Background())
+	rt2, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime 2: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestRuntimeCloseRunsClosersInReverseOrder(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestRuntimeCloseRunsRegistrarClosers(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestRuntimePersistsRegistrarValues(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -229,7 +229,7 @@ func TestRuntimeInitializersCanReadAndWriteRuntimeValues(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -256,7 +256,7 @@ func TestRuntimeInitializersPersistValuesWithoutRegistrarState(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -278,7 +278,7 @@ func TestBuilderCanDisableImplicitDefaultModules(t *testing.T) {
 		t.Fatalf("build factory: %v", err)
 	}
 
-	rt, err := factory.NewRuntime(context.Background())
+	rt, err := factory.NewRuntime(WithStartupContext(context.Background()), WithLifetimeContext(context.Background()))
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}

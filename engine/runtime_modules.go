@@ -11,8 +11,9 @@ import (
 
 // RuntimeModuleSpec registers one or more require() modules for a concrete
 // runtime instance. All engine modules are runtime-aware: they receive the VM,
-// event loop, owner, lifecycle context, closer registry, and value bag before
-// the require registry is enabled.
+// event loop, owner, startup context, closer registry, and value bag before the
+// require registry is enabled. Runtime lifetime is available through
+// runtimebridge.RuntimeServices once a module loader runs against a VM.
 type RuntimeModuleSpec interface {
 	ID() string
 	RegisterRuntimeModule(ctx *RuntimeModuleContext, reg *require.Registry) error
@@ -23,7 +24,7 @@ type RuntimeModuleContext struct {
 	Context   context.Context
 	VM        *goja.Runtime
 	Loop      *eventloop.EventLoop
-	Owner     runtimeowner.Runner
+	Owner     runtimeowner.RuntimeOwner
 	AddCloser func(func(context.Context) error) error
 	Values    map[string]any
 }
