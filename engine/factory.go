@@ -208,7 +208,7 @@ func (f *Factory) NewRuntime(opts ...RuntimeOption) (*Runtime, error) {
 	loop := eventloop.NewEventLoop()
 	go loop.Start()
 
-	owner := runtimeowner.NewRunner(vm, loop, runtimeowner.Options{
+	owner := runtimeowner.NewRuntimeOwner(vm, loop, runtimeowner.Options{
 		Name:          "go-go-goja-runtime",
 		RecoverPanics: true,
 	})

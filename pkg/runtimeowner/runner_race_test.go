@@ -13,7 +13,7 @@ func TestRunnerConcurrentCallStress(t *testing.T) {
 	s := newQueueScheduler(vm)
 	defer s.Close()
 
-	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
 
 	var (
 		wg      sync.WaitGroup

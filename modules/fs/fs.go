@@ -81,54 +81,54 @@ accept strings, Buffers, TypedArrays, and DataViews.
 
 func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
-	bindings, ok := runtimebridge.Lookup(vm)
-	if !ok || bindings.Owner == nil {
-		panic(vm.NewGoError(fmt.Errorf("fs module requires runtime owner bindings")))
+	runtimeServices, ok := runtimebridge.Lookup(vm)
+	if !ok || runtimeServices.Owner == nil {
+		panic(vm.NewGoError(fmt.Errorf("fs module requires runtime services")))
 	}
 
 	modules.SetExport(exports, mod.Name(), "readFile", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		enc := encodingOption(vm, call.Argument(1))
-		return asyncReadFile(vm, bindings, path, enc)
+		return asyncReadFile(vm, runtimeServices, path, enc)
 	})
 	modules.SetExport(exports, mod.Name(), "writeFile", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		enc, mode := writeOptions(vm, call.Argument(2))
 		data := buffer.DecodeBytes(vm, call.Argument(1), enc)
-		return asyncWriteFile(vm, bindings, path, data, mode)
+		return asyncWriteFile(vm, runtimeServices, path, data, mode)
 	})
 	modules.SetExport(exports, mod.Name(), "exists", func(path string) goja.Value {
-		return asyncExists(vm, bindings, path)
+		return asyncExists(vm, runtimeServices, path)
 	})
 	modules.SetExport(exports, mod.Name(), "mkdir", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		recursive, mode := mkdirOptions(vm, call.Argument(1))
-		return asyncMkdir(vm, bindings, path, recursive, mode)
+		return asyncMkdir(vm, runtimeServices, path, recursive, mode)
 	})
 	modules.SetExport(exports, mod.Name(), "readdir", func(path string) goja.Value {
-		return asyncReaddir(vm, bindings, path)
+		return asyncReaddir(vm, runtimeServices, path)
 	})
 	modules.SetExport(exports, mod.Name(), "stat", func(path string) goja.Value {
-		return asyncStat(vm, bindings, path)
+		return asyncStat(vm, runtimeServices, path)
 	})
 	modules.SetExport(exports, mod.Name(), "unlink", func(path string) goja.Value {
-		return asyncUnlink(vm, bindings, path)
+		return asyncUnlink(vm, runtimeServices, path)
 	})
 	modules.SetExport(exports, mod.Name(), "appendFile", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		enc, mode := writeOptions(vm, call.Argument(2))
 		data := buffer.DecodeBytes(vm, call.Argument(1), enc)
-		return asyncAppendFile(vm, bindings, path, data, mode)
+		return asyncAppendFile(vm, runtimeServices, path, data, mode)
 	})
 	modules.SetExport(exports, mod.Name(), "rename", func(oldPath, newPath string) goja.Value {
-		return asyncRename(vm, bindings, oldPath, newPath)
+		return asyncRename(vm, runtimeServices, oldPath, newPath)
 	})
 	modules.SetExport(exports, mod.Name(), "copyFile", func(src, dst string) goja.Value {
-		return asyncCopyFile(vm, bindings, src, dst)
+		return asyncCopyFile(vm, runtimeServices, src, dst)
 	})
 	modules.SetExport(exports, mod.Name(), "rm", func(call goja.FunctionCall) goja.Value {
 		recursive, force := rmOptions(vm, call.Argument(1))
-		return asyncRm(vm, bindings, call.Argument(0).String(), recursive, force)
+		return asyncRm(vm, runtimeServices, call.Argument(0).String(), recursive, force)
 	})
 
 	modules.SetExport(exports, mod.Name(), "readFileSync", func(call goja.FunctionCall) goja.Value {

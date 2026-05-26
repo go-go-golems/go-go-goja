@@ -116,7 +116,7 @@ func TestOwnerContextAllowsReentrantCall(t *testing.T) {
 	s := newQueueScheduler(vm)
 	defer s.Close()
 
-	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
 	got, err := r.Call(context.Background(), "test.owner-context", func(ctx context.Context, _ *goja.Runtime) (any, error) {
 		ownerCtx := OwnerContext(r, ctx)
 		return r.Call(ownerCtx, "test.owner-context.nested", func(context.Context, *goja.Runtime) (any, error) {
@@ -136,7 +136,7 @@ func TestRunnerCallSuccess(t *testing.T) {
 	s := newQueueScheduler(vm)
 	defer s.Close()
 
-	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
 	got, err := r.Call(context.Background(), "test.success", func(context.Context, *goja.Runtime) (any, error) {
 		return 42, nil
 	})
@@ -156,7 +156,7 @@ func TestRunnerCallSetsRuntimebridgeCurrentContext(t *testing.T) {
 
 	type ctxKey string
 	ctx := context.WithValue(context.Background(), ctxKey("request"), "abc")
-	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
 	got, err := r.Call(ctx, "test.current-context", func(callCtx context.Context, vm *goja.Runtime) (any, error) {
 		if callCtx.Value(ctxKey("request")) != "abc" {
 			t.Fatalf("call ctx value = %#v, want abc", callCtx.Value(ctxKey("request")))
@@ -176,7 +176,7 @@ func TestRunnerCallCanceled(t *testing.T) {
 	s := newQueueScheduler(vm)
 	defer s.Close()
 
-	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
 
@@ -194,7 +194,7 @@ func TestRunnerCallCanceled(t *testing.T) {
 
 func TestRunnerCallScheduleRejected(t *testing.T) {
 	vm := goja.New()
-	r := NewRunner(vm, rejectScheduler{}, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, rejectScheduler{}, Options{RecoverPanics: true})
 	_, err := r.Call(context.Background(), "test.reject", func(context.Context, *goja.Runtime) (any, error) {
 		return nil, nil
 	})
@@ -211,7 +211,7 @@ func TestRunnerCallPanicRecovered(t *testing.T) {
 	s := newQueueScheduler(vm)
 	defer s.Close()
 
-	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
 	_, err := r.Call(context.Background(), "test.panic", func(context.Context, *goja.Runtime) (any, error) {
 		panic("boom")
 	})
@@ -228,7 +228,7 @@ func TestRunnerShutdown(t *testing.T) {
 	s := newQueueScheduler(vm)
 	defer s.Close()
 
-	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
 	if err := r.Shutdown(context.Background()); err != nil {
 		t.Fatalf("Shutdown error: %v", err)
 	}
@@ -248,7 +248,7 @@ func TestRunnerPost(t *testing.T) {
 	s := newQueueScheduler(vm)
 	defer s.Close()
 
-	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
 	done := make(chan struct{}, 1)
 	err := r.Post(context.Background(), "test.post", func(context.Context, *goja.Runtime) {
 		done <- struct{}{}
@@ -268,7 +268,7 @@ func TestRunnerCallSkipsCanceledQueuedInvocation(t *testing.T) {
 	s := newManualScheduler(vm)
 	defer s.Close()
 
-	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
 
 	var invoked atomic.Int32
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
@@ -298,7 +298,7 @@ func TestRunnerPostKeepsTimeoutContextAliveUntilQueuedExecution(t *testing.T) {
 	s := newManualScheduler(vm)
 	defer s.Close()
 
-	r := NewRunner(vm, s, Options{
+	r := NewRuntimeOwner(vm, s, Options{
 		RecoverPanics: true,
 		MaxWait:       1000,
 	})
@@ -330,7 +330,7 @@ func TestRunnerCallWithLeakedOwnerContextStillSchedules(t *testing.T) {
 	s := newQueueScheduler(vm)
 	defer s.Close()
 
-	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
 
 	innerReturned := make(chan struct{})
 	innerInvoked := make(chan struct{}, 1)
@@ -379,7 +379,7 @@ func TestRunnerPostWithLeakedOwnerContextStillSchedules(t *testing.T) {
 	s := newQueueScheduler(vm)
 	defer s.Close()
 
-	r := NewRunner(vm, s, Options{RecoverPanics: true})
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true})
 
 	postDone := make(chan struct{})
 	earlyPost := make(chan bool, 1)

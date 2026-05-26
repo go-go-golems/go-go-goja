@@ -31,16 +31,16 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	modules.SetExport(exports, mod.Name(), "sleep", func(ms int64) goja.Value {
 		promise, resolve, reject := vm.NewPromise()
 
-		bindings, ok := runtimebridge.Lookup(vm)
-		if !ok || bindings.Owner == nil {
-			panic(vm.NewGoError(fmt.Errorf("timer module requires runtime owner bindings")))
+		runtimeServices, ok := runtimebridge.Lookup(vm)
+		if !ok || runtimeServices.Owner == nil {
+			panic(vm.NewGoError(fmt.Errorf("timer module requires runtime services")))
 		}
 
 		callCtx := runtimebridge.CurrentOwnerContext(vm)
-		runtimeCtx := bindings.Lifetime()
+		runtimeCtx := runtimeServices.Lifetime()
 		go func() {
 			if ms < 0 {
-				_ = bindings.Owner.Post(callCtx, "timer.sleep.reject", func(context.Context, *goja.Runtime) {
+				_ = runtimeServices.Owner.Post(callCtx, "timer.sleep.reject", func(context.Context, *goja.Runtime) {
 					_ = reject(vm.ToValue("timer.sleep: duration must be >= 0"))
 				})
 				return
@@ -55,7 +55,7 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 			case <-runtimeCtx.Done():
 				return
 			case <-timer.C:
-				_ = bindings.Owner.Post(callCtx, "timer.sleep.resolve", func(context.Context, *goja.Runtime) {
+				_ = runtimeServices.Owner.Post(callCtx, "timer.sleep.resolve", func(context.Context, *goja.Runtime) {
 					_ = resolve(goja.Undefined())
 				})
 			}

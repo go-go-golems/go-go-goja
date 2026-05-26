@@ -24,7 +24,7 @@ RelatedFiles:
     Note: Generated css-visual-diff command-provider smoke buildspec
 ExternalSources: []
 Summary: "Strict-format implementation diary for XGOJA-014 command providers and generated smoke examples."
-LastUpdated: 2026-05-25T21:45:00-04:00
+LastUpdated: 2026-05-26T13:10:00-04:00
 WhatFor: "Preserve investigation context, commands run, decisions, errors, and validation outcomes."
 WhenToUse: "Read before resuming XGOJA-014 work or reviewing the implementation."
 ---
@@ -771,3 +771,154 @@ docmgr doctor --ticket XGOJA-014 --stale-after 30
 ### Technical details
 
 This backfill intentionally treats unavailable exact prompts as unavailable rather than fabricating verbatim text.
+
+
+## Step 10: Clarify runtime ownership APIs and remove ambiguous context compatibility
+
+This step turned the context-ownership design into code. The important shift was to remove ambiguous compatibility names instead of layering new names on top: `runtimebridge.Bindings` became `runtimebridge.RuntimeServices`, `Bindings.Context` was removed, `runtimeowner.Runner` became `runtimeowner.RuntimeOwner`, and `engine.Factory.NewRuntime` now receives explicit startup and lifetime contexts through options.
+
+The change also updates callers throughout the repository so the intent is visible at every runtime boundary. Runtime creation now says whether a context is for startup, lifetime, or both, and native modules now ask for `CurrentOwnerContext` or `Lifetime` explicitly instead of using a generic `CurrentContext`/`Context` pair.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Replace Runner with RuntimerOwner as well. 
+
+Implement the renames.
+
+Keep a diary as you go, commit at appropriate intervals. No backwards compatibility, but make a small glazed help entry format about migrating, so we can provide that to users of goja"
+
+**Assistant interpretation:** Implement the API cleanup, not just document it: rename the owner interface, rename runtimebridge bindings/services, remove compatibility aliases, update runtime creation to use explicit contexts, add migration help, keep the diary current, and commit in focused steps.
+
+**Inferred user intent:** The user wants the go-go-goja context API to become harder to misuse before more mixed runtime packages such as Express, Discord, and Loupedeck are composed together.
+
+**Commit (code):** 4615867 — "refactor: clarify runtime context ownership api"
+
+**Commit (code):** pending — "refactor: finish runtime service naming cleanup"
+
+### What I did
+
+- Replaced the public owner interface name:
+  - `runtimeowner.Runner` -> `runtimeowner.RuntimeOwner`
+  - `runtimeowner.NewRunner` -> `runtimeowner.NewRuntimeOwner`
+- Renamed local runtime service variables from `bindings` to `runtimeServices` in representative native modules so variable names match the new type name.
+- Replaced runtimebridge terminology:
+  - `runtimebridge.Bindings` -> `runtimebridge.RuntimeServices`
+  - removed the ambiguous `Context` field
+  - added `LifetimeContext` and `Lifetime()`
+  - removed `CurrentContext`
+  - added `CurrentOwnerContext` and `LifetimeContext`
+  - added explicit helpers: `CallWithCurrentContext`, `PostWithCurrentContext`, `CallWithLifetimeContext`, `PostWithLifetimeContext`, `CallWithCustomContext`, and `PostWithCustomContext`
+- Added runtime creation options in `engine/options.go`:
+  - `WithStartupContext`
+  - `WithLifetimeContext`
+- Updated `engine.Factory.NewRuntime` so startup context drives construction/initializers and lifetime context drives runtime-owned context.
+- Updated callers across engine tests, modules, jsverbs, xgoja, gojahttp, replsession, and related packages.
+- Updated async modules (`timer`, `fs`) to use `CurrentOwnerContext` and `RuntimeServices.Lifetime()`.
+- Updated old ttmp script examples that still compiled under broad lint/test and used the previous `NewRuntime(ctx)` signature.
+
+### Why
+
+- The previous names made the wrong code look natural: `bindings.Owner.Call(bindings.Context, ...)` looked legitimate even when it could deadlock during nested owner calls.
+- `NewRuntime(ctx)` conflated startup and runtime lifetime. The new options make callers choose explicitly.
+- Keeping compatibility aliases would preserve the exact ambiguity this cleanup is meant to remove.
+
+### What worked
+
+- Focused validation passed after the rename:
+
+```bash
+go test ./pkg/runtimebridge ./pkg/runtimeowner ./engine ./modules/timer ./modules/fs -count=1
+go test ./pkg/xgoja/... ./pkg/repl/evaluators/javascript -count=1
+go test ./pkg/runtimebridge ./pkg/runtimeowner ./engine ./modules/timer ./modules/fs ./pkg/xgoja/... ./pkg/jsverbs ./pkg/jsverbscli ./pkg/gojahttp ./pkg/replsession ./pkg/repl/evaluators/javascript ./modules/... -count=1
+go test ./pkg/runtimebridge ./pkg/runtimeowner ./engine ./modules/timer ./modules/fs ./modules/express ./pkg/xgoja/... ./pkg/jsverbs ./pkg/jsverbscli ./pkg/gojahttp ./pkg/replsession ./pkg/repl/evaluators/javascript ./cmd/xgoja -count=1
+```
+
+- The broader pre-commit run progressed far enough to reveal two old ttmp scripts that still used `NewRuntime(ctx)`, which were updated.
+
+### What didn't work
+
+- The first commit attempt failed in the pre-commit hook because lint compiled ttmp script packages and found old `NewRuntime(context.Background())` / `NewRuntime(ctx)` calls:
+
+```text
+ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/scripts/jsverb_overlay_experiment.go:57:32: cannot use context.Background() (value of interface type context.Context) as engine.RuntimeOption value in argument to factory.NewRuntime
+
+ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/04-engine-runtimeowner-interrupt-sync-loop/main.go:21:32: cannot use ctx (variable of interface type context.Context) as engine.RuntimeOption value in argument to factory.NewRuntime
+```
+
+- The same broad hook also ran `go test ./...`; after the compile fixes, unrelated `pkg/replsession` runaway-timeout tests failed intermittently with:
+
+```text
+--- FAIL: TestServiceInteractiveSyncRunawayTimeoutKeepsSessionUsable
+    service_policy_test.go:202: expected ok status after timeout, got "timeout"
+--- FAIL: TestServiceRawSyncRunawayTimeoutKeepsSessionUsable
+    service_policy_test.go:165: expected ok status after timeout, got "timeout"
+```
+
+### What I learned
+
+- The repository's pre-commit lint includes historical ttmp scripts, so API breaks must update those examples too if they remain buildable Go packages.
+- The runtime API cleanup affects many package tests because `NewRuntime(ctx)` was the common construction pattern.
+
+### What was tricky to build
+
+- The main tricky point was separating startup and lifetime without introducing a half-started runtime. The implementation keeps runtime creation atomic and uses options instead of a separate `Start(ctx)` phase.
+- Another sharp edge was package aliases. Several tests import the engine package as `gggengine`, so automated `engine.WithStartupContext` replacements had to be corrected to `gggengine.WithStartupContext`.
+
+### What warrants a second pair of eyes
+
+- Check whether `RuntimeModuleContext.Context` should continue to receive startup context, or whether some module specs expect runtime lifetime during module registration.
+- Check whether `RuntimeOwner` should remain in `runtimeowner` only, or whether `runtimebridge.RuntimeOwner` should be the primary public interface for native module authors.
+- Check whether `NewRuntime` should auto-close on lifetime cancellation later; current implementation only derives runtime context from the lifetime parent and still expects explicit `Close`.
+
+### What should be done in the future
+
+- Implement linked owner-call/lifetime cancellation and bounded shutdown waiting/interrupt fallback as follow-up phases.
+- Regenerate or update downstream packages after go-go-goja is committed and tagged.
+
+### Code review instructions
+
+- Start with:
+  - `pkg/runtimebridge/runtimebridge.go`
+  - `pkg/runtimeowner/types.go`
+  - `engine/options.go`
+  - `engine/factory.go`
+- Then inspect representative migrations:
+  - `modules/timer/timer.go`
+  - `modules/fs/fs_async.go`
+  - `pkg/xgoja/app/factory.go`
+  - `pkg/jsverbs/runtime.go`
+- Validate with:
+
+```bash
+go test ./pkg/runtimebridge ./pkg/runtimeowner ./engine ./modules/timer ./modules/fs -count=1
+go test ./pkg/xgoja/... ./pkg/jsverbs ./pkg/jsverbscli ./pkg/gojahttp ./pkg/replsession ./pkg/repl/evaluators/javascript ./modules/... -count=1
+```
+
+### Technical details
+
+The core migration pattern is:
+
+```go
+// old
+rt, err := factory.NewRuntime(ctx)
+
+// new
+rt, err := factory.NewRuntime(
+    engine.WithStartupContext(ctx),
+    engine.WithLifetimeContext(ctx),
+)
+```
+
+For native modules:
+
+```go
+// old
+bindings, ok := runtimebridge.Lookup(vm)
+ctx := runtimebridge.CurrentContext(vm)
+_ = bindings.Owner.Post(ctx, "module.resolve", fn)
+
+// new
+services, ok := runtimebridge.Lookup(vm)
+ctx := runtimebridge.CurrentOwnerContext(vm)
+_ = services.PostWithCustomContext(ctx, "module.resolve", fn)
+```

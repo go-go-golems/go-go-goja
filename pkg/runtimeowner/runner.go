@@ -32,7 +32,7 @@ type runner struct {
 	closed    atomic.Bool
 }
 
-func NewRunner(vm *goja.Runtime, scheduler Scheduler, opts Options) RuntimeOwner {
+func NewRuntimeOwner(vm *goja.Runtime, scheduler Scheduler, opts Options) RuntimeOwner {
 	if vm == nil {
 		panic("runtimeowner: vm is nil")
 	}
