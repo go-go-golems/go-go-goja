@@ -90,6 +90,28 @@ func TestRuntimeServicesCallWithCustomContextCancelsWhenLifetimeCancels(t *testi
 	}
 }
 
+func TestRuntimeServicesCallWithCustomContextCancelsLinkedContextAfterCall(t *testing.T) {
+	svc := RuntimeServices{
+		LifetimeContext: context.Background(),
+		Owner:           fakeRuntimeOwner{},
+	}
+
+	var callCtx context.Context
+	customCtx := context.WithValue(context.Background(), contextKey("request"), "call")
+	_, err := svc.CallWithCustomContext(customCtx, "test.cleanup.call", func(ctx context.Context, _ *goja.Runtime) (any, error) {
+		callCtx = ctx
+		return nil, nil
+	})
+	if err != nil {
+		t.Fatalf("CallWithCustomContext() returned error: %v", err)
+	}
+	select {
+	case <-callCtx.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatalf("linked call context was not canceled after call returned")
+	}
+}
+
 func TestRuntimeServicesPostWithNilContextUsesLifetimeContext(t *testing.T) {
 	lifetimeCtx := context.WithValue(context.Background(), contextKey("lifecycle"), "runtime")
 	svc := RuntimeServices{

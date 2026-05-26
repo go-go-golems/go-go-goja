@@ -73,8 +73,9 @@ func (svc RuntimeServices) CallWithCustomContext(ctx context.Context, op string,
 	if svc.Owner == nil {
 		return nil, errors.New("runtimebridge: missing owner")
 	}
-	ctx = svc.contextLinkedToLifetime(ctx)
-	return svc.Owner.Call(ctx, op, fn)
+	linked := svc.contextLinkedToLifetime(ctx)
+	defer linked.cancel()
+	return svc.Owner.Call(linked.ctx, op, fn)
 }
 
 // PostWithCustomContext posts fn with an explicit caller-provided context. A
@@ -83,29 +84,54 @@ func (svc RuntimeServices) PostWithCustomContext(ctx context.Context, op string,
 	if svc.Owner == nil {
 		return errors.New("runtimebridge: missing owner")
 	}
-	ctx = svc.contextLinkedToLifetime(ctx)
-	return svc.Owner.Post(ctx, op, fn)
+	if fn == nil {
+		return errors.New("runtimebridge: nil function")
+	}
+	linked := svc.contextLinkedToLifetime(ctx)
+	posted := false
+	defer func() {
+		if !posted {
+			linked.cancel()
+		}
+	}()
+	if err := svc.Owner.Post(linked.ctx, op, func(ctx context.Context, vm *goja.Runtime) {
+		defer linked.stop()
+		fn(ctx, vm)
+	}); err != nil {
+		return err
+	}
+	posted = true
+	return nil
 }
 
-func (svc RuntimeServices) contextLinkedToLifetime(ctx context.Context) context.Context {
+type linkedContext struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	stop   func()
+}
+
+func (svc RuntimeServices) contextLinkedToLifetime(ctx context.Context) linkedContext {
 	lifetime := svc.Lifetime()
 	if ctx == nil || ctx == lifetime {
-		return lifetime
+		return linkedContext{ctx: lifetime, cancel: func() {}, stop: func() {}}
 	}
 	select {
 	case <-lifetime.Done():
-		return lifetime
+		return linkedContext{ctx: lifetime, cancel: func() {}, stop: func() {}}
 	default:
 	}
 	linked, cancel := context.WithCancel(ctx)
-	go func() {
-		select {
-		case <-lifetime.Done():
+	stop := context.AfterFunc(lifetime, cancel)
+	return linkedContext{
+		ctx: linked,
+		cancel: func() {
+			_ = stop()
 			cancel()
-		case <-linked.Done():
-		}
-	}()
-	return linked
+		},
+		stop: func() {
+			_ = stop()
+		},
+	}
 }
 
 var servicesByVM sync.Map
