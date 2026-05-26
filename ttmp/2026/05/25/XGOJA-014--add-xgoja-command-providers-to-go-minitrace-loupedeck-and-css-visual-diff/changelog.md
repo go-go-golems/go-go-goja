@@ -70,3 +70,14 @@ Added full semantic YAML rendition of the context ownership guide and a compact 
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/design-doc/01-goja-context-ownership-and-runtime-package-composition-guide.semantic.yaml — Full semantic content export
 - /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/reference/03-semantic-document-yaml-schema-spec.md — Schema specification and usage guide
 
+
+## 2026-05-26
+
+Updated context ownership guide with explicit WithStartupContext/WithLifetimeContext runtime creation, RuntimeServices naming, no Context compatibility field, explicit Call/Post helper names, and deferred EventSourceContext.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/engine/factory.go — Planned WithStartupContext and WithLifetimeContext runtime options
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/pkg/runtimebridge/runtimebridge.go — Planned RuntimeServices and explicit context helper changes
+- /home/manuel/workspaces/2026-05-24/add-js-providers/go-go-goja/ttmp/2026/05/25/XGOJA-014--add-xgoja-command-providers-to-go-minitrace-loupedeck-and-css-visual-diff/design-doc/01-goja-context-ownership-and-runtime-package-composition-guide.md — Updated API decisions and implementation plan
+
