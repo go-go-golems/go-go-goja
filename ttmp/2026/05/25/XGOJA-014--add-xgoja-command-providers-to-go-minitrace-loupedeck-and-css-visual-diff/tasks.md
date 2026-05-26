@@ -27,17 +27,17 @@ WhenToUse: "Use while executing or reviewing XGOJA-014."
 - [x] Write package-specific implementation guide for `css-visual-diff`.
 - [x] Start detailed implementation diary.
 - [x] Relate key implementation files to the ticket with docmgr.
-- [ ] Commit initial ticket docs.
+- [x] Commit initial ticket docs.
 
 ## Phase 1 — go-minitrace command provider
 
-- [ ] Update `go-minitrace` dependency to `github.com/go-go-golems/go-go-goja v0.5.0`.
-- [ ] Add reusable catalog-to-Glazed command helper that returns `[]cmds.Command` with `Parents` populated from catalog folders.
-- [ ] Register `providerapi.CommandSetProvider{Name: "queries"}` in `pkg/minitracejs/provider`.
-- [ ] Decode command provider config (`appName`, `queryRepositories`).
-- [ ] Add provider tests for command provider resolution and command construction.
-- [ ] Run focused go-minitrace validation.
-- [ ] Commit go-minitrace implementation.
+- [x] Update `go-minitrace` dependency to `github.com/go-go-golems/go-go-goja v0.5.0`.
+- [x] Add reusable catalog-to-Glazed command helper that returns `[]cmds.Command` with `Parents` populated from catalog folders.
+- [x] Register `providerapi.CommandSetProvider{Name: "queries"}` in `pkg/minitracejs/provider`.
+- [x] Decode command provider config (`appName`, `queryRepositories`).
+- [x] Add provider tests for command provider resolution and command construction.
+- [x] Run focused go-minitrace validation.
+- [x] Commit go-minitrace implementation.
 
 ## Phase 2 — loupedeck command provider
 

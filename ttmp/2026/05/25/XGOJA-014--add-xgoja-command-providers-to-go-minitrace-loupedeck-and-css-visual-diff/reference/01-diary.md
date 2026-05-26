@@ -40,3 +40,25 @@ Initial implementation strategy:
 - Start with `go-minitrace` because it has the smallest surface: expose catalog query commands and construction-only tests.
 - Then `loupedeck`: expose `run` plus annotated verb commands without opening hardware in tests.
 - Then `css-visual-diff`: add a real public xgoja provider and command provider; this is the largest step because internal runtime-module code must become loader-friendly.
+
+## 2026-05-25 20:20 — go-minitrace command provider implementation
+
+Committed the initial ticket docs in `go-go-goja` as `fa6da75 docs: plan xgoja command provider rollout`.
+
+Implemented the go-minitrace slice:
+
+- Ran `go get github.com/go-go-golems/go-go-goja@v0.5.0` in `go-minitrace`, upgrading from `v0.4.17`.
+- Added `cmd/go-minitrace/cmds/query/catalog_commands.go` with `NewMinitraceCatalogCommands(catalog)`, which converts the compiled catalog to `[]cmds.Command` and preserves nested catalog folders in `CommandDescription.Parents`.
+- Updated `pkg/minitracejs/provider/provider.go` to register `CommandSetProvider{Name: "queries", DefaultMount: "minitrace"}`.
+- Added typed provider config with `appName` and `queryRepositories`.
+- Reused `minitracecmd.LoadConfiguredCatalog` and the new catalog helper for command construction.
+- Added provider tests for command provider registration and embedded catalog command construction.
+
+Validation passed:
+
+```bash
+cd go-minitrace
+go test ./pkg/minitracejs/provider ./cmd/go-minitrace/cmds/query ./pkg/minitracecmd -count=1
+```
+
+Implementation caveat: the provider currently reuses the existing catalog command runtime path, which opens DuckDB and installs `require("minitrace")` for JS catalog commands itself. It does not yet route JS catalog execution through xgoja `RuntimeFactory`; that would be a future deeper runtime-composition step.

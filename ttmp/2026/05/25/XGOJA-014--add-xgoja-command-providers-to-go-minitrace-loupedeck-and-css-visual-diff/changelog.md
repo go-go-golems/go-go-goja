@@ -23,3 +23,4 @@ WhenToUse: "Use for review summaries and ticket closeout."
 - Created XGOJA-014 ticket workspace for command providers in `go-minitrace`, `loupedeck`, and `css-visual-diff`.
 - Added package-specific implementation guides for all three repositories.
 - Added an initial task plan and implementation diary.
+- Implemented `go-minitrace` command provider `go-minitrace.queries` with catalog command construction, tests, and dependency update to `go-go-goja v0.5.0`.
