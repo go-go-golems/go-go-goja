@@ -1,5 +1,7 @@
 package main
 
+//glazedclilint:file-ignore demo command uses standard flag package outside production Glazed CLI
+
 import (
 	"context"
 	"embed"

@@ -1,5 +1,7 @@
 package jsverbscli
 
+//glazedclilint:file-ignore legacy list command exposes output flags pending row processor migration
+
 import (
 	"context"
 

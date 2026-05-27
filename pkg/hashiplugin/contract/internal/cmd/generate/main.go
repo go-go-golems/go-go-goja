@@ -1,5 +1,7 @@
 package main
 
+//glazedclilint:file-ignore internal generator reads environment for code generation outside user-facing CLI
+
 import (
 	"fmt"
 	"os"
