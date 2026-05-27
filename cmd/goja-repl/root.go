@@ -1,5 +1,7 @@
 package main
 
+//glazedclilint:file-ignore interactive REPL keeps raw Cobra flags pending Glazed migration decision
+
 import (
 	"context"
 	"encoding/json"

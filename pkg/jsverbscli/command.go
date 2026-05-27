@@ -1,5 +1,7 @@
 package jsverbscli
 
+//glazedclilint:file-ignore legacy jsverbs CLI uses Cobra flags pending Glazed field migration
+
 import (
 	"fmt"
 	"sort"

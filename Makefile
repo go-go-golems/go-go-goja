@@ -1,8 +1,14 @@
-.PHONY: docker-lint lint lintmax golangci-lint-install gosec govulncheck test test-inspector fuzz fuzz-seeds build goreleaser tag-major tag-minor tag-patch release bump-glazed install-modules
+.PHONY: docker-lint lint lintmax golangci-lint-install gosec govulncheck test test-inspector fuzz fuzz-seeds build goreleaser tag-major tag-minor tag-patch release bump-glazed install-modules glazed-lint-build glazed-lint
 
 all: build
 
 VERSION=v0.1.14
+GLAZED_LINT_BIN ?= /tmp/glazed-lint
+GLAZED_LINT_PKG ?= github.com/go-go-golems/glazed/cmd/tools/glazed-lint
+GLAZED_VERSION ?= $(shell GOWORK=off go list -m -f '{{.Version}}' github.com/go-go-golems/glazed 2>/dev/null)
+GLAZED_LINT_TOOL_VERSION ?= v1.3.5
+GLAZED_LINT_FLAGS ?= -glazedclilint.allow-paths=pkg/analysis/,pkg/cli/,pkg/cmds/fields/,pkg/cmds/logging/,pkg/cmds/sources/,pkg/help/
+GLAZED_LINT_DIRS ?= ./cmd/... ./internal/... ./pkg/...
 GOLANGCI_LINT_VERSION ?= $(shell cat .golangci-lint-version)
 GOLANGCI_LINT_BIN ?= $(CURDIR)/.bin/golangci-lint
 DEFAULT_PLUGIN_DIR ?= $(HOME)/.go-go-goja/plugins/examples
@@ -14,12 +20,22 @@ docker-lint:
 golangci-lint-install:
 	mkdir -p $(dir $(GOLANGCI_LINT_BIN))
 	GOBIN=$(dir $(GOLANGCI_LINT_BIN)) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+glazed-lint-build:
+	@echo "Building glazed-lint from pinned tool module..."
+	@echo "Installing $(GLAZED_LINT_PKG)@$(GLAZED_LINT_TOOL_VERSION)"
+	@GOBIN=$(dir $(GLAZED_LINT_BIN)) GOWORK=off go install $(GLAZED_LINT_PKG)@$(GLAZED_LINT_TOOL_VERSION)
 
-lint: golangci-lint-install
+glazed-lint: glazed-lint-build
+	GOWORK=off go vet -vettool=$(GLAZED_LINT_BIN) $(GLAZED_LINT_FLAGS) $(GLAZED_LINT_DIRS)
+
+
+lint: golangci-lint-install glazed-lint-build
 	$(GOLANGCI_LINT_BIN) run -v
+	GOWORK=off go vet -vettool=$(GLAZED_LINT_BIN) $(GLAZED_LINT_FLAGS) $(GLAZED_LINT_DIRS)
 
-lintmax: golangci-lint-install
+lintmax: golangci-lint-install glazed-lint-build
 	$(GOLANGCI_LINT_BIN) run -v --max-same-issues=100
+	GOWORK=off go vet -vettool=$(GLAZED_LINT_BIN) $(GLAZED_LINT_FLAGS) $(GLAZED_LINT_DIRS)
 
 gosec:
 	go install github.com/securego/gosec/v2/cmd/gosec@latest

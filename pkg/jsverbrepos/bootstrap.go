@@ -1,5 +1,7 @@
 package jsverbrepos
 
+//glazedclilint:file-ignore repository bootstrap bridges environment defaults into runtime setup
+
 import (
 	"context"
 	"embed"

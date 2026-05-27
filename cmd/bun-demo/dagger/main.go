@@ -1,5 +1,7 @@
 package main
 
+//glazedclilint:file-ignore demo helper uses standard flag package outside production Glazed CLI
+
 import (
 	"context"
 	"fmt"
