@@ -1,5 +1,5 @@
 version: 2
-project_name: XXX
+project_name: go-go-goja
 
 before:
   hooks:
@@ -10,8 +10,8 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
-    main: ./cmd/XXX
-    binary: XXX
+    main: ./cmd/goja-repl
+    binary: goja-repl
     goos:
       - linux
 # I am not able to test windows at the time
@@ -37,9 +37,9 @@ signs:
     args: [ "--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}" ]
 
 brews:
-  - name: XXX
-    description: "XXX is a tool"
-    homepage: "https://github.com/go-go-golems/XXX"
+  - name: goja-repl
+    description: "goja-repl is a Goja-based JavaScript REPL and tooling entrypoint."
+    homepage: "https://github.com/go-go-golems/go-go-goja"
     repository:
       owner: go-go-golems
       name: homebrew-go-go-go
@@ -54,7 +54,7 @@ nfpms:
     maintainer: Manuel Odendahl <wesen@ruinwesen.com>
 
     description: |-
-      XXX is a tool
+      goja-repl is a Goja-based JavaScript REPL and tooling entrypoint.
 
     license: MIT
 
