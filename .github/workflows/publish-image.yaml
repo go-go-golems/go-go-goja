@@ -131,13 +131,16 @@ jobs:
           GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/go-go-goja
         run: |
           if [ -z "${GH_TOKEN}" ]; then
-            echo "::error::GITOPS_PR_TOKEN is not configured. Add it as a repository secret."
-            exit 1
+            echo "::warning::GITOPS_PR_TOKEN is not configured; skipping GitOps PR creation."
+            exit 0
           fi
           image_tag="sha-${GITHUB_SHA::7}"
-          python3 scripts/open_gitops_pr.py \
+          if ! python3 scripts/open_gitops_pr.py \
             --config deploy/gitops-targets.json \
             --all-targets \
             --image "${GHCR_IMAGE}:${image_tag}" \
             --push \
-            --open-pr
+            --open-pr; then
+            echo "::warning::GitOps PR creation failed after image publish; investigate token/target access separately."
+            exit 0
+          fi
