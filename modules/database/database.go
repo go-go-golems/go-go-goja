@@ -11,7 +11,6 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 	_ "github.com/mattn/go-sqlite3" // Driver for sqlite3
-	"github.com/rs/zerolog/log"
 )
 
 type QueryExecer interface {

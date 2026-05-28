@@ -1,8 +1,6 @@
 package modules
 
-import (
-	"github.com/rs/zerolog/log"
-)
+import ()
 
 // SetExport attaches a Go value to module exports.
 func SetExport(exports settableObject, moduleName, name string, fn interface{}) {
