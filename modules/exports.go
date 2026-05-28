@@ -1,7 +1,5 @@
 package modules
 
-import ()
-
 // SetExport attaches a Go value to module exports.
 func SetExport(exports settableObject, moduleName, name string, fn interface{}) {
 	if err := exports.Set(name, fn); err != nil {
