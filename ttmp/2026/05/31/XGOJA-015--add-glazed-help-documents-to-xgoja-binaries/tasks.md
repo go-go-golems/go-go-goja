@@ -21,15 +21,15 @@
 - [x] Validate duplicate help source names and missing help source filesystems.
 - [x] Extend providerapi tests for successful help source resolution and invalid entries.
 - [x] Run `go test ./pkg/xgoja/providerapi -count=1`.
-- [ ] Commit provider API support.
+- [x] Commit provider API support.
 
 ### Phase 2: Buildspec/runtime spec support
 
-- [ ] Add `help.sources` YAML schema to `cmd/xgoja/internal/buildspec`.
-- [ ] Add matching JSON runtime spec types to `pkg/xgoja/app`.
-- [ ] Add `validateHelp(...)` for duplicate IDs, missing IDs, missing paths, mixed provider/path sources, unknown package IDs, and embedded path existence.
-- [ ] Add buildspec tests for valid and invalid help source declarations.
-- [ ] Run `go test ./cmd/xgoja/internal/buildspec -count=1`.
+- [x] Add `help.sources` YAML schema to `cmd/xgoja/internal/buildspec`.
+- [x] Add matching JSON runtime spec types to `pkg/xgoja/app`.
+- [x] Add `validateHelp(...)` for duplicate IDs, missing IDs, missing paths, mixed provider/path sources, unknown package IDs, and embedded path existence.
+- [x] Add buildspec tests for valid and invalid help source declarations.
+- [x] Run `go test ./cmd/xgoja/internal/buildspec -count=1`.
 - [ ] Commit buildspec/runtime spec support.
 
 ### Phase 3: Generator embedding support

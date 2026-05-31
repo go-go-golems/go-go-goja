@@ -11,6 +11,7 @@ type Spec struct {
 	Commands         CommandsSpec              `yaml:"commands"`
 	CommandProviders []CommandProviderInstance `yaml:"commandProviders"`
 	JSVerbs          []JSVerbSourceSpec        `yaml:"jsverbs"`
+	Help             HelpSpec                  `yaml:"help"`
 	BaseDir          string                    `yaml:"-"`
 }
 
@@ -85,6 +86,18 @@ type CommandProviderInstance struct {
 }
 
 type JSVerbSourceSpec struct {
+	ID      string `yaml:"id" json:"id"`
+	Path    string `yaml:"path" json:"path,omitempty"`
+	Embed   bool   `yaml:"embed" json:"embed"`
+	Package string `yaml:"package" json:"package,omitempty"`
+	Source  string `yaml:"source" json:"source,omitempty"`
+}
+
+type HelpSpec struct {
+	Sources []HelpSourceSpec `yaml:"sources" json:"sources,omitempty"`
+}
+
+type HelpSourceSpec struct {
 	ID      string `yaml:"id" json:"id"`
 	Path    string `yaml:"path" json:"path,omitempty"`
 	Embed   bool   `yaml:"embed" json:"embed"`

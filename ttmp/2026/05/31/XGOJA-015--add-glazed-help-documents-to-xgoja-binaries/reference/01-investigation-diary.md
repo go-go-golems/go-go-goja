@@ -17,7 +17,7 @@ RelatedFiles:
       Note: Loupedeck embedded docs package inspected for provider help source design
 ExternalSources: []
 Summary: Chronological diary for researching and designing Glazed help document support in generated xgoja binaries.
-LastUpdated: 2026-05-31T12:05:00-04:00
+LastUpdated: 2026-05-31T12:18:00-04:00
 WhatFor: Use to understand what was inspected, what decisions were made, and how to continue implementation.
 WhenToUse: Read before implementing XGOJA-015 or reviewing the design guide.
 ---
@@ -405,4 +405,119 @@ providerapi.HelpSource{
     FS:          docs.FS(),
     Root:        ".",
 }
+```
+
+## Step 4: Added `help.sources` to the buildspec and runtime spec
+
+This step added the declarative configuration layer for help documents. The buildspec now has a `help.sources` section that can describe provider-shipped docs or local filesystem docs, and the generated runtime spec has matching JSON types so later phases can pass that configuration into generated binaries.
+
+The validation logic follows the existing `jsverbs` source-list pattern but is stricter about local embedded docs being directories. That matters because Glazed help docs are usually a tree of `topics/`, `tutorials/`, and related directories, not a single file.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 3)
+
+**Assistant interpretation:** Continue implementing the detailed task list phase by phase, with validation and diary updates.
+
+**Inferred user intent:** Land small reviewable implementation increments rather than one large change.
+
+**Commit (code):** pending at time of diary entry — buildspec/runtime spec phase prepared for commit.
+
+### What I did
+
+- Added `HelpSpec` and `HelpSourceSpec` to `cmd/xgoja/internal/buildspec/spec.go`.
+- Added matching `HelpSpec` and `HelpSourceSpec` to `pkg/xgoja/app/spec.go`.
+- Added `validateHelp(...)` to `cmd/xgoja/internal/buildspec/validate.go`.
+- Refactored path existence helpers so embedded help sources can require an existing directory.
+- Extended `load_test.go` to parse a provider help source from YAML.
+- Added `validate_test.go` coverage for:
+  - valid provider help sources,
+  - valid embedded local help directories,
+  - valid non-embedded runtime filesystem sources,
+  - duplicate help source IDs,
+  - missing provider source fields,
+  - unknown package IDs,
+  - mixed provider/path sources,
+  - missing paths,
+  - embedded paths that are files instead of directories,
+  - missing source IDs.
+- Ran:
+
+```bash
+cd go-go-goja
+gofmt -w cmd/xgoja/internal/buildspec/spec.go \
+  cmd/xgoja/internal/buildspec/validate.go \
+  cmd/xgoja/internal/buildspec/validate_test.go \
+  cmd/xgoja/internal/buildspec/load_test.go \
+  pkg/xgoja/app/spec.go
+go test ./cmd/xgoja/internal/buildspec -count=1
+```
+
+### Why
+
+- The provider API alone cannot make docs selectable. `xgoja.yaml` needs a stable schema so generated binary authors can decide which provider or local help docs to include.
+- Matching runtime JSON types are needed because the generated binary decodes an embedded runtime spec into `pkg/xgoja/app.Spec`.
+
+### What worked
+
+- The focused buildspec test passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.003s
+```
+
+### What didn't work
+
+- The first test run failed because I refactored `existingPathInfo` to return three values but left `requireExistingPath` expecting two:
+
+```text
+# github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec [github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec.test]
+cmd/xgoja/internal/buildspec/validate.go:286:12: assignment mismatch: 2 variables but existingPathInfo returns 3 values
+FAIL	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec [build failed]
+```
+
+- I fixed `requireExistingPath` to discard both the resolved path and file info, then re-ran tests successfully.
+
+### What I learned
+
+- The existing validation report model is enough for `help.sources`; no new reporting abstraction was needed.
+- Keeping provider and path source shapes mutually exclusive makes validation messages clearer and avoids ambiguous runtime behavior.
+
+### What was tricky to build
+
+- The tricky bit was preserving existing `jsverbs` path behavior while adding directory-specific validation for help docs. I avoided changing `requireExistingPath` semantics for JS verbs and added `requireExistingDir` for help sources.
+
+### What warrants a second pair of eyes
+
+- Confirm that non-embedded runtime filesystem help sources should be accepted without requiring the path to exist at build time. This matches the current `jsverbs` non-embedded behavior, but bundled docs should generally use `embed: true`.
+- Confirm that `help.sources` is the final desired YAML field name.
+
+### What should be done in the future
+
+- Add generator support so embedded local help paths are copied and rewritten into the runtime JSON.
+- Add app loading support so provider and local help sources are read into the generated root help system.
+
+### Code review instructions
+
+- Review `cmd/xgoja/internal/buildspec/spec.go` and `pkg/xgoja/app/spec.go` together to ensure YAML and runtime JSON shapes stay aligned.
+- Review `validateHelp(...)` in `cmd/xgoja/internal/buildspec/validate.go` for error paths.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja/internal/buildspec -count=1
+```
+
+### Technical details
+
+Supported YAML shape:
+
+```yaml
+help:
+  sources:
+    - id: provider-docs
+      package: loupedeck
+      source: runtime-api
+    - id: local-docs
+      path: ./docs/help
+      embed: true
 ```
