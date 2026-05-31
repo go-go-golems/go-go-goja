@@ -17,7 +17,7 @@ RelatedFiles:
       Note: Loupedeck embedded docs package inspected for provider help source design
 ExternalSources: []
 Summary: Chronological diary for researching and designing Glazed help document support in generated xgoja binaries.
-LastUpdated: 2026-05-31T12:44:00-04:00
+LastUpdated: 2026-05-31T12:54:00-04:00
 WhatFor: Use to understand what was inspected, what decisions were made, and how to continue implementation.
 WhenToUse: Read before implementing XGOJA-015 or reviewing the design guide.
 ---
@@ -746,4 +746,123 @@ helpSystem.LoadSectionsFromFS(opts.EmbeddedHelp, source.Path)
 
 // Runtime filesystem docs
 helpSystem.LoadSectionsFromFS(os.DirFS(source.Path), ".")
+```
+
+## Step 7: Registered Loupedeck help docs as an xgoja provider help source
+
+This step wired the motivating real provider. The Loupedeck docs package now exposes its embedded documentation filesystem, and the Loupedeck xgoja provider registers a `runtime-api` help source that contains the existing API reference and tutorials.
+
+This makes the user-specified page, `loupedeck/docs/help/topics/01-loupedeck-js-api-reference.md`, available to generated xgoja binaries that include the Loupedeck provider and select `help.sources: [{ package: loupedeck, source: runtime-api }]`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 3)
+
+**Assistant interpretation:** Continue implementation with the Loupedeck provider integration phase and commit it separately in the Loupedeck repository.
+
+**Inferred user intent:** Prove the provider help source design works for the concrete package that motivated the ticket.
+
+**Commit (code):** `b5825faefbf648a8e22d2078865f7aa839e6ac0c` — "XGOJA: expose loupedeck help docs"
+
+### What I did
+
+- Updated `loupedeck/docs/help/doc.go` to export:
+
+```go
+func FS() fs.FS {
+    return docFS
+}
+```
+
+- Updated `loupedeck/runtime/js/provider/provider.go` to register:
+
+```go
+providerapi.HelpSource{
+    Name:        "runtime-api",
+    Description: "Loupedeck JavaScript runtime API reference and tutorials",
+    FS:          helpdoc.FS(),
+    Root:        ".",
+}
+```
+
+- Added `TestRegisterProviderHelpSource` in `loupedeck/runtime/js/provider/provider_test.go` to resolve `loupedeck.runtime-api` and verify the embedded API reference contains `Slug: loupedeck-js-api-reference`.
+- Ran:
+
+```bash
+cd loupedeck
+gofmt -w docs/help/doc.go runtime/js/provider/provider.go runtime/js/provider/provider_test.go
+go test ./runtime/js/provider ./pkg/xgoja/provider -count=1
+```
+
+- Committed the Loupedeck repo changes.
+
+### Why
+
+- The Loupedeck API reference is the concrete example requested in the prompt.
+- Exporting `FS()` keeps the standalone Loupedeck CLI's `AddDocToHelpSystem` behavior intact while allowing provider registration to expose the same docs to xgoja.
+
+### What worked
+
+- Focused Loupedeck tests passed:
+
+```text
+ok  	github.com/go-go-golems/loupedeck/runtime/js/provider	0.124s
+?   	github.com/go-go-golems/loupedeck/pkg/xgoja/provider	[no test files]
+```
+
+- The Loupedeck code committed successfully:
+
+```text
+[task/xgoja-docs b5825fa] XGOJA: expose loupedeck help docs
+ 3 files changed, 35 insertions(+)
+```
+
+### What didn't work
+
+- My first provider import used the default import name incorrectly. The package at `github.com/go-go-golems/loupedeck/docs/help` declares `package doc`, so I changed the import to an explicit alias:
+
+```go
+helpdoc "github.com/go-go-golems/loupedeck/docs/help"
+```
+
+- My first test sketch introduced unnecessary `json.Valid(...)` code to keep an import live, but `encoding/json` was already used elsewhere in the file. I replaced the custom byte helper with `bytes.Contains`.
+
+### What I learned
+
+- The docs package pattern can support both standalone CLIs and xgoja providers with a tiny exported `FS()` helper.
+- The `pkg/xgoja/provider` wrapper continues to work because it delegates to `runtime/js/provider.Register`.
+
+### What was tricky to build
+
+- The only sharp edge was Go's package-name behavior: import path base names and declared package names can differ. Explicit aliasing avoids ambiguity and makes the provider registration line read clearly as `helpdoc.FS()`.
+
+### What warrants a second pair of eyes
+
+- Confirm the provider source name `runtime-api` is broad enough for both API references and tutorials. If maintainers prefer narrower names, split docs into multiple sources later.
+- Confirm the source should load all `docs/help` entries (`Root: "."`) rather than only `topics/`.
+
+### What should be done in the future
+
+- Add an end-to-end generated xgoja binary example/spec using `loupedeck.runtime-api` after cross-repo test setup is convenient.
+- Update xgoja's own help docs to document provider help sources and Loupedeck-style references.
+
+### Code review instructions
+
+- In `loupedeck`, start at `docs/help/doc.go`, then inspect `runtime/js/provider/provider.go` registration.
+- Validate with:
+
+```bash
+go test ./runtime/js/provider ./pkg/xgoja/provider -count=1
+```
+
+### Technical details
+
+Buildspec selection shape for the new provider help source:
+
+```yaml
+help:
+  sources:
+    - id: loupedeck-runtime-api
+      package: loupedeck
+      source: runtime-api
 ```

@@ -51,15 +51,15 @@
 - [x] Keep `help_cmd.SetupCobraRootCommand(...)` called exactly once.
 - [x] Add app tests for provider help source lookup, embedded local help lookup, and missing provider source errors.
 - [x] Run `go test ./pkg/xgoja/app -count=1`.
-- [ ] Commit generated root loading support.
+- [x] Commit generated root loading support.
 
 ### Phase 5: Loupedeck provider documentation support
 
-- [ ] Export `FS() fs.FS` from `loupedeck/docs/help` without breaking `AddDocToHelpSystem`.
-- [ ] Register a `providerapi.HelpSource{Name: "runtime-api"}` in `loupedeck/runtime/js/provider.Register`.
-- [ ] Add Loupedeck provider tests that resolve `loupedeck.runtime-api` and verify its filesystem contains the API reference.
-- [ ] Run `go test ./runtime/js/provider ./pkg/xgoja/provider -count=1` in `loupedeck`.
-- [ ] Commit Loupedeck provider docs support.
+- [x] Export `FS() fs.FS` from `loupedeck/docs/help` without breaking `AddDocToHelpSystem`.
+- [x] Register a `providerapi.HelpSource{Name: "runtime-api"}` in `loupedeck/runtime/js/provider.Register`.
+- [x] Add Loupedeck provider tests that resolve `loupedeck.runtime-api` and verify its filesystem contains the API reference.
+- [x] Run `go test ./runtime/js/provider ./pkg/xgoja/provider -count=1` in `loupedeck`.
+- [x] Commit Loupedeck provider docs support.
 
 ### Phase 6: End-to-end docs, diary, and validation
 
