@@ -15,12 +15,12 @@
 
 ### Phase 1: Provider API support
 
-- [ ] Add `providerapi.HelpSource` with `Name`, `Description`, `FS`, and `Root` fields.
-- [ ] Add `HelpSources` storage to `providerapi.Package` snapshots and registry clones.
-- [ ] Add `Registry.ResolveHelpSource(packageID, sourceName)`.
-- [ ] Validate duplicate help source names and missing help source filesystems.
-- [ ] Extend providerapi tests for successful help source resolution and invalid entries.
-- [ ] Run `go test ./pkg/xgoja/providerapi -count=1`.
+- [x] Add `providerapi.HelpSource` with `Name`, `Description`, `FS`, and `Root` fields.
+- [x] Add `HelpSources` storage to `providerapi.Package` snapshots and registry clones.
+- [x] Add `Registry.ResolveHelpSource(packageID, sourceName)`.
+- [x] Validate duplicate help source names and missing help source filesystems.
+- [x] Extend providerapi tests for successful help source resolution and invalid entries.
+- [x] Run `go test ./pkg/xgoja/providerapi -count=1`.
 - [ ] Commit provider API support.
 
 ### Phase 2: Buildspec/runtime spec support

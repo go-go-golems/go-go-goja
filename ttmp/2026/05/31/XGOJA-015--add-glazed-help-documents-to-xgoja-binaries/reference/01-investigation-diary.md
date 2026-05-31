@@ -17,7 +17,7 @@ RelatedFiles:
       Note: Loupedeck embedded docs package inspected for provider help source design
 ExternalSources: []
 Summary: Chronological diary for researching and designing Glazed help document support in generated xgoja binaries.
-LastUpdated: 2026-05-31T11:45:00-04:00
+LastUpdated: 2026-05-31T12:05:00-04:00
 WhatFor: Use to understand what was inspected, what decisions were made, and how to continue implementation.
 WhenToUse: Read before implementing XGOJA-015 or reviewing the design guide.
 ---
@@ -295,4 +295,114 @@ Upload verification command:
 
 ```bash
 remarquee cloud ls /ai/2026/05/31/XGOJA-015 --long --non-interactive
+```
+
+## Step 3: Added provider-level HelpSource support
+
+This step implemented the provider-facing documentation source primitive. The registry can now store package-owned Glazed help sources alongside modules, JavaScript verb sources, package capabilities, and command set providers. This is the first code-level building block for generated xgoja binaries to load provider-shipped help pages.
+
+The implementation intentionally mirrors the existing `VerbSource` pattern: providers contribute an `fs.FS` plus a root directory and a stable source name. The app layer will later decide which registered source to load based on `help.sources` in `xgoja.yaml`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add detailed tasks to the ticket, and then implement them one by one, keeping a detailed diary, and committing at appropriate intervals."
+
+**Assistant interpretation:** Expand the ticket tasks into implementation phases, then begin implementing and committing the phases with diary updates.
+
+**Inferred user intent:** Move from research/design into code while keeping the ticket usable for review and continuation.
+
+**Commit (code):** pending at time of diary entry — provider API phase prepared for commit.
+
+### What I did
+
+- Expanded `tasks.md` into detailed phase-by-phase implementation tasks.
+- Added `pkg/xgoja/providerapi/help.go` with `HelpSource` and normalization.
+- Extended `pkg/xgoja/providerapi/registry.go` with:
+  - `Package.HelpSources`,
+  - `Registry.ResolveHelpSource`,
+  - `Package.addHelpSource`,
+  - clone support for help source snapshots.
+- Extended `pkg/xgoja/providerapi/registry_test.go` to cover:
+  - successful help source registration and lookup,
+  - cloned package snapshots containing help sources,
+  - duplicate help source rejection,
+  - missing help source name rejection,
+  - missing help source filesystem rejection.
+- Ran:
+
+```bash
+cd go-go-goja
+gofmt -w pkg/xgoja/providerapi/help.go pkg/xgoja/providerapi/registry.go pkg/xgoja/providerapi/registry_test.go
+go test ./pkg/xgoja/providerapi -count=1
+```
+
+### Why
+
+- Provider-owned documentation needs a stable provider API entry before the buildspec or generated app can refer to it.
+- Keeping the API as `fs.FS` + root makes it consistent with existing Glazed loading and with provider-owned verb source registration.
+
+### What worked
+
+- The focused providerapi test passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi	0.014s
+```
+
+### What didn't work
+
+- My first edit to `registry_test.go` accidentally inserted malformed text into the import block:
+
+```text
+"github.com/dop251/goja"},{
+```
+
+- `gofmt` reported the issue exactly:
+
+```text
+pkg/xgoja/providerapi/registry_test.go:9:26: missing import path
+```
+
+- I fixed the import block to separate `github.com/dop251/goja` and `github.com/dop251/goja_nodejs/require`, then re-ran `gofmt` and tests successfully.
+
+### What I learned
+
+- The provider registry was already well-shaped for another package entry type.
+- The least surprising API is almost identical to `VerbSource`, with the additional validation that `FS` must be non-nil because help loading cannot work without it.
+
+### What was tricky to build
+
+- The tricky part was keeping the provider API independent from the app help loader. `HelpSource` should not take a `*help.HelpSystem`; if it did, provider registration would own too much root-level behavior. Storing `fs.FS` keeps registration declarative and leaves loading order/error handling in the app layer.
+
+### What warrants a second pair of eyes
+
+- Confirm that requiring `FS != nil` at provider registration time is preferable to allowing a placeholder help source. The current implementation fails early.
+- Confirm that defaulting empty `Root` to `.` is the right convention for provider docs packages.
+
+### What should be done in the future
+
+- Wire `HelpSource` into the buildspec and generated app loader.
+- Add a test provider help source for generated binary integration tests.
+
+### Code review instructions
+
+- Start in `pkg/xgoja/providerapi/help.go` and verify the provider-facing contract.
+- Then review `pkg/xgoja/providerapi/registry.go` for map initialization, lookup, duplicate checking, and cloning.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/providerapi -count=1
+```
+
+### Technical details
+
+New provider registration shape:
+
+```go
+providerapi.HelpSource{
+    Name:        "runtime-api",
+    Description: "Provider API reference and tutorials",
+    FS:          docs.FS(),
+    Root:        ".",
+}
 ```
