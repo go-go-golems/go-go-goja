@@ -21,6 +21,10 @@ RelatedFiles:
       Note: Generated main template that needs embedded help filesystem wiring
     - Path: go-go-goja/cmd/xgoja/root.go
       Note: Standalone xgoja Glazed help setup pattern
+    - Path: go-go-goja/examples/xgoja/09-provider-shipped-help-docs/Makefile
+      Note: Reusable smoke test for help loupedeck-js-api-reference
+    - Path: go-go-goja/examples/xgoja/09-provider-shipped-help-docs/xgoja.yaml
+      Note: Manual smoke-test buildspec for provider-shipped Loupedeck help docs
     - Path: go-go-goja/pkg/xgoja/app/framework.go
       Note: |-
         Generated binary root framework and current built-in help loader
@@ -43,6 +47,7 @@ LastUpdated: 2026-05-31T11:30:00-04:00
 WhatFor: Use when implementing support for additional Glazed help documents in generated xgoja binaries.
 WhenToUse: Read before changing xgoja buildspec parsing, code generation, provider registration, or generated root help wiring.
 ---
+
 
 
 

@@ -236,7 +236,7 @@ Use help sources for API references, tutorials, troubleshooting guides, and pack
 
 ### Provider-shipped help source
 
-Use this when documentation lives inside a provider package. This is the preferred mode for package-owned API references because the docs live with the code that owns the API.
+Use this when documentation lives inside a provider package. This is the preferred mode for package-owned API references because the docs live with the code that owns the API. See `examples/xgoja/09-provider-shipped-help-docs` for a smoke-tested Loupedeck provider example.
 
 ```yaml
 help:

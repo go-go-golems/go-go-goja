@@ -353,6 +353,8 @@ After building, validate with:
 ./dist/myapp help my-repo-js-api-reference
 ```
 
+For a complete smoke-tested reference, inspect `examples/xgoja/09-provider-shipped-help-docs`. It builds a generated binary with the Loupedeck provider and verifies `help loupedeck-js-api-reference`.
+
 Keep slugs unique across all built-in, provider, and local help pages. If two selected docs use the same slug, Glazed help loading should fail rather than silently choosing one.
 
 ## 10. Add a generated xgoja example

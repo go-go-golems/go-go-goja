@@ -65,6 +65,8 @@
 
 - [x] Update xgoja help docs with the new `help.sources` buildspec reference and provider docs guidance.
 - [x] Add or update examples showing provider-shipped and embedded local help docs.
+- [x] Add `examples/xgoja/09-provider-shipped-help-docs` as a reusable Loupedeck provider help docs smoke test.
+- [x] Run `make -C examples/xgoja/09-provider-shipped-help-docs smoke` and verify `help loupedeck-js-api-reference` plus `help loupedeck-js-first-live-script`.
 - [x] Run focused go-go-goja tests: `go test ./pkg/xgoja/providerapi ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./cmd/xgoja/... -count=1`.
 - [x] Run focused loupedeck tests after provider docs wiring.
 - [x] Update diary after each phase with exact commands, failures, tricky parts, and review instructions.

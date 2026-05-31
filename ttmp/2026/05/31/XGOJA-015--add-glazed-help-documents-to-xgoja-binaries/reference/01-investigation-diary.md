@@ -17,6 +17,10 @@ RelatedFiles:
       Note: Step 4 buildspec schema (commit e006c2c)
     - Path: go-go-goja/cmd/xgoja/internal/generate/templates/main.go.tmpl
       Note: Step 5 generated embed wiring (commit 1dec2ba)
+    - Path: go-go-goja/examples/xgoja/09-provider-shipped-help-docs/Makefile
+      Note: Step 10 smoke commands and assertions
+    - Path: go-go-goja/examples/xgoja/09-provider-shipped-help-docs/xgoja.yaml
+      Note: Step 10 manual smoke example
     - Path: go-go-goja/pkg/xgoja/app/framework.go
       Note: Step 6 generated root loading (commit 4c646d9)
     - Path: go-go-goja/pkg/xgoja/providerapi/help.go
@@ -29,10 +33,11 @@ RelatedFiles:
       Note: Step 7 Loupedeck provider docs registration (commit b5825fa)
 ExternalSources: []
 Summary: Chronological diary for researching and designing Glazed help document support in generated xgoja binaries.
-LastUpdated: 2026-05-31T13:12:00-04:00
+LastUpdated: 2026-05-31T13:35:00-04:00
 WhatFor: Use to understand what was inspected, what decisions were made, and how to continue implementation.
 WhenToUse: Read before implementing XGOJA-015 or reviewing the design guide.
 ---
+
 
 
 
@@ -1136,4 +1141,141 @@ Final reMarkable path:
 
 ```text
 /ai/2026/05/31/XGOJA-015/XGOJA-015 Glazed help docs implementation final
+```
+
+## Step 10: Added a manual Loupedeck provider help smoke example
+
+This step answered the follow-up request for a real manual smoke test rather than only unit and generated-program fixture tests. I added `examples/xgoja/09-provider-shipped-help-docs`, which imports the actual Loupedeck xgoja provider, selects the provider-shipped `runtime-api` help source, builds a generated binary, and runs `help` against real Loupedeck help slugs.
+
+The example now doubles as reference material: future provider authors can copy the `help.sources` shape, the provider `replace` pattern, and the Makefile smoke commands when they need to prove package-owned Glazed docs are visible from a generated xgoja binary.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, do a manual smoke test with an example goja.yaml within go-go-goja, which can then also serve as reference for later on. Also, update any documentation that is relevant to mention that functionality."
+
+**Assistant interpretation:** Add a reusable example under `go-go-goja/examples/xgoja`, run it manually, and update xgoja documentation to point users at it.
+
+**Inferred user intent:** Strengthen validation with a real generated Loupedeck binary path and leave behind a concrete reference example for future work.
+
+**Commit (code):** pending at time of diary entry — manual smoke example/docs prepared for commit.
+
+### What I did
+
+- Added `examples/xgoja/09-provider-shipped-help-docs/xgoja.yaml`.
+  - It imports `github.com/go-go-golems/loupedeck/pkg/xgoja/provider`.
+  - It uses `replace: ../../../../loupedeck` for local workspace development.
+  - It selects `help.sources[].package: loupedeck` and `source: runtime-api`.
+- Added `examples/xgoja/09-provider-shipped-help-docs/Makefile`.
+  - `doctor` validates the spec.
+  - `list` shows selected modules.
+  - `build` creates the generated binary with `--xgoja-replace`.
+  - `run` verifies `help loupedeck-js-api-reference` and `help loupedeck-js-first-live-script`.
+- Added `examples/xgoja/09-provider-shipped-help-docs/README.md` explaining the example and smoke commands.
+- Updated `examples/xgoja/README.md` to include the new ninth example in the learning path and all-example loop.
+- Updated xgoja docs to point at the new example:
+  - `cmd/xgoja/doc/02-user-guide.md`
+  - `cmd/xgoja/doc/06-buildspec-reference.md`
+  - `cmd/xgoja/doc/08-playbook-adding-xgoja-support.md`
+- Ran:
+
+```bash
+cd go-go-goja
+go test ./cmd/xgoja/... -count=1
+make -C examples/xgoja/09-provider-shipped-help-docs smoke
+rm -rf examples/xgoja/09-provider-shipped-help-docs/dist
+```
+
+### Why
+
+- The previous generated-binary smoke coverage proved embedded local help docs, but the real Loupedeck provider path needed a manual end-to-end check.
+- A committed example is better than an ad-hoc `/tmp` smoke spec because future maintainers can rerun it and use it as a template.
+
+### What worked
+
+- The new example's `doctor` step validated the provider help source:
+
+```text
+| help-provider-source | ok | help.sources[0] | ... | provider source loupedeck.runtime-api |
+```
+
+- The build succeeded:
+
+```text
+xgoja build ok: /home/manuel/workspaces/2026-05-31/xgoja-docs/go-go-goja/examples/xgoja/09-provider-shipped-help-docs/dist/provider-shipped-help-docs
+```
+
+- The generated binary rendered the Loupedeck API reference:
+
+```text
+provider-shipped-help-docs help loupedeck-js-api-reference | grep -F "Loupedeck JavaScript runtime API reference"
+  # Loupedeck JavaScript runtime API reference:
+```
+
+- The generated binary rendered the Loupedeck first-script tutorial:
+
+```text
+provider-shipped-help-docs help loupedeck-js-first-live-script | grep -F "Build your first live Loupedeck JavaScript script"
+  # Build your first live Loupedeck JavaScript script:
+```
+
+- `go test ./cmd/xgoja/... -count=1` passed before the manual smoke run.
+
+### What didn't work
+
+- My first Makefile used the wrong tutorial slug:
+
+```text
+Unknown help topic [`tutorial-build-your-first-live-loupedeck-js-script`]
+make: *** [Makefile:23: run] Error 1
+```
+
+- I checked `loupedeck/docs/help/tutorials/01-build-your-first-live-loupedeck-js-script.md` and found the correct slug:
+
+```yaml
+Slug: loupedeck-js-first-live-script
+```
+
+- I updated the Makefile and README, then reran the full smoke successfully.
+
+### What I learned
+
+- The manual Loupedeck path validates more than the unit tests: it proves generated `go.mod` replacement, provider registration, Glazed help loading, and real Loupedeck help slugs all work together.
+- Help slugs are the stable user-facing API. Example smoke tests should grep known title text but call the exact slug from frontmatter.
+
+### What was tricky to build
+
+- The relative replace path is easy to get wrong. From `go-go-goja/examples/xgoja/09-provider-shipped-help-docs`, the sibling Loupedeck repo is `../../../../loupedeck`.
+- The example needs a runtime profile even though the smoke focuses on help docs, because xgoja buildspec validation requires at least one runtime with at least one module. I selected `loupedeck/state` because it is safe and does not require hardware.
+
+### What warrants a second pair of eyes
+
+- Confirm the example should stay in the numbered learning path as `09-...` and that adding Loupedeck as a sibling-repo dependency is acceptable for the all-example loop in this workspace.
+- Confirm the Makefile should keep `--keep-work`; existing examples do, but it leaves `/tmp/xgoja-build-*` workspaces for inspection.
+
+### What should be done in the future
+
+- Consider adding a CI job that runs the numbered xgoja examples only in workspaces where sibling provider repositories are checked out.
+- If this example becomes too heavy for routine smoke loops, keep it documented as an optional cross-repo smoke test.
+
+### Code review instructions
+
+- Start with `examples/xgoja/09-provider-shipped-help-docs/xgoja.yaml`.
+- Review the Makefile `run` target to see the actual end-to-end assertions.
+- Validate with:
+
+```bash
+make -C examples/xgoja/09-provider-shipped-help-docs smoke
+rm -rf examples/xgoja/09-provider-shipped-help-docs/dist
+```
+
+### Technical details
+
+The key spec section is:
+
+```yaml
+help:
+  sources:
+    - id: loupedeck-runtime-api
+      package: loupedeck
+      source: runtime-api
 ```

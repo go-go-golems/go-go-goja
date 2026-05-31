@@ -14,6 +14,7 @@ Each example directory has its own `README.md`, `Makefile`, and `xgoja.yaml`. St
 6. `06-runtime-filesystem/` — JS verbs stay on disk and are scanned by the generated binary at runtime.
 7. `07-embedded-jsverbs/` — local JS verbs are copied into the generated workspace and embedded into the binary.
 8. `08-provider-shipped-jsverbs/` — JS verbs live inside a Go provider package and are selected by `package`/`source`.
+9. `09-provider-shipped-help-docs/` — Glazed help pages live inside a Go provider package and are selected by `help.sources[].package`/`source`.
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 
@@ -28,7 +29,8 @@ for dir in \
   05-command-provider \
   06-runtime-filesystem \
   07-embedded-jsverbs \
-  08-provider-shipped-jsverbs; do
+  08-provider-shipped-jsverbs \
+  09-provider-shipped-help-docs; do
   make -C examples/xgoja/$dir smoke
 done
 ```

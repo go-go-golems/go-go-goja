@@ -59,7 +59,7 @@ help:
       source: runtime-api
 ```
 
-Use embedded local docs for project-specific tutorials. The local directory is copied into `xgoja_embed/help/<id>/` during generation and does not need to exist when the generated binary runs.
+Use embedded local docs for project-specific tutorials. The local directory is copied into `xgoja_embed/help/<id>/` during generation and does not need to exist when the generated binary runs. For a runnable provider-shipped help example, see `examples/xgoja/09-provider-shipped-help-docs`.
 
 Validate and build with:
 

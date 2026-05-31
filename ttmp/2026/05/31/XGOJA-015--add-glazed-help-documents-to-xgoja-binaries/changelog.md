@@ -44,3 +44,13 @@ Finalized implementation diary/tasks after docmgr validation and reMarkable uplo
 - /home/manuel/workspaces/2026-05-31/xgoja-docs/go-go-goja/ttmp/2026/05/31/XGOJA-015--add-glazed-help-documents-to-xgoja-binaries/reference/01-investigation-diary.md — Final validation and upload evidence
 - /home/manuel/workspaces/2026-05-31/xgoja-docs/go-go-goja/ttmp/2026/05/31/XGOJA-015--add-glazed-help-documents-to-xgoja-binaries/tasks.md — Implementation checklist status
 
+
+## 2026-05-31
+
+Added examples/xgoja/09-provider-shipped-help-docs and manually smoke-tested a generated binary that loads Loupedeck provider-shipped help docs via help loupedeck-js-api-reference and help loupedeck-js-first-live-script.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-31/xgoja-docs/go-go-goja/examples/xgoja/09-provider-shipped-help-docs/Makefile — Manual smoke test target
+- /home/manuel/workspaces/2026-05-31/xgoja-docs/go-go-goja/examples/xgoja/09-provider-shipped-help-docs/xgoja.yaml — Reference buildspec for provider-shipped help docs
+
