@@ -1,12 +1,13 @@
 ---
 Title: "xgoja user guide and buildspec reference"
 Slug: user-guide
-Short: "Reference for xgoja.yaml packages, runtimes, commands, targets, and jsverb source modes."
+Short: "Reference for xgoja.yaml packages, runtimes, commands, targets, help docs, and jsverb source modes."
 Topics:
 - xgoja
 - buildspec
 - providers
 - jsverbs
+- help-system
 - goja
 Commands:
 - xgoja build
@@ -25,7 +26,7 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-An `xgoja.yaml` file describes the generated binary. It names the output program, selects provider packages, defines runtime profiles, enables commands, and configures JavaScript verb sources.
+An `xgoja.yaml` file describes the generated binary. It names the output program, selects provider packages, defines runtime profiles, enables commands, configures JavaScript verb sources, and optionally bundles Glazed help entries.
 
 A minimal shape looks like this:
 
@@ -81,6 +82,8 @@ commands:
 `commands` enables generated command families and points them at runtime profiles.
 
 `jsverbs` configures JavaScript verb sources that are mounted under the generated jsverbs command.
+
+`help.sources` configures additional Glazed help pages loaded into the generated binary's `help` command.
 
 `commandProviders` mounts Glazed command sets supplied by provider packages.
 
@@ -223,6 +226,75 @@ Adapter packages expose a function compatible with:
 Build(context.Context, *app.Host) (*cobra.Command, error)
 ```
 
+## Help document sources
+
+Generated xgoja binaries always include generic xgoja runtime help, such as `runtime-overview`. The optional `help.sources` section adds package-specific or project-specific Glazed help pages to the same help system.
+
+Use help sources for API references, tutorials, troubleshooting guides, and package-specific runtime documentation. For example, a Loupedeck-oriented generated binary can include the Loupedeck JavaScript API reference and expose it as `help loupedeck-js-api-reference`.
+
+`help.sources` supports three source modes.
+
+### Provider-shipped help source
+
+Use this when documentation lives inside a provider package. This is the preferred mode for package-owned API references because the docs live with the code that owns the API.
+
+```yaml
+help:
+  sources:
+    - id: loupedeck-runtime-api
+      package: loupedeck
+      source: runtime-api
+```
+
+The provider must register the source with an `fs.FS`:
+
+```go
+import helpdoc "github.com/go-go-golems/loupedeck/docs/help"
+
+func Register(registry *providerapi.Registry) error {
+    return registry.Package("loupedeck",
+        providerapi.HelpSource{
+            Name:        "runtime-api",
+            Description: "Loupedeck JavaScript runtime API reference and tutorials",
+            FS:          helpdoc.FS(),
+            Root:        ".",
+        },
+    )
+}
+```
+
+### Embedded local help source
+
+Use this when project-local Markdown files should become part of the generated binary.
+
+```yaml
+help:
+  sources:
+    - id: project-docs
+      path: ./docs/help
+      embed: true
+```
+
+At build time, xgoja copies the directory into the generated workspace under `xgoja_embed/help/<id>/`. Generated source embeds it with `go:embed`, and the generated root loads the pages into the Glazed help system.
+
+The original path must exist when `xgoja build` runs. It does not need to exist when the generated binary runs.
+
+### Runtime filesystem help source
+
+Use this during documentation development when the generated binary should read pages from disk at runtime.
+
+```yaml
+help:
+  sources:
+    - id: dev-docs
+      path: ./docs/help
+      embed: false
+```
+
+The files must exist when the generated binary runs. Prefer `embed: true` for distributed binaries.
+
+Every Markdown file must be a Glazed help entry with frontmatter fields such as `Title`, `Slug`, `Short`, `Topics`, `Commands`, `Flags`, `IsTopLevel`, `IsTemplate`, `ShowPerDefault`, and `SectionType`. Slugs are global within one generated binary, so avoid collisions between built-in, provider, and local docs.
+
 ## JavaScript verb sources
 
 `jsverbs` supports three distinct source modes.
@@ -289,16 +361,18 @@ Run validation before building:
 xgoja doctor -f xgoja.yaml
 ```
 
-The validator checks supported target kinds, package uniqueness, known runtime package IDs, duplicate runtime aliases, enabled command runtime references, command provider package/runtime references, jsverb source IDs, and local paths for embedded sources.
+The validator checks supported target kinds, package uniqueness, known runtime package IDs, duplicate runtime aliases, enabled command runtime references, command provider package/runtime references, jsverb source IDs, help source IDs, provider help source package references, and local paths for embedded sources.
 
 ## Troubleshooting
 
 | Problem | Cause | Solution |
 | --- | --- | --- |
-| `unknown package id` | A runtime or jsverb source references a package not listed in `packages`. | Add the package entry or fix the ID. |
+| `unknown package id` | A runtime, jsverb source, command provider, or help source references a package not listed in `packages`. | Add the package entry or fix the ID. |
 | `duplicate alias` | Two modules in one runtime resolve to the same `require()` name. | Set distinct `as` values. |
 | embedded source path error | `embed: true` uses a path missing at build time. | Fix `path` relative to the spec file or use an absolute path. |
 | provider verb source has no filesystem | The provider registered metadata but no `FS`. | Register `providerapi.VerbSource{FS: ..., Root: ...}`. |
+| provider help source not found | `help.sources[].package` or `help.sources[].source` does not match a registered `providerapi.HelpSource`. | Verify the provider registration and the buildspec package/source names. |
+| help topic not found | The docs were not selected, the slug is different, or the page failed to load due to a duplicate slug. | Run `help` to list visible topics and inspect the Markdown frontmatter. |
 | command provider not mounted | `commandProviders[].package` or `commandProviders[].name` does not match a registered command set provider, or mounting failed during generated command construction. | Verify the provider registration and run the generated binary with `--help` to inspect the command tree. |
 | generated build cannot resolve `github.com/go-go-golems/go-go-goja v0.0.0` | You are running xgoja from source, so no released module version is recorded in the binary. | Pass `--xgoja-replace /path/to/go-go-goja` while developing locally, or build with a released xgoja binary. |
 | generated build fails | The generated module cannot resolve imports or replacements. | Re-run with `--keep-work` and inspect generated `go.mod` and `main.go`. |

@@ -17,7 +17,7 @@ RelatedFiles:
       Note: Loupedeck embedded docs package inspected for provider help source design
 ExternalSources: []
 Summary: Chronological diary for researching and designing Glazed help document support in generated xgoja binaries.
-LastUpdated: 2026-05-31T12:54:00-04:00
+LastUpdated: 2026-05-31T13:04:00-04:00
 WhatFor: Use to understand what was inspected, what decisions were made, and how to continue implementation.
 WhenToUse: Read before implementing XGOJA-015 or reviewing the design guide.
 ---
@@ -865,4 +865,146 @@ help:
     - id: loupedeck-runtime-api
       package: loupedeck
       source: runtime-api
+```
+
+## Step 8: Updated xgoja help docs and ran focused validation
+
+This step updated the user-facing xgoja help pages so the new feature is discoverable from `xgoja help`. The docs now explain `help.sources`, provider-shipped help docs, embedded local help docs, and runtime filesystem help docs.
+
+This step also ran focused validation in both affected repositories. The go-go-goja tests cover provider API, buildspec validation, generator output, app help loading, and xgoja CLI docs. The Loupedeck tests cover provider registration of the real `runtime-api` help source.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 3)
+
+**Assistant interpretation:** Document the implemented feature and run the focused validation suite before final ticket bookkeeping.
+
+**Inferred user intent:** Ensure the implementation is usable and documented, not just internally wired.
+
+**Commit (code):** pending at time of diary entry — xgoja docs/final validation phase prepared for commit.
+
+### What I did
+
+- Updated `cmd/xgoja/doc/02-user-guide.md` with:
+  - `help.sources` as a top-level buildspec field,
+  - provider-shipped help source examples,
+  - embedded local help source examples,
+  - runtime filesystem help source examples,
+  - validation and troubleshooting notes.
+- Updated `cmd/xgoja/doc/06-buildspec-reference.md` with quick-reference `help.sources` examples.
+- Updated `cmd/xgoja/doc/08-playbook-adding-xgoja-support.md` with provider-owned help docs registration guidance.
+- Ran xgoja docs/package validation:
+
+```bash
+cd go-go-goja
+go test ./cmd/xgoja/... -count=1
+```
+
+- Ran focused go-go-goja validation:
+
+```bash
+cd go-go-goja
+go test ./pkg/xgoja/providerapi ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./cmd/xgoja/... -count=1
+```
+
+- Ran focused Loupedeck validation:
+
+```bash
+cd loupedeck
+go test ./runtime/js/provider ./pkg/xgoja/provider -count=1
+```
+
+### Why
+
+- A buildspec feature must be documented in the CLI's own help system, or users will have to reverse-engineer it from tests.
+- Running focused tests in both repositories catches cross-repo API drift before finalizing the ticket.
+
+### What worked
+
+- xgoja docs/package tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	6.184s
+?   	github.com/go-go-golems/go-go-goja/cmd/xgoja/doc	[no test files]
+?   	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildexec	[no test files]
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.005s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	23.735s
+```
+
+- Focused go-go-goja validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi	0.019s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.006s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	27.319s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.177s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	7.740s
+?   	github.com/go-go-golems/go-go-goja/cmd/xgoja/doc	[no test files]
+?   	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildexec	[no test files]
+```
+
+- Focused Loupedeck validation passed:
+
+```text
+ok  	github.com/go-go-golems/loupedeck/runtime/js/provider	0.087s
+?   	github.com/go-go-golems/loupedeck/pkg/xgoja/provider	[no test files]
+```
+
+### What didn't work
+
+- N/A. The documentation updates and focused validation passed.
+
+### What I learned
+
+- The xgoja help docs already had the right structure for adding another source family next to JavaScript verb sources.
+- The feature is easiest to explain by mirroring `jsverbs`: provider-shipped source, embedded local source, runtime filesystem source.
+
+### What was tricky to build
+
+- The trickiest documentation point was distinguishing provider-owned documentation from project-local documentation. Provider docs should live with the package API; project docs should live next to the generated app spec.
+
+### What warrants a second pair of eyes
+
+- Review the help docs for terminology: `help.sources`, `HelpSource`, and `runtime-api` should read consistently.
+- Check that the playbook's provider registration example matches the final providerapi signatures.
+
+### What should be done in the future
+
+- Consider adding a small standalone `examples/xgoja` directory dedicated to help docs if users need a copy/paste runnable sample beyond the tests and help pages.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/doc/02-user-guide.md` to review the end-user buildspec docs.
+- Then review `cmd/xgoja/doc/08-playbook-adding-xgoja-support.md` for provider author guidance.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/providerapi ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./cmd/xgoja/... -count=1
+```
+
+### Technical details
+
+The docs describe three help source modes:
+
+```yaml
+# Provider-shipped docs
+help:
+  sources:
+    - id: loupedeck-runtime-api
+      package: loupedeck
+      source: runtime-api
+
+# Embedded local docs
+help:
+  sources:
+    - id: project-docs
+      path: ./docs/help
+      embed: true
+
+# Runtime filesystem docs
+help:
+  sources:
+    - id: dev-docs
+      path: ./docs/help
+      embed: false
 ```

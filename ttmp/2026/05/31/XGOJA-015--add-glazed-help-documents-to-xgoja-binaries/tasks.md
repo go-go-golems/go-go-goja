@@ -63,10 +63,10 @@
 
 ### Phase 6: End-to-end docs, diary, and validation
 
-- [ ] Update xgoja help docs with the new `help.sources` buildspec reference and provider docs guidance.
-- [ ] Add or update examples showing provider-shipped and embedded local help docs.
-- [ ] Run focused go-go-goja tests: `go test ./pkg/xgoja/providerapi ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./cmd/xgoja/... -count=1`.
-- [ ] Run focused loupedeck tests after provider docs wiring.
+- [x] Update xgoja help docs with the new `help.sources` buildspec reference and provider docs guidance.
+- [x] Add or update examples showing provider-shipped and embedded local help docs.
+- [x] Run focused go-go-goja tests: `go test ./pkg/xgoja/providerapi ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./cmd/xgoja/... -count=1`.
+- [x] Run focused loupedeck tests after provider docs wiring.
 - [ ] Update diary after each phase with exact commands, failures, tricky parts, and review instructions.
 - [ ] Update docmgr changelog and related files after each meaningful milestone.
 - [ ] Run `docmgr doctor --ticket XGOJA-015 --stale-after 30`.

@@ -7,6 +7,7 @@ Topics:
 - providers
 - modules
 - command-providers
+- help-system
 - runtime
 - migration
 Commands:
@@ -35,6 +36,7 @@ The first decision is not where to put files. The first decision is what kind of
 | Module-only provider | JavaScript should call Go-backed functions with `require(...)`. | `providerapi.ModuleDescriptor` |
 | Command provider | The generated binary should mount repository-owned commands. | `providerapi.CommandSetProvider` returning Glazed commands |
 | Runtime/session integration | The repository owns runtime resources that need flags, initialization, and cleanup. | package capabilities with config sections and runtime initializers |
+| Help documentation provider | Generated binaries should include package-owned API references or tutorials. | `providerapi.HelpSource` |
 
 Most production integrations use more than one shape. For example, a hardware-oriented repository may expose `require("device/ui")`, provide a `devices` command provider, and install a runtime initializer that opens and closes the physical device.
 
@@ -292,7 +294,68 @@ defer rt.Close(context.Background())
 
 This API intentionally differs from the lower-level engine API. `providerapi.RuntimeFactory.NewRuntime(ctx, profile, ...)` chooses a named xgoja runtime profile. The engine factory uses explicit runtime options.
 
-## 9. Add a generated xgoja example
+## 9. Register package-owned help docs
+
+Provider packages can ship Glazed help pages for API references, tutorials, and troubleshooting. This is the right place for documentation that belongs to the package API rather than to one generated application.
+
+Create or reuse a docs package that embeds Markdown help entries:
+
+```go
+package doc
+
+import (
+    "embed"
+    "io/fs"
+
+    "github.com/go-go-golems/glazed/pkg/help"
+)
+
+//go:embed topics/*.md tutorials/*.md
+var docFS embed.FS
+
+func FS() fs.FS { return docFS }
+
+func AddDocToHelpSystem(helpSystem *help.HelpSystem) error {
+    return helpSystem.LoadSectionsFromFS(docFS, ".")
+}
+```
+
+Then register that filesystem from the xgoja provider:
+
+```go
+import helpdoc "example.com/my-repo/docs/help"
+
+func Register(registry *providerapi.Registry) error {
+    return registry.Package(PackageID,
+        providerapi.HelpSource{
+            Name:        "runtime-api",
+            Description: "JavaScript runtime API reference and tutorials",
+            FS:          helpdoc.FS(),
+            Root:        ".",
+        },
+    )
+}
+```
+
+Generated binary authors opt into the docs from `xgoja.yaml`:
+
+```yaml
+help:
+  sources:
+    - id: my-repo-runtime-api
+      package: my-repo
+      source: runtime-api
+```
+
+After building, validate with:
+
+```bash
+./dist/myapp help my-repo-js-api-reference
+```
+
+Keep slugs unique across all built-in, provider, and local help pages. If two selected docs use the same slug, Glazed help loading should fail rather than silently choosing one.
+
+## 10. Add a generated xgoja example
 
 A provider is not complete until a generated binary can load it. Add a small example under the repository:
 
@@ -350,7 +413,7 @@ commandProviders:
     runtimeProfile: default
 ```
 
-## 10. Make the smoke test exercise the generated path
+## 11. Make the smoke test exercise the generated path
 
 A package-level test is useful, but it does not prove the generated xgoja path. The smoke test should prove that xgoja can build a binary, load the provider, list the selected modules, mount configured commands, and execute one successful command or script.
 
@@ -385,7 +448,7 @@ clean:
 
 For hardware, browser, cloud, or live-network integrations, keep `make smoke` deterministic and CI-safe. Add a separate target such as `make hardware`, `make browser`, or `make live` for interactive validation.
 
-## 11. Validate the repository
+## 12. Validate the repository
 
 Run focused package tests first:
 
@@ -408,7 +471,7 @@ rg -n 'runtimebridge\.(Bindings|CurrentContext|OwnerRunner)|runtimeowner\.Runner
 
 Expected matches should be zero, except for migration documentation or unrelated uses of the word `bindings` in parser or REPL code.
 
-## 12. Commit in reviewable phases
+## 13. Commit in reviewable phases
 
 Small commits make xgoja integrations easier to review. A useful sequence is:
 

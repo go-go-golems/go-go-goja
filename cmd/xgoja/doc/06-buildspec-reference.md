@@ -10,6 +10,7 @@ Commands:
 - xgoja
 - xgoja build
 - xgoja doctor
+- help
 IsTopLevel: true
 IsTemplate: false
 ShowPerDefault: true
@@ -41,7 +42,24 @@ commands:
   run:
     enabled: true
     runtime: main
+help:
+  sources:
+    - id: project-docs
+      path: ./docs/help
+      embed: true
 ```
+
+Help sources add Glazed Markdown pages to the generated binary's `help` command. Use provider-shipped docs for package API references:
+
+```yaml
+help:
+  sources:
+    - id: loupedeck-runtime-api
+      package: loupedeck
+      source: runtime-api
+```
+
+Use embedded local docs for project-specific tutorials. The local directory is copied into `xgoja_embed/help/<id>/` during generation and does not need to exist when the generated binary runs.
 
 Validate and build with:
 
