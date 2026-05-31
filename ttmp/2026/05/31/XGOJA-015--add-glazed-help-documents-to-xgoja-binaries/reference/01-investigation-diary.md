@@ -11,16 +11,29 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: go-go-goja/cmd/xgoja/doc/02-user-guide.md
+      Note: Step 8 user documentation (commit 2c6b112)
+    - Path: go-go-goja/cmd/xgoja/internal/buildspec/spec.go
+      Note: Step 4 buildspec schema (commit e006c2c)
+    - Path: go-go-goja/cmd/xgoja/internal/generate/templates/main.go.tmpl
+      Note: Step 5 generated embed wiring (commit 1dec2ba)
+    - Path: go-go-goja/pkg/xgoja/app/framework.go
+      Note: Step 6 generated root loading (commit 4c646d9)
+    - Path: go-go-goja/pkg/xgoja/providerapi/help.go
+      Note: Step 3 implementation (commit 13d30d0)
     - Path: go-go-goja/ttmp/2026/05/31/XGOJA-015--add-glazed-help-documents-to-xgoja-binaries/design-doc/01-glazed-help-documents-for-xgoja-binaries-implementation-guide.md
       Note: Primary design produced during this investigation
     - Path: loupedeck/docs/help/doc.go
       Note: Loupedeck embedded docs package inspected for provider help source design
+    - Path: loupedeck/runtime/js/provider/provider.go
+      Note: Step 7 Loupedeck provider docs registration (commit b5825fa)
 ExternalSources: []
 Summary: Chronological diary for researching and designing Glazed help document support in generated xgoja binaries.
-LastUpdated: 2026-05-31T13:04:00-04:00
+LastUpdated: 2026-05-31T13:12:00-04:00
 WhatFor: Use to understand what was inspected, what decisions were made, and how to continue implementation.
 WhenToUse: Read before implementing XGOJA-015 or reviewing the design guide.
 ---
+
 
 
 # Diary
@@ -311,7 +324,7 @@ The implementation intentionally mirrors the existing `VerbSource` pattern: prov
 
 **Inferred user intent:** Move from research/design into code while keeping the ticket usable for review and continuation.
 
-**Commit (code):** pending at time of diary entry — provider API phase prepared for commit.
+**Commit (code):** `13d30d0e3332a635e507af1e3e3a0ae93cdab5a1` — "XGOJA: add provider help sources"
 
 ### What I did
 
@@ -421,7 +434,7 @@ The validation logic follows the existing `jsverbs` source-list pattern but is s
 
 **Inferred user intent:** Land small reviewable implementation increments rather than one large change.
 
-**Commit (code):** pending at time of diary entry — buildspec/runtime spec phase prepared for commit.
+**Commit (code):** `e006c2ca0140d1248c185c85a70b1b53a13647bf` — "XGOJA: add help sources to buildspec"
 
 ### What I did
 
@@ -536,7 +549,7 @@ The generated app still does not load the configured help docs into the Glazed h
 
 **Inferred user intent:** Make incremental progress while preserving reviewability and test evidence.
 
-**Commit (code):** pending at time of diary entry — generator embedding phase prepared for commit.
+**Commit (code):** `1dec2badd6a854638c03442edc36eafd3da7ca43` — "XGOJA: embed generated help sources"
 
 ### What I did
 
@@ -649,7 +662,7 @@ The implementation keeps the single-owner invariant: `help_cmd.SetupCobraRootCom
 
 **Inferred user intent:** Make the new `help.sources` config observable from generated binaries through `help <slug>`.
 
-**Commit (code):** pending at time of diary entry — generated root loading phase prepared for commit.
+**Commit (code):** `4c646d937fd046457b939dfb1d3b3d67a48431ec` — "XGOJA: load configured help sources"
 
 ### What I did
 
@@ -881,7 +894,7 @@ This step also ran focused validation in both affected repositories. The go-go-g
 
 **Inferred user intent:** Ensure the implementation is usable and documented, not just internally wired.
 
-**Commit (code):** pending at time of diary entry — xgoja docs/final validation phase prepared for commit.
+**Commit (code):** `2c6b1128693bf28f16353f5238ac40beb8fe4792` — "Docs: document xgoja help sources"
 
 ### What I did
 
@@ -1007,4 +1020,120 @@ help:
     - id: dev-docs
       path: ./docs/help
       embed: false
+```
+
+## Step 9: Final ticket validation and implementation upload
+
+This step closed the ticket work loop by updating docmgr relations/changelog, running `docmgr doctor`, uploading a final implementation bundle to reMarkable, and verifying the remote listing. The code work had already been committed in focused increments; this step records the final delivery evidence.
+
+The final reMarkable bundle is named `XGOJA-015 Glazed help docs implementation final` and includes the ticket index, design guide, diary, task list, and changelog.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 3)
+
+**Assistant interpretation:** Finish ticket bookkeeping, validate the documentation workspace, and upload the final implementation package.
+
+**Inferred user intent:** Leave a complete audit trail and review packet after implementation.
+
+**Commit (code):** pending at time of diary entry — final ticket documentation prepared for commit.
+
+### What I did
+
+- Added doc relations for the implemented source files and docs.
+- Updated the ticket changelog with the implementation summary and commit hashes.
+- Ran:
+
+```bash
+docmgr doctor --ticket XGOJA-015 --stale-after 30
+```
+
+- Uploaded the final reMarkable bundle with dry-run first:
+
+```bash
+remarquee upload bundle --dry-run ... \
+  --name "XGOJA-015 Glazed help docs implementation final" \
+  --remote-dir "/ai/2026/05/31/XGOJA-015" \
+  --toc-depth 2
+
+remarquee upload bundle ... \
+  --name "XGOJA-015 Glazed help docs implementation final" \
+  --remote-dir "/ai/2026/05/31/XGOJA-015" \
+  --toc-depth 2
+```
+
+- Verified the reMarkable listing:
+
+```bash
+remarquee cloud ls /ai/2026/05/31/XGOJA-015 --long --non-interactive
+```
+
+### Why
+
+- The implementation touched two repositories and multiple conceptual layers, so final ticket metadata needed to point reviewers to the right files.
+- The final reMarkable bundle supersedes the earlier design-only bundle for implementation review.
+
+### What worked
+
+- `docmgr doctor` passed:
+
+```text
+## Doctor Report (1 findings)
+
+### XGOJA-015
+
+- ✅ All checks passed
+```
+
+- Final upload succeeded:
+
+```text
+OK: uploaded XGOJA-015 Glazed help docs implementation final.pdf -> /ai/2026/05/31/XGOJA-015
+```
+
+- Remote listing verified:
+
+```text
+[f]	XGOJA-015 Glazed help docs design
+[f]	XGOJA-015 Glazed help docs design final
+[f]	XGOJA-015 Glazed help docs implementation final
+```
+
+### What didn't work
+
+- N/A. Final validation and upload succeeded.
+
+### What I learned
+
+- The docmgr + reMarkable bundle workflow works well for cross-repository implementation tasks because the diary can include both repositories' commits and validation commands.
+
+### What was tricky to build
+
+- The final bookkeeping was mostly about keeping cross-repository evidence clear. The go-go-goja ticket records both go-go-goja commits and the Loupedeck commit so the implementation can be reviewed as one feature even though it spans two repositories.
+
+### What warrants a second pair of eyes
+
+- Confirm that the earlier design-only PDFs can remain in the reMarkable folder, or remove/archive them manually if only the final implementation bundle should be visible.
+
+### What should be done in the future
+
+- If a PR is opened, include the go-go-goja and Loupedeck commit ranges in the PR description and point reviewers at this ticket.
+
+### Code review instructions
+
+- Review commits in order:
+  - go-go-goja `13d30d0` provider API,
+  - go-go-goja `e006c2c` buildspec/runtime spec,
+  - go-go-goja `1dec2ba` generator embedding,
+  - go-go-goja `4c646d9` root help loading,
+  - loupedeck `b5825fa` provider docs,
+  - go-go-goja `2c6b112` docs.
+- Validate with the focused commands from Step 8.
+
+### Technical details
+
+Final reMarkable path:
+
+```text
+/ai/2026/05/31/XGOJA-015/XGOJA-015 Glazed help docs implementation final
 ```

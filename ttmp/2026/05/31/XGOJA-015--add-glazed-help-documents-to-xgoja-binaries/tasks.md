@@ -67,8 +67,8 @@
 - [x] Add or update examples showing provider-shipped and embedded local help docs.
 - [x] Run focused go-go-goja tests: `go test ./pkg/xgoja/providerapi ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./cmd/xgoja/... -count=1`.
 - [x] Run focused loupedeck tests after provider docs wiring.
-- [ ] Update diary after each phase with exact commands, failures, tricky parts, and review instructions.
-- [ ] Update docmgr changelog and related files after each meaningful milestone.
-- [ ] Run `docmgr doctor --ticket XGOJA-015 --stale-after 30`.
-- [ ] Upload final implementation bundle to reMarkable.
-- [ ] Commit final ticket documentation updates.
+- [x] Update diary after each phase with exact commands, failures, tricky parts, and review instructions.
+- [x] Update docmgr changelog and related files after each meaningful milestone.
+- [x] Run `docmgr doctor --ticket XGOJA-015 --stale-after 30`.
+- [x] Upload final implementation bundle to reMarkable.
+- [x] Commit final ticket documentation updates.

@@ -11,26 +11,39 @@ DocType: design-doc
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: go-go-goja/cmd/xgoja/doc/02-user-guide.md
+      Note: User-facing help.sources documentation
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/spec.go
       Note: Buildspec schema that needs help.sources support
+    - Path: go-go-goja/cmd/xgoja/internal/generate/main.go
+      Note: Runtime spec help path rewriting
     - Path: go-go-goja/cmd/xgoja/internal/generate/templates/main.go.tmpl
       Note: Generated main template that needs embedded help filesystem wiring
     - Path: go-go-goja/cmd/xgoja/root.go
       Note: Standalone xgoja Glazed help setup pattern
     - Path: go-go-goja/pkg/xgoja/app/framework.go
-      Note: Generated binary root framework and current built-in help loader
+      Note: |-
+        Generated binary root framework and current built-in help loader
+        Generated root help source loader
+    - Path: go-go-goja/pkg/xgoja/providerapi/help.go
+      Note: New provider-facing HelpSource API
     - Path: go-go-goja/pkg/xgoja/providerapi/registry.go
       Note: Provider registry extension point for HelpSource
+    - Path: loupedeck/docs/help/doc.go
+      Note: Loupedeck docs filesystem export
     - Path: loupedeck/docs/help/topics/01-loupedeck-js-api-reference.md
       Note: Example Glazed API reference to bundle into xgoja binaries
     - Path: loupedeck/runtime/js/provider/provider.go
-      Note: Loupedeck provider registration point for provider-shipped docs
+      Note: |-
+        Loupedeck provider registration point for provider-shipped docs
+        Loupedeck runtime-api help source registration
 ExternalSources: []
 Summary: Design and implementation guide for bundling project-local and provider-shipped Glazed help entries into generated xgoja binaries.
 LastUpdated: 2026-05-31T11:30:00-04:00
 WhatFor: Use when implementing support for additional Glazed help documents in generated xgoja binaries.
 WhenToUse: Read before changing xgoja buildspec parsing, code generation, provider registration, or generated root help wiring.
 ---
+
 
 
 # Glazed Help Documents for xgoja Binaries Implementation Guide
