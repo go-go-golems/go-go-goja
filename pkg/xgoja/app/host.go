@@ -13,11 +13,13 @@ type Host struct {
 	Spec            *Spec
 	Factory         *RuntimeFactory
 	EmbeddedJSVerbs fs.FS
+	EmbeddedHelp    fs.FS
 	Out             io.Writer
 }
 
 type HostOptions struct {
 	EmbeddedJSVerbs fs.FS
+	EmbeddedHelp    fs.FS
 	Out             io.Writer
 }
 
@@ -31,6 +33,7 @@ func NewHostWithOptions(providers *providerapi.Registry, spec *Spec, opts HostOp
 		Spec:            spec,
 		Factory:         NewRuntimeFactory(providers, spec),
 		EmbeddedJSVerbs: opts.EmbeddedJSVerbs,
+		EmbeddedHelp:    opts.EmbeddedHelp,
 		Out:             opts.Out,
 	}
 }

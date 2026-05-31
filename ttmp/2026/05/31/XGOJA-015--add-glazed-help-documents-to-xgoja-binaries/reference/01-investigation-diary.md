@@ -17,7 +17,7 @@ RelatedFiles:
       Note: Loupedeck embedded docs package inspected for provider help source design
 ExternalSources: []
 Summary: Chronological diary for researching and designing Glazed help document support in generated xgoja binaries.
-LastUpdated: 2026-05-31T12:18:00-04:00
+LastUpdated: 2026-05-31T12:32:00-04:00
 WhatFor: Use to understand what was inspected, what decisions were made, and how to continue implementation.
 WhenToUse: Read before implementing XGOJA-015 or reviewing the design guide.
 ---
@@ -520,4 +520,117 @@ help:
     - id: local-docs
       path: ./docs/help
       embed: true
+```
+
+## Step 5: Added generator support for embedded local help docs
+
+This step taught the xgoja generator how to carry `help.sources` into the generated runtime spec and how to copy local embedded help directories into the generated build workspace. Generated `main.go` now handles the four embed combinations: no embedded sources, JavaScript verbs only, help docs only, and both.
+
+The generated app still does not load the configured help docs into the Glazed help system yet; that is the next phase. This phase proves the code-generation layer can produce compiling generated programs with embedded help assets and can rewrite local help paths to stable `xgoja_embed/help/...` roots.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 3)
+
+**Assistant interpretation:** Continue implementing the next checklist phase, keep tests focused, and record what changed.
+
+**Inferred user intent:** Make incremental progress while preserving reviewability and test evidence.
+
+**Commit (code):** pending at time of diary entry — generator embedding phase prepared for commit.
+
+### What I did
+
+- Added `EmbeddedHelp fs.FS` fields to `app.Options`, `HostOptions`, and `Host` so generated code can pass embedded help docs forward.
+- Updated `cmd/xgoja/internal/generate/main.go` to:
+  - include `help.sources` in rendered runtime JSON only when non-empty,
+  - rewrite embedded local help paths to `xgoja_embed/help/<sanitized-id>`,
+  - avoid collisions with suffixes such as `_2`,
+  - detect whether a spec has embedded help sources.
+- Updated `cmd/xgoja/internal/generate/generate.go` to copy embedded help directories into the generated workspace.
+- Updated `cmd/xgoja/internal/generate/templates.go` and `templates/main.go.tmpl` so generated `main.go` embeds:
+  - only `xgoja_embed/jsverbs/*` when only JS verbs are embedded,
+  - only `xgoja_embed/help/*` when only help docs are embedded,
+  - both when both are embedded.
+- Added generator tests for:
+  - help-only template rendering,
+  - combined JS verb + help template rendering,
+  - embedded help path rewriting,
+  - collision-free embedded help roots,
+  - copied embedded help files,
+  - generated program compilation/execution with embedded help assets present.
+- Ran:
+
+```bash
+cd go-go-goja
+gofmt -w pkg/xgoja/app/root.go pkg/xgoja/app/host.go \
+  cmd/xgoja/internal/generate/generate.go \
+  cmd/xgoja/internal/generate/main.go \
+  cmd/xgoja/internal/generate/templates.go \
+  cmd/xgoja/internal/generate/generate_test.go
+go test ./cmd/xgoja/internal/generate -count=1
+```
+
+### Why
+
+- Local documentation directories must be physically present in the generated module before `go build` can embed them.
+- Generated code must avoid unused `embed` imports and unused variables across all combinations of embedded docs and embedded JS verbs.
+- Runtime JSON path rewriting lets the generated app refer to embedded paths instead of original source paths.
+
+### What worked
+
+- The focused generator test passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	30.275s
+```
+
+- The generated program test with embedded help docs still executed `eval` successfully, proving that help-only embedding does not break generated builds.
+
+### What didn't work
+
+- N/A for this phase. The implementation and focused tests passed on the first run.
+
+### What I learned
+
+- Splitting template booleans into `HasEmbeddedJSVerb` and `HasEmbeddedHelp` is cleaner than overloading the old `HasEmbedded` flag.
+- `//go:embed xgoja_embed/help/*` works for the copied source roots because the pattern matches the per-source directories and Go embeds those directories recursively.
+
+### What was tricky to build
+
+- The subtle part was generated template construction. If generated code references `embeddedJSVerbs` when only help docs are embedded, compilation fails. If it imports `embed` when no embedded sources exist, compilation fails. The template data now computes source-specific variables and passes `nil` for absent embedded filesystems.
+
+### What warrants a second pair of eyes
+
+- Review whether generated `main.go` should pass `nil` explicitly for absent embedded filesystems or omit those fields. The current code is explicit and compiles.
+- Confirm that the path root `xgoja_embed/help/<source-id>` is the desired long-term generated workspace layout.
+
+### What should be done in the future
+
+- Implement app-layer loading so the embedded help docs are actually available through `help <slug>`.
+- Add an end-to-end generated binary test that calls `help local-api` after the loader phase lands.
+
+### Code review instructions
+
+- Start in `cmd/xgoja/internal/generate/main.go` for runtime spec rewriting.
+- Then inspect `templates.go` and `templates/main.go.tmpl` for generated code combinations.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja/internal/generate -count=1
+```
+
+### Technical details
+
+Generated help-only shape:
+
+```go
+//go:embed xgoja_embed/help/*
+var embeddedHelp embed.FS
+
+root, err := app.NewRootCommand(app.Options{
+    Providers:       registry,
+    SpecJSON:        embeddedSpecJSON,
+    EmbeddedJSVerbs: nil,
+    EmbeddedHelp:    embeddedHelp,
+})
 ```

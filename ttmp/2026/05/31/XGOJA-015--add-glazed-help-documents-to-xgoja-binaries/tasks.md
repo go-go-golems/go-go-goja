@@ -30,22 +30,22 @@
 - [x] Add `validateHelp(...)` for duplicate IDs, missing IDs, missing paths, mixed provider/path sources, unknown package IDs, and embedded path existence.
 - [x] Add buildspec tests for valid and invalid help source declarations.
 - [x] Run `go test ./cmd/xgoja/internal/buildspec -count=1`.
-- [ ] Commit buildspec/runtime spec support.
+- [x] Commit buildspec/runtime spec support.
 
 ### Phase 3: Generator embedding support
 
-- [ ] Add generated runtime JSON rendering for `help.sources`.
-- [ ] Add embedded local help root rewriting under `xgoja_embed/help/<source-id>`.
-- [ ] Add `copyEmbeddedHelpSources(...)` to copy local help docs into generated workspaces.
-- [ ] Update generated `main.go` template to embed JS verbs, help docs, or both without unused imports/variables.
-- [ ] Pass `EmbeddedHelp` to `app.NewRootCommand` and `app.NewHostWithOptions` in all target modes.
-- [ ] Add generator tests for template output, collision-free root rewriting, copied help files, and generated binary help smoke coverage.
-- [ ] Run `go test ./cmd/xgoja/internal/generate -count=1`.
+- [x] Add generated runtime JSON rendering for `help.sources`.
+- [x] Add embedded local help root rewriting under `xgoja_embed/help/<source-id>`.
+- [x] Add `copyEmbeddedHelpSources(...)` to copy local help docs into generated workspaces.
+- [x] Update generated `main.go` template to embed JS verbs, help docs, or both without unused imports/variables.
+- [x] Pass `EmbeddedHelp` to `app.NewRootCommand` and `app.NewHostWithOptions` in all target modes.
+- [x] Add generator tests for template output, collision-free root rewriting, copied help files, and generated binary help smoke coverage.
+- [x] Run `go test ./cmd/xgoja/internal/generate -count=1`.
 - [ ] Commit generator embedding support.
 
 ### Phase 4: Generated root loading support
 
-- [ ] Add `EmbeddedHelp` to `app.Options`, `HostOptions`, and `Host`.
+- [x] Add `EmbeddedHelp` to `app.Options`, `HostOptions`, and `Host`.
 - [ ] Pass provider registry and embedded help FS into `installRootFramework`.
 - [ ] Load built-in generated docs, provider help sources, embedded local help sources, and optional runtime filesystem sources into one Glazed `HelpSystem`.
 - [ ] Keep `help_cmd.SetupCobraRootCommand(...)` called exactly once.

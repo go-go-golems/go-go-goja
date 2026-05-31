@@ -137,6 +137,52 @@ func TestRenderMainIncludesEmbeddedVerbFS(t *testing.T) {
 	}
 }
 
+func TestRenderMainIncludesEmbeddedHelpFS(t *testing.T) {
+	spec := buildableSpec("xgoja", "", "")
+	spec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local-docs", Path: "docs/help", Embed: true}}
+	got := RenderMain(spec)
+	for _, want := range []string{
+		`"embed"`,
+		`//go:embed xgoja_embed/help/*`,
+		`var embeddedHelp embed.FS`,
+		`EmbeddedHelp: embeddedHelp`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
+		}
+	}
+	for _, notWant := range []string{
+		`var embeddedJSVerbs embed.FS`,
+		`EmbeddedJSVerbs: embeddedJSVerbs`,
+	} {
+		if strings.Contains(got, notWant) {
+			t.Fatalf("main.go should not contain %q for help-only embed:\n%s", notWant, got)
+		}
+	}
+	embeddedSpec := RenderEmbeddedSpec(spec)
+	if !strings.Contains(embeddedSpec, `"path": "xgoja_embed/help/local_docs"`) {
+		t.Fatalf("expected embedded spec to rewrite local help path, got:\n%s", embeddedSpec)
+	}
+}
+
+func TestRenderMainIncludesEmbeddedVerbAndHelpFS(t *testing.T) {
+	spec := buildableSpec("xgoja", "", "")
+	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	spec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local-verbs", Path: "verbs", Embed: true}}
+	spec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local-docs", Path: "docs/help", Embed: true}}
+	got := RenderMain(spec)
+	for _, want := range []string{
+		`var embeddedJSVerbs embed.FS`,
+		`var embeddedHelp embed.FS`,
+		`EmbeddedJSVerbs: embeddedJSVerbs`,
+		`EmbeddedHelp: embeddedHelp`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
+		}
+	}
+}
+
 func TestRenderEmbeddedSpecAvoidsEmbeddedVerbRootCollisions(t *testing.T) {
 	spec := buildableSpec("xgoja", "", "")
 	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
@@ -148,6 +194,23 @@ func TestRenderEmbeddedSpecAvoidsEmbeddedVerbRootCollisions(t *testing.T) {
 	for _, want := range []string{
 		`"path": "xgoja_embed/jsverbs/local_dev"`,
 		`"path": "xgoja_embed/jsverbs/local_dev_2"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected embedded spec to contain %q, got:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderEmbeddedSpecAvoidsEmbeddedHelpRootCollisions(t *testing.T) {
+	spec := buildableSpec("xgoja", "", "")
+	spec.Help.Sources = []buildspec.HelpSourceSpec{
+		{ID: "local-docs", Path: "docs-a", Embed: true},
+		{ID: "local_docs", Path: "docs-b", Embed: true},
+	}
+	got := RenderEmbeddedSpec(spec)
+	for _, want := range []string{
+		`"path": "xgoja_embed/help/local_docs"`,
+		`"path": "xgoja_embed/help/local_docs_2"`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected embedded spec to contain %q, got:\n%s", want, got)
@@ -183,6 +246,37 @@ func TestWriteAllCopiesEmbeddedVerbSourcesToCollisionFreeRoots(t *testing.T) {
 	} {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("expected collision-free embedded verb copy %s: %v", path, err)
+		}
+	}
+}
+
+func TestWriteAllCopiesEmbeddedHelpSourcesToCollisionFreeRoots(t *testing.T) {
+	baseDir := t.TempDir()
+	for _, dir := range []string{"docs-a", "docs-b"} {
+		helpDir := filepath.Join(baseDir, dir, "topics")
+		if err := os.MkdirAll(helpDir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+		if err := os.WriteFile(filepath.Join(helpDir, "01-intro.md"), []byte("---\nTitle: Intro\nSlug: intro\n---\n"), 0o644); err != nil {
+			t.Fatalf("write %s help: %v", dir, err)
+		}
+	}
+	spec := buildableSpec("xgoja", "", "")
+	spec.BaseDir = baseDir
+	spec.Help.Sources = []buildspec.HelpSourceSpec{
+		{ID: "local-docs", Path: "docs-a", Embed: true},
+		{ID: "local_docs", Path: "docs-b", Embed: true},
+	}
+	dir := t.TempDir()
+	if err := WriteAll(dir, spec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
+		t.Fatalf("write all: %v", err)
+	}
+	for _, path := range []string{
+		filepath.Join(dir, "xgoja_embed", "help", "local_docs", "topics", "01-intro.md"),
+		filepath.Join(dir, "xgoja_embed", "help", "local_docs_2", "topics", "01-intro.md"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected collision-free embedded help copy %s: %v", path, err)
 		}
 	}
 }
@@ -267,6 +361,38 @@ function embeddedGreet(name) {
 	dir := runGeneratedCommand(t, spec, "verbs", "tools", "embedded-greet", "--name", "intern")
 	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "jsverbs", "local", "tools.js")); err != nil {
 		t.Fatalf("embedded verb was not copied: %v", err)
+	}
+}
+
+func TestGeneratedProgramCompilesWithEmbeddedHelpSource(t *testing.T) {
+	baseDir := t.TempDir()
+	helpDir := filepath.Join(baseDir, "docs", "help", "topics")
+	if err := os.MkdirAll(helpDir, 0o755); err != nil {
+		t.Fatalf("mkdir help: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(helpDir, "01-local.md"), []byte(`---
+Title: Local API
+Slug: local-api
+Short: Local docs.
+IsTopLevel: true
+IsTemplate: false
+ShowPerDefault: true
+SectionType: GeneralTopic
+---
+
+Local body.
+`), 0o644); err != nil {
+		t.Fatalf("write help: %v", err)
+	}
+	spec := buildableSpec("xgoja", "", "")
+	spec.BaseDir = baseDir
+	spec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local", Path: "docs/help", Embed: true}}
+	dir, out := runGeneratedCommandWithOutput(t, spec, "eval", `require("hello").greet("intern")`)
+	if strings.TrimSpace(string(out)) != "hello intern" {
+		t.Fatalf("generated output = %q", out)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "help", "local", "topics", "01-local.md")); err != nil {
+		t.Fatalf("embedded help was not copied: %v", err)
 	}
 }
 

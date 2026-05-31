@@ -27,6 +27,7 @@ type Options struct {
 	SpecJSON        string
 	Out             io.Writer
 	EmbeddedJSVerbs fs.FS
+	EmbeddedHelp    fs.FS
 }
 
 func NewRootCommand(opts Options) (*cobra.Command, error) {
@@ -37,7 +38,7 @@ func NewRootCommand(opts Options) (*cobra.Command, error) {
 	if err := json.Unmarshal([]byte(opts.SpecJSON), spec); err != nil {
 		return nil, fmt.Errorf("decode embedded xgoja spec: %w", err)
 	}
-	host := NewHostWithOptions(opts.Providers, spec, HostOptions{EmbeddedJSVerbs: opts.EmbeddedJSVerbs, Out: opts.Out})
+	host := NewHostWithOptions(opts.Providers, spec, HostOptions{EmbeddedJSVerbs: opts.EmbeddedJSVerbs, EmbeddedHelp: opts.EmbeddedHelp, Out: opts.Out})
 	root := &cobra.Command{
 		Use:   spec.Name,
 		Short: "Generated xgoja binary",

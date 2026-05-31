@@ -24,9 +24,13 @@ import (
 
 const embeddedSpecJSON = `{{ .SpecJSON }}`
 
-{{- if .HasEmbedded }}
+{{- if .HasEmbeddedJSVerb }}
 //go:embed xgoja_embed/jsverbs/*
 var embeddedJSVerbs embed.FS
+{{ end }}
+{{- if .HasEmbeddedHelp }}
+//go:embed xgoja_embed/help/*
+var embeddedHelp embed.FS
 {{ end }}
 
 func main() {

@@ -15,16 +15,18 @@ import (
 var templateFS embed.FS
 
 type mainTemplateData struct {
-	SpecJSON         string
-	HasEmbedded      bool
-	NeedsContext     bool
-	HasTargetImport  bool
-	TargetKind       string
-	TargetImport     string
-	TargetRoot       string
-	HostConstruction string
-	RootConstruction string
-	ProviderImports  []providerImport
+	SpecJSON          string
+	HasEmbedded       bool
+	HasEmbeddedJSVerb bool
+	HasEmbeddedHelp   bool
+	NeedsContext      bool
+	HasTargetImport   bool
+	TargetKind        string
+	TargetImport      string
+	TargetRoot        string
+	HostConstruction  string
+	RootConstruction  string
+	ProviderImports   []providerImport
 }
 
 type providerImport struct {
@@ -51,7 +53,9 @@ func renderMainTemplate(data mainTemplateData) (string, error) {
 
 func mainTemplateDataFromSpec(spec *buildspec.Spec) mainTemplateData {
 	aliases := importAliases(spec.Packages)
-	hasEmbedded := hasEmbeddedJSVerbSources(spec)
+	hasEmbeddedJSVerb := hasEmbeddedJSVerbSources(spec)
+	hasEmbeddedHelp := hasEmbeddedHelpSources(spec)
+	hasEmbedded := hasEmbeddedJSVerb || hasEmbeddedHelp
 	providers := make([]providerImport, 0, len(spec.Packages))
 	for _, pkg := range spec.Packages {
 		providers = append(providers, providerImport{
@@ -67,18 +71,28 @@ func mainTemplateDataFromSpec(spec *buildspec.Spec) mainTemplateData {
 	}
 
 	data := mainTemplateData{
-		SpecJSON:        escapeRawString(RenderEmbeddedSpec(spec)),
-		HasEmbedded:     hasEmbedded,
-		NeedsContext:    spec.Target.Kind == "adapter",
-		HasTargetImport: spec.Target.Kind == "adapter" || spec.Target.Kind == "cobra",
-		TargetKind:      spec.Target.Kind,
-		TargetImport:    spec.Target.Import,
-		TargetRoot:      rootFn,
-		ProviderImports: providers,
+		SpecJSON:          escapeRawString(RenderEmbeddedSpec(spec)),
+		HasEmbedded:       hasEmbedded,
+		HasEmbeddedJSVerb: hasEmbeddedJSVerb,
+		HasEmbeddedHelp:   hasEmbeddedHelp,
+		NeedsContext:      spec.Target.Kind == "adapter",
+		HasTargetImport:   spec.Target.Kind == "adapter" || spec.Target.Kind == "cobra",
+		TargetKind:        spec.Target.Kind,
+		TargetImport:      spec.Target.Import,
+		TargetRoot:        rootFn,
+		ProviderImports:   providers,
+	}
+	embeddedJSVerbArg := "nil"
+	if hasEmbeddedJSVerb {
+		embeddedJSVerbArg = "embeddedJSVerbs"
+	}
+	embeddedHelpArg := "nil"
+	if hasEmbeddedHelp {
+		embeddedHelpArg = "embeddedHelp"
 	}
 	if hasEmbedded {
-		data.HostConstruction = "host := app.NewHostWithOptions(registry, spec, app.HostOptions{EmbeddedJSVerbs: embeddedJSVerbs})"
-		data.RootConstruction = "root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON, EmbeddedJSVerbs: embeddedJSVerbs})"
+		data.HostConstruction = fmt.Sprintf("host := app.NewHostWithOptions(registry, spec, app.HostOptions{EmbeddedJSVerbs: %s, EmbeddedHelp: %s})", embeddedJSVerbArg, embeddedHelpArg)
+		data.RootConstruction = fmt.Sprintf("root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON, EmbeddedJSVerbs: %s, EmbeddedHelp: %s})", embeddedJSVerbArg, embeddedHelpArg)
 	} else {
 		data.HostConstruction = "host := app.NewHost(registry, spec)"
 		data.RootConstruction = "root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})"
