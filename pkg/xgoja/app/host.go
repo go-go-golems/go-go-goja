@@ -42,7 +42,7 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 	if root == nil || h == nil || h.Spec == nil {
 		return
 	}
-	if err := installRootFramework(root, h.Spec); err != nil {
+	if err := installRootFramework(root, h.Spec, frameworkOptions{Providers: h.Providers, EmbeddedHelp: h.EmbeddedHelp}); err != nil {
 		root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error { return err }
 	}
 	if h.Spec.Commands.Eval.Enabled {

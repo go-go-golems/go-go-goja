@@ -364,7 +364,7 @@ function embeddedGreet(name) {
 	}
 }
 
-func TestGeneratedProgramCompilesWithEmbeddedHelpSource(t *testing.T) {
+func TestGeneratedProgramLoadsEmbeddedHelpSource(t *testing.T) {
 	baseDir := t.TempDir()
 	helpDir := filepath.Join(baseDir, "docs", "help", "topics")
 	if err := os.MkdirAll(helpDir, 0o755); err != nil {
@@ -387,9 +387,9 @@ Local body.
 	spec := buildableSpec("xgoja", "", "")
 	spec.BaseDir = baseDir
 	spec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local", Path: "docs/help", Embed: true}}
-	dir, out := runGeneratedCommandWithOutput(t, spec, "eval", `require("hello").greet("intern")`)
-	if strings.TrimSpace(string(out)) != "hello intern" {
-		t.Fatalf("generated output = %q", out)
+	dir, out := runGeneratedCommandWithOutput(t, spec, "help", "local-api")
+	if !strings.Contains(string(out), "Local API") || !strings.Contains(string(out), "Local body") {
+		t.Fatalf("expected generated help output, got %q", out)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "help", "local", "topics", "01-local.md")); err != nil {
 		t.Fatalf("embedded help was not copied: %v", err)

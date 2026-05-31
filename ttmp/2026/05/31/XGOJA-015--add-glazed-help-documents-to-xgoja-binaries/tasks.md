@@ -41,16 +41,16 @@
 - [x] Pass `EmbeddedHelp` to `app.NewRootCommand` and `app.NewHostWithOptions` in all target modes.
 - [x] Add generator tests for template output, collision-free root rewriting, copied help files, and generated binary help smoke coverage.
 - [x] Run `go test ./cmd/xgoja/internal/generate -count=1`.
-- [ ] Commit generator embedding support.
+- [x] Commit generator embedding support.
 
 ### Phase 4: Generated root loading support
 
 - [x] Add `EmbeddedHelp` to `app.Options`, `HostOptions`, and `Host`.
-- [ ] Pass provider registry and embedded help FS into `installRootFramework`.
-- [ ] Load built-in generated docs, provider help sources, embedded local help sources, and optional runtime filesystem sources into one Glazed `HelpSystem`.
-- [ ] Keep `help_cmd.SetupCobraRootCommand(...)` called exactly once.
-- [ ] Add app tests for provider help source lookup, embedded local help lookup, and missing provider source errors.
-- [ ] Run `go test ./pkg/xgoja/app -count=1`.
+- [x] Pass provider registry and embedded help FS into `installRootFramework`.
+- [x] Load built-in generated docs, provider help sources, embedded local help sources, and optional runtime filesystem sources into one Glazed `HelpSystem`.
+- [x] Keep `help_cmd.SetupCobraRootCommand(...)` called exactly once.
+- [x] Add app tests for provider help source lookup, embedded local help lookup, and missing provider source errors.
+- [x] Run `go test ./pkg/xgoja/app -count=1`.
 - [ ] Commit generated root loading support.
 
 ### Phase 5: Loupedeck provider documentation support

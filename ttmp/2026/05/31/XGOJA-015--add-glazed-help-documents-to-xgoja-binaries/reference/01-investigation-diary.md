@@ -17,7 +17,7 @@ RelatedFiles:
       Note: Loupedeck embedded docs package inspected for provider help source design
 ExternalSources: []
 Summary: Chronological diary for researching and designing Glazed help document support in generated xgoja binaries.
-LastUpdated: 2026-05-31T12:32:00-04:00
+LastUpdated: 2026-05-31T12:44:00-04:00
 WhatFor: Use to understand what was inspected, what decisions were made, and how to continue implementation.
 WhenToUse: Read before implementing XGOJA-015 or reviewing the design guide.
 ---
@@ -633,4 +633,117 @@ root, err := app.NewRootCommand(app.Options{
     EmbeddedJSVerbs: nil,
     EmbeddedHelp:    embeddedHelp,
 })
+```
+
+## Step 6: Loaded configured help sources into generated roots
+
+This step connected the previously added provider API, buildspec, and generator pieces to the generated root help system. Generated binaries now merge built-in xgoja runtime help, selected provider help sources, embedded local help sources, and optional runtime filesystem help sources into one Glazed `HelpSystem` before installing the Cobra help command.
+
+The implementation keeps the single-owner invariant: `help_cmd.SetupCobraRootCommand(...)` remains in the root framework and is still called exactly once. Providers contribute filesystems; the app layer decides loading order and error reporting.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 3)
+
+**Assistant interpretation:** Continue the implementation checklist by wiring generated root help loading and proving it with app and generated-binary tests.
+
+**Inferred user intent:** Make the new `help.sources` config observable from generated binaries through `help <slug>`.
+
+**Commit (code):** pending at time of diary entry — generated root loading phase prepared for commit.
+
+### What I did
+
+- Updated `pkg/xgoja/app/framework.go` to accept `frameworkOptions` with provider registry and embedded help filesystem.
+- Added `loadConfiguredHelpSources(...)` to load:
+  - provider help sources via `Registry.ResolveHelpSource`,
+  - embedded local help sources via `EmbeddedHelp`,
+  - non-embedded filesystem help sources via `os.DirFS`.
+- Updated `pkg/xgoja/app/host.go` to pass providers and embedded help into `installRootFramework`.
+- Added app tests for:
+  - provider help source lookup and rendering,
+  - embedded local help source lookup and rendering,
+  - missing provider help source errors.
+- Upgraded the generator integration test from "compiles with embedded help" to "generated binary loads embedded help via `help local-api`".
+- Ran:
+
+```bash
+cd go-go-goja
+gofmt -w pkg/xgoja/app/framework.go \
+  pkg/xgoja/app/host.go \
+  pkg/xgoja/app/root_test.go \
+  cmd/xgoja/internal/generate/generate_test.go
+go test ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1
+```
+
+### Why
+
+- Until this phase, docs could be declared and embedded but were not visible from generated binaries.
+- Loading all selected docs into one help system preserves Glazed search/query behavior and avoids duplicate `help` commands.
+
+### What worked
+
+- Focused app and generator tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.108s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	17.302s
+```
+
+- The generated-binary test now calls `help local-api` and verifies the embedded page content.
+
+### What didn't work
+
+- My first missing-provider test expected `NewRootCommand` to return the framework error immediately. Existing host behavior stores root framework install errors in `PersistentPreRunE`, so `NewRootCommand` returned `nil` error.
+- The failed test output was:
+
+```text
+--- FAIL: TestGeneratedRootReportsMissingProviderHelpSource (0.00s)
+    root_test.go:257: expected missing provider help source error, got <nil>
+```
+
+- I adjusted the test to execute a command and assert that execution returns the missing provider help source error. This matches the current `AttachDefaultCommands` error-defer behavior.
+
+### What I learned
+
+- Generated root framework errors are currently deferred to command execution, not returned from `NewRootCommand`, because `Host.AttachDefaultCommands` converts install errors into a `PersistentPreRunE` error.
+- The loader can keep simple runtime semantics: provider entries use provider `fs.FS`, embedded entries use generated `EmbeddedHelp`, and non-embedded entries use `os.DirFS(path)`.
+
+### What was tricky to build
+
+- The tricky part was preserving existing root framework behavior while testing errors. Changing `AttachDefaultCommands` to return errors would be a larger API change, so the test follows current behavior instead of changing it as part of help docs support.
+
+### What warrants a second pair of eyes
+
+- Review whether framework installation errors should continue to be deferred through `PersistentPreRunE` or whether a future cleanup should make `AttachDefaultCommands` return errors.
+- Review non-embedded filesystem help source path semantics. They are currently runtime working-directory relative unless the generated spec contains an absolute path.
+
+### What should be done in the future
+
+- Wire a real provider, starting with Loupedeck, to register a provider help source.
+- Update user-facing xgoja docs to describe `help.sources`.
+
+### Code review instructions
+
+- Start in `pkg/xgoja/app/framework.go`, especially `loadConfiguredHelpSources`.
+- Then review `pkg/xgoja/app/root_test.go` and the generated integration test in `cmd/xgoja/internal/generate/generate_test.go`.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1
+```
+
+### Technical details
+
+Runtime loading cases:
+
+```go
+// Provider-shipped docs
+providerSource, ok := opts.Providers.ResolveHelpSource(source.Package, source.Source)
+helpSystem.LoadSectionsFromFS(providerSource.FS, providerSource.Root)
+
+// Embedded local docs
+helpSystem.LoadSectionsFromFS(opts.EmbeddedHelp, source.Path)
+
+// Runtime filesystem docs
+helpSystem.LoadSectionsFromFS(os.DirFS(source.Path), ".")
 ```
