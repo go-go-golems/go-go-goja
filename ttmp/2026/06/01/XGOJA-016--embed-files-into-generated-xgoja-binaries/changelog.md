@@ -171,3 +171,14 @@ Replaced static asset staging workaround with express app.staticFromAssetsModule
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/express/express.go — New staticFromAssetsModule API.
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/fs/http.go — HTTP adapter for read-only embedded fs modules.
 
+
+## 2026-06-01
+
+Rejected unsupported asset include/exclude fields and added a dedicated xgoja static-assets HTTP tutorial (commit 3d43ef2).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/doc/06-buildspec-reference.md — Buildspec reference documents filter rejection and static serving.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/doc/09-tutorial-static-assets-http-server.md — New tutorial for serving bundled static assets.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/buildspec/load.go — Rejects unsupported asset filters before typed unmarshal.
+

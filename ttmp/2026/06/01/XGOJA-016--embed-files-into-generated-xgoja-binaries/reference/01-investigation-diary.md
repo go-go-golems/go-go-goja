@@ -1764,3 +1764,114 @@ app.staticFromAssetsModule("/static", assets, "/app/public")
 ```
 
 The fs module marks its export object with a non-enumerable Go backend value. Express asks `modules/fs` to turn that backend into an HTTP handler, and `gojahttp` mounts the handler with the same prefix behavior as host-directory static mounts.
+
+## Step 16: Reject unsupported asset filters and expand xgoja docs
+
+This step addressed follow-up review feedback around `assets[].include` and `assets[].exclude`. Rather than accepting filter fields that the generator does not enforce, the buildspec loader now rejects them explicitly. This prevents a spec from appearing to exclude secrets or large files while the generator still embeds the whole asset tree.
+
+I also updated the xgoja documentation set so the new static-asset server workflow is discoverable from the user guide, buildspec reference, tutorial, overview, and a dedicated static assets HTTP tutorial.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do we need to update buildpsec reference and other xgoja documentation, user guide, and maybe a tutorial on building this static asset serving http server, since it showcase a few interesting apis. (see @go-go-goja/cmd/xgoja/doc/02-user-guide.md  and co)"
+
+**Assistant interpretation:** Finish the review follow-up by removing/rejecting unsupported asset filter fields and documenting the embedded static HTTP server workflow broadly across xgoja docs.
+
+**Inferred user intent:** Keep buildspec semantics honest and give users a clear, tutorial-level path for serving bundled static assets.
+
+**Commit (code):** 3d43ef22b596d0d376e9c2809cd56c7939166a65 — "xgoja: document static asset servers and reject asset filters"
+
+### What I did
+
+- Removed `Include` and `Exclude` fields from both asset spec structs:
+  - `cmd/xgoja/internal/buildspec/spec.go`
+  - `pkg/xgoja/app/spec.go`
+- Added pre-unmarshal YAML-node validation in `cmd/xgoja/internal/buildspec/load.go` that rejects `assets[].include` and `assets[].exclude` with a clear validation error.
+- Added `TestLoadFileRejectsUnsupportedAssetFilters`.
+- Updated xgoja docs:
+  - `cmd/xgoja/doc/01-overview.md`
+  - `cmd/xgoja/doc/02-user-guide.md`
+  - `cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md`
+  - `cmd/xgoja/doc/06-buildspec-reference.md`
+  - new `cmd/xgoja/doc/09-tutorial-static-assets-http-server.md`
+- Updated `examples/xgoja/10-embedded-assets-fs/README.md` to remove stale staging language.
+- Updated the XGOJA-016 design doc so it no longer suggests accepting include/exclude fields before implementation.
+
+### Why
+
+- Ignored filters are dangerous: users may put `exclude: [secrets/**]` in the spec and assume those files are not bundled.
+- The static server example now demonstrates several important APIs (`assets:`, `fs:assets`, `express`, `staticFromAssetsModule`, `--keep-alive`), so it deserves tutorial-level documentation.
+
+### What worked
+
+- Focused tests passed:
+
+```text
+GOWORK=off go test ./cmd/xgoja ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app -count=1
+```
+
+- Focused lint passed:
+
+```text
+GOWORK=off golangci-lint run ./cmd/xgoja/... ./pkg/xgoja/app
+0 issues.
+```
+
+- A full-suite run was attempted and all packages passed except one known-looking timeout-sensitive replsession test; rerunning that package passed:
+
+```text
+GOWORK=off go test ./pkg/replsession -count=1
+ok  	github.com/go-go-golems/go-go-goja/pkg/replsession	0.054s
+```
+
+### What didn't work
+
+- `GOWORK=off go test ./... -count=1` failed once in an unrelated timeout-sensitive test:
+
+```text
+--- FAIL: TestServiceRawSyncRunawayTimeoutKeepsSessionUsable (0.11s)
+    service_policy_test.go:165: expected ok status after timeout, got "timeout"
+FAIL
+FAIL	github.com/go-go-golems/go-go-goja/pkg/replsession	0.312s
+```
+
+- Rerunning `./pkg/replsession` immediately passed, suggesting this was a flaky timing failure rather than a failure caused by the xgoja asset docs/buildspec changes.
+
+### What I learned
+
+- Removing struct fields alone is not enough for YAML because unknown fields are ignored by default. To reject now-unsupported fields, the loader needs to inspect the YAML node tree before normal unmarshalling.
+- The docs needed one dedicated tutorial rather than only adding snippets to reference pages because the workflow crosses buildspec, provider selection, runtime aliases, JavaScript setup, and command lifetime.
+
+### What was tricky to build
+
+- The validation had to preserve normal load behavior while still catching unsupported fields. A lightweight YAML-node scan before typed unmarshal avoids changing global YAML strictness for unrelated fields.
+- The docs needed to distinguish host directory static serving (`app.static`) from embedded asset module static serving (`app.staticFromAssetsModule`).
+
+### What warrants a second pair of eyes
+
+- Review whether the unsupported-field validation should eventually be generalized for other future-reserved fields.
+- Review the new tutorial for command names and provider import paths, since copy/paste correctness matters here.
+
+### What should be done in the future
+
+- Implement real asset include/exclude filtering if users need it, then reintroduce the fields with generator enforcement and tests.
+- Consider making a CI-safe marker for known flaky replsession timeout tests if the failure recurs.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/buildspec/load.go` and `load_test.go` for unsupported filter rejection.
+- Then review the new tutorial `cmd/xgoja/doc/09-tutorial-static-assets-http-server.md`.
+- Validate with:
+  - `GOWORK=off go test ./cmd/xgoja ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app -count=1`
+  - `GOWORK=off golangci-lint run ./cmd/xgoja/... ./pkg/xgoja/app`
+
+### Technical details
+
+The loader now reports errors like:
+
+```text
+assets[0].include: asset include/exclude filters are not supported yet; remove this field
+assets[0].exclude: asset include/exclude filters are not supported yet; remove this field
+```
+
+The recommended workaround is to pre-build a filtered asset directory before running `xgoja build`.
