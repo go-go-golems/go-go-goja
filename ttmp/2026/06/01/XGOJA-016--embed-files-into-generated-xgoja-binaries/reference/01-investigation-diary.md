@@ -1189,7 +1189,7 @@ The example also includes a self-contained proof that copies the generated binar
 
 **Inferred user intent:** Make the new API understandable for future users and provide a smoke-testable reference project.
 
-**Commit (code):** pending — "xgoja: document embedded asset fs aliases"
+**Commit (code):** e2bc16038984394428b05fbdb560f97839f1dc54 — "xgoja: document embedded asset fs aliases"
 
 ### What I did
 
