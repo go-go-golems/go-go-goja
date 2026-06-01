@@ -34,6 +34,14 @@ RelatedFiles:
       Note: Added EmbeddedAssets constructor/template data.
     - Path: cmd/xgoja/internal/generate/templates/main.go.tmpl
       Note: Added generated go:embed declaration for asset files.
+    - Path: modules/fs/backend.go
+      Note: Introduced Backend interface and configurable fs module constructor.
+    - Path: modules/fs/fs.go
+      Note: Switched JavaScript sync exports to backend methods while preserving API semantics.
+    - Path: modules/fs/fs_async.go
+      Note: Switched async fs helpers to backend methods while preserving promise resolution.
+    - Path: modules/fs/fs_sync.go
+      Note: Converted existing host filesystem operations into OSBackend.
     - Path: pkg/xgoja/app/assets.go
       Note: Added AssetStore and app HostServices for embedded assets.
     - Path: pkg/xgoja/app/assets_test.go
@@ -58,6 +66,7 @@ LastUpdated: 2026-06-01T08:09:12.43837053-04:00
 WhatFor: Use this to understand what was investigated, which files shaped the design, what experiments were run, and how to continue XGOJA-016.
 WhenToUse: Before implementing or reviewing the embedded asset support design.
 ---
+
 
 
 
@@ -713,4 +722,114 @@ func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
     fsys, root, ok := resolver.ResolveAsset("app-assets")
     // fsys/root identify the embedded asset tree selected by xgoja.yaml.
 }
+```
+
+## Step 7: Refactor fs behind a backend while preserving OS behavior
+
+This step changed the internal shape of `modules/fs` without adding embedded assets yet. The JavaScript API remains the same, but the module now closes over a `Backend` interface. The default registered `fs` and `node:fs` modules still use an `OSBackend`, preserving current behavior for existing users and tests.
+
+This is the foundation for `fs:assets` and `fs:host`: later provider code can construct two instances of the same fs module with different names and different backends, while this step keeps the old host filesystem behavior green.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue implementation by isolating the fs backend abstraction before adding embedded read-only backends.
+
+**Inferred user intent:** Make the fs module configurable per runtime module instance without breaking current `require("fs")` behavior.
+
+**Commit (code):** pending — "fs: introduce backend abstraction"
+
+### What I did
+
+- Added `modules/fs/backend.go` with:
+  - `Backend`
+  - `Option`
+  - `New`
+  - `WithName`
+  - `WithBackend`
+- Changed the fs module struct to carry a backend.
+- Updated `modules/fs/fs.go` so all sync exports call backend methods instead of package-level `os.*` wrappers.
+- Updated `modules/fs/fs_async.go` so async exports call the same backend methods inside the existing promise/owner callback flow.
+- Rewrote `modules/fs/fs_sync.go` as `OSBackend`, preserving the previous host filesystem operations.
+- Updated `init()` to register `New(WithName("fs"))` and `New(WithName("node:fs"))`.
+- Ran:
+  - `gofmt -w modules/fs/backend.go modules/fs/fs.go modules/fs/fs_sync.go modules/fs/fs_async.go`
+  - `GOWORK=off go test ./modules/fs -count=1`
+
+### Why
+
+- Embedded assets require a non-OS filesystem backend.
+- Per-alias fs instances require a constructor that can set both the JavaScript-visible module name and the backend.
+- Keeping OS behavior green before adding embedded backends reduces the review surface.
+
+### What worked
+
+- The final focused fs test suite passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/modules/fs	0.041s
+```
+
+- The existing JavaScript API did not need to change.
+- The existing async owner/promise mechanics stayed intact; only the filesystem operation closure changed.
+
+### What didn't work
+
+- The first test run failed in `TestFsErrorObjectsAndRmOptionsSmoke`:
+
+```text
+--- FAIL: TestFsErrorObjectsAndRmOptionsSmoke (0.00s)
+    fs_test.go:224: run fs error/options smoke: GoError: remove /tmp/TestFsErrorObjectsAndRmOptionsSmoke3488562002/001/missing-rm: no such file or directory at github.com/go-go-golems/go-go-goja/modules/fs.m.Loader.func21 (native)
+FAIL
+FAIL	github.com/go-go-golems/go-go-goja/modules/fs	0.102s
+FAIL
+```
+
+- The failure happened because `rmSync(path, { force: true })` previously handled missing paths before surfacing the wrapped fs error. The first backend refactor checked `force` after `backend.Remove`, but the wrapped error did not behave like the old direct `os.IsNotExist` path in this test.
+- I fixed this by checking `force && !backend.Exists(path)` before attempting non-recursive remove, while still keeping a post-remove `isNotExist` fallback.
+
+### What I learned
+
+- Preserving Node-like `rm({ force: true })` semantics needs explicit handling at the JS API layer, not just in the OS backend.
+- The backend interface should model operations, but option semantics such as `force` can remain in `fs.go` because they are JavaScript API semantics.
+
+### What was tricky to build
+
+- Refactoring async functions required threading the backend through many small helper functions without changing their runtime-owner behavior.
+- `rm` was the sharp edge because the old helper combined recursive/force behavior with OS calls, while the new backend split `Remove` and `RemoveAll`.
+
+### What warrants a second pair of eyes
+
+- Review the `Backend` interface size. It mirrors current fs operations, but it may be larger than the first embedded backend needs.
+- Review whether force handling should live in `fs.go` permanently or move into a small backend-independent helper.
+
+### What should be done in the future
+
+- Add a read-only embedded backend implementing the same interface.
+- Add tests proving `New(WithName("fs:assets"), WithBackend(...))` registers a distinct require name once provider wiring exists.
+
+### Code review instructions
+
+- Start in `modules/fs/backend.go` for the new constructor and interface.
+- Review `modules/fs/fs.go` for sync export changes and `rm` force behavior.
+- Review `modules/fs/fs_async.go` to ensure owner/promise behavior is unchanged.
+- Run `GOWORK=off go test ./modules/fs -count=1`.
+
+### Technical details
+
+The constructor shape added in this step is:
+
+```go
+mod := fs.New(
+    fs.WithName("fs:assets"),
+    fs.WithBackend(embeddedBackend),
+)
+```
+
+The default registry still uses:
+
+```go
+modules.Register(New(WithName("fs")))
+modules.Register(New(WithName("node:fs")))
 ```

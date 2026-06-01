@@ -12,7 +12,7 @@
 - [x] Phase 1: Add build-time and runtime asset spec structs plus validation
 - [x] Phase 1: Add generator asset copy/path-rewrite/template support and unit tests
 - [x] Phase 2: Add app AssetStore/host services and pass ModuleContext.Host into provider modules
-- [ ] Phase 3: Refactor modules/fs behind per-instance backend constructors while preserving current OS behavior
+- [x] Phase 3: Refactor modules/fs behind per-instance backend constructors while preserving current OS behavior
 - [ ] Phase 3: Add embedded read-only fs backend with mount resolution, EROFS errors, and async/sync tests
 - [ ] Phase 4: Extend host provider fs config to create fs:assets and fs:host backends from per-instance config
 - [ ] Phase 5: Add generated xgoja end-to-end tests for embedded assets and multiple fs aliases
