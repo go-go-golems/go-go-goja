@@ -1078,7 +1078,7 @@ This is the core end-to-end contract for the requested API: same provider module
 
 **Inferred user intent:** Ensure the feature works in the real xgoja build/generate/runtime flow, not only isolated package tests.
 
-**Commit (code):** pending — "xgoja: test generated embedded asset fs aliases"
+**Commit (code):** 81707731a4b5425bda0f107836e46d4dfbc0ec17 — "xgoja: test generated embedded asset fs aliases"
 
 ### What I did
 
