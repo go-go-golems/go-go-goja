@@ -8,6 +8,7 @@ type Spec struct {
 	Commands         CommandsSpec              `json:"commands"`
 	CommandProviders []CommandProviderInstance `json:"commandProviders,omitempty"`
 	JSVerbs          []JSVerbSourceSpec        `json:"jsverbs,omitempty"`
+	Help             HelpSpec                  `json:"help,omitempty"`
 }
 
 type TargetSpec struct {
@@ -63,6 +64,18 @@ type CommandProviderInstance struct {
 }
 
 type JSVerbSourceSpec struct {
+	ID      string `json:"id"`
+	Path    string `json:"path,omitempty"`
+	Embed   bool   `json:"embed"`
+	Package string `json:"package,omitempty"`
+	Source  string `json:"source,omitempty"`
+}
+
+type HelpSpec struct {
+	Sources []HelpSourceSpec `json:"sources,omitempty"`
+}
+
+type HelpSourceSpec struct {
 	ID      string `json:"id"`
 	Path    string `json:"path,omitempty"`
 	Embed   bool   `json:"embed"`

@@ -31,6 +31,11 @@ commands:
   eval:
     enabled: true
     runtime: repl
+help:
+  sources:
+    - id: provider-docs
+      package: core
+      source: docs
 jsverbs:
   - id: local
     path: ./verbs
@@ -57,6 +62,9 @@ jsverbs:
 	}
 	if spec.Runtimes["repl"].Modules[1].Alias() != "yml" {
 		t.Fatalf("module alias = %q", spec.Runtimes["repl"].Modules[1].Alias())
+	}
+	if len(spec.Help.Sources) != 1 || spec.Help.Sources[0].Source != "docs" {
+		t.Fatalf("help sources = %#v", spec.Help.Sources)
 	}
 }
 

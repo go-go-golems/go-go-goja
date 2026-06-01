@@ -1,0 +1,29 @@
+name: provider-shipped-help-docs
+target:
+  kind: xgoja
+  output: dist/provider-shipped-help-docs
+packages:
+  - id: loupedeck
+    import: github.com/go-go-golems/loupedeck/pkg/xgoja/provider
+    replace: ../../../../loupedeck
+runtimes:
+  docs:
+    modules:
+      - package: loupedeck
+        name: loupedeck/state
+        as: loupedeck/state
+commands:
+  eval:
+    enabled: true
+    runtime: docs
+  run:
+    enabled: false
+  jsverbs:
+    enabled: false
+  repl:
+    enabled: false
+help:
+  sources:
+    - id: loupedeck-runtime-api
+      package: loupedeck
+      source: runtime-api

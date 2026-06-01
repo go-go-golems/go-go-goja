@@ -21,6 +21,7 @@ func Validate(spec *Spec) *Report {
 	validateCommands(report, spec)
 	validateCommandProviders(report, spec, packageIDs)
 	validateJSVerbs(report, spec, packageIDs)
+	validateHelp(report, spec, packageIDs)
 
 	return report
 }
@@ -234,23 +235,87 @@ func validateJSVerbs(report *Report, spec *Spec, packageIDs map[string]PackageSp
 	}
 }
 
+func validateHelp(report *Report, spec *Spec, packageIDs map[string]PackageSpec) {
+	ids := map[string]struct{}{}
+	for i, source := range spec.Help.Sources {
+		path := fmt.Sprintf("help.sources[%d]", i)
+		id := strings.TrimSpace(source.ID)
+		if id == "" {
+			report.AddError("help-source-id", path+".id", "help source id is required")
+		} else if _, ok := ids[id]; ok {
+			report.AddError("help-source-id", path+".id", fmt.Sprintf("duplicate help source id %q", id))
+		} else {
+			ids[id] = struct{}{}
+		}
+
+		hasProvider := strings.TrimSpace(source.Package) != "" || strings.TrimSpace(source.Source) != ""
+		hasPath := strings.TrimSpace(source.Path) != ""
+		if hasProvider && hasPath {
+			report.AddError("help-source-shape", path, "help source cannot combine provider source and filesystem path")
+			continue
+		}
+		if hasProvider {
+			if strings.TrimSpace(source.Package) == "" || strings.TrimSpace(source.Source) == "" {
+				report.AddError("help-provider-source", path, "provider help sources require both package and source")
+				continue
+			}
+			if _, ok := packageIDs[source.Package]; !ok {
+				report.AddError("help-provider-source", path+".package", fmt.Sprintf("unknown package id %q", source.Package))
+			} else {
+				report.AddOK("help-provider-source", path, fmt.Sprintf("provider source %s.%s", source.Package, source.Source))
+			}
+			continue
+		}
+		if !hasPath {
+			report.AddError("help-path", path+".path", "filesystem help source requires path")
+			continue
+		}
+		if source.Embed {
+			if err := requireExistingDir(spec.BaseDir, source.Path); err != nil {
+				report.AddError("help-path", path+".path", err.Error())
+			} else {
+				report.AddOK("help-path", path+".path", source.Path)
+			}
+		} else {
+			report.AddOK("help-path", path+".path", "runtime filesystem source")
+		}
+	}
+}
+
 func requireExistingPath(baseDir, rawPath string) error {
+	_, _, err := existingPathInfo(baseDir, rawPath)
+	return err
+}
+
+func requireExistingDir(baseDir, rawPath string) error {
+	path, info, err := existingPathInfo(baseDir, rawPath)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s: not a directory", path)
+	}
+	return nil
+}
+
+func existingPathInfo(baseDir, rawPath string) (string, os.FileInfo, error) {
 	path := strings.TrimSpace(rawPath)
 	if path == "" {
-		return fmt.Errorf("path is empty")
+		return "", nil, fmt.Errorf("path is empty")
 	}
 	if path == "~" || strings.HasPrefix(path, "~/") {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return fmt.Errorf("resolve home directory: %w", err)
+			return "", nil, fmt.Errorf("resolve home directory: %w", err)
 		}
 		path = filepath.Join(home, strings.TrimPrefix(path, "~/"))
 	}
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(baseDir, path)
 	}
-	if _, err := os.Stat(path); err != nil {
-		return fmt.Errorf("%s: %w", path, err)
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", nil, fmt.Errorf("%s: %w", path, err)
 	}
-	return nil
+	return path, info, nil
 }

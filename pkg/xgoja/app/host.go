@@ -13,11 +13,13 @@ type Host struct {
 	Spec            *Spec
 	Factory         *RuntimeFactory
 	EmbeddedJSVerbs fs.FS
+	EmbeddedHelp    fs.FS
 	Out             io.Writer
 }
 
 type HostOptions struct {
 	EmbeddedJSVerbs fs.FS
+	EmbeddedHelp    fs.FS
 	Out             io.Writer
 }
 
@@ -31,6 +33,7 @@ func NewHostWithOptions(providers *providerapi.Registry, spec *Spec, opts HostOp
 		Spec:            spec,
 		Factory:         NewRuntimeFactory(providers, spec),
 		EmbeddedJSVerbs: opts.EmbeddedJSVerbs,
+		EmbeddedHelp:    opts.EmbeddedHelp,
 		Out:             opts.Out,
 	}
 }
@@ -39,7 +42,7 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 	if root == nil || h == nil || h.Spec == nil {
 		return
 	}
-	if err := installRootFramework(root, h.Spec); err != nil {
+	if err := installRootFramework(root, h.Spec, frameworkOptions{Providers: h.Providers, EmbeddedHelp: h.EmbeddedHelp}); err != nil {
 		root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error { return err }
 	}
 	if h.Spec.Commands.Eval.Enabled {

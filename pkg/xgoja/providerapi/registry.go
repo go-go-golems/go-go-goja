@@ -19,6 +19,7 @@ type Package struct {
 	ID                  string
 	Modules             map[string]Module
 	VerbSources         map[string]VerbSource
+	HelpSources         map[string]HelpSource
 	PackageCapabilities map[string]PackageCapability
 	CommandSetProviders map[string]CommandSetProvider
 }
@@ -42,6 +43,7 @@ func (r *Registry) Package(id string, entries ...Entry) error {
 		ID:                  id,
 		Modules:             map[string]Module{},
 		VerbSources:         map[string]VerbSource{},
+		HelpSources:         map[string]HelpSource{},
 		PackageCapabilities: map[string]PackageCapability{},
 		CommandSetProviders: map[string]CommandSetProvider{},
 	}
@@ -91,6 +93,18 @@ func (r *Registry) ResolvePackageCapabilities(packageID string) ([]PackageCapabi
 		return nil, false
 	}
 	return pkg.sortedCapabilities(), true
+}
+
+func (r *Registry) ResolveHelpSource(packageID, sourceName string) (HelpSource, bool) {
+	if r == nil {
+		return HelpSource{}, false
+	}
+	pkg := r.packages[strings.TrimSpace(packageID)]
+	if pkg == nil {
+		return HelpSource{}, false
+	}
+	source, ok := pkg.HelpSources[strings.TrimSpace(sourceName)]
+	return source, ok
 }
 
 func (r *Registry) ResolveCommandSetProvider(packageID, providerName string) (CommandSetProvider, bool) {
@@ -173,6 +187,18 @@ func (p *Package) addCapability(capability PackageCapability) error {
 	return nil
 }
 
+func (p *Package) addHelpSource(source HelpSource) error {
+	source, err := normalizeHelpSource(source)
+	if err != nil {
+		return err
+	}
+	if _, ok := p.HelpSources[source.Name]; ok {
+		return fmt.Errorf("duplicate help source %q", source.Name)
+	}
+	p.HelpSources[source.Name] = source
+	return nil
+}
+
 func (p *Package) addCommandSetProvider(provider CommandSetProvider) error {
 	provider, err := normalizeCommandSetProvider(provider)
 	if err != nil {
@@ -190,6 +216,7 @@ func (p *Package) clone() Package {
 		ID:                  p.ID,
 		Modules:             map[string]Module{},
 		VerbSources:         map[string]VerbSource{},
+		HelpSources:         map[string]HelpSource{},
 		PackageCapabilities: map[string]PackageCapability{},
 		CommandSetProviders: map[string]CommandSetProvider{},
 	}
@@ -198,6 +225,9 @@ func (p *Package) clone() Package {
 	}
 	for name, source := range p.VerbSources {
 		out.VerbSources[name] = source
+	}
+	for name, source := range p.HelpSources {
+		out.HelpSources[name] = source
 	}
 	for name, capability := range p.PackageCapabilities {
 		out.PackageCapabilities[name] = capability

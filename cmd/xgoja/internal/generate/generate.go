@@ -33,6 +33,9 @@ func WriteAll(dir string, spec *buildspec.Spec, opts Options) error {
 	if err := copyEmbeddedJSVerbs(dir, spec); err != nil {
 		return err
 	}
+	if err := copyEmbeddedHelpSources(dir, spec); err != nil {
+		return err
+	}
 	files := map[string]string{
 		"go.mod":         RenderGoMod(spec, opts),
 		"main.go":        RenderMain(spec),
@@ -60,6 +63,25 @@ func copyEmbeddedJSVerbs(dir string, spec *buildspec.Spec) error {
 		dst := filepath.Join(dir, filepath.FromSlash(root))
 		if err := copyDir(dst, src); err != nil {
 			return fmt.Errorf("copy embedded jsverb source %s: %w", source.ID, err)
+		}
+	}
+	return nil
+}
+
+func copyEmbeddedHelpSources(dir string, spec *buildspec.Spec) error {
+	roots := embeddedHelpRoots(spec)
+	for i, source := range spec.Help.Sources {
+		root := roots[i]
+		if root == "" {
+			continue
+		}
+		src, err := resolveSourcePath(spec.BaseDir, source.Path)
+		if err != nil {
+			return fmt.Errorf("resolve embedded help source %s: %w", source.ID, err)
+		}
+		dst := filepath.Join(dir, filepath.FromSlash(root))
+		if err := copyDir(dst, src); err != nil {
+			return fmt.Errorf("copy embedded help source %s: %w", source.ID, err)
 		}
 	}
 	return nil

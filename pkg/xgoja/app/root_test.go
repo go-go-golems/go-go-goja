@@ -11,6 +11,8 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider"
 )
@@ -134,6 +136,130 @@ func TestGeneratedRootInstallsHelpAndLogging(t *testing.T) {
 	}
 	if got := out.String(); !bytes.Contains([]byte(got), []byte("generated xgoja runtime overview")) {
 		t.Fatalf("expected generated help topic, got %q", got)
+	}
+}
+
+func TestGeneratedRootLoadsProviderHelpSource(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	docs := fstest.MapFS{
+		"topics/01-fixture.md": {Data: []byte(`---
+Title: Fixture JavaScript API reference
+Slug: fixture-js-api-reference
+Short: Fixture provider docs.
+Topics:
+- fixture
+Commands:
+- fixture
+Flags: []
+IsTopLevel: true
+IsTemplate: false
+ShowPerDefault: true
+SectionType: GeneralTopic
+---
+
+Fixture provider help body.
+`)},
+	}
+	if err := registry.Package("fixture",
+		providerapi.Module{Name: "hello", New: noopAppModuleFactory},
+		providerapi.HelpSource{Name: "docs", FS: docs, Root: "."},
+	); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	specJSON := `{
+  "name": "fixture",
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {
+    "repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}
+  },
+  "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
+  "help": {"sources": [{"id": "fixture-docs", "package": "fixture", "source": "docs"}]}
+}`
+	out := &bytes.Buffer{}
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	root.SetArgs([]string{"help", "fixture-js-api-reference"})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute help: %v", err)
+	}
+	if got := out.String(); !bytes.Contains([]byte(got), []byte("Fixture JavaScript API reference")) || !bytes.Contains([]byte(got), []byte("Fixture provider help body")) {
+		t.Fatalf("expected provider help topic, got %q", got)
+	}
+}
+
+func TestGeneratedRootLoadsEmbeddedLocalHelpSource(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	embeddedHelp := fstest.MapFS{
+		"xgoja_embed/help/local/topics/01-local.md": {Data: []byte(`---
+Title: Local generated help
+Slug: local-generated-help
+Short: Local generated docs.
+Topics:
+- local
+Commands: []
+Flags: []
+IsTopLevel: true
+IsTemplate: false
+ShowPerDefault: true
+SectionType: GeneralTopic
+---
+
+Local generated help body.
+`)},
+	}
+	specJSON := `{
+  "name": "fixture",
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {
+    "repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}
+  },
+  "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
+  "help": {"sources": [{"id": "local", "path": "xgoja_embed/help/local", "embed": true}]}
+}`
+	out := &bytes.Buffer{}
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out, EmbeddedHelp: embeddedHelp})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	root.SetArgs([]string{"help", "local-generated-help"})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute help: %v", err)
+	}
+	if got := out.String(); !bytes.Contains([]byte(got), []byte("Local generated help")) || !bytes.Contains([]byte(got), []byte("Local generated help body")) {
+		t.Fatalf("expected embedded local help topic, got %q", got)
+	}
+}
+
+func TestGeneratedRootReportsMissingProviderHelpSource(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	specJSON := `{
+  "name": "fixture",
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {
+    "repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}
+  },
+  "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
+  "help": {"sources": [{"id": "missing", "package": "fixture", "source": "missing"}]}
+}`
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON})
+	if err != nil {
+		t.Fatalf("new root should defer framework errors to execution, got %v", err)
+	}
+	root.SetArgs([]string{"help", "runtime-overview"})
+	err = root.ExecuteContext(context.Background())
+	if err == nil || !bytes.Contains([]byte(err.Error()), []byte("unknown provider help source fixture.missing")) {
+		t.Fatalf("expected missing provider help source error, got %v", err)
 	}
 }
 
@@ -399,4 +525,8 @@ func captureStdout(t *testing.T, fn func()) string {
 		t.Fatalf("read stdout: %v", err)
 	}
 	return string(data)
+}
+
+func noopAppModuleFactory(providerapi.ModuleContext) (require.ModuleLoader, error) {
+	return func(vm *goja.Runtime, module *goja.Object) {}, nil
 }
