@@ -27,7 +27,9 @@ RelatedFiles:
     - Path: cmd/xgoja/internal/generate/generate.go
       Note: Added copyEmbeddedAssets and asset copy wiring.
     - Path: cmd/xgoja/internal/generate/generate_test.go
-      Note: Added render/copy tests for embedded assets.
+      Note: |-
+        Added render/copy tests for embedded assets.
+        Added generated-program test for embedded assets and fs aliases.
     - Path: cmd/xgoja/internal/generate/main.go
       Note: Added embedded asset path rewriting and collision-free roots.
     - Path: cmd/xgoja/internal/generate/templates.go
@@ -76,6 +78,7 @@ LastUpdated: 2026-06-01T08:09:12.43837053-04:00
 WhatFor: Use this to understand what was investigated, which files shaped the design, what experiments were run, and how to continue XGOJA-016.
 WhenToUse: Before implementing or reviewing the embedded asset support design.
 ---
+
 
 
 
@@ -1059,4 +1062,104 @@ modules:
     as: fs:host
     config:
       allow: true
+```
+
+## Step 10: Add generated xgoja end-to-end asset test
+
+This step proved the feature works through the generated binary path, not just unit-level app/provider/fs wiring. A generated xgoja program now embeds an `assets:` directory, registers the host provider fs module twice, reads the embedded asset through `require("fs:assets")`, writes it to a host temp file through `require("fs:host")`, and confirms that plain `require("fs")` is absent.
+
+This is the core end-to-end contract for the requested API: same provider module, different `as:` require names, separate configs, and separate backends.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue implementation by adding generated-program coverage for the multi-alias fs asset API.
+
+**Inferred user intent:** Ensure the feature works in the real xgoja build/generate/runtime flow, not only isolated package tests.
+
+**Commit (code):** pending — "xgoja: test generated embedded asset fs aliases"
+
+### What I did
+
+- Added `TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases` to `cmd/xgoja/internal/generate/generate_test.go`.
+- The test creates a temporary `assets/config/default.json` source tree.
+- The generated spec includes:
+  - package `go-go-goja-host` importing `pkg/xgoja/providers/host`;
+  - top-level `assets:` with `embed: true`;
+  - runtime module `fs:assets` with embedded mount `/app`;
+  - runtime module `fs:host` with `allow: true`.
+- The generated eval script checks:
+  - `require("fs:assets")` reads `/app/config/default.json`;
+  - `require("fs:host")` writes the same content to a host temp file;
+  - `require("fs")` fails because no module registered alias `fs`;
+  - the asset file was copied into `xgoja_embed/assets/app_assets/...`.
+- Ran:
+  - `gofmt -w cmd/xgoja/internal/generate/generate_test.go`
+  - `GOWORK=off go test ./cmd/xgoja/internal/generate -run TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases -count=1`
+
+### Why
+
+- The previous tests covered individual layers; this test covers their integration through generated code.
+- It locks down the alias behavior the user explicitly asked about.
+- It catches generated-template drift around `EmbeddedAssets` options.
+
+### What worked
+
+- The generated-program test passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	2.242s
+```
+
+- The generated program could read embedded assets and write through the host alias in the same runtime.
+- Plain `require("fs")` was missing as expected.
+
+### What didn't work
+
+- The first run failed because the buildspec package ID did not match the provider's registered package ID:
+
+```text
+--- FAIL: TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases (2.24s)
+    generate_test.go:492: go run generated program: exit status 1
+        Error: runtime main references unknown provider module host.fs
+        exit status 1
+```
+
+- I had used `packages[].id: host`, but the host provider registers itself as `go-go-goja-host`. I fixed the test spec and runtime module references to use `go-go-goja-host`, matching existing examples.
+
+### What I learned
+
+- xgoja buildspec package IDs must match the provider package IDs registered by provider `Register` functions. The import alias in `packages` is not a rename layer for the provider registry package ID.
+- Existing examples such as `examples/xgoja/03-multiple-runtimes/xgoja.yaml` already follow this by using `go-go-goja-host`.
+
+### What was tricky to build
+
+- The generated test needs both a source asset path and a host output path. The asset path is relative to `spec.BaseDir`, while the host output path is an absolute temp path passed into JavaScript.
+- JSON-string output again required careful escaping in substring assertions.
+
+### What warrants a second pair of eyes
+
+- Confirm the package ID behavior should remain as-is, or whether xgoja should eventually support mapping buildspec IDs to provider-registered IDs. That is outside this ticket.
+
+### What should be done in the future
+
+- Add a public example and help docs using the same `go-go-goja-host`, `fs:assets`, and `fs:host` names.
+- Run the broader generate package tests before final handoff.
+
+### Code review instructions
+
+- Review `TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases` in `cmd/xgoja/internal/generate/generate_test.go`.
+- Run `GOWORK=off go test ./cmd/xgoja/internal/generate -run TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases -count=1`.
+
+### Technical details
+
+The generated test asserts this JavaScript pattern:
+
+```js
+const assets = require("fs:assets")
+const host = require("fs:host")
+try { require("fs") } catch (e) { plain = "missing" }
+const text = assets.readFileSync("/app/config/default.json", "utf8")
+host.writeFileSync(outPath, text, "utf8")
 ```

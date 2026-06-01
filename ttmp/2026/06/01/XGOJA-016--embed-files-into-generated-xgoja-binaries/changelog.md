@@ -109,3 +109,12 @@ Phase 4 task 12: extended host provider fs config to support separate fs:assets 
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/providers/host/host.go — Provider config implementation.
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/providers/host/host_test.go — Alias behavior tests.
 
+
+## 2026-06-01
+
+Phase 5 task 13: added generated xgoja end-to-end test for assets plus fs:assets/fs:host aliases.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Generated end-to-end asset alias test.
+
