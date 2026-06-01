@@ -1311,7 +1311,7 @@ I also marked the final validation task complete. The remaining untracked `.idea
 
 **Inferred user intent:** Leave the branch in a reviewable state with tests passing and the ticket task list up to date.
 
-**Commit (code):** pending — "Diary: record XGOJA-016 validation"
+**Commit (code):** N/A — validation and documentation bookkeeping only.
 
 ### What I did
 
