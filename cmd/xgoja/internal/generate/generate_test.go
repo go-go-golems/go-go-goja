@@ -190,7 +190,7 @@ func TestRenderMainIncludesEmbeddedAssetFS(t *testing.T) {
 	got := RenderMain(spec)
 	for _, want := range []string{
 		`"embed"`,
-		`//go:embed xgoja_embed/assets/*`,
+		`//go:embed all:xgoja_embed/assets/*`,
 		`var embeddedAssets embed.FS`,
 		`EmbeddedAssets: embeddedAssets`,
 	} {
@@ -444,11 +444,18 @@ function embeddedGreet(name) {
 func TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases(t *testing.T) {
 	baseDir := t.TempDir()
 	assetDir := filepath.Join(baseDir, "assets", "config")
+	wellKnownDir := filepath.Join(baseDir, "assets", ".well-known")
 	if err := os.MkdirAll(assetDir, 0o755); err != nil {
 		t.Fatalf("mkdir assets: %v", err)
 	}
+	if err := os.MkdirAll(wellKnownDir, 0o755); err != nil {
+		t.Fatalf("mkdir well-known assets: %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(assetDir, "default.json"), []byte(`{"ok":true}`), 0o644); err != nil {
 		t.Fatalf("write asset: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(wellKnownDir, "security.txt"), []byte(`Contact: mailto:security@example.com`), 0o644); err != nil {
+		t.Fatalf("write dot asset: %v", err)
 	}
 	outPath := filepath.ToSlash(filepath.Join(baseDir, "out.json"))
 	spec := &buildspec.Spec{
@@ -486,18 +493,22 @@ func TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases(t *testing.T) {
 		let plain = "";
 		try { require("fs"); } catch (e) { plain = "missing"; }
 		const text = assets.readFileSync("/app/config/default.json", "utf8");
+		const wellKnown = assets.readFileSync("/app/.well-known/security.txt", "utf8");
 		host.writeFileSync(` + strconv.Quote(outPath) + `, text, "utf8");
-		JSON.stringify({ text, plain, wrote: host.existsSync(` + strconv.Quote(outPath) + `) });
+		JSON.stringify({ text, wellKnown, plain, wrote: host.existsSync(` + strconv.Quote(outPath) + `) });
 	`
 	dir, out := runGeneratedCommandWithOutput(t, spec, "eval", js)
 	state := string(out)
-	for _, want := range []string{`"text":"{\"ok\":true}"`, `"plain":"missing"`, `"wrote":true`} {
+	for _, want := range []string{`"text":"{\"ok\":true}"`, `"wellKnown":"Contact: mailto:security@example.com"`, `"plain":"missing"`, `"wrote":true`} {
 		if !strings.Contains(state, want) {
 			t.Fatalf("embedded asset eval output missing %s: %s", want, state)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "assets", "app_assets", "config", "default.json")); err != nil {
 		t.Fatalf("embedded asset was not copied: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "assets", "app_assets", ".well-known", "security.txt")); err != nil {
+		t.Fatalf("embedded dot-directory asset was not copied: %v", err)
 	}
 	written, err := os.ReadFile(outPath)
 	if err != nil {

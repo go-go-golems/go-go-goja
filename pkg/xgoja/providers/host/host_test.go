@@ -108,6 +108,52 @@ func TestFSHostAndEmbeddedAliases(t *testing.T) {
 	}
 }
 
+func TestFSRootEmbeddedMount(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register host provider: %v", err)
+	}
+	assetFS := fstest.MapFS{
+		"xgoja_embed/assets/app/config/default.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
+	}
+	spec := &app.Spec{
+		Assets: []app.AssetSourceSpec{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
+		Runtimes: map[string]app.Runtime{
+			"main": {Modules: []app.ModuleInstance{{
+				Package: PackageID,
+				Name:    "fs",
+				As:      "fs:assets",
+				Config: map[string]any{
+					"embedded": map[string]any{
+						"allow":  true,
+						"mounts": []any{map[string]any{"asset": "app-assets", "mount": "/"}},
+					},
+				},
+			}}},
+		},
+	}
+	host := app.NewHostWithOptions(registry, spec, app.HostOptions{EmbeddedAssets: assetFS})
+	rt, err := host.Factory.NewRuntime(context.Background(), "main")
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "host.fs-root-mount", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`require("fs:assets").readFileSync("/config/default.json", "utf8")`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("read root-mounted asset: %v", err)
+	}
+	if ret.(string) != `{"ok":true}` {
+		t.Fatalf("root-mounted asset = %q", ret)
+	}
+}
+
 func TestFSRejectsCombinedHostAndEmbeddedConfig(t *testing.T) {
 	registry := providerapi.NewRegistry()
 	if err := Register(registry); err != nil {

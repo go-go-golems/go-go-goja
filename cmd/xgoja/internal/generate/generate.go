@@ -102,7 +102,7 @@ func copyEmbeddedAssets(dir string, spec *buildspec.Spec) error {
 			return fmt.Errorf("resolve embedded asset source %s: %w", source.ID, err)
 		}
 		dst := filepath.Join(dir, filepath.FromSlash(root))
-		if err := copyDir(dst, src); err != nil {
+		if err := copyDirWithOptions(dst, src, copyDirOptions{skipNodeModules: true}); err != nil {
 			return fmt.Errorf("copy embedded asset source %s: %w", source.ID, err)
 		}
 	}
@@ -127,7 +127,16 @@ func resolveSourcePath(baseDir, rawPath string) (string, error) {
 	return filepath.Clean(path), nil
 }
 
+type copyDirOptions struct {
+	skipDotDirs     bool
+	skipNodeModules bool
+}
+
 func copyDir(dst, src string) error {
+	return copyDirWithOptions(dst, src, copyDirOptions{skipDotDirs: true, skipNodeModules: true})
+}
+
+func copyDirWithOptions(dst, src string, opts copyDirOptions) error {
 	info, err := os.Stat(src)
 	if err != nil {
 		return err
@@ -148,7 +157,10 @@ func copyDir(dst, src string) error {
 		}
 		if d.IsDir() {
 			name := d.Name()
-			if name == "node_modules" || strings.HasPrefix(name, ".") {
+			if opts.skipNodeModules && name == "node_modules" {
+				return filepath.SkipDir
+			}
+			if opts.skipDotDirs && strings.HasPrefix(name, ".") {
 				return filepath.SkipDir
 			}
 			return os.MkdirAll(filepath.Join(dst, rel), 0o755)

@@ -219,17 +219,6 @@ func databaseModule(name string) providerapi.Module {
 	}
 }
 
-func requireAllow(data json.RawMessage, moduleName string) error {
-	cfg := GuardConfig{}
-	if err := decodeConfig(data, &cfg); err != nil {
-		return fmt.Errorf("%s config: %w", moduleName, err)
-	}
-	if !cfg.Allow {
-		return fmt.Errorf("%s module requires config.allow=true", moduleName)
-	}
-	return nil
-}
-
 func decodeConfig(data json.RawMessage, out any) error {
 	if len(data) == 0 || string(data) == "null" {
 		return nil

@@ -29,9 +29,6 @@ func NewReadOnlyFSBackend(mounts ...FSMount) *ReadOnlyFSBackend {
 		}
 		mount.Root = cleanFSRoot(mount.Root)
 		mount.Mount = cleanVirtualMount(mount.Mount)
-		if mount.Mount == "" {
-			continue
-		}
 		out.mounts = append(out.mounts, mount)
 	}
 	sort.SliceStable(out.mounts, func(i, j int) bool {
@@ -140,6 +137,13 @@ func (b *ReadOnlyFSBackend) mutationError(p string, syscall string) error {
 func (b *ReadOnlyFSBackend) resolve(p string) (fs.FS, string, bool) {
 	clean := cleanVirtualPath(p)
 	for _, mount := range b.mounts {
+		if mount.Mount == "/" {
+			rel := strings.TrimPrefix(clean, "/")
+			if rel == "" {
+				rel = "."
+			}
+			return mount.FS, path.Join(mount.Root, rel), true
+		}
 		if clean == mount.Mount || strings.HasPrefix(clean, mount.Mount+"/") {
 			rel := strings.TrimPrefix(clean, mount.Mount)
 			rel = strings.TrimPrefix(rel, "/")
@@ -166,11 +170,7 @@ func cleanVirtualPath(p string) string {
 }
 
 func cleanVirtualMount(p string) string {
-	clean := cleanVirtualPath(p)
-	if clean == "/" {
-		return ""
-	}
-	return clean
+	return cleanVirtualPath(p)
 }
 
 func cleanFSRoot(root string) string {

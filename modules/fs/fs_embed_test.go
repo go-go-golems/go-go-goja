@@ -42,6 +42,32 @@ func TestReadOnlyEmbeddedFsSync(t *testing.T) {
 	}
 }
 
+func TestReadOnlyEmbeddedFsRootMount(t *testing.T) {
+	assetFS := fstest.MapFS{
+		"assets/index.html":          &fstest.MapFile{Data: []byte(`<h1>root</h1>`)},
+		"assets/config/default.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
+	}
+	backend := fsmod.NewReadOnlyFSBackend(fsmod.FSMount{FS: assetFS, Root: "assets", Mount: "/"})
+
+	data, err := backend.ReadFile("/index.html")
+	if err != nil {
+		t.Fatalf("read root-mounted file: %v", err)
+	}
+	if string(data) != `<h1>root</h1>` {
+		t.Fatalf("root-mounted data = %q", data)
+	}
+	entries, err := backend.ReadDir("/")
+	if err != nil {
+		t.Fatalf("read root dir: %v", err)
+	}
+	if strings.Join(entries, ",") != "config,index.html" {
+		t.Fatalf("root entries = %#v", entries)
+	}
+	if !backend.Exists("/config/default.json") {
+		t.Fatal("expected root-mounted nested file to exist")
+	}
+}
+
 func TestReadOnlyEmbeddedFsAsync(t *testing.T) {
 	rt := newEmbeddedRuntime(t)
 	_, err := rt.Owner.Call(context.Background(), "fs.embedded.async.setup", func(_ context.Context, vm *goja.Runtime) (any, error) {

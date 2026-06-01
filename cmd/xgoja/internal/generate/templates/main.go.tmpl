@@ -33,7 +33,7 @@ var embeddedJSVerbs embed.FS
 var embeddedHelp embed.FS
 {{ end }}
 {{- if .HasEmbeddedAssets }}
-//go:embed xgoja_embed/assets/*
+//go:embed all:xgoja_embed/assets/*
 var embeddedAssets embed.FS
 {{ end }}
 
