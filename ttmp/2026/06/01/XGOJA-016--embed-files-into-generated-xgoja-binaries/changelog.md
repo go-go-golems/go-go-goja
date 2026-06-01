@@ -160,3 +160,14 @@ Addressed PR #48 review/lint feedback: root asset mounts work, dot directories a
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/fs/backend_embed.go — Root mount fix.
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/providers/host/host.go — Linter fix.
 
+
+## 2026-06-01
+
+Replaced static asset staging workaround with express app.staticFromAssetsModule that serves read-only embedded fs modules directly (commit 1bbe24d).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/examples/xgoja/10-embedded-assets-fs/scripts/serve-static-assets.js — Example now serves assets directly.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/express/express.go — New staticFromAssetsModule API.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/fs/http.go — HTTP adapter for read-only embedded fs modules.
+

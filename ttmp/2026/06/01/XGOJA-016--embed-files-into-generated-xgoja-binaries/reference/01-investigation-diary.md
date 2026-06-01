@@ -1655,3 +1655,112 @@ copyDirWithOptions(dst, src, copyDirOptions{skipNodeModules: true})
 ```
 
 while jsverbs/help still use the legacy copy rules that skip both dot directories and `node_modules`.
+
+## Step 15: Serve embedded asset fs modules directly from Express
+
+This step removed the awkward host staging workaround from the static assets example. The Express-style app API now has `staticFromAssetsModule(prefix, assetsModule, root)`, so JavaScript can pass the actual `require("fs:assets")` module object and the Go side serves its read-only embedded backend directly with `http.FileServer(http.FS(...))`.
+
+The implementation keeps `app.static(prefix, directory)` for real host directories, but adds a second explicit method for embedded asset modules. The example script now registers `/static` from `/app/public` without copying files into `.xgoja-static`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "could we pass "assets" (the module itself) to app.staticFromAssets(assets, "/", stagedPublicc), and the go side will then recognize that it is a set of mounted embed fs?"
+
+**Assistant interpretation:** Replace the staging-copy workaround with an API where Express receives the fs assets module object and serves its embedded backend directly.
+
+**Inferred user intent:** Make the static asset example clean and idiomatic for bundled assets, with no temporary host directory.
+
+**Commit (code):** 1bbe24d — "express: serve embedded fs modules directly"
+
+### What I did
+
+- Added `modules/fs/http.go`, which adapts read-only embedded fs module backends to `http.FileServer` via `http.FS`.
+- Added a hidden non-enumerable backend marker on fs module exports so Go code can recognize read-only embedded fs module objects passed from JavaScript.
+- Added `gojahttp.Host.RegisterStaticHandler` while keeping `RegisterStatic(prefix, dir)` as host-directory behavior.
+- Added `app.staticFromAssetsModule(prefix, assetsModule, root)` to the Express module.
+- Updated TypeScript declarations and `pkg/doc/18-express-module.md`.
+- Rewrote `examples/xgoja/10-embedded-assets-fs/scripts/serve-static-assets.js` to call:
+
+```js
+app.staticFromAssetsModule("/static", assets, "/app/public")
+```
+
+- Removed `.xgoja-static` cleanup from the example Makefile and updated docs.
+
+### Why
+
+- The previous example was correct but misleading: it implied embedded static serving required copying bundled files back to the host filesystem.
+- Passing the fs module object keeps the capability boundary visible in JavaScript and lets Go safely inspect the actual backend type.
+
+### What worked
+
+- Focused tests passed:
+
+```text
+GOWORK=off go test ./modules/fs ./modules/express ./pkg/gojahttp ./cmd/xgoja/internal/generate ./pkg/xgoja/app -count=1
+```
+
+- Example static server smoke passed:
+
+```text
+make -C examples/xgoja/10-embedded-assets-fs serve-smoke
+```
+
+- Full suite passed:
+
+```text
+GOWORK=off go test ./... -count=1
+```
+
+- Focused lint passed:
+
+```text
+GOWORK=off golangci-lint run ./modules/fs ./modules/express ./pkg/gojahttp
+0 issues.
+```
+
+### What didn't work
+
+- The first Express integration test used `/static/index.html`; Go's `http.FileServer` redirects explicit `/index.html` paths to the directory URL. The test now requests `/static/` for the index page and `/static/app.js` for a direct file.
+
+### What I learned
+
+- The cleanest bridge is not to infer from path strings, but to tag the fs module export with its Go backend and accept that module object explicitly.
+- `http.FileServer` has specific index redirect behavior that tests should respect.
+
+### What was tricky to build
+
+- The fs module's `Backend` interface returns package-private file stat data, so the HTTP adapter belongs inside `modules/fs`, where it can use the read-only backend internals safely.
+- The API should reject normal host fs modules rather than accidentally serving arbitrary host paths through the embedded-assets helper. The helper only accepts modules backed by `ReadOnlyFSBackend`.
+
+### What warrants a second pair of eyes
+
+- Review the hidden backend marker name and whether a symbol-like mechanism would be preferable later.
+- Review the API name `staticFromAssetsModule`; it is explicit but somewhat long.
+
+### What should be done in the future
+
+- Consider adding a shorter alias after the API settles, such as `staticAssets`.
+- Consider adding support for serving other safe `io/fs`-backed modules if more virtual filesystem modules appear.
+
+### Code review instructions
+
+- Start with `modules/express/express.go` and `modules/fs/http.go`.
+- Then review `examples/xgoja/10-embedded-assets-fs/scripts/serve-static-assets.js` to confirm the example no longer stages files.
+- Validate with:
+  - `make -C examples/xgoja/10-embedded-assets-fs serve-smoke`
+  - `GOWORK=off go test ./modules/fs ./modules/express ./pkg/gojahttp -count=1`
+
+### Technical details
+
+The new JavaScript API is:
+
+```js
+const express = require("express")
+const assets = require("fs:assets")
+
+const app = express.app()
+app.staticFromAssetsModule("/static", assets, "/app/public")
+```
+
+The fs module marks its export object with a non-enumerable Go backend value. Express asks `modules/fs` to turn that backend into an HTTP handler, and `gojahttp` mounts the handler with the same prefix behavior as host-directory static mounts.
