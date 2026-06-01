@@ -17,7 +17,9 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: cmd/xgoja/doc/02-user-guide.md
-      Note: User guide documents assets and fs alias semantics.
+      Note: |-
+        User guide documents assets and fs alias semantics.
+        Documents keep-alive for embedded asset HTTP scripts.
     - Path: cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md
       Note: Tutorial includes embedded assets step.
     - Path: cmd/xgoja/doc/06-buildspec-reference.md
@@ -42,10 +44,16 @@ RelatedFiles:
       Note: Added EmbeddedAssets constructor/template data.
     - Path: cmd/xgoja/internal/generate/templates/main.go.tmpl
       Note: Added generated go:embed declaration for asset files.
+    - Path: examples/xgoja/10-embedded-assets-fs/Makefile
+      Note: Added serve-smoke validation target.
     - Path: examples/xgoja/10-embedded-assets-fs/scripts/read-assets.js
       Note: Example JavaScript using fs assets and fs host aliases.
+    - Path: examples/xgoja/10-embedded-assets-fs/scripts/serve-static-assets.js
+      Note: Embedded static assets Express example.
     - Path: examples/xgoja/10-embedded-assets-fs/xgoja.yaml
-      Note: Runnable embedded assets fs alias buildspec example.
+      Note: |-
+        Runnable embedded assets fs alias buildspec example.
+        Example now includes the HTTP provider express module.
     - Path: modules/fs/backend.go
       Note: Introduced Backend interface and configurable fs module constructor.
     - Path: modules/fs/backend_embed.go
@@ -70,6 +78,8 @@ RelatedFiles:
       Note: Stores embedded asset FS and services on app Host.
     - Path: pkg/xgoja/app/root.go
       Note: Accepts EmbeddedAssets in app root options.
+    - Path: pkg/xgoja/app/run.go
+      Note: Added run --keep-alive for long-running HTTP setup scripts.
     - Path: pkg/xgoja/app/spec.go
       Note: Added runtime JSON AssetSourceSpec mirror.
     - Path: pkg/xgoja/providerapi/module.go
@@ -88,6 +98,7 @@ LastUpdated: 2026-06-01T08:09:12.43837053-04:00
 WhatFor: Use this to understand what was investigated, which files shaped the design, what experiments were run, and how to continue XGOJA-016.
 WhenToUse: Before implementing or reviewing the embedded asset support design.
 ---
+
 
 
 
@@ -1409,4 +1420,112 @@ runtimes:
         as: fs:host
         config:
           allow: true
+```
+
+## Step 13: Add an embedded-assets Express static server example
+
+This step added a runnable server example on top of the embedded assets work. The example now bundles a small static site under `assets/public`, stages those embedded files through the configured filesystem aliases, and serves them through the xgoja HTTP provider's `express` module.
+
+I also added a `--keep-alive` option to the generated `run` command. Without this, server setup scripts return immediately after route registration, the runtime closes, and the HTTP server shuts down before users can connect. With `--keep-alive`, the script can finish setup and xgoja keeps the runtime open until Ctrl-C or SIGTERM.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Make an example script for the assets bundling with a simple express module web server that serves static assets."
+
+**Assistant interpretation:** Extend the embedded assets example with a runnable Express-style HTTP server that serves bundled static files from the generated binary.
+
+**Inferred user intent:** Demonstrate a realistic use case for asset bundling: ship HTML/CSS/JS with a generated xgoja binary and serve it over HTTP.
+
+**Commit (code):** 731850fbac8b818f48cd178a6c6922f07c701971 — "xgoja: add embedded asset static server example"
+
+### What I did
+
+- Added static bundled assets:
+  - `examples/xgoja/10-embedded-assets-fs/assets/public/index.html`
+  - `examples/xgoja/10-embedded-assets-fs/assets/public/styles.css`
+  - `examples/xgoja/10-embedded-assets-fs/assets/public/app.js`
+- Added `examples/xgoja/10-embedded-assets-fs/scripts/serve-static-assets.js`.
+- Updated the example `xgoja.yaml` to include `go-go-goja-http` and the `express` module.
+- Added `run --keep-alive` support in `pkg/xgoja/app/run.go` for long-running setup scripts.
+- Added `make serve-smoke` to start the generated binary, poll the static site and API endpoint, then stop the process.
+- Updated the example README and xgoja user guide.
+
+### Why
+
+- The existing asset example proved embedded reads and host writes, but not a web-serving workflow.
+- The `express` static API serves host directories, while embedded assets are exposed through `fs:assets`; the example therefore stages embedded files to a host directory before calling `app.static`.
+- Long-running HTTP examples need a way to keep the generated runtime alive after setup.
+
+### What worked
+
+- Focused tests passed:
+
+```text
+GOWORK=off go test ./pkg/xgoja/app ./pkg/xgoja/providers/http ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate -count=1
+```
+
+- Example smoke tests passed:
+
+```text
+make -C examples/xgoja/10-embedded-assets-fs serve-smoke
+make -C examples/xgoja/10-embedded-assets-fs prove-self-contained
+```
+
+- Full suite passed:
+
+```text
+GOWORK=off go test ./... -count=1
+```
+
+### What didn't work
+
+- A server setup script cannot just return after calling `require("express").app().static(...)`; the generated `run` command closes the runtime when the script finishes. This would shut down the HTTP capability immediately.
+- I avoided a JavaScript-side blocking workaround because blocking the runtime owner is fragile for dynamic HTTP handlers. Instead, `--keep-alive` blocks on the Go side after setup while leaving the runtime owner idle for HTTP callbacks.
+
+### What I learned
+
+- `app.static(prefix, dir)` currently serves a host filesystem directory through Go's `http.FileServer`; it does not serve `io/fs` mounts directly.
+- The safest example with today's APIs is: read embedded files through `fs:assets`, stage them through `fs:host`, then serve the staged directory through `express.app().static`.
+
+### What was tricky to build
+
+- The server lifecycle was the main sharp edge. Keeping JavaScript busy would keep the process alive but can prevent dynamic route handlers from acquiring the runtime owner. The `--keep-alive` flag solves this at the command layer: JavaScript setup returns, the runtime stays open, and the owner remains available.
+- The example has to make capability boundaries explicit: `fs:assets` is read-only embedded input, `fs:host` is the writeable staging area, and `express` is the HTTP server registration API.
+
+### What warrants a second pair of eyes
+
+- Review whether `--keep-alive` belongs on `run` long-term or whether xgoja should grow a first-class `serve` command for HTTP provider workloads.
+- Review whether `express.app().static` should eventually accept an embedded fs backend directly to avoid staging files to disk.
+
+### What should be done in the future
+
+- Consider adding an embedded-static helper in the HTTP provider so users can serve `fs:assets` without a host staging directory.
+- Consider documenting `--keep-alive` in the command reference beyond the user guide note.
+
+### Code review instructions
+
+- Start with `examples/xgoja/10-embedded-assets-fs/scripts/serve-static-assets.js` and `xgoja.yaml`.
+- Review `pkg/xgoja/app/run.go` for the `--keep-alive` lifecycle behavior.
+- Validate with:
+  - `make -C examples/xgoja/10-embedded-assets-fs serve-smoke`
+  - `GOWORK=off go test ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1`
+
+### Technical details
+
+The manual server command is:
+
+```bash
+./dist/embedded-assets-fs run scripts/serve-static-assets.js --http-listen 127.0.0.1:8787 --keep-alive
+```
+
+The core JavaScript setup is:
+
+```js
+const express = require("express")
+const assets = require("fs:assets")
+const host = require("fs:host")
+
+copyEmbeddedTree("/app/public", ".xgoja-static/public")
+const app = express.app()
+app.static("/static", ".xgoja-static/public")
 ```

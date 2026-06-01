@@ -138,3 +138,13 @@ Phase 7 task 15: full repository validation passed with GOWORK=off go test ./...
 
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/reference/01-investigation-diary.md — Final validation diary step.
 
+
+## 2026-06-01
+
+Added embedded-assets Express static server example and run --keep-alive support; serve-smoke and full go test suite pass (commit 731850f).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/examples/xgoja/10-embedded-assets-fs/scripts/serve-static-assets.js — Static server example.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/app/run.go — Long-running run command support.
+
