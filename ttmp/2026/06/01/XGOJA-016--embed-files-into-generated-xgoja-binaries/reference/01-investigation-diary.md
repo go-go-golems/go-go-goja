@@ -1296,3 +1296,117 @@ modules:
     config:
       allow: true
 ```
+
+## Step 12: Run full validation and close implementation tasks
+
+This step validated the completed implementation across the repository. After the layer-by-layer commits, I ran the full Go test suite with `GOWORK=off` and confirmed all packages pass, including the generated xgoja tests and the new embedded asset fs alias coverage.
+
+I also marked the final validation task complete. The remaining untracked `.idea/` file is unrelated editor metadata and was intentionally not staged.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Finish the phased implementation pass with full validation, diary updates, and a final bookkeeping commit.
+
+**Inferred user intent:** Leave the branch in a reviewable state with tests passing and the ticket task list up to date.
+
+**Commit (code):** pending — "Diary: record XGOJA-016 validation"
+
+### What I did
+
+- Ran the full repository test suite:
+  - `GOWORK=off go test ./... -count=1`
+- Marked task 15 complete.
+- Confirmed `docmgr doctor --ticket XGOJA-016 --stale-after 30` had passed in the prior task commits and will be run again for final handoff.
+- Checked `git status --short` and confirmed only `.idea/` is untracked.
+
+### Why
+
+- The feature changed buildspec parsing, generated code, app runtime plumbing, provider APIs, provider behavior, fs internals, docs, and examples. A full suite run is appropriate before handoff.
+- The ticket tasks should reflect the actual implementation status.
+
+### What worked
+
+- Full tests passed:
+
+```text
+GOWORK=off go test ./... -count=1
+```
+
+The output included successful runs for key packages:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	12.997s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.007s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	42.384s
+ok  	github.com/go-go-golems/go-go-goja/modules/fs	0.085s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.509s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host	0.096s
+```
+
+### What didn't work
+
+- N/A in the final validation step.
+
+### What I learned
+
+- The full suite includes tests under historical `ttmp` script directories, so `GOWORK=off go test ./...` is a broad validation command in this repository.
+- The generated xgoja tests are the slowest relevant part of this feature, but they are valuable because they exercise real generated programs.
+
+### What was tricky to build
+
+- Most tricky behavior was already resolved in earlier steps: `rm({force:true})`, `run` command script arguments, and buildspec package IDs matching provider-registered IDs.
+
+### What warrants a second pair of eyes
+
+- Review the accumulated commits for whether any documentation-only diary commits should be squashed before merging.
+- Review `.idea/.gitignore` in the working tree and decide whether it should be ignored globally or removed; it was not created for this implementation.
+
+### What should be done in the future
+
+- If desired, upload a refreshed reMarkable bundle that includes the implementation diary and code-level changes. I did not upload automatically in this step because the user asked for implementation work and commits, not a refreshed upload.
+
+### Code review instructions
+
+- Start with these commits in order:
+  - `f2ffd1439eddcc2aa53fc45551ef629a76a5a440` — asset spec validation
+  - `ab80a4b24dd16f2939b87afcf2fc0fd322e89e6a` — asset generation
+  - `05fa11f1fbf31793b0d121fab713e0d381aa673d` — app asset services
+  - `e86a45a14f46201d27e1c3ac81ee1bd648cd4d81` — fs backend abstraction
+  - `ac5cafef51099ab37b3470c9bf7ba1a757f59c25` — embedded fs backend
+  - `05b9a410d5facfc2f7ae027bd9ca8c9deb1a38a5` — host fs aliases
+  - `81707731a4b5425bda0f107836e46d4dfbc0ec17` — generated asset alias test
+  - `e2bc16038984394428b05fbdb560f97839f1dc54` — docs/example
+- Validate with:
+  - `GOWORK=off go test ./... -count=1`
+  - `make -C examples/xgoja/10-embedded-assets-fs smoke`
+  - `make -C examples/xgoja/10-embedded-assets-fs prove-self-contained`
+
+### Technical details
+
+The final API shape is:
+
+```yaml
+assets:
+  - id: app-assets
+    path: ./assets
+    embed: true
+runtimes:
+  main:
+    modules:
+      - package: go-go-goja-host
+        name: fs
+        as: fs:assets
+        config:
+          embedded:
+            allow: true
+            mounts:
+              - asset: app-assets
+                mount: /app
+      - package: go-go-goja-host
+        name: fs
+        as: fs:host
+        config:
+          allow: true
+```

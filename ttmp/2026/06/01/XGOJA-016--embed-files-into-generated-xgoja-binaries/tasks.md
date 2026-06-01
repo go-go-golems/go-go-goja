@@ -17,4 +17,4 @@
 - [x] Phase 4: Extend host provider fs config to create fs:assets and fs:host backends from per-instance config
 - [x] Phase 5: Add generated xgoja end-to-end tests for embedded assets and multiple fs aliases
 - [x] Phase 6: Add/update examples and xgoja help docs for assets and fs aliases
-- [ ] Phase 7: Run focused and full test suites, update diary/changelog, and upload refreshed bundle if requested
+- [x] Phase 7: Run focused and full test suites, update diary/changelog, and upload refreshed bundle if requested
