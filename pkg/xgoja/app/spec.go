@@ -85,10 +85,8 @@ type HelpSourceSpec struct {
 }
 
 type AssetSourceSpec struct {
-	ID          string   `json:"id"`
-	Path        string   `json:"path,omitempty"`
-	Embed       bool     `json:"embed"`
-	Description string   `json:"description,omitempty"`
-	Include     []string `json:"include,omitempty"`
-	Exclude     []string `json:"exclude,omitempty"`
+	ID          string `json:"id"`
+	Path        string `json:"path,omitempty"`
+	Embed       bool   `json:"embed"`
+	Description string `json:"description,omitempty"`
 }

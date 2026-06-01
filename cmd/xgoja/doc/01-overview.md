@@ -102,3 +102,4 @@ Do not use `xgoja` as a dynamic Go plugin loader. The reliable extension boundar
 
 - `buildspec` for the YAML reference.
 - `tutorial` for an end-to-end build flow.
+- `tutorial-static-assets-http-server` for embedding and serving bundled static web assets.

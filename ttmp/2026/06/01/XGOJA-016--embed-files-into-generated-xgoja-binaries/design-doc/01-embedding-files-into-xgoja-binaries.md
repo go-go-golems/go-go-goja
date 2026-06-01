@@ -78,7 +78,7 @@ Out of scope for the first implementation:
 
 - a fully writable virtual filesystem;
 - hot reloading embedded assets after build;
-- glob-level include/exclude beyond the existing copy behavior unless needed for security/size;
+- glob-level include/exclude filters; unsupported filter fields are rejected until implemented;
 - exposing embedded files through HTTP static serving directly; JavaScript or a provider can layer that later using `fs` reads.
 
 ## Current-state architecture
@@ -265,20 +265,7 @@ assets:
     description: "Templates and static data used by JavaScript commands"
 ```
 
-Future-compatible shape if include/exclude becomes necessary:
-
-```yaml
-assets:
-  - id: app-assets
-    path: ./assets
-    embed: true
-    include:
-      - "**/*"
-    exclude:
-      - "node_modules/**"
-      - ".git/**"
-      - "**/.DS_Store"
-```
+Do not accept `include` or `exclude` fields in the initial schema. Until filtering is implemented, accepting those fields would let a buildspec claim a narrower asset set than the generator actually embeds.
 
 Initial semantics:
 
@@ -300,12 +287,10 @@ type Spec struct {
 }
 
 type AssetSourceSpec struct {
-    ID          string   `yaml:"id" json:"id"`
-    Path        string   `yaml:"path" json:"path,omitempty"`
-    Embed       bool     `yaml:"embed" json:"embed"`
-    Description string   `yaml:"description" json:"description,omitempty"`
-    Include     []string `yaml:"include" json:"include,omitempty"` // optional later
-    Exclude     []string `yaml:"exclude" json:"exclude,omitempty"` // optional later
+    ID          string `yaml:"id" json:"id"`
+    Path        string `yaml:"path" json:"path,omitempty"`
+    Embed       bool   `yaml:"embed" json:"embed"`
+    Description string `yaml:"description" json:"description,omitempty"`
 }
 ```
 
@@ -528,7 +513,7 @@ var embeddedHelp embed.FS
 Proposed addition:
 
 ```go
-//go:embed xgoja_embed/assets/*
+//go:embed all:xgoja_embed/assets/*
 var embeddedAssets embed.FS
 ```
 
@@ -559,7 +544,7 @@ func copyEmbeddedAssets(dir string, spec *buildspec.Spec) error {
         src, err := resolveSourcePath(spec.BaseDir, source.Path)
         if err != nil { return fmt.Errorf("resolve embedded asset source %s: %w", source.ID, err) }
         dst := filepath.Join(dir, filepath.FromSlash(root))
-        if err := copyDir(dst, src); err != nil {
+        if err := copyDirWithOptions(dst, src, copyDirOptions{skipNodeModules: true}); err != nil {
             return fmt.Errorf("copy embedded asset source %s: %w", source.ID, err)
         }
     }
@@ -868,20 +853,20 @@ Files:
 
 Tasks:
 
-1. Add `copyEmbeddedAssets` using `copyDir`.
+1. Add `copyEmbeddedAssets` using asset-specific copy rules that preserve dot directories and skip `node_modules`.
 2. Add `embeddedAssetRoots` using the same collision-free sanitized ID logic as jsverbs/help.
 3. Update `runtimeSpec` and `RenderEmbeddedSpec` to include `assets` and rewrite embedded asset paths.
 4. Add `hasEmbeddedAssetSources`.
 5. Extend `mainTemplateData` with `HasEmbeddedAssets`.
 6. Update `HasEmbedded` to include jsverbs, help, or assets.
-7. Emit `//go:embed xgoja_embed/assets/*` only when needed.
+7. Emit `//go:embed all:xgoja_embed/assets/*` only when needed.
 8. Pass `EmbeddedAssets` into `app.NewRootCommand` / `app.NewHostWithOptions`.
 
 Template sketch:
 
 ```gotemplate
 {{- if .HasEmbeddedAssets }}
-//go:embed xgoja_embed/assets/*
+//go:embed all:xgoja_embed/assets/*
 var embeddedAssets embed.FS
 {{ end }}
 ```
@@ -1207,7 +1192,7 @@ for host `fs`. Keep that working unless a separate breaking-change ticket explic
 
 ### Binary size
 
-Embedded assets increase binary size. The initial implementation should document this and avoid copying `.git`, dot directories, and `node_modules`, matching the current `copyDir` behavior (`generate.go:127-131`). If asset use cases require dotfiles, add explicit include/exclude controls later rather than silently broadening the copy set.
+Embedded assets increase binary size. The implementation preserves dot directories such as `.well-known` for web/static asset use cases and still skips `node_modules`. Do not add `include`/`exclude` fields until the generator enforces them; unsupported filter fields should be rejected rather than silently ignored.
 
 ### Async runtime behavior
 
@@ -1265,7 +1250,7 @@ Verdict: keep provider-shipped sources as a separate pattern; add local `assets`
 | `cmd/xgoja/internal/generate/generate.go` | Generated workspace writer and source copier; add asset copy here. |
 | `cmd/xgoja/internal/generate/main.go` | Embedded spec renderer and generated root path rewriting; add asset root rewriting here. |
 | `cmd/xgoja/internal/generate/templates.go` | Template data model; add embedded asset booleans and constructor arguments here. |
-| `cmd/xgoja/internal/generate/templates/main.go.tmpl` | Generated Go entrypoint; add `//go:embed xgoja_embed/assets/*` here. |
+| `cmd/xgoja/internal/generate/templates/main.go.tmpl` | Generated Go entrypoint; add `//go:embed all:xgoja_embed/assets/*` here. |
 | `pkg/xgoja/app/spec.go` | Runtime JSON spec; add `assets` here. |
 | `pkg/xgoja/app/host.go` | App host owns embedded FS handles and runtime factory; add `EmbeddedAssets` and services here. |
 | `pkg/xgoja/app/factory.go` | Runtime profile-to-module construction; populate `ModuleContext.Host` here. |
@@ -1326,7 +1311,7 @@ hostFS.writeFileSync("./out.txt", "host writes are explicit", "utf8")
 ### Generated Go
 
 ```go
-//go:embed xgoja_embed/assets/*
+//go:embed all:xgoja_embed/assets/*
 var embeddedAssets embed.FS
 
 root, err := app.NewRootCommand(app.Options{

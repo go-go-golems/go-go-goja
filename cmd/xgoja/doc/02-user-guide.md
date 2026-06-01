@@ -328,7 +328,7 @@ runtimes:
           allow: true
 ```
 
-At build time, xgoja copies each embedded asset directory into the generated workspace under `xgoja_embed/assets/<id>/`, rewrites the embedded runtime spec to that generated root, and emits `//go:embed xgoja_embed/assets/*` in generated `main.go`.
+At build time, xgoja copies each embedded asset directory into the generated workspace under `xgoja_embed/assets/<id>/`, rewrites the embedded runtime spec to that generated root, and emits `//go:embed all:xgoja_embed/assets/*` in generated `main.go`. The `all:` prefix is intentional: asset trees may contain web-standard dot directories such as `.well-known`.
 
 Embedded assets are exposed through configured fs module instances. Prefer separate aliases:
 
@@ -342,7 +342,7 @@ hostFS.writeFileSync("./out.json", JSON.stringify(config), "utf8")
 
 `fs:assets` is read-only. Mutating operations under embedded mounts fail with `EROFS`. `fs:host` is separate and requires `config.allow: true`; it is not enabled by `embedded.allow: true`.
 
-`assets[].embed` currently must be `true`. Runtime filesystem assets are intentionally not part of the first embedded-assets implementation.
+`assets[].embed` currently must be `true`. Runtime filesystem assets are intentionally not part of the first embedded-assets implementation. `assets[].include` and `assets[].exclude` are not supported yet and are rejected by validation so the buildspec cannot claim a narrower asset set than the generator embeds.
 
 Long-running scripts, such as Express-style HTTP servers, can use the generated `run` command's `--keep-alive` flag. The script registers routes or static mounts, returns, and xgoja keeps the runtime open until Ctrl-C or SIGTERM:
 
@@ -350,7 +350,7 @@ Long-running scripts, such as Express-style HTTP servers, can use the generated 
 ./dist/my-app run scripts/server.js --http-listen 127.0.0.1:8787 --keep-alive
 ```
 
-See `examples/xgoja/10-embedded-assets-fs` for a static-site example that passes `require("fs:assets")` directly to `require("express").app().staticFromAssetsModule("/static", assets, "/app/public")`, so embedded assets are served without a host staging directory.
+See `examples/xgoja/10-embedded-assets-fs` and `xgoja help tutorial-static-assets-http-server` for a static-site example that passes `require("fs:assets")` directly to `require("express").app().staticFromAssetsModule("/static", assets, "/app/public")`, so embedded assets are served without a host staging directory.
 
 ## JavaScript verb sources
 
@@ -430,6 +430,7 @@ The validator checks supported target kinds, package uniqueness, known runtime p
 | `require("fs")` is missing | The runtime registered `name: fs` with `as: fs:assets` or `as: fs:host`, so only those names exist. | Use `require("fs:assets")` or register an explicit `as: fs` instance. |
 | embedded asset write fails with `EROFS` | Embedded assets are read-only. | Write to a separate host fs alias such as `fs:host` with `config.allow: true`. |
 | unknown embedded asset | A fs embedded mount references an asset ID not declared in `assets`. | Add the asset declaration or fix the mount's `asset` value. |
+| asset `include` or `exclude` is rejected | Asset filtering is not implemented yet. | Remove the field or pre-build a filtered directory before running `xgoja build`. |
 | provider verb source has no filesystem | The provider registered metadata but no `FS`. | Register `providerapi.VerbSource{FS: ..., Root: ...}`. |
 | provider help source not found | `help.sources[].package` or `help.sources[].source` does not match a registered `providerapi.HelpSource`. | Verify the provider registration and the buildspec package/source names. |
 | help topic not found | The docs were not selected, the slug is different, or the page failed to load due to a duplicate slug. | Run `help` to list visible topics and inspect the Markdown frontmatter. |

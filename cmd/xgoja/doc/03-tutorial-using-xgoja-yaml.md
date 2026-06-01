@@ -239,7 +239,58 @@ Read the embedded file from JavaScript:
 
 `as` is the actual `require()` name. The example registers `fs:assets` and `fs:host`; it does not register plain `fs` unless you add another module entry with `as: fs` or omit `as`.
 
-## 9. Use provider-shipped jsverbs
+For web/static asset trees, include dot directories such as `.well-known` directly in `./assets`; generated asset embeds use Go's `all:` pattern so those files are preserved. Do not use `include` or `exclude` fields in `assets:` yet. They are rejected until the generator enforces filtering.
+
+## 9. Serve embedded assets with the HTTP provider
+
+Add the HTTP provider package and select its `express` module in the same runtime profile as `fs:assets`:
+
+```yaml
+packages:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+assets:
+  - id: app-assets
+    path: ./assets
+    embed: true
+runtimes:
+  main:
+    modules:
+      - package: go-go-goja-host
+        name: fs
+        as: fs:assets
+        config:
+          embedded:
+            allow: true
+            mounts:
+              - asset: app-assets
+                mount: /app
+      - package: go-go-goja-http
+        name: express
+```
+
+Create a setup script:
+
+```js
+const express = require("express")
+const assets = require("fs:assets")
+
+const app = express.app()
+app.staticFromAssetsModule("/static", assets, "/app/public")
+app.get("/", (_req, res) => res.redirect("/static/"))
+```
+
+Run it with `--keep-alive` so the generated runtime stays alive after registering routes:
+
+```bash
+./dist/fixture run scripts/server.js --http-listen 127.0.0.1:8787 --keep-alive
+```
+
+Open `http://127.0.0.1:8787/static/`. For a complete runnable project, see `examples/xgoja/10-embedded-assets-fs` or `xgoja help tutorial-static-assets-http-server`.
+
+## 10. Use provider-shipped jsverbs
 
 Provider packages can ship JS verbs next to their native Go modules.
 
@@ -268,7 +319,7 @@ jsverbs:
 
 This scans the provider's embedded filesystem, not the local project filesystem.
 
-## 10. Debug generated builds
+## 11. Debug generated builds
 
 Use:
 

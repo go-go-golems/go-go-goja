@@ -22,6 +22,11 @@ func LoadFile(path string) (*Spec, *Report, error) {
 		return nil, nil, fmt.Errorf("read spec %s: %w", abs, err)
 	}
 
+	unsupportedReport, err := unsupportedAssetFieldsReport(data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse spec %s: %w", abs, err)
+	}
+
 	spec := &Spec{}
 	if err := yaml.Unmarshal(data, spec); err != nil {
 		return nil, nil, fmt.Errorf("parse spec %s: %w", abs, err)
@@ -30,10 +35,47 @@ func LoadFile(path string) (*Spec, *Report, error) {
 	applyDefaults(spec)
 
 	report := Validate(spec)
+	report.Checks = append(report.Checks, unsupportedReport.Checks...)
 	if report.HasErrors() {
 		return spec, report, &ValidationError{Report: report}
 	}
 	return spec, report, nil
+}
+
+func unsupportedAssetFieldsReport(data []byte) (*Report, error) {
+	report := &Report{}
+	root := yaml.Node{}
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return nil, err
+	}
+	if len(root.Content) == 0 || root.Content[0].Kind != yaml.MappingNode {
+		return report, nil
+	}
+	mapping := root.Content[0]
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		key := mapping.Content[i]
+		value := mapping.Content[i+1]
+		if key.Value != "assets" || value.Kind != yaml.SequenceNode {
+			continue
+		}
+		for assetIndex, asset := range value.Content {
+			if asset.Kind != yaml.MappingNode {
+				continue
+			}
+			for j := 0; j+1 < len(asset.Content); j += 2 {
+				field := asset.Content[j]
+				if field.Value != "include" && field.Value != "exclude" {
+					continue
+				}
+				report.AddError(
+					"asset-filter-field",
+					fmt.Sprintf("assets[%d].%s", assetIndex, field.Value),
+					"asset include/exclude filters are not supported yet; remove this field",
+				)
+			}
+		}
+	}
+	return report, nil
 }
 
 func applyDefaults(spec *Spec) {

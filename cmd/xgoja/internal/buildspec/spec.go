@@ -107,10 +107,8 @@ type HelpSourceSpec struct {
 }
 
 type AssetSourceSpec struct {
-	ID          string   `yaml:"id" json:"id"`
-	Path        string   `yaml:"path" json:"path,omitempty"`
-	Embed       bool     `yaml:"embed" json:"embed"`
-	Description string   `yaml:"description" json:"description,omitempty"`
-	Include     []string `yaml:"include" json:"include,omitempty"`
-	Exclude     []string `yaml:"exclude" json:"exclude,omitempty"`
+	ID          string `yaml:"id" json:"id"`
+	Path        string `yaml:"path" json:"path,omitempty"`
+	Embed       bool   `yaml:"embed" json:"embed"`
+	Description string `yaml:"description" json:"description,omitempty"`
 }

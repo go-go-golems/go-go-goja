@@ -1,6 +1,6 @@
 # xgoja embedded assets fs example
 
-This example builds a generated xgoja binary that embeds local files from `./assets` into the executable and exposes them to JavaScript through a read-only fs alias. It also includes a small Express-style HTTP script that stages bundled static files from the embedded asset filesystem and serves them with the `express` module.
+This example builds a generated xgoja binary that embeds local files from `./assets` into the executable and exposes them to JavaScript through a read-only fs alias. It also includes a small Express-style HTTP script that serves bundled static files directly from the embedded asset filesystem with the `express` module.
 
 The runtime registers the same provider module twice:
 
