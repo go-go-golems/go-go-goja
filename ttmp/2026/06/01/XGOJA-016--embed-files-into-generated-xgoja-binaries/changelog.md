@@ -65,3 +65,14 @@ Phase 1 task 8: added generator support for copying embedded assets, rewriting p
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/generate/main.go — Asset root rewriting.
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/generate/templates/main.go.tmpl — Generated asset embed declaration.
 
+
+## 2026-06-01
+
+Phase 2 task 9: added app AssetStore/HostServices and passed ModuleContext.Host into provider module factories; app and focused generator tests pass.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/app/assets.go — Asset store and host services.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/app/factory.go — ModuleContext.Host plumbing.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/providerapi/module.go — Host services contract.
+

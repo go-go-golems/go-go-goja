@@ -34,8 +34,20 @@ RelatedFiles:
       Note: Added EmbeddedAssets constructor/template data.
     - Path: cmd/xgoja/internal/generate/templates/main.go.tmpl
       Note: Added generated go:embed declaration for asset files.
+    - Path: pkg/xgoja/app/assets.go
+      Note: Added AssetStore and app HostServices for embedded assets.
+    - Path: pkg/xgoja/app/assets_test.go
+      Note: Tests asset resolution and ModuleContext host service plumbing.
+    - Path: pkg/xgoja/app/factory.go
+      Note: Passes host services into provider module contexts.
+    - Path: pkg/xgoja/app/host.go
+      Note: Stores embedded asset FS and services on app Host.
+    - Path: pkg/xgoja/app/root.go
+      Note: Accepts EmbeddedAssets in app root options.
     - Path: pkg/xgoja/app/spec.go
       Note: Added runtime JSON AssetSourceSpec mirror.
+    - Path: pkg/xgoja/providerapi/module.go
+      Note: Defines asset resolver host-service contract.
     - Path: ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/scripts/01-inspect-current-embedded-sources.out
       Note: Captured output showing generated go:embed directives and rewritten embedded source paths.
     - Path: ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/scripts/01-inspect-current-embedded-sources.sh
@@ -46,6 +58,7 @@ LastUpdated: 2026-06-01T08:09:12.43837053-04:00
 WhatFor: Use this to understand what was investigated, which files shaped the design, what experiments were run, and how to continue XGOJA-016.
 WhenToUse: Before implementing or reviewing the embedded asset support design.
 ---
+
 
 
 
@@ -600,4 +613,104 @@ into:
 
 ```json
 {"id":"app-assets","path":"xgoja_embed/assets/app_assets","embed":true}
+```
+
+## Step 6: Add app asset services and pass them to module factories
+
+This step connected generated embedded assets to xgoja runtime construction. The app layer now has an `AssetStore` that maps normalized runtime asset IDs to roots inside an embedded filesystem, and `HostServices` exposes that store through the provider API.
+
+Runtime module factories now receive `ModuleContext.Host`, which is the hook the host fs provider will use in the next phases to construct `fs:assets` backends. This keeps embedded asset access scoped to modules selected by a runtime profile instead of introducing package globals.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue the phased implementation by wiring app-owned embedded assets into provider module construction.
+
+**Inferred user intent:** Build toward configurable fs aliases by giving module factories access to the generated binary's embedded asset store.
+
+**Commit (code):** pending — "xgoja: pass embedded asset services to modules"
+
+### What I did
+
+- Added `pkg/xgoja/app/assets.go` with:
+  - `AssetStore`
+  - `HostServices`
+  - `NewAssetStore`
+  - `ResolveAsset`
+- Added `providerapi.AssetResolver` and made `providerapi.HostServices` expose an asset resolver.
+- Added `EmbeddedAssets fs.FS` to `app.Options`, `app.HostOptions`, and `app.Host`.
+- Updated `NewHostWithOptions` to build `HostServices` and pass them to `NewRuntimeFactory`.
+- Made `NewRuntimeFactory` accept optional host services while preserving existing two-argument call sites.
+- Updated `providerRuntimeModuleSpec.RegisterRuntimeModule` to populate `providerapi.ModuleContext.Host`.
+- Added tests proving:
+  - an `AssetStore` resolves an embedded asset root;
+  - a runtime module factory can read an embedded asset through `ctx.Host.AssetResolver()`.
+- Ran:
+  - `gofmt -w pkg/xgoja/providerapi/module.go pkg/xgoja/app/assets.go pkg/xgoja/app/host.go pkg/xgoja/app/root.go pkg/xgoja/app/factory.go pkg/xgoja/app/assets_test.go`
+  - `GOWORK=off go test ./pkg/xgoja/app -count=1`
+  - `GOWORK=off go test ./cmd/xgoja/internal/generate -run 'TestRender|TestWriteAll' -count=1`
+
+### Why
+
+- The fs provider needs a way to resolve configured asset IDs without importing `pkg/xgoja/app` directly.
+- Passing host services through `ModuleContext` avoids global state and keeps per-runtime-profile capabilities explicit.
+- The generated template already passes `EmbeddedAssets`; this step makes those generated options valid app API.
+
+### What worked
+
+- The app test suite passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.106s
+```
+
+- Focused generator tests still passed after app options were added:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.010s
+```
+
+- The variadic `NewRuntimeFactory(..., services ...providerapi.HostServices)` preserved old test call sites.
+
+### What didn't work
+
+- N/A for this implementation step.
+
+### What I learned
+
+- `NewHostWithOptions` is the correct aggregation point for generated embedded filesystem handles because all target modes eventually construct a host or root command through app options.
+- A tiny providerapi interface is enough for the host provider to avoid an app import cycle later.
+
+### What was tricky to build
+
+- The app package already has a `Host` type, so the service type needed a clear name (`HostServices`) without confusing it with `providerapi.HostServices`.
+- `ModuleContext.Host` can be nil for direct `NewRuntimeFactory` test helpers that do not pass services, so providers that require assets should return clear errors when host services are unavailable.
+
+### What warrants a second pair of eyes
+
+- Confirm the `providerapi.HostServices` interface is not too specific now that it contains only asset resolution.
+- Confirm whether `AssetStore.ResolveAsset` should validate file existence eagerly or defer errors to fs backend mount construction.
+
+### What should be done in the future
+
+- Refactor `modules/fs` so a provider can construct per-instance backends from the asset resolver.
+- Add tests that generated asset-enabled programs compile once fs backends are implemented.
+
+### Code review instructions
+
+- Start in `pkg/xgoja/app/assets.go` for the service model.
+- Then inspect `pkg/xgoja/app/factory.go` to confirm `ModuleContext.Host` is passed to provider module factories.
+- Run `GOWORK=off go test ./pkg/xgoja/app -count=1`.
+
+### Technical details
+
+Provider modules can now use this shape:
+
+```go
+func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
+    resolver := ctx.Host.AssetResolver()
+    fsys, root, ok := resolver.ResolveAsset("app-assets")
+    // fsys/root identify the embedded asset tree selected by xgoja.yaml.
+}
 ```
