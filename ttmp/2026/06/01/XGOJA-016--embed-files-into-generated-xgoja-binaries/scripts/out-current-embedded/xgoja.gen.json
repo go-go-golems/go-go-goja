@@ -1,0 +1,54 @@
+{
+  "name": "embedded-jsverbs",
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/embedded-jsverbs"
+  },
+  "packages": [
+    {
+      "id": "fixture",
+      "import": "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider",
+      "register": "Register"
+    }
+  ],
+  "runtimes": {
+    "repl": {
+      "modules": [
+        {
+          "package": "fixture",
+          "name": "hello",
+          "as": "hello"
+        }
+      ]
+    }
+  },
+  "commands": {
+    "eval": {
+      "enabled": true,
+      "runtime": "repl",
+      "name": "eval"
+    },
+    "run": {
+      "enabled": true,
+      "runtime": "repl",
+      "name": "run"
+    },
+    "repl": {
+      "enabled": true,
+      "runtime": "repl",
+      "name": "repl"
+    },
+    "jsverbs": {
+      "enabled": true,
+      "runtime": "repl",
+      "name": "verbs"
+    }
+  },
+  "jsverbs": [
+    {
+      "id": "local",
+      "path": "xgoja_embed/jsverbs/local",
+      "embed": true
+    }
+  ]
+}

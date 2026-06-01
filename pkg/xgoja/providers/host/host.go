@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/modules"
 	dbm "github.com/go-go-golems/go-go-goja/modules/database"
-	_ "github.com/go-go-golems/go-go-goja/modules/fs"
+	fsmod "github.com/go-go-golems/go-go-goja/modules/fs"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
@@ -21,6 +22,22 @@ const PackageID = "go-go-goja-host"
 // profile before the loader is created.
 type GuardConfig struct {
 	Allow bool `json:"allow"`
+}
+
+type FSConfig struct {
+	Allow    bool             `json:"allow"`
+	Embedded EmbeddedFSConfig `json:"embedded"`
+}
+
+type EmbeddedFSConfig struct {
+	Allow  bool         `json:"allow"`
+	Mounts []AssetMount `json:"mounts"`
+}
+
+type AssetMount struct {
+	Asset string `json:"asset"`
+	Mount string `json:"mount"`
+	Root  string `json:"root,omitempty"`
 }
 
 type ExecConfig struct {
@@ -46,28 +63,93 @@ func Register(registry *providerapi.Registry) error {
 }
 
 func fsModule(name string) providerapi.Module {
-	mod := modules.GetModule(name)
 	return providerapi.Module{
 		Name:        name,
 		DefaultAs:   name,
-		Description: "Guarded host filesystem module. Requires config.allow=true and does not sandbox paths.",
+		Description: "Configurable filesystem module. Use config.allow=true for host filesystem access, or config.embedded.allow=true with mounts for read-only embedded assets. Prefer separate aliases such as fs:host and fs:assets.",
 		ConfigSchema: json.RawMessage(`{
   "type": "object",
-  "required": ["allow"],
   "properties": {
-    "allow": {"type": "boolean", "const": true, "description": "Explicitly enable filesystem access. This does not sandbox paths."}
+    "allow": {"type": "boolean", "const": true, "description": "Explicitly enable host filesystem access. This does not sandbox paths."},
+    "embedded": {
+      "type": "object",
+      "properties": {
+        "allow": {"type": "boolean", "const": true, "description": "Enable read-only embedded asset mounts."},
+        "mounts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["asset", "mount"],
+            "properties": {
+              "asset": {"type": "string"},
+              "mount": {"type": "string"},
+              "root": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
   }
 }`),
 		New: func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
-			if err := requireAllow(ctx.Config, name); err != nil {
-				return nil, err
+			cfg := FSConfig{}
+			if err := decodeConfig(ctx.Config, &cfg); err != nil {
+				return nil, fmt.Errorf("%s config: %w", name, err)
 			}
-			if mod == nil {
-				return nil, fmt.Errorf("fs module %q is not registered", name)
+			requireName := ctx.As
+			if strings.TrimSpace(requireName) == "" {
+				requireName = ctx.Name
 			}
-			return mod.Loader, nil
+			if strings.TrimSpace(requireName) == "" {
+				requireName = name
+			}
+
+			switch {
+			case cfg.Embedded.Allow && cfg.Allow:
+				return nil, fmt.Errorf("%s module config cannot combine allow=true and embedded.allow=true; register separate aliases such as fs:host and fs:assets", requireName)
+			case cfg.Embedded.Allow:
+				backend, err := embeddedBackendFromConfig(ctx.Host, cfg.Embedded)
+				if err != nil {
+					return nil, fmt.Errorf("%s embedded config: %w", requireName, err)
+				}
+				return fsmod.New(fsmod.WithName(requireName), fsmod.WithBackend(backend)).Loader, nil
+			case cfg.Allow:
+				return fsmod.New(fsmod.WithName(requireName), fsmod.WithBackend(fsmod.OSBackend{})).Loader, nil
+			default:
+				return nil, fmt.Errorf("%s module requires config.allow=true or config.embedded.allow=true", requireName)
+			}
 		},
 	}
+}
+
+func embeddedBackendFromConfig(host providerapi.HostServices, cfg EmbeddedFSConfig) (*fsmod.ReadOnlyFSBackend, error) {
+	if host == nil || host.AssetResolver() == nil {
+		return nil, fmt.Errorf("host asset resolver is not configured")
+	}
+	if len(cfg.Mounts) == 0 {
+		return nil, fmt.Errorf("at least one embedded mount is required")
+	}
+	resolver := host.AssetResolver()
+	mounts := make([]fsmod.FSMount, 0, len(cfg.Mounts))
+	for i, mount := range cfg.Mounts {
+		assetID := strings.TrimSpace(mount.Asset)
+		if assetID == "" {
+			return nil, fmt.Errorf("mount %d asset is required", i)
+		}
+		mountPoint := strings.TrimSpace(mount.Mount)
+		if mountPoint == "" {
+			return nil, fmt.Errorf("mount %d mount path is required", i)
+		}
+		fsys, root, ok := resolver.ResolveAsset(assetID)
+		if !ok {
+			return nil, fmt.Errorf("unknown embedded asset %q", assetID)
+		}
+		if extraRoot := strings.TrimSpace(mount.Root); extraRoot != "" {
+			root = path.Join(root, strings.TrimPrefix(extraRoot, "/"))
+		}
+		mounts = append(mounts, fsmod.FSMount{FS: fsys, Root: root, Mount: mountPoint})
+	}
+	return fsmod.NewReadOnlyFSBackend(mounts...), nil
 }
 
 func execModule() providerapi.Module {
@@ -135,17 +217,6 @@ func databaseModule(name string) providerapi.Module {
 			return mod.Loader, nil
 		},
 	}
-}
-
-func requireAllow(data json.RawMessage, moduleName string) error {
-	cfg := GuardConfig{}
-	if err := decodeConfig(data, &cfg); err != nil {
-		return fmt.Errorf("%s config: %w", moduleName, err)
-	}
-	if !cfg.Allow {
-		return fmt.Errorf("%s module requires config.allow=true", moduleName)
-	}
-	return nil
 }
 
 func decodeConfig(data json.RawMessage, out any) error {

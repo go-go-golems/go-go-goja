@@ -74,9 +74,9 @@ Run these commands from the workspace root:
 
 ```bash
 go test ./go-go-goja/pkg/jsverbs ./go-go-goja/cmd/jsverbs-example
-go run ./go-go-goja/cmd/jsverbs-example --dir ./go-go-goja/testdata/jsverbs list
-go run ./go-go-goja/cmd/jsverbs-example --dir ./go-go-goja/testdata/jsverbs basics greet Manuel --excited
-go run ./go-go-goja/cmd/jsverbs-example --dir ./go-go-goja/testdata/jsverbs basics banner Manuel
+go run ./go-go-goja/cmd/jsverbs-example --dir ./go-go-goja/examples/jsverbs/basic list
+go run ./go-go-goja/cmd/jsverbs-example --dir ./go-go-goja/examples/jsverbs/basic basics greet Manuel --excited
+go run ./go-go-goja/cmd/jsverbs-example --dir ./go-go-goja/examples/jsverbs/basic basics banner Manuel
 ```
 
 These four commands show the whole lifecycle:
@@ -90,7 +90,7 @@ If you are onboarding somebody new, these commands are worth running live while 
 
 ### How to read the fixture tree
 
-The test fixture directory at `testdata/jsverbs` is the shortest path to understanding supported behavior.
+The test fixture directory at `examples/jsverbs/basic` is the shortest path to understanding supported behavior.
 
 Use it as a map:
 
@@ -173,7 +173,7 @@ The example CLI is not throwaway scaffolding. It is the fastest manual integrati
 
 ### Fixtures and tests
 
-- `testdata/jsverbs/*`
+- `examples/jsverbs/basic/*`
   Example JavaScript trees used for automated validation and interactive experiments.
 - `pkg/jsverbs/jsverbs_test.go`
   End-to-end tests for discovery and execution behavior.
@@ -430,7 +430,7 @@ This section gives the preferred workflow for extending the subsystem.
 
 ### If you want to support a new metadata field
 
-1. Add or update a fixture in `testdata/jsverbs`.
+1. Add or update a fixture in `examples/jsverbs/basic`.
 2. Extend the model in `model.go` if needed.
 3. Parse the metadata in `scan.go`.
 4. If it changes parameter semantics, express it through `binding.go`.

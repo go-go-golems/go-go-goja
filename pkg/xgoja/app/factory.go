@@ -15,11 +15,13 @@ type JSRuntime = engine.Runtime
 type RuntimeFactory struct {
 	providers *providerapi.Registry
 	spec      *Spec
+	services  providerapi.HostServices
 }
 
 type providerRuntimeModuleSpec struct {
 	instance ModuleInstance
 	module   providerapi.Module
+	services providerapi.HostServices
 }
 
 func (s providerRuntimeModuleSpec) ID() string {
@@ -39,6 +41,7 @@ func (s providerRuntimeModuleSpec) RegisterRuntimeModule(ctx *engine.RuntimeModu
 		Name:    s.instance.Name,
 		As:      s.instance.Alias(),
 		Config:  config,
+		Host:    s.services,
 	})
 	if err != nil {
 		return fmt.Errorf("create module %s.%s: %w", s.instance.Package, s.instance.Name, err)
@@ -47,8 +50,12 @@ func (s providerRuntimeModuleSpec) RegisterRuntimeModule(ctx *engine.RuntimeModu
 	return nil
 }
 
-func NewRuntimeFactory(providers *providerapi.Registry, spec *Spec) *RuntimeFactory {
-	return &RuntimeFactory{providers: providers, spec: spec}
+func NewRuntimeFactory(providers *providerapi.Registry, spec *Spec, services ...providerapi.HostServices) *RuntimeFactory {
+	var hostServices providerapi.HostServices
+	if len(services) > 0 {
+		hostServices = services[0]
+	}
+	return &RuntimeFactory{providers: providers, spec: spec, services: hostServices}
 }
 
 func (f *RuntimeFactory) NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*JSRuntime, error) {
@@ -65,7 +72,7 @@ func (f *RuntimeFactory) NewRuntime(ctx context.Context, profile string, opts ..
 		if !ok {
 			return nil, fmt.Errorf("runtime %s references unknown provider module %s.%s", profile, instance.Package, instance.Name)
 		}
-		modules = append(modules, providerRuntimeModuleSpec{instance: instance, module: module})
+		modules = append(modules, providerRuntimeModuleSpec{instance: instance, module: module, services: f.services})
 	}
 	builder := engine.NewBuilder(
 		engine.WithImplicitDefaultRegistryModules(false),

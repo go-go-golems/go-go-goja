@@ -26,7 +26,7 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-An `xgoja.yaml` file describes the generated binary. It names the output program, selects provider packages, defines runtime profiles, enables commands, configures JavaScript verb sources, and optionally bundles Glazed help entries.
+An `xgoja.yaml` file describes the generated binary. It names the output program, selects provider packages, defines runtime profiles, enables commands, configures JavaScript verb sources, optionally embeds application assets, and optionally bundles Glazed help entries.
 
 A minimal shape looks like this:
 
@@ -83,6 +83,8 @@ commands:
 
 `jsverbs` configures JavaScript verb sources that are mounted under the generated jsverbs command.
 
+`assets` configures local file trees copied into and embedded by the generated binary.
+
 `help.sources` configures additional Glazed help pages loaded into the generated binary's `help` command.
 
 `commandProviders` mounts Glazed command sets supplied by provider packages.
@@ -132,7 +134,7 @@ Fields:
 - `as` is the JavaScript `require()` alias. If omitted, it defaults to `name`.
 - `config` is marshaled to JSON and passed to the provider module factory.
 
-Aliases must be unique within one runtime profile.
+Aliases must be unique within one runtime profile. `as` is the actual `require()` name; it does not also register the original `name`. For example, `name: fs` with `as: fs:assets` registers `require("fs:assets")`, not `require("fs")`.
 
 ## Commands
 
@@ -295,6 +297,61 @@ The files must exist when the generated binary runs. Prefer `embed: true` for di
 
 Every Markdown file must be a Glazed help entry with frontmatter fields such as `Title`, `Slug`, `Short`, `Topics`, `Commands`, `Flags`, `IsTopLevel`, `IsTemplate`, `ShowPerDefault`, and `SectionType`. Slugs are global within one generated binary, so avoid collisions between built-in, provider, and local docs.
 
+## Embedded assets
+
+`assets` embeds project-local file trees into the generated binary. Use this for templates, fixtures, configuration defaults, static data, and other files that JavaScript should read without requiring the original source directory at runtime.
+
+```yaml
+packages:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+assets:
+  - id: app-assets
+    path: ./assets
+    embed: true
+runtimes:
+  main:
+    modules:
+      - package: go-go-goja-host
+        name: fs
+        as: fs:assets
+        config:
+          embedded:
+            allow: true
+            mounts:
+              - asset: app-assets
+                mount: /app
+      - package: go-go-goja-host
+        name: fs
+        as: fs:host
+        config:
+          allow: true
+```
+
+At build time, xgoja copies each embedded asset directory into the generated workspace under `xgoja_embed/assets/<id>/`, rewrites the embedded runtime spec to that generated root, and emits `//go:embed all:xgoja_embed/assets/*` in generated `main.go`. The `all:` prefix is intentional: asset trees may contain web-standard dot directories such as `.well-known`.
+
+Embedded assets are exposed through configured fs module instances. Prefer separate aliases:
+
+```js
+const assetsFS = require("fs:assets")
+const hostFS = require("fs:host")
+
+const config = JSON.parse(assetsFS.readFileSync("/app/config/default.json", "utf8"))
+hostFS.writeFileSync("./out.json", JSON.stringify(config), "utf8")
+```
+
+`fs:assets` is read-only. Mutating operations under embedded mounts fail with `EROFS`. `fs:host` is separate and requires `config.allow: true`; it is not enabled by `embedded.allow: true`.
+
+`assets[].embed` currently must be `true`. Runtime filesystem assets are intentionally not part of the first embedded-assets implementation. `assets[].include` and `assets[].exclude` are not supported yet and are rejected by validation so the buildspec cannot claim a narrower asset set than the generator embeds.
+
+Long-running scripts, such as Express-style HTTP servers, can use the generated `run` command's `--keep-alive` flag. The script registers routes or static mounts, returns, and xgoja keeps the runtime open until Ctrl-C or SIGTERM:
+
+```bash
+./dist/my-app run scripts/server.js --http-listen 127.0.0.1:8787 --keep-alive
+```
+
+See `examples/xgoja/10-embedded-assets-fs` and `xgoja help tutorial-static-assets-http-server` for a static-site example that passes `require("fs:assets")` directly to `require("express").app().staticFromAssetsModule("/static", assets, "/app/public")`, so embedded assets are served without a host staging directory.
+
 ## JavaScript verb sources
 
 `jsverbs` supports three distinct source modes.
@@ -361,7 +418,7 @@ Run validation before building:
 xgoja doctor -f xgoja.yaml
 ```
 
-The validator checks supported target kinds, package uniqueness, known runtime package IDs, duplicate runtime aliases, enabled command runtime references, command provider package/runtime references, jsverb source IDs, help source IDs, provider help source package references, and local paths for embedded sources.
+The validator checks supported target kinds, package uniqueness, known runtime package IDs, duplicate runtime aliases, enabled command runtime references, command provider package/runtime references, jsverb source IDs, help source IDs, asset source IDs, provider help source package references, and local paths for embedded sources.
 
 ## Troubleshooting
 
@@ -370,6 +427,10 @@ The validator checks supported target kinds, package uniqueness, known runtime p
 | `unknown package id` | A runtime, jsverb source, command provider, or help source references a package not listed in `packages`. | Add the package entry or fix the ID. |
 | `duplicate alias` | Two modules in one runtime resolve to the same `require()` name. | Set distinct `as` values. |
 | embedded source path error | `embed: true` uses a path missing at build time. | Fix `path` relative to the spec file or use an absolute path. |
+| `require("fs")` is missing | The runtime registered `name: fs` with `as: fs:assets` or `as: fs:host`, so only those names exist. | Use `require("fs:assets")` or register an explicit `as: fs` instance. |
+| embedded asset write fails with `EROFS` | Embedded assets are read-only. | Write to a separate host fs alias such as `fs:host` with `config.allow: true`. |
+| unknown embedded asset | A fs embedded mount references an asset ID not declared in `assets`. | Add the asset declaration or fix the mount's `asset` value. |
+| asset `include` or `exclude` is rejected | Asset filtering is not implemented yet. | Remove the field or pre-build a filtered directory before running `xgoja build`. |
 | provider verb source has no filesystem | The provider registered metadata but no `FS`. | Register `providerapi.VerbSource{FS: ..., Root: ...}`. |
 | provider help source not found | `help.sources[].package` or `help.sources[].source` does not match a registered `providerapi.HelpSource`. | Verify the provider registration and the buildspec package/source names. |
 | help topic not found | The docs were not selected, the slug is different, or the page failed to load due to a duplicate slug. | Run `help` to list visible topics and inspect the Markdown frontmatter. |

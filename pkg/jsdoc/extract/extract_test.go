@@ -9,7 +9,7 @@ import (
 )
 
 func TestParseSource_Samples(t *testing.T) {
-	root := filepath.Join("..", "..", "..", "testdata", "jsdoc")
+	root := filepath.Join("..", "..", "..", "examples", "jsdoc", "samples")
 
 	t.Run("01-math", func(t *testing.T) {
 		path := filepath.Join(root, "01-math.js")

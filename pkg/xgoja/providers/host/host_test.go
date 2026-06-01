@@ -3,10 +3,14 @@ package host
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/dop251/goja"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
@@ -34,6 +38,138 @@ func TestFSRequiresExplicitAllow(t *testing.T) {
 	_, err := mod.New(providerapi.ModuleContext{Context: context.Background(), Name: "fs", As: "fs"})
 	if err == nil || !strings.Contains(err.Error(), "config.allow=true") {
 		t.Fatalf("expected allow error, got %v", err)
+	}
+}
+
+func TestFSHostAndEmbeddedAliases(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register host provider: %v", err)
+	}
+	dir := t.TempDir()
+	outPath := filepath.ToSlash(filepath.Join(dir, "out.txt"))
+	assetFS := fstest.MapFS{
+		"xgoja_embed/assets/app/config/default.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
+	}
+	spec := &app.Spec{
+		Assets: []app.AssetSourceSpec{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
+		Runtimes: map[string]app.Runtime{
+			"main": {Modules: []app.ModuleInstance{
+				{
+					Package: PackageID,
+					Name:    "fs",
+					As:      "fs:assets",
+					Config: map[string]any{
+						"embedded": map[string]any{
+							"allow":  true,
+							"mounts": []any{map[string]any{"asset": "app-assets", "mount": "/app"}},
+						},
+					},
+				},
+				{
+					Package: PackageID,
+					Name:    "fs",
+					As:      "fs:host",
+					Config:  map[string]any{"allow": true},
+				},
+			}},
+		},
+	}
+	host := app.NewHostWithOptions(registry, spec, app.HostOptions{EmbeddedAssets: assetFS})
+	rt, err := host.Factory.NewRuntime(context.Background(), "main")
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "host.fs-aliases", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`
+			const assets = require("fs:assets");
+			const host = require("fs:host");
+			let plain = "";
+			try { require("fs"); } catch (e) { plain = "missing"; }
+			const text = assets.readFileSync("/app/config/default.json", "utf8");
+			host.writeFileSync(` + strconv.Quote(outPath) + `, text, "utf8");
+			JSON.stringify({ text, plain, wrote: host.existsSync(` + strconv.Quote(outPath) + `) });
+		`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("run aliases: %v", err)
+	}
+	state := ret.(string)
+	for _, want := range []string{`"text":"{\"ok\":true}"`, `"plain":"missing"`, `"wrote":true`} {
+		if !strings.Contains(state, want) {
+			t.Fatalf("alias state missing %s: %s", want, state)
+		}
+	}
+}
+
+func TestFSRootEmbeddedMount(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register host provider: %v", err)
+	}
+	assetFS := fstest.MapFS{
+		"xgoja_embed/assets/app/config/default.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
+	}
+	spec := &app.Spec{
+		Assets: []app.AssetSourceSpec{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
+		Runtimes: map[string]app.Runtime{
+			"main": {Modules: []app.ModuleInstance{{
+				Package: PackageID,
+				Name:    "fs",
+				As:      "fs:assets",
+				Config: map[string]any{
+					"embedded": map[string]any{
+						"allow":  true,
+						"mounts": []any{map[string]any{"asset": "app-assets", "mount": "/"}},
+					},
+				},
+			}}},
+		},
+	}
+	host := app.NewHostWithOptions(registry, spec, app.HostOptions{EmbeddedAssets: assetFS})
+	rt, err := host.Factory.NewRuntime(context.Background(), "main")
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "host.fs-root-mount", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`require("fs:assets").readFileSync("/config/default.json", "utf8")`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("read root-mounted asset: %v", err)
+	}
+	if ret.(string) != `{"ok":true}` {
+		t.Fatalf("root-mounted asset = %q", ret)
+	}
+}
+
+func TestFSRejectsCombinedHostAndEmbeddedConfig(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register host provider: %v", err)
+	}
+	mod, ok := registry.ResolveModule(PackageID, "fs")
+	if !ok {
+		t.Fatal("expected fs module")
+	}
+	cfg, err := json.Marshal(FSConfig{Allow: true, Embedded: EmbeddedFSConfig{Allow: true, Mounts: []AssetMount{{Asset: "app", Mount: "/app"}}}})
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	_, err = mod.New(providerapi.ModuleContext{Context: context.Background(), Name: "fs", As: "fs", Config: cfg})
+	if err == nil || !strings.Contains(err.Error(), "separate aliases") {
+		t.Fatalf("expected separate aliases error, got %v", err)
 	}
 }
 

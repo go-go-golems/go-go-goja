@@ -22,6 +22,7 @@ func Validate(spec *Spec) *Report {
 	validateCommandProviders(report, spec, packageIDs)
 	validateJSVerbs(report, spec, packageIDs)
 	validateHelp(report, spec, packageIDs)
+	validateAssets(report, spec)
 
 	return report
 }
@@ -278,6 +279,35 @@ func validateHelp(report *Report, spec *Spec, packageIDs map[string]PackageSpec)
 			}
 		} else {
 			report.AddOK("help-path", path+".path", "runtime filesystem source")
+		}
+	}
+}
+
+func validateAssets(report *Report, spec *Spec) {
+	ids := map[string]struct{}{}
+	for i, source := range spec.Assets {
+		path := fmt.Sprintf("assets[%d]", i)
+		id := strings.TrimSpace(source.ID)
+		if id == "" {
+			report.AddError("asset-id", path+".id", "asset id is required")
+		} else if _, ok := ids[id]; ok {
+			report.AddError("asset-id", path+".id", fmt.Sprintf("duplicate asset id %q", id))
+		} else {
+			ids[id] = struct{}{}
+		}
+
+		if strings.TrimSpace(source.Path) == "" {
+			report.AddError("asset-path", path+".path", "asset source requires path")
+			continue
+		}
+		if !source.Embed {
+			report.AddError("asset-embed", path+".embed", "asset sources currently require embed: true")
+			continue
+		}
+		if err := requireExistingDir(spec.BaseDir, source.Path); err != nil {
+			report.AddError("asset-path", path+".path", err.Error())
+		} else {
+			report.AddOK("asset-path", path+".path", source.Path)
 		}
 	}
 }

@@ -12,6 +12,7 @@ type Spec struct {
 	CommandProviders []CommandProviderInstance `yaml:"commandProviders"`
 	JSVerbs          []JSVerbSourceSpec        `yaml:"jsverbs"`
 	Help             HelpSpec                  `yaml:"help"`
+	Assets           []AssetSourceSpec         `yaml:"assets"`
 	BaseDir          string                    `yaml:"-"`
 }
 
@@ -103,4 +104,11 @@ type HelpSourceSpec struct {
 	Embed   bool   `yaml:"embed" json:"embed"`
 	Package string `yaml:"package" json:"package,omitempty"`
 	Source  string `yaml:"source" json:"source,omitempty"`
+}
+
+type AssetSourceSpec struct {
+	ID          string `yaml:"id" json:"id"`
+	Path        string `yaml:"path" json:"path,omitempty"`
+	Embed       bool   `yaml:"embed" json:"embed"`
+	Description string `yaml:"description" json:"description,omitempty"`
 }

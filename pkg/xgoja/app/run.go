@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/glazed/pkg/cmds"
@@ -25,8 +27,9 @@ type runCommand struct {
 var _ cmds.BareCommand = (*runCommand)(nil)
 
 type runSettings struct {
-	File    string `glazed:"file"`
-	Runtime string `glazed:"runtime"`
+	File      string `glazed:"file"`
+	Runtime   string `glazed:"runtime"`
+	KeepAlive bool   `glazed:"keep-alive"`
 }
 
 func newRunCommand(factory *RuntimeFactory, spec *Spec) cmds.Command {
@@ -50,6 +53,9 @@ sibling JavaScript files can be required by relative path.
 			fields.New("runtime", fields.TypeString,
 				fields.WithDefault(profile),
 				fields.WithHelp("Runtime profile to use")),
+			fields.New("keep-alive", fields.TypeBool,
+				fields.WithDefault(false),
+				fields.WithHelp("Keep the runtime alive after the script finishes, useful for scripts that register HTTP routes or static mounts")),
 		),
 	}
 	if sectionErr == nil && len(moduleSections) > 0 {
@@ -75,10 +81,10 @@ func (c *runCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	return runScriptFileWithInitializers(ctx, c.factory, settings.Runtime, settings.File, vals, selectedModules)
+	return runScriptFileWithInitializers(ctx, c.factory, settings.Runtime, settings.File, vals, selectedModules, settings.KeepAlive)
 }
 
-func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory, profile string, file string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {
+func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory, profile string, file string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, keepAlive bool) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -116,6 +122,23 @@ func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory,
 	})
 	if err != nil {
 		return fmt.Errorf("run %s as module: %w", scriptPath, err)
+	}
+	if keepAlive {
+		fmt.Fprintln(os.Stderr, "xgoja run: runtime is alive; press Ctrl-C to stop")
+		return waitForKeepAlive(ctx)
+	}
+	return nil
+}
+
+func waitForKeepAlive(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	signalCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	<-signalCtx.Done()
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	return nil
 }

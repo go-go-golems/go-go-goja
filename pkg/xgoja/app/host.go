@@ -14,12 +14,15 @@ type Host struct {
 	Factory         *RuntimeFactory
 	EmbeddedJSVerbs fs.FS
 	EmbeddedHelp    fs.FS
+	EmbeddedAssets  fs.FS
+	Services        HostServices
 	Out             io.Writer
 }
 
 type HostOptions struct {
 	EmbeddedJSVerbs fs.FS
 	EmbeddedHelp    fs.FS
+	EmbeddedAssets  fs.FS
 	Out             io.Writer
 }
 
@@ -28,12 +31,15 @@ func NewHost(providers *providerapi.Registry, spec *Spec) *Host {
 }
 
 func NewHostWithOptions(providers *providerapi.Registry, spec *Spec, opts HostOptions) *Host {
+	services := HostServices{Assets: NewAssetStore(opts.EmbeddedAssets, spec)}
 	return &Host{
 		Providers:       providers,
 		Spec:            spec,
-		Factory:         NewRuntimeFactory(providers, spec),
+		Factory:         NewRuntimeFactory(providers, spec, services),
 		EmbeddedJSVerbs: opts.EmbeddedJSVerbs,
 		EmbeddedHelp:    opts.EmbeddedHelp,
+		EmbeddedAssets:  opts.EmbeddedAssets,
+		Services:        services,
 		Out:             opts.Out,
 	}
 }

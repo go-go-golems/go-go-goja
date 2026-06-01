@@ -27,6 +27,7 @@ func (r *Registrar) TypeScriptModule() *spec.Module {
 			"  delete(pattern: string, handler: Handler): void;",
 			"  all(pattern: string, handler: Handler): void;",
 			"  static(prefix: string, directory: string): void;",
+			"  staticFromAssetsModule(prefix: string, assetsModule: unknown, root: string): void;",
 			"}",
 			"export type Handler = (req: Request, res: Response) => unknown;",
 			"export interface Request {",

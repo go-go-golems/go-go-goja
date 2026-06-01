@@ -8,6 +8,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/engine"
+	fsmod "github.com/go-go-golems/go-go-goja/modules/fs"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
@@ -108,6 +109,17 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 			return fmt.Errorf("app.static requires prefix and directory")
 		}
 		r.host.RegisterStatic(prefix, dir)
+		return nil
+	})
+	_ = obj.Set("staticFromAssetsModule", func(prefix string, assetsModule goja.Value, root string) error {
+		if prefix == "" || root == "" {
+			return fmt.Errorf("app.staticFromAssetsModule requires prefix and root")
+		}
+		handler, err := fsmod.StaticHandlerFromAssetsModule(vm, assetsModule, root)
+		if err != nil {
+			return err
+		}
+		r.host.RegisterStaticHandler(prefix, handler)
 		return nil
 	})
 	return obj

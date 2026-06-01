@@ -19,6 +19,7 @@ type mainTemplateData struct {
 	HasEmbedded       bool
 	HasEmbeddedJSVerb bool
 	HasEmbeddedHelp   bool
+	HasEmbeddedAssets bool
 	NeedsContext      bool
 	HasTargetImport   bool
 	TargetKind        string
@@ -55,7 +56,8 @@ func mainTemplateDataFromSpec(spec *buildspec.Spec) mainTemplateData {
 	aliases := importAliases(spec.Packages)
 	hasEmbeddedJSVerb := hasEmbeddedJSVerbSources(spec)
 	hasEmbeddedHelp := hasEmbeddedHelpSources(spec)
-	hasEmbedded := hasEmbeddedJSVerb || hasEmbeddedHelp
+	hasEmbeddedAssets := hasEmbeddedAssetSources(spec)
+	hasEmbedded := hasEmbeddedJSVerb || hasEmbeddedHelp || hasEmbeddedAssets
 	providers := make([]providerImport, 0, len(spec.Packages))
 	for _, pkg := range spec.Packages {
 		providers = append(providers, providerImport{
@@ -75,6 +77,7 @@ func mainTemplateDataFromSpec(spec *buildspec.Spec) mainTemplateData {
 		HasEmbedded:       hasEmbedded,
 		HasEmbeddedJSVerb: hasEmbeddedJSVerb,
 		HasEmbeddedHelp:   hasEmbeddedHelp,
+		HasEmbeddedAssets: hasEmbeddedAssets,
 		NeedsContext:      spec.Target.Kind == "adapter",
 		HasTargetImport:   spec.Target.Kind == "adapter" || spec.Target.Kind == "cobra",
 		TargetKind:        spec.Target.Kind,
@@ -90,9 +93,13 @@ func mainTemplateDataFromSpec(spec *buildspec.Spec) mainTemplateData {
 	if hasEmbeddedHelp {
 		embeddedHelpArg = "embeddedHelp"
 	}
+	embeddedAssetsArg := "nil"
+	if hasEmbeddedAssets {
+		embeddedAssetsArg = "embeddedAssets"
+	}
 	if hasEmbedded {
-		data.HostConstruction = fmt.Sprintf("host := app.NewHostWithOptions(registry, spec, app.HostOptions{EmbeddedJSVerbs: %s, EmbeddedHelp: %s})", embeddedJSVerbArg, embeddedHelpArg)
-		data.RootConstruction = fmt.Sprintf("root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON, EmbeddedJSVerbs: %s, EmbeddedHelp: %s})", embeddedJSVerbArg, embeddedHelpArg)
+		data.HostConstruction = fmt.Sprintf("host := app.NewHostWithOptions(registry, spec, app.HostOptions{EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
+		data.RootConstruction = fmt.Sprintf("root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON, EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
 	} else {
 		data.HostConstruction = "host := app.NewHost(registry, spec)"
 		data.RootConstruction = "root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})"

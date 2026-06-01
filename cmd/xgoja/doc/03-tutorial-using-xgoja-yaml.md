@@ -193,7 +193,104 @@ xgoja build -f xgoja.yaml --keep-work
 
 xgoja copies `./verbs` into the generated workspace and generated `main.go` embeds it with `go:embed`. The final binary no longer needs the original `./verbs` directory at runtime.
 
-## 8. Use provider-shipped jsverbs
+## 8. Embed assets and read them through fs aliases
+
+Create an asset file:
+
+```bash
+mkdir -p assets/config
+printf '{"name":"fixture","ok":true}\n' > assets/config/default.json
+```
+
+Select the guarded host provider and register the fs module twice: once for read-only embedded assets and once for explicit host filesystem access.
+
+```yaml
+packages:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+assets:
+  - id: app-assets
+    path: ./assets
+    embed: true
+runtimes:
+  main:
+    modules:
+      - package: go-go-goja-host
+        name: fs
+        as: fs:assets
+        config:
+          embedded:
+            allow: true
+            mounts:
+              - asset: app-assets
+                mount: /app
+      - package: go-go-goja-host
+        name: fs
+        as: fs:host
+        config:
+          allow: true
+```
+
+Read the embedded file from JavaScript:
+
+```bash
+./dist/fixture eval 'require("fs:assets").readFileSync("/app/config/default.json", "utf8")'
+```
+
+`as` is the actual `require()` name. The example registers `fs:assets` and `fs:host`; it does not register plain `fs` unless you add another module entry with `as: fs` or omit `as`.
+
+For web/static asset trees, include dot directories such as `.well-known` directly in `./assets`; generated asset embeds use Go's `all:` pattern so those files are preserved. Do not use `include` or `exclude` fields in `assets:` yet. They are rejected until the generator enforces filtering.
+
+## 9. Serve embedded assets with the HTTP provider
+
+Add the HTTP provider package and select its `express` module in the same runtime profile as `fs:assets`:
+
+```yaml
+packages:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+assets:
+  - id: app-assets
+    path: ./assets
+    embed: true
+runtimes:
+  main:
+    modules:
+      - package: go-go-goja-host
+        name: fs
+        as: fs:assets
+        config:
+          embedded:
+            allow: true
+            mounts:
+              - asset: app-assets
+                mount: /app
+      - package: go-go-goja-http
+        name: express
+```
+
+Create a setup script:
+
+```js
+const express = require("express")
+const assets = require("fs:assets")
+
+const app = express.app()
+app.staticFromAssetsModule("/static", assets, "/app/public")
+app.get("/", (_req, res) => res.redirect("/static/"))
+```
+
+Run it with `--keep-alive` so the generated runtime stays alive after registering routes:
+
+```bash
+./dist/fixture run scripts/server.js --http-listen 127.0.0.1:8787 --keep-alive
+```
+
+Open `http://127.0.0.1:8787/static/`. For a complete runnable project, see `examples/xgoja/10-embedded-assets-fs` or `xgoja help tutorial-static-assets-http-server`.
+
+## 10. Use provider-shipped jsverbs
 
 Provider packages can ship JS verbs next to their native Go modules.
 
@@ -222,7 +319,7 @@ jsverbs:
 
 This scans the provider's embedded filesystem, not the local project filesystem.
 
-## 9. Debug generated builds
+## 11. Debug generated builds
 
 Use:
 
@@ -237,6 +334,7 @@ go.mod
 main.go
 xgoja.gen.json
 xgoja_embed/jsverbs/...
+xgoja_embed/assets/...
 ```
 
 If the generated build fails, the generated source usually shows whether the problem is an import path, module version, replace path, target function name, or embedded source path.
@@ -247,6 +345,8 @@ If the generated build fails, the generated source usually shows whether the pro
 | --- | --- |
 | `doctor` reports unknown package | The `package` field must match a `packages[].id`. |
 | `require("name")` fails | The runtime profile must include a module with `as: name` or `name: name`. |
+| `require("fs")` fails after adding `fs:assets` | `as: fs:assets` registers only `fs:assets`; use that name or add a separate `as: fs` entry. |
+| embedded asset write fails with `EROFS` | Embedded assets are read-only; use a separate host alias such as `fs:host` for writes. |
 | jsverb command is missing | Confirm `commands.jsverbs.enabled: true` and that the source scans without diagnostics. |
 | embedded jsverb missing | Build with `--keep-work` and inspect `xgoja_embed/jsverbs/<id>/`. |
 | provider source missing | Confirm the provider registers `VerbSource{Name, FS, Root}` and the spec uses the same package ID and source name. |

@@ -3,6 +3,7 @@ package providerapi
 import (
 	"context"
 	"encoding/json"
+	"io/fs"
 
 	"github.com/dop251/goja_nodejs/require"
 )
@@ -17,7 +18,13 @@ type ModuleContext struct {
 	Host    HostServices
 }
 
-type HostServices interface{}
+type AssetResolver interface {
+	ResolveAsset(id string) (fs.FS, string, bool)
+}
+
+type HostServices interface {
+	AssetResolver() AssetResolver
+}
 
 type Module struct {
 	Name         string

@@ -1,11 +1,15 @@
 package fs
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"time"
 )
 
 type fileStats map[string]any
+
+type OSBackend struct{}
 
 func statMap(info os.FileInfo) fileStats {
 	return fileStats{
@@ -18,28 +22,28 @@ func statMap(info os.FileInfo) fileStats {
 	}
 }
 
-func readFileBytes(path string) ([]byte, error) {
+func (OSBackend) ReadFile(path string) ([]byte, error) {
 	b, err := os.ReadFile(path)
 	return b, wrapFSError(err, path, "open")
 }
 
-func writeFileBytes(path string, data []byte, mode os.FileMode) error {
+func (OSBackend) WriteFile(path string, data []byte, mode os.FileMode) error {
 	return wrapFSError(os.WriteFile(path, data, mode), path, "open")
 }
 
-func existsSync(path string) bool {
+func (OSBackend) Exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
-func mkdirSync(path string, recursive bool, mode os.FileMode) error {
+func (OSBackend) Mkdir(path string, recursive bool, mode os.FileMode) error {
 	if recursive {
 		return wrapFSError(os.MkdirAll(path, mode), path, "mkdir")
 	}
 	return wrapFSError(os.Mkdir(path, mode), path, "mkdir")
 }
 
-func readdirSync(path string) ([]string, error) {
+func (OSBackend) ReadDir(path string) ([]string, error) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return nil, wrapFSError(err, path, "scandir")
@@ -51,7 +55,7 @@ func readdirSync(path string) ([]string, error) {
 	return names, nil
 }
 
-func statSync(path string) (fileStats, error) {
+func (OSBackend) Stat(path string) (fileStats, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, wrapFSError(err, path, "stat")
@@ -59,11 +63,11 @@ func statSync(path string) (fileStats, error) {
 	return statMap(info), nil
 }
 
-func unlinkSync(path string) error {
+func (OSBackend) Remove(path string) error {
 	return wrapFSError(os.Remove(path), path, "unlink")
 }
 
-func appendFileBytes(path string, data []byte, mode os.FileMode) error {
+func (OSBackend) AppendFile(path string, data []byte, mode os.FileMode) error {
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, mode)
 	if err != nil {
 		return wrapFSError(err, path, "open")
@@ -73,27 +77,22 @@ func appendFileBytes(path string, data []byte, mode os.FileMode) error {
 	return wrapFSError(err, path, "write")
 }
 
-func renameSync(oldPath, newPath string) error {
+func (OSBackend) Rename(oldPath, newPath string) error {
 	return wrapFSError(os.Rename(oldPath, newPath), oldPath, "rename")
 }
 
-func copyFileSync(src, dst string) error {
-	data, err := readFileBytes(src)
+func (b OSBackend) CopyFile(src, dst string) error {
+	data, err := b.ReadFile(src)
 	if err != nil {
 		return err
 	}
-	return writeFileBytes(dst, data, 0o644)
+	return b.WriteFile(dst, data, 0o644)
 }
 
-func rmSync(path string, recursive, force bool) error {
-	var err error
-	if recursive {
-		err = os.RemoveAll(path)
-	} else {
-		err = os.Remove(path)
-	}
-	if force && os.IsNotExist(err) {
-		return nil
-	}
-	return wrapFSError(err, path, "rm")
+func (OSBackend) RemoveAll(path string) error {
+	return wrapFSError(os.RemoveAll(path), path, "rm")
+}
+
+func isNotExist(err error) bool {
+	return errors.Is(err, fs.ErrNotExist) || os.IsNotExist(err)
 }

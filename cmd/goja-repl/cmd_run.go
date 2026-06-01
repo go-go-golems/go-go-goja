@@ -34,7 +34,7 @@ No persistent session is created. No SQLite database is required. The runtime is
 destroyed when the script completes.
 
 Examples:
-  goja-repl run ./testdata/yaml.js
+  goja-repl --enable-module yaml run ./examples/goja-repl/scripts/yaml.js
   goja-repl --plugin-dir ./plugins run ./scripts/with-custom-modules.js
 `),
 			cmds.WithArguments(

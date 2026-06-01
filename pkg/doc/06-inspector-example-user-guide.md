@@ -39,7 +39,7 @@ go build ./cmd/inspector
 Run directly without producing a local binary:
 
 ```bash
-go run ./cmd/inspector ../goja/testdata/sample.js
+go run ./cmd/inspector ./examples/inspector/inspector-test.js
 ```
 
 ## How the Command Is Structured

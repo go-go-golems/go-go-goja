@@ -31,6 +31,7 @@ func RenderEmbeddedSpec(spec *buildspec.Spec) string {
 		CommandProviders []buildspec.CommandProviderInstance `json:"commandProviders,omitempty"`
 		JSVerbs          []buildspec.JSVerbSourceSpec        `json:"jsverbs,omitempty"`
 		Help             *buildspec.HelpSpec                 `json:"help,omitempty"`
+		Assets           []buildspec.AssetSourceSpec         `json:"assets,omitempty"`
 	}{
 		Name:             spec.Name,
 		Target:           spec.Target,
@@ -40,6 +41,7 @@ func RenderEmbeddedSpec(spec *buildspec.Spec) string {
 		CommandProviders: spec.CommandProviders,
 		JSVerbs:          spec.JSVerbs,
 		Help:             helpSpec,
+		Assets:           spec.Assets,
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
@@ -71,6 +73,15 @@ func runtimeSpec(spec *buildspec.Spec) *buildspec.Spec {
 			}
 		}
 	}
+	if len(spec.Assets) > 0 {
+		clone.Assets = append([]buildspec.AssetSourceSpec(nil), spec.Assets...)
+		roots := embeddedAssetRoots(spec)
+		for i := range clone.Assets {
+			if root := roots[i]; root != "" {
+				clone.Assets[i].Path = root
+			}
+		}
+	}
 	return &clone
 }
 
@@ -92,6 +103,18 @@ func hasEmbeddedHelpSources(spec *buildspec.Spec) bool {
 	}
 	for _, source := range spec.Help.Sources {
 		if source.Embed && source.Path != "" && source.Package == "" && source.Source == "" {
+			return true
+		}
+	}
+	return false
+}
+
+func hasEmbeddedAssetSources(spec *buildspec.Spec) bool {
+	if spec == nil {
+		return false
+	}
+	for _, source := range spec.Assets {
+		if source.Embed && source.Path != "" {
 			return true
 		}
 	}
@@ -148,6 +171,33 @@ func embeddedHelpRoots(spec *buildspec.Spec) map[int]string {
 		}
 		used[name] = struct{}{}
 		roots[i] = "xgoja_embed/help/" + name
+	}
+	return roots
+}
+
+func embeddedAssetRoots(spec *buildspec.Spec) map[int]string {
+	roots := map[int]string{}
+	if spec == nil {
+		return roots
+	}
+	used := map[string]struct{}{}
+	for i, source := range spec.Assets {
+		if !source.Embed || strings.TrimSpace(source.Path) == "" {
+			continue
+		}
+		base := sanitizeIdentifier(source.ID)
+		if base == "" {
+			base = "source"
+		}
+		name := base
+		for suffix := 2; ; suffix++ {
+			if _, ok := used[name]; !ok {
+				break
+			}
+			name = fmt.Sprintf("%s_%d", base, suffix)
+		}
+		used[name] = struct{}{}
+		roots[i] = "xgoja_embed/assets/" + name
 	}
 	return roots
 }

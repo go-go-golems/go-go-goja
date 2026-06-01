@@ -23,7 +23,7 @@ func TestDiscoverDirectoryRespectsExplicitOverride(t *testing.T) {
 }
 
 func TestRegisterExampleSharedSectionsSupportsRegistrySharedFixture(t *testing.T) {
-	dir := filepath.Join(repoRoot(t), "testdata", "jsverbs-example", "registry-shared")
+	dir := filepath.Join(repoRoot(t), "examples", "jsverbs", "registry-shared")
 
 	registry, err := jsverbs.ScanDir(dir)
 	require.NoError(t, err)

@@ -32,6 +32,8 @@ func fsErrorCode(err error) string {
 		return "EACCES"
 	case errors.Is(err, fs.ErrExist):
 		return "EEXIST"
+	case errors.Is(err, errReadOnlyFS):
+		return "EROFS"
 	default:
 		return "EIO"
 	}

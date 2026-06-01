@@ -36,6 +36,9 @@ func WriteAll(dir string, spec *buildspec.Spec, opts Options) error {
 	if err := copyEmbeddedHelpSources(dir, spec); err != nil {
 		return err
 	}
+	if err := copyEmbeddedAssets(dir, spec); err != nil {
+		return err
+	}
 	files := map[string]string{
 		"go.mod":         RenderGoMod(spec, opts),
 		"main.go":        RenderMain(spec),
@@ -87,6 +90,25 @@ func copyEmbeddedHelpSources(dir string, spec *buildspec.Spec) error {
 	return nil
 }
 
+func copyEmbeddedAssets(dir string, spec *buildspec.Spec) error {
+	roots := embeddedAssetRoots(spec)
+	for i, source := range spec.Assets {
+		root := roots[i]
+		if root == "" {
+			continue
+		}
+		src, err := resolveSourcePath(spec.BaseDir, source.Path)
+		if err != nil {
+			return fmt.Errorf("resolve embedded asset source %s: %w", source.ID, err)
+		}
+		dst := filepath.Join(dir, filepath.FromSlash(root))
+		if err := copyDirWithOptions(dst, src, copyDirOptions{skipNodeModules: true}); err != nil {
+			return fmt.Errorf("copy embedded asset source %s: %w", source.ID, err)
+		}
+	}
+	return nil
+}
+
 func resolveSourcePath(baseDir, rawPath string) (string, error) {
 	path := strings.TrimSpace(rawPath)
 	if path == "" {
@@ -105,7 +127,16 @@ func resolveSourcePath(baseDir, rawPath string) (string, error) {
 	return filepath.Clean(path), nil
 }
 
+type copyDirOptions struct {
+	skipDotDirs     bool
+	skipNodeModules bool
+}
+
 func copyDir(dst, src string) error {
+	return copyDirWithOptions(dst, src, copyDirOptions{skipDotDirs: true, skipNodeModules: true})
+}
+
+func copyDirWithOptions(dst, src string, opts copyDirOptions) error {
 	info, err := os.Stat(src)
 	if err != nil {
 		return err
@@ -126,7 +157,10 @@ func copyDir(dst, src string) error {
 		}
 		if d.IsDir() {
 			name := d.Name()
-			if name == "node_modules" || strings.HasPrefix(name, ".") {
+			if opts.skipNodeModules && name == "node_modules" {
+				return filepath.SkipDir
+			}
+			if opts.skipDotDirs && strings.HasPrefix(name, ".") {
 				return filepath.SkipDir
 			}
 			return os.MkdirAll(filepath.Join(dst, rel), 0o755)

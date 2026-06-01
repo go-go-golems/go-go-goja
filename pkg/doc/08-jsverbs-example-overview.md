@@ -58,31 +58,31 @@ The package also has a stricter error model now. Invalid metadata is recorded as
 List what was discovered first:
 
 ```bash
-jsverbs-example --dir ./testdata/jsverbs list
+jsverbs-example --dir ./examples/jsverbs/basic list
 ```
 
 Run a simple command:
 
 ```bash
-jsverbs-example --dir ./testdata/jsverbs basics greet Manuel --excited
+jsverbs-example --dir ./examples/jsverbs/basic basics greet Manuel --excited
 ```
 
 Run a verb that writes plain text instead of structured rows:
 
 ```bash
-jsverbs-example --dir ./testdata/jsverbs basics banner Manuel
+jsverbs-example --dir ./examples/jsverbs/basic basics banner Manuel
 ```
 
 Run a command that uses a shared section:
 
 ```bash
-jsverbs-example --dir ./testdata/jsverbs basics list-issues go-go-golems/go-go-goja --state closed --labels bug --labels docs
+jsverbs-example --dir ./examples/jsverbs/basic basics list-issues go-go-golems/go-go-goja --state closed --labels bug --labels docs
 ```
 
 Run the dedicated example that uses a host-registered shared section instead of a file-local `__section__`:
 
 ```bash
-jsverbs-example --dir ./testdata/jsverbs-example/registry-shared issues list-issues go-go-golems/go-go-goja --state closed --labels bug --labels docs
+jsverbs-example --dir ./examples/jsverbs/registry-shared issues list-issues go-go-golems/go-go-goja --state closed --labels bug --labels docs
 ```
 
 If you are working inside Go rather than through the example binary, the package-level entrypoints are now:
@@ -101,7 +101,7 @@ That is worth remembering because the example runner is intentionally simpler th
 The example runner exposes standard Glazed logging flags on the root command. The default log level is `error` so module-registration debug logs stay out of the way during normal use. Raise the level explicitly when debugging loader behavior:
 
 ```bash
-jsverbs-example --log-level debug --dir ./testdata/jsverbs list
+jsverbs-example --log-level debug --dir ./examples/jsverbs/basic list
 ```
 
 ## Troubleshooting
