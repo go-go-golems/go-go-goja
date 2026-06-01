@@ -344,6 +344,14 @@ hostFS.writeFileSync("./out.json", JSON.stringify(config), "utf8")
 
 `assets[].embed` currently must be `true`. Runtime filesystem assets are intentionally not part of the first embedded-assets implementation.
 
+Long-running scripts, such as Express-style HTTP servers, can use the generated `run` command's `--keep-alive` flag. The script registers routes or static mounts, returns, and xgoja keeps the runtime open until Ctrl-C or SIGTERM:
+
+```bash
+./dist/my-app run scripts/server.js --http-listen 127.0.0.1:8787 --keep-alive
+```
+
+See `examples/xgoja/10-embedded-assets-fs` for a static-site example that copies bundled files from `require("fs:assets")` into a host staging directory and serves them with `require("express").app().static(...)`.
+
 ## JavaScript verb sources
 
 `jsverbs` supports three distinct source modes.

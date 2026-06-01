@@ -5,6 +5,8 @@ target:
 packages:
   - id: go-go-goja-host
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
 assets:
   - id: app-assets
     path: ./assets
@@ -27,6 +29,8 @@ runtimes:
         as: fs:host
         config:
           allow: true
+      - package: go-go-goja-http
+        name: express
 commands:
   eval:
     enabled: true

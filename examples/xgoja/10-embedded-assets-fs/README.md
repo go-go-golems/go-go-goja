@@ -1,6 +1,6 @@
 # xgoja embedded assets fs example
 
-This example builds a generated xgoja binary that embeds local files from `./assets` into the executable and exposes them to JavaScript through a read-only fs alias.
+This example builds a generated xgoja binary that embeds local files from `./assets` into the executable and exposes them to JavaScript through a read-only fs alias. It also includes a small Express-style HTTP script that stages bundled static files from the embedded asset filesystem and serves them with the `express` module.
 
 The runtime registers the same provider module twice:
 
@@ -22,6 +22,35 @@ The smoke target:
 3. builds `dist/embedded-assets-fs` with a local `go-go-goja` replace,
 4. runs `scripts/read-assets.js`,
 5. verifies that embedded JSON was copied to `out.json` through `fs:host`.
+
+## Serve bundled static assets
+
+```bash
+make serve-smoke
+```
+
+The `serve-smoke` target builds the binary, starts:
+
+```bash
+./dist/embedded-assets-fs run scripts/serve-static-assets.js --http-listen 127.0.0.1:18787 --keep-alive
+```
+
+and checks:
+
+- `http://127.0.0.1:18787/static/` serves `assets/public/index.html`,
+- `http://127.0.0.1:18787/static/app.js` serves bundled JavaScript,
+- `http://127.0.0.1:18787/api/config` can still read `assets/config/default.json` through `fs:assets`.
+
+The script copies `/app/public` from `require("fs:assets")` into `.xgoja-static/public` with `require("fs:host")`, then calls `app.static("/static", ".xgoja-static/public")`. The generated `run` command uses `--keep-alive` so the runtime and HTTP server stay alive after route registration.
+
+For manual exploration:
+
+```bash
+make build
+./dist/embedded-assets-fs run scripts/serve-static-assets.js --http-listen 127.0.0.1:8787 --keep-alive
+```
+
+Then open <http://127.0.0.1:8787/static/> and stop the server with Ctrl-C.
 
 ## Prove it is self-contained
 
@@ -56,4 +85,6 @@ runtimes:
         as: fs:host
         config:
           allow: true
+      - package: go-go-goja-http
+        name: express
 ```
