@@ -629,7 +629,7 @@ Runtime module factories now receive `ModuleContext.Host`, which is the hook the
 
 **Inferred user intent:** Build toward configurable fs aliases by giving module factories access to the generated binary's embedded asset store.
 
-**Commit (code):** pending — "xgoja: pass embedded asset services to modules"
+**Commit (code):** 05fa11f1fbf31793b0d121fab713e0d381aa673d — "xgoja: pass embedded asset services to modules"
 
 ### What I did
 
