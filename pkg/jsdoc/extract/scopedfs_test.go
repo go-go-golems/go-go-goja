@@ -10,7 +10,7 @@ import (
 )
 
 func TestParseFSFile_Samples(t *testing.T) {
-	root := filepath.Join("..", "..", "..", "testdata", "jsdoc")
+	root := filepath.Join("..", "..", "..", "examples", "jsdoc", "samples")
 
 	fd, err := ParseFSFile(os.DirFS(root), "01-math.js")
 	require.NoError(t, err)

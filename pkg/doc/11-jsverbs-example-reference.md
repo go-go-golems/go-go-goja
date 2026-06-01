@@ -306,7 +306,7 @@ This is one of the most important behavioral changes from the original prototype
 
 Preferred testing structure:
 
-- use `testdata/jsverbs` for fixtures
+- use `examples/jsverbs/basic` for fixtures
 - use `ScanDir(...)`, `ScanFS(...)`, or `ScanSource(...)` depending on what source origin you want to validate
 - use `registry.Commands()` for default runtime-owning command compilation, or `registry.CommandsWithInvoker(...)` when you need to verify host-owned execution hooks
 - execute structured verbs through a capture processor
@@ -316,7 +316,7 @@ That split in test style mirrors the split in command interfaces. If you add a n
 
 ## Connected-helper fixtures
 
-The `testdata/jsverbs/fswatch.js` fixture demonstrates a connected EventEmitter helper rather than a default JavaScript module. It scans like any other jsverb, but it only runs in a runtime that installs the helper explicitly.
+The `examples/jsverbs/basic/fswatch.js` fixture demonstrates a connected EventEmitter helper rather than a default JavaScript module. It scans like any other jsverb, but it only runs in a runtime that installs the helper explicitly.
 
 Use `Registry.InvokeInRuntime(...)` when a fixture needs host-specific runtime composition:
 

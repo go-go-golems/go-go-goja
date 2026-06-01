@@ -61,10 +61,10 @@ js> [1, 2, 3].map(x => x * 2)
 Use `goja-repl run <file>` when you want a one-shot runtime for a JavaScript file instead of a persistent REPL session:
 
 ```bash
-go run ./cmd/goja-repl run ./testdata/yaml.js
+go run ./cmd/goja-repl --enable-module yaml run ./examples/goja-repl/scripts/yaml.js
 ```
 
-`run` creates a fresh runtime, enables the default native modules, derives module roots from the script path, executes the file, and then closes the runtime. It does not require `goja-repl create`, a `session-id`, or a SQLite database.
+`run` creates a fresh runtime, applies the selected native-module flags, derives module roots from the script path, executes the file, and then closes the runtime. It does not require `goja-repl create`, a `session-id`, or a SQLite database.
 
 Root-level plugin flags still apply:
 

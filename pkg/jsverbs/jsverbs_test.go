@@ -93,7 +93,7 @@ func TestFixtureCommandsExecute(t *testing.T) {
 		require.Equal(t, "closed", rows[0]["state"])
 		require.EqualValues(t, 2, rows[0]["labelCount"])
 		require.Equal(t, "decorated:go-go-golems/go-go-goja", rows[0]["helper"])
-		require.Equal(t, filepath.ToSlash(filepath.Join(repoRoot(t), "testdata", "jsverbs")), rows[0]["rootDir"])
+		require.Equal(t, filepath.ToSlash(filepath.Join(repoRoot(t), "examples", "jsverbs", "basic")), rows[0]["rootDir"])
 	})
 
 	t.Run("summarize bind all", func(t *testing.T) {
@@ -578,7 +578,7 @@ func TestInvokeInRuntimeReusesLiveRuntime(t *testing.T) {
 	require.True(t, ok)
 
 	requireOpt, err := engine.RequireOptionWithModuleRootsFromScript(
-		filepath.Join(repoRoot(t), "testdata", "jsverbs", "basics.js"),
+		filepath.Join(repoRoot(t), "examples", "jsverbs", "basic", "basics.js"),
 		engine.DefaultModuleRootsOptions(),
 	)
 	require.NoError(t, err)
@@ -635,7 +635,7 @@ func TestFSWatchJsverbUsesInstalledHelper(t *testing.T) {
 
 	dir := t.TempDir()
 	requireOpt, err := engine.RequireOptionWithModuleRootsFromScript(
-		filepath.Join(repoRoot(t), "testdata", "jsverbs", "fswatch.js"),
+		filepath.Join(repoRoot(t), "examples", "jsverbs", "basic", "fswatch.js"),
 		engine.DefaultModuleRootsOptions(),
 	)
 	require.NoError(t, err)
@@ -722,7 +722,7 @@ __verb__("summarize", {
 
 func mustRegistry(t *testing.T) *Registry {
 	t.Helper()
-	registry, err := ScanDir(filepath.Join(repoRoot(t), "testdata", "jsverbs"))
+	registry, err := ScanDir(filepath.Join(repoRoot(t), "examples", "jsverbs", "basic"))
 	require.NoError(t, err)
 	return registry
 }

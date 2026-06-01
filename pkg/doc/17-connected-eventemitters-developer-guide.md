@@ -293,16 +293,16 @@ Use the Watermill helper only when the embedding application has an explicit `me
 The fixture directory contains examples for the EventEmitter and fswatch APIs:
 
 ```text
-testdata/jsverbs/events.js
-testdata/jsverbs/fswatch.js
+examples/jsverbs/basic/events.js
+examples/jsverbs/basic/fswatch.js
 ```
 
 EventEmitter examples run through the default `jsverbs-example` runtime:
 
 ```bash
-go run ./cmd/jsverbs-example --dir testdata/jsverbs events event-timeline evt --count 2
-go run ./cmd/jsverbs-example --dir testdata/jsverbs events listener-summary demo
-go run ./cmd/jsverbs-example --dir testdata/jsverbs events handled-error boom
+go run ./cmd/jsverbs-example --dir examples/jsverbs/basic events event-timeline evt --count 2
+go run ./cmd/jsverbs-example --dir examples/jsverbs/basic events listener-summary demo
+go run ./cmd/jsverbs-example --dir examples/jsverbs/basic events handled-error boom
 ```
 
 The fswatch example demonstrates the JavaScript shape but requires an embedding runtime that installs `jsevents.Install()` and `FSWatchHelper(...)`. The regression test `TestFSWatchJsverbUsesInstalledHelper` shows that embedding path and invokes the jsverb with recursive watching, debouncing, and glob filters.

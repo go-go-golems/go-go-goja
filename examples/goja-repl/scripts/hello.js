@@ -9,7 +9,7 @@ const fs = require("fs");
 const exec = require("exec");
 
 fs.writeFileSync("/tmp/goja-test.txt", "Hi from test");
-const content = fs.readFileSync("/tmp/goja-test.txt");
+const content = fs.readFileSync("/tmp/goja-test.txt", "utf8");
 if (content !== "Hi from test") {
   throw new Error("fs module failed");
 }

@@ -26,7 +26,7 @@ The goal is to have a place where you can:
  │   ├── fs/              # example module 1: basic file-system helpers
  │   ├── exec/            # example module 2: thin wrapper around os/exec
  │   ├── yaml/            # example module 3: YAML parse/stringify/validate
- ├── testdata/            # demo JS scripts used by Go tests
+ ├── examples/            # runnable example scripts, jsverbs trees, jsdoc samples, and xgoja projects
  ├── repl_test.go         # Go test that runs a JS script through the runner
  └── go.mod
 ```
@@ -62,10 +62,10 @@ The `--log-level debug` flag prints extra logs such as which modules were regist
 Run a JavaScript file directly without creating a persistent session:
 
 ```bash
-go run ./cmd/goja-repl run ./testdata/yaml.js
+go run ./cmd/goja-repl --enable-module yaml run ./examples/goja-repl/scripts/yaml.js
 ```
 
-The `run` verb creates a fresh runtime, enables default native modules, derives module roots from the script path, executes the file, and closes the runtime.
+The `run` verb creates a fresh runtime, applies the selected native-module flags, derives module roots from the script path, executes the file, and closes the runtime.
 
 ### Module Security Flags
 

@@ -24,7 +24,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 )
 
-const defaultExampleDir = "testdata/jsverbs"
+const defaultExampleDir = "examples/jsverbs/basic"
 
 // listCommand implements cmds.GlazeCommand and emits discovered verbs as structured rows.
 type listCommand struct {
