@@ -961,7 +961,7 @@ The implementation intentionally rejects a single fs instance that combines host
 
 **Inferred user intent:** Enable the desired xgoja.yaml shape where the same provider module appears twice with different `as:` names and different configs.
 
-**Commit (code):** pending — "xgoja host: configure fs asset aliases"
+**Commit (code):** 05b9a410d5facfc2f7ae027bd9ca8c9deb1a38a5 — "xgoja host: configure fs asset aliases"
 
 ### What I did
 
