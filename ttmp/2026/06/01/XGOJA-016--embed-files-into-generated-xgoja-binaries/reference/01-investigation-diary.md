@@ -33,7 +33,9 @@ RelatedFiles:
     - Path: cmd/xgoja/internal/buildspec/validate_test.go
       Note: Added asset validation tests.
     - Path: cmd/xgoja/internal/generate/generate.go
-      Note: Added copyEmbeddedAssets and asset copy wiring.
+      Note: |-
+        Added copyEmbeddedAssets and asset copy wiring.
+        Uses asset-specific copy rules preserving dot directories.
     - Path: cmd/xgoja/internal/generate/generate_test.go
       Note: |-
         Added render/copy tests for embedded assets.
@@ -43,7 +45,9 @@ RelatedFiles:
     - Path: cmd/xgoja/internal/generate/templates.go
       Note: Added EmbeddedAssets constructor/template data.
     - Path: cmd/xgoja/internal/generate/templates/main.go.tmpl
-      Note: Added generated go:embed declaration for asset files.
+      Note: |-
+        Added generated go:embed declaration for asset files.
+        Uses all: go:embed for asset trees.
     - Path: examples/xgoja/10-embedded-assets-fs/Makefile
       Note: Added serve-smoke validation target.
     - Path: examples/xgoja/10-embedded-assets-fs/scripts/read-assets.js
@@ -57,7 +61,9 @@ RelatedFiles:
     - Path: modules/fs/backend.go
       Note: Introduced Backend interface and configurable fs module constructor.
     - Path: modules/fs/backend_embed.go
-      Note: Added read-only embedded filesystem backend and virtual mount resolution.
+      Note: |-
+        Added read-only embedded filesystem backend and virtual mount resolution.
+        Preserves root embedded fs mounts for PR #48.
     - Path: modules/fs/fs.go
       Note: Switched JavaScript sync exports to backend methods while preserving API semantics.
     - Path: modules/fs/fs_async.go
@@ -85,7 +91,9 @@ RelatedFiles:
     - Path: pkg/xgoja/providerapi/module.go
       Note: Defines asset resolver host-service contract.
     - Path: pkg/xgoja/providers/host/host.go
-      Note: Host provider now creates per-alias OS or embedded fs backends from config.
+      Note: |-
+        Host provider now creates per-alias OS or embedded fs backends from config.
+        Removed unused requireAllow helper flagged by linter.
     - Path: pkg/xgoja/providers/host/host_test.go
       Note: Tests fs:assets and fs:host aliases plus combined config rejection.
     - Path: ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/scripts/01-inspect-current-embedded-sources.out
@@ -98,6 +106,7 @@ LastUpdated: 2026-06-01T08:09:12.43837053-04:00
 WhatFor: Use this to understand what was investigated, which files shaped the design, what experiments were run, and how to continue XGOJA-016.
 WhenToUse: Before implementing or reviewing the embedded asset support design.
 ---
+
 
 
 
@@ -1529,3 +1538,120 @@ copyEmbeddedTree("/app/public", ".xgoja-static/public")
 const app = express.app()
 app.static("/static", ".xgoja-static/public")
 ```
+
+## Step 14: Address PR #48 review and linter feedback
+
+This step fixed the automated review findings on PR #48 and the `unused` linter failure. The embedded filesystem now supports `mount: /` instead of silently dropping that mount, and embedded asset copying now preserves dot directories such as `.well-known`.
+
+The generator also now emits `//go:embed all:xgoja_embed/assets/*` for assets. This is necessary because copying `.well-known` into the generated workspace is not enough: Go's default embed patterns omit dot-prefixed files and directories unless the pattern uses the `all:` prefix.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Address the issues in https://github.com/go-go-golems/go-go-goja/pull/48
+
+and _linter: 627ns, exclusion_paths: 625ns, filename_unadjuster: 625ns, path_prettifier: 553ns, diff: 433ns, severity-rules: 292ns 
+INFO [runner] linters took 5.32545945s with stages: goanalysis_metalinter: 5.324039297s 
+pkg/xgoja/providers/host/host.go:222:6: func requireAllow is unused (unused)
+func requireAllow(data json.RawMessage, moduleName string) error {
+     ^"
+
+**Assistant interpretation:** Inspect PR #48 review comments, fix the reported root mount and dot-directory embedding issues, and remove the unused `requireAllow` function that fails lint.
+
+**Inferred user intent:** Make the pull request CI-clean and address review blockers before merge.
+
+**Commit (code):** 02c71fd293de4dfec4b18000319fc4323433d559 — "xgoja: address embedded asset PR feedback"
+
+### What I did
+
+- Queried PR #48 review comments with `gh api repos/go-go-golems/go-go-goja/pulls/48/comments`.
+- Fixed `modules/fs/backend_embed.go` so `NewReadOnlyFSBackend` preserves root mounts and `resolve` handles `Mount: "/"` correctly.
+- Added module-level root mount coverage in `modules/fs/fs_embed_test.go`.
+- Added host-provider root mount coverage in `pkg/xgoja/providers/host/host_test.go`.
+- Changed embedded asset copying in `cmd/xgoja/internal/generate/generate.go` to use asset-specific copy options that preserve dot directories while still skipping `node_modules`.
+- Changed generated asset embeds from `//go:embed xgoja_embed/assets/*` to `//go:embed all:xgoja_embed/assets/*`.
+- Extended the generated-program embedded asset test to include `.well-known/security.txt`.
+- Removed the unused `requireAllow` function from `pkg/xgoja/providers/host/host.go`.
+
+### Why
+
+- `mount: /` is a natural way to expose a complete embedded tree. Silently dropping it creates a runtime that starts but fails every read with `ENOENT`.
+- Asset directories may legitimately include dot directories, especially `.well-known` for web/static assets.
+- Go embed requires `all:` to include dot-prefixed paths recursively, so both copy behavior and generated embed patterns needed changes.
+- The linter failure was a real stale helper after host provider config evolved.
+
+### What worked
+
+- Focused tests passed:
+
+```text
+GOWORK=off go test ./modules/fs ./pkg/xgoja/providers/host ./cmd/xgoja/internal/generate -count=1
+```
+
+- Full suite passed:
+
+```text
+GOWORK=off go test ./... -count=1
+```
+
+- Focused golangci-lint passed:
+
+```text
+GOWORK=off golangci-lint run ./pkg/xgoja/providers/host ./modules/fs ./cmd/xgoja/internal/generate
+0 issues.
+```
+
+### What didn't work
+
+- The first focused generator test run failed after preserving dot-directory copies:
+
+```text
+Error: GoError: open xgoja_embed/assets/app_assets/.well-known/security.txt: file does not exist
+```
+
+- The copied file existed in the generated workspace, but the generated `//go:embed xgoja_embed/assets/*` pattern omitted dot-prefixed directories. Switching assets to `//go:embed all:xgoja_embed/assets/*` fixed it.
+
+### What I learned
+
+- Go's `embed` package has a second filtering layer beyond file copying: recursive patterns exclude dot/underscore paths unless prefixed with `all:`.
+- Root virtual mounts need a separate resolution branch because `strings.HasPrefix(clean, mount.Mount+"/")` turns `/` into `//`, which never matches normal absolute paths.
+
+### What was tricky to build
+
+- The root mount bug had two symptoms: the constructor normalized `/` to an empty mount and then skipped it; even after preserving `/`, the prefix logic needed special handling.
+- Dot-directory asset support required fixing both generator copy rules and generated Go source embed rules. Fixing only the copy step still produced a broken binary.
+
+### What warrants a second pair of eyes
+
+- Review whether asset copying should also preserve `node_modules` behind an explicit opt-in. The current fix keeps skipping `node_modules` but preserves dot directories.
+- Review whether `GuardConfig` should remain exported in `pkg/xgoja/providers/host`; only the unused helper was removed for the lint issue.
+
+### What should be done in the future
+
+- Consider adding include/exclude controls to `assets:` if users need precise packaging rules.
+- Consider documenting `all:` behavior in the developer-facing generator notes if more asset filters are added.
+
+### Code review instructions
+
+- Start with `modules/fs/backend_embed.go` and the root mount tests.
+- Then review `cmd/xgoja/internal/generate/generate.go` and `templates/main.go.tmpl` together; the copy and embed changes are coupled.
+- Validate with:
+  - `GOWORK=off go test ./modules/fs ./pkg/xgoja/providers/host ./cmd/xgoja/internal/generate -count=1`
+  - `GOWORK=off golangci-lint run ./pkg/xgoja/providers/host ./modules/fs ./cmd/xgoja/internal/generate`
+  - `GOWORK=off go test ./... -count=1`
+
+### Technical details
+
+Root mount resolution now maps:
+
+```text
+mount "/" + request "/config/default.json" -> embedded root + "config/default.json"
+mount "/" + request "/" -> embedded root + "."
+```
+
+Asset copying now uses:
+
+```go
+copyDirWithOptions(dst, src, copyDirOptions{skipNodeModules: true})
+```
+
+while jsverbs/help still use the legacy copy rules that skip both dot directories and `node_modules`.

@@ -148,3 +148,15 @@ Added embedded-assets Express static server example and run --keep-alive support
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/examples/xgoja/10-embedded-assets-fs/scripts/serve-static-assets.js — Static server example.
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/app/run.go — Long-running run command support.
 
+
+## 2026-06-01
+
+Addressed PR #48 review/lint feedback: root asset mounts work, dot directories are embedded via all:, and unused requireAllow was removed (commit 02c71fd).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/generate/generate.go — Asset copy rule fix.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/generate/templates/main.go.tmpl — all: embed pattern for assets.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/fs/backend_embed.go — Root mount fix.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/providers/host/host.go — Linter fix.
+
