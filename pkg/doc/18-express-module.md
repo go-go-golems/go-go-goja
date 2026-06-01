@@ -69,6 +69,19 @@ app.patch(pattern, handler)
 app.delete(pattern, handler)
 app.all(pattern, handler)
 app.static(prefix, directory)
+app.staticFromAssetsModule(prefix, assetsModule, root)
+```
+
+`app.static(prefix, directory)` serves a real host filesystem directory.
+
+`app.staticFromAssetsModule(prefix, assetsModule, root)` serves files directly from a read-only embedded fs module, for example:
+
+```javascript
+const express = require("express");
+const assets = require("fs:assets");
+const app = express.app();
+
+app.staticFromAssetsModule("/static", assets, "/app/public");
 ```
 
 Route patterns support exact paths, `:params`, and `*` wildcards.

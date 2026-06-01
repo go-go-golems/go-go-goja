@@ -90,6 +90,9 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	}
 
 	backend := mod.fileSystem()
+	if err := exports.DefineDataProperty(backendExportKey, vm.ToValue(backend), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_FALSE); err != nil {
+		panic(vm.NewGoError(err))
+	}
 
 	modules.SetExport(exports, mod.Name(), "readFile", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()

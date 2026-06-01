@@ -40,8 +40,12 @@ func (h *Host) Register(method, pattern string, handler goja.Callable) {
 	h.registry.Add(method, pattern, handler)
 }
 func (h *Host) RegisterStatic(prefix, dir string) {
+	h.RegisterStaticHandler(prefix, http.FileServer(http.Dir(dir)))
+}
+
+func (h *Host) RegisterStaticHandler(prefix string, handler http.Handler) {
 	prefix = cleanPath(prefix)
-	h.static = append(h.static, StaticMount{Prefix: prefix, Handler: http.StripPrefix(prefix, http.FileServer(http.Dir(dir)))})
+	h.static = append(h.static, StaticMount{Prefix: prefix, Handler: http.StripPrefix(prefix, handler)})
 }
 
 func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {

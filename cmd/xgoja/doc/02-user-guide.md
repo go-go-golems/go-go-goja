@@ -350,7 +350,7 @@ Long-running scripts, such as Express-style HTTP servers, can use the generated 
 ./dist/my-app run scripts/server.js --http-listen 127.0.0.1:8787 --keep-alive
 ```
 
-See `examples/xgoja/10-embedded-assets-fs` for a static-site example that copies bundled files from `require("fs:assets")` into a host staging directory and serves them with `require("express").app().static(...)`.
+See `examples/xgoja/10-embedded-assets-fs` for a static-site example that passes `require("fs:assets")` directly to `require("express").app().staticFromAssetsModule("/static", assets, "/app/public")`, so embedded assets are served without a host staging directory.
 
 ## JavaScript verb sources
 

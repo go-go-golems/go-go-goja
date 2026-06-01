@@ -25,7 +25,6 @@ run:
 	@test "$$(cat $(OUT))" = '{"name":"embedded-assets-fs","ok":true}'
 
 serve-smoke: build
-	rm -rf $(CURDIR)/.xgoja-static
 	@set -eu; \
 	log=$$(mktemp); \
 	$(BIN) run $(CURDIR)/scripts/serve-static-assets.js --http-listen $(HTTP_ADDR) --keep-alive >$$log 2>&1 & \
@@ -46,4 +45,4 @@ prove-self-contained: build
 	tmp=$$(mktemp -d); cp $(BIN) $$tmp/embedded-assets-fs; cp -R $(CURDIR)/scripts $$tmp/scripts; cd $$tmp && ./embedded-assets-fs run scripts/read-assets.js && test "$$(cat out.json)" = '{"name":"embedded-assets-fs","ok":true}'
 
 clean:
-	rm -rf $(CURDIR)/dist $(OUT) $(CURDIR)/.xgoja-static
+	rm -rf $(CURDIR)/dist $(OUT)

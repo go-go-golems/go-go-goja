@@ -41,7 +41,7 @@ and checks:
 - `http://127.0.0.1:18787/static/app.js` serves bundled JavaScript,
 - `http://127.0.0.1:18787/api/config` can still read `assets/config/default.json` through `fs:assets`.
 
-The script copies `/app/public` from `require("fs:assets")` into `.xgoja-static/public` with `require("fs:host")`, then calls `app.static("/static", ".xgoja-static/public")`. The generated `run` command uses `--keep-alive` so the runtime and HTTP server stay alive after route registration.
+The script passes the actual embedded fs module object to `app.staticFromAssetsModule("/static", assets, "/app/public")`. The Go side recognizes that the module is backed by read-only embedded assets and serves it directly through `http.FileServer(http.FS(...))`; no host staging directory is needed. The generated `run` command uses `--keep-alive` so the runtime and HTTP server stay alive after route registration.
 
 For manual exploration:
 
