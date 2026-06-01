@@ -99,3 +99,13 @@ Phase 3 task 11: added read-only embedded fs backend with virtual mounts, EROFS 
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/fs/fs_embed_test.go — Embedded fs behavior tests.
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/fs/fs_errors.go — EROFS error code mapping.
 
+
+## 2026-06-01
+
+Phase 4 task 12: extended host provider fs config to support separate fs:assets and fs:host aliases; host/app/fs tests pass.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/providers/host/host.go — Provider config implementation.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/providers/host/host_test.go — Alias behavior tests.
+

@@ -62,6 +62,10 @@ RelatedFiles:
       Note: Added runtime JSON AssetSourceSpec mirror.
     - Path: pkg/xgoja/providerapi/module.go
       Note: Defines asset resolver host-service contract.
+    - Path: pkg/xgoja/providers/host/host.go
+      Note: Host provider now creates per-alias OS or embedded fs backends from config.
+    - Path: pkg/xgoja/providers/host/host_test.go
+      Note: Tests fs:assets and fs:host aliases plus combined config rejection.
     - Path: ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/scripts/01-inspect-current-embedded-sources.out
       Note: Captured output showing generated go:embed directives and rewritten embedded source paths.
     - Path: ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/scripts/01-inspect-current-embedded-sources.sh
@@ -72,6 +76,7 @@ LastUpdated: 2026-06-01T08:09:12.43837053-04:00
 WhatFor: Use this to understand what was investigated, which files shaped the design, what experiments were run, and how to continue XGOJA-016.
 WhenToUse: Before implementing or reviewing the embedded asset support design.
 ---
+
 
 
 
@@ -940,4 +945,118 @@ backend := fs.NewReadOnlyFSBackend(fs.FSMount{
     Root:  "xgoja_embed/assets/app_assets",
     Mount: "/app",
 })
+```
+
+## Step 9: Wire host provider fs config to fs aliases
+
+This step connected the backend work to xgoja provider configuration. The host provider can now build distinct fs module instances from per-runtime-module config: `config.allow: true` creates a host filesystem backend, while `config.embedded.allow: true` creates a read-only embedded asset backend from `ctx.Host.AssetResolver()`.
+
+The implementation intentionally rejects a single fs instance that combines host access and embedded mounts. That matches the chosen API: register separate aliases such as `fs:assets` and `fs:host` so JavaScript call sites and code reviews can see which filesystem capability is being used.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue implementation by making the host provider instantiate host and embedded fs backends from per-instance config.
+
+**Inferred user intent:** Enable the desired xgoja.yaml shape where the same provider module appears twice with different `as:` names and different configs.
+
+**Commit (code):** pending — "xgoja host: configure fs asset aliases"
+
+### What I did
+
+- Added host provider fs config structs:
+  - `FSConfig`
+  - `EmbeddedFSConfig`
+  - `AssetMount`
+- Reworked `fsModule` in `pkg/xgoja/providers/host/host.go` to:
+  - decode config per module instance;
+  - derive the require name from `ctx.As`, falling back to `ctx.Name` and provider name;
+  - return `fsmod.New(... OSBackend ...)` for `allow: true`;
+  - return `fsmod.New(... ReadOnlyFSBackend ...)` for `embedded.allow: true`;
+  - reject combined host+embedded config with an error that tells users to register separate aliases.
+- Added `embeddedBackendFromConfig`, which resolves configured asset IDs through `providerapi.HostServices` and builds `fsmod.FSMount` values.
+- Added host provider tests that construct a runtime with both `fs:assets` and `fs:host` and verify:
+  - `require("fs:assets")` reads embedded data;
+  - `require("fs:host")` writes to the host temp directory;
+  - plain `require("fs")` is not registered when no module instance aliases to `fs`.
+- Added a test that rejects combined `allow: true` plus `embedded.allow: true` config.
+- Ran:
+  - `gofmt -w pkg/xgoja/providers/host/host.go pkg/xgoja/providers/host/host_test.go`
+  - `GOWORK=off go test ./pkg/xgoja/providers/host -count=1`
+  - `GOWORK=off go test ./pkg/xgoja/app ./modules/fs -count=1`
+
+### Why
+
+- This is the first point where the user's target API becomes executable: one runtime profile can include the same `name: fs` module twice with different `as:` aliases and configs.
+- Rejecting combined config prevents a confusing overloaded `require("fs")` from becoming the default path.
+- Using providerapi host services avoids an import cycle from the provider package back to the app package.
+
+### What worked
+
+- Host provider tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host	0.041s
+```
+
+- App and fs tests still passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.140s
+ok  	github.com/go-go-golems/go-go-goja/modules/fs	0.059s
+```
+
+- The runtime test confirmed `require("fs")` does not exist unless registered as that exact alias.
+
+### What didn't work
+
+- N/A for this implementation step.
+
+### What I learned
+
+- The existing xgoja runtime factory model handles same-module/multiple-alias registration cleanly once the provider module factory uses `ctx.As` to name the constructed native module.
+- A small `providerapi.HostServices` interface is sufficient to let the host provider resolve embedded assets without knowing app internals.
+
+### What was tricky to build
+
+- The host provider package test needed to exercise the app runtime without creating an import cycle. Importing `pkg/xgoja/app` from the provider test is safe because app does not import the host provider.
+- The require-name fallback matters: `ctx.As` is the intended JavaScript name, but direct tests can still call provider modules with only `ctx.Name`.
+
+### What warrants a second pair of eyes
+
+- Confirm the combined host+embedded config should remain rejected rather than supported as an overlay.
+- Review the JSON schema text in `ConfigSchema`; it is descriptive but not currently enforced by a schema validator in the provider factory.
+
+### What should be done in the future
+
+- Add generated xgoja end-to-end tests using `assets:` in the buildspec and both `fs:assets` and `fs:host` aliases.
+- Update user-facing xgoja docs and examples.
+
+### Code review instructions
+
+- Start in `pkg/xgoja/providers/host/host.go`, especially `fsModule` and `embeddedBackendFromConfig`.
+- Review `pkg/xgoja/providers/host/host_test.go` for the alias behavior contract.
+- Run `GOWORK=off go test ./pkg/xgoja/providers/host ./pkg/xgoja/app ./modules/fs -count=1`.
+
+### Technical details
+
+The tested runtime shape is:
+
+```yaml
+modules:
+  - package: go-go-goja-host
+    name: fs
+    as: fs:assets
+    config:
+      embedded:
+        allow: true
+        mounts:
+          - asset: app-assets
+            mount: /app
+  - package: go-go-goja-host
+    name: fs
+    as: fs:host
+    config:
+      allow: true
 ```
