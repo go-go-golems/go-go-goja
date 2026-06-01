@@ -183,6 +183,34 @@ func TestRenderMainIncludesEmbeddedVerbAndHelpFS(t *testing.T) {
 	}
 }
 
+func TestRenderMainIncludesEmbeddedAssetFS(t *testing.T) {
+	spec := buildableSpec("xgoja", "", "")
+	spec.Assets = []buildspec.AssetSourceSpec{{ID: "app-assets", Path: "assets", Embed: true}}
+	got := RenderMain(spec)
+	for _, want := range []string{
+		`"embed"`,
+		`//go:embed xgoja_embed/assets/*`,
+		`var embeddedAssets embed.FS`,
+		`EmbeddedAssets: embeddedAssets`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
+		}
+	}
+	for _, notWant := range []string{
+		`var embeddedJSVerbs embed.FS`,
+		`var embeddedHelp embed.FS`,
+	} {
+		if strings.Contains(got, notWant) {
+			t.Fatalf("main.go should not contain %q for asset-only embed:\n%s", notWant, got)
+		}
+	}
+	embeddedSpec := RenderEmbeddedSpec(spec)
+	if !strings.Contains(embeddedSpec, `"path": "xgoja_embed/assets/app_assets"`) {
+		t.Fatalf("expected embedded spec to rewrite local asset path, got:\n%s", embeddedSpec)
+	}
+}
+
 func TestRenderEmbeddedSpecAvoidsEmbeddedVerbRootCollisions(t *testing.T) {
 	spec := buildableSpec("xgoja", "", "")
 	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
@@ -218,6 +246,23 @@ func TestRenderEmbeddedSpecAvoidsEmbeddedHelpRootCollisions(t *testing.T) {
 	}
 }
 
+func TestRenderEmbeddedSpecAvoidsEmbeddedAssetRootCollisions(t *testing.T) {
+	spec := buildableSpec("xgoja", "", "")
+	spec.Assets = []buildspec.AssetSourceSpec{
+		{ID: "app-assets", Path: "assets-a", Embed: true},
+		{ID: "app_assets", Path: "assets-b", Embed: true},
+	}
+	got := RenderEmbeddedSpec(spec)
+	for _, want := range []string{
+		`"path": "xgoja_embed/assets/app_assets"`,
+		`"path": "xgoja_embed/assets/app_assets_2"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected embedded spec to contain %q, got:\n%s", want, got)
+		}
+	}
+}
+
 func TestWriteAllCopiesEmbeddedVerbSourcesToCollisionFreeRoots(t *testing.T) {
 	baseDir := t.TempDir()
 	for _, dir := range []string{"verbs-a", "verbs-b"} {
@@ -246,6 +291,37 @@ func TestWriteAllCopiesEmbeddedVerbSourcesToCollisionFreeRoots(t *testing.T) {
 	} {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("expected collision-free embedded verb copy %s: %v", path, err)
+		}
+	}
+}
+
+func TestWriteAllCopiesEmbeddedAssetsToCollisionFreeRoots(t *testing.T) {
+	baseDir := t.TempDir()
+	for _, dir := range []string{"assets-a", "assets-b"} {
+		assetDir := filepath.Join(baseDir, dir, "config")
+		if err := os.MkdirAll(assetDir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+		if err := os.WriteFile(filepath.Join(assetDir, "default.json"), []byte(`{"ok":true}`), 0o644); err != nil {
+			t.Fatalf("write %s asset: %v", dir, err)
+		}
+	}
+	spec := buildableSpec("xgoja", "", "")
+	spec.BaseDir = baseDir
+	spec.Assets = []buildspec.AssetSourceSpec{
+		{ID: "app-assets", Path: "assets-a", Embed: true},
+		{ID: "app_assets", Path: "assets-b", Embed: true},
+	}
+	dir := t.TempDir()
+	if err := WriteAll(dir, spec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
+		t.Fatalf("write all: %v", err)
+	}
+	for _, path := range []string{
+		filepath.Join(dir, "xgoja_embed", "assets", "app_assets", "config", "default.json"),
+		filepath.Join(dir, "xgoja_embed", "assets", "app_assets_2", "config", "default.json"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected collision-free embedded asset copy %s: %v", path, err)
 		}
 	}
 }

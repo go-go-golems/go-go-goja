@@ -54,3 +54,14 @@ Phase 1 task 7: added asset spec structs and buildspec validation; focused build
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/buildspec/validate.go — Asset validation.
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/app/spec.go — Runtime assets schema mirror.
 
+
+## 2026-06-01
+
+Phase 1 task 8: added generator support for copying embedded assets, rewriting paths, rendering embeddedAssets, and focused generator tests.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/generate/generate.go — Asset copy pipeline.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/generate/main.go — Asset root rewriting.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/generate/templates/main.go.tmpl — Generated asset embed declaration.
+

@@ -24,6 +24,16 @@ RelatedFiles:
       Note: Added validateAssets for embedded asset declarations.
     - Path: cmd/xgoja/internal/buildspec/validate_test.go
       Note: Added asset validation tests.
+    - Path: cmd/xgoja/internal/generate/generate.go
+      Note: Added copyEmbeddedAssets and asset copy wiring.
+    - Path: cmd/xgoja/internal/generate/generate_test.go
+      Note: Added render/copy tests for embedded assets.
+    - Path: cmd/xgoja/internal/generate/main.go
+      Note: Added embedded asset path rewriting and collision-free roots.
+    - Path: cmd/xgoja/internal/generate/templates.go
+      Note: Added EmbeddedAssets constructor/template data.
+    - Path: cmd/xgoja/internal/generate/templates/main.go.tmpl
+      Note: Added generated go:embed declaration for asset files.
     - Path: pkg/xgoja/app/spec.go
       Note: Added runtime JSON AssetSourceSpec mirror.
     - Path: ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/scripts/01-inspect-current-embedded-sources.out
@@ -36,6 +46,7 @@ LastUpdated: 2026-06-01T08:09:12.43837053-04:00
 WhatFor: Use this to understand what was investigated, which files shaped the design, what experiments were run, and how to continue XGOJA-016.
 WhenToUse: Before implementing or reviewing the embedded asset support design.
 ---
+
 
 
 
@@ -487,4 +498,106 @@ assets:
     path: ./assets
     embed: true
     description: Application assets embedded into the generated binary.
+```
+
+## Step 5: Generate embedded asset copies and go:embed wiring
+
+This step generalized the existing embedded jsverbs/help generator path to arbitrary `assets:` entries. The generator can now copy embedded asset directories into collision-free `xgoja_embed/assets/<id>/` roots, rewrite the embedded runtime spec to those generated roots, and render `embeddedAssets embed.FS` in generated `main.go` when assets are configured.
+
+This is intentionally a generator-only step. Generated programs that include assets will compile once the app layer accepts `EmbeddedAssets` in `app.Options` and `app.HostOptions`, which is the next implementation phase.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue executing the phased task list by implementing the next isolated generator task and recording validation.
+
+**Inferred user intent:** Keep each implementation layer reviewable and committed separately.
+
+**Commit (code):** pending — "xgoja: generate embedded asset files"
+
+### What I did
+
+- Added `copyEmbeddedAssets` to `cmd/xgoja/internal/generate/generate.go`.
+- Added asset path rewriting to `runtimeSpec` in `cmd/xgoja/internal/generate/main.go`.
+- Added `hasEmbeddedAssetSources` and `embeddedAssetRoots` with the same sanitized collision-free naming strategy used by jsverbs/help.
+- Added `HasEmbeddedAssets` to generated template data.
+- Updated generated root/host construction strings to include `EmbeddedAssets` when any embedded source type is present.
+- Updated `cmd/xgoja/internal/generate/templates/main.go.tmpl` to emit:
+  - `//go:embed xgoja_embed/assets/*`
+  - `var embeddedAssets embed.FS`
+- Added generator tests for:
+  - rendered `embeddedAssets` template output;
+  - embedded spec path rewriting;
+  - sanitized asset root collision handling;
+  - copying embedded asset files into collision-free generated roots.
+- Ran:
+  - `gofmt -w cmd/xgoja/internal/generate/generate.go cmd/xgoja/internal/generate/main.go cmd/xgoja/internal/generate/templates.go cmd/xgoja/internal/generate/generate_test.go`
+  - `GOWORK=off go test ./cmd/xgoja/internal/generate -run 'TestRender|TestWriteAll' -count=1`
+
+### Why
+
+- The asset feature should reuse the existing generator architecture rather than special-casing files at runtime.
+- Copying assets into generated `xgoja_embed/assets/` roots makes generated binaries self-contained and keeps source paths out of runtime requirements.
+- Collision-free roots are necessary because IDs like `app-assets` and `app_assets` sanitize to the same Go/embed-safe directory name.
+
+### What worked
+
+- The focused generator tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.011s
+```
+
+- The same helper patterns used for jsverbs/help worked cleanly for assets.
+- `go/format` accepted the template output for asset-only generated mains.
+
+### What didn't work
+
+- N/A for this implementation step.
+
+### What I learned
+
+- The generator's `HasEmbedded` flag controls whether the generated `embed` import is emitted; assets need to participate in that flag even when jsverbs/help are absent.
+- Rendered code can reference future app option fields before the app package is updated because generator tests inspect strings rather than compiling asset-enabled generated programs.
+
+### What was tricky to build
+
+- The constructor strings in `templates.go` need to pass all embedded filesystem handles together. If only one embedded source type is configured, the others must still be passed as `nil` when `HasEmbedded` is true, otherwise the generated code would not preserve existing jsverbs/help behavior.
+
+### What warrants a second pair of eyes
+
+- Review whether `copyDir`'s existing skip rules for dot-directories and `node_modules` are also appropriate for generic assets.
+- Review whether accepting `include`/`exclude` in the schema before implementing filters is acceptable.
+
+### What should be done in the future
+
+- Add app-level `EmbeddedAssets` fields so generated asset-enabled programs compile.
+- Add end-to-end generated binary tests once the app and fs layers are implemented.
+
+### Code review instructions
+
+- Start in `cmd/xgoja/internal/generate/main.go` to inspect path rewriting and collision handling.
+- Then inspect `cmd/xgoja/internal/generate/templates.go` and `templates/main.go.tmpl` for constructor/template changes.
+- Run `GOWORK=off go test ./cmd/xgoja/internal/generate -run 'TestRender|TestWriteAll' -count=1`.
+
+### Technical details
+
+Generated `main.go` now uses this pattern when asset sources are embedded:
+
+```go
+//go:embed xgoja_embed/assets/*
+var embeddedAssets embed.FS
+```
+
+and `RenderEmbeddedSpec` rewrites:
+
+```json
+{"id":"app-assets","path":"assets","embed":true}
+```
+
+into:
+
+```json
+{"id":"app-assets","path":"xgoja_embed/assets/app_assets","embed":true}
 ```
