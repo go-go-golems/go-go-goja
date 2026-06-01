@@ -738,7 +738,7 @@ This is the foundation for `fs:assets` and `fs:host`: later provider code can co
 
 **Inferred user intent:** Make the fs module configurable per runtime module instance without breaking current `require("fs")` behavior.
 
-**Commit (code):** pending — "fs: introduce backend abstraction"
+**Commit (code):** e86a45a14f46201d27e1c3ac81ee1bd648cd4d81 — "fs: introduce backend abstraction"
 
 ### What I did
 
