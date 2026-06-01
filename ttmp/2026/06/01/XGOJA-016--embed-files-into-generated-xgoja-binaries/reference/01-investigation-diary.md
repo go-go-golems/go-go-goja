@@ -36,10 +36,16 @@ RelatedFiles:
       Note: Added generated go:embed declaration for asset files.
     - Path: modules/fs/backend.go
       Note: Introduced Backend interface and configurable fs module constructor.
+    - Path: modules/fs/backend_embed.go
+      Note: Added read-only embedded filesystem backend and virtual mount resolution.
     - Path: modules/fs/fs.go
       Note: Switched JavaScript sync exports to backend methods while preserving API semantics.
     - Path: modules/fs/fs_async.go
       Note: Switched async fs helpers to backend methods while preserving promise resolution.
+    - Path: modules/fs/fs_embed_test.go
+      Note: Added sync and async tests for fs assets backed by fstest.MapFS.
+    - Path: modules/fs/fs_errors.go
+      Note: Added EROFS mapping for read-only embedded writes.
     - Path: modules/fs/fs_sync.go
       Note: Converted existing host filesystem operations into OSBackend.
     - Path: pkg/xgoja/app/assets.go
@@ -66,6 +72,7 @@ LastUpdated: 2026-06-01T08:09:12.43837053-04:00
 WhatFor: Use this to understand what was investigated, which files shaped the design, what experiments were run, and how to continue XGOJA-016.
 WhenToUse: Before implementing or reviewing the embedded asset support design.
 ---
+
 
 
 
@@ -832,4 +839,105 @@ The default registry still uses:
 ```go
 modules.Register(New(WithName("fs")))
 modules.Register(New(WithName("node:fs")))
+```
+
+## Step 8: Add read-only embedded fs backend
+
+This step added the first non-OS backend for `modules/fs`. The new read-only backend maps virtual mount points such as `/app` onto roots inside an `io/fs` tree, which is the same abstraction used by Go's `embed.FS` and `testing/fstest.MapFS`.
+
+The backend supports reads, directory listings, `exists`, and `stat`, while mutating operations return JavaScript errors with `code: "EROFS"` when they target mounted embedded paths. This gives `fs:assets` the expected read-only behavior before it is wired into the xgoja host provider.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue the phased implementation by adding the embedded asset backend and tests before provider config integration.
+
+**Inferred user intent:** Make the future `require("fs:assets")` implementation real and testable at the module layer.
+
+**Commit (code):** pending — "fs: add read-only embedded backend"
+
+### What I did
+
+- Added `modules/fs/backend_embed.go` with:
+  - `FSMount`
+  - `ReadOnlyFSBackend`
+  - `NewReadOnlyFSBackend`
+  - virtual path and mount normalization helpers
+- Added mount resolution that uses longest-prefix matching so nested mounts can be supported safely.
+- Added read-only behavior for mutating operations.
+- Extended `fsErrorCode` so the read-only sentinel maps to JavaScript `EROFS`.
+- Added `modules/fs/fs_embed_test.go` with sync and async embedded backend tests.
+- Verified that `fs:assets` can be registered as a distinct require name in tests using `engine.NativeModuleSpec`.
+- Ran:
+  - `gofmt -w modules/fs/backend_embed.go modules/fs/fs_errors.go modules/fs/fs_embed_test.go`
+  - `GOWORK=off go test ./modules/fs -count=1`
+
+### Why
+
+- The host provider needs a backend it can instantiate from configured asset mounts.
+- Embedded assets must be read-only to preserve the self-contained binary model and avoid pretending writes can modify embedded data.
+- Testing the backend independently makes provider integration smaller and easier to review.
+
+### What worked
+
+- The final focused fs test suite passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/modules/fs	0.055s
+```
+
+- Both sync and async JavaScript APIs work against `require("fs:assets")`.
+- Missing files return `ENOENT`, and writes to mounted paths return `EROFS`.
+
+### What didn't work
+
+- The first embedded test assertions over-escaped the JSON text expectation:
+
+```text
+--- FAIL: TestReadOnlyEmbeddedFsSync (0.00s)
+    fs_embed_test.go:40: embedded sync state missing "text":"{\\"ok\\":true}": {"text":"{\"ok\":true}", ...}
+--- FAIL: TestReadOnlyEmbeddedFsAsync (0.01s)
+    fs_embed_test.go:69: embedded async state missing "text":"{\\"ok\\":true}": {"done":true,"error":"","text":"{\"ok\":true}", ...}
+```
+
+- The backend behavior was correct; the test expected too many backslashes. I fixed the expected substrings to match JSON.stringify output.
+
+### What I learned
+
+- Testing JSON strings that themselves contain JSON requires careful escaping; checking the exact `JSON.stringify` substring is useful but easy to over-escape.
+- A read-only backend can implement the full current fs interface without needing to support writes; write methods can consistently return `EROFS` for mounted paths.
+
+### What was tricky to build
+
+- Mount resolution needs to distinguish `/app` from `/application` and should prefer longer mounts first. The backend sorts mounts by descending mount path length.
+- Paths are virtual JavaScript paths, so the implementation uses Go's `path` package rather than `filepath`.
+
+### What warrants a second pair of eyes
+
+- Review write-like operations such as `copyFile` and `rename` to ensure their `EROFS` vs `ENOENT` behavior is intuitive.
+- Review whether relative JavaScript paths should normalize to absolute virtual paths, as implemented, or be rejected for embedded backends.
+
+### What should be done in the future
+
+- Wire `ReadOnlyFSBackend` into `pkg/xgoja/providers/host` using the `ctx.Host.AssetResolver()` service.
+- Add end-to-end tests proving xgoja.yaml can configure `fs:assets`.
+
+### Code review instructions
+
+- Start in `modules/fs/backend_embed.go`.
+- Review `modules/fs/fs_errors.go` for `EROFS` mapping.
+- Review `modules/fs/fs_embed_test.go` for sync/async behavior.
+- Run `GOWORK=off go test ./modules/fs -count=1`.
+
+### Technical details
+
+Example backend construction:
+
+```go
+backend := fs.NewReadOnlyFSBackend(fs.FSMount{
+    FS:    embeddedAssets,
+    Root:  "xgoja_embed/assets/app_assets",
+    Mount: "/app",
+})
 ```

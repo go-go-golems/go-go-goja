@@ -88,3 +88,14 @@ Phase 3 task 10: refactored modules/fs behind a Backend abstraction while preser
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/fs/fs_async.go — Backend-backed async helpers.
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/fs/fs_sync.go — OSBackend implementation.
 
+
+## 2026-06-01
+
+Phase 3 task 11: added read-only embedded fs backend with virtual mounts, EROFS errors, and sync/async module tests.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/fs/backend_embed.go — Embedded backend implementation.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/fs/fs_embed_test.go — Embedded fs behavior tests.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/modules/fs/fs_errors.go — EROFS error code mapping.
+
