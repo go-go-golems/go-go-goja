@@ -34,3 +34,5 @@ A runtime profile selects which provider modules are available to a command invo
 ## Runtime profile selection
 
 Commands that execute JavaScript accept or derive a runtime profile. The profile controls `require()` visibility. If a module is compiled into the binary but is not selected by the runtime profile, JavaScript code in that command cannot require it.
+
+A runtime may select the same provider module more than once under different `as` names. `as` is the actual `require()` name, not an additional alias. For example, generated binaries that embed assets commonly register `name: fs` twice: `as: fs:assets` for read-only embedded files and `as: fs:host` for explicitly allowed host filesystem access. In that setup `require("fs")` is unavailable unless the runtime also registers an instance whose alias is exactly `fs`.

@@ -118,3 +118,14 @@ Phase 5 task 13: added generated xgoja end-to-end test for assets plus fs:assets
 
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Generated end-to-end asset alias test.
 
+
+## 2026-06-01
+
+Phase 6 task 14: added embedded-assets-fs example and updated xgoja help docs; focused tests plus example smoke/self-contained proof pass.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/doc/02-user-guide.md — Assets documentation.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md — Tutorial update.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/examples/xgoja/10-embedded-assets-fs/xgoja.yaml — New example buildspec.
+

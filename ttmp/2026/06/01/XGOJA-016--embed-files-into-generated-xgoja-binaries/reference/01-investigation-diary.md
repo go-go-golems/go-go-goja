@@ -16,6 +16,12 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/doc/02-user-guide.md
+      Note: User guide documents assets and fs alias semantics.
+    - Path: cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md
+      Note: Tutorial includes embedded assets step.
+    - Path: cmd/xgoja/doc/06-buildspec-reference.md
+      Note: Quick reference includes assets and fs aliases.
     - Path: cmd/xgoja/internal/buildspec/load_test.go
       Note: Extended valid load coverage with assets.
     - Path: cmd/xgoja/internal/buildspec/spec.go
@@ -36,6 +42,10 @@ RelatedFiles:
       Note: Added EmbeddedAssets constructor/template data.
     - Path: cmd/xgoja/internal/generate/templates/main.go.tmpl
       Note: Added generated go:embed declaration for asset files.
+    - Path: examples/xgoja/10-embedded-assets-fs/scripts/read-assets.js
+      Note: Example JavaScript using fs assets and fs host aliases.
+    - Path: examples/xgoja/10-embedded-assets-fs/xgoja.yaml
+      Note: Runnable embedded assets fs alias buildspec example.
     - Path: modules/fs/backend.go
       Note: Introduced Backend interface and configurable fs module constructor.
     - Path: modules/fs/backend_embed.go
@@ -78,6 +88,7 @@ LastUpdated: 2026-06-01T08:09:12.43837053-04:00
 WhatFor: Use this to understand what was investigated, which files shaped the design, what experiments were run, and how to continue XGOJA-016.
 WhenToUse: Before implementing or reviewing the embedded asset support design.
 ---
+
 
 
 
@@ -1162,4 +1173,126 @@ const host = require("fs:host")
 try { require("fs") } catch (e) { plain = "missing" }
 const text = assets.readFileSync("/app/config/default.json", "utf8")
 host.writeFileSync(outPath, text, "utf8")
+```
+
+## Step 11: Add example and user-facing docs
+
+This step added a runnable example and updated xgoja help docs so users can discover the embedded assets feature. The example demonstrates the intended API exactly: `fs:assets` reads bundled files from the generated binary, `fs:host` writes to the host filesystem, and plain `fs` is not registered.
+
+The example also includes a self-contained proof that copies the generated binary and script to a temporary directory away from the source `assets/` tree. The script still reads `/app/config/default.json`, proving the asset file is embedded in the binary.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue implementation by documenting the feature and adding a runnable example.
+
+**Inferred user intent:** Make the new API understandable for future users and provide a smoke-testable reference project.
+
+**Commit (code):** pending — "xgoja: document embedded asset fs aliases"
+
+### What I did
+
+- Added `examples/xgoja/10-embedded-assets-fs` with:
+  - `Makefile`
+  - `README.md`
+  - `xgoja.yaml`
+  - `assets/config/default.json`
+  - `scripts/read-assets.js`
+- Updated `examples/xgoja/README.md` to include the new example in the learning path and run-all loop.
+- Updated xgoja help docs:
+  - `cmd/xgoja/doc/02-user-guide.md`
+  - `cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md`
+  - `cmd/xgoja/doc/06-buildspec-reference.md`
+  - `pkg/xgoja/doc/01-runtime-overview.md`
+- Ran focused package tests:
+  - `GOWORK=off go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/providers/host ./pkg/xgoja/app ./modules/fs -count=1`
+- Ran the new example smoke test:
+  - `make -C examples/xgoja/10-embedded-assets-fs smoke`
+- Ran the self-contained proof:
+  - `make -C examples/xgoja/10-embedded-assets-fs prove-self-contained`
+- Cleaned generated example artifacts with:
+  - `make -C examples/xgoja/10-embedded-assets-fs clean`
+
+### Why
+
+- The feature changes buildspec syntax and runtime security posture, so user-facing docs need to explain the alias model clearly.
+- A numbered example keeps the xgoja examples directory as a learning path and a smoke-test collection.
+- The self-contained proof validates the original user goal: the generated binary does not need the source asset directory at runtime.
+
+### What worked
+
+- Focused tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.025s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	32.601s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host	0.052s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.227s
+ok  	github.com/go-go-golems/go-go-goja/modules/fs	0.102s
+```
+
+- `make -C examples/xgoja/10-embedded-assets-fs smoke` passed after fixing script argument handling.
+- `make -C examples/xgoja/10-embedded-assets-fs prove-self-contained` passed.
+
+### What didn't work
+
+- The first example smoke run failed because the generated `run` command does not forward arbitrary script arguments:
+
+```text
+Error: unknown flag: --out
+unknown flag: --out
+make: *** [Makefile:22: run] Error 1
+```
+
+- I fixed the example by making `scripts/read-assets.js` write to `out.json` in the current working directory instead of expecting `--out <path>` arguments.
+
+### What I learned
+
+- xgoja `run` currently takes only the script file and xgoja command flags; examples should not rely on pass-through script arguments.
+- The example's self-contained proof should copy only the generated binary and script, not the source `assets/` directory.
+
+### What was tricky to build
+
+- The example needed to demonstrate host writes without relying on script arguments. Writing to `out.json` in the current directory makes both normal smoke and temporary self-contained runs straightforward.
+- User docs needed to explain that `as` is the actual require name because otherwise users may expect `require("fs")` to exist when they configure `as: fs:assets`.
+
+### What warrants a second pair of eyes
+
+- Review whether the example should use `eval` instead of `run` to avoid the current no-script-args limitation.
+- Review whether the docs should include a warning that `fs:host` is unsandboxed and should be used only for trusted scripts.
+
+### What should be done in the future
+
+- Consider enhancing `run` to pass script arguments after `--`, but that is outside this ticket.
+- Add the new example to any CI smoke matrix if examples are run in CI.
+
+### Code review instructions
+
+- Start with `examples/xgoja/10-embedded-assets-fs/README.md` and `xgoja.yaml`.
+- Review the docs for consistency around `fs:assets`, `fs:host`, and plain `fs` behavior.
+- Run:
+  - `make -C examples/xgoja/10-embedded-assets-fs smoke`
+  - `make -C examples/xgoja/10-embedded-assets-fs prove-self-contained`
+
+### Technical details
+
+The example's key runtime config is:
+
+```yaml
+modules:
+  - package: go-go-goja-host
+    name: fs
+    as: fs:assets
+    config:
+      embedded:
+        allow: true
+        mounts:
+          - asset: app-assets
+            mount: /app
+  - package: go-go-goja-host
+    name: fs
+    as: fs:host
+    config:
+      allow: true
 ```

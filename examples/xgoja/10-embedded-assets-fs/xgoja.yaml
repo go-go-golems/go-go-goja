@@ -1,0 +1,40 @@
+name: embedded-assets-fs
+target:
+  kind: xgoja
+  output: dist/embedded-assets-fs
+packages:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+assets:
+  - id: app-assets
+    path: ./assets
+    embed: true
+    description: Example configuration assets embedded into the generated binary.
+runtimes:
+  main:
+    modules:
+      - package: go-go-goja-host
+        name: fs
+        as: fs:assets
+        config:
+          embedded:
+            allow: true
+            mounts:
+              - asset: app-assets
+                mount: /app
+      - package: go-go-goja-host
+        name: fs
+        as: fs:host
+        config:
+          allow: true
+commands:
+  eval:
+    enabled: true
+    runtime: main
+  run:
+    enabled: true
+    runtime: main
+  jsverbs:
+    enabled: false
+  repl:
+    enabled: false

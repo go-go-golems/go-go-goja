@@ -42,6 +42,10 @@ commands:
   run:
     enabled: true
     runtime: main
+assets:
+  - id: app-assets
+    path: ./assets
+    embed: true
 help:
   sources:
     - id: project-docs
@@ -60,6 +64,34 @@ help:
 ```
 
 Use embedded local docs for project-specific tutorials. The local directory is copied into `xgoja_embed/help/<id>/` during generation and does not need to exist when the generated binary runs. For a runnable provider-shipped help example, see `examples/xgoja/09-provider-shipped-help-docs`.
+
+Use embedded assets for templates, static data, and default configuration that JavaScript should read from the final binary:
+
+```yaml
+assets:
+  - id: app-assets
+    path: ./assets
+    embed: true
+runtimes:
+  main:
+    modules:
+      - package: go-go-goja-host
+        name: fs
+        as: fs:assets
+        config:
+          embedded:
+            allow: true
+            mounts:
+              - asset: app-assets
+                mount: /app
+      - package: go-go-goja-host
+        name: fs
+        as: fs:host
+        config:
+          allow: true
+```
+
+Then JavaScript can use `require("fs:assets")` for read-only embedded files and `require("fs:host")` for explicitly allowed host filesystem access. See `examples/xgoja/10-embedded-assets-fs`.
 
 Validate and build with:
 
