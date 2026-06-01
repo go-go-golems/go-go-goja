@@ -416,7 +416,7 @@ The validator now treats assets as build-time embedded directories only. It requ
 
 **Inferred user intent:** The user wants the design to move into implementation while preserving a reviewable history and continuation-friendly documentation.
 
-**Commit (code):** 0bfc3399548da4caa7ab5615e930bbeadf85ed24 — "xgoja: add embedded asset spec validation"
+**Commit (code):** f2ffd1439eddcc2aa53fc45551ef629a76a5a440 — "xgoja: add embedded asset spec validation"
 
 ### What I did
 
