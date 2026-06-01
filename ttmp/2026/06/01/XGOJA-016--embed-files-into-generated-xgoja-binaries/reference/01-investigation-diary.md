@@ -514,7 +514,7 @@ This is intentionally a generator-only step. Generated programs that include ass
 
 **Inferred user intent:** Keep each implementation layer reviewable and committed separately.
 
-**Commit (code):** pending — "xgoja: generate embedded asset files"
+**Commit (code):** ab80a4b24dd16f2939b87afcf2fc0fd322e89e6a — "xgoja: generate embedded asset files"
 
 ### What I did
 
