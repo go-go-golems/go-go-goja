@@ -43,3 +43,14 @@ Updated the embedded assets design to make multiple fs module instances under di
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/design-doc/01-embedding-files-into-xgoja-binaries.md — Runtime fs configuration now documents per-alias module instances.
 - /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/reference/01-investigation-diary.md — Step 3 records the API alignment.
 
+
+## 2026-06-01
+
+Phase 1 task 7: added asset spec structs and buildspec validation; focused buildspec tests pass.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/buildspec/spec.go — Build-time assets schema.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/cmd/xgoja/internal/buildspec/validate.go — Asset validation.
+- /home/manuel/workspaces/2026-06-01/xgoja-embed-assets/go-go-goja/pkg/xgoja/app/spec.go — Runtime assets schema mirror.
+

@@ -63,6 +63,56 @@ func TestValidateHelpSourcesAcceptsProviderAndEmbeddedLocalSources(t *testing.T)
 	assertCheck(t, report, StatusOK, "help-path", "help.sources[2].path")
 }
 
+func TestValidateAssetsAcceptsEmbeddedLocalSources(t *testing.T) {
+	dir := t.TempDir()
+	assetsDir := filepath.Join(dir, "assets")
+	if err := os.MkdirAll(assetsDir, 0o755); err != nil {
+		t.Fatalf("mkdir assets dir: %v", err)
+	}
+	spec := validSpec()
+	spec.BaseDir = dir
+	spec.Assets = []AssetSourceSpec{{
+		ID:          "app-assets",
+		Path:        "assets",
+		Embed:       true,
+		Description: "application assets",
+	}}
+
+	report := Validate(spec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusOK, "asset-path", "assets[0].path")
+}
+
+func TestValidateAssetsRejectsInvalidEntries(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "not-a-dir.txt")
+	if err := os.WriteFile(filePath, []byte("asset"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	spec := validSpec()
+	spec.BaseDir = dir
+	spec.Assets = []AssetSourceSpec{
+		{ID: "dup", Path: "not-a-dir.txt", Embed: true},
+		{ID: "dup", Path: "missing", Embed: true},
+		{ID: "runtime", Path: "runtime", Embed: false},
+		{ID: "missing-path", Embed: true},
+		{Path: "assets", Embed: true},
+	}
+
+	report := Validate(spec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "asset-path", "assets[0].path")
+	assertCheck(t, report, StatusError, "asset-id", "assets[1].id")
+	assertCheck(t, report, StatusError, "asset-path", "assets[1].path")
+	assertCheck(t, report, StatusError, "asset-embed", "assets[2].embed")
+	assertCheck(t, report, StatusError, "asset-path", "assets[3].path")
+	assertCheck(t, report, StatusError, "asset-id", "assets[4].id")
+}
+
 func TestValidateHelpSourcesRejectsInvalidEntries(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "not-a-dir.md")

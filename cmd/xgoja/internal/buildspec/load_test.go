@@ -13,6 +13,10 @@ func TestLoadFileValidSpec(t *testing.T) {
 	if err := os.Mkdir(verbsDir, 0o755); err != nil {
 		t.Fatalf("mkdir verbs: %v", err)
 	}
+	assetsDir := filepath.Join(dir, "assets")
+	if err := os.Mkdir(assetsDir, 0o755); err != nil {
+		t.Fatalf("mkdir assets: %v", err)
+	}
 	specPath := filepath.Join(dir, "xgoja.yaml")
 	if err := os.WriteFile(specPath, []byte(`
 name: webrepl
@@ -40,6 +44,11 @@ jsverbs:
   - id: local
     path: ./verbs
     embed: true
+assets:
+  - id: app-assets
+    path: ./assets
+    embed: true
+    description: test assets
 `), 0o644); err != nil {
 		t.Fatalf("write spec: %v", err)
 	}
@@ -65,6 +74,9 @@ jsverbs:
 	}
 	if len(spec.Help.Sources) != 1 || spec.Help.Sources[0].Source != "docs" {
 		t.Fatalf("help sources = %#v", spec.Help.Sources)
+	}
+	if len(spec.Assets) != 1 || spec.Assets[0].ID != "app-assets" || spec.Assets[0].Description != "test assets" {
+		t.Fatalf("assets = %#v", spec.Assets)
 	}
 }
 

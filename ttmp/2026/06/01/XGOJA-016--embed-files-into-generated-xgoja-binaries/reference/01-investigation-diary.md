@@ -16,9 +16,19 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: go-go-goja/ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/scripts/01-inspect-current-embedded-sources.out
+    - Path: cmd/xgoja/internal/buildspec/load_test.go
+      Note: Extended valid load coverage with assets.
+    - Path: cmd/xgoja/internal/buildspec/spec.go
+      Note: Added AssetSourceSpec and top-level assets schema.
+    - Path: cmd/xgoja/internal/buildspec/validate.go
+      Note: Added validateAssets for embedded asset declarations.
+    - Path: cmd/xgoja/internal/buildspec/validate_test.go
+      Note: Added asset validation tests.
+    - Path: pkg/xgoja/app/spec.go
+      Note: Added runtime JSON AssetSourceSpec mirror.
+    - Path: ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/scripts/01-inspect-current-embedded-sources.out
       Note: Captured output showing generated go:embed directives and rewritten embedded source paths.
-    - Path: go-go-goja/ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/scripts/01-inspect-current-embedded-sources.sh
+    - Path: ttmp/2026/06/01/XGOJA-016--embed-files-into-generated-xgoja-binaries/scripts/01-inspect-current-embedded-sources.sh
       Note: Investigation script proving the current embedded jsverbs generator path.
 ExternalSources: []
 Summary: Chronological diary for researching and designing embedded asset support for generated xgoja binaries.
@@ -26,6 +36,7 @@ LastUpdated: 2026-06-01T08:09:12.43837053-04:00
 WhatFor: Use this to understand what was investigated, which files shaped the design, what experiments were run, and how to continue XGOJA-016.
 WhenToUse: Before implementing or reviewing the embedded asset support design.
 ---
+
 
 
 # Diary
@@ -389,4 +400,91 @@ and JavaScript uses:
 ```js
 const assetsFS = require("fs:assets")
 const hostFS = require("fs:host")
+```
+
+## Step 4: Add asset specs and validation
+
+This step started implementation by adding the `assets:` schema to both sides of xgoja's spec boundary. The build-time YAML spec can now load top-level embedded asset declarations, and the runtime JSON spec has matching fields so generated binaries can carry normalized asset metadata later.
+
+The validator now treats assets as build-time embedded directories only. It requires unique non-empty asset IDs, requires a path, requires `embed: true` for the first implementation, and checks that embedded asset paths resolve to existing directories relative to the spec file.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Add a detailed set of tasks split in phases, in case you haven't already. then work on them task by task, keeping a detailed diary as you work, committing at appropriate intervals."
+
+**Assistant interpretation:** Add implementation-phase tasks to XGOJA-016, then begin executing them incrementally with diary/changelog updates and commits.
+
+**Inferred user intent:** The user wants the design to move into implementation while preserving a reviewable history and continuation-friendly documentation.
+
+**Commit (code):** 0bfc3399548da4caa7ab5615e930bbeadf85ed24 — "xgoja: add embedded asset spec validation"
+
+### What I did
+
+- Added detailed phase tasks 7 through 15 to `tasks.md`.
+- Added `Assets []AssetSourceSpec` to `cmd/xgoja/internal/buildspec.Spec`.
+- Added matching `Assets []AssetSourceSpec` to `pkg/xgoja/app.Spec`.
+- Added `AssetSourceSpec` fields: `id`, `path`, `embed`, `description`, `include`, and `exclude`.
+- Added `validateAssets` to `cmd/xgoja/internal/buildspec/validate.go`.
+- Updated buildspec load tests to include a valid embedded assets directory.
+- Added validation tests for valid assets and invalid assets.
+- Ran:
+  - `gofmt -w cmd/xgoja/internal/buildspec/spec.go cmd/xgoja/internal/buildspec/validate.go cmd/xgoja/internal/buildspec/load_test.go cmd/xgoja/internal/buildspec/validate_test.go pkg/xgoja/app/spec.go`
+  - `GOWORK=off go test ./cmd/xgoja/internal/buildspec -count=1`
+
+### Why
+
+- The generator and runtime cannot pass embedded assets around until assets exist in the build-time and runtime specs.
+- Validation catches missing or ambiguous asset declarations early, before generating a Go workspace.
+- Requiring `embed: true` keeps the first implementation scoped to self-contained binaries.
+
+### What worked
+
+- The focused buildspec test suite passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.011s
+```
+
+- Existing validation helpers (`requireExistingDir`) fit asset validation without new path-resolution code.
+- The existing duplicate-ID validation style for help/jsverbs translated cleanly to assets.
+
+### What didn't work
+
+- N/A for this implementation step.
+
+### What I learned
+
+- `pkg/xgoja/app/spec.go` must be kept in sync with `cmd/xgoja/internal/buildspec/spec.go` for any field included in generated runtime JSON.
+- The current tests are small and direct, so adding asset validation was low-risk as an isolated first step.
+
+### What was tricky to build
+
+- The main scope decision was whether to allow `embed: false` assets immediately. The implementation rejects it for now because runtime filesystem assets are not necessary for the requested self-contained binary behavior and would add ambiguous semantics.
+
+### What warrants a second pair of eyes
+
+- Confirm that rejecting `embed: false` is acceptable for phase 1.
+- Confirm that `include`/`exclude` should be accepted in the schema now even though copy filtering is not implemented yet. They are present for future compatibility but are not enforced yet.
+
+### What should be done in the future
+
+- Add generator support that copies `assets:` entries and rewrites embedded asset paths in `xgoja.gen.json`.
+- Add validation for fs module mount references once the config shape is implemented.
+
+### Code review instructions
+
+- Start in `cmd/xgoja/internal/buildspec/spec.go` and `pkg/xgoja/app/spec.go` to confirm the schemas match.
+- Review `validateAssets` in `cmd/xgoja/internal/buildspec/validate.go`.
+- Run `GOWORK=off go test ./cmd/xgoja/internal/buildspec -count=1`.
+
+### Technical details
+
+The new buildspec shape is:
+
+```yaml
+assets:
+  - id: app-assets
+    path: ./assets
+    embed: true
+    description: Application assets embedded into the generated binary.
 ```
