@@ -855,7 +855,7 @@ The backend supports reads, directory listings, `exists`, and `stat`, while muta
 
 **Inferred user intent:** Make the future `require("fs:assets")` implementation real and testable at the module layer.
 
-**Commit (code):** pending — "fs: add read-only embedded backend"
+**Commit (code):** ac5cafef51099ab37b3470c9bf7ba1a757f59c25 — "fs: add read-only embedded backend"
 
 ### What I did
 
