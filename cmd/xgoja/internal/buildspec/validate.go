@@ -16,6 +16,7 @@ func Validate(spec *Spec) *Report {
 
 	validateName(report, spec)
 	validateAppSettings(report, spec)
+	validateConfig(report, spec)
 	validateTarget(report, spec)
 	packageIDs := validatePackages(report, spec)
 	validateRuntimes(report, spec, packageIDs)
@@ -69,6 +70,44 @@ func isShellSafeEnvPrefix(prefix string) bool {
 		}
 	}
 	return true
+}
+
+func validateConfig(report *Report, spec *Spec) {
+	if spec.Config == nil || !spec.Config.Enabled {
+		report.AddOK("config", "config", "config not enabled")
+		return
+	}
+	if strings.TrimSpace(spec.AppName) == "" {
+		report.AddError("config-app-name", "config", "config requires appName to be set")
+	} else {
+		report.AddOK("config-app-name", "config", "appName is set for config discovery")
+	}
+	if len(spec.Config.Layers) == 0 {
+		report.AddError("config-layers", "config.layers", "config.enabled requires at least one layer")
+		return
+	}
+	for i, layer := range spec.Config.Layers {
+		layer = strings.TrimSpace(layer)
+		if !isKnownConfigLayer(layer) {
+			report.AddError("config-layer", fmt.Sprintf("config.layers[%d]", i), fmt.Sprintf("unknown config layer %q", layer))
+		} else {
+			report.AddOK("config-layer", fmt.Sprintf("config.layers[%d]", i), layer)
+		}
+	}
+	report.AddOK("config", "config", fmt.Sprintf("%d config layer(s) declared", len(spec.Config.Layers)))
+}
+
+var knownConfigLayers = map[string]bool{
+	"system":   true,
+	"xdg":      true,
+	"home":     true,
+	"git-root": true,
+	"cwd":      true,
+	"explicit": true,
+}
+
+func isKnownConfigLayer(layer string) bool {
+	return knownConfigLayers[layer]
 }
 
 func validateTarget(report *Report, spec *Spec) {

@@ -8,14 +8,14 @@
 
 ## Phase 1: MVP — app name and env prefix support
 
-- [ ] Add `appName` and `envPrefix` to the build-time xgoja YAML spec.
-- [ ] Add `appName` and `envPrefix` to the runtime embedded xgoja spec.
-- [ ] Add shell-safe env-prefix derivation and validation helpers.
-- [ ] Wire a Glazed middleware factory from the runtime spec instead of hardcoding `CobraCommandDefaultMiddlewares`.
-- [ ] Propagate the middleware factory through `HostOptions`, `Options`, built-in commands, JS verb commands, and command-provider commands.
-- [ ] Use `appName` for root logging/help framework identity, falling back to `name`.
-- [ ] Add focused tests for env-prefix derivation, env precedence, and existing default behavior.
-- [ ] Update xgoja buildspec docs with the MVP fields and examples.
+- [x] Add `appName` and `envPrefix` to the build-time xgoja YAML spec.
+- [x] Add `appName` and `envPrefix` to the runtime embedded xgoja spec.
+- [x] Add shell-safe env-prefix derivation and validation helpers.
+- [x] Wire a Glazed middleware factory from the runtime spec instead of hardcoding `CobraCommandDefaultMiddlewares`.
+- [x] Propagate the middleware factory through `HostOptions`, `Options`, built-in commands, JS verb commands, and command-provider commands.
+- [x] Use `appName` for root logging/help framework identity, falling back to `name`.
+- [x] Add focused tests for env-prefix derivation, env precedence, and existing default behavior.
+- [x] Update xgoja buildspec docs with the MVP fields and examples.
 
 ## Phase 2: Config-file support
 

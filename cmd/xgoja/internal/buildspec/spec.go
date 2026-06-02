@@ -6,6 +6,7 @@ type Spec struct {
 	Name             string                    `yaml:"name"`
 	AppName          string                    `yaml:"appName"`
 	EnvPrefix        string                    `yaml:"envPrefix"`
+	Config           *ConfigSpec               `yaml:"config,omitempty"`
 	Go               GoSpec                    `yaml:"go"`
 	Target           TargetSpec                `yaml:"target"`
 	Packages         []PackageSpec             `yaml:"packages"`
@@ -16,6 +17,12 @@ type Spec struct {
 	Help             HelpSpec                  `yaml:"help"`
 	Assets           []AssetSourceSpec         `yaml:"assets"`
 	BaseDir          string                    `yaml:"-"`
+}
+
+type ConfigSpec struct {
+	Enabled  bool     `yaml:"enabled" json:"enabled"`
+	Layers   []string `yaml:"layers,omitempty" json:"layers,omitempty"`
+	FileName string   `yaml:"fileName,omitempty" json:"fileName,omitempty"`
 }
 
 type GoSpec struct {

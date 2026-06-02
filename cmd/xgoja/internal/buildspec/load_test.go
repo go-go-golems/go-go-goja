@@ -191,3 +191,40 @@ jsverbs:
 		t.Fatalf("expected missing path error, got %v", err)
 	}
 }
+
+func TestLoadFileAppliesConfigDefaults(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: config-test
+appName: config-test
+config:
+  enabled: true
+  layers:
+    - cwd
+packages:
+  - id: core
+    import: github.com/go-go-golems/go-go-goja/xgoja
+runtimes:
+  main:
+    modules:
+      - package: core
+        name: fs
+`), 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+
+	spec, report, err := LoadFile(specPath)
+	if err != nil {
+		t.Fatalf("load spec: %v", err)
+	}
+	if report == nil || report.HasErrors() {
+		t.Fatalf("expected non-error report, got %#v", report)
+	}
+	if spec.Config == nil || !spec.Config.Enabled {
+		t.Fatalf("config not enabled")
+	}
+	if spec.Config.FileName != "config.yaml" {
+		t.Fatalf("config.FileName = %q, want config.yaml", spec.Config.FileName)
+	}
+}

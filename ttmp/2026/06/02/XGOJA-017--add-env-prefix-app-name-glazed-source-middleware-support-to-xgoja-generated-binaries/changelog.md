@@ -31,3 +31,12 @@ Created review document for the intern research/design package, highlighting str
 
 - /home/manuel/workspaces/2026-06-02/add-xgoja-env-app-name/go-go-goja/ttmp/2026/06/02/XGOJA-017--add-env-prefix-app-name-glazed-source-middleware-support-to-xgoja-generated-binaries/analysis/01-review-of-intern-feature-plan-and-research-package.md — Intern-facing technical review and coaching notes
 
+
+## 2026-06-02
+
+Phase 1 MVP implemented: appName/envPrefix support for generated xgoja binaries, shell-safe prefix derivation, runtime middleware factory propagation, tests, and buildspec docs (commit f773542).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-02/add-xgoja-env-app-name/go-go-goja/pkg/xgoja/app/middlewares.go — Runtime middleware policy
+

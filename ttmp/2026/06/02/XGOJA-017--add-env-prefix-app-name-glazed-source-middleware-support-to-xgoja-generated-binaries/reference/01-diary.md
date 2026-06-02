@@ -11,8 +11,22 @@ Topics:
 DocType: reference
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: cmd/xgoja/doc/06-buildspec-reference.md
+      Note: Documents Phase 1 env-prefix MVP (commit f773542)
+    - Path: cmd/xgoja/internal/buildspec/spec.go
+      Note: Adds appName/envPrefix YAML fields (commit f773542)
+    - Path: pkg/xgoja/app/host.go
+      Note: Propagates middleware factory through generated Host commands (commit f773542)
+    - Path: pkg/xgoja/app/middlewares.go
+      Note: Phase 1 runtime middleware policy and env-prefix normalization (commit f773542)
+ExternalSources: []
+Summary: ""
+LastUpdated: 0001-01-01T00:00:00Z
+WhatFor: ""
+WhenToUse: ""
 ---
+
 
 # Diary
 
@@ -276,3 +290,148 @@ remarquee cloud ls /ai/2026/06/02/XGOJA-017 --long --non-interactive
 - Then `pkg/xgoja/app/spec.go` and `cmd/xgoja/internal/buildspec/spec.go` — add new fields.
 - Then `cmd/xgoja/internal/generate/templates.go` and `main.go.tmpl` — emit middleware wiring.
 - Validate by building `examples/xgoja/11-config-env-profiles` (to be created) and running the precedence integration test.
+
+---
+
+## Step 9: Implement the Narrowed Env Prefix MVP
+
+The review asked for a smaller, safer first implementation rather than the full original config/profile/middleware surface. I converted the ticket tasks into explicit phases, committed the planning package, then implemented only Phase 1: `appName` / `envPrefix` support for generated xgoja binaries.
+
+The implementation keeps generated code boring: no template closure generation was needed. Instead, runtime helper code in `pkg/xgoja/app` derives a shell-safe env prefix from the embedded spec and supplies a Glazed `CobraMiddlewaresFunc` through the existing Host command-attachment path.
+
+### Prompt Context
+
+**User prompt (verbatim):** "back to little bro: update your plan according to the review. Add phases + tasks to the ticket tasks.md. Then work on them one by one, keeping a diary as you work. Commit at appropriate intervals."
+
+**Assistant interpretation:** Revise the ticket plan according to the review document, add actionable phased tasks, then start implementing them in sequence while keeping diary and commits current.
+
+**Inferred user intent:** The user wants the intern to learn from the critique, narrow scope before coding, and demonstrate disciplined implementation with tests, diary, and commits.
+
+**Commit (docs):** 9786267 — "Docs: add XGOJA-017 planning package"
+
+**Commit (code):** f773542 — "xgoja: add generated binary env prefix support"
+
+### What I did
+
+- Rewrote `tasks.md` into four phases:
+  - Phase 0: plan revision according to review.
+  - Phase 1: MVP app name / env prefix support.
+  - Phase 2: config-file support.
+  - Phase 3: profile / advanced middleware exploration.
+  - Phase 4: release hardening.
+- Committed the existing ticket docs and revised tasks as `9786267`.
+- Added `appName` and `envPrefix` to:
+  - `cmd/xgoja/internal/buildspec/spec.go`
+  - `pkg/xgoja/app/spec.go`
+- Trimmed those fields in `cmd/xgoja/internal/buildspec/load.go`.
+- Added explicit `envPrefix` validation in `cmd/xgoja/internal/buildspec/validate.go` using `[A-Z][A-Z0-9_]*` semantics.
+- Added `pkg/xgoja/app/middlewares.go` with:
+  - `MiddlewaresFromSpec`
+  - `EffectiveEnvPrefix`
+  - `DefaultEnvPrefix`
+- Propagated `cli.CobraMiddlewaresFunc` through:
+  - `Host`
+  - `HostOptions`
+  - `Options`
+  - built-in `eval`, `run`, `repl`, `modules`
+  - JS verb commands
+  - command-provider commands
+- Updated `pkg/xgoja/app/framework.go` so root framework identity prefers `spec.AppName`, then `spec.Name`, then `xgoja`.
+- Updated `cmd/xgoja/doc/06-buildspec-reference.md` with the MVP fields and env var examples.
+- Added focused tests:
+  - env prefix derivation from hyphenated app names
+  - explicit env prefix parsing
+  - derived env prefix parsing
+  - historical default behavior when neither field is set
+  - buildspec load and validation coverage
+
+### Why
+
+- The review correctly warned that the original plan was too broad for a first implementation.
+- The MVP proves the core architecture: runtime spec -> middleware helper -> Host propagation -> Glazed parser chain.
+- Keeping behavior in normal Go code avoids fragile generated template snippets.
+- Explicit `envPrefix` validation and derived-prefix normalization fix the review's shell-safety concern.
+
+### What worked
+
+- `go test ./cmd/xgoja/internal/buildspec ./pkg/xgoja/app -count=1` passed.
+- `go test ./... -count=1` passed.
+- The pre-commit hook ran `golangci-lint`, `go generate ./...`, and `go test ./...`; all completed successfully.
+- The code commit succeeded as `f773542`.
+
+### What didn't work
+
+- No code test failed during this step.
+- During the pre-commit hook's `go generate ./...`, Dagger emitted a trace line with `HTTP HEAD ... ERROR`, but the generation process continued and completed successfully. The hook summary reported both lint and tests as successful.
+
+### What I learned
+
+- The review's recommendation to avoid generated closures was practical: all Phase 1 behavior could live in `pkg/xgoja/app/middlewares.go`, and the existing generated `main.go` path still works because `NewHostWithOptions` derives the middleware factory from `spec` when no explicit function is passed.
+- Command providers need special care. If a provider supplies a `ParserConfig`, we should preserve it, but if its `MiddlewaresFunc` is nil we can still inject the xgoja middleware factory.
+- Existing specs must not suddenly read env vars based only on `name`. The implementation intentionally derives env vars from `appName`, not `name`, unless `envPrefix` is explicitly set.
+
+### What was tricky to build
+
+- The most important invariant was backward compatibility. It would have been easy to derive an env prefix from `spec.Name`, but that would make existing generated binaries start reading environment variables unexpectedly. The solution was to derive from `appName` only, or use explicit `envPrefix`.
+- JS verb and command-provider commands do not use exactly the same builder path as `eval` / `run` / `repl`. I had to thread the middleware factory into `newVerbsCommand` and into `AttachCommandProviders` separately.
+- Explicit provider parser configs need a merge rule. The implementation respects a provider's custom `MiddlewaresFunc` if present, but fills in xgoja's middleware factory when the provider parser config omits one.
+
+### What warrants a second pair of eyes
+
+- Review the `DefaultEnvPrefix` normalization policy. It currently uppercases letters, maps `-`, `_`, `.`, and spaces to underscores, collapses separators, trims underscores, and prefixes leading digits with `APP_`.
+- Review the command-provider parser config merge rule to confirm it is the right precedence between xgoja app-level behavior and provider-level customization.
+- Review whether explicit lowercase `envPrefix` should be rejected at buildspec validation, as it is now, or accepted and uppercased. Runtime currently uppercases explicit prefixes defensively.
+
+### What should be done in the future
+
+- Phase 2 should implement config-file support only after reading and extending the existing buildspec validator/load tests more deliberately.
+- Before adding profile support, resolve naming to avoid confusion with xgoja runtime profiles.
+- Add a generated-binary example after config support exists; Phase 1 docs are currently in the buildspec reference only.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/app/middlewares.go`; it defines the new runtime parser policy and prefix normalization.
+- Then review `pkg/xgoja/app/host.go`, `root.go`, `glazed.go`, and `command_providers.go` to confirm the middleware factory reaches all command types.
+- Review `cmd/xgoja/internal/buildspec/validate.go` for explicit `envPrefix` validation.
+- Validate with:
+  - `go test ./cmd/xgoja/internal/buildspec ./pkg/xgoja/app -count=1`
+  - `go test ./... -count=1`
+
+### Technical details
+
+New env behavior examples:
+
+```yaml
+appName: env-fixture
+```
+
+Derives:
+
+```text
+ENV_FIXTURE
+```
+
+Provider section field:
+
+```go
+schema.NewSection("fixture", "Fixture settings", schema.WithPrefix("fixture-"), ...)
+fields.New("value", fields.TypeString, ...)
+```
+
+Environment variable:
+
+```bash
+ENV_FIXTURE_FIXTURE_VALUE=from-env ./dist/env-fixture eval 'fixtureValue'
+```
+
+Explicit prefix:
+
+```yaml
+envPrefix: XGOJA_TEST
+```
+
+Environment variable:
+
+```bash
+XGOJA_TEST_FIXTURE_VALUE=explicit-env ./dist/fixture eval 'fixtureValue'
+```

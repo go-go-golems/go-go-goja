@@ -202,3 +202,51 @@ func TestValidateAppSettingsRejectsInvalidEnvPrefix(t *testing.T) {
 	}
 	assertCheck(t, report, StatusError, "env-prefix", "envPrefix")
 }
+
+func TestValidateConfigRequiresAppName(t *testing.T) {
+	spec := validSpec()
+	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"cwd"}}
+
+	report := Validate(spec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "config-app-name", "config")
+}
+
+func TestValidateConfigRejectsUnknownLayers(t *testing.T) {
+	spec := validSpec()
+	spec.AppName = "my-app"
+	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"cwd", "unknown", "xdg"}}
+
+	report := Validate(spec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "config-layer", "config.layers[1]")
+	assertCheck(t, report, StatusOK, "config-layer", "config.layers[0]")
+	assertCheck(t, report, StatusOK, "config-layer", "config.layers[2]")
+}
+
+func TestValidateConfigAcceptsValidLayers(t *testing.T) {
+	spec := validSpec()
+	spec.AppName = "my-app"
+	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"system", "xdg", "home", "git-root", "cwd", "explicit"}}
+
+	report := Validate(spec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+}
+
+func TestValidateConfigRequiresLayers(t *testing.T) {
+	spec := validSpec()
+	spec.AppName = "my-app"
+	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{}}
+
+	report := Validate(spec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "config-layers", "config.layers")
+}
