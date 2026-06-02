@@ -128,18 +128,7 @@ func TestGeneratedRootReadsConfigFile(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	oldWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	defer func() {
-		if err := os.Chdir(oldWd); err != nil {
-			t.Logf("restore wd: %v", err)
-		}
-	}()
+	chdirForTest(t, dir)
 
 	registry := providerapi.NewRegistry()
 	if err := testprovider.Register(registry); err != nil {
@@ -182,18 +171,7 @@ func TestConfigPrecedenceEnvBeatsConfig(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	oldWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	defer func() {
-		if err := os.Chdir(oldWd); err != nil {
-			t.Logf("restore wd: %v", err)
-		}
-	}()
+	chdirForTest(t, dir)
 
 	registry := providerapi.NewRegistry()
 	if err := testprovider.Register(registry); err != nil {
@@ -237,18 +215,7 @@ func TestConfigPrecedenceFlagBeatsEnv(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	oldWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	defer func() {
-		if err := os.Chdir(oldWd); err != nil {
-			t.Logf("restore wd: %v", err)
-		}
-	}()
+	chdirForTest(t, dir)
 
 	registry := providerapi.NewRegistry()
 	if err := testprovider.Register(registry); err != nil {
@@ -283,4 +250,101 @@ func TestConfigPrecedenceFlagBeatsEnv(t *testing.T) {
 	if got := out.String(); got != "from-flag\n" {
 		t.Fatalf("eval output = %q, want from-flag", got)
 	}
+}
+
+func TestExplicitConfigFileRequiresExplicitLayer(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "explicit.yaml")
+	if err := os.WriteFile(configPath, []byte("fixture:\n  value: from-explicit\n"), 0o644); err != nil {
+		t.Fatalf("write explicit config: %v", err)
+	}
+
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	specJSON := `{
+  "name": "fixture",
+  "appName": "config-fixture",
+  "config": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {
+    "repl": {
+      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
+    }
+  },
+  "commands": {
+    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "jsverbs": {"enabled": false}
+  }
+}`
+	out := &bytes.Buffer{}
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	root.SetArgs([]string{"eval", "--config-file", configPath, "fixtureValue === ''"})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute eval: %v", err)
+	}
+	if got := out.String(); got != "true\n" {
+		t.Fatalf("eval output = %q, want true", got)
+	}
+}
+
+func TestExplicitConfigFileLoadsWithExplicitLayer(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "explicit.yaml")
+	if err := os.WriteFile(configPath, []byte("fixture:\n  value: from-explicit\n"), 0o644); err != nil {
+		t.Fatalf("write explicit config: %v", err)
+	}
+
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	specJSON := `{
+  "name": "fixture",
+  "config": {"enabled": true, "layers": ["explicit"], "fileName": "config.yaml"},
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {
+    "repl": {
+      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
+    }
+  },
+  "commands": {
+    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "jsverbs": {"enabled": false}
+  }
+}`
+	out := &bytes.Buffer{}
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	root.SetArgs([]string{"eval", "--config-file", configPath, "fixtureValue"})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute eval: %v", err)
+	}
+	if got := out.String(); got != "from-explicit\n" {
+		t.Fatalf("eval output = %q, want from-explicit", got)
+	}
+}
+
+func chdirForTest(t *testing.T, dir string) {
+	t.Helper()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldWd); err != nil {
+			t.Logf("restore wd: %v", err)
+		}
+	})
 }

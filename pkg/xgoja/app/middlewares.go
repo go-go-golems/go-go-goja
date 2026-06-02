@@ -25,6 +25,9 @@ func MiddlewaresFromSpec(spec *Spec) cli.CobraMiddlewaresFunc {
 	}
 
 	return func(parsedCommandSections *values.Values, cmd *cobra.Command, args []string) ([]cmdsources.Middleware, error) {
+		// The returned slice is ordered from highest to lowest precedence because
+		// Glazed middlewares call next before applying their own source values.
+		// Effective precedence is: defaults < config < env < args < cobra flags.
 		middlewares := []cmdsources.Middleware{
 			cmdsources.FromCobra(cmd, fields.WithSource("cobra")),
 			cmdsources.FromArgs(args, fields.WithSource("arguments")),
@@ -90,11 +93,11 @@ func buildConfigPlan(config *ConfigSpec, appName string, parsed *values.Values) 
 			plan.Add(glazedconfig.GitRootFile(fileName).Named("git-root-config").Kind("local-file"))
 		case "cwd":
 			plan.Add(glazedconfig.WorkingDirFile(fileName).Named("cwd-config").Kind("local-file"))
+		case "explicit":
+			if explicit != "" {
+				plan.Add(glazedconfig.ExplicitFile(explicit).Named("explicit-config").Kind("explicit-file"))
+			}
 		}
-	}
-
-	if explicit != "" {
-		plan.Add(glazedconfig.ExplicitFile(explicit).Named("explicit-config").Kind("explicit-file"))
 	}
 
 	return plan, nil

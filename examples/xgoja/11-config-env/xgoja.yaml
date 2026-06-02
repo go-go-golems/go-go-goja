@@ -5,6 +5,7 @@ config:
   enabled: true
   layers:
     - cwd
+    - explicit
   fileName: config.yaml
 target:
   kind: xgoja

@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 )
 
 func TestRenderGoModDeterministic(t *testing.T) {
@@ -114,6 +116,33 @@ func TestRenderEmbeddedSpecStableShape(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected embedded spec to contain %q, got:\n%s", want, got)
 		}
+	}
+}
+
+func TestRenderEmbeddedSpecIncludesRuntimeAppSettings(t *testing.T) {
+	spec := fixtureSpec()
+	spec.AppName = "my-app"
+	spec.EnvPrefix = "MY_APP"
+	spec.Config = &buildspec.ConfigSpec{Enabled: true, Layers: []string{"cwd", "explicit"}, FileName: "config.yaml"}
+
+	var embedded app.Spec
+	if err := json.Unmarshal([]byte(RenderEmbeddedSpec(spec)), &embedded); err != nil {
+		t.Fatalf("unmarshal embedded spec: %v", err)
+	}
+	if embedded.AppName != "my-app" {
+		t.Fatalf("appName = %q", embedded.AppName)
+	}
+	if embedded.EnvPrefix != "MY_APP" {
+		t.Fatalf("envPrefix = %q", embedded.EnvPrefix)
+	}
+	if embedded.Config == nil || !embedded.Config.Enabled {
+		t.Fatalf("embedded config missing or disabled: %#v", embedded.Config)
+	}
+	if got, want := strings.Join(embedded.Config.Layers, ","), "cwd,explicit"; got != want {
+		t.Fatalf("config layers = %q, want %q", got, want)
+	}
+	if embedded.Config.FileName != "config.yaml" {
+		t.Fatalf("config fileName = %q", embedded.Config.FileName)
 	}
 }
 

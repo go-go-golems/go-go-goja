@@ -22,6 +22,14 @@ The included `config.yaml` sets `fixture.value = from-config-file`:
 
 Output: `hello from-config-file`
 
+You can also load an explicit config file when the `explicit` layer is enabled in `xgoja.yaml`:
+
+```bash
+./dist/config-env-demo run --config-file config.yaml script.js
+```
+
+The flag name is Glazed's `--config-file` (not `--config`).
+
 ## Override with environment variable
 
 ```bash

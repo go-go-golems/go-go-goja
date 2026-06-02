@@ -77,10 +77,12 @@ func validateConfig(report *Report, spec *Spec) {
 		report.AddOK("config", "config", "config not enabled")
 		return
 	}
-	if strings.TrimSpace(spec.AppName) == "" {
-		report.AddError("config-app-name", "config", "config requires appName to be set")
-	} else {
-		report.AddOK("config-app-name", "config", "appName is set for config discovery")
+	if usesAppScopedConfigLayer(spec.Config.Layers) {
+		if strings.TrimSpace(spec.AppName) == "" {
+			report.AddError("config-app-name", "config", "config layers system, xdg, and home require appName to be set")
+		} else {
+			report.AddOK("config-app-name", "config", "appName is set for app-scoped config discovery")
+		}
 	}
 	if len(spec.Config.Layers) == 0 {
 		report.AddError("config-layers", "config.layers", "config.enabled requires at least one layer")
@@ -108,6 +110,16 @@ var knownConfigLayers = map[string]bool{
 
 func isKnownConfigLayer(layer string) bool {
 	return knownConfigLayers[layer]
+}
+
+func usesAppScopedConfigLayer(layers []string) bool {
+	for _, layer := range layers {
+		switch strings.TrimSpace(layer) {
+		case "system", "xdg", "home":
+			return true
+		}
+	}
+	return false
 }
 
 func validateTarget(report *Report, spec *Spec) {

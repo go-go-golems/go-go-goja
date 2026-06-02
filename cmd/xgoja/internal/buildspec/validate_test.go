@@ -203,15 +203,25 @@ func TestValidateAppSettingsRejectsInvalidEnvPrefix(t *testing.T) {
 	assertCheck(t, report, StatusError, "env-prefix", "envPrefix")
 }
 
-func TestValidateConfigRequiresAppName(t *testing.T) {
+func TestValidateConfigRequiresAppNameForAppScopedLayers(t *testing.T) {
 	spec := validSpec()
-	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"cwd"}}
+	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"system"}}
 
 	report := Validate(spec)
 	if !report.HasErrors() {
 		t.Fatalf("expected validation errors, got %#v", report.Checks)
 	}
 	assertCheck(t, report, StatusError, "config-app-name", "config")
+}
+
+func TestValidateConfigAllowsLocalLayersWithoutAppName(t *testing.T) {
+	spec := validSpec()
+	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"cwd", "git-root", "explicit"}}
+
+	report := Validate(spec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
 }
 
 func TestValidateConfigRejectsUnknownLayers(t *testing.T) {

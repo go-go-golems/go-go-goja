@@ -161,6 +161,66 @@ ENV_FIXTURE_FIXTURE_VALUE=from-env ./dist/env-fixture eval 'fixtureValue'
 
 CLI flags still have higher precedence than environment variables.
 
+Generated binaries can also opt into Glazed-style config file loading:
+
+```yaml
+name: my-app
+appName: my-app
+config:
+  enabled: true
+  layers:
+    - cwd
+    - explicit
+  fileName: config.yaml
+```
+
+Config files use Glazed's standard section map shape:
+
+```yaml
+section-slug:
+  field-name: value
+```
+
+For example, if a provider contributes a section with slug `fixture`, prefix `fixture-`, and field `value`, a config file can set it with:
+
+```yaml
+fixture:
+  value: from-config-file
+```
+
+The equivalent environment variable for `envPrefix: DEMO` is:
+
+```bash
+DEMO_FIXTURE_VALUE=from-env
+```
+
+The equivalent CLI flag is:
+
+```bash
+./dist/my-app eval --fixture-value from-flag 'fixtureValue'
+```
+
+Config precedence is:
+
+```text
+field defaults < config files < environment variables < positional args / CLI flags
+```
+
+Supported `config.layers` values:
+
+| Layer | Discovery |
+| --- | --- |
+| `system` | `/etc/<appName>/config.yaml` |
+| `xdg` | `$XDG_CONFIG_HOME/<appName>/config.yaml` (usually `~/.config/<appName>/config.yaml`) |
+| `home` | `~/.<appName>/config.yaml` |
+| `git-root` | `<git-root>/<fileName>` |
+| `cwd` | `<current-working-directory>/<fileName>` |
+| `explicit` | Path supplied with the Glazed `--config-file` flag |
+
+The `system`, `xdg`, and `home` layers require `appName` because they are app-scoped locations. The `cwd`, `git-root`, and `explicit` layers can be used without `appName`. Explicit config files are only loaded when `explicit` is listed in `config.layers`; passing `--config-file` has no effect unless that layer is enabled.
+
+For a runnable config/env example, see `examples/xgoja/11-config-env`.
+
 Validate and build with:
 
 ```bash
