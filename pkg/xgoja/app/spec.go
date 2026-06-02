@@ -2,6 +2,8 @@ package app
 
 type Spec struct {
 	Name             string                    `json:"name"`
+	AppName          string                    `json:"appName,omitempty"`
+	EnvPrefix        string                    `json:"envPrefix,omitempty"`
 	Target           TargetSpec                `json:"target"`
 	Packages         []PackageSpec             `json:"packages"`
 	Runtimes         map[string]Runtime        `json:"runtimes"`

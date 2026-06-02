@@ -29,6 +29,7 @@ type Options struct {
 	EmbeddedJSVerbs fs.FS
 	EmbeddedHelp    fs.FS
 	EmbeddedAssets  fs.FS
+	MiddlewaresFunc glazedcli.CobraMiddlewaresFunc
 }
 
 func NewRootCommand(opts Options) (*cobra.Command, error) {
@@ -39,7 +40,7 @@ func NewRootCommand(opts Options) (*cobra.Command, error) {
 	if err := json.Unmarshal([]byte(opts.SpecJSON), spec); err != nil {
 		return nil, fmt.Errorf("decode embedded xgoja spec: %w", err)
 	}
-	host := NewHostWithOptions(opts.Providers, spec, HostOptions{EmbeddedJSVerbs: opts.EmbeddedJSVerbs, EmbeddedHelp: opts.EmbeddedHelp, EmbeddedAssets: opts.EmbeddedAssets, Out: opts.Out})
+	host := NewHostWithOptions(opts.Providers, spec, HostOptions{EmbeddedJSVerbs: opts.EmbeddedJSVerbs, EmbeddedHelp: opts.EmbeddedHelp, EmbeddedAssets: opts.EmbeddedAssets, Out: opts.Out, MiddlewaresFunc: opts.MiddlewaresFunc})
 	root := &cobra.Command{
 		Use:   spec.Name,
 		Short: "Generated xgoja binary",
@@ -196,7 +197,7 @@ func (c *modulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values
 	return nil
 }
 
-func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, spec *Spec, embeddedJSVerbs fs.FS) *cobra.Command {
+func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, spec *Spec, embeddedJSVerbs fs.FS, middlewaresFunc glazedcli.CobraMiddlewaresFunc) *cobra.Command {
 	root := &cobra.Command{
 		Use:   commandName(spec.Commands.JSVerbs, "verbs"),
 		Short: "Run configured JavaScript verb commands",
@@ -217,8 +218,11 @@ func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, s
 		},
 	}
 	root.AddCommand(list)
+	if middlewaresFunc == nil {
+		middlewaresFunc = glazedcli.CobraCommandDefaultMiddlewares
+	}
 	if err := glazedcli.AddCommandsToRootCommand(root, mounted, nil, glazedcli.WithParserConfig(glazedcli.CobraParserConfig{
-		MiddlewaresFunc: glazedcli.CobraCommandDefaultMiddlewares,
+		MiddlewaresFunc: middlewaresFunc,
 	})); err != nil {
 		root.RunE = func(cmd *cobra.Command, args []string) error { return err }
 	}

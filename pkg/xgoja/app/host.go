@@ -4,6 +4,7 @@ import (
 	"io"
 	"io/fs"
 
+	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,7 @@ type Host struct {
 	EmbeddedAssets  fs.FS
 	Services        HostServices
 	Out             io.Writer
+	MiddlewaresFunc cli.CobraMiddlewaresFunc
 }
 
 type HostOptions struct {
@@ -24,6 +26,7 @@ type HostOptions struct {
 	EmbeddedHelp    fs.FS
 	EmbeddedAssets  fs.FS
 	Out             io.Writer
+	MiddlewaresFunc cli.CobraMiddlewaresFunc
 }
 
 func NewHost(providers *providerapi.Registry, spec *Spec) *Host {
@@ -32,6 +35,10 @@ func NewHost(providers *providerapi.Registry, spec *Spec) *Host {
 
 func NewHostWithOptions(providers *providerapi.Registry, spec *Spec, opts HostOptions) *Host {
 	services := HostServices{Assets: NewAssetStore(opts.EmbeddedAssets, spec)}
+	middlewaresFunc := opts.MiddlewaresFunc
+	if middlewaresFunc == nil {
+		middlewaresFunc = MiddlewaresFromSpec(spec)
+	}
 	return &Host{
 		Providers:       providers,
 		Spec:            spec,
@@ -41,6 +48,7 @@ func NewHostWithOptions(providers *providerapi.Registry, spec *Spec, opts HostOp
 		EmbeddedAssets:  opts.EmbeddedAssets,
 		Services:        services,
 		Out:             opts.Out,
+		MiddlewaresFunc: middlewaresFunc,
 	}
 }
 
@@ -75,7 +83,7 @@ func (h *Host) AttachEval(root *cobra.Command) {
 	if out == nil {
 		out = root.OutOrStdout()
 	}
-	cmd, err := buildGlazedCobraCommand(newEvalCommand(h.Factory, h.Spec, out))
+	cmd, err := buildGlazedCobraCommand(newEvalCommand(h.Factory, h.Spec, out), h.MiddlewaresFunc)
 	if err != nil {
 		root.AddCommand(commandErrorStub(commandName(h.Spec.Commands.Eval, "eval"), "Evaluate JavaScript in a generated xgoja runtime", err))
 		return
@@ -87,7 +95,7 @@ func (h *Host) AttachRun(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	cmd, err := buildGlazedCobraCommand(newRunCommand(h.Factory, h.Spec))
+	cmd, err := buildGlazedCobraCommand(newRunCommand(h.Factory, h.Spec), h.MiddlewaresFunc)
 	if err != nil {
 		root.AddCommand(commandErrorStub(commandName(h.Spec.Commands.Run, "run"), "Execute a JavaScript file in a generated xgoja runtime", err))
 		return
@@ -99,7 +107,7 @@ func (h *Host) AttachRepl(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	cmd, err := buildGlazedCobraCommand(newTUICommand(h.Factory, h.Spec))
+	cmd, err := buildGlazedCobraCommand(newTUICommand(h.Factory, h.Spec), h.MiddlewaresFunc)
 	if err != nil {
 		root.AddCommand(commandErrorStub(commandName(h.Spec.Commands.Repl, "repl"), "Run an interactive TUI REPL for a generated xgoja runtime", err))
 		return
@@ -111,7 +119,7 @@ func (h *Host) AttachModules(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	cmd, err := buildGlazedCobraCommand(newModulesCommand(h.Providers, h.Spec))
+	cmd, err := buildGlazedCobraCommand(newModulesCommand(h.Providers, h.Spec), h.MiddlewaresFunc)
 	if err != nil {
 		root.AddCommand(commandErrorStub("modules", "List provider modules registered in this generated binary", err))
 		return
@@ -123,5 +131,5 @@ func (h *Host) AttachVerbs(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	root.AddCommand(newVerbsCommand(h.Providers, h.Factory, h.Spec, h.EmbeddedJSVerbs))
+	root.AddCommand(newVerbsCommand(h.Providers, h.Factory, h.Spec, h.EmbeddedJSVerbs, h.MiddlewaresFunc))
 }

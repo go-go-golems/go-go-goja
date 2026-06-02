@@ -15,6 +15,7 @@ func Validate(spec *Spec) *Report {
 	}
 
 	validateName(report, spec)
+	validateAppSettings(report, spec)
 	validateTarget(report, spec)
 	packageIDs := validatePackages(report, spec)
 	validateRuntimes(report, spec, packageIDs)
@@ -33,6 +34,41 @@ func validateName(report *Report, spec *Spec) {
 		return
 	}
 	report.AddOK("name", "name", fmt.Sprintf("spec name is %q", spec.Name))
+}
+
+func validateAppSettings(report *Report, spec *Spec) {
+	appName := strings.TrimSpace(spec.AppName)
+	if appName != "" {
+		report.AddOK("app-name", "appName", appName)
+	}
+	envPrefix := strings.TrimSpace(spec.EnvPrefix)
+	if envPrefix == "" {
+		return
+	}
+	if !isShellSafeEnvPrefix(envPrefix) {
+		report.AddError("env-prefix", "envPrefix", "envPrefix must match [A-Z][A-Z0-9_]*")
+		return
+	}
+	report.AddOK("env-prefix", "envPrefix", envPrefix)
+}
+
+func isShellSafeEnvPrefix(prefix string) bool {
+	if prefix == "" {
+		return false
+	}
+	for i, r := range prefix {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			continue
+		case r >= '0' && r <= '9' && i > 0:
+			continue
+		case r == '_' && i > 0:
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func validateTarget(report *Report, spec *Spec) {

@@ -4,6 +4,8 @@ import "fmt"
 
 type Spec struct {
 	Name             string                    `yaml:"name"`
+	AppName          string                    `yaml:"appName"`
+	EnvPrefix        string                    `yaml:"envPrefix"`
 	Go               GoSpec                    `yaml:"go"`
 	Target           TargetSpec                `yaml:"target"`
 	Packages         []PackageSpec             `yaml:"packages"`

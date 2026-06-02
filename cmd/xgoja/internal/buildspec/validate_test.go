@@ -178,3 +178,27 @@ func assertCheck(t *testing.T, report *Report, status Status, name string, path 
 	}
 	t.Fatalf("missing %s check %s at %s in %#v", status, name, path, report.Checks)
 }
+
+func TestValidateAppSettingsAcceptsAppNameAndEnvPrefix(t *testing.T) {
+	spec := validSpec()
+	spec.AppName = "my-app"
+	spec.EnvPrefix = "MY_APP"
+
+	report := Validate(spec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusOK, "app-name", "appName")
+	assertCheck(t, report, StatusOK, "env-prefix", "envPrefix")
+}
+
+func TestValidateAppSettingsRejectsInvalidEnvPrefix(t *testing.T) {
+	spec := validSpec()
+	spec.EnvPrefix = "my-app"
+
+	report := Validate(spec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "env-prefix", "envPrefix")
+}

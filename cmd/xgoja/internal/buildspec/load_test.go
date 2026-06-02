@@ -20,6 +20,8 @@ func TestLoadFileValidSpec(t *testing.T) {
 	specPath := filepath.Join(dir, "xgoja.yaml")
 	if err := os.WriteFile(specPath, []byte(`
 name: webrepl
+appName: webrepl-dev
+envPrefix: WEBREPL_DEV
 packages:
   - id: core
     import: github.com/go-go-golems/go-go-goja/xgoja
@@ -62,6 +64,12 @@ assets:
 	}
 	if spec.Name != "webrepl" {
 		t.Fatalf("name = %q", spec.Name)
+	}
+	if spec.AppName != "webrepl-dev" {
+		t.Fatalf("appName = %q", spec.AppName)
+	}
+	if spec.EnvPrefix != "WEBREPL_DEV" {
+		t.Fatalf("envPrefix = %q", spec.EnvPrefix)
 	}
 	if spec.Target.Kind != "xgoja" {
 		t.Fatalf("default target kind = %q", spec.Target.Kind)
