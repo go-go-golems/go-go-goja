@@ -26,7 +26,7 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-An `xgoja.yaml` file describes the generated binary. It names the output program, selects provider packages, defines runtime profiles, enables commands, configures JavaScript verb sources, optionally embeds application assets, and optionally bundles Glazed help entries.
+An `xgoja.yaml` file describes the generated binary. It names the output program, selects provider packages, defines runtime profiles, enables commands, configures JavaScript verb sources, optionally embeds application assets, optionally bundles Glazed help entries, and can opt generated Glazed commands into environment-variable and config-file sources.
 
 A minimal shape looks like this:
 
@@ -71,6 +71,12 @@ commands:
 
 `name` is the generated application name. It defaults to `xgoja-app`.
 
+`appName` is an optional application identity used by the generated root framework and app-scoped config discovery. When omitted, framework setup falls back to `name`.
+
+`envPrefix` is an optional shell-safe environment namespace for generated command fields. If `envPrefix` is omitted and `appName` is set, xgoja derives one by uppercasing `appName`, converting separators such as `-`, `.`, `_`, and spaces to underscores, and prefixing leading digits with `APP_`.
+
+`config` optionally enables Glazed config-file loading for generated commands.
+
 `go` controls the generated module. `go.version` defaults to `1.26`, and `go.module` defaults to `example.com/generated/<name>`.
 
 `target` controls the generated binary shape and output path.
@@ -88,6 +94,62 @@ commands:
 `help.sources` configures additional Glazed help pages loaded into the generated binary's `help` command.
 
 `commandProviders` mounts Glazed command sets supplied by provider packages.
+
+## App identity, environment variables, and config files
+
+Generated commands normally read values from CLI flags, positional arguments, and field defaults. Add `appName`, `envPrefix`, or `config` when generated Glazed commands should also read environment variables or config files.
+
+```yaml
+name: config-env-demo
+appName: config-env-demo
+envPrefix: DEMO
+config:
+  enabled: true
+  layers:
+    - cwd
+    - explicit
+  fileName: config.yaml
+```
+
+### Environment variables
+
+If `envPrefix` is set, generated commands include Glazed's environment-variable source middleware. Environment variables use the generated prefix, the command section prefix, and the field name. For example, a provider field in section `fixture` with field `value` can be set as:
+
+```bash
+DEMO_FIXTURE_VALUE=from-env ./dist/config-env-demo eval 'fixtureValue'
+```
+
+If `envPrefix` is omitted but `appName: config-env-demo` is set, xgoja derives `CONFIG_ENV_DEMO`.
+
+### Config files
+
+Enable config files with `config.enabled: true`. Config files use Glazed's standard section-map shape:
+
+```yaml
+fixture:
+  value: from-config-file
+```
+
+Supported layers are:
+
+| Layer | Discovery |
+| --- | --- |
+| `system` | `/etc/<appName>/<fileName>` |
+| `xdg` | `$XDG_CONFIG_HOME/<appName>/<fileName>` |
+| `home` | `~/.<appName>/<fileName>` |
+| `git-root` | `<git-root>/<fileName>` |
+| `cwd` | `<current-working-directory>/<fileName>` |
+| `explicit` | Path supplied with `--config-file` |
+
+The app-scoped layers (`system`, `xdg`, `home`) require `appName`. Local layers (`cwd`, `git-root`, `explicit`) do not. The `--config-file` flag only loads a file when `explicit` appears in `config.layers`.
+
+Effective precedence is:
+
+```text
+field defaults < config files < environment variables < positional args / CLI flags
+```
+
+For a runnable example, see `examples/xgoja/11-config-env`.
 
 ## Packages
 
