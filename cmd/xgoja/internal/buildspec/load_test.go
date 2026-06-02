@@ -20,6 +20,8 @@ func TestLoadFileValidSpec(t *testing.T) {
 	specPath := filepath.Join(dir, "xgoja.yaml")
 	if err := os.WriteFile(specPath, []byte(`
 name: webrepl
+appName: webrepl-dev
+envPrefix: WEBREPL_DEV
 packages:
   - id: core
     import: github.com/go-go-golems/go-go-goja/xgoja
@@ -62,6 +64,12 @@ assets:
 	}
 	if spec.Name != "webrepl" {
 		t.Fatalf("name = %q", spec.Name)
+	}
+	if spec.AppName != "webrepl-dev" {
+		t.Fatalf("appName = %q", spec.AppName)
+	}
+	if spec.EnvPrefix != "WEBREPL_DEV" {
+		t.Fatalf("envPrefix = %q", spec.EnvPrefix)
 	}
 	if spec.Target.Kind != "xgoja" {
 		t.Fatalf("default target kind = %q", spec.Target.Kind)
@@ -181,5 +189,42 @@ jsverbs:
 	}
 	if !strings.Contains(err.Error(), "missing") {
 		t.Fatalf("expected missing path error, got %v", err)
+	}
+}
+
+func TestLoadFileAppliesConfigDefaults(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: config-test
+appName: config-test
+config:
+  enabled: true
+  layers:
+    - cwd
+packages:
+  - id: core
+    import: github.com/go-go-golems/go-go-goja/xgoja
+runtimes:
+  main:
+    modules:
+      - package: core
+        name: fs
+`), 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+
+	spec, report, err := LoadFile(specPath)
+	if err != nil {
+		t.Fatalf("load spec: %v", err)
+	}
+	if report == nil || report.HasErrors() {
+		t.Fatalf("expected non-error report, got %#v", report)
+	}
+	if spec.Config == nil || !spec.Config.Enabled {
+		t.Fatalf("config not enabled")
+	}
+	if spec.Config.FileName != "config.yaml" {
+		t.Fatalf("config.FileName = %q, want config.yaml", spec.Config.FileName)
 	}
 }

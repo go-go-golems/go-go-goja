@@ -83,6 +83,13 @@ func applyDefaults(spec *Spec) {
 		return
 	}
 	spec.Name = strings.TrimSpace(spec.Name)
+	spec.AppName = strings.TrimSpace(spec.AppName)
+	spec.EnvPrefix = strings.TrimSpace(spec.EnvPrefix)
+	if spec.Config != nil && spec.Config.Enabled {
+		if strings.TrimSpace(spec.Config.FileName) == "" {
+			spec.Config.FileName = "config.yaml"
+		}
+	}
 	if spec.Name == "" {
 		spec.Name = "xgoja-app"
 	}

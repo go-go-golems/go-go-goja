@@ -15,6 +15,8 @@ func Validate(spec *Spec) *Report {
 	}
 
 	validateName(report, spec)
+	validateAppSettings(report, spec)
+	validateConfig(report, spec)
 	validateTarget(report, spec)
 	packageIDs := validatePackages(report, spec)
 	validateRuntimes(report, spec, packageIDs)
@@ -33,6 +35,91 @@ func validateName(report *Report, spec *Spec) {
 		return
 	}
 	report.AddOK("name", "name", fmt.Sprintf("spec name is %q", spec.Name))
+}
+
+func validateAppSettings(report *Report, spec *Spec) {
+	appName := strings.TrimSpace(spec.AppName)
+	if appName != "" {
+		report.AddOK("app-name", "appName", appName)
+	}
+	envPrefix := strings.TrimSpace(spec.EnvPrefix)
+	if envPrefix == "" {
+		return
+	}
+	if !isShellSafeEnvPrefix(envPrefix) {
+		report.AddError("env-prefix", "envPrefix", "envPrefix must match [A-Z][A-Z0-9_]*")
+		return
+	}
+	report.AddOK("env-prefix", "envPrefix", envPrefix)
+}
+
+func isShellSafeEnvPrefix(prefix string) bool {
+	if prefix == "" {
+		return false
+	}
+	for i, r := range prefix {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			continue
+		case r >= '0' && r <= '9' && i > 0:
+			continue
+		case r == '_' && i > 0:
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func validateConfig(report *Report, spec *Spec) {
+	if spec.Config == nil || !spec.Config.Enabled {
+		report.AddOK("config", "config", "config not enabled")
+		return
+	}
+	if usesAppScopedConfigLayer(spec.Config.Layers) {
+		if strings.TrimSpace(spec.AppName) == "" {
+			report.AddError("config-app-name", "config", "config layers system, xdg, and home require appName to be set")
+		} else {
+			report.AddOK("config-app-name", "config", "appName is set for app-scoped config discovery")
+		}
+	}
+	if len(spec.Config.Layers) == 0 {
+		report.AddError("config-layers", "config.layers", "config.enabled requires at least one layer")
+		return
+	}
+	for i, layer := range spec.Config.Layers {
+		layer = strings.TrimSpace(layer)
+		if !isKnownConfigLayer(layer) {
+			report.AddError("config-layer", fmt.Sprintf("config.layers[%d]", i), fmt.Sprintf("unknown config layer %q", layer))
+		} else {
+			report.AddOK("config-layer", fmt.Sprintf("config.layers[%d]", i), layer)
+		}
+	}
+	report.AddOK("config", "config", fmt.Sprintf("%d config layer(s) declared", len(spec.Config.Layers)))
+}
+
+var knownConfigLayers = map[string]bool{
+	"system":   true,
+	"xdg":      true,
+	"home":     true,
+	"git-root": true,
+	"cwd":      true,
+	"explicit": true,
+}
+
+func isKnownConfigLayer(layer string) bool {
+	return knownConfigLayers[layer]
+}
+
+func usesAppScopedConfigLayer(layers []string) bool {
+	for _, layer := range layers {
+		switch strings.TrimSpace(layer) {
+		case "system", "xdg", "home":
+			return true
+		}
+	}
+	return false
 }
 
 func validateTarget(report *Report, spec *Spec) {

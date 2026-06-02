@@ -32,8 +32,12 @@ func installRootFramework(root *cobra.Command, spec *Spec, opts frameworkOptions
 		return nil
 	}
 	appName := "xgoja"
-	if spec != nil && spec.Name != "" {
-		appName = spec.Name
+	if spec != nil {
+		if strings.TrimSpace(spec.AppName) != "" {
+			appName = strings.TrimSpace(spec.AppName)
+		} else if strings.TrimSpace(spec.Name) != "" {
+			appName = strings.TrimSpace(spec.Name)
+		}
 	}
 	if err := logging.AddLoggingSectionToRootCommand(root, appName); err != nil {
 		return err

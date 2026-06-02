@@ -2,6 +2,9 @@ package app
 
 type Spec struct {
 	Name             string                    `json:"name"`
+	AppName          string                    `json:"appName,omitempty"`
+	EnvPrefix        string                    `json:"envPrefix,omitempty"`
+	Config           *ConfigSpec               `json:"config,omitempty"`
 	Target           TargetSpec                `json:"target"`
 	Packages         []PackageSpec             `json:"packages"`
 	Runtimes         map[string]Runtime        `json:"runtimes"`
@@ -10,6 +13,12 @@ type Spec struct {
 	JSVerbs          []JSVerbSourceSpec        `json:"jsverbs,omitempty"`
 	Help             HelpSpec                  `json:"help,omitempty"`
 	Assets           []AssetSourceSpec         `json:"assets,omitempty"`
+}
+
+type ConfigSpec struct {
+	Enabled  bool     `json:"enabled"`
+	Layers   []string `json:"layers,omitempty"`
+	FileName string   `json:"fileName,omitempty"`
 }
 
 type TargetSpec struct {

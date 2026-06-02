@@ -125,6 +125,12 @@ topics:
       description: Intent-encoded YAML document format that separates semantic content from typographic presentation
     - slug: information-design
       description: Design discipline focused on making complex information clear, accessible, and easy to navigate
+    - slug: design
+      description: Design documents, architecture, and system design
+    - slug: configuration
+      description: Configuration management, config files, environment variables, and settings
+    - slug: middleware
+      description: Middleware chains, source middlewares, and parser middlewares
 docTypes:
     - slug: index
       description: Ticket index documents

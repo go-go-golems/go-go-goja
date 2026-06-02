@@ -178,3 +178,85 @@ func assertCheck(t *testing.T, report *Report, status Status, name string, path 
 	}
 	t.Fatalf("missing %s check %s at %s in %#v", status, name, path, report.Checks)
 }
+
+func TestValidateAppSettingsAcceptsAppNameAndEnvPrefix(t *testing.T) {
+	spec := validSpec()
+	spec.AppName = "my-app"
+	spec.EnvPrefix = "MY_APP"
+
+	report := Validate(spec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusOK, "app-name", "appName")
+	assertCheck(t, report, StatusOK, "env-prefix", "envPrefix")
+}
+
+func TestValidateAppSettingsRejectsInvalidEnvPrefix(t *testing.T) {
+	spec := validSpec()
+	spec.EnvPrefix = "my-app"
+
+	report := Validate(spec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "env-prefix", "envPrefix")
+}
+
+func TestValidateConfigRequiresAppNameForAppScopedLayers(t *testing.T) {
+	spec := validSpec()
+	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"system"}}
+
+	report := Validate(spec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "config-app-name", "config")
+}
+
+func TestValidateConfigAllowsLocalLayersWithoutAppName(t *testing.T) {
+	spec := validSpec()
+	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"cwd", "git-root", "explicit"}}
+
+	report := Validate(spec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+}
+
+func TestValidateConfigRejectsUnknownLayers(t *testing.T) {
+	spec := validSpec()
+	spec.AppName = "my-app"
+	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"cwd", "unknown", "xdg"}}
+
+	report := Validate(spec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "config-layer", "config.layers[1]")
+	assertCheck(t, report, StatusOK, "config-layer", "config.layers[0]")
+	assertCheck(t, report, StatusOK, "config-layer", "config.layers[2]")
+}
+
+func TestValidateConfigAcceptsValidLayers(t *testing.T) {
+	spec := validSpec()
+	spec.AppName = "my-app"
+	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"system", "xdg", "home", "git-root", "cwd", "explicit"}}
+
+	report := Validate(spec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+}
+
+func TestValidateConfigRequiresLayers(t *testing.T) {
+	spec := validSpec()
+	spec.AppName = "my-app"
+	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{}}
+
+	report := Validate(spec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "config-layers", "config.layers")
+}

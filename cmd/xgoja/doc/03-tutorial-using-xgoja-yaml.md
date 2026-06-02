@@ -138,7 +138,58 @@ For an interactive terminal session, run:
 
 The REPL command starts a Bubble Tea terminal UI backed by the same runtime-profile module policy.
 
-## 6. Add a runtime filesystem jsverb source
+## 6. Optional: enable env vars and config files for command fields
+
+Generated Glazed commands can read field values from config files and environment variables when the buildspec opts in.
+
+Add app identity, an environment prefix, and config layers to `xgoja.yaml`:
+
+```yaml
+name: fixture
+appName: fixture
+envPrefix: FIXTURE
+config:
+  enabled: true
+  layers:
+    - cwd
+    - explicit
+  fileName: config.yaml
+```
+
+Create `config.yaml` in the working directory where you run the generated binary. Config files use Glazed's section-map format:
+
+```yaml
+fixture:
+  value: from-config-file
+```
+
+Run with the current-directory config file:
+
+```bash
+./dist/fixture eval 'fixtureValue'
+```
+
+Override the same field with an environment variable:
+
+```bash
+FIXTURE_FIXTURE_VALUE=from-env ./dist/fixture eval 'fixtureValue'
+```
+
+Override both config and environment with a CLI flag:
+
+```bash
+FIXTURE_FIXTURE_VALUE=from-env ./dist/fixture eval --fixture-value from-flag 'fixtureValue'
+```
+
+Load an explicit config path only when `explicit` is present in `config.layers`:
+
+```bash
+./dist/fixture eval --config-file config.yaml 'fixtureValue'
+```
+
+The effective precedence is: field defaults, then config files, then environment variables, then positional args and CLI flags. For a runnable example, see `examples/xgoja/11-config-env`.
+
+## 7. Add a runtime filesystem jsverb source
 
 Create `verbs/tools.js`:
 
@@ -174,7 +225,7 @@ Build again and run:
 
 This mode scans `./verbs` from disk when the generated binary starts.
 
-## 7. Embed local jsverbs into the generated binary
+## 8. Embed local jsverbs into the generated binary
 
 Change the source to:
 
@@ -193,7 +244,7 @@ xgoja build -f xgoja.yaml --keep-work
 
 xgoja copies `./verbs` into the generated workspace and generated `main.go` embeds it with `go:embed`. The final binary no longer needs the original `./verbs` directory at runtime.
 
-## 8. Embed assets and read them through fs aliases
+## 9. Embed assets and read them through fs aliases
 
 Create an asset file:
 
@@ -241,7 +292,7 @@ Read the embedded file from JavaScript:
 
 For web/static asset trees, include dot directories such as `.well-known` directly in `./assets`; generated asset embeds use Go's `all:` pattern so those files are preserved. Do not use `include` or `exclude` fields in `assets:` yet. They are rejected until the generator enforces filtering.
 
-## 9. Serve embedded assets with the HTTP provider
+## 10. Serve embedded assets with the HTTP provider
 
 Add the HTTP provider package and select its `express` module in the same runtime profile as `fs:assets`:
 
@@ -290,7 +341,7 @@ Run it with `--keep-alive` so the generated runtime stays alive after registerin
 
 Open `http://127.0.0.1:8787/static/`. For a complete runnable project, see `examples/xgoja/10-embedded-assets-fs` or `xgoja help tutorial-static-assets-http-server`.
 
-## 10. Use provider-shipped jsverbs
+## 11. Use provider-shipped jsverbs
 
 Provider packages can ship JS verbs next to their native Go modules.
 
@@ -319,7 +370,7 @@ jsverbs:
 
 This scans the provider's embedded filesystem, not the local project filesystem.
 
-## 11. Debug generated builds
+## 12. Debug generated builds
 
 Use:
 

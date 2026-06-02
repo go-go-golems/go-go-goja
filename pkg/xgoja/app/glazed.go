@@ -7,11 +7,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func buildGlazedCobraCommand(command cmds.Command) (*cobra.Command, error) {
+func buildGlazedCobraCommand(command cmds.Command, middlewaresFuncs ...cli.CobraMiddlewaresFunc) (*cobra.Command, error) {
+	middlewaresFunc := cli.CobraCommandDefaultMiddlewares
+	if len(middlewaresFuncs) > 0 && middlewaresFuncs[0] != nil {
+		middlewaresFunc = middlewaresFuncs[0]
+	}
 	return cli.BuildCobraCommand(command,
 		cli.WithParserConfig(cli.CobraParserConfig{
 			ShortHelpSections: []string{schema.DefaultSlug},
-			MiddlewaresFunc:   cli.CobraCommandDefaultMiddlewares,
+			MiddlewaresFunc:   middlewaresFunc,
 		}),
 	)
 }

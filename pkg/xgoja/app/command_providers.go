@@ -36,12 +36,19 @@ func (h *Host) AttachCommandProviders(root *cobra.Command) {
 			continue
 		}
 		commands := applyMountToCommands(set.Commands, mount)
+		middlewaresFunc := h.MiddlewaresFunc
+		if middlewaresFunc == nil {
+			middlewaresFunc = glazedcli.CobraCommandDefaultMiddlewares
+		}
 		parserConfig := glazedcli.CobraParserConfig{
 			ShortHelpSections: []string{schema.DefaultSlug},
-			MiddlewaresFunc:   glazedcli.CobraCommandDefaultMiddlewares,
+			MiddlewaresFunc:   middlewaresFunc,
 		}
 		if set.ParserConfig != nil {
 			parserConfig = *set.ParserConfig
+			if parserConfig.MiddlewaresFunc == nil {
+				parserConfig.MiddlewaresFunc = middlewaresFunc
+			}
 		}
 		if err := glazedcli.AddCommandsToRootCommand(root, commands, nil, glazedcli.WithParserConfig(parserConfig)); err != nil {
 			root.AddCommand(commandErrorStub(commandProviderUse(instance, mount), "Attach custom xgoja command provider", err))
