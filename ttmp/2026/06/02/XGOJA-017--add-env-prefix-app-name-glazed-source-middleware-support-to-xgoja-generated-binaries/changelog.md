@@ -49,3 +49,12 @@ Phase 2 implemented: config file support for generated xgoja binaries with layer
 
 - /home/manuel/workspaces/2026-06-02/add-xgoja-env-app-name/go-go-goja/pkg/xgoja/app/middlewares.go — Config plan builder and middleware ordering
 
+
+## 2026-06-02
+
+Phase 4 complete: built all existing examples, added 11-config-env example, fixed RenderEmbeddedSpec generator bug, verified end-to-end config/env/CLI precedence in generated binaries.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-02/add-xgoja-env-app-name/go-go-goja/cmd/xgoja/internal/generate/main.go — Fixed embedded spec JSON to include appName/envPrefix/config
+

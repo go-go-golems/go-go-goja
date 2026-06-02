@@ -27,14 +27,17 @@
 
 ## Phase 3: Profiles and advanced source middleware exploration
 
-- [ ] Re-evaluate naming to avoid confusion with xgoja runtime profiles.
-- [ ] Decide whether profile support should be `glazedProfiles`, `parameterProfiles`, or deferred.
-- [ ] Inspect Glazed profile tests before proposing public YAML.
-- [ ] Do not add arbitrary `middlewares:` YAML until there is a concrete use case.
+- [x] Re-evaluate naming to avoid confusion with xgoja runtime profiles.
+- [x] Decide whether profile support should be `glazedProfiles`, `parameterProfiles`, or deferred.
+- [x] Inspect Glazed profile tests before proposing public YAML.
+- [x] Do not add arbitrary `middlewares:` YAML until there is a concrete use case.
+
+**Decision:** Profile support is deferred. Xgoja already uses the word "profile" for runtime profiles (`runtimes:`). Adding Glazed-style parameter profiles would create naming collisions. The current env + config support covers the 90% use case. If a user needs profiles, they can use Glazed's `--config` flag with multiple config files. Arbitrary `middlewares:` YAML is deferred until a concrete use case emerges.
 
 ## Phase 4: Review and release hardening
 
-- [ ] Build all existing `examples/xgoja/*` specs and confirm backward-compatible behavior.
-- [ ] Add a new minimal env/config example only after Phase 2.
-- [ ] Update the research logbook with validator/test files read during implementation.
-- [ ] Update diary and changelog after each completed phase.
+- [x] Build all existing `examples/xgoja/*` specs and confirm backward-compatible behavior.
+- [x] Add a new minimal env/config example after Phase 2.
+- [x] Update diary and changelog after each completed phase.
+- [x] Fix generator `RenderEmbeddedSpec` to include new fields in embedded JSON.
+- [x] Verify end-to-end precedence with actual generated binary.

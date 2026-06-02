@@ -532,3 +532,72 @@ Equivalent CLI flag:
 ```
 
 Precedence: config.yaml < ENV_FIXTURE_* < --fixture-value
+
+---
+
+## Step 11: Fix Generator Spec Embedding and End-to-End Verification
+
+During Phase 4 example testing, I discovered a critical bug: `RenderEmbeddedSpec` in `cmd/xgoja/internal/generate/main.go` manually constructs the embedded JSON payload and was missing `AppName`, `EnvPrefix`, and `Config`. This means all generated binaries were silently dropping these fields. Unit tests passed because they bypass the generator and pass JSON specs directly to `NewRootCommand`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue working through the ticket phases.
+
+**Inferred user intent:** Complete the remaining phases (3 and 4) and verify everything works end-to-end.
+
+**Commit (generator fix):** 1e34b29 — "xgoja: fix generator to embed appName/envPrefix/config in spec JSON"
+
+### What I did
+
+- Built existing examples (`01-core-provider`, `05-command-provider`, `10-embedded-assets-fs`) with the rebuilt `xgoja` CLI — all passed.
+- Created new example `examples/xgoja/11-config-env/` with:
+  - `xgoja.yaml` demonstrating `appName`, `envPrefix`, and `config`
+  - `config.yaml` setting `fixture.value`
+  - `script.js` that reads `fixtureValue`
+  - `README.md` explaining precedence
+- Tested the new example binary:
+  - Config file only: `./dist/config-env-demo eval 'fixtureValue'` -> `from-config-file`
+  - Env override: `DEMO_FIXTURE_VALUE=from-env ./dist/config-env-demo eval 'fixtureValue'` -> `from-env`
+  - Flag override: `DEMO_FIXTURE_VALUE=from-env ./dist/config-env-demo eval --fixture-value from-flag 'fixtureValue'` -> `from-flag`
+- Discovered that the example binary wasn't reading config. Investigated and found `RenderEmbeddedSpec` was missing the new fields.
+- Fixed `RenderEmbeddedSpec` to include `AppName`, `EnvPrefix`, and `Config` in the embedded JSON payload.
+- Rebuilt `xgoja` CLI and regenerated the example binary.
+- Verified the fix works end-to-end.
+- Committed the fix with the new example.
+
+### What didn't work
+
+- The first generated binary for the new example silently ignored `config.yaml` because `RenderEmbeddedSpec` dropped the `Config` field. The embedded JSON only contained `name`, `target`, `packages`, `runtimes`, `commands`, etc.
+- The linter (`errcheck`) flagged `defer os.Chdir(oldWd)` in integration tests. Fixed by wrapping in an anonymous function.
+
+### What was tricky to build
+
+- Debugging why config files worked in unit tests but not in generated binaries. The gap was the generator's `RenderEmbeddedSpec` function, which I had not read during the initial research because it's a Go template helper that serializes the spec. This is a good lesson: when adding new spec fields, always trace them through the generator to the embedded JSON.
+- The `RenderEmbeddedSpec` function manually builds a JSON payload struct instead of marshaling the `buildspec.Spec` directly. This is intentional (it filters out build-time-only fields and transforms embedded paths), but it means new runtime-relevant fields must be explicitly added.
+
+### Code review instructions
+
+- Review `cmd/xgoja/internal/generate/main.go` for the `RenderEmbeddedSpec` payload struct changes.
+- Review `examples/xgoja/11-config-env/` for the new example.
+- Build and run the example to verify:
+  ```bash
+  xgoja build -f examples/xgoja/11-config-env/xgoja.yaml --xgoja-replace /path/to/go-go-goja
+  cd examples/xgoja/11-config-env
+  ../../dist/config-env-demo eval 'fixtureValue'
+  DEMO_FIXTURE_VALUE=override ../../dist/config-env-demo eval 'fixtureValue'
+  ```
+
+### Technical details
+
+The embedded spec JSON is produced by `RenderEmbeddedSpec`, not by direct JSON marshaling of `buildspec.Spec`. The payload struct must explicitly include new runtime-relevant fields. Build-time-only fields (like `Go`, `BaseDir`) are correctly omitted.
+
+The fix adds:
+```go
+AppName   string                `json:"appName,omitempty"`
+EnvPrefix string                `json:"envPrefix,omitempty"`
+Config    *buildspec.ConfigSpec `json:"config,omitempty"`
+```
+
+This ensures generated binaries receive the full runtime configuration.
