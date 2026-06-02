@@ -12,6 +12,10 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/doc/02-user-guide.md
+      Note: Full xgoja user guide now documents appName/envPrefix/config user workflow (commit cb7ee3a)
+    - Path: cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md
+      Note: YAML tutorial now includes practical env/config step (commit cb7ee3a)
     - Path: cmd/xgoja/doc/06-buildspec-reference.md
       Note: |-
         Documents Phase 1 env-prefix MVP (commit f773542)
@@ -32,6 +36,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 

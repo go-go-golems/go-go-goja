@@ -69,3 +69,13 @@ Implementation review follow-up: tightened explicit config-layer semantics, rela
 - /home/manuel/workspaces/2026-06-02/add-xgoja-env-app-name/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Generator embedded-spec regression added
 - /home/manuel/workspaces/2026-06-02/add-xgoja-env-app-name/go-go-goja/pkg/xgoja/app/middlewares.go — Runtime config-layer semantics fixed
 
+
+## 2026-06-02
+
+Documentation completion: added appName/envPrefix/config usage to the full xgoja user guide and YAML tutorial so users can discover the new features from built-in help (commit cb7ee3a).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-02/add-xgoja-env-app-name/go-go-goja/cmd/xgoja/doc/02-user-guide.md — Full user-facing reference updated
+- /home/manuel/workspaces/2026-06-02/add-xgoja-env-app-name/go-go-goja/cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md — Guided tutorial updated
+
