@@ -1,0 +1,31 @@
+name: config-env-demo
+appName: config-env-demo
+envPrefix: DEMO
+config:
+  enabled: true
+  layers:
+    - cwd
+  fileName: config.yaml
+target:
+  kind: xgoja
+  output: dist/config-env-demo
+packages:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+    register: Register
+runtimes:
+  main:
+    modules:
+      - package: fixture
+        name: hello
+        as: hello
+commands:
+  eval:
+    enabled: true
+    runtime: main
+  run:
+    enabled: true
+    runtime: main
+  repl:
+    enabled: true
+    runtime: main

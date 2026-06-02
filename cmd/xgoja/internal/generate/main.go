@@ -24,6 +24,9 @@ func RenderEmbeddedSpec(spec *buildspec.Spec) string {
 	}
 	payload := struct {
 		Name             string                              `json:"name"`
+		AppName          string                              `json:"appName,omitempty"`
+		EnvPrefix        string                              `json:"envPrefix,omitempty"`
+		Config           *buildspec.ConfigSpec               `json:"config,omitempty"`
 		Target           buildspec.TargetSpec                `json:"target"`
 		Packages         []buildspec.PackageSpec             `json:"packages"`
 		Runtimes         map[string]buildspec.Runtime        `json:"runtimes"`
@@ -34,6 +37,9 @@ func RenderEmbeddedSpec(spec *buildspec.Spec) string {
 		Assets           []buildspec.AssetSourceSpec         `json:"assets,omitempty"`
 	}{
 		Name:             spec.Name,
+		AppName:          spec.AppName,
+		EnvPrefix:        spec.EnvPrefix,
+		Config:           spec.Config,
 		Target:           spec.Target,
 		Packages:         spec.Packages,
 		Runtimes:         spec.Runtimes,
