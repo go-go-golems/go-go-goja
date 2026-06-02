@@ -41,3 +41,12 @@
 - [x] Update diary and changelog after each completed phase.
 - [x] Fix generator `RenderEmbeddedSpec` to include new fields in embedded JSON.
 - [x] Verify end-to-end precedence with actual generated binary.
+
+## Phase 5: Implementation review follow-ups
+
+- [x] Add generator regression coverage for `RenderEmbeddedSpec` runtime fields.
+- [x] Make `--config-file` depend on the `explicit` config layer instead of always loading when supplied.
+- [x] Relax `appName` validation for local-only config layers (`cwd`, `git-root`, `explicit`).
+- [x] Document the full `config` schema, supported layers, precedence, and `--config-file` flag.
+- [x] Factor repeated test CWD setup into a helper.
+- [x] Re-run focused tests, generated example smoke, full test suite, and pre-commit validation.

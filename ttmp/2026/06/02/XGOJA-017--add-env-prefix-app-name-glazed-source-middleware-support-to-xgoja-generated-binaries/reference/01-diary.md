@@ -13,19 +13,26 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: cmd/xgoja/doc/06-buildspec-reference.md
-      Note: Documents Phase 1 env-prefix MVP (commit f773542)
+      Note: |-
+        Documents Phase 1 env-prefix MVP (commit f773542)
+        Step 12 documents buildspec reference expansion (commit e3f6986)
     - Path: cmd/xgoja/internal/buildspec/spec.go
       Note: Adds appName/envPrefix YAML fields (commit f773542)
+    - Path: cmd/xgoja/internal/generate/generate_test.go
+      Note: Step 12 documents embedded-spec regression coverage (commit e3f6986)
     - Path: pkg/xgoja/app/host.go
       Note: Propagates middleware factory through generated Host commands (commit f773542)
     - Path: pkg/xgoja/app/middlewares.go
-      Note: Phase 1 runtime middleware policy and env-prefix normalization (commit f773542)
+      Note: |-
+        Phase 1 runtime middleware policy and env-prefix normalization (commit f773542)
+        Step 12 documents explicit-layer semantics and precedence fix (commit e3f6986)
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Diary
@@ -601,3 +608,116 @@ Config    *buildspec.ConfigSpec `json:"config,omitempty"`
 ```
 
 This ensures generated binaries receive the full runtime configuration.
+
+---
+
+## Step 12: Address Implementation Review Follow-Ups Without Rewriting History
+
+After the implementation review identified the remaining high- and medium-priority risks, I applied the requested fixes directly on top of the branch rather than using an interactive rebase. The goal was to make the config semantics match the YAML schema, protect the generator against future runtime-field omissions, and document the public buildspec contract clearly enough for users and reviewers.
+
+This step tightened the `explicit` config layer, relaxed `appName` validation for local-only config discovery, added regression coverage for embedded runtime settings, documented the `config` schema and `--config-file` flag, and re-ran both focused and full validation.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 11)
+
+**Assistant interpretation:** Continue from the compacted review-follow-up work and complete the high-/medium-priority implementation fixes, documentation updates, validation, and bookkeeping.
+
+**Inferred user intent:** The user wants the reviewed implementation made merge-ready without rewriting existing commits or performing an interactive rebase.
+
+**Commit (code):** e3f6986 — "xgoja: tighten config semantics and docs"
+
+### What I did
+
+- Updated `pkg/xgoja/app/middlewares.go` so `--config-file` is honored only when `explicit` appears in `config.layers`.
+- Added a comment documenting the Glazed middleware order and effective precedence: `defaults < config < env < args < cobra flags`.
+- Updated `cmd/xgoja/internal/buildspec/validate.go` so `appName` is required only for app-scoped layers: `system`, `xdg`, and `home`.
+- Added validation tests proving local layers (`cwd`, `git-root`, `explicit`) work without `appName`.
+- Added app middleware tests proving explicit config files are ignored without the `explicit` layer and loaded when the layer is present.
+- Factored repeated test working-directory changes into `chdirForTest`.
+- Added `TestRenderEmbeddedSpecIncludesRuntimeAppSettings` to prevent future generator regressions for `appName`, `envPrefix`, and `config`.
+- Expanded `cmd/xgoja/doc/06-buildspec-reference.md` with the `config` schema, supported layers, `--config-file` flag, precedence order, and `appName` requirements.
+- Updated `examples/xgoja/11-config-env/xgoja.yaml` to include the `explicit` layer and updated its README.
+
+### Why
+
+- The review correctly identified that the previous runtime honored `--config-file` even when the buildspec did not declare `explicit`, which made `config.layers` less truthful than intended.
+- Requiring `appName` for `cwd`/`git-root`/`explicit` was unnecessarily strict because those layers do not use app-scoped discovery paths.
+- The generator bug had already shown that runtime-relevant buildspec fields need direct regression coverage in `RenderEmbeddedSpec`.
+- Users need a public reference for the exact `config` shape and the correct Glazed flag name (`--config-file`, not `--config`).
+
+### What worked
+
+- Focused tests passed:
+  - `go test ./cmd/xgoja/internal/buildspec ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1`
+- Generated example smoke passed:
+  - config file -> `from-config-file`
+  - env override -> `from-env`
+  - flag override -> `from-flag`
+  - explicit config file with `--config-file config.yaml` -> `from-config-file`
+- Full validation passed:
+  - `go test ./... -count=1`
+- The pre-commit hook also passed lint, `go generate ./...`, and `go test ./...` before creating commit `e3f6986`.
+
+### What didn't work
+
+- No implementation failures occurred in this step.
+- The pre-commit hook produced a Dagger warning while running `go generate ./...`:
+  - `A new release of dagger is available: v0.20.3 → v0.21.3`
+  This was informational and did not block the commit.
+
+### What I learned
+
+- The reviewed `explicit` behavior was subtle because the runtime previously appended `ExplicitFile` after iterating configured layers. Moving the explicit-file handling into the layer switch makes the YAML layer list the single source of truth.
+- `appName` validation needs to follow the actual config discovery API: app-scoped Glazed locations need an application name, but local file locations do not.
+- Generator regression tests should unmarshal the embedded JSON into the runtime `app.Spec`, not merely search for strings, when testing runtime contract preservation.
+
+### What was tricky to build
+
+- The trickiest part was preserving Glazed's middleware precedence while changing layer semantics. The returned middleware slice is ordered highest-to-lowest because Glazed middlewares call `next` before applying their own values, so comments and tests now make the effective precedence explicit.
+- The second subtlety was avoiding an overcorrection in validation: `config.enabled` does not universally imply an app-scoped config plan. The validator now checks only the layers that actually need `appName`.
+
+### What warrants a second pair of eyes
+
+- Review `buildConfigPlan` to confirm the chosen behavior is acceptable: `--config-file` is silently ignored unless `explicit` is enabled rather than rejected as an error.
+- Review the documentation wording around precedence and layer discovery paths for consistency with Glazed's current config source implementation.
+- Confirm whether future UX should warn when `--config-file` is supplied but the `explicit` layer is not configured.
+
+### What should be done in the future
+
+- Consider a runtime warning or validation path for ignored `--config-file` values when `explicit` is omitted.
+- Add broader generated-binary integration tests if xgoja gains a formal example smoke-test harness.
+- Keep profile/arbitrary middleware support deferred until there is a concrete use case and naming model.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/app/middlewares.go`, especially `MiddlewaresFromSpec` and `buildConfigPlan`.
+- Review `cmd/xgoja/internal/buildspec/validate.go` for app-scoped-layer validation.
+- Review `cmd/xgoja/internal/generate/generate_test.go` for the embedded-spec regression test.
+- Review `pkg/xgoja/app/middlewares_test.go` for explicit-layer behavior and precedence coverage.
+- Validate with:
+  ```bash
+  go test ./cmd/xgoja/internal/buildspec ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1
+  go test ./... -count=1
+  ```
+
+### Technical details
+
+The `explicit` layer fix moved explicit-file handling from an unconditional post-loop append:
+
+```go
+if explicit != "" {
+    plan.Add(glazedconfig.ExplicitFile(explicit))
+}
+```
+
+to a layer-gated switch branch:
+
+```go
+case "explicit":
+    if explicit != "" {
+        plan.Add(glazedconfig.ExplicitFile(explicit).Named("explicit-config").Kind("explicit-file"))
+    }
+```
+
+The validation fix uses `usesAppScopedConfigLayer(layers)` so `system`, `xdg`, and `home` require `appName`, while `cwd`, `git-root`, and `explicit` do not.
