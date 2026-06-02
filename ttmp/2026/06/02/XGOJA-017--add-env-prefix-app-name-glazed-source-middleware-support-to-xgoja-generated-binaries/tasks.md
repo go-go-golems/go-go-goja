@@ -19,11 +19,11 @@
 
 ## Phase 2: Config-file support
 
-- [ ] Read existing buildspec load/validation tests before adding config schema.
-- [ ] Add `config` schema only after Phase 1 is passing.
-- [ ] Implement config plan construction in normal Go helper code, not template snippets.
-- [ ] Add concrete config examples showing section slug, CLI flag, env var, and resulting value.
-- [ ] Add integration tests for config < env < CLI precedence.
+- [x] Read existing buildspec load/validation tests before adding config schema.
+- [x] Add `config` schema only after Phase 1 is passing.
+- [x] Implement config plan construction in normal Go helper code, not template snippets.
+- [x] Add concrete config examples showing section slug, CLI flag, env var, and resulting value.
+- [x] Add integration tests for config < env < CLI precedence.
 
 ## Phase 3: Profiles and advanced source middleware exploration
 

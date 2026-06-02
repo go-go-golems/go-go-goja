@@ -40,3 +40,12 @@ Phase 1 MVP implemented: appName/envPrefix support for generated xgoja binaries,
 
 - /home/manuel/workspaces/2026-06-02/add-xgoja-env-app-name/go-go-goja/pkg/xgoja/app/middlewares.go — Runtime middleware policy
 
+
+## 2026-06-02
+
+Phase 2 implemented: config file support for generated xgoja binaries with layered discovery (system/xdg/home/git-root/cwd/explicit), config < env < CLI precedence, validation, and integration tests.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-02/add-xgoja-env-app-name/go-go-goja/pkg/xgoja/app/middlewares.go — Config plan builder and middleware ordering
+
