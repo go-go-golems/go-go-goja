@@ -169,6 +169,30 @@ func validSpec() *Spec {
 	}
 }
 
+func TestValidateJSVerbCommandMountAcceptsRootAliases(t *testing.T) {
+	for _, mount := range []string{"root", "/", "."} {
+		spec := validSpec()
+		spec.Commands.JSVerbs = CommandSpec{Enabled: true, Runtime: "main", Mount: mount}
+
+		report := Validate(spec)
+		if report.HasErrors() {
+			t.Fatalf("mount %q: expected no validation errors, got %#v", mount, report.Checks)
+		}
+		assertCheck(t, report, StatusOK, "command-mount", "commands.jsverbs.mount")
+	}
+}
+
+func TestValidateJSVerbCommandMountRejectsUnknownValue(t *testing.T) {
+	spec := validSpec()
+	spec.Commands.JSVerbs = CommandSpec{Enabled: true, Runtime: "main", Mount: "top-level"}
+
+	report := Validate(spec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "command-mount", "commands.jsverbs.mount")
+}
+
 func assertCheck(t *testing.T, report *Report, status Status, name string, path string) {
 	t.Helper()
 	for _, check := range report.Checks {

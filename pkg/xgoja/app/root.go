@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"sort"
+	"strings"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
@@ -332,4 +333,13 @@ func commandName(command CommandSpec, fallback string) string {
 		return command.Name
 	}
 	return fallback
+}
+
+func commandMount(command CommandSpec) string {
+	switch strings.ToLower(strings.TrimSpace(command.Mount)) {
+	case "root", "/", ".":
+		return "root"
+	default:
+		return ""
+	}
 }

@@ -462,6 +462,46 @@ function embeddedGreet(name) {
 	}
 }
 
+func TestGeneratedRootMountsEmbeddedJSVerbsAtRoot(t *testing.T) {
+	registry := providerapi.NewRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	embedded := fstest.MapFS{
+		"xgoja_embed/jsverbs/local/tools.js": &fstest.MapFile{Data: []byte(`
+__package__({ name: "tools" })
+__verb__("embeddedGreet", {
+  name: "embedded-greet",
+  output: "text",
+  fields: {
+    name: { type: "string", required: true }
+  }
+})
+function embeddedGreet(name) {
+  const hello = require("hello")
+  return hello.greet(name)
+}
+`)},
+	}
+	specJSON := `{
+  "name": "fixture",
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
+  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs", "mount": "root"}},
+  "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
+}`
+	out := &bytes.Buffer{}
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out, EmbeddedJSVerbs: embedded})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	root.SetArgs([]string{"tools", "embedded-greet", "--name", "intern"})
+	if err := root.ExecuteContext(context.Background()); err != nil {
+		t.Fatalf("execute root-mounted embedded verb: %v", err)
+	}
+}
+
 func TestGeneratedRootMountsFilesystemJSVerbs(t *testing.T) {
 	registry := providerapi.NewRegistry()
 	if err := testprovider.Register(registry); err != nil {

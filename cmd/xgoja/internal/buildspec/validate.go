@@ -232,6 +232,20 @@ func validateCommands(report *Report, spec *Spec) {
 	validateCommandRuntime(report, "commands.run", spec.Commands.Run, spec.Runtimes)
 	validateCommandRuntime(report, "commands.repl", spec.Commands.Repl, spec.Runtimes)
 	validateCommandRuntime(report, "commands.jsverbs", spec.Commands.JSVerbs, spec.Runtimes)
+	validateJSVerbCommandMount(report, spec.Commands.JSVerbs)
+}
+
+func validateJSVerbCommandMount(report *Report, command CommandSpec) {
+	mount := strings.TrimSpace(command.Mount)
+	if mount == "" {
+		return
+	}
+	switch strings.ToLower(mount) {
+	case "root", "/", ".":
+		report.AddOK("command-mount", "commands.jsverbs.mount", "root")
+	default:
+		report.AddError("command-mount", "commands.jsverbs.mount", fmt.Sprintf("unsupported jsverbs mount %q; supported values are root, /, and .", mount))
+	}
 }
 
 func validateCommandRuntime(report *Report, path string, command CommandSpec, runtimes map[string]Runtime) {

@@ -65,7 +65,15 @@ help:
       source: runtime-api
 ```
 
-Use embedded local docs for project-specific tutorials. The local directory is copied into `xgoja_embed/help/<id>/` during generation and does not need to exist when the generated binary runs. For a runnable provider-shipped help example, see `examples/xgoja/09-provider-shipped-help-docs`.
+Use embedded local docs for project-specific tutorials. The local directory is resolved relative to the `xgoja.yaml` file, copied into `xgoja_embed/help/<id>/` during generation, and does not need to exist when the generated binary runs. For a runnable provider-shipped help example, see `examples/xgoja/09-provider-shipped-help-docs`.
+
+Path resolution rules to remember:
+
+- `packages[].replace`, embedded `jsverbs[].path`, embedded `help.sources[].path`, and embedded `assets[].path` are resolved relative to the directory containing the `xgoja.yaml` file.
+- Runtime filesystem `jsverbs[].path` is checked relative to the spec directory during validation, but is stored as written in the generated binary; use an absolute path if runtime launch directories vary.
+- `target.output` is resolved by `xgoja build` from the shell's current working directory, unless it is absolute or overridden with `--output`.
+- `commands.jsverbs.name` defaults to `verbs`. JavaScript verbs are mounted below that command by default.
+- Set `commands.jsverbs.mount: root` (also accepts `/` or `.`) to mount discovered JavaScript verb packages directly under the generated root command.
 
 Use embedded assets for templates, static data, static web files, and default configuration that JavaScript should read from the final binary:
 
