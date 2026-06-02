@@ -79,7 +79,7 @@ commands:
 
 `go` controls the generated module. `go.version` defaults to `1.26`, and `go.module` defaults to `example.com/generated/<name>`.
 
-`target` controls the generated binary shape and output path.
+`target` controls the generated binary shape and output path. `target.output` is resolved by `xgoja build` from the shell's current working directory, unless it is absolute or overridden with `xgoja build --output`. It is not resolved relative to the spec file and it is not written inside the temporary generated module.
 
 `packages` selects Go provider packages that will be imported by generated source.
 
@@ -87,7 +87,7 @@ commands:
 
 `commands` enables generated command families and points them at runtime profiles.
 
-`jsverbs` configures JavaScript verb sources that are mounted under the generated jsverbs command.
+`jsverbs` configures JavaScript verb sources. By default, discovered verbs are mounted under the generated jsverbs command. The command name defaults to `verbs` when `commands.jsverbs.enabled: true`; set `commands.jsverbs.name` to rename that container command. Set `commands.jsverbs.mount: root` when discovered verb packages should be registered directly under the generated binary root instead.
 
 `assets` configures local file trees copied into and embedded by the generated binary.
 
@@ -222,7 +222,9 @@ commands:
     name: verbs
 ```
 
-`runtime` must reference an existing runtime profile when the command is enabled. `name` controls the command name exposed by the generated binary.
+`runtime` must reference an existing runtime profile when the command is enabled. `name` controls the command name exposed by the generated binary. If a built-in command name is omitted, xgoja applies defaults: `eval`, `run`, `repl`, and `verbs` for `commands.jsverbs`.
+
+`commands.jsverbs.mount` controls where discovered JavaScript verb commands are attached. Omit it for the default container command (`./app verbs ...`). Set it to `root`, `/`, or `.` to attach discovered verb packages directly under the binary root (`./app tools greet ...`). Root mounting is convenient for self-contained helper binaries, but it increases the chance of command-name collisions with built-in commands such as `help`, `eval`, `run`, `repl`, and `modules`.
 
 The `eval` command spec controls one-shot JavaScript string evaluation. When enabled, `commands.eval.name` is the command name exposed by the generated binary and `commands.eval.runtime` selects the runtime profile used by that command.
 
@@ -429,7 +431,7 @@ jsverbs:
     embed: false
 ```
 
-The files must exist at runtime.
+The files must exist at runtime. For runtime filesystem sources, `path` is stored in the generated spec as written and is interpreted by the generated binary at startup. Use an absolute path when the binary may be launched from a different working directory.
 
 ### Embedded local source
 
@@ -442,9 +444,9 @@ jsverbs:
     embed: true
 ```
 
-At build time, xgoja copies the directory into the generated workspace under `xgoja_embed/jsverbs/<id>/`. Generated source embeds it with `go:embed`, and the runtime scans the embedded filesystem.
+At build time, xgoja copies the directory into the generated workspace under `xgoja_embed/jsverbs/<id>/`. Generated source embeds it with `go:embed`, rewrites the embedded spec to point at that generated root, and the runtime scans the embedded filesystem.
 
-The original `path` must exist when `xgoja build` runs. It does not need to exist when the generated binary runs.
+The original `path` is resolved relative to the directory containing the `xgoja.yaml` file, not relative to the shell's current working directory. It must exist when `xgoja build` runs. It does not need to exist when the generated binary runs.
 
 ### Provider-shipped source
 
@@ -470,7 +472,9 @@ func Register(registry *providerapi.Registry) error {
 }
 ```
 
-Provider-shipped sources are selected by package ID and source name.
+Provider-shipped sources are selected by package ID and source name. The provider source's `Root` is interpreted inside the provider's registered `fs.FS`.
+
+By default, discovered JavaScript verb commands are added below the configured `commands.jsverbs.name` command. A verb package can still define nested command paths with `__package__({ name, parents })`, but those paths are nested inside the jsverbs container command. When `commands.jsverbs.mount: root` is set, the same package/parent path is attached directly to the generated root command instead.
 
 ## Validation
 
@@ -480,7 +484,7 @@ Run validation before building:
 xgoja doctor -f xgoja.yaml
 ```
 
-The validator checks supported target kinds, package uniqueness, known runtime package IDs, duplicate runtime aliases, enabled command runtime references, command provider package/runtime references, jsverb source IDs, help source IDs, asset source IDs, provider help source package references, and local paths for embedded sources.
+The validator checks supported target kinds, package uniqueness, known runtime package IDs, duplicate runtime aliases, enabled command runtime references, command provider package/runtime references, jsverb source IDs, help source IDs, asset source IDs, provider help source package references, and local paths for embedded sources. Local `replace`, embedded `jsverbs.path`, embedded `help.sources[].path`, and embedded `assets[].path` entries are checked relative to the spec file directory. Runtime filesystem jsverb paths are also checked relative to the spec file for validation, but the generated binary stores the path as written; use absolute paths for runtime filesystem sources when launch directories vary.
 
 ## Troubleshooting
 

@@ -223,7 +223,7 @@ Build again and run:
 ./dist/fixture verbs tools greet --name intern
 ```
 
-This mode scans `./verbs` from disk when the generated binary starts.
+This mode scans `./verbs` from disk when the generated binary starts. Runtime filesystem paths are stored as written in the generated spec, so prefer an absolute path when the binary may be launched from a different directory. The validator still checks the path relative to the `xgoja.yaml` file during `xgoja doctor` and `xgoja build`.
 
 ## 8. Embed local jsverbs into the generated binary
 
@@ -242,7 +242,21 @@ Build again:
 xgoja build -f xgoja.yaml --keep-work
 ```
 
-xgoja copies `./verbs` into the generated workspace and generated `main.go` embeds it with `go:embed`. The final binary no longer needs the original `./verbs` directory at runtime.
+xgoja resolves `./verbs` relative to the `xgoja.yaml` file, copies it into the generated workspace, rewrites the embedded spec path to `xgoja_embed/jsverbs/<id>`, and generated `main.go` embeds it with `go:embed`. The final binary no longer needs the original `./verbs` directory at runtime.
+
+Embedded and runtime filesystem verbs are mounted below the configured jsverbs command by default. The default command is `verbs`, so the example is `./dist/fixture verbs tools greet --name intern`.
+
+For a self-contained helper binary, you can mount discovered JavaScript verb packages directly under the generated root command:
+
+```yaml
+commands:
+  jsverbs:
+    enabled: true
+    runtime: main
+    mount: root
+```
+
+With that option, the same verb becomes `./dist/fixture tools greet --name intern`. Use root mounting when the JavaScript verbs are the primary user-facing command surface. Keep the default `verbs` container when you want to avoid collisions with built-in commands.
 
 ## 9. Embed assets and read them through fs aliases
 
@@ -399,8 +413,9 @@ If the generated build fails, the generated source usually shows whether the pro
 | `require("fs")` fails after adding `fs:assets` | `as: fs:assets` registers only `fs:assets`; use that name or add a separate `as: fs` entry. |
 | embedded asset write fails with `EROFS` | Embedded assets are read-only; use a separate host alias such as `fs:host` for writes. |
 | jsverb command is missing | Confirm `commands.jsverbs.enabled: true` and that the source scans without diagnostics. |
-| embedded jsverb missing | Build with `--keep-work` and inspect `xgoja_embed/jsverbs/<id>/`. |
+| embedded jsverb missing | Build with `--keep-work` and inspect `xgoja_embed/jsverbs/<id>/`; remember the source `path` was resolved relative to the spec file directory. |
 | provider source missing | Confirm the provider registers `VerbSource{Name, FS, Root}` and the spec uses the same package ID and source name. |
+| want jsverbs at root | Set `commands.jsverbs.mount: root`; use a Go `commandProviders` entry instead when commands need non-JavaScript behavior or custom Go services. |
 
 ## See also
 

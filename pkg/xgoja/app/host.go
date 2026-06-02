@@ -128,7 +128,22 @@ func (h *Host) AttachModules(root *cobra.Command) {
 }
 
 func (h *Host) AttachVerbs(root *cobra.Command) {
-	if root == nil || h == nil {
+	if root == nil || h == nil || h.Spec == nil {
+		return
+	}
+	if commandMount(h.Spec.Commands.JSVerbs) == "root" {
+		cmds, err := buildVerbCommands(h.Providers, h.Factory, h.Spec, h.EmbeddedJSVerbs)
+		if err != nil {
+			root.AddCommand(commandErrorStub(commandName(h.Spec.Commands.JSVerbs, "verbs"), "Run configured JavaScript verb commands", err))
+			return
+		}
+		middlewaresFunc := h.MiddlewaresFunc
+		if middlewaresFunc == nil {
+			middlewaresFunc = cli.CobraCommandDefaultMiddlewares
+		}
+		if err := cli.AddCommandsToRootCommand(root, cmds, nil, cli.WithParserConfig(cli.CobraParserConfig{MiddlewaresFunc: middlewaresFunc})); err != nil {
+			root.AddCommand(commandErrorStub(commandName(h.Spec.Commands.JSVerbs, "verbs"), "Run configured JavaScript verb commands", err))
+		}
 		return
 	}
 	root.AddCommand(newVerbsCommand(h.Providers, h.Factory, h.Spec, h.EmbeddedJSVerbs, h.MiddlewaresFunc))
