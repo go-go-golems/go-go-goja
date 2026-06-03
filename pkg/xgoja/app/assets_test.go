@@ -34,6 +34,37 @@ func TestAssetStoreResolveAsset(t *testing.T) {
 	}
 }
 
+func TestRuntimeFactoryPassesRuntimeOwnerToModules(t *testing.T) {
+	spec := &Spec{
+		Runtimes: map[string]Runtime{
+			"main": {Modules: []ModuleInstance{{Package: "fixture", Name: "owner-check", As: "owner-check"}}},
+		},
+	}
+	seen := false
+	registry := providerapi.NewRegistry()
+	if err := registry.Package("fixture", providerapi.Module{
+		Name: "owner-check",
+		New: func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
+			if ctx.RuntimeOwner == nil {
+				t.Fatalf("expected module context runtime owner")
+			}
+			seen = true
+			return func(vm *goja.Runtime, module *goja.Object) {}, nil
+		},
+	}); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+
+	rt, err := NewRuntimeFactory(registry, spec).NewRuntime(context.Background(), "main")
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+	if !seen {
+		t.Fatal("module factory did not observe runtime owner")
+	}
+}
+
 func TestRuntimeFactoryPassesHostServicesToModules(t *testing.T) {
 	assetFS := fstest.MapFS{
 		"xgoja_embed/assets/app/config.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},

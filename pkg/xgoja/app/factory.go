@@ -37,11 +37,12 @@ func (s providerRuntimeModuleSpec) RegisterRuntimeModule(ctx *engine.RuntimeModu
 		return fmt.Errorf("marshal config for %s.%s: %w", s.instance.Package, s.instance.Name, err)
 	}
 	loader, err := s.module.New(providerapi.ModuleContext{
-		Context: ctx.Context,
-		Name:    s.instance.Name,
-		As:      s.instance.Alias(),
-		Config:  config,
-		Host:    s.services,
+		Context:      ctx.Context,
+		Name:         s.instance.Name,
+		As:           s.instance.Alias(),
+		Config:       config,
+		Host:         s.services,
+		RuntimeOwner: ctx.Owner,
 	})
 	if err != nil {
 		return fmt.Errorf("create module %s.%s: %w", s.instance.Package, s.instance.Name, err)
