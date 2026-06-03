@@ -53,7 +53,11 @@ db.exec(`
   )
 `);
 
-db.exec("INSERT INTO users (name) VALUES (?)", "Ada");
+try {
+  db.exec("INSERT INTO users (name) VALUES (?)", "Ada");
+} catch (e) {
+  console.error("insert failed:", e);
+}
 
 const rows = db.query("SELECT * FROM users WHERE name = ?", "Ada");
 for (const row of rows) {
@@ -75,7 +79,7 @@ If `args` contains a single array, that array is flattened and used as positiona
 
 ### `exec(sql, ...args)`
 
-Executes an `INSERT`, `UPDATE`, `DELETE`, or DDL statement and returns a result summary:
+Executes an `INSERT`, `UPDATE`, `DELETE`, or DDL statement and returns a result summary on success:
 
 ```javascript
 {
@@ -85,7 +89,7 @@ Executes an `INSERT`, `UPDATE`, `DELETE`, or DDL statement and returns a result 
 }
 ```
 
-If the statement fails, the function returns an object with `success: false` and `error: "message"`.
+If the statement fails, `exec` **throws an exception** with the error message. The underlying Go function returns both a result object and a non-nil error, and Goja raises the error as a JavaScript exception. Use `try/catch` to handle failed SQL executions.
 
 ### `close()`
 
