@@ -44,6 +44,12 @@ RelatedFiles:
       Note: Recovered panic stack implementation (commit 2a81564)
     - Path: pkg/runtimeowner/types.go
       Note: IncludePanicStack option for recovered panic diagnostics (commit 2a81564)
+    - Path: pkg/xgoja/app/factory.go
+      Note: Generated runtime factory pass-through to engine.WithRecoveredPanicStack (commit 7139e2c)
+    - Path: pkg/xgoja/app/xgoja_section.go
+      Note: xgoja Glazed debug panic stack field (commit 7139e2c)
+    - Path: pkg/xgoja/app/xgoja_section_test.go
+      Note: Tests for generated CLI flag exposure and runtime pass-through (commit 7139e2c)
     - Path: scripts/01-reproduce-session-construction-panic.sh
       Note: Repro script that builds a temporary generated xgoja binary and runs the exact failing no-inference profile smoke.
     - Path: ttmp/2026/06/04/GOJA-063--investigate-generated-xgoja-geppetto-session-construction-panic/various/02-after-nil-api-fix-repro.log
@@ -54,10 +60,11 @@ RelatedFiles:
       Note: Captured reproduction output with temporary runtimeowner stack instrumentation.
 ExternalSources: []
 Summary: 'Initial GOJA-063 analysis: the generated xgoja no-inference Pinocchio profile smoke panic is reproducible and the first Geppetto frame is `ensureInferenceSettingsProviderDefaults`, not session builder construction itself. The likely cause is a nil `InferenceSettings.API` field when the profile defines `chat.api_type` but omits an `api` block.'
-LastUpdated: 2026-06-04T18:45:00-04:00
+LastUpdated: 2026-06-04T19:45:00-04:00
 WhatFor: Use when investigating or fixing the generated xgoja Geppetto no-inference session-construction panic.
 WhenToUse: Before changing Geppetto profile resolution, agent builder, or generated xgoja Pinocchio profile script ports.
 ---
+
 
 
 
@@ -380,7 +387,7 @@ There remains a semantic distinction between profile resolution and engine const
 
 ## Follow-up: runtimeowner recovered panic stack traces are now opt-in
 
-GOJA-063 also produced one tooling improvement in go-go-goja: recovered runtimeowner panic errors can now include a Go debug stack when explicitly enabled. The implementation landed in go-go-goja commit `2a81564` (`Add opt-in runtimeowner panic stacks`).
+GOJA-063 also produced one tooling improvement in go-go-goja: recovered runtimeowner panic errors can now include a Go debug stack when explicitly enabled. The low-level implementation landed in go-go-goja commit `2a81564` (`Add opt-in runtimeowner panic stacks`), and generated xgoja command plumbing landed in commit `7139e2c` (`Add xgoja debug panic stack flag`).
 
 The new low-level runtimeowner option is:
 
@@ -410,13 +417,13 @@ factory, err := engine.NewRuntimeFactoryBuilder(
 ).Build()
 ```
 
-This keeps normal generated CLI output concise while making provider panic diagnosis faster in test fixtures, debugging tools, or explicitly diagnostic generated runtimes. The option is intentionally not enabled by default because stacks are noisy and include local paths.
+Generated xgoja runtime-backed commands expose the same switch through the built-in xgoja Glazed section as `--debug-panic-stack`. `RuntimeFactory.NewRuntimeFromSections` reads `xgoja.debug-panic-stack` from the parsed `values.Values` and forwards it to `engine.WithRecoveredPanicStack(true)`. This keeps normal generated CLI output concise while making provider panic diagnosis faster in generated binaries when the flag/config value is explicitly set. The option is intentionally not enabled by default because stacks are noisy and include local paths.
 
 Validation:
 
 ```bash
 cd go-go-goja
-go test ./pkg/runtimeowner ./pkg/engine -count=1
+go test ./pkg/runtimeowner ./pkg/engine ./pkg/xgoja/app -count=1
 ```
 
-The commit hook also ran `golangci-lint`, `go vet` with the Glazed linter, `go generate ./...`, and `go test ./...` successfully while committing `2a81564`.
+The commit hooks also ran `golangci-lint`, `go vet` with the Glazed linter, `go generate ./...`, and `go test ./...` successfully while committing `2a81564` and `7139e2c`.

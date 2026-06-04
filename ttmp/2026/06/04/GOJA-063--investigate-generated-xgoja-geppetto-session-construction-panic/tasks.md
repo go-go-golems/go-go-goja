@@ -19,3 +19,4 @@
 - [x] Restore the `examples/xgoja/12-geppetto-host-services` deterministic `profile-smoke` port to construct a session using a local profile fixture with a dummy API key.
 - [x] Run the live generated xgoja Geppetto host-services smoke after the fix to confirm no regression.
 - [x] Add optional debug stack traces for recovered runtimeowner panics.
+- [x] Expose recovered panic stacks through generated xgoja Glazed flag `--debug-panic-stack`.

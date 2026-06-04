@@ -38,3 +38,13 @@ Added opt-in runtimeowner recovered panic stack traces and engine builder plumbi
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/runtimeowner/runner.go — Recovered panic stack implementation (commit 2a81564)
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-063--investigate-generated-xgoja-geppetto-session-construction-panic/reference/01-investigation-diary.md — Step 3 diary entry
 
+
+## 2026-06-04
+
+Exposed runtimeowner recovered panic stacks through generated xgoja Glazed section flag --debug-panic-stack (commit 7139e2c).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/factory.go — engine option pass-through
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/xgoja_section.go — xgoja debug flag schema
+

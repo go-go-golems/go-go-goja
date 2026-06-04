@@ -24,6 +24,12 @@ RelatedFiles:
       Note: Recovered panic error formatting with optional debug stack (commit 2a81564)
     - Path: pkg/runtimeowner/types.go
       Note: IncludePanicStack option for recovered panic diagnostics (commit 2a81564)
+    - Path: pkg/xgoja/app/factory.go
+      Note: Passes xgoja debug panic stack value into engine.WithRecoveredPanicStack (commit 7139e2c)
+    - Path: pkg/xgoja/app/xgoja_section.go
+      Note: xgoja Glazed debug panic stack field (commit 7139e2c)
+    - Path: pkg/xgoja/app/xgoja_section_test.go
+      Note: Regression tests for CLI flag exposure and recovered stack pass-through (commit 7139e2c)
     - Path: ttmp/2026/06/04/GOJA-063--investigate-generated-xgoja-geppetto-session-construction-panic/analysis/01-session-construction-panic-analysis.md
       Note: Living analysis document created for GOJA-063.
     - Path: ttmp/2026/06/04/GOJA-063--investigate-generated-xgoja-geppetto-session-construction-panic/scripts/01-reproduce-session-construction-panic.sh
@@ -36,10 +42,11 @@ RelatedFiles:
         Captured stack trace from temporary runtimeowner instrumentation
 ExternalSources: []
 Summary: Chronological diary for GOJA-063, the investigation of a generated xgoja Geppetto agent/session construction panic.
-LastUpdated: 2026-06-04T18:45:00-04:00
+LastUpdated: 2026-06-04T19:45:00-04:00
 WhatFor: Use to continue the crash investigation with exact commands, findings, and open questions.
 WhenToUse: Before changing Geppetto agent/session/profile-resolution code or generated xgoja Pinocchio profile ports.
 ---
+
 
 
 
@@ -403,5 +410,113 @@ Engine option:
 ```go
 engine.NewRuntimeFactoryBuilder(
     engine.WithRecoveredPanicStack(true),
+)
+```
+
+## Step 4: Expose Recovered Panic Stacks Through the xgoja Glazed Section
+
+This step connected the runtimeowner stack-trace option from Step 3 to generated xgoja command-line parsing. Instead of adding ad-hoc generated `main.go` wiring, I added a small built-in xgoja Glazed section that is attached to runtime-backed commands before provider sections are collected.
+
+Generated xgoja commands now expose `--debug-panic-stack`. When the flag is set, the parsed Glazed value flows through `RuntimeFactory.NewRuntimeFromSections` into `engine.WithRecoveredPanicStack(true)`, so provider authors can request a Go stack for recovered runtime panics without changing generated source code.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Implement the pass-through toggle as a Glazed field in the xgoja section, ideally in the dedicated xgoja section if one exists, or otherwise for the generated `main.go`."
+
+**Assistant interpretation:** Add generated-xgoja CLI/config plumbing for the recovered-panic stack toggle using Glazed sections, preferably as a framework-level xgoja section rather than bespoke template code.
+
+**Inferred user intent:** Make the opt-in runtimeowner panic-stack diagnostic reachable from generated xgoja binaries while keeping the implementation aligned with the existing Glazed configuration lifecycle.
+
+**Commit (code):** 7139e2c — "Add xgoja debug panic stack flag"
+
+### What I did
+
+- Added `pkg/xgoja/app/xgoja_section.go` with a built-in `xgoja` section and `debug-panic-stack` boolean field.
+- Updated `RuntimeFactory.sectionsForRuntimeProfile` so runtime-backed commands collect the xgoja section before provider Glazed sections.
+- Updated `RuntimeFactory.NewRuntimeFromSections` so the parsed `xgoja.debug-panic-stack` value controls `engine.WithRecoveredPanicStack(...)`.
+- Added tests proving:
+  - generated root eval commands expose `--debug-panic-stack`;
+  - the default recovered panic error stays concise;
+  - enabling the xgoja field includes a Go stack in the recovered panic error.
+- Updated existing section-order tests to account for the built-in `xgoja` section.
+
+### Why
+
+Step 3 made recovered panic stacks available only to programmatic engine construction. Generated xgoja users and provider authors still had no CLI/config way to turn the diagnostic on in a generated binary. Adding a Glazed section keeps the toggle in the same parsing and merge path as provider runtime config instead of inventing a separate flag parser or editing generated templates.
+
+### What worked
+
+- Focused tests passed:
+  - `cd go-go-goja && go test ./pkg/xgoja/app -run 'TestGeneratedRootExposesXGojaDebugPanicStackFlag|TestRuntimeFactoryDebugPanicStackFieldControlsRecoveredPanicStack|TestGeneratedRootEvalUsesProviderModule' -count=1`
+- Broader validation passed:
+  - `cd go-go-goja && go test ./pkg/xgoja/app ./pkg/engine ./pkg/runtimeowner -count=1`
+  - `cd go-go-goja && go test ./cmd/xgoja/... ./pkg/xgoja/app -count=1`
+- The commit pre-commit hook passed:
+  - `golangci-lint run -v`
+  - `GOWORK=off go vet -vettool=/tmp/glazed-lint ...`
+  - `go generate ./...`
+  - `go test ./...`
+
+### What didn't work
+
+- My first test tried to validate the flag by executing a Cobra/Glazed command that intentionally returned an error from a recovered panic. Glazed's Cobra adapter calls `cobra.CheckErr(err)`, which exits the test process instead of returning the error to the test:
+  - `Error: runtimeowner xgoja.eval: runtime call panicked: provider boom`
+- I replaced that with two safer tests: one inspects the generated command flags, and the other exercises `RuntimeFactory.NewRuntimeFromSections` directly.
+
+### What I learned
+
+- The existing generated app path already has a natural framework-level section hook: `sectionsForRuntimeProfile` runs before command construction for eval/run/repl/jsverbs and command providers.
+- No generated `main.go` template change was needed because generated binaries route through `Host.AttachDefaultCommands` / `RuntimeFactory` for runtime-backed commands.
+- Testing intentional command errors through Glazed's Cobra adapter is unsafe in-process because `cobra.CheckErr` exits.
+
+### What was tricky to build
+
+The main sharp edge was testability. The behavior is user-visible as a command flag, but the command execution path exits on errors, so a direct end-to-end panic test would kill `go test`. I split the assertion: Cobra flag exposure is tested at the command schema level, and panic-stack formatting is tested at the runtime factory level where errors are returned normally.
+
+The other subtle point is section ordering and collision handling. The built-in `xgoja` section is inserted before provider sections and passed into providerutil's duplicate-section tracking, so provider-defined sections cannot silently reuse the reserved `xgoja` slug.
+
+### What warrants a second pair of eyes
+
+- Review whether the public flag name should remain `--debug-panic-stack` or be hidden/renamed before release.
+- Confirm that reserving the `xgoja` section slug for framework controls is acceptable for provider authors.
+- Confirm whether generated command help should document the flag as provider-author/debug-only.
+
+### What should be done in the future
+
+- Consider adding an explicit docs note to the provider-author guide once the final CLI UX is accepted.
+- Consider an environment-variable example for enabling the same Glazed field if provider authors commonly need it in generated binaries.
+
+### Code review instructions
+
+- Review:
+  - `go-go-goja/pkg/xgoja/app/xgoja_section.go`
+  - `go-go-goja/pkg/xgoja/app/module_sections.go`
+  - `go-go-goja/pkg/xgoja/app/factory.go`
+  - `go-go-goja/pkg/xgoja/app/xgoja_section_test.go`
+  - `go-go-goja/pkg/xgoja/app/module_sections_test.go`
+- Validate with:
+  - `cd go-go-goja && go test ./pkg/xgoja/app ./pkg/engine ./pkg/runtimeowner -count=1`
+  - `cd go-go-goja && go test ./cmd/xgoja/... ./pkg/xgoja/app -count=1`
+
+### Technical details
+
+The new field lives in the framework xgoja section:
+
+```go
+const xgojaSectionSlug = "xgoja"
+const xgojaDebugPanicStackField = "debug-panic-stack"
+```
+
+Runtime construction reads the parsed field and forwards it to the engine builder:
+
+```go
+includePanicStack, err := includeRecoveredPanicStack(vals)
+if err != nil {
+    return nil, err
+}
+builder := engine.NewRuntimeFactoryBuilder(
+    engine.WithImplicitDefaultRegistryModules(false),
+    engine.WithDataOnlyDefaultRegistryModules(false),
+    engine.WithRecoveredPanicStack(includePanicStack),
 )
 ```
