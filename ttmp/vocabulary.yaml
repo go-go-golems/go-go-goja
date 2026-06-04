@@ -105,6 +105,10 @@ topics:
       description: Provider capability interfaces and lifecycle hooks
     - slug: config
       description: Configuration parsing, layering, and runtime config patches
+    - slug: flags
+      description: Command-line flag parsing, exposure, and precedence behavior
+    - slug: research
+      description: Research notes, source evaluation, and investigation logs
 docTypes:
     - slug: index
       description: Index document for a ticket

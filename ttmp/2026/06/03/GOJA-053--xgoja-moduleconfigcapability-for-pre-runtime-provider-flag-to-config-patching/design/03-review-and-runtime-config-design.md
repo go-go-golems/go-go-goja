@@ -34,6 +34,10 @@ RelatedFiles:
       Note: |-
         Shared section collection and runtime-initializer traversal patterns.
         Existing capability traversal pattern and proposed patch helper location
+    - Path: pinocchio/cmd/pinocchio/cmds/js.go
+      Note: Pinocchio JS command shows turns-dsn/turns-db settings pattern
+    - Path: pinocchio/cmd/pinocchio/doc/general/05-js-runner-scripts.md
+      Note: Pinocchio documentation for turn-store flags used to simplify Geppetto design
 ExternalSources:
     - https://github.com/go-go-golems/go-go-goja/issues/52
 Summary: Critical review of the existing GOJA-053 design docs plus an intern-ready design and implementation guide for passing parsed Glazed section values into xgoja module config before Module.New.
@@ -41,6 +45,7 @@ LastUpdated: 2026-06-03T00:00:00Z
 WhatFor: Use when implementing or reviewing ModuleConfigCapability, NewRuntimeFromSections, Geppetto config flags, or future xgoja plugin/codegen extension points.
 WhenToUse: Before changing xgoja provider capabilities, runtime factory APIs, provider-owned command runtime creation, or Glazed config-to-module-config mapping.
 ---
+
 
 
 # Review and Design: Glazed Section Values as Pre-Runtime xgoja Module Config
@@ -53,7 +58,7 @@ The prior design is useful and close to implementable, but it has several review
 
 - It deduplicates `ModuleConfigCapability` by package/capability, which is correct for section collection and runtime initializers but wrong for per-module config patches. A runtime can contain the same package more than once under different aliases, and each selected module instance needs a chance to receive its own patch.
 - It under-specifies zero/default handling. Glazed values include defaults, config-file values, env values, args, and Cobra flag values; a simple `DecodeSectionInto` cannot tell whether `false` means “user explicitly disabled this” or “default false was applied.” The implementation must inspect `fields.FieldValue.Log` sources or provide a helper that does so.
-- It alternates between `map[string]any`, `json.RawMessage`, and typed structs without choosing one stable public contract. The smallest viable API can return `map[string]any`, but the design should still provide typed helpers so provider authors do not hand-write fragile maps.
+- It alternates between `map[string]any`, `json.RawMessage`, and typed structs without choosing one stable public contract. The revised recommendation is a `ModuleConfigPatch` wrapper: JSON config keys plus optional Glazed provenance.
 - It proposes extending `providerapi.RuntimeFactory` directly. That may be acceptable inside this worktree, but it is source-breaking for any external command provider implementation. A safer first release is to add an optional extended interface plus a helper, then promote it when the ecosystem is ready.
 - Its plugin/code-generation exploration is directionally useful but not anchored tightly enough to the immediate capability. The right influence from future plugin/codegen targets is: make the new hook pure, typed, serializable, and phase-explicit, but do not introduce a plugin manager or codegen IR to solve this ticket.
 
@@ -66,8 +71,15 @@ The minimum implementation sequence is:
 3. Add `RuntimeFactory.NewRuntimeFromSections(ctx, profile, vals, opts...)` in `pkg/xgoja/app/factory.go`.
 4. Update built-in `eval`, `run`, TUI `repl`, and `jsverbs` paths to call the new factory before running existing runtime initializers.
 5. Add a helper for typed patch construction that only emits fields whose last non-default source is `cobra`, `arguments`, `env`, or `config`.
-6. Implement Geppetto’s section and module-config patch capability using `json` keys expected by its existing `Config` struct.
+6. Simplify Geppetto config to profile/default-profile plus explicit turn-store flags such as `--turns-dsn` / `--turns-db`; remove the extra `allowRegistryLoad`, `allowNetwork`, `allowTools`, `enableStorage`, and nested `turns` gates from the proposed Geppetto config surface.
 7. Add tests for per-alias behavior, zero/default behavior, config precedence, no spec mutation, built-in commands, and provider-owned command sets.
+
+### Follow-up revision from review discussion
+
+After follow-up review, the design should be simplified in two important ways:
+
+1. **Geppetto should not carry extra allow-gate config in this capability.** The xgoja Geppetto module config should not grow `allowRegistryLoad`, `allowNetwork`, `allowTools`, `enableStorage`, or nested `turns`. Turn storage should look like the Pinocchio/Geppetto command-line tools: explicit flags such as `--turns-dsn` and `--turns-db` opt into a turn store. The absence of these flags means no storage.
+2. **The return type should be reconsidered.** Raw `values.Values` is not the right return type because it is section/flag-name-oriented, not module-config-key-oriented. But the instinct is correct: we should preserve value provenance. A better public return type is a small `ModuleConfigPatch` wrapper whose keys are module JSON config keys and whose values carry both `Value any` and the original Glazed `FieldValue` log/provenance when available.
 
 ---
 
@@ -100,7 +112,7 @@ Glazed values.Values
   → too late for Module.New
 ```
 
-This matters for Geppetto. The Geppetto provider decodes config and constructs module options inside `Module.New` (`geppetto/pkg/js/modules/geppetto/provider/provider.go:82-101`). Its profile registries and default profile are config-time inputs (`provider.go:17-25`, `provider.go:154-180`), not post-runtime side effects.
+This matters for Geppetto. The Geppetto provider decodes config and constructs module options inside `Module.New` (`geppetto/pkg/js/modules/geppetto/provider/provider.go:82-101`). Its profile registries and default profile are config-time inputs (`provider.go:17-25`, `provider.go:154-180`), not post-runtime side effects. The revised design keeps the Geppetto surface narrow: profile registry/default-profile settings plus explicit turn-store flags such as `turns-dsn` / `turns-db`; it does not keep the earlier allow-gate booleans or nested `turns` config object.
 
 ### 1.2 Key terms
 
@@ -249,12 +261,12 @@ The design notes that zero-value patching can override YAML config accidentally 
 Glazed already records parse-source history in `FieldValue.Log`. The implementation should use that instead of trying to infer intent from Go zero values. This is especially important for booleans:
 
 ```yaml
-# xgoja.yaml
+# xgoja.yaml for some provider with an enable/disable boolean
 config:
-  allowNetwork: true
+  enabled: true
 ```
 
-If a Glazed field has default `false`, decoding into `AllowNetwork bool` and blindly marshaling the struct can overwrite `allowNetwork: true` with `false` even though the user did not pass a flag.
+If a Glazed field has default `false`, decoding into `Enabled bool` and blindly marshaling the struct can overwrite `enabled: true` with `false` even though the user did not pass a flag.
 
 #### 3.2.3 It underplays command-provider compatibility
 
@@ -273,15 +285,15 @@ Then provide `providerutil.NewRuntimeFromSections(...)` that type-asserts the ex
 
 #### 3.2.4 It treats `json.RawMessage` as cleaner than it really is
 
-The design suggests returning `json.RawMessage` as a better API (`design/01-module-config-capability.md:647-666`, `728-782`). That is a good instinct for provider-local typing, but the app still must merge JSON objects. If the public hook returns bytes, app code must unmarshal them, validate that the patch is an object, deep-merge it, and marshal again. The `map[string]any` return is not beautiful, but it makes merge semantics explicit.
+The design suggests returning `json.RawMessage` as a better API (`design/01-module-config-capability.md:647-666`, `728-782`). That is a good instinct for provider-local typing, but the app still must merge JSON objects. If the public hook returns bytes, app code must unmarshal them, validate that the patch is an object, deep-merge it, and marshal again. Raw `values.Values` has the opposite problem: it preserves provenance but remains in section/field-key space instead of module-config-key space.
 
-The better solution is not “raw bytes instead of maps”; it is “typed provider helpers that produce a JSON-object patch map and source-aware omission semantics.”
+The better solution is a middle path: typed provider helpers that produce a `ModuleConfigPatch` with JSON config keys, JSON-compatible values, and copied Glazed provenance for fields that came from `values.Values`.
 
-#### 3.2.5 The Geppetto sketch misses existing config fields and gates
+#### 3.2.5 The Geppetto sketch carried too much config surface
 
-The Geppetto provider config has more than profile registries and default profile. It includes `profile`, `allowRegistryLoad`, `allowNetwork`, `allowTools`, `enableStorage`, and nested `turns` (`geppetto/provider/provider.go:17-34`). The prior sketch focuses only on registry/default/network fields (`design/01-module-config-capability.md:1040-1063`). That is fine for a first capability, but the document should state why `allowTools`, `enableStorage`, and `turns` are out of scope or how they will be handled later.
+The prior sketch tried to account for the current Geppetto provider config shape, including `allowRegistryLoad`, `allowNetwork`, `allowTools`, `enableStorage`, and nested `turns` (`geppetto/provider/provider.go:17-34`). Follow-up review makes that unnecessary and undesirable for this capability. The better direction is to simplify the Geppetto provider config itself: keep profile registry/default-profile inputs, and expose turn storage with concrete command-style flags such as `--turns-dsn` and `--turns-db`, matching Pinocchio's JS runner documentation (`pinocchio/cmd/pinocchio/doc/general/05-js-runner-scripts.md:60-148`) and command settings (`pinocchio/cmd/pinocchio/cmds/js.go:53-104`).
 
-It also sets `allowRegistryLoad` only when registries are present (`design/01-module-config-capability.md:1053-1056`). That may be acceptable, but it means an explicit `--geppetto-allow-registry-load=false` cannot clear YAML. The design needs a policy for clearing booleans and arrays.
+That simplification removes most boolean-clearing complexity from the Geppetto case. The generic capability still needs source-aware default handling because other providers may legitimately have booleans, but Geppetto should not use this feature as a dumping ground for broad safety gates.
 
 #### 3.2.6 The plugin/codegen exploration is too detached from the immediate API
 
@@ -301,7 +313,7 @@ The actionable influence is:
 4. **Nil and missing section behavior.** `DecodeSectionInto` returns an error when a non-default section is absent (`glazed/values/section-values.go:256-260`). The capability/helper should treat absent sections as no patch when appropriate.
 5. **Command-provider migration.** Provider-owned commands need a safe pattern, not just built-in command changes.
 6. **Documentation updates.** `cmd/xgoja/doc/04-tutorial-providing-package-and-modules.md` and `cmd/xgoja/doc/05-tutorial-providing-commands.md` need updates, otherwise new providers will keep using only runtime initializers.
-7. **Security posture.** Geppetto and host modules gate risky behavior (`allowRegistryLoad`, `allowNetwork`, `allowTools`, `enableStorage`). Runtime flags that influence module construction must not silently weaken explicit static policy.
+7. **Scope discipline for provider config.** Geppetto should avoid broad allow-gate booleans in this hook. Runtime flags should map to concrete user intent, such as profile selection or turn-store DSNs, rather than weakening static policy implicitly.
 8. **Compile-checkable pseudocode.** Several snippets are good conceptually but would not compile as written or omit required imports/helpers. Intern-facing implementation guides need code that is closer to pasteable.
 9. **Doc quality issues in architecture doc.** It contains syntax/formatting errors such as an unterminated bold phrase at `design/02...md:53`, malformed code snippets (`design/02...md:88`), duplicate heading numbering (`3.2` twice), and typo `proposeded` (`design/02...md:224`).
 
@@ -374,26 +386,21 @@ Cobra/Glazed parse args/env/config/defaults
 
 ### 4.3 Public capability interface
 
-The minimal version can be:
-
-```go
-type ModuleConfigCapability interface {
-    PackageCapability
-
-    ModuleConfigFromSections(
-        ctx context.Context,
-        vals *values.Values,
-        descriptor ModuleDescriptor,
-    ) (map[string]any, error)
-}
-```
-
-For a nicer long-lived API, I recommend a request struct:
+A stronger long-lived API uses a request struct and a config-patch wrapper:
 
 ```go
 type ModuleConfigRequest struct {
     SectionContext SectionContext
     Descriptor     ModuleDescriptor
+}
+
+type ModuleConfigPatch struct {
+    Fields map[string]ModuleConfigValue // JSON config key → value + provenance
+}
+
+type ModuleConfigValue struct {
+    Value any
+    Log   []fields.ParseStep // optional Glazed provenance, when value came from a field
 }
 
 type ModuleConfigCapability interface {
@@ -403,41 +410,67 @@ type ModuleConfigCapability interface {
         ctx context.Context,
         vals *values.Values,
         req ModuleConfigRequest,
-    ) (map[string]any, error)
+    ) (*ModuleConfigPatch, error)
 }
 ```
 
-Why the request struct is better:
+Why this is better than returning raw `values.Values`:
 
-- It can grow without breaking method signature: add `CurrentConfig`, `CommandName`, `CommandProviderID`, `RuntimeProfile`, or `InstanceIndex` later.
-- It mirrors `SectionContext` and keeps command-provider metadata available.
-- It is easier to serialize for future plugin protocols.
+- `values.Values` is organized by Glazed section slug and Glazed field names, such as `geppetto.profile-registries`; module config needs JSON config keys such as `profileRegistries`.
+- `values.Values` carries whole command state, including unrelated sections. The return value should be scoped to one module instance.
+- `values.Values` carries useful history, but that history can be copied into `ModuleConfigValue.Log` while still returning a module-config-shaped patch.
+- The app/factory layer still needs a JSON-compatible object to merge into `ModuleInstance.Config`; a patch wrapper can expose `JSONMap()` for that final merge.
 
-If the team wants strict minimalism for this ticket, use the issue’s interface and add `ModuleConfigRequest` later. If the team is willing to choose the cleaner API now, use the request struct.
-
-### 4.4 Patch semantics
-
-A module config patch is a JSON-object-shaped map:
+Generics are useful for provider-local helpers, but not for the registry-facing capability interface. Provider packages are heterogeneous, and the registry stores capabilities behind `PackageCapability`; a generic `ModuleConfigCapability[T]` would not type-assert cleanly across providers. Good generic helpers are still possible:
 
 ```go
-map[string]any{
-    "profileRegistries": []string{"./profiles.yaml"},
-    "defaultProfile": "assistant",
-    "allowRegistryLoad": true,
-}
+func PatchFromSection[T any](vals *values.Values, section string, mapper FieldMapper[T]) (*ModuleConfigPatch, error)
+```
+
+The minimal issue API returning `map[string]any` still works, but if implementing from scratch now, prefer `*ModuleConfigPatch` so provenance is not lost.
+
+### 4.4 What `SectionContext` and `ModuleDescriptor` mean
+
+`SectionContext` answers “why are we asking for provider fields?” It is command metadata: built-in command name, provider-owned command ID, runtime profile, package ID, and module ID. It lets a provider tailor section definitions or config patching to the invocation context without guessing from global state.
+
+`ModuleDescriptor` answers “which concrete module instance are we configuring?” It contains the selected package ID, module ID, alias (`As`), resolved provider module, and package capabilities. In the pre-runtime config phase, this is the unit of scoping. A runtime profile can select the same provider package multiple times under different aliases, so the config patch is not “for Geppetto globally”; it is for this selected `geppetto` module instance.
+
+Conceptually, `ModuleConfigFromSections` merges two value spaces:
+
+```text
+static module values from xgoja.yaml
+    +
+external command/config/env values from Glazed
+    ↓ scoped by runtime profile + module descriptor
+merged module config for this Module.New call
+```
+
+So yes: it is “merging value with values,” but the tricky part is that the two sides live in different namespaces. Static module config uses JSON config keys (`profileRegistries`, `turnsDSN`), while Glazed uses section/field keys (`geppetto.profile-registries`, `geppetto.turns-dsn`) plus source history. The capability is the adapter that maps external section values into the module config namespace.
+
+### 4.5 Patch semantics
+
+A module config patch is a JSON-object-shaped patch with optional provenance:
+
+```go
+&providerapi.ModuleConfigPatch{Fields: map[string]providerapi.ModuleConfigValue{
+    "profileRegistries": {Value: []string{"./profiles.yaml"}, Log: profileRegistriesLog},
+    "defaultProfile":    {Value: "assistant", Log: defaultProfileLog},
+    "turnsDSN":          {Value: "sqlite:///tmp/turns.db", Log: turnsDSNLog},
+}}
 ```
 
 Rules:
 
 - Keys are **JSON config keys**, not Glazed field names.
-- `nil` or empty map means “no patch.”
+- `nil` or an empty patch means “no patch.”
+- The merge layer converts the patch to a plain JSON-compatible map for merging.
 - Patches are merged into a clone of the static `ModuleInstance.Config`.
 - Object values are recursively merged.
 - Scalars and arrays replace the old value.
 - The implementation must not mutate the original spec config map or nested maps.
 - A capability is called for each selected descriptor. It may return nil for descriptors it does not own or should not patch.
 
-### 4.5 Default and explicit-value semantics
+### 4.6 Default and explicit-value semantics
 
 By default, a helper should emit only values whose effective source is not `defaults`.
 
@@ -461,9 +494,9 @@ func WasProvided(fv *fields.FieldValue) bool {
 }
 ```
 
-This lets `--geppetto-allow-network=false` or config-file `allow-network: false` explicitly clear a YAML `allowNetwork: true`, while a schema default `false` does not.
+This lets a provider-specific `--enabled=false` or config-file `enabled: false` explicitly clear a YAML `enabled: true`, while a schema default `false` does not. For Geppetto specifically, the revised design avoids the earlier allow-gate booleans and mostly uses string/list fields such as profile registries and turn-store DSNs.
 
-### 4.6 Provider helper API
+### 4.7 Provider helper API
 
 Add a helper package surface in `providerutil` so provider authors do not hand-write source checks and maps:
 
@@ -471,7 +504,7 @@ Add a helper package surface in `providerutil` so provider authors do not hand-w
 type PatchBuilder struct {
     vals    *values.Values
     section string
-    patch   map[string]any
+    patch   *providerapi.ModuleConfigPatch
 }
 
 func NewPatchBuilder(vals *values.Values, section string) *PatchBuilder
@@ -480,7 +513,7 @@ func (b *PatchBuilder) SetIfProvided(fieldName string, jsonKey string) error
 func (b *PatchBuilder) SetStringIfProvided(fieldName string, jsonKey string) error
 func (b *PatchBuilder) SetStringListIfProvided(fieldName string, jsonKey string) error
 func (b *PatchBuilder) SetBoolIfProvided(fieldName string, jsonKey string) error
-func (b *PatchBuilder) Patch() map[string]any
+func (b *PatchBuilder) Patch() *providerapi.ModuleConfigPatch
 ```
 
 Pseudocode:
@@ -498,14 +531,14 @@ func (b *PatchBuilder) SetIfProvided(fieldName, jsonKey string) error {
     if err != nil {
         return fmt.Errorf("read %s.%s: %w", b.section, fieldName, err)
     }
-    b.patch[jsonKey] = v
+    b.patch.Fields[jsonKey] = providerapi.ModuleConfigValue{Value: v, Log: append([]fields.ParseStep(nil), fv.Log...)}
     return nil
 }
 ```
 
 This helper is intentionally boring. It keeps provider code explicit, preserves source semantics, and avoids reflection-heavy “magic” while still preventing typo-prone map assembly.
 
-### 4.7 Runtime factory API
+### 4.8 Runtime factory API
 
 Add a concrete method to `app.RuntimeFactory`:
 
@@ -596,23 +629,37 @@ You should be able to answer these before editing:
 In `pkg/xgoja/providerapi/capabilities.go`, add:
 
 ```go
+// ModuleConfigRequest identifies why config patching is happening and which
+// selected module instance is being patched.
+type ModuleConfigRequest struct {
+    SectionContext SectionContext
+    Descriptor     ModuleDescriptor
+}
+
+// ModuleConfigPatch is a JSON-config-keyed patch plus optional provenance.
+type ModuleConfigPatch struct {
+    Fields map[string]ModuleConfigValue
+}
+
+type ModuleConfigValue struct {
+    Value any
+    Log   []fields.ParseStep
+}
+
 // ModuleConfigCapability lets a provider convert parsed Glazed section values
 // into a JSON-object-shaped config patch before Module.New is called.
-//
-// The returned map uses provider JSON config keys, not Glazed field names.
-// Return nil or an empty map when no patch is needed.
 type ModuleConfigCapability interface {
     PackageCapability
 
     ModuleConfigFromSections(
         context.Context,
         *values.Values,
-        ModuleDescriptor,
-    ) (map[string]any, error)
+        ModuleConfigRequest,
+    ) (*ModuleConfigPatch, error)
 }
 ```
 
-If using the request-struct variant, define `ModuleConfigRequest` next to `SectionContext` and `ModuleDescriptor`.
+Define `ModuleConfigRequest` next to `SectionContext` and `ModuleDescriptor`, because it is the pre-runtime sibling of section collection context.
 
 ### Phase 2: Add patch collection helper
 
@@ -627,15 +674,15 @@ func ModuleConfigPatchesFromSections(
     ctx context.Context,
     vals *values.Values,
     descriptors []providerapi.ModuleDescriptor,
-) (map[string]map[string]any, error) {
-    patches := map[string]map[string]any{}
+) (map[string]*providerapi.ModuleConfigPatch, error) {
+    patches := map[string]*providerapi.ModuleConfigPatch{}
 
     if vals == nil {
         return patches, nil
     }
 
     for _, descriptor := range descriptors {
-        merged := map[string]any{}
+        merged := providerapi.NewModuleConfigPatch()
 
         for _, capability := range descriptor.PackageCapabilities {
             configCap, ok := capability.(providerapi.ModuleConfigCapability)
@@ -643,7 +690,7 @@ func ModuleConfigPatchesFromSections(
                 continue
             }
 
-            partial, err := configCap.ModuleConfigFromSections(ctx, vals, descriptor)
+            partial, err := configCap.ModuleConfigFromSections(ctx, vals, providerapi.ModuleConfigRequest{Descriptor: descriptor})
             if err != nil {
                 return nil, fmt.Errorf(
                     "module config from sections for %s.%s as %s capability %s: %w",
@@ -654,10 +701,10 @@ func ModuleConfigPatchesFromSections(
                     err,
                 )
             }
-            DeepMergeJSONObjects(merged, partial)
+            merged.Merge(partial)
         }
 
-        if len(merged) > 0 {
+        if !merged.Empty() {
             patches[descriptor.As] = merged
         }
     }
@@ -762,7 +809,7 @@ func (f *RuntimeFactory) NewRuntimeFromSections(
 
         config := cloneJSONMap(instance.Config)
         if patch, ok := patches[instance.Alias()]; ok {
-            DeepMergeJSONObjects(config, patch)
+            DeepMergeJSONObjects(config, patch.JSONMap())
         }
 
         patched := instance
@@ -843,14 +890,10 @@ Suggested fields for v1:
 
 - `profile-registries` → `profileRegistries`
 - `default-profile` → `defaultProfile`
-- `allow-registry-load` → `allowRegistryLoad`
-- `allow-network` → `allowNetwork`
+- `turns-dsn` → `turnsDSN`
+- `turns-db` → `turnsDB`
 
-Optional later fields:
-
-- `allow-tools` → `allowTools`
-- `enable-storage` → `enableStorage`
-- `turns-dsn`, `turns-db`, `turns-default`, `turns-phase`, `turns-readonly` → nested `turns`
+Do **not** add `allow-registry-load`, `allow-network`, `allow-tools`, `enable-storage`, or nested `turns` config for this capability. If turn storage is requested, the presence of `turns-dsn` or `turns-db` is the opt-in, matching Pinocchio's `js` command flags.
 
 Geppetto capability pseudocode:
 
@@ -866,8 +909,9 @@ func (capability) ConfigSections(providerapi.SectionContext) ([]schema.Section, 
 func (capability) ModuleConfigFromSections(
     ctx context.Context,
     vals *values.Values,
-    descriptor providerapi.ModuleDescriptor,
-) (map[string]any, error) {
+    req providerapi.ModuleConfigRequest,
+) (*providerapi.ModuleConfigPatch, error) {
+    descriptor := req.Descriptor
     if descriptor.PackageID != PackageID || descriptor.ModuleID != geppettomodule.ModuleName {
         return nil, nil
     }
@@ -875,8 +919,8 @@ func (capability) ModuleConfigFromSections(
     b := providerutil.NewPatchBuilder(vals, "geppetto")
     if err := b.SetStringListIfProvided("profile-registries", "profileRegistries"); err != nil { return nil, err }
     if err := b.SetStringIfProvided("default-profile", "defaultProfile"); err != nil { return nil, err }
-    if err := b.SetBoolIfProvided("allow-registry-load", "allowRegistryLoad"); err != nil { return nil, err }
-    if err := b.SetBoolIfProvided("allow-network", "allowNetwork"); err != nil { return nil, err }
+    if err := b.SetStringIfProvided("turns-dsn", "turnsDSN"); err != nil { return nil, err }
+    if err := b.SetStringIfProvided("turns-db", "turnsDB"); err != nil { return nil, err }
     return b.Patch(), nil
 }
 ```
@@ -947,8 +991,8 @@ Update or add tests next to existing module-section tests:
 Add tests in `geppetto/pkg/js/modules/geppetto/provider/provider_test.go`:
 
 1. CLI/config field patch populates `profileRegistries` and `defaultProfile` before `decodeConfig`.
-2. `allowRegistryLoad` gate still blocks registry loading unless explicitly set.
-3. Default `allowNetwork=false` does not clear static `allowNetwork=true` unless the user/config explicitly sets false.
+2. `turns-dsn` and `turns-db` patch the simplified Geppetto config before `Module.New`.
+3. Absence of turn-store flags leaves storage disabled without requiring an `enableStorage` gate.
 4. String and string-list registry values behave consistently with `decodeSourceEntries`.
 
 ---
@@ -973,13 +1017,22 @@ Add tests in `geppetto/pkg/js/modules/geppetto/provider/provider_test.go`:
 - **Consequences:** Provider capability methods must be side-effect-light and idempotent.
 - **Status:** proposed.
 
-### Decision: Use map patches for v1, with typed/source-aware helpers
+### Decision: Use a ModuleConfigPatch wrapper instead of raw values.Values
 
-- **Context:** `ModuleInstance.Config` is already a `map[string]any`; `ModuleContext.Config` is JSON bytes.
-- **Options considered:** Return `map[string]any`; return `json.RawMessage`; return a generic typed patch.
-- **Decision:** Use `map[string]any` for v1 but provide `PatchBuilder` helpers.
-- **Rationale:** The app must merge object-shaped config anyway. Helpers reduce provider-side map fragility.
-- **Consequences:** Public docs must be clear that keys are JSON keys and values must be JSON-compatible.
+- **Context:** `ModuleInstance.Config` is JSON-object-shaped, while Glazed `values.Values` is section/field-shaped and carries parse history.
+- **Options considered:** Return `map[string]any`; return `json.RawMessage`; return raw `*values.Values`; return a custom `ModuleConfigPatch` with value provenance; use a generic capability interface.
+- **Decision:** Prefer `ModuleConfigPatch` (`JSON key → value + optional FieldValue log`) for the capability return type. Keep generics for provider-local helpers, not the registry-facing interface.
+- **Rationale:** This keeps the returned patch scoped to one module instance and in module-config key space while preserving useful Glazed provenance.
+- **Consequences:** The merge layer needs a `JSONMap()` conversion, and docs must be clear that raw command `values.Values` is input/provenance, not the module-config return representation.
+- **Status:** proposed.
+
+### Decision: Simplify Geppetto config to profile and turn-store inputs
+
+- **Context:** The earlier Geppetto sketch included broad gates and nested storage config.
+- **Options considered:** Keep `allowRegistryLoad`/`allowNetwork`/`allowTools`/`enableStorage`/nested `turns`; move turn storage to explicit flags; keep only profile registry/default-profile.
+- **Decision:** Remove the broad gates from this capability and represent storage with concrete flags such as `turns-dsn` / `turns-db`.
+- **Rationale:** Pinocchio already uses this shape, and presence of a DSN/DB is a clear opt-in without extra booleans.
+- **Consequences:** The Geppetto provider config and tests should be simplified before or alongside implementing the xgoja capability.
 - **Status:** proposed.
 
 ### Decision: Use Glazed field logs to avoid accidental default overrides

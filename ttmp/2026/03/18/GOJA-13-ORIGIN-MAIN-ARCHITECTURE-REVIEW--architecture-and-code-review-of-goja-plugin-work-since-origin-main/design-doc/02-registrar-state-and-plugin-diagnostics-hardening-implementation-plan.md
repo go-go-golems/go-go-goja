@@ -122,7 +122,7 @@ This is intentionally small and specific. It is not a generic service container.
 
 ### Part 2: Install a runtime-owned cancellation context
 
-Create a root context for each owned runtime in [`Factory.NewRuntime`](../../../../../../engine/factory.go):
+Create a root context for each owned runtime in [`Factory.NewRuntime`](../../../../../../pkg/engine/factory.go):
 
 ```go
 runtimeCtx, runtimeCtxCancel := context.WithCancel(context.Background())
