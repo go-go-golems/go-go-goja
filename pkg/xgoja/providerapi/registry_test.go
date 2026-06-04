@@ -144,7 +144,9 @@ type testCapability struct {
 
 func (c testCapability) CapabilityID() string { return c.id }
 
-func (c testCapability) ConfigSections(SectionRequest) ([]schema.Section, error) { return nil, nil }
+func (c testCapability) GlazedConfigSections(SectionRequest) ([]schema.Section, error) {
+	return nil, nil
+}
 
 func (c testCapability) InitRuntimeFromSections(context.Context, *values.Values, RuntimeInitializerHandle) error {
 	return nil
@@ -155,6 +157,6 @@ func TestCapabilityInterfaces(t *testing.T) {
 	if capability.CapabilityID() != "settings" {
 		t.Fatalf("capability id = %q", capability.CapabilityID())
 	}
-	var _ ConfigSectionCapability = testCapability{}
+	var _ GlazedConfigSectionCapability = testCapability{}
 	var _ RuntimeInitializerCapability = testCapability{}
 }

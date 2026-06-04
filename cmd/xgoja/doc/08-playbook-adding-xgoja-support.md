@@ -189,7 +189,7 @@ type httpCapability struct{}
 
 func (c *httpCapability) CapabilityID() string { return "my-repo.http" }
 
-func (c *httpCapability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
+func (c *httpCapability) GlazedConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
     section, err := schema.NewSection(
         "my-http",
         "HTTP",

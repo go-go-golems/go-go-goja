@@ -21,6 +21,7 @@ RelatedFiles:
         RuntimeInitializerHandle glossary updated
         Glossary updated with engine runtime factory and registration names
         Glossary updated for final constructor and handle names
+        Capability split glossary update
     - Path: go-go-goja/README.md
       Note: Root package layout docs updated for pkg/engine
     - Path: go-go-goja/cmd/xgoja/cmd_list_modules.go
@@ -64,6 +65,9 @@ RelatedFiles:
         Calls module NewModuleFactory with ModuleSetupContext
         xgoja runtime factory imports pkg/engine
         xgoja engine registrar adapter updated
+        NewRuntimeFromSections applies config before module setup
+    - Path: go-go-goja/pkg/xgoja/app/factory_config_sections_test.go
+      Note: Runtime config mapping tests
     - Path: go-go-goja/pkg/xgoja/app/host.go
       Note: |-
         Host field renamed to RuntimeSpec
@@ -83,6 +87,7 @@ RelatedFiles:
         SectionRequest and RuntimeInitializerHandle definitions
         RuntimeInitializerHandle now exposes engine.Runtime
         EngineRuntime handle method and RuntimeCloserRegistry removal
+        GlazedConfigSectionCapability and XGojaConfigSectionCapability contracts
     - Path: go-go-goja/pkg/xgoja/providerapi/commands.go
       Note: |-
         CommandSetContext now carries ProviderRegistry
@@ -107,14 +112,18 @@ RelatedFiles:
       Note: |-
         Uses SectionRequest and RuntimeInitializerHandle
         Validates runtime initializer handle
+        SectionValues parse/merge/JSON helpers
     - Path: go-go-goja/pkg/xgoja/testprovider/provider.go
       Note: Fixture initializer uses handle Runtime().VM
+    - Path: go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/tasks.md
+      Note: Updated phased implementation task list
 ExternalSources: []
 Summary: 'Diary for the first symbol-name simplification: buildspec runtime/module/command-provider DTOs now use explicit *Spec names.'
 LastUpdated: 2026-06-04T00:00:00Z
 WhatFor: Use when reviewing the focused commit that renamed buildspec DTO types to make the *Spec pattern explicit.
 WhenToUse: Before continuing generic-symbol cleanup or renaming runtime profile DTOs in the app runtime spec.
 ---
+
 
 
 
@@ -909,4 +918,93 @@ providerapi.NewProviderRegistry()
 providerapi.CommandSetProvider.NewCommandSet func(CommandSetContext) (*CommandSet, error)
 providerapi.RuntimeInitializerHandle.EngineRuntime() *engine.Runtime
 handle.EngineRuntime().AddCloser(...)
+```
+
+## Step 11: Add Glazed and xgoja Config Section Capabilities
+
+I implemented the first runtime config feature slice in go-go-goja. The public command/config/env section capability is now named `GlazedConfigSectionCapability`, and providers can separately expose internal module configuration through `XGojaConfigSectionCapability`. Runtime creation can now receive parsed Glazed values and map them into internal module config before `Module.NewModuleFactory` runs.
+
+This keeps the two value spaces separate: user-facing Glazed sections are attached to commands, while internal xgoja module config sections are only used to parse and merge module config for setup. Providers own the mapping between those two spaces.
+
+### Prompt Context
+
+**User prompt (verbatim):** "use XGojaConfigSectionCapability and GlazedConfigSectionCapability actually. make a detailed list of tasks in the tasks.md if not already present, then implement step by step, keeping a diary as you, committing appropriate intervals. 
+
+also Remove the Profiel / AllowRegistryLoad / Netowrk/Tools/EnableStorage / Turns from the Config and rename ProfileREgistries to DefaultProfileREgistries in geppetto."
+
+**Assistant interpretation:** Start by formalizing the task list, then implement the xgoja capability naming/config-mapping slice before moving on to Geppetto provider config cleanup.
+
+**Inferred user intent:** Land the runtime config feature incrementally with clear checkpoints and prepare Geppetto to use the new provider-owned mapping model.
+
+**Commit (code):** pending at diary write time.
+
+### What I did
+
+- Replaced `ConfigSectionCapability` with `GlazedConfigSectionCapability` and renamed the method to `GlazedConfigSections`.
+- Added `providerapi.XGojaConfigSectionCapability` and `providerapi.XGojaConfigRequest`.
+- Added providerutil helpers:
+  - `ParseXGojaConfigMap`
+  - `MergeSectionValues`
+  - `SectionValuesToRawJSON`
+- Added `RuntimeFactory.NewRuntimeFromSections(ctx, profile, vals, opts...)`.
+- Kept `RuntimeFactory.NewRuntime(ctx, profile, opts...)` as the static-config path by delegating to `NewRuntimeFromSections` with nil values.
+- Updated eval, run, TUI, and jsverbs runtime creation paths to pass parsed Glazed values into runtime creation before runtime initializers execute.
+- Extended `providerapi.RuntimeFactory` with `NewRuntimeFromSections` so provider-owned commands can opt in.
+- Added tests proving Glazed values patch module setup config before `NewModuleFactory` and that repeated provider modules under different aliases receive independent config.
+- Updated `tasks.md` with a phase-by-phase task list and moved completed xgoja-side items to DONE.
+- Updated `GLOSSARY.md` with the new capability names.
+- Ran focused validation:
+  - `go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`
+  - `go test ./pkg/xgoja/app ./pkg/xgoja/providerutil ./pkg/xgoja/providerapi -count=1`
+
+### Why
+
+The old `ConfigSectionCapability` name did not distinguish public command flags from internal module config. The new names make the data flow explicit: `GlazedConfigSectionCapability` exposes public input, while `XGojaConfigSectionCapability` owns the provider-specific internal config section and mapping into module setup config.
+
+### What worked
+
+- The existing Glazed `SectionValues` representation was sufficient for static config parsing, override merging, and final JSON conversion.
+- Adding `NewRuntimeFromSections` let built-in commands patch config before module setup without disturbing the older static-only `NewRuntime` path.
+
+### What didn't work
+
+- N/A for this slice.
+
+### What I learned
+
+- Runtime config mapping belongs inside runtime construction, not runtime initialization, because provider module factories need the final config while creating their CommonJS loaders.
+
+### What was tricky to build
+
+The main invariant was avoiding package-level dedupe for config mapping. Section collection and runtime initialization can dedupe package capabilities, but config mapping must run for every selected module instance so the same provider package can appear twice under different aliases and receive different setup config.
+
+### What warrants a second pair of eyes
+
+- Confirm whether `XGojaConfigSectionCapability` should keep both section exposure and Glazed-to-internal mapping methods, or whether the mapping method should be split into a separately named capability later.
+- Review whether static config parsing should initialize internal section defaults or continue preserving only explicitly configured fields.
+
+### What should be done in the future
+
+- Add providerutil unit tests for the helper functions directly.
+- Update provider author docs for the new capability split.
+- Implement Geppetto provider config simplification and capability mapping next.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/providerapi/capabilities.go` for the new capability contracts.
+- Then review `pkg/xgoja/app/factory.go` for config parsing/mapping before module registration.
+- Review `pkg/xgoja/providerutil/sections.go` for SectionValues helpers.
+- Review `pkg/xgoja/app/factory_config_sections_test.go` for behavior expectations.
+- Validate with `cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`.
+
+### Technical details
+
+The intended flow is now:
+
+```text
+Glazed command sections -> parsed values.Values
+xgoja.yaml module config -> XGojaConfigSectionCapability -> static SectionValues
+provider maps values.Values -> override SectionValues
+static SectionValues + override SectionValues -> final json.RawMessage
+Module.NewModuleFactory(ModuleSetupContext{Config: finalConfig})
 ```

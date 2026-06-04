@@ -9,6 +9,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
@@ -17,6 +18,7 @@ import (
 // those commands to run JavaScript with xgoja-selected modules.
 type RuntimeFactory interface {
 	NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*engine.Runtime, error)
+	NewRuntimeFromSections(ctx context.Context, profile string, vals *values.Values, opts ...require.Option) (*engine.Runtime, error)
 }
 
 // CommandSetContext is passed to command set providers when generated xgoja

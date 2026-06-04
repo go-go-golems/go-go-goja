@@ -42,7 +42,7 @@ func (f *RuntimeFactory) sectionsForRuntimeProfile(commandName, profile string) 
 	if err != nil {
 		return nil, nil, err
 	}
-	sections, err := providerutil.CollectConfigSections(descriptors, providerapi.SectionRequest{
+	sections, err := providerutil.CollectGlazedConfigSections(descriptors, providerapi.SectionRequest{
 		CommandName:    commandName,
 		RuntimeProfile: profile,
 	}, nil)

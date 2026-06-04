@@ -66,7 +66,7 @@ The generated binary will expose commands under the mount path, for example `xap
 When `runtimeProfile` is set, `CommandSetContext.SelectedModules` contains the selected module descriptors for that runtime. If the command should expose the same provider flags as built-in commands, use `providerutil.CollectConfigSections` and attach the sections to the returned Glazed command descriptions.
 
 ```go
-sections, err := providerutil.CollectConfigSections(
+sections, err := providerutil.CollectGlazedConfigSections(
     c.SelectedModules,
     providerapi.SectionRequest{CommandProviderID: c.Name, RuntimeProfile: c.RuntimeProfile},
     map[string]string{schema.DefaultSlug: "command schema"},

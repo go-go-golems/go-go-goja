@@ -154,7 +154,8 @@ Capabilities are optional provider package extensions. They are package-scoped t
 Current precise names:
 
 - `providerapi.PackageCapability`: marker interface for package-level optional capabilities.
-- `providerapi.ConfigSectionCapability`: current name for exposing Glazed sections that can be attached to commands. This is intentionally scheduled for a future rename when runtime module configuration is implemented.
+- `providerapi.GlazedConfigSectionCapability`: exposes public Glazed sections that can be attached to commands and parsed from CLI/config/env values.
+- `providerapi.XGojaConfigSectionCapability`: exposes internal xgoja module config sections and maps parsed public Glazed values into internal `values.SectionValues` overrides before module setup.
 - `providerapi.RuntimeInitializerCapability`: capability that initializes an already-created runtime from parsed Glazed values.
 - `providerapi.RuntimeInitializerHandle`: limited handle passed to runtime initializer capabilities.
 - `providerapi.RuntimeInitializerHandle.EngineRuntime()`: access to the owned `*engine.Runtime`.
@@ -167,9 +168,7 @@ Avoid:
 - `RuntimeCloserRegistry`: cleanup registration is available through `handle.EngineRuntime().AddCloser(...)`.
 - `SectionContext`: request metadata is not a runtime context.
 
-Planned follow-up:
-
-- Rename `ConfigSectionCapability` when implementing module-specific runtime flags, likely to a public-command/CLI-oriented name such as `CommandLineFlagsSectionCapability`, and introduce a separate internal module config capability if needed.
+Use `GlazedConfigSectionCapability` for user-facing command/config/env values and `XGojaConfigSectionCapability` for internal module config. Do not expose internal xgoja module config sections as CLI flags unless the provider explicitly maps public fields into them.
 
 ## Provider command-set pattern
 

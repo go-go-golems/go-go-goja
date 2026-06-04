@@ -105,7 +105,7 @@ func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory,
 	if err != nil {
 		return fmt.Errorf("resolve module roots from script %q: %w", scriptPath, err)
 	}
-	rt, err := factory.NewRuntime(ctx, profile, requireOpt)
+	rt, err := factory.NewRuntimeFromSections(ctx, profile, vals, requireOpt)
 	if err != nil {
 		return fmt.Errorf("create runtime: %w", err)
 	}

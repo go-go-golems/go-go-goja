@@ -2,9 +2,11 @@ package providerutil
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
@@ -14,7 +16,7 @@ import (
 // attached to selected module descriptors. The supplied base context is copied
 // for each descriptor and enriched with PackageID and ModuleID before calling
 // the provider capability.
-func CollectConfigSections(descriptors []providerapi.ModuleDescriptor, base providerapi.SectionRequest, seen map[string]string) ([]schema.Section, error) {
+func CollectGlazedConfigSections(descriptors []providerapi.ModuleDescriptor, base providerapi.SectionRequest, seen map[string]string) ([]schema.Section, error) {
 	sections := []schema.Section{}
 	if seen == nil {
 		seen = map[string]string{}
@@ -22,7 +24,7 @@ func CollectConfigSections(descriptors []providerapi.ModuleDescriptor, base prov
 	applied := map[string]struct{}{}
 	for _, descriptor := range descriptors {
 		for _, capability := range descriptor.PackageCapabilities {
-			sectionCapability, ok := capability.(providerapi.ConfigSectionCapability)
+			sectionCapability, ok := capability.(providerapi.GlazedConfigSectionCapability)
 			if !ok {
 				continue
 			}
@@ -35,7 +37,7 @@ func CollectConfigSections(descriptors []providerapi.ModuleDescriptor, base prov
 			sectionContext := base
 			sectionContext.PackageID = descriptor.PackageID
 			sectionContext.ModuleID = descriptor.ModuleID
-			moduleSections, err := sectionCapability.ConfigSections(sectionContext)
+			moduleSections, err := sectionCapability.GlazedConfigSections(sectionContext)
 			if err != nil {
 				return nil, fmt.Errorf("collect config sections for %s.%s capability %s: %w", descriptor.PackageID, descriptor.ModuleID, id, err)
 			}
@@ -69,6 +71,65 @@ func AppendUniqueSections(out *[]schema.Section, seen map[string]string, section
 		*out = append(*out, section)
 	}
 	return nil
+}
+
+// ParseXGojaConfigMap parses a raw xgoja module config map through the
+// provider's internal config section.
+func ParseXGojaConfigMap(section schema.Section, config map[string]any) (*values.SectionValues, error) {
+	if section == nil {
+		return nil, fmt.Errorf("xgoja config section is nil")
+	}
+	fieldValues := fields.NewFieldValues()
+	for name, value := range config {
+		definition, ok := section.GetDefinitions().Get(name)
+		if !ok {
+			return nil, fmt.Errorf("unknown xgoja config field %q in section %q", name, section.GetSlug())
+		}
+		if err := fieldValues.UpdateValue(name, definition, value, fields.WithSource("xgoja.yaml")); err != nil {
+			return nil, fmt.Errorf("parse xgoja config field %q: %w", name, err)
+		}
+	}
+	return values.NewSectionValues(section, values.WithFields(fieldValues))
+}
+
+// MergeSectionValues returns a fresh SectionValues with static values first and
+// override values applied last.
+func MergeSectionValues(section schema.Section, staticValues, overrideValues *values.SectionValues) (*values.SectionValues, error) {
+	if section == nil {
+		return nil, fmt.Errorf("xgoja config section is nil")
+	}
+	merged, err := values.NewSectionValues(section)
+	if err != nil {
+		return nil, err
+	}
+	if staticValues != nil {
+		if _, err := merged.Fields.Merge(staticValues.Fields.Clone()); err != nil {
+			return nil, err
+		}
+	}
+	if overrideValues != nil {
+		if _, err := merged.Fields.Merge(overrideValues.Fields.Clone()); err != nil {
+			return nil, err
+		}
+	}
+	return merged, nil
+}
+
+// SectionValuesToRawJSON converts final internal xgoja config values into the
+// json.RawMessage currently passed through providerapi.ModuleSetupContext.Config.
+func SectionValuesToRawJSON(sectionValues *values.SectionValues) (json.RawMessage, error) {
+	if sectionValues == nil {
+		return nil, nil
+	}
+	m, err := sectionValues.Fields.ToInterfaceMap()
+	if err != nil {
+		return nil, err
+	}
+	data, err := json.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(data), nil
 }
 
 // InitRuntimeFromSections runs all runtime initializer capabilities attached to

@@ -152,7 +152,7 @@ type sectionCapability struct {
 
 func (c sectionCapability) CapabilityID() string { return c.id }
 
-func (c sectionCapability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
+func (c sectionCapability) GlazedConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	section, err := schema.NewSection(c.slug, c.slug, schema.WithFields(fields.New("value", fields.TypeString)))
 	if err != nil {
 		return nil, err

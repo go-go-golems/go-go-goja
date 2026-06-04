@@ -59,7 +59,7 @@ func newHTTPCapability() *capability {
 
 func (c *capability) CapabilityID() string { return "go-go-goja-http.config" }
 
-func (c *capability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
+func (c *capability) GlazedConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	section, err := schema.NewSection(
 		"http",
 		"HTTP server",

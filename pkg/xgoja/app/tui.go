@@ -149,7 +149,7 @@ type xgojaTUIEvaluator struct {
 }
 
 func newXGojaTUIEvaluator(ctx context.Context, factory *RuntimeFactory, profile string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) (*xgojaTUIEvaluator, error) {
-	rt, err := factory.NewRuntime(ctx, profile)
+	rt, err := factory.NewRuntimeFromSections(ctx, profile, vals)
 	if err != nil {
 		return nil, fmt.Errorf("create runtime: %w", err)
 	}

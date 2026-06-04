@@ -220,7 +220,7 @@ type Capability struct{}
 
 func (Capability) CapabilityID() string { return "my-provider.config" }
 
-func (Capability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
+func (Capability) GlazedConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
     section, err := schema.NewSection("my-provider",
         schema.WithTitle("My provider"),
         schema.WithPrefix("my-provider-"),
@@ -265,7 +265,7 @@ Use `values.Values.DecodeSectionInto` instead of reaching into raw maps. The pro
 | --- | --- | --- |
 | Expose one JavaScript `require(...)` module | `providerapi.Module` | The simplest and most common provider contribution. |
 | Configure a module statically from `xgoja.yaml` | `ModuleSetupContext.Config` | Use for buildspec/runtime-profile settings such as allowlists or base paths. |
-| Add command-line flags for selected modules | `ConfigSectionCapability` | The section is appended to built-in commands and provider-owned commands that opt in. |
+| Add command-line flags for selected modules | `GlazedConfigSectionCapability` | The section is appended to built-in commands and provider-owned commands that opt in. |
 | Apply parsed command values to a JS runtime | `RuntimeInitializerCapability` | Use `DecodeSectionInto`; avoid side effects when `values == nil`. |
 | Access runtime-scoped services | `RuntimeInitializerHandle.EngineRuntime()` | Use the owned `*engine.Runtime` for the Goja VM, event loop, owner, values, and closer registration. |
 | Add domain-specific CLI commands | `CommandSetProvider` | Return Glazed commands; use `RuntimeFactory` when those commands need xgoja runtimes. |

@@ -37,11 +37,35 @@ type PackageCapability interface {
 	CapabilityID() string
 }
 
-// ConfigSectionCapability lets a module expose Glazed sections that can be
-// attached to built-in commands or package-owned command providers.
-type ConfigSectionCapability interface {
+// GlazedConfigSectionCapability lets a provider expose public Glazed sections
+// that can be attached to built-in commands or package-owned command providers.
+// These sections are user-facing CLI/config/env inputs; they are not necessarily
+// the same schema as a provider's internal xgoja module config.
+type GlazedConfigSectionCapability interface {
 	PackageCapability
-	ConfigSections(SectionRequest) ([]schema.Section, error)
+	GlazedConfigSections(SectionRequest) ([]schema.Section, error)
+}
+
+// XGojaConfigRequest identifies one selected module instance whose internal
+// xgoja config is being prepared before module setup. StaticConfig contains the
+// values parsed from xgoja.yaml using ConfigSection. GlazedValues contains the
+// public command/config/env values parsed from Glazed sections.
+type XGojaConfigRequest struct {
+	SectionRequest
+	Descriptor    ModuleDescriptor
+	ConfigSection schema.Section
+	StaticConfig  *values.SectionValues
+	GlazedValues  *values.Values
+}
+
+// XGojaConfigSectionCapability exposes a provider's internal xgoja module
+// config section and maps parsed public Glazed values into an internal config
+// override. The returned SectionValues should use ConfigSection and only include
+// fields that should override static xgoja.yaml config for this module instance.
+type XGojaConfigSectionCapability interface {
+	PackageCapability
+	XGojaConfigSection(SectionRequest, ModuleDescriptor) (schema.Section, error)
+	XGojaConfigFromGlazed(context.Context, XGojaConfigRequest) (*values.SectionValues, error)
 }
 
 // RuntimeInitializerHandle is the runtime-facing handle passed to runtime

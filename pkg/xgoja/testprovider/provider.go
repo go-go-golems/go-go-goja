@@ -86,7 +86,7 @@ type FixtureCapability struct{}
 
 func (FixtureCapability) CapabilityID() string { return "fixture.settings" }
 
-func (FixtureCapability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
+func (FixtureCapability) GlazedConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	section, err := FixtureSection()
 	if err != nil {
 		return nil, err
@@ -136,11 +136,11 @@ func sectionsFromSelectedModules(ctx providerapi.CommandSetContext) ([]schema.Se
 	seen := map[string]struct{}{}
 	for _, module := range ctx.SelectedModules {
 		for _, capability := range module.PackageCapabilities {
-			sectionCapability, ok := capability.(providerapi.ConfigSectionCapability)
+			sectionCapability, ok := capability.(providerapi.GlazedConfigSectionCapability)
 			if !ok {
 				continue
 			}
-			moduleSections, err := sectionCapability.ConfigSections(providerapi.SectionRequest{
+			moduleSections, err := sectionCapability.GlazedConfigSections(providerapi.SectionRequest{
 				CommandProviderID: ctx.Name,
 				RuntimeProfile:    "",
 				PackageID:         module.PackageID,

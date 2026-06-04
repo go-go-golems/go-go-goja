@@ -124,7 +124,7 @@ func evalSourceWithInitializers(ctx context.Context, factory *RuntimeFactory, pr
 	if factory == nil {
 		return fmt.Errorf("runtime factory is required")
 	}
-	rt, err := factory.NewRuntime(ctx, profile)
+	rt, err := factory.NewRuntimeFromSections(ctx, profile, vals)
 	if err != nil {
 		return err
 	}
@@ -249,7 +249,7 @@ func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *Runtime
 			verb := verb
 			registry := registry
 			cmd, err := registry.CommandForVerbWithInvoker(verb, func(ctx context.Context, _ *jsverbs.Registry, verb *jsverbs.VerbSpec, parsedValues *values.Values) (interface{}, error) {
-				rt, err := factory.NewRuntime(ctx, profile, require.WithLoader(registry.RequireLoader()))
+				rt, err := factory.NewRuntimeFromSections(ctx, profile, parsedValues, require.WithLoader(registry.RequireLoader()))
 				if err != nil {
 					return nil, err
 				}

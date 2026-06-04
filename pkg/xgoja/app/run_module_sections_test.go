@@ -92,7 +92,7 @@ type runFixtureCapability struct{}
 
 func (runFixtureCapability) CapabilityID() string { return "fixture.run" }
 
-func (runFixtureCapability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
+func (runFixtureCapability) GlazedConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	section, err := schema.NewSection(
 		"fixture",
 		"Fixture",
@@ -113,8 +113,8 @@ type prefixedRunFixtureCapability struct{ prefix string }
 
 func (c prefixedRunFixtureCapability) CapabilityID() string { return "fixture.run" }
 
-func (c prefixedRunFixtureCapability) ConfigSections(ctx providerapi.SectionRequest) ([]schema.Section, error) {
-	return (runFixtureCapability{}).ConfigSections(ctx)
+func (c prefixedRunFixtureCapability) GlazedConfigSections(ctx providerapi.SectionRequest) ([]schema.Section, error) {
+	return (runFixtureCapability{}).GlazedConfigSections(ctx)
 }
 
 func (c prefixedRunFixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle) error {

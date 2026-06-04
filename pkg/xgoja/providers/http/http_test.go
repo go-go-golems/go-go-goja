@@ -27,7 +27,7 @@ func TestRegister(t *testing.T) {
 
 func TestCapabilityProvidesHTTPSection(t *testing.T) {
 	capability := newHTTPCapability()
-	sections, err := capability.ConfigSections(providerapi.SectionRequest{})
+	sections, err := capability.GlazedConfigSections(providerapi.SectionRequest{})
 	if err != nil {
 		t.Fatalf("sections: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestCapabilityAllowsExplicitHTTPDisable(t *testing.T) {
 func httpValues(t *testing.T, overrides map[string]any) *values.Values {
 	t.Helper()
 	capability := newHTTPCapability()
-	sections, err := capability.ConfigSections(providerapi.SectionRequest{})
+	sections, err := capability.GlazedConfigSections(providerapi.SectionRequest{})
 	if err != nil {
 		t.Fatalf("sections: %v", err)
 	}
