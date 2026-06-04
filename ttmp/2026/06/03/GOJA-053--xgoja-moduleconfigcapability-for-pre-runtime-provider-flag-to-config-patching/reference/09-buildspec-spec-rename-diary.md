@@ -494,7 +494,7 @@ This also removed the standalone exported `ModuleFactory` function type. The fun
 
 **Inferred user intent:** Make provider API names describe the phase and direction of each request instead of using generic context/handle/factory names.
 
-**Commit (code):** pending at diary write time.
+**Commit (code):** 64aaa5bc8a159b16529c6e18d969aaf47801c2be — "Move engine package under pkg"
 
 ### What I did
 
@@ -566,13 +566,14 @@ I updated Go imports, README/package documentation references, and targeted test
 
 **Inferred user intent:** Make the package relocation complete and committed, with docs no longer referring to stale root-level `engine/` paths.
 
-**Commit (code):** pending at diary write time.
+**Commit (code):** 64aaa5bc8a159b16529c6e18d969aaf47801c2be — "Move engine package under pkg"
 
 ### What I did
 
 - Updated remaining Go imports from `github.com/go-go-golems/go-go-goja/engine` to `github.com/go-go-golems/go-go-goja/pkg/engine`.
 - Updated README and package docs that referenced root-level `engine/` files.
-- Verified no documentation or code references remain for the old import path.
+- Verified no current public documentation or mainline code references remain for the old import path.
+- After pre-commit found stale imports inside tracked ticket scripts, updated those script imports as well so full `go test ./...` can enumerate every package.
 - Ran targeted tests:
   - `go test ./pkg/engine ./pkg/xgoja/... ./cmd/xgoja/... -count=1`
 
@@ -587,7 +588,9 @@ After the directory move, stale import paths and docs would either break builds 
 
 ### What didn't work
 
-- N/A.
+- The first commit attempt failed in pre-commit because tracked `ttmp/.../scripts` Go packages still imported the old root engine path. Exact representative error:
+  - `ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/scripts/jsverb_overlay_experiment.go:11:2: no required module provides package github.com/go-go-golems/go-go-goja/engine; to add it: go get github.com/go-go-golems/go-go-goja/engine`
+- I fixed this by updating the tracked ticket script imports to `github.com/go-go-golems/go-go-goja/pkg/engine`.
 
 ### What I learned
 
@@ -595,7 +598,7 @@ After the directory move, stale import paths and docs would either break builds 
 
 ### What was tricky to build
 
-The main issue was separating intentional historical ticket/docs references from current public docs. I updated current README, `pkg/doc`, and `cmd/xgoja/doc` references, while leaving unrelated ticket workspace material alone unless it was part of this focused change.
+The main issue was separating intentional historical ticket/docs references from current public docs. I updated current README, `pkg/doc`, and `cmd/xgoja/doc` references first; pre-commit then showed that tracked ticket scripts also participate in `go test ./...`, so their Go imports had to be updated even though most unrelated ticket prose stayed untouched.
 
 ### What warrants a second pair of eyes
 
@@ -614,8 +617,9 @@ The main issue was separating intentional historical ticket/docs references from
 
 ### Technical details
 
-Command run:
+Commands run:
 
 ```bash
 cd go-go-goja && go test ./pkg/engine ./pkg/xgoja/... ./cmd/xgoja/... -count=1
+git commit -m "Move engine package under pkg" # failed first time in pre-commit on stale ttmp script imports
 ```
