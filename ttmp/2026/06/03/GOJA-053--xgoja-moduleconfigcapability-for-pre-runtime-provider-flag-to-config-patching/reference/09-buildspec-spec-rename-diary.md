@@ -736,7 +736,7 @@ update the glossary, and point out remaining confusing names / patterns when don
 
 **Inferred user intent:** Make the reusable engine package's public API match the clarified naming model before continuing GOJA-053 runtime configuration work.
 
-**Commit (code):** 8e18893cdbd461f97d246d4527d8c7ecf5723ac4 — "Clarify engine runtime factory names"
+**Commit (code):** 76ebbf61b304f3409c1bf6dfe519da347d07b8a3 — "Clarify engine runtime factory names"
 
 ### What I did
 
