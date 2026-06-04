@@ -18,6 +18,7 @@ type ModuleSetupContext struct {
 	Config       json.RawMessage
 	Host         HostServices
 	RuntimeOwner runtimeowner.RuntimeOwner
+	AddCloser    func(func(context.Context) error) error
 }
 
 type AssetResolver interface {

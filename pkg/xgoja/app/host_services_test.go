@@ -78,6 +78,64 @@ func TestHostServiceContributionsDedupeSamePackageCapability(t *testing.T) {
 	}
 }
 
+func TestHostServiceContributionClosersRunOnRuntimeClose(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	closed := 0
+	capability := &hostServiceCapability{key: "demo", value: "from-capability", closer: func(context.Context) error {
+		closed++
+		return nil
+	}}
+	if err := registry.Package("fixture",
+		providerapi.Module{Name: "mod", NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
+			return func(*goja.Runtime, *goja.Object) {}, nil
+		}},
+		providerapi.WithPackageCapability(capability),
+	); err != nil {
+		t.Fatalf("register package: %v", err)
+	}
+	runtimeSpec := &RuntimeSpec{Runtimes: map[string]RuntimeProfileSpec{"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}}}
+	factory := NewRuntimeFactory(registry, runtimeSpec, HostServices{})
+	rt, err := factory.NewRuntimeFromSections(context.Background(), "main", values.New())
+	if err != nil {
+		t.Fatalf("NewRuntimeFromSections: %v", err)
+	}
+	if closed != 0 {
+		t.Fatalf("closer ran before runtime close")
+	}
+	if err := rt.Close(context.Background()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if closed != 1 {
+		t.Fatalf("closed = %d, want 1", closed)
+	}
+}
+
+func TestHostServiceContributionClosersRunOnRuntimeSetupFailure(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	closed := 0
+	capability := &hostServiceCapability{key: "demo", value: "from-capability", closer: func(context.Context) error {
+		closed++
+		return nil
+	}}
+	if err := registry.Package("fixture",
+		providerapi.Module{Name: "mod", NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
+			return nil, assertErr("setup failed")
+		}},
+		providerapi.WithPackageCapability(capability),
+	); err != nil {
+		t.Fatalf("register package: %v", err)
+	}
+	runtimeSpec := &RuntimeSpec{Runtimes: map[string]RuntimeProfileSpec{"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}}}
+	factory := NewRuntimeFactory(registry, runtimeSpec, HostServices{})
+	_, err := factory.NewRuntimeFromSections(context.Background(), "main", values.New())
+	if err == nil || !strings.Contains(err.Error(), "setup failed") {
+		t.Fatalf("expected setup failure, got %v", err)
+	}
+	if closed != 1 {
+		t.Fatalf("closed = %d, want 1", closed)
+	}
+}
+
 func TestHostServiceContributionErrorsAreWrapped(t *testing.T) {
 	registry := providerapi.NewProviderRegistry()
 	capability := &hostServiceCapability{err: assertErr("boom")}
@@ -114,10 +172,11 @@ func TestHostServicesReturnsMultipleValues(t *testing.T) {
 }
 
 type hostServiceCapability struct {
-	key   string
-	value any
-	calls int
-	err   error
+	key    string
+	value  any
+	calls  int
+	err    error
+	closer func(context.Context) error
 }
 
 func (c *hostServiceCapability) CapabilityID() string { return "host-service" }
@@ -129,7 +188,13 @@ func (c *hostServiceCapability) ContributeHostServices(_ context.Context, req pr
 	if c.err != nil {
 		return c.err
 	}
-	return sink.AddHostService(c.key, c.value)
+	if err := sink.AddHostService(c.key, c.value); err != nil {
+		return err
+	}
+	if c.closer != nil {
+		return sink.AddCloser(c.closer)
+	}
+	return nil
 }
 
 type assertErr string

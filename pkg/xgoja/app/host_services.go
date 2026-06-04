@@ -1,15 +1,21 @@
 package app
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
+	"github.com/dop251/goja_nodejs/require"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
 type hostServiceCollector struct {
 	base     providerapi.HostServices
 	services map[string][]any
+	closers  []func(context.Context) error
 }
 
 var _ providerapi.HostServiceSink = (*hostServiceCollector)(nil)
@@ -49,11 +55,58 @@ func (c *hostServiceCollector) AddHostService(key string, value any) error {
 	return nil
 }
 
-func (c *hostServiceCollector) servicesForRuntime() providerapi.HostServices {
+func (c *hostServiceCollector) AddCloser(fn func(context.Context) error) error {
 	if c == nil {
-		return nil
+		return fmt.Errorf("host service collector is nil")
 	}
-	return contributedHostServices{base: c.base, services: cloneHostServiceMap(c.services)}
+	if fn == nil {
+		return fmt.Errorf("host service closer is nil")
+	}
+	var once sync.Once
+	var onceErr error
+	c.closers = append(c.closers, func(ctx context.Context) error {
+		once.Do(func() {
+			onceErr = fn(ctx)
+		})
+		return onceErr
+	})
+	return nil
+}
+
+func (c *hostServiceCollector) servicesForRuntime() hostServicesForRuntime {
+	if c == nil {
+		return hostServicesForRuntime{}
+	}
+	return hostServicesForRuntime{
+		services: contributedHostServices{base: c.base, services: cloneHostServiceMap(c.services)},
+		closers:  append([]func(context.Context) error(nil), c.closers...),
+	}
+}
+
+type hostServicesForRuntime struct {
+	services providerapi.HostServices
+	closers  []func(context.Context) error
+}
+
+type hostServiceCloserRegistrar struct {
+	closers []func(context.Context) error
+}
+
+func (r hostServiceCloserRegistrar) ID() string { return "xgoja:host-service-closers" }
+
+func (r hostServiceCloserRegistrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleRegistrationContext, _ *require.Registry) error {
+	if ctx == nil || ctx.AddCloser == nil {
+		return fmt.Errorf("runtime closer registration is unavailable")
+	}
+	for i, closer := range r.closers {
+		if closer == nil {
+			continue
+		}
+		if err := ctx.AddCloser(closer); err != nil {
+			return fmt.Errorf("register host service closer %d: %w", i, err)
+		}
+	}
+	return nil
 }
 
 type contributedHostServices struct {
@@ -96,6 +149,19 @@ func (s contributedHostServices) HostServiceValues(key string) []any {
 		out = append(out, s.services[key]...)
 	}
 	return append([]any(nil), out...)
+}
+
+func closeHostServiceClosers(ctx context.Context, closers []func(context.Context) error) error {
+	var ret error
+	for i := len(closers) - 1; i >= 0; i-- {
+		if closers[i] == nil {
+			continue
+		}
+		if err := closers[i](ctx); err != nil {
+			ret = errors.Join(ret, err)
+		}
+	}
+	return ret
 }
 
 func cloneHostServiceMap(in map[string][]any) map[string][]any {

@@ -82,8 +82,12 @@ type HostServiceContributionRequest struct {
 // HostServiceSink collects opaque provider-defined host services. The sink may
 // accept multiple values for the same key; consumers should use
 // HostServiceLookup.HostServiceValues when a key is intentionally multi-valued.
+// Contributors that create runtime-owned resources should register cleanup with
+// AddCloser; xgoja wires those closers into the engine runtime before JavaScript
+// executes.
 type HostServiceSink interface {
 	AddHostService(key string, value any) error
+	AddCloser(fn func(context.Context) error) error
 }
 
 // HostServiceContributionCapability lets a selected package contribute

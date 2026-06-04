@@ -50,6 +50,7 @@ func (s providerRuntimeModuleRegistrar) RegisterRuntimeModule(ctx *engine.Runtim
 		Config:       config,
 		Host:         s.services,
 		RuntimeOwner: ctx.Owner,
+		AddCloser:    ctx.AddCloser,
 	})
 	if err != nil {
 		return fmt.Errorf("create module %s.%s: %w", s.instance.Package, s.instance.Name, err)
@@ -86,6 +87,12 @@ func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, profile str
 	if err != nil {
 		return nil, err
 	}
+	closeUnregisteredHostServices := true
+	defer func() {
+		if closeUnregisteredHostServices {
+			_ = closeHostServiceClosers(ctx, runtimeServices.closers)
+		}
+	}()
 	descriptorsByInstance := map[string]providerapi.ModuleDescriptor{}
 	for _, descriptor := range descriptors {
 		descriptorsByInstance[moduleDescriptorKey(descriptor.PackageID, descriptor.ModuleID, descriptor.As)] = descriptor
@@ -104,7 +111,10 @@ func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, profile str
 		if err != nil {
 			return nil, err
 		}
-		modules = append(modules, providerRuntimeModuleRegistrar{instance: instance, module: module, config: config, services: runtimeServices})
+		modules = append(modules, providerRuntimeModuleRegistrar{instance: instance, module: module, config: config, services: runtimeServices.services})
+	}
+	if len(runtimeServices.closers) > 0 {
+		modules = append([]engine.RuntimeModuleRegistrar{hostServiceCloserRegistrar{closers: runtimeServices.closers}}, modules...)
 	}
 	builder := engine.NewRuntimeFactoryBuilder(
 		engine.WithImplicitDefaultRegistryModules(false),
@@ -117,15 +127,26 @@ func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, profile str
 	if err != nil {
 		return nil, err
 	}
-	return runtimeFactory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
+	jsRuntime, err := runtimeFactory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+	closeUnregisteredHostServices = false
+	return jsRuntime, nil
 }
 
 func moduleDescriptorKey(packageID, moduleID, as string) string {
 	return packageID + "\x00" + moduleID + "\x00" + as
 }
 
-func (f *RuntimeFactory) hostServicesForRuntime(ctx context.Context, profile string, vals *values.Values, descriptors []providerapi.ModuleDescriptor) (providerapi.HostServices, error) {
+func (f *RuntimeFactory) hostServicesForRuntime(ctx context.Context, profile string, vals *values.Values, descriptors []providerapi.ModuleDescriptor) (hostServicesForRuntime, error) {
 	collector := newHostServiceCollector(f.services)
+	success := false
+	defer func() {
+		if !success {
+			_ = closeHostServiceClosers(ctx, collector.closers)
+		}
+	}()
 	seen := map[string]struct{}{}
 	for _, descriptor := range descriptors {
 		for _, capability := range descriptor.PackageCapabilities {
@@ -144,10 +165,11 @@ func (f *RuntimeFactory) hostServicesForRuntime(ctx context.Context, profile str
 				Values:         vals,
 				Modules:        descriptors,
 			}, collector); err != nil {
-				return nil, fmt.Errorf("contribute host services for %s capability %s: %w", descriptor.PackageID, capability.CapabilityID(), err)
+				return hostServicesForRuntime{}, fmt.Errorf("contribute host services for %s capability %s: %w", descriptor.PackageID, capability.CapabilityID(), err)
 			}
 		}
 	}
+	success = true
 	return collector.servicesForRuntime(), nil
 }
 
