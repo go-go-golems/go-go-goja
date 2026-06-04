@@ -650,7 +650,7 @@ This makes the handle match the purpose of runtime initialization: these capabil
 
 **Inferred user intent:** Give providers enough runtime context to install event-loop/lifecycle-aware functionality during runtime initialization.
 
-**Commit (code):** 3200d84518e97d4e6ba67619bd9a7096c00e7763 — "Expose engine runtime to provider initializers"
+**Commit (code):** 21ece897023f0a70eeaa526803ce150ed4c5fffe — "Expose engine runtime to provider initializers"
 
 ### What I did
 
