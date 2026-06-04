@@ -115,6 +115,10 @@ topics:
       description: Debugging failures, crashes, stack traces, and runtime behavior
     - slug: crash
       description: Crash reports, panics, and failure reproductions
+    - slug: http
+      description: HTTP servers, routing, and web serving
+    - slug: verbs
+      description: JavaScript verb command definitions and generated verb commands
 docTypes:
     - slug: index
       description: Index document for a ticket
