@@ -106,10 +106,10 @@ func newEmbeddedRuntime(t *testing.T) *gggengine.Runtime {
 		fsmod.WithName("fs:assets"),
 		fsmod.WithBackend(fsmod.NewReadOnlyFSBackend(fsmod.FSMount{FS: assetFS, Root: "xgoja_embed/assets/app", Mount: "/app"})),
 	)
-	factory, err := gggengine.NewBuilder(
+	factory, err := gggengine.NewRuntimeFactoryBuilder(
 		gggengine.WithImplicitDefaultRegistryModules(false),
 		gggengine.WithDataOnlyDefaultRegistryModules(false),
-	).WithModules(gggengine.NativeModuleSpec{ModuleName: "fs:assets", Loader: mod.Loader}).Build()
+	).WithModules(gggengine.NativeModuleRegistrar{ModuleName: "fs:assets", Loader: mod.Loader}).Build()
 	if err != nil {
 		t.Fatalf("build embedded factory: %v", err)
 	}

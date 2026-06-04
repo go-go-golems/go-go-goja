@@ -216,7 +216,7 @@ conn.close();
 The embedding Go application must explicitly install the manager and helper:
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     WithRuntimeInitializers(
         jsevents.Install(),
         jsevents.FSWatchHelper(jsevents.FSWatchOptions{

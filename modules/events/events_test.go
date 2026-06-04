@@ -188,7 +188,7 @@ func TestEventsModuleIsEnabledByDefault(t *testing.T) {
 
 func newRuntime(t *testing.T) *gggengine.Runtime {
 	t.Helper()
-	factory, err := gggengine.NewBuilder().Build()
+	factory, err := gggengine.NewRuntimeFactoryBuilder().Build()
 	require.NoError(t, err)
 	rt, err := factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
 	require.NoError(t, err)

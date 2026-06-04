@@ -93,7 +93,7 @@ type timerState struct {
 func newDefaultRuntime(t *testing.T) *gggengine.Runtime {
 	t.Helper()
 
-	factory, err := gggengine.NewBuilder().
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
 		UseModuleMiddleware(gggengine.MiddlewareSafe()).
 		Build()
 	require.NoError(t, err)

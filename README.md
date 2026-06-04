@@ -8,7 +8,7 @@ The goal is to have a place where you can:
 * experiment with goja + Node-style `require()` without having to set up a whole application
 * open the canonical interactive prompt with `go run ./cmd/goja-repl tui`
 * inspect and persist REPL sessions through the `goja-repl` CLI and JSON server surfaces
-* compose runtime behavior explicitly via `engine.NewBuilder() -> Build() -> Factory.NewRuntime(...)`
+* compose runtime behavior explicitly via `engine.NewRuntimeFactoryBuilder() -> Build() -> RuntimeFactory.NewRuntime(...)`
 
 ---
 
@@ -33,7 +33,7 @@ The goal is to have a place where you can:
 
 The canonical API is explicit runtime composition:
 
-1. create a builder (`engine.NewBuilder(...)`)
+1. create a builder (`engine.NewRuntimeFactoryBuilder(...)`)
 2. add module/runtime options (`WithModules(...)`, `WithRuntimeInitializers(...)`, ...)
 3. build an immutable factory (`Build()`)
 4. create an owned runtime with explicit contexts (`factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))`)
@@ -92,7 +92,7 @@ These flags apply to all commands that build a runtime (`run`, `tui`, `eval`, `c
 ```go
 ctx := context.Background()
 
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     UseModuleMiddleware(engine.MiddlewareSafe()).
     Build()
 if err != nil {
@@ -144,7 +144,7 @@ When your JS entrypoint lives in a nested folder (for example `js/extractor/main
 you can derive the standard `require.WithGlobalFolders(...)` layering from script path:
 
 ```go
-factory, err := engine.NewBuilder(
+factory, err := engine.NewRuntimeFactoryBuilder(
     engine.WithModuleRootsFromScript(
         "/abs/path/to/js/extractor/main.js",
         engine.DefaultModuleRootsOptions(),
@@ -207,13 +207,13 @@ Say we want to expose a simplistic `uuid` module that exports a single `v4()` fu
 
    ```go
    // All modules (default)
-   engine.NewBuilder()
+   engine.NewRuntimeFactoryBuilder()
 
    // Safe mode only
-   engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe())
+   engine.NewRuntimeFactoryBuilder().UseModuleMiddleware(engine.MiddlewareSafe())
 
    // Specific modules
-   engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareOnly("uuid"))
+   engine.NewRuntimeFactoryBuilder().UseModuleMiddleware(engine.MiddlewareOnly("uuid"))
    ```
 4. **Profit**
    ```js
@@ -227,7 +227,7 @@ Say we want to expose a simplistic `uuid` module that exports a single `v4()` fu
 * Return only **plain Go types** (string, number, bool, maps, slices) or `goja.Value`s. The runtime converts between Go & JS automatically.
 * If your module allocates goroutines, honour `context.Context` and consider `errgroup` for clean cancellation.
 * Use `var _ modules.NativeModule = (*yourType)(nil)` for compile-time checks (see [Go guidelines in the repo rules]).
-* Prefer explicit composition in application setup (`NewBuilder`, `WithModules`, `Build`, `NewRuntime`) over hidden global setup patterns.
+* Prefer explicit composition in application setup (`NewRuntimeFactoryBuilder`, `WithModules`, `Build`, `NewRuntime`) over hidden global setup patterns.
 
 ---
 
@@ -239,7 +239,7 @@ For Go-level tests, prefer constructing a runtime directly instead of shelling o
 ctx := context.Background()
 
 // Safe mode (data-only modules)
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     UseModuleMiddleware(engine.MiddlewareSafe()).
     Build()
 if err != nil {
@@ -247,7 +247,7 @@ if err != nil {
 }
 
 // Or, to test a specific module:
-// factory, err := engine.NewBuilder().
+// factory, err := engine.NewRuntimeFactoryBuilder().
 //     UseModuleMiddleware(engine.MiddlewareOnly("fs")).
 //     Build()
 
@@ -342,7 +342,7 @@ The emitter implementation is Go-backed, so Go helper modules can also validate/
 Connected helpers in `pkg/jsevents` build on that adoption path for host resources. For example, an embedding application can explicitly install an fsnotify-backed helper and let JavaScript wire listeners on its own emitter:
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     WithRuntimeInitializers(
         jsevents.Install(),
         jsevents.FSWatchHelper(jsevents.FSWatchOptions{

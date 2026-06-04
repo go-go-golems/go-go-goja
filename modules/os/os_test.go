@@ -10,7 +10,7 @@ import (
 )
 
 func TestOSModuleSmoke(t *testing.T) {
-	factory, err := gggengine.NewBuilder().UseModuleMiddleware(gggengine.MiddlewareOnly("os")).Build()
+	factory, err := gggengine.NewRuntimeFactoryBuilder().UseModuleMiddleware(gggengine.MiddlewareOnly("os")).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

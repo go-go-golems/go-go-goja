@@ -12,7 +12,7 @@ import (
 )
 
 func TestRegister(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := Register(registry); err != nil {
 		t.Fatalf("register: %v", err)
 	}
@@ -122,7 +122,7 @@ type testRuntimeInitializerHandle struct {
 	vm *goja.Runtime
 }
 
-func (h testRuntimeInitializerHandle) Runtime() *engine.Runtime {
+func (h testRuntimeInitializerHandle) EngineRuntime() *engine.Runtime {
 	return &engine.Runtime{VM: h.vm}
 }
 func (h testRuntimeInitializerHandle) Close(context.Context) error { return nil }

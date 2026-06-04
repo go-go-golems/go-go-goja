@@ -31,7 +31,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
         providerapi.CommandSetProvider{
             Name:         "tools",
             DefaultMount: "my-provider",
-            New: func(c providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+            NewCommandSet: func(c providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
                 cmd, err := cmds.NewBareCommand(
                     cmds.NewCommandDescription("hello", cmds.WithShort("Say hello")),
                     func(ctx context.Context, vals *values.Values) error {

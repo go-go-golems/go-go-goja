@@ -52,7 +52,7 @@ func TestJSVerbsInitializeRuntimeFromModuleSections(t *testing.T) {
 
 func newJSVerbsSectionRegistry(t *testing.T) *providerapi.ProviderRegistry {
 	t.Helper()
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
 		providerapi.Module{Name: "mod", NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 			return func(vm *goja.Runtime, module *goja.Object) {}, nil

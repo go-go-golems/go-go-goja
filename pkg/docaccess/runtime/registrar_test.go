@@ -36,7 +36,7 @@ func TestRegistrarRegistersDocsModuleWithHelpAndJSDocSources(t *testing.T) {
 		}},
 	})
 
-	factory, err := engine.NewBuilder().
+	factory, err := engine.NewRuntimeFactoryBuilder().
 		WithModules(NewRegistrar(Config{
 			HelpSources: []HelpSource{{
 				ID:      "default-help",
@@ -111,7 +111,7 @@ func TestRegistrarExposesPluginMethodDocs(t *testing.T) {
 	binDir := t.TempDir()
 	buildPlugin(t, filepath.Join(binDir, "goja-plugin-examples-kv"), "./plugins/examples/kv")
 
-	factory, err := engine.NewBuilder().
+	factory, err := engine.NewRuntimeFactoryBuilder().
 		WithModules(
 			host.NewRegistrar(host.Config{Directories: []string{binDir}}),
 			NewRegistrar(Config{

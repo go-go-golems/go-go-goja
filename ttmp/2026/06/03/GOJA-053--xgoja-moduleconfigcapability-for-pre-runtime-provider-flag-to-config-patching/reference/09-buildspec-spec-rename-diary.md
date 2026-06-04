@@ -20,6 +20,7 @@ RelatedFiles:
         ProviderRegistry glossary entry
         RuntimeInitializerHandle glossary updated
         Glossary updated with engine runtime factory and registration names
+        Glossary updated for final constructor and handle names
     - Path: go-go-goja/README.md
       Note: Root package layout docs updated for pkg/engine
     - Path: go-go-goja/cmd/xgoja/cmd_list_modules.go
@@ -37,14 +38,19 @@ RelatedFiles:
       Note: |-
         Embedded runtime JSON payload updated to use renamed buildspec DTO types
         Embedded runtime JSON emits configFile
+    - Path: go-go-goja/cmd/xgoja/internal/generate/templates/main.go.tmpl
+      Note: Generated binaries use NewProviderRegistry
     - Path: go-go-goja/pkg/doc/16-nodejs-primitives.md
       Note: Engine import and implementation map docs updated
     - Path: go-go-goja/pkg/engine/factory.go
       Note: |-
         Moved engine builder/factory package under pkg/engine
         RuntimeFactoryBuilder/RuntimeFactory rename and runtime creation phase boundary
+        NewRuntimeFactoryBuilder constructor rename
     - Path: go-go-goja/pkg/engine/module_specs.go
-      Note: RuntimeInitializationContext rename and engine initializer API
+      Note: |-
+        RuntimeInitializationContext rename and engine initializer API
+        NativeModuleRegistrar rename
     - Path: go-go-goja/pkg/engine/runtime.go
       Note: Moved engine runtime package under pkg/engine
     - Path: go-go-goja/pkg/engine/runtime_modules.go
@@ -76,14 +82,18 @@ RelatedFiles:
       Note: |-
         SectionRequest and RuntimeInitializerHandle definitions
         RuntimeInitializerHandle now exposes engine.Runtime
+        EngineRuntime handle method and RuntimeCloserRegistry removal
     - Path: go-go-goja/pkg/xgoja/providerapi/commands.go
       Note: |-
         CommandSetContext now carries ProviderRegistry
         Provider command runtime interface imports pkg/engine
+        NewCommandSet hook and inlined command-set factory signature
     - Path: go-go-goja/pkg/xgoja/providerapi/module.go
       Note: ModuleSetupContext and Module.NewModuleFactory definitions
     - Path: go-go-goja/pkg/xgoja/providerapi/provider_registry.go
-      Note: ProviderRegistry type and registry implementation
+      Note: |-
+        ProviderRegistry type and registry implementation
+        NewProviderRegistry constructor rename
     - Path: go-go-goja/pkg/xgoja/providers/core/core.go
       Note: Provider registration signature updated
     - Path: go-go-goja/pkg/xgoja/providers/host/host.go
@@ -92,6 +102,7 @@ RelatedFiles:
       Note: |-
         Capability and module declaration updated
         Provider uses handle Runtime().VM and runtime closer
+        Direct engine runtime closer registration
     - Path: go-go-goja/pkg/xgoja/providerutil/sections.go
       Note: |-
         Uses SectionRequest and RuntimeInitializerHandle
@@ -104,6 +115,7 @@ LastUpdated: 2026-06-04T00:00:00Z
 WhatFor: Use when reviewing the focused commit that renamed buildspec DTO types to make the *Spec pattern explicit.
 WhenToUse: Before continuing generic-symbol cleanup or renaming runtime profile DTOs in the app runtime spec.
 ---
+
 
 
 
@@ -430,7 +442,7 @@ cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1
 
 I renamed the provider registry type so it no longer uses the generic `Registry` name inside `providerapi`. The file is now `provider_registry.go`, and the public struct is `ProviderRegistry`, which makes signatures read as a registry of xgoja provider packages rather than an unspecified registry.
 
-The constructor remains `NewRegistry()` for now, so call sites that only construct a registry do not churn unnecessarily. Type annotations, provider registration signatures, app host/factory fields, command context fields, and xgoja provider documentation now refer to `*providerapi.ProviderRegistry`.
+The constructor remains `NewProviderRegistry()` for now, so call sites that only construct a registry do not churn unnecessarily. Type annotations, provider registration signatures, app host/factory fields, command context fields, and xgoja provider documentation now refer to `*providerapi.ProviderRegistry`.
 
 ### Prompt Context
 
@@ -458,7 +470,7 @@ The constructor remains `NewRegistry()` for now, so call sites that only constru
 ### What worked
 
 - The rename was mostly mechanical.
-- Keeping `NewRegistry()` avoided extra call-site churn while still clarifying type signatures.
+- Keeping `NewProviderRegistry()` avoided extra call-site churn while still clarifying type signatures.
 - Targeted xgoja tests passed.
 
 ### What didn't work
@@ -475,12 +487,12 @@ The main naming collision to avoid was with `require.Registry` and `jsverbs.Regi
 
 ### What warrants a second pair of eyes
 
-- Confirm whether the constructor should also become `NewProviderRegistry()` or whether retaining `NewRegistry()` is preferred for ergonomic call sites.
+- Confirm whether the constructor should also become `NewProviderRegistry()` or whether retaining `NewProviderRegistry()` is preferred for ergonomic call sites.
 - Confirm whether the generated documentation examples should be part of this rename commit or handled separately.
 
 ### What should be done in the future
 
-- Consider renaming `NewRegistry()` to `NewProviderRegistry()` if the project wants constructor names to mirror the new explicit type name.
+- Consider renaming `NewProviderRegistry()` to `NewProviderRegistry()` if the project wants constructor names to mirror the new explicit type name.
 
 ### Code review instructions
 
@@ -647,7 +659,7 @@ git commit -m "Move engine package under pkg" # failed first time in pre-commit 
 
 ## Step 8: Expose Engine Runtime Through Runtime Initializer Handle
 
-I changed `providerapi.RuntimeInitializerHandle` so runtime initializer capabilities receive access to the owned `*engine.Runtime`, not only the raw `*goja.Runtime`. Providers can still reach the Goja VM through `handle.Runtime().VM`, but they can now also use runtime-scoped services such as the event loop, runtime owner, values map, closer registration, and lifecycle context.
+I changed `providerapi.RuntimeInitializerHandle` so runtime initializer capabilities receive access to the owned `*engine.Runtime`, not only the raw `*goja.Runtime`. Providers can still reach the Goja VM through `handle.EngineRuntime().VM`, but they can now also use runtime-scoped services such as the event loop, runtime owner, values map, closer registration, and lifecycle context.
 
 This makes the handle match the purpose of runtime initialization: these capabilities are not just installing globals into a bare VM; they may need to attach engine-managed resources that participate in xgoja's runtime lifecycle.
 
@@ -663,9 +675,9 @@ This makes the handle match the purpose of runtime initialization: these capabil
 
 ### What I did
 
-- Changed `providerapi.RuntimeInitializerHandle.Runtime()` from `*goja.Runtime` to `*engine.Runtime`.
+- Changed `providerapi.RuntimeInitializerHandle.EngineRuntime()` from `*goja.Runtime` to `*engine.Runtime`.
 - Updated the app runtime handle adapter to return the owned runtime wrapper directly.
-- Updated HTTP and fixture providers to use `handle.Runtime().VM` when they specifically need the Goja VM.
+- Updated HTTP and fixture providers to use `handle.EngineRuntime().VM` when they specifically need the Goja VM.
 - Updated providerutil and tests to use fake `engine.Runtime` handles.
 - Updated docs and glossary references to explain that `RuntimeInitializerHandle` exposes the owned engine runtime.
 - Ran targeted tests:
@@ -695,7 +707,7 @@ The main invariant was preserving simple VM access for existing providers while 
 ### What warrants a second pair of eyes
 
 - Confirm whether the method should stay `Runtime()` or become `EngineRuntime()` for even more explicitness.
-- Confirm whether `RuntimeCloserRegistry` remains useful now that `handle.Runtime().AddCloser(...)` is directly available.
+- Confirm whether `RuntimeCloserRegistry` remains useful now that `handle.EngineRuntime().AddCloser(...)` is directly available.
 
 ### What should be done in the future
 
@@ -760,7 +772,7 @@ update the glossary, and point out remaining confusing names / patterns when don
 ### What worked
 
 - The mechanical rename was clean across current source and targeted tests passed.
-- The new names align with the phase boundaries in `engine.NewBuilder().Build().NewRuntime(...)`.
+- The new names align with the phase boundaries in `engine.NewRuntimeFactoryBuilder().Build().NewRuntime(...)`.
 
 ### What didn't work
 
@@ -776,13 +788,13 @@ The trickiest part was avoiding overbroad replacement of unrelated generic `Fact
 
 ### What warrants a second pair of eyes
 
-- Confirm whether `NativeModuleSpec` should also be renamed, because it still uses `*Spec` even though it registers a native module loader.
+- Confirm whether `NativeModuleRegistrar` should also be renamed, because it still uses `*Spec` even though it registers a native module loader.
 - Confirm whether the duplicate name `engine.RuntimeFactory` and `app.RuntimeFactory` is acceptable with package qualification.
-- Confirm whether `NewBuilder()` should be renamed to `NewRuntimeFactoryBuilder()` or kept short.
+- Confirm whether `NewRuntimeFactoryBuilder()` should be renamed to `NewRuntimeFactoryBuilder()` or kept short.
 
 ### What should be done in the future
 
-- Consider a small follow-up rename for `NativeModuleSpec` if the team wants to remove all registration-performing `*Spec` names from the engine package.
+- Consider a small follow-up rename for `NativeModuleRegistrar` if the team wants to remove all registration-performing `*Spec` names from the engine package.
 - Consider documenting `engine.RuntimeFactory` vs `app.RuntimeFactory` more explicitly in xgoja docs.
 
 ### Code review instructions
@@ -800,9 +812,101 @@ The trickiest part was avoiding overbroad replacement of unrelated generic `Fact
 Current phase model:
 
 ```text
-engine.NewBuilder() -> *RuntimeFactoryBuilder
+engine.NewRuntimeFactoryBuilder() -> *RuntimeFactoryBuilder
 RuntimeFactoryBuilder.Build() -> *RuntimeFactory
 RuntimeFactory.NewRuntime(...) -> *Runtime
 RuntimeModuleRegistrar.RegisterRuntimeModule(RuntimeModuleRegistrationContext, require.Registry)
 RuntimeInitializer.InitRuntime(RuntimeInitializationContext)
+```
+
+## Step 10: Finish Explicit Constructor and Runtime Handle Naming Cleanup
+
+I completed the next naming pass by removing the remaining generic constructor and hook names that still obscured what the API builds or exposes. The engine factory constructor now names the exact object it creates, provider registry construction is explicit, command providers expose a `NewCommandSet` hook, and runtime initializer handles expose `EngineRuntime()` rather than a generic `Runtime()` method.
+
+I also removed the separate `RuntimeCloserRegistry` extension. Runtime initializer handles now expose the owned engine runtime directly, so providers can register cleanup hooks through `handle.EngineRuntime().AddCloser(...)` without a second optional interface.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do NativeModuleRegistrar, NewRuntimeFactoryBuilder, NewProviderRegistry, 
+
+CommandSetProvider.New -> NewCommandSet and fold the type definition straight into it
+
+RuntimeInitializerHandler.Runtime -> EngineRuntime
+Remove RuntimeCloserRegistry
+
+---
+
+We'll do the ConfigSectionCapability rename once we actually get to implementing the feature."
+
+**Assistant interpretation:** Apply the remaining accepted naming/API cleanup items, but defer `ConfigSectionCapability` until the runtime config feature implementation begins.
+
+**Inferred user intent:** Finish the breaking public API cleanup so the remaining runtime config feature work starts from precise, phase-oriented names.
+
+**Commit (code):** pending at diary write time.
+
+### What I did
+
+- Renamed `engine.NativeModuleSpec` to `engine.NativeModuleRegistrar`.
+- Renamed `engine.NewBuilder(...)` to `engine.NewRuntimeFactoryBuilder(...)`.
+- Renamed `providerapi.NewRegistry()` to `providerapi.NewProviderRegistry()`.
+- Renamed `providerapi.CommandSetProvider.New` to `providerapi.CommandSetProvider.NewCommandSet`.
+- Removed the exported `CommandSetProviderFactory` alias and inlined the function type on `CommandSetProvider.NewCommandSet`.
+- Renamed `providerapi.RuntimeInitializerHandle.Runtime()` to `EngineRuntime()`.
+- Removed `providerapi.RuntimeCloserRegistry`.
+- Updated HTTP runtime initialization to call `handle.EngineRuntime().AddCloser(...)` directly.
+- Updated current docs, generated xgoja templates, tests, and glossary references.
+- Ran focused validation:
+  - `go test ./pkg/engine ./pkg/xgoja/... ./cmd/xgoja/... ./pkg/gojahttp ./pkg/hashiplugin/host ./modules/... -count=1`
+
+### Why
+
+These names were the remaining places where public APIs still hid their intent. `NewBuilder` did not say which builder it created, `NewRegistry` did not distinguish provider registries from other registries, `CommandSetProvider.New` was too generic, and `Runtime()` was ambiguous now that the handle returns the engine runtime instead of the raw Goja runtime.
+
+### What worked
+
+- The focused test suite passed after updating generated-template expectations.
+- Removing `RuntimeCloserRegistry` simplified provider cleanup registration without losing functionality, because `engine.Runtime` already exposes `AddCloser`.
+
+### What didn't work
+
+- The first focused test run failed because `cmd/xgoja/internal/generate/templates/main.go.tmpl` still emitted `providerapi.NewRegistry()`, causing generated binaries to fail to compile with `undefined: providerapi.NewRegistry`.
+- A broad replacement temporarily touched historical `ttmp/` documents. I reversed those broad historical-document edits and kept the current GOJA-053 diary update focused.
+- The first commit attempt failed because tracked `ttmp/.../scripts` Go packages still called `engine.NewBuilder`. Representative errors: `ttmp/2026/03/16/GOJA-04-JS-GLAZED-EXPORTS--add-glazed-command-exporting-from-javascript/scripts/jsverb_overlay_experiment.go:50:25: undefined: engine.NewBuilder` and `ttmp/2026/04/07/GOJA-041-EVALUATION-CONTROL--add-timeouts-interruption-and-eval-edge-case-tests/scripts/04-engine-runtimeowner-interrupt-sync-loop/main.go:16:25: undefined: engine.NewBuilder`.
+
+### What I learned
+
+- Generated templates need to be treated as first-class API call sites during rename passes, not just source files and tests.
+- Removing optional extension interfaces is safer once the primary handle exposes the concrete lifecycle object.
+
+### What was tricky to build
+
+The tricky part was keeping constructor renames scoped. There are many unrelated `NewRegistry()` functions in packages such as `modules`, `gojahttp`, and `require`; only `providerapi.NewRegistry()` was supposed to become `NewProviderRegistry()`. I restored the accidental non-provider renames and verified the remaining old-name searches before testing.
+
+### What warrants a second pair of eyes
+
+- Confirm whether `RuntimeInitializerHandle.Close(context.Context)` should remain now that `EngineRuntime()` gives access to `Close` on the concrete runtime.
+- Confirm whether `ConfigSectionCapability` should become `CommandLineFlagsSectionCapability` exactly when the runtime config feature lands, as planned.
+
+### What should be done in the future
+
+- Defer `ConfigSectionCapability` naming until the module-config/public-command-section capability implementation starts.
+
+### Code review instructions
+
+- Start with `pkg/engine/module_specs.go`, `pkg/engine/factory.go`, `pkg/xgoja/providerapi/provider_registry.go`, `pkg/xgoja/providerapi/commands.go`, and `pkg/xgoja/providerapi/capabilities.go`.
+- Review generated-code fallout in `cmd/xgoja/internal/generate/templates/main.go.tmpl`.
+- Review direct closer registration in `pkg/xgoja/providers/http/http.go`.
+- Validate with: `cd go-go-goja && go test ./pkg/engine ./pkg/xgoja/... ./cmd/xgoja/... ./pkg/gojahttp ./pkg/hashiplugin/host ./modules/... -count=1`.
+
+### Technical details
+
+Final API names in this step:
+
+```text
+engine.NativeModuleRegistrar
+engine.NewRuntimeFactoryBuilder(...)
+providerapi.NewProviderRegistry()
+providerapi.CommandSetProvider.NewCommandSet func(CommandSetContext) (*CommandSet, error)
+providerapi.RuntimeInitializerHandle.EngineRuntime() *engine.Runtime
+handle.EngineRuntime().AddCloser(...)
 ```

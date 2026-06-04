@@ -380,7 +380,7 @@ func TestFSWatchHelperRejectsDebounceAboveHostLimit(t *testing.T) {
 }
 
 func TestFSWatchHelperRequiresManager(t *testing.T) {
-	factory, err := gggengine.NewBuilder().
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
 		WithRuntimeInitializers(jsevents.FSWatchHelper(jsevents.FSWatchOptions{})).
 		Build()
 	require.NoError(t, err)

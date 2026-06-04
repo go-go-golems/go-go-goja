@@ -81,7 +81,7 @@ import (
 )
 
 func NewRuntime(ctx context.Context) (*engine.Runtime, error) {
-    factory, err := engine.NewBuilder().
+    factory, err := engine.NewRuntimeFactoryBuilder().
         Build().
         WithRuntimeInitializers(
             jsevents.Install(),

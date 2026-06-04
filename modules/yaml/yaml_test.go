@@ -255,7 +255,7 @@ func TestYamlStringifyNegativeIndent(t *testing.T) {
 func newDefaultRuntime(t *testing.T) *gggengine.Runtime {
 	t.Helper()
 
-	factory, err := gggengine.NewBuilder().
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
 		UseModuleMiddleware(gggengine.MiddlewareOnly("yaml")).
 		Build()
 	require.NoError(t, err)

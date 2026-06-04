@@ -36,13 +36,13 @@ func TestApplyMountToCommandsDoesNotMutateProviderDescriptions(t *testing.T) {
 }
 
 func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
 		providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule},
 		providerapi.CommandSetProvider{
 			Name:         "tools",
 			DefaultMount: "tools",
-			New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
 				if ctx.RuntimeProfile != "fallback" {
 					t.Fatalf("runtime profile = %q", ctx.RuntimeProfile)
 				}
@@ -87,13 +87,13 @@ func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T)
 
 func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 	called := false
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
 		providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule},
 		providerapi.CommandSetProvider{
 			Name:         "tools",
 			DefaultMount: "tools",
-			New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
 				if len(ctx.SelectedModules) != 1 {
 					t.Fatalf("selected modules = %#v", ctx.SelectedModules)
 				}

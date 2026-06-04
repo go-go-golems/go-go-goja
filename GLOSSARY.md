@@ -23,14 +23,16 @@ Contrast with non-spec patterns:
 - `engine.RuntimeFactoryBuilder`: mutable builder that composes require options, runtime module registrars, module middleware, and runtime initializers before freezing them.
 - `engine.RuntimeFactory`: immutable engine runtime creation plan; creates concrete `engine.Runtime` instances.
 - `engine.RuntimeModuleRegistrar`: runtime-aware module registration contract; installs one or more `require()` modules for a concrete runtime.
+- `engine.NativeModuleRegistrar`: concrete `RuntimeModuleRegistrar` that registers one native CommonJS module loader.
 - `engine.RuntimeModuleRegistrationContext`: registration-phase context passed to `RuntimeModuleRegistrar.RegisterRuntimeModule`; exposes startup context, VM, event loop, owner, closer registration, and value bag before `require` is enabled.
 - `engine.RuntimeInitializationContext`: initialization-phase context passed to `RuntimeInitializer.InitRuntime` after VM and `require` setup.
 - `app.RuntimeFactory`: xgoja runtime-profile factory that creates concrete runtimes from named runtime profiles.
 - `providerapi.Module`: provider module definition with a `NewModuleFactory` setup hook.
 - `providerapi.ModuleSetupContext`: setup-time inputs passed while creating a selected module's CommonJS loader.
 - `providerapi.SectionRequest`: request metadata passed when collecting provider configuration sections.
-- `providerapi.RuntimeInitializerHandle`: runtime handle passed to provider runtime initializer capabilities; exposes the owned `*engine.Runtime`.
-- `providerapi.ProviderRegistry`: active registry of provider packages, modules, command sets, help sources, and capabilities.
+- `providerapi.CommandSetProvider`: provider command-set definition with a `NewCommandSet` hook.
+- `providerapi.RuntimeInitializerHandle`: runtime handle passed to provider runtime initializer capabilities; exposes the owned `*engine.Runtime` through `EngineRuntime()`.
+- `providerapi.ProviderRegistry`: active registry of provider packages, modules, command sets, help sources, and capabilities; constructed with `NewProviderRegistry()`.
 - `require.ModuleLoader`: CommonJS loader that populates `module.exports`.
 
 Rule of thumb: if the type says what to build, select, embed, or configure, `*Spec` is appropriate. If it creates, registers, runs, schedules, resolves, or closes something, it should not be named `*Spec`.

@@ -69,10 +69,10 @@ func Register(registry *providerapi.ProviderRegistry) error {
 		},
 		providerapi.WithPackageCapability(FixtureCapability{}),
 		providerapi.CommandSetProvider{
-			Name:         "tools",
-			DefaultMount: "fixture",
-			Description:  "Fixture Glazed commands used by xgoja tests and examples",
-			New:          NewFixtureCommandSet,
+			Name:          "tools",
+			DefaultMount:  "fixture",
+			Description:   "Fixture Glazed commands used by xgoja tests and examples",
+			NewCommandSet: NewFixtureCommandSet,
 		},
 		providerapi.VerbSource{Name: "verbs", Root: "verbs", FS: verbsFS},
 	)
@@ -99,10 +99,10 @@ func (FixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values
 	if err := vals.DecodeSectionInto("fixture", &settings); err != nil {
 		return err
 	}
-	if handle.Runtime() == nil || handle.Runtime().VM == nil {
+	if handle.EngineRuntime() == nil || handle.EngineRuntime().VM == nil {
 		return fmt.Errorf("runtime handle has no goja runtime")
 	}
-	return handle.Runtime().VM.Set("fixtureValue", settings.Value)
+	return handle.EngineRuntime().VM.Set("fixtureValue", settings.Value)
 }
 
 func FixtureSection() (schema.Section, error) {

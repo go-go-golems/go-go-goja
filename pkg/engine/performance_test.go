@@ -8,7 +8,7 @@ import (
 )
 
 func TestPerformanceNowAndConsoleTimersSmoke(t *testing.T) {
-	factory, err := NewBuilder().Build()
+	factory, err := NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

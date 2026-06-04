@@ -38,7 +38,7 @@ var embeddedAssets embed.FS
 {{ end }}
 
 func main() {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 {{- range .ProviderImports }}
 	must({{ .Alias }}.{{ .Register }}(registry))
 {{- end }}

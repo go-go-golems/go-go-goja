@@ -75,7 +75,7 @@ func (f *RuntimeFactory) NewRuntime(ctx context.Context, profile string, opts ..
 		}
 		modules = append(modules, providerRuntimeModuleRegistrar{instance: instance, module: module, services: f.services})
 	}
-	builder := engine.NewBuilder(
+	builder := engine.NewRuntimeFactoryBuilder(
 		engine.WithImplicitDefaultRegistryModules(false),
 		engine.WithDataOnlyDefaultRegistryModules(false),
 	).WithModules(modules...)

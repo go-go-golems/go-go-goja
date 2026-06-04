@@ -47,7 +47,7 @@ func TestRuntimeFactoryRejectsDuplicateSectionSlugs(t *testing.T) {
 
 func TestRuntimeFactoryAttachesPackageCapabilitiesToEverySelectedModule(t *testing.T) {
 	capability := sectionCapability{id: "settings", slug: "fixture"}
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
 		providerapi.Module{Name: "first", NewModuleFactory: noopSectionModule},
 		providerapi.Module{Name: "second", NewModuleFactory: noopSectionModule},
@@ -88,7 +88,7 @@ func TestInitRuntimeFromSectionsCallsRuntimeInitializers(t *testing.T) {
 		id: "init",
 		fn: func(ctx context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle) error {
 			called = true
-			if handle.Runtime() == nil {
+			if handle.EngineRuntime() == nil {
 				t.Fatalf("expected goja runtime handle")
 			}
 			return nil
@@ -128,7 +128,7 @@ func TestInitRuntimeFromSectionsWrapsInitializerErrors(t *testing.T) {
 
 func newSectionTestFactory(t *testing.T, entries ...providerapi.Entry) *RuntimeFactory {
 	t.Helper()
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	allEntries := []providerapi.Entry{providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule}}
 	allEntries = append(allEntries, entries...)
 	if err := registry.Package("fixture", allEntries...); err != nil {

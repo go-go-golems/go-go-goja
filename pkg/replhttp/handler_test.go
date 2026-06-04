@@ -79,7 +79,7 @@ func TestHandlerSessionLifecycleAndHistory(t *testing.T) {
 func newTestApp(t *testing.T) *replapi.App {
 	t.Helper()
 
-	factory, err := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe()).Build()
+	factory, err := engine.NewRuntimeFactoryBuilder().UseModuleMiddleware(engine.MiddlewareSafe()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

@@ -76,7 +76,7 @@ func (r *testRuntimeModuleRegistrar) closedIDs() []int {
 func TestRuntimeModuleRegistrarRegistersPerRuntime(t *testing.T) {
 	registrar := &testRuntimeModuleRegistrar{}
 
-	factory, err := NewBuilder().
+	factory, err := NewRuntimeFactoryBuilder().
 		WithModules(registrar).
 		Build()
 	if err != nil {
@@ -119,7 +119,7 @@ func TestRuntimeModuleRegistrarRegistersPerRuntime(t *testing.T) {
 }
 
 func TestRuntimeCloseRunsClosersInReverseOrder(t *testing.T) {
-	factory, err := NewBuilder().Build()
+	factory, err := NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestRuntimeCloseRunsClosersInReverseOrder(t *testing.T) {
 
 func TestRuntimeCloseRunsRegistrarClosers(t *testing.T) {
 	registrar := &testRuntimeModuleRegistrar{}
-	factory, err := NewBuilder().
+	factory, err := NewRuntimeFactoryBuilder().
 		WithModules(registrar).
 		Build()
 	if err != nil {
@@ -180,7 +180,7 @@ func TestRuntimeCloseRunsRegistrarClosers(t *testing.T) {
 func TestRuntimePersistsRegistrarValues(t *testing.T) {
 	registrar := &testRuntimeModuleRegistrar{}
 
-	factory, err := NewBuilder().
+	factory, err := NewRuntimeFactoryBuilder().
 		WithModules(registrar, testRegistrarFunc{id: "value-registrar", fn: func(ctx *RuntimeModuleRegistrationContext, reg *require.Registry) error {
 			ctx.SetValue("runtime-id", 42)
 			return nil
@@ -208,7 +208,7 @@ func TestRuntimePersistsRegistrarValues(t *testing.T) {
 }
 
 func TestRuntimeInitializersCanReadAndWriteRuntimeValues(t *testing.T) {
-	factory, err := NewBuilder().
+	factory, err := NewRuntimeFactoryBuilder().
 		WithModules(testRegistrarFunc{id: "seed-values", fn: func(ctx *RuntimeModuleRegistrationContext, reg *require.Registry) error {
 			ctx.SetValue("phase", "registered")
 			return nil
@@ -246,7 +246,7 @@ func TestRuntimeInitializersCanReadAndWriteRuntimeValues(t *testing.T) {
 }
 
 func TestRuntimeInitializersPersistValuesWithoutRegistrarState(t *testing.T) {
-	factory, err := NewBuilder().
+	factory, err := NewRuntimeFactoryBuilder().
 		WithRuntimeInitializers(testRuntimeInitializerFunc{id: "seed-value", fn: func(ctx *RuntimeInitializationContext) error {
 			ctx.SetValue("initializer-only", "present")
 			return nil
@@ -270,7 +270,7 @@ func TestRuntimeInitializersPersistValuesWithoutRegistrarState(t *testing.T) {
 }
 
 func TestBuilderCanDisableImplicitDefaultModules(t *testing.T) {
-	factory, err := NewBuilder(
+	factory, err := NewRuntimeFactoryBuilder(
 		WithImplicitDefaultRegistryModules(false),
 		WithDataOnlyDefaultRegistryModules(false),
 	).Build()

@@ -48,21 +48,21 @@ func (ctx *RuntimeInitializationContext) Value(key string) (any, bool) {
 	return value, ok
 }
 
-// NativeModuleSpec registers a single native module loader.
-type NativeModuleSpec struct {
+// NativeModuleRegistrar registers a single native module loader.
+type NativeModuleRegistrar struct {
 	ModuleID   string
 	ModuleName string
 	Loader     require.ModuleLoader
 }
 
-func (s NativeModuleSpec) ID() string {
+func (s NativeModuleRegistrar) ID() string {
 	if strings.TrimSpace(s.ModuleID) != "" {
 		return strings.TrimSpace(s.ModuleID)
 	}
 	return "native:" + strings.TrimSpace(s.ModuleName)
 }
 
-func (s NativeModuleSpec) RegisterRuntimeModule(_ *RuntimeModuleRegistrationContext, reg *require.Registry) error {
+func (s NativeModuleRegistrar) RegisterRuntimeModule(_ *RuntimeModuleRegistrationContext, reg *require.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}

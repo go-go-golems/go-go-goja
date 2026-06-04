@@ -12,10 +12,6 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
-// CommandSetProviderFactory constructs package-owned Glazed commands for a
-// generated xgoja binary.
-type CommandSetProviderFactory func(CommandSetContext) (*CommandSet, error)
-
 // RuntimeFactory creates xgoja runtimes from named runtime profiles. Command
 // set providers use it when they own domain-specific commands but still want
 // those commands to run JavaScript with xgoja-selected modules.
@@ -40,11 +36,11 @@ type CommandSetContext struct {
 
 // CommandSetProvider registers a package-owned command factory.
 type CommandSetProvider struct {
-	Name         string
-	DefaultMount string
-	Description  string
-	ConfigSchema json.RawMessage
-	New          CommandSetProviderFactory
+	Name          string
+	DefaultMount  string
+	Description   string
+	ConfigSchema  json.RawMessage
+	NewCommandSet func(CommandSetContext) (*CommandSet, error)
 }
 
 // CommandSet is the Glazed command bundle returned by a provider.
@@ -62,7 +58,7 @@ func normalizeCommandSetProvider(provider CommandSetProvider) (CommandSetProvide
 	if name == "" {
 		return CommandSetProvider{}, fmt.Errorf("command set provider name is required")
 	}
-	if provider.New == nil {
+	if provider.NewCommandSet == nil {
 		return CommandSetProvider{}, fmt.Errorf("command set provider %q factory is required", name)
 	}
 	provider.Name = name

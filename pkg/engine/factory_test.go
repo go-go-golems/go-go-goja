@@ -17,7 +17,7 @@ func TestFactoryWithRequireOptions(t *testing.T) {
 		return nil, require.ModuleFileDoesNotExistError
 	}
 
-	factory, err := NewBuilder(
+	factory, err := NewRuntimeFactoryBuilder(
 		WithRequireOptions(require.WithLoader(loader)),
 	).Build()
 	if err != nil {

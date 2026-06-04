@@ -236,14 +236,16 @@ Treat `vals == nil` as discovery mode. Discovery should describe sections and mo
 
 ## 7. Register closers for owned resources
 
-Runtime resources must have a cleanup path. If the initializer opens a server, device, database, browser, event subscription, or goroutine group, register a closer when the runtime handle supports it.
+Runtime resources must have a cleanup path. If the initializer opens a server, device, database, browser, event subscription, or goroutine group, register a closer on the engine runtime exposed by the runtime handle.
 
 ```go
-if closerRegistry, ok := handle.(providerapi.RuntimeCloserRegistry); ok {
-    return closerRegistry.AddCloser(func(ctx context.Context) error {
-        return resource.Close()
-    })
+runtime := handle.EngineRuntime()
+if runtime == nil {
+    return fmt.Errorf("runtime is nil")
 }
+return runtime.AddCloser(func(ctx context.Context) error {
+    return resource.Close()
+})
 ```
 
 `engine.Runtime.Close(ctx)` cancels runtime lifetime first, then waits briefly for active owner calls, interrupts active JavaScript if necessary, runs closers while runtime services are still registered, and then removes runtimebridge services. Closers should be bounded and should expect the lifetime context to already be canceled.
@@ -260,7 +262,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
             Name:         "verbs",
             DefaultMount: "my-repo",
             Description:  "My repository commands",
-            Factory:      newCommandSet,
+            NewCommandSet: newCommandSet,
         },
     )
 }

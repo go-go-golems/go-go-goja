@@ -20,7 +20,7 @@ func TestBuilderWithRequireOptions(t *testing.T) {
 		return nil, require.ModuleFileDoesNotExistError
 	}
 
-	factory, err := NewBuilder(
+	factory, err := NewRuntimeFactoryBuilder(
 		WithRequireOptions(require.WithLoader(loader)),
 	).Build()
 	if err != nil {
@@ -48,7 +48,7 @@ func TestBuilderWithRequireOptions(t *testing.T) {
 
 func TestNewRuntimeUsesStartupContextForInitializers(t *testing.T) {
 	startupCtx := context.WithValue(context.Background(), contextKey("startup"), "yes")
-	factory, err := NewBuilder().WithRuntimeInitializers(testRuntimeInitializer{
+	factory, err := NewRuntimeFactoryBuilder().WithRuntimeInitializers(testRuntimeInitializer{
 		id: "startup-context",
 		fn: func(ctx *RuntimeInitializationContext) error {
 			if got := ctx.Context.Value(contextKey("startup")); got != "yes" {
@@ -71,7 +71,7 @@ func TestNewRuntimeUsesStartupContextForInitializers(t *testing.T) {
 func TestNewRuntimeRejectsCanceledStartupContext(t *testing.T) {
 	startupCtx, cancel := context.WithCancel(context.Background())
 	cancel()
-	factory, err := NewBuilder().Build()
+	factory, err := NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestNewRuntimeRejectsCanceledStartupContext(t *testing.T) {
 func TestRuntimeInitializationContextUsesLifetimeContext(t *testing.T) {
 	lifetimeCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	factory, err := NewBuilder().Build()
+	factory, err := NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestRuntimeInitializationContextUsesLifetimeContext(t *testing.T) {
 }
 
 func TestRuntimeCloseRunsClosersBeforeDeletingRuntimeServices(t *testing.T) {
-	factory, err := NewBuilder().Build()
+	factory, err := NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestRuntimeCloseRunsClosersBeforeDeletingRuntimeServices(t *testing.T) {
 }
 
 func TestRuntimeInitializationContextCancelsOnClose(t *testing.T) {
-	factory, err := NewBuilder().Build()
+	factory, err := NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

@@ -180,7 +180,7 @@ This is the end-to-end flow from CLI flag to `require("plugin:echo")`.
 cmd/goja-repl tui
     |
     v
-engine.NewBuilder()
+engine.NewRuntimeFactoryBuilder()
     .WithModules(..., host.NewRegistrar(...))
     |
     v

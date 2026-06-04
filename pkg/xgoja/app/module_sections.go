@@ -85,7 +85,7 @@ type runtimeHandle struct {
 	rt *JSRuntime
 }
 
-func (h runtimeHandle) Runtime() *JSRuntime {
+func (h runtimeHandle) EngineRuntime() *JSRuntime {
 	return h.rt
 }
 
@@ -94,11 +94,4 @@ func (h runtimeHandle) Close(ctx context.Context) error {
 		return nil
 	}
 	return h.rt.Close(ctx)
-}
-
-func (h runtimeHandle) AddCloser(fn func(context.Context) error) error {
-	if h.rt == nil {
-		return fmt.Errorf("runtime is nil")
-	}
-	return h.rt.AddCloser(fn)
 }

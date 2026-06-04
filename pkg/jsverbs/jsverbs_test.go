@@ -583,7 +583,7 @@ func TestInvokeInRuntimeReusesLiveRuntime(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	builder := engine.NewBuilder().
+	builder := engine.NewRuntimeFactoryBuilder().
 		WithRequireOptions(noderequire.WithLoader(registry.RequireLoader())).
 		UseModuleMiddleware(engine.MiddlewareOnly("fs", "events"))
 	if requireOpt != nil {
@@ -640,7 +640,7 @@ func TestFSWatchJsverbUsesInstalledHelper(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	builder := engine.NewBuilder().
+	builder := engine.NewRuntimeFactoryBuilder().
 		WithRequireOptions(noderequire.WithLoader(registry.RequireLoader())).
 		UseModuleMiddleware(engine.MiddlewareOnly("fs", "events")).
 		WithRuntimeInitializers(

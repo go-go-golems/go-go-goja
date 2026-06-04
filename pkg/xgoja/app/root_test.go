@@ -33,7 +33,7 @@ const fixtureSpecJSON = `{
 }`
 
 func TestGeneratedRootEvalUsesProviderModule(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestGeneratedRootEvalUsesProviderModule(t *testing.T) {
 }
 
 func TestGeneratedRootRespectsConfiguredReplCommandName(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestGeneratedRootRespectsConfiguredReplCommandName(t *testing.T) {
 }
 
 func TestGeneratedRootRespectsDisabledReplCommand(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestGeneratedRootRespectsDisabledReplCommand(t *testing.T) {
 }
 
 func TestGeneratedRootInstallsHelpAndLogging(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -140,7 +140,7 @@ func TestGeneratedRootInstallsHelpAndLogging(t *testing.T) {
 }
 
 func TestGeneratedRootLoadsProviderHelpSource(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	docs := fstest.MapFS{
 		"topics/01-fixture.md": {Data: []byte(`---
 Title: Fixture JavaScript API reference
@@ -191,7 +191,7 @@ Fixture provider help body.
 }
 
 func TestGeneratedRootLoadsEmbeddedLocalHelpSource(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -238,7 +238,7 @@ Local generated help body.
 }
 
 func TestGeneratedRootReportsMissingProviderHelpSource(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -264,7 +264,7 @@ func TestGeneratedRootReportsMissingProviderHelpSource(t *testing.T) {
 }
 
 func TestGeneratedRootTUIHelp(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -299,7 +299,7 @@ func TestGeneratedRootTUIHelp(t *testing.T) {
 }
 
 func TestGeneratedRootRunCommandExecutesScriptFile(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -343,7 +343,7 @@ if (hello.greet(helper.name) !== "hello intern") {
 }
 
 func TestGeneratedRootModulesCommand(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -365,7 +365,7 @@ func TestGeneratedRootModulesCommand(t *testing.T) {
 }
 
 func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -390,7 +390,7 @@ func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
 }
 
 func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -423,7 +423,7 @@ func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
 }
 
 func TestGeneratedRootMountsEmbeddedJSVerbs(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -463,7 +463,7 @@ function embeddedGreet(name) {
 }
 
 func TestGeneratedRootMountsEmbeddedJSVerbsAtRoot(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -503,7 +503,7 @@ function embeddedGreet(name) {
 }
 
 func TestGeneratedRootMountsFilesystemJSVerbs(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}

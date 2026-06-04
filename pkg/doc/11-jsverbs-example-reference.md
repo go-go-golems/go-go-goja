@@ -321,7 +321,7 @@ The `examples/jsverbs/basic/fswatch.js` fixture demonstrates a connected EventEm
 Use `Registry.InvokeInRuntime(...)` when a fixture needs host-specific runtime composition:
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     WithRequireOptions(require.WithLoader(registry.RequireLoader())).
     Build().
     WithRuntimeInitializers(

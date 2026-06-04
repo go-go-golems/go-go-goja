@@ -66,7 +66,7 @@ func (h *Host) newCommandSet(instance CommandProviderInstanceSpec, provider prov
 	if err != nil {
 		return nil, err
 	}
-	set, err := provider.New(providerapi.CommandSetContext{
+	set, err := provider.NewCommandSet(providerapi.CommandSetContext{
 		Context:         context.Background(),
 		PackageID:       instance.Package,
 		Name:            instance.Name,

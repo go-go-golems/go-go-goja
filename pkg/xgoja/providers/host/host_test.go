@@ -15,7 +15,7 @@ import (
 )
 
 func TestRegisterHostProvider(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := Register(registry); err != nil {
 		t.Fatalf("register host provider: %v", err)
 	}
@@ -27,7 +27,7 @@ func TestRegisterHostProvider(t *testing.T) {
 }
 
 func TestFSRequiresExplicitAllow(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := Register(registry); err != nil {
 		t.Fatalf("register host provider: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestFSRequiresExplicitAllow(t *testing.T) {
 }
 
 func TestFSHostAndEmbeddedAliases(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := Register(registry); err != nil {
 		t.Fatalf("register host provider: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestFSHostAndEmbeddedAliases(t *testing.T) {
 }
 
 func TestFSRootEmbeddedMount(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := Register(registry); err != nil {
 		t.Fatalf("register host provider: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestFSRootEmbeddedMount(t *testing.T) {
 }
 
 func TestFSRejectsCombinedHostAndEmbeddedConfig(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := Register(registry); err != nil {
 		t.Fatalf("register host provider: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestFSRejectsCombinedHostAndEmbeddedConfig(t *testing.T) {
 }
 
 func TestExecAllowedCommands(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := Register(registry); err != nil {
 		t.Fatalf("register host provider: %v", err)
 	}

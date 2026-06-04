@@ -74,7 +74,7 @@ func AppendUniqueSections(out *[]schema.Section, seen map[string]string, section
 // InitRuntimeFromSections runs all runtime initializer capabilities attached to
 // the selected module descriptors against one runtime handle.
 func InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle, descriptors []providerapi.ModuleDescriptor) error {
-	if handle == nil || handle.Runtime() == nil {
+	if handle == nil || handle.EngineRuntime() == nil {
 		return fmt.Errorf("runtime handle is nil")
 	}
 	applied := map[string]struct{}{}

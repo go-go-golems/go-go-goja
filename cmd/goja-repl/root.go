@@ -144,7 +144,7 @@ func (s commandSupport) newAppWithOptions(options appSupportOptions) (*replapi.A
 		}
 	}
 	pluginSetup := host.NewRuntimeSetup(s.opts.PluginDirs, s.opts.AllowPluginModules)
-	builder := engine.NewBuilder()
+	builder := engine.NewRuntimeFactoryBuilder()
 	if mw := s.moduleMiddleware(); mw != nil {
 		builder = builder.UseModuleMiddleware(mw)
 	}

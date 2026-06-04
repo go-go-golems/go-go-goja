@@ -41,7 +41,7 @@ func TestRuntimeFactoryPassesRuntimeOwnerToModules(t *testing.T) {
 		},
 	}
 	seen := false
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture", providerapi.Module{
 		Name: "owner-check",
 		NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
@@ -76,7 +76,7 @@ func TestRuntimeFactoryPassesHostServicesToModules(t *testing.T) {
 		},
 	}
 	seen := false
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture", providerapi.Module{
 		Name: "asset-check",
 		NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {

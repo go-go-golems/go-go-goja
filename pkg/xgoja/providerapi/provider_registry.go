@@ -24,7 +24,7 @@ type Package struct {
 	CommandSetProviders map[string]CommandSetProvider
 }
 
-func NewRegistry() *ProviderRegistry {
+func NewProviderRegistry() *ProviderRegistry {
 	return &ProviderRegistry{packages: map[string]*Package{}}
 }
 

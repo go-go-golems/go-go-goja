@@ -242,7 +242,7 @@ func (Capability) InitRuntimeFromSections(_ context.Context, values *values.Valu
     if err := values.DecodeSectionInto("my-provider", &settings); err != nil {
         return err
     }
-    return handle.Runtime().VM.Set("providerValue", settings.Value)
+    return handle.EngineRuntime().VM.Set("providerValue", settings.Value)
 }
 ```
 
@@ -267,7 +267,7 @@ Use `values.Values.DecodeSectionInto` instead of reaching into raw maps. The pro
 | Configure a module statically from `xgoja.yaml` | `ModuleSetupContext.Config` | Use for buildspec/runtime-profile settings such as allowlists or base paths. |
 | Add command-line flags for selected modules | `ConfigSectionCapability` | The section is appended to built-in commands and provider-owned commands that opt in. |
 | Apply parsed command values to a JS runtime | `RuntimeInitializerCapability` | Use `DecodeSectionInto`; avoid side effects when `values == nil`. |
-| Access runtime-scoped services | `RuntimeInitializerHandle.Runtime()` | Use the owned `*engine.Runtime` for the Goja VM, event loop, owner, values, and closer registration. |
+| Access runtime-scoped services | `RuntimeInitializerHandle.EngineRuntime()` | Use the owned `*engine.Runtime` for the Goja VM, event loop, owner, values, and closer registration. |
 | Add domain-specific CLI commands | `CommandSetProvider` | Return Glazed commands; use `RuntimeFactory` when those commands need xgoja runtimes. |
 
 ## Ship Glazed command sets
@@ -281,7 +281,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
         providerapi.CommandSetProvider{
             Name:         "tools",
             DefaultMount: "my-provider",
-            New: func(c providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+            NewCommandSet: func(c providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
                 cmd, err := cmds.NewBareCommand(
                     &cmds.CommandDescription{Name: "hello", Short: "Say hello"},
                     func(ctx context.Context, parsed *types.ParsedLayers) error {

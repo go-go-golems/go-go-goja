@@ -26,7 +26,7 @@ func silenceBenchLogs() {
 
 func newRuntime(tb testing.TB, opts ...require.Option) (*goja.Runtime, *require.RequireModule, func()) {
 	tb.Helper()
-	factory, err := engine.NewBuilder().
+	factory, err := engine.NewRuntimeFactoryBuilder().
 		WithRequireOptions(opts...).
 		UseModuleMiddleware(engine.MiddlewareSafe()).
 		Build()
@@ -74,7 +74,7 @@ func BenchmarkRuntimeSpawn(b *testing.B) {
 	})
 
 	b.Run("EngineFactory", func(b *testing.B) {
-		factory, err := engine.NewBuilder().
+		factory, err := engine.NewRuntimeFactoryBuilder().
 			UseModuleMiddleware(engine.MiddlewareSafe()).
 			Build()
 		if err != nil {

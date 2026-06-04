@@ -13,7 +13,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	factory, err := engine.NewBuilder().Build()
+	factory, err := engine.NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		panic(err)
 	}

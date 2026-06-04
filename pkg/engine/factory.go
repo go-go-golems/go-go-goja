@@ -45,8 +45,8 @@ type RuntimeFactory struct {
 	runtimeInitializers []RuntimeInitializer
 }
 
-// NewBuilder starts a new explicit runtime composition flow.
-func NewBuilder(opts ...Option) *RuntimeFactoryBuilder {
+// NewRuntimeFactoryBuilder starts a new explicit runtime composition flow.
+func NewRuntimeFactoryBuilder(opts ...Option) *RuntimeFactoryBuilder {
 	settings := defaultBuilderSettings()
 	for _, opt := range opts {
 		if opt != nil {
@@ -84,7 +84,7 @@ func (b *RuntimeFactoryBuilder) WithModules(mods ...RuntimeModuleRegistrar) *Run
 // UseModuleMiddleware appends module-selection middlewares. A plain builder with
 // no explicit modules enables all default-registry modules; when middlewares are
 // present, the builder evaluates the pipeline at Build() time and converts the
-// resulting module names into NativeModuleSpec registrations. This is the
+// resulting module names into NativeModuleRegistrar registrations. This is the
 // preferred way to control which default-registry modules are loaded.
 //
 // Middlewares are applied in order: the first middleware wraps the subsequent
@@ -135,7 +135,7 @@ func (b *RuntimeFactoryBuilder) Build() (*RuntimeFactory, error) {
 	}
 
 	// Evaluate module middleware pipeline and convert selected names to specs.
-	// A plain NewBuilder().Build() preserves the historical default of exposing
+	// A plain NewRuntimeFactoryBuilder().Build() preserves the historical default of exposing
 	// all default-registry modules. Calling UseModuleMiddleware narrows or
 	// transforms that selection; explicit WithModules(...) remains explicit and
 	// does not auto-append the default registry.

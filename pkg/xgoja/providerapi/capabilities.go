@@ -46,17 +46,11 @@ type ConfigSectionCapability interface {
 
 // RuntimeInitializerHandle is the runtime-facing handle passed to runtime
 // initializers. It exposes the owned engine runtime so providers can access the
-// Goja VM, event loop, runtime owner, closer registry, and other runtime-scoped
+// Goja VM, event loop, runtime owner, closer registration, and other runtime-scoped
 // services when installing runtime functionality.
 type RuntimeInitializerHandle interface {
-	Runtime() *engine.Runtime
+	EngineRuntime() *engine.Runtime
 	Close(context.Context) error
-}
-
-// RuntimeCloserRegistry is an optional extension implemented by runtime handles
-// that can attach cleanup hooks to the underlying engine runtime.
-type RuntimeCloserRegistry interface {
-	AddCloser(func(context.Context) error) error
 }
 
 // RuntimeInitializerCapability is used by built-in xgoja commands such as run,

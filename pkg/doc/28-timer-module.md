@@ -48,6 +48,6 @@ If `ms` is negative, the Promise rejects with an error string.
 
 | Problem | Cause | Solution |
 |---|---|---|
-| "timer module requires runtime services" panic | The runtime was built without owner-based services | Use a factory created with `engine.NewBuilder().Build()` rather than a bare `goja.New()` |
+| "timer module requires runtime services" panic | The runtime was built without owner-based services | Use a factory created with `engine.NewRuntimeFactoryBuilder().Build()` rather than a bare `goja.New()` |
 | Promise never resolves after a long delay | The owner call context was canceled or timed out | Increase the context deadline on the owner call, or move the sleep to a longer-lived context |
 | Negative duration rejected | `ms < 0` | Pass a non-negative integer for the sleep duration |

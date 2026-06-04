@@ -247,7 +247,7 @@ func TestHandlerRedirectsStaticEssayPrefix(t *testing.T) {
 func newTestHandler(t *testing.T) http.Handler {
 	t.Helper()
 
-	factory, err := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe()).Build()
+	factory, err := engine.NewRuntimeFactoryBuilder().UseModuleMiddleware(engine.MiddlewareSafe()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

@@ -39,10 +39,10 @@ The factory always installs data-only primitives and safe globals:
 - `require("time")`
 - `require("timer")`
 
-A plain `engine.NewBuilder().Build()` enables the full default registry, including host-access modules. For a tighter sandbox, select an explicit module set with `UseModuleMiddleware(engine.MiddlewareOnly(...))` or use `UseModuleMiddleware(engine.MiddlewareSafe())`:
+A plain `engine.NewRuntimeFactoryBuilder().Build()` enables the full default registry, including host-access modules. For a tighter sandbox, select an explicit module set with `UseModuleMiddleware(engine.MiddlewareOnly(...))` or use `UseModuleMiddleware(engine.MiddlewareSafe())`:
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     WithModules(
         engine.MiddlewareOnly("fs"),
         engine.MiddlewareOnly("os"),
@@ -55,7 +55,7 @@ The default builder includes every module in `modules.DefaultRegistry`, includin
 The `process` module and global are not installed by default. Enable them only when exposing host environment variables is acceptable:
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     WithModules(engine.ProcessModule()).
     WithRuntimeInitializers(engine.ProcessEnv()).
     Build()
@@ -79,7 +79,7 @@ import (
 )
 
 func NewRuntime(ctx context.Context) (*engine.Runtime, error) {
-    factory, err := engine.NewBuilder().Build()
+    factory, err := engine.NewRuntimeFactoryBuilder().Build()
     if err != nil {
         return nil, err
     }
@@ -91,7 +91,7 @@ func NewRuntime(ctx context.Context) (*engine.Runtime, error) {
 If your package wants file and OS access, opt in explicitly:
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     UseModuleMiddleware(engine.MiddlewareOnly("fs", "os")).
     Build()
 ```
@@ -99,7 +99,7 @@ factory, err := engine.NewBuilder().
 For a single module, use:
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     UseModuleMiddleware(engine.MiddlewareOnly("fs")).
     Build()
 ```
@@ -109,7 +109,7 @@ The engine package already contains the blank imports that make built-in modules
 If the application wants process environment access, opt in explicitly. For both `require("process")` and the global `process` object, use:
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     WithModules(
         engine.MiddlewareOnly("fs"),
         engine.ProcessModule(),
@@ -132,7 +132,7 @@ fs.writeFileSync(file, Buffer.from("hello"));
 console.log(fs.readFileSync(file, "utf8"));
 ```
 
-For a tighter sandbox, do not rely on the all-modules default builder. Instead, use `UseModuleMiddleware(engine.MiddlewareSafe())`, register only the modules your application wants through `UseModuleMiddleware(engine.MiddlewareOnly(...))`, or provide explicit `engine.NativeModuleSpec` values.
+For a tighter sandbox, do not rely on the all-modules default builder. Instead, use `UseModuleMiddleware(engine.MiddlewareSafe())`, register only the modules your application wants through `UseModuleMiddleware(engine.MiddlewareOnly(...))`, or provide explicit `engine.NativeModuleRegistrar` values.
 
 ## Available Primitives
 
@@ -249,7 +249,7 @@ Supported methods include `on`/`addListener`, `once`, `off`/`removeListener`, `r
 `pkg/jsevents` builds opt-in Go resource helpers on top of the Go-native EventEmitter. These helpers are not default primitives because they connect JavaScript to host resources. An embedding application installs the connected-emitter manager and whichever helpers it wants:
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     WithRuntimeInitializers(
         jsevents.Install(),
         jsevents.FSWatchHelper(jsevents.FSWatchOptions{
@@ -282,7 +282,7 @@ conn.close();
 Recursive watching is available only when the host opts in with `AllowRecursive: true` because it can allocate one OS watch per directory:
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     WithRuntimeInitializers(
         jsevents.Install(),
         jsevents.FSWatchHelper(jsevents.FSWatchOptions{

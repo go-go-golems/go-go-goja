@@ -47,7 +47,7 @@ module.exports = {
 		return []byte(src), nil
 	}
 
-	factory, err := engine.NewBuilder(
+	factory, err := engine.NewRuntimeFactoryBuilder(
 		engine.WithRequireOptions(require.WithLoader(loader)),
 	).Build()
 	if err != nil {

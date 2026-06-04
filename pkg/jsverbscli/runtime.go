@@ -71,13 +71,13 @@ func newRuntimeFactory(repo ScannedRepository, settings *RuntimeSettings) (*engi
 			databasemod.WithConfigureEnabled(false),
 		)
 		moduleSpecs = append(moduleSpecs,
-			engine.NativeModuleSpec{ModuleID: "database:configured", ModuleName: databaseModule.Name(), Loader: databaseModule.Loader},
-			engine.NativeModuleSpec{ModuleID: "database:db-alias", ModuleName: dbAliasModule.Name(), Loader: dbAliasModule.Loader},
+			engine.NativeModuleRegistrar{ModuleID: "database:configured", ModuleName: databaseModule.Name(), Loader: databaseModule.Loader},
+			engine.NativeModuleRegistrar{ModuleID: "database:db-alias", ModuleName: dbAliasModule.Name(), Loader: dbAliasModule.Loader},
 		)
 		cleanup = func() { _ = db.Close() }
 	}
 
-	builder := engine.NewBuilder(runtimeOptions(repo)...).
+	builder := engine.NewRuntimeFactoryBuilder(runtimeOptions(repo)...).
 		WithRequireOptions(noderequire.WithLoader(repo.Registry.RequireLoader())).
 		UseModuleMiddleware(engine.MiddlewareOnly("fs", "path", "time", "timer", "yaml")).
 		WithModules(moduleSpecs...).

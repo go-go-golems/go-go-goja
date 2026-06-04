@@ -8,7 +8,7 @@ import (
 )
 
 func TestNodeJSPrimitivesDefaultGlobalsAndRequires(t *testing.T) {
-	factory, err := NewBuilder().Build()
+	factory, err := NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestNodeJSPrimitivesDefaultGlobalsAndRequires(t *testing.T) {
 }
 
 func TestProcessEnvInitializerInstallsProcessGlobal(t *testing.T) {
-	factory, err := NewBuilder().WithRuntimeInitializers(ProcessEnv()).Build()
+	factory, err := NewRuntimeFactoryBuilder().WithRuntimeInitializers(ProcessEnv()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestProcessEnvInitializerInstallsProcessGlobal(t *testing.T) {
 }
 
 func TestProcessModuleIsOptIn(t *testing.T) {
-	factory, err := NewBuilder().WithModules(ProcessModule()).Build()
+	factory, err := NewRuntimeFactoryBuilder().WithModules(ProcessModule()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestProcessModuleIsOptIn(t *testing.T) {
 }
 
 func TestProcessModuleAndGlobalShareOptIn(t *testing.T) {
-	factory, err := NewBuilder().WithModules(ProcessModule()).WithRuntimeInitializers(ProcessEnv()).Build()
+	factory, err := NewRuntimeFactoryBuilder().WithModules(ProcessModule()).WithRuntimeInitializers(ProcessEnv()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

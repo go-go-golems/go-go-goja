@@ -14,7 +14,7 @@ import (
 
 func TestRegistryPackageRegistersModulesVerbSourcesHelpSourcesAndCapabilities(t *testing.T) {
 	docs := fstest.MapFS{"topics/intro.md": {Data: []byte("docs")}}
-	registry := NewRegistry()
+	registry := NewProviderRegistry()
 	if err := registry.Package("core",
 		Module{Name: "fs", DefaultAs: "fs", NewModuleFactory: noopFactory},
 		Module{Name: "yaml", DefaultAs: "yaml", NewModuleFactory: noopFactory},
@@ -66,7 +66,7 @@ func TestRegistryPackageRegistersModulesVerbSourcesHelpSourcesAndCapabilities(t 
 }
 
 func TestRegistryRejectsDuplicates(t *testing.T) {
-	registry := NewRegistry()
+	registry := NewProviderRegistry()
 	if err := registry.Package("core", Module{Name: "fs", NewModuleFactory: noopFactory}); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
@@ -74,52 +74,52 @@ func TestRegistryRejectsDuplicates(t *testing.T) {
 		t.Fatalf("expected duplicate package error, got %v", err)
 	}
 
-	registry = NewRegistry()
+	registry = NewProviderRegistry()
 	err := registry.Package("web", Module{Name: "fetch", NewModuleFactory: noopFactory}, Module{Name: "fetch", NewModuleFactory: noopFactory})
 	if err == nil || !strings.Contains(err.Error(), "duplicate module") {
 		t.Fatalf("expected duplicate module error, got %v", err)
 	}
 
-	err = NewRegistry().Package("verbs", VerbSource{Name: "default"}, VerbSource{Name: "default"})
+	err = NewProviderRegistry().Package("verbs", VerbSource{Name: "default"}, VerbSource{Name: "default"})
 	if err == nil || !strings.Contains(err.Error(), "duplicate verb source") {
 		t.Fatalf("expected duplicate verb source error, got %v", err)
 	}
 
 	docs := fstest.MapFS{"intro.md": {Data: []byte("docs")}}
-	err = NewRegistry().Package("docs", HelpSource{Name: "default", FS: docs}, HelpSource{Name: "default", FS: docs})
+	err = NewProviderRegistry().Package("docs", HelpSource{Name: "default", FS: docs}, HelpSource{Name: "default", FS: docs})
 	if err == nil || !strings.Contains(err.Error(), "duplicate help source") {
 		t.Fatalf("expected duplicate help source error, got %v", err)
 	}
 
-	err = NewRegistry().Package("caps", WithPackageCapability(testCapability{id: "settings"}), WithPackageCapability(testCapability{id: "settings"}))
+	err = NewProviderRegistry().Package("caps", WithPackageCapability(testCapability{id: "settings"}), WithPackageCapability(testCapability{id: "settings"}))
 	if err == nil || !strings.Contains(err.Error(), "duplicate capability") {
 		t.Fatalf("expected duplicate capability error, got %v", err)
 	}
 }
 
 func TestRegistryRejectsInvalidEntries(t *testing.T) {
-	if err := NewRegistry().Package("", Module{Name: "fs", NewModuleFactory: noopFactory}); err == nil {
+	if err := NewProviderRegistry().Package("", Module{Name: "fs", NewModuleFactory: noopFactory}); err == nil {
 		t.Fatal("expected empty package id error")
 	}
-	if err := NewRegistry().Package("core", Module{Name: ""}); err == nil || !strings.Contains(err.Error(), "module name") {
+	if err := NewProviderRegistry().Package("core", Module{Name: ""}); err == nil || !strings.Contains(err.Error(), "module name") {
 		t.Fatalf("expected module name error, got %v", err)
 	}
-	if err := NewRegistry().Package("core", Module{Name: "fs"}); err == nil || !strings.Contains(err.Error(), "factory") {
+	if err := NewProviderRegistry().Package("core", Module{Name: "fs"}); err == nil || !strings.Contains(err.Error(), "factory") {
 		t.Fatalf("expected factory error, got %v", err)
 	}
-	if err := NewRegistry().Package("core", VerbSource{Name: ""}); err == nil || !strings.Contains(err.Error(), "verb source name") {
+	if err := NewProviderRegistry().Package("core", VerbSource{Name: ""}); err == nil || !strings.Contains(err.Error(), "verb source name") {
 		t.Fatalf("expected verb source name error, got %v", err)
 	}
-	if err := NewRegistry().Package("core", HelpSource{Name: ""}); err == nil || !strings.Contains(err.Error(), "help source name") {
+	if err := NewProviderRegistry().Package("core", HelpSource{Name: ""}); err == nil || !strings.Contains(err.Error(), "help source name") {
 		t.Fatalf("expected help source name error, got %v", err)
 	}
-	if err := NewRegistry().Package("core", HelpSource{Name: "docs"}); err == nil || !strings.Contains(err.Error(), "filesystem") {
+	if err := NewProviderRegistry().Package("core", HelpSource{Name: "docs"}); err == nil || !strings.Contains(err.Error(), "filesystem") {
 		t.Fatalf("expected help source filesystem error, got %v", err)
 	}
-	if err := NewRegistry().Package("core", WithPackageCapability(nil)); err == nil || !strings.Contains(err.Error(), "capability is nil") {
+	if err := NewProviderRegistry().Package("core", WithPackageCapability(nil)); err == nil || !strings.Contains(err.Error(), "capability is nil") {
 		t.Fatalf("expected nil capability error, got %v", err)
 	}
-	if err := NewRegistry().Package("core", WithPackageCapability(testCapability{id: ""})); err == nil || !strings.Contains(err.Error(), "capability id") {
+	if err := NewProviderRegistry().Package("core", WithPackageCapability(testCapability{id: ""})); err == nil || !strings.Contains(err.Error(), "capability id") {
 		t.Fatalf("expected empty capability id error, got %v", err)
 	}
 }

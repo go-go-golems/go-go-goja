@@ -10,7 +10,7 @@ import (
 )
 
 func TestCryptoModuleSmoke(t *testing.T) {
-	factory, err := gggengine.NewBuilder().UseModuleMiddleware(gggengine.MiddlewareSafe()).Build()
+	factory, err := gggengine.NewRuntimeFactoryBuilder().UseModuleMiddleware(gggengine.MiddlewareSafe()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

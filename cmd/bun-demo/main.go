@@ -44,7 +44,7 @@ func main() {
 	flag.Parse()
 	pluginSetup := host.NewRuntimeSetup(pluginDirs, allowPluginModules)
 
-	builder := pluginSetup.WithBuilder(engine.NewBuilder().
+	builder := pluginSetup.WithBuilder(engine.NewRuntimeFactoryBuilder().
 		WithRequireOptions(require.WithLoader(embeddedSourceLoader)).
 		UseModuleMiddleware(engine.MiddlewareSafe()))
 

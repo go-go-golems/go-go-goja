@@ -63,7 +63,7 @@ type runFixtureSettings struct {
 
 func newRuntimeOverrideFactory(t *testing.T) *RuntimeFactory {
 	t.Helper()
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("defaultpkg",
 		providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule},
 		providerapi.WithPackageCapability(prefixedRunFixtureCapability{prefix: "default:"}),
@@ -126,7 +126,7 @@ func setFixtureValue(vals *values.Values, handle providerapi.RuntimeInitializerH
 	if err := vals.DecodeSectionInto("fixture", &settings); err != nil {
 		return err
 	}
-	runtime := handle.Runtime()
+	runtime := handle.EngineRuntime()
 	vm := (*goja.Runtime)(nil)
 	if runtime != nil {
 		vm = runtime.VM

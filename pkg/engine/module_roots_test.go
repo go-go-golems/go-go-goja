@@ -119,7 +119,7 @@ func TestWithModuleRootsFromScript_ResolvesNestedRequire(t *testing.T) {
 		t.Fatalf("write entry.js: %v", err)
 	}
 
-	factory, err := NewBuilder(
+	factory, err := NewRuntimeFactoryBuilder(
 		WithModuleRootsFromScript(filepath.Join(scriptDir, "entry.js"), DefaultModuleRootsOptions()),
 	).Build()
 	if err != nil {

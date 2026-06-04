@@ -67,7 +67,7 @@ func TestInitRuntimeFromSectionsCallsInitializers(t *testing.T) {
 	if err := InitRuntimeFromSections(context.Background(), vals, handle, descriptors); err != nil {
 		t.Fatalf("init runtime: %v", err)
 	}
-	if !initializer.called || initializer.vals != vals || initializer.handle.Runtime().VM != handle.vm {
+	if !initializer.called || initializer.vals != vals || initializer.handle.EngineRuntime().VM != handle.vm {
 		t.Fatalf("initializer not called with expected values: %#v", initializer)
 	}
 }
@@ -161,7 +161,7 @@ func (c *runtimeInitCapability) InitRuntimeFromSections(_ context.Context, vals 
 
 type fakeRuntimeHandle struct{ vm *goja.Runtime }
 
-func (h fakeRuntimeHandle) Runtime() *engine.Runtime {
+func (h fakeRuntimeHandle) EngineRuntime() *engine.Runtime {
 	return &engine.Runtime{VM: h.vm}
 }
 func (h fakeRuntimeHandle) Close(context.Context) error { return nil }

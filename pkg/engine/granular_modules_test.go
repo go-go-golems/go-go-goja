@@ -8,7 +8,7 @@ import (
 )
 
 func TestDataOnlyModulesAreEnabledByDefault(t *testing.T) {
-	factory, err := NewBuilder().UseModuleMiddleware(MiddlewareSafe()).Build()
+	factory, err := NewRuntimeFactoryBuilder().UseModuleMiddleware(MiddlewareSafe()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -46,7 +46,7 @@ func TestDataOnlyModulesAreEnabledByDefault(t *testing.T) {
 }
 
 func TestDefaultBuilderEnablesAllDefaultRegistryModules(t *testing.T) {
-	factory, err := NewBuilder().Build()
+	factory, err := NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestDefaultBuilderEnablesAllDefaultRegistryModules(t *testing.T) {
 }
 
 func TestSafeMiddlewareRestrictsHostAccessModules(t *testing.T) {
-	factory, err := NewBuilder().UseModuleMiddleware(MiddlewareSafe()).Build()
+	factory, err := NewRuntimeFactoryBuilder().UseModuleMiddleware(MiddlewareSafe()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestSafeMiddlewareRestrictsHostAccessModules(t *testing.T) {
 }
 
 func TestMiddlewareOnlyEnablesOneHostModule(t *testing.T) {
-	factory, err := NewBuilder().UseModuleMiddleware(MiddlewareOnly("fs")).Build()
+	factory, err := NewRuntimeFactoryBuilder().UseModuleMiddleware(MiddlewareOnly("fs")).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestMiddlewareOnlyEnablesOneHostModule(t *testing.T) {
 }
 
 func TestMiddlewareOnlyEnablesSelectedHostModules(t *testing.T) {
-	factory, err := NewBuilder().UseModuleMiddleware(MiddlewareOnly("fs", "os")).Build()
+	factory, err := NewRuntimeFactoryBuilder().UseModuleMiddleware(MiddlewareOnly("fs", "os")).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

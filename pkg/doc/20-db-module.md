@@ -22,7 +22,7 @@ The `database` (and `db`) modules expose a minimal SQL helper surface for Goja r
 The database module is part of the default registry, so it is available automatically when you build an engine with the default modules:
 
 ```go
-factory, err := engine.NewBuilder().Build()
+factory, err := engine.NewRuntimeFactoryBuilder().Build()
 ```
 
 For production uses, pre-configure the database connection from Go so the runtime does not need to call `configure()`:
@@ -34,7 +34,7 @@ module := databasemod.New(
     databasemod.WithCloseFn(db.Close),
     databasemod.WithName("database"),
 )
-factory, err := engine.NewBuilder().WithModules(module).Build()
+factory, err := engine.NewRuntimeFactoryBuilder().WithModules(module).Build()
 ```
 
 When you pre-configure the module, `configure()` is disabled and calling it throws.
