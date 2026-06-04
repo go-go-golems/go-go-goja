@@ -1328,3 +1328,90 @@ Verified output included:
 ```json
 [{"latestText":"stored","listed":1,"sessionId":"xgoja-geppetto-jsverb-1780608486","text":"stored"}]
 ```
+
+
+## Step 15: Design Built-in Geppetto Host Services for Generated xgoja jsverbs
+
+I wrote a new textbook-style implementation guide for the next GOJA-053 milestone: making generated xgoja JavaScript verbs host Geppetto services in the same way Pinocchio's `js` command currently does. The document explains the current runtime/config path, the gap around Go tools, middleware, and event sinks, and a provider-neutral host-service contribution design for an intern to implement.
+
+The document was uploaded to reMarkable and the ticket task list now includes a new Phase 6 with concrete implementation tasks. This keeps the request separate from the already-completed profile/turn-store smoke: that smoke proves generated xgoja can run Geppetto, while this guide defines how generated xgoja should host richer Go-backed Geppetto services.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add built-in host services, and run an example with a custom tool, a custom middleware, an event sink, etc... I kind of want all pinocchio js scripts to run with a xgoja generated verb.
+
+Create a new document with design / analysis / implementation guide for an intern, written in a textbook writing style, uploading to remarkable, then adding tasks to the ticket."
+
+**Assistant interpretation:** Before implementing the larger host-services feature, create a long-form intern-facing design/implementation guide, upload it to reMarkable, and add the resulting tasks to the GOJA-053 ticket.
+
+**Inferred user intent:** Turn the emerging direction into a teachable implementation plan so the next engineer can add generated-xgoja host services and eventually run Pinocchio-style JS scripts as xgoja jsverbs.
+
+**Commit (code):** d613a8fbe10cd996560464cb7a6a59c9354e7929 — "Design geppetto host services for jsverbs"
+
+### What I did
+
+- Read the textbook-authoring and reMarkable upload skill guidance.
+- Gathered evidence from current xgoja and Geppetto files, including runtime construction, jsverbs invocation, provider config mapping, SQLite turn store, JavaScript agent APIs, EventEmitter event sinks, tool registry, and middleware registry.
+- Created `design/07-built-in-geppetto-host-services-for-generated-xgoja-jsverbs.md`.
+- Added Phase 6 tasks to `tasks.md` for generic host-service lookup, contribution capabilities, Geppetto payload merge helpers, duplicate handling, example contributor package, generated xgoja example, Pinocchio script migration, and integration validation.
+- Updated `changelog.md`.
+- Related key xgoja and Geppetto files to the new design document via `docmgr doc relate`.
+- Validated frontmatter:
+  - `docmgr validate frontmatter --doc /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/design/07-built-in-geppetto-host-services-for-generated-xgoja-jsverbs.md --suggest-fixes`
+- Uploaded to reMarkable:
+  - `OK: uploaded GOJA-053 Geppetto Host Services Design.pdf -> /ai/2026/06/04/GOJA-053`
+
+### Why
+
+The generated jsverb smoke proved profile and turn-store wiring, but richer Pinocchio-style scripts need host-provided Go services. The design document preserves xgoja's provider-neutral architecture by proposing generic host-service contributions instead of importing Geppetto into xgoja core.
+
+### What worked
+
+- Frontmatter validation passed.
+- reMarkable upload succeeded.
+- The design now gives an intern explicit phases, API sketches, example command shapes, and validation evidence to build toward.
+
+### What didn't work
+
+- `docmgr doc add --ticket GOJA-053 ...` could not be used because the repository contains multiple GOJA-053 ticket directories, producing the known ambiguity error. I created the document directly in the active GOJA-053 workspace instead.
+- `docmgr doctor --ticket ttmp/...` reported `No tickets checked`; I used direct frontmatter validation for the new document.
+
+### What I learned
+
+- The next feature is less about adding another Geppetto flag and more about defining a host-service aggregation point before provider module setup.
+- The current code already has most Geppetto-side consumers: `GoToolRegistry`, `GoMiddlewareFactories`, `DefaultEventSinks`, profile registries, and turn stores. The missing piece is the generated host that supplies those objects.
+
+### What was tricky to build
+
+The tricky part was keeping the proposal generic enough for xgoja while concrete enough for Geppetto. The guide resolves that by putting a generic keyed host-service contribution capability in xgoja and putting the typed Geppetto payload in the Geppetto provider package.
+
+### What warrants a second pair of eyes
+
+- Confirm the proposed `HostService(key string)` API is acceptable on `providerapi.HostServices`.
+- Confirm that strict duplicate handling for contributed tool and middleware names is the desired default.
+- Confirm whether unprefixed Geppetto flags should remain the default for generated binaries once more providers expose profile-like flags.
+
+### What should be done in the future
+
+- Implement Phase 6 tasks from `tasks.md`.
+- Add provider-author docs/help once the API shape is implemented.
+
+### Code review instructions
+
+- Start with `design/07-built-in-geppetto-host-services-for-generated-xgoja-jsverbs.md`.
+- Review the Phase 6 additions in `tasks.md`.
+- Validate frontmatter with the command listed above.
+
+### Technical details
+
+The core proposed flow is:
+
+```text
+selected runtime modules + parsed Glazed values
+  -> collect provider HostServiceContributionCapability outputs
+  -> merge into app.HostServices service bag
+  -> pass HostServices into provider ModuleSetupContext
+  -> Geppetto provider reads typed host-service payload
+  -> geppettomodule.Options gets tools, middleware, event sinks, profiles, and stores
+  -> require("geppetto") exposes the richer hosted API to jsverbs
+```

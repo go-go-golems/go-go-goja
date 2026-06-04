@@ -189,3 +189,21 @@ Added Geppetto provider `turns-dsn` / `turns-db` support backed by a provider-lo
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/sqlite_turn_store.go — Provider-local SQLite TurnStore implementation for generated xgoja binaries
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/provider_test.go — Tests for no-host provider setup, flag mapping, and SQLite turn-store persistence
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/09-buildspec-spec-rename-diary.md — Recorded generated jsverb smoke details
+
+## 2026-06-04
+
+Added an intern-facing textbook-style design and implementation guide for built-in Geppetto host services in generated xgoja jsverbs, covering generic host-service contribution APIs, Geppetto-specific option payloads, custom tool/middleware/event-sink examples, generated-binary smoke validation, and a phased task plan.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/design/07-built-in-geppetto-host-services-for-generated-xgoja-jsverbs.md — New design and intern implementation guide
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/tasks.md — Added Phase 6 implementation tasks
+
+## 2026-06-04
+
+Uploaded GOJA-053 Geppetto Host Services Design to reMarkable at /ai/2026/06/04/GOJA-053.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/design/07-built-in-geppetto-host-services-for-generated-xgoja-jsverbs.md — Uploaded design guide
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/09-buildspec-spec-rename-diary.md — Recorded document creation and upload step
