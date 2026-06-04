@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 
 	"github.com/dop251/goja"
-	"github.com/go-go-golems/go-go-goja/engine"
 	eventsmodule "github.com/go-go-golems/go-go-goja/modules/events"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 )
 

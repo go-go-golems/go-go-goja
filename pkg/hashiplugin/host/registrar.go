@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/dop251/goja_nodejs/require"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 // Registrar discovers, validates, and registers plugin-backed runtime modules.

@@ -76,7 +76,7 @@ import (
     "context"
     "time"
 
-    "github.com/go-go-golems/go-go-goja/engine"
+    "github.com/go-go-golems/go-go-goja/pkg/engine"
     "github.com/go-go-golems/go-go-goja/pkg/jsevents"
 )
 

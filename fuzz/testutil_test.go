@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/replapi"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
 	"github.com/go-go-golems/go-go-goja/pkg/replsession"

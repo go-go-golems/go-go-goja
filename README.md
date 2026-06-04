@@ -19,7 +19,7 @@ The goal is to have a place where you can:
  ├── cmd/
  │   ├── goja-repl/       # canonical REPL CLI, TUI, and JSON server
  │   └── bun-demo/        # bun-integrated demo command
- ├── engine/              # builder/factory/runtime ownership APIs
+ ├── pkg/engine/              # builder/factory/runtime ownership APIs
  ├── modules/             # ← add your Go-backed modules here
  │   ├── common.go        # registry plumbing (NativeModule, Register, …)
  │   ├── events/          # Go-native Node-style EventEmitter
@@ -197,7 +197,7 @@ Say we want to expose a simplistic `uuid` module that exports a single `v4()` fu
 
    func init() { modules.Register(&m{}) }
    ```
-3. **Make sure the package is imported somewhere** so that its `init()` runs. The simplest is to add a blank-import in your app bootstrap (for this repo, `engine/runtime.go` or command entrypoints are common places):
+3. **Make sure the package is imported somewhere** so that its `init()` runs. The simplest is to add a blank-import in your app bootstrap (for this repo, `pkg/engine/runtime.go` or command entrypoints are common places):
    ```go
    import (
        _ "github.com/go-go-golems/go-go-goja/modules/uuid" // ← new module here

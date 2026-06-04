@@ -8,9 +8,9 @@ import (
 
 	"github.com/go-go-golems/glazed/pkg/help"
 	helpmodel "github.com/go-go-golems/glazed/pkg/help/model"
-	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
 	pluginprovider "github.com/go-go-golems/go-go-goja/pkg/docaccess/plugin"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	jsdocmodel "github.com/go-go-golems/go-go-goja/pkg/jsdoc/model"
 )

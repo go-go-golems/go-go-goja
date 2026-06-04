@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
 	"github.com/go-go-golems/go-go-goja/pkg/replsession"
 	"github.com/rs/zerolog"

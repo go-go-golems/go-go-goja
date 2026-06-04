@@ -1,6 +1,6 @@
 package host
 
-import "github.com/go-go-golems/go-go-goja/engine"
+import "github.com/go-go-golems/go-go-goja/pkg/engine"
 
 type StringSliceFlag []string
 

@@ -10,12 +10,12 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/glazed/pkg/help"
-	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/modules"
 	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
 	glazedprovider "github.com/go-go-golems/go-go-goja/pkg/docaccess/glazed"
 	jsdocprovider "github.com/go-go-golems/go-go-goja/pkg/docaccess/jsdoc"
 	pluginprovider "github.com/go-go-golems/go-go-goja/pkg/docaccess/plugin"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	jsdocmodel "github.com/go-go-golems/go-go-goja/pkg/jsdoc/model"
 )

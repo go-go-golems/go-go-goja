@@ -7,8 +7,8 @@ import (
 	"testing/fstest"
 
 	"github.com/dop251/goja"
-	gggengine "github.com/go-go-golems/go-go-goja/engine"
 	fsmod "github.com/go-go-golems/go-go-goja/modules/fs"
+	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 func TestReadOnlyEmbeddedFsSync(t *testing.T) {

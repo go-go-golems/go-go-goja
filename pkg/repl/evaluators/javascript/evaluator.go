@@ -9,9 +9,9 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/bobatea/pkg/repl"
-	ggjengine "github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
 	docaccessruntime "github.com/go-go-golems/go-go-goja/pkg/docaccess/runtime"
+	ggjengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 	"github.com/pkg/errors"

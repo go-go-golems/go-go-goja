@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	gggengine "github.com/go-go-golems/go-go-goja/engine"
 	eventsmodule "github.com/go-go-golems/go-go-goja/modules/events"
+	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/stretchr/testify/require"
 )
 

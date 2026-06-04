@@ -75,7 +75,7 @@ package myruntime
 import (
     "context"
 
-    "github.com/go-go-golems/go-go-goja/engine"
+    "github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 func NewRuntime(ctx context.Context) (*engine.Runtime, error) {
@@ -413,9 +413,9 @@ This section maps the JavaScript APIs back to Go files so maintainers can review
 
 | API | Main files |
 |-----|------------|
-| Node core registration | `engine/nodejs_init.go` |
-| Global Buffer/URL/performance install | `engine/factory.go`, `engine/performance.go` |
-| Optional process / node:process module and process global | `engine/module_specs.go`, `ProcessModule()`, `ProcessEnv()` |
+| Node core registration | `pkg/engine/nodejs_init.go` |
+| Global Buffer/URL/performance install | `pkg/engine/factory.go`, `pkg/engine/performance.go` |
+| Optional process / node:process module and process global | `pkg/engine/module_specs.go`, `ProcessModule()`, `ProcessEnv()` |
 | fs / node:fs | `modules/fs/fs.go`, `fs_async.go`, `fs_sync.go`, `fs_errors.go` |
 | events / node:events | `modules/events/events.go` |
 | path / node:path | `modules/path/path.go` |

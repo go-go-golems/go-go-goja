@@ -11,62 +11,73 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: GLOSSARY.md
+    - Path: go-go-goja/GLOSSARY.md
       Note: |-
         Added top-level glossary defining the *Spec pattern.
         Top-level *Spec pattern definition
         Updated top-level *Spec pattern examples for app DTOs
         Updated BuildSpec and RuntimeSpec glossary examples
         ProviderRegistry glossary entry
-    - Path: cmd/xgoja/cmd_list_modules.go
+    - Path: go-go-goja/README.md
+      Note: Root package layout docs updated for pkg/engine
+    - Path: go-go-goja/cmd/xgoja/cmd_list_modules.go
       Note: CLI helper updated to use RuntimeSpec
-    - Path: cmd/xgoja/internal/buildspec/build_spec.go
+    - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
       Note: BuildSpec and ConfigFileSpec source
-    - Path: cmd/xgoja/internal/buildspec/validate.go
-      Note: Buildspec validation signature updated for RuntimeSpec
-    - Path: cmd/xgoja/internal/generate/main.go
-      Note: |-
-        Embedded runtime JSON payload updated to use renamed buildspec DTO types
-        Embedded runtime JSON emits configFile
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/spec.go
       Note: |-
         Renamed buildspec Runtime/ModuleInstance/CommandProviderInstance DTO types to explicit *Spec names.
         Buildspec DTO type rename source
         Added build-time spec file documentation
-    - Path: go-go-goja/pkg/xgoja/app/spec.go
-      Note: Runtime-side embedded DTO type rename source
-    - Path: pkg/xgoja/app/command_providers.go
+    - Path: go-go-goja/cmd/xgoja/internal/buildspec/validate.go
+      Note: Buildspec validation signature updated for RuntimeSpec
+    - Path: go-go-goja/cmd/xgoja/internal/generate/main.go
+      Note: |-
+        Embedded runtime JSON payload updated to use renamed buildspec DTO types
+        Embedded runtime JSON emits configFile
+    - Path: go-go-goja/pkg/doc/16-nodejs-primitives.md
+      Note: Engine import and implementation map docs updated
+    - Path: go-go-goja/pkg/engine/factory.go
+      Note: Moved engine builder/factory package under pkg/engine
+    - Path: go-go-goja/pkg/engine/runtime.go
+      Note: Moved engine runtime package under pkg/engine
+    - Path: go-go-goja/pkg/xgoja/app/command_providers.go
       Note: Command provider helpers updated to use CommandProviderInstanceSpec
-    - Path: pkg/xgoja/app/factory.go
+    - Path: go-go-goja/pkg/xgoja/app/factory.go
       Note: |-
         RuntimeFactory updated to use ModuleInstanceSpec
         RuntimeFactory stores runtimeSpec
         Calls module NewModuleFactory with ModuleSetupContext
-    - Path: pkg/xgoja/app/host.go
+        xgoja runtime factory imports pkg/engine
+    - Path: go-go-goja/pkg/xgoja/app/host.go
       Note: |-
         Host field renamed to RuntimeSpec
         Generated app host accepts ProviderRegistry
-    - Path: pkg/xgoja/app/middlewares.go
+    - Path: go-go-goja/pkg/xgoja/app/middlewares.go
       Note: Config-file middleware reads RuntimeSpec.ConfigFile
-    - Path: pkg/xgoja/app/root.go
+    - Path: go-go-goja/pkg/xgoja/app/root.go
       Note: Root construction and verb scanning use ProviderRegistry
-    - Path: pkg/xgoja/app/runtime_spec.go
+    - Path: go-go-goja/pkg/xgoja/app/runtime_spec.go
       Note: RuntimeSpec
-    - Path: pkg/xgoja/providerapi/capabilities.go
+    - Path: go-go-goja/pkg/xgoja/app/spec.go
+      Note: Runtime-side embedded DTO type rename source
+    - Path: go-go-goja/pkg/xgoja/providerapi/capabilities.go
       Note: SectionRequest and RuntimeInitializerHandle definitions
-    - Path: pkg/xgoja/providerapi/commands.go
-      Note: CommandSetContext now carries ProviderRegistry
-    - Path: pkg/xgoja/providerapi/module.go
+    - Path: go-go-goja/pkg/xgoja/providerapi/commands.go
+      Note: |-
+        CommandSetContext now carries ProviderRegistry
+        Provider command runtime interface imports pkg/engine
+    - Path: go-go-goja/pkg/xgoja/providerapi/module.go
       Note: ModuleSetupContext and Module.NewModuleFactory definitions
-    - Path: pkg/xgoja/providerapi/provider_registry.go
+    - Path: go-go-goja/pkg/xgoja/providerapi/provider_registry.go
       Note: ProviderRegistry type and registry implementation
-    - Path: pkg/xgoja/providers/core/core.go
+    - Path: go-go-goja/pkg/xgoja/providers/core/core.go
       Note: Provider registration signature updated
-    - Path: pkg/xgoja/providers/host/host.go
+    - Path: go-go-goja/pkg/xgoja/providers/host/host.go
       Note: Provider module declarations updated
-    - Path: pkg/xgoja/providers/http/http.go
+    - Path: go-go-goja/pkg/xgoja/providers/http/http.go
       Note: Capability and module declaration updated
-    - Path: pkg/xgoja/providerutil/sections.go
+    - Path: go-go-goja/pkg/xgoja/providerutil/sections.go
       Note: Uses SectionRequest and RuntimeInitializerHandle
 ExternalSources: []
 Summary: 'Diary for the first symbol-name simplification: buildspec runtime/module/command-provider DTOs now use explicit *Spec names.'
@@ -74,6 +85,7 @@ LastUpdated: 2026-06-04T00:00:00Z
 WhatFor: Use when reviewing the focused commit that renamed buildspec DTO types to make the *Spec pattern explicit.
 WhenToUse: Before continuing generic-symbol cleanup or renaming runtime profile DTOs in the app runtime spec.
 ---
+
 
 
 
@@ -538,4 +550,72 @@ Command run:
 
 ```bash
 cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1
+```
+
+## Step 7: Move Engine Package Under pkg
+
+The engine package was moved from the repository root to `pkg/engine`, and I finished the repository references that still pointed at the old import path or old documentation paths. This keeps the reusable runtime/owner/factory package under the same `pkg/` namespace as the rest of the library surface.
+
+I updated Go imports, README/package documentation references, and targeted tests for the moved package plus xgoja. The public import path is now `github.com/go-go-golems/go-go-goja/pkg/engine`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "i moved it and updated references, but you'll have to update the docs."
+
+**Assistant interpretation:** Finish the engine move by updating documentation references to the new `pkg/engine` path and verify/commit the move.
+
+**Inferred user intent:** Make the package relocation complete and committed, with docs no longer referring to stale root-level `engine/` paths.
+
+**Commit (code):** pending at diary write time.
+
+### What I did
+
+- Updated remaining Go imports from `github.com/go-go-golems/go-go-goja/engine` to `github.com/go-go-golems/go-go-goja/pkg/engine`.
+- Updated README and package docs that referenced root-level `engine/` files.
+- Verified no documentation or code references remain for the old import path.
+- Ran targeted tests:
+  - `go test ./pkg/engine ./pkg/xgoja/... ./cmd/xgoja/... -count=1`
+
+### Why
+
+After the directory move, stale import paths and docs would either break builds or mislead readers. Keeping docs in sync is especially important because many examples import the engine package directly.
+
+### What worked
+
+- The import rewrite was mechanical.
+- Targeted engine and xgoja tests passed.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The engine package is widely referenced by modules, REPL packages, jsverbs, xgoja, command examples, and docs, so this move has a broad but shallow footprint.
+
+### What was tricky to build
+
+The main issue was separating intentional historical ticket/docs references from current public docs. I updated current README, `pkg/doc`, and `cmd/xgoja/doc` references, while leaving unrelated ticket workspace material alone unless it was part of this focused change.
+
+### What warrants a second pair of eyes
+
+- Confirm that no temporary compatibility shim is required for the old root import path.
+- Confirm whether release notes should call out the import-path break.
+
+### What should be done in the future
+
+- Update any external examples or downstream repositories that still import `github.com/go-go-golems/go-go-goja/engine`.
+
+### Code review instructions
+
+- Start with the directory rename from `engine/` to `pkg/engine/`.
+- Review README and `pkg/doc/*` references for stale path cleanup.
+- Validate with: `cd go-go-goja && go test ./pkg/engine ./pkg/xgoja/... ./cmd/xgoja/... -count=1`.
+
+### Technical details
+
+Command run:
+
+```bash
+cd go-go-goja && go test ./pkg/engine ./pkg/xgoja/... ./cmd/xgoja/... -count=1
 ```

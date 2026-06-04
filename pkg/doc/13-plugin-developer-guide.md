@@ -29,9 +29,9 @@ That design choice is what keeps the rest of the system coherent. It lets existi
 
 If you are new to the subsystem, read these files in this order:
 
-- `engine/runtime_modules.go`
-- `engine/factory.go`
-- `engine/runtime.go`
+- `pkg/engine/runtime_modules.go`
+- `pkg/engine/factory.go`
+- `pkg/engine/runtime.go`
 - `pkg/hashiplugin/sdk/module.go`
 - `pkg/hashiplugin/sdk/export.go`
 - `pkg/hashiplugin/sdk/call.go`
@@ -216,7 +216,7 @@ This section maps the main code objects to their jobs.
 
 ### `engine.RuntimeModuleSpec`
 
-File: `engine/runtime_modules.go`
+File: `pkg/engine/runtime_modules.go`
 
 Purpose:
 
@@ -232,7 +232,7 @@ Why it matters:
 
 ### `engine.Runtime.AddCloser`
 
-File: `engine/runtime.go`
+File: `pkg/engine/runtime.go`
 
 Purpose:
 

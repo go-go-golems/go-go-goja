@@ -226,7 +226,7 @@ try {
 
 ## Module Registration
 
-Add your module to the import list in `engine/runtime.go` to ensure it's loaded:
+Add your module to the import list in `pkg/engine/runtime.go` to ensure it's loaded:
 
 ```go
 import (

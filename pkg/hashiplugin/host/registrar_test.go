@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 func TestRegistrarRegistersPluginModuleIntoRuntime(t *testing.T) {
