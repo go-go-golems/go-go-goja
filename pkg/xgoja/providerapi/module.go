@@ -28,6 +28,14 @@ type HostServices interface {
 	AssetResolver() AssetResolver
 }
 
+// HostServiceLookup is implemented by host service bags that carry arbitrary
+// provider-contributed services. xgoja core treats service values as opaque;
+// provider packages define stable keys and typed payloads for their own use.
+type HostServiceLookup interface {
+	HostService(key string) (any, bool)
+	HostServiceValues(key string) []any
+}
+
 // Module describes a provider-owned native module that xgoja can select into a
 // runtime profile. NewModuleFactory creates the CommonJS loader during runtime
 // setup for each selected module instance.

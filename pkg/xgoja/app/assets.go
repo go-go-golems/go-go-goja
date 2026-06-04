@@ -10,6 +10,7 @@ import (
 
 var _ providerapi.AssetResolver = (*AssetStore)(nil)
 var _ providerapi.HostServices = HostServices{}
+var _ providerapi.HostServiceLookup = HostServices{}
 
 type AssetStore struct {
 	fsys   fs.FS
@@ -17,7 +18,8 @@ type AssetStore struct {
 }
 
 type HostServices struct {
-	Assets *AssetStore
+	Assets   *AssetStore
+	Services map[string][]any
 }
 
 func NewAssetStore(fsys fs.FS, runtimeSpec *RuntimeSpec) *AssetStore {
@@ -53,6 +55,27 @@ func (s *AssetStore) ResolveAsset(id string) (fs.FS, string, bool) {
 
 func (s HostServices) AssetResolver() providerapi.AssetResolver {
 	return s.Assets
+}
+
+func (s HostServices) HostService(key string) (any, bool) {
+	values := s.HostServiceValues(key)
+	switch len(values) {
+	case 0:
+		return nil, false
+	case 1:
+		return values[0], true
+	default:
+		return values, true
+	}
+}
+
+func (s HostServices) HostServiceValues(key string) []any {
+	key = strings.TrimSpace(key)
+	if key == "" || s.Services == nil {
+		return nil
+	}
+	values := s.Services[key]
+	return append([]any(nil), values...)
 }
 
 func cleanEmbeddedAssetPath(raw string) string {

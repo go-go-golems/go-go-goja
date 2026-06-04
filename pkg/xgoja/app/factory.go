@@ -78,26 +78,33 @@ func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, profile str
 	if !ok {
 		return nil, fmt.Errorf("unknown runtime profile %q", profile)
 	}
+	descriptors, err := f.selectedModuleDescriptors(profile)
+	if err != nil {
+		return nil, err
+	}
+	runtimeServices, err := f.hostServicesForRuntime(ctx, profile, vals, descriptors)
+	if err != nil {
+		return nil, err
+	}
+	descriptorsByInstance := map[string]providerapi.ModuleDescriptor{}
+	for _, descriptor := range descriptors {
+		descriptorsByInstance[moduleDescriptorKey(descriptor.PackageID, descriptor.ModuleID, descriptor.As)] = descriptor
+	}
 	modules := make([]engine.RuntimeModuleRegistrar, 0, len(runtime.Modules))
 	for _, instance := range runtime.Modules {
 		module, ok := f.providers.ResolveModule(instance.Package, instance.Name)
 		if !ok {
 			return nil, fmt.Errorf("runtime %s references unknown provider module %s.%s", profile, instance.Package, instance.Name)
 		}
-		descriptor := providerapi.ModuleDescriptor{
-			PackageID: instance.Package,
-			ModuleID:  instance.Name,
-			As:        instance.Alias(),
-			Module:    module,
-		}
-		if capabilities, ok := f.providers.ResolvePackageCapabilities(instance.Package); ok {
-			descriptor.PackageCapabilities = capabilities
+		descriptor := descriptorsByInstance[moduleDescriptorKey(instance.Package, instance.Name, instance.Alias())]
+		if descriptor.Module.Name == "" {
+			descriptor = providerapi.ModuleDescriptor{PackageID: instance.Package, ModuleID: instance.Name, As: instance.Alias(), Module: module}
 		}
 		config, err := f.configForModuleInstance(ctx, profile, instance, descriptor, vals)
 		if err != nil {
 			return nil, err
 		}
-		modules = append(modules, providerRuntimeModuleRegistrar{instance: instance, module: module, config: config, services: f.services})
+		modules = append(modules, providerRuntimeModuleRegistrar{instance: instance, module: module, config: config, services: runtimeServices})
 	}
 	builder := engine.NewRuntimeFactoryBuilder(
 		engine.WithImplicitDefaultRegistryModules(false),
@@ -111,6 +118,37 @@ func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, profile str
 		return nil, err
 	}
 	return runtimeFactory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
+}
+
+func moduleDescriptorKey(packageID, moduleID, as string) string {
+	return packageID + "\x00" + moduleID + "\x00" + as
+}
+
+func (f *RuntimeFactory) hostServicesForRuntime(ctx context.Context, profile string, vals *values.Values, descriptors []providerapi.ModuleDescriptor) (providerapi.HostServices, error) {
+	collector := newHostServiceCollector(f.services)
+	seen := map[string]struct{}{}
+	for _, descriptor := range descriptors {
+		for _, capability := range descriptor.PackageCapabilities {
+			hostContribution, ok := capability.(providerapi.HostServiceContributionCapability)
+			if !ok {
+				continue
+			}
+			key := descriptor.PackageID + "\x00" + capability.CapabilityID()
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			if err := hostContribution.ContributeHostServices(ctx, providerapi.HostServiceContributionRequest{
+				SectionRequest: providerapi.SectionRequest{RuntimeProfile: profile, PackageID: descriptor.PackageID, ModuleID: descriptor.ModuleID},
+				RuntimeProfile: profile,
+				Values:         vals,
+				Modules:        descriptors,
+			}, collector); err != nil {
+				return nil, fmt.Errorf("contribute host services for %s capability %s: %w", descriptor.PackageID, capability.CapabilityID(), err)
+			}
+		}
+	}
+	return collector.servicesForRuntime(), nil
 }
 
 func (f *RuntimeFactory) configForModuleInstance(ctx context.Context, profile string, instance ModuleInstanceSpec, descriptor providerapi.ModuleDescriptor, vals *values.Values) (json.RawMessage, error) {

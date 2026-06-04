@@ -68,6 +68,33 @@ type XGojaConfigSectionCapability interface {
 	XGojaConfigFromGlazed(context.Context, XGojaConfigRequest) (*values.SectionValues, error)
 }
 
+// HostServiceContributionRequest is passed to package capabilities before a
+// runtime is constructed. Capabilities can inspect the selected runtime modules
+// and parsed Glazed values, then add opaque host services for provider modules
+// to consume during ModuleSetupContext setup.
+type HostServiceContributionRequest struct {
+	SectionRequest
+	RuntimeProfile string
+	Values         *values.Values
+	Modules        []ModuleDescriptor
+}
+
+// HostServiceSink collects opaque provider-defined host services. The sink may
+// accept multiple values for the same key; consumers should use
+// HostServiceLookup.HostServiceValues when a key is intentionally multi-valued.
+type HostServiceSink interface {
+	AddHostService(key string, value any) error
+}
+
+// HostServiceContributionCapability lets a selected package contribute
+// Go-backed host services before provider modules are set up. xgoja core does
+// not interpret the service values; provider packages own keys and payload
+// types.
+type HostServiceContributionCapability interface {
+	PackageCapability
+	ContributeHostServices(context.Context, HostServiceContributionRequest, HostServiceSink) error
+}
+
 // RuntimeInitializerHandle is the runtime-facing handle passed to runtime
 // initializers. It exposes the owned engine runtime so providers can access the
 // Goja VM, event loop, runtime owner, closer registration, and other runtime-scoped
