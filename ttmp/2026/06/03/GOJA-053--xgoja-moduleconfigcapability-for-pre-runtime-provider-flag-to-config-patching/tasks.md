@@ -5,12 +5,14 @@
 ### Phase 4: Tests and docs
 
 - [ ] Add providerutil unit tests for static config parsing, override merging, and raw JSON conversion helpers.
-- [ ] Add docs/help updates for provider authors covering `GlazedConfigSectionCapability`, `XGojaConfigSectionCapability`, and `NewRuntimeFromSections`.
+- [ ] Add docs/help updates for provider authors covering `GlazedConfigSectionCapability`, `XGojaConfigSectionCapability`, `NewRuntimeFromSections`, and `HostServiceContributionCapability`.
 
 ### Phase 6: Built-in Geppetto host services for generated xgoja jsverbs
 
-- [ ] Add automatic closer/lifecycle handling for provider-created stores and event sinks, or document the temporary manual-close boundary.
+- [ ] Extend host-service contribution and module setup plumbing so provider-created resources can register runtime closers.
+- [ ] Register lifecycle cleanup for the Geppetto provider SQLite turn store and example JSONL event sink.
 - [ ] Add a committed generated xgoja example that runs a Geppetto jsverb with `--profile-registries`, `--profile`, `--turns-db`, and `--event-log`.
+- [ ] Add provider-author docs/help for public Glazed sections, internal xgoja config sections, runtime value mapping, and host-service contributions.
 - [ ] Port representative Pinocchio JS scripts into generated xgoja jsverbs and document which scripts require Pinocchio-specific modules versus pure Geppetto APIs.
 
 ## DONE
