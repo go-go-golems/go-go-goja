@@ -66,7 +66,7 @@ func (c *listModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *va
 		if !ok {
 			return fmt.Errorf("unknown runtime profile %q", settings.Profile)
 		}
-		profiles = map[string]buildspec.Runtime{settings.Profile: runtime}
+		profiles = map[string]buildspec.RuntimeSpec{settings.Profile: runtime}
 	}
 	for profile, runtime := range profiles {
 		for _, mod := range runtime.Modules {

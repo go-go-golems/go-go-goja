@@ -23,18 +23,18 @@ func RenderEmbeddedSpec(spec *buildspec.Spec) string {
 		helpSpec = &spec.Help
 	}
 	payload := struct {
-		Name             string                              `json:"name"`
-		AppName          string                              `json:"appName,omitempty"`
-		EnvPrefix        string                              `json:"envPrefix,omitempty"`
-		Config           *buildspec.ConfigSpec               `json:"config,omitempty"`
-		Target           buildspec.TargetSpec                `json:"target"`
-		Packages         []buildspec.PackageSpec             `json:"packages"`
-		Runtimes         map[string]buildspec.Runtime        `json:"runtimes"`
-		Commands         buildspec.CommandsSpec              `json:"commands"`
-		CommandProviders []buildspec.CommandProviderInstance `json:"commandProviders,omitempty"`
-		JSVerbs          []buildspec.JSVerbSourceSpec        `json:"jsverbs,omitempty"`
-		Help             *buildspec.HelpSpec                 `json:"help,omitempty"`
-		Assets           []buildspec.AssetSourceSpec         `json:"assets,omitempty"`
+		Name             string                                  `json:"name"`
+		AppName          string                                  `json:"appName,omitempty"`
+		EnvPrefix        string                                  `json:"envPrefix,omitempty"`
+		Config           *buildspec.ConfigSpec                   `json:"config,omitempty"`
+		Target           buildspec.TargetSpec                    `json:"target"`
+		Packages         []buildspec.PackageSpec                 `json:"packages"`
+		Runtimes         map[string]buildspec.RuntimeSpec        `json:"runtimes"`
+		Commands         buildspec.CommandsSpec                  `json:"commands"`
+		CommandProviders []buildspec.CommandProviderInstanceSpec `json:"commandProviders,omitempty"`
+		JSVerbs          []buildspec.JSVerbSourceSpec            `json:"jsverbs,omitempty"`
+		Help             *buildspec.HelpSpec                     `json:"help,omitempty"`
+		Assets           []buildspec.AssetSourceSpec             `json:"assets,omitempty"`
 	}{
 		Name:             spec.Name,
 		AppName:          spec.AppName,

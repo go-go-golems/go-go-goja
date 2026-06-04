@@ -3,20 +3,20 @@ package buildspec
 import "fmt"
 
 type Spec struct {
-	Name             string                    `yaml:"name"`
-	AppName          string                    `yaml:"appName"`
-	EnvPrefix        string                    `yaml:"envPrefix"`
-	Config           *ConfigSpec               `yaml:"config,omitempty"`
-	Go               GoSpec                    `yaml:"go"`
-	Target           TargetSpec                `yaml:"target"`
-	Packages         []PackageSpec             `yaml:"packages"`
-	Runtimes         map[string]Runtime        `yaml:"runtimes"`
-	Commands         CommandsSpec              `yaml:"commands"`
-	CommandProviders []CommandProviderInstance `yaml:"commandProviders"`
-	JSVerbs          []JSVerbSourceSpec        `yaml:"jsverbs"`
-	Help             HelpSpec                  `yaml:"help"`
-	Assets           []AssetSourceSpec         `yaml:"assets"`
-	BaseDir          string                    `yaml:"-"`
+	Name             string                        `yaml:"name"`
+	AppName          string                        `yaml:"appName"`
+	EnvPrefix        string                        `yaml:"envPrefix"`
+	Config           *ConfigSpec                   `yaml:"config,omitempty"`
+	Go               GoSpec                        `yaml:"go"`
+	Target           TargetSpec                    `yaml:"target"`
+	Packages         []PackageSpec                 `yaml:"packages"`
+	Runtimes         map[string]RuntimeSpec        `yaml:"runtimes"`
+	Commands         CommandsSpec                  `yaml:"commands"`
+	CommandProviders []CommandProviderInstanceSpec `yaml:"commandProviders"`
+	JSVerbs          []JSVerbSourceSpec            `yaml:"jsverbs"`
+	Help             HelpSpec                      `yaml:"help"`
+	Assets           []AssetSourceSpec             `yaml:"assets"`
+	BaseDir          string                        `yaml:"-"`
 }
 
 type ConfigSpec struct {
@@ -48,25 +48,25 @@ type PackageSpec struct {
 	Replace  string `yaml:"replace" json:"replace,omitempty"`
 }
 
-type Runtime struct {
-	Modules []ModuleInstance `yaml:"modules" json:"modules"`
+type RuntimeSpec struct {
+	Modules []ModuleInstanceSpec `yaml:"modules" json:"modules"`
 }
 
-type ModuleInstance struct {
+type ModuleInstanceSpec struct {
 	Package string         `yaml:"package" json:"package"`
 	Name    string         `yaml:"name" json:"name"`
 	As      string         `yaml:"as" json:"as,omitempty"`
 	Config  map[string]any `yaml:"config" json:"config,omitempty"`
 }
 
-func (m ModuleInstance) Alias() string {
+func (m ModuleInstanceSpec) Alias() string {
 	if m.As != "" {
 		return m.As
 	}
 	return m.Name
 }
 
-func (m ModuleInstance) Ref() string {
+func (m ModuleInstanceSpec) Ref() string {
 	return fmt.Sprintf("%s.%s", m.Package, m.Name)
 }
 
@@ -84,7 +84,7 @@ type CommandSpec struct {
 	Mount   string `yaml:"mount" json:"mount,omitempty"`
 }
 
-type CommandProviderInstance struct {
+type CommandProviderInstanceSpec struct {
 	ID             string         `yaml:"id" json:"id"`
 	Package        string         `yaml:"package" json:"package"`
 	Name           string         `yaml:"name" json:"name"`

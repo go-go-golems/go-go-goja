@@ -248,7 +248,7 @@ func validateJSVerbCommandMount(report *Report, command CommandSpec) {
 	}
 }
 
-func validateCommandRuntime(report *Report, path string, command CommandSpec, runtimes map[string]Runtime) {
+func validateCommandRuntime(report *Report, path string, command CommandSpec, runtimes map[string]RuntimeSpec) {
 	if !command.Enabled {
 		report.AddOK("command", path, "command disabled")
 		return

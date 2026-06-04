@@ -58,8 +58,8 @@ func TestRenderGoModUsesModuleRootsForSubpackageImports(t *testing.T) {
 			{ID: "provider", Import: "github.com/acme/widgets/pkg/xgoja/testprovider", Version: "v1.2.3", Register: "Register", Replace: "../widgets"},
 			{ID: "provider2", Import: "github.com/acme/other/pkg/xgoja", Version: "v2.0.0", Register: "Register", Replace: "../other"},
 		},
-		Runtimes: map[string]buildspec.Runtime{
-			"repl": {Modules: []buildspec.ModuleInstance{{Package: "provider", Name: "hello", As: "hello"}}},
+		Runtimes: map[string]buildspec.RuntimeSpec{
+			"repl": {Modules: []buildspec.ModuleInstanceSpec{{Package: "provider", Name: "hello", As: "hello"}}},
 		},
 		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "eval"}},
 	}
@@ -426,7 +426,7 @@ func TestGeneratedProgramRunsProviderVerbSource(t *testing.T) {
 
 func TestGeneratedProgramRunsProviderVerbWithOwnerBindings(t *testing.T) {
 	spec := buildableSpec("xgoja", "", "")
-	spec.Runtimes["repl"] = buildspec.Runtime{Modules: []buildspec.ModuleInstance{
+	spec.Runtimes["repl"] = buildspec.RuntimeSpec{Modules: []buildspec.ModuleInstanceSpec{
 		{Package: "fixture", Name: "hello", As: "hello"},
 		{Package: "fixture", Name: "owner-check", As: "owner-check"},
 	}}
@@ -498,8 +498,8 @@ func TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases(t *testing.T) {
 			Register: "Register",
 		}},
 		Assets: []buildspec.AssetSourceSpec{{ID: "app-assets", Path: "assets", Embed: true}},
-		Runtimes: map[string]buildspec.Runtime{
-			"main": {Modules: []buildspec.ModuleInstance{
+		Runtimes: map[string]buildspec.RuntimeSpec{
+			"main": {Modules: []buildspec.ModuleInstanceSpec{
 				{
 					Package: "go-go-goja-host",
 					Name:    "fs",
@@ -647,8 +647,8 @@ func buildableSpec(kind, targetImport, root string) *buildspec.Spec {
 		Packages: []buildspec.PackageSpec{
 			{ID: "fixture", Import: "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider", Register: "Register"},
 		},
-		Runtimes: map[string]buildspec.Runtime{
-			"repl": {Modules: []buildspec.ModuleInstance{{Package: "fixture", Name: "hello", As: "hello"}}},
+		Runtimes: map[string]buildspec.RuntimeSpec{
+			"repl": {Modules: []buildspec.ModuleInstanceSpec{{Package: "fixture", Name: "hello", As: "hello"}}},
 		},
 		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "eval"}},
 	}
@@ -666,8 +666,8 @@ func fixtureSpec() *buildspec.Spec {
 			{ID: "core", Import: "github.com/go-go-golems/go-go-goja/xgoja", Register: "Register"},
 			{ID: "web", Import: "github.com/go-go-golems/web-stuff/xgoja", Version: "v0.3.0", Register: "Register", Replace: "../web-stuff"},
 		},
-		Runtimes: map[string]buildspec.Runtime{
-			"repl": {Modules: []buildspec.ModuleInstance{{Package: "web", Name: "fetch", As: "fetch"}}},
+		Runtimes: map[string]buildspec.RuntimeSpec{
+			"repl": {Modules: []buildspec.ModuleInstanceSpec{{Package: "web", Name: "fetch", As: "fetch"}}},
 		},
 		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "eval"}},
 	}

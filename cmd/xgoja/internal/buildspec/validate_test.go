@@ -8,7 +8,7 @@ import (
 
 func TestValidateCommandProvidersAcceptsKnownPackageAndRuntime(t *testing.T) {
 	spec := validSpec()
-	spec.CommandProviders = []CommandProviderInstance{{
+	spec.CommandProviders = []CommandProviderInstanceSpec{{
 		ID:             "fixture-tools",
 		Package:        "fixture",
 		Name:           "tools",
@@ -25,7 +25,7 @@ func TestValidateCommandProvidersAcceptsKnownPackageAndRuntime(t *testing.T) {
 
 func TestValidateCommandProvidersRejectsInvalidEntries(t *testing.T) {
 	spec := validSpec()
-	spec.CommandProviders = []CommandProviderInstance{
+	spec.CommandProviders = []CommandProviderInstanceSpec{
 		{ID: "dup", Package: "missing", Name: "tools", RuntimeProfile: "missing"},
 		{ID: "dup", Package: "fixture"},
 	}
@@ -154,9 +154,9 @@ func validSpec() *Spec {
 			ID:     "fixture",
 			Import: "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider",
 		}},
-		Runtimes: map[string]Runtime{
+		Runtimes: map[string]RuntimeSpec{
 			"main": {
-				Modules: []ModuleInstance{{
+				Modules: []ModuleInstanceSpec{{
 					Package: "fixture",
 					Name:    "hello",
 					As:      "hello",
