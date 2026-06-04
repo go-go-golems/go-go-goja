@@ -172,6 +172,31 @@ runtime, err := factory.NewRuntimeFromSections(ctx, profile, parsedValues, requi
 
 `NewRuntime(ctx, profile, ...)` still exists for static-config-only runtime creation. It delegates to `NewRuntimeFromSections(ctx, profile, nil, ...)`.
 
+## xgoja framework debug fields
+
+Generated runtime-backed commands also include a small framework-owned Glazed section named `xgoja`. This section is reserved for xgoja runtime controls rather than provider-specific configuration. Provider authors should not define their own public section with the `xgoja` slug.
+
+The current field is:
+
+```text
+--debug-panic-stack
+```
+
+When this boolean field is enabled, xgoja forwards the parsed value into:
+
+```go
+engine.WithRecoveredPanicStack(true)
+```
+
+That makes recovered runtimeowner panic errors include a Go `runtime/debug.Stack()` dump. Use it when diagnosing provider panics during generated command execution, for example:
+
+```bash
+my-generated-xgoja verbs demo run --debug-panic-stack
+my-generated-xgoja eval 'require("my-module").boom()' --debug-panic-stack
+```
+
+Leave the field disabled for normal users. Stack traces are noisy and include local filesystem paths, so xgoja keeps concise recovered panic errors as the default.
+
 ## Host-service contributions
 
 Config fields are enough for strings, numbers, booleans, paths, and other JSON-compatible setup values. They are not enough for Go objects such as registries, clients, stores, middleware factories, or event sinks.
