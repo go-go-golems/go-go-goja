@@ -1,0 +1,6 @@
+validated 14 check(s) for /tmp/xgoja-geppetto-session-panic-repro/xgoja.yaml
+generated build workspace: /tmp/xgoja-geppetto-session-panic-repro/work
+xgoja build ok: /tmp/xgoja-geppetto-session-panic-repro/geppetto-session-panic-repro
+2026-06-04T18:55:14.606128371-04:00 WRN Thinking model selected with openai api type; thinking stream events may be missing unless open-responses is used area=go-go-golems.geppetto.pkg.inference.engine.factory model=gpt-5-mini provider=openai recommended_provider=open-responses
+Error: GoError: invalid settings for provider openai: missing API key openai-api-key at github.com/go-go-golems/geppetto/pkg/js/modules/geppetto.(*moduleRuntime).newAgentBuilderObject.func15 (native)
+repro_exit_status=1

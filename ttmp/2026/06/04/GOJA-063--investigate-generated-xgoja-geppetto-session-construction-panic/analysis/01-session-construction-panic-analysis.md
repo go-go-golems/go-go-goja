@@ -22,16 +22,28 @@ RelatedFiles:
       Note: Generated xgoja Pinocchio profile script port where the exact no-inference session construction path was narrowed after the panic.
     - Path: ../../../../../../../geppetto/pkg/js/modules/geppetto/api_agent.go
       Note: agentBuilderRef.build calls settings defaulting before session construction
+    - Path: ../../../../../../../geppetto/pkg/js/modules/geppetto/api_agent_profile_test.go
+      Note: Regression coverage for nil API settings and profile-backed agent/session construction (commit 4c975f1b)
     - Path: ../../../../../../../geppetto/pkg/js/modules/geppetto/api_engines.go
-      Note: First Geppetto stack frame; likely nil API settings dereference
+      Note: |-
+        First Geppetto stack frame; likely nil API settings dereference
+        Nil API settings fix in ensureInferenceSettingsProviderDefaults (commit 4c975f1b)
     - Path: ../../../../../../../geppetto/pkg/js/modules/geppetto/api_session.go
       Note: Session builder path originally suspected from the JS repro
     - Path: ../../../../../../../pinocchio/examples/js/profiles/basic.yaml
       Note: Minimal profile fixture that reproduces nil API settings shape
+    - Path: examples/xgoja/12-geppetto-host-services/profiles/basic.yaml
+      Note: Deterministic generated xgoja profile fixture with dummy API key (commit 95a9c4a)
     - Path: examples/xgoja/12-geppetto-host-services/verbs/pinocchio_profiles.js
-      Note: Generated xgoja profile smoke port where exact session construction was narrowed after the panic
+      Note: |-
+        Generated xgoja profile smoke port where exact session construction was narrowed after the panic
+        Restored profile-smoke agent/session construction port (commit 95a9c4a)
     - Path: scripts/01-reproduce-session-construction-panic.sh
       Note: Repro script that builds a temporary generated xgoja binary and runs the exact failing no-inference profile smoke.
+    - Path: ttmp/2026/06/04/GOJA-063--investigate-generated-xgoja-geppetto-session-construction-panic/various/02-after-nil-api-fix-repro.log
+      Note: Exact minimal repro after nil API fix; now normal missing-key error
+    - Path: ttmp/2026/06/04/GOJA-063--investigate-generated-xgoja-geppetto-session-construction-panic/various/03-restored-profile-smoke.log
+      Note: Restored generated xgoja profile-smoke output
     - Path: various/01-stack-repro.log
       Note: Captured reproduction output with temporary runtimeowner stack instrumentation.
 ExternalSources: []
@@ -40,6 +52,7 @@ LastUpdated: 2026-06-04T18:45:00-04:00
 WhatFor: Use when investigating or fixing the generated xgoja Geppetto no-inference session-construction panic.
 WhenToUse: Before changing Geppetto profile resolution, agent builder, or generated xgoja Pinocchio profile script ports.
 ---
+
 
 
 # Session construction panic analysis
@@ -222,3 +235,138 @@ Those live profiles likely include enough API settings, or they flow through a s
 4. Re-run `scripts/01-reproduce-session-construction-panic.sh` and confirm JSON output.
 5. Restore the deterministic generated xgoja `profile-smoke` port to include agent and session construction.
 6. Re-run the live generated xgoja host-services smoke and Pinocchio profile demo port.
+
+## Follow-up: nil API panic fixed, exact minimal repro now returns a normal missing-key error
+
+The first fix landed in Geppetto commit `4c975f1b` (`Fix geppetto profile agent build nil API panic`). The code change makes `ensureInferenceSettingsProviderDefaults` allocate API settings when profile resolution produces chat settings but leaves `InferenceSettings.API` nil:
+
+```go
+func ensureInferenceSettingsProviderDefaults(ss *aistepssettings.InferenceSettings) {
+    if ss == nil || ss.Chat == nil || ss.Chat.ApiType == nil {
+        return
+    }
+    if ss.API == nil {
+        ss.API = aistepssettings.NewAPISettings()
+    }
+    if ss.API.BaseUrls == nil {
+        ss.API.BaseUrls = map[string]string{}
+    }
+    ...
+}
+```
+
+The fix has two regression tests:
+
+1. `TestEnsureInferenceSettingsProviderDefaultsHandlesMissingAPISettings` exercises the nil `API` shape directly.
+2. `TestAgentSessionBuildFromProfileWithAPISettings` loads a profile registry, resolves `assistant`, builds an agent from the resolved settings, and constructs a session without running inference.
+
+Validation in Geppetto:
+
+```bash
+cd geppetto
+go test ./pkg/js/modules/geppetto -run 'TestEnsureInferenceSettingsProviderDefaultsHandlesMissingAPISettings|TestAgentSessionBuildFromProfileWithAPISettings' -count=1
+go test ./pkg/js/modules/geppetto ./pkg/js/modules/geppetto/provider -count=1
+```
+
+Both commands passed.
+
+### What changed in the exact generated xgoja repro
+
+The exact generated xgoja repro still uses `pinocchio/examples/js/profiles/basic.yaml`, which intentionally has no API key block. After the nil API fix, it no longer panics. It now fails as a normal JavaScript/Go error from engine construction:
+
+```text
+Error: GoError: invalid settings for provider openai: missing API key openai-api-key at github.com/go-go-golems/geppetto/pkg/js/modules/geppetto.(*moduleRuntime).newAgentBuilderObject.func15 (native)
+repro_exit_status=1
+```
+
+This output is stored in:
+
+```text
+various/02-after-nil-api-fix-repro.log
+```
+
+This is a meaningful improvement. The original bug was a Go nil-pointer panic. The current behavior is a normal provider settings error: the minimal profile has enough data to resolve a model, but not enough data to create an OpenAI engine.
+
+### Restored generated xgoja profile-smoke session construction
+
+The committed generated xgoja example now includes its own local deterministic profile fixture:
+
+```text
+examples/xgoja/12-geppetto-host-services/profiles/basic.yaml
+```
+
+That fixture is based on the Pinocchio example profile shape but includes a dummy `openai-api-key` value. The smoke does not call the model, so the key is not used over the network. It only allows `enginefactory.NewEngineFromSettings` to construct an engine during `agent().inference(settings).build()`.
+
+The generated xgoja `profile-smoke` port now again builds an agent and session:
+
+```javascript
+const settings = gp.inferenceProfiles.resolve();
+const snapshot = settings.toJSON();
+const agent = gp.agent()
+  .name("xgoja-pinocchio-profile-smoke")
+  .inference(settings)
+  .build();
+const session = agent.session().id(sessionId).build();
+```
+
+Validation:
+
+```bash
+cd go-go-goja/examples/xgoja/12-geppetto-host-services
+make pinocchio-smoke
+```
+
+Output included:
+
+```json
+[
+  {
+    "apiType": "openai",
+    "hasSessionNext": true,
+    "migration": "pure-geppetto-session-construction",
+    "model": "gpt-5-mini",
+    "profile": "assistant",
+    "registry": "workspace",
+    "session": "xgoja-pinocchio-profile-smoke",
+    "source": "pinocchio/examples/js/runner-profile-smoke.js"
+  }
+]
+```
+
+This output is summarized in:
+
+```text
+various/03-restored-profile-smoke.log
+```
+
+### Live smoke regression check
+
+The live Geppetto host-services smoke still passes after the fix and example change:
+
+```bash
+cd go-go-goja/examples/xgoja/12-geppetto-host-services
+make live-smoke SESSION=xgoja-geppetto-fixed-1780613783 PROFILE_REGISTRIES="$HOME/.config/pinocchio/profiles.yaml" PROFILE=gpt-5-nano
+```
+
+It produced:
+
+```json
+[
+  {
+    "latestText": "hosted",
+    "listed": 1,
+    "sessionId": "xgoja-geppetto-fixed-1780613783",
+    "systemText": "Answer with exactly the word: hosted",
+    "text": "hosted",
+    "toolCount": 4
+  }
+]
+```
+
+SQLite verification showed one persisted final turn, and JSONL verification showed eight event rows.
+
+## Updated conclusion
+
+The original crash is fixed. The nil-pointer panic came from `ensureInferenceSettingsProviderDefaults` assuming `InferenceSettings.API` was non-nil. After the fix, missing API settings are initialized before provider defaulting touches `BaseUrls`.
+
+There remains a semantic distinction between profile resolution and engine construction. A profile registry can resolve a profile whose chat settings name an OpenAI model but whose API settings lack an API key. Profile resolution can still succeed, but agent construction from those settings correctly fails because the OpenAI engine cannot be created without `openai-api-key`. Generated xgoja deterministic session-construction smokes should therefore use a fixture with a dummy key when they need to build an engine without calling the network.

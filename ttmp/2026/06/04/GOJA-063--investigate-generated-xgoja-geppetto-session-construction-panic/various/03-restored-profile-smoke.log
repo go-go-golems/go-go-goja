@@ -1,0 +1,14 @@
+make pinocchio-smoke passed after Geppetto fix and example profile update.
+Output included:
+[
+{
+  "apiType": "openai",
+  "hasSessionNext": true,
+  "migration": "pure-geppetto-session-construction",
+  "model": "gpt-5-mini",
+  "profile": "assistant",
+  "registry": "workspace",
+  "session": "xgoja-pinocchio-profile-smoke",
+  "source": "pinocchio/examples/js/runner-profile-smoke.js"
+}
+]
