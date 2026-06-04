@@ -842,7 +842,7 @@ We'll do the ConfigSectionCapability rename once we actually get to implementing
 
 **Inferred user intent:** Finish the breaking public API cleanup so the remaining runtime config feature work starts from precise, phase-oriented names.
 
-**Commit (code):** pending at diary write time.
+**Commit (code):** 2788e815eaf419f724e159694cd7e7b9a1ac7ece — "Finish explicit runtime provider naming"
 
 ### What I did
 
