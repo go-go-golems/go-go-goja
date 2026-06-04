@@ -395,7 +395,7 @@ The constructor remains `NewRegistry()` for now, so call sites that only constru
 
 **Inferred user intent:** Continue replacing generic names with domain-specific names so provider-related APIs are self-describing.
 
-**Commit (code):** pending at diary write time.
+**Commit (code):** b1e51c7422ac9d3e3732641a135ee738c1b6cdc7 — "Clarify provider registry type name"
 
 ### What I did
 
