@@ -109,6 +109,12 @@ topics:
       description: Command-line flag parsing, exposure, and precedence behavior
     - slug: research
       description: Research notes, source evaluation, and investigation logs
+    - slug: geppetto
+      description: Geppetto inference/runtime integration and JavaScript module work
+    - slug: debugging
+      description: Debugging failures, crashes, stack traces, and runtime behavior
+    - slug: crash
+      description: Crash reports, panics, and failure reproductions
 docTypes:
     - slug: index
       description: Index document for a ticket

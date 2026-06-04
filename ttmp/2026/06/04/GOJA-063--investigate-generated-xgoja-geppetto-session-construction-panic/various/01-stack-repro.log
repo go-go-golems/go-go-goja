@@ -1,0 +1,79 @@
+validated 14 check(s) for /tmp/xgoja-geppetto-session-panic-repro/xgoja.yaml
+generated build workspace: /tmp/xgoja-geppetto-session-panic-repro/work
+xgoja build ok: /tmp/xgoja-geppetto-session-panic-repro/geppetto-session-panic-repro
+Error: runtimeowner jsverbs.invoke: runtime call panicked: runtime error: invalid memory address or nil pointer dereference
+goroutine 39 [running]:
+runtime/debug.Stack()
+	/home/manuel/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.3.linux-amd64/src/runtime/debug/stack.go:26 +0x5e
+github.com/go-go-golems/go-go-goja/pkg/runtimeowner.(*runtimeOwner).invoke.func1.1.1()
+	/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/runtimeowner/runner.go:204 +0x65
+panic({0x1de8ac0?, 0x364a390?})
+	/home/manuel/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.3.linux-amd64/src/runtime/panic.go:860 +0x13a
+github.com/dop251/goja.(*Runtime).runWrapped.func1()
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/runtime.go:2512 +0xd9
+panic({0x1de8ac0?, 0x364a390?})
+	/home/manuel/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.3.linux-amd64/src/runtime/panic.go:860 +0x13a
+github.com/dop251/goja.(*vm).handleThrow(0x3225cb82c120, {0x1de8ac0, 0x364a390})
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/vm.go:841 +0x425
+github.com/dop251/goja.(*vm).try.func1()
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/vm.go:860 +0x3a
+panic({0x1de8ac0?, 0x364a390?})
+	/home/manuel/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.3.linux-amd64/src/runtime/panic.go:860 +0x13a
+github.com/dop251/goja.(*vm).handleThrow(0x3225cb82c120, {0x1de8ac0, 0x364a390})
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/vm.go:841 +0x425
+github.com/dop251/goja.(*vm).runTryInner.func1()
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/vm.go:883 +0x3a
+panic({0x1de8ac0?, 0x364a390?})
+	/home/manuel/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.3.linux-amd64/src/runtime/panic.go:860 +0x13a
+github.com/go-go-golems/geppetto/pkg/js/modules/geppetto.ensureInferenceSettingsProviderDefaults(...)
+	/home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/api_engines.go:55
+github.com/go-go-golems/geppetto/pkg/js/modules/geppetto.(*agentBuilderRef).build(0x3225cbfd49c0)
+	/home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/api_agent.go:245 +0xa9
+github.com/go-go-golems/geppetto/pkg/js/modules/geppetto.(*moduleRuntime).newAgentBuilderObject.func15({{0x3225cb82c120, 0x3225cbfc3638}, {0x9e4e06, 0x3225cbccb500, 0x3225cbfbaea5}})
+	/home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/api_agent.go:229 +0x25
+github.com/dop251/goja.(*nativeFuncObject).vmCall(0x3225cbff0000, 0x3225cb82c120, 0x0)
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/func.go:571 +0x184
+github.com/dop251/goja.call.exec(0x5?, 0x3225cb82c120)
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/vm.go:3642 +0x66
+github.com/dop251/goja.(*vm).run(0x3225cb82c120)
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/vm.go:635 +0x5b
+github.com/dop251/goja.(*vm).runTryInner(0x3225cb82c120?)
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/vm.go:887 +0x52
+github.com/dop251/goja.(*baseJsFuncObject).__call(0x3225cb8ab140, {0x3225cb87d8c0?, 0x1, 0x3225cbfc38a8?}, {0x0, 0x0}, {0x23c8c58?, 0x398cb40?})
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/func.go:434 +0x705
+github.com/dop251/goja.(*baseJsFuncObject)._call(...)
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/func.go:450
+github.com/dop251/goja.(*baseJsFuncObject).call(0x3225cb836008?, {{0x23c8c58, 0x398cb40}, {0x3225cb87d8c0, 0x1, 0x1}}, {0x0?, 0x0?})
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/func.go:458 +0x6d
+github.com/dop251/goja.(*baseJsFuncObject).Call(...)
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/func.go:390
+github.com/dop251/goja.AssertFunction.func1.1()
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/runtime.go:2472 +0x56
+github.com/dop251/goja.(*vm).try(0x3225cb82c120, 0x3225cbfc3ac0)
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/vm.go:864 +0x21b
+github.com/dop251/goja.(*Runtime).runWrapped(0x3225cb836008, 0x3225cbfc3ad8?)
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/runtime.go:2516 +0x5f
+github.com/dop251/goja.AssertFunction.func1({0x23c8c58?, 0x398cb40?}, {0x3225cb87d8c0?, 0x0?, 0x0?})
+	/home/manuel/go/pkg/mod/github.com/dop251/goja@v0.0.0-20251103141225-af2ceb9156d7/runtime.go:2471 +0x74
+github.com/go-go-golems/go-go-goja/pkg/jsverbs.(*Registry).InvokeInRuntime.func1({0x1e4be01?, 0x3225cbab0a20?}, 0x3225cb836008)
+	/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/jsverbs/runtime.go:90 +0x51d
+github.com/go-go-golems/go-go-goja/pkg/runtimeowner.(*runtimeOwner).invoke.func1.1(0x3225cbfc3cc8, {0x20cd772?, 0x1ec68c0?}, 0x3225cbfc3cb8, 0x1e70760?, {0x23af598?, 0x3225cbfa6450?}, 0x23fd140?)
+	/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/runtimeowner/runner.go:208 +0x7d
+github.com/go-go-golems/go-go-goja/pkg/runtimeowner.(*runtimeOwner).invoke.func1()
+	/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/runtimeowner/runner.go:209 +0x51
+github.com/go-go-golems/go-go-goja/pkg/runtimebridge.WithCallContext(0x420827?, {0x23af598?, 0x3225cbfa6450?}, 0x3225cb7d5db0)
+	/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/runtimebridge/runtimebridge.go:219 +0xcf
+github.com/go-go-golems/go-go-goja/pkg/runtimeowner.(*runtimeOwner).invoke(0x3225cb8ccaf0, {0x23af598, 0x3225cbfa6450}, {0x20cd772, 0xe}, 0x3225cbfa6420)
+	/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/runtimeowner/runner.go:192 +0x105
+github.com/go-go-golems/go-go-goja/pkg/runtimeowner.(*runtimeOwner).Call.func1(0x3225cb8340e0?)
+	/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/runtimeowner/runner.go:121 +0x1bd
+github.com/dop251/goja_nodejs/eventloop.(*EventLoop).RunOnLoop.func1()
+	/home/manuel/go/pkg/mod/github.com/dop251/goja_nodejs@v0.0.0-20250409162600-f7acab6894b0/eventloop/eventloop.go:320 +0x1e
+github.com/dop251/goja_nodejs/eventloop.(*EventLoop).runAux(0x3225cb840090)
+	/home/manuel/go/pkg/mod/github.com/dop251/goja_nodejs@v0.0.0-20250409162600-f7acab6894b0/eventloop/eventloop.go:329 +0x102
+github.com/dop251/goja_nodejs/eventloop.(*EventLoop).run(0x3225cb840090, 0x1)
+	/home/manuel/go/pkg/mod/github.com/dop251/goja_nodejs@v0.0.0-20250409162600-f7acab6894b0/eventloop/eventloop.go:346 +0xcc
+created by github.com/dop251/goja_nodejs/eventloop.(*EventLoop).Start in goroutine 20
+	/home/manuel/go/pkg/mod/github.com/dop251/goja_nodejs@v0.0.0-20250409162600-f7acab6894b0/eventloop/eventloop.go:242 +0x56
+
+repro_exit_status=1
