@@ -38,6 +38,12 @@ RelatedFiles:
       Note: |-
         Generated xgoja profile smoke port where exact session construction was narrowed after the panic
         Restored profile-smoke agent/session construction port (commit 95a9c4a)
+    - Path: pkg/engine/options.go
+      Note: Engine-facing recovered panic stack option (commit 2a81564)
+    - Path: pkg/runtimeowner/runner.go
+      Note: Recovered panic stack implementation (commit 2a81564)
+    - Path: pkg/runtimeowner/types.go
+      Note: IncludePanicStack option for recovered panic diagnostics (commit 2a81564)
     - Path: scripts/01-reproduce-session-construction-panic.sh
       Note: Repro script that builds a temporary generated xgoja binary and runs the exact failing no-inference profile smoke.
     - Path: ttmp/2026/06/04/GOJA-063--investigate-generated-xgoja-geppetto-session-construction-panic/various/02-after-nil-api-fix-repro.log
@@ -52,6 +58,7 @@ LastUpdated: 2026-06-04T18:45:00-04:00
 WhatFor: Use when investigating or fixing the generated xgoja Geppetto no-inference session-construction panic.
 WhenToUse: Before changing Geppetto profile resolution, agent builder, or generated xgoja Pinocchio profile script ports.
 ---
+
 
 
 
@@ -370,3 +377,46 @@ SQLite verification showed one persisted final turn, and JSONL verification show
 The original crash is fixed. The nil-pointer panic came from `ensureInferenceSettingsProviderDefaults` assuming `InferenceSettings.API` was non-nil. After the fix, missing API settings are initialized before provider defaulting touches `BaseUrls`.
 
 There remains a semantic distinction between profile resolution and engine construction. A profile registry can resolve a profile whose chat settings name an OpenAI model but whose API settings lack an API key. Profile resolution can still succeed, but agent construction from those settings correctly fails because the OpenAI engine cannot be created without `openai-api-key`. Generated xgoja deterministic session-construction smokes should therefore use a fixture with a dummy key when they need to build an engine without calling the network.
+
+## Follow-up: runtimeowner recovered panic stack traces are now opt-in
+
+GOJA-063 also produced one tooling improvement in go-go-goja: recovered runtimeowner panic errors can now include a Go debug stack when explicitly enabled. The implementation landed in go-go-goja commit `2a81564` (`Add opt-in runtimeowner panic stacks`).
+
+The new low-level runtimeowner option is:
+
+```go
+type Options struct {
+    Name              string
+    MaxWait           int64
+    RecoverPanics     bool
+    IncludePanicStack bool
+}
+```
+
+When `RecoverPanics` and `IncludePanicStack` are both enabled, the recovered panic error appends `runtime/debug.Stack()`:
+
+```go
+runtimeowner.NewRuntimeOwner(vm, scheduler, runtimeowner.Options{
+    RecoverPanics:     true,
+    IncludePanicStack: true,
+})
+```
+
+The engine layer exposes this as a builder option:
+
+```go
+factory, err := engine.NewRuntimeFactoryBuilder(
+    engine.WithRecoveredPanicStack(true),
+).Build()
+```
+
+This keeps normal generated CLI output concise while making provider panic diagnosis faster in test fixtures, debugging tools, or explicitly diagnostic generated runtimes. The option is intentionally not enabled by default because stacks are noisy and include local paths.
+
+Validation:
+
+```bash
+cd go-go-goja
+go test ./pkg/runtimeowner ./pkg/engine -count=1
+```
+
+The commit hook also ran `golangci-lint`, `go vet` with the Glazed linter, `go generate ./...`, and `go test ./...` successfully while committing `2a81564`.

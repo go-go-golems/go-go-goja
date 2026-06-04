@@ -18,6 +18,12 @@ RelatedFiles:
       Note: Nil API settings fix (commit 4c975f1b)
     - Path: examples/xgoja/12-geppetto-host-services/verbs/pinocchio_profiles.js
       Note: Restored deterministic profile-smoke session construction (commit 95a9c4a)
+    - Path: pkg/engine/options.go
+      Note: WithRecoveredPanicStack engine builder option (commit 2a81564)
+    - Path: pkg/runtimeowner/runner.go
+      Note: Recovered panic error formatting with optional debug stack (commit 2a81564)
+    - Path: pkg/runtimeowner/types.go
+      Note: IncludePanicStack option for recovered panic diagnostics (commit 2a81564)
     - Path: ttmp/2026/06/04/GOJA-063--investigate-generated-xgoja-geppetto-session-construction-panic/analysis/01-session-construction-panic-analysis.md
       Note: Living analysis document created for GOJA-063.
     - Path: ttmp/2026/06/04/GOJA-063--investigate-generated-xgoja-geppetto-session-construction-panic/scripts/01-reproduce-session-construction-panic.sh
@@ -34,6 +40,7 @@ LastUpdated: 2026-06-04T18:45:00-04:00
 WhatFor: Use to continue the crash investigation with exact commands, findings, and open questions.
 WhenToUse: Before changing Geppetto agent/session/profile-resolution code or generated xgoja Pinocchio profile ports.
 ---
+
 
 
 
@@ -299,4 +306,102 @@ Restored deterministic profile-smoke output:
     "source": "pinocchio/examples/js/runner-profile-smoke.js"
   }
 ]
+```
+
+## Step 3: Add Opt-in runtimeowner Panic Stack Traces
+
+This step turned the temporary diagnostic trick from Step 1 into a real, opt-in runtimeowner feature. During the crash investigation I had to patch `runtimeowner` by hand to append `debug.Stack()` to recovered panic errors. That was useful enough to keep, but it should not be enabled for normal end-user command output.
+
+The new behavior is explicit. Runtime owners still recover panics when `RecoverPanics` is true, and by default they still return concise errors. If `IncludePanicStack` is also true, recovered panic errors include a Go stack. The engine layer exposes the same switch through `engine.WithRecoveredPanicStack(true)`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes, do that. Why are we touching pinocchio? is go-go-goja now using stuff from pinocchio ?"
+
+**Assistant interpretation:** Implement optional runtimeowner stack traces, and clarify whether GOJA-063 introduced a go-go-goja dependency on Pinocchio.
+
+**Inferred user intent:** Keep the useful crash-diagnosis capability permanently available while making sure the architecture remains clean and go-go-goja does not depend on Pinocchio.
+
+**Commit (code):** 2a81564 — "Add opt-in runtimeowner panic stacks"
+
+### What I did
+
+- Added `IncludePanicStack bool` to `runtimeowner.Options`.
+- Changed recovered panic formatting in `runtimeowner` so stack traces are included only when `IncludePanicStack` is true.
+- Added `engine.WithRecoveredPanicStack(enabled bool)` so engine runtime factories can pass the diagnostic option into their runtime owner.
+- Added runtimeowner tests for both modes:
+  - stack included when enabled;
+  - stack omitted by default.
+- Added an engine test proving `WithRecoveredPanicStack(true)` reaches the runtime owner.
+- Ran focused tests:
+  - `cd go-go-goja && go test ./pkg/runtimeowner ./pkg/engine -count=1`
+- Committed the code. The pre-commit hook also ran lint, `go generate ./...`, and `go test ./...` successfully.
+
+### Why
+
+The GOJA-063 diagnosis required a stack trace to identify `ensureInferenceSettingsProviderDefaults` as the first Geppetto frame. Without a stack, the recovered panic error only said `nil pointer dereference`, which was not enough to locate the bug. Making stack traces opt-in preserves normal concise output while giving provider authors a fast diagnostic path.
+
+### What worked
+
+- Focused tests passed.
+- The full go-go-goja pre-commit hook passed during commit:
+  - `golangci-lint run`
+  - `GOWORK=off go vet -vettool=/tmp/glazed-lint ...`
+  - `go generate ./...`
+  - `go test ./...`
+- The API remains disabled by default, so existing CLI behavior is unchanged unless callers opt in.
+
+### What didn't work
+
+- I did not add a generated xgoja CLI flag or environment variable for this yet. The feature is available through runtimeowner and engine construction APIs. Generated app-level plumbing can be added later if we want end users to enable panic stacks without code changes.
+
+### What I learned
+
+- The right default is still concise recovered panic errors. Stack traces are developer diagnostics and include local paths, so they should be opt-in.
+- Putting the switch in both runtimeowner and engine keeps the low-level primitive reusable while making it reachable from the normal runtime factory construction path.
+- go-go-goja is not using Pinocchio. The GOJA-063 repro referenced a local Pinocchio example profile only because that was the fixture that exposed the sparse-profile shape. The committed generated xgoja example now has its own local profile fixture under `examples/xgoja/12-geppetto-host-services/profiles/basic.yaml`.
+
+### What was tricky to build
+
+The implementation was small, but the boundary matters. `runtimeowner` owns the panic recovery behavior, so it needs the actual stack formatting option. `engine` owns normal runtime construction, so it needs a builder option that forwards the setting into `runtimeowner.Options`. Enabling it globally would have been easier, but it would have made normal generated command errors noisy and potentially path-leaky.
+
+### What warrants a second pair of eyes
+
+- Decide whether generated xgoja should expose a top-level debug flag or environment variable that maps to `engine.WithRecoveredPanicStack(true)`.
+- Review the option name `WithRecoveredPanicStack` for clarity before depending on it broadly.
+
+### What should be done in the future
+
+- If another provider panic appears in generated xgoja, use `WithRecoveredPanicStack(true)` in the repro fixture rather than manually patching `runtimeowner`.
+- Consider generated CLI/debug plumbing for this option if provider authors need it frequently.
+
+### Code review instructions
+
+- Review:
+  - `go-go-goja/pkg/runtimeowner/types.go`
+  - `go-go-goja/pkg/runtimeowner/runner.go`
+  - `go-go-goja/pkg/runtimeowner/runner_test.go`
+  - `go-go-goja/pkg/engine/options.go`
+  - `go-go-goja/pkg/engine/factory.go`
+  - `go-go-goja/pkg/engine/factory_test.go`
+- Validate with:
+  - `cd go-go-goja && go test ./pkg/runtimeowner ./pkg/engine -count=1`
+
+### Technical details
+
+Runtimeowner option:
+
+```go
+runtimeowner.Options{
+    RecoverPanics:     true,
+    IncludePanicStack: true,
+}
+```
+
+Engine option:
+
+```go
+engine.NewRuntimeFactoryBuilder(
+    engine.WithRecoveredPanicStack(true),
+)
 ```

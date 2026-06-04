@@ -27,3 +27,14 @@ Fixed Geppetto nil API settings panic, restored generated xgoja profile-smoke se
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/examples/xgoja/12-geppetto-host-services/verbs/pinocchio_profiles.js — Restored profile smoke session construction (commit 95a9c4a)
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-063--investigate-generated-xgoja-geppetto-session-construction-panic/reference/01-investigation-diary.md — Step 2 diary entry
 
+
+## 2026-06-04
+
+Added opt-in runtimeowner recovered panic stack traces and engine builder plumbing for future provider crash diagnostics.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/engine/options.go — Engine builder option (commit 2a81564)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/runtimeowner/runner.go — Recovered panic stack implementation (commit 2a81564)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-063--investigate-generated-xgoja-geppetto-session-construction-panic/reference/01-investigation-diary.md — Step 3 diary entry
+

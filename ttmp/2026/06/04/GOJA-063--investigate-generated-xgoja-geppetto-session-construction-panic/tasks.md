@@ -3,7 +3,6 @@
 ## TODO
 
 - [ ] Decide whether generated xgoja profile smokes should include a local fake API key fixture by default, or point at Pinocchio's minimal profile and expect a normal missing-key error for agent construction.
-- [ ] Consider adding optional debug stack traces for recovered runtimeowner panics.
 - [ ] Update GOJA-053 docs/example notes if the final fix changes provider-author guidance.
 
 ## DONE
@@ -19,3 +18,4 @@
 - [x] Re-run the exact generated xgoja no-inference session-construction repro and confirm it no longer panics; it now returns a normal missing API key error for the minimal Pinocchio profile fixture.
 - [x] Restore the `examples/xgoja/12-geppetto-host-services` deterministic `profile-smoke` port to construct a session using a local profile fixture with a dummy API key.
 - [x] Run the live generated xgoja Geppetto host-services smoke after the fix to confirm no regression.
+- [x] Add optional debug stack traces for recovered runtimeowner panics.
