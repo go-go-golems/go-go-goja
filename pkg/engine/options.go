@@ -42,6 +42,7 @@ type builderSettings struct {
 	requireOptions                 []require.Option
 	implicitDefaultRegistryModules bool
 	dataOnlyDefaultRegistryModules bool
+	includePanicStack              bool
 }
 
 func defaultBuilderSettings() builderSettings {
@@ -76,5 +77,14 @@ func WithImplicitDefaultRegistryModules(enabled bool) Option {
 func WithDataOnlyDefaultRegistryModules(enabled bool) Option {
 	return func(s *builderSettings) {
 		s.dataOnlyDefaultRegistryModules = enabled
+	}
+}
+
+// WithRecoveredPanicStack controls whether runtimeowner recovered panic errors
+// include a Go debug stack. Keep this disabled for normal end-user CLIs; enable
+// it while debugging provider panics inside generated runtimes.
+func WithRecoveredPanicStack(enabled bool) Option {
+	return func(s *builderSettings) {
+		s.includePanicStack = enabled
 	}
 }

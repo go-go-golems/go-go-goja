@@ -172,6 +172,7 @@ func (b *RuntimeFactoryBuilder) Build() (*RuntimeFactory, error) {
 			requireOptions:                 append([]require.Option(nil), b.settings.requireOptions...),
 			implicitDefaultRegistryModules: b.settings.implicitDefaultRegistryModules,
 			dataOnlyDefaultRegistryModules: b.settings.dataOnlyDefaultRegistryModules,
+			includePanicStack:              b.settings.includePanicStack,
 		},
 		modules:             append([]RuntimeModuleRegistrar(nil), modules_...),
 		runtimeInitializers: append([]RuntimeInitializer(nil), inits...),
@@ -209,8 +210,9 @@ func (f *RuntimeFactory) NewRuntime(opts ...RuntimeOption) (*Runtime, error) {
 	go loop.Start()
 
 	owner := runtimeowner.NewRuntimeOwner(vm, loop, runtimeowner.Options{
-		Name:          "go-go-goja-runtime",
-		RecoverPanics: true,
+		Name:              "go-go-goja-runtime",
+		RecoverPanics:     true,
+		IncludePanicStack: f.settings.includePanicStack,
 	})
 	// #nosec G118 -- the runtime owns this cancel func and calls it on close and on setup failures.
 	runtimeCtx, runtimeCtxCancel := context.WithCancel(lifetimeCtx)

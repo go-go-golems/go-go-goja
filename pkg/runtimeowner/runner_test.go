@@ -3,6 +3,7 @@ package runtimeowner
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -206,6 +207,27 @@ func TestRuntimeOwnerCallScheduleRejected(t *testing.T) {
 	}
 }
 
+func TestRuntimeOwnerCallPanicRecoveredIncludesStackWhenEnabled(t *testing.T) {
+	vm := goja.New()
+	s := newQueueScheduler(vm)
+	defer s.Close()
+
+	r := NewRuntimeOwner(vm, s, Options{RecoverPanics: true, IncludePanicStack: true})
+	_, err := r.Call(context.Background(), "test.panic.stack", func(context.Context, *goja.Runtime) (any, error) {
+		panic("boom")
+	})
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !errors.Is(err, ErrPanicked) {
+		t.Fatalf("expected ErrPanicked, got: %v", err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "boom") || !strings.Contains(msg, "runtime/debug.Stack") || !strings.Contains(msg, "TestRuntimeOwnerCallPanicRecoveredIncludesStackWhenEnabled") {
+		t.Fatalf("expected panic error to include debug stack, got: %v", err)
+	}
+}
+
 func TestRuntimeOwnerCallPanicRecovered(t *testing.T) {
 	vm := goja.New()
 	s := newQueueScheduler(vm)
@@ -220,6 +242,9 @@ func TestRuntimeOwnerCallPanicRecovered(t *testing.T) {
 	}
 	if !errors.Is(err, ErrPanicked) {
 		t.Fatalf("expected ErrPanicked, got: %v", err)
+	}
+	if strings.Contains(err.Error(), "runtime/debug.Stack") {
+		t.Fatalf("panic error unexpectedly included stack: %v", err)
 	}
 }
 
