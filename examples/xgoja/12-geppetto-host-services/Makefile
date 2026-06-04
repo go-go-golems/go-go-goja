@@ -8,8 +8,10 @@ PROFILE ?= gpt-5-nano
 SESSION ?= xgoja-geppetto-host-services-example
 DB ?= $(CURDIR)/dist/turns.db
 EVENT_LOG ?= $(CURDIR)/dist/events.jsonl
+BASIC_PROFILE_REGISTRIES ?= $(REPO_ROOT)/../pinocchio/examples/js/profiles/basic.yaml
+BASIC_PROFILE ?= assistant
 
-.PHONY: smoke doctor build help live-smoke verify clean
+.PHONY: smoke doctor build help pinocchio-smoke live-smoke verify clean
 
 smoke: doctor build help
 
@@ -21,6 +23,12 @@ build:
 
 help:
 	$(BIN) verbs demo run --help
+
+pinocchio-smoke: build
+	$(BIN) verbs pinocchio profile-smoke xgoja-pinocchio-profile-smoke \
+		--profile-registries $(BASIC_PROFILE_REGISTRIES) \
+		--profile $(BASIC_PROFILE) \
+		--output json
 
 live-smoke: build
 	mkdir -p $(CURDIR)/dist
