@@ -220,3 +220,18 @@ Implemented Phase 6 host-service contributions: xgoja now collects provider-neut
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/hostservicesexample/register.go — Example contributed Go tool, middleware factory, and JSONL event sink (commit d89b75b2)
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/09-buildspec-spec-rename-diary.md — Step 16 diary entry and validation record
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/tasks.md — Phase 6 task status updates
+
+## 2026-06-04
+
+Completed the requested GOJA-053 follow-ups: added host-service and module-setup closer lifecycle plumbing, registered Geppetto SQLite store and JSONL sink cleanup, committed a generated Geppetto host-services example, added provider-author help docs, and ported the current Pinocchio profile scripts into generated xgoja jsverbs with a migration matrix.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providerapi/capabilities.go — HostServiceSink now supports closer registration (commit 83adeaf)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providerapi/module.go — ModuleSetupContext now exposes AddCloser (commit 83adeaf)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/host_services.go — Host-service closer collection and runtime registration (commit 83adeaf)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/provider.go — SQLite turn-store closer registration (commit 5aaa8748)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/hostservicesexample/register.go — JSONL event sink closer registration (commit 5aaa8748)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/examples/xgoja/12-geppetto-host-services/README.md — Committed example and Pinocchio migration matrix (commits 8ead301, a7a2d89)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/doc/11-provider-runtime-config-and-host-services.md — Provider-author help page (commit 53a04fa)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/09-buildspec-spec-rename-diary.md — Step 17 diary entry and validation record

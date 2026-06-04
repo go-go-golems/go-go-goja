@@ -5,15 +5,9 @@
 ### Phase 4: Tests and docs
 
 - [ ] Add providerutil unit tests for static config parsing, override merging, and raw JSON conversion helpers.
-- [ ] Add docs/help updates for provider authors covering `GlazedConfigSectionCapability`, `XGojaConfigSectionCapability`, `NewRuntimeFromSections`, and `HostServiceContributionCapability`.
 
 ### Phase 6: Built-in Geppetto host services for generated xgoja jsverbs
 
-- [ ] Extend host-service contribution and module setup plumbing so provider-created resources can register runtime closers.
-- [ ] Register lifecycle cleanup for the Geppetto provider SQLite turn store and example JSONL event sink.
-- [ ] Add a committed generated xgoja example that runs a Geppetto jsverb with `--profile-registries`, `--profile`, `--turns-db`, and `--event-log`.
-- [ ] Add provider-author docs/help for public Glazed sections, internal xgoja config sections, runtime value mapping, and host-service contributions.
-- [ ] Port representative Pinocchio JS scripts into generated xgoja jsverbs and document which scripts require Pinocchio-specific modules versus pure Geppetto APIs.
 
 ## DONE
 
@@ -61,3 +55,9 @@
 - [x] Implement strict duplicate detection for contributed Go tool names and Go middleware factory names.
 - [x] Build an example contributor package that provides a custom Go tool, a custom Go middleware factory, and a JSONL event sink.
 - [x] Run generated xgoja host-services validation inspecting jsverb JSON output, SQLite persisted turns, and JSONL event-sink output.
+- [x] Add docs/help updates for provider authors covering `GlazedConfigSectionCapability`, `XGojaConfigSectionCapability`, `NewRuntimeFromSections`, and `HostServiceContributionCapability`.
+- [x] Extend host-service contribution and module setup plumbing so provider-created resources can register runtime closers.
+- [x] Register lifecycle cleanup for the Geppetto provider SQLite turn store and example JSONL event sink.
+- [x] Add a committed generated xgoja example that runs a Geppetto jsverb with `--profile-registries`, `--profile`, `--turns-db`, and `--event-log`.
+- [x] Add provider-author docs/help for public Glazed sections, internal xgoja config sections, runtime value mapping, and host-service contributions.
+- [x] Port representative Pinocchio JS scripts into generated xgoja jsverbs and document which scripts require Pinocchio-specific modules versus pure Geppetto APIs.
