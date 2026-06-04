@@ -168,3 +168,13 @@ Implemented Geppetto provider cleanup for GOJA-053: adopted current xgoja provid
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/provider.go — Simplified Geppetto provider config and added capability mapping
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/provider_test.go — Updated provider tests for simplified config and ignored legacy fields
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/09-buildspec-spec-rename-diary.md — Recorded implementation step and validation caveats
+
+## 2026-06-04
+
+Ran a Pinocchio-hosted Geppetto JS smoke test with the Pinocchio profile registry, explicit `--profile`, and `--turns-db`; verified the SQLite turn store contained one persisted final turn and four blocks. Also migrated Pinocchio's remaining direct go-go-goja engine API imports for the local GOJA-053 workspace (Pinocchio commit 802620e).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/pinocchio/cmd/pinocchio/cmds/js.go — Pinocchio JS host used for profile and turn-store smoke
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/pinocchio/cmd/examples/scopedjs-tui-demo/environment.go — Downstream engine API import migration
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/09-buildspec-spec-rename-diary.md — Recorded smoke-test details and validation caveats
