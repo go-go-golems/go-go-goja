@@ -19,7 +19,7 @@ type RuntimeFactory struct {
 }
 
 type providerRuntimeModuleSpec struct {
-	instance ModuleInstance
+	instance ModuleInstanceSpec
 	module   providerapi.Module
 	services providerapi.HostServices
 }

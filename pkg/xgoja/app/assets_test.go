@@ -36,8 +36,8 @@ func TestAssetStoreResolveAsset(t *testing.T) {
 
 func TestRuntimeFactoryPassesRuntimeOwnerToModules(t *testing.T) {
 	spec := &Spec{
-		Runtimes: map[string]Runtime{
-			"main": {Modules: []ModuleInstance{{Package: "fixture", Name: "owner-check", As: "owner-check"}}},
+		Runtimes: map[string]RuntimeSpec{
+			"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "owner-check", As: "owner-check"}}},
 		},
 	}
 	seen := false
@@ -71,8 +71,8 @@ func TestRuntimeFactoryPassesHostServicesToModules(t *testing.T) {
 	}
 	spec := &Spec{
 		Assets: []AssetSourceSpec{{ID: "app", Path: "xgoja_embed/assets/app", Embed: true}},
-		Runtimes: map[string]Runtime{
-			"main": {Modules: []ModuleInstance{{Package: "fixture", Name: "asset-check", As: "asset-check"}}},
+		Runtimes: map[string]RuntimeSpec{
+			"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "asset-check", As: "asset-check"}}},
 		},
 	}
 	seen := false

@@ -66,8 +66,8 @@ func newJSVerbsSectionRegistry(t *testing.T) *providerapi.Registry {
 
 func jsverbsSectionSpec() *Spec {
 	return &Spec{
-		Runtimes: map[string]Runtime{
-			"main": {Modules: []ModuleInstance{{Package: "fixture", Name: "mod", As: "mod"}}},
+		Runtimes: map[string]RuntimeSpec{
+			"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod", As: "mod"}}},
 		},
 		Commands: CommandsSpec{JSVerbs: CommandSpec{Enabled: true, Runtime: "main", Name: "verbs"}},
 		JSVerbs:  []JSVerbSourceSpec{{ID: "local", Path: "xgoja_embed/jsverbs/local", Embed: true}},

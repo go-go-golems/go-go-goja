@@ -1,18 +1,30 @@
+// Package app defines the runtime-side schema and wiring used by generated
+// xgoja binaries.
+//
+// The Spec types in this file are declarative runtime DTOs decoded from the
+// embedded JSON produced by cmd/xgoja/internal/generate. They intentionally omit
+// build-only fields such as Go module versions, provider import paths, replace
+// directives, target build roots, and source BaseDir. They describe what the
+// generated binary should expose at runtime; concrete VM lifecycles live in
+// engine.Runtime and app.RuntimeFactory.
 package app
 
+// Spec is the normalized embedded runtime spec decoded by a generated xgoja
+// binary. It is derived from buildspec.Spec during code generation and contains
+// only runtime-relevant command, module, config, help, jsverb, and asset data.
 type Spec struct {
-	Name             string                    `json:"name"`
-	AppName          string                    `json:"appName,omitempty"`
-	EnvPrefix        string                    `json:"envPrefix,omitempty"`
-	Config           *ConfigSpec               `json:"config,omitempty"`
-	Target           TargetSpec                `json:"target"`
-	Packages         []PackageSpec             `json:"packages"`
-	Runtimes         map[string]Runtime        `json:"runtimes"`
-	Commands         CommandsSpec              `json:"commands"`
-	CommandProviders []CommandProviderInstance `json:"commandProviders,omitempty"`
-	JSVerbs          []JSVerbSourceSpec        `json:"jsverbs,omitempty"`
-	Help             HelpSpec                  `json:"help,omitempty"`
-	Assets           []AssetSourceSpec         `json:"assets,omitempty"`
+	Name             string                        `json:"name"`
+	AppName          string                        `json:"appName,omitempty"`
+	EnvPrefix        string                        `json:"envPrefix,omitempty"`
+	Config           *ConfigSpec                   `json:"config,omitempty"`
+	Target           TargetSpec                    `json:"target"`
+	Packages         []PackageSpec                 `json:"packages"`
+	Runtimes         map[string]RuntimeSpec        `json:"runtimes"`
+	Commands         CommandsSpec                  `json:"commands"`
+	CommandProviders []CommandProviderInstanceSpec `json:"commandProviders,omitempty"`
+	JSVerbs          []JSVerbSourceSpec            `json:"jsverbs,omitempty"`
+	Help             HelpSpec                      `json:"help,omitempty"`
+	Assets           []AssetSourceSpec             `json:"assets,omitempty"`
 }
 
 type ConfigSpec struct {
@@ -30,18 +42,25 @@ type PackageSpec struct {
 	ID string `json:"id"`
 }
 
-type Runtime struct {
-	Modules []ModuleInstance `json:"modules"`
+// RuntimeSpec is a declarative runtime profile in the embedded app spec.
+// It lists provider module instances selected for a named profile; it is not a
+// concrete engine.Runtime.
+type RuntimeSpec struct {
+	Modules []ModuleInstanceSpec `json:"modules"`
 }
 
-type ModuleInstance struct {
+// ModuleInstanceSpec selects one provider module for a runtime profile.
+// The generated app resolves Package+Name through providerapi.Registry and uses
+// As as the require() alias. Config is static module config carried from the
+// generated spec.
+type ModuleInstanceSpec struct {
 	Package string         `json:"package"`
 	Name    string         `json:"name"`
 	As      string         `json:"as,omitempty"`
 	Config  map[string]any `json:"config,omitempty"`
 }
 
-func (m ModuleInstance) Alias() string {
+func (m ModuleInstanceSpec) Alias() string {
 	if m.As != "" {
 		return m.As
 	}
@@ -62,7 +81,10 @@ type CommandSpec struct {
 	Mount   string `json:"mount,omitempty"`
 }
 
-type CommandProviderInstance struct {
+// CommandProviderInstanceSpec selects one provider-owned command set to attach
+// to the generated Cobra root. It is the runtime DTO counterpart to the
+// providerapi.CommandSetProvider definition stored in providerapi.Registry.
+type CommandProviderInstanceSpec struct {
 	ID             string         `json:"id"`
 	Package        string         `json:"package"`
 	Name           string         `json:"name"`

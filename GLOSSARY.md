@@ -11,7 +11,11 @@ Examples:
 - `buildspec.Spec`: parsed `xgoja.yaml` build model.
 - `buildspec.RuntimeSpec`: declarative runtime profile in `xgoja.yaml`.
 - `buildspec.ModuleInstanceSpec`: declarative selected provider module inside a runtime profile.
-- `buildspec.CommandProviderInstanceSpec`: declarative selected provider command set.
+- `buildspec.CommandProviderInstanceSpec`: declarative selected provider command set in `xgoja.yaml`.
+- `app.Spec`: normalized embedded runtime model decoded by generated xgoja binaries.
+- `app.RuntimeSpec`: declarative runtime profile in the embedded runtime model.
+- `app.ModuleInstanceSpec`: declarative selected provider module in the embedded runtime model.
+- `app.CommandProviderInstanceSpec`: declarative selected provider command set in the embedded runtime model.
 
 Contrast with non-spec patterns:
 

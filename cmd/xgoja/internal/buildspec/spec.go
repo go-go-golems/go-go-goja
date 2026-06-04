@@ -1,7 +1,18 @@
+// Package buildspec defines the build-time xgoja.yaml schema.
+//
+// The types in this file are declarative *Spec DTOs: they describe what the
+// generator should build, import, embed, or expose, but they do not perform
+// runtime work. They are loaded from xgoja.yaml, defaulted, validated, and then
+// converted by cmd/xgoja/internal/generate into the smaller app.Spec JSON that
+// the generated binary embeds and reads at runtime.
 package buildspec
 
 import "fmt"
 
+// Spec is the top-level build-time xgoja.yaml document.
+// It includes build-only fields such as Go module settings, provider import
+// paths, replacement paths, target import/root data, and BaseDir for resolving
+// local resources. Generated binaries should use app.Spec instead.
 type Spec struct {
 	Name             string                        `yaml:"name"`
 	AppName          string                        `yaml:"appName"`
@@ -48,10 +59,17 @@ type PackageSpec struct {
 	Replace  string `yaml:"replace" json:"replace,omitempty"`
 }
 
+// RuntimeSpec is a declarative runtime profile from xgoja.yaml.
+// It lists selected provider module instances; it is not a concrete Goja
+// runtime. Concrete runtimes are engine.Runtime values created by the generated
+// app at execution time.
 type RuntimeSpec struct {
 	Modules []ModuleInstanceSpec `yaml:"modules" json:"modules"`
 }
 
+// ModuleInstanceSpec selects one provider module inside a runtime profile.
+// Its Config field is static module config from xgoja.yaml; it is declarative
+// data that is later marshaled or merged into providerapi.ModuleContext.Config.
 type ModuleInstanceSpec struct {
 	Package string         `yaml:"package" json:"package"`
 	Name    string         `yaml:"name" json:"name"`
@@ -84,6 +102,10 @@ type CommandSpec struct {
 	Mount   string `yaml:"mount" json:"mount,omitempty"`
 }
 
+// CommandProviderInstanceSpec selects one provider-owned command set for the
+// generated binary. It describes which provider command factory to mount and
+// with which static config; it is not the provider's CommandSetProvider
+// definition itself.
 type CommandProviderInstanceSpec struct {
 	ID             string         `yaml:"id" json:"id"`
 	Package        string         `yaml:"package" json:"package"`

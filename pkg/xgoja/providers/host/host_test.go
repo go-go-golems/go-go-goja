@@ -53,8 +53,8 @@ func TestFSHostAndEmbeddedAliases(t *testing.T) {
 	}
 	spec := &app.Spec{
 		Assets: []app.AssetSourceSpec{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
-		Runtimes: map[string]app.Runtime{
-			"main": {Modules: []app.ModuleInstance{
+		Runtimes: map[string]app.RuntimeSpec{
+			"main": {Modules: []app.ModuleInstanceSpec{
 				{
 					Package: PackageID,
 					Name:    "fs",
@@ -118,8 +118,8 @@ func TestFSRootEmbeddedMount(t *testing.T) {
 	}
 	spec := &app.Spec{
 		Assets: []app.AssetSourceSpec{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
-		Runtimes: map[string]app.Runtime{
-			"main": {Modules: []app.ModuleInstance{{
+		Runtimes: map[string]app.RuntimeSpec{
+			"main": {Modules: []app.ModuleInstanceSpec{{
 				Package: PackageID,
 				Name:    "fs",
 				As:      "fs:assets",

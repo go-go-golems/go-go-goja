@@ -56,7 +56,7 @@ func (h *Host) AttachCommandProviders(root *cobra.Command) {
 	}
 }
 
-func (h *Host) newCommandSet(instance CommandProviderInstance, provider providerapi.CommandSetProvider, mount string) (*providerapi.CommandSet, error) {
+func (h *Host) newCommandSet(instance CommandProviderInstanceSpec, provider providerapi.CommandSetProvider, mount string) (*providerapi.CommandSet, error) {
 	config, err := json.Marshal(instance.Config)
 	if err != nil {
 		return nil, fmt.Errorf("marshal command provider config %s: %w", instance.ID, err)
@@ -86,7 +86,7 @@ func (h *Host) newCommandSet(instance CommandProviderInstance, provider provider
 	return set, nil
 }
 
-func (h *Host) runtimeProfileForCommandProvider(instance CommandProviderInstance) string {
+func (h *Host) runtimeProfileForCommandProvider(instance CommandProviderInstanceSpec) string {
 	profile := strings.TrimSpace(instance.RuntimeProfile)
 	if profile == "" {
 		profile = firstRuntime(h.Spec)
@@ -94,7 +94,7 @@ func (h *Host) runtimeProfileForCommandProvider(instance CommandProviderInstance
 	return profile
 }
 
-func (h *Host) selectedModulesForCommandProvider(instance CommandProviderInstance) ([]providerapi.ModuleDescriptor, error) {
+func (h *Host) selectedModulesForCommandProvider(instance CommandProviderInstanceSpec) ([]providerapi.ModuleDescriptor, error) {
 	profile := h.runtimeProfileForCommandProvider(instance)
 	if profile == "" {
 		return nil, nil
@@ -200,7 +200,7 @@ func (c mountedGlazeCommand) RunIntoGlazeProcessor(ctx context.Context, vals *va
 	return c.command.(cmds.GlazeCommand).RunIntoGlazeProcessor(ctx, vals, gp)
 }
 
-func commandProviderUse(instance CommandProviderInstance, mount string) string {
+func commandProviderUse(instance CommandProviderInstanceSpec, mount string) string {
 	if strings.TrimSpace(mount) != "" {
 		return strings.TrimSpace(mount)
 	}

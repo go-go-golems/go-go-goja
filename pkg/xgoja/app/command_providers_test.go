@@ -69,8 +69,8 @@ func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T)
 		t.Fatalf("register provider: %v", err)
 	}
 	spec := &Spec{
-		Runtimes: map[string]Runtime{"fallback": {Modules: []ModuleInstance{{Package: "fixture", Name: "mod"}}}},
-		CommandProviders: []CommandProviderInstance{{
+		Runtimes: map[string]RuntimeSpec{"fallback": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}},
+		CommandProviders: []CommandProviderInstanceSpec{{
 			ID:      "fixture-tools",
 			Package: "fixture",
 			Name:    "tools",
@@ -127,8 +127,8 @@ func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	spec := &Spec{
-		Runtimes: map[string]Runtime{"main": {Modules: []ModuleInstance{{Package: "fixture", Name: "mod"}}}},
-		CommandProviders: []CommandProviderInstance{{
+		Runtimes: map[string]RuntimeSpec{"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}},
+		CommandProviders: []CommandProviderInstanceSpec{{
 			ID:             "fixture-tools",
 			Package:        "fixture",
 			Name:           "tools",

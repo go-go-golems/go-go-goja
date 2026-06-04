@@ -81,9 +81,9 @@ func newRuntimeOverrideFactory(t *testing.T) *RuntimeFactory {
 			Eval: CommandSpec{Runtime: "default"},
 			Run:  CommandSpec{Runtime: "default"},
 		},
-		Runtimes: map[string]Runtime{
-			"default":  {Modules: []ModuleInstance{{Package: "defaultpkg", Name: "mod", As: "fixture"}}},
-			"override": {Modules: []ModuleInstance{{Package: "overridepkg", Name: "mod", As: "fixture"}}},
+		Runtimes: map[string]RuntimeSpec{
+			"default":  {Modules: []ModuleInstanceSpec{{Package: "defaultpkg", Name: "mod", As: "fixture"}}},
+			"override": {Modules: []ModuleInstanceSpec{{Package: "overridepkg", Name: "mod", As: "fixture"}}},
 		},
 	})
 }
