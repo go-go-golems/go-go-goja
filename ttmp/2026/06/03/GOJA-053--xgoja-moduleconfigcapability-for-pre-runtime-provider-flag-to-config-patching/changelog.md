@@ -207,3 +207,16 @@ Uploaded GOJA-053 Geppetto Host Services Design to reMarkable at /ai/2026/06/04/
 
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/design/07-built-in-geppetto-host-services-for-generated-xgoja-jsverbs.md — Uploaded design guide
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/09-buildspec-spec-rename-diary.md — Recorded document creation and upload step
+
+## 2026-06-04
+
+Implemented Phase 6 host-service contributions: xgoja now collects provider-neutral host services before module setup, Geppetto consumes typed host options for tools/middleware/event sinks, and a generated xgoja smoke validated a contributed `wordCount` tool, `addSystemPrompt` middleware, JSONL event sink, profile resolution, and SQLite turn persistence.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providerapi/capabilities.go — HostServiceContributionCapability and keyed host-service lookup contracts (commit e6e3b24)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/host_services.go — Runtime host-service collection and lookup bag (commit e6e3b24)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/host_options.go — Geppetto typed host options and merge rules (commit d89b75b2)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/hostservicesexample/register.go — Example contributed Go tool, middleware factory, and JSONL event sink (commit d89b75b2)
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/09-buildspec-spec-rename-diary.md — Step 16 diary entry and validation record
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/tasks.md — Phase 6 task status updates

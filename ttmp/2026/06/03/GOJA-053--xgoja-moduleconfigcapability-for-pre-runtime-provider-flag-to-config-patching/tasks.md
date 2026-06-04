@@ -9,15 +9,9 @@
 
 ### Phase 6: Built-in Geppetto host services for generated xgoja jsverbs
 
-- [ ] Add generic host-service lookup storage to `providerapi.HostServices` / `app.HostServices` without importing Geppetto into xgoja core.
-- [ ] Add `HostServiceContributionCapability` so selected provider packages can contribute runtime host services from parsed Glazed values before module setup.
-- [ ] Add Geppetto provider host-service payload and merge helpers for tool registries, middleware factories, default event sinks, and option configurators.
-- [ ] Implement strict duplicate detection for contributed Go tool names and Go middleware factory names.
 - [ ] Add automatic closer/lifecycle handling for provider-created stores and event sinks, or document the temporary manual-close boundary.
-- [ ] Build an example contributor package that provides a custom Go tool, a custom Go middleware factory, and a JSONL event sink.
-- [ ] Add a generated xgoja example that runs a Geppetto jsverb with `--profile-registries`, `--profile`, `--turns-db`, and `--event-log`.
+- [ ] Add a committed generated xgoja example that runs a Geppetto jsverb with `--profile-registries`, `--profile`, `--turns-db`, and `--event-log`.
 - [ ] Port representative Pinocchio JS scripts into generated xgoja jsverbs and document which scripts require Pinocchio-specific modules versus pure Geppetto APIs.
-- [ ] Add integration validation that inspects jsverb JSON output, SQLite persisted turns, and JSONL event-sink output.
 
 ## DONE
 
@@ -59,3 +53,9 @@
 - [x] Add Geppetto provider SQLite-backed default turn store for explicit `turns-dsn` / `turns-db` runtime flags.
 - [x] Run a literal generated xgoja jsverb using `require("geppetto")`, Pinocchio `profiles.yaml`, `--profile`, and `--turns-db`; verify persisted store contents.
 - [x] Write intern-facing design and implementation guide for built-in Geppetto host services in generated xgoja jsverbs.
+- [x] Add generic host-service lookup storage to `providerapi.HostServices` / `app.HostServices` without importing Geppetto into xgoja core.
+- [x] Add `HostServiceContributionCapability` so selected provider packages can contribute runtime host services from parsed Glazed values before module setup.
+- [x] Add Geppetto provider host-service payload and merge helpers for tool registries, middleware factories, default event sinks, and option configurators.
+- [x] Implement strict duplicate detection for contributed Go tool names and Go middleware factory names.
+- [x] Build an example contributor package that provides a custom Go tool, a custom Go middleware factory, and a JSONL event sink.
+- [x] Run generated xgoja host-services validation inspecting jsverb JSON output, SQLite persisted turns, and JSONL event-sink output.
