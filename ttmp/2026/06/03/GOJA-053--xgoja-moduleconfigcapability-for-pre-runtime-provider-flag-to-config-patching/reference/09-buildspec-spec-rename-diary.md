@@ -241,7 +241,7 @@ I also renamed the source files to match the new top-level type names and rename
 
 **Inferred user intent:** Remove the last ambiguous `Spec` type/field names from xgoja's generated app and buildspec layers.
 
-**Commit (code):** 84dec6c59e94c03178f13bc8f3fa90e911b39c51 — "Clarify top-level build and runtime specs"
+**Commit (code):** a50de5d3d1d3b2c2b7b95d42efca9bd06bda0263 — "Clarify top-level build and runtime specs"
 
 ### What I did
 
@@ -314,7 +314,7 @@ The serialized top-level field also moved from `config` to `configFile` in the b
 
 **Inferred user intent:** Remove ambiguity between config-file loading settings and provider module configuration.
 
-**Commit (code):** 84dec6c59e94c03178f13bc8f3fa90e911b39c51 — "Clarify top-level build and runtime specs"
+**Commit (code):** a50de5d3d1d3b2c2b7b95d42efca9bd06bda0263 — "Clarify top-level build and runtime specs"
 
 ### What I did
 
