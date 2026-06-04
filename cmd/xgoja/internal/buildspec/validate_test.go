@@ -7,15 +7,15 @@ import (
 )
 
 func TestValidateCommandProvidersAcceptsKnownPackageAndRuntime(t *testing.T) {
-	spec := validSpec()
-	spec.CommandProviders = []CommandProviderInstanceSpec{{
+	buildSpec := validSpec()
+	buildSpec.CommandProviders = []CommandProviderInstanceSpec{{
 		ID:             "fixture-tools",
 		Package:        "fixture",
 		Name:           "tools",
 		RuntimeProfile: "main",
 	}}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if report.HasErrors() {
 		t.Fatalf("expected no validation errors, got %#v", report.Checks)
 	}
@@ -24,13 +24,13 @@ func TestValidateCommandProvidersAcceptsKnownPackageAndRuntime(t *testing.T) {
 }
 
 func TestValidateCommandProvidersRejectsInvalidEntries(t *testing.T) {
-	spec := validSpec()
-	spec.CommandProviders = []CommandProviderInstanceSpec{
+	buildSpec := validSpec()
+	buildSpec.CommandProviders = []CommandProviderInstanceSpec{
 		{ID: "dup", Package: "missing", Name: "tools", RuntimeProfile: "missing"},
 		{ID: "dup", Package: "fixture"},
 	}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if !report.HasErrors() {
 		t.Fatalf("expected validation errors, got %#v", report.Checks)
 	}
@@ -46,15 +46,15 @@ func TestValidateHelpSourcesAcceptsProviderAndEmbeddedLocalSources(t *testing.T)
 	if err := os.MkdirAll(helpDir, 0o755); err != nil {
 		t.Fatalf("mkdir help dir: %v", err)
 	}
-	spec := validSpec()
-	spec.BaseDir = dir
-	spec.Help.Sources = []HelpSourceSpec{
+	buildSpec := validSpec()
+	buildSpec.BaseDir = dir
+	buildSpec.Help.Sources = []HelpSourceSpec{
 		{ID: "fixture-docs", Package: "fixture", Source: "docs"},
 		{ID: "local-docs", Path: "docs/help", Embed: true},
 		{ID: "dev-docs", Path: "../runtime-docs"},
 	}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if report.HasErrors() {
 		t.Fatalf("expected no validation errors, got %#v", report.Checks)
 	}
@@ -69,16 +69,16 @@ func TestValidateAssetsAcceptsEmbeddedLocalSources(t *testing.T) {
 	if err := os.MkdirAll(assetsDir, 0o755); err != nil {
 		t.Fatalf("mkdir assets dir: %v", err)
 	}
-	spec := validSpec()
-	spec.BaseDir = dir
-	spec.Assets = []AssetSourceSpec{{
+	buildSpec := validSpec()
+	buildSpec.BaseDir = dir
+	buildSpec.Assets = []AssetSourceSpec{{
 		ID:          "app-assets",
 		Path:        "assets",
 		Embed:       true,
 		Description: "application assets",
 	}}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if report.HasErrors() {
 		t.Fatalf("expected no validation errors, got %#v", report.Checks)
 	}
@@ -91,9 +91,9 @@ func TestValidateAssetsRejectsInvalidEntries(t *testing.T) {
 	if err := os.WriteFile(filePath, []byte("asset"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
-	spec := validSpec()
-	spec.BaseDir = dir
-	spec.Assets = []AssetSourceSpec{
+	buildSpec := validSpec()
+	buildSpec.BaseDir = dir
+	buildSpec.Assets = []AssetSourceSpec{
 		{ID: "dup", Path: "not-a-dir.txt", Embed: true},
 		{ID: "dup", Path: "missing", Embed: true},
 		{ID: "runtime", Path: "runtime", Embed: false},
@@ -101,7 +101,7 @@ func TestValidateAssetsRejectsInvalidEntries(t *testing.T) {
 		{Path: "assets", Embed: true},
 	}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if !report.HasErrors() {
 		t.Fatalf("expected validation errors, got %#v", report.Checks)
 	}
@@ -119,9 +119,9 @@ func TestValidateHelpSourcesRejectsInvalidEntries(t *testing.T) {
 	if err := os.WriteFile(filePath, []byte("docs"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
-	spec := validSpec()
-	spec.BaseDir = dir
-	spec.Help.Sources = []HelpSourceSpec{
+	buildSpec := validSpec()
+	buildSpec.BaseDir = dir
+	buildSpec.Help.Sources = []HelpSourceSpec{
 		{ID: "dup", Package: "fixture"},
 		{ID: "dup", Package: "missing", Source: "docs"},
 		{ID: "mixed", Path: "docs", Package: "fixture", Source: "docs"},
@@ -130,7 +130,7 @@ func TestValidateHelpSourcesRejectsInvalidEntries(t *testing.T) {
 		{Path: "docs"},
 	}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if !report.HasErrors() {
 		t.Fatalf("expected validation errors, got %#v", report.Checks)
 	}
@@ -143,8 +143,8 @@ func TestValidateHelpSourcesRejectsInvalidEntries(t *testing.T) {
 	assertCheck(t, report, StatusError, "help-source-id", "help.sources[5].id")
 }
 
-func validSpec() *Spec {
-	return &Spec{
+func validSpec() *BuildSpec {
+	return &BuildSpec{
 		Name: "fixture",
 		Target: TargetSpec{
 			Kind:   "xgoja",
@@ -171,10 +171,10 @@ func validSpec() *Spec {
 
 func TestValidateJSVerbCommandMountAcceptsRootAliases(t *testing.T) {
 	for _, mount := range []string{"root", "/", "."} {
-		spec := validSpec()
-		spec.Commands.JSVerbs = CommandSpec{Enabled: true, Runtime: "main", Mount: mount}
+		buildSpec := validSpec()
+		buildSpec.Commands.JSVerbs = CommandSpec{Enabled: true, Runtime: "main", Mount: mount}
 
-		report := Validate(spec)
+		report := Validate(buildSpec)
 		if report.HasErrors() {
 			t.Fatalf("mount %q: expected no validation errors, got %#v", mount, report.Checks)
 		}
@@ -183,10 +183,10 @@ func TestValidateJSVerbCommandMountAcceptsRootAliases(t *testing.T) {
 }
 
 func TestValidateJSVerbCommandMountRejectsUnknownValue(t *testing.T) {
-	spec := validSpec()
-	spec.Commands.JSVerbs = CommandSpec{Enabled: true, Runtime: "main", Mount: "top-level"}
+	buildSpec := validSpec()
+	buildSpec.Commands.JSVerbs = CommandSpec{Enabled: true, Runtime: "main", Mount: "top-level"}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if !report.HasErrors() {
 		t.Fatalf("expected validation errors, got %#v", report.Checks)
 	}
@@ -204,11 +204,11 @@ func assertCheck(t *testing.T, report *Report, status Status, name string, path 
 }
 
 func TestValidateAppSettingsAcceptsAppNameAndEnvPrefix(t *testing.T) {
-	spec := validSpec()
-	spec.AppName = "my-app"
-	spec.EnvPrefix = "MY_APP"
+	buildSpec := validSpec()
+	buildSpec.AppName = "my-app"
+	buildSpec.EnvPrefix = "MY_APP"
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if report.HasErrors() {
 		t.Fatalf("expected no validation errors, got %#v", report.Checks)
 	}
@@ -217,10 +217,10 @@ func TestValidateAppSettingsAcceptsAppNameAndEnvPrefix(t *testing.T) {
 }
 
 func TestValidateAppSettingsRejectsInvalidEnvPrefix(t *testing.T) {
-	spec := validSpec()
-	spec.EnvPrefix = "my-app"
+	buildSpec := validSpec()
+	buildSpec.EnvPrefix = "my-app"
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if !report.HasErrors() {
 		t.Fatalf("expected validation errors, got %#v", report.Checks)
 	}
@@ -228,10 +228,10 @@ func TestValidateAppSettingsRejectsInvalidEnvPrefix(t *testing.T) {
 }
 
 func TestValidateConfigRequiresAppNameForAppScopedLayers(t *testing.T) {
-	spec := validSpec()
-	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"system"}}
+	buildSpec := validSpec()
+	buildSpec.ConfigFile = &ConfigFileSpec{Enabled: true, Layers: []string{"system"}}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if !report.HasErrors() {
 		t.Fatalf("expected validation errors, got %#v", report.Checks)
 	}
@@ -239,21 +239,21 @@ func TestValidateConfigRequiresAppNameForAppScopedLayers(t *testing.T) {
 }
 
 func TestValidateConfigAllowsLocalLayersWithoutAppName(t *testing.T) {
-	spec := validSpec()
-	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"cwd", "git-root", "explicit"}}
+	buildSpec := validSpec()
+	buildSpec.ConfigFile = &ConfigFileSpec{Enabled: true, Layers: []string{"cwd", "git-root", "explicit"}}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if report.HasErrors() {
 		t.Fatalf("expected no validation errors, got %#v", report.Checks)
 	}
 }
 
 func TestValidateConfigRejectsUnknownLayers(t *testing.T) {
-	spec := validSpec()
-	spec.AppName = "my-app"
-	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"cwd", "unknown", "xdg"}}
+	buildSpec := validSpec()
+	buildSpec.AppName = "my-app"
+	buildSpec.ConfigFile = &ConfigFileSpec{Enabled: true, Layers: []string{"cwd", "unknown", "xdg"}}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if !report.HasErrors() {
 		t.Fatalf("expected validation errors, got %#v", report.Checks)
 	}
@@ -263,22 +263,22 @@ func TestValidateConfigRejectsUnknownLayers(t *testing.T) {
 }
 
 func TestValidateConfigAcceptsValidLayers(t *testing.T) {
-	spec := validSpec()
-	spec.AppName = "my-app"
-	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{"system", "xdg", "home", "git-root", "cwd", "explicit"}}
+	buildSpec := validSpec()
+	buildSpec.AppName = "my-app"
+	buildSpec.ConfigFile = &ConfigFileSpec{Enabled: true, Layers: []string{"system", "xdg", "home", "git-root", "cwd", "explicit"}}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if report.HasErrors() {
 		t.Fatalf("expected no validation errors, got %#v", report.Checks)
 	}
 }
 
 func TestValidateConfigRequiresLayers(t *testing.T) {
-	spec := validSpec()
-	spec.AppName = "my-app"
-	spec.Config = &ConfigSpec{Enabled: true, Layers: []string{}}
+	buildSpec := validSpec()
+	buildSpec.AppName = "my-app"
+	buildSpec.ConfigFile = &ConfigFileSpec{Enabled: true, Layers: []string{}}
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	if !report.HasErrors() {
 		t.Fatalf("expected validation errors, got %#v", report.Checks)
 	}

@@ -37,13 +37,13 @@ func NewRootCommand(opts Options) (*cobra.Command, error) {
 	if opts.Providers == nil {
 		return nil, fmt.Errorf("providers registry is required")
 	}
-	spec := &Spec{}
-	if err := json.Unmarshal([]byte(opts.SpecJSON), spec); err != nil {
-		return nil, fmt.Errorf("decode embedded xgoja spec: %w", err)
+	runtimeSpec := &RuntimeSpec{}
+	if err := json.Unmarshal([]byte(opts.SpecJSON), runtimeSpec); err != nil {
+		return nil, fmt.Errorf("decode embedded xgoja runtime spec: %w", err)
 	}
-	host := NewHostWithOptions(opts.Providers, spec, HostOptions{EmbeddedJSVerbs: opts.EmbeddedJSVerbs, EmbeddedHelp: opts.EmbeddedHelp, EmbeddedAssets: opts.EmbeddedAssets, Out: opts.Out, MiddlewaresFunc: opts.MiddlewaresFunc})
+	host := NewHostWithOptions(opts.Providers, runtimeSpec, HostOptions{EmbeddedJSVerbs: opts.EmbeddedJSVerbs, EmbeddedHelp: opts.EmbeddedHelp, EmbeddedAssets: opts.EmbeddedAssets, Out: opts.Out, MiddlewaresFunc: opts.MiddlewaresFunc})
 	root := &cobra.Command{
-		Use:   spec.Name,
+		Use:   runtimeSpec.Name,
 		Short: "Generated xgoja binary",
 	}
 	if opts.Out != nil {
@@ -67,8 +67,8 @@ type evalSettings struct {
 	Runtime string `glazed:"runtime"`
 }
 
-func newEvalCommand(factory *RuntimeFactory, spec *Spec, out io.Writer) cmds.Command {
-	profile := commandRuntime(spec.Commands.Eval, firstRuntime(spec))
+func newEvalCommand(factory *RuntimeFactory, runtimeSpec *RuntimeSpec, out io.Writer) cmds.Command {
+	profile := commandRuntime(runtimeSpec.Commands.Eval, firstRuntime(runtimeSpec))
 	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("eval", profile)
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Evaluate JavaScript in a generated xgoja runtime"),
@@ -95,7 +95,7 @@ before evaluation and runtime initializers run before the JavaScript source.
 		options = append(options, cmds.WithSections(moduleSections...))
 	}
 	return &evalCommand{
-		CommandDescription: cmds.NewCommandDescription(commandName(spec.Commands.Eval, "eval"), options...),
+		CommandDescription: cmds.NewCommandDescription(commandName(runtimeSpec.Commands.Eval, "eval"), options...),
 		factory:            factory,
 		out:                out,
 		sectionErr:         sectionErr,
@@ -163,8 +163,8 @@ type modulesCommand struct {
 
 var _ cmds.GlazeCommand = (*modulesCommand)(nil)
 
-func newModulesCommand(providers *providerapi.Registry, spec *Spec) cmds.Command {
-	_ = spec
+func newModulesCommand(providers *providerapi.Registry, runtimeSpec *RuntimeSpec) cmds.Command {
+	_ = runtimeSpec
 	return &modulesCommand{
 		CommandDescription: cmds.NewCommandDescription("modules",
 			cmds.WithShort("List provider modules registered in this generated binary"),
@@ -198,12 +198,12 @@ func (c *modulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values
 	return nil
 }
 
-func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, spec *Spec, embeddedJSVerbs fs.FS, middlewaresFunc glazedcli.CobraMiddlewaresFunc) *cobra.Command {
+func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, embeddedJSVerbs fs.FS, middlewaresFunc glazedcli.CobraMiddlewaresFunc) *cobra.Command {
 	root := &cobra.Command{
-		Use:   commandName(spec.Commands.JSVerbs, "verbs"),
+		Use:   commandName(runtimeSpec.Commands.JSVerbs, "verbs"),
 		Short: "Run configured JavaScript verb commands",
 	}
-	mounted, err := buildVerbCommands(providers, factory, spec, embeddedJSVerbs)
+	mounted, err := buildVerbCommands(providers, factory, runtimeSpec, embeddedJSVerbs)
 	if err != nil {
 		root.RunE = func(cmd *cobra.Command, args []string) error { return err }
 		return root
@@ -212,7 +212,7 @@ func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, s
 		Use:   "sources",
 		Short: "List configured JavaScript verb sources",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			for _, source := range spec.JSVerbs {
+			for _, source := range runtimeSpec.JSVerbs {
 				fmt.Fprintf(cmd.OutOrStdout(), "%s\n", source.ID)
 			}
 			return nil
@@ -230,14 +230,14 @@ func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, s
 	return root
 }
 
-func buildVerbCommands(providers *providerapi.Registry, factory *RuntimeFactory, spec *Spec, embeddedJSVerbs fs.FS) ([]cmds.Command, error) {
-	profile := commandRuntime(spec.Commands.JSVerbs, firstRuntime(spec))
+func buildVerbCommands(providers *providerapi.Registry, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, embeddedJSVerbs fs.FS) ([]cmds.Command, error) {
+	profile := commandRuntime(runtimeSpec.Commands.JSVerbs, firstRuntime(runtimeSpec))
 	moduleSections, selectedModules, err := factory.sectionsForRuntimeProfile("jsverbs", profile)
 	if err != nil {
 		return nil, err
 	}
 	commands := []cmds.Command{}
-	for _, source := range spec.JSVerbs {
+	for _, source := range runtimeSpec.JSVerbs {
 		registry, err := scanVerbSource(providers, embeddedJSVerbs, source)
 		if err != nil {
 			return nil, err
@@ -313,12 +313,12 @@ func scanVerbSource(providers *providerapi.Registry, embeddedJSVerbs fs.FS, sour
 	return registry, nil
 }
 
-func firstRuntime(spec *Spec) string {
-	if spec.Commands.Eval.Enabled && spec.Commands.Eval.Runtime != "" {
-		return spec.Commands.Eval.Runtime
+func firstRuntime(runtimeSpec *RuntimeSpec) string {
+	if runtimeSpec.Commands.Eval.Enabled && runtimeSpec.Commands.Eval.Runtime != "" {
+		return runtimeSpec.Commands.Eval.Runtime
 	}
-	names := make([]string, 0, len(spec.Runtimes))
-	for name := range spec.Runtimes {
+	names := make([]string, 0, len(runtimeSpec.Runtimes))
+	for name := range runtimeSpec.Runtimes {
 		names = append(names, name)
 	}
 	sort.Strings(names)

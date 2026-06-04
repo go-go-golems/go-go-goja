@@ -10,7 +10,7 @@ import (
 
 func TestTUICommandIncludesRuntimeProfileModuleSections(t *testing.T) {
 	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runFixtureCapability{}))
-	cmd := newTUICommand(factory, factory.spec)
+	cmd := newTUICommand(factory, factory.runtimeSpec)
 	section, ok := cmd.Description().Schema.Get("fixture")
 	if !ok {
 		t.Fatal("expected fixture section on repl command")

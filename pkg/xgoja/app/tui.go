@@ -26,9 +26,9 @@ import (
 
 type tuiCommand struct {
 	*cmds.CommandDescription
-	factory    *RuntimeFactory
-	spec       *Spec
-	sectionErr error
+	factory     *RuntimeFactory
+	runtimeSpec *RuntimeSpec
+	sectionErr  error
 }
 
 var _ cmds.BareCommand = (*tuiCommand)(nil)
@@ -38,8 +38,8 @@ type tuiSettings struct {
 	AltScreen bool   `glazed:"alt-screen"`
 }
 
-func newTUICommand(factory *RuntimeFactory, spec *Spec) cmds.Command {
-	profile := commandRuntime(spec.Commands.Repl, firstRuntime(spec))
+func newTUICommand(factory *RuntimeFactory, runtimeSpec *RuntimeSpec) cmds.Command {
+	profile := commandRuntime(runtimeSpec.Commands.Repl, firstRuntime(runtimeSpec))
 	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("repl", profile)
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Run an interactive TUI REPL for a generated xgoja runtime"),
@@ -61,9 +61,9 @@ available through require().
 		options = append(options, cmds.WithSections(moduleSections...))
 	}
 	return &tuiCommand{
-		CommandDescription: cmds.NewCommandDescription(commandName(spec.Commands.Repl, "repl"), options...),
+		CommandDescription: cmds.NewCommandDescription(commandName(runtimeSpec.Commands.Repl, "repl"), options...),
 		factory:            factory,
-		spec:               spec,
+		runtimeSpec:        runtimeSpec,
 		sectionErr:         sectionErr,
 	}
 }
@@ -80,10 +80,10 @@ func (c *tuiCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	return runTUI(ctx, c.factory, c.spec, settings.Runtime, settings.AltScreen, vals, selectedModules)
+	return runTUI(ctx, c.factory, c.runtimeSpec, settings.Runtime, settings.AltScreen, vals, selectedModules)
 }
 
-func runTUI(ctx context.Context, factory *RuntimeFactory, spec *Spec, profile string, altScreen bool, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {
+func runTUI(ctx context.Context, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, profile string, altScreen bool, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -100,8 +100,8 @@ func runTUI(ctx context.Context, factory *RuntimeFactory, spec *Spec, profile st
 
 	cfg := bobarepl.DefaultConfig()
 	name := "xgoja"
-	if spec != nil && strings.TrimSpace(spec.Name) != "" {
-		name = strings.TrimSpace(spec.Name)
+	if runtimeSpec != nil && strings.TrimSpace(runtimeSpec.Name) != "" {
+		name = strings.TrimSpace(runtimeSpec.Name)
 	}
 	cfg.Title = fmt.Sprintf("%s TUI (%s runtime)", name, profile)
 	cfg.Placeholder = fmt.Sprintf("Runtime %s | Type JavaScript, then use alt+h for help", profile)

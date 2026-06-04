@@ -9,37 +9,37 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func LoadFile(path string) (*Spec, *Report, error) {
+func LoadFile(path string) (*BuildSpec, *Report, error) {
 	if strings.TrimSpace(path) == "" {
 		path = "xgoja.yaml"
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("resolve spec path %q: %w", path, err)
+		return nil, nil, fmt.Errorf("resolve build spec path %q: %w", path, err)
 	}
 	data, err := os.ReadFile(abs)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read spec %s: %w", abs, err)
+		return nil, nil, fmt.Errorf("read build spec %s: %w", abs, err)
 	}
 
 	unsupportedReport, err := unsupportedAssetFieldsReport(data)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parse spec %s: %w", abs, err)
+		return nil, nil, fmt.Errorf("parse build spec %s: %w", abs, err)
 	}
 
-	spec := &Spec{}
-	if err := yaml.Unmarshal(data, spec); err != nil {
-		return nil, nil, fmt.Errorf("parse spec %s: %w", abs, err)
+	buildSpec := &BuildSpec{}
+	if err := yaml.Unmarshal(data, buildSpec); err != nil {
+		return nil, nil, fmt.Errorf("parse build spec %s: %w", abs, err)
 	}
-	spec.BaseDir = filepath.Dir(abs)
-	applyDefaults(spec)
+	buildSpec.BaseDir = filepath.Dir(abs)
+	applyDefaults(buildSpec)
 
-	report := Validate(spec)
+	report := Validate(buildSpec)
 	report.Checks = append(report.Checks, unsupportedReport.Checks...)
 	if report.HasErrors() {
-		return spec, report, &ValidationError{Report: report}
+		return buildSpec, report, &ValidationError{Report: report}
 	}
-	return spec, report, nil
+	return buildSpec, report, nil
 }
 
 func unsupportedAssetFieldsReport(data []byte) (*Report, error) {
@@ -78,49 +78,49 @@ func unsupportedAssetFieldsReport(data []byte) (*Report, error) {
 	return report, nil
 }
 
-func applyDefaults(spec *Spec) {
-	if spec == nil {
+func applyDefaults(buildSpec *BuildSpec) {
+	if buildSpec == nil {
 		return
 	}
-	spec.Name = strings.TrimSpace(spec.Name)
-	spec.AppName = strings.TrimSpace(spec.AppName)
-	spec.EnvPrefix = strings.TrimSpace(spec.EnvPrefix)
-	if spec.Config != nil && spec.Config.Enabled {
-		if strings.TrimSpace(spec.Config.FileName) == "" {
-			spec.Config.FileName = "config.yaml"
+	buildSpec.Name = strings.TrimSpace(buildSpec.Name)
+	buildSpec.AppName = strings.TrimSpace(buildSpec.AppName)
+	buildSpec.EnvPrefix = strings.TrimSpace(buildSpec.EnvPrefix)
+	if buildSpec.ConfigFile != nil && buildSpec.ConfigFile.Enabled {
+		if strings.TrimSpace(buildSpec.ConfigFile.FileName) == "" {
+			buildSpec.ConfigFile.FileName = "config.yaml"
 		}
 	}
-	if spec.Name == "" {
-		spec.Name = "xgoja-app"
+	if buildSpec.Name == "" {
+		buildSpec.Name = "xgoja-app"
 	}
-	if strings.TrimSpace(spec.Go.Version) == "" {
-		spec.Go.Version = "1.26"
+	if strings.TrimSpace(buildSpec.Go.Version) == "" {
+		buildSpec.Go.Version = "1.26"
 	}
-	if strings.TrimSpace(spec.Go.Module) == "" {
-		spec.Go.Module = "example.com/generated/" + sanitizeModulePathPart(spec.Name)
+	if strings.TrimSpace(buildSpec.Go.Module) == "" {
+		buildSpec.Go.Module = "example.com/generated/" + sanitizeModulePathPart(buildSpec.Name)
 	}
-	if strings.TrimSpace(spec.Target.Kind) == "" {
-		spec.Target.Kind = "xgoja"
+	if strings.TrimSpace(buildSpec.Target.Kind) == "" {
+		buildSpec.Target.Kind = "xgoja"
 	}
-	if strings.TrimSpace(spec.Target.Output) == "" {
-		spec.Target.Output = filepath.ToSlash(filepath.Join("dist", sanitizeModulePathPart(spec.Name)))
+	if strings.TrimSpace(buildSpec.Target.Output) == "" {
+		buildSpec.Target.Output = filepath.ToSlash(filepath.Join("dist", sanitizeModulePathPart(buildSpec.Name)))
 	}
-	for i := range spec.Packages {
-		if strings.TrimSpace(spec.Packages[i].Register) == "" {
-			spec.Packages[i].Register = "Register"
+	for i := range buildSpec.Packages {
+		if strings.TrimSpace(buildSpec.Packages[i].Register) == "" {
+			buildSpec.Packages[i].Register = "Register"
 		}
 	}
-	if spec.Commands.Eval.Enabled && strings.TrimSpace(spec.Commands.Eval.Name) == "" {
-		spec.Commands.Eval.Name = "eval"
+	if buildSpec.Commands.Eval.Enabled && strings.TrimSpace(buildSpec.Commands.Eval.Name) == "" {
+		buildSpec.Commands.Eval.Name = "eval"
 	}
-	if spec.Commands.Run.Enabled && strings.TrimSpace(spec.Commands.Run.Name) == "" {
-		spec.Commands.Run.Name = "run"
+	if buildSpec.Commands.Run.Enabled && strings.TrimSpace(buildSpec.Commands.Run.Name) == "" {
+		buildSpec.Commands.Run.Name = "run"
 	}
-	if spec.Commands.Repl.Enabled && strings.TrimSpace(spec.Commands.Repl.Name) == "" {
-		spec.Commands.Repl.Name = "repl"
+	if buildSpec.Commands.Repl.Enabled && strings.TrimSpace(buildSpec.Commands.Repl.Name) == "" {
+		buildSpec.Commands.Repl.Name = "repl"
 	}
-	if spec.Commands.JSVerbs.Enabled && strings.TrimSpace(spec.Commands.JSVerbs.Name) == "" {
-		spec.Commands.JSVerbs.Name = "verbs"
+	if buildSpec.Commands.JSVerbs.Enabled && strings.TrimSpace(buildSpec.Commands.JSVerbs.Name) == "" {
+		buildSpec.Commands.JSVerbs.Name = "verbs"
 	}
 }
 

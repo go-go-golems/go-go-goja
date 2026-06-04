@@ -17,10 +17,10 @@ import (
 )
 
 func (h *Host) AttachCommandProviders(root *cobra.Command) {
-	if root == nil || h == nil || h.Spec == nil || h.Providers == nil {
+	if root == nil || h == nil || h.RuntimeSpec == nil || h.Providers == nil {
 		return
 	}
-	for _, instance := range h.Spec.CommandProviders {
+	for _, instance := range h.RuntimeSpec.CommandProviders {
 		provider, ok := h.Providers.ResolveCommandSetProvider(instance.Package, instance.Name)
 		mount := strings.TrimSpace(instance.Mount)
 		if mount == "" {
@@ -89,7 +89,7 @@ func (h *Host) newCommandSet(instance CommandProviderInstanceSpec, provider prov
 func (h *Host) runtimeProfileForCommandProvider(instance CommandProviderInstanceSpec) string {
 	profile := strings.TrimSpace(instance.RuntimeProfile)
 	if profile == "" {
-		profile = firstRuntime(h.Spec)
+		profile = firstRuntime(h.RuntimeSpec)
 	}
 	return profile
 }

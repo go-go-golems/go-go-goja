@@ -13,9 +13,9 @@ import (
 type JSRuntime = engine.Runtime
 
 type RuntimeFactory struct {
-	providers *providerapi.Registry
-	spec      *Spec
-	services  providerapi.HostServices
+	providers   *providerapi.Registry
+	runtimeSpec *RuntimeSpec
+	services    providerapi.HostServices
 }
 
 type providerRuntimeModuleSpec struct {
@@ -51,19 +51,19 @@ func (s providerRuntimeModuleSpec) RegisterRuntimeModule(ctx *engine.RuntimeModu
 	return nil
 }
 
-func NewRuntimeFactory(providers *providerapi.Registry, spec *Spec, services ...providerapi.HostServices) *RuntimeFactory {
+func NewRuntimeFactory(providers *providerapi.Registry, runtimeSpec *RuntimeSpec, services ...providerapi.HostServices) *RuntimeFactory {
 	var hostServices providerapi.HostServices
 	if len(services) > 0 {
 		hostServices = services[0]
 	}
-	return &RuntimeFactory{providers: providers, spec: spec, services: hostServices}
+	return &RuntimeFactory{providers: providers, runtimeSpec: runtimeSpec, services: hostServices}
 }
 
 func (f *RuntimeFactory) NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*JSRuntime, error) {
-	if f == nil || f.providers == nil || f.spec == nil {
+	if f == nil || f.providers == nil || f.runtimeSpec == nil {
 		return nil, fmt.Errorf("xgoja runtime factory is not initialized")
 	}
-	runtime, ok := f.spec.Runtimes[profile]
+	runtime, ok := f.runtimeSpec.Runtimes[profile]
 	if !ok {
 		return nil, fmt.Errorf("unknown runtime profile %q", profile)
 	}

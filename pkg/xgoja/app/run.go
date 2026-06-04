@@ -19,9 +19,9 @@ import (
 
 type runCommand struct {
 	*cmds.CommandDescription
-	factory    *RuntimeFactory
-	spec       *Spec
-	sectionErr error
+	factory     *RuntimeFactory
+	runtimeSpec *RuntimeSpec
+	sectionErr  error
 }
 
 var _ cmds.BareCommand = (*runCommand)(nil)
@@ -32,8 +32,8 @@ type runSettings struct {
 	KeepAlive bool   `glazed:"keep-alive"`
 }
 
-func newRunCommand(factory *RuntimeFactory, spec *Spec) cmds.Command {
-	profile := commandRuntime(spec.Commands.Run, firstRuntime(spec))
+func newRunCommand(factory *RuntimeFactory, runtimeSpec *RuntimeSpec) cmds.Command {
+	profile := commandRuntime(runtimeSpec.Commands.Run, firstRuntime(runtimeSpec))
 	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("run", profile)
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Execute a JavaScript file in a generated xgoja runtime"),
@@ -62,9 +62,9 @@ sibling JavaScript files can be required by relative path.
 		options = append(options, cmds.WithSections(moduleSections...))
 	}
 	return &runCommand{
-		CommandDescription: cmds.NewCommandDescription(commandName(spec.Commands.Run, "run"), options...),
+		CommandDescription: cmds.NewCommandDescription(commandName(runtimeSpec.Commands.Run, "run"), options...),
 		factory:            factory,
-		spec:               spec,
+		runtimeSpec:        runtimeSpec,
 		sectionErr:         sectionErr,
 	}
 }

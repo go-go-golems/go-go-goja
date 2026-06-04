@@ -369,11 +369,11 @@ func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	spec := &Spec{}
-	if err := json.Unmarshal([]byte(fixtureSpecJSON), spec); err != nil {
-		t.Fatalf("parse spec: %v", err)
+	runtimeSpec := &RuntimeSpec{}
+	if err := json.Unmarshal([]byte(fixtureSpecJSON), runtimeSpec); err != nil {
+		t.Fatalf("parse runtime spec: %v", err)
 	}
-	rt, err := NewRuntimeFactory(registry, spec).NewRuntime(context.Background(), "repl")
+	rt, err := NewRuntimeFactory(registry, runtimeSpec).NewRuntime(context.Background(), "repl")
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -385,7 +385,7 @@ func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
 		t.Fatalf("require hello: %v", err)
 	}
 	if _, err := rt.Require.Require("path"); err == nil {
-		t.Fatalf("require path succeeded, want xgoja spec-selected modules only")
+		t.Fatalf("require path succeeded, want xgoja runtime spec-selected modules only")
 	}
 }
 

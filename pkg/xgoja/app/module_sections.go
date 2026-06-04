@@ -13,10 +13,10 @@ import (
 )
 
 func (f *RuntimeFactory) selectedModuleDescriptors(profile string) ([]providerapi.ModuleDescriptor, error) {
-	if f == nil || f.providers == nil || f.spec == nil {
+	if f == nil || f.providers == nil || f.runtimeSpec == nil {
 		return nil, fmt.Errorf("xgoja runtime factory is not initialized")
 	}
-	runtime, ok := f.spec.Runtimes[profile]
+	runtime, ok := f.runtimeSpec.Runtimes[profile]
 	if !ok {
 		return nil, fmt.Errorf("unknown runtime profile %q", profile)
 	}

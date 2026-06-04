@@ -137,7 +137,7 @@ func TestGeneratedRootReadsConfigFile(t *testing.T) {
 	specJSON := `{
   "name": "fixture",
   "appName": "config-fixture",
-  "config": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
+  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
   "runtimes": {
@@ -181,7 +181,7 @@ func TestConfigPrecedenceEnvBeatsConfig(t *testing.T) {
   "name": "fixture",
   "appName": "config-fixture",
   "envPrefix": "CONFIG_FIXTURE",
-  "config": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
+  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
   "runtimes": {
@@ -225,7 +225,7 @@ func TestConfigPrecedenceFlagBeatsEnv(t *testing.T) {
   "name": "fixture",
   "appName": "config-fixture",
   "envPrefix": "CONFIG_FIXTURE",
-  "config": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
+  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
   "runtimes": {
@@ -266,7 +266,7 @@ func TestExplicitConfigFileRequiresExplicitLayer(t *testing.T) {
 	specJSON := `{
   "name": "fixture",
   "appName": "config-fixture",
-  "config": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
+  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
   "runtimes": {
@@ -306,7 +306,7 @@ func TestExplicitConfigFileLoadsWithExplicitLayer(t *testing.T) {
 	}
 	specJSON := `{
   "name": "fixture",
-  "config": {"enabled": true, "layers": ["explicit"], "fileName": "config.yaml"},
+  "configFile": {"enabled": true, "layers": ["explicit"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
   "runtimes": {

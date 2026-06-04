@@ -146,7 +146,7 @@ commands:
     enabled: true
     runtime: repl
 `), 0o644); err != nil {
-		t.Fatalf("write spec: %v", err)
+		t.Fatalf("write build spec: %v", err)
 	}
 	return specPath
 }
@@ -178,7 +178,7 @@ jsverbs:
     path: ./verbs
     embed: true
 `), 0o644); err != nil {
-		t.Fatalf("write spec: %v", err)
+		t.Fatalf("write build spec: %v", err)
 	}
 	return specPath
 }

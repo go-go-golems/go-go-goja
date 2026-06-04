@@ -55,7 +55,7 @@ func TestRuntimeFactoryAttachesPackageCapabilitiesToEverySelectedModule(t *testi
 	); err != nil {
 		t.Fatalf("register fixture provider: %v", err)
 	}
-	factory := NewRuntimeFactory(registry, &Spec{Runtimes: map[string]RuntimeSpec{
+	factory := NewRuntimeFactory(registry, &RuntimeSpec{Runtimes: map[string]RuntimeProfileSpec{
 		"main": {Modules: []ModuleInstanceSpec{
 			{Package: "fixture", Name: "first", As: "first"},
 			{Package: "fixture", Name: "second", As: "second"},
@@ -134,8 +134,8 @@ func newSectionTestFactory(t *testing.T, entries ...providerapi.Entry) *RuntimeF
 	if err := registry.Package("fixture", allEntries...); err != nil {
 		t.Fatalf("register fixture provider: %v", err)
 	}
-	return NewRuntimeFactory(registry, &Spec{
-		Runtimes: map[string]RuntimeSpec{
+	return NewRuntimeFactory(registry, &RuntimeSpec{
+		Runtimes: map[string]RuntimeProfileSpec{
 			"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod", As: "alias"}}},
 		},
 	})

@@ -28,7 +28,7 @@ func newDoctorCommand() *doctorCommand {
 		panic(err)
 	}
 	return &doctorCommand{CommandDescription: cmds.NewCommandDescription("doctor",
-		cmds.WithShort("Validate an xgoja spec and report problems"),
+		cmds.WithShort("Validate an xgoja build spec and report problems"),
 		cmds.WithLong(`
 Doctor validates the xgoja specification before a full build. Phase 1 emits the
 wired command shape; schema validation is added in the buildspec task.

@@ -3,21 +3,21 @@
 // The types in this file are declarative *Spec DTOs: they describe what the
 // generator should build, import, embed, or expose, but they do not perform
 // runtime work. They are loaded from xgoja.yaml, defaulted, validated, and then
-// converted by cmd/xgoja/internal/generate into the smaller app.Spec JSON that
+// converted by cmd/xgoja/internal/generate into the smaller app.RuntimeSpec JSON that
 // the generated binary embeds and reads at runtime.
 package buildspec
 
 import "fmt"
 
-// Spec is the top-level build-time xgoja.yaml document.
+// BuildSpec is the top-level build-time xgoja.yaml document.
 // It includes build-only fields such as Go module settings, provider import
 // paths, replacement paths, target import/root data, and BaseDir for resolving
-// local resources. Generated binaries should use app.Spec instead.
-type Spec struct {
+// local resources. Generated binaries should use app.RuntimeSpec instead.
+type BuildSpec struct {
 	Name             string                        `yaml:"name"`
 	AppName          string                        `yaml:"appName"`
 	EnvPrefix        string                        `yaml:"envPrefix"`
-	Config           *ConfigSpec                   `yaml:"config,omitempty"`
+	ConfigFile       *ConfigFileSpec               `yaml:"configFile,omitempty"`
 	Go               GoSpec                        `yaml:"go"`
 	Target           TargetSpec                    `yaml:"target"`
 	Packages         []PackageSpec                 `yaml:"packages"`
@@ -30,7 +30,7 @@ type Spec struct {
 	BaseDir          string                        `yaml:"-"`
 }
 
-type ConfigSpec struct {
+type ConfigFileSpec struct {
 	Enabled  bool     `yaml:"enabled" json:"enabled"`
 	Layers   []string `yaml:"layers,omitempty" json:"layers,omitempty"`
 	FileName string   `yaml:"fileName,omitempty" json:"fileName,omitempty"`

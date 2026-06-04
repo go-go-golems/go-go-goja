@@ -20,15 +20,15 @@ type HostServices struct {
 	Assets *AssetStore
 }
 
-func NewAssetStore(fsys fs.FS, spec *Spec) *AssetStore {
+func NewAssetStore(fsys fs.FS, runtimeSpec *RuntimeSpec) *AssetStore {
 	store := &AssetStore{
 		fsys:   fsys,
 		assets: map[string]AssetSourceSpec{},
 	}
-	if spec == nil {
+	if runtimeSpec == nil {
 		return store
 	}
-	for _, asset := range spec.Assets {
+	for _, asset := range runtimeSpec.Assets {
 		id := strings.TrimSpace(asset.ID)
 		if id == "" {
 			continue

@@ -14,8 +14,8 @@ import (
 )
 
 func TestRenderGoModDeterministic(t *testing.T) {
-	spec := fixtureSpec()
-	got := RenderGoMod(spec, Options{XGojaModuleVersion: "v0.1.0", XGojaReplace: "../go-go-goja"})
+	buildSpec := fixtureSpec()
+	got := RenderGoMod(buildSpec, Options{XGojaModuleVersion: "v0.1.0", XGojaReplace: "../go-go-goja"})
 	for _, want := range []string{
 		"module example.com/generated/fixture",
 		"go 1.26",
@@ -31,9 +31,9 @@ func TestRenderGoModDeterministic(t *testing.T) {
 }
 
 func TestRenderGoModResolvesRelativePackageReplaceFromSpecBaseDir(t *testing.T) {
-	spec := fixtureSpec()
-	spec.BaseDir = filepath.Join(string(filepath.Separator), "tmp", "example")
-	got := RenderGoMod(spec, Options{XGojaModuleVersion: "v0.1.0"})
+	buildSpec := fixtureSpec()
+	buildSpec.BaseDir = filepath.Join(string(filepath.Separator), "tmp", "example")
+	got := RenderGoMod(buildSpec, Options{XGojaModuleVersion: "v0.1.0"})
 	want := "replace github.com/go-go-golems/web-stuff => /tmp/web-stuff"
 	if !strings.Contains(got, want) {
 		t.Fatalf("expected go.mod to contain %q, got:\n%s", want, got)
@@ -41,7 +41,7 @@ func TestRenderGoModResolvesRelativePackageReplaceFromSpecBaseDir(t *testing.T) 
 }
 
 func TestRenderGoModUsesModuleRootsForSubpackageImports(t *testing.T) {
-	spec := &buildspec.Spec{
+	buildSpec := &buildspec.BuildSpec{
 		Name: "subpackage-fixture",
 		Go: buildspec.GoSpec{
 			Version: "1.26",
@@ -63,7 +63,7 @@ func TestRenderGoModUsesModuleRootsForSubpackageImports(t *testing.T) {
 		},
 		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "eval"}},
 	}
-	got := RenderGoMod(spec, Options{XGojaModuleVersion: "v0.1.0"})
+	got := RenderGoMod(buildSpec, Options{XGojaModuleVersion: "v0.1.0"})
 	for _, want := range []string{
 		"github.com/acme/cobra-host v0.8.0",
 		"github.com/acme/widgets v1.2.3",
@@ -114,20 +114,20 @@ func TestRenderEmbeddedSpecStableShape(t *testing.T) {
 		`"runtime": "repl"`,
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("expected embedded spec to contain %q, got:\n%s", want, got)
+			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, got)
 		}
 	}
 }
 
 func TestRenderEmbeddedSpecIncludesRuntimeAppSettings(t *testing.T) {
-	spec := fixtureSpec()
-	spec.AppName = "my-app"
-	spec.EnvPrefix = "MY_APP"
-	spec.Config = &buildspec.ConfigSpec{Enabled: true, Layers: []string{"cwd", "explicit"}, FileName: "config.yaml"}
+	buildSpec := fixtureSpec()
+	buildSpec.AppName = "my-app"
+	buildSpec.EnvPrefix = "MY_APP"
+	buildSpec.ConfigFile = &buildspec.ConfigFileSpec{Enabled: true, Layers: []string{"cwd", "explicit"}, FileName: "config.yaml"}
 
-	var embedded app.Spec
-	if err := json.Unmarshal([]byte(RenderEmbeddedSpec(spec)), &embedded); err != nil {
-		t.Fatalf("unmarshal embedded spec: %v", err)
+	var embedded app.RuntimeSpec
+	if err := json.Unmarshal([]byte(RenderEmbeddedSpec(buildSpec)), &embedded); err != nil {
+		t.Fatalf("unmarshal embedded runtime spec: %v", err)
 	}
 	if embedded.AppName != "my-app" {
 		t.Fatalf("appName = %q", embedded.AppName)
@@ -135,22 +135,22 @@ func TestRenderEmbeddedSpecIncludesRuntimeAppSettings(t *testing.T) {
 	if embedded.EnvPrefix != "MY_APP" {
 		t.Fatalf("envPrefix = %q", embedded.EnvPrefix)
 	}
-	if embedded.Config == nil || !embedded.Config.Enabled {
-		t.Fatalf("embedded config missing or disabled: %#v", embedded.Config)
+	if embedded.ConfigFile == nil || !embedded.ConfigFile.Enabled {
+		t.Fatalf("embedded config missing or disabled: %#v", embedded.ConfigFile)
 	}
-	if got, want := strings.Join(embedded.Config.Layers, ","), "cwd,explicit"; got != want {
+	if got, want := strings.Join(embedded.ConfigFile.Layers, ","), "cwd,explicit"; got != want {
 		t.Fatalf("config layers = %q, want %q", got, want)
 	}
-	if embedded.Config.FileName != "config.yaml" {
-		t.Fatalf("config fileName = %q", embedded.Config.FileName)
+	if embedded.ConfigFile.FileName != "config.yaml" {
+		t.Fatalf("config fileName = %q", embedded.ConfigFile.FileName)
 	}
 }
 
 func TestRenderMainIncludesEmbeddedVerbFS(t *testing.T) {
-	spec := buildableSpec("xgoja", "", "")
-	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
-	spec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true}}
-	got := RenderMain(spec)
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true}}
+	got := RenderMain(buildSpec)
 	for _, want := range []string{
 		`"embed"`,
 		`//go:embed xgoja_embed/jsverbs/*`,
@@ -161,16 +161,16 @@ func TestRenderMainIncludesEmbeddedVerbFS(t *testing.T) {
 			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
 		}
 	}
-	embeddedSpec := RenderEmbeddedSpec(spec)
+	embeddedSpec := RenderEmbeddedSpec(buildSpec)
 	if !strings.Contains(embeddedSpec, `"path": "xgoja_embed/jsverbs/local"`) {
-		t.Fatalf("expected embedded spec to rewrite local embedded path, got:\n%s", embeddedSpec)
+		t.Fatalf("expected embedded runtime spec to rewrite local embedded path, got:\n%s", embeddedSpec)
 	}
 }
 
 func TestRenderMainIncludesEmbeddedHelpFS(t *testing.T) {
-	spec := buildableSpec("xgoja", "", "")
-	spec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local-docs", Path: "docs/help", Embed: true}}
-	got := RenderMain(spec)
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local-docs", Path: "docs/help", Embed: true}}
+	got := RenderMain(buildSpec)
 	for _, want := range []string{
 		`"embed"`,
 		`//go:embed xgoja_embed/help/*`,
@@ -189,18 +189,18 @@ func TestRenderMainIncludesEmbeddedHelpFS(t *testing.T) {
 			t.Fatalf("main.go should not contain %q for help-only embed:\n%s", notWant, got)
 		}
 	}
-	embeddedSpec := RenderEmbeddedSpec(spec)
+	embeddedSpec := RenderEmbeddedSpec(buildSpec)
 	if !strings.Contains(embeddedSpec, `"path": "xgoja_embed/help/local_docs"`) {
-		t.Fatalf("expected embedded spec to rewrite local help path, got:\n%s", embeddedSpec)
+		t.Fatalf("expected embedded runtime spec to rewrite local help path, got:\n%s", embeddedSpec)
 	}
 }
 
 func TestRenderMainIncludesEmbeddedVerbAndHelpFS(t *testing.T) {
-	spec := buildableSpec("xgoja", "", "")
-	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
-	spec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local-verbs", Path: "verbs", Embed: true}}
-	spec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local-docs", Path: "docs/help", Embed: true}}
-	got := RenderMain(spec)
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local-verbs", Path: "verbs", Embed: true}}
+	buildSpec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local-docs", Path: "docs/help", Embed: true}}
+	got := RenderMain(buildSpec)
 	for _, want := range []string{
 		`var embeddedJSVerbs embed.FS`,
 		`var embeddedHelp embed.FS`,
@@ -214,9 +214,9 @@ func TestRenderMainIncludesEmbeddedVerbAndHelpFS(t *testing.T) {
 }
 
 func TestRenderMainIncludesEmbeddedAssetFS(t *testing.T) {
-	spec := buildableSpec("xgoja", "", "")
-	spec.Assets = []buildspec.AssetSourceSpec{{ID: "app-assets", Path: "assets", Embed: true}}
-	got := RenderMain(spec)
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.Assets = []buildspec.AssetSourceSpec{{ID: "app-assets", Path: "assets", Embed: true}}
+	got := RenderMain(buildSpec)
 	for _, want := range []string{
 		`"embed"`,
 		`//go:embed all:xgoja_embed/assets/*`,
@@ -235,60 +235,60 @@ func TestRenderMainIncludesEmbeddedAssetFS(t *testing.T) {
 			t.Fatalf("main.go should not contain %q for asset-only embed:\n%s", notWant, got)
 		}
 	}
-	embeddedSpec := RenderEmbeddedSpec(spec)
+	embeddedSpec := RenderEmbeddedSpec(buildSpec)
 	if !strings.Contains(embeddedSpec, `"path": "xgoja_embed/assets/app_assets"`) {
-		t.Fatalf("expected embedded spec to rewrite local asset path, got:\n%s", embeddedSpec)
+		t.Fatalf("expected embedded runtime spec to rewrite local asset path, got:\n%s", embeddedSpec)
 	}
 }
 
 func TestRenderEmbeddedSpecAvoidsEmbeddedVerbRootCollisions(t *testing.T) {
-	spec := buildableSpec("xgoja", "", "")
-	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
-	spec.JSVerbs = []buildspec.JSVerbSourceSpec{
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{
 		{ID: "local-dev", Path: "verbs-a", Embed: true},
 		{ID: "local_dev", Path: "verbs-b", Embed: true},
 	}
-	got := RenderEmbeddedSpec(spec)
+	got := RenderEmbeddedSpec(buildSpec)
 	for _, want := range []string{
 		`"path": "xgoja_embed/jsverbs/local_dev"`,
 		`"path": "xgoja_embed/jsverbs/local_dev_2"`,
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("expected embedded spec to contain %q, got:\n%s", want, got)
+			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, got)
 		}
 	}
 }
 
 func TestRenderEmbeddedSpecAvoidsEmbeddedHelpRootCollisions(t *testing.T) {
-	spec := buildableSpec("xgoja", "", "")
-	spec.Help.Sources = []buildspec.HelpSourceSpec{
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.Help.Sources = []buildspec.HelpSourceSpec{
 		{ID: "local-docs", Path: "docs-a", Embed: true},
 		{ID: "local_docs", Path: "docs-b", Embed: true},
 	}
-	got := RenderEmbeddedSpec(spec)
+	got := RenderEmbeddedSpec(buildSpec)
 	for _, want := range []string{
 		`"path": "xgoja_embed/help/local_docs"`,
 		`"path": "xgoja_embed/help/local_docs_2"`,
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("expected embedded spec to contain %q, got:\n%s", want, got)
+			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, got)
 		}
 	}
 }
 
 func TestRenderEmbeddedSpecAvoidsEmbeddedAssetRootCollisions(t *testing.T) {
-	spec := buildableSpec("xgoja", "", "")
-	spec.Assets = []buildspec.AssetSourceSpec{
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.Assets = []buildspec.AssetSourceSpec{
 		{ID: "app-assets", Path: "assets-a", Embed: true},
 		{ID: "app_assets", Path: "assets-b", Embed: true},
 	}
-	got := RenderEmbeddedSpec(spec)
+	got := RenderEmbeddedSpec(buildSpec)
 	for _, want := range []string{
 		`"path": "xgoja_embed/assets/app_assets"`,
 		`"path": "xgoja_embed/assets/app_assets_2"`,
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("expected embedded spec to contain %q, got:\n%s", want, got)
+			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, got)
 		}
 	}
 }
@@ -304,15 +304,15 @@ func TestWriteAllCopiesEmbeddedVerbSourcesToCollisionFreeRoots(t *testing.T) {
 			t.Fatalf("write %s verb: %v", dir, err)
 		}
 	}
-	spec := buildableSpec("xgoja", "", "")
-	spec.BaseDir = baseDir
-	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
-	spec.JSVerbs = []buildspec.JSVerbSourceSpec{
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.BaseDir = baseDir
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{
 		{ID: "local-dev", Path: "verbs-a", Embed: true},
 		{ID: "local_dev", Path: "verbs-b", Embed: true},
 	}
 	dir := t.TempDir()
-	if err := WriteAll(dir, spec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
+	if err := WriteAll(dir, buildSpec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
 		t.Fatalf("write all: %v", err)
 	}
 	for _, path := range []string{
@@ -336,14 +336,14 @@ func TestWriteAllCopiesEmbeddedAssetsToCollisionFreeRoots(t *testing.T) {
 			t.Fatalf("write %s asset: %v", dir, err)
 		}
 	}
-	spec := buildableSpec("xgoja", "", "")
-	spec.BaseDir = baseDir
-	spec.Assets = []buildspec.AssetSourceSpec{
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.BaseDir = baseDir
+	buildSpec.Assets = []buildspec.AssetSourceSpec{
 		{ID: "app-assets", Path: "assets-a", Embed: true},
 		{ID: "app_assets", Path: "assets-b", Embed: true},
 	}
 	dir := t.TempDir()
-	if err := WriteAll(dir, spec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
+	if err := WriteAll(dir, buildSpec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
 		t.Fatalf("write all: %v", err)
 	}
 	for _, path := range []string{
@@ -367,14 +367,14 @@ func TestWriteAllCopiesEmbeddedHelpSourcesToCollisionFreeRoots(t *testing.T) {
 			t.Fatalf("write %s help: %v", dir, err)
 		}
 	}
-	spec := buildableSpec("xgoja", "", "")
-	spec.BaseDir = baseDir
-	spec.Help.Sources = []buildspec.HelpSourceSpec{
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.BaseDir = baseDir
+	buildSpec.Help.Sources = []buildspec.HelpSourceSpec{
 		{ID: "local-docs", Path: "docs-a", Embed: true},
 		{ID: "local_docs", Path: "docs-b", Embed: true},
 	}
 	dir := t.TempDir()
-	if err := WriteAll(dir, spec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
+	if err := WriteAll(dir, buildSpec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
 		t.Fatalf("write all: %v", err)
 	}
 	for _, path := range []string{
@@ -409,30 +409,30 @@ func TestGeneratedProgramRunsFixtureProvider(t *testing.T) {
 }
 
 func TestGeneratedProgramUsesConfiguredReplCommandName(t *testing.T) {
-	spec := buildableSpec("xgoja", "", "")
-	spec.Commands.Eval.Name = "runjs"
-	_, out := runGeneratedCommandWithOutput(t, spec, "runjs", `require("hello").greet("intern")`)
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.Commands.Eval.Name = "runjs"
+	_, out := runGeneratedCommandWithOutput(t, buildSpec, "runjs", `require("hello").greet("intern")`)
 	if strings.TrimSpace(string(out)) != "hello intern" {
 		t.Fatalf("configured eval output = %q", out)
 	}
 }
 
 func TestGeneratedProgramRunsProviderVerbSource(t *testing.T) {
-	spec := buildableSpec("xgoja", "", "")
-	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
-	spec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "provider", Package: "fixture", Source: "verbs"}}
-	runGeneratedCommand(t, spec, "verbs", "tools", "provider-greet", "--name", "intern")
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "provider", Package: "fixture", Source: "verbs"}}
+	runGeneratedCommand(t, buildSpec, "verbs", "tools", "provider-greet", "--name", "intern")
 }
 
 func TestGeneratedProgramRunsProviderVerbWithOwnerBindings(t *testing.T) {
-	spec := buildableSpec("xgoja", "", "")
-	spec.Runtimes["repl"] = buildspec.RuntimeSpec{Modules: []buildspec.ModuleInstanceSpec{
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.Runtimes["repl"] = buildspec.RuntimeSpec{Modules: []buildspec.ModuleInstanceSpec{
 		{Package: "fixture", Name: "hello", As: "hello"},
 		{Package: "fixture", Name: "owner-check", As: "owner-check"},
 	}}
-	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
-	spec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "provider", Package: "fixture", Source: "verbs"}}
-	_, out := runGeneratedCommandWithOutput(t, spec, "verbs", "tools", "owner-ping")
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "provider", Package: "fixture", Source: "verbs"}}
+	_, out := runGeneratedCommandWithOutput(t, buildSpec, "verbs", "tools", "owner-ping")
 	if strings.TrimSpace(string(out)) != "pong" {
 		t.Fatalf("owner-ping output = %q", out)
 	}
@@ -460,11 +460,11 @@ function embeddedGreet(name) {
 `), 0o644); err != nil {
 		t.Fatalf("write verb: %v", err)
 	}
-	spec := buildableSpec("xgoja", "", "")
-	spec.BaseDir = baseDir
-	spec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
-	spec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true}}
-	dir := runGeneratedCommand(t, spec, "verbs", "tools", "embedded-greet", "--name", "intern")
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.BaseDir = baseDir
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true}}
+	dir := runGeneratedCommand(t, buildSpec, "verbs", "tools", "embedded-greet", "--name", "intern")
 	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "jsverbs", "local", "tools.js")); err != nil {
 		t.Fatalf("embedded verb was not copied: %v", err)
 	}
@@ -487,7 +487,7 @@ func TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases(t *testing.T) {
 		t.Fatalf("write dot asset: %v", err)
 	}
 	outPath := filepath.ToSlash(filepath.Join(baseDir, "out.json"))
-	spec := &buildspec.Spec{
+	buildSpec := &buildspec.BuildSpec{
 		Name:    "embedded-assets",
 		Go:      buildspec.GoSpec{Version: "1.26", Module: "example.com/generated/embedded-assets"},
 		Target:  buildspec.TargetSpec{Kind: "xgoja", Output: "dist/embedded-assets"},
@@ -526,7 +526,7 @@ func TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases(t *testing.T) {
 		host.writeFileSync(` + strconv.Quote(outPath) + `, text, "utf8");
 		JSON.stringify({ text, wellKnown, plain, wrote: host.existsSync(` + strconv.Quote(outPath) + `) });
 	`
-	dir, out := runGeneratedCommandWithOutput(t, spec, "eval", js)
+	dir, out := runGeneratedCommandWithOutput(t, buildSpec, "eval", js)
 	state := string(out)
 	for _, want := range []string{`"text":"{\"ok\":true}"`, `"wellKnown":"Contact: mailto:security@example.com"`, `"plain":"missing"`, `"wrote":true`} {
 		if !strings.Contains(state, want) {
@@ -568,10 +568,10 @@ Local body.
 `), 0o644); err != nil {
 		t.Fatalf("write help: %v", err)
 	}
-	spec := buildableSpec("xgoja", "", "")
-	spec.BaseDir = baseDir
-	spec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local", Path: "docs/help", Embed: true}}
-	dir, out := runGeneratedCommandWithOutput(t, spec, "help", "local-api")
+	buildSpec := buildableSpec("xgoja", "", "")
+	buildSpec.BaseDir = baseDir
+	buildSpec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local", Path: "docs/help", Embed: true}}
+	dir, out := runGeneratedCommandWithOutput(t, buildSpec, "help", "local-api")
 	if !strings.Contains(string(out), "Local API") || !strings.Contains(string(out), "Local body") {
 		t.Fatalf("expected generated help output, got %q", out)
 	}
@@ -581,48 +581,48 @@ Local body.
 }
 
 func TestGeneratedCobraTargetAttachesCommands(t *testing.T) {
-	spec := buildableSpec("cobra", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testcobra", "NewRootCommand")
-	runGeneratedEval(t, spec)
-	runGeneratedFixtureCommand(t, spec, "testcobra fixture")
+	buildSpec := buildableSpec("cobra", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testcobra", "NewRootCommand")
+	runGeneratedEval(t, buildSpec)
+	runGeneratedFixtureCommand(t, buildSpec, "testcobra fixture")
 }
 
 func TestGeneratedAdapterTargetUsesAdapterBuild(t *testing.T) {
-	spec := buildableSpec("adapter", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testadapter", "")
-	runGeneratedEval(t, spec)
-	runGeneratedFixtureCommand(t, spec, "testadapter fixture")
+	buildSpec := buildableSpec("adapter", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testadapter", "")
+	runGeneratedEval(t, buildSpec)
+	runGeneratedFixtureCommand(t, buildSpec, "testadapter fixture")
 }
 
-func runGeneratedEval(t *testing.T, spec *buildspec.Spec) {
+func runGeneratedEval(t *testing.T, buildSpec *buildspec.BuildSpec) {
 	t.Helper()
-	dir, out := runGeneratedCommandWithOutput(t, spec, "eval", `require("hello").greet("intern")`)
+	dir, out := runGeneratedCommandWithOutput(t, buildSpec, "eval", `require("hello").greet("intern")`)
 	_ = dir
 	if strings.TrimSpace(string(out)) != "hello intern" {
 		t.Fatalf("generated output = %q", out)
 	}
 }
 
-func runGeneratedFixtureCommand(t *testing.T, spec *buildspec.Spec, want string) {
+func runGeneratedFixtureCommand(t *testing.T, buildSpec *buildspec.BuildSpec, want string) {
 	t.Helper()
-	_, out := runGeneratedCommandWithOutput(t, spec, "fixture")
+	_, out := runGeneratedCommandWithOutput(t, buildSpec, "fixture")
 	if strings.TrimSpace(string(out)) != want {
 		t.Fatalf("generated fixture output = %q, want %q", out, want)
 	}
 }
 
-func runGeneratedCommand(t *testing.T, spec *buildspec.Spec, args ...string) string {
+func runGeneratedCommand(t *testing.T, buildSpec *buildspec.BuildSpec, args ...string) string {
 	t.Helper()
-	dir, _ := runGeneratedCommandWithOutput(t, spec, args...)
+	dir, _ := runGeneratedCommandWithOutput(t, buildSpec, args...)
 	return dir
 }
 
-func runGeneratedCommandWithOutput(t *testing.T, spec *buildspec.Spec, args ...string) (string, []byte) {
+func runGeneratedCommandWithOutput(t *testing.T, buildSpec *buildspec.BuildSpec, args ...string) (string, []byte) {
 	t.Helper()
 	repoRoot, err := filepath.Abs("../../../..")
 	if err != nil {
 		t.Fatalf("repo root: %v", err)
 	}
 	dir := t.TempDir()
-	if err := WriteAll(dir, spec, Options{XGojaModuleVersion: "v0.0.0", XGojaReplace: repoRoot}); err != nil {
+	if err := WriteAll(dir, buildSpec, Options{XGojaModuleVersion: "v0.0.0", XGojaReplace: repoRoot}); err != nil {
 		t.Fatalf("write generated program: %v", err)
 	}
 	cmd := exec.Command("go", "mod", "tidy")
@@ -639,8 +639,8 @@ func runGeneratedCommandWithOutput(t *testing.T, spec *buildspec.Spec, args ...s
 	return dir, out
 }
 
-func buildableSpec(kind, targetImport, root string) *buildspec.Spec {
-	return &buildspec.Spec{
+func buildableSpec(kind, targetImport, root string) *buildspec.BuildSpec {
+	return &buildspec.BuildSpec{
 		Name:   "fixture",
 		Go:     buildspec.GoSpec{Version: "1.26", Module: "example.com/generated/fixture"},
 		Target: buildspec.TargetSpec{Kind: kind, Import: targetImport, Root: root, Output: "dist/fixture"},
@@ -654,8 +654,8 @@ func buildableSpec(kind, targetImport, root string) *buildspec.Spec {
 	}
 }
 
-func fixtureSpec() *buildspec.Spec {
-	return &buildspec.Spec{
+func fixtureSpec() *buildspec.BuildSpec {
+	return &buildspec.BuildSpec{
 		Name: "fixture",
 		Go: buildspec.GoSpec{
 			Version: "1.26",

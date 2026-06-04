@@ -7,42 +7,42 @@ import (
 	"strings"
 )
 
-func Validate(spec *Spec) *Report {
+func Validate(buildSpec *BuildSpec) *Report {
 	report := &Report{}
-	if spec == nil {
-		report.AddError("spec", "", "spec is nil")
+	if buildSpec == nil {
+		report.AddError("buildSpec", "", "BuildSpec is nil")
 		return report
 	}
 
-	validateName(report, spec)
-	validateAppSettings(report, spec)
-	validateConfig(report, spec)
-	validateTarget(report, spec)
-	packageIDs := validatePackages(report, spec)
-	validateRuntimes(report, spec, packageIDs)
-	validateCommands(report, spec)
-	validateCommandProviders(report, spec, packageIDs)
-	validateJSVerbs(report, spec, packageIDs)
-	validateHelp(report, spec, packageIDs)
-	validateAssets(report, spec)
+	validateName(report, buildSpec)
+	validateAppSettings(report, buildSpec)
+	validateConfig(report, buildSpec)
+	validateTarget(report, buildSpec)
+	packageIDs := validatePackages(report, buildSpec)
+	validateRuntimes(report, buildSpec, packageIDs)
+	validateCommands(report, buildSpec)
+	validateCommandProviders(report, buildSpec, packageIDs)
+	validateJSVerbs(report, buildSpec, packageIDs)
+	validateHelp(report, buildSpec, packageIDs)
+	validateAssets(report, buildSpec)
 
 	return report
 }
 
-func validateName(report *Report, spec *Spec) {
-	if strings.TrimSpace(spec.Name) == "" {
+func validateName(report *Report, buildSpec *BuildSpec) {
+	if strings.TrimSpace(buildSpec.Name) == "" {
 		report.AddError("name", "name", "name is required")
 		return
 	}
-	report.AddOK("name", "name", fmt.Sprintf("spec name is %q", spec.Name))
+	report.AddOK("name", "name", fmt.Sprintf("BuildSpec name is %q", buildSpec.Name))
 }
 
-func validateAppSettings(report *Report, spec *Spec) {
-	appName := strings.TrimSpace(spec.AppName)
+func validateAppSettings(report *Report, buildSpec *BuildSpec) {
+	appName := strings.TrimSpace(buildSpec.AppName)
 	if appName != "" {
 		report.AddOK("app-name", "appName", appName)
 	}
-	envPrefix := strings.TrimSpace(spec.EnvPrefix)
+	envPrefix := strings.TrimSpace(buildSpec.EnvPrefix)
 	if envPrefix == "" {
 		return
 	}
@@ -72,23 +72,23 @@ func isShellSafeEnvPrefix(prefix string) bool {
 	return true
 }
 
-func validateConfig(report *Report, spec *Spec) {
-	if spec.Config == nil || !spec.Config.Enabled {
+func validateConfig(report *Report, buildSpec *BuildSpec) {
+	if buildSpec.ConfigFile == nil || !buildSpec.ConfigFile.Enabled {
 		report.AddOK("config", "config", "config not enabled")
 		return
 	}
-	if usesAppScopedConfigLayer(spec.Config.Layers) {
-		if strings.TrimSpace(spec.AppName) == "" {
+	if usesAppScopedConfigLayer(buildSpec.ConfigFile.Layers) {
+		if strings.TrimSpace(buildSpec.AppName) == "" {
 			report.AddError("config-app-name", "config", "config layers system, xdg, and home require appName to be set")
 		} else {
 			report.AddOK("config-app-name", "config", "appName is set for app-scoped config discovery")
 		}
 	}
-	if len(spec.Config.Layers) == 0 {
+	if len(buildSpec.ConfigFile.Layers) == 0 {
 		report.AddError("config-layers", "config.layers", "config.enabled requires at least one layer")
 		return
 	}
-	for i, layer := range spec.Config.Layers {
+	for i, layer := range buildSpec.ConfigFile.Layers {
 		layer = strings.TrimSpace(layer)
 		if !isKnownConfigLayer(layer) {
 			report.AddError("config-layer", fmt.Sprintf("config.layers[%d]", i), fmt.Sprintf("unknown config layer %q", layer))
@@ -96,7 +96,7 @@ func validateConfig(report *Report, spec *Spec) {
 			report.AddOK("config-layer", fmt.Sprintf("config.layers[%d]", i), layer)
 		}
 	}
-	report.AddOK("config", "config", fmt.Sprintf("%d config layer(s) declared", len(spec.Config.Layers)))
+	report.AddOK("config", "config", fmt.Sprintf("%d config layer(s) declared", len(buildSpec.ConfigFile.Layers)))
 }
 
 var knownConfigLayers = map[string]bool{
@@ -122,42 +122,42 @@ func usesAppScopedConfigLayer(layers []string) bool {
 	return false
 }
 
-func validateTarget(report *Report, spec *Spec) {
-	kind := strings.TrimSpace(spec.Target.Kind)
+func validateTarget(report *Report, buildSpec *BuildSpec) {
+	kind := strings.TrimSpace(buildSpec.Target.Kind)
 	switch kind {
 	case "xgoja", "adapter", "cobra":
 		report.AddOK("target-kind", "target.kind", fmt.Sprintf("target kind %q is supported", kind))
 	default:
 		report.AddError("target-kind", "target.kind", fmt.Sprintf("unsupported target kind %q", kind))
 	}
-	if strings.TrimSpace(spec.Target.Output) == "" {
+	if strings.TrimSpace(buildSpec.Target.Output) == "" {
 		report.AddError("target-output", "target.output", "target output is required")
 	} else {
-		report.AddOK("target-output", "target.output", spec.Target.Output)
+		report.AddOK("target-output", "target.output", buildSpec.Target.Output)
 	}
 	if kind == "adapter" || kind == "cobra" {
-		if strings.TrimSpace(spec.Target.Import) == "" {
+		if strings.TrimSpace(buildSpec.Target.Import) == "" {
 			report.AddError("target-import", "target.import", fmt.Sprintf("target import is required for %s mode", kind))
 		} else {
-			report.AddOK("target-import", "target.import", spec.Target.Import)
+			report.AddOK("target-import", "target.import", buildSpec.Target.Import)
 		}
 	}
 	if kind == "cobra" {
-		if strings.TrimSpace(spec.Target.Root) == "" {
+		if strings.TrimSpace(buildSpec.Target.Root) == "" {
 			report.AddError("target-root", "target.root", "target root function is required for cobra mode")
 		} else {
-			report.AddOK("target-root", "target.root", spec.Target.Root)
+			report.AddOK("target-root", "target.root", buildSpec.Target.Root)
 		}
 	}
 }
 
-func validatePackages(report *Report, spec *Spec) map[string]PackageSpec {
+func validatePackages(report *Report, buildSpec *BuildSpec) map[string]PackageSpec {
 	ids := map[string]PackageSpec{}
-	if len(spec.Packages) == 0 {
+	if len(buildSpec.Packages) == 0 {
 		report.AddError("packages", "packages", "at least one provider package is required")
 		return ids
 	}
-	for i, pkg := range spec.Packages {
+	for i, pkg := range buildSpec.Packages {
 		path := fmt.Sprintf("packages[%d]", i)
 		id := strings.TrimSpace(pkg.ID)
 		if id == "" {
@@ -175,7 +175,7 @@ func validatePackages(report *Report, spec *Spec) map[string]PackageSpec {
 			report.AddOK("package-import", path+".import", pkg.Import)
 		}
 		if strings.TrimSpace(pkg.Replace) != "" {
-			if err := requireExistingPath(spec.BaseDir, pkg.Replace); err != nil {
+			if err := requireExistingPath(buildSpec.BaseDir, pkg.Replace); err != nil {
 				report.AddError("package-replace", path+".replace", err.Error())
 			} else {
 				report.AddOK("package-replace", path+".replace", pkg.Replace)
@@ -186,12 +186,12 @@ func validatePackages(report *Report, spec *Spec) map[string]PackageSpec {
 	return ids
 }
 
-func validateRuntimes(report *Report, spec *Spec, packageIDs map[string]PackageSpec) {
-	if len(spec.Runtimes) == 0 {
+func validateRuntimes(report *Report, buildSpec *BuildSpec, packageIDs map[string]PackageSpec) {
+	if len(buildSpec.Runtimes) == 0 {
 		report.AddError("runtimes", "runtimes", "at least one runtime profile is required")
 		return
 	}
-	for runtimeName, runtime := range spec.Runtimes {
+	for runtimeName, runtime := range buildSpec.Runtimes {
 		path := "runtimes." + runtimeName
 		if strings.TrimSpace(runtimeName) == "" {
 			report.AddError("runtime-name", "runtimes", "runtime profile name is empty")
@@ -227,12 +227,12 @@ func validateRuntimes(report *Report, spec *Spec, packageIDs map[string]PackageS
 	}
 }
 
-func validateCommands(report *Report, spec *Spec) {
-	validateCommandRuntime(report, "commands.eval", spec.Commands.Eval, spec.Runtimes)
-	validateCommandRuntime(report, "commands.run", spec.Commands.Run, spec.Runtimes)
-	validateCommandRuntime(report, "commands.repl", spec.Commands.Repl, spec.Runtimes)
-	validateCommandRuntime(report, "commands.jsverbs", spec.Commands.JSVerbs, spec.Runtimes)
-	validateJSVerbCommandMount(report, spec.Commands.JSVerbs)
+func validateCommands(report *Report, buildSpec *BuildSpec) {
+	validateCommandRuntime(report, "commands.eval", buildSpec.Commands.Eval, buildSpec.Runtimes)
+	validateCommandRuntime(report, "commands.run", buildSpec.Commands.Run, buildSpec.Runtimes)
+	validateCommandRuntime(report, "commands.repl", buildSpec.Commands.Repl, buildSpec.Runtimes)
+	validateCommandRuntime(report, "commands.jsverbs", buildSpec.Commands.JSVerbs, buildSpec.Runtimes)
+	validateJSVerbCommandMount(report, buildSpec.Commands.JSVerbs)
 }
 
 func validateJSVerbCommandMount(report *Report, command CommandSpec) {
@@ -264,9 +264,9 @@ func validateCommandRuntime(report *Report, path string, command CommandSpec, ru
 	report.AddOK("command-runtime", path+".runtime", command.Runtime)
 }
 
-func validateCommandProviders(report *Report, spec *Spec, packageIDs map[string]PackageSpec) {
+func validateCommandProviders(report *Report, buildSpec *BuildSpec, packageIDs map[string]PackageSpec) {
 	ids := map[string]struct{}{}
-	for i, provider := range spec.CommandProviders {
+	for i, provider := range buildSpec.CommandProviders {
 		path := fmt.Sprintf("commandProviders[%d]", i)
 		id := strings.TrimSpace(provider.ID)
 		if id == "" {
@@ -285,21 +285,21 @@ func validateCommandProviders(report *Report, spec *Spec, packageIDs map[string]
 			report.AddError("command-provider-name", path+".name", "command provider name is required")
 		}
 		if strings.TrimSpace(provider.RuntimeProfile) != "" {
-			if _, ok := spec.Runtimes[provider.RuntimeProfile]; !ok {
+			if _, ok := buildSpec.Runtimes[provider.RuntimeProfile]; !ok {
 				report.AddError("command-provider-runtime", path+".runtimeProfile", fmt.Sprintf("unknown runtime profile %q", provider.RuntimeProfile))
 			} else {
 				report.AddOK("command-provider-runtime", path+".runtimeProfile", provider.RuntimeProfile)
 			}
 		}
 	}
-	if len(spec.CommandProviders) > 0 {
-		report.AddOK("command-providers", "commandProviders", fmt.Sprintf("%d command provider(s) declared", len(spec.CommandProviders)))
+	if len(buildSpec.CommandProviders) > 0 {
+		report.AddOK("command-providers", "commandProviders", fmt.Sprintf("%d command provider(s) declared", len(buildSpec.CommandProviders)))
 	}
 }
 
-func validateJSVerbs(report *Report, spec *Spec, packageIDs map[string]PackageSpec) {
+func validateJSVerbs(report *Report, buildSpec *BuildSpec, packageIDs map[string]PackageSpec) {
 	ids := map[string]struct{}{}
-	for i, source := range spec.JSVerbs {
+	for i, source := range buildSpec.JSVerbs {
 		path := fmt.Sprintf("jsverbs[%d]", i)
 		id := strings.TrimSpace(source.ID)
 		if id == "" {
@@ -326,7 +326,7 @@ func validateJSVerbs(report *Report, spec *Spec, packageIDs map[string]PackageSp
 			continue
 		}
 		if source.Embed {
-			if err := requireExistingPath(spec.BaseDir, source.Path); err != nil {
+			if err := requireExistingPath(buildSpec.BaseDir, source.Path); err != nil {
 				report.AddError("jsverb-path", path+".path", err.Error())
 			} else {
 				report.AddOK("jsverb-path", path+".path", source.Path)
@@ -337,9 +337,9 @@ func validateJSVerbs(report *Report, spec *Spec, packageIDs map[string]PackageSp
 	}
 }
 
-func validateHelp(report *Report, spec *Spec, packageIDs map[string]PackageSpec) {
+func validateHelp(report *Report, buildSpec *BuildSpec, packageIDs map[string]PackageSpec) {
 	ids := map[string]struct{}{}
-	for i, source := range spec.Help.Sources {
+	for i, source := range buildSpec.Help.Sources {
 		path := fmt.Sprintf("help.sources[%d]", i)
 		id := strings.TrimSpace(source.ID)
 		if id == "" {
@@ -373,7 +373,7 @@ func validateHelp(report *Report, spec *Spec, packageIDs map[string]PackageSpec)
 			continue
 		}
 		if source.Embed {
-			if err := requireExistingDir(spec.BaseDir, source.Path); err != nil {
+			if err := requireExistingDir(buildSpec.BaseDir, source.Path); err != nil {
 				report.AddError("help-path", path+".path", err.Error())
 			} else {
 				report.AddOK("help-path", path+".path", source.Path)
@@ -384,9 +384,9 @@ func validateHelp(report *Report, spec *Spec, packageIDs map[string]PackageSpec)
 	}
 }
 
-func validateAssets(report *Report, spec *Spec) {
+func validateAssets(report *Report, buildSpec *BuildSpec) {
 	ids := map[string]struct{}{}
-	for i, source := range spec.Assets {
+	for i, source := range buildSpec.Assets {
 		path := fmt.Sprintf("assets[%d]", i)
 		id := strings.TrimSpace(source.ID)
 		if id == "" {
@@ -405,7 +405,7 @@ func validateAssets(report *Report, spec *Spec) {
 			report.AddError("asset-embed", path+".embed", "asset sources currently require embed: true")
 			continue
 		}
-		if err := requireExistingDir(spec.BaseDir, source.Path); err != nil {
+		if err := requireExistingDir(buildSpec.BaseDir, source.Path); err != nil {
 			report.AddError("asset-path", path+".path", err.Error())
 		} else {
 			report.AddOK("asset-path", path+".path", source.Path)

@@ -51,9 +51,9 @@ func TestFSHostAndEmbeddedAliases(t *testing.T) {
 	assetFS := fstest.MapFS{
 		"xgoja_embed/assets/app/config/default.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
 	}
-	spec := &app.Spec{
+	runtimeSpec := &app.RuntimeSpec{
 		Assets: []app.AssetSourceSpec{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
-		Runtimes: map[string]app.RuntimeSpec{
+		Runtimes: map[string]app.RuntimeProfileSpec{
 			"main": {Modules: []app.ModuleInstanceSpec{
 				{
 					Package: PackageID,
@@ -75,7 +75,7 @@ func TestFSHostAndEmbeddedAliases(t *testing.T) {
 			}},
 		},
 	}
-	host := app.NewHostWithOptions(registry, spec, app.HostOptions{EmbeddedAssets: assetFS})
+	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{EmbeddedAssets: assetFS})
 	rt, err := host.Factory.NewRuntime(context.Background(), "main")
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
@@ -116,9 +116,9 @@ func TestFSRootEmbeddedMount(t *testing.T) {
 	assetFS := fstest.MapFS{
 		"xgoja_embed/assets/app/config/default.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
 	}
-	spec := &app.Spec{
+	runtimeSpec := &app.RuntimeSpec{
 		Assets: []app.AssetSourceSpec{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
-		Runtimes: map[string]app.RuntimeSpec{
+		Runtimes: map[string]app.RuntimeProfileSpec{
 			"main": {Modules: []app.ModuleInstanceSpec{{
 				Package: PackageID,
 				Name:    "fs",
@@ -132,7 +132,7 @@ func TestFSRootEmbeddedMount(t *testing.T) {
 			}}},
 		},
 	}
-	host := app.NewHostWithOptions(registry, spec, app.HostOptions{EmbeddedAssets: assetFS})
+	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{EmbeddedAssets: assetFS})
 	rt, err := host.Factory.NewRuntime(context.Background(), "main")
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)

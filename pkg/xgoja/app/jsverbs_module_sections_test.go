@@ -12,9 +12,9 @@ import (
 
 func TestJSVerbsCommandsIncludeRuntimeProfileModuleSections(t *testing.T) {
 	registry := newJSVerbsSectionRegistry(t)
-	spec := jsverbsSectionSpec()
+	runtimeSpec := jsverbsSectionSpec()
 	embedded := jsverbsSectionFS()
-	commands, err := buildVerbCommands(registry, NewRuntimeFactory(registry, spec), spec, embedded)
+	commands, err := buildVerbCommands(registry, NewRuntimeFactory(registry, runtimeSpec), runtimeSpec, embedded)
 	if err != nil {
 		t.Fatalf("build verb commands: %v", err)
 	}
@@ -64,9 +64,9 @@ func newJSVerbsSectionRegistry(t *testing.T) *providerapi.Registry {
 	return registry
 }
 
-func jsverbsSectionSpec() *Spec {
-	return &Spec{
-		Runtimes: map[string]RuntimeSpec{
+func jsverbsSectionSpec() *RuntimeSpec {
+	return &RuntimeSpec{
+		Runtimes: map[string]RuntimeProfileSpec{
 			"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod", As: "mod"}}},
 		},
 		Commands: CommandsSpec{JSVerbs: CommandSpec{Enabled: true, Runtime: "main", Name: "verbs"}},

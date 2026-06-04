@@ -30,10 +30,10 @@ func newListModulesCommand() *listModulesCommand {
 		panic(err)
 	}
 	return &listModulesCommand{CommandDescription: cmds.NewCommandDescription("list-modules",
-		cmds.WithShort("List modules selected by an xgoja spec"),
+		cmds.WithShort("List modules selected by an xgoja build spec"),
 		cmds.WithLong(`
 List modules shows the require() modules selected by an xgoja build spec. Phase
-1 wires the command; static spec parsing is implemented in the buildspec task.
+1 wires the command; static build spec parsing is implemented in the buildspec task.
 
 Examples:
   xgoja list-modules -f xgoja.yaml
@@ -56,13 +56,13 @@ func (c *listModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *va
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	spec, _, err := buildspec.LoadFile(settings.File)
+	buildSpec, _, err := buildspec.LoadFile(settings.File)
 	if err != nil {
 		return err
 	}
-	profiles := spec.Runtimes
+	profiles := buildSpec.Runtimes
 	if settings.Profile != "" {
-		runtime, ok := spec.Runtimes[settings.Profile]
+		runtime, ok := buildSpec.Runtimes[settings.Profile]
 		if !ok {
 			return fmt.Errorf("unknown runtime profile %q", settings.Profile)
 		}

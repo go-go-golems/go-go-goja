@@ -1,7 +1,7 @@
 // Package app defines the runtime-side schema and wiring used by generated
 // xgoja binaries.
 //
-// The Spec types in this file are declarative runtime DTOs decoded from the
+// The *Spec types in this file are declarative runtime DTOs decoded from the
 // embedded JSON produced by cmd/xgoja/internal/generate. They intentionally omit
 // build-only fields such as Go module versions, provider import paths, replace
 // directives, target build roots, and source BaseDir. They describe what the
@@ -9,17 +9,17 @@
 // engine.Runtime and app.RuntimeFactory.
 package app
 
-// Spec is the normalized embedded runtime spec decoded by a generated xgoja
-// binary. It is derived from buildspec.Spec during code generation and contains
+// RuntimeSpec is the normalized embedded runtime spec decoded by a generated xgoja
+// binary. It is derived from buildspec.BuildSpec during code generation and contains
 // only runtime-relevant command, module, config, help, jsverb, and asset data.
-type Spec struct {
+type RuntimeSpec struct {
 	Name             string                        `json:"name"`
 	AppName          string                        `json:"appName,omitempty"`
 	EnvPrefix        string                        `json:"envPrefix,omitempty"`
-	Config           *ConfigSpec                   `json:"config,omitempty"`
+	ConfigFile       *ConfigFileSpec               `json:"configFile,omitempty"`
 	Target           TargetSpec                    `json:"target"`
 	Packages         []PackageSpec                 `json:"packages"`
-	Runtimes         map[string]RuntimeSpec        `json:"runtimes"`
+	Runtimes         map[string]RuntimeProfileSpec `json:"runtimes"`
 	Commands         CommandsSpec                  `json:"commands"`
 	CommandProviders []CommandProviderInstanceSpec `json:"commandProviders,omitempty"`
 	JSVerbs          []JSVerbSourceSpec            `json:"jsverbs,omitempty"`
@@ -27,7 +27,7 @@ type Spec struct {
 	Assets           []AssetSourceSpec             `json:"assets,omitempty"`
 }
 
-type ConfigSpec struct {
+type ConfigFileSpec struct {
 	Enabled  bool     `json:"enabled"`
 	Layers   []string `json:"layers,omitempty"`
 	FileName string   `json:"fileName,omitempty"`
@@ -42,17 +42,17 @@ type PackageSpec struct {
 	ID string `json:"id"`
 }
 
-// RuntimeSpec is a declarative runtime profile in the embedded app spec.
+// RuntimeProfileSpec is a declarative runtime profile in the embedded app runtime spec.
 // It lists provider module instances selected for a named profile; it is not a
 // concrete engine.Runtime.
-type RuntimeSpec struct {
+type RuntimeProfileSpec struct {
 	Modules []ModuleInstanceSpec `json:"modules"`
 }
 
 // ModuleInstanceSpec selects one provider module for a runtime profile.
 // The generated app resolves Package+Name through providerapi.Registry and uses
 // As as the require() alias. Config is static module config carried from the
-// generated spec.
+// generated runtime spec.
 type ModuleInstanceSpec struct {
 	Package string         `json:"package"`
 	Name    string         `json:"name"`

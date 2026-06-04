@@ -15,7 +15,7 @@ import (
 
 func TestRunCommandIncludesRuntimeProfileModuleSections(t *testing.T) {
 	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runFixtureCapability{}))
-	cmd := newRunCommand(factory, factory.spec)
+	cmd := newRunCommand(factory, factory.runtimeSpec)
 	section, ok := cmd.Description().Schema.Get("fixture")
 	if !ok {
 		t.Fatal("expected fixture section on run command")
@@ -27,7 +27,7 @@ func TestRunCommandIncludesRuntimeProfileModuleSections(t *testing.T) {
 
 func TestRunCommandInitializesRuntimeFromModuleSections(t *testing.T) {
 	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runFixtureCapability{}))
-	cmd, err := buildGlazedCobraCommand(newRunCommand(factory, factory.spec))
+	cmd, err := buildGlazedCobraCommand(newRunCommand(factory, factory.runtimeSpec))
 	if err != nil {
 		t.Fatalf("build cobra command: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestRunCommandInitializesRuntimeFromModuleSections(t *testing.T) {
 
 func TestRunCommandRuntimeOverrideInitializesSelectedRuntimeProfile(t *testing.T) {
 	factory := newRuntimeOverrideFactory(t)
-	cmd, err := buildGlazedCobraCommand(newRunCommand(factory, factory.spec))
+	cmd, err := buildGlazedCobraCommand(newRunCommand(factory, factory.runtimeSpec))
 	if err != nil {
 		t.Fatalf("build cobra command: %v", err)
 	}
@@ -76,12 +76,12 @@ func newRuntimeOverrideFactory(t *testing.T) *RuntimeFactory {
 	); err != nil {
 		t.Fatalf("register override provider: %v", err)
 	}
-	return NewRuntimeFactory(registry, &Spec{
+	return NewRuntimeFactory(registry, &RuntimeSpec{
 		Commands: CommandsSpec{
 			Eval: CommandSpec{Runtime: "default"},
 			Run:  CommandSpec{Runtime: "default"},
 		},
-		Runtimes: map[string]RuntimeSpec{
+		Runtimes: map[string]RuntimeProfileSpec{
 			"default":  {Modules: []ModuleInstanceSpec{{Package: "defaultpkg", Name: "mod", As: "fixture"}}},
 			"override": {Modules: []ModuleInstanceSpec{{Package: "overridepkg", Name: "mod", As: "fixture"}}},
 		},

@@ -68,8 +68,8 @@ func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T)
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	spec := &Spec{
-		Runtimes: map[string]RuntimeSpec{"fallback": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}},
+	runtimeSpec := &RuntimeSpec{
+		Runtimes: map[string]RuntimeProfileSpec{"fallback": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}},
 		CommandProviders: []CommandProviderInstanceSpec{{
 			ID:      "fixture-tools",
 			Package: "fixture",
@@ -78,7 +78,7 @@ func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T)
 		}},
 	}
 	root := &cobra.Command{Use: "test"}
-	NewHost(registry, spec).AttachDefaultCommands(root)
+	NewHost(registry, runtimeSpec).AttachDefaultCommands(root)
 	root.SetArgs([]string{"fixture", "ping"})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute command provider command: %v", err)
@@ -126,8 +126,8 @@ func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	spec := &Spec{
-		Runtimes: map[string]RuntimeSpec{"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}},
+	runtimeSpec := &RuntimeSpec{
+		Runtimes: map[string]RuntimeProfileSpec{"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}},
 		CommandProviders: []CommandProviderInstanceSpec{{
 			ID:             "fixture-tools",
 			Package:        "fixture",
@@ -137,7 +137,7 @@ func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 		}},
 	}
 	root := &cobra.Command{Use: "test"}
-	NewHost(registry, spec).AttachDefaultCommands(root)
+	NewHost(registry, runtimeSpec).AttachDefaultCommands(root)
 	root.SetArgs([]string{"fixture", "ping", "--message", "hello"})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute command provider command: %v", err)
