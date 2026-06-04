@@ -317,7 +317,7 @@ The provider must register the source with an `fs.FS`:
 ```go
 import helpdoc "github.com/go-go-golems/loupedeck/docs/help"
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("loupedeck",
         providerapi.HelpSource{
             Name:        "runtime-api",
@@ -465,7 +465,7 @@ The provider must register the source with an `fs.FS`:
 //go:embed verbs/*.js
 var verbsFS embed.FS
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("fixture",
         providerapi.VerbSource{Name: "verbs", FS: verbsFS, Root: "verbs"},
     )

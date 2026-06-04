@@ -10,7 +10,7 @@ import (
 )
 
 type Host struct {
-	Providers       *providerapi.Registry
+	Providers       *providerapi.ProviderRegistry
 	RuntimeSpec     *RuntimeSpec
 	Factory         *RuntimeFactory
 	EmbeddedJSVerbs fs.FS
@@ -29,11 +29,11 @@ type HostOptions struct {
 	MiddlewaresFunc cli.CobraMiddlewaresFunc
 }
 
-func NewHost(providers *providerapi.Registry, runtimeSpec *RuntimeSpec) *Host {
+func NewHost(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec) *Host {
 	return NewHostWithOptions(providers, runtimeSpec, HostOptions{})
 }
 
-func NewHostWithOptions(providers *providerapi.Registry, runtimeSpec *RuntimeSpec, opts HostOptions) *Host {
+func NewHostWithOptions(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec, opts HostOptions) *Host {
 	services := HostServices{Assets: NewAssetStore(opts.EmbeddedAssets, runtimeSpec)}
 	middlewaresFunc := opts.MiddlewaresFunc
 	if middlewaresFunc == nil {

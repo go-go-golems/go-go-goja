@@ -52,7 +52,7 @@ type DatabaseConfig struct {
 // Register exposes guarded host-capability modules. These modules can touch
 // the host filesystem, process table, or databases and therefore require
 // explicit per-module config in xgoja.yaml.
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
 	return registry.Package(PackageID,
 		fsModule("fs"),
 		fsModule("node:fs"),

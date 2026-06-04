@@ -43,10 +43,10 @@ xgoja.yaml
 
 ## Provider packages
 
-A provider package exports a registration function, usually named `Register`, that receives a `*providerapi.Registry`.
+A provider package exports a registration function, usually named `Register`, that receives a `*providerapi.ProviderRegistry`.
 
 ```go
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("fixture",
         providerapi.Module{
             Name:      "hello",

@@ -50,7 +50,7 @@ func TestJSVerbsInitializeRuntimeFromModuleSections(t *testing.T) {
 	}
 }
 
-func newJSVerbsSectionRegistry(t *testing.T) *providerapi.Registry {
+func newJSVerbsSectionRegistry(t *testing.T) *providerapi.ProviderRegistry {
 	t.Helper()
 	registry := providerapi.NewRegistry()
 	if err := registry.Package("fixture",

@@ -31,7 +31,7 @@ var coreModuleNames = []string{
 // Register exposes the data-oriented first-party go-go-goja modules as an
 // xgoja provider package. These modules do not intentionally perform host
 // filesystem, process, or database operations.
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
 	entries := make([]providerapi.Entry, 0, len(coreModuleNames))
 	for _, name := range coreModuleNames {
 		mod := modules.GetModule(name)

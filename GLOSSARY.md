@@ -22,6 +22,7 @@ Contrast with non-spec patterns:
 - `engine.Runtime`: concrete VM/event-loop/require runtime with lifecycle.
 - `app.RuntimeFactory`: factory that creates concrete runtimes from runtime profiles.
 - `providerapi.Module`: provider module definition and setup factory.
+- `providerapi.ProviderRegistry`: active registry of provider packages, modules, command sets, help sources, and capabilities.
 - `require.ModuleLoader`: CommonJS loader that populates `module.exports`.
 
 Rule of thumb: if the type says what to build, select, embed, or configure, `*Spec` is appropriate. If it creates, registers, runs, schedules, resolves, or closes something, it should not be named `*Spec`.

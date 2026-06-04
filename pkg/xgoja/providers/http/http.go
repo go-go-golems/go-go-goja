@@ -21,7 +21,7 @@ import (
 
 const PackageID = "go-go-goja-http"
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
 	capability := newHTTPCapability()
 	return registry.Package(PackageID,
 		providerapi.Module{

@@ -365,7 +365,7 @@ Provider side:
 //go:embed verbs/*.js
 var verbsFS embed.FS
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("fixture",
         providerapi.Module{Name: "hello", New: newHelloModule},
         providerapi.VerbSource{Name: "verbs", FS: verbsFS, Root: "verbs"},

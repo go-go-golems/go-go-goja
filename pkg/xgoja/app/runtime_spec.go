@@ -50,7 +50,7 @@ type RuntimeProfileSpec struct {
 }
 
 // ModuleInstanceSpec selects one provider module for a runtime profile.
-// The generated app resolves Package+Name through providerapi.Registry and uses
+// The generated app resolves Package+Name through providerapi.ProviderRegistry and uses
 // As as the require() alias. Config is static module config carried from the
 // generated runtime spec.
 type ModuleInstanceSpec struct {
@@ -83,7 +83,7 @@ type CommandSpec struct {
 
 // CommandProviderInstanceSpec selects one provider-owned command set to attach
 // to the generated Cobra root. It is the runtime DTO counterpart to the
-// providerapi.CommandSetProvider definition stored in providerapi.Registry.
+// providerapi.CommandSetProvider definition stored in providerapi.ProviderRegistry.
 type CommandProviderInstanceSpec struct {
 	ID             string         `json:"id"`
 	Package        string         `json:"package"`

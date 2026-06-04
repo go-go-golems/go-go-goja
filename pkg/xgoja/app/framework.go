@@ -17,7 +17,7 @@ import (
 const rootFrameworkInstalledAnnotation = "xgoja/root-framework-installed"
 
 type frameworkOptions struct {
-	Providers    *providerapi.Registry
+	Providers    *providerapi.ProviderRegistry
 	EmbeddedHelp fs.FS
 }
 

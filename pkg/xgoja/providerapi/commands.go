@@ -33,7 +33,7 @@ type CommandSetContext struct {
 	RuntimeProfile  string
 	Config          json.RawMessage
 	Host            HostServices
-	Providers       *Registry
+	Providers       *ProviderRegistry
 	RuntimeFactory  RuntimeFactory
 	SelectedModules []ModuleDescriptor
 }

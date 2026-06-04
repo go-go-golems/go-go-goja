@@ -27,7 +27,7 @@ Use a provider when you have Go functionality that should be available to JavaSc
 
 ## Provider package contract
 
-A provider package exports a function that accepts `*providerapi.Registry` and returns an error. The default function name is `Register`, but `packages[].register` can name a different function.
+A provider package exports a function that accepts `*providerapi.ProviderRegistry` and returns an error. The default function name is `Register`, but `packages[].register` can name a different function.
 
 ```go
 package myprovider
@@ -38,7 +38,7 @@ import (
     "github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("my-provider",
         providerapi.Module{
             Name:        "hello",
@@ -118,7 +118,7 @@ import (
     _ "github.com/go-go-golems/go-go-goja/modules/yaml"
 )
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     pathModule := modules.GetModule("path")
     yamlModule := modules.GetModule("yaml")
     return registry.Package("go-go-goja-core",
@@ -177,7 +177,7 @@ A provider can ship JavaScript verb files next to Go modules. Embed them and reg
 //go:embed verbs/*.js
 var verbsFS embed.FS
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("my-provider",
         providerapi.Module{...},
         providerapi.VerbSource{
@@ -249,7 +249,7 @@ func (Capability) InitRuntimeFromSections(_ context.Context, values *values.Valu
 Register the capability with the package:
 
 ```go
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("my-provider",
         providerapi.Module{...},
         providerapi.WithPackageCapability(Capability{}),
@@ -275,7 +275,7 @@ Use `values.Values.DecodeSectionInto` instead of reaching into raw maps. The pro
 For package-owned verbs that need custom Go services, command wiring, or non-JavaScript behavior, register a command set provider. xgoja mounts returned Glazed commands into the generated root command.
 
 ```go
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("my-provider",
         providerapi.Module{...},
         providerapi.CommandSetProvider{

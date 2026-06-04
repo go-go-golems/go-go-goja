@@ -17,6 +17,7 @@ RelatedFiles:
         Top-level *Spec pattern definition
         Updated top-level *Spec pattern examples for app DTOs
         Updated BuildSpec and RuntimeSpec glossary examples
+        ProviderRegistry glossary entry
     - Path: go-go-goja/cmd/xgoja/cmd_list_modules.go
       Note: CLI helper updated to use RuntimeSpec
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
@@ -39,19 +40,30 @@ RelatedFiles:
         RuntimeFactory updated to use ModuleInstanceSpec
         RuntimeFactory stores runtimeSpec
     - Path: go-go-goja/pkg/xgoja/app/host.go
-      Note: Host field renamed to RuntimeSpec
+      Note: |-
+        Host field renamed to RuntimeSpec
+        Generated app host accepts ProviderRegistry
     - Path: go-go-goja/pkg/xgoja/app/middlewares.go
       Note: Config-file middleware reads RuntimeSpec.ConfigFile
+    - Path: go-go-goja/pkg/xgoja/app/root.go
+      Note: Root construction and verb scanning use ProviderRegistry
     - Path: go-go-goja/pkg/xgoja/app/runtime_spec.go
       Note: RuntimeSpec
     - Path: go-go-goja/pkg/xgoja/app/spec.go
       Note: Runtime-side embedded DTO type rename source
+    - Path: go-go-goja/pkg/xgoja/providerapi/commands.go
+      Note: CommandSetContext now carries ProviderRegistry
+    - Path: go-go-goja/pkg/xgoja/providerapi/provider_registry.go
+      Note: ProviderRegistry type and registry implementation
+    - Path: go-go-goja/pkg/xgoja/providers/core/core.go
+      Note: Provider registration signature updated
 ExternalSources: []
 Summary: 'Diary for the first symbol-name simplification: buildspec runtime/module/command-provider DTOs now use explicit *Spec names.'
 LastUpdated: 2026-06-04T00:00:00Z
 WhatFor: Use when reviewing the focused commit that renamed buildspec DTO types to make the *Spec pattern explicit.
 WhenToUse: Before continuing generic-symbol cleanup or renaming runtime profile DTOs in the app runtime spec.
 ---
+
 
 
 
@@ -359,6 +371,76 @@ The main invariant was preserving provider configuration payload names while cha
 
 - Start with `cmd/xgoja/internal/buildspec/build_spec.go` and `pkg/xgoja/app/runtime_spec.go` and compare top-level `ConfigFile` with module/provider `Config` maps.
 - Review `pkg/xgoja/app/middlewares.go` for runtime use of `RuntimeSpec.ConfigFile`.
+- Validate with: `cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`.
+
+### Technical details
+
+Command run:
+
+```bash
+cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1
+```
+
+## Step 5: Rename Provider Registry Type
+
+I renamed the provider registry type so it no longer uses the generic `Registry` name inside `providerapi`. The file is now `provider_registry.go`, and the public struct is `ProviderRegistry`, which makes signatures read as a registry of xgoja provider packages rather than an unspecified registry.
+
+The constructor remains `NewRegistry()` for now, so call sites that only construct a registry do not churn unnecessarily. Type annotations, provider registration signatures, app host/factory fields, command context fields, and xgoja provider documentation now refer to `*providerapi.ProviderRegistry`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "- rename providerapi/registry.go to provider_registry.go and the Registry struct to ProviderRegistry."
+
+**Assistant interpretation:** Rename the providerapi registry file and exported registry type while preserving registry behavior.
+
+**Inferred user intent:** Continue replacing generic names with domain-specific names so provider-related APIs are self-describing.
+
+**Commit (code):** pending at diary write time.
+
+### What I did
+
+- Renamed `pkg/xgoja/providerapi/registry.go` to `pkg/xgoja/providerapi/provider_registry.go`.
+- Renamed `providerapi.Registry` to `providerapi.ProviderRegistry`.
+- Updated app runtime code, provider packages, command-set context, generated-code tests/templates, and provider documentation references.
+- Added `providerapi.ProviderRegistry` to the top-level glossary as an active non-spec registry object.
+- Ran targeted tests:
+  - `go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`
+
+### Why
+
+`Registry` was too generic, especially in a codebase that also uses `require.Registry` and JavaScript verb registries. `ProviderRegistry` clarifies that this object owns provider package registrations and resolves provider modules, command sets, help sources, verb sources, and capabilities.
+
+### What worked
+
+- The rename was mostly mechanical.
+- Keeping `NewRegistry()` avoided extra call-site churn while still clarifying type signatures.
+- Targeted xgoja tests passed.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Several xgoja docs include provider registration examples, so a public type rename should update documentation examples in the same commit.
+
+### What was tricky to build
+
+The main naming collision to avoid was with `require.Registry` and `jsverbs.Registry`. Only `providerapi.Registry` was renamed; local variables named `registry` and other package registry types remain unchanged because they describe concrete registry instances or unrelated registries.
+
+### What warrants a second pair of eyes
+
+- Confirm whether the constructor should also become `NewProviderRegistry()` or whether retaining `NewRegistry()` is preferred for ergonomic call sites.
+- Confirm whether the generated documentation examples should be part of this rename commit or handled separately.
+
+### What should be done in the future
+
+- Consider renaming `NewRegistry()` to `NewProviderRegistry()` if the project wants constructor names to mirror the new explicit type name.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/providerapi/provider_registry.go` and verify only the type/file names changed.
+- Review `pkg/xgoja/providerapi/commands.go` and `pkg/xgoja/app/host.go` for API surface updates.
 - Validate with: `cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`.
 
 ### Technical details

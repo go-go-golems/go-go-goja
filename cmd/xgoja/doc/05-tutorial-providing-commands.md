@@ -25,7 +25,7 @@ Provider modules expose JavaScript APIs. Command set providers expose domain-spe
 A command set provider returns Glazed commands. xgoja mounts them into the generated root command according to `commandProviders[].mount`.
 
 ```go
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("my-provider",
         providerapi.Module{...},
         providerapi.CommandSetProvider{

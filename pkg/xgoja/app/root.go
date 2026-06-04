@@ -24,7 +24,7 @@ import (
 )
 
 type Options struct {
-	Providers       *providerapi.Registry
+	Providers       *providerapi.ProviderRegistry
 	SpecJSON        string
 	Out             io.Writer
 	EmbeddedJSVerbs fs.FS
@@ -158,12 +158,12 @@ func evalSourceWithInitializers(ctx context.Context, factory *RuntimeFactory, pr
 
 type modulesCommand struct {
 	*cmds.CommandDescription
-	providers *providerapi.Registry
+	providers *providerapi.ProviderRegistry
 }
 
 var _ cmds.GlazeCommand = (*modulesCommand)(nil)
 
-func newModulesCommand(providers *providerapi.Registry, runtimeSpec *RuntimeSpec) cmds.Command {
+func newModulesCommand(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec) cmds.Command {
 	_ = runtimeSpec
 	return &modulesCommand{
 		CommandDescription: cmds.NewCommandDescription("modules",
@@ -198,7 +198,7 @@ func (c *modulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values
 	return nil
 }
 
-func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, embeddedJSVerbs fs.FS, middlewaresFunc glazedcli.CobraMiddlewaresFunc) *cobra.Command {
+func newVerbsCommand(providers *providerapi.ProviderRegistry, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, embeddedJSVerbs fs.FS, middlewaresFunc glazedcli.CobraMiddlewaresFunc) *cobra.Command {
 	root := &cobra.Command{
 		Use:   commandName(runtimeSpec.Commands.JSVerbs, "verbs"),
 		Short: "Run configured JavaScript verb commands",
@@ -230,7 +230,7 @@ func newVerbsCommand(providers *providerapi.Registry, factory *RuntimeFactory, r
 	return root
 }
 
-func buildVerbCommands(providers *providerapi.Registry, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, embeddedJSVerbs fs.FS) ([]cmds.Command, error) {
+func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, embeddedJSVerbs fs.FS) ([]cmds.Command, error) {
 	profile := commandRuntime(runtimeSpec.Commands.JSVerbs, firstRuntime(runtimeSpec))
 	moduleSections, selectedModules, err := factory.sectionsForRuntimeProfile("jsverbs", profile)
 	if err != nil {
@@ -275,7 +275,7 @@ func buildVerbCommands(providers *providerapi.Registry, factory *RuntimeFactory,
 	return commands, nil
 }
 
-func scanVerbSource(providers *providerapi.Registry, embeddedJSVerbs fs.FS, source JSVerbSourceSpec) (*jsverbs.Registry, error) {
+func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, source JSVerbSourceSpec) (*jsverbs.Registry, error) {
 	if source.Package != "" || source.Source != "" {
 		if providers == nil {
 			return nil, fmt.Errorf("scan jsverb source %s: providers registry is required", source.ID)

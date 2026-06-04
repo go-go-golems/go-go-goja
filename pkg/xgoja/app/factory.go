@@ -13,7 +13,7 @@ import (
 type JSRuntime = engine.Runtime
 
 type RuntimeFactory struct {
-	providers   *providerapi.Registry
+	providers   *providerapi.ProviderRegistry
 	runtimeSpec *RuntimeSpec
 	services    providerapi.HostServices
 }
@@ -51,7 +51,7 @@ func (s providerRuntimeModuleSpec) RegisterRuntimeModule(ctx *engine.RuntimeModu
 	return nil
 }
 
-func NewRuntimeFactory(providers *providerapi.Registry, runtimeSpec *RuntimeSpec, services ...providerapi.HostServices) *RuntimeFactory {
+func NewRuntimeFactory(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec, services ...providerapi.HostServices) *RuntimeFactory {
 	var hostServices providerapi.HostServices
 	if len(services) > 0 {
 		hostServices = services[0]

@@ -10,7 +10,7 @@ type Entry interface {
 	applyToPackage(*Package) error
 }
 
-type Registry struct {
+type ProviderRegistry struct {
 	packages map[string]*Package
 	order    []string
 }
@@ -24,11 +24,11 @@ type Package struct {
 	CommandSetProviders map[string]CommandSetProvider
 }
 
-func NewRegistry() *Registry {
-	return &Registry{packages: map[string]*Package{}}
+func NewRegistry() *ProviderRegistry {
+	return &ProviderRegistry{packages: map[string]*Package{}}
 }
 
-func (r *Registry) Package(id string, entries ...Entry) error {
+func (r *ProviderRegistry) Package(id string, entries ...Entry) error {
 	if r == nil {
 		return fmt.Errorf("provider registry is nil")
 	}
@@ -60,7 +60,7 @@ func (r *Registry) Package(id string, entries ...Entry) error {
 	return nil
 }
 
-func (r *Registry) ResolveModule(packageID, moduleName string) (Module, bool) {
+func (r *ProviderRegistry) ResolveModule(packageID, moduleName string) (Module, bool) {
 	if r == nil {
 		return Module{}, false
 	}
@@ -72,7 +72,7 @@ func (r *Registry) ResolveModule(packageID, moduleName string) (Module, bool) {
 	return mod, ok
 }
 
-func (r *Registry) ResolveVerbSource(packageID, sourceName string) (VerbSource, bool) {
+func (r *ProviderRegistry) ResolveVerbSource(packageID, sourceName string) (VerbSource, bool) {
 	if r == nil {
 		return VerbSource{}, false
 	}
@@ -84,7 +84,7 @@ func (r *Registry) ResolveVerbSource(packageID, sourceName string) (VerbSource, 
 	return source, ok
 }
 
-func (r *Registry) ResolvePackageCapabilities(packageID string) ([]PackageCapability, bool) {
+func (r *ProviderRegistry) ResolvePackageCapabilities(packageID string) ([]PackageCapability, bool) {
 	if r == nil {
 		return nil, false
 	}
@@ -95,7 +95,7 @@ func (r *Registry) ResolvePackageCapabilities(packageID string) ([]PackageCapabi
 	return pkg.sortedCapabilities(), true
 }
 
-func (r *Registry) ResolveHelpSource(packageID, sourceName string) (HelpSource, bool) {
+func (r *ProviderRegistry) ResolveHelpSource(packageID, sourceName string) (HelpSource, bool) {
 	if r == nil {
 		return HelpSource{}, false
 	}
@@ -107,7 +107,7 @@ func (r *Registry) ResolveHelpSource(packageID, sourceName string) (HelpSource, 
 	return source, ok
 }
 
-func (r *Registry) ResolveCommandSetProvider(packageID, providerName string) (CommandSetProvider, bool) {
+func (r *ProviderRegistry) ResolveCommandSetProvider(packageID, providerName string) (CommandSetProvider, bool) {
 	if r == nil {
 		return CommandSetProvider{}, false
 	}
@@ -119,7 +119,7 @@ func (r *Registry) ResolveCommandSetProvider(packageID, providerName string) (Co
 	return provider, ok
 }
 
-func (r *Registry) Packages() []Package {
+func (r *ProviderRegistry) Packages() []Package {
 	if r == nil {
 		return nil
 	}

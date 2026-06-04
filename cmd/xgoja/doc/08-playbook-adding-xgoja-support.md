@@ -81,7 +81,7 @@ import (
 
 const PackageID = "my-repo"
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package(PackageID,
         moduleEntry("my-repo", "Main module for my-repo.", NewMainLoader),
     )
@@ -253,7 +253,7 @@ if closerRegistry, ok := handle.(providerapi.RuntimeCloserRegistry); ok {
 Command providers return Glazed commands. They do not return Cobra commands. xgoja handles the final Cobra mounting boundary.
 
 ```go
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package(PackageID,
         moduleEntry(...),
         providerapi.CommandSetProvider{
@@ -325,7 +325,7 @@ Then register that filesystem from the xgoja provider:
 ```go
 import helpdoc "example.com/my-repo/docs/help"
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package(PackageID,
         providerapi.HelpSource{
             Name:        "runtime-api",
