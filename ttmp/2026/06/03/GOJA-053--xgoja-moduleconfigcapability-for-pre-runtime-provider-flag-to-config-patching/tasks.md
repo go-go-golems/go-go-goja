@@ -7,16 +7,6 @@
 - [ ] Add providerutil unit tests for static config parsing, override merging, and raw JSON conversion helpers.
 - [ ] Add docs/help updates for provider authors covering `GlazedConfigSectionCapability`, `XGojaConfigSectionCapability`, and `NewRuntimeFromSections`.
 
-### Phase 5: Geppetto provider implementation
-
-- [ ] Update Geppetto provider to current xgoja provider API names (`ProviderRegistry`, `NewModuleFactory`, `ModuleSetupContext`).
-- [ ] Remove Geppetto provider config fields `Profile`, `AllowRegistryLoad`, `AllowNetwork`, `AllowTools`, `EnableStorage`, and nested `Turns`.
-- [ ] Rename Geppetto provider config `ProfileRegistries` to `DefaultProfileRegistries`.
-- [ ] Add Geppetto `XGojaConfigSectionCapability` for internal module config.
-- [ ] Add Geppetto `GlazedConfigSectionCapability` flags for runtime overrides, including explicit turn-store flags such as `turns-dsn` / `turns-db` if supported by host services.
-- [ ] Add Geppetto config mapping from Glazed values into internal xgoja module config before module setup.
-- [ ] Update Geppetto provider tests for simplified config and renamed registry field.
-
 ## DONE
 
 - [x] Review existing GOJA-053 design docs and write independent implementation guide
@@ -47,3 +37,10 @@
 - [x] Update command-provider runtime factory interface so provider-owned commands can opt into the same runtime config patching
 - [x] Add app runtime tests proving CLI/config/env-derived values patch module setup config before `NewModuleFactory` runs
 - [x] Add regression test for selecting the same provider package twice under different aliases; each module instance receives independent config
+- [x] Update Geppetto provider to current xgoja provider API names (`ProviderRegistry`, `NewModuleFactory`, `ModuleSetupContext`).
+- [x] Remove Geppetto provider config fields `Profile`, `AllowRegistryLoad`, `AllowNetwork`, `AllowTools`, `EnableStorage`, and nested `Turns`.
+- [x] Rename Geppetto provider config `ProfileRegistries` to `DefaultProfileRegistries`.
+- [x] Add Geppetto `XGojaConfigSectionCapability` for internal module config.
+- [x] Add Geppetto `GlazedConfigSectionCapability` flags for supported runtime overrides (`default-profile-registries`, `default-profile`); turn-store flags were intentionally omitted after removing provider storage config.
+- [x] Add Geppetto config mapping from Glazed values into internal xgoja module config before module setup.
+- [x] Update Geppetto provider tests for simplified config and renamed registry field.

@@ -158,3 +158,13 @@ Added generic symbol inventory/glossary for Service/Context/Capability/Runtime/M
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/08-generic-symbol-inventory-and-glossary.md — New generic symbol glossary and rename/separation recommendations
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/tasks.md — Marked glossary task complete
 
+
+## 2026-06-04
+
+Implemented Geppetto provider cleanup for GOJA-053: adopted current xgoja provider/engine API names, removed legacy provider config gates/storage fields, renamed `profileRegistries` to `defaultProfileRegistries`, and added Glazed/xgoja config section mapping for supported default-profile overrides (Geppetto commit 6f0bc2d).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/provider.go — Simplified Geppetto provider config and added capability mapping
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/provider_test.go — Updated provider tests for simplified config and ignored legacy fields
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/09-buildspec-spec-rename-diary.md — Recorded implementation step and validation caveats
