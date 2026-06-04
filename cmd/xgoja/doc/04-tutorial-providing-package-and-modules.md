@@ -44,7 +44,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
             Name:        "hello",
             DefaultAs:   "hello",
             Description: "Small example module",
-            New: func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
+            NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
                 return func(vm *goja.Runtime, module *goja.Object) {
                     exports := module.Get("exports").(*goja.Object)
                     _ = exports.Set("greet", func(name string) string {
@@ -102,7 +102,7 @@ func nativeModuleEntry(mod modules.NativeModule) providerapi.Module {
         Name:        mod.Name(),
         DefaultAs:   mod.Name(),
         Description: mod.Doc(),
-        New: func(providerapi.ModuleContext) (require.ModuleLoader, error) {
+        NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
             return mod.Loader, nil
         },
     }
@@ -132,7 +132,7 @@ Prefer explicit lists over "register everything" helpers. Explicit lists make th
 
 ## Use config for module options
 
-Each `runtimes.<profile>.modules[]` entry can include a `config` map. xgoja serializes this config and passes it to the provider module factory as `providerapi.ModuleContext.Config`.
+Each `runtimes.<profile>.modules[]` entry can include a `config` map. xgoja serializes this config and passes it to the provider module factory as `providerapi.ModuleSetupContext.Config`.
 
 ```yaml
 runtimes:
@@ -155,7 +155,7 @@ type ExecConfig struct {
     AllowedCommands []string `json:"allowedCommands,omitempty"`
 }
 
-New: func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
+NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
     var cfg ExecConfig
     if err := json.Unmarshal(ctx.Config, &cfg); err != nil {
         return nil, fmt.Errorf("exec config: %w", err)
@@ -167,7 +167,7 @@ New: func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
 },
 ```
 
-Use config for static, serializable settings: allow flags, paths, module names, DSNs, API base URLs, and feature toggles. Use `ModuleContext.Host` only for live application services in target-mode integrations.
+Use config for static, serializable settings: allow flags, paths, module names, DSNs, API base URLs, and feature toggles. Use `ModuleSetupContext.Host` only for live application services in target-mode integrations.
 
 ## Register provider-shipped JavaScript verbs
 
@@ -220,7 +220,7 @@ type Capability struct{}
 
 func (Capability) CapabilityID() string { return "my-provider.config" }
 
-func (Capability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (Capability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
     section, err := schema.NewSection("my-provider",
         schema.WithTitle("My provider"),
         schema.WithPrefix("my-provider-"),
@@ -232,7 +232,7 @@ func (Capability) ConfigSections(providerapi.SectionContext) ([]schema.Section, 
     return []schema.Section{section}, nil
 }
 
-func (Capability) InitRuntimeFromSections(_ context.Context, values *values.Values, handle providerapi.RuntimeHandle) error {
+func (Capability) InitRuntimeFromSections(_ context.Context, values *values.Values, handle providerapi.RuntimeInitializerHandle) error {
     if values == nil {
         // Runtime construction without parsed command values is a discovery/preload mode.
         // Avoid irreversible side effects here.
@@ -264,10 +264,10 @@ Use `values.Values.DecodeSectionInto` instead of reaching into raw maps. The pro
 | Need | Use | Notes |
 | --- | --- | --- |
 | Expose one JavaScript `require(...)` module | `providerapi.Module` | The simplest and most common provider contribution. |
-| Configure a module statically from `xgoja.yaml` | `ModuleContext.Config` | Use for buildspec/runtime-profile settings such as allowlists or base paths. |
+| Configure a module statically from `xgoja.yaml` | `ModuleSetupContext.Config` | Use for buildspec/runtime-profile settings such as allowlists or base paths. |
 | Add command-line flags for selected modules | `ConfigSectionCapability` | The section is appended to built-in commands and provider-owned commands that opt in. |
 | Apply parsed command values to a JS runtime | `RuntimeInitializerCapability` | Use `DecodeSectionInto`; avoid side effects when `values == nil`. |
-| Clean up runtime-scoped resources | `RuntimeCloserRegistry` through `RuntimeHandle` | Register HTTP servers, file watchers, or sessions for shutdown. |
+| Clean up runtime-scoped resources | `RuntimeCloserRegistry` through `RuntimeInitializerHandle` | Register HTTP servers, file watchers, or sessions for shutdown. |
 | Add domain-specific CLI commands | `CommandSetProvider` | Return Glazed commands; use `RuntimeFactory` when those commands need xgoja runtimes. |
 
 ## Ship Glazed command sets

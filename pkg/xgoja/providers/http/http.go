@@ -28,7 +28,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
 			Name:        "express",
 			DefaultAs:   "express",
 			Description: "Express-style HTTP route registration backed by gojahttp",
-			New: func(providerapi.ModuleContext) (require.ModuleLoader, error) {
+			NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 				return capability.NewExpressLoader(), nil
 			},
 		},
@@ -59,7 +59,7 @@ func newHTTPCapability() *capability {
 
 func (c *capability) CapabilityID() string { return "go-go-goja-http.config" }
 
-func (c *capability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (c *capability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	section, err := schema.NewSection(
 		"http",
 		"HTTP server",
@@ -75,7 +75,7 @@ func (c *capability) ConfigSections(providerapi.SectionContext) ([]schema.Sectio
 	return []schema.Section{section}, nil
 }
 
-func (c *capability) InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+func (c *capability) InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle) error {
 	_ = ctx
 	if handle == nil || handle.Runtime() == nil {
 		return fmt.Errorf("http provider runtime handle is nil")

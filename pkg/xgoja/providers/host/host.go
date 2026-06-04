@@ -91,7 +91,7 @@ func fsModule(name string) providerapi.Module {
     }
   }
 }`),
-		New: func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
+		NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 			cfg := FSConfig{}
 			if err := decodeConfig(ctx.Config, &cfg); err != nil {
 				return nil, fmt.Errorf("%s config: %w", name, err)
@@ -165,7 +165,7 @@ func execModule() providerapi.Module {
     "allowedCommands": {"type": "array", "items": {"type": "string"}, "description": "Optional exact command allow-list. Empty means any command is allowed."}
   }
 }`),
-		New: func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
+		NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 			cfg := ExecConfig{}
 			if err := decodeConfig(ctx.Config, &cfg); err != nil {
 				return nil, fmt.Errorf("exec config: %w", err)
@@ -208,7 +208,7 @@ func databaseModule(name string) providerapi.Module {
     "allowConfigure": {"type": "boolean", "description": "Allow JavaScript to call configure(driverName, dataSourceName)."}
   }
 }`),
-		New: func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
+		NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 			cfg := DatabaseConfig{}
 			if err := decodeConfig(ctx.Config, &cfg); err != nil {
 				return nil, fmt.Errorf("database config: %w", err)

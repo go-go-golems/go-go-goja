@@ -367,7 +367,7 @@ var verbsFS embed.FS
 
 func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("fixture",
-        providerapi.Module{Name: "hello", New: newHelloModule},
+        providerapi.Module{Name: "hello", NewModuleFactory: newHelloModule},
         providerapi.VerbSource{Name: "verbs", FS: verbsFS, Root: "verbs"},
     )
 }

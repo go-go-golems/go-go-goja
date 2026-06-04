@@ -21,7 +21,10 @@ Contrast with non-spec patterns:
 
 - `engine.Runtime`: concrete VM/event-loop/require runtime with lifecycle.
 - `app.RuntimeFactory`: factory that creates concrete runtimes from runtime profiles.
-- `providerapi.Module`: provider module definition and setup factory.
+- `providerapi.Module`: provider module definition with a `NewModuleFactory` setup hook.
+- `providerapi.ModuleSetupContext`: setup-time inputs passed while creating a selected module's CommonJS loader.
+- `providerapi.SectionRequest`: request metadata passed when collecting provider configuration sections.
+- `providerapi.RuntimeInitializerHandle`: runtime handle passed to provider runtime initializer capabilities.
 - `providerapi.ProviderRegistry`: active registry of provider packages, modules, command sets, help sources, and capabilities.
 - `require.ModuleLoader`: CommonJS loader that populates `module.exports`.
 

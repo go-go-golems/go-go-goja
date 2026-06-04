@@ -27,7 +27,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
 			Name:        "hello",
 			DefaultAs:   "hello",
 			Description: "Fixture module used by xgoja tests",
-			New: func(providerapi.ModuleContext) (require.ModuleLoader, error) {
+			NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 				return func(vm *goja.Runtime, module *goja.Object) {
 					exports := module.Get("exports").(*goja.Object)
 					_ = exports.Set("greet", func(name string) string { return "hello " + name })
@@ -38,7 +38,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
 			Name:        "owner-check",
 			DefaultAs:   "owner-check",
 			Description: "Fixture module that requires xgoja runtime services",
-			New: func(providerapi.ModuleContext) (require.ModuleLoader, error) {
+			NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 				return func(vm *goja.Runtime, module *goja.Object) {
 					exports := module.Get("exports").(*goja.Object)
 					_ = exports.Set("hasOwner", func() bool {
@@ -86,7 +86,7 @@ type FixtureCapability struct{}
 
 func (FixtureCapability) CapabilityID() string { return "fixture.settings" }
 
-func (FixtureCapability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (FixtureCapability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	section, err := FixtureSection()
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func (FixtureCapability) ConfigSections(providerapi.SectionContext) ([]schema.Se
 	return []schema.Section{section}, nil
 }
 
-func (FixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+func (FixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle) error {
 	var settings FixtureSettings
 	if err := vals.DecodeSectionInto("fixture", &settings); err != nil {
 		return err
@@ -140,7 +140,7 @@ func sectionsFromSelectedModules(ctx providerapi.CommandSetContext) ([]schema.Se
 			if !ok {
 				continue
 			}
-			moduleSections, err := sectionCapability.ConfigSections(providerapi.SectionContext{
+			moduleSections, err := sectionCapability.ConfigSections(providerapi.SectionRequest{
 				CommandProviderID: ctx.Name,
 				RuntimeProfile:    "",
 				PackageID:         module.PackageID,

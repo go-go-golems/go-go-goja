@@ -189,7 +189,7 @@ type httpCapability struct{}
 
 func (c *httpCapability) CapabilityID() string { return "my-repo.http" }
 
-func (c *httpCapability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (c *httpCapability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
     section, err := schema.NewSection(
         "my-http",
         "HTTP",
@@ -207,7 +207,7 @@ func (c *httpCapability) ConfigSections(providerapi.SectionContext) ([]schema.Se
 func (c *httpCapability) InitRuntimeFromSections(
     ctx context.Context,
     vals *values.Values,
-    handle providerapi.RuntimeHandle,
+    handle providerapi.RuntimeInitializerHandle,
 ) error {
     var settings struct {
         Listen string `glazed:"listen"`

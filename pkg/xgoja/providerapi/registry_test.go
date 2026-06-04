@@ -16,8 +16,8 @@ func TestRegistryPackageRegistersModulesVerbSourcesHelpSourcesAndCapabilities(t 
 	docs := fstest.MapFS{"topics/intro.md": {Data: []byte("docs")}}
 	registry := NewRegistry()
 	if err := registry.Package("core",
-		Module{Name: "fs", DefaultAs: "fs", New: noopFactory},
-		Module{Name: "yaml", DefaultAs: "yaml", New: noopFactory},
+		Module{Name: "fs", DefaultAs: "fs", NewModuleFactory: noopFactory},
+		Module{Name: "yaml", DefaultAs: "yaml", NewModuleFactory: noopFactory},
 		VerbSource{Name: "builtin", Root: "verbs"},
 		HelpSource{Name: "docs", Description: "Core docs", FS: docs, Root: "topics"},
 		WithPackageCapability(testCapability{id: "settings"}),
@@ -67,7 +67,7 @@ func TestRegistryPackageRegistersModulesVerbSourcesHelpSourcesAndCapabilities(t 
 
 func TestRegistryRejectsDuplicates(t *testing.T) {
 	registry := NewRegistry()
-	if err := registry.Package("core", Module{Name: "fs", New: noopFactory}); err != nil {
+	if err := registry.Package("core", Module{Name: "fs", NewModuleFactory: noopFactory}); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
 	if err := registry.Package("core"); err == nil || !strings.Contains(err.Error(), "duplicate provider package") {
@@ -75,7 +75,7 @@ func TestRegistryRejectsDuplicates(t *testing.T) {
 	}
 
 	registry = NewRegistry()
-	err := registry.Package("web", Module{Name: "fetch", New: noopFactory}, Module{Name: "fetch", New: noopFactory})
+	err := registry.Package("web", Module{Name: "fetch", NewModuleFactory: noopFactory}, Module{Name: "fetch", NewModuleFactory: noopFactory})
 	if err == nil || !strings.Contains(err.Error(), "duplicate module") {
 		t.Fatalf("expected duplicate module error, got %v", err)
 	}
@@ -98,7 +98,7 @@ func TestRegistryRejectsDuplicates(t *testing.T) {
 }
 
 func TestRegistryRejectsInvalidEntries(t *testing.T) {
-	if err := NewRegistry().Package("", Module{Name: "fs", New: noopFactory}); err == nil {
+	if err := NewRegistry().Package("", Module{Name: "fs", NewModuleFactory: noopFactory}); err == nil {
 		t.Fatal("expected empty package id error")
 	}
 	if err := NewRegistry().Package("core", Module{Name: ""}); err == nil || !strings.Contains(err.Error(), "module name") {
@@ -124,12 +124,12 @@ func TestRegistryRejectsInvalidEntries(t *testing.T) {
 	}
 }
 
-func noopFactory(ModuleContext) (require.ModuleLoader, error) {
+func noopFactory(ModuleSetupContext) (require.ModuleLoader, error) {
 	return func(vm *goja.Runtime, module *goja.Object) {}, nil
 }
 
-func TestModuleFactoryReceivesContextShape(t *testing.T) {
-	loader, err := noopFactory(ModuleContext{Context: context.Background(), Name: "fs", As: "fs"})
+func TestNewModuleFactoryReceivesSetupContextShape(t *testing.T) {
+	loader, err := noopFactory(ModuleSetupContext{Context: context.Background(), Name: "fs", As: "fs"})
 	if err != nil {
 		t.Fatalf("factory: %v", err)
 	}
@@ -144,9 +144,9 @@ type testCapability struct {
 
 func (c testCapability) CapabilityID() string { return c.id }
 
-func (c testCapability) ConfigSections(SectionContext) ([]schema.Section, error) { return nil, nil }
+func (c testCapability) ConfigSections(SectionRequest) ([]schema.Section, error) { return nil, nil }
 
-func (c testCapability) InitRuntimeFromSections(context.Context, *values.Values, RuntimeHandle) error {
+func (c testCapability) InitRuntimeFromSections(context.Context, *values.Values, RuntimeInitializerHandle) error {
 	return nil
 }
 

@@ -54,7 +54,7 @@ func newJSVerbsSectionRegistry(t *testing.T) *providerapi.ProviderRegistry {
 	t.Helper()
 	registry := providerapi.NewRegistry()
 	if err := registry.Package("fixture",
-		providerapi.Module{Name: "mod", New: func(providerapi.ModuleContext) (require.ModuleLoader, error) {
+		providerapi.Module{Name: "mod", NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 			return func(vm *goja.Runtime, module *goja.Object) {}, nil
 		}},
 		providerapi.WithPackageCapability(runFixtureCapability{}),

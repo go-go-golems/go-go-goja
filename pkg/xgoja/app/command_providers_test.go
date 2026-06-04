@@ -38,7 +38,7 @@ func TestApplyMountToCommandsDoesNotMutateProviderDescriptions(t *testing.T) {
 func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T) {
 	registry := providerapi.NewRegistry()
 	if err := registry.Package("fixture",
-		providerapi.Module{Name: "mod", New: noopSectionModule},
+		providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule},
 		providerapi.CommandSetProvider{
 			Name:         "tools",
 			DefaultMount: "tools",
@@ -89,7 +89,7 @@ func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 	called := false
 	registry := providerapi.NewRegistry()
 	if err := registry.Package("fixture",
-		providerapi.Module{Name: "mod", New: noopSectionModule},
+		providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule},
 		providerapi.CommandSetProvider{
 			Name:         "tools",
 			DefaultMount: "tools",

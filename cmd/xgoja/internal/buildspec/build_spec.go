@@ -69,7 +69,7 @@ type RuntimeSpec struct {
 
 // ModuleInstanceSpec selects one provider module inside a runtime profile.
 // Its Config field is static module config from xgoja.yaml; it is declarative
-// data that is later marshaled or merged into providerapi.ModuleContext.Config.
+// data that is later marshaled or merged into providerapi.ModuleSetupContext.Config.
 type ModuleInstanceSpec struct {
 	Package string         `yaml:"package" json:"package"`
 	Name    string         `yaml:"name" json:"name"`

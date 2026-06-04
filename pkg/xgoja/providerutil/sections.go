@@ -14,7 +14,7 @@ import (
 // attached to selected module descriptors. The supplied base context is copied
 // for each descriptor and enriched with PackageID and ModuleID before calling
 // the provider capability.
-func CollectConfigSections(descriptors []providerapi.ModuleDescriptor, base providerapi.SectionContext, seen map[string]string) ([]schema.Section, error) {
+func CollectConfigSections(descriptors []providerapi.ModuleDescriptor, base providerapi.SectionRequest, seen map[string]string) ([]schema.Section, error) {
 	sections := []schema.Section{}
 	if seen == nil {
 		seen = map[string]string{}
@@ -73,7 +73,7 @@ func AppendUniqueSections(out *[]schema.Section, seen map[string]string, section
 
 // InitRuntimeFromSections runs all runtime initializer capabilities attached to
 // the selected module descriptors against one runtime handle.
-func InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeHandle, descriptors []providerapi.ModuleDescriptor) error {
+func InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle, descriptors []providerapi.ModuleDescriptor) error {
 	if handle == nil || handle.Runtime() == nil {
 		return fmt.Errorf("runtime handle is nil")
 	}

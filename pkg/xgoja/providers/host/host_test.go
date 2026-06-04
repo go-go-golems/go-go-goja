@@ -35,7 +35,7 @@ func TestFSRequiresExplicitAllow(t *testing.T) {
 	if !ok {
 		t.Fatal("expected fs module")
 	}
-	_, err := mod.New(providerapi.ModuleContext{Context: context.Background(), Name: "fs", As: "fs"})
+	_, err := mod.NewModuleFactory(providerapi.ModuleSetupContext{Context: context.Background(), Name: "fs", As: "fs"})
 	if err == nil || !strings.Contains(err.Error(), "config.allow=true") {
 		t.Fatalf("expected allow error, got %v", err)
 	}
@@ -167,7 +167,7 @@ func TestFSRejectsCombinedHostAndEmbeddedConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal config: %v", err)
 	}
-	_, err = mod.New(providerapi.ModuleContext{Context: context.Background(), Name: "fs", As: "fs", Config: cfg})
+	_, err = mod.NewModuleFactory(providerapi.ModuleSetupContext{Context: context.Background(), Name: "fs", As: "fs", Config: cfg})
 	if err == nil || !strings.Contains(err.Error(), "separate aliases") {
 		t.Fatalf("expected separate aliases error, got %v", err)
 	}
@@ -186,7 +186,7 @@ func TestExecAllowedCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal config: %v", err)
 	}
-	loader, err := mod.New(providerapi.ModuleContext{Context: context.Background(), Name: "exec", As: "exec", Config: cfg})
+	loader, err := mod.NewModuleFactory(providerapi.ModuleSetupContext{Context: context.Background(), Name: "exec", As: "exec", Config: cfg})
 	if err != nil {
 		t.Fatalf("new exec loader: %v", err)
 	}

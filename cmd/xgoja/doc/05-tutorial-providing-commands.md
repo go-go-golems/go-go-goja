@@ -68,7 +68,7 @@ When `runtimeProfile` is set, `CommandSetContext.SelectedModules` contains the s
 ```go
 sections, err := providerutil.CollectConfigSections(
     c.SelectedModules,
-    providerapi.SectionContext{CommandProviderID: c.Name, RuntimeProfile: c.RuntimeProfile},
+    providerapi.SectionRequest{CommandProviderID: c.Name, RuntimeProfile: c.RuntimeProfile},
     map[string]string{schema.DefaultSlug: "command schema"},
 )
 if err != nil {

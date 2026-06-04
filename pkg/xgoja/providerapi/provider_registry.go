@@ -147,7 +147,7 @@ func (p *Package) addModule(module Module) error {
 	if name == "" {
 		return fmt.Errorf("module name is required")
 	}
-	if module.New == nil {
+	if module.NewModuleFactory == nil {
 		return fmt.Errorf("module %q factory is required", name)
 	}
 	if _, ok := p.Modules[name]; ok {

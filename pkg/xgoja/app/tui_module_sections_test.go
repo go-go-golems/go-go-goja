@@ -24,7 +24,7 @@ func TestNewXGojaTUIEvaluatorInitializesRuntimeFromModuleSections(t *testing.T) 
 	called := false
 	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runtimeInitCapability{
 		id: "tui-init",
-		fn: func(context.Context, *values.Values, providerapi.RuntimeHandle) error {
+		fn: func(context.Context, *values.Values, providerapi.RuntimeInitializerHandle) error {
 			called = true
 			return nil
 		},

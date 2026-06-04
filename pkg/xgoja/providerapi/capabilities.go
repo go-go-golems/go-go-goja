@@ -10,11 +10,11 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 )
 
-// SectionContext describes why a module's configuration sections are being
+// SectionRequest describes why a module's configuration sections are being
 // requested. Built-in commands should set CommandName and RuntimeProfile;
 // custom command providers should set CommandProviderID and, when applicable,
 // RuntimeProfile or ModuleSelector.
-type SectionContext struct {
+type SectionRequest struct {
 	CommandName       string
 	CommandProviderID string
 	RuntimeProfile    string
@@ -41,12 +41,12 @@ type PackageCapability interface {
 // attached to built-in commands or package-owned command providers.
 type ConfigSectionCapability interface {
 	PackageCapability
-	ConfigSections(SectionContext) ([]schema.Section, error)
+	ConfigSections(SectionRequest) ([]schema.Section, error)
 }
 
-// RuntimeHandle is the minimal handle passed to runtime initializers. It avoids
+// RuntimeInitializerHandle is the minimal handle passed to runtime initializers. It avoids
 // making providerapi depend on the concrete app or engine runtime type.
-type RuntimeHandle interface {
+type RuntimeInitializerHandle interface {
 	Runtime() *goja.Runtime
 	Close(context.Context) error
 }
@@ -62,7 +62,7 @@ type RuntimeCloserRegistry interface {
 // configures it from parsed Glazed sections.
 type RuntimeInitializerCapability interface {
 	PackageCapability
-	InitRuntimeFromSections(context.Context, *values.Values, RuntimeHandle) error
+	InitRuntimeFromSections(context.Context, *values.Values, RuntimeInitializerHandle) error
 }
 
 type capabilityEntry struct {

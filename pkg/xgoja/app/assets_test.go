@@ -44,7 +44,7 @@ func TestRuntimeFactoryPassesRuntimeOwnerToModules(t *testing.T) {
 	registry := providerapi.NewRegistry()
 	if err := registry.Package("fixture", providerapi.Module{
 		Name: "owner-check",
-		New: func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
+		NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 			if ctx.RuntimeOwner == nil {
 				t.Fatalf("expected module context runtime owner")
 			}
@@ -79,7 +79,7 @@ func TestRuntimeFactoryPassesHostServicesToModules(t *testing.T) {
 	registry := providerapi.NewRegistry()
 	if err := registry.Package("fixture", providerapi.Module{
 		Name: "asset-check",
-		New: func(ctx providerapi.ModuleContext) (require.ModuleLoader, error) {
+		NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 			resolver := ctx.Host.AssetResolver()
 			fsys, root, ok := resolver.ResolveAsset("app")
 			if !ok {

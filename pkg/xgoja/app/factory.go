@@ -36,7 +36,7 @@ func (s providerRuntimeModuleSpec) RegisterRuntimeModule(ctx *engine.RuntimeModu
 	if err != nil {
 		return fmt.Errorf("marshal config for %s.%s: %w", s.instance.Package, s.instance.Name, err)
 	}
-	loader, err := s.module.New(providerapi.ModuleContext{
+	loader, err := s.module.NewModuleFactory(providerapi.ModuleSetupContext{
 		Context:      ctx.Context,
 		Name:         s.instance.Name,
 		As:           s.instance.Alias(),

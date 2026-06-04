@@ -161,7 +161,7 @@ Fixture provider help body.
 `)},
 	}
 	if err := registry.Package("fixture",
-		providerapi.Module{Name: "hello", New: noopAppModuleFactory},
+		providerapi.Module{Name: "hello", NewModuleFactory: noopAppModuleFactory},
 		providerapi.HelpSource{Name: "docs", FS: docs, Root: "."},
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
@@ -567,6 +567,6 @@ func captureStdout(t *testing.T, fn func()) string {
 	return string(data)
 }
 
-func noopAppModuleFactory(providerapi.ModuleContext) (require.ModuleLoader, error) {
+func noopAppModuleFactory(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 	return func(vm *goja.Runtime, module *goja.Object) {}, nil
 }

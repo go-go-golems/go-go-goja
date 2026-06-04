@@ -9,9 +9,9 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 )
 
-type ModuleFactory func(ModuleContext) (require.ModuleLoader, error)
-
-type ModuleContext struct {
+// ModuleSetupContext is passed to a provider module while it creates the
+// CommonJS module loader for one selected runtime module instance.
+type ModuleSetupContext struct {
 	Context      context.Context
 	Name         string
 	As           string
@@ -28,12 +28,15 @@ type HostServices interface {
 	AssetResolver() AssetResolver
 }
 
+// Module describes a provider-owned native module that xgoja can select into a
+// runtime profile. NewModuleFactory creates the CommonJS loader during runtime
+// setup for each selected module instance.
 type Module struct {
-	Name         string
-	DefaultAs    string
-	Description  string
-	ConfigSchema json.RawMessage
-	New          ModuleFactory
+	Name             string
+	DefaultAs        string
+	Description      string
+	ConfigSchema     json.RawMessage
+	NewModuleFactory func(ModuleSetupContext) (require.ModuleLoader, error)
 }
 
 func (m Module) applyToPackage(pkg *Package) error {

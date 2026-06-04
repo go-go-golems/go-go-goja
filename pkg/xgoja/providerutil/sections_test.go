@@ -18,7 +18,7 @@ func TestCollectConfigSectionsRejectsDuplicateSlugs(t *testing.T) {
 		{PackageID: "pkg-a", ModuleID: "mod-a", PackageCapabilities: []providerapi.PackageCapability{sectionCapability{slug: "shared"}}},
 		{PackageID: "pkg-b", ModuleID: "mod-b", PackageCapabilities: []providerapi.PackageCapability{sectionCapability{slug: "shared"}}},
 	}
-	_, err := CollectConfigSections(descriptors, providerapi.SectionContext{CommandName: "run"}, nil)
+	_, err := CollectConfigSections(descriptors, providerapi.SectionRequest{CommandName: "run"}, nil)
 	if err == nil || !strings.Contains(err.Error(), "duplicate config section slug") {
 		t.Fatalf("expected duplicate slug error, got %v", err)
 	}
@@ -26,7 +26,7 @@ func TestCollectConfigSectionsRejectsDuplicateSlugs(t *testing.T) {
 
 func TestCollectConfigSectionsRejectsNilSection(t *testing.T) {
 	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{nilSectionCapability{}}}}
-	_, err := CollectConfigSections(descriptors, providerapi.SectionContext{}, nil)
+	_, err := CollectConfigSections(descriptors, providerapi.SectionRequest{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "nil config section") {
 		t.Fatalf("expected nil section error, got %v", err)
 	}
@@ -38,7 +38,7 @@ func TestCollectConfigSectionsDedupesSamePackageCapability(t *testing.T) {
 		{PackageID: "pkg", ModuleID: "first", PackageCapabilities: []providerapi.PackageCapability{capability}},
 		{PackageID: "pkg", ModuleID: "second", PackageCapabilities: []providerapi.PackageCapability{capability}},
 	}
-	sections, err := CollectConfigSections(descriptors, providerapi.SectionContext{}, nil)
+	sections, err := CollectConfigSections(descriptors, providerapi.SectionRequest{}, nil)
 	if err != nil {
 		t.Fatalf("collect config sections: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestCollectConfigSectionsDedupesSamePackageCapability(t *testing.T) {
 
 func TestCollectConfigSectionsRejectsEmptySlug(t *testing.T) {
 	descriptors := []providerapi.ModuleDescriptor{{PackageID: "pkg", ModuleID: "mod", PackageCapabilities: []providerapi.PackageCapability{emptySlugCapability{}}}}
-	_, err := CollectConfigSections(descriptors, providerapi.SectionContext{}, nil)
+	_, err := CollectConfigSections(descriptors, providerapi.SectionRequest{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "empty slug") {
 		t.Fatalf("expected empty slug error, got %v", err)
 	}
@@ -104,7 +104,7 @@ func TestInitRuntimeFromSectionsDedupesSamePackageCapability(t *testing.T) {
 type sectionCapability struct{ slug string }
 
 func (c sectionCapability) CapabilityID() string { return "section" }
-func (c sectionCapability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (c sectionCapability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	section, err := schema.NewSection(c.slug, "Section", schema.WithFields(fields.New("value", fields.TypeString)))
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ type countingSectionCapability struct {
 }
 
 func (c *countingSectionCapability) CapabilityID() string { return "counting-section" }
-func (c *countingSectionCapability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (c *countingSectionCapability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	c.calls++
 	section, err := schema.NewSection(c.slug, "Section", schema.WithFields(fields.New("value", fields.TypeString)))
 	if err != nil {
@@ -130,14 +130,14 @@ func (c *countingSectionCapability) ConfigSections(providerapi.SectionContext) (
 type nilSectionCapability struct{}
 
 func (nilSectionCapability) CapabilityID() string { return "nil-section" }
-func (nilSectionCapability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (nilSectionCapability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	return []schema.Section{nil}, nil
 }
 
 type emptySlugCapability struct{}
 
 func (emptySlugCapability) CapabilityID() string { return "empty-section" }
-func (emptySlugCapability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (emptySlugCapability) ConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	return []schema.Section{&schema.SectionImpl{}}, nil
 }
 
@@ -145,12 +145,12 @@ type runtimeInitCapability struct {
 	called bool
 	calls  int
 	vals   *values.Values
-	handle providerapi.RuntimeHandle
+	handle providerapi.RuntimeInitializerHandle
 	err    error
 }
 
 func (c runtimeInitCapability) CapabilityID() string { return "runtime-init" }
-func (c *runtimeInitCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+func (c *runtimeInitCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle) error {
 	c.called = true
 	c.calls++
 	c.vals = vals

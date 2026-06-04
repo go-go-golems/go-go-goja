@@ -48,7 +48,7 @@ func nativeModuleEntry(mod modules.NativeModule) providerapi.Module {
 		Name:        mod.Name(),
 		DefaultAs:   mod.Name(),
 		Description: mod.Doc(),
-		New: func(providerapi.ModuleContext) (require.ModuleLoader, error) {
+		NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 			return mod.Loader, nil
 		},
 	}

@@ -11,58 +11,70 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: go-go-goja/GLOSSARY.md
+    - Path: GLOSSARY.md
       Note: |-
         Added top-level glossary defining the *Spec pattern.
         Top-level *Spec pattern definition
         Updated top-level *Spec pattern examples for app DTOs
         Updated BuildSpec and RuntimeSpec glossary examples
         ProviderRegistry glossary entry
-    - Path: go-go-goja/cmd/xgoja/cmd_list_modules.go
+    - Path: cmd/xgoja/cmd_list_modules.go
       Note: CLI helper updated to use RuntimeSpec
-    - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
+    - Path: cmd/xgoja/internal/buildspec/build_spec.go
       Note: BuildSpec and ConfigFileSpec source
+    - Path: cmd/xgoja/internal/buildspec/validate.go
+      Note: Buildspec validation signature updated for RuntimeSpec
+    - Path: cmd/xgoja/internal/generate/main.go
+      Note: |-
+        Embedded runtime JSON payload updated to use renamed buildspec DTO types
+        Embedded runtime JSON emits configFile
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/spec.go
       Note: |-
         Renamed buildspec Runtime/ModuleInstance/CommandProviderInstance DTO types to explicit *Spec names.
         Buildspec DTO type rename source
         Added build-time spec file documentation
-    - Path: go-go-goja/cmd/xgoja/internal/buildspec/validate.go
-      Note: Buildspec validation signature updated for RuntimeSpec
-    - Path: go-go-goja/cmd/xgoja/internal/generate/main.go
-      Note: |-
-        Embedded runtime JSON payload updated to use renamed buildspec DTO types
-        Embedded runtime JSON emits configFile
-    - Path: go-go-goja/pkg/xgoja/app/command_providers.go
+    - Path: go-go-goja/pkg/xgoja/app/spec.go
+      Note: Runtime-side embedded DTO type rename source
+    - Path: pkg/xgoja/app/command_providers.go
       Note: Command provider helpers updated to use CommandProviderInstanceSpec
-    - Path: go-go-goja/pkg/xgoja/app/factory.go
+    - Path: pkg/xgoja/app/factory.go
       Note: |-
         RuntimeFactory updated to use ModuleInstanceSpec
         RuntimeFactory stores runtimeSpec
-    - Path: go-go-goja/pkg/xgoja/app/host.go
+        Calls module NewModuleFactory with ModuleSetupContext
+    - Path: pkg/xgoja/app/host.go
       Note: |-
         Host field renamed to RuntimeSpec
         Generated app host accepts ProviderRegistry
-    - Path: go-go-goja/pkg/xgoja/app/middlewares.go
+    - Path: pkg/xgoja/app/middlewares.go
       Note: Config-file middleware reads RuntimeSpec.ConfigFile
-    - Path: go-go-goja/pkg/xgoja/app/root.go
+    - Path: pkg/xgoja/app/root.go
       Note: Root construction and verb scanning use ProviderRegistry
-    - Path: go-go-goja/pkg/xgoja/app/runtime_spec.go
+    - Path: pkg/xgoja/app/runtime_spec.go
       Note: RuntimeSpec
-    - Path: go-go-goja/pkg/xgoja/app/spec.go
-      Note: Runtime-side embedded DTO type rename source
-    - Path: go-go-goja/pkg/xgoja/providerapi/commands.go
+    - Path: pkg/xgoja/providerapi/capabilities.go
+      Note: SectionRequest and RuntimeInitializerHandle definitions
+    - Path: pkg/xgoja/providerapi/commands.go
       Note: CommandSetContext now carries ProviderRegistry
-    - Path: go-go-goja/pkg/xgoja/providerapi/provider_registry.go
+    - Path: pkg/xgoja/providerapi/module.go
+      Note: ModuleSetupContext and Module.NewModuleFactory definitions
+    - Path: pkg/xgoja/providerapi/provider_registry.go
       Note: ProviderRegistry type and registry implementation
-    - Path: go-go-goja/pkg/xgoja/providers/core/core.go
+    - Path: pkg/xgoja/providers/core/core.go
       Note: Provider registration signature updated
+    - Path: pkg/xgoja/providers/host/host.go
+      Note: Provider module declarations updated
+    - Path: pkg/xgoja/providers/http/http.go
+      Note: Capability and module declaration updated
+    - Path: pkg/xgoja/providerutil/sections.go
+      Note: Uses SectionRequest and RuntimeInitializerHandle
 ExternalSources: []
 Summary: 'Diary for the first symbol-name simplification: buildspec runtime/module/command-provider DTOs now use explicit *Spec names.'
 LastUpdated: 2026-06-04T00:00:00Z
 WhatFor: Use when reviewing the focused commit that renamed buildspec DTO types to make the *Spec pattern explicit.
 WhenToUse: Before continuing generic-symbol cleanup or renaming runtime profile DTOs in the app runtime spec.
 ---
+
 
 
 
@@ -441,6 +453,83 @@ The main naming collision to avoid was with `require.Registry` and `jsverbs.Regi
 
 - Start with `pkg/xgoja/providerapi/provider_registry.go` and verify only the type/file names changed.
 - Review `pkg/xgoja/providerapi/commands.go` and `pkg/xgoja/app/host.go` for API surface updates.
+- Validate with: `cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`.
+
+### Technical details
+
+Command run:
+
+```bash
+cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1
+```
+
+## Step 6: Rename Provider API Setup Request Types
+
+I renamed another set of provider API types and fields that were still too generic. Section collection now receives a `SectionRequest`, module loader setup now receives a `ModuleSetupContext`, module definitions expose `NewModuleFactory`, and runtime initialization receives a `RuntimeInitializerHandle`.
+
+This also removed the standalone exported `ModuleFactory` function type. The function signature now lives directly on `providerapi.Module.NewModuleFactory`, which keeps the API smaller while making the field name self-describing at provider module declaration sites.
+
+### Prompt Context
+
+**User prompt (verbatim):** "- rename capabilities.go SectionContext to SectionRequest                                                                                                                                                   
+- ModuleContext in providerapi/module.go to ModuleSetupContext                                                                                                                                              
+- Module.New in providerapi/module.go to Module.NewModuleFactory  
+- fold the type definition for ModuleFactory into Module itself, no need to expose it as a type 
+- RuntimeHandle to RuntimeInitializerHandle in capabilities.go
+-"
+
+**Assistant interpretation:** Rename provider API context/handle types and the module factory field, and inline the module factory function type into the `Module` struct.
+
+**Inferred user intent:** Make provider API names describe the phase and direction of each request instead of using generic context/handle/factory names.
+
+**Commit (code):** pending at diary write time.
+
+### What I did
+
+- Renamed `providerapi.SectionContext` to `providerapi.SectionRequest`.
+- Renamed `providerapi.ModuleContext` to `providerapi.ModuleSetupContext`.
+- Renamed `providerapi.Module.New` to `providerapi.Module.NewModuleFactory`.
+- Removed exported `ModuleFactory` and inlined `func(ModuleSetupContext) (require.ModuleLoader, error)` on `Module.NewModuleFactory`.
+- Renamed `providerapi.RuntimeHandle` to `providerapi.RuntimeInitializerHandle`.
+- Updated providers, app runtime setup, providerutil, tests, and xgoja provider docs.
+- Ran targeted tests:
+  - `go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`
+
+### Why
+
+The old names hid important lifecycle details. `ModuleSetupContext` makes it clear that provider modules are being configured before a loader is registered. `SectionRequest` reads as a request for sections rather than ambient context. `RuntimeInitializerHandle` clarifies that the handle is specifically for runtime initializer capabilities, not a general runtime abstraction.
+
+### What worked
+
+- The final targeted xgoja test run passed.
+- Inlining the module factory function type did not require any behavioral changes.
+
+### What didn't work
+
+- A broad `.New` replacement accidentally renamed unrelated constructors such as `goja.New`, `fields.New`, `values.New`, `fsmod.New`, and `dbm.New` to `NewModuleFactory`. I reverted those non-provider-module constructors and kept only `providerapi.Module` field/call-site changes.
+- The first test run after the broad rename failed because several `providerapi.Module{New: ...}` test fixtures still used the old field name.
+
+### What I learned
+
+- `New` is too common for blind replacement. Future field renames should target `providerapi.Module` literals and `Module` values specifically, not every `.New` selector.
+
+### What was tricky to build
+
+The tricky part was separating `providerapi.Module.New` from other `New` concepts in the same files, especially `CommandSetProvider.New`, `goja.New`, `fields.New`, and `values.New`. `CommandSetProvider.New` intentionally remains unchanged because the user only requested the module setup factory rename.
+
+### What warrants a second pair of eyes
+
+- Confirm `NewModuleFactory` is the desired field name even though it returns a `require.ModuleLoader`, not a factory object.
+- Confirm `CommandSetProvider.New` should remain as-is.
+
+### What should be done in the future
+
+- Consider follow-up docs explaining the provider lifecycle around `ModuleSetupContext` and `RuntimeInitializerHandle`.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/providerapi/module.go` and `pkg/xgoja/providerapi/capabilities.go`.
+- Review `pkg/xgoja/app/factory.go` to verify the module setup call now uses `NewModuleFactory(ModuleSetupContext{...})`.
 - Validate with: `cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`.
 
 ### Technical details
