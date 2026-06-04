@@ -1,0 +1,30 @@
+name: geppetto-host-services
+appName: geppetto-host-services
+target:
+  kind: xgoja
+  output: dist/geppetto-host-services
+packages:
+  - id: geppetto
+    import: github.com/go-go-golems/geppetto/pkg/js/modules/geppetto/provider
+    replace: ../../../../geppetto
+  - id: geppetto-host-services-example
+    import: github.com/go-go-golems/geppetto/pkg/js/modules/geppetto/provider/hostservicesexample
+    replace: ../../../../geppetto
+runtimes:
+  main:
+    modules:
+      - package: geppetto
+        name: geppetto
+        as: geppetto
+      - package: geppetto-host-services-example
+        name: host-services
+        as: geppetto-host-services
+commands:
+  jsverbs:
+    enabled: true
+    runtime: main
+    name: verbs
+jsverbs:
+  - id: local
+    path: ./verbs
+    embed: true

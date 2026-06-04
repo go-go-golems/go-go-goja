@@ -16,6 +16,8 @@ Each example directory has its own `README.md`, `Makefile`, and `xgoja.yaml`. St
 8. `08-provider-shipped-jsverbs/` — JS verbs live inside a Go provider package and are selected by `package`/`source`.
 9. `09-provider-shipped-help-docs/` — Glazed help pages live inside a Go provider package and are selected by `help.sources[].package`/`source`.
 10. `10-embedded-assets-fs/` — local files are embedded into the generated binary and read through `require("fs:assets")`, while host writes use `require("fs:host")`.
+11. `11-config-env/` — generated binaries read Glazed config files and environment variables according to `appName`, `envPrefix`, and `config` settings.
+12. `12-geppetto-host-services/` — generated Geppetto jsverbs use profile flags, a SQLite turn store, contributed Go tools, contributed Go middleware, and a JSONL event sink.
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 
@@ -36,6 +38,8 @@ for dir in \
   make -C examples/xgoja/$dir smoke
 done
 ```
+
+`11-config-env/` and `12-geppetto-host-services/` are intentionally omitted from the bulk loop. `11-config-env/` is a command/config fixture rather than a Makefile-based smoke, and `12-geppetto-host-services/` depends on a sibling checkout of `geppetto` plus optional live profile credentials for the full inference smoke.
 
 The Makefiles use:
 
