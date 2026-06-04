@@ -116,9 +116,14 @@ func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, profile str
 	if len(runtimeServices.closers) > 0 {
 		modules = append([]engine.RuntimeModuleRegistrar{hostServiceCloserRegistrar{closers: runtimeServices.closers}}, modules...)
 	}
+	includePanicStack, err := includeRecoveredPanicStack(vals)
+	if err != nil {
+		return nil, err
+	}
 	builder := engine.NewRuntimeFactoryBuilder(
 		engine.WithImplicitDefaultRegistryModules(false),
 		engine.WithDataOnlyDefaultRegistryModules(false),
+		engine.WithRecoveredPanicStack(includePanicStack),
 	).WithModules(modules...)
 	if len(opts) > 0 {
 		builder = builder.WithRequireOptions(opts...)

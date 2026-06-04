@@ -42,13 +42,23 @@ func (f *RuntimeFactory) sectionsForRuntimeProfile(commandName, profile string) 
 	if err != nil {
 		return nil, nil, err
 	}
-	sections, err := providerutil.CollectGlazedConfigSections(descriptors, providerapi.SectionRequest{
-		CommandName:    commandName,
-		RuntimeProfile: profile,
-	}, nil)
+	sections := []schema.Section{}
+	seen := map[string]string{}
+	xgojaSection, err := xgojaRuntimeSection()
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := providerutil.AppendUniqueSections(&sections, seen, []schema.Section{xgojaSection}, "xgoja runtime controls"); err != nil {
+		return nil, nil, err
+	}
+	providerSections, err := providerutil.CollectGlazedConfigSections(descriptors, providerapi.SectionRequest{
+		CommandName:    commandName,
+		RuntimeProfile: profile,
+	}, seen)
+	if err != nil {
+		return nil, nil, err
+	}
+	sections = append(sections, providerSections...)
 	return sections, descriptors, nil
 }
 

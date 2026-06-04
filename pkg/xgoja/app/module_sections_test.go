@@ -29,7 +29,7 @@ func TestRuntimeFactoryCollectsSectionsForRuntimeProfile(t *testing.T) {
 	if descriptors[0].PackageID != "fixture" || descriptors[0].ModuleID != "mod" || descriptors[0].As != "alias" {
 		t.Fatalf("descriptor = %#v", descriptors[0])
 	}
-	if got := sectionSlugs(sections); strings.Join(got, ",") != "alpha,beta" {
+	if got := sectionSlugs(sections); strings.Join(got, ",") != "xgoja,alpha,beta" {
 		t.Fatalf("section slugs = %v", got)
 	}
 }
@@ -77,7 +77,7 @@ func TestRuntimeFactoryAttachesPackageCapabilitiesToEverySelectedModule(t *testi
 	if err != nil {
 		t.Fatalf("sections should dedupe same package capability: %v", err)
 	}
-	if got := sectionSlugs(sections); strings.Join(got, ",") != "fixture" {
+	if got := sectionSlugs(sections); strings.Join(got, ",") != "xgoja,fixture" {
 		t.Fatalf("section slugs = %v", got)
 	}
 }
