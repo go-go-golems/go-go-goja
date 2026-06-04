@@ -127,10 +127,14 @@ func setFixtureValue(vals *values.Values, handle providerapi.RuntimeInitializerH
 		return err
 	}
 	runtime := handle.Runtime()
-	if runtime == nil {
-		runtime = goja.New()
+	vm := (*goja.Runtime)(nil)
+	if runtime != nil {
+		vm = runtime.VM
 	}
-	if err := runtime.Set("fixtureValue", prefix+settings.Value); err != nil {
+	if vm == nil {
+		vm = goja.New()
+	}
+	if err := vm.Set("fixtureValue", prefix+settings.Value); err != nil {
 		return err
 	}
 	return nil

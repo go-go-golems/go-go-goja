@@ -99,10 +99,10 @@ func (FixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values
 	if err := vals.DecodeSectionInto("fixture", &settings); err != nil {
 		return err
 	}
-	if handle.Runtime() == nil {
+	if handle.Runtime() == nil || handle.Runtime().VM == nil {
 		return fmt.Errorf("runtime handle has no goja runtime")
 	}
-	return handle.Runtime().Set("fixtureValue", settings.Value)
+	return handle.Runtime().VM.Set("fixtureValue", settings.Value)
 }
 
 func FixtureSection() (schema.Section, error) {

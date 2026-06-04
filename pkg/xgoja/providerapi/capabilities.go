@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dop251/goja"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 // SectionRequest describes why a module's configuration sections are being
@@ -44,10 +44,12 @@ type ConfigSectionCapability interface {
 	ConfigSections(SectionRequest) ([]schema.Section, error)
 }
 
-// RuntimeInitializerHandle is the minimal handle passed to runtime initializers. It avoids
-// making providerapi depend on the concrete app or engine runtime type.
+// RuntimeInitializerHandle is the runtime-facing handle passed to runtime
+// initializers. It exposes the owned engine runtime so providers can access the
+// Goja VM, event loop, runtime owner, closer registry, and other runtime-scoped
+// services when installing runtime functionality.
 type RuntimeInitializerHandle interface {
-	Runtime() *goja.Runtime
+	Runtime() *engine.Runtime
 	Close(context.Context) error
 }
 

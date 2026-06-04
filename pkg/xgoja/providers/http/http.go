@@ -77,9 +77,10 @@ func (c *capability) ConfigSections(providerapi.SectionRequest) ([]schema.Sectio
 
 func (c *capability) InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle) error {
 	_ = ctx
-	if handle == nil || handle.Runtime() == nil {
+	if handle == nil || handle.Runtime() == nil || handle.Runtime().VM == nil {
 		return fmt.Errorf("http provider runtime handle is nil")
 	}
+	runtime := handle.Runtime()
 	cfg := settings{Enabled: false, Listen: "127.0.0.1:8787"}
 	if vals != nil {
 		cfg.Enabled = true
@@ -87,13 +88,13 @@ func (c *capability) InitRuntimeFromSections(ctx context.Context, vals *values.V
 			return err
 		}
 	}
-	entry := c.entry(handle.Runtime())
+	entry := c.entry(runtime.VM)
 	entry.mu.Lock()
 	entry.settings = normalizeSettings(cfg)
 	entry.mu.Unlock()
 	if closer, ok := handle.(providerapi.RuntimeCloserRegistry); ok {
 		return closer.AddCloser(func(ctx context.Context) error {
-			return c.shutdownRuntime(ctx, handle.Runtime())
+			return c.shutdownRuntime(ctx, runtime.VM)
 		})
 	}
 	return nil

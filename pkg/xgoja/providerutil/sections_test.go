@@ -10,6 +10,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
@@ -66,7 +67,7 @@ func TestInitRuntimeFromSectionsCallsInitializers(t *testing.T) {
 	if err := InitRuntimeFromSections(context.Background(), vals, handle, descriptors); err != nil {
 		t.Fatalf("init runtime: %v", err)
 	}
-	if !initializer.called || initializer.vals != vals || initializer.handle.Runtime() != handle.vm {
+	if !initializer.called || initializer.vals != vals || initializer.handle.Runtime().VM != handle.vm {
 		t.Fatalf("initializer not called with expected values: %#v", initializer)
 	}
 }
@@ -160,5 +161,7 @@ func (c *runtimeInitCapability) InitRuntimeFromSections(_ context.Context, vals 
 
 type fakeRuntimeHandle struct{ vm *goja.Runtime }
 
-func (h fakeRuntimeHandle) Runtime() *goja.Runtime      { return h.vm }
+func (h fakeRuntimeHandle) Runtime() *engine.Runtime {
+	return &engine.Runtime{VM: h.vm}
+}
 func (h fakeRuntimeHandle) Close(context.Context) error { return nil }

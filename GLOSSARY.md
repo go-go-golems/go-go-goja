@@ -24,7 +24,7 @@ Contrast with non-spec patterns:
 - `providerapi.Module`: provider module definition with a `NewModuleFactory` setup hook.
 - `providerapi.ModuleSetupContext`: setup-time inputs passed while creating a selected module's CommonJS loader.
 - `providerapi.SectionRequest`: request metadata passed when collecting provider configuration sections.
-- `providerapi.RuntimeInitializerHandle`: runtime handle passed to provider runtime initializer capabilities.
+- `providerapi.RuntimeInitializerHandle`: runtime handle passed to provider runtime initializer capabilities; exposes the owned `*engine.Runtime`.
 - `providerapi.ProviderRegistry`: active registry of provider packages, modules, command sets, help sources, and capabilities.
 - `require.ModuleLoader`: CommonJS loader that populates `module.exports`.
 

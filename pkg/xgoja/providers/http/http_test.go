@@ -7,6 +7,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
@@ -121,5 +122,7 @@ type testRuntimeInitializerHandle struct {
 	vm *goja.Runtime
 }
 
-func (h testRuntimeInitializerHandle) Runtime() *goja.Runtime      { return h.vm }
+func (h testRuntimeInitializerHandle) Runtime() *engine.Runtime {
+	return &engine.Runtime{VM: h.vm}
+}
 func (h testRuntimeInitializerHandle) Close(context.Context) error { return nil }

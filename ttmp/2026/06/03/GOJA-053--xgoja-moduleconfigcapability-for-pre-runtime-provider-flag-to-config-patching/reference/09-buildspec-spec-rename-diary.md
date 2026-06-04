@@ -18,6 +18,7 @@ RelatedFiles:
         Updated top-level *Spec pattern examples for app DTOs
         Updated BuildSpec and RuntimeSpec glossary examples
         ProviderRegistry glossary entry
+        RuntimeInitializerHandle glossary updated
     - Path: go-go-goja/README.md
       Note: Root package layout docs updated for pkg/engine
     - Path: go-go-goja/cmd/xgoja/cmd_list_modules.go
@@ -55,6 +56,8 @@ RelatedFiles:
         Generated app host accepts ProviderRegistry
     - Path: go-go-goja/pkg/xgoja/app/middlewares.go
       Note: Config-file middleware reads RuntimeSpec.ConfigFile
+    - Path: go-go-goja/pkg/xgoja/app/module_sections.go
+      Note: Concrete runtime initializer handle returns JSRuntime/engine.Runtime
     - Path: go-go-goja/pkg/xgoja/app/root.go
       Note: Root construction and verb scanning use ProviderRegistry
     - Path: go-go-goja/pkg/xgoja/app/runtime_spec.go
@@ -62,7 +65,9 @@ RelatedFiles:
     - Path: go-go-goja/pkg/xgoja/app/spec.go
       Note: Runtime-side embedded DTO type rename source
     - Path: go-go-goja/pkg/xgoja/providerapi/capabilities.go
-      Note: SectionRequest and RuntimeInitializerHandle definitions
+      Note: |-
+        SectionRequest and RuntimeInitializerHandle definitions
+        RuntimeInitializerHandle now exposes engine.Runtime
     - Path: go-go-goja/pkg/xgoja/providerapi/commands.go
       Note: |-
         CommandSetContext now carries ProviderRegistry
@@ -76,15 +81,22 @@ RelatedFiles:
     - Path: go-go-goja/pkg/xgoja/providers/host/host.go
       Note: Provider module declarations updated
     - Path: go-go-goja/pkg/xgoja/providers/http/http.go
-      Note: Capability and module declaration updated
+      Note: |-
+        Capability and module declaration updated
+        Provider uses handle Runtime().VM and runtime closer
     - Path: go-go-goja/pkg/xgoja/providerutil/sections.go
-      Note: Uses SectionRequest and RuntimeInitializerHandle
+      Note: |-
+        Uses SectionRequest and RuntimeInitializerHandle
+        Validates runtime initializer handle
+    - Path: go-go-goja/pkg/xgoja/testprovider/provider.go
+      Note: Fixture initializer uses handle Runtime().VM
 ExternalSources: []
 Summary: 'Diary for the first symbol-name simplification: buildspec runtime/module/command-provider DTOs now use explicit *Spec names.'
 LastUpdated: 2026-06-04T00:00:00Z
 WhatFor: Use when reviewing the focused commit that renamed buildspec DTO types to make the *Spec pattern explicit.
 WhenToUse: Before continuing generic-symbol cleanup or renaming runtime profile DTOs in the app runtime spec.
 ---
+
 
 
 
@@ -622,4 +634,75 @@ Commands run:
 ```bash
 cd go-go-goja && go test ./pkg/engine ./pkg/xgoja/... ./cmd/xgoja/... -count=1
 git commit -m "Move engine package under pkg" # failed first time in pre-commit on stale ttmp script imports
+```
+
+## Step 8: Expose Engine Runtime Through Runtime Initializer Handle
+
+I changed `providerapi.RuntimeInitializerHandle` so runtime initializer capabilities receive access to the owned `*engine.Runtime`, not only the raw `*goja.Runtime`. Providers can still reach the Goja VM through `handle.Runtime().VM`, but they can now also use runtime-scoped services such as the event loop, runtime owner, values map, closer registration, and lifecycle context.
+
+This makes the handle match the purpose of runtime initialization: these capabilities are not just installing globals into a bare VM; they may need to attach engine-managed resources that participate in xgoja's runtime lifecycle.
+
+### Prompt Context
+
+**User prompt (verbatim):** "export engine.Runtime through RuntimeInitializerHandler in case they need access to the event loop or need to install other runtime relevant functionality"
+
+**Assistant interpretation:** Change the runtime initializer handle API so it exposes the xgoja/engine runtime wrapper rather than only the underlying Goja VM.
+
+**Inferred user intent:** Give providers enough runtime context to install event-loop/lifecycle-aware functionality during runtime initialization.
+
+**Commit (code):** 3200d84518e97d4e6ba67619bd9a7096c00e7763 — "Expose engine runtime to provider initializers"
+
+### What I did
+
+- Changed `providerapi.RuntimeInitializerHandle.Runtime()` from `*goja.Runtime` to `*engine.Runtime`.
+- Updated the app runtime handle adapter to return the owned runtime wrapper directly.
+- Updated HTTP and fixture providers to use `handle.Runtime().VM` when they specifically need the Goja VM.
+- Updated providerutil and tests to use fake `engine.Runtime` handles.
+- Updated docs and glossary references to explain that `RuntimeInitializerHandle` exposes the owned engine runtime.
+- Ran targeted tests:
+  - `go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`
+
+### Why
+
+Runtime initializer capabilities may need more than a raw VM. The engine runtime contains the event loop, owner, values map, lifecycle context, and closer support, all of which are relevant when installing runtime-scoped provider functionality.
+
+### What worked
+
+- Targeted xgoja tests passed.
+- Existing providers only needed small `.VM` adjustments where they were setting globals or indexing Goja-runtime keyed state.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The handle name was already lifecycle-oriented; returning `*engine.Runtime` makes the API behavior match that name better than returning the raw `*goja.Runtime`.
+
+### What was tricky to build
+
+The main invariant was preserving simple VM access for existing providers while expanding the handle API. I kept the method name `Runtime()` and made callers use `.VM` explicitly when they need the raw Goja runtime, which makes Goja-vs-engine usage visible at call sites.
+
+### What warrants a second pair of eyes
+
+- Confirm whether the method should stay `Runtime()` or become `EngineRuntime()` for even more explicitness.
+- Confirm whether `RuntimeCloserRegistry` remains useful now that `handle.Runtime().AddCloser(...)` is directly available.
+
+### What should be done in the future
+
+- Consider simplifying or removing `RuntimeCloserRegistry` if all runtime initializer handles are expected to expose `*engine.Runtime`.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/providerapi/capabilities.go`.
+- Review `pkg/xgoja/app/module_sections.go` to see the concrete handle adapter.
+- Review provider call sites such as `pkg/xgoja/providers/http/http.go` and `pkg/xgoja/testprovider/provider.go` for `.Runtime().VM` usage.
+- Validate with: `cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1`.
+
+### Technical details
+
+Command run:
+
+```bash
+cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1
 ```

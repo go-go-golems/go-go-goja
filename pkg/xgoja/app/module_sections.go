@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dop251/goja"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
@@ -86,11 +85,8 @@ type runtimeHandle struct {
 	rt *JSRuntime
 }
 
-func (h runtimeHandle) Runtime() *goja.Runtime {
-	if h.rt == nil {
-		return nil
-	}
-	return h.rt.VM
+func (h runtimeHandle) Runtime() *JSRuntime {
+	return h.rt
 }
 
 func (h runtimeHandle) Close(ctx context.Context) error {
