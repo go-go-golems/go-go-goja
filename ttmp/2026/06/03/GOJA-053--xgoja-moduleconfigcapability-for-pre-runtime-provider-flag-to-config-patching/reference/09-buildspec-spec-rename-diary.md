@@ -936,7 +936,7 @@ also Remove the Profiel / AllowRegistryLoad / Netowrk/Tools/EnableStorage / Turn
 
 **Inferred user intent:** Land the runtime config feature incrementally with clear checkpoints and prepare Geppetto to use the new provider-owned mapping model.
 
-**Commit (code):** pending at diary write time.
+**Commit (code):** 8c1b0c5abf35ed1d3327c2aabfe6ded47203b544 — "Add xgoja glazed config mapping"
 
 ### What I did
 
