@@ -178,3 +178,14 @@ Ran a Pinocchio-hosted Geppetto JS smoke test with the Pinocchio profile registr
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/pinocchio/cmd/pinocchio/cmds/js.go — Pinocchio JS host used for profile and turn-store smoke
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/pinocchio/cmd/examples/scopedjs-tui-demo/environment.go — Downstream engine API import migration
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/09-buildspec-spec-rename-diary.md — Recorded smoke-test details and validation caveats
+
+## 2026-06-04
+
+Added Geppetto provider `turns-dsn` / `turns-db` support backed by a provider-local SQLite turn store, changed public Geppetto runtime flags to Pinocchio-style `profile-registries`, `profile`, `turns-dsn`, and `turns-db`, then built and ran a literal generated xgoja jsverb that resolved a Pinocchio profile and persisted/read back a final Geppetto turn (Geppetto commit 67a8571).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/provider.go — Public Glazed flags, internal xgoja config mapping, no-host provider defaults, and turn-store option application
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/sqlite_turn_store.go — Provider-local SQLite TurnStore implementation for generated xgoja binaries
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/geppetto/pkg/js/modules/geppetto/provider/provider_test.go — Tests for no-host provider setup, flag mapping, and SQLite turn-store persistence
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/03/GOJA-053--xgoja-moduleconfigcapability-for-pre-runtime-provider-flag-to-config-patching/reference/09-buildspec-spec-rename-diary.md — Recorded generated jsverb smoke details

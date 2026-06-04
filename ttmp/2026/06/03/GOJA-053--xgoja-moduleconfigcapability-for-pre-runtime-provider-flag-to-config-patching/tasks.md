@@ -41,6 +41,8 @@
 - [x] Remove Geppetto provider config fields `Profile`, `AllowRegistryLoad`, `AllowNetwork`, `AllowTools`, `EnableStorage`, and nested `Turns`.
 - [x] Rename Geppetto provider config `ProfileRegistries` to `DefaultProfileRegistries`.
 - [x] Add Geppetto `XGojaConfigSectionCapability` for internal module config.
-- [x] Add Geppetto `GlazedConfigSectionCapability` flags for supported runtime overrides (`default-profile-registries`, `default-profile`); turn-store flags were intentionally omitted after removing provider storage config.
+- [x] Add Geppetto `GlazedConfigSectionCapability` flags for supported runtime overrides (`profile-registries`, `profile`, `turns-dsn`, `turns-db`).
 - [x] Add Geppetto config mapping from Glazed values into internal xgoja module config before module setup.
 - [x] Update Geppetto provider tests for simplified config and renamed registry field.
+- [x] Add Geppetto provider SQLite-backed default turn store for explicit `turns-dsn` / `turns-db` runtime flags.
+- [x] Run a literal generated xgoja jsverb using `require("geppetto")`, Pinocchio `profiles.yaml`, `--profile`, and `--turns-db`; verify persisted store contents.
