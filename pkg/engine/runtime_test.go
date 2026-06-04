@@ -50,7 +50,7 @@ func TestNewRuntimeUsesStartupContextForInitializers(t *testing.T) {
 	startupCtx := context.WithValue(context.Background(), contextKey("startup"), "yes")
 	factory, err := NewBuilder().WithRuntimeInitializers(testRuntimeInitializer{
 		id: "startup-context",
-		fn: func(ctx *RuntimeContext) error {
+		fn: func(ctx *RuntimeInitializationContext) error {
 			if got := ctx.Context.Value(contextKey("startup")); got != "yes" {
 				return fmt.Errorf("startup context value = %#v, want yes", got)
 			}
@@ -81,7 +81,7 @@ func TestNewRuntimeRejectsCanceledStartupContext(t *testing.T) {
 	}
 }
 
-func TestRuntimeContextUsesLifetimeContext(t *testing.T) {
+func TestRuntimeInitializationContextUsesLifetimeContext(t *testing.T) {
 	lifetimeCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	factory, err := NewBuilder().Build()
@@ -136,7 +136,7 @@ func TestRuntimeCloseRunsClosersBeforeDeletingRuntimeServices(t *testing.T) {
 	}
 }
 
-func TestRuntimeContextCancelsOnClose(t *testing.T) {
+func TestRuntimeInitializationContextCancelsOnClose(t *testing.T) {
 	factory, err := NewBuilder().Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
@@ -169,12 +169,12 @@ type contextKey string
 
 type testRuntimeInitializer struct {
 	id string
-	fn func(*RuntimeContext) error
+	fn func(*RuntimeInitializationContext) error
 }
 
 func (i testRuntimeInitializer) ID() string { return i.id }
 
-func (i testRuntimeInitializer) InitRuntime(ctx *RuntimeContext) error {
+func (i testRuntimeInitializer) InitRuntime(ctx *RuntimeInitializationContext) error {
 	if i.fn == nil {
 		return nil
 	}

@@ -225,7 +225,7 @@ func TestAppWithRuntimeAutoRestoresPersistentSession(t *testing.T) {
 	}
 }
 
-func newAdapterTestFactory(t *testing.T) *engine.Factory {
+func newAdapterTestFactory(t *testing.T) *engine.RuntimeFactory {
 	t.Helper()
 
 	factory, err := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe()).Build()

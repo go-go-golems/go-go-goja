@@ -9,18 +9,18 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 )
 
-// RuntimeModuleSpec registers one or more require() modules for a concrete
+// RuntimeModuleRegistrar registers one or more require() modules for a concrete
 // runtime instance. All engine modules are runtime-aware: they receive the VM,
 // event loop, owner, startup context, closer registry, and value bag before the
 // require registry is enabled. Runtime lifetime is available through
 // runtimebridge.RuntimeServices once a module loader runs against a VM.
-type RuntimeModuleSpec interface {
+type RuntimeModuleRegistrar interface {
 	ID() string
-	RegisterRuntimeModule(ctx *RuntimeModuleContext, reg *require.Registry) error
+	RegisterRuntimeModule(ctx *RuntimeModuleRegistrationContext, reg *require.Registry) error
 }
 
-// RuntimeModuleContext exposes runtime-scoped objects to module specs.
-type RuntimeModuleContext struct {
+// RuntimeModuleRegistrationContext exposes runtime-scoped objects to module specs.
+type RuntimeModuleRegistrationContext struct {
 	Context   context.Context
 	VM        *goja.Runtime
 	Loop      *eventloop.EventLoop
@@ -29,7 +29,7 @@ type RuntimeModuleContext struct {
 	Values    map[string]any
 }
 
-func (ctx *RuntimeModuleContext) SetValue(key string, value any) {
+func (ctx *RuntimeModuleRegistrationContext) SetValue(key string, value any) {
 	if ctx == nil || key == "" {
 		return
 	}
@@ -39,7 +39,7 @@ func (ctx *RuntimeModuleContext) SetValue(key string, value any) {
 	ctx.Values[key] = value
 }
 
-func (ctx *RuntimeModuleContext) Value(key string) (any, bool) {
+func (ctx *RuntimeModuleRegistrationContext) Value(key string) (any, bool) {
 	if ctx == nil || ctx.Values == nil || key == "" {
 		return nil, false
 	}

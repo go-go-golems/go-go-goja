@@ -139,7 +139,7 @@ That means plugin support is explicit at composition time.
 
 ### 3. The engine provides the runtime-scoped seam
 
-`engine.RuntimeModuleSpec` is the central extension seam. A runtime module spec receives:
+`engine.RuntimeModuleRegistrar` is the central extension seam. A runtime module spec receives:
 
 - the runtime context,
 - the runtime-owned `require.Registry`,
@@ -214,7 +214,7 @@ The order matters. The runtime module registration phase must happen before `reg
 
 This section maps the main code objects to their jobs.
 
-### `engine.RuntimeModuleSpec`
+### `engine.RuntimeModuleRegistrar`
 
 File: `pkg/engine/runtime_modules.go`
 

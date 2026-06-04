@@ -22,7 +22,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func newFactory(t *testing.T) *engine.Factory {
+func newFactory(t *testing.T) *engine.RuntimeFactory {
 	t.Helper()
 	factory, err := engine.NewBuilder().Build()
 	if err != nil {

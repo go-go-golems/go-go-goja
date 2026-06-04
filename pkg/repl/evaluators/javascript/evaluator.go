@@ -82,7 +82,7 @@ type Config struct {
 	PluginReporter     *host.ReportCollector
 	HelpSources        []docaccessruntime.HelpSource
 	JSDocSources       []docaccessruntime.JSDocSource
-	RuntimeModules     []ggjengine.RuntimeModuleSpec
+	RuntimeModules     []ggjengine.RuntimeModuleRegistrar
 	CustomModules      map[string]interface{}
 	// Runtime, when set, reuses an existing VM instead of creating a new one.
 	Runtime *goja.Runtime

@@ -41,7 +41,7 @@ func runtimeInvokerFactory(settings *RuntimeSettings) InvokerFactory {
 	}
 }
 
-func newRuntimeFactory(repo ScannedRepository, settings *RuntimeSettings) (*engine.Factory, func(), error) {
+func newRuntimeFactory(repo ScannedRepository, settings *RuntimeSettings) (*engine.RuntimeFactory, func(), error) {
 	if repo.Registry == nil {
 		return nil, nil, fmt.Errorf("repository %s has no jsverbs registry", describeRepository(repo))
 	}
@@ -50,7 +50,7 @@ func newRuntimeFactory(repo ScannedRepository, settings *RuntimeSettings) (*engi
 	}
 
 	cleanup := func() {}
-	moduleSpecs := []engine.RuntimeModuleSpec{}
+	moduleSpecs := []engine.RuntimeModuleRegistrar{}
 	if settings.DBPath != "" {
 		db, err := sql.Open("sqlite3", settings.DBPath)
 		if err != nil {

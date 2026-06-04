@@ -17,11 +17,11 @@ import (
 // require setup.
 type RuntimeInitializer interface {
 	ID() string
-	InitRuntime(ctx *RuntimeContext) error
+	InitRuntime(ctx *RuntimeInitializationContext) error
 }
 
-// RuntimeContext exposes runtime-scoped objects to initializers.
-type RuntimeContext struct {
+// RuntimeInitializationContext exposes runtime-scoped objects to initializers.
+type RuntimeInitializationContext struct {
 	Context context.Context
 	VM      *goja.Runtime
 	Require *require.RequireModule
@@ -30,7 +30,7 @@ type RuntimeContext struct {
 	Values  map[string]any
 }
 
-func (ctx *RuntimeContext) SetValue(key string, value any) {
+func (ctx *RuntimeInitializationContext) SetValue(key string, value any) {
 	if ctx == nil || key == "" {
 		return
 	}
@@ -40,7 +40,7 @@ func (ctx *RuntimeContext) SetValue(key string, value any) {
 	ctx.Values[key] = value
 }
 
-func (ctx *RuntimeContext) Value(key string) (any, bool) {
+func (ctx *RuntimeInitializationContext) Value(key string) (any, bool) {
 	if ctx == nil || ctx.Values == nil || key == "" {
 		return nil, false
 	}
@@ -62,7 +62,7 @@ func (s NativeModuleSpec) ID() string {
 	return "native:" + strings.TrimSpace(s.ModuleName)
 }
 
-func (s NativeModuleSpec) RegisterRuntimeModule(_ *RuntimeModuleContext, reg *require.Registry) error {
+func (s NativeModuleSpec) RegisterRuntimeModule(_ *RuntimeModuleRegistrationContext, reg *require.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}
@@ -89,7 +89,7 @@ func (s namedDefaultRegistryModulesSpec) ID() string {
 	return "default-registry-modules:" + strings.Join(s.names, ",")
 }
 
-func (s namedDefaultRegistryModulesSpec) RegisterRuntimeModule(_ *RuntimeModuleContext, reg *require.Registry) error {
+func (s namedDefaultRegistryModulesSpec) RegisterRuntimeModule(_ *RuntimeModuleRegistrationContext, reg *require.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}
@@ -140,7 +140,7 @@ func expandDefaultRegistryModuleNames(names []string) []string {
 	return ret
 }
 
-func defaultRegistryModule(name string) RuntimeModuleSpec {
+func defaultRegistryModule(name string) RuntimeModuleRegistrar {
 	name = strings.TrimSpace(name)
 	return namedDefaultRegistryModulesSpec{
 		id:    "default-registry-module:" + name,
@@ -148,7 +148,7 @@ func defaultRegistryModule(name string) RuntimeModuleSpec {
 	}
 }
 
-func defaultRegistryModulesNamed(names ...string) RuntimeModuleSpec {
+func defaultRegistryModulesNamed(names ...string) RuntimeModuleRegistrar {
 	trimmed := make([]string, 0, len(names))
 	for _, name := range names {
 		if strings.TrimSpace(name) != "" {
@@ -163,7 +163,7 @@ func defaultRegistryModulesNamed(names ...string) RuntimeModuleSpec {
 
 var dataOnlyDefaultRegistryModuleNames = []string{"crypto", "node:crypto", "events", "node:events", "path", "node:path", "time", "timer"}
 
-func dataOnlyDefaultRegistryModules() RuntimeModuleSpec {
+func dataOnlyDefaultRegistryModules() RuntimeModuleRegistrar {
 	return defaultRegistryModulesNamed(dataOnlyDefaultRegistryModuleNames...)
 }
 
@@ -196,7 +196,7 @@ type processModuleSpec struct{}
 
 func (processModuleSpec) ID() string { return "native:process" }
 
-func (processModuleSpec) RegisterRuntimeModule(_ *RuntimeModuleContext, reg *require.Registry) error {
+func (processModuleSpec) RegisterRuntimeModule(_ *RuntimeModuleRegistrationContext, reg *require.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}
@@ -205,10 +205,10 @@ func (processModuleSpec) RegisterRuntimeModule(_ *RuntimeModuleContext, reg *req
 	return nil
 }
 
-// ProcessModule returns a RuntimeModuleSpec that registers require("process") and
+// ProcessModule returns a RuntimeModuleRegistrar that registers require("process") and
 // require("node:process") for this runtime factory only. It is opt-in because
 // process.env exposes host environment variables.
-func ProcessModule() RuntimeModuleSpec {
+func ProcessModule() RuntimeModuleRegistrar {
 	return processModuleSpec{}
 }
 
@@ -218,7 +218,7 @@ func (p processEnvInitializer) ID() string {
 	return "process-env"
 }
 
-func (p processEnvInitializer) InitRuntime(ctx *RuntimeContext) error {
+func (p processEnvInitializer) InitRuntime(ctx *RuntimeInitializationContext) error {
 	if ctx == nil || ctx.VM == nil {
 		return fmt.Errorf("runtime context or VM is nil")
 	}

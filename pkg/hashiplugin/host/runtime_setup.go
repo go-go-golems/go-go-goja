@@ -33,7 +33,7 @@ func NewRuntimeSetup(directories, allowModules []string) RuntimeSetup {
 	}
 }
 
-func (s RuntimeSetup) WithBuilder(builder *engine.FactoryBuilder) *engine.FactoryBuilder {
+func (s RuntimeSetup) WithBuilder(builder *engine.RuntimeFactoryBuilder) *engine.RuntimeFactoryBuilder {
 	if builder == nil {
 		return nil
 	}

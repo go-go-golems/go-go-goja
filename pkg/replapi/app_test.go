@@ -191,7 +191,7 @@ func TestAppDeletedSessionIsHiddenFromRestoreAndHistory(t *testing.T) {
 	}
 }
 
-func newTestFactory(t *testing.T) *engine.Factory {
+func newTestFactory(t *testing.T) *engine.RuntimeFactory {
 	t.Helper()
 
 	factory, err := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe()).Build()

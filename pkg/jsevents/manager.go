@@ -82,7 +82,7 @@ func Install(opts ...Option) engine.RuntimeInitializer {
 
 func (i *installer) ID() string { return "jsevents.manager" }
 
-func (i *installer) InitRuntime(ctx *engine.RuntimeContext) error {
+func (i *installer) InitRuntime(ctx *engine.RuntimeInitializationContext) error {
 	if ctx == nil || ctx.Owner == nil {
 		return fmt.Errorf("jsevents: incomplete runtime context")
 	}

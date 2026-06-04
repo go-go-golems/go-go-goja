@@ -19,6 +19,7 @@ RelatedFiles:
         Updated BuildSpec and RuntimeSpec glossary examples
         ProviderRegistry glossary entry
         RuntimeInitializerHandle glossary updated
+        Glossary updated with engine runtime factory and registration names
     - Path: go-go-goja/README.md
       Note: Root package layout docs updated for pkg/engine
     - Path: go-go-goja/cmd/xgoja/cmd_list_modules.go
@@ -39,9 +40,15 @@ RelatedFiles:
     - Path: go-go-goja/pkg/doc/16-nodejs-primitives.md
       Note: Engine import and implementation map docs updated
     - Path: go-go-goja/pkg/engine/factory.go
-      Note: Moved engine builder/factory package under pkg/engine
+      Note: |-
+        Moved engine builder/factory package under pkg/engine
+        RuntimeFactoryBuilder/RuntimeFactory rename and runtime creation phase boundary
+    - Path: go-go-goja/pkg/engine/module_specs.go
+      Note: RuntimeInitializationContext rename and engine initializer API
     - Path: go-go-goja/pkg/engine/runtime.go
       Note: Moved engine runtime package under pkg/engine
+    - Path: go-go-goja/pkg/engine/runtime_modules.go
+      Note: RuntimeModuleRegistrar and RuntimeModuleRegistrationContext rename
     - Path: go-go-goja/pkg/xgoja/app/command_providers.go
       Note: Command provider helpers updated to use CommandProviderInstanceSpec
     - Path: go-go-goja/pkg/xgoja/app/factory.go
@@ -50,6 +57,7 @@ RelatedFiles:
         RuntimeFactory stores runtimeSpec
         Calls module NewModuleFactory with ModuleSetupContext
         xgoja runtime factory imports pkg/engine
+        xgoja engine registrar adapter updated
     - Path: go-go-goja/pkg/xgoja/app/host.go
       Note: |-
         Host field renamed to RuntimeSpec
@@ -96,6 +104,7 @@ LastUpdated: 2026-06-04T00:00:00Z
 WhatFor: Use when reviewing the focused commit that renamed buildspec DTO types to make the *Spec pattern explicit.
 WhenToUse: Before continuing generic-symbol cleanup or renaming runtime profile DTOs in the app runtime spec.
 ---
+
 
 
 
@@ -705,4 +714,95 @@ Command run:
 
 ```bash
 cd go-go-goja && go test ./pkg/xgoja/... ./cmd/xgoja/... -count=1
+```
+
+## Step 9: Clarify Engine Runtime Factory and Registration Names
+
+I renamed the low-level engine package's generic factory and context names so they describe the runtime lifecycle phase they belong to. The public engine API now distinguishes the mutable runtime factory builder, the immutable runtime factory, runtime module registration, and post-require runtime initialization.
+
+This continues the same cleanup pattern from the xgoja provider API changes: names should explain whether a type describes a declarative configuration object, registers modules into a concrete runtime, initializes an already-built runtime, or creates runtime instances.
+
+### Prompt Context
+
+**User prompt (verbatim):** "in pkg/engine, rename FactoryBuilder to RuntimeFactoryBuilder and Factory to RuntimeFactory 
+- RuntimeModuleSpec to RuntimeModuleRegistrar
+- RuntimeModuleContext to RuntimeModuleRegistrationContext
+- RuntimeContext to RuntimeInitializationContext
+- 
+
+update the glossary, and point out remaining confusing names / patterns when done"
+
+**Assistant interpretation:** Apply a focused engine API rename pass, update downstream call sites and docs, then record the remaining naming risks.
+
+**Inferred user intent:** Make the reusable engine package's public API match the clarified naming model before continuing GOJA-053 runtime configuration work.
+
+**Commit (code):** 8e18893cdbd461f97d246d4527d8c7ecf5723ac4 — "Clarify engine runtime factory names"
+
+### What I did
+
+- Renamed engine factory API types:
+  - `engine.FactoryBuilder` → `engine.RuntimeFactoryBuilder`
+  - `engine.Factory` → `engine.RuntimeFactory`
+- Renamed engine runtime module registration types:
+  - `engine.RuntimeModuleSpec` → `engine.RuntimeModuleRegistrar`
+  - `engine.RuntimeModuleContext` → `engine.RuntimeModuleRegistrationContext`
+- Renamed engine runtime initializer context:
+  - `engine.RuntimeContext` → `engine.RuntimeInitializationContext`
+- Updated downstream Go call sites in engine users, including docaccess, hashiplugin host, jsevents, jsverbscli, repl/replapi/replsession, xgoja app, fuzz helpers, and runtime-module tests.
+- Updated current project docs under `pkg/doc/`, `README.md`, and `GLOSSARY.md` for the new names.
+- Ran focused validation:
+  - `go test ./pkg/engine ./pkg/hashiplugin/... ./pkg/docaccess/... ./pkg/jsverbscli ./pkg/jsevents ./pkg/repl/... ./pkg/replapi ./pkg/replsession ./pkg/xgoja/... ./cmd/xgoja/... -count=1`
+
+### Why
+
+`Factory`, `RuntimeModuleSpec`, and `RuntimeContext` were too generic after the broader xgoja cleanup. `RuntimeModuleSpec` was especially misleading because the type performs registration work for a concrete runtime; it is not a declarative DTO in the `*Spec` sense documented in `GLOSSARY.md`.
+
+### What worked
+
+- The mechanical rename was clean across current source and targeted tests passed.
+- The new names align with the phase boundaries in `engine.NewBuilder().Build().NewRuntime(...)`.
+
+### What didn't work
+
+- Some historical ticket docs still mention the old names. I updated current docs and source-facing docs, but did not rewrite archival ticket evidence because those documents describe prior work and would create unrelated churn.
+
+### What I learned
+
+- The engine has two different `RuntimeFactory` concepts now: `engine.RuntimeFactory` for low-level engine runtimes and `pkg/xgoja/app.RuntimeFactory` for named xgoja runtime profiles. The package qualifier makes this tolerable, but it is still worth calling out during review.
+
+### What was tricky to build
+
+The trickiest part was avoiding overbroad replacement of unrelated generic `Factory` names. I replaced package-qualified engine usages and unqualified names inside `pkg/engine`, then validated with ripgrep and focused tests. I intentionally left xgoja's own `app.RuntimeFactory` in place because it is a different abstraction: a named-profile runtime factory built on top of engine runtime creation.
+
+### What warrants a second pair of eyes
+
+- Confirm whether `NativeModuleSpec` should also be renamed, because it still uses `*Spec` even though it registers a native module loader.
+- Confirm whether the duplicate name `engine.RuntimeFactory` and `app.RuntimeFactory` is acceptable with package qualification.
+- Confirm whether `NewBuilder()` should be renamed to `NewRuntimeFactoryBuilder()` or kept short.
+
+### What should be done in the future
+
+- Consider a small follow-up rename for `NativeModuleSpec` if the team wants to remove all registration-performing `*Spec` names from the engine package.
+- Consider documenting `engine.RuntimeFactory` vs `app.RuntimeFactory` more explicitly in xgoja docs.
+
+### Code review instructions
+
+- Start with `pkg/engine/factory.go`, `pkg/engine/runtime_modules.go`, and `pkg/engine/module_specs.go`.
+- Review representative downstream adapters:
+  - `pkg/xgoja/app/factory.go`
+  - `pkg/hashiplugin/host/registrar.go`
+  - `pkg/docaccess/runtime/registrar.go`
+  - `pkg/jsevents/manager.go`
+- Validate with: `cd go-go-goja && go test ./pkg/engine ./pkg/hashiplugin/... ./pkg/docaccess/... ./pkg/jsverbscli ./pkg/jsevents ./pkg/repl/... ./pkg/replapi ./pkg/replsession ./pkg/xgoja/... ./cmd/xgoja/... -count=1`.
+
+### Technical details
+
+Current phase model:
+
+```text
+engine.NewBuilder() -> *RuntimeFactoryBuilder
+RuntimeFactoryBuilder.Build() -> *RuntimeFactory
+RuntimeFactory.NewRuntime(...) -> *Runtime
+RuntimeModuleRegistrar.RegisterRuntimeModule(RuntimeModuleRegistrationContext, require.Registry)
+RuntimeInitializer.InitRuntime(RuntimeInitializationContext)
 ```

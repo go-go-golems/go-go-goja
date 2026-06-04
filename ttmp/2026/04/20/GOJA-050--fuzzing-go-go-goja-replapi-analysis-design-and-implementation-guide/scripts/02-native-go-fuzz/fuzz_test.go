@@ -22,7 +22,7 @@ import (
 )
 
 // newTestFactory creates a factory with default modules for testing.
-func newTestFactory(t *testing.T) *engine.Factory {
+func newTestFactory(t *testing.T) *engine.RuntimeFactory {
 	t.Helper()
 	factory, err := engine.NewBuilder().Build()
 	if err != nil {

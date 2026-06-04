@@ -41,7 +41,7 @@ func WithName(name string) Option {
 
 func (r *Registrar) ID() string { return "express-http" }
 
-func (r *Registrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleContext, reg *require.Registry) error {
+func (r *Registrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleRegistrationContext, reg *require.Registry) error {
 	if r.host == nil {
 		return fmt.Errorf("express registrar requires host")
 	}

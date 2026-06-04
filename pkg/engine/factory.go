@@ -27,38 +27,38 @@ func (o runtimebridgeOwner) Post(ctx context.Context, op string, fn func(context
 	return o.owner.Post(ctx, op, runtimeowner.PostFunc(fn))
 }
 
-// FactoryBuilder composes explicit module and runtime initializer configuration
-// before producing an immutable Factory.
-type FactoryBuilder struct {
+// RuntimeFactoryBuilder composes explicit module and runtime initializer configuration
+// before producing an immutable RuntimeFactory.
+type RuntimeFactoryBuilder struct {
 	settings builderSettings
 
-	modules             []RuntimeModuleSpec
+	modules             []RuntimeModuleRegistrar
 	moduleMiddlewares   []ModuleMiddleware
 	runtimeInitializers []RuntimeInitializer
 	built               bool
 }
 
-// Factory creates runtime instances from an immutable build plan.
-type Factory struct {
+// RuntimeFactory creates runtime instances from an immutable build plan.
+type RuntimeFactory struct {
 	settings            builderSettings
-	modules             []RuntimeModuleSpec
+	modules             []RuntimeModuleRegistrar
 	runtimeInitializers []RuntimeInitializer
 }
 
 // NewBuilder starts a new explicit runtime composition flow.
-func NewBuilder(opts ...Option) *FactoryBuilder {
+func NewBuilder(opts ...Option) *RuntimeFactoryBuilder {
 	settings := defaultBuilderSettings()
 	for _, opt := range opts {
 		if opt != nil {
 			opt(&settings)
 		}
 	}
-	return &FactoryBuilder{
+	return &RuntimeFactoryBuilder{
 		settings: settings,
 	}
 }
 
-func (b *FactoryBuilder) assertMutable() {
+func (b *RuntimeFactoryBuilder) assertMutable() {
 	if b == nil {
 		panic("engine builder is nil")
 	}
@@ -68,14 +68,14 @@ func (b *FactoryBuilder) assertMutable() {
 }
 
 // WithRequireOptions appends require options to the current builder.
-func (b *FactoryBuilder) WithRequireOptions(opts ...require.Option) *FactoryBuilder {
+func (b *RuntimeFactoryBuilder) WithRequireOptions(opts ...require.Option) *RuntimeFactoryBuilder {
 	b.assertMutable()
 	b.settings.requireOptions = append(b.settings.requireOptions, opts...)
 	return b
 }
 
 // WithModules appends runtime-aware module registrations.
-func (b *FactoryBuilder) WithModules(mods ...RuntimeModuleSpec) *FactoryBuilder {
+func (b *RuntimeFactoryBuilder) WithModules(mods ...RuntimeModuleRegistrar) *RuntimeFactoryBuilder {
 	b.assertMutable()
 	b.modules = append(b.modules, mods...)
 	return b
@@ -90,7 +90,7 @@ func (b *FactoryBuilder) WithModules(mods ...RuntimeModuleSpec) *FactoryBuilder 
 // Middlewares are applied in order: the first middleware wraps the subsequent
 // ones. Override middlewares (Safe, Only) replace the selection; transform
 // middlewares (Exclude, Add, Custom) modify the result of the next handler.
-func (b *FactoryBuilder) UseModuleMiddleware(mw ...ModuleMiddleware) *FactoryBuilder {
+func (b *RuntimeFactoryBuilder) UseModuleMiddleware(mw ...ModuleMiddleware) *RuntimeFactoryBuilder {
 	b.assertMutable()
 	b.moduleMiddlewares = append(b.moduleMiddlewares, mw...)
 	return b
@@ -98,7 +98,7 @@ func (b *FactoryBuilder) UseModuleMiddleware(mw ...ModuleMiddleware) *FactoryBui
 
 // WithRuntimeInitializers appends runtime initialization hooks executed for
 // each created runtime instance.
-func (b *FactoryBuilder) WithRuntimeInitializers(inits ...RuntimeInitializer) *FactoryBuilder {
+func (b *RuntimeFactoryBuilder) WithRuntimeInitializers(inits ...RuntimeInitializer) *RuntimeFactoryBuilder {
 	b.assertMutable()
 	b.runtimeInitializers = append(b.runtimeInitializers, inits...)
 	return b
@@ -119,14 +119,14 @@ func validateUniqueIDs[T interface{ ID() string }](entries []T, kind string) err
 	return nil
 }
 
-// Build validates and freezes the composition into an immutable Factory.
-func (b *FactoryBuilder) Build() (*Factory, error) {
+// Build validates and freezes the composition into an immutable RuntimeFactory.
+func (b *RuntimeFactoryBuilder) Build() (*RuntimeFactory, error) {
 	if b == nil {
 		return nil, fmt.Errorf("engine builder is nil")
 	}
 	b.assertMutable()
 
-	modules_ := make([]RuntimeModuleSpec, 0, len(b.modules))
+	modules_ := make([]RuntimeModuleRegistrar, 0, len(b.modules))
 	for i, mod := range b.modules {
 		if mod == nil {
 			return nil, fmt.Errorf("module spec at index %d is nil", i)
@@ -167,20 +167,20 @@ func (b *FactoryBuilder) Build() (*Factory, error) {
 
 	b.built = true
 
-	return &Factory{
+	return &RuntimeFactory{
 		settings: builderSettings{
 			requireOptions:                 append([]require.Option(nil), b.settings.requireOptions...),
 			implicitDefaultRegistryModules: b.settings.implicitDefaultRegistryModules,
 			dataOnlyDefaultRegistryModules: b.settings.dataOnlyDefaultRegistryModules,
 		},
-		modules:             append([]RuntimeModuleSpec(nil), modules_...),
+		modules:             append([]RuntimeModuleRegistrar(nil), modules_...),
 		runtimeInitializers: append([]RuntimeInitializer(nil), inits...),
 	}, nil
 }
 
 // NewRuntime creates a new owned runtime instance from this factory's frozen
 // composition plan.
-func (f *Factory) NewRuntime(opts ...RuntimeOption) (*Runtime, error) {
+func (f *RuntimeFactory) NewRuntime(opts ...RuntimeOption) (*Runtime, error) {
 	if f == nil {
 		return nil, fmt.Errorf("factory is nil")
 	}
@@ -232,7 +232,7 @@ func (f *Factory) NewRuntime(opts ...RuntimeOption) (*Runtime, error) {
 	})
 
 	reg := require.NewRegistry(f.settings.requireOptions...)
-	moduleCtx := &RuntimeModuleContext{
+	moduleCtx := &RuntimeModuleRegistrationContext{
 		Context:   startupCtx,
 		VM:        vm,
 		Loop:      loop,
@@ -267,7 +267,7 @@ func (f *Factory) NewRuntime(opts ...RuntimeOption) (*Runtime, error) {
 	}
 	rt.Require = reqMod
 
-	initCtx := &RuntimeContext{
+	initCtx := &RuntimeInitializationContext{
 		Context: startupCtx,
 		VM:      vm,
 		Require: reqMod,

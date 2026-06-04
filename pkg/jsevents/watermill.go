@@ -31,7 +31,7 @@ func WatermillHelper(opts WatermillOptions) engine.RuntimeInitializer {
 
 func (h *watermillHelper) ID() string { return "jsevents.watermill-helper" }
 
-func (h *watermillHelper) InitRuntime(ctx *engine.RuntimeContext) error {
+func (h *watermillHelper) InitRuntime(ctx *engine.RuntimeInitializationContext) error {
 	if ctx == nil || ctx.VM == nil {
 		return fmt.Errorf("jsevents watermill: incomplete runtime context")
 	}

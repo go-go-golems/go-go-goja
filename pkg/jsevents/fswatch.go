@@ -157,7 +157,7 @@ func FSWatchHelper(opts FSWatchOptions) engine.RuntimeInitializer {
 
 func (h *fsWatchHelper) ID() string { return "jsevents.fswatch-helper" }
 
-func (h *fsWatchHelper) InitRuntime(ctx *engine.RuntimeContext) error {
+func (h *fsWatchHelper) InitRuntime(ctx *engine.RuntimeInitializationContext) error {
 	if ctx == nil || ctx.VM == nil {
 		return fmt.Errorf("jsevents fswatch: incomplete runtime context")
 	}

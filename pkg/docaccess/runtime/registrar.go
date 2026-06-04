@@ -55,7 +55,7 @@ func (r *Registrar) ID() string {
 	return "docaccess-registrar"
 }
 
-func (r *Registrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleContext, reg *require.Registry) error {
+func (r *Registrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleRegistrationContext, reg *require.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}
@@ -80,7 +80,7 @@ func (r *Registrar) moduleName() string {
 	return name
 }
 
-func (r *Registrar) buildHub(ctx *engine.RuntimeModuleContext) (*docaccess.Hub, error) {
+func (r *Registrar) buildHub(ctx *engine.RuntimeModuleRegistrationContext) (*docaccess.Hub, error) {
 	hub := docaccess.NewHub()
 
 	helpSources := append([]HelpSource(nil), r.config.HelpSources...)

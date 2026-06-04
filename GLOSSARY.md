@@ -20,7 +20,12 @@ Examples:
 Contrast with non-spec patterns:
 
 - `engine.Runtime`: concrete VM/event-loop/require runtime with lifecycle.
-- `app.RuntimeFactory`: factory that creates concrete runtimes from runtime profiles.
+- `engine.RuntimeFactoryBuilder`: mutable builder that composes require options, runtime module registrars, module middleware, and runtime initializers before freezing them.
+- `engine.RuntimeFactory`: immutable engine runtime creation plan; creates concrete `engine.Runtime` instances.
+- `engine.RuntimeModuleRegistrar`: runtime-aware module registration contract; installs one or more `require()` modules for a concrete runtime.
+- `engine.RuntimeModuleRegistrationContext`: registration-phase context passed to `RuntimeModuleRegistrar.RegisterRuntimeModule`; exposes startup context, VM, event loop, owner, closer registration, and value bag before `require` is enabled.
+- `engine.RuntimeInitializationContext`: initialization-phase context passed to `RuntimeInitializer.InitRuntime` after VM and `require` setup.
+- `app.RuntimeFactory`: xgoja runtime-profile factory that creates concrete runtimes from named runtime profiles.
 - `providerapi.Module`: provider module definition with a `NewModuleFactory` setup hook.
 - `providerapi.ModuleSetupContext`: setup-time inputs passed while creating a selected module's CommonJS loader.
 - `providerapi.SectionRequest`: request metadata passed when collecting provider configuration sections.

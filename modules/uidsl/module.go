@@ -12,7 +12,7 @@ type Registrar struct{}
 
 func NewRegistrar() *Registrar  { return &Registrar{} }
 func (r *Registrar) ID() string { return "ui-dsl" }
-func (r *Registrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleContext, reg *require.Registry) error {
+func (r *Registrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleRegistrationContext, reg *require.Registry) error {
 	reg.RegisterNativeModule("ui.dsl", Loader)
 	reg.RegisterNativeModule("ui", Loader)
 	return nil

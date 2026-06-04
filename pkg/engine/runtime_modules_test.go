@@ -10,7 +10,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 )
 
-type testRuntimeModuleSpec struct {
+type testRuntimeModuleRegistrar struct {
 	mu     sync.Mutex
 	nextID int
 	closed []int
@@ -18,35 +18,35 @@ type testRuntimeModuleSpec struct {
 
 type testRegistrarFunc struct {
 	id string
-	fn func(ctx *RuntimeModuleContext, reg *require.Registry) error
+	fn func(ctx *RuntimeModuleRegistrationContext, reg *require.Registry) error
 }
 
 func (f testRegistrarFunc) ID() string {
 	return f.id
 }
 
-func (f testRegistrarFunc) RegisterRuntimeModule(ctx *RuntimeModuleContext, reg *require.Registry) error {
+func (f testRegistrarFunc) RegisterRuntimeModule(ctx *RuntimeModuleRegistrationContext, reg *require.Registry) error {
 	return f.fn(ctx, reg)
 }
 
 type testRuntimeInitializerFunc struct {
 	id string
-	fn func(ctx *RuntimeContext) error
+	fn func(ctx *RuntimeInitializationContext) error
 }
 
 func (f testRuntimeInitializerFunc) ID() string {
 	return f.id
 }
 
-func (f testRuntimeInitializerFunc) InitRuntime(ctx *RuntimeContext) error {
+func (f testRuntimeInitializerFunc) InitRuntime(ctx *RuntimeInitializationContext) error {
 	return f.fn(ctx)
 }
 
-func (r *testRuntimeModuleSpec) ID() string {
+func (r *testRuntimeModuleRegistrar) ID() string {
 	return "test-runtime-registrar"
 }
 
-func (r *testRuntimeModuleSpec) RegisterRuntimeModule(ctx *RuntimeModuleContext, reg *require.Registry) error {
+func (r *testRuntimeModuleRegistrar) RegisterRuntimeModule(ctx *RuntimeModuleRegistrationContext, reg *require.Registry) error {
 	r.mu.Lock()
 	r.nextID++
 	id := r.nextID
@@ -65,7 +65,7 @@ func (r *testRuntimeModuleSpec) RegisterRuntimeModule(ctx *RuntimeModuleContext,
 	})
 }
 
-func (r *testRuntimeModuleSpec) closedIDs() []int {
+func (r *testRuntimeModuleRegistrar) closedIDs() []int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	out := make([]int, len(r.closed))
@@ -73,8 +73,8 @@ func (r *testRuntimeModuleSpec) closedIDs() []int {
 	return out
 }
 
-func TestRuntimeModuleSpecRegistersPerRuntime(t *testing.T) {
-	registrar := &testRuntimeModuleSpec{}
+func TestRuntimeModuleRegistrarRegistersPerRuntime(t *testing.T) {
+	registrar := &testRuntimeModuleRegistrar{}
 
 	factory, err := NewBuilder().
 		WithModules(registrar).
@@ -154,7 +154,7 @@ func TestRuntimeCloseRunsClosersInReverseOrder(t *testing.T) {
 }
 
 func TestRuntimeCloseRunsRegistrarClosers(t *testing.T) {
-	registrar := &testRuntimeModuleSpec{}
+	registrar := &testRuntimeModuleRegistrar{}
 	factory, err := NewBuilder().
 		WithModules(registrar).
 		Build()
@@ -178,10 +178,10 @@ func TestRuntimeCloseRunsRegistrarClosers(t *testing.T) {
 }
 
 func TestRuntimePersistsRegistrarValues(t *testing.T) {
-	registrar := &testRuntimeModuleSpec{}
+	registrar := &testRuntimeModuleRegistrar{}
 
 	factory, err := NewBuilder().
-		WithModules(registrar, testRegistrarFunc{id: "value-registrar", fn: func(ctx *RuntimeModuleContext, reg *require.Registry) error {
+		WithModules(registrar, testRegistrarFunc{id: "value-registrar", fn: func(ctx *RuntimeModuleRegistrationContext, reg *require.Registry) error {
 			ctx.SetValue("runtime-id", 42)
 			return nil
 		}}).
@@ -209,11 +209,11 @@ func TestRuntimePersistsRegistrarValues(t *testing.T) {
 
 func TestRuntimeInitializersCanReadAndWriteRuntimeValues(t *testing.T) {
 	factory, err := NewBuilder().
-		WithModules(testRegistrarFunc{id: "seed-values", fn: func(ctx *RuntimeModuleContext, reg *require.Registry) error {
+		WithModules(testRegistrarFunc{id: "seed-values", fn: func(ctx *RuntimeModuleRegistrationContext, reg *require.Registry) error {
 			ctx.SetValue("phase", "registered")
 			return nil
 		}}).
-		WithRuntimeInitializers(testRuntimeInitializerFunc{id: "read-write-values", fn: func(ctx *RuntimeContext) error {
+		WithRuntimeInitializers(testRuntimeInitializerFunc{id: "read-write-values", fn: func(ctx *RuntimeInitializationContext) error {
 			value, ok := ctx.Value("phase")
 			if !ok {
 				return fmt.Errorf("phase value missing")
@@ -247,7 +247,7 @@ func TestRuntimeInitializersCanReadAndWriteRuntimeValues(t *testing.T) {
 
 func TestRuntimeInitializersPersistValuesWithoutRegistrarState(t *testing.T) {
 	factory, err := NewBuilder().
-		WithRuntimeInitializers(testRuntimeInitializerFunc{id: "seed-value", fn: func(ctx *RuntimeContext) error {
+		WithRuntimeInitializers(testRuntimeInitializerFunc{id: "seed-value", fn: func(ctx *RuntimeInitializationContext) error {
 			ctx.SetValue("initializer-only", "present")
 			return nil
 		}}).

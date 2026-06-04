@@ -131,7 +131,7 @@ func MyHelper(opts MyOptions) engine.RuntimeInitializer {
     return &myHelper{opts: opts}
 }
 
-func (h *myHelper) InitRuntime(ctx *engine.RuntimeContext) error {
+func (h *myHelper) InitRuntime(ctx *engine.RuntimeInitializationContext) error {
     managerValue, ok := ctx.Value(jsevents.RuntimeValueKey)
     if !ok {
         return fmt.Errorf("my helper: manager is not installed; add jsevents.Install() first")
