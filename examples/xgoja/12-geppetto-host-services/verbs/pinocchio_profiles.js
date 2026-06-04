@@ -4,15 +4,21 @@ function profileSmoke(sessionId) {
   const gp = require("geppetto");
   const settings = gp.inferenceProfiles.resolve();
   const snapshot = settings.toJSON();
+  const agent = gp.agent()
+    .name("xgoja-pinocchio-profile-smoke")
+    .inference(settings)
+    .build();
+  const session = agent.session().id(sessionId).build();
+
   return {
     source: "pinocchio/examples/js/runner-profile-smoke.js",
-    migration: "pure-geppetto-profile-resolution",
+    migration: "pure-geppetto-session-construction",
     profile: snapshot.provenance?.profileSlug || "",
     registry: snapshot.provenance?.registrySlug || "",
     model: snapshot.chat?.engine || "",
     apiType: snapshot.chat?.api_type || "",
-    session: sessionId,
-    note: "The original Pinocchio smoke also constructs a session without running inference; this xgoja port keeps the deterministic no-network check focused on profile resolution.",
+    session: session.id(),
+    hasSessionNext: typeof session.next === "function",
   };
 }
 
@@ -23,7 +29,7 @@ __verb__("profileSmoke", {
     sessionId: {
       argument: true,
       default: "xgoja-pinocchio-profile-smoke",
-      help: "Session ID echoed in the deterministic profile-resolution smoke"
+      help: "Session ID used to prove the agent can build a session"
     }
   }
 });

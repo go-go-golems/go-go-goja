@@ -21,11 +21,11 @@ This validates the buildspec, builds `dist/geppetto-host-services`, and prints t
 
 ## Run the Pinocchio profile smoke port
 
-This example includes a deterministic port of `pinocchio/examples/js/runner-profile-smoke.js` as an embedded xgoja jsverb. It uses only `require("geppetto")`, so it can run in a generated xgoja binary once the Geppetto provider has profile registry support. The original Pinocchio smoke also constructs a session without running inference; this xgoja port keeps the no-network smoke focused on profile resolution and leaves session execution to `profile-demo` and `demo run`.
+This example includes a deterministic port of `pinocchio/examples/js/runner-profile-smoke.js` as an embedded xgoja jsverb. It uses only `require("geppetto")`, so it can run in a generated xgoja binary once the Geppetto provider has profile registry support. The smoke resolves a profile, builds an agent, and constructs a session without running inference.
 
 ```bash
 make pinocchio-smoke \
-  BASIC_PROFILE_REGISTRIES="../../../../pinocchio/examples/js/profiles/basic.yaml" \
+  BASIC_PROFILE_REGISTRIES="profiles/basic.yaml" \
   BASIC_PROFILE=assistant
 ```
 
@@ -35,11 +35,11 @@ Expected output shape:
 [
   {
     "apiType": "openai",
-    "migration": "pure-geppetto-profile-resolution",
+    "hasSessionNext": true,
+    "migration": "pure-geppetto-session-construction",
     "model": "gpt-5-mini",
     "profile": "assistant",
     "registry": "workspace",
-    "note": "The original Pinocchio smoke also constructs a session without running inference; this xgoja port keeps the deterministic no-network check focused on profile resolution.",
     "session": "xgoja-pinocchio-profile-smoke",
     "source": "pinocchio/examples/js/runner-profile-smoke.js"
   }
@@ -101,7 +101,7 @@ A successful run should persist one final turn and write provider-call/text even
 
 | Pinocchio script | xgoja port | Classification | Notes |
 | --- | --- | --- | --- |
-| `pinocchio/examples/js/runner-profile-smoke.js` | `verbs/pinocchio_profiles.js` → `verbs pinocchio profile-smoke` | pure Geppetto, deterministic subset | Uses `require("geppetto")` and profile resolution. The original session-construction-only assertion is intentionally left out of the no-network port; live session execution is covered by `profile-demo` and `demo run`. |
+| `pinocchio/examples/js/runner-profile-smoke.js` | `verbs/pinocchio_profiles.js` → `verbs pinocchio profile-smoke` | pure Geppetto, deterministic session construction | Uses `require("geppetto")`, profile resolution, agent construction, and session construction without a live model call. |
 | `pinocchio/examples/js/runner-profile-demo.js` | `verbs/pinocchio_profiles.js` → `verbs pinocchio profile-demo` | pure Geppetto live inference | Uses `require("geppetto")`, profile resolution, session execution, and a live inference call. |
 | Scripts that call `require("pinocchio")` | not portable yet | Pinocchio-specific | These need a future Pinocchio provider package or a deliberate replacement module. xgoja should not import Pinocchio into core. |
 | Scripts that depend on host Go tools/middleware/event sinks | portable with contributors | Geppetto + host services | These can migrate once the required Go tool registries, middleware factories, and event sinks are provided by selected host-service contributor packages. |
