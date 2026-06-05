@@ -171,6 +171,20 @@ func TestHostServicesReturnsMultipleValues(t *testing.T) {
 	}
 }
 
+func TestHostServiceCollectorDoesNotDuplicateBaseServices(t *testing.T) {
+	collector := newHostServiceCollector(HostServices{Services: map[string][]any{"demo": {"base"}}})
+	services := collector.servicesForRuntime().services
+
+	lookup, ok := services.(providerapi.HostServiceLookup)
+	if !ok {
+		t.Fatalf("runtime services do not implement HostServiceLookup")
+	}
+	values := lookup.HostServiceValues("demo")
+	if len(values) != 1 || values[0] != "base" {
+		t.Fatalf("HostServiceValues = %#v, want single base value", values)
+	}
+}
+
 type hostServiceCapability struct {
 	key    string
 	value  any

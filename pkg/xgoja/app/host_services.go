@@ -21,20 +21,10 @@ type hostServiceCollector struct {
 var _ providerapi.HostServiceSink = (*hostServiceCollector)(nil)
 
 func newHostServiceCollector(base providerapi.HostServices) *hostServiceCollector {
-	collector := &hostServiceCollector{
+	return &hostServiceCollector{
 		base:     base,
 		services: map[string][]any{},
 	}
-	if concrete, ok := base.(HostServices); ok {
-		for key, values := range concrete.Services {
-			key = strings.TrimSpace(key)
-			if key == "" {
-				continue
-			}
-			collector.services[key] = append([]any(nil), values...)
-		}
-	}
-	return collector
 }
 
 func (c *hostServiceCollector) AddHostService(key string, value any) error {
