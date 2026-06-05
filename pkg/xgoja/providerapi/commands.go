@@ -11,6 +11,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 )
 
 // RuntimeFactory creates xgoja runtimes from the generated binary's single
@@ -20,6 +21,25 @@ import (
 type RuntimeFactory interface {
 	NewRuntime(ctx context.Context, opts ...require.Option) (*engine.Runtime, error)
 	NewRuntimeFromSections(ctx context.Context, vals *values.Values, opts ...require.Option) (*engine.Runtime, error)
+}
+
+// JSVerbSourceDescriptor describes one configured JavaScript verb source in the
+// generated binary's runtime spec.
+type JSVerbSourceDescriptor struct {
+	ID      string
+	Path    string
+	Embed   bool
+	Package string
+	Source  string
+}
+
+// JSVerbSourceSet lets command providers discover and scan the JavaScript verb
+// sources configured for the generated binary. Providers should use this instead
+// of reimplementing local, embedded, and provider-shipped source resolution.
+type JSVerbSourceSet interface {
+	ListJSVerbSources() []JSVerbSourceDescriptor
+	ScanJSVerbSource(id string) (*jsverbs.Registry, error)
+	ScanAllJSVerbSources() ([]*jsverbs.Registry, error)
 }
 
 // CommandSetContext is passed to command set providers when generated xgoja
@@ -34,6 +54,7 @@ type CommandSetContext struct {
 	Providers       *ProviderRegistry
 	RuntimeFactory  RuntimeFactory
 	SelectedModules []ModuleDescriptor
+	JSVerbs         JSVerbSourceSet
 }
 
 // CommandSetProvider registers a package-owned command factory.

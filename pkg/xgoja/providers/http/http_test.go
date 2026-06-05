@@ -2,6 +2,8 @@ package http
 
 import (
 	"context"
+	"net"
+	"strings"
 	"testing"
 
 	"github.com/dop251/goja"
@@ -18,6 +20,9 @@ func TestRegister(t *testing.T) {
 	}
 	if _, ok := registry.ResolveModule(PackageID, "express"); !ok {
 		t.Fatal("expected express module")
+	}
+	if _, ok := registry.ResolveCommandSetProvider(PackageID, "serve"); !ok {
+		t.Fatal("expected serve command provider")
 	}
 	caps, ok := registry.ResolvePackageCapabilities(PackageID)
 	if !ok || len(caps) != 1 {
@@ -87,6 +92,29 @@ func TestCapabilityAllowsExplicitHTTPDisable(t *testing.T) {
 	defer entry.mu.Unlock()
 	if entry.settings.Enabled || entry.settings.Listen != "127.0.0.1:9999" {
 		t.Fatalf("settings = %#v", entry.settings)
+	}
+}
+
+func TestCapabilityStartReportsPortConflictsSynchronously(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve listen address: %v", err)
+	}
+	defer func() { _ = listener.Close() }()
+
+	capability := newHTTPCapability()
+	vm := goja.New()
+	entry := capability.entry(vm)
+	entry.mu.Lock()
+	entry.settings = settings{Enabled: true, Listen: listener.Addr().String()}
+	entry.mu.Unlock()
+
+	err = capability.start(vm, entry)
+	if err == nil {
+		t.Fatal("expected port conflict error")
+	}
+	if !strings.Contains(err.Error(), "listen on ") {
+		t.Fatalf("expected listen error, got %v", err)
 	}
 }
 

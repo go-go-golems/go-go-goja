@@ -119,6 +119,8 @@ topics:
       description: HTTP servers, routing, and web serving
     - slug: verbs
       description: JavaScript verb command definitions and generated verb commands
+    - slug: application-integration
+      description: Integrating generated/runtime code into existing applications
 docTypes:
     - slug: index
       description: Index document for a ticket

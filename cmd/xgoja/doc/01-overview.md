@@ -88,6 +88,8 @@ A pure xgoja generated binary currently provides these command families:
 - `modules` lists provider modules registered in the binary.
 - the configured `jsverbs` command mounts JavaScript functions as Glazed/Cobra commands when enabled.
 
+Provider packages can also contribute command families. For example, the HTTP provider can mount `serve` commands that run JavaScript verbs as long-lived Express site setup functions.
+
 Existing applications can also use xgoja in target modes that attach these generated commands to a Cobra root or delegate integration to an adapter package.
 
 ## When to use xgoja
@@ -101,3 +103,4 @@ Do not use `xgoja` as a dynamic Go plugin loader. The reliable extension boundar
 - `buildspec` for the YAML reference.
 - `tutorial` for an end-to-end build flow.
 - `tutorial-static-assets-http-server` for embedding and serving bundled static web assets.
+- `tutorial-http-serve-jsverbs` for serving Express routes registered by generated JavaScript verbs.
