@@ -566,7 +566,7 @@ I also added `examples/xgoja/13-http-serve-jsverbs`, which gives future users an
 
 **Inferred user intent:** The user wants a complete, reviewable implementation with proof that the generated xgoja path works.
 
-**Commit (code):** pending — this diary step was written before the second implementation commit.
+**Commit (code):** ba318da5278936824e7cfa5ee30f354ec095b58f — "GOJA-064: add generated HTTP serve smoke"
 
 ### What I did
 - Added `TestGeneratedProgramServesHTTPVerb` in `cmd/xgoja/internal/generate/generate_test.go`.
