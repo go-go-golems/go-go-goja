@@ -53,30 +53,28 @@ func TestFSHostAndEmbeddedAliases(t *testing.T) {
 	}
 	runtimeSpec := &app.RuntimeSpec{
 		Assets: []app.AssetSourceSpec{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
-		Runtimes: map[string]app.RuntimeProfileSpec{
-			"main": {Modules: []app.ModuleInstanceSpec{
-				{
-					Package: PackageID,
-					Name:    "fs",
-					As:      "fs:assets",
-					Config: map[string]any{
-						"embedded": map[string]any{
-							"allow":  true,
-							"mounts": []any{map[string]any{"asset": "app-assets", "mount": "/app"}},
-						},
+		Modules: []app.ModuleInstanceSpec{
+			{
+				Package: PackageID,
+				Name:    "fs",
+				As:      "fs:assets",
+				Config: map[string]any{
+					"embedded": map[string]any{
+						"allow":  true,
+						"mounts": []any{map[string]any{"asset": "app-assets", "mount": "/app"}},
 					},
 				},
-				{
-					Package: PackageID,
-					Name:    "fs",
-					As:      "fs:host",
-					Config:  map[string]any{"allow": true},
-				},
-			}},
+			},
+			{
+				Package: PackageID,
+				Name:    "fs",
+				As:      "fs:host",
+				Config:  map[string]any{"allow": true},
+			},
 		},
 	}
 	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{EmbeddedAssets: assetFS})
-	rt, err := host.Factory.NewRuntime(context.Background(), "main")
+	rt, err := host.Factory.NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -118,22 +116,20 @@ func TestFSRootEmbeddedMount(t *testing.T) {
 	}
 	runtimeSpec := &app.RuntimeSpec{
 		Assets: []app.AssetSourceSpec{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
-		Runtimes: map[string]app.RuntimeProfileSpec{
-			"main": {Modules: []app.ModuleInstanceSpec{{
-				Package: PackageID,
-				Name:    "fs",
-				As:      "fs:assets",
-				Config: map[string]any{
-					"embedded": map[string]any{
-						"allow":  true,
-						"mounts": []any{map[string]any{"asset": "app-assets", "mount": "/"}},
-					},
+		Modules: []app.ModuleInstanceSpec{{
+			Package: PackageID,
+			Name:    "fs",
+			As:      "fs:assets",
+			Config: map[string]any{
+				"embedded": map[string]any{
+					"allow":  true,
+					"mounts": []any{map[string]any{"asset": "app-assets", "mount": "/"}},
 				},
-			}}},
-		},
+			},
+		}},
 	}
 	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{EmbeddedAssets: assetFS})
-	rt, err := host.Factory.NewRuntime(context.Background(), "main")
+	rt, err := host.Factory.NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}

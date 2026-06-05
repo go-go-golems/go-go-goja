@@ -21,13 +21,9 @@ const fixtureSpecJSON = `{
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -60,13 +56,9 @@ func TestGeneratedRootRespectsConfiguredReplCommandName(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "runjs"},
+    "eval": {"enabled": true, "name": "runjs"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -93,13 +85,9 @@ func TestGeneratedRootRespectsDisabledReplCommand(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": false, "runtime": "repl", "name": "runjs"},
+    "eval": {"enabled": false, "name": "runjs"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -170,9 +158,7 @@ Fixture provider help body.
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
   "help": {"sources": [{"id": "fixture-docs", "package": "fixture", "source": "docs"}]}
 }`
@@ -217,9 +203,7 @@ Local generated help body.
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
   "help": {"sources": [{"id": "local", "path": "xgoja_embed/help/local", "embed": true}]}
 }`
@@ -246,9 +230,7 @@ func TestGeneratedRootReportsMissingProviderHelpSource(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
   "help": {"sources": [{"id": "missing", "package": "fixture", "source": "missing"}]}
 }`
@@ -272,13 +254,9 @@ func TestGeneratedRootTUIHelp(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "repl": {"enabled": true, "runtime": "repl", "name": "repl"},
+    "repl": {"enabled": true, "name": "repl"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -291,7 +269,7 @@ func TestGeneratedRootTUIHelp(t *testing.T) {
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute repl help: %v", err)
 	}
-	for _, want := range []string{"interactive TUI REPL", "--runtime", "--alt-screen"} {
+	for _, want := range []string{"interactive TUI REPL", "--alt-screen"} {
 		if !bytes.Contains(out.Bytes(), []byte(want)) {
 			t.Fatalf("expected REPL help to contain %q, got %q", want, out.String())
 		}
@@ -321,14 +299,10 @@ if (hello.greet(helper.name) !== "hello intern") {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
-    "run": {"enabled": true, "runtime": "repl", "name": "run"},
+    "eval": {"enabled": true, "name": "eval"},
+    "run": {"enabled": true, "name": "run"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -373,7 +347,7 @@ func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
 	if err := json.Unmarshal([]byte(fixtureSpecJSON), runtimeSpec); err != nil {
 		t.Fatalf("parse runtime spec: %v", err)
 	}
-	rt, err := NewRuntimeFactory(registry, runtimeSpec).NewRuntime(context.Background(), "repl")
+	rt, err := NewRuntimeFactory(registry, runtimeSpec).NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -398,8 +372,8 @@ func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}, {"package": "fixture", "name": "owner-check", "as": "owner-check"}]}},
-  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}, {"package": "fixture", "name": "owner-check", "as": "owner-check"}],
+  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs"}},
   "jsverbs": [{"id": "provider", "package": "fixture", "source": "verbs"}]
 }`
 	out := &bytes.Buffer{}
@@ -447,8 +421,8 @@ function embeddedGreet(name) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
-  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
+  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs"}},
   "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
 }`
 	out := &bytes.Buffer{}
@@ -487,8 +461,8 @@ function embeddedGreet(name) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
-  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs", "mount": "root"}},
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
+  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs", "mount": "root"}},
   "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
 }`
 	out := &bytes.Buffer{}
@@ -528,8 +502,8 @@ function greet(name) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
-  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
+  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs"}},
   "jsverbs": [{"id": "local", "path": %q, "embed": false}]
 }`, verbsDir)
 	out := &bytes.Buffer{}

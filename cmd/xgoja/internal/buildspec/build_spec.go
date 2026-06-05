@@ -21,7 +21,7 @@ type BuildSpec struct {
 	Go               GoSpec                        `yaml:"go"`
 	Target           TargetSpec                    `yaml:"target"`
 	Packages         []PackageSpec                 `yaml:"packages"`
-	Runtimes         map[string]RuntimeSpec        `yaml:"runtimes"`
+	Modules          []ModuleInstanceSpec          `yaml:"modules"`
 	Commands         CommandsSpec                  `yaml:"commands"`
 	CommandProviders []CommandProviderInstanceSpec `yaml:"commandProviders"`
 	JSVerbs          []JSVerbSourceSpec            `yaml:"jsverbs"`
@@ -59,15 +59,7 @@ type PackageSpec struct {
 	Replace  string `yaml:"replace" json:"replace,omitempty"`
 }
 
-// RuntimeSpec is a declarative runtime profile from xgoja.yaml.
-// It lists selected provider module instances; it is not a concrete Goja
-// runtime. Concrete runtimes are engine.Runtime values created by the generated
-// app at execution time.
-type RuntimeSpec struct {
-	Modules []ModuleInstanceSpec `yaml:"modules" json:"modules"`
-}
-
-// ModuleInstanceSpec selects one provider module inside a runtime profile.
+// ModuleInstanceSpec selects one provider module for the generated xgoja runtime.
 // Its Config field is static module config from xgoja.yaml; it is declarative
 // data that is later marshaled or merged into providerapi.ModuleSetupContext.Config.
 type ModuleInstanceSpec struct {
@@ -97,7 +89,6 @@ type CommandsSpec struct {
 
 type CommandSpec struct {
 	Enabled bool   `yaml:"enabled" json:"enabled"`
-	Runtime string `yaml:"runtime" json:"runtime,omitempty"`
 	Name    string `yaml:"name" json:"name,omitempty"`
 	Mount   string `yaml:"mount" json:"mount,omitempty"`
 }
@@ -107,14 +98,13 @@ type CommandSpec struct {
 // with which static config; it is not the provider's CommandSetProvider
 // definition itself.
 type CommandProviderInstanceSpec struct {
-	ID             string         `yaml:"id" json:"id"`
-	Package        string         `yaml:"package" json:"package"`
-	Name           string         `yaml:"name" json:"name"`
-	Mount          string         `yaml:"mount" json:"mount,omitempty"`
-	RuntimeProfile string         `yaml:"runtimeProfile" json:"runtimeProfile,omitempty"`
-	Modules        []string       `yaml:"modules" json:"modules,omitempty"`
-	Config         map[string]any `yaml:"config" json:"config,omitempty"`
-	Lazy           bool           `yaml:"lazy" json:"lazy,omitempty"`
+	ID      string         `yaml:"id" json:"id"`
+	Package string         `yaml:"package" json:"package"`
+	Name    string         `yaml:"name" json:"name"`
+	Mount   string         `yaml:"mount" json:"mount,omitempty"`
+	Modules []string       `yaml:"modules" json:"modules,omitempty"`
+	Config  map[string]any `yaml:"config" json:"config,omitempty"`
+	Lazy    bool           `yaml:"lazy" json:"lazy,omitempty"`
 }
 
 type JSVerbSourceSpec struct {

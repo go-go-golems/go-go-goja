@@ -36,9 +36,7 @@ func TestAssetStoreResolveAsset(t *testing.T) {
 
 func TestRuntimeFactoryPassesRuntimeOwnerToModules(t *testing.T) {
 	runtimeSpec := &RuntimeSpec{
-		Runtimes: map[string]RuntimeProfileSpec{
-			"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "owner-check", As: "owner-check"}}},
-		},
+		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "owner-check", As: "owner-check"}},
 	}
 	seen := false
 	registry := providerapi.NewProviderRegistry()
@@ -55,7 +53,7 @@ func TestRuntimeFactoryPassesRuntimeOwnerToModules(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 
-	rt, err := NewRuntimeFactory(registry, runtimeSpec).NewRuntime(context.Background(), "main")
+	rt, err := NewRuntimeFactory(registry, runtimeSpec).NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -70,10 +68,8 @@ func TestRuntimeFactoryPassesHostServicesToModules(t *testing.T) {
 		"xgoja_embed/assets/app/config.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
 	}
 	runtimeSpec := &RuntimeSpec{
-		Assets: []AssetSourceSpec{{ID: "app", Path: "xgoja_embed/assets/app", Embed: true}},
-		Runtimes: map[string]RuntimeProfileSpec{
-			"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "asset-check", As: "asset-check"}}},
-		},
+		Assets:  []AssetSourceSpec{{ID: "app", Path: "xgoja_embed/assets/app", Embed: true}},
+		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "asset-check", As: "asset-check"}},
 	}
 	seen := false
 	registry := providerapi.NewProviderRegistry()
@@ -96,7 +92,7 @@ func TestRuntimeFactoryPassesHostServicesToModules(t *testing.T) {
 	}
 
 	host := NewHostWithOptions(registry, runtimeSpec, HostOptions{EmbeddedAssets: assetFS})
-	rt, err := host.Factory.NewRuntime(context.Background(), "main")
+	rt, err := host.Factory.NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}

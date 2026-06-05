@@ -114,7 +114,7 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	_, _ = fmt.Fprintf(c.out, "generated build workspace: %s\n", workDir)
 	if settings.DryRun {
-		_, err = fmt.Fprintf(c.out, "xgoja dry run ok: name=%s target=%s output=%s runtimes=%d packages=%d\n", buildSpec.Name, buildSpec.Target.Kind, output, len(buildSpec.Runtimes), len(buildSpec.Packages))
+		_, err = fmt.Fprintf(c.out, "xgoja dry run ok: name=%s target=%s output=%s modules=%d packages=%d\n", buildSpec.Name, buildSpec.Target.Kind, output, len(buildSpec.Modules), len(buildSpec.Packages))
 		return err
 	}
 

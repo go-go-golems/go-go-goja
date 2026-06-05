@@ -6,27 +6,25 @@ import (
 	"testing"
 )
 
-func TestValidateCommandProvidersAcceptsKnownPackageAndRuntime(t *testing.T) {
+func TestValidateCommandProvidersAcceptsKnownPackage(t *testing.T) {
 	buildSpec := validSpec()
 	buildSpec.CommandProviders = []CommandProviderInstanceSpec{{
-		ID:             "fixture-tools",
-		Package:        "fixture",
-		Name:           "tools",
-		RuntimeProfile: "main",
+		ID:      "fixture-tools",
+		Package: "fixture",
+		Name:    "tools",
 	}}
 
 	report := Validate(buildSpec)
 	if report.HasErrors() {
 		t.Fatalf("expected no validation errors, got %#v", report.Checks)
 	}
-	assertCheck(t, report, StatusOK, "command-provider-runtime", "commandProviders[0].runtimeProfile")
 	assertCheck(t, report, StatusOK, "command-providers", "commandProviders")
 }
 
 func TestValidateCommandProvidersRejectsInvalidEntries(t *testing.T) {
 	buildSpec := validSpec()
 	buildSpec.CommandProviders = []CommandProviderInstanceSpec{
-		{ID: "dup", Package: "missing", Name: "tools", RuntimeProfile: "missing"},
+		{ID: "dup", Package: "missing", Name: "tools"},
 		{ID: "dup", Package: "fixture"},
 	}
 
@@ -35,7 +33,6 @@ func TestValidateCommandProvidersRejectsInvalidEntries(t *testing.T) {
 		t.Fatalf("expected validation errors, got %#v", report.Checks)
 	}
 	assertCheck(t, report, StatusError, "command-provider-package", "commandProviders[0].package")
-	assertCheck(t, report, StatusError, "command-provider-runtime", "commandProviders[0].runtimeProfile")
 	assertCheck(t, report, StatusError, "command-provider-id", "commandProviders[1].id")
 	assertCheck(t, report, StatusError, "command-provider-name", "commandProviders[1].name")
 }
@@ -154,15 +151,11 @@ func validSpec() *BuildSpec {
 			ID:     "fixture",
 			Import: "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider",
 		}},
-		Runtimes: map[string]RuntimeSpec{
-			"main": {
-				Modules: []ModuleInstanceSpec{{
-					Package: "fixture",
-					Name:    "hello",
-					As:      "hello",
-				}},
-			},
-		},
+		Modules: []ModuleInstanceSpec{{
+			Package: "fixture",
+			Name:    "hello",
+			As:      "hello",
+		}},
 		Commands: CommandsSpec{
 			Run: CommandSpec{Enabled: false},
 		},
@@ -172,7 +165,7 @@ func validSpec() *BuildSpec {
 func TestValidateJSVerbCommandMountAcceptsRootAliases(t *testing.T) {
 	for _, mount := range []string{"root", "/", "."} {
 		buildSpec := validSpec()
-		buildSpec.Commands.JSVerbs = CommandSpec{Enabled: true, Runtime: "main", Mount: mount}
+		buildSpec.Commands.JSVerbs = CommandSpec{Enabled: true, Mount: mount}
 
 		report := Validate(buildSpec)
 		if report.HasErrors() {
@@ -184,7 +177,7 @@ func TestValidateJSVerbCommandMountAcceptsRootAliases(t *testing.T) {
 
 func TestValidateJSVerbCommandMountRejectsUnknownValue(t *testing.T) {
 	buildSpec := validSpec()
-	buildSpec.Commands.JSVerbs = CommandSpec{Enabled: true, Runtime: "main", Mount: "top-level"}
+	buildSpec.Commands.JSVerbs = CommandSpec{Enabled: true, Mount: "top-level"}
 
 	report := Validate(buildSpec)
 	if !report.HasErrors() {

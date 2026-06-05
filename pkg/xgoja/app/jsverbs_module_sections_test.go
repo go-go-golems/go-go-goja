@@ -36,8 +36,8 @@ func TestJSVerbsInitializeRuntimeFromModuleSections(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {"main": {"modules": [{"package": "fixture", "name": "mod", "as": "mod"}]}},
-  "commands": {"jsverbs": {"enabled": true, "runtime": "main", "name": "verbs"}},
+  "modules": [{"package": "fixture", "name": "mod", "as": "mod"}],
+  "commands": {"jsverbs": {"enabled": true, "name": "verbs"}},
   "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
 }`
 	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, EmbeddedJSVerbs: jsverbsSectionFS()})
@@ -66,10 +66,8 @@ func newJSVerbsSectionRegistry(t *testing.T) *providerapi.ProviderRegistry {
 
 func jsverbsSectionSpec() *RuntimeSpec {
 	return &RuntimeSpec{
-		Runtimes: map[string]RuntimeProfileSpec{
-			"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod", As: "mod"}}},
-		},
-		Commands: CommandsSpec{JSVerbs: CommandSpec{Enabled: true, Runtime: "main", Name: "verbs"}},
+		Modules:  []ModuleInstanceSpec{{Package: "fixture", Name: "mod", As: "mod"}},
+		Commands: CommandsSpec{JSVerbs: CommandSpec{Enabled: true, Name: "verbs"}},
 		JSVerbs:  []JSVerbSourceSpec{{ID: "local", Path: "xgoja_embed/jsverbs/local", Embed: true}},
 	}
 }

@@ -63,20 +63,18 @@ type evalCommand struct {
 var _ cmds.BareCommand = (*evalCommand)(nil)
 
 type evalSettings struct {
-	Source  string `glazed:"source"`
-	Runtime string `glazed:"runtime"`
+	Source string `glazed:"source"`
 }
 
 func newEvalCommand(factory *RuntimeFactory, runtimeSpec *RuntimeSpec, out io.Writer) cmds.Command {
-	profile := commandRuntime(runtimeSpec.Commands.Eval, firstRuntime(runtimeSpec))
-	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("eval", profile)
+	moduleSections, _, sectionErr := factory.sectionsForRuntime("eval")
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Evaluate JavaScript in a generated xgoja runtime"),
 		cmds.WithLong(`
 Evaluate executes a JavaScript source string in a fresh xgoja runtime and prints
 non-null, non-undefined results.
 
-The runtime profile controls which provider modules are available through
+The generated runtime controls which provider modules are available through
 require(). Provider modules may add Glazed sections; those sections are parsed
 before evaluation and runtime initializers run before the JavaScript source.
 `),
@@ -84,11 +82,6 @@ before evaluation and runtime initializers run before the JavaScript source.
 			fields.New("source", fields.TypeString,
 				fields.WithRequired(true),
 				fields.WithHelp("JavaScript source to evaluate")),
-		),
-		cmds.WithFlags(
-			fields.New("runtime", fields.TypeString,
-				fields.WithDefault(profile),
-				fields.WithHelp("Runtime profile to use")),
 		),
 	}
 	if sectionErr == nil && len(moduleSections) > 0 {
@@ -110,21 +103,21 @@ func (c *evalCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	selectedModules, err := c.factory.selectedModuleDescriptors(settings.Runtime)
+	selectedModules, err := c.factory.selectedModuleDescriptors()
 	if err != nil {
 		return err
 	}
-	return evalSourceWithInitializers(ctx, c.factory, settings.Runtime, settings.Source, vals, selectedModules, c.out)
+	return evalSourceWithInitializers(ctx, c.factory, settings.Source, vals, selectedModules, c.out)
 }
 
-func evalSourceWithInitializers(ctx context.Context, factory *RuntimeFactory, profile string, source string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, out io.Writer) error {
+func evalSourceWithInitializers(ctx context.Context, factory *RuntimeFactory, source string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, out io.Writer) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if factory == nil {
 		return fmt.Errorf("runtime factory is required")
 	}
-	rt, err := factory.NewRuntimeFromSections(ctx, profile, vals)
+	rt, err := factory.NewRuntimeFromSections(ctx, vals)
 	if err != nil {
 		return err
 	}
@@ -231,8 +224,7 @@ func newVerbsCommand(providers *providerapi.ProviderRegistry, factory *RuntimeFa
 }
 
 func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, embeddedJSVerbs fs.FS) ([]cmds.Command, error) {
-	profile := commandRuntime(runtimeSpec.Commands.JSVerbs, firstRuntime(runtimeSpec))
-	moduleSections, selectedModules, err := factory.sectionsForRuntimeProfile("jsverbs", profile)
+	moduleSections, selectedModules, err := factory.sectionsForRuntime("jsverbs")
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +241,7 @@ func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *Runtime
 			verb := verb
 			registry := registry
 			cmd, err := registry.CommandForVerbWithInvoker(verb, func(ctx context.Context, _ *jsverbs.Registry, verb *jsverbs.VerbSpec, parsedValues *values.Values) (interface{}, error) {
-				rt, err := factory.NewRuntimeFromSections(ctx, profile, parsedValues, require.WithLoader(registry.RequireLoader()))
+				rt, err := factory.NewRuntimeFromSections(ctx, parsedValues, require.WithLoader(registry.RequireLoader()))
 				if err != nil {
 					return nil, err
 				}
@@ -265,7 +257,7 @@ func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *Runtime
 				return nil, err
 			}
 			if len(moduleSections) > 0 {
-				if err := addSectionsToCommandDescription(cmd.Description(), moduleSections, "jsverbs runtime profile "+profile); err != nil {
+				if err := addSectionsToCommandDescription(cmd.Description(), moduleSections, "jsverbs runtime"); err != nil {
 					return nil, err
 				}
 			}
@@ -311,21 +303,6 @@ func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.
 		return nil, fmt.Errorf("scan jsverb source %s: %w", source.ID, err)
 	}
 	return registry, nil
-}
-
-func firstRuntime(runtimeSpec *RuntimeSpec) string {
-	if runtimeSpec.Commands.Eval.Enabled && runtimeSpec.Commands.Eval.Runtime != "" {
-		return runtimeSpec.Commands.Eval.Runtime
-	}
-	names := make([]string, 0, len(runtimeSpec.Runtimes))
-	for name := range runtimeSpec.Runtimes {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	if len(names) == 0 {
-		return "main"
-	}
-	return names[0]
 }
 
 func commandName(command CommandSpec, fallback string) string {

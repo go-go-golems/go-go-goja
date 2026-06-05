@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
@@ -20,8 +19,7 @@ type listModulesCommand struct {
 var _ cmds.GlazeCommand = (*listModulesCommand)(nil)
 
 type listModulesSettings struct {
-	File    string `glazed:"file"`
-	Profile string `glazed:"profile"`
+	File string `glazed:"file"`
 }
 
 func newListModulesCommand() *listModulesCommand {
@@ -37,15 +35,13 @@ List modules shows the require() modules selected by an xgoja build spec. Phase
 
 Examples:
   xgoja list-modules -f xgoja.yaml
-  xgoja list-modules -f xgoja.yaml --profile repl --output table
+  xgoja list-modules -f xgoja.yaml --output table
 `),
 		cmds.WithFlags(
 			fields.New("file", fields.TypeString,
 				fields.WithDefault("xgoja.yaml"),
 				fields.WithShortFlag("f"),
 				fields.WithHelp("Path to the xgoja build specification")),
-			fields.New("profile", fields.TypeString,
-				fields.WithHelp("Optional runtime profile to list")),
 		),
 		cmds.WithSections(sections...),
 	)}
@@ -60,25 +56,14 @@ func (c *listModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *va
 	if err != nil {
 		return err
 	}
-	profiles := buildSpec.Runtimes
-	if settings.Profile != "" {
-		runtime, ok := buildSpec.Runtimes[settings.Profile]
-		if !ok {
-			return fmt.Errorf("unknown runtime profile %q", settings.Profile)
-		}
-		profiles = map[string]buildspec.RuntimeSpec{settings.Profile: runtime}
-	}
-	for profile, runtime := range profiles {
-		for _, mod := range runtime.Modules {
-			if addErr := gp.AddRow(ctx, types.NewRow(
-				types.MRP("file", settings.File),
-				types.MRP("profile", profile),
-				types.MRP("package", mod.Package),
-				types.MRP("module", mod.Name),
-				types.MRP("alias", mod.Alias()),
-			)); addErr != nil {
-				return addErr
-			}
+	for _, mod := range buildSpec.Modules {
+		if addErr := gp.AddRow(ctx, types.NewRow(
+			types.MRP("file", settings.File),
+			types.MRP("package", mod.Package),
+			types.MRP("module", mod.Name),
+			types.MRP("alias", mod.Alias()),
+		)); addErr != nil {
+			return addErr
 		}
 	}
 	return nil

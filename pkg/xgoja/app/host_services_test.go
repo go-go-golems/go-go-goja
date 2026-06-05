@@ -36,9 +36,9 @@ func TestRuntimeFactoryCollectsHostServiceContributionsBeforeModuleSetup(t *test
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{Runtimes: map[string]RuntimeProfileSpec{"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}}}
+	runtimeSpec := &RuntimeSpec{Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}
 	factory := NewRuntimeFactory(registry, runtimeSpec, HostServices{})
-	rt, err := factory.NewRuntimeFromSections(context.Background(), "main", values.New())
+	rt, err := factory.NewRuntimeFromSections(context.Background(), values.New())
 	if err != nil {
 		t.Fatalf("NewRuntimeFromSections: %v", err)
 	}
@@ -66,9 +66,9 @@ func TestHostServiceContributionsDedupeSamePackageCapability(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{Runtimes: map[string]RuntimeProfileSpec{"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "first"}, {Package: "fixture", Name: "second"}}}}}
+	runtimeSpec := &RuntimeSpec{Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "first"}, {Package: "fixture", Name: "second"}}}
 	factory := NewRuntimeFactory(registry, runtimeSpec, HostServices{})
-	rt, err := factory.NewRuntimeFromSections(context.Background(), "main", values.New())
+	rt, err := factory.NewRuntimeFromSections(context.Background(), values.New())
 	if err != nil {
 		t.Fatalf("NewRuntimeFromSections: %v", err)
 	}
@@ -93,9 +93,9 @@ func TestHostServiceContributionClosersRunOnRuntimeClose(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{Runtimes: map[string]RuntimeProfileSpec{"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}}}
+	runtimeSpec := &RuntimeSpec{Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}
 	factory := NewRuntimeFactory(registry, runtimeSpec, HostServices{})
-	rt, err := factory.NewRuntimeFromSections(context.Background(), "main", values.New())
+	rt, err := factory.NewRuntimeFromSections(context.Background(), values.New())
 	if err != nil {
 		t.Fatalf("NewRuntimeFromSections: %v", err)
 	}
@@ -125,9 +125,9 @@ func TestHostServiceContributionClosersRunOnRuntimeSetupFailure(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{Runtimes: map[string]RuntimeProfileSpec{"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}}}
+	runtimeSpec := &RuntimeSpec{Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}
 	factory := NewRuntimeFactory(registry, runtimeSpec, HostServices{})
-	_, err := factory.NewRuntimeFromSections(context.Background(), "main", values.New())
+	_, err := factory.NewRuntimeFromSections(context.Background(), values.New())
 	if err == nil || !strings.Contains(err.Error(), "setup failed") {
 		t.Fatalf("expected setup failure, got %v", err)
 	}
@@ -147,9 +147,9 @@ func TestHostServiceContributionErrorsAreWrapped(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{Runtimes: map[string]RuntimeProfileSpec{"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}}}
+	runtimeSpec := &RuntimeSpec{Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}
 	factory := NewRuntimeFactory(registry, runtimeSpec, HostServices{})
-	_, err := factory.NewRuntimeFromSections(context.Background(), "main", values.New())
+	_, err := factory.NewRuntimeFromSections(context.Background(), values.New())
 	if err == nil || !strings.Contains(err.Error(), "contribute host services for fixture capability host-service") || !strings.Contains(err.Error(), "boom") {
 		t.Fatalf("expected wrapped error, got %v", err)
 	}

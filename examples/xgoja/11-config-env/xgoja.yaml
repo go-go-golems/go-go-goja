@@ -4,29 +4,24 @@ envPrefix: DEMO
 config:
   enabled: true
   layers:
-    - cwd
-    - explicit
+  - cwd
+  - explicit
   fileName: config.yaml
 target:
   kind: xgoja
   output: dist/config-env-demo
 packages:
-  - id: fixture
-    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
-    register: Register
-runtimes:
-  main:
-    modules:
-      - package: fixture
-        name: hello
-        as: hello
+- id: fixture
+  import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+  register: Register
 commands:
   eval:
     enabled: true
-    runtime: main
   run:
     enabled: true
-    runtime: main
   repl:
     enabled: true
-    runtime: main
+modules:
+- package: fixture
+  name: hello
+  as: hello

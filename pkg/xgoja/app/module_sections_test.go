@@ -19,7 +19,7 @@ func TestRuntimeFactoryCollectsSectionsForRuntimeProfile(t *testing.T) {
 		providerapi.WithPackageCapability(sectionCapability{id: "alpha", slug: "alpha"}),
 		providerapi.WithPackageCapability(sectionCapability{id: "beta", slug: "beta"}),
 	)
-	sections, descriptors, err := factory.sectionsForRuntimeProfile("run", "main")
+	sections, descriptors, err := factory.sectionsForRuntime("run")
 	if err != nil {
 		t.Fatalf("sections: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestRuntimeFactoryRejectsDuplicateSectionSlugs(t *testing.T) {
 		providerapi.WithPackageCapability(sectionCapability{id: "one", slug: "dup"}),
 		providerapi.WithPackageCapability(sectionCapability{id: "two", slug: "dup"}),
 	)
-	_, _, err := factory.sectionsForRuntimeProfile("run", "main")
+	_, _, err := factory.sectionsForRuntime("run")
 	if err == nil || !strings.Contains(err.Error(), "duplicate config section slug") {
 		t.Fatalf("expected duplicate section error, got %v", err)
 	}
@@ -55,13 +55,11 @@ func TestRuntimeFactoryAttachesPackageCapabilitiesToEverySelectedModule(t *testi
 	); err != nil {
 		t.Fatalf("register fixture provider: %v", err)
 	}
-	factory := NewRuntimeFactory(registry, &RuntimeSpec{Runtimes: map[string]RuntimeProfileSpec{
-		"main": {Modules: []ModuleInstanceSpec{
-			{Package: "fixture", Name: "first", As: "first"},
-			{Package: "fixture", Name: "second", As: "second"},
-		}},
+	factory := NewRuntimeFactory(registry, &RuntimeSpec{Modules: []ModuleInstanceSpec{
+		{Package: "fixture", Name: "first", As: "first"},
+		{Package: "fixture", Name: "second", As: "second"},
 	}})
-	descriptors, err := factory.selectedModuleDescriptors("main")
+	descriptors, err := factory.selectedModuleDescriptors()
 	if err != nil {
 		t.Fatalf("selected descriptors: %v", err)
 	}
@@ -73,7 +71,7 @@ func TestRuntimeFactoryAttachesPackageCapabilitiesToEverySelectedModule(t *testi
 			t.Fatalf("descriptor %s capabilities = %#v", descriptor.ModuleID, descriptor.PackageCapabilities)
 		}
 	}
-	sections, _, err := factory.sectionsForRuntimeProfile("run", "main")
+	sections, _, err := factory.sectionsForRuntime("run")
 	if err != nil {
 		t.Fatalf("sections should dedupe same package capability: %v", err)
 	}
@@ -135,9 +133,7 @@ func newSectionTestFactory(t *testing.T, entries ...providerapi.Entry) *RuntimeF
 		t.Fatalf("register fixture provider: %v", err)
 	}
 	return NewRuntimeFactory(registry, &RuntimeSpec{
-		Runtimes: map[string]RuntimeProfileSpec{
-			"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod", As: "alias"}}},
-		},
+		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod", As: "alias"}},
 	})
 }
 

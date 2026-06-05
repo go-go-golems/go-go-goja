@@ -33,7 +33,7 @@ RelatedFiles:
       Note: Provider command runtime factory API currently requires profile arguments
 ExternalSources: []
 Summary: Design and implementation guide for simplifying xgoja from named runtime profiles to one generated runtime module set.
-LastUpdated: 2026-06-04T20:15:00-04:00
+LastUpdated: 2026-06-04T21:00:00-04:00
 WhatFor: Use when implementing GOJA-066 or reviewing changes that remove xgoja multi-runtime-profile plumbing.
 WhenToUse: Before editing xgoja buildspec/runtime spec fields, generated command runtime selection, provider command context, or xgoja docs/examples.
 ---

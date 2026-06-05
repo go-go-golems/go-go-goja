@@ -29,7 +29,7 @@ func RenderEmbeddedSpec(buildSpec *buildspec.BuildSpec) string {
 		ConfigFile       *buildspec.ConfigFileSpec               `json:"configFile,omitempty"`
 		Target           buildspec.TargetSpec                    `json:"target"`
 		Packages         []buildspec.PackageSpec                 `json:"packages"`
-		Runtimes         map[string]buildspec.RuntimeSpec        `json:"runtimes"`
+		Modules          []buildspec.ModuleInstanceSpec          `json:"modules"`
 		Commands         buildspec.CommandsSpec                  `json:"commands"`
 		CommandProviders []buildspec.CommandProviderInstanceSpec `json:"commandProviders,omitempty"`
 		JSVerbs          []buildspec.JSVerbSourceSpec            `json:"jsverbs,omitempty"`
@@ -42,7 +42,7 @@ func RenderEmbeddedSpec(buildSpec *buildspec.BuildSpec) string {
 		ConfigFile:       buildSpec.ConfigFile,
 		Target:           buildSpec.Target,
 		Packages:         buildSpec.Packages,
-		Runtimes:         buildSpec.Runtimes,
+		Modules:          buildSpec.Modules,
 		Commands:         buildSpec.Commands,
 		CommandProviders: buildSpec.CommandProviders,
 		JSVerbs:          buildSpec.JSVerbs,

@@ -43,13 +43,9 @@ func TestGeneratedRootReadsModuleSectionFromDerivedEnvPrefix(t *testing.T) {
   "appName": "env-fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -78,13 +74,9 @@ func TestGeneratedRootReadsModuleSectionFromExplicitEnvPrefix(t *testing.T) {
   "envPrefix": "XGOJA_TEST",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -140,13 +132,9 @@ func TestGeneratedRootReadsConfigFile(t *testing.T) {
   "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -184,13 +172,9 @@ func TestConfigPrecedenceEnvBeatsConfig(t *testing.T) {
   "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -228,13 +212,9 @@ func TestConfigPrecedenceFlagBeatsEnv(t *testing.T) {
   "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -269,13 +249,9 @@ func TestExplicitConfigFileRequiresExplicitLayer(t *testing.T) {
   "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -309,13 +285,9 @@ func TestExplicitConfigFileLoadsWithExplicitLayer(t *testing.T) {
   "configFile": {"enabled": true, "layers": ["explicit"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`

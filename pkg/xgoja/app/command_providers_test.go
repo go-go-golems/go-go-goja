@@ -35,7 +35,7 @@ func TestApplyMountToCommandsDoesNotMutateProviderDescriptions(t *testing.T) {
 	}
 }
 
-func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T) {
+func TestHostAttachCommandProvidersUsesDefaultRuntimeProfileContext(t *testing.T) {
 	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
 		providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule},
@@ -43,13 +43,13 @@ func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T)
 			Name:         "tools",
 			DefaultMount: "tools",
 			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
-				if ctx.RuntimeProfile != "fallback" {
+				if ctx.RuntimeProfile != defaultRuntimeProfile {
 					t.Fatalf("runtime profile = %q", ctx.RuntimeProfile)
 				}
 				if len(ctx.SelectedModules) != 1 || ctx.SelectedModules[0].ModuleID != "mod" {
 					t.Fatalf("selected modules = %#v", ctx.SelectedModules)
 				}
-				runtime, err := ctx.RuntimeFactory.NewRuntime(ctx.Context, ctx.RuntimeProfile)
+				runtime, err := ctx.RuntimeFactory.NewRuntime(ctx.Context)
 				if err != nil {
 					t.Fatalf("new runtime from defaulted command provider profile: %v", err)
 				}
@@ -69,7 +69,7 @@ func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T)
 		t.Fatalf("register provider: %v", err)
 	}
 	runtimeSpec := &RuntimeSpec{
-		Runtimes: map[string]RuntimeProfileSpec{"fallback": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}},
+		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}},
 		CommandProviders: []CommandProviderInstanceSpec{{
 			ID:      "fixture-tools",
 			Package: "fixture",
@@ -100,7 +100,7 @@ func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 				if ctx.RuntimeFactory == nil {
 					t.Fatal("expected typed runtime factory")
 				}
-				runtime, err := ctx.RuntimeFactory.NewRuntime(ctx.Context, ctx.RuntimeProfile)
+				runtime, err := ctx.RuntimeFactory.NewRuntime(ctx.Context)
 				if err != nil {
 					t.Fatalf("new runtime from typed runtime factory: %v", err)
 				}
@@ -127,13 +127,12 @@ func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	runtimeSpec := &RuntimeSpec{
-		Runtimes: map[string]RuntimeProfileSpec{"main": {Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}},
+		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}},
 		CommandProviders: []CommandProviderInstanceSpec{{
-			ID:             "fixture-tools",
-			Package:        "fixture",
-			Name:           "tools",
-			Mount:          "fixture",
-			RuntimeProfile: "main",
+			ID:      "fixture-tools",
+			Package: "fixture",
+			Name:    "tools",
+			Mount:   "fixture",
 		}},
 	}
 	root := &cobra.Command{Use: "test"}

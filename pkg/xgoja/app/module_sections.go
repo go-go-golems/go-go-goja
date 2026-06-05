@@ -11,19 +11,17 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerutil"
 )
 
-func (f *RuntimeFactory) selectedModuleDescriptors(profile string) ([]providerapi.ModuleDescriptor, error) {
+const defaultRuntimeProfile = "main"
+
+func (f *RuntimeFactory) selectedModuleDescriptors() ([]providerapi.ModuleDescriptor, error) {
 	if f == nil || f.providers == nil || f.runtimeSpec == nil {
 		return nil, fmt.Errorf("xgoja runtime factory is not initialized")
 	}
-	runtime, ok := f.runtimeSpec.Runtimes[profile]
-	if !ok {
-		return nil, fmt.Errorf("unknown runtime profile %q", profile)
-	}
-	descriptors := make([]providerapi.ModuleDescriptor, 0, len(runtime.Modules))
-	for _, instance := range runtime.Modules {
+	descriptors := make([]providerapi.ModuleDescriptor, 0, len(f.runtimeSpec.Modules))
+	for _, instance := range f.runtimeSpec.Modules {
 		module, ok := f.providers.ResolveModule(instance.Package, instance.Name)
 		if !ok {
-			return nil, fmt.Errorf("runtime %s references unknown provider module %s.%s", profile, instance.Package, instance.Name)
+			return nil, fmt.Errorf("runtime references unknown provider module %s.%s", instance.Package, instance.Name)
 		}
 		capabilities, _ := f.providers.ResolvePackageCapabilities(instance.Package)
 		descriptors = append(descriptors, providerapi.ModuleDescriptor{
@@ -37,8 +35,8 @@ func (f *RuntimeFactory) selectedModuleDescriptors(profile string) ([]providerap
 	return descriptors, nil
 }
 
-func (f *RuntimeFactory) sectionsForRuntimeProfile(commandName, profile string) ([]schema.Section, []providerapi.ModuleDescriptor, error) {
-	descriptors, err := f.selectedModuleDescriptors(profile)
+func (f *RuntimeFactory) sectionsForRuntime(commandName string) ([]schema.Section, []providerapi.ModuleDescriptor, error) {
+	descriptors, err := f.selectedModuleDescriptors()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -53,7 +51,7 @@ func (f *RuntimeFactory) sectionsForRuntimeProfile(commandName, profile string) 
 	}
 	providerSections, err := providerutil.CollectGlazedConfigSections(descriptors, providerapi.SectionRequest{
 		CommandName:    commandName,
-		RuntimeProfile: profile,
+		RuntimeProfile: defaultRuntimeProfile,
 	}, seen)
 	if err != nil {
 		return nil, nil, err

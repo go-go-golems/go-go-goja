@@ -25,18 +25,15 @@ envPrefix: WEBREPL_DEV
 packages:
   - id: core
     import: github.com/go-go-golems/go-go-goja/xgoja
-runtimes:
-  repl:
-    modules:
-      - package: core
-        name: fs
-      - package: core
-        name: yaml
-        as: yml
+modules:
+  - package: core
+    name: fs
+  - package: core
+    name: yaml
+    as: yml
 commands:
   eval:
     enabled: true
-    runtime: repl
 help:
   sources:
     - id: provider-docs
@@ -77,8 +74,8 @@ assets:
 	if buildSpec.Commands.Eval.Name != "eval" {
 		t.Fatalf("default eval command name = %q", buildSpec.Commands.Eval.Name)
 	}
-	if buildSpec.Runtimes["repl"].Modules[1].Alias() != "yml" {
-		t.Fatalf("module alias = %q", buildSpec.Runtimes["repl"].Modules[1].Alias())
+	if buildSpec.Modules[1].Alias() != "yml" {
+		t.Fatalf("module alias = %q", buildSpec.Modules[1].Alias())
 	}
 	if len(buildSpec.Help.Sources) != 1 || buildSpec.Help.Sources[0].Source != "docs" {
 		t.Fatalf("help sources = %#v", buildSpec.Help.Sources)
@@ -100,11 +97,9 @@ name: bad-assets
 packages:
   - id: core
     import: github.com/go-go-golems/go-go-goja/xgoja
-runtimes:
-  main:
-    modules:
-      - package: core
-        name: fs
+modules:
+  - package: core
+    name: fs
 assets:
   - id: app-assets
     path: ./assets
@@ -137,15 +132,13 @@ name: bad
 packages:
   - id: core
     import: github.com/go-go-golems/go-go-goja/xgoja
-runtimes:
-  main:
-    modules:
-      - package: core
-        name: fs
-        as: same
-      - package: core
-        name: yaml
-        as: same
+modules:
+  - package: core
+    name: fs
+    as: same
+  - package: core
+    name: yaml
+    as: same
 `), 0o644); err != nil {
 		t.Fatalf("write build spec: %v", err)
 	}
@@ -170,11 +163,9 @@ name: bad
 packages:
   - id: core
     import: github.com/go-go-golems/go-go-goja/xgoja
-runtimes:
-  main:
-    modules:
-      - package: core
-        name: fs
+modules:
+  - package: core
+    name: fs
 jsverbs:
   - id: missing
     path: ./missing
@@ -205,11 +196,9 @@ configFile:
 packages:
   - id: core
     import: github.com/go-go-golems/go-go-goja/xgoja
-runtimes:
-  main:
-    modules:
-      - package: core
-        name: fs
+modules:
+  - package: core
+    name: fs
 `), 0o644); err != nil {
 		t.Fatalf("write build spec: %v", err)
 	}

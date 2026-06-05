@@ -21,7 +21,7 @@ RelatedFiles:
       Note: Primary GOJA-066 design and implementation guide
 ExternalSources: []
 Summary: Chronological diary for GOJA-066, the single-runtime-profile xgoja simplification design work.
-LastUpdated: 2026-06-04T20:15:00-04:00
+LastUpdated: 2026-06-04T21:00:00-04:00
 WhatFor: Use to continue GOJA-066 implementation with the investigation context, decisions, and validation plan.
 WhenToUse: Before changing xgoja buildspec/runtime schema, generated command runtime selection, provider command contexts, docs, or examples.
 ---
@@ -275,4 +275,174 @@ remarquee upload bundle \
   --remote-dir "/ai/2026/06/04/GOJA-066" \
   --toc-depth 2 \
   --non-interactive
+```
+
+## Step 3: Replace xgoja runtime profiles with a single module set in code
+
+This step implemented the core schema and runtime refactor. The generated build spec now uses one top-level `modules` list instead of `runtimes.<profile>.modules`, and built-in commands no longer expose or consume runtime profile selectors. The runtime factory now creates runtimes from the single module set and keeps only an internal `main` context label for provider capability requests that still carry `RuntimeProfile`.
+
+This was intentionally done as a clean xgoja break rather than a silent migration. The YAML loader now reports explicit errors for old `runtimes`, `commands.*.runtime`, and `commandProviders[].runtimeProfile` fields so users get actionable migration guidance.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Go ahead. Add tasks to the ticket, implement step by step, commit at appropriate intervals, keep a detailed diary as you work"
+
+**Assistant interpretation:** Start implementing GOJA-066, keep ticket tasks and diary current, test each chunk, and commit focused changes.
+
+**Inferred user intent:** Move from design into implementation while preserving a clear review trail and avoiding one giant undocumented refactor.
+
+**Commit (code):** pending — core schema/runtime refactor ready to commit after this diary update.
+
+### What I did
+
+- Updated build-time schema:
+  - replaced `BuildSpec.Runtimes` with `BuildSpec.Modules`;
+  - removed `CommandSpec.Runtime`;
+  - removed `CommandProviderInstanceSpec.RuntimeProfile`.
+- Updated YAML unsupported-field detection:
+  - old `runtimes` now produces a clear validation error;
+  - old `commands.*.runtime` now produces a clear validation error;
+  - old `commandProviders[].runtimeProfile` now produces a clear validation error.
+- Updated validation:
+  - replaced runtime-profile validation with top-level module validation;
+  - kept package/name/alias/duplicate-alias checks;
+  - simplified command validation because enabled commands no longer need runtime selectors.
+- Updated embedded runtime JSON generation to emit `modules` instead of `runtimes`.
+- Updated runtime-side app DTOs:
+  - replaced `app.RuntimeSpec.Runtimes` with `app.RuntimeSpec.Modules`;
+  - removed `RuntimeProfileSpec`;
+  - removed runtime selector fields from command and command-provider specs.
+- Updated runtime factory APIs:
+  - `NewRuntime(ctx, opts...)`;
+  - `NewRuntimeFromSections(ctx, vals, opts...)`.
+- Updated built-in commands:
+  - removed `--runtime` from `eval`, `run`, and `repl`;
+  - changed jsverb invocation to use the single runtime module set;
+  - removed `firstRuntime` and `commandRuntime` helpers.
+- Updated command-provider attachment:
+  - selected modules come from the one module set;
+  - `RuntimeProfile` context is always the internal `main` label for now.
+- Updated examples' `xgoja.yaml` files to use top-level `modules` and remove command runtime selectors.
+- Updated focused tests to the new schema and removed runtime-override tests that no longer make sense.
+
+### Why
+
+The point of GOJA-066 is to remove the named-profile abstraction from xgoja. Keeping profile selectors in DTOs, command flags, or generated JSON would preserve the old mental model. The implementation therefore moves the actual user-configured module list to top-level `modules` and removes profile selection from all generated command paths.
+
+### What worked
+
+Focused xgoja tests passed:
+
+```bash
+cd go-go-goja
+go test ./cmd/xgoja/... ./pkg/xgoja/... -count=1
+```
+
+This covered:
+
+- buildspec loading/validation;
+- code generation;
+- generated xgoja root command tests;
+- app runtime factory and command tests;
+- xgoja provider tests.
+
+### What didn't work
+
+- The first test run failed because many tests still used `Runtimes`, `RuntimeProfileSpec`, `CommandSpec.Runtime`, and old runtime-factory signatures. I updated those tests and removed the runtime override tests because selecting an alternate runtime profile is now intentionally unsupported.
+- `cmd/xgoja` tests initially failed because test fixture YAML still used `runtimes` and `commands.repl.runtime`, producing the new expected validation errors:
+  - `modules: at least one module is required`
+  - `runtimes: runtime profiles are no longer supported; move the single runtime's modules to top-level modules`
+  - `commands.repl.runtime: command runtime selectors are no longer supported; all commands use top-level modules`
+- Documentation still contains references to runtime profiles. This step focused on compiling code, runtime behavior, examples' YAML, and tests. The docs need a follow-up pass before the ticket is complete.
+
+### What I learned
+
+- The profile abstraction was broad but shallow: most of the code only used the profile string to pick a module list and pass context into provider APIs.
+- A constant `defaultRuntimeProfile = "main"` is enough to keep provider capability context stable while removing user-facing profile selection.
+- Tests were the largest part of the migration because many fixtures constructed `RuntimeSpec{Runtimes: ...}` inline.
+
+### What was tricky to build
+
+The trickiest part was avoiding a half-removed abstraction. It would have been easy to remove `runtimes` from YAML while leaving `--runtime` flags or `RuntimeFactory.NewRuntime(ctx, profile)` in place. That would still teach users that runtime selection exists. I instead changed the runtime factory signature and command settings together so any leftover profile path became a compile error.
+
+The second tricky part was keeping provider APIs stable enough for this commit. `providerapi.SectionRequest` and `CommandSetContext` still carry `RuntimeProfile`. Removing those fields would affect provider code more broadly, so this step keeps the field and always passes `main` as an internal compatibility label.
+
+### What warrants a second pair of eyes
+
+- Review the strict unsupported-field errors for old `runtimes`, command `runtime`, and command-provider `runtimeProfile` fields.
+- Review whether the runtime factory API break for command providers is acceptable now or needs a temporary compatibility method.
+- Review whether example `03-multiple-runtimes` should be renamed or replaced rather than only changing its YAML.
+
+### What should be done in the future
+
+- Update all xgoja docs to teach `modules` instead of `runtimes`.
+- Rename or replace `examples/xgoja/03-multiple-runtimes`.
+- Run representative example smokes after docs/example Makefiles are reviewed.
+- Consider a later providerapi cleanup to rename/remove `RuntimeProfile` from provider context structs.
+
+### Code review instructions
+
+Start with schema and validation:
+
+- `cmd/xgoja/internal/buildspec/build_spec.go`
+- `cmd/xgoja/internal/buildspec/load.go`
+- `cmd/xgoja/internal/buildspec/validate.go`
+
+Then review runtime construction:
+
+- `pkg/xgoja/app/runtime_spec.go`
+- `pkg/xgoja/app/module_sections.go`
+- `pkg/xgoja/app/factory.go`
+- `pkg/xgoja/app/root.go`
+- `pkg/xgoja/app/run.go`
+- `pkg/xgoja/app/tui.go`
+- `pkg/xgoja/app/command_providers.go`
+- `pkg/xgoja/providerapi/commands.go`
+
+Validate with:
+
+```bash
+cd go-go-goja
+go test ./cmd/xgoja/... ./pkg/xgoja/... -count=1
+```
+
+### Technical details
+
+Old buildspec shape:
+
+```yaml
+runtimes:
+  main:
+    modules:
+      - package: fixture
+        name: hello
+        as: hello
+commands:
+  eval:
+    enabled: true
+    runtime: main
+```
+
+New buildspec shape:
+
+```yaml
+modules:
+  - package: fixture
+    name: hello
+    as: hello
+commands:
+  eval:
+    enabled: true
+```
+
+Old runtime factory call:
+
+```go
+rt, err := factory.NewRuntimeFromSections(ctx, profile, vals, opts...)
+```
+
+New runtime factory call:
+
+```go
+rt, err := factory.NewRuntimeFromSections(ctx, vals, opts...)
 ```

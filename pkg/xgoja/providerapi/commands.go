@@ -13,12 +13,13 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
-// RuntimeFactory creates xgoja runtimes from named runtime profiles. Command
-// set providers use it when they own domain-specific commands but still want
-// those commands to run JavaScript with xgoja-selected modules.
+// RuntimeFactory creates xgoja runtimes from the generated binary's single
+// selected module set. Command set providers use it when they own
+// domain-specific commands but still want those commands to run JavaScript with
+// xgoja-selected modules.
 type RuntimeFactory interface {
-	NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*engine.Runtime, error)
-	NewRuntimeFromSections(ctx context.Context, profile string, vals *values.Values, opts ...require.Option) (*engine.Runtime, error)
+	NewRuntime(ctx context.Context, opts ...require.Option) (*engine.Runtime, error)
+	NewRuntimeFromSections(ctx context.Context, vals *values.Values, opts ...require.Option) (*engine.Runtime, error)
 }
 
 // CommandSetContext is passed to command set providers when generated xgoja

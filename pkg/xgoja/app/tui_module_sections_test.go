@@ -8,7 +8,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
-func TestTUICommandIncludesRuntimeProfileModuleSections(t *testing.T) {
+func TestTUICommandIncludesRuntimeModuleSections(t *testing.T) {
 	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runFixtureCapability{}))
 	cmd := newTUICommand(factory, factory.runtimeSpec)
 	section, ok := cmd.Description().Schema.Get("fixture")
@@ -29,11 +29,11 @@ func TestNewXGojaTUIEvaluatorInitializesRuntimeFromModuleSections(t *testing.T) 
 			return nil
 		},
 	}))
-	descriptors, err := factory.selectedModuleDescriptors("main")
+	descriptors, err := factory.selectedModuleDescriptors()
 	if err != nil {
 		t.Fatalf("selected descriptors: %v", err)
 	}
-	adapter, err := newXGojaTUIEvaluator(context.Background(), factory, "main", values.New(), descriptors)
+	adapter, err := newXGojaTUIEvaluator(context.Background(), factory, values.New(), descriptors)
 	if err != nil {
 		t.Fatalf("new TUI evaluator: %v", err)
 	}

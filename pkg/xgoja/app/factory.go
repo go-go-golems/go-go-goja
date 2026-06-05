@@ -67,23 +67,19 @@ func NewRuntimeFactory(providers *providerapi.ProviderRegistry, runtimeSpec *Run
 	return &RuntimeFactory{providers: providers, runtimeSpec: runtimeSpec, services: hostServices}
 }
 
-func (f *RuntimeFactory) NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*JSRuntime, error) {
-	return f.NewRuntimeFromSections(ctx, profile, nil, opts...)
+func (f *RuntimeFactory) NewRuntime(ctx context.Context, opts ...require.Option) (*JSRuntime, error) {
+	return f.NewRuntimeFromSections(ctx, nil, opts...)
 }
 
-func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, profile string, vals *values.Values, opts ...require.Option) (*JSRuntime, error) {
+func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, vals *values.Values, opts ...require.Option) (*JSRuntime, error) {
 	if f == nil || f.providers == nil || f.runtimeSpec == nil {
 		return nil, fmt.Errorf("xgoja runtime factory is not initialized")
 	}
-	runtime, ok := f.runtimeSpec.Runtimes[profile]
-	if !ok {
-		return nil, fmt.Errorf("unknown runtime profile %q", profile)
-	}
-	descriptors, err := f.selectedModuleDescriptors(profile)
+	descriptors, err := f.selectedModuleDescriptors()
 	if err != nil {
 		return nil, err
 	}
-	runtimeServices, err := f.hostServicesForRuntime(ctx, profile, vals, descriptors)
+	runtimeServices, err := f.hostServicesForRuntime(ctx, defaultRuntimeProfile, vals, descriptors)
 	if err != nil {
 		return nil, err
 	}
@@ -97,17 +93,17 @@ func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, profile str
 	for _, descriptor := range descriptors {
 		descriptorsByInstance[moduleDescriptorKey(descriptor.PackageID, descriptor.ModuleID, descriptor.As)] = descriptor
 	}
-	modules := make([]engine.RuntimeModuleRegistrar, 0, len(runtime.Modules))
-	for _, instance := range runtime.Modules {
+	modules := make([]engine.RuntimeModuleRegistrar, 0, len(f.runtimeSpec.Modules))
+	for _, instance := range f.runtimeSpec.Modules {
 		module, ok := f.providers.ResolveModule(instance.Package, instance.Name)
 		if !ok {
-			return nil, fmt.Errorf("runtime %s references unknown provider module %s.%s", profile, instance.Package, instance.Name)
+			return nil, fmt.Errorf("runtime references unknown provider module %s.%s", instance.Package, instance.Name)
 		}
 		descriptor := descriptorsByInstance[moduleDescriptorKey(instance.Package, instance.Name, instance.Alias())]
 		if descriptor.Module.Name == "" {
 			descriptor = providerapi.ModuleDescriptor{PackageID: instance.Package, ModuleID: instance.Name, As: instance.Alias(), Module: module}
 		}
-		config, err := f.configForModuleInstance(ctx, profile, instance, descriptor, vals)
+		config, err := f.configForModuleInstance(ctx, defaultRuntimeProfile, instance, descriptor, vals)
 		if err != nil {
 			return nil, err
 		}

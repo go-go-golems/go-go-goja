@@ -3,32 +3,28 @@ target:
   kind: xgoja
   output: dist/host-provider
 packages:
-  - id: go-go-goja-host
-    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
-runtimes:
-  main:
-    modules:
-      - package: go-go-goja-host
-        name: fs
-        as: fs
-        config:
-          allow: true
-      - package: go-go-goja-host
-        name: exec
-        as: exec
-        config:
-          allow: true
-          allowedCommands:
-            - echo
-      - package: go-go-goja-host
-        name: database
-        as: database
-        config:
-          allowConfigure: true
+- id: go-go-goja-host
+  import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
 commands:
   eval:
     enabled: true
-    runtime: main
   run:
     enabled: true
-    runtime: main
+modules:
+- package: go-go-goja-host
+  name: fs
+  as: fs
+  config:
+    allow: true
+- package: go-go-goja-host
+  name: exec
+  as: exec
+  config:
+    allow: true
+    allowedCommands:
+    - echo
+- package: go-go-goja-host
+  name: database
+  as: database
+  config:
+    allowConfigure: true

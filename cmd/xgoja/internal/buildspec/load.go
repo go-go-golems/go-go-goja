@@ -22,7 +22,7 @@ func LoadFile(path string) (*BuildSpec, *Report, error) {
 		return nil, nil, fmt.Errorf("read build spec %s: %w", abs, err)
 	}
 
-	unsupportedReport, err := unsupportedAssetFieldsReport(data)
+	unsupportedReport, err := unsupportedFieldsReport(data)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse build spec %s: %w", abs, err)
 	}
@@ -42,7 +42,7 @@ func LoadFile(path string) (*BuildSpec, *Report, error) {
 	return buildSpec, report, nil
 }
 
-func unsupportedAssetFieldsReport(data []byte) (*Report, error) {
+func unsupportedFieldsReport(data []byte) (*Report, error) {
 	report := &Report{}
 	root := yaml.Node{}
 	if err := yaml.Unmarshal(data, &root); err != nil {
@@ -55,27 +55,90 @@ func unsupportedAssetFieldsReport(data []byte) (*Report, error) {
 	for i := 0; i+1 < len(mapping.Content); i += 2 {
 		key := mapping.Content[i]
 		value := mapping.Content[i+1]
-		if key.Value != "assets" || value.Kind != yaml.SequenceNode {
-			continue
-		}
-		for assetIndex, asset := range value.Content {
-			if asset.Kind != yaml.MappingNode {
-				continue
-			}
-			for j := 0; j+1 < len(asset.Content); j += 2 {
-				field := asset.Content[j]
-				if field.Value != "include" && field.Value != "exclude" {
-					continue
-				}
-				report.AddError(
-					"asset-filter-field",
-					fmt.Sprintf("assets[%d].%s", assetIndex, field.Value),
-					"asset include/exclude filters are not supported yet; remove this field",
-				)
-			}
+		switch key.Value {
+		case "runtimes":
+			report.AddError(
+				"runtime-profile-field",
+				"runtimes",
+				"runtime profiles are no longer supported; move the single runtime's modules to top-level modules",
+			)
+		case "commands":
+			addUnsupportedCommandRuntimeFields(report, value)
+		case "commandProviders":
+			addUnsupportedCommandProviderRuntimeProfileFields(report, value)
+		case "assets":
+			addUnsupportedAssetFilterFields(report, value)
 		}
 	}
 	return report, nil
+}
+
+func addUnsupportedAssetFilterFields(report *Report, value *yaml.Node) {
+	if value == nil || value.Kind != yaml.SequenceNode {
+		return
+	}
+	for assetIndex, asset := range value.Content {
+		if asset.Kind != yaml.MappingNode {
+			continue
+		}
+		for j := 0; j+1 < len(asset.Content); j += 2 {
+			field := asset.Content[j]
+			if field.Value != "include" && field.Value != "exclude" {
+				continue
+			}
+			report.AddError(
+				"asset-filter-field",
+				fmt.Sprintf("assets[%d].%s", assetIndex, field.Value),
+				"asset include/exclude filters are not supported yet; remove this field",
+			)
+		}
+	}
+}
+
+func addUnsupportedCommandRuntimeFields(report *Report, value *yaml.Node) {
+	if value == nil || value.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 0; i+1 < len(value.Content); i += 2 {
+		commandKey := value.Content[i]
+		commandValue := value.Content[i+1]
+		if commandValue.Kind != yaml.MappingNode {
+			continue
+		}
+		for j := 0; j+1 < len(commandValue.Content); j += 2 {
+			field := commandValue.Content[j]
+			if field.Value != "runtime" {
+				continue
+			}
+			report.AddError(
+				"command-runtime-field",
+				fmt.Sprintf("commands.%s.runtime", commandKey.Value),
+				"command runtime selectors are no longer supported; all commands use top-level modules",
+			)
+		}
+	}
+}
+
+func addUnsupportedCommandProviderRuntimeProfileFields(report *Report, value *yaml.Node) {
+	if value == nil || value.Kind != yaml.SequenceNode {
+		return
+	}
+	for providerIndex, provider := range value.Content {
+		if provider.Kind != yaml.MappingNode {
+			continue
+		}
+		for j := 0; j+1 < len(provider.Content); j += 2 {
+			field := provider.Content[j]
+			if field.Value != "runtimeProfile" {
+				continue
+			}
+			report.AddError(
+				"command-provider-runtime-profile-field",
+				fmt.Sprintf("commandProviders[%d].runtimeProfile", providerIndex),
+				"command provider runtime profiles are no longer supported; all command providers use top-level modules",
+			)
+		}
+	}
 }
 
 func applyDefaults(buildSpec *BuildSpec) {

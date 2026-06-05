@@ -34,24 +34,19 @@ type tuiCommand struct {
 var _ cmds.BareCommand = (*tuiCommand)(nil)
 
 type tuiSettings struct {
-	Runtime   string `glazed:"runtime"`
-	AltScreen bool   `glazed:"alt-screen"`
+	AltScreen bool `glazed:"alt-screen"`
 }
 
 func newTUICommand(factory *RuntimeFactory, runtimeSpec *RuntimeSpec) cmds.Command {
-	profile := commandRuntime(runtimeSpec.Commands.Repl, firstRuntime(runtimeSpec))
-	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("repl", profile)
+	moduleSections, _, sectionErr := factory.sectionsForRuntime("repl")
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Run an interactive TUI REPL for a generated xgoja runtime"),
 		cmds.WithLong(`
-TUI starts a Bubble Tea JavaScript REPL backed by a generated xgoja runtime
-profile. The selected runtime profile controls which provider modules are
-available through require().
+TUI starts a Bubble Tea JavaScript REPL backed by the generated xgoja runtime.
+The generated runtime controls which provider modules are available through
+require().
 `),
 		cmds.WithFlags(
-			fields.New("runtime", fields.TypeString,
-				fields.WithDefault(profile),
-				fields.WithHelp("Runtime profile to use")),
 			fields.New("alt-screen", fields.TypeBool,
 				fields.WithDefault(true),
 				fields.WithHelp("Run the TUI in the terminal alt screen")),
@@ -76,14 +71,14 @@ func (c *tuiCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	selectedModules, err := c.factory.selectedModuleDescriptors(settings.Runtime)
+	selectedModules, err := c.factory.selectedModuleDescriptors()
 	if err != nil {
 		return err
 	}
-	return runTUI(ctx, c.factory, c.runtimeSpec, settings.Runtime, settings.AltScreen, vals, selectedModules)
+	return runTUI(ctx, c.factory, c.runtimeSpec, settings.AltScreen, vals, selectedModules)
 }
 
-func runTUI(ctx context.Context, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, profile string, altScreen bool, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {
+func runTUI(ctx context.Context, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, altScreen bool, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -92,7 +87,7 @@ func runTUI(ctx context.Context, factory *RuntimeFactory, runtimeSpec *RuntimeSp
 	}
 	logutil.InitTUILoggingToDiscard(zerolog.ErrorLevel)
 
-	adapter, err := newXGojaTUIEvaluator(ctx, factory, profile, vals, selectedModules)
+	adapter, err := newXGojaTUIEvaluator(ctx, factory, vals, selectedModules)
 	if err != nil {
 		return err
 	}
@@ -103,8 +98,8 @@ func runTUI(ctx context.Context, factory *RuntimeFactory, runtimeSpec *RuntimeSp
 	if runtimeSpec != nil && strings.TrimSpace(runtimeSpec.Name) != "" {
 		name = strings.TrimSpace(runtimeSpec.Name)
 	}
-	cfg.Title = fmt.Sprintf("%s TUI (%s runtime)", name, profile)
-	cfg.Placeholder = fmt.Sprintf("Runtime %s | Type JavaScript, then use alt+h for help", profile)
+	cfg.Title = fmt.Sprintf("%s TUI", name)
+	cfg.Placeholder = "Generated xgoja runtime | Type JavaScript, then use alt+h for help"
 	cfg.Autocomplete.Enabled = true
 	cfg.Autocomplete.FocusToggleKey = "ctrl+t"
 	cfg.Autocomplete.TriggerKeys = []string{"tab"}
@@ -148,8 +143,8 @@ type xgojaTUIEvaluator struct {
 	evaluator     *jsadapter.JavaScriptEvaluator
 }
 
-func newXGojaTUIEvaluator(ctx context.Context, factory *RuntimeFactory, profile string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) (*xgojaTUIEvaluator, error) {
-	rt, err := factory.NewRuntimeFromSections(ctx, profile, vals)
+func newXGojaTUIEvaluator(ctx context.Context, factory *RuntimeFactory, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) (*xgojaTUIEvaluator, error) {
+	rt, err := factory.NewRuntimeFromSections(ctx, vals)
 	if err != nil {
 		return nil, fmt.Errorf("create runtime: %w", err)
 	}

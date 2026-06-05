@@ -19,7 +19,7 @@ func Validate(buildSpec *BuildSpec) *Report {
 	validateConfig(report, buildSpec)
 	validateTarget(report, buildSpec)
 	packageIDs := validatePackages(report, buildSpec)
-	validateRuntimes(report, buildSpec, packageIDs)
+	validateModules(report, buildSpec.Modules, packageIDs)
 	validateCommands(report, buildSpec)
 	validateCommandProviders(report, buildSpec, packageIDs)
 	validateJSVerbs(report, buildSpec, packageIDs)
@@ -186,52 +186,41 @@ func validatePackages(report *Report, buildSpec *BuildSpec) map[string]PackageSp
 	return ids
 }
 
-func validateRuntimes(report *Report, buildSpec *BuildSpec, packageIDs map[string]PackageSpec) {
-	if len(buildSpec.Runtimes) == 0 {
-		report.AddError("runtimes", "runtimes", "at least one runtime profile is required")
+func validateModules(report *Report, modules []ModuleInstanceSpec, packageIDs map[string]PackageSpec) {
+	if len(modules) == 0 {
+		report.AddError("modules", "modules", "at least one module is required")
 		return
 	}
-	for runtimeName, runtime := range buildSpec.Runtimes {
-		path := "runtimes." + runtimeName
-		if strings.TrimSpace(runtimeName) == "" {
-			report.AddError("runtime-name", "runtimes", "runtime profile name is empty")
+	aliases := map[string]string{}
+	for i, mod := range modules {
+		modPath := fmt.Sprintf("modules[%d]", i)
+		if strings.TrimSpace(mod.Package) == "" {
+			report.AddError("module-package", modPath+".package", "module package is required")
+		} else if _, ok := packageIDs[mod.Package]; !ok {
+			report.AddError("module-package", modPath+".package", fmt.Sprintf("unknown package id %q", mod.Package))
+		}
+		if strings.TrimSpace(mod.Name) == "" {
+			report.AddError("module-name", modPath+".name", "module name is required")
+		}
+		alias := strings.TrimSpace(mod.Alias())
+		if alias == "" {
+			report.AddError("module-alias", modPath+".as", "module alias resolves to empty")
 			continue
 		}
-		if len(runtime.Modules) == 0 {
-			report.AddError("runtime-modules", path+".modules", "runtime must select at least one module")
+		if prev, ok := aliases[alias]; ok {
+			report.AddError("module-alias", modPath+".as", fmt.Sprintf("duplicate alias %q already used by %s", alias, prev))
 			continue
 		}
-		aliases := map[string]string{}
-		for i, mod := range runtime.Modules {
-			modPath := fmt.Sprintf("%s.modules[%d]", path, i)
-			if strings.TrimSpace(mod.Package) == "" {
-				report.AddError("runtime-module-package", modPath+".package", "module package is required")
-			} else if _, ok := packageIDs[mod.Package]; !ok {
-				report.AddError("runtime-module-package", modPath+".package", fmt.Sprintf("unknown package id %q", mod.Package))
-			}
-			if strings.TrimSpace(mod.Name) == "" {
-				report.AddError("runtime-module-name", modPath+".name", "module name is required")
-			}
-			alias := strings.TrimSpace(mod.Alias())
-			if alias == "" {
-				report.AddError("runtime-module-alias", modPath+".as", "module alias resolves to empty")
-				continue
-			}
-			if prev, ok := aliases[alias]; ok {
-				report.AddError("runtime-module-alias", modPath+".as", fmt.Sprintf("duplicate alias %q already used by %s", alias, prev))
-				continue
-			}
-			aliases[alias] = mod.Ref()
-		}
-		report.AddOK("runtime", path, fmt.Sprintf("%d module(s) selected", len(runtime.Modules)))
+		aliases[alias] = mod.Ref()
 	}
+	report.AddOK("modules", "modules", fmt.Sprintf("%d module(s) selected", len(modules)))
 }
 
 func validateCommands(report *Report, buildSpec *BuildSpec) {
-	validateCommandRuntime(report, "commands.eval", buildSpec.Commands.Eval, buildSpec.Runtimes)
-	validateCommandRuntime(report, "commands.run", buildSpec.Commands.Run, buildSpec.Runtimes)
-	validateCommandRuntime(report, "commands.repl", buildSpec.Commands.Repl, buildSpec.Runtimes)
-	validateCommandRuntime(report, "commands.jsverbs", buildSpec.Commands.JSVerbs, buildSpec.Runtimes)
+	validateCommand(report, "commands.eval", buildSpec.Commands.Eval)
+	validateCommand(report, "commands.run", buildSpec.Commands.Run)
+	validateCommand(report, "commands.repl", buildSpec.Commands.Repl)
+	validateCommand(report, "commands.jsverbs", buildSpec.Commands.JSVerbs)
 	validateJSVerbCommandMount(report, buildSpec.Commands.JSVerbs)
 }
 
@@ -248,20 +237,12 @@ func validateJSVerbCommandMount(report *Report, command CommandSpec) {
 	}
 }
 
-func validateCommandRuntime(report *Report, path string, command CommandSpec, runtimes map[string]RuntimeSpec) {
+func validateCommand(report *Report, path string, command CommandSpec) {
 	if !command.Enabled {
 		report.AddOK("command", path, "command disabled")
 		return
 	}
-	if strings.TrimSpace(command.Runtime) == "" {
-		report.AddError("command-runtime", path+".runtime", "enabled command requires a runtime profile")
-		return
-	}
-	if _, ok := runtimes[command.Runtime]; !ok {
-		report.AddError("command-runtime", path+".runtime", fmt.Sprintf("unknown runtime profile %q", command.Runtime))
-		return
-	}
-	report.AddOK("command-runtime", path+".runtime", command.Runtime)
+	report.AddOK("command", path, "command enabled")
 }
 
 func validateCommandProviders(report *Report, buildSpec *BuildSpec, packageIDs map[string]PackageSpec) {
@@ -283,13 +264,6 @@ func validateCommandProviders(report *Report, buildSpec *BuildSpec, packageIDs m
 		}
 		if strings.TrimSpace(provider.Name) == "" {
 			report.AddError("command-provider-name", path+".name", "command provider name is required")
-		}
-		if strings.TrimSpace(provider.RuntimeProfile) != "" {
-			if _, ok := buildSpec.Runtimes[provider.RuntimeProfile]; !ok {
-				report.AddError("command-provider-runtime", path+".runtimeProfile", fmt.Sprintf("unknown runtime profile %q", provider.RuntimeProfile))
-			} else {
-				report.AddOK("command-provider-runtime", path+".runtimeProfile", provider.RuntimeProfile)
-			}
 		}
 	}
 	if len(buildSpec.CommandProviders) > 0 {

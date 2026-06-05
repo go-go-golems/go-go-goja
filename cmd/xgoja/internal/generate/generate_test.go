@@ -58,10 +58,8 @@ func TestRenderGoModUsesModuleRootsForSubpackageImports(t *testing.T) {
 			{ID: "provider", Import: "github.com/acme/widgets/pkg/xgoja/testprovider", Version: "v1.2.3", Register: "Register", Replace: "../widgets"},
 			{ID: "provider2", Import: "github.com/acme/other/pkg/xgoja", Version: "v2.0.0", Register: "Register", Replace: "../other"},
 		},
-		Runtimes: map[string]buildspec.RuntimeSpec{
-			"repl": {Modules: []buildspec.ModuleInstanceSpec{{Package: "provider", Name: "hello", As: "hello"}}},
-		},
-		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "eval"}},
+		Modules:  []buildspec.ModuleInstanceSpec{{Package: "provider", Name: "hello", As: "hello"}},
+		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Name: "eval"}},
 	}
 	got := RenderGoMod(buildSpec, Options{XGojaModuleVersion: "v0.1.0"})
 	for _, want := range []string{
@@ -111,7 +109,7 @@ func TestRenderEmbeddedSpecStableShape(t *testing.T) {
 		`"kind": "xgoja"`,
 		`"package": "web"`,
 		`"as": "fetch"`,
-		`"runtime": "repl"`,
+		`"modules": [`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, got)
@@ -148,7 +146,7 @@ func TestRenderEmbeddedSpecIncludesRuntimeAppSettings(t *testing.T) {
 
 func TestRenderMainIncludesEmbeddedVerbFS(t *testing.T) {
 	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
 	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true}}
 	got := RenderMain(buildSpec)
 	for _, want := range []string{
@@ -197,7 +195,7 @@ func TestRenderMainIncludesEmbeddedHelpFS(t *testing.T) {
 
 func TestRenderMainIncludesEmbeddedVerbAndHelpFS(t *testing.T) {
 	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
 	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local-verbs", Path: "verbs", Embed: true}}
 	buildSpec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local-docs", Path: "docs/help", Embed: true}}
 	got := RenderMain(buildSpec)
@@ -243,7 +241,7 @@ func TestRenderMainIncludesEmbeddedAssetFS(t *testing.T) {
 
 func TestRenderEmbeddedSpecAvoidsEmbeddedVerbRootCollisions(t *testing.T) {
 	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
 	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{
 		{ID: "local-dev", Path: "verbs-a", Embed: true},
 		{ID: "local_dev", Path: "verbs-b", Embed: true},
@@ -306,7 +304,7 @@ func TestWriteAllCopiesEmbeddedVerbSourcesToCollisionFreeRoots(t *testing.T) {
 	}
 	buildSpec := buildableSpec("xgoja", "", "")
 	buildSpec.BaseDir = baseDir
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
 	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{
 		{ID: "local-dev", Path: "verbs-a", Embed: true},
 		{ID: "local_dev", Path: "verbs-b", Embed: true},
@@ -419,18 +417,18 @@ func TestGeneratedProgramUsesConfiguredReplCommandName(t *testing.T) {
 
 func TestGeneratedProgramRunsProviderVerbSource(t *testing.T) {
 	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
 	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "provider", Package: "fixture", Source: "verbs"}}
 	runGeneratedCommand(t, buildSpec, "verbs", "tools", "provider-greet", "--name", "intern")
 }
 
 func TestGeneratedProgramRunsProviderVerbWithOwnerBindings(t *testing.T) {
 	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Runtimes["repl"] = buildspec.RuntimeSpec{Modules: []buildspec.ModuleInstanceSpec{
+	buildSpec.Modules = []buildspec.ModuleInstanceSpec{
 		{Package: "fixture", Name: "hello", As: "hello"},
 		{Package: "fixture", Name: "owner-check", As: "owner-check"},
-	}}
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	}
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
 	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "provider", Package: "fixture", Source: "verbs"}}
 	_, out := runGeneratedCommandWithOutput(t, buildSpec, "verbs", "tools", "owner-ping")
 	if strings.TrimSpace(string(out)) != "pong" {
@@ -462,7 +460,7 @@ function embeddedGreet(name) {
 	}
 	buildSpec := buildableSpec("xgoja", "", "")
 	buildSpec.BaseDir = baseDir
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "verbs"}
+	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
 	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true}}
 	dir := runGeneratedCommand(t, buildSpec, "verbs", "tools", "embedded-greet", "--name", "intern")
 	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "jsverbs", "local", "tools.js")); err != nil {
@@ -498,23 +496,21 @@ func TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases(t *testing.T) {
 			Register: "Register",
 		}},
 		Assets: []buildspec.AssetSourceSpec{{ID: "app-assets", Path: "assets", Embed: true}},
-		Runtimes: map[string]buildspec.RuntimeSpec{
-			"main": {Modules: []buildspec.ModuleInstanceSpec{
-				{
-					Package: "go-go-goja-host",
-					Name:    "fs",
-					As:      "fs:assets",
-					Config: map[string]any{
-						"embedded": map[string]any{
-							"allow":  true,
-							"mounts": []any{map[string]any{"asset": "app-assets", "mount": "/app"}},
-						},
+		Modules: []buildspec.ModuleInstanceSpec{
+			{
+				Package: "go-go-goja-host",
+				Name:    "fs",
+				As:      "fs:assets",
+				Config: map[string]any{
+					"embedded": map[string]any{
+						"allow":  true,
+						"mounts": []any{map[string]any{"asset": "app-assets", "mount": "/app"}},
 					},
 				},
-				{Package: "go-go-goja-host", Name: "fs", As: "fs:host", Config: map[string]any{"allow": true}},
-			}},
+			},
+			{Package: "go-go-goja-host", Name: "fs", As: "fs:host", Config: map[string]any{"allow": true}},
 		},
-		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Runtime: "main", Name: "eval"}},
+		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Name: "eval"}},
 	}
 	js := `
 		const assets = require("fs:assets");
@@ -647,10 +643,8 @@ func buildableSpec(kind, targetImport, root string) *buildspec.BuildSpec {
 		Packages: []buildspec.PackageSpec{
 			{ID: "fixture", Import: "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider", Register: "Register"},
 		},
-		Runtimes: map[string]buildspec.RuntimeSpec{
-			"repl": {Modules: []buildspec.ModuleInstanceSpec{{Package: "fixture", Name: "hello", As: "hello"}}},
-		},
-		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "eval"}},
+		Modules:  []buildspec.ModuleInstanceSpec{{Package: "fixture", Name: "hello", As: "hello"}},
+		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Name: "eval"}},
 	}
 }
 
@@ -666,9 +660,7 @@ func fixtureSpec() *buildspec.BuildSpec {
 			{ID: "core", Import: "github.com/go-go-golems/go-go-goja/xgoja", Register: "Register"},
 			{ID: "web", Import: "github.com/go-go-golems/web-stuff/xgoja", Version: "v0.3.0", Register: "Register", Replace: "../web-stuff"},
 		},
-		Runtimes: map[string]buildspec.RuntimeSpec{
-			"repl": {Modules: []buildspec.ModuleInstanceSpec{{Package: "web", Name: "fetch", As: "fetch"}}},
-		},
-		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Runtime: "repl", Name: "eval"}},
+		Modules:  []buildspec.ModuleInstanceSpec{{Package: "web", Name: "fetch", As: "fetch"}},
+		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Name: "eval"}},
 	}
 }

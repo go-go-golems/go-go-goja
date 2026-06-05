@@ -3,19 +3,12 @@ target:
   kind: xgoja
   output: dist/provider-shipped-help-docs
 packages:
-  - id: loupedeck
-    import: github.com/go-go-golems/loupedeck/pkg/xgoja/provider
-    replace: ../../../../loupedeck
-runtimes:
-  docs:
-    modules:
-      - package: loupedeck
-        name: loupedeck/state
-        as: loupedeck/state
+- id: loupedeck
+  import: github.com/go-go-golems/loupedeck/pkg/xgoja/provider
+  replace: ../../../../loupedeck
 commands:
   eval:
     enabled: true
-    runtime: docs
   run:
     enabled: false
   jsverbs:
@@ -24,6 +17,10 @@ commands:
     enabled: false
 help:
   sources:
-    - id: loupedeck-runtime-api
-      package: loupedeck
-      source: runtime-api
+  - id: loupedeck-runtime-api
+    package: loupedeck
+    source: runtime-api
+modules:
+- package: loupedeck
+  name: loupedeck/state
+  as: loupedeck/state

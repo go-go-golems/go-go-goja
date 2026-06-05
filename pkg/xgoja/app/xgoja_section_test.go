@@ -26,13 +26,9 @@ func TestGeneratedRootExposesXGojaDebugPanicStackFlag(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "mod", "as": "mod"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "mod", "as": "mod"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -65,9 +61,7 @@ func TestRuntimeFactoryDebugPanicStackFieldControlsRecoveredPanicStack(t *testin
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	factory := NewRuntimeFactory(registry, &RuntimeSpec{Runtimes: map[string]RuntimeProfileSpec{
-		"main": {Modules: []ModuleInstanceSpec{{Package: "panic", Name: "panic", As: "panic"}}},
-	}})
+	factory := NewRuntimeFactory(registry, &RuntimeSpec{Modules: []ModuleInstanceSpec{{Package: "panic", Name: "panic", As: "panic"}}})
 
 	for _, tc := range []struct {
 		name      string
@@ -78,7 +72,7 @@ func TestRuntimeFactoryDebugPanicStackFieldControlsRecoveredPanicStack(t *testin
 		{name: "debug stack", vals: xgojaDebugValues(t, true), wantStack: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			rt, err := factory.NewRuntimeFromSections(context.Background(), "main", tc.vals)
+			rt, err := factory.NewRuntimeFromSections(context.Background(), tc.vals)
 			if err != nil {
 				t.Fatalf("new runtime: %v", err)
 			}

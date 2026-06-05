@@ -28,19 +28,17 @@ var _ cmds.BareCommand = (*runCommand)(nil)
 
 type runSettings struct {
 	File      string `glazed:"file"`
-	Runtime   string `glazed:"runtime"`
 	KeepAlive bool   `glazed:"keep-alive"`
 }
 
 func newRunCommand(factory *RuntimeFactory, runtimeSpec *RuntimeSpec) cmds.Command {
-	profile := commandRuntime(runtimeSpec.Commands.Run, firstRuntime(runtimeSpec))
-	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("run", profile)
+	moduleSections, _, sectionErr := factory.sectionsForRuntime("run")
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Execute a JavaScript file in a generated xgoja runtime"),
 		cmds.WithLong(`
 Run executes a JavaScript file in a fresh xgoja runtime.
 
-The runtime profile controls which provider modules are available through
+The generated runtime controls which provider modules are available through
 require(). The script's directory is added to the module resolution roots so
 sibling JavaScript files can be required by relative path.
 `),
@@ -50,9 +48,6 @@ sibling JavaScript files can be required by relative path.
 				fields.WithHelp("Path to the JavaScript file to execute")),
 		),
 		cmds.WithFlags(
-			fields.New("runtime", fields.TypeString,
-				fields.WithDefault(profile),
-				fields.WithHelp("Runtime profile to use")),
 			fields.New("keep-alive", fields.TypeBool,
 				fields.WithDefault(false),
 				fields.WithHelp("Keep the runtime alive after the script finishes, useful for scripts that register HTTP routes or static mounts")),
@@ -77,14 +72,14 @@ func (c *runCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	selectedModules, err := c.factory.selectedModuleDescriptors(settings.Runtime)
+	selectedModules, err := c.factory.selectedModuleDescriptors()
 	if err != nil {
 		return err
 	}
-	return runScriptFileWithInitializers(ctx, c.factory, settings.Runtime, settings.File, vals, selectedModules, settings.KeepAlive)
+	return runScriptFileWithInitializers(ctx, c.factory, settings.File, vals, selectedModules, settings.KeepAlive)
 }
 
-func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory, profile string, file string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, keepAlive bool) error {
+func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory, file string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, keepAlive bool) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -105,7 +100,7 @@ func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory,
 	if err != nil {
 		return fmt.Errorf("resolve module roots from script %q: %w", scriptPath, err)
 	}
-	rt, err := factory.NewRuntimeFromSections(ctx, profile, vals, requireOpt)
+	rt, err := factory.NewRuntimeFromSections(ctx, vals, requireOpt)
 	if err != nil {
 		return fmt.Errorf("create runtime: %w", err)
 	}
@@ -141,11 +136,4 @@ func waitForKeepAlive(ctx context.Context) error {
 		return err
 	}
 	return nil
-}
-
-func commandRuntime(command CommandSpec, fallback string) string {
-	if command.Runtime != "" {
-		return command.Runtime
-	}
-	return fallback
 }

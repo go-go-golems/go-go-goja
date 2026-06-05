@@ -19,7 +19,7 @@ type RuntimeSpec struct {
 	ConfigFile       *ConfigFileSpec               `json:"configFile,omitempty"`
 	Target           TargetSpec                    `json:"target"`
 	Packages         []PackageSpec                 `json:"packages"`
-	Runtimes         map[string]RuntimeProfileSpec `json:"runtimes"`
+	Modules          []ModuleInstanceSpec          `json:"modules"`
 	Commands         CommandsSpec                  `json:"commands"`
 	CommandProviders []CommandProviderInstanceSpec `json:"commandProviders,omitempty"`
 	JSVerbs          []JSVerbSourceSpec            `json:"jsverbs,omitempty"`
@@ -42,14 +42,7 @@ type PackageSpec struct {
 	ID string `json:"id"`
 }
 
-// RuntimeProfileSpec is a declarative runtime profile in the embedded app runtime spec.
-// It lists provider module instances selected for a named profile; it is not a
-// concrete engine.Runtime.
-type RuntimeProfileSpec struct {
-	Modules []ModuleInstanceSpec `json:"modules"`
-}
-
-// ModuleInstanceSpec selects one provider module for a runtime profile.
+// ModuleInstanceSpec selects one provider module for the generated xgoja runtime.
 // The generated app resolves Package+Name through providerapi.ProviderRegistry and uses
 // As as the require() alias. Config is static module config carried from the
 // generated runtime spec.
@@ -76,7 +69,6 @@ type CommandsSpec struct {
 
 type CommandSpec struct {
 	Enabled bool   `json:"enabled"`
-	Runtime string `json:"runtime,omitempty"`
 	Name    string `json:"name,omitempty"`
 	Mount   string `json:"mount,omitempty"`
 }
@@ -85,14 +77,13 @@ type CommandSpec struct {
 // to the generated Cobra root. It is the runtime DTO counterpart to the
 // providerapi.CommandSetProvider definition stored in providerapi.ProviderRegistry.
 type CommandProviderInstanceSpec struct {
-	ID             string         `json:"id"`
-	Package        string         `json:"package"`
-	Name           string         `json:"name"`
-	Mount          string         `json:"mount,omitempty"`
-	RuntimeProfile string         `json:"runtimeProfile,omitempty"`
-	Modules        []string       `json:"modules,omitempty"`
-	Config         map[string]any `json:"config,omitempty"`
-	Lazy           bool           `json:"lazy,omitempty"`
+	ID      string         `json:"id"`
+	Package string         `json:"package"`
+	Name    string         `json:"name"`
+	Mount   string         `json:"mount,omitempty"`
+	Modules []string       `json:"modules,omitempty"`
+	Config  map[string]any `json:"config,omitempty"`
+	Lazy    bool           `json:"lazy,omitempty"`
 }
 
 type JSVerbSourceSpec struct {
