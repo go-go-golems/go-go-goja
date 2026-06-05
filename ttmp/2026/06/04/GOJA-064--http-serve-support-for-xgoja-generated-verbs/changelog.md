@@ -55,3 +55,14 @@ Implemented first GOJA-064 code slice: command-provider jsverb source access plu
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providerapi/commands.go — Added JSVerbSourceSet API
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providers/http/serve.go — Implemented HTTP serve command provider
 
+
+## 2026-06-04
+
+Added generated-binary HTTP serve jsverb smoke test and examples/xgoja/13-http-serve-jsverbs runnable example.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Generated serve command smoke coverage
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/examples/xgoja/13-http-serve-jsverbs/verbs/sites.js — New example setup verb
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/examples/xgoja/13-http-serve-jsverbs/xgoja.yaml — New example buildspec
+

@@ -1,13 +1,18 @@
 package generate
 
 import (
+	"context"
 	"encoding/json"
+	"io"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
@@ -468,6 +473,73 @@ function embeddedGreet(name) {
 	}
 }
 
+func TestGeneratedProgramServesHTTPVerb(t *testing.T) {
+	baseDir := t.TempDir()
+	verbsDir := filepath.Join(baseDir, "verbs")
+	if err := os.MkdirAll(verbsDir, 0o755); err != nil {
+		t.Fatalf("mkdir verbs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(verbsDir, "sites.js"), []byte(`
+__package__({ name: "sites" })
+__verb__("demo", { name: "demo", output: "text", short: "Serve demo" })
+function demo() {
+  const express = require("express")
+  const app = express.app()
+  app.get("/healthz", (_req, res) => res.json({ ok: true, source: "jsverb" }))
+}
+`), 0o644); err != nil {
+		t.Fatalf("write verb: %v", err)
+	}
+	buildSpec := &buildspec.BuildSpec{
+		Name:    "http-serve-verb",
+		Go:      buildspec.GoSpec{Version: "1.26", Module: "example.com/generated/http-serve-verb"},
+		Target:  buildspec.TargetSpec{Kind: "xgoja", Output: "dist/http-serve-verb"},
+		BaseDir: baseDir,
+		Packages: []buildspec.PackageSpec{{
+			ID:       "go-go-goja-http",
+			Import:   "github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http",
+			Register: "Register",
+		}},
+		Modules: []buildspec.ModuleInstanceSpec{{Package: "go-go-goja-http", Name: "express", As: "express"}},
+		Commands: buildspec.CommandsSpec{
+			JSVerbs: buildspec.CommandSpec{Enabled: true, Name: "verbs"},
+		},
+		CommandProviders: []buildspec.CommandProviderInstanceSpec{{
+			ID:      "http-serve",
+			Package: "go-go-goja-http",
+			Name:    "serve",
+			Mount:   "serve",
+		}},
+		JSVerbs: []buildspec.JSVerbSourceSpec{{ID: "local", Path: verbsDir}},
+	}
+	addr := freeTCPAddr(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cmd, dir := startGeneratedCommand(t, ctx, buildSpec, "serve", "sites", "demo", "--http-listen", addr)
+	url := "http://" + addr + "/healthz"
+	var body string
+	for i := 0; i < 80; i++ {
+		resp, err := http.Get(url)
+		if err == nil {
+			data, readErr := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if readErr == nil && resp.StatusCode == http.StatusOK {
+				body = string(data)
+				break
+			}
+		}
+		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+			t.Fatalf("generated serve command exited early")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !strings.Contains(body, `"ok":true`) || !strings.Contains(body, `"source":"jsverb"`) {
+		t.Fatalf("unexpected health response from %s in %s: %q", url, dir, body)
+	}
+	cancel()
+	_ = cmd.Wait()
+}
+
 func TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases(t *testing.T) {
 	baseDir := t.TempDir()
 	assetDir := filepath.Join(baseDir, "assets", "config")
@@ -609,6 +681,48 @@ func runGeneratedCommand(t *testing.T, buildSpec *buildspec.BuildSpec, args ...s
 	t.Helper()
 	dir, _ := runGeneratedCommandWithOutput(t, buildSpec, args...)
 	return dir
+}
+
+func startGeneratedCommand(t *testing.T, ctx context.Context, buildSpec *buildspec.BuildSpec, args ...string) (*exec.Cmd, string) {
+	t.Helper()
+	repoRoot, err := filepath.Abs("../../../..")
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	dir := t.TempDir()
+	if err := WriteAll(dir, buildSpec, Options{XGojaModuleVersion: "v0.0.0", XGojaReplace: repoRoot}); err != nil {
+		t.Fatalf("write generated program: %v", err)
+	}
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("go mod tidy: %v\n%s", err, out)
+	}
+	binPath := filepath.Join(dir, "generated-test")
+	cmd = exec.Command("go", "build", "-o", binPath, ".")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOWORK=off")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("go build generated program: %v\n%s", err, out)
+	}
+	cmd = exec.CommandContext(ctx, binPath, args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start generated command: %v", err)
+	}
+	return cmd, dir
+}
+
+func freeTCPAddr(t *testing.T) string {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen free tcp addr: %v", err)
+	}
+	defer func() { _ = listener.Close() }()
+	return listener.Addr().String()
 }
 
 func runGeneratedCommandWithOutput(t *testing.T, buildSpec *buildspec.BuildSpec, args ...string) (string, []byte) {

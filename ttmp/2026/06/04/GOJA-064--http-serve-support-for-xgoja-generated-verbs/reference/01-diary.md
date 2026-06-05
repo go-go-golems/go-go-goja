@@ -486,7 +486,7 @@ The implementation follows the simplified single-runtime schema. The serve invok
 
 **Inferred user intent:** The user wants the proposed single-runtime HTTP serve command-provider design implemented, with tickets committed at appropriate intervals and diary updates maintained.
 
-**Commit (code):** pending — this diary step was written immediately before the first implementation commit.
+**Commit (code):** 3994c9df90ad3f21d9cd4f3ddcd6c384c11c6cb9 — "GOJA-064: add HTTP serve command provider"
 
 ### What I did
 - Added `providerapi.JSVerbSourceDescriptor` and `providerapi.JSVerbSourceSet`.
@@ -551,3 +551,73 @@ The implementation follows the simplified single-runtime schema. The serve invok
   - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providers/http/serve.go`
   - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providers/http/http_test.go`
   - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providers/http/serve_test.go`.
+
+## Step 8: Add generated-binary smoke coverage and a runnable example
+
+I added the second implementation slice for GOJA-064: a generated-binary smoke test and a new numbered xgoja example. The test proves that generated source can import the HTTP provider, mount the provider-owned `serve` command, scan a configured jsverb source, run `serve sites demo --http-listen ...`, and answer HTTP requests from an Express route registered by the JavaScript verb.
+
+I also added `examples/xgoja/13-http-serve-jsverbs`, which gives future users and maintainers a concrete Makefile-driven example of the new command-provider flow.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 7)
+
+**Assistant interpretation:** Continue implementation beyond the provider code into validation and examples.
+
+**Inferred user intent:** The user wants a complete, reviewable implementation with proof that the generated xgoja path works.
+
+**Commit (code):** pending — this diary step was written before the second implementation commit.
+
+### What I did
+- Added `TestGeneratedProgramServesHTTPVerb` in `cmd/xgoja/internal/generate/generate_test.go`.
+- Added helpers to build and start a generated binary for long-running command tests.
+- Created `examples/xgoja/13-http-serve-jsverbs` with:
+  - `xgoja.yaml`
+  - `verbs/sites.js`
+  - `Makefile`
+  - `README.md`
+- Updated `examples/xgoja/README.md` to list the new example and include it in the bulk smoke loop.
+- Ran targeted generated and example validation.
+
+### Why
+- Package tests prove the command provider can be constructed, but generated xgoja features also need generated-source coverage.
+- The example makes the feature discoverable and gives contributors a copy/paste command path.
+
+### What worked
+- `GOWORK=off go test ./cmd/xgoja/internal/generate -run GeneratedProgramServesHTTPVerb -count=1` passed.
+- `make -C examples/xgoja/13-http-serve-jsverbs smoke` passed.
+- A combined targeted test command passed:
+  - `GOWORK=off go test ./pkg/xgoja/app ./pkg/xgoja/providers/http ./cmd/xgoja/internal/generate -run 'GeneratedProgramServesHTTPVerb|TestHostAttachCommandProvidersProvidesJSVerbSources|TestNewServeCommandSet|TestRegister' -count=1`
+
+### What didn't work
+- The first generated smoke test used `go run . serve ...` for the long-running process. Canceling the `go run` context did not cleanly terminate all test I/O and failed with:
+  - `*** Test I/O incomplete 1m0s after exiting.`
+  - `exec: WaitDelay expired before I/O complete`
+- I fixed this by changing the helper to `go build -o generated-test .` and executing the generated binary directly, so context cancellation targets the server process itself.
+
+### What I learned
+- Long-running generated-command tests should run a built binary, not `go run`, to avoid orphaned child process and I/O behavior.
+- The new example can use only the HTTP provider; no host or asset provider is required for a minimal route smoke.
+
+### What was tricky to build
+- The test had to wait for readiness without assuming instant startup. I used a temporary TCP address and retried `GET /healthz` until the server responded or the generated command exited early.
+- Because the serve command is intentionally long-running, the test must explicitly cancel the context and wait for the process.
+
+### What warrants a second pair of eyes
+- The generated test currently checks one JSON route. A reviewer should decide whether to also test `HEAD`, static mounts, or promise-returning setup verbs in this ticket or a follow-up.
+- The example's Makefile uses a fixed high port. If this collides in CI, switch to a dynamic port helper script.
+
+### What should be done in the future
+- Add a static-asset variant once `serve` and `fs:assets` are both exercised together in an example.
+- Consider adding `serve` help docs in `cmd/xgoja/doc` or provider-shipped HTTP docs.
+
+### Code review instructions
+- Start with `cmd/xgoja/internal/generate/generate_test.go::TestGeneratedProgramServesHTTPVerb` to see the generated path proof.
+- Then run `make -C examples/xgoja/13-http-serve-jsverbs smoke` for the example path.
+
+### Technical details
+- Validation commands:
+  - `GOWORK=off go test ./cmd/xgoja/internal/generate -run GeneratedProgramServesHTTPVerb -count=1`
+  - `GOWORK=off go test ./pkg/xgoja/app ./pkg/xgoja/providers/http ./cmd/xgoja/internal/generate -run 'GeneratedProgramServesHTTPVerb|TestHostAttachCommandProvidersProvidesJSVerbSources|TestNewServeCommandSet|TestRegister' -count=1`
+  - `make -C examples/xgoja/13-http-serve-jsverbs smoke`
+- New example path: `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/examples/xgoja/13-http-serve-jsverbs`.

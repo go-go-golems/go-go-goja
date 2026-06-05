@@ -18,6 +18,7 @@ Each example directory has its own `README.md`, `Makefile`, and `xgoja.yaml`. St
 10. `10-embedded-assets-fs/` — local files are embedded into the generated binary and read through `require("fs:assets")`, while host writes use `require("fs:host")`.
 11. `11-config-env/` — generated binaries read Glazed config files and environment variables according to `appName`, `envPrefix`, and `config` settings.
 12. `12-geppetto-host-services/` — generated Geppetto jsverbs use profile flags, a SQLite turn store, contributed Go tools, contributed Go middleware, and a JSONL event sink.
+13. `13-http-serve-jsverbs/` — the HTTP provider contributes a `serve` command that keeps a jsverb-registered Express site alive.
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 
@@ -34,7 +35,8 @@ for dir in \
   07-embedded-jsverbs \
   08-provider-shipped-jsverbs \
   09-provider-shipped-help-docs \
-  10-embedded-assets-fs; do
+  10-embedded-assets-fs \
+  13-http-serve-jsverbs; do
   make -C examples/xgoja/$dir smoke
 done
 ```

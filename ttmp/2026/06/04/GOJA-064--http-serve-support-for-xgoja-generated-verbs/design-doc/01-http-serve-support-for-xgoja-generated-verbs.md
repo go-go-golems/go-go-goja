@@ -13,6 +13,12 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../../../../code/wesen/2026-05-03--goja-hosting-site/pkg/app/server.go
       Note: External reference for single-site goja runtime plus HTTP server lifecycle
+    - Path: cmd/xgoja/internal/generate/generate_test.go
+      Note: Generated-binary HTTP serve verb smoke test
+    - Path: examples/xgoja/13-http-serve-jsverbs/verbs/sites.js
+      Note: Example JavaScript site setup verb
+    - Path: examples/xgoja/13-http-serve-jsverbs/xgoja.yaml
+      Note: Runnable xgoja buildspec for HTTP serve jsverbs example
     - Path: modules/express/express.go
       Note: JavaScript express.app API and route/static registration surface
     - Path: pkg/xgoja/app/command_providers.go
@@ -41,6 +47,7 @@ LastUpdated: 2026-06-04T22:43:00-04:00
 WhatFor: Use when implementing or reviewing first-class HTTP serve support for generated xgoja verb commands.
 WhenToUse: Before changing pkg/xgoja, pkg/jsverbs, modules/express, pkg/gojahttp, or the go-go-goja HTTP provider.
 ---
+
 
 
 
