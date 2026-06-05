@@ -28,3 +28,12 @@ Step 2: implemented go.imports schema, validation, generated imports, go.mod req
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/internal/generate/gomod.go — go.mod rendering
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/internal/generate/templates.go — Template data
 
+
+## 2026-06-05
+
+Uploaded final ticket bundle (design, diary, tasks, changelog) to reMarkable at /ai/2026/06/05/XGOJA-BUILD-IMPORTS after implementation updates.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/ttmp/2026/06/05/XGOJA-BUILD-IMPORTS--add-build-time-import-support-to-xgoja/reference/01-diary.md — Final diary included in uploaded bundle
+
