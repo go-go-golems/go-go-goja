@@ -24,3 +24,34 @@ Validated GOJA-064 with docmgr doctor, resolved missing topic vocabulary, upload
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/design-doc/01-http-serve-support-for-xgoja-generated-verbs.md — Included in uploaded bundle
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/reference/01-diary.md — Included in uploaded bundle and updated with delivery evidence
 
+
+## 2026-06-04
+
+Added GOJA-064 research logbook covering consulted source files, docs, examples, external goja-site resources, stale paths, and update needs; uploaded updated bundle including the logbook to reMarkable.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/reference/01-diary.md — Updated with logbook creation and upload step
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/reference/02-research-logbook.md — New resource usefulness and freshness logbook
+
+
+## 2026-06-04
+
+Updated GOJA-064 serve design for the simplified single-runtime xgoja.yaml schema: top-level modules list, no command runtime fields, no commandProviders runtimeProfile in recommended examples.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/design-doc/01-http-serve-support-for-xgoja-generated-verbs.md — Plan updated for single-runtime xgoja schema
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/reference/01-diary.md — Recorded schema simplification update
+
+
+## 2026-06-04
+
+Implemented first GOJA-064 code slice: command-provider jsverb source access plus go-go-goja-http serve command provider with long-lived runtime invocation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/jsverb_sources.go — Centralized jsverb source scanning for command providers
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providerapi/commands.go — Added JSVerbSourceSet API
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providers/http/serve.go — Implemented HTTP serve command provider
+

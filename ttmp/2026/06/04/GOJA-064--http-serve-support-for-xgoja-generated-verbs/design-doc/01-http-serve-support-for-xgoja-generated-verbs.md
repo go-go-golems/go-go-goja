@@ -16,15 +16,25 @@ RelatedFiles:
     - Path: modules/express/express.go
       Note: JavaScript express.app API and route/static registration surface
     - Path: pkg/xgoja/app/command_providers.go
-      Note: Provider command set mounting and CommandSetContext construction
+      Note: |-
+        Provider command set mounting and CommandSetContext construction
+        Passes jsverb source set into command provider context
+    - Path: pkg/xgoja/app/jsverb_sources.go
+      Note: New app-side jsverb source scanner exposed to command providers
     - Path: pkg/xgoja/app/root.go
       Note: Existing generated root and jsverbs command construction that currently closes runtimes after invocation
     - Path: pkg/xgoja/app/run.go
       Note: Existing keep-alive runtime lifecycle to model for serve
     - Path: pkg/xgoja/providerapi/commands.go
-      Note: Command provider API that needs jsverb source access for HTTP serve
+      Note: |-
+        Command provider API that needs jsverb source access for HTTP serve
+        Added JSVerbSourceSet to CommandSetContext for serve provider implementation
     - Path: pkg/xgoja/providers/http/http.go
-      Note: HTTP provider express module
+      Note: |-
+        HTTP provider express module
+        Registers serve command provider with HTTP package
+    - Path: pkg/xgoja/providers/http/serve.go
+      Note: New HTTP serve command provider implementation
 ExternalSources: []
 Summary: Design and implementation guide for serving HTTP sites from xgoja-generated JavaScript verbs using the express/gojahttp provider stack.
 LastUpdated: 2026-06-04T22:43:00-04:00
@@ -33,11 +43,12 @@ WhenToUse: Before changing pkg/xgoja, pkg/jsverbs, modules/express, pkg/gojahttp
 ---
 
 
+
 # HTTP Serve Support for xgoja Generated Verbs
 
 ## Executive summary
 
-Generated xgoja binaries already have most of the building blocks needed to serve HTTP sites from JavaScript: runtime profiles, provider modules, JavaScript verb scanning, an Express-style module, a `gojahttp.Host`, and a `run --keep-alive` command. The missing product shape is a first-class generated command that treats a JavaScript verb as a **site setup function**: build one long-lived runtime, invoke the selected verb once so it registers Express routes, keep the runtime and HTTP server alive, and shut everything down on Ctrl-C/SIGTERM.
+Generated xgoja binaries already have most of the building blocks needed to serve HTTP sites from JavaScript: a single generated runtime module list, provider modules, JavaScript verb scanning, an Express-style module, a `gojahttp.Host`, and a `run --keep-alive` command. The missing product shape is a first-class generated command that treats a JavaScript verb as a **site setup function**: build one long-lived runtime, invoke the selected verb once so it registers Express routes, keep the runtime and HTTP server alive, and shut everything down on Ctrl-C/SIGTERM.
 
 The recommended design is a provider-backed `serve` command set supplied by `pkg/xgoja/providers/http`. Generated applications opt into it through `commandProviders`, and the command provider dynamically mirrors configured JavaScript verbs under a `serve` command tree:
 
@@ -45,11 +56,21 @@ The recommended design is a provider-backed `serve` command set supplied by `pkg
 ./my-app serve <package-path> <verb-name> [verb flags] --http-listen 127.0.0.1:8787
 ```
 
-This keeps HTTP-specific command behavior close to the HTTP provider while reusing the same xgoja runtime-profile and jsverbs machinery as ordinary generated verb commands. It also avoids the most tempting but weaker design, `express.serve()` alone, which would make JavaScript block manually and would not give generated binaries a discoverable CLI command shape.
+This keeps HTTP-specific command behavior close to the HTTP provider while reusing the same xgoja single-runtime and jsverbs machinery as ordinary generated verb commands. It also avoids the most tempting but weaker design, `express.serve()` alone, which would make JavaScript block manually and would not give generated binaries a discoverable CLI command shape.
+
+### Update: single-runtime xgoja.yaml simplification
+
+This plan now assumes the newer xgoja schema where `xgoja.yaml` has one top-level `modules:` list and no `runtimes:` map. That simplifies the HTTP serve design substantially:
+
+- `serve` no longer has to choose or validate a runtime profile.
+- `commandProviders[].runtimeProfile` should not be used in examples or new implementation work.
+- `RuntimeFactory.NewRuntimeFromSections(ctx, vals, ...)` can create the one configured runtime directly.
+- Module sections such as `--http-listen` are collected from the single configured module list.
+- Future multi-site serving still means multiple **runtime instances**, but not multiple YAML runtime profiles. Each site instance should use the same generated module set unless a later schema introduces per-site module overrides.
 
 For a new intern, the short version is:
 
-1. `xgoja.yaml` describes provider packages, runtime profiles, generated commands, JavaScript verb sources, and command providers.
+1. `xgoja.yaml` describes provider packages, one generated runtime's module list, generated commands, JavaScript verb sources, and command providers.
 2. xgoja generates a normal Go binary that embeds a normalized `app.RuntimeSpec`.
 3. At startup, the generated root command builds an `app.Host`, attaches built-in commands, and attaches provider-owned command sets.
 4. The existing `verbs` command scans JavaScript files and creates one Cobra/Glazed command per `__verb__` declaration.
@@ -79,7 +100,7 @@ where `sites kanban` is an ordinary discovered JavaScript verb whose body regist
 This design covers:
 
 - serving one JavaScript verb-backed site from one generated xgoja process;
-- integrating with configured xgoja runtime profiles and module sections;
+- integrating with the configured xgoja runtime module list and module sections;
 - preserving existing `run`, `eval`, `repl`, and `verbs` behavior;
 - making `go-go-goja-http` provide an opt-in `serve` command provider;
 - preparing an explicit path for future multi-site serving, similar to `goja-site serve-multi`.
@@ -90,7 +111,7 @@ The first implementation should not try to become the full `goja-site` applicati
 
 - database policy management from `goja-site`;
 - production observability and tracing wrappers from `goja-site`;
-- automatic virtual-host dispatch across many runtimes;
+- automatic virtual-host dispatch across many separately-created site runtimes;
 - hot reload;
 - untrusted JavaScript sandboxing.
 
@@ -116,9 +137,9 @@ xgoja.yaml
 
 ### Buildspec and runtime spec command-provider schema
 
-At build time, `cmd/xgoja/internal/buildspec/build_spec.go` defines the declarative YAML schema. `BuildSpec.CommandProviders` selects provider-owned command sets, and `CommandProviderInstanceSpec` carries `id`, `package`, `name`, `mount`, `runtimeProfile`, optional module filtering, static config, and a `lazy` flag (`cmd/xgoja/internal/buildspec/build_spec.go:16-29`, `cmd/xgoja/internal/buildspec/build_spec.go:109-120`). At runtime, the generated binary uses the reduced `app.RuntimeSpec`, which keeps the same command-provider fields (`pkg/xgoja/app/runtime_spec.go:84-96`).
+At build time, `cmd/xgoja/internal/buildspec/build_spec.go` defines the declarative YAML schema. The current simplified schema has a top-level `modules:` list instead of a `runtimes:` map, and `CommandProviderInstanceSpec` carries `id`, `package`, `name`, `mount`, optional module filtering, static config, and a `lazy` flag (`cmd/xgoja/internal/buildspec/build_spec.go:16-29`, `cmd/xgoja/internal/buildspec/build_spec.go:100-109`). At runtime, the generated binary uses the reduced `app.RuntimeSpec`, which keeps the same single-runtime `modules` and command-provider fields (`pkg/xgoja/app/runtime_spec.go:15-27`, `pkg/xgoja/app/runtime_spec.go:76-87`).
 
-Validation currently checks that command-provider IDs are present and unique, package IDs exist, provider names are present, and optional `runtimeProfile` values point at existing runtime profiles (`cmd/xgoja/internal/buildspec/validate.go:267-296`). That means an HTTP serve command provider can be introduced without inventing a new top-level command schema, as long as users opt in:
+Validation now rejects/flags legacy command-provider `runtimeProfile` fields and validates command-provider IDs, package IDs, and provider names against the single-runtime buildspec. That means an HTTP serve command provider can be introduced without inventing a new top-level command schema, as long as users opt in:
 
 ```yaml
 commandProviders:
@@ -126,12 +147,11 @@ commandProviders:
     package: go-go-goja-http
     name: serve
     mount: serve
-    runtimeProfile: main
 ```
 
 ### How provider command sets are attached
 
-`pkg/xgoja/app/command_providers.go` resolves each configured provider by `(package, name)`, applies the configured mount, creates a `providerapi.CommandSetContext`, and adds returned Glazed commands to Cobra (`pkg/xgoja/app/command_providers.go:19-56`). The context already includes the runtime profile, static provider config, selected runtime modules, provider registry, and an xgoja `RuntimeFactory` (`pkg/xgoja/app/command_providers.go:59-86`; `pkg/xgoja/providerapi/commands.go:24-37`).
+`pkg/xgoja/app/command_providers.go` resolves each configured provider by `(package, name)`, applies the configured mount, creates a `providerapi.CommandSetContext`, and adds returned Glazed commands to Cobra (`pkg/xgoja/app/command_providers.go:19-56`). The context still includes a compatibility `RuntimeProfile` value (`main`), static provider config, selected runtime modules, provider registry, and an xgoja `RuntimeFactory` (`pkg/xgoja/app/command_providers.go:59-86`; `pkg/xgoja/providerapi/commands.go:24-37`).
 
 The context is almost sufficient for HTTP serve support. The missing piece is access to configured JavaScript verb sources. Built-in jsverbs support can scan `runtimeSpec.JSVerbs`, but provider command sets currently cannot.
 
@@ -139,7 +159,7 @@ The context is almost sufficient for HTTP serve support. The missing piece is ac
 
 Built-in `verbs` support lives in `pkg/xgoja/app/root.go`. It does three things:
 
-1. Determine the runtime profile for `commands.jsverbs`.
+1. Use the single generated runtime module list for `commands.jsverbs`.
 2. Scan configured JavaScript verb sources.
 3. For every discovered `VerbSpec`, build a Glazed command whose invoker creates a fresh runtime, invokes the verb, then closes the runtime.
 
@@ -189,10 +209,10 @@ The external example at `/home/manuel/code/wesen/2026-05-03--goja-hosting-site` 
 
 ### What already works
 
-- Runtime profiles can select the `go-go-goja-http.express` module.
+- The top-level `modules:` list can select the `go-go-goja-http.express` module.
 - The HTTP provider exposes `--http-listen` as a module section.
 - `run --keep-alive` can serve scripts that register Express routes.
-- `commands.jsverbs` can turn `__verb__` declarations into generated commands.
+- `commands.jsverbs` can turn `__verb__` declarations into generated commands without choosing among runtime profiles.
 - Provider command sets can mount package-owned Glazed commands.
 
 ### What is missing
@@ -236,32 +256,28 @@ packages:
   - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
 
-runtimes:
-  main:
-    modules:
-      - package: go-go-goja-host
-        name: fs
-        as: fs:assets
-        config:
-          embedded:
-            allow: true
-            mounts:
-              - asset: app-assets
-                mount: /app
-      - package: go-go-goja-http
-        name: express
+modules:
+  - package: go-go-goja-host
+    name: fs
+    as: fs:assets
+    config:
+      embedded:
+        allow: true
+        mounts:
+          - asset: app-assets
+            mount: /app
+  - package: go-go-goja-http
+    name: express
 
 commands:
   jsverbs:
     enabled: true
-    runtime: main
 
 commandProviders:
   - id: http-serve
     package: go-go-goja-http
     name: serve
     mount: serve
-    runtimeProfile: main
 ```
 
 The generated command tree becomes:
@@ -284,7 +300,7 @@ Cobra/Glazed parses:
 
 HTTP serve command invoker:
   1. scan configured jsverb source(s)
-  2. create runtime from runtime profile with registry.RequireLoader()
+  2. create the generated runtime with registry.RequireLoader()
   3. initialize selected module runtime capabilities from parsed Glazed values
   4. invoke selected verb once
   5. verb calls require("express") and registers routes
@@ -295,7 +311,7 @@ HTTP serve command invoker:
 
 ### Required provider API extension
 
-The HTTP provider command set needs a supported way to discover the same JavaScript verb sources that built-in `commands.jsverbs` uses. Add a small jsverb source accessor to `providerapi.CommandSetContext`.
+The HTTP provider command set needs a supported way to discover the same JavaScript verb sources that built-in `commands.jsverbs` uses. It no longer needs to choose a runtime profile; it should use the one generated runtime configuration. Add a small jsverb source accessor to `providerapi.CommandSetContext`.
 
 Proposed API sketch:
 
@@ -321,7 +337,7 @@ type CommandSetContext struct {
     PackageID       string
     Name            string
     Mount           string
-    RuntimeProfile  string
+    RuntimeProfile  string // compatibility value, normally "main" in the single-runtime schema
     Config          json.RawMessage
     Host            HostServices
     Providers       *ProviderRegistry
@@ -369,7 +385,7 @@ func newServeCommandSet(ctx providerapi.CommandSetContext, capability *capabilit
         ctx.SelectedModules,
         providerapi.SectionRequest{
             CommandProviderID: ctx.Name,
-            RuntimeProfile:    ctx.RuntimeProfile,
+            RuntimeProfile:    "main",
         },
         nil,
     )
@@ -395,7 +411,7 @@ The lifetime-aware invoker is the crucial behavior change:
 
 ```go
 func serveVerb(ctx context.Context, c providerapi.CommandSetContext, registry *jsverbs.Registry, verb *jsverbs.VerbSpec, vals *values.Values) (any, error) {
-    rt, err := c.RuntimeFactory.NewRuntimeFromSections(ctx, c.RuntimeProfile, vals, require.WithLoader(registry.RequireLoader()))
+    rt, err := c.RuntimeFactory.NewRuntimeFromSections(ctx, vals, require.WithLoader(registry.RequireLoader()))
     if err != nil { return nil, err }
     defer func() { _ = rt.Close(context.Background()) }()
 
@@ -482,7 +498,7 @@ Do not build multi-site first. The single-site command will surface most integra
 
 ### Decision: Provide `serve` as an HTTP provider command set
 
-- **Context:** The command is HTTP-specific but must participate in xgoja runtime profiles, module sections, and JavaScript verb discovery.
+- **Context:** The command is HTTP-specific but must participate in xgoja's single runtime module list, module sections, and JavaScript verb discovery.
 - **Options considered:** Add `express.serve()` only; add a new built-in `commands.serve`; add an HTTP provider `CommandSetProvider`.
 - **Decision:** Add an opt-in `CommandSetProvider{Name: "serve"}` to `go-go-goja-http` and extend command-provider context with jsverb source access.
 - **Rationale:** Provider command sets already exist for package-owned commands. The HTTP provider owns `--http-listen`, server lifetime, and Express host behavior. Keeping `serve` in the provider avoids growing xgoja core with HTTP-only command semantics.
@@ -730,7 +746,7 @@ GOWORK=off go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate 
 - **Bind errors:** Current async server start can hide port conflicts. Serve commands should make bind failures synchronous.
 - **Duplicate HTTP sections:** Serve commands will combine verb-owned sections and module sections. Section slugs must remain unique.
 - **Source loader consistency:** The same registry loader must be used to invoke the setup verb, otherwise relative `require(...)` calls can fail.
-- **Multi-site port conflicts:** Current auto-start mode cannot run many site runtimes on one address. Manual server ownership is required before `serve-multi`.
+- **Multi-site port conflicts:** The single xgoja.yaml runtime schema does not prevent a serve command from creating multiple runtime instances, but current auto-start mode cannot run many site runtimes on one address. Manual server ownership is required before `serve-multi`.
 - **Security:** This system runs trusted JavaScript. Do not describe it as a safe multi-tenant sandbox.
 
 ## Alternatives considered
@@ -790,17 +806,19 @@ Handlers receive `(req, res)`. They may return a string, return a UI DSL value, 
 ### Proposed buildspec fragment
 
 ```yaml
+modules:
+  - package: go-go-goja-http
+    name: express
+
 commands:
   jsverbs:
     enabled: true
-    runtime: main
 
 commandProviders:
   - id: http-serve
     package: go-go-goja-http
     name: serve
     mount: serve
-    runtimeProfile: main
 ```
 
 ### Proposed provider registration fragment

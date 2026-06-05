@@ -19,6 +19,9 @@ func TestRegister(t *testing.T) {
 	if _, ok := registry.ResolveModule(PackageID, "express"); !ok {
 		t.Fatal("expected express module")
 	}
+	if _, ok := registry.ResolveCommandSetProvider(PackageID, "serve"); !ok {
+		t.Fatal("expected serve command provider")
+	}
 	caps, ok := registry.ResolvePackageCapabilities(PackageID)
 	if !ok || len(caps) != 1 {
 		t.Fatalf("capabilities = %#v ok=%v", caps, ok)

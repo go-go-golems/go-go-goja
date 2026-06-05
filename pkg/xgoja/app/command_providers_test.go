@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
@@ -80,6 +82,55 @@ func TestHostAttachCommandProvidersPassesSelectedModules(t *testing.T) {
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute command provider command: %v", err)
 	}
+}
+
+func TestHostAttachCommandProvidersProvidesJSVerbSources(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "tools.js"), []byte(`
+__package__({ name: "tools" });
+__verb__("hello", { name: "hello", short: "Hello", output: "text" });
+function hello() { return "hello"; }
+`), 0o644); err != nil {
+		t.Fatalf("write jsverb: %v", err)
+	}
+	registry := providerapi.NewProviderRegistry()
+	if err := registry.Package("fixture",
+		providerapi.CommandSetProvider{
+			Name: "tools",
+			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+				if ctx.JSVerbs == nil {
+					t.Fatal("expected jsverb source set")
+				}
+				sources := ctx.JSVerbs.ListJSVerbSources()
+				if len(sources) != 1 || sources[0].ID != "local" {
+					t.Fatalf("sources = %#v", sources)
+				}
+				registries, err := ctx.JSVerbs.ScanAllJSVerbSources()
+				if err != nil {
+					t.Fatalf("scan all jsverb sources: %v", err)
+				}
+				if len(registries) != 1 || len(registries[0].Verbs()) != 1 {
+					t.Fatalf("registries = %#v", registries)
+				}
+				return &providerapi.CommandSet{Commands: []cmds.Command{&fixtureBareCommand{
+					CommandDescription: cmds.NewCommandDescription("ping", cmds.WithShort("Ping")),
+					run:                func(context.Context, *values.Values) error { return nil },
+				}}}, nil
+			},
+		},
+	); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	runtimeSpec := &RuntimeSpec{
+		JSVerbs: []JSVerbSourceSpec{{ID: "local", Path: dir}},
+		CommandProviders: []CommandProviderInstanceSpec{{
+			ID:      "fixture-tools",
+			Package: "fixture",
+			Name:    "tools",
+		}},
+	}
+	root := &cobra.Command{Use: "test"}
+	NewHost(registry, runtimeSpec).AttachDefaultCommands(root)
 }
 
 func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {

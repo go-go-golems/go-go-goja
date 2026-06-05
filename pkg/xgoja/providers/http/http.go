@@ -33,6 +33,14 @@ func Register(registry *providerapi.ProviderRegistry) error {
 			},
 		},
 		providerapi.WithPackageCapability(capability),
+		providerapi.CommandSetProvider{
+			Name:         "serve",
+			DefaultMount: "serve",
+			Description:  "Serve JavaScript verb-backed HTTP sites",
+			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+				return newServeCommandSet(ctx)
+			},
+		},
 	)
 }
 

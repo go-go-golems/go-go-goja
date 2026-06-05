@@ -6,3 +6,5 @@
 - [x] Study express module and external hosting site example
 - [x] Design serve support API and implementation plan
 - [x] Validate ticket documentation and upload bundle to reMarkable
+- [x] Create research logbook and upload updated bundle to reMarkable
+- [ ] Implement single-runtime HTTP serve command provider and jsverb source access for command providers

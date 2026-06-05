@@ -334,3 +334,220 @@ This step completed the requested delivery loop: the design and diary are stored
   - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/reference/01-diary.md`
   - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/tasks.md`
   - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/changelog.md`.
+
+## Step 5: Add a research logbook for resource freshness and usefulness
+
+I added a dedicated research logbook document to GOJA-064 so future implementers can see which code files, examples, docs, and external goja-site resources informed the design. The logbook records why each resource was chosen, how it was found, what was useful, what was not useful, which paths were stale or missing, and what should be updated after implementation.
+
+This step turns the implicit reading trail from the design and diary into an explicit maintenance aid. It should reduce rediscovery work when GOJA-064 moves from research into implementation.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Create a research logbook document in the ticket that allows us to keep track of which resources    
+ are useful / out of date / need updating .                                                          
+                                                                                                     
+ For all the documents and external resources you read, list:                                        
+                                                                                                     
+ - what you were researching                                                                         
+ - what you were looking for in this document in particular                                          
+ - why you chose it
+ - how you found the resource itself
+ - what you found useful in the document                                                             
+ - what you didn't find useful                                                                       
+ - what is out of date / what was wrong                                                              
+ - what would need updating.                                                                         
+                                                                                                     
+ Store in ticket and upload to remarkable."
+
+**Assistant interpretation:** Create a new ticket document that indexes all resources consulted during GOJA-064 research and evaluates their usefulness, staleness, and update needs; then upload the updated ticket package to reMarkable.
+
+**Inferred user intent:** The user wants the research trail to become a durable resource-quality log, not only a design narrative.
+
+**Commit (code):** N/A — documentation/research only; no code behavior changed.
+
+### What I did
+- Added `reference/02-research-logbook.md` with `docmgr doc add`.
+- Added a new task: `Create research logbook and upload updated bundle to reMarkable`.
+- Wrote the logbook covering xgoja app files, provider API files, jsverbs files, Express/gojahttp files, xgoja examples/docs, goja-site external resources, missing/stale attempted paths, process references, and ticket resources.
+- Related the logbook to key code and external reference files using `docmgr doc relate`.
+
+### Why
+- The design document explains the recommended architecture, but it does not provide a per-resource freshness/usefulness ledger.
+- The user specifically asked to track useful, out-of-date, and update-needed resources.
+
+### What worked
+- The new logbook document was created at `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/reference/02-research-logbook.md`.
+- The logbook captures both useful resources and wrong/missing paths encountered during the original investigation.
+- File relations were added for six key resources that shaped the logbook.
+
+### What didn't work
+- The reMarkable upload emitted a warning before succeeding:
+  - Output: `WARNING: 2026/06/04 19:42:26 apictx.go:259: remote tree has changed, refresh the file tree`
+  - Output: `OK: uploaded GOJA-064 HTTP Serve Support for xgoja Generated Verbs.pdf -> /ai/2026/06/04/GOJA-064`
+- The warning did not block delivery; the upload completed and the remote listing showed the bundle.
+
+### What I learned
+- The research trail benefits from separating source-code resources, external goja-site resources, process references, and ticket-local resources.
+- Missing paths are worth logging because they prevent future researchers from repeating incorrect assumptions.
+
+### What was tricky to build
+- The main challenge was scope. The user asked for all documents and external resources read, but the original investigation also read many source files. I included source files as resources because they materially shaped the design, while still separating process references from technical references.
+
+### What warrants a second pair of eyes
+- The logbook should be reviewed for whether any resource should be marked more strongly as stale versus merely incomplete for GOJA-064.
+- The goja-site developer guide staleness note should be checked by someone familiar with that repository's current documentation expectations.
+
+### What should be done in the future
+- Update the logbook after GOJA-064 implementation lands, especially for docs/examples that become stale once `serve <verb>` exists.
+- Add generated example and test resources to the logbook during implementation.
+
+### Code review instructions
+- Start with `reference/02-research-logbook.md` and confirm each entry has the requested eight fields.
+- Validate with `docmgr doctor --ticket GOJA-064 --stale-after 30`.
+- Confirm upload with `remarquee cloud ls /ai/2026/06/04/GOJA-064 --long --non-interactive`.
+
+### Technical details
+- Logbook path: `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/reference/02-research-logbook.md`.
+- `docmgr doctor --ticket GOJA-064 --stale-after 30` passed after adding the logbook.
+- Dry-run upload included design doc, diary, research logbook, tasks, and changelog.
+- reMarkable destination: `/ai/2026/06/04/GOJA-064`.
+
+## Step 6: Update the plan for the single-runtime xgoja.yaml schema
+
+I updated the design to account for the newer simplified xgoja schema where `xgoja.yaml` no longer supports a `runtimes:` map. The plan now assumes one top-level `modules:` list, no `commands.*.runtime` fields in examples, and no `commandProviders[].runtimeProfile` in new implementation guidance.
+
+This simplification makes the HTTP serve command-provider design cleaner. The `serve` provider no longer has to choose among runtime profiles; it can create the one configured runtime, add the jsverb source loader, initialize module sections such as `--http-listen`, invoke the site setup verb, and wait for shutdown.
+
+### Prompt Context
+
+**User prompt (verbatim):** "We did remove support for multiple runtimes int he xgoja.yaml file, which will simplify things I'm sure. Update your plan."
+
+**Assistant interpretation:** Revise the GOJA-064 design so it no longer assumes xgoja buildspecs contain multiple named runtime profiles.
+
+**Inferred user intent:** The user wants the implementation guide to match the current xgoja schema and take advantage of the simplification.
+
+**Commit (code):** N/A — documentation/research only; no code behavior changed.
+
+### What I did
+- Inspected the current simplified schema in:
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go`
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/runtime_spec.go`
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/factory.go`
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/module_sections.go`
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/command_providers.go`
+- Updated the design document's executive summary, schema explanation, gap analysis, YAML examples, pseudocode, decision records, risks, and buildspec quick sheet.
+- Removed `runtimes: main`, `commands.jsverbs.runtime: main`, and `commandProviders[].runtimeProfile: main` from recommended examples.
+- Updated pseudocode to use `RuntimeFactory.NewRuntimeFromSections(ctx, vals, ...)` instead of passing a profile string.
+
+### Why
+- The previous design was correct for the older multi-runtime schema but now overcomplicated the implementation plan.
+- The serve command provider should follow the current code shape: one generated runtime module list and compatibility `RuntimeProfile: "main"` only where existing provider capability APIs still carry that field.
+
+### What worked
+- The design became simpler: no per-command runtime selection, no runtime-profile validation in the serve command, and fewer YAML fields for users.
+- The current code already has `RuntimeFactory.NewRuntimeFromSections(ctx, vals, opts...)`, which is the exact shape the serve invoker should use.
+
+### What didn't work
+- N/A. This was a documentation update; no command failed during the update.
+
+### What I learned
+- The codebase has already moved toward single-runtime semantics while retaining some compatibility naming, such as `defaultRuntimeProfile = "main"` and `CommandSetContext.RuntimeProfile`.
+- Future multi-site serving should be described as multiple runtime **instances**, not multiple YAML runtime profiles.
+
+### What was tricky to build
+- The tricky part was preserving references to compatibility fields without reintroducing old schema guidance. The plan now says not to use `runtimeProfile` in examples or new implementation work, while acknowledging that some internal capability APIs still receive `RuntimeProfile: "main"`.
+
+### What warrants a second pair of eyes
+- Review whether `CommandSetContext.RuntimeProfile` should remain visible to new command providers, or whether a later cleanup should deprecate it after all multi-runtime tests/docs are removed.
+- Review older xgoja tests and docs that still mention runtime profiles; they may be stale after the schema simplification.
+
+### What should be done in the future
+- Update the research logbook to mark older runtime-profile resources as stale if implementation work confirms they are no longer valid.
+- During implementation, remove or update remaining tests/docs that still expect `runtimes:` in xgoja.yaml.
+
+### Code review instructions
+- In the design doc, search for `runtimes:`, `runtime: main`, and `runtimeProfile:`; none should appear in recommended YAML snippets.
+- Validate docs with `docmgr doctor --ticket GOJA-064 --stale-after 30`.
+
+### Technical details
+- Updated design doc: `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/design-doc/01-http-serve-support-for-xgoja-generated-verbs.md`.
+
+## Step 7: Implement command-provider jsverb source access and HTTP serve commands
+
+I implemented the first code slice of GOJA-064: command providers can now access configured JavaScript verb sources, and the first-party HTTP provider registers a `serve` command provider that mirrors discovered jsverbs with a long-lived runtime lifecycle. This turns the design from a proposal into a concrete provider extension path for generated binaries.
+
+The implementation follows the simplified single-runtime schema. The serve invoker creates the one configured runtime through `RuntimeFactory.NewRuntimeFromSections(ctx, vals, require.WithLoader(...))`, initializes selected module capabilities such as the HTTP section, invokes the selected setup verb once, and then waits for Ctrl-C/SIGTERM or context cancellation before closing the runtime.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead."
+
+**Assistant interpretation:** Proceed from the updated GOJA-064 plan into implementation.
+
+**Inferred user intent:** The user wants the proposed single-runtime HTTP serve command-provider design implemented, with tickets committed at appropriate intervals and diary updates maintained.
+
+**Commit (code):** pending — this diary step was written immediately before the first implementation commit.
+
+### What I did
+- Added `providerapi.JSVerbSourceDescriptor` and `providerapi.JSVerbSourceSet`.
+- Added `CommandSetContext.JSVerbs` so provider command sets can discover and scan configured jsverb sources.
+- Added `pkg/xgoja/app/jsverb_sources.go` to centralize app-side jsverb source scanning for local, embedded, and provider-shipped sources.
+- Updated `pkg/xgoja/app/command_providers.go` to pass the jsverb source set into provider contexts.
+- Added `pkg/xgoja/providers/http/serve.go` implementing the HTTP `serve` command provider command set and long-lived serve invoker.
+- Updated `pkg/xgoja/providers/http/http.go` to register `CommandSetProvider{Name: "serve"}`.
+- Added tests for command-provider jsverb source access and HTTP serve command generation.
+- Ran `gofmt` and package tests.
+
+### Why
+- Built-in jsverbs could scan configured sources, but command providers could not. The HTTP provider needs that capability to create a `serve` command tree from the same verbs.
+- Ordinary jsverb commands close the runtime after invocation; HTTP setup verbs need the runtime kept alive for request handling.
+
+### What worked
+- `GOWORK=off go test ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1` passed.
+- The single-runtime API shape matched current code: `RuntimeFactory.NewRuntimeFromSections(ctx, vals, opts...)` did not require profile plumbing.
+- Existing jsverbs command wrappers could be reused with a custom invoker.
+
+### What didn't work
+- The first version of the test JavaScript used an invalid `__verb__` declaration with the function inline:
+  - `__verb__("demo", { short: "Serve demo" }, function demo() {});`
+- The scanner failed with:
+  - `sites.js: __verb__ requires a function name and object metadata`
+- I fixed the tests to match existing examples:
+  - `__verb__("demo", { name: "demo", short: "Serve demo", output: "text" });`
+  - `function demo() {}`
+
+### What I learned
+- jsverbs metadata declarations name functions; they do not accept an inline function argument in the current scanner.
+- The HTTP serve command can be built with very little new command machinery once command providers can see jsverb sources.
+
+### What was tricky to build
+- The main edge was section composition. The serve provider must append HTTP/module sections to command descriptions already produced by jsverbs without clobbering verb-owned sections. I mirrored the existing unique-section logic with `providerutil.AppendUniqueSections`.
+- Another edge was runtime initialization. Creating the runtime is not enough; module capabilities must be initialized from parsed values before invoking the setup verb, otherwise HTTP settings such as `--http-listen` would not be applied.
+
+### What warrants a second pair of eyes
+- `providerapi` now imports `pkg/jsverbs` for the source-scanning interface. Review whether that coupling is acceptable or whether the interface should be moved to a smaller shared package.
+- The HTTP provider still starts the listener asynchronously when `require("express")` runs. Bind failures are not made synchronous in this first slice.
+- `serve` currently mirrors all configured verbs. Filtering by tag such as `http`/`site` remains a possible follow-up.
+
+### What should be done in the future
+- Add a generated-binary smoke test that builds an xgoja app, runs `serve <verb> --http-listen ...`, and probes HTTP endpoints.
+- Add an example under `examples/xgoja/13-http-serve-jsverbs`.
+- Improve HTTP provider listener startup so bind errors are surfaced synchronously for server commands.
+
+### Code review instructions
+- Start with `pkg/xgoja/providerapi/commands.go` for the API addition.
+- Then read `pkg/xgoja/app/jsverb_sources.go` and `pkg/xgoja/app/command_providers.go` to see how generated apps supply sources.
+- Then read `pkg/xgoja/providers/http/serve.go` for the serve lifecycle.
+- Validate with `GOWORK=off go test ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1`.
+
+### Technical details
+- Validation command: `GOWORK=off go test ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1`.
+- Modified implementation files:
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providerapi/commands.go`
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/jsverb_sources.go`
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/command_providers.go`
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/command_providers_test.go`
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providers/http/http.go`
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providers/http/serve.go`
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providers/http/http_test.go`
+  - `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providers/http/serve_test.go`.
