@@ -55,3 +55,14 @@ Added source-fragment and custom-template generation modes, plus sanitized infer
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Regression and smoke tests
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/internal/generate/templates.go — Template helper/data changes
 
+
+## 2026-06-04
+
+Added xgoja generate --template-data and --clean flags with cleanup guardrails (commit 6fdc1cf659325d5718f95921754b4f6840d3224a)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/cmd_generate.go — Generate flag behavior
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/internal/generate/generate.go — Template data and clean helpers
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/root_test.go — CLI tests for new flags
+

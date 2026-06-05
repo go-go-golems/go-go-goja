@@ -569,3 +569,78 @@ During this step I also fixed a useful review finding about inferred package nam
   - `rawString`
   - `json`
 - Package-name inference fix: the CLI no longer derives package names from output basenames when `--package`/`target.package` is omitted; generator fallback sanitizes the output directory basename.
+
+## Step 7: Add `--template-data` and `--clean` generation flags
+
+I added the two generation ergonomics flags that were left as follow-ups after custom-template and source-fragment support. `--template-data` prints the JSON data contract used by the package/source/custom templates without writing generated source. `--clean` removes only known xgoja-generated outputs before regenerating, which avoids stale files when switching between package and source-fragment modes or when embedded resources disappear.
+
+This step also keeps the package-name inference fix intact: when `--package` and `target.package` are omitted, the CLI leaves the package name empty for actual generation so the generator's sanitized fallback is used. For template-data output, it uses the same sanitized inference helper so users see a valid package name in the JSON contract.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok add them both."
+
+**Assistant interpretation:** Add both previously discussed generation flags: `--template-data` and `--clean`.
+
+**Inferred user intent:** The user wants custom template authoring and repeated generation workflows to be easier and less error-prone.
+
+**Commit (code):** 6fdc1cf659325d5718f95921754b4f6840d3224a — "GOJA-065: add generate clean and template data flags"
+
+### What I did
+- Added `--template-data` and `--clean` flags to `xgoja generate`.
+- Added `generate.TemplateDataJSON` for pretty-printed JSON template data.
+- Added `generate.CleanGenerated` for package/source output directories.
+- Added `generate.CleanGeneratedFile` for template output files, guarded to `.gen.go` only.
+- Updated the generated runtime package tutorial with sections for both flags.
+- Added root-command tests for template-data output, clean behavior, and sanitized inferred package names.
+- Ran focused and full validation.
+- Committed the code/docs changes in `6fdc1cf659325d5718f95921754b4f6840d3224a`.
+
+### Why
+- `--template-data` makes the custom-template data contract visible without reading Go internals.
+- `--clean` prevents stale generated files such as `xgoja_runtime.gen.go` after switching to source-fragment mode, or stale `embed.gen.go` after embedded resources are removed.
+- Guardrails avoid deleting arbitrary application files.
+
+### What worked
+- Focused tests passed:
+  - `GOWORK=off go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./cmd/xgoja -count=1`
+- Full repository tests passed:
+  - `GOWORK=off go test ./...`
+- Pre-commit lint and tests passed before commit.
+
+### What didn't work
+- No blocking failures occurred in this step.
+
+### What I learned
+- The clean operation needs different behavior by mode: directory cleanup for package/source modes, single guarded file cleanup for template mode.
+- Template-data output should use the same sanitized package-name inference as generation, otherwise the inspection output can show an invalid package name even when generation would be safe.
+
+### What was tricky to build
+- The sharp edge is deletion safety. I implemented `--clean` as an allowlist rather than a directory wipe. Package/source mode removes only known xgoja outputs (`xgoja_runtime.gen.go`, source fragments, optional `xgoja_embed/`), and template mode refuses to remove files that do not end in `.gen.go`.
+
+### What warrants a second pair of eyes
+- Review whether `--clean` should also remove future generated file names once more modes are added.
+- Review whether `--template-data` should include a schema version field before custom templates become a compatibility promise.
+
+### What should be done in the future
+- Consider adding a generated marker comment check before deleting `.gen.go` template outputs.
+- Consider documenting the template data JSON as an explicit compatibility contract if external users adopt custom templates.
+
+### Code review instructions
+- Start with `cmd/xgoja/cmd_generate.go` for flag behavior.
+- Review `cmd/xgoja/internal/generate/generate.go` for cleanup guardrails and template-data JSON generation.
+- Review `cmd/xgoja/root_test.go` for CLI behavior tests.
+- Validate with:
+  - `GOWORK=off go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./cmd/xgoja -count=1`
+  - `GOWORK=off go test ./...`
+
+### Technical details
+- `--template-data` exits before `--dry-run`, `--clean`, or write operations.
+- Package/source `--clean` allowlist:
+  - `xgoja_runtime.gen.go`
+  - `spec.gen.go`
+  - `providers.gen.go`
+  - `bundle.gen.go`
+  - `embed.gen.go`
+  - `xgoja_embed/`
+- Template `--clean` removes only the selected output file and only if it ends in `.gen.go`.

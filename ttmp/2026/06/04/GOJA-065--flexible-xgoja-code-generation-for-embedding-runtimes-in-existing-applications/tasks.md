@@ -22,4 +22,4 @@
 - [x] Implement source-fragment generation mode
 - [x] Implement custom template generation mode
 - [x] Add tests and documentation for source-fragment and custom-template generation
-- [ ] Add generate --clean and --template-data flags
+- [x] Add generate --clean and --template-data flags
