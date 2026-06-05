@@ -169,6 +169,119 @@ func TestFSRejectsCombinedHostAndEmbeddedConfig(t *testing.T) {
 	}
 }
 
+func TestDatabasePreconfiguredFromProviderConfig(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register host provider: %v", err)
+	}
+	dbPath := filepath.ToSlash(filepath.Join(t.TempDir(), "site.db"))
+	runtimeSpec := &app.RuntimeSpec{
+		Modules: []app.ModuleInstanceSpec{{
+			Package: PackageID,
+			Name:    "db",
+			As:      "db",
+			Config: map[string]any{
+				"driverName":     "sqlite3",
+				"dataSourceName": dbPath,
+			},
+		}},
+	}
+	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{})
+	rt, err := host.Factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "host.db-preconfigured", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`
+			const db = require("db");
+			db.exec("CREATE TABLE widgets (name TEXT NOT NULL)");
+			db.exec("INSERT INTO widgets(name) VALUES (?)", "from-provider-config");
+			let configureError = "";
+			try { db.configure("sqlite3", ":memory:"); } catch (e) { configureError = String(e); }
+			JSON.stringify({
+				rows: db.query("SELECT name FROM widgets ORDER BY name"),
+				configureError,
+			});
+		`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("run preconfigured db script: %v", err)
+	}
+	state := ret.(string)
+	for _, want := range []string{`"name":"from-provider-config"`, `"configureError":"GoError: database module`, `is preconfigured and does not allow configure()`} {
+		if !strings.Contains(state, want) {
+			t.Fatalf("preconfigured db state missing %s: %s", want, state)
+		}
+	}
+}
+
+func TestDatabasePreconfiguredRejectsPartialConfig(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register host provider: %v", err)
+	}
+	mod, ok := registry.ResolveModule(PackageID, "db")
+	if !ok {
+		t.Fatal("expected db module")
+	}
+	cfg, err := json.Marshal(DatabaseConfig{DriverName: "sqlite3"})
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	_, err = mod.NewModuleFactory(providerapi.ModuleSetupContext{Context: context.Background(), Name: "db", As: "db", Config: cfg})
+	if err == nil || !strings.Contains(err.Error(), "requires both driverName and dataSourceName") {
+		t.Fatalf("expected partial preconfig error, got %v", err)
+	}
+}
+
+func TestDatabaseAllowConfigureModeStillWorks(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register host provider: %v", err)
+	}
+	dbPath := filepath.ToSlash(filepath.Join(t.TempDir(), "configured-by-js.db"))
+	runtimeSpec := &app.RuntimeSpec{
+		Modules: []app.ModuleInstanceSpec{{
+			Package: PackageID,
+			Name:    "db",
+			As:      "db",
+			Config:  map[string]any{"allowConfigure": true},
+		}},
+	}
+	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{})
+	rt, err := host.Factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "host.db-allow-configure", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`
+			const db = require("db");
+			db.configure("sqlite3", ` + strconv.Quote(dbPath) + `);
+			db.exec("CREATE TABLE widgets (name TEXT NOT NULL)");
+			db.exec("INSERT INTO widgets(name) VALUES (?)", "from-js-configure");
+			JSON.stringify(db.query("SELECT name FROM widgets ORDER BY name"));
+		`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("run allow-configure db script: %v", err)
+	}
+	if ret.(string) != `[{"name":"from-js-configure"}]` {
+		t.Fatalf("allow-configure result = %s", ret)
+	}
+}
+
 func TestExecAllowedCommands(t *testing.T) {
 	registry := providerapi.NewProviderRegistry()
 	if err := Register(registry); err != nil {
