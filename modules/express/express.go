@@ -91,6 +91,33 @@ func (r *Registrar) loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	_ = exports.Set("app", func() goja.Value { return r.appObject(vm) })
 }
 
+type spaOptions struct {
+	Index           string
+	ExcludePrefixes []string
+}
+
+func spaFromAssetsOptions(vm *goja.Runtime, value goja.Value) spaOptions {
+	ret := spaOptions{Index: "index.html", ExcludePrefixes: []string{"/api"}}
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return ret
+	}
+	obj := value.ToObject(vm)
+	if index := obj.Get("index"); index != nil && !goja.IsUndefined(index) && !goja.IsNull(index) {
+		ret.Index = index.String()
+	}
+	if excludes := obj.Get("excludePrefixes"); excludes != nil && !goja.IsUndefined(excludes) && !goja.IsNull(excludes) {
+		ret.ExcludePrefixes = nil
+		if arr, ok := excludes.Export().([]any); ok {
+			for _, exclude := range arr {
+				if s, ok := exclude.(string); ok && s != "" {
+					ret.ExcludePrefixes = append(ret.ExcludePrefixes, s)
+				}
+			}
+		}
+	}
+	return ret
+}
+
 func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 	obj := vm.NewObject()
 	for _, method := range []string{"get", "post", "put", "patch", "delete", "all"} {
@@ -120,6 +147,18 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 			return err
 		}
 		r.host.RegisterStaticHandler(prefix, handler)
+		return nil
+	})
+	_ = obj.Set("spaFromAssetsModule", func(prefix string, assetsModule goja.Value, root string, options goja.Value) error {
+		if prefix == "" || root == "" {
+			return fmt.Errorf("app.spaFromAssetsModule requires prefix and root")
+		}
+		spaOptions := spaFromAssetsOptions(vm, options)
+		handler, err := fsmod.SPAHandlerFromAssetsModule(vm, assetsModule, root, spaOptions.Index)
+		if err != nil {
+			return err
+		}
+		r.host.RegisterStaticHandlerWithOptions(prefix, handler, spaOptions.ExcludePrefixes)
 		return nil
 	})
 	return obj
