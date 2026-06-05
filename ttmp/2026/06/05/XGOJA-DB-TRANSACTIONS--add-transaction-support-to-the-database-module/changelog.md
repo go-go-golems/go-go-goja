@@ -37,3 +37,12 @@ Step 2: implemented database transaction support, guarded jsverbs transaction po
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/pkg/jsverbscli/command_test.go — Guarded transaction tests
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/pkg/jsverbscli/runtime.go — Guarded transaction support
 
+
+## 2026-06-05
+
+Re-uploaded final ticket bundle (design, diary, tasks, changelog) to reMarkable at /ai/2026/06/05/XGOJA-DB-TRANSACTIONS after implementation diary updates.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/ttmp/2026/06/05/XGOJA-DB-TRANSACTIONS--add-transaction-support-to-the-database-module/reference/01-diary.md — Final diary included in uploaded bundle
+
