@@ -22,6 +22,11 @@ func TestLoadFileValidSpec(t *testing.T) {
 name: webrepl
 appName: webrepl-dev
 envPrefix: WEBREPL_DEV
+go:
+  imports:
+    - import: github.com/lib/pq
+      alias: _
+      version: v1.10.9
 packages:
   - id: core
     import: github.com/go-go-golems/go-go-goja/xgoja
@@ -67,6 +72,9 @@ assets:
 	}
 	if buildSpec.EnvPrefix != "WEBREPL_DEV" {
 		t.Fatalf("envPrefix = %q", buildSpec.EnvPrefix)
+	}
+	if len(buildSpec.Go.Imports) != 1 || buildSpec.Go.Imports[0].Import != "github.com/lib/pq" || buildSpec.Go.Imports[0].Alias != "_" || buildSpec.Go.Imports[0].Version != "v1.10.9" {
+		t.Fatalf("go imports = %#v", buildSpec.Go.Imports)
 	}
 	if buildSpec.Target.Kind != "xgoja" {
 		t.Fatalf("default target kind = %q", buildSpec.Target.Kind)

@@ -18,8 +18,9 @@ type HostOptions struct {
 }
 
 type StaticMount struct {
-	Prefix  string
-	Handler http.Handler
+	Prefix          string
+	Handler         http.Handler
+	ExcludePrefixes []string
 }
 
 type Host struct {
@@ -44,13 +45,52 @@ func (h *Host) RegisterStatic(prefix, dir string) {
 }
 
 func (h *Host) RegisterStaticHandler(prefix string, handler http.Handler) {
+	h.RegisterStaticHandlerWithOptions(prefix, handler, nil)
+}
+
+func (h *Host) RegisterStaticHandlerWithOptions(prefix string, handler http.Handler, excludePrefixes []string) {
 	prefix = cleanPath(prefix)
-	h.static = append(h.static, StaticMount{Prefix: prefix, Handler: http.StripPrefix(prefix, handler)})
+	excludes := make([]string, 0, len(excludePrefixes))
+	for _, exclude := range excludePrefixes {
+		exclude = cleanPath(exclude)
+		if exclude != "" {
+			excludes = append(excludes, exclude)
+		}
+	}
+	h.static = append(h.static, StaticMount{Prefix: prefix, Handler: stripMountPrefix(prefix, handler), ExcludePrefixes: excludes})
+}
+
+func stripMountPrefix(prefix string, handler http.Handler) http.Handler {
+	if prefix == "/" {
+		return handler
+	}
+	return http.StripPrefix(prefix, handler)
+}
+
+func staticMountMatches(prefix, requestPath string) bool {
+	prefix = cleanPath(prefix)
+	requestPath = cleanPath(requestPath)
+	if prefix == "/" {
+		return true
+	}
+	return requestPath == prefix || strings.HasPrefix(requestPath, prefix+"/")
+}
+
+func staticMountExcluded(excludePrefixes []string, requestPath string) bool {
+	for _, exclude := range excludePrefixes {
+		if staticMountMatches(exclude, requestPath) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for _, mount := range h.static {
-		if r.URL.Path == mount.Prefix || strings.HasPrefix(r.URL.Path, mount.Prefix+"/") {
+		if staticMountMatches(mount.Prefix, r.URL.Path) {
+			if staticMountExcluded(mount.ExcludePrefixes, r.URL.Path) {
+				continue
+			}
 			mount.Handler.ServeHTTP(w, r)
 			return
 		}

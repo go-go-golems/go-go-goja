@@ -7,10 +7,23 @@ declare module "crypto" {
 }
 
 declare module "database" {
+  export function begin(): DatabaseTransaction;
   export function close(): void;
   export function configure(driverName: string, dataSourceName: string): void;
   export function exec(query: string, ...args: unknown[]): unknown;
   export function query(query: string, ...args: unknown[]): unknown;
+  interface DatabaseExecResult {
+  success: boolean;
+  rowsAffected?: number;
+  lastInsertId?: number;
+  error?: string;
+  }
+  interface DatabaseTransaction {
+  query(query: string, ...args: unknown[]): Array<Record<string, unknown>>;
+  exec(query: string, ...args: unknown[]): DatabaseExecResult;
+  commit(): { success: boolean; error?: string };
+  rollback(): { success: boolean; error?: string };
+  }
 }
 
 declare module "events" {

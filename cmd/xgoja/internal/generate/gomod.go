@@ -32,6 +32,19 @@ func RenderGoMod(buildSpec *buildspec.BuildSpec, opts Options) string {
 		}
 		requires[providerModulePath(pkg.Import)] = version
 	}
+	for _, imp := range buildSpec.Go.Imports {
+		version := strings.TrimSpace(imp.Version)
+		if version == "" {
+			continue
+		}
+		modulePath := strings.TrimSpace(imp.Module)
+		if modulePath == "" {
+			modulePath = providerModulePath(imp.Import)
+		}
+		if modulePath != "" {
+			requires[modulePath] = version
+		}
+	}
 	keys := make([]string, 0, len(requires))
 	for k := range requires {
 		keys = append(keys, k)

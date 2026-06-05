@@ -36,6 +36,7 @@ Use this page when updating code written against the older xgoja provider API or
 | `providerapi.RuntimeHandle` | `providerapi.RuntimeInitializerHandle` |
 | `RuntimeInitializerHandle.Runtime()` | `RuntimeInitializerHandle.EngineRuntime()` |
 | `CommandSetProvider.New` | `CommandSetProvider.NewCommandSet` |
+| `app.Spec` | `app.RuntimeSpec` |
 
 Removed aliases:
 
@@ -60,7 +61,24 @@ registry := providerapi.NewProviderRegistry()
 _ = myprovider.Register(registry)
 ```
 
-Create a module provider entry:
+Create a minimal package provider with one native module:
+
+```go
+func Register(registry *providerapi.ProviderRegistry) error {
+    return registry.Package("my-package",
+        providerapi.Module{
+            Name:        "my-module",
+            DefaultAs:   "my-module",
+            Description: "Module exposed through require(\"my-module\")",
+            NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
+                return loader, nil
+            },
+        },
+    )
+}
+```
+
+Create a module provider entry when you are already inside a larger package definition:
 
 ```go
 providerapi.Module{
@@ -68,6 +86,16 @@ providerapi.Module{
     NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
         return loader, nil
     },
+}
+```
+
+Decode embedded runtime specs in generated or generated-like binaries:
+
+```go
+func decodeSpec() *app.RuntimeSpec {
+    spec := &app.RuntimeSpec{}
+    must(json.Unmarshal([]byte(embeddedSpecJSON), spec))
+    return spec
 }
 ```
 
@@ -96,12 +124,42 @@ providerapi.CommandSetProvider{
 }
 ```
 
+## Migration checklist for generated binaries
+
+Generated xgoja binaries can contain stale API names even when the provider package itself has been updated. Check the generated command module as a separate module if it has its own `go.mod`.
+
+Search active source and docs for old names:
+
+```bash
+rg -n "providerapi\\.(Registry|ModuleContext|NewRegistry)|\\.New\\(providerapi\\.ModuleContext|app\\.Spec" \
+  --glob '!ttmp/**' \
+  .
+```
+
+Validate both workspace and standalone module modes:
+
+```bash
+# From the provider package root.
+go test ./...
+GOWORK=off go test ./...
+
+# If a checked-in generated command module exists.
+cd cmd/<generated-binary>
+GOWORK=off go test ./...
+```
+
+If workspace mode passes but `GOWORK=off` fails, inspect the relevant `go.mod`. A nested generated command module may still pin an older `github.com/go-go-golems/go-go-goja` version.
+
 ## Troubleshooting
 
 | Problem | Cause | Solution |
 | --- | --- | --- |
 | `undefined: engine.NewBuilder` | The builder constructor was renamed. | Use `engine.NewRuntimeFactoryBuilder`. |
 | `undefined: providerapi.NewRegistry` | The provider constructor was renamed. | Use `providerapi.NewProviderRegistry`. |
+| `undefined: providerapi.ProviderRegistry` after migrating source | The module still depends on an older `go-go-goja` release. | Upgrade `github.com/go-go-golems/go-go-goja` in the active `go.mod`; check nested generated command modules too. |
+| `unknown field New in struct literal of type providerapi.Module` | `providerapi.Module.New` was renamed. | Use `NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) { ... }`. |
+| `undefined: providerapi.ModuleContext` | Module setup context was renamed. | Use `providerapi.ModuleSetupContext`. |
+| `undefined: app.Spec` | Generated or generated-like xgoja source still references the old runtime spec DTO. | Use `app.RuntimeSpec`, or regenerate the binary with the current xgoja generator. |
 | `provider.New undefined` | `CommandSetProvider.New` was renamed. | Use `provider.NewCommandSet`. |
 | `handle.Runtime undefined` | Runtime initializer handles now expose the engine runtime explicitly. | Use `handle.EngineRuntime()` and then `.VM` for the raw Goja VM. |
 | `RuntimeCloserRegistry` is missing | Cleanup registration moved onto `engine.Runtime`. | Use `handle.EngineRuntime().AddCloser(...)`. |

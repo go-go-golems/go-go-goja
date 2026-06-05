@@ -1,6 +1,7 @@
 package host
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -46,7 +47,9 @@ type ExecConfig struct {
 }
 
 type DatabaseConfig struct {
-	AllowConfigure bool `json:"allowConfigure"`
+	AllowConfigure bool   `json:"allowConfigure"`
+	DriverName     string `json:"driverName,omitempty"`
+	DataSourceName string `json:"dataSourceName,omitempty"`
 }
 
 // Register exposes guarded host-capability modules. These modules can touch
@@ -205,7 +208,9 @@ func databaseModule(name string) providerapi.Module {
 		ConfigSchema: json.RawMessage(`{
   "type": "object",
   "properties": {
-    "allowConfigure": {"type": "boolean", "description": "Allow JavaScript to call configure(driverName, dataSourceName)."}
+    "allowConfigure": {"type": "boolean", "description": "Allow JavaScript to call configure(driverName, dataSourceName). Ignored when driverName/dataSourceName preconfigure the module."},
+    "driverName": {"type": "string", "description": "Optional SQL driver name used to preconfigure the module before JavaScript runs."},
+    "dataSourceName": {"type": "string", "description": "Optional SQL data source name used with driverName to preconfigure the module before JavaScript runs."}
   }
 }`),
 		NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
@@ -213,10 +218,29 @@ func databaseModule(name string) providerapi.Module {
 			if err := decodeConfig(ctx.Config, &cfg); err != nil {
 				return nil, fmt.Errorf("database config: %w", err)
 			}
-			mod := dbm.New(dbm.WithName(name), dbm.WithConfigureEnabled(cfg.AllowConfigure))
+			mod, err := databaseModuleFromConfig(name, cfg)
+			if err != nil {
+				return nil, err
+			}
 			return mod.Loader, nil
 		},
 	}
+}
+
+func databaseModuleFromConfig(name string, cfg DatabaseConfig) (*dbm.DBModule, error) {
+	driverName := strings.TrimSpace(cfg.DriverName)
+	dataSourceName := strings.TrimSpace(cfg.DataSourceName)
+	if driverName == "" && dataSourceName == "" {
+		return dbm.New(dbm.WithName(name), dbm.WithConfigureEnabled(cfg.AllowConfigure)), nil
+	}
+	if driverName == "" || dataSourceName == "" {
+		return nil, fmt.Errorf("database config requires both driverName and dataSourceName for preconfigured modules")
+	}
+	db, err := sql.Open(driverName, dataSourceName)
+	if err != nil {
+		return nil, fmt.Errorf("open preconfigured database %q: %w", driverName, err)
+	}
+	return dbm.New(dbm.WithName(name), dbm.WithPreconfiguredDB(db), dbm.WithCloseFn(db.Close)), nil
 }
 
 func decodeConfig(data json.RawMessage, out any) error {

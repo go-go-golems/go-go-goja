@@ -37,6 +37,43 @@ func TestValidateCommandProvidersRejectsInvalidEntries(t *testing.T) {
 	assertCheck(t, report, StatusError, "command-provider-name", "commandProviders[1].name")
 }
 
+func TestValidateGoImportsAcceptsBlankAndNamedImports(t *testing.T) {
+	buildSpec := validSpec()
+	buildSpec.Go.Imports = []GoImportSpec{
+		{Import: "github.com/lib/pq", Alias: "_", Version: "v1.10.9"},
+		{Import: "example.com/app/hooks", Alias: "hooks", Module: "example.com/app", Version: "v0.1.0"},
+	}
+
+	report := Validate(buildSpec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusOK, "go-imports", "go.imports")
+	assertCheck(t, report, StatusOK, "go-import", "go.imports[0].import")
+	assertCheck(t, report, StatusOK, "go-import-alias", "go.imports[0].alias")
+}
+
+func TestValidateGoImportsRejectsInvalidEntries(t *testing.T) {
+	buildSpec := validSpec()
+	buildSpec.Go.Imports = []GoImportSpec{
+		{Alias: "_"},
+		{Import: "github.com/lib/pq", Alias: "bad-alias"},
+		{Import: "example.com/one", Alias: "dup"},
+		{Import: "example.com/two", Alias: "dup"},
+		{Import: "github.com/lib/pq", Alias: "_"},
+		{Import: "github.com/lib/pq", Alias: "_"},
+	}
+
+	report := Validate(buildSpec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "go-import", "go.imports[0].import")
+	assertCheck(t, report, StatusError, "go-import-alias", "go.imports[1].alias")
+	assertCheck(t, report, StatusError, "go-import-alias", "go.imports[3].alias")
+	assertCheck(t, report, StatusError, "go-import", "go.imports[5].import")
+}
+
 func TestValidateHelpSourcesAcceptsProviderAndEmbeddedLocalSources(t *testing.T) {
 	dir := t.TempDir()
 	helpDir := filepath.Join(dir, "docs", "help")

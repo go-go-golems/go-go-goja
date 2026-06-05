@@ -20,6 +20,9 @@ import (
 {{- range .ProviderImports }}
 	{{ .Alias }} "{{ .Import }}"
 {{- end }}
+{{- range .ExtraImports }}
+	{{ .AliasPrefix }}"{{ .Import }}"
+{{- end }}
 )
 
 const EmbeddedSpecJSON = `{{ .SpecJSON }}`

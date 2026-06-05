@@ -3,12 +3,15 @@ package jsverbscli
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	databasemod "github.com/go-go-golems/go-go-goja/modules/database"
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbrepos"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func TestScanRepositoriesDiscoversBuiltinVerb(t *testing.T) {
@@ -69,6 +72,67 @@ func TestLazyCommandListsBuiltinVerb(t *testing.T) {
 	if !strings.Contains(stdout, `"repository": "builtin"`) {
 		t.Fatalf("list JSON output did not contain repository: %q", stdout)
 	}
+}
+
+func TestGuardedDBTransactionRejectsWritesWhenReadOnly(t *testing.T) {
+	db := openJSVerbsSQLiteDB(t)
+	_, err := db.Exec(`CREATE TABLE widgets (name TEXT NOT NULL)`)
+	if err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+
+	guarded := &guardedDB{db: db, allowWrites: false}
+	module := databasemod.New(databasemod.WithPreconfiguredDB(guarded))
+	tx, err := module.BeginContext(context.Background())
+	if err != nil {
+		t.Fatalf("begin transaction: %v", err)
+	}
+	defer func() { _, _ = tx.Rollback() }()
+
+	_, err = tx.ExecContext(context.Background(), `INSERT INTO widgets(name) VALUES (?)`, "Ada")
+	if err == nil || !strings.Contains(err.Error(), "database writes are disabled") {
+		t.Fatalf("expected guarded write error, got %v", err)
+	}
+}
+
+func TestGuardedDBTransactionCommitsWhenWritesAllowed(t *testing.T) {
+	db := openJSVerbsSQLiteDB(t)
+	_, err := db.Exec(`CREATE TABLE widgets (name TEXT NOT NULL)`)
+	if err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+
+	guarded := &guardedDB{db: db, allowWrites: true}
+	module := databasemod.New(databasemod.WithPreconfiguredDB(guarded))
+	tx, err := module.BeginContext(context.Background())
+	if err != nil {
+		t.Fatalf("begin transaction: %v", err)
+	}
+	if _, err := tx.ExecContext(context.Background(), `INSERT INTO widgets(name) VALUES (?)`, "Ada"); err != nil {
+		t.Fatalf("transaction exec: %v", err)
+	}
+	if _, err := tx.Commit(); err != nil {
+		t.Fatalf("transaction commit: %v", err)
+	}
+
+	rows, err := module.QueryContext(context.Background(), `SELECT name FROM widgets ORDER BY name`)
+	if err != nil {
+		t.Fatalf("query widgets: %v", err)
+	}
+	if len(rows) != 1 || rows[0]["name"] != "Ada" {
+		t.Fatalf("unexpected rows: %#v", rows)
+	}
+}
+
+func openJSVerbsSQLiteDB(t *testing.T) *sql.DB {
+	t.Helper()
+	dbPath := filepath.Join(t.TempDir(), "jsverbs.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	return db
 }
 
 func captureStdout(t *testing.T, fn func()) string {
