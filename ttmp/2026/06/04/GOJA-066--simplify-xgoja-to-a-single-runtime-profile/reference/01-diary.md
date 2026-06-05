@@ -291,7 +291,7 @@ This was intentionally done as a clean xgoja break rather than a silent migratio
 
 **Inferred user intent:** Move from design into implementation while preserving a clear review trail and avoiding one giant undocumented refactor.
 
-**Commit (code):** pending — core schema/runtime refactor ready to commit after this diary update.
+**Commit (code):** 3b01e0e — "Simplify xgoja to single runtime modules"
 
 ### What I did
 
@@ -461,7 +461,7 @@ The documentation pass was deliberately separate from the code refactor commit. 
 
 **Inferred user intent:** Finish the migration so users and future implementers see the same single-runtime model in docs, examples, and code.
 
-**Commit (code):** pending — documentation/example rename ready to commit after this diary update.
+**Commit (code):** 481ae3f — "Document xgoja single runtime modules"
 
 ### What I did
 
@@ -560,4 +560,80 @@ Representative stale-term search:
 ```bash
 rg -n 'runtimes:|runtimeProfile:|runtime profile|runtime profiles|--runtime|commands\.[a-z]+\.runtime|runtimes\.|runtimeProfile|03-multiple-runtimes|multiple-runtimes|multiple runtimes' \
   cmd/xgoja/doc pkg/xgoja/doc examples/xgoja --glob '*.md' -S
+```
+
+## Step 5: Refresh the reMarkable Bundle After Implementation
+
+This step refreshed the GOJA-066 reMarkable PDF after the code and documentation commits landed. The source bundle still contains the design guide and diary, but the diary now includes the concrete implementation and documentation commit hashes.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue the GOJA-066 workflow through final documentation/upload hygiene after committing implementation and docs.
+
+**Inferred user intent:** Keep the off-machine review artifact current with the actual implementation state, not only the initial design.
+
+**Commit (code):** 3b01e0e — "Simplify xgoja to single runtime modules"
+
+**Commit (docs):** 481ae3f — "Document xgoja single runtime modules"
+
+### What I did
+
+- Updated earlier diary entries with the concrete commit hashes.
+- Re-uploaded the GOJA-066 design bundle to reMarkable with `--force`:
+  - `GOJA-066 Single Runtime Profile Design.pdf`
+  - `/ai/2026/06/04/GOJA-066`
+
+### Why
+
+The first upload happened before implementation. After the schema/runtime/docs commits, the diary had new evidence and commit references. Refreshing the bundle keeps the reMarkable copy aligned with the repository state.
+
+### What worked
+
+- Upload succeeded:
+  - `OK: uploaded GOJA-066 Single Runtime Profile Design.pdf -> /ai/2026/06/04/GOJA-066`
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The upload can be safely refreshed with `--force` when the document name is intentionally the same and the goal is to replace the older review copy.
+
+### What was tricky to build
+
+N/A
+
+### What warrants a second pair of eyes
+
+- Confirm whether the updated bundle should be treated as the final GOJA-066 design artifact or whether another upload should happen after any remaining full-suite/example-loop validation.
+
+### What should be done in the future
+
+- If more GOJA-066 commits land, refresh the bundle again or create a separate implementation-review PDF.
+
+### Code review instructions
+
+- Review commits:
+  - `3b01e0e`
+  - `481ae3f`
+- Review updated bundle sources:
+  - `design-doc/01-single-runtime-profile-simplification-design-and-implementation-guide.md`
+  - `reference/01-diary.md`
+
+### Technical details
+
+Upload command:
+
+```bash
+remarquee upload bundle \
+  ttmp/2026/06/04/GOJA-066--simplify-xgoja-to-a-single-runtime-profile/design-doc/01-single-runtime-profile-simplification-design-and-implementation-guide.md \
+  ttmp/2026/06/04/GOJA-066--simplify-xgoja-to-a-single-runtime-profile/reference/01-diary.md \
+  --name "GOJA-066 Single Runtime Profile Design" \
+  --remote-dir "/ai/2026/06/04/GOJA-066" \
+  --toc-depth 2 \
+  --force \
+  --non-interactive
 ```

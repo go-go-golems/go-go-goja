@@ -47,3 +47,12 @@ Updated xgoja docs and renamed example 03 to single-runtime-modules; focused xgo
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/examples/xgoja/03-single-runtime-modules/README.md — Renamed example documenting the one module set model
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-066--simplify-xgoja-to-a-single-runtime-profile/reference/01-diary.md — Recorded documentation migration step
 
+
+## 2026-06-04
+
+Refreshed GOJA-066 reMarkable bundle after implementation and documentation commits.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-066--simplify-xgoja-to-a-single-runtime-profile/reference/01-diary.md — Recorded final upload and commit hashes
+
