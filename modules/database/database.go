@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/dop251/goja"
@@ -21,6 +22,46 @@ type QueryExecer interface {
 type QueryExecerContext interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+// Transaction is the minimal SQL transaction surface exposed by the database
+// module. It matches *sql.Tx while still allowing guarded wrappers to enforce
+// host policy inside transaction exec/query calls.
+type Transaction interface {
+	Query(query string, args ...any) (*sql.Rows, error)
+	Exec(query string, args ...any) (sql.Result, error)
+	Commit() error
+	Rollback() error
+}
+
+// TransactionContext is the context-aware transaction surface. *sql.Tx
+// implements this interface, as can wrapper transactions.
+type TransactionContext interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	Commit() error
+	Rollback() error
+}
+
+// TransactionBeginner is implemented by database wrappers that can return an
+// abstract transaction handle. Use this when the wrapper must preserve policy,
+// for example read-only guards, inside the transaction.
+type TransactionBeginner interface {
+	BeginTransaction() (Transaction, error)
+}
+
+// TransactionBeginnerContext is the context-aware variant of
+// TransactionBeginner. It is preferred when available.
+type TransactionBeginnerContext interface {
+	BeginTransactionContext(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+}
+
+type sqlTransactionBeginner interface {
+	Begin() (*sql.Tx, error)
+}
+
+type sqlTransactionBeginnerContext interface {
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 }
 
 type Option func(*DBModule)
@@ -97,6 +138,20 @@ func (m *DBModule) Name() string {
 func (m *DBModule) TypeScriptModule() *spec.Module {
 	return &spec.Module{
 		Name: m.Name(),
+		RawDTS: []string{
+			"interface DatabaseExecResult {",
+			"  success: boolean;",
+			"  rowsAffected?: number;",
+			"  lastInsertId?: number;",
+			"  error?: string;",
+			"}",
+			"interface DatabaseTransaction {",
+			"  query(query: string, ...args: unknown[]): Array<Record<string, unknown>>;",
+			"  exec(query: string, ...args: unknown[]): DatabaseExecResult;",
+			"  commit(): { success: boolean; error?: string };",
+			"  rollback(): { success: boolean; error?: string };",
+			"}",
+		},
 		Functions: []spec.Function{
 			{
 				Name: "configure",
@@ -123,6 +178,10 @@ func (m *DBModule) TypeScriptModule() *spec.Module {
 				Returns: spec.Unknown(),
 			},
 			{
+				Name:    "begin",
+				Returns: spec.Named("DatabaseTransaction"),
+			},
+			{
 				Name:    "close",
 				Returns: spec.Void(),
 			},
@@ -140,6 +199,8 @@ Functions:
     Example: require('database').query('SELECT * FROM users WHERE id = ?', 1);
   exec(sql, ...args): Executes a statement and returns result summary.
     Example: require('database').exec('INSERT INTO users (name) VALUES (?)', 'John');
+  begin(): Starts a transaction. The returned object has query, exec, commit, and rollback.
+    Example: const tx = require('database').begin(); tx.exec('INSERT INTO users(name) VALUES (?)', 'Ada'); tx.commit();
   close(): Closes the database connection if the module owns it.
 `
 	if m.allowConfigure {
@@ -165,6 +226,13 @@ func (m *DBModule) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	})
 	modules.SetExport(exports, m.Name(), "exec", func(query string, args ...any) (map[string]any, error) {
 		return m.ExecContext(runtimebridge.CurrentOwnerContext(vm), query, args...)
+	})
+	modules.SetExport(exports, m.Name(), "begin", func() (*goja.Object, error) {
+		tx, err := m.BeginContext(runtimebridge.CurrentOwnerContext(vm))
+		if err != nil {
+			return nil, err
+		}
+		return tx.ToObject(vm), nil
 	})
 	modules.SetExport(exports, m.Name(), "close", m.Close)
 }
@@ -230,29 +298,9 @@ func (m *DBModule) QueryContext(ctx context.Context, query string, args ...any) 
 		}
 	}()
 
-	cols, err := rows.Columns()
+	result, err := rowsToRecords(m.Name(), rows)
 	if err != nil {
 		return nil, err
-	}
-
-	var result []map[string]any
-	for rows.Next() {
-		vals := make([]any, len(cols))
-		scan := make([]any, len(cols))
-		for i := range vals {
-			scan[i] = &vals[i]
-		}
-
-		if err := rows.Scan(scan...); err != nil {
-			log.Error().Str("module", m.Name()).Err(err).Msg("database: row scan error")
-			continue
-		}
-
-		rec := make(map[string]any)
-		for i, col := range cols {
-			rec[col] = vals[i]
-		}
-		result = append(result, rec)
 	}
 
 	duration := time.Since(startTime)
@@ -291,8 +339,8 @@ func (m *DBModule) ExecContext(ctx context.Context, query string, args ...any) (
 		}, err
 	}
 
+	resultMap := resultToMap(result)
 	rowsAffected, _ := result.RowsAffected()
-	lastInsertID, _ := result.LastInsertId()
 
 	duration := time.Since(startTime)
 	log.Debug().
@@ -301,11 +349,116 @@ func (m *DBModule) ExecContext(ctx context.Context, query string, args ...any) (
 		Int64("rowsAffected", rowsAffected).
 		Msg("database: exec completed")
 
-	return map[string]any{
-		"success":      true,
-		"rowsAffected": rowsAffected,
-		"lastInsertId": lastInsertID,
-	}, nil
+	return resultMap, nil
+}
+
+// Begin starts a transaction using context.Background().
+func (m *DBModule) Begin() (*TransactionHandle, error) {
+	return m.BeginContext(context.Background())
+}
+
+// BeginContext starts a transaction on the configured database.
+func (m *DBModule) BeginContext(ctx context.Context) (*TransactionHandle, error) {
+	if m == nil || m.queryExecer == nil {
+		return nil, fmt.Errorf("database not configured, call require('%s').configure(...) first", m.Name())
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	tx, err := beginTransaction(ctx, m.queryExecer)
+	if err != nil {
+		return nil, err
+	}
+	return &TransactionHandle{moduleName: m.Name(), tx: tx}, nil
+}
+
+// TransactionHandle is the JavaScript-facing database transaction handle.
+type TransactionHandle struct {
+	moduleName string
+	tx         Transaction
+	closed     bool
+	mu         sync.Mutex
+}
+
+// ToObject creates the JavaScript transaction object exported by begin().
+func (h *TransactionHandle) ToObject(vm *goja.Runtime) *goja.Object {
+	obj := vm.NewObject()
+	modules.SetExport(obj, h.moduleName, "query", func(query string, args ...any) ([]map[string]any, error) {
+		return h.QueryContext(runtimebridge.CurrentOwnerContext(vm), query, args...)
+	})
+	modules.SetExport(obj, h.moduleName, "exec", func(query string, args ...any) (map[string]any, error) {
+		return h.ExecContext(runtimebridge.CurrentOwnerContext(vm), query, args...)
+	})
+	modules.SetExport(obj, h.moduleName, "commit", h.Commit)
+	modules.SetExport(obj, h.moduleName, "rollback", h.Rollback)
+	return obj
+}
+
+// QueryContext executes a query inside the transaction.
+func (h *TransactionHandle) QueryContext(ctx context.Context, query string, args ...any) ([]map[string]any, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.closed || h.tx == nil {
+		return nil, fmt.Errorf("database transaction is closed")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	rows, err := queryRows(ctx, h.tx, query, flattenArgs(args)...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Error().Str("module", h.moduleName).Err(err).Msg("database: failed to close transaction rows")
+		}
+	}()
+	return rowsToRecords(h.moduleName, rows)
+}
+
+// ExecContext executes a statement inside the transaction.
+func (h *TransactionHandle) ExecContext(ctx context.Context, query string, args ...any) (map[string]any, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.closed || h.tx == nil {
+		return nil, fmt.Errorf("database transaction is closed")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	result, err := execResult(ctx, h.tx, query, flattenArgs(args)...)
+	if err != nil {
+		return map[string]any{"error": err.Error(), "success": false}, err
+	}
+	return resultToMap(result), nil
+}
+
+// Commit commits the transaction and closes the handle.
+func (h *TransactionHandle) Commit() (map[string]any, error) {
+	return h.closeWith("commit", func(tx Transaction) error { return tx.Commit() })
+}
+
+// Rollback rolls the transaction back and closes the handle.
+func (h *TransactionHandle) Rollback() (map[string]any, error) {
+	return h.closeWith("rollback", func(tx Transaction) error { return tx.Rollback() })
+}
+
+func (h *TransactionHandle) closeWith(action string, fn func(Transaction) error) (map[string]any, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.closed || h.tx == nil {
+		err := fmt.Errorf("database transaction is closed")
+		return map[string]any{"success": false, "error": err.Error()}, err
+	}
+	tx := h.tx
+	err := fn(tx)
+	h.closed = true
+	h.tx = nil
+	if err != nil {
+		return map[string]any{"success": false, "error": err.Error()}, fmt.Errorf("transaction %s: %w", action, err)
+	}
+	return map[string]any{"success": true}, nil
 }
 
 func (m *DBModule) closeOwnedConnection() error {
@@ -318,6 +471,66 @@ func (m *DBModule) closeOwnedConnection() error {
 	m.closeFn = nil
 	m.queryExecer = nil
 	return nil
+}
+
+func beginTransaction(ctx context.Context, qe QueryExecer) (Transaction, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if beginner, ok := qe.(TransactionBeginnerContext); ok {
+		return beginner.BeginTransactionContext(ctx, nil)
+	}
+	if beginner, ok := qe.(sqlTransactionBeginnerContext); ok {
+		return beginner.BeginTx(ctx, nil)
+	}
+	if beginner, ok := qe.(TransactionBeginner); ok {
+		return beginner.BeginTransaction()
+	}
+	if beginner, ok := qe.(sqlTransactionBeginner); ok {
+		return beginner.Begin()
+	}
+	return nil, fmt.Errorf("database %T does not support transactions", qe)
+}
+
+func rowsToRecords(moduleName string, rows *sql.Rows) ([]map[string]any, error) {
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []map[string]any
+	for rows.Next() {
+		vals := make([]any, len(cols))
+		scan := make([]any, len(cols))
+		for i := range vals {
+			scan[i] = &vals[i]
+		}
+
+		if err := rows.Scan(scan...); err != nil {
+			log.Error().Str("module", moduleName).Err(err).Msg("database: row scan error")
+			continue
+		}
+
+		rec := make(map[string]any)
+		for i, col := range cols {
+			rec[col] = vals[i]
+		}
+		result = append(result, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func resultToMap(result sql.Result) map[string]any {
+	rowsAffected, _ := result.RowsAffected()
+	lastInsertID, _ := result.LastInsertId()
+	return map[string]any{
+		"success":      true,
+		"rowsAffected": rowsAffected,
+		"lastInsertId": lastInsertID,
+	}
 }
 
 func queryRows(ctx context.Context, qe QueryExecer, query string, args ...any) (*sql.Rows, error) {

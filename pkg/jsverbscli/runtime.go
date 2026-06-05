@@ -111,9 +111,71 @@ func (g *guardedDB) Query(query string, args ...any) (*sql.Rows, error) {
 	return g.db.Query(query, args...)
 }
 
+func (g *guardedDB) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return g.db.QueryContext(ctx, query, args...)
+}
+
 func (g *guardedDB) Exec(query string, args ...any) (sql.Result, error) {
 	if !g.allowWrites {
 		return nil, fmt.Errorf("database writes are disabled; rerun with --readonly=false --allow-writes")
 	}
 	return g.db.Exec(query, args...)
+}
+
+func (g *guardedDB) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	if !g.allowWrites {
+		return nil, fmt.Errorf("database writes are disabled; rerun with --readonly=false --allow-writes")
+	}
+	return g.db.ExecContext(ctx, query, args...)
+}
+
+func (g *guardedDB) BeginTransaction() (databasemod.Transaction, error) {
+	tx, err := g.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &guardedTx{tx: tx, allowWrites: g.allowWrites}, nil
+}
+
+func (g *guardedDB) BeginTransactionContext(ctx context.Context, opts *sql.TxOptions) (databasemod.Transaction, error) {
+	tx, err := g.db.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	return &guardedTx{tx: tx, allowWrites: g.allowWrites}, nil
+}
+
+type guardedTx struct {
+	tx          *sql.Tx
+	allowWrites bool
+}
+
+func (g *guardedTx) Query(query string, args ...any) (*sql.Rows, error) {
+	return g.tx.Query(query, args...)
+}
+
+func (g *guardedTx) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return g.tx.QueryContext(ctx, query, args...)
+}
+
+func (g *guardedTx) Exec(query string, args ...any) (sql.Result, error) {
+	if !g.allowWrites {
+		return nil, fmt.Errorf("database writes are disabled; rerun with --readonly=false --allow-writes")
+	}
+	return g.tx.Exec(query, args...)
+}
+
+func (g *guardedTx) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	if !g.allowWrites {
+		return nil, fmt.Errorf("database writes are disabled; rerun with --readonly=false --allow-writes")
+	}
+	return g.tx.ExecContext(ctx, query, args...)
+}
+
+func (g *guardedTx) Commit() error {
+	return g.tx.Commit()
+}
+
+func (g *guardedTx) Rollback() error {
+	return g.tx.Rollback()
 }

@@ -216,6 +216,221 @@ func TestDBModuleExecContextFallsBackToLegacyQueryExecer(t *testing.T) {
 	require.Equal(t, int64(1), db.execCalls)
 }
 
+func TestDatabaseTransactionCommitPersistsWrites(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "tx-commit.db")
+
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
+		UseModuleMiddleware(gggengine.MiddlewareOnly("database")).
+		Build()
+	require.NoError(t, err)
+
+	rt, err := factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
+	require.NoError(t, err)
+	defer func() { require.NoError(t, rt.Close(context.Background())) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "database.tx.commit", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, err := rt.VM.RunString(`
+			const db = require("database");
+			db.configure("sqlite3", ` + "`" + dbPath + "`" + `);
+			db.exec("CREATE TABLE users (name TEXT NOT NULL)");
+			const tx = db.begin();
+			tx.exec("INSERT INTO users(name) VALUES (?)", "Ada");
+			tx.exec("INSERT INTO users(name) VALUES (?)", "Grace");
+			const commit = tx.commit();
+			JSON.stringify({ commit, rows: db.query("SELECT name FROM users ORDER BY name") });
+		`)
+		if err != nil {
+			return nil, err
+		}
+		return value.Export(), nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, `{"commit":{"success":true},"rows":[{"name":"Ada"},{"name":"Grace"}]}`, ret)
+}
+
+func TestDatabaseTransactionRollbackDiscardsWrites(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "tx-rollback.db")
+
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
+		UseModuleMiddleware(gggengine.MiddlewareOnly("database")).
+		Build()
+	require.NoError(t, err)
+
+	rt, err := factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
+	require.NoError(t, err)
+	defer func() { require.NoError(t, rt.Close(context.Background())) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "database.tx.rollback", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, err := rt.VM.RunString(`
+			const db = require("database");
+			db.configure("sqlite3", ` + "`" + dbPath + "`" + `);
+			db.exec("CREATE TABLE users (name TEXT NOT NULL)");
+			const tx = db.begin();
+			tx.exec("INSERT INTO users(name) VALUES (?)", "Ada");
+			const rollback = tx.rollback();
+			JSON.stringify({ rollback, rows: db.query("SELECT name FROM users ORDER BY name") });
+		`)
+		if err != nil {
+			return nil, err
+		}
+		return value.Export(), nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, `{"rollback":{"success":true},"rows":[]}`, ret)
+}
+
+func TestDatabaseTransactionRejectsUseAfterCommit(t *testing.T) {
+	db := openSQLiteDB(t)
+	_, err := db.Exec(`CREATE TABLE users (name TEXT NOT NULL)`)
+	require.NoError(t, err)
+
+	module := databasemod.New(databasemod.WithPreconfiguredDB(db))
+	tx, err := module.BeginContext(context.Background())
+	require.NoError(t, err)
+	_, err = tx.Commit()
+	require.NoError(t, err)
+
+	_, err = tx.ExecContext(context.Background(), `INSERT INTO users(name) VALUES (?)`, "Ada")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "transaction is closed")
+
+	_, err = tx.Rollback()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "transaction is closed")
+}
+
+func TestDatabaseTransactionBeginRequiresConfiguredTransactionalDB(t *testing.T) {
+	module := databasemod.New()
+	_, err := module.BeginContext(context.Background())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "database not configured")
+
+	module = databasemod.New(databasemod.WithPreconfiguredDB(&legacyRecordingDB{}))
+	_, err = module.BeginContext(context.Background())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "does not support transactions")
+}
+
+func TestDatabaseTransactionReceivesOwnerCallContextAfterAwait(t *testing.T) {
+	type contextKey string
+	const key contextKey = "request-id"
+
+	db := &transactionContextRecordingDB{}
+	module := databasemod.New(
+		databasemod.WithName("site-db"),
+		databasemod.WithPreconfiguredDB(db),
+	)
+
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
+		WithModules(gggengine.NativeModuleRegistrar{
+			ModuleID:   "test-site-db-transaction-context",
+			ModuleName: module.Name(),
+			Loader:     module.Loader,
+		}).
+		Build()
+	require.NoError(t, err)
+
+	rt, err := factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
+	require.NoError(t, err)
+	defer func() { require.NoError(t, rt.Close(context.Background())) }()
+
+	ctx := context.WithValue(context.Background(), key, "from-request")
+	ret, err := rt.Owner.Call(ctx, "database.tx.context.async-start", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, err := rt.VM.RunString(`
+			(async () => {
+				const timer = require("timer");
+				const siteDB = require("site-db");
+				await timer.sleep(1);
+				const tx = siteDB.begin();
+				const ok = tx.exec("INSERT INTO widgets(name) VALUES (?)", "Ada").success;
+				tx.rollback();
+				return ok;
+			})();
+		`)
+		if err != nil {
+			return nil, err
+		}
+		return value.Export(), nil
+	})
+	require.NoError(t, err)
+	promise, ok := ret.(*goja.Promise)
+	require.True(t, ok, "async IIFE should return a Promise")
+
+	var result any
+	deadline := time.After(time.Second)
+	for result == nil {
+		select {
+		case <-deadline:
+			t.Fatalf("timed out waiting for async database transaction promise")
+		default:
+		}
+
+		result, err = rt.Owner.Call(context.Background(), "database.tx.context.async-poll", func(_ context.Context, _ *goja.Runtime) (any, error) {
+			switch promise.State() {
+			case goja.PromiseStatePending:
+				return nil, nil
+			case goja.PromiseStateRejected:
+				return nil, fmt.Errorf("promise rejected: %s", promise.Result().String())
+			case goja.PromiseStateFulfilled:
+				return promise.Result().Export(), nil
+			default:
+				return nil, fmt.Errorf("unknown promise state: %v", promise.State())
+			}
+		})
+		require.NoError(t, err)
+		if result == nil {
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+
+	require.Equal(t, true, result)
+	require.Equal(t, "from-request", db.beginCtx.Value(key))
+	require.Equal(t, "from-request", db.tx.execCtx.Value(key))
+}
+
+type transactionContextRecordingDB struct {
+	beginCtx context.Context
+	tx       *contextRecordingTx
+}
+
+func (db *transactionContextRecordingDB) Query(string, ...any) (*sql.Rows, error) {
+	return nil, fmt.Errorf("unexpected legacy Query call")
+}
+
+func (db *transactionContextRecordingDB) Exec(string, ...any) (sql.Result, error) {
+	return nil, fmt.Errorf("unexpected legacy Exec call")
+}
+
+func (db *transactionContextRecordingDB) BeginTransactionContext(ctx context.Context, _ *sql.TxOptions) (databasemod.Transaction, error) {
+	db.beginCtx = ctx
+	db.tx = &contextRecordingTx{}
+	return db.tx, nil
+}
+
+type contextRecordingTx struct {
+	execCtx context.Context
+}
+
+func (tx *contextRecordingTx) Query(string, ...any) (*sql.Rows, error) {
+	return nil, fmt.Errorf("unexpected transaction Query call")
+}
+
+func (tx *contextRecordingTx) Exec(string, ...any) (sql.Result, error) {
+	return nil, fmt.Errorf("unexpected transaction Exec call")
+}
+
+func (tx *contextRecordingTx) QueryContext(context.Context, string, ...any) (*sql.Rows, error) {
+	return nil, fmt.Errorf("unexpected transaction QueryContext call")
+}
+
+func (tx *contextRecordingTx) ExecContext(ctx context.Context, _ string, _ ...any) (sql.Result, error) {
+	tx.execCtx = ctx
+	return fakeResult{rowsAffected: 1}, nil
+}
+
+func (tx *contextRecordingTx) Commit() error   { return nil }
+func (tx *contextRecordingTx) Rollback() error { return nil }
+
 type contextRecordingDB struct {
 	got context.Context
 }
