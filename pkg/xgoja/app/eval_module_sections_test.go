@@ -8,7 +8,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
-func TestEvalCommandIncludesRuntimeProfileModuleSections(t *testing.T) {
+func TestEvalCommandIncludesRuntimeModuleSections(t *testing.T) {
 	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runFixtureCapability{}))
 	cmd := newEvalCommand(factory, factory.runtimeSpec, nil)
 	section, ok := cmd.Description().Schema.Get("fixture")

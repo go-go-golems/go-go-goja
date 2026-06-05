@@ -38,7 +38,7 @@ type HostServiceLookup interface {
 }
 
 // Module describes a provider-owned native module that xgoja can select into a
-// runtime profile. NewModuleFactory creates the CommonJS loader during runtime
+// generated runtime module set. NewModuleFactory creates the CommonJS loader during runtime
 // setup for each selected module instance.
 type Module struct {
 	Name             string

@@ -10,7 +10,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
-func TestJSVerbsCommandsIncludeRuntimeProfileModuleSections(t *testing.T) {
+func TestJSVerbsCommandsIncludeRuntimeModuleSections(t *testing.T) {
 	registry := newJSVerbsSectionRegistry(t)
 	runtimeSpec := jsverbsSectionSpec()
 	embedded := jsverbsSectionFS()

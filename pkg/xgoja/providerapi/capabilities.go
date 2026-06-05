@@ -11,13 +11,12 @@ import (
 )
 
 // SectionRequest describes why a module's configuration sections are being
-// requested. Built-in commands should set CommandName and RuntimeProfile;
-// custom command providers should set CommandProviderID and, when applicable,
-// RuntimeProfile or ModuleSelector.
+// requested. Built-in commands should set CommandName; custom command providers
+// should set CommandProviderID. PackageID and ModuleID identify the selected
+// provider module when the request is module-specific.
 type SectionRequest struct {
 	CommandName       string
 	CommandProviderID string
-	RuntimeProfile    string
 	PackageID         string
 	ModuleID          string
 }
@@ -74,9 +73,8 @@ type XGojaConfigSectionCapability interface {
 // to consume during ModuleSetupContext setup.
 type HostServiceContributionRequest struct {
 	SectionRequest
-	RuntimeProfile string
-	Values         *values.Values
-	Modules        []ModuleDescriptor
+	Values  *values.Values
+	Modules []ModuleDescriptor
 }
 
 // HostServiceSink collects opaque provider-defined host services. The sink may

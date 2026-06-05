@@ -79,7 +79,7 @@ func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, vals *value
 	if err != nil {
 		return nil, err
 	}
-	runtimeServices, err := f.hostServicesForRuntime(ctx, defaultRuntimeProfile, vals, descriptors)
+	runtimeServices, err := f.hostServicesForRuntime(ctx, vals, descriptors)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, vals *value
 		if descriptor.Module.Name == "" {
 			descriptor = providerapi.ModuleDescriptor{PackageID: instance.Package, ModuleID: instance.Name, As: instance.Alias(), Module: module}
 		}
-		config, err := f.configForModuleInstance(ctx, defaultRuntimeProfile, instance, descriptor, vals)
+		config, err := f.configForModuleInstance(ctx, instance, descriptor, vals)
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +140,7 @@ func moduleDescriptorKey(packageID, moduleID, as string) string {
 	return packageID + "\x00" + moduleID + "\x00" + as
 }
 
-func (f *RuntimeFactory) hostServicesForRuntime(ctx context.Context, profile string, vals *values.Values, descriptors []providerapi.ModuleDescriptor) (hostServicesForRuntime, error) {
+func (f *RuntimeFactory) hostServicesForRuntime(ctx context.Context, vals *values.Values, descriptors []providerapi.ModuleDescriptor) (hostServicesForRuntime, error) {
 	collector := newHostServiceCollector(f.services)
 	success := false
 	defer func() {
@@ -161,8 +161,7 @@ func (f *RuntimeFactory) hostServicesForRuntime(ctx context.Context, profile str
 			}
 			seen[key] = struct{}{}
 			if err := hostContribution.ContributeHostServices(ctx, providerapi.HostServiceContributionRequest{
-				SectionRequest: providerapi.SectionRequest{RuntimeProfile: profile, PackageID: descriptor.PackageID, ModuleID: descriptor.ModuleID},
-				RuntimeProfile: profile,
+				SectionRequest: providerapi.SectionRequest{PackageID: descriptor.PackageID, ModuleID: descriptor.ModuleID},
 				Values:         vals,
 				Modules:        descriptors,
 			}, collector); err != nil {
@@ -174,7 +173,7 @@ func (f *RuntimeFactory) hostServicesForRuntime(ctx context.Context, profile str
 	return collector.servicesForRuntime(), nil
 }
 
-func (f *RuntimeFactory) configForModuleInstance(ctx context.Context, profile string, instance ModuleInstanceSpec, descriptor providerapi.ModuleDescriptor, vals *values.Values) (json.RawMessage, error) {
+func (f *RuntimeFactory) configForModuleInstance(ctx context.Context, instance ModuleInstanceSpec, descriptor providerapi.ModuleDescriptor, vals *values.Values) (json.RawMessage, error) {
 	config, err := json.Marshal(instance.Config)
 	if err != nil {
 		return nil, fmt.Errorf("marshal config for %s.%s: %w", instance.Package, instance.Name, err)
@@ -184,7 +183,7 @@ func (f *RuntimeFactory) configForModuleInstance(ctx context.Context, profile st
 		if !ok {
 			continue
 		}
-		sectionRequest := providerapi.SectionRequest{RuntimeProfile: profile, PackageID: descriptor.PackageID, ModuleID: descriptor.ModuleID}
+		sectionRequest := providerapi.SectionRequest{PackageID: descriptor.PackageID, ModuleID: descriptor.ModuleID}
 		section, err := xgojaConfig.XGojaConfigSection(sectionRequest, descriptor)
 		if err != nil {
 			return nil, fmt.Errorf("xgoja config section for %s.%s capability %s: %w", instance.Package, instance.Name, capability.CapabilityID(), err)

@@ -11,8 +11,6 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerutil"
 )
 
-const defaultRuntimeProfile = "main"
-
 func (f *RuntimeFactory) selectedModuleDescriptors() ([]providerapi.ModuleDescriptor, error) {
 	if f == nil || f.providers == nil || f.runtimeSpec == nil {
 		return nil, fmt.Errorf("xgoja runtime factory is not initialized")
@@ -50,8 +48,7 @@ func (f *RuntimeFactory) sectionsForRuntime(commandName string) ([]schema.Sectio
 		return nil, nil, err
 	}
 	providerSections, err := providerutil.CollectGlazedConfigSections(descriptors, providerapi.SectionRequest{
-		CommandName:    commandName,
-		RuntimeProfile: defaultRuntimeProfile,
+		CommandName: commandName,
 	}, seen)
 	if err != nil {
 		return nil, nil, err

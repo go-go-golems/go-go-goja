@@ -35,7 +35,7 @@ func TestApplyMountToCommandsDoesNotMutateProviderDescriptions(t *testing.T) {
 	}
 }
 
-func TestHostAttachCommandProvidersUsesDefaultRuntimeProfileContext(t *testing.T) {
+func TestHostAttachCommandProvidersPassesSelectedModules(t *testing.T) {
 	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
 		providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule},
@@ -43,9 +43,6 @@ func TestHostAttachCommandProvidersUsesDefaultRuntimeProfileContext(t *testing.T
 			Name:         "tools",
 			DefaultMount: "tools",
 			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
-				if ctx.RuntimeProfile != defaultRuntimeProfile {
-					t.Fatalf("runtime profile = %q", ctx.RuntimeProfile)
-				}
 				if len(ctx.SelectedModules) != 1 || ctx.SelectedModules[0].ModuleID != "mod" {
 					t.Fatalf("selected modules = %#v", ctx.SelectedModules)
 				}

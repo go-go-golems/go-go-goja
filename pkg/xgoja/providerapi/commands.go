@@ -29,7 +29,6 @@ type CommandSetContext struct {
 	PackageID       string
 	Name            string
 	Mount           string
-	RuntimeProfile  string
 	Config          json.RawMessage
 	Host            HostServices
 	Providers       *ProviderRegistry

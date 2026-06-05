@@ -182,9 +182,6 @@ type hostServiceCapability struct {
 func (c *hostServiceCapability) CapabilityID() string { return "host-service" }
 func (c *hostServiceCapability) ContributeHostServices(_ context.Context, req providerapi.HostServiceContributionRequest, sink providerapi.HostServiceSink) error {
 	c.calls++
-	if req.RuntimeProfile != "main" {
-		return assertErr("unexpected profile")
-	}
 	if c.err != nil {
 		return c.err
 	}

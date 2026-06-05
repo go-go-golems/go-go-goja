@@ -14,7 +14,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
-func TestRuntimeFactoryCollectsSectionsForRuntimeProfile(t *testing.T) {
+func TestRuntimeFactoryCollectsSectionsForRuntime(t *testing.T) {
 	factory := newSectionTestFactory(t,
 		providerapi.WithPackageCapability(sectionCapability{id: "alpha", slug: "alpha"}),
 		providerapi.WithPackageCapability(sectionCapability{id: "beta", slug: "beta"}),

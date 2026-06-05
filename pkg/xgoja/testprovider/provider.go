@@ -142,7 +142,6 @@ func sectionsFromSelectedModules(ctx providerapi.CommandSetContext) ([]schema.Se
 			}
 			moduleSections, err := sectionCapability.GlazedConfigSections(providerapi.SectionRequest{
 				CommandProviderID: ctx.Name,
-				RuntimeProfile:    "",
 				PackageID:         module.PackageID,
 				ModuleID:          module.ModuleID,
 			})

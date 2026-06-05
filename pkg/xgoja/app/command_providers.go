@@ -70,7 +70,6 @@ func (h *Host) newCommandSet(instance CommandProviderInstanceSpec, provider prov
 		PackageID:       instance.Package,
 		Name:            instance.Name,
 		Mount:           mount,
-		RuntimeProfile:  defaultRuntimeProfile,
 		Config:          config,
 		Providers:       h.Providers,
 		RuntimeFactory:  h.Factory,
