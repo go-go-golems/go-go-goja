@@ -56,19 +56,18 @@ commandProviders:
     package: my-provider
     name: tools
     mount: tools
-    runtimeProfile: main
 ```
 
 The generated binary will expose commands under the mount path, for example `xapp tools hello`.
 
 ## Use selected module sections
 
-When `runtimeProfile` is set, `CommandSetContext.SelectedModules` contains the selected module descriptors for that runtime. If the command should expose the same provider flags as built-in commands, use `providerutil.CollectConfigSections` and attach the sections to the returned Glazed command descriptions.
+`CommandSetContext.SelectedModules` contains the descriptors from the generated binary's top-level `modules` list, optionally filtered by the command provider configuration. If the command should expose the same provider flags as built-in commands, use `providerutil.CollectGlazedConfigSections` and attach the sections to the returned Glazed command descriptions.
 
 ```go
 sections, err := providerutil.CollectGlazedConfigSections(
     c.SelectedModules,
-    providerapi.SectionRequest{CommandProviderID: c.Name, RuntimeProfile: c.RuntimeProfile},
+    providerapi.SectionRequest{CommandProviderID: c.Name},
     map[string]string{schema.DefaultSlug: "command schema"},
 )
 if err != nil {
@@ -81,7 +80,7 @@ if err != nil {
 Provider-owned commands can create xgoja runtimes through the typed runtime factory:
 
 ```go
-runtime, err := c.RuntimeFactory.NewRuntime(ctx, c.RuntimeProfile)
+runtime, err := c.RuntimeFactory.NewRuntime(ctx)
 if err != nil {
     return err
 }

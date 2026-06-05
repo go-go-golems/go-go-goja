@@ -21,9 +21,9 @@ ShowPerDefault: true
 SectionType: Tutorial
 ---
 
-Provider packages are the Go side of xgoja composition. A provider package is a normal Go package that exposes a registration function. Generated xgoja binaries import that package, call the registration function, and then make the provider's modules selectable from `xgoja.yaml` runtime profiles.
+Provider packages are the Go side of xgoja composition. A provider package is a normal Go package that exposes a registration function. Generated xgoja binaries import that package, call the registration function, and then make selected provider modules available through the top-level `modules` list in `xgoja.yaml`.
 
-Use a provider when you have Go functionality that should be available to JavaScript through `require(...)`. Keep the provider small and explicit: registering a provider only makes modules available to the generated binary; each command still receives only the modules selected by its runtime profile.
+Use a provider when you have Go functionality that should be available to JavaScript through `require(...)`. Keep the provider small and explicit: registering a provider only compiles modules into the generated binary; only top-level `modules` entries become visible to generated runtime-backed commands.
 
 ## Provider package contract
 
@@ -65,22 +65,19 @@ packages:
     import: github.com/example/project/pkg/myprovider
 ```
 
-## Select modules with runtime profiles
+## Select modules with `modules`
 
-A provider can register many modules. A runtime profile chooses which modules are visible to JavaScript for one command invocation.
+A provider can register many modules. The top-level `modules` list chooses which modules are visible to JavaScript in generated runtime-backed commands.
 
 ```yaml
-runtimes:
-  safe:
-    modules:
-      - package: my-provider
-        name: hello
-        as: hello
+modules:
+  - package: my-provider
+    name: hello
+    as: hello
 
 commands:
   eval:
     enabled: true
-    runtime: safe
 ```
 
 JavaScript sees the alias from `as`:
@@ -90,7 +87,7 @@ const hello = require("hello")
 console.log(hello.greet("intern"))
 ```
 
-If a provider registers a module but no runtime profile selects it, JavaScript cannot require it. This is intentional. Build-time package selection and runtime module selection are separate boundaries.
+If a provider registers a module but no top-level `modules` selects it, JavaScript cannot require it. This is intentional. Build-time package selection and runtime module selection are separate boundaries.
 
 ## Adapt an existing NativeModule
 
@@ -132,19 +129,17 @@ Prefer explicit lists over "register everything" helpers. Explicit lists make th
 
 ## Use config for module options
 
-Each `runtimes.<profile>.modules[]` entry can include a `config` map. xgoja serializes this config and passes it to the provider module factory as `providerapi.ModuleSetupContext.Config`.
+Each top-level `modules[]` entry can include a `config` map. xgoja serializes this config and passes it to the provider module factory as `providerapi.ModuleSetupContext.Config`.
 
 ```yaml
-runtimes:
-  host:
-    modules:
-      - package: go-go-goja-host
-        name: exec
-        as: exec
-        config:
-          allow: true
-          allowedCommands:
-            - echo
+modules:
+  - package: go-go-goja-host
+    name: exec
+    as: exec
+    config:
+      allow: true
+      allowedCommands:
+        - echo
 ```
 
 Decode config in the module factory and fail before registering the loader if the config is invalid or unsafe.
@@ -196,7 +191,6 @@ A buildspec can mount that source under the generated jsverbs command.
 commands:
   jsverbs:
     enabled: true
-    runtime: main
     name: verbs
 
 jsverbs:
@@ -209,7 +203,7 @@ Provider-shipped verbs are useful when a package has a stable Go module API plus
 
 ## Expose module configuration sections
 
-A provider can expose Glazed configuration sections for modules in a runtime profile. Built-in `run`, `repl`, and `jsverbs` commands append those sections to their command descriptions and call provider initializers before JavaScript executes.
+A provider can expose Glazed configuration sections for modules in the generated module set. Built-in `run`, `repl`, and `jsverbs` commands append those sections to their command descriptions and call provider initializers before JavaScript executes.
 
 ```go
 type Settings struct {
@@ -264,7 +258,7 @@ Use `values.Values.DecodeSectionInto` instead of reaching into raw maps. The pro
 | Need | Use | Notes |
 | --- | --- | --- |
 | Expose one JavaScript `require(...)` module | `providerapi.Module` | The simplest and most common provider contribution. |
-| Configure a module statically from `xgoja.yaml` | `ModuleSetupContext.Config` | Use for buildspec/runtime-profile settings such as allowlists or base paths. |
+| Configure a module statically from `xgoja.yaml` | `ModuleSetupContext.Config` | Use for buildspec/module-set settings such as allowlists or base paths. |
 | Add command-line flags for selected modules | `GlazedConfigSectionCapability` | The section is appended to built-in commands and provider-owned commands that opt in. |
 | Apply parsed command values to a JS runtime | `RuntimeInitializerCapability` | Use `DecodeSectionInto`; avoid side effects when `values == nil`. |
 | Access runtime-scoped services | `RuntimeInitializerHandle.EngineRuntime()` | Use the owned `*engine.Runtime` for the Goja VM, event loop, owner, values, and closer registration. |
@@ -306,14 +300,13 @@ commandProviders:
     package: my-provider
     name: tools
     mount: tools
-    runtimeProfile: main
 ```
 
-Command providers can return `cmds.BareCommand`, `cmds.WriterCommand`, or `cmds.GlazeCommand`. They receive the selected module descriptors for `runtimeProfile` and a typed `providerapi.RuntimeFactory`, so package-owned commands can participate in the same runtime-profile composition as built-in xgoja commands. The built-in xgoja app uses this factory for `eval`, `run`, `repl`, and `jsverbs`; the Discord adapter wraps it in `xgojaBotRuntimeFactory` so `botcli` can create bot runtimes with the selected `discord`, `ui`, `fs`, and `express` modules.
+Command providers can return `cmds.BareCommand`, `cmds.WriterCommand`, or `cmds.GlazeCommand`. They receive descriptors for the generated top-level module set and a typed `providerapi.RuntimeFactory`, so package-owned commands can participate in the same module composition as built-in xgoja commands. The built-in xgoja app uses this factory for `eval`, `run`, `repl`, and `jsverbs`; the Discord adapter wraps it in `xgojaBotRuntimeFactory` so `botcli` can create bot runtimes with the selected `discord`, `ui`, `fs`, and `express` modules.
 
 ## Split safe and host-capability providers
 
-Keep dangerous modules separate from safe helpers. A generated binary can compile both providers, but each command should select only the runtime profile it needs.
+Keep dangerous modules separate from safe helpers where possible. A generated binary can compile both providers, but only modules listed in top-level `modules` are exposed to JavaScript. Because xgoja now has one generated module set, every runtime-backed command sees the same `require()` surface.
 
 ```yaml
 packages:
@@ -322,33 +315,24 @@ packages:
   - id: go-go-goja-host
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
 
-runtimes:
-  safe:
-    modules:
-      - package: go-go-goja-core
-        name: path
-        as: path
-  host:
-    modules:
-      - package: go-go-goja-core
-        name: path
-        as: path
-      - package: go-go-goja-host
-        name: fs
-        as: fs
-        config:
-          allow: true
+modules:
+  - package: go-go-goja-core
+    name: path
+    as: path
+  - package: go-go-goja-host
+    name: fs
+    as: fs
+    config:
+      allow: true
 
 commands:
   eval:
     enabled: true
-    runtime: safe
   run:
     enabled: true
-    runtime: host
 ```
 
-In this shape, `eval` cannot `require("fs")`, while `run` can. See `examples/xgoja/03-multiple-runtimes/` for a runnable example.
+In this shape, both `eval` and `run` can `require("fs")`, because `fs` is listed in the generated module set. See `examples/xgoja/03-single-runtime-modules/` for a runnable example.
 
 ## Validate a provider
 
@@ -374,7 +358,7 @@ xgoja build -f examples/xgoja/my-provider/xgoja.yaml --xgoja-replace /path/to/go
 | --- | --- | --- |
 | `runtime main references unknown provider module pkg.name` | `packages[].id` does not match the ID used in `registry.Package(...)`, or the provider did not register the module name. | Make `packages[].id` exactly match the provider package ID and verify `Register` adds the module. |
 | Generated build cannot import the provider | The generated module cannot resolve the provider import path. | Add package `version`, package `replace`, or pass `--xgoja-replace` for local go-go-goja changes. |
-| `require("name")` fails at runtime | The module is compiled in but not selected by the command's runtime profile, or the `as` alias differs. | Check `xgoja list-modules -f xgoja.yaml` and the command's `runtime` field. |
+| `require("name")` fails at runtime | The module is compiled in but not selected by top-level `modules`, or the `as` alias differs. | Check `xgoja list-modules -f xgoja.yaml` and the module alias. |
 | Host module returns a config error | The provider intentionally requires an allow/config switch. | Add the documented `config` block for that module. |
 | Async module panics about runtime owner bindings | The loader assumes xgoja/engine runtime ownership but was used in a plain Goja runtime. | Test through generated xgoja or `engine.Runtime`, not raw `goja.New()`. |
 
@@ -386,4 +370,4 @@ xgoja build -f examples/xgoja/my-provider/xgoja.yaml --xgoja-replace /path/to/go
 - `xgoja help tutorial-providing-commands`
 - `examples/xgoja/01-core-provider/`
 - `examples/xgoja/02-host-provider/`
-- `examples/xgoja/03-multiple-runtimes/`
+- `examples/xgoja/03-single-runtime-modules/`

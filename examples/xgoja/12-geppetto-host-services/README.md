@@ -9,7 +9,7 @@ This example builds a generated xgoja binary that imports the Geppetto provider 
 - a contributed Go tool named `wordCount`, and
 - a contributed Go middleware factory named `addSystemPrompt`.
 
-The important point is lifecycle: the generated command parses Glazed values first, xgoja collects host-service contributions before module setup, and then `require("geppetto")` sees a loader configured with the selected profile, store, tool registry, middleware factory, and event sink.
+The important point is lifecycle: the generated command parses Glazed values first, xgoja collects host-service contributions before module setup, and then `require("geppetto")` sees a loader configured with the generated module set, store, tool registry, middleware factory, and event sink.
 
 ## Run the non-network smoke
 

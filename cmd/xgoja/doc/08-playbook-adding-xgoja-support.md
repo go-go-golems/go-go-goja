@@ -23,7 +23,7 @@ ShowPerDefault: true
 SectionType: Tutorial
 ---
 
-Adding xgoja support to a repository means making the repository discoverable by generated xgoja binaries. The generated binary needs to know which Go packages provide JavaScript modules, which modules belong to each runtime profile, which commands should be mounted, and which runtime resources must be started and stopped around command execution.
+Adding xgoja support to a repository means making the repository discoverable by generated xgoja binaries. The generated binary needs to know which Go packages provide JavaScript modules, which top-level modules should be exposed to JavaScript, which commands should be mounted, and which runtime resources must be started and stopped around command execution.
 
 This guide describes the complete path. It starts with a repository that already contains useful Go code and ends with a generated binary that can load the repository's provider, expose its modules, optionally mount package-owned Glazed commands, and run a smoke test through the generated command path.
 
@@ -287,14 +287,14 @@ func newCommandSet(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, 
 If command execution needs JavaScript, use the xgoja-level runtime factory:
 
 ```go
-rt, err := ctx.RuntimeFactory.NewRuntime(ctx.Context, ctx.RuntimeProfile)
+rt, err := ctx.RuntimeFactory.NewRuntime(ctx.Context)
 if err != nil {
     return nil, err
 }
 defer rt.Close(context.Background())
 ```
 
-This API intentionally differs from the lower-level engine API. `providerapi.RuntimeFactory.NewRuntime(ctx, profile, ...)` chooses a named xgoja runtime profile. The engine factory uses explicit runtime options.
+This API intentionally differs from the lower-level engine API. `providerapi.RuntimeFactory.NewRuntime(ctx, ...)` creates an xgoja runtime from the generated binary's top-level module set. The engine factory uses explicit runtime options.
 
 ## 9. Register package-owned help docs
 
@@ -388,13 +388,11 @@ packages:
   - id: go-go-goja-core
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
 
-runtimes:
-  default:
-    modules:
-      - package: my-repo
-        module: my-repo
-      - package: go-go-goja-core
-        module: fs
+modules:
+  - package: my-repo
+    module: my-repo
+  - package: go-go-goja-core
+    module: fs
 
 commands:
   eval:
@@ -414,7 +412,6 @@ commandProviders:
   - package: my-repo
     name: verbs
     mount: my-repo
-    runtimeProfile: default
 ```
 
 ## 11. Make the smoke test exercise the generated path
@@ -511,7 +508,7 @@ Each commit should have its own validation command in the commit message, PR des
 | Problem | Cause | Solution |
 | --- | --- | --- |
 | `xgoja doctor` cannot import the package | The `packages[].import` path or local `replace` path is wrong. | Check the generated example's relative path and run `go list` from the build workspace when needed. |
-| Module appears in provider tests but not in generated binary | The module descriptor is not included in `Register`, or the runtime profile omits it. | Check both provider registration and `runtimes.<profile>.modules`. |
+| Module appears in provider tests but not in generated binary | The module descriptor is not included in `Register`, or the module set omits it. | Check both provider registration and `modules`. |
 | Command provider builds but command does not appear | The command provider is not listed in `commandProviders`, or it is mounted elsewhere. | Run `xgoja list-command-providers` or inspect generated help output. |
 | Async Promise never settles | Background goroutine touched JS directly or posted with the wrong context. | Use `RuntimeServices.PostWithCustomContext` or `PostWithLifetimeContext` to settle on owner. |
 | Hardware/live smoke is flaky in CI | The smoke depends on external state. | Keep `make smoke` deterministic; move live behavior to a separate target. |

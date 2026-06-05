@@ -21,7 +21,7 @@ RelatedFiles:
       Note: Primary GOJA-066 design and implementation guide
 ExternalSources: []
 Summary: Chronological diary for GOJA-066, the single-runtime-profile xgoja simplification design work.
-LastUpdated: 2026-06-04T21:00:00-04:00
+LastUpdated: 2026-06-04T21:20:00-04:00
 WhatFor: Use to continue GOJA-066 implementation with the investigation context, decisions, and validation plan.
 WhenToUse: Before changing xgoja buildspec/runtime schema, generated command runtime selection, provider command contexts, docs, or examples.
 ---
@@ -445,4 +445,119 @@ New runtime factory call:
 
 ```go
 rt, err := factory.NewRuntimeFromSections(ctx, vals, opts...)
+```
+
+## Step 4: Update xgoja documentation and rename the stale multiple-runtimes example
+
+This step completed the documentation pass after the core code refactor. The xgoja docs and example README files no longer teach `runtimes`, command `runtime` selectors, `runtimeProfile`, or the generated `--runtime` flag. The stale `03-multiple-runtimes` example was renamed to `03-single-runtime-modules` and rewritten to demonstrate the current model: one generated module set shared by `eval`, `run`, `repl`, and jsverbs.
+
+The documentation pass was deliberately separate from the code refactor commit. That keeps review easier: one commit changes behavior and schemas, the next commit updates user-facing explanations, examples, and migration language.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue GOJA-066 after identifying stale docs: update the documentation/examples, validate, and commit the next focused step.
+
+**Inferred user intent:** Finish the migration so users and future implementers see the same single-runtime model in docs, examples, and code.
+
+**Commit (code):** pending — documentation/example rename ready to commit after this diary update.
+
+### What I did
+
+- Updated xgoja help docs under `cmd/xgoja/doc/` to describe top-level `modules` instead of `runtimes`.
+- Updated internal xgoja docs under `pkg/xgoja/doc/` to describe one generated module set.
+- Updated provider-author command docs for the new runtime factory signatures:
+  - `RuntimeFactory.NewRuntime(ctx, ...)`
+  - `RuntimeFactory.NewRuntimeFromSections(ctx, vals, ...)`
+- Renamed:
+  - `examples/xgoja/03-multiple-runtimes/`
+  - to `examples/xgoja/03-single-runtime-modules/`
+- Rewrote the renamed example README and smoke expectations.
+- Updated `examples/xgoja/README.md` to point at the renamed example.
+- Searched for stale user-facing terms with:
+  - `runtimes:`
+  - `runtimeProfile:`
+  - `runtime profile`
+  - `runtime profiles`
+  - `--runtime`
+  - `commands.*.runtime`
+  - `03-multiple-runtimes`
+- Ran focused xgoja tests and the renamed example smoke.
+
+### Why
+
+After Step 3, the code no longer supported multiple named runtime profiles, but the docs still taught the old model. That mismatch would be confusing and would make the migration look incomplete. Renaming the example was especially important because a directory named `03-multiple-runtimes` directly contradicted the new design.
+
+### What worked
+
+- Focused tests passed:
+
+```bash
+cd go-go-goja
+go test ./cmd/xgoja/... ./pkg/xgoja/... -count=1
+```
+
+- The renamed example smoke passed:
+
+```bash
+cd go-go-goja
+make -C examples/xgoja/03-single-runtime-modules smoke
+```
+
+- Stale-doc search is now clean for the important user-facing old-schema markers, except harmless mentions of generic "xgoja runtimes".
+
+### What didn't work
+
+- The first renamed example smoke still printed `multiple runtimes host run ok` because the JavaScript smoke script had stale output text. I updated it to `single runtime modules host run ok`.
+- A broad documentation transform left one malformed YAML fragment in `cmd/xgoja/doc/04-tutorial-providing-package-and-modules.md` with a leftover nested `host: modules:` shape. I rewrote that section manually.
+
+### What I learned
+
+- The docs used "runtime profile" as both schema concept and explanatory shorthand. The new docs need to be precise: xgoja still creates concrete runtimes, but users configure one top-level module set.
+- The example rename is not cosmetic. It prevents the learning path from advertising a removed feature.
+
+### What was tricky to build
+
+The tricky part was preserving useful provider-author guidance while removing the profile abstraction. Some references to "runtime" are still correct because xgoja creates concrete Goja runtimes. The stale terms were specifically named profile selectors, YAML `runtimes`, `runtimeProfile`, command `runtime`, and `--runtime`.
+
+The other tricky part was that broad text replacement can damage YAML snippets. I used the search output to find and manually repair the remaining malformed section.
+
+### What warrants a second pair of eyes
+
+- Review the rewritten provider docs for whether "top-level module set" is clear enough.
+- Review the renamed example path to make sure any external docs/scripts do not still expect `03-multiple-runtimes`.
+- Decide whether generic provider API fields named `RuntimeProfile` should be renamed in a later ticket.
+
+### What should be done in the future
+
+- Run a full example loop if desired; the renamed example and focused xgoja tests already pass.
+- Re-upload the updated GOJA-066 bundle to reMarkable after the docs commit if the user wants the latest code-era docs on device.
+
+### Code review instructions
+
+Review documentation changes in:
+
+- `cmd/xgoja/doc/*.md`
+- `pkg/xgoja/doc/*.md`
+- `examples/xgoja/README.md`
+- `examples/xgoja/03-single-runtime-modules/README.md`
+- `examples/xgoja/03-single-runtime-modules/Makefile`
+- `examples/xgoja/03-single-runtime-modules/scripts/host-run.js`
+
+Validate with:
+
+```bash
+cd go-go-goja
+go test ./cmd/xgoja/... ./pkg/xgoja/... -count=1
+make -C examples/xgoja/03-single-runtime-modules smoke
+```
+
+### Technical details
+
+Representative stale-term search:
+
+```bash
+rg -n 'runtimes:|runtimeProfile:|runtime profile|runtime profiles|--runtime|commands\.[a-z]+\.runtime|runtimes\.|runtimeProfile|03-multiple-runtimes|multiple-runtimes|multiple runtimes' \
+  cmd/xgoja/doc pkg/xgoja/doc examples/xgoja --glob '*.md' -S
 ```

@@ -68,23 +68,21 @@ assets:
     path: ./assets
     embed: true
 
-runtimes:
-  main:
-    modules:
-      - package: go-go-goja-host
-        name: fs
-        as: fs:assets
-        config:
-          embedded:
-            allow: true
-            mounts:
-              - asset: app-assets
-                mount: /app
-      - package: go-go-goja-host
-        name: fs
-        as: fs:host
-        config:
-          allow: true
-      - package: go-go-goja-http
-        name: express
+modules:
+  - package: go-go-goja-host
+    name: fs
+    as: fs:assets
+    config:
+      embedded:
+        allow: true
+        mounts:
+          - asset: app-assets
+            mount: /app
+  - package: go-go-goja-host
+    name: fs
+    as: fs:host
+    config:
+      allow: true
+  - package: go-go-goja-http
+    name: express
 ```

@@ -167,10 +167,10 @@ The request includes a `ModuleDescriptor`. Use it when the same provider package
 Generated command paths should create runtimes with parsed values:
 
 ```go
-runtime, err := factory.NewRuntimeFromSections(ctx, profile, parsedValues, requireOptions...)
+runtime, err := factory.NewRuntimeFromSections(ctx, parsedValues, requireOptions...)
 ```
 
-`NewRuntime(ctx, profile, ...)` still exists for static-config-only runtime creation. It delegates to `NewRuntimeFromSections(ctx, profile, nil, ...)`.
+`NewRuntime(ctx, ...)` still exists for static-config-only runtime creation. It delegates to `NewRuntimeFromSections(ctx, nil, ...)`.
 
 ## xgoja framework debug fields
 
@@ -216,7 +216,7 @@ type HostServiceContributionCapability interface {
 
 A contribution capability receives:
 
-- the selected runtime profile,
+- the generated module set,
 - parsed Glazed values,
 - all selected module descriptors, and
 - a sink for adding host services and closers.

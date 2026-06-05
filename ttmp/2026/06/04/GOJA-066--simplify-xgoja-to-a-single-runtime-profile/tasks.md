@@ -2,13 +2,13 @@
 
 ## TODO
 
-- [ ] Phase 1: Replace buildspec `runtimes` map with top-level `modules` and remove command `runtime` / command-provider `runtimeProfile` fields.
-- [ ] Phase 2: Update embedded runtime JSON generation to emit `modules` instead of `runtimes`.
-- [ ] Phase 3: Update `pkg/xgoja/app` runtime DTOs and `RuntimeFactory` APIs to use the single module set.
-- [ ] Phase 4: Remove generated command `--runtime` flags and profile-selection code from eval/run/repl/jsverbs.
-- [ ] Phase 5: Simplify command-provider runtime context and preserve optional module filtering.
-- [ ] Phase 6: Update xgoja docs and all examples from `runtimes.<name>.modules` to top-level `modules`.
-- [ ] Phase 7: Run focused and full test suites plus representative example smokes.
+- [x] Phase 1: Replace buildspec `runtimes` map with top-level `modules` and remove command `runtime` / command-provider `runtimeProfile` fields.
+- [x] Phase 2: Update embedded runtime JSON generation to emit `modules` instead of `runtimes`.
+- [x] Phase 3: Update `pkg/xgoja/app` runtime DTOs and `RuntimeFactory` APIs to use the single module set.
+- [x] Phase 4: Remove generated command `--runtime` flags and profile-selection code from eval/run/repl/jsverbs.
+- [x] Phase 5: Simplify command-provider runtime context and preserve optional module filtering.
+- [x] Phase 6: Update xgoja docs and all examples from `runtimes.<name>.modules` to top-level `modules`.
+- [x] Phase 7: Run focused xgoja tests plus representative single-runtime example smoke.
 
 ## DONE
 

@@ -1,7 +1,7 @@
-name: multiple-runtimes
+name: single-runtime-modules
 target:
   kind: xgoja
-  output: dist/multiple-runtimes
+  output: dist/single-runtime-modules
 packages:
 - id: go-go-goja-core
   import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core

@@ -26,7 +26,7 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-An `xgoja.yaml` file describes the generated binary. It names the output program, selects provider packages, defines runtime profiles, enables commands, configures JavaScript verb sources, optionally embeds application assets, optionally bundles Glazed help entries, and can opt generated Glazed commands into environment-variable and config-file sources.
+An `xgoja.yaml` file describes the generated binary. It names the output program, selects provider packages, defines the top-level module set, enables commands, configures JavaScript verb sources, optionally embeds application assets, optionally bundles Glazed help entries, and can opt generated Glazed commands into environment-variable and config-file sources.
 
 A minimal shape looks like this:
 
@@ -42,28 +42,22 @@ packages:
   - id: fixture
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
     register: Register
-runtimes:
-  repl:
-    modules:
-      - package: fixture
-        name: hello
-        as: hello
+modules:
+  - package: fixture
+    name: hello
+    as: hello
 commands:
   eval:
     enabled: true
-    runtime: repl
     name: eval
   run:
     enabled: true
-    runtime: repl
     name: run
   repl:
     enabled: true
-    runtime: repl
     name: repl
   jsverbs:
     enabled: true
-    runtime: repl
     name: verbs
 ```
 
@@ -83,9 +77,9 @@ commands:
 
 `packages` selects Go provider packages that will be imported by generated source.
 
-`runtimes` defines named runtime profiles.
+`modules` defines the generated runtime module set.
 
-`commands` enables generated command families and points them at runtime profiles.
+`commands` enables generated command families. Runtime-backed commands all use the top-level `modules` list.
 
 `jsverbs` configures JavaScript verb sources. By default, discovered verbs are mounted under the generated jsverbs command. The command name defaults to `verbs` when `commands.jsverbs.enabled: true`; set `commands.jsverbs.name` to rename that container command. Set `commands.jsverbs.mount: root` when discovered verb packages should be registered directly under the generated binary root instead.
 
@@ -176,17 +170,15 @@ Package IDs must be unique.
 
 ## Runtimes
 
-A runtime profile selects modules from registered provider packages.
+A top-level `modules` selects modules from registered provider packages.
 
 ```yaml
-runtimes:
-  main:
-    modules:
-      - package: fixture
-        name: hello
-        as: hello
-        config:
-          greeting: hello
+modules:
+  - package: fixture
+    name: hello
+    as: hello
+    config:
+      greeting: hello
 ```
 
 Fields:
@@ -196,7 +188,7 @@ Fields:
 - `as` is the JavaScript `require()` alias. If omitted, it defaults to `name`.
 - `config` is marshaled to JSON and passed to the provider module factory.
 
-Aliases must be unique within one runtime profile. `as` is the actual `require()` name; it does not also register the original `name`. For example, `name: fs` with `as: fs:assets` registers `require("fs:assets")`, not `require("fs")`.
+Aliases must be unique within the top-level module set. `as` is the actual `require()` name; it does not also register the original `name`. For example, `name: fs` with `as: fs:assets` registers `require("fs:assets")`, not `require("fs")`.
 
 ## Commands
 
@@ -206,33 +198,29 @@ The `commands` section enables generated command families.
 commands:
   eval:
     enabled: true
-    runtime: main
     name: eval
   run:
     enabled: true
-    runtime: main
     name: run
   repl:
     enabled: true
-    runtime: main
     name: repl
   jsverbs:
     enabled: true
-    runtime: main
     name: verbs
 ```
 
-`runtime` must reference an existing runtime profile when the command is enabled. `name` controls the command name exposed by the generated binary. If a built-in command name is omitted, xgoja applies defaults: `eval`, `run`, `repl`, and `verbs` for `commands.jsverbs`.
+`name` controls the command name exposed by the generated binary. If a built-in command name is omitted, xgoja applies defaults: `eval`, `run`, `repl`, and `verbs` for `commands.jsverbs`. Runtime-backed commands all use the top-level `modules` list.
 
 `commands.jsverbs.mount` controls where discovered JavaScript verb commands are attached. Omit it for the default container command (`./app verbs ...`). Set it to `root`, `/`, or `.` to attach discovered verb packages directly under the binary root (`./app tools greet ...`). Root mounting is convenient for self-contained helper binaries, but it increases the chance of command-name collisions with built-in commands such as `help`, `eval`, `run`, `repl`, and `modules`.
 
-The `eval` command spec controls one-shot JavaScript string evaluation. When enabled, `commands.eval.name` is the command name exposed by the generated binary and `commands.eval.runtime` selects the runtime profile used by that command.
+The `eval` command spec controls one-shot JavaScript string evaluation. When enabled, `commands.eval.name` is the command name exposed by the generated binary; the command uses the top-level generated module set.
 
-The `run` command spec controls file execution. It creates a fresh runtime from the selected profile and executes the given JavaScript file with script-local module roots, so sibling `require("./helper")` calls resolve next to the script.
+The `run` command spec controls file execution. It creates a fresh runtime from the generated module set and executes the given JavaScript file with script-local module roots, so sibling `require("./helper")` calls resolve next to the script.
 
-The `repl` command spec controls the interactive Bubble Tea REPL. It uses the selected runtime profile for `require()` visibility and is intended for terminal sessions; automated tests should validate command construction or help output rather than launching the interactive program.
+The `repl` command spec controls the interactive Bubble Tea REPL. It uses the generated module set for `require()` visibility and is intended for terminal sessions; automated tests should validate command construction or help output rather than launching the interactive program.
 
-Provider modules may expose Glazed configuration sections for the selected runtime profile. xgoja appends those sections to `run`, `repl`, and `jsverbs` commands and runs provider-owned runtime initializers before JavaScript executes. For example, a provider section with prefix `fixture-` can add flags such as `--fixture-value` to built-in commands.
+Provider modules may expose Glazed configuration sections for the generated module set. xgoja appends those sections to `run`, `repl`, and `jsverbs` commands and runs provider-owned runtime initializers before JavaScript executes. For example, a provider section with prefix `fixture-` can add flags such as `--fixture-value` to built-in commands.
 
 ## Command providers
 
@@ -244,7 +232,6 @@ commandProviders:
     package: fixture
     name: tools
     mount: fixture
-    runtimeProfile: main
 ```
 
 Fields:
@@ -253,9 +240,9 @@ Fields:
 - `package` references a package ID from `packages`.
 - `name` is the command set provider name registered by that package.
 - `mount` optionally overrides the provider's default mount path. A single segment such as `fixture` creates commands under `fixture ...`; a slash-delimited path can mount deeper.
-- `runtimeProfile` optionally selects the runtime profile passed to the provider. If omitted, xgoja uses the first runtime profile.
+- `modules` optionally filters the generated module descriptors passed to the provider-owned command set.
 
-Command providers return Glazed command values, so provider authors can expose `BareCommand`, `WriterCommand`, or `GlazeCommand` commands. If a `runtimeProfile` is selected, xgoja passes the selected module descriptors and a typed runtime factory to the provider so those commands can reuse module-provided sections and runtime initializers.
+Command providers return Glazed command values, so provider authors can expose `BareCommand`, `WriterCommand`, or `GlazeCommand` commands. xgoja passes the generated module descriptors and a typed runtime factory to the provider so those commands can reuse module-provided sections and runtime initializers.
 
 ## Target modes
 
@@ -373,23 +360,21 @@ assets:
   - id: app-assets
     path: ./assets
     embed: true
-runtimes:
-  main:
-    modules:
-      - package: go-go-goja-host
-        name: fs
-        as: fs:assets
-        config:
-          embedded:
-            allow: true
-            mounts:
-              - asset: app-assets
-                mount: /app
-      - package: go-go-goja-host
-        name: fs
-        as: fs:host
-        config:
-          allow: true
+modules:
+  - package: go-go-goja-host
+    name: fs
+    as: fs:assets
+    config:
+      embedded:
+        allow: true
+        mounts:
+          - asset: app-assets
+            mount: /app
+  - package: go-go-goja-host
+    name: fs
+    as: fs:host
+    config:
+      allow: true
 ```
 
 At build time, xgoja copies each embedded asset directory into the generated workspace under `xgoja_embed/assets/<id>/`, rewrites the embedded runtime spec to that generated root, and emits `//go:embed all:xgoja_embed/assets/*` in generated `main.go`. The `all:` prefix is intentional: asset trees may contain web-standard dot directories such as `.well-known`.
