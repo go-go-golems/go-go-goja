@@ -125,7 +125,7 @@ func usesAppScopedConfigLayer(layers []string) bool {
 func validateTarget(report *Report, buildSpec *BuildSpec) {
 	kind := strings.TrimSpace(buildSpec.Target.Kind)
 	switch kind {
-	case "xgoja", "adapter", "cobra":
+	case "xgoja", "adapter", "cobra", "package", "source", "template":
 		report.AddOK("target-kind", "target.kind", fmt.Sprintf("target kind %q is supported", kind))
 	default:
 		report.AddError("target-kind", "target.kind", fmt.Sprintf("unsupported target kind %q", kind))
@@ -149,6 +149,47 @@ func validateTarget(report *Report, buildSpec *BuildSpec) {
 			report.AddOK("target-root", "target.root", buildSpec.Target.Root)
 		}
 	}
+	if kind == "package" || kind == "source" || kind == "template" {
+		if strings.TrimSpace(buildSpec.Target.Package) != "" {
+			if sanitized := sanitizeGoPackageName(buildSpec.Target.Package); sanitized != strings.TrimSpace(buildSpec.Target.Package) {
+				report.AddError("target-package", "target.package", fmt.Sprintf("target package must be a valid Go package identifier; suggested value %q", sanitized))
+			} else {
+				report.AddOK("target-package", "target.package", buildSpec.Target.Package)
+			}
+		}
+	}
+	if kind == "template" {
+		if strings.TrimSpace(buildSpec.Target.Template) == "" {
+			report.AddError("target-template", "target.template", "target template is required for template mode")
+		} else if err := requireExistingPath(buildSpec.BaseDir, buildSpec.Target.Template); err != nil {
+			report.AddError("target-template", "target.template", err.Error())
+		} else {
+			report.AddOK("target-template", "target.template", buildSpec.Target.Template)
+		}
+	}
+}
+
+func sanitizeGoPackageName(value string) string {
+	value = strings.TrimSpace(value)
+	var b strings.Builder
+	for i, r := range value {
+		valid := r == '_' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || i > 0 && r >= '0' && r <= '9'
+		if valid {
+			b.WriteRune(r)
+			continue
+		}
+		if b.Len() > 0 {
+			b.WriteRune('_')
+		}
+	}
+	out := strings.Trim(b.String(), "_")
+	if out == "" {
+		return "xgojaruntime"
+	}
+	if out[0] >= '0' && out[0] <= '9' {
+		out = "xgoja_" + out
+	}
+	return out
 }
 
 func validatePackages(report *Report, buildSpec *BuildSpec) map[string]PackageSpec {

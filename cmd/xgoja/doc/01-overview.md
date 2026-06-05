@@ -90,7 +90,7 @@ A pure xgoja generated binary currently provides these command families:
 
 Provider packages can also contribute command families. For example, the HTTP provider can mount `serve` commands that run JavaScript verbs as long-lived Express site setup functions.
 
-Existing applications can also use xgoja in target modes that attach these generated commands to a Cobra root or delegate integration to an adapter package.
+Existing applications can also use xgoja in target modes that attach generated commands to a Cobra root, delegate integration to an adapter package, or generate an importable runtime package with `xgoja generate`.
 
 ## When to use xgoja
 
@@ -104,3 +104,4 @@ Do not use `xgoja` as a dynamic Go plugin loader. The reliable extension boundar
 - `tutorial` for an end-to-end build flow.
 - `tutorial-static-assets-http-server` for embedding and serving bundled static web assets.
 - `tutorial-http-serve-jsverbs` for serving Express routes registered by generated JavaScript verbs.
+- `tutorial-generated-runtime-package` for generating an importable Go package that creates xgoja runtimes inside an existing application.

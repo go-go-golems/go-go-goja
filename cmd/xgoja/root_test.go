@@ -19,7 +19,7 @@ func TestRootHelp(t *testing.T) {
 		t.Fatalf("execute help: %v", err)
 	}
 	rendered := out.String()
-	for _, want := range []string{"xgoja", "build", "doctor", "inspect", "list-modules"} {
+	for _, want := range []string{"xgoja", "build", "generate", "doctor", "inspect", "list-modules"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("expected help to contain %q, got %q", want, rendered)
 		}
@@ -64,6 +64,144 @@ func TestBuildCommandWired(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(workDir, name)); err != nil {
 			t.Fatalf("expected generated %s: %v", name, err)
 		}
+	}
+}
+
+func TestGenerateCommandWired(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writePackageSpec(t)
+	outputDir := filepath.Join(t.TempDir(), "xgojaruntime")
+	root.SetArgs([]string{"generate", "-f", specPath, "--output", outputDir, "--package", "xgojaruntime"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute generate: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, "xgoja_runtime.gen.go")); err != nil {
+		t.Fatalf("expected generated package: %v", err)
+	}
+	if !strings.Contains(out.String(), "xgoja generate ok") {
+		t.Fatalf("expected generate output, got %q", out.String())
+	}
+}
+
+func TestGenerateCommandLetsGeneratorSanitizeInferredPackageName(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writePackageSpecWithoutPackageName(t)
+	outputDir := filepath.Join(t.TempDir(), "xgoja-runtime")
+	root.SetArgs([]string{"generate", "-f", specPath, "--output", outputDir})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute generate: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(outputDir, "xgoja_runtime.gen.go"))
+	if err != nil {
+		t.Fatalf("read generated package: %v", err)
+	}
+	if !strings.Contains(string(data), "package xgoja_runtime") {
+		t.Fatalf("expected sanitized inferred package name, got:\n%s", data)
+	}
+}
+
+func TestGenerateCommandPrintsTemplateData(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writePackageSpecWithoutPackageName(t)
+	outputDir := filepath.Join(t.TempDir(), "xgoja-runtime")
+	root.SetArgs([]string{"generate", "-f", specPath, "--output", outputDir, "--template-data"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute generate template-data: %v", err)
+	}
+	rendered := out.String()
+	for _, want := range []string{`"PackageName": "xgoja_runtime"`, `"ProviderImports"`, `"SpecJSON"`} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expected template data to contain %s, got %s", want, rendered)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, "xgoja_runtime.gen.go")); !os.IsNotExist(err) {
+		t.Fatalf("template-data should not write output, stat err=%v", err)
+	}
+}
+
+func TestGenerateCommandCleanRemovesKnownGeneratedFiles(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeSourceSpec(t)
+	outputDir := filepath.Join(t.TempDir(), "xgojaruntime")
+	if err := os.MkdirAll(filepath.Join(outputDir, "xgoja_embed"), 0o755); err != nil {
+		t.Fatalf("mkdir stale embed: %v", err)
+	}
+	staleGenerated := filepath.Join(outputDir, "xgoja_runtime.gen.go")
+	if err := os.WriteFile(staleGenerated, []byte("stale"), 0o644); err != nil {
+		t.Fatalf("write stale generated file: %v", err)
+	}
+	keep := filepath.Join(outputDir, "keep.go")
+	if err := os.WriteFile(keep, []byte("package keep"), 0o644); err != nil {
+		t.Fatalf("write keep file: %v", err)
+	}
+	root.SetArgs([]string{"generate", "-f", specPath, "--output", outputDir, "--package", "xgojaruntime", "--clean"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute generate clean source: %v", err)
+	}
+	if _, err := os.Stat(staleGenerated); !os.IsNotExist(err) {
+		t.Fatalf("expected stale generated file removed, err=%v", err)
+	}
+	if _, err := os.Stat(keep); err != nil {
+		t.Fatalf("expected non-generated file preserved: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, "spec.gen.go")); err != nil {
+		t.Fatalf("expected regenerated source fragment: %v", err)
+	}
+}
+
+func TestGenerateCommandWritesSourceFragments(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeSourceSpec(t)
+	outputDir := filepath.Join(t.TempDir(), "xgojaruntime")
+	root.SetArgs([]string{"generate", "-f", specPath, "--output", outputDir, "--package", "xgojaruntime"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute generate source: %v", err)
+	}
+	for _, name := range []string{"spec.gen.go", "providers.gen.go", "bundle.gen.go"} {
+		if _, err := os.Stat(filepath.Join(outputDir, name)); err != nil {
+			t.Fatalf("expected source fragment %s: %v", name, err)
+		}
+	}
+}
+
+func TestGenerateCommandWritesCustomTemplate(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeTemplateSpec(t)
+	outputPath := filepath.Join(t.TempDir(), "custom.gen.go")
+	root.SetArgs([]string{"generate", "-f", specPath, "--output", outputPath, "--package", "customruntime"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute generate template: %v", err)
+	}
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read custom output: %v", err)
+	}
+	if !strings.Contains(string(data), "package customruntime") || !strings.Contains(string(data), "const ProviderCount = 1") {
+		t.Fatalf("unexpected custom output: %s", data)
 	}
 }
 
@@ -124,6 +262,107 @@ func TestListModulesCommandWired(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute list-modules: %v", err)
 	}
+}
+
+func writePackageSpec(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: fixture-package
+target:
+  kind: package
+  output: internal/xgojaruntime
+  package: xgojaruntime
+packages:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+modules:
+  - package: fixture
+    name: hello
+    as: hello
+`), 0o644); err != nil {
+		t.Fatalf("write package spec: %v", err)
+	}
+	return specPath
+}
+
+func writePackageSpecWithoutPackageName(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: fixture-package
+
+target:
+  kind: package
+  output: internal/xgoja-runtime
+packages:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+modules:
+  - package: fixture
+    name: hello
+    as: hello
+`), 0o644); err != nil {
+		t.Fatalf("write package spec without package name: %v", err)
+	}
+	return specPath
+}
+
+func writeSourceSpec(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: fixture-source
+target:
+  kind: source
+  output: internal/xgojaruntime
+  package: xgojaruntime
+packages:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+modules:
+  - package: fixture
+    name: hello
+    as: hello
+`), 0o644); err != nil {
+		t.Fatalf("write source spec: %v", err)
+	}
+	return specPath
+}
+
+func writeTemplateSpec(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	templatePath := filepath.Join(dir, "runtime.go.tmpl")
+	if err := os.WriteFile(templatePath, []byte(`// Code generated by custom xgoja template; DO NOT EDIT.
+package {{ .PackageName }}
+
+const ProviderCount = {{ len .ProviderImports }}
+`), 0o644); err != nil {
+		t.Fatalf("write custom template: %v", err)
+	}
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: fixture-template
+target:
+  kind: template
+  output: internal/xgojaruntime/custom.gen.go
+  package: customruntime
+  template: runtime.go.tmpl
+packages:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+modules:
+  - package: fixture
+    name: hello
+    as: hello
+`), 0o644); err != nil {
+		t.Fatalf("write template spec: %v", err)
+	}
+	return specPath
 }
 
 func writeBuildableSpec(t *testing.T) string {

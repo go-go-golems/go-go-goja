@@ -44,11 +44,13 @@ type GoSpec struct {
 }
 
 type TargetSpec struct {
-	Kind    string `yaml:"kind" json:"kind"`
-	Import  string `yaml:"import" json:"import,omitempty"`
-	Version string `yaml:"version" json:"version,omitempty"`
-	Root    string `yaml:"root" json:"root,omitempty"`
-	Output  string `yaml:"output" json:"output"`
+	Kind     string `yaml:"kind" json:"kind"`
+	Import   string `yaml:"import" json:"import,omitempty"`
+	Version  string `yaml:"version" json:"version,omitempty"`
+	Root     string `yaml:"root" json:"root,omitempty"`
+	Output   string `yaml:"output" json:"output"`
+	Package  string `yaml:"package" json:"package,omitempty"`
+	Template string `yaml:"template" json:"template,omitempty"`
 }
 
 type PackageSpec struct {

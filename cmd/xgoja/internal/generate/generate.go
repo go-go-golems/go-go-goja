@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -14,6 +15,60 @@ import (
 type Options struct {
 	XGojaModuleVersion string
 	XGojaReplace       string
+}
+
+type PackageOptions struct {
+	PackageName string
+}
+
+type TemplateOptions struct {
+	PackageName  string
+	TemplatePath string
+}
+
+func TemplateDataJSON(buildSpec *buildspec.BuildSpec, packageName string) (string, error) {
+	if buildSpec == nil {
+		return "", fmt.Errorf("BuildSpec is nil")
+	}
+	data, err := json.MarshalIndent(packageTemplateDataFromSpec(buildSpec, packageName), "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(data) + "\n", nil
+}
+
+func CleanGenerated(dir string) error {
+	if strings.TrimSpace(dir) == "" {
+		return fmt.Errorf("generate directory is required")
+	}
+	for _, name := range []string{
+		"xgoja_runtime.gen.go",
+		"spec.gen.go",
+		"providers.gen.go",
+		"bundle.gen.go",
+		"embed.gen.go",
+		"xgoja_embed",
+	} {
+		path := filepath.Join(dir, name)
+		if err := os.RemoveAll(path); err != nil {
+			return fmt.Errorf("remove generated %s: %w", path, err)
+		}
+	}
+	return nil
+}
+
+func CleanGeneratedFile(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("generated file path is required")
+	}
+	base := filepath.Base(path)
+	if !strings.HasSuffix(base, ".gen.go") {
+		return fmt.Errorf("refusing to clean non-generated file %s", path)
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove generated file %s: %w", path, err)
+	}
+	return nil
 }
 
 func defaultOptions() Options {
@@ -50,6 +105,100 @@ func WriteAll(dir string, buildSpec *buildspec.BuildSpec, opts Options) error {
 		}
 	}
 	return nil
+}
+
+func WritePackage(dir string, buildSpec *buildspec.BuildSpec, opts PackageOptions) error {
+	if dir == "" {
+		return fmt.Errorf("generate directory is required")
+	}
+	if buildSpec == nil {
+		return fmt.Errorf("BuildSpec is nil")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create generate directory %s: %w", dir, err)
+	}
+	if err := copyEmbeddedJSVerbs(dir, buildSpec); err != nil {
+		return err
+	}
+	if err := copyEmbeddedHelpSources(dir, buildSpec); err != nil {
+		return err
+	}
+	if err := copyEmbeddedAssets(dir, buildSpec); err != nil {
+		return err
+	}
+	packageName := strings.TrimSpace(opts.PackageName)
+	if packageName == "" {
+		packageName = InferPackageNameFromDir(dir)
+	}
+	content := RenderPackage(buildSpec, packageName)
+	if err := os.WriteFile(filepath.Join(dir, "xgoja_runtime.gen.go"), []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write generated package: %w", err)
+	}
+	return nil
+}
+
+func WriteSourceFragments(dir string, buildSpec *buildspec.BuildSpec, opts PackageOptions) error {
+	if dir == "" {
+		return fmt.Errorf("generate directory is required")
+	}
+	if buildSpec == nil {
+		return fmt.Errorf("BuildSpec is nil")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create generate directory %s: %w", dir, err)
+	}
+	if err := copyEmbeddedJSVerbs(dir, buildSpec); err != nil {
+		return err
+	}
+	if err := copyEmbeddedHelpSources(dir, buildSpec); err != nil {
+		return err
+	}
+	if err := copyEmbeddedAssets(dir, buildSpec); err != nil {
+		return err
+	}
+	packageName := strings.TrimSpace(opts.PackageName)
+	if packageName == "" {
+		packageName = InferPackageNameFromDir(dir)
+	}
+	for name, content := range RenderSourceFragments(buildSpec, packageName) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			return fmt.Errorf("write generated source fragment %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func WriteCustomTemplate(outputFile string, buildSpec *buildspec.BuildSpec, opts TemplateOptions) error {
+	if strings.TrimSpace(outputFile) == "" {
+		return fmt.Errorf("custom template output file is required")
+	}
+	if buildSpec == nil {
+		return fmt.Errorf("BuildSpec is nil")
+	}
+	if err := os.MkdirAll(filepath.Dir(outputFile), 0o755); err != nil {
+		return fmt.Errorf("create custom template output directory: %w", err)
+	}
+	packageName := strings.TrimSpace(opts.PackageName)
+	if packageName == "" {
+		packageName = InferPackageNameFromDir(filepath.Dir(outputFile))
+	}
+	content, err := loadCustomTemplate(opts.TemplatePath, packageTemplateDataFromSpec(buildSpec, packageName))
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(outputFile, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write custom template output %s: %w", outputFile, err)
+	}
+	return nil
+}
+
+func InferPackageNameFromDir(dir string) string {
+	base := filepath.Base(filepath.Clean(dir))
+	name := sanitizeIdentifier(base)
+	if name == "" || name == "internal" {
+		return "xgojaruntime"
+	}
+	return name
 }
 
 func copyEmbeddedJSVerbs(dir string, buildSpec *buildspec.BuildSpec) error {

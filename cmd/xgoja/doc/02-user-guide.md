@@ -403,6 +403,25 @@ See `examples/xgoja/10-embedded-assets-fs` and `xgoja help tutorial-static-asset
 
 Generated binaries can also expose HTTP setup functions as JavaScript verbs by enabling the HTTP provider's `serve` command provider. In that mode, `./dist/my-app serve sites demo --http-listen 127.0.0.1:8787` invokes the selected verb once, then keeps the runtime alive for request handling. See `examples/xgoja/13-http-serve-jsverbs` and `xgoja help tutorial-http-serve-jsverbs`.
 
+## Generated runtime packages
+
+Use `xgoja generate` with `target.kind: package` when an existing Go application should import xgoja-generated runtime wiring instead of executing a generated binary.
+
+```yaml
+target:
+  kind: package
+  output: internal/xgojaruntime
+  package: xgojaruntime
+```
+
+Then run:
+
+```bash
+xgoja generate -f xgoja.yaml
+```
+
+The generated package exposes `NewBundle`, `NewRuntime`, `NewRuntimeFromSections`, `DecodeSpec`, `RegisterProviders`, and `AttachDefaultCommands`. It writes source into the existing module and does not create `go.mod`, write `main.go`, run `go mod tidy`, or compile a binary. See `examples/xgoja/14-generated-runtime-package` and `xgoja help tutorial-generated-runtime-package`.
+
 ## JavaScript verb sources
 
 `jsverbs` supports three distinct source modes.
