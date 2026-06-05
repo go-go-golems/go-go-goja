@@ -45,14 +45,14 @@ WhenToUse: Before editing xgoja buildspec/runtime spec fields, generated command
 
 GOJA-066 proposes simplifying generated xgoja binaries from a map of named runtime profiles to one runtime module set. Today `xgoja.yaml` declares `runtimes: {name: {modules: [...]}}`, command specs point at those names with `commands.*.runtime`, command providers can point at `runtimeProfile`, and the generated app carries the same map in the embedded JSON runtime spec. In practice, current generated binaries use one runtime profile almost everywhere, usually called `main` or `repl`, while the multiple-profile support adds branching, validation rules, command flags, docs complexity, and tests for behavior we do not want to prioritize right now.
 
-The proposed near-term model is: one generated xgoja app has one module set. All runtime-backed commands (`eval`, `run`, `repl`, `verbs`, and provider-owned command sets) use that same module set. We keep a small internal label such as `main` only where provider APIs currently need a `RuntimeProfile` string for context/provenance, but users should no longer configure or select runtime profiles. This is a simplification and not a permanent claim that multiple profiles are useless; it deliberately removes the feature until there is a concrete use case that justifies reintroducing it with a cleaner API.
+The implemented model is: one generated xgoja app has one module set. All runtime-backed commands (`eval`, `run`, `repl`, `verbs`, and provider-owned command sets) use that same module set. The follow-up hard cut also removed the leftover provider-facing `RuntimeProfile` context fields from xgoja provider APIs, so there is no longer a hidden `main` compatibility label in `SectionRequest`, `HostServiceContributionRequest`, or `CommandSetContext`. This is a simplification and not a permanent claim that multiple profiles are useless; it deliberately removes the feature until there is a concrete use case that justifies reintroducing it with a cleaner API.
 
 ## Goals
 
 - Make `xgoja.yaml` easier to read: packages, one `modules` list, commands, jsverbs, help, and assets.
 - Remove user-facing runtime profile selection from built-in commands.
 - Remove command-level `runtime` settings for `eval`, `run`, `repl`, and `jsverbs`.
-- Remove command-provider `runtimeProfile` settings unless we decide to keep a temporary compatibility field with a deprecation error.
+- Remove command-provider `runtimeProfile` settings and provider-facing runtime-profile context fields.
 - Keep provider module config, public Glazed config sections, internal xgoja config sections, host-service contributions, and lifecycle closers intact.
 - Make implementation reviewable by separating schema changes, app runtime factory changes, command changes, docs/examples updates, and tests.
 
@@ -295,15 +295,11 @@ type RuntimeSpec struct {
 
 `RuntimeProfileSpec` can be deleted unless a temporary migration helper needs it.
 
-### Internal compatibility label
+### Provider API hard cut
 
-Provider APIs currently include `RuntimeProfile` in `providerapi.SectionRequest`, `providerapi.HostServiceContributionRequest`, and `providerapi.CommandSetContext`. Removing that field immediately is possible, but it is a larger provider API break. The simpler implementation is to keep the field for now and always pass a constant:
+The first implementation pass considered keeping a temporary internal `main` label for provider context. The final simplification removed that label too. `providerapi.SectionRequest`, `providerapi.HostServiceContributionRequest`, and `providerapi.CommandSetContext` no longer carry `RuntimeProfile`; provider capabilities receive command/provider identity plus package/module identity, selected module descriptors, parsed values, host services, providers, and the runtime factory.
 
-```go
-const defaultRuntimeProfile = "main"
-```
-
-That gives provider capabilities a stable context string while removing user-facing selection. Later cleanup can rename this field to something more accurate, such as `RuntimeID` or remove it from provider-facing APIs if it proves unused.
+That makes the provider API match the schema: there is one generated module set and no profile selector, hidden or public. If multiple isolated module sets are reintroduced later, the API should use a new name with precise semantics rather than restoring the old `RuntimeProfile` field.
 
 ### Before/after architecture diagram
 
@@ -354,12 +350,12 @@ NewRuntimeFromSections(ctx, vals, opts...):
 
   descriptors = selectedModuleDescriptors()
 
-  runtimeServices = hostServicesForRuntime(ctx, "main", vals, descriptors)
+  runtimeServices = hostServicesForRuntime(ctx, vals, descriptors)
   ensure contribution closers are closed if construction fails
 
   for instance in runtimeSpec.Modules:
     module = providers.ResolveModule(instance.Package, instance.Name)
-    config = configForModuleInstance(ctx, "main", instance, descriptor, vals)
+    config = configForModuleInstance(ctx, instance, descriptor, vals)
     registrar = providerRuntimeModuleRegistrar(instance, module, config, runtimeServices.services)
     append registrar
 
@@ -430,13 +426,13 @@ Strict validation is better than silently choosing one profile because the goal 
 2. Update `pkg/xgoja/app/module_sections.go`:
    - change `selectedModuleDescriptors(profile string)` to `selectedModuleDescriptors()`;
    - change `sectionsForRuntimeProfile(commandName, profile string)` to `sectionsForRuntime(commandName string)`;
-   - keep `providerapi.SectionRequest.RuntimeProfile = "main"` internally for now.
+   - build `providerapi.SectionRequest` from command/provider plus package/module identity only.
 3. Update `pkg/xgoja/app/factory.go`:
    - change `NewRuntime(ctx, profile, opts...)` to `NewRuntime(ctx, opts...)`;
    - change `NewRuntimeFromSections(ctx, profile, vals, opts...)` to `NewRuntimeFromSections(ctx, vals, opts...)`;
    - iterate over `f.runtimeSpec.Modules` instead of `runtime.Modules`;
-   - use `defaultRuntimeProfile` only as provider context.
-4. Update host-service and config mapping helpers to receive the constant context label instead of user-selected profile names.
+   - remove `defaultRuntimeProfile` entirely.
+4. Update host-service and config mapping helpers so they no longer accept user-selected or constant profile names.
 
 ### Phase 4: built-in commands
 
@@ -466,7 +462,7 @@ Strict validation is better than silently choosing one profile because the goal 
    - prefer `NewRuntime(ctx, opts...)` and `NewRuntimeFromSections(ctx, vals, opts...)`;
    - consider keeping old names only if a compatibility shim is explicitly requested.
 2. Update `CommandSetContext`:
-   - remove or deprecate `RuntimeProfile`;
+   - remove `RuntimeProfile`;
    - keep `SelectedModules` because it is still useful.
 3. Update `pkg/xgoja/app/command_providers.go`:
    - delete `runtimeProfileForCommandProvider`;
@@ -562,20 +558,20 @@ Rationale: if there is one module set, command-level runtime selectors are redun
 
 Consequences: command validation becomes simpler, and built-in commands no longer need `runtime` in their settings structs.
 
-### Decision 3: keep a temporary internal provider context label
+### Decision 3: remove provider-facing runtime-profile context fields
 
-Status: proposed.
+Status: accepted.
 
-Decision: keep passing `RuntimeProfile: "main"` to provider capability request structs for now, even though users cannot select a profile.
+Decision: remove `RuntimeProfile` from provider capability request structs instead of passing a constant `main` label.
 
-Rationale: provider APIs already accept `RuntimeProfile`, and some providers may log or branch on it. Removing it is possible but broadens the change. Passing a constant keeps the refactor focused on xgoja user-facing simplification.
+Rationale: the public xgoja API was already intentionally broken by the schema simplification, and downstream searches did not reveal active provider code depending on the xgoja provider-context field. Removing it now avoids preserving a misleading concept and makes command-provider, config-section, and host-service APIs match the single-module-set model.
 
-Consequences: code still has one misleading field name in providerapi. A later cleanup can rename or remove it after this schema simplification lands.
+Consequences: provider code that referenced `ctx.RuntimeProfile` or `req.RuntimeProfile` must delete that branch or derive a more specific context from command/provider/package/module fields. The break is clearer than a compatibility shim because it fails at compile time.
 
 ## Risks and review points
 
 - **Breaking existing examples:** all xgoja examples currently use `runtimes`. Update them in the same change and run generation/build smokes.
-- **Hidden provider assumptions:** providers may use `RuntimeProfile` in `SectionRequest` or `CommandSetContext`. Keep a constant initially and search downstream providers before removing it.
+- **Hidden provider assumptions:** providers may have used `RuntimeProfile` in `SectionRequest` or `CommandSetContext`. The hard cut removes those fields, so such assumptions fail at compile time instead of silently receiving a misleading constant.
 - **Config-file migration:** generated xgoja config-file examples may contain command `runtime` fields. Docs should say these fields are obsolete.
 - **Command-provider module filtering:** make sure `commandProviders[].modules` continues to filter selected modules if that feature is still useful.
 - **Test churn:** many tests build `RuntimeSpec{Runtimes: ...}` inline. Expect a wide but mechanical update.

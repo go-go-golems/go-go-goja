@@ -17,3 +17,4 @@
 - [x] Relate current multi-profile schema, validation, generation, runtime factory, commands, and provider API files to the design document.
 - [x] Validate GOJA-066 with `docmgr doctor`.
 - [x] Upload the design + diary bundle to reMarkable at `/ai/2026/06/04/GOJA-066`.
+- [x] Remove remaining provider-facing `RuntimeProfile` API fields and the internal `main` compatibility label.

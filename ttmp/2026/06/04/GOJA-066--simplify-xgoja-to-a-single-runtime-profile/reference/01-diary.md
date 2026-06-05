@@ -16,7 +16,15 @@ RelatedFiles:
     - Path: cmd/xgoja/internal/buildspec/build_spec.go
       Note: Current build-time multi-profile schema that shaped the design
     - Path: pkg/xgoja/app/factory.go
-      Note: Current profile-based runtime factory that shaped the implementation plan
+      Note: |-
+        Current profile-based runtime factory that shaped the implementation plan
+        Stopped passing constant runtime-profile labels into host-service and config setup (commit f30d600)
+    - Path: pkg/xgoja/app/module_sections.go
+      Note: Removed defaultRuntimeProfile and collects sections without profile context (commit f30d600)
+    - Path: pkg/xgoja/providerapi/capabilities.go
+      Note: Removed provider-facing RuntimeProfile fields from section and host-service capability request structs (commit f30d600)
+    - Path: pkg/xgoja/providerapi/commands.go
+      Note: Removed RuntimeProfile from command-provider context (commit f30d600)
     - Path: ttmp/2026/06/04/GOJA-066--simplify-xgoja-to-a-single-runtime-profile/design-doc/01-single-runtime-profile-simplification-design-and-implementation-guide.md
       Note: Primary GOJA-066 design and implementation guide
 ExternalSources: []
@@ -25,6 +33,7 @@ LastUpdated: 2026-06-04T21:20:00-04:00
 WhatFor: Use to continue GOJA-066 implementation with the investigation context, decisions, and validation plan.
 WhenToUse: Before changing xgoja buildspec/runtime schema, generated command runtime selection, provider command contexts, docs, or examples.
 ---
+
 
 
 # Diary
@@ -637,3 +646,120 @@ remarquee upload bundle \
   --force \
   --non-interactive
 ```
+
+## Step 6: Remove the remaining provider-facing runtime profile API fields
+
+This step completes the hard-cut simplification that the user requested after the first single-runtime pass. Instead of keeping an internal `main` compatibility label in provider-facing context structs, xgoja now removes the leftover runtime-profile plumbing from provider config-section, host-service, and command-provider APIs.
+
+The result is intentionally simpler and more honest: generated xgoja binaries have one module set, and provider APIs no longer receive a hidden profile name that users cannot configure. Any downstream provider that still expects `RuntimeProfile` will fail at compile time and can be updated directly.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue the cleanup by removing as much remaining runtime-profile compatibility plumbing as possible, accepting a hard API cut.
+
+**Inferred user intent:** Avoid carrying misleading compatibility abstractions after the public schema/API was already broken for simplicity.
+
+**Commit (code):** f30d600 — "Remove remaining xgoja runtime profile API plumbing"
+
+### What I did
+
+- Removed `RuntimeProfile` from provider-facing structs:
+  - `providerapi.SectionRequest`
+  - `providerapi.HostServiceContributionRequest`
+  - `providerapi.CommandSetContext`
+- Removed `defaultRuntimeProfile = "main"` from `pkg/xgoja/app/module_sections.go`.
+- Updated runtime factory setup so host-service and module-config paths no longer accept or pass a profile/context label.
+- Updated command-provider attachment so `CommandSetContext` carries selected modules, config, host services, providers, and the runtime factory, but no runtime profile.
+- Updated xgoja testprovider and affected tests to assert selected module behavior instead of profile context behavior.
+- Renamed runtime-section tests that still had `RuntimeProfile` in the test name.
+- Updated the GOJA-066 design guide to describe the final provider API hard cut instead of the earlier temporary-compatibility plan.
+- Ran focused xgoja tests before commit:
+  - `go test ./cmd/xgoja/... ./pkg/xgoja/... -count=1`
+- Committed the focused code/API cleanup. The pre-commit hook also ran and passed:
+  - `golangci-lint run -v`
+  - `GOWORK=off go vet ...`
+  - `go generate ./...`
+  - `go test ./...`
+
+### Why
+
+Keeping a constant internal profile label would preserve the old mental model in the provider API even though the YAML schema and generated command behavior no longer support multiple runtime profiles. Since this is already a breaking xgoja change, removing the field now is cleaner than adding a misleading compatibility shim.
+
+### What worked
+
+- Source search under active xgoja code is now clean for provider-facing `RuntimeProfile`, `runtime profile`, `runtime profiles`, and `defaultRuntimeProfile`, except for deliberate old-schema validation diagnostics in `cmd/xgoja/internal/buildspec/load.go`.
+- Focused xgoja tests passed before commit.
+- Full pre-commit passed during the commit, including full `go test ./...`.
+
+### What didn't work
+
+- My first multi-block design-doc edit failed because one pseudocode block did not match the exact current text:
+  - `Could not find edits[3] in .../design-doc/01-single-runtime-profile-simplification-design-and-implementation-guide.md. The oldText must match exactly including all whitespace and newlines.`
+- I split the edit into smaller exact replacements and updated the design guide successfully.
+
+### What I learned
+
+- The remaining xgoja provider API profile fields were not required by active downstream Geppetto/Pinocchio code paths. A repository search for `RuntimeProfile` / `runtimeProfile` in those downstream repos found unrelated Pinocchio profile-runtime concepts and historical docs, but not current xgoja provider API usage.
+- The old-schema validation errors should remain: they are migration diagnostics, not a retained runtime-profile implementation path.
+
+### What was tricky to build
+
+The tricky part was distinguishing stale implementation plumbing from useful migration diagnostics. `cmd/xgoja/internal/buildspec/load.go` still mentions runtime profiles because it reports actionable errors for old `runtimes`, `commands.*.runtime`, and `commandProviders[].runtimeProfile` fields. Those diagnostics should stay even though the app/provider API no longer carries runtime-profile context.
+
+The other tricky part was avoiding unrelated ticket changes already present in the worktree. I staged and committed only the xgoja source/test files for the code commit, leaving existing GOJA-064 and GOJA-065 workspace changes untouched.
+
+### What warrants a second pair of eyes
+
+- Review provider API breakage in `pkg/xgoja/providerapi/capabilities.go` and `pkg/xgoja/providerapi/commands.go`; this is the main external compile-time impact.
+- Review whether any generated-provider documentation outside the active xgoja docs should get a later historical cleanup pass.
+- Confirm that keeping old-schema validation messages is desirable even though implementation profile fields are gone.
+
+### What should be done in the future
+
+- Re-run downstream Geppetto/Pinocchio validation once a released go-go-goja version exposes the new `pkg/engine` path.
+- Optionally refresh the GOJA-066 reMarkable bundle again after this diary/design update.
+
+### Code review instructions
+
+Start with:
+
+- `pkg/xgoja/providerapi/capabilities.go`
+- `pkg/xgoja/providerapi/commands.go`
+- `pkg/xgoja/app/factory.go`
+- `pkg/xgoja/app/module_sections.go`
+- `pkg/xgoja/app/command_providers.go`
+
+Then review tests:
+
+- `pkg/xgoja/app/command_providers_test.go`
+- `pkg/xgoja/app/host_services_test.go`
+- `pkg/xgoja/app/*_module_sections_test.go`
+- `pkg/xgoja/testprovider/provider.go`
+
+Validate with:
+
+```bash
+cd go-go-goja
+go test ./cmd/xgoja/... ./pkg/xgoja/... -count=1
+```
+
+For full validation, rely on the commit hook output for `f30d600` or rerun:
+
+```bash
+cd go-go-goja
+go test ./...
+```
+
+### Technical details
+
+Active-code stale-term check:
+
+```bash
+cd go-go-goja
+rg -n "RuntimeProfile|runtime profile|runtime profiles|defaultRuntimeProfile" \
+  pkg/xgoja cmd/xgoja examples/xgoja --glob '*.{go,md,yaml}' -S
+```
+
+Expected remaining active-code hits are the deliberate migration diagnostics in `cmd/xgoja/internal/buildspec/load.go`.

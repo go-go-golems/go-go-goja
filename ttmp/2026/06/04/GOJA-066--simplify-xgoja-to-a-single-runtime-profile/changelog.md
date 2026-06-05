@@ -56,3 +56,15 @@ Refreshed GOJA-066 reMarkable bundle after implementation and documentation comm
 
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/ttmp/2026/06/04/GOJA-066--simplify-xgoja-to-a-single-runtime-profile/reference/01-diary.md — Recorded final upload and commit hashes
 
+
+## 2026-06-04
+
+Removed remaining provider-facing runtime-profile API plumbing and the internal main compatibility label (commit f30d600).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/factory.go — RuntimeFactory no longer passes profile labels into setup
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/app/module_sections.go — Removed defaultRuntimeProfile
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providerapi/capabilities.go — Provider section/host-service requests no longer carry RuntimeProfile
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providerapi/commands.go — CommandSetContext no longer carries RuntimeProfile
+
