@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/modules/express"
 	"github.com/go-go-golems/go-go-goja/modules/uidsl"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 )
 
@@ -24,7 +24,7 @@ func TestSessionCookieIssuedAndReused(t *testing.T) {
 		Renderer: uidsl.RenderAny,
 		Sessions: gojahttp.SessionOptions{CookieName: cookieName},
 	})
-	factory, err := engine.NewBuilder().WithModules(express.NewRegistrar(host), uidsl.NewRegistrar()).Build()
+	factory, err := engine.NewRuntimeFactoryBuilder().WithModules(express.NewRegistrar(host), uidsl.NewRegistrar()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

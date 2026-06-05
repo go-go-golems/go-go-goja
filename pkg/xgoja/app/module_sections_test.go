@@ -14,12 +14,12 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
-func TestRuntimeFactoryCollectsSectionsForRuntimeProfile(t *testing.T) {
+func TestRuntimeFactoryCollectsSectionsForRuntime(t *testing.T) {
 	factory := newSectionTestFactory(t,
 		providerapi.WithPackageCapability(sectionCapability{id: "alpha", slug: "alpha"}),
 		providerapi.WithPackageCapability(sectionCapability{id: "beta", slug: "beta"}),
 	)
-	sections, descriptors, err := factory.sectionsForRuntimeProfile("run", "main")
+	sections, descriptors, err := factory.sectionsForRuntime("run")
 	if err != nil {
 		t.Fatalf("sections: %v", err)
 	}
@@ -29,7 +29,7 @@ func TestRuntimeFactoryCollectsSectionsForRuntimeProfile(t *testing.T) {
 	if descriptors[0].PackageID != "fixture" || descriptors[0].ModuleID != "mod" || descriptors[0].As != "alias" {
 		t.Fatalf("descriptor = %#v", descriptors[0])
 	}
-	if got := sectionSlugs(sections); strings.Join(got, ",") != "alpha,beta" {
+	if got := sectionSlugs(sections); strings.Join(got, ",") != "xgoja,alpha,beta" {
 		t.Fatalf("section slugs = %v", got)
 	}
 }
@@ -39,7 +39,7 @@ func TestRuntimeFactoryRejectsDuplicateSectionSlugs(t *testing.T) {
 		providerapi.WithPackageCapability(sectionCapability{id: "one", slug: "dup"}),
 		providerapi.WithPackageCapability(sectionCapability{id: "two", slug: "dup"}),
 	)
-	_, _, err := factory.sectionsForRuntimeProfile("run", "main")
+	_, _, err := factory.sectionsForRuntime("run")
 	if err == nil || !strings.Contains(err.Error(), "duplicate config section slug") {
 		t.Fatalf("expected duplicate section error, got %v", err)
 	}
@@ -47,21 +47,19 @@ func TestRuntimeFactoryRejectsDuplicateSectionSlugs(t *testing.T) {
 
 func TestRuntimeFactoryAttachesPackageCapabilitiesToEverySelectedModule(t *testing.T) {
 	capability := sectionCapability{id: "settings", slug: "fixture"}
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
-		providerapi.Module{Name: "first", New: noopSectionModule},
-		providerapi.Module{Name: "second", New: noopSectionModule},
+		providerapi.Module{Name: "first", NewModuleFactory: noopSectionModule},
+		providerapi.Module{Name: "second", NewModuleFactory: noopSectionModule},
 		providerapi.WithPackageCapability(capability),
 	); err != nil {
 		t.Fatalf("register fixture provider: %v", err)
 	}
-	factory := NewRuntimeFactory(registry, &Spec{Runtimes: map[string]Runtime{
-		"main": {Modules: []ModuleInstance{
-			{Package: "fixture", Name: "first", As: "first"},
-			{Package: "fixture", Name: "second", As: "second"},
-		}},
+	factory := NewRuntimeFactory(registry, &RuntimeSpec{Modules: []ModuleInstanceSpec{
+		{Package: "fixture", Name: "first", As: "first"},
+		{Package: "fixture", Name: "second", As: "second"},
 	}})
-	descriptors, err := factory.selectedModuleDescriptors("main")
+	descriptors, err := factory.selectedModuleDescriptors()
 	if err != nil {
 		t.Fatalf("selected descriptors: %v", err)
 	}
@@ -73,11 +71,11 @@ func TestRuntimeFactoryAttachesPackageCapabilitiesToEverySelectedModule(t *testi
 			t.Fatalf("descriptor %s capabilities = %#v", descriptor.ModuleID, descriptor.PackageCapabilities)
 		}
 	}
-	sections, _, err := factory.sectionsForRuntimeProfile("run", "main")
+	sections, _, err := factory.sectionsForRuntime("run")
 	if err != nil {
 		t.Fatalf("sections should dedupe same package capability: %v", err)
 	}
-	if got := sectionSlugs(sections); strings.Join(got, ",") != "fixture" {
+	if got := sectionSlugs(sections); strings.Join(got, ",") != "xgoja,fixture" {
 		t.Fatalf("section slugs = %v", got)
 	}
 }
@@ -86,9 +84,9 @@ func TestInitRuntimeFromSectionsCallsRuntimeInitializers(t *testing.T) {
 	called := false
 	capability := runtimeInitCapability{
 		id: "init",
-		fn: func(ctx context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+		fn: func(ctx context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle) error {
 			called = true
-			if handle.Runtime() == nil {
+			if handle.EngineRuntime() == nil {
 				t.Fatalf("expected goja runtime handle")
 			}
 			return nil
@@ -114,7 +112,7 @@ func TestInitRuntimeFromSectionsWrapsInitializerErrors(t *testing.T) {
 		ModuleID:  "mod",
 		PackageCapabilities: []providerapi.PackageCapability{runtimeInitCapability{
 			id: "init",
-			fn: func(context.Context, *values.Values, providerapi.RuntimeHandle) error {
+			fn: func(context.Context, *values.Values, providerapi.RuntimeInitializerHandle) error {
 				return fmt.Errorf("boom")
 			},
 		}},
@@ -128,20 +126,18 @@ func TestInitRuntimeFromSectionsWrapsInitializerErrors(t *testing.T) {
 
 func newSectionTestFactory(t *testing.T, entries ...providerapi.Entry) *RuntimeFactory {
 	t.Helper()
-	registry := providerapi.NewRegistry()
-	allEntries := []providerapi.Entry{providerapi.Module{Name: "mod", New: noopSectionModule}}
+	registry := providerapi.NewProviderRegistry()
+	allEntries := []providerapi.Entry{providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule}}
 	allEntries = append(allEntries, entries...)
 	if err := registry.Package("fixture", allEntries...); err != nil {
 		t.Fatalf("register fixture provider: %v", err)
 	}
-	return NewRuntimeFactory(registry, &Spec{
-		Runtimes: map[string]Runtime{
-			"main": {Modules: []ModuleInstance{{Package: "fixture", Name: "mod", As: "alias"}}},
-		},
+	return NewRuntimeFactory(registry, &RuntimeSpec{
+		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod", As: "alias"}},
 	})
 }
 
-func noopSectionModule(providerapi.ModuleContext) (require.ModuleLoader, error) {
+func noopSectionModule(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 	return func(vm *goja.Runtime, module *goja.Object) {}, nil
 }
 
@@ -152,7 +148,7 @@ type sectionCapability struct {
 
 func (c sectionCapability) CapabilityID() string { return c.id }
 
-func (c sectionCapability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (c sectionCapability) GlazedConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	section, err := schema.NewSection(c.slug, c.slug, schema.WithFields(fields.New("value", fields.TypeString)))
 	if err != nil {
 		return nil, err
@@ -162,12 +158,12 @@ func (c sectionCapability) ConfigSections(providerapi.SectionContext) ([]schema.
 
 type runtimeInitCapability struct {
 	id string
-	fn func(context.Context, *values.Values, providerapi.RuntimeHandle) error
+	fn func(context.Context, *values.Values, providerapi.RuntimeInitializerHandle) error
 }
 
 func (c runtimeInitCapability) CapabilityID() string { return c.id }
 
-func (c runtimeInitCapability) InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+func (c runtimeInitCapability) InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle) error {
 	return c.fn(ctx, vals, handle)
 }
 

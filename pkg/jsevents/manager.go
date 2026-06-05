@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 
 	"github.com/dop251/goja"
-	"github.com/go-go-golems/go-go-goja/engine"
 	eventsmodule "github.com/go-go-golems/go-go-goja/modules/events"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
 )
 
@@ -82,7 +82,7 @@ func Install(opts ...Option) engine.RuntimeInitializer {
 
 func (i *installer) ID() string { return "jsevents.manager" }
 
-func (i *installer) InitRuntime(ctx *engine.RuntimeContext) error {
+func (i *installer) InitRuntime(ctx *engine.RuntimeInitializationContext) error {
 	if ctx == nil || ctx.Owner == nil {
 		return fmt.Errorf("jsevents: incomplete runtime context")
 	}

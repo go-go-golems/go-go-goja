@@ -16,9 +16,9 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/help"
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
-	"github.com/go-go-golems/go-go-goja/engine"
 	sharedoc "github.com/go-go-golems/go-go-goja/pkg/doc"
 	docaccessruntime "github.com/go-go-golems/go-go-goja/pkg/docaccess/runtime"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	"github.com/go-go-golems/go-go-goja/pkg/replapi"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
@@ -144,7 +144,7 @@ func (s commandSupport) newAppWithOptions(options appSupportOptions) (*replapi.A
 		}
 	}
 	pluginSetup := host.NewRuntimeSetup(s.opts.PluginDirs, s.opts.AllowPluginModules)
-	builder := engine.NewBuilder()
+	builder := engine.NewRuntimeFactoryBuilder()
 	if mw := s.moduleMiddleware(); mw != nil {
 		builder = builder.UseModuleMiddleware(mw)
 	}

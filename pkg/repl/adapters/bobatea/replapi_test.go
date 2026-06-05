@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	bobarepl "github.com/go-go-golems/bobatea/pkg/repl"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/replapi"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
 	"github.com/rs/zerolog"
@@ -225,10 +225,10 @@ func TestAppWithRuntimeAutoRestoresPersistentSession(t *testing.T) {
 	}
 }
 
-func newAdapterTestFactory(t *testing.T) *engine.Factory {
+func newAdapterTestFactory(t *testing.T) *engine.RuntimeFactory {
 	t.Helper()
 
-	factory, err := engine.NewBuilder().UseModuleMiddleware(engine.MiddlewareSafe()).Build()
+	factory, err := engine.NewRuntimeFactoryBuilder().UseModuleMiddleware(engine.MiddlewareSafe()).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

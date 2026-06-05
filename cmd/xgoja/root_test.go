@@ -120,7 +120,7 @@ func TestListModulesCommandWired(t *testing.T) {
 		t.Fatalf("new root command: %v", err)
 	}
 	specPath := writeValidSpec(t)
-	root.SetArgs([]string{"list-modules", "-f", specPath, "--profile", "repl", "--output", "json"})
+	root.SetArgs([]string{"list-modules", "-f", specPath, "--output", "json"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute list-modules: %v", err)
 	}
@@ -135,18 +135,15 @@ name: fixture
 packages:
   - id: fixture
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
-runtimes:
-  repl:
-    modules:
-      - package: fixture
-        name: hello
-        as: hello
+modules:
+  - package: fixture
+    name: hello
+    as: hello
 commands:
   repl:
     enabled: true
-    runtime: repl
 `), 0o644); err != nil {
-		t.Fatalf("write spec: %v", err)
+		t.Fatalf("write build spec: %v", err)
 	}
 	return specPath
 }
@@ -164,21 +161,18 @@ name: fixture
 packages:
   - id: core
     import: github.com/go-go-golems/go-go-goja/xgoja
-runtimes:
-  repl:
-    modules:
-      - package: core
-        name: fs
+modules:
+  - package: core
+    name: fs
 commands:
   repl:
     enabled: true
-    runtime: repl
 jsverbs:
   - id: local
     path: ./verbs
     embed: true
 `), 0o644); err != nil {
-		t.Fatalf("write spec: %v", err)
+		t.Fatalf("write build spec: %v", err)
 	}
 	return specPath
 }

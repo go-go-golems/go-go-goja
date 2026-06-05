@@ -7,7 +7,7 @@ import (
 )
 
 func TestRegisterCoreProvider(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := Register(registry); err != nil {
 		t.Fatalf("register core provider: %v", err)
 	}

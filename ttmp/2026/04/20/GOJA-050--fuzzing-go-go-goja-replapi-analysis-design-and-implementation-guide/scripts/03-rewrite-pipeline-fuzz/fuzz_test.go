@@ -17,14 +17,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/replapi"
 	"github.com/rs/zerolog"
 )
 
-func newFactory(t *testing.T) *engine.Factory {
+func newFactory(t *testing.T) *engine.RuntimeFactory {
 	t.Helper()
-	factory, err := engine.NewBuilder().Build()
+	factory, err := engine.NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

@@ -23,7 +23,7 @@ ShowPerDefault: true
 SectionType: Tutorial
 ---
 
-Adding xgoja support to a repository means making the repository discoverable by generated xgoja binaries. The generated binary needs to know which Go packages provide JavaScript modules, which modules belong to each runtime profile, which commands should be mounted, and which runtime resources must be started and stopped around command execution.
+Adding xgoja support to a repository means making the repository discoverable by generated xgoja binaries. The generated binary needs to know which Go packages provide JavaScript modules, which top-level modules should be exposed to JavaScript, which commands should be mounted, and which runtime resources must be started and stopped around command execution.
 
 This guide describes the complete path. It starts with a repository that already contains useful Go code and ends with a generated binary that can load the repository's provider, expose its modules, optionally mount package-owned Glazed commands, and run a smoke test through the generated command path.
 
@@ -81,7 +81,7 @@ import (
 
 const PackageID = "my-repo"
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package(PackageID,
         moduleEntry("my-repo", "Main module for my-repo.", NewMainLoader),
     )
@@ -189,7 +189,7 @@ type httpCapability struct{}
 
 func (c *httpCapability) CapabilityID() string { return "my-repo.http" }
 
-func (c *httpCapability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (c *httpCapability) GlazedConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
     section, err := schema.NewSection(
         "my-http",
         "HTTP",
@@ -207,7 +207,7 @@ func (c *httpCapability) ConfigSections(providerapi.SectionContext) ([]schema.Se
 func (c *httpCapability) InitRuntimeFromSections(
     ctx context.Context,
     vals *values.Values,
-    handle providerapi.RuntimeHandle,
+    handle providerapi.RuntimeInitializerHandle,
 ) error {
     var settings struct {
         Listen string `glazed:"listen"`
@@ -236,14 +236,16 @@ Treat `vals == nil` as discovery mode. Discovery should describe sections and mo
 
 ## 7. Register closers for owned resources
 
-Runtime resources must have a cleanup path. If the initializer opens a server, device, database, browser, event subscription, or goroutine group, register a closer when the runtime handle supports it.
+Runtime resources must have a cleanup path. If the initializer opens a server, device, database, browser, event subscription, or goroutine group, register a closer on the engine runtime exposed by the runtime handle.
 
 ```go
-if closerRegistry, ok := handle.(providerapi.RuntimeCloserRegistry); ok {
-    return closerRegistry.AddCloser(func(ctx context.Context) error {
-        return resource.Close()
-    })
+runtime := handle.EngineRuntime()
+if runtime == nil {
+    return fmt.Errorf("runtime is nil")
 }
+return runtime.AddCloser(func(ctx context.Context) error {
+    return resource.Close()
+})
 ```
 
 `engine.Runtime.Close(ctx)` cancels runtime lifetime first, then waits briefly for active owner calls, interrupts active JavaScript if necessary, runs closers while runtime services are still registered, and then removes runtimebridge services. Closers should be bounded and should expect the lifetime context to already be canceled.
@@ -253,14 +255,14 @@ if closerRegistry, ok := handle.(providerapi.RuntimeCloserRegistry); ok {
 Command providers return Glazed commands. They do not return Cobra commands. xgoja handles the final Cobra mounting boundary.
 
 ```go
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package(PackageID,
         moduleEntry(...),
         providerapi.CommandSetProvider{
             Name:         "verbs",
             DefaultMount: "my-repo",
             Description:  "My repository commands",
-            Factory:      newCommandSet,
+            NewCommandSet: newCommandSet,
         },
     )
 }
@@ -285,14 +287,14 @@ func newCommandSet(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, 
 If command execution needs JavaScript, use the xgoja-level runtime factory:
 
 ```go
-rt, err := ctx.RuntimeFactory.NewRuntime(ctx.Context, ctx.RuntimeProfile)
+rt, err := ctx.RuntimeFactory.NewRuntime(ctx.Context)
 if err != nil {
     return nil, err
 }
 defer rt.Close(context.Background())
 ```
 
-This API intentionally differs from the lower-level engine API. `providerapi.RuntimeFactory.NewRuntime(ctx, profile, ...)` chooses a named xgoja runtime profile. The engine factory uses explicit runtime options.
+This API intentionally differs from the lower-level engine API. `providerapi.RuntimeFactory.NewRuntime(ctx, ...)` creates an xgoja runtime from the generated binary's top-level module set. The engine factory uses explicit runtime options.
 
 ## 9. Register package-owned help docs
 
@@ -325,7 +327,7 @@ Then register that filesystem from the xgoja provider:
 ```go
 import helpdoc "example.com/my-repo/docs/help"
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package(PackageID,
         providerapi.HelpSource{
             Name:        "runtime-api",
@@ -386,13 +388,11 @@ packages:
   - id: go-go-goja-core
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
 
-runtimes:
-  default:
-    modules:
-      - package: my-repo
-        module: my-repo
-      - package: go-go-goja-core
-        module: fs
+modules:
+  - package: my-repo
+    module: my-repo
+  - package: go-go-goja-core
+    module: fs
 
 commands:
   eval:
@@ -412,7 +412,6 @@ commandProviders:
   - package: my-repo
     name: verbs
     mount: my-repo
-    runtimeProfile: default
 ```
 
 ## 11. Make the smoke test exercise the generated path
@@ -509,7 +508,7 @@ Each commit should have its own validation command in the commit message, PR des
 | Problem | Cause | Solution |
 | --- | --- | --- |
 | `xgoja doctor` cannot import the package | The `packages[].import` path or local `replace` path is wrong. | Check the generated example's relative path and run `go list` from the build workspace when needed. |
-| Module appears in provider tests but not in generated binary | The module descriptor is not included in `Register`, or the runtime profile omits it. | Check both provider registration and `runtimes.<profile>.modules`. |
+| Module appears in provider tests but not in generated binary | The module descriptor is not included in `Register`, or the module set omits it. | Check both provider registration and `modules`. |
 | Command provider builds but command does not appear | The command provider is not listed in `commandProviders`, or it is mounted elsewhere. | Run `xgoja list-command-providers` or inspect generated help output. |
 | Async Promise never settles | Background goroutine touched JS directly or posted with the wrong context. | Use `RuntimeServices.PostWithCustomContext` or `PostWithLifetimeContext` to settle on owner. |
 | Hardware/live smoke is flaky in CI | The smoke depends on external state. | Keep `make smoke` deterministic; move live behavior to a separate target. |

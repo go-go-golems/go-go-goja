@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	gggengine "github.com/go-go-golems/go-go-goja/engine"
+	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/jsevents"
 	"github.com/stretchr/testify/require"
 )
@@ -92,7 +92,7 @@ func TestManagerAsyncEmitReportsListenerErrors(t *testing.T) {
 
 func newRuntime(t *testing.T, inits ...gggengine.RuntimeInitializer) *gggengine.Runtime {
 	t.Helper()
-	factory, err := gggengine.NewBuilder().WithRuntimeInitializers(inits...).Build()
+	factory, err := gggengine.NewRuntimeFactoryBuilder().WithRuntimeInitializers(inits...).Build()
 	require.NoError(t, err)
 	rt, err := factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
 	require.NoError(t, err)

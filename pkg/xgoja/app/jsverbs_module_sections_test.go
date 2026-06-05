@@ -10,11 +10,11 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
-func TestJSVerbsCommandsIncludeRuntimeProfileModuleSections(t *testing.T) {
+func TestJSVerbsCommandsIncludeRuntimeModuleSections(t *testing.T) {
 	registry := newJSVerbsSectionRegistry(t)
-	spec := jsverbsSectionSpec()
+	runtimeSpec := jsverbsSectionSpec()
 	embedded := jsverbsSectionFS()
-	commands, err := buildVerbCommands(registry, NewRuntimeFactory(registry, spec), spec, embedded)
+	commands, err := buildVerbCommands(registry, NewRuntimeFactory(registry, runtimeSpec), runtimeSpec, embedded)
 	if err != nil {
 		t.Fatalf("build verb commands: %v", err)
 	}
@@ -36,8 +36,8 @@ func TestJSVerbsInitializeRuntimeFromModuleSections(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {"main": {"modules": [{"package": "fixture", "name": "mod", "as": "mod"}]}},
-  "commands": {"jsverbs": {"enabled": true, "runtime": "main", "name": "verbs"}},
+  "modules": [{"package": "fixture", "name": "mod", "as": "mod"}],
+  "commands": {"jsverbs": {"enabled": true, "name": "verbs"}},
   "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
 }`
 	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, EmbeddedJSVerbs: jsverbsSectionFS()})
@@ -50,11 +50,11 @@ func TestJSVerbsInitializeRuntimeFromModuleSections(t *testing.T) {
 	}
 }
 
-func newJSVerbsSectionRegistry(t *testing.T) *providerapi.Registry {
+func newJSVerbsSectionRegistry(t *testing.T) *providerapi.ProviderRegistry {
 	t.Helper()
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
-		providerapi.Module{Name: "mod", New: func(providerapi.ModuleContext) (require.ModuleLoader, error) {
+		providerapi.Module{Name: "mod", NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 			return func(vm *goja.Runtime, module *goja.Object) {}, nil
 		}},
 		providerapi.WithPackageCapability(runFixtureCapability{}),
@@ -64,12 +64,10 @@ func newJSVerbsSectionRegistry(t *testing.T) *providerapi.Registry {
 	return registry
 }
 
-func jsverbsSectionSpec() *Spec {
-	return &Spec{
-		Runtimes: map[string]Runtime{
-			"main": {Modules: []ModuleInstance{{Package: "fixture", Name: "mod", As: "mod"}}},
-		},
-		Commands: CommandsSpec{JSVerbs: CommandSpec{Enabled: true, Runtime: "main", Name: "verbs"}},
+func jsverbsSectionSpec() *RuntimeSpec {
+	return &RuntimeSpec{
+		Modules:  []ModuleInstanceSpec{{Package: "fixture", Name: "mod", As: "mod"}},
+		Commands: CommandsSpec{JSVerbs: CommandSpec{Enabled: true, Name: "verbs"}},
 		JSVerbs:  []JSVerbSourceSpec{{ID: "local", Path: "xgoja_embed/jsverbs/local", Embed: true}},
 	}
 }

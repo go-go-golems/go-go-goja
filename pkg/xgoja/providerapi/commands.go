@@ -9,18 +9,17 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
-// CommandSetProviderFactory constructs package-owned Glazed commands for a
-// generated xgoja binary.
-type CommandSetProviderFactory func(CommandSetContext) (*CommandSet, error)
-
-// RuntimeFactory creates xgoja runtimes from named runtime profiles. Command
-// set providers use it when they own domain-specific commands but still want
-// those commands to run JavaScript with xgoja-selected modules.
+// RuntimeFactory creates xgoja runtimes from the generated binary's single
+// selected module set. Command set providers use it when they own
+// domain-specific commands but still want those commands to run JavaScript with
+// xgoja-selected modules.
 type RuntimeFactory interface {
-	NewRuntime(ctx context.Context, profile string, opts ...require.Option) (*engine.Runtime, error)
+	NewRuntime(ctx context.Context, opts ...require.Option) (*engine.Runtime, error)
+	NewRuntimeFromSections(ctx context.Context, vals *values.Values, opts ...require.Option) (*engine.Runtime, error)
 }
 
 // CommandSetContext is passed to command set providers when generated xgoja
@@ -30,21 +29,20 @@ type CommandSetContext struct {
 	PackageID       string
 	Name            string
 	Mount           string
-	RuntimeProfile  string
 	Config          json.RawMessage
 	Host            HostServices
-	Providers       *Registry
+	Providers       *ProviderRegistry
 	RuntimeFactory  RuntimeFactory
 	SelectedModules []ModuleDescriptor
 }
 
 // CommandSetProvider registers a package-owned command factory.
 type CommandSetProvider struct {
-	Name         string
-	DefaultMount string
-	Description  string
-	ConfigSchema json.RawMessage
-	New          CommandSetProviderFactory
+	Name          string
+	DefaultMount  string
+	Description   string
+	ConfigSchema  json.RawMessage
+	NewCommandSet func(CommandSetContext) (*CommandSet, error)
 }
 
 // CommandSet is the Glazed command bundle returned by a provider.
@@ -62,7 +60,7 @@ func normalizeCommandSetProvider(provider CommandSetProvider) (CommandSetProvide
 	if name == "" {
 		return CommandSetProvider{}, fmt.Errorf("command set provider name is required")
 	}
-	if provider.New == nil {
+	if provider.NewCommandSet == nil {
 		return CommandSetProvider{}, fmt.Errorf("command set provider %q factory is required", name)
 	}
 	provider.Name = name

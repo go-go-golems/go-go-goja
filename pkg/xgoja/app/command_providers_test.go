@@ -35,21 +35,18 @@ func TestApplyMountToCommandsDoesNotMutateProviderDescriptions(t *testing.T) {
 	}
 }
 
-func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T) {
-	registry := providerapi.NewRegistry()
+func TestHostAttachCommandProvidersPassesSelectedModules(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
-		providerapi.Module{Name: "mod", New: noopSectionModule},
+		providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule},
 		providerapi.CommandSetProvider{
 			Name:         "tools",
 			DefaultMount: "tools",
-			New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
-				if ctx.RuntimeProfile != "fallback" {
-					t.Fatalf("runtime profile = %q", ctx.RuntimeProfile)
-				}
+			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
 				if len(ctx.SelectedModules) != 1 || ctx.SelectedModules[0].ModuleID != "mod" {
 					t.Fatalf("selected modules = %#v", ctx.SelectedModules)
 				}
-				runtime, err := ctx.RuntimeFactory.NewRuntime(ctx.Context, ctx.RuntimeProfile)
+				runtime, err := ctx.RuntimeFactory.NewRuntime(ctx.Context)
 				if err != nil {
 					t.Fatalf("new runtime from defaulted command provider profile: %v", err)
 				}
@@ -68,9 +65,9 @@ func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T)
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	spec := &Spec{
-		Runtimes: map[string]Runtime{"fallback": {Modules: []ModuleInstance{{Package: "fixture", Name: "mod"}}}},
-		CommandProviders: []CommandProviderInstance{{
+	runtimeSpec := &RuntimeSpec{
+		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}},
+		CommandProviders: []CommandProviderInstanceSpec{{
 			ID:      "fixture-tools",
 			Package: "fixture",
 			Name:    "tools",
@@ -78,7 +75,7 @@ func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T)
 		}},
 	}
 	root := &cobra.Command{Use: "test"}
-	NewHost(registry, spec).AttachDefaultCommands(root)
+	NewHost(registry, runtimeSpec).AttachDefaultCommands(root)
 	root.SetArgs([]string{"fixture", "ping"})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute command provider command: %v", err)
@@ -87,20 +84,20 @@ func TestHostAttachCommandProvidersDefaultsRuntimeProfileInContext(t *testing.T)
 
 func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 	called := false
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
-		providerapi.Module{Name: "mod", New: noopSectionModule},
+		providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule},
 		providerapi.CommandSetProvider{
 			Name:         "tools",
 			DefaultMount: "tools",
-			New: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
 				if len(ctx.SelectedModules) != 1 {
 					t.Fatalf("selected modules = %#v", ctx.SelectedModules)
 				}
 				if ctx.RuntimeFactory == nil {
 					t.Fatal("expected typed runtime factory")
 				}
-				runtime, err := ctx.RuntimeFactory.NewRuntime(ctx.Context, ctx.RuntimeProfile)
+				runtime, err := ctx.RuntimeFactory.NewRuntime(ctx.Context)
 				if err != nil {
 					t.Fatalf("new runtime from typed runtime factory: %v", err)
 				}
@@ -126,18 +123,17 @@ func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	spec := &Spec{
-		Runtimes: map[string]Runtime{"main": {Modules: []ModuleInstance{{Package: "fixture", Name: "mod"}}}},
-		CommandProviders: []CommandProviderInstance{{
-			ID:             "fixture-tools",
-			Package:        "fixture",
-			Name:           "tools",
-			Mount:          "fixture",
-			RuntimeProfile: "main",
+	runtimeSpec := &RuntimeSpec{
+		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}},
+		CommandProviders: []CommandProviderInstanceSpec{{
+			ID:      "fixture-tools",
+			Package: "fixture",
+			Name:    "tools",
+			Mount:   "fixture",
 		}},
 	}
 	root := &cobra.Command{Use: "test"}
-	NewHost(registry, spec).AttachDefaultCommands(root)
+	NewHost(registry, runtimeSpec).AttachDefaultCommands(root)
 	root.SetArgs([]string{"fixture", "ping", "--message", "hello"})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute command provider command: %v", err)

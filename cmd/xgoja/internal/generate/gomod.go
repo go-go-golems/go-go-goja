@@ -12,20 +12,20 @@ import (
 
 const xgojaRuntimeModule = "github.com/go-go-golems/go-go-goja"
 
-func RenderGoMod(spec *buildspec.Spec, opts Options) string {
+func RenderGoMod(buildSpec *buildspec.BuildSpec, opts Options) string {
 	defaults := defaultOptions()
 	if opts.XGojaModuleVersion == "" {
 		opts.XGojaModuleVersion = defaults.XGojaModuleVersion
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "module %s\n\n", spec.Go.Module)
-	fmt.Fprintf(&b, "go %s\n\n", spec.Go.Version)
+	fmt.Fprintf(&b, "module %s\n\n", buildSpec.Go.Module)
+	fmt.Fprintf(&b, "go %s\n\n", buildSpec.Go.Version)
 
 	requires := map[string]string{xgojaRuntimeModule: opts.XGojaModuleVersion}
-	if (spec.Target.Kind == "adapter" || spec.Target.Kind == "cobra") && strings.TrimSpace(spec.Target.Version) != "" {
-		requires[providerModulePath(spec.Target.Import)] = spec.Target.Version
+	if (buildSpec.Target.Kind == "adapter" || buildSpec.Target.Kind == "cobra") && strings.TrimSpace(buildSpec.Target.Version) != "" {
+		requires[providerModulePath(buildSpec.Target.Import)] = buildSpec.Target.Version
 	}
-	for _, pkg := range spec.Packages {
+	for _, pkg := range buildSpec.Packages {
 		version := strings.TrimSpace(pkg.Version)
 		if version == "" {
 			continue
@@ -47,9 +47,9 @@ func RenderGoMod(spec *buildspec.Spec, opts Options) string {
 	if strings.TrimSpace(opts.XGojaReplace) != "" {
 		replaces[xgojaRuntimeModule] = opts.XGojaReplace
 	}
-	for _, pkg := range spec.Packages {
+	for _, pkg := range buildSpec.Packages {
 		if strings.TrimSpace(pkg.Replace) != "" {
-			replaces[providerModulePath(pkg.Import)] = resolveReplacePath(spec.BaseDir, pkg.Replace)
+			replaces[providerModulePath(pkg.Import)] = resolveReplacePath(buildSpec.BaseDir, pkg.Replace)
 		}
 	}
 	if len(replaces) > 0 {

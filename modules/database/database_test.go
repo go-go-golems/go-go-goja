@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	gggengine "github.com/go-go-golems/go-go-goja/engine"
 	databasemod "github.com/go-go-golems/go-go-goja/modules/database"
+	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +18,7 @@ import (
 func TestDefaultDatabaseModuleConfigure(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "default.db")
 
-	factory, err := gggengine.NewBuilder().
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
 		UseModuleMiddleware(gggengine.MiddlewareOnly("database")).
 		Build()
 	require.NoError(t, err)
@@ -56,8 +56,8 @@ func TestPreconfiguredModuleRequireByName(t *testing.T) {
 		databasemod.WithPreconfiguredDB(db),
 	)
 
-	factory, err := gggengine.NewBuilder().
-		WithModules(gggengine.NativeModuleSpec{
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
+		WithModules(gggengine.NativeModuleRegistrar{
 			ModuleID:   "test-site-db",
 			ModuleName: module.Name(),
 			Loader:     module.Loader,
@@ -105,8 +105,8 @@ func TestPreconfiguredModuleExecReceivesOwnerCallContext(t *testing.T) {
 		databasemod.WithPreconfiguredDB(db),
 	)
 
-	factory, err := gggengine.NewBuilder().
-		WithModules(gggengine.NativeModuleSpec{
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
+		WithModules(gggengine.NativeModuleRegistrar{
 			ModuleID:   "test-site-db-context",
 			ModuleName: module.Name(),
 			Loader:     module.Loader,
@@ -143,8 +143,8 @@ func TestPreconfiguredModuleExecAfterAwaitReceivesOriginalCallContext(t *testing
 		databasemod.WithPreconfiguredDB(db),
 	)
 
-	factory, err := gggengine.NewBuilder().
-		WithModules(gggengine.NativeModuleSpec{
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
+		WithModules(gggengine.NativeModuleRegistrar{
 			ModuleID:   "test-site-db-async-context",
 			ModuleName: module.Name(),
 			Loader:     module.Loader,

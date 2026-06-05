@@ -49,7 +49,7 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string {
 	if e == nil || e.Report == nil {
-		return "xgoja spec validation failed"
+		return "xgoja build spec validation failed"
 	}
 	messages := []string{}
 	for _, check := range e.Report.Checks {
@@ -63,7 +63,7 @@ func (e *ValidationError) Error() string {
 		}
 	}
 	if len(messages) == 0 {
-		return "xgoja spec validation failed"
+		return "xgoja build spec validation failed"
 	}
-	return "xgoja spec validation failed: " + strings.Join(messages, "; ")
+	return "xgoja build spec validation failed: " + strings.Join(messages, "; ")
 }

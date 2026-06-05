@@ -22,14 +22,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/replapi"
 	"github.com/rs/zerolog"
 )
 
 func main() {
 	ctx := context.Background()
-	factory, err := engine.NewBuilder().Build()
+	factory, err := engine.NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "build factory: %v\n", err)
 		os.Exit(1)

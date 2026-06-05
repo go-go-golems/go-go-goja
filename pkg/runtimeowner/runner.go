@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -200,7 +201,7 @@ func (r *runtimeOwner) invoke(ctx context.Context, op string, fn CallFunc) (any,
 		func() {
 			defer func() {
 				if rec := recover(); rec != nil {
-					err = fmt.Errorf("runtimeowner %s: %w: %v", op, ErrPanicked, rec)
+					err = recoveredPanicError(op, rec, r.opts.IncludePanicStack)
 					ret = nil
 				}
 			}()
@@ -208,6 +209,13 @@ func (r *runtimeOwner) invoke(ctx context.Context, op string, fn CallFunc) (any,
 		}()
 		return ret, err
 	})
+}
+
+func recoveredPanicError(op string, rec any, includeStack bool) error {
+	if includeStack {
+		return fmt.Errorf("runtimeowner %s: %w: %v\n%s", op, ErrPanicked, rec, string(debug.Stack()))
+	}
+	return fmt.Errorf("runtimeowner %s: %w: %v", op, ErrPanicked, rec)
 }
 
 func (r *runtimeOwner) invokePost(ctx context.Context, op string, fn PostFunc) {

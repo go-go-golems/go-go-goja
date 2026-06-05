@@ -7,7 +7,7 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/dop251/goja"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 // WatermillOptions configures the opt-in JavaScript helper installed by
@@ -31,7 +31,7 @@ func WatermillHelper(opts WatermillOptions) engine.RuntimeInitializer {
 
 func (h *watermillHelper) ID() string { return "jsevents.watermill-helper" }
 
-func (h *watermillHelper) InitRuntime(ctx *engine.RuntimeContext) error {
+func (h *watermillHelper) InitRuntime(ctx *engine.RuntimeInitializationContext) error {
 	if ctx == nil || ctx.VM == nil {
 		return fmt.Errorf("jsevents watermill: incomplete runtime context")
 	}

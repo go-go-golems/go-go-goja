@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	gggengine "github.com/go-go-golems/go-go-goja/engine"
+	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 func TestAsyncFsSmoke(t *testing.T) {
@@ -261,7 +261,7 @@ func TestFsAsyncErrorObjectSmoke(t *testing.T) {
 
 func newRuntime(t *testing.T) *gggengine.Runtime {
 	t.Helper()
-	factory, err := gggengine.NewBuilder().UseModuleMiddleware(gggengine.MiddlewareOnly("fs")).Build()
+	factory, err := gggengine.NewRuntimeFactoryBuilder().UseModuleMiddleware(gggengine.MiddlewareOnly("fs")).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

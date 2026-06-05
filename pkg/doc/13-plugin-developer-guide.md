@@ -29,9 +29,9 @@ That design choice is what keeps the rest of the system coherent. It lets existi
 
 If you are new to the subsystem, read these files in this order:
 
-- `engine/runtime_modules.go`
-- `engine/factory.go`
-- `engine/runtime.go`
+- `pkg/engine/runtime_modules.go`
+- `pkg/engine/factory.go`
+- `pkg/engine/runtime.go`
 - `pkg/hashiplugin/sdk/module.go`
 - `pkg/hashiplugin/sdk/export.go`
 - `pkg/hashiplugin/sdk/call.go`
@@ -139,7 +139,7 @@ That means plugin support is explicit at composition time.
 
 ### 3. The engine provides the runtime-scoped seam
 
-`engine.RuntimeModuleSpec` is the central extension seam. A runtime module spec receives:
+`engine.RuntimeModuleRegistrar` is the central extension seam. A runtime module spec receives:
 
 - the runtime context,
 - the runtime-owned `require.Registry`,
@@ -180,7 +180,7 @@ This is the end-to-end flow from CLI flag to `require("plugin:echo")`.
 cmd/goja-repl tui
     |
     v
-engine.NewBuilder()
+engine.NewRuntimeFactoryBuilder()
     .WithModules(..., host.NewRegistrar(...))
     |
     v
@@ -214,9 +214,9 @@ The order matters. The runtime module registration phase must happen before `reg
 
 This section maps the main code objects to their jobs.
 
-### `engine.RuntimeModuleSpec`
+### `engine.RuntimeModuleRegistrar`
 
-File: `engine/runtime_modules.go`
+File: `pkg/engine/runtime_modules.go`
 
 Purpose:
 
@@ -232,7 +232,7 @@ Why it matters:
 
 ### `engine.Runtime.AddCloser`
 
-File: `engine/runtime.go`
+File: `pkg/engine/runtime.go`
 
 Purpose:
 

@@ -21,13 +21,13 @@ import (
 //go:embed verbs/*.js
 var verbsFS embed.FS
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
 	return registry.Package("fixture",
 		providerapi.Module{
 			Name:        "hello",
 			DefaultAs:   "hello",
 			Description: "Fixture module used by xgoja tests",
-			New: func(providerapi.ModuleContext) (require.ModuleLoader, error) {
+			NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 				return func(vm *goja.Runtime, module *goja.Object) {
 					exports := module.Get("exports").(*goja.Object)
 					_ = exports.Set("greet", func(name string) string { return "hello " + name })
@@ -38,7 +38,7 @@ func Register(registry *providerapi.Registry) error {
 			Name:        "owner-check",
 			DefaultAs:   "owner-check",
 			Description: "Fixture module that requires xgoja runtime services",
-			New: func(providerapi.ModuleContext) (require.ModuleLoader, error) {
+			NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 				return func(vm *goja.Runtime, module *goja.Object) {
 					exports := module.Get("exports").(*goja.Object)
 					_ = exports.Set("hasOwner", func() bool {
@@ -69,10 +69,10 @@ func Register(registry *providerapi.Registry) error {
 		},
 		providerapi.WithPackageCapability(FixtureCapability{}),
 		providerapi.CommandSetProvider{
-			Name:         "tools",
-			DefaultMount: "fixture",
-			Description:  "Fixture Glazed commands used by xgoja tests and examples",
-			New:          NewFixtureCommandSet,
+			Name:          "tools",
+			DefaultMount:  "fixture",
+			Description:   "Fixture Glazed commands used by xgoja tests and examples",
+			NewCommandSet: NewFixtureCommandSet,
 		},
 		providerapi.VerbSource{Name: "verbs", Root: "verbs", FS: verbsFS},
 	)
@@ -86,7 +86,7 @@ type FixtureCapability struct{}
 
 func (FixtureCapability) CapabilityID() string { return "fixture.settings" }
 
-func (FixtureCapability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (FixtureCapability) GlazedConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	section, err := FixtureSection()
 	if err != nil {
 		return nil, err
@@ -94,15 +94,15 @@ func (FixtureCapability) ConfigSections(providerapi.SectionContext) ([]schema.Se
 	return []schema.Section{section}, nil
 }
 
-func (FixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+func (FixtureCapability) InitRuntimeFromSections(_ context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle) error {
 	var settings FixtureSettings
 	if err := vals.DecodeSectionInto("fixture", &settings); err != nil {
 		return err
 	}
-	if handle.Runtime() == nil {
+	if handle.EngineRuntime() == nil || handle.EngineRuntime().VM == nil {
 		return fmt.Errorf("runtime handle has no goja runtime")
 	}
-	return handle.Runtime().Set("fixtureValue", settings.Value)
+	return handle.EngineRuntime().VM.Set("fixtureValue", settings.Value)
 }
 
 func FixtureSection() (schema.Section, error) {
@@ -136,13 +136,12 @@ func sectionsFromSelectedModules(ctx providerapi.CommandSetContext) ([]schema.Se
 	seen := map[string]struct{}{}
 	for _, module := range ctx.SelectedModules {
 		for _, capability := range module.PackageCapabilities {
-			sectionCapability, ok := capability.(providerapi.ConfigSectionCapability)
+			sectionCapability, ok := capability.(providerapi.GlazedConfigSectionCapability)
 			if !ok {
 				continue
 			}
-			moduleSections, err := sectionCapability.ConfigSections(providerapi.SectionContext{
+			moduleSections, err := sectionCapability.GlazedConfigSections(providerapi.SectionRequest{
 				CommandProviderID: ctx.Name,
-				RuntimeProfile:    "",
 				PackageID:         module.PackageID,
 				ModuleID:          module.ModuleID,
 			})

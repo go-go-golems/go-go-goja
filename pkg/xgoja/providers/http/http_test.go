@@ -7,11 +7,12 @@ import (
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
 func TestRegister(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := Register(registry); err != nil {
 		t.Fatalf("register: %v", err)
 	}
@@ -26,7 +27,7 @@ func TestRegister(t *testing.T) {
 
 func TestCapabilityProvidesHTTPSection(t *testing.T) {
 	capability := newHTTPCapability()
-	sections, err := capability.ConfigSections(providerapi.SectionContext{})
+	sections, err := capability.GlazedConfigSections(providerapi.SectionRequest{})
 	if err != nil {
 		t.Fatalf("sections: %v", err)
 	}
@@ -38,7 +39,7 @@ func TestCapabilityProvidesHTTPSection(t *testing.T) {
 	}
 }
 
-func TestCapabilityRejectsNilRuntimeHandle(t *testing.T) {
+func TestCapabilityRejectsNilRuntimeInitializerHandle(t *testing.T) {
 	capability := newHTTPCapability()
 	if err := capability.InitRuntimeFromSections(context.Background(), nil, nil); err == nil {
 		t.Fatal("expected nil runtime handle error")
@@ -48,7 +49,7 @@ func TestCapabilityRejectsNilRuntimeHandle(t *testing.T) {
 func TestCapabilityDisablesHTTPWhenValuesAreNil(t *testing.T) {
 	capability := newHTTPCapability()
 	vm := goja.New()
-	if err := capability.InitRuntimeFromSections(context.Background(), nil, testRuntimeHandle{vm: vm}); err != nil {
+	if err := capability.InitRuntimeFromSections(context.Background(), nil, testRuntimeInitializerHandle{vm: vm}); err != nil {
 		t.Fatalf("init runtime: %v", err)
 	}
 	entry := capability.entry(vm)
@@ -63,7 +64,7 @@ func TestCapabilityEnablesHTTPByDefaultWhenValuesArePresent(t *testing.T) {
 	capability := newHTTPCapability()
 	vm := goja.New()
 	vals := httpValues(t, nil)
-	if err := capability.InitRuntimeFromSections(context.Background(), vals, testRuntimeHandle{vm: vm}); err != nil {
+	if err := capability.InitRuntimeFromSections(context.Background(), vals, testRuntimeInitializerHandle{vm: vm}); err != nil {
 		t.Fatalf("init runtime: %v", err)
 	}
 	entry := capability.entry(vm)
@@ -78,7 +79,7 @@ func TestCapabilityAllowsExplicitHTTPDisable(t *testing.T) {
 	capability := newHTTPCapability()
 	vm := goja.New()
 	vals := httpValues(t, map[string]any{"enabled": false, "listen": "127.0.0.1:9999"})
-	if err := capability.InitRuntimeFromSections(context.Background(), vals, testRuntimeHandle{vm: vm}); err != nil {
+	if err := capability.InitRuntimeFromSections(context.Background(), vals, testRuntimeInitializerHandle{vm: vm}); err != nil {
 		t.Fatalf("init runtime: %v", err)
 	}
 	entry := capability.entry(vm)
@@ -92,7 +93,7 @@ func TestCapabilityAllowsExplicitHTTPDisable(t *testing.T) {
 func httpValues(t *testing.T, overrides map[string]any) *values.Values {
 	t.Helper()
 	capability := newHTTPCapability()
-	sections, err := capability.ConfigSections(providerapi.SectionContext{})
+	sections, err := capability.GlazedConfigSections(providerapi.SectionRequest{})
 	if err != nil {
 		t.Fatalf("sections: %v", err)
 	}
@@ -117,9 +118,11 @@ func httpValues(t *testing.T, overrides map[string]any) *values.Values {
 	return values.New(values.WithSectionValues("http", sectionValues))
 }
 
-type testRuntimeHandle struct {
+type testRuntimeInitializerHandle struct {
 	vm *goja.Runtime
 }
 
-func (h testRuntimeHandle) Runtime() *goja.Runtime      { return h.vm }
-func (h testRuntimeHandle) Close(context.Context) error { return nil }
+func (h testRuntimeInitializerHandle) EngineRuntime() *engine.Runtime {
+	return &engine.Runtime{VM: h.vm}
+}
+func (h testRuntimeInitializerHandle) Close(context.Context) error { return nil }

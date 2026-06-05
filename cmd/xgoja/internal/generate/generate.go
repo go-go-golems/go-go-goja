@@ -20,29 +20,29 @@ func defaultOptions() Options {
 	return Options{XGojaModuleVersion: "v0.0.0"}
 }
 
-func WriteAll(dir string, spec *buildspec.Spec, opts Options) error {
+func WriteAll(dir string, buildSpec *buildspec.BuildSpec, opts Options) error {
 	if dir == "" {
 		return fmt.Errorf("generate directory is required")
 	}
-	if spec == nil {
-		return fmt.Errorf("spec is nil")
+	if buildSpec == nil {
+		return fmt.Errorf("BuildSpec is nil")
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create generate directory %s: %w", dir, err)
 	}
-	if err := copyEmbeddedJSVerbs(dir, spec); err != nil {
+	if err := copyEmbeddedJSVerbs(dir, buildSpec); err != nil {
 		return err
 	}
-	if err := copyEmbeddedHelpSources(dir, spec); err != nil {
+	if err := copyEmbeddedHelpSources(dir, buildSpec); err != nil {
 		return err
 	}
-	if err := copyEmbeddedAssets(dir, spec); err != nil {
+	if err := copyEmbeddedAssets(dir, buildSpec); err != nil {
 		return err
 	}
 	files := map[string]string{
-		"go.mod":         RenderGoMod(spec, opts),
-		"main.go":        RenderMain(spec),
-		"xgoja.gen.json": RenderEmbeddedSpec(spec),
+		"go.mod":         RenderGoMod(buildSpec, opts),
+		"main.go":        RenderMain(buildSpec),
+		"xgoja.gen.json": RenderEmbeddedSpec(buildSpec),
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
@@ -52,14 +52,14 @@ func WriteAll(dir string, spec *buildspec.Spec, opts Options) error {
 	return nil
 }
 
-func copyEmbeddedJSVerbs(dir string, spec *buildspec.Spec) error {
-	roots := embeddedJSVerbRoots(spec)
-	for i, source := range spec.JSVerbs {
+func copyEmbeddedJSVerbs(dir string, buildSpec *buildspec.BuildSpec) error {
+	roots := embeddedJSVerbRoots(buildSpec)
+	for i, source := range buildSpec.JSVerbs {
 		root := roots[i]
 		if root == "" {
 			continue
 		}
-		src, err := resolveSourcePath(spec.BaseDir, source.Path)
+		src, err := resolveSourcePath(buildSpec.BaseDir, source.Path)
 		if err != nil {
 			return fmt.Errorf("resolve embedded jsverb source %s: %w", source.ID, err)
 		}
@@ -71,14 +71,14 @@ func copyEmbeddedJSVerbs(dir string, spec *buildspec.Spec) error {
 	return nil
 }
 
-func copyEmbeddedHelpSources(dir string, spec *buildspec.Spec) error {
-	roots := embeddedHelpRoots(spec)
-	for i, source := range spec.Help.Sources {
+func copyEmbeddedHelpSources(dir string, buildSpec *buildspec.BuildSpec) error {
+	roots := embeddedHelpRoots(buildSpec)
+	for i, source := range buildSpec.Help.Sources {
 		root := roots[i]
 		if root == "" {
 			continue
 		}
-		src, err := resolveSourcePath(spec.BaseDir, source.Path)
+		src, err := resolveSourcePath(buildSpec.BaseDir, source.Path)
 		if err != nil {
 			return fmt.Errorf("resolve embedded help source %s: %w", source.ID, err)
 		}
@@ -90,14 +90,14 @@ func copyEmbeddedHelpSources(dir string, spec *buildspec.Spec) error {
 	return nil
 }
 
-func copyEmbeddedAssets(dir string, spec *buildspec.Spec) error {
-	roots := embeddedAssetRoots(spec)
-	for i, source := range spec.Assets {
+func copyEmbeddedAssets(dir string, buildSpec *buildspec.BuildSpec) error {
+	roots := embeddedAssetRoots(buildSpec)
+	for i, source := range buildSpec.Assets {
 		root := roots[i]
 		if root == "" {
 			continue
 		}
-		src, err := resolveSourcePath(spec.BaseDir, source.Path)
+		src, err := resolveSourcePath(buildSpec.BaseDir, source.Path)
 		if err != nil {
 			return fmt.Errorf("resolve embedded asset source %s: %w", source.ID, err)
 		}

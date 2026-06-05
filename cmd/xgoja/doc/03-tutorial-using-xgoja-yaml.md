@@ -41,32 +41,26 @@ packages:
   - id: fixture
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
     register: Register
-runtimes:
-  repl:
-    modules:
-      - package: fixture
-        name: hello
-        as: hello
+modules:
+  - package: fixture
+    name: hello
+    as: hello
 commands:
   eval:
     enabled: true
-    runtime: repl
     name: eval
   run:
     enabled: true
-    runtime: repl
     name: run
   repl:
     enabled: true
-    runtime: repl
     name: repl
   jsverbs:
     enabled: true
-    runtime: repl
     name: verbs
 ```
 
-The `packages` section controls which Go provider package is compiled into the generated binary. The `runtimes.repl.modules` section controls which modules are available through `require()` for this runtime profile.
+The `packages` section controls which Go provider package is compiled into the generated binary. The `modules` section controls which modules are available through `require()` for this module set.
 
 ## 2. Validate the spec
 
@@ -86,7 +80,7 @@ Run:
 xgoja list-modules -f xgoja.yaml
 ```
 
-This reports modules selected by the spec. Use it to confirm that the runtime profile exposes the expected `require()` names.
+This reports modules selected by the spec. Use it to confirm that the module set exposes the expected `require()` names.
 
 ## 4. Build the binary
 
@@ -128,7 +122,7 @@ EOF
 ./dist/fixture run script.js
 ```
 
-The generated binary creates a fresh goja runtime, registers the modules selected by the command's runtime profile, evaluates the source, and prints a non-null result. The `run` command also adds script-local module roots so `require("./helper")` resolves relative to the script file.
+The generated binary creates a fresh goja runtime, registers the modules selected by the generated module set, evaluates the source, and prints a non-null result. The `run` command also adds script-local module roots so `require("./helper")` resolves relative to the script file.
 
 For an interactive terminal session, run:
 
@@ -136,7 +130,7 @@ For an interactive terminal session, run:
 ./dist/fixture repl
 ```
 
-The REPL command starts a Bubble Tea terminal UI backed by the same runtime-profile module policy.
+The REPL command starts a Bubble Tea terminal UI backed by the same module-set module policy.
 
 ## 6. Optional: enable env vars and config files for command fields
 
@@ -252,7 +246,6 @@ For a self-contained helper binary, you can mount discovered JavaScript verb pac
 commands:
   jsverbs:
     enabled: true
-    runtime: main
     mount: root
 ```
 
@@ -277,23 +270,21 @@ assets:
   - id: app-assets
     path: ./assets
     embed: true
-runtimes:
-  main:
-    modules:
-      - package: go-go-goja-host
-        name: fs
-        as: fs:assets
-        config:
-          embedded:
-            allow: true
-            mounts:
-              - asset: app-assets
-                mount: /app
-      - package: go-go-goja-host
-        name: fs
-        as: fs:host
-        config:
-          allow: true
+modules:
+  - package: go-go-goja-host
+    name: fs
+    as: fs:assets
+    config:
+      embedded:
+        allow: true
+        mounts:
+          - asset: app-assets
+            mount: /app
+  - package: go-go-goja-host
+    name: fs
+    as: fs:host
+    config:
+      allow: true
 ```
 
 Read the embedded file from JavaScript:
@@ -308,7 +299,7 @@ For web/static asset trees, include dot directories such as `.well-known` direct
 
 ## 10. Serve embedded assets with the HTTP provider
 
-Add the HTTP provider package and select its `express` module in the same runtime profile as `fs:assets`:
+Add the HTTP provider package and select its `express` module in the same module set as `fs:assets`:
 
 ```yaml
 packages:
@@ -320,20 +311,18 @@ assets:
   - id: app-assets
     path: ./assets
     embed: true
-runtimes:
-  main:
-    modules:
-      - package: go-go-goja-host
-        name: fs
-        as: fs:assets
-        config:
-          embedded:
-            allow: true
-            mounts:
-              - asset: app-assets
-                mount: /app
-      - package: go-go-goja-http
-        name: express
+modules:
+  - package: go-go-goja-host
+    name: fs
+    as: fs:assets
+    config:
+      embedded:
+        allow: true
+        mounts:
+          - asset: app-assets
+            mount: /app
+  - package: go-go-goja-http
+    name: express
 ```
 
 Create a setup script:
@@ -365,9 +354,9 @@ Provider side:
 //go:embed verbs/*.js
 var verbsFS embed.FS
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("fixture",
-        providerapi.Module{Name: "hello", New: newHelloModule},
+        providerapi.Module{Name: "hello", NewModuleFactory: newHelloModule},
         providerapi.VerbSource{Name: "verbs", FS: verbsFS, Root: "verbs"},
     )
 }
@@ -409,7 +398,7 @@ If the generated build fails, the generated source usually shows whether the pro
 | Problem | What to check |
 | --- | --- |
 | `doctor` reports unknown package | The `package` field must match a `packages[].id`. |
-| `require("name")` fails | The runtime profile must include a module with `as: name` or `name: name`. |
+| `require("name")` fails | The module set must include a module with `as: name` or `name: name`. |
 | `require("fs")` fails after adding `fs:assets` | `as: fs:assets` registers only `fs:assets`; use that name or add a separate `as: fs` entry. |
 | embedded asset write fails with `EROFS` | Embedded assets are read-only; use a separate host alias such as `fs:host` for writes. |
 | jsverb command is missing | Confirm `commands.jsverbs.enabled: true` and that the source scans without diagnostics. |

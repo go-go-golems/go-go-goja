@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 func main() {
 	ctx := context.Background()
 
-	factory, err := engine.NewBuilder().Build()
+	factory, err := engine.NewRuntimeFactoryBuilder().Build()
 	if err != nil {
 		panic(err)
 	}

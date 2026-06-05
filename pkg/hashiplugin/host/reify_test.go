@@ -31,7 +31,7 @@ func (contextAwareModule) Invoke(ctx context.Context, req *contract.InvokeReques
 	return nil, nil
 }
 
-func TestRegisterModuleUsesRuntimeContextForInvocation(t *testing.T) {
+func TestRegisterModuleUsesRuntimeInitializationContextForInvocation(t *testing.T) {
 	reg := require.NewRegistry()
 	canceledCtx, cancel := context.WithCancel(context.Background())
 	cancel()

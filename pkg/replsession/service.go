@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	inspectorruntime "github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
@@ -34,7 +34,7 @@ var ErrEvaluationTimeout = errors.New("replsession: evaluation timed out")
 // Service manages persistent REPL sessions and their backing runtimes.
 type Service struct {
 	mu                 sync.RWMutex
-	factory            *engine.Factory
+	factory            *engine.RuntimeFactory
 	logger             zerolog.Logger
 	store              Persistence
 	sessions           map[string]*sessionState
@@ -99,7 +99,7 @@ func WithDefaultSessionOptions(opts SessionOptions) Option {
 }
 
 // NewService creates a new session service backed by the supplied runtime factory.
-func NewService(factory *engine.Factory, logger zerolog.Logger, opts ...Option) *Service {
+func NewService(factory *engine.RuntimeFactory, logger zerolog.Logger, opts ...Option) *Service {
 	if factory == nil {
 		panic("replsession: factory is nil")
 	}

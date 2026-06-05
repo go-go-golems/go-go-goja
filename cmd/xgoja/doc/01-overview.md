@@ -1,7 +1,7 @@
 ---
 Title: "xgoja overview"
 Slug: overview
-Short: "How xgoja builds custom goja-powered binaries from provider packages and runtime profiles."
+Short: "How xgoja builds custom goja-powered binaries from provider packages and a top-level module set."
 Topics:
 - xgoja
 - goja
@@ -26,9 +26,9 @@ The design is intentionally compile-time oriented. Go-backed native modules are 
 The build has two separate decisions.
 
 1. **Build-time package selection** decides which provider packages are compiled into the binary.
-2. **Runtime profile selection** decides which compiled-in modules are available to one command invocation.
+2. **Module set selection** decides which compiled-in modules are available to one command invocation.
 
-A provider package contributes named modules and optional JavaScript verb sources. A runtime profile selects provider modules by package ID and module name, then assigns the `require()` alias used by JavaScript.
+A provider package contributes named modules and optional JavaScript verb sources. A top-level `modules` selects provider modules by package ID and module name, then assigns the `require()` alias used by JavaScript.
 
 ```text
 xgoja.yaml
@@ -37,16 +37,16 @@ xgoja.yaml
   -> embedded runtime spec
   -> go build
   -> generated binary
-  -> runtime profile
+  -> module set
   -> goja runtime + require modules
 ```
 
 ## Provider packages
 
-A provider package exports a registration function, usually named `Register`, that receives a `*providerapi.Registry`.
+A provider package exports a registration function, usually named `Register`, that receives a `*providerapi.ProviderRegistry`.
 
 ```go
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
     return registry.Package("fixture",
         providerapi.Module{
             Name:      "hello",
@@ -59,17 +59,15 @@ func Register(registry *providerapi.Registry) error {
 
 The generated program imports this package and calls the registration function at startup. If the package is not listed in `packages:`, it is not part of the generated binary.
 
-## Runtime profiles
+## Module selections
 
-A runtime profile lists the modules that should be registered for a command invocation.
+A module set lists the modules that should be registered for a command invocation.
 
 ```yaml
-runtimes:
-  repl:
-    modules:
-      - package: fixture
-        name: hello
-        as: hello
+modules:
+  - package: fixture
+    name: hello
+    as: hello
 ```
 
 The `as` field controls the JavaScript module name:
@@ -78,15 +76,15 @@ The `as` field controls the JavaScript module name:
 const hello = require("hello")
 ```
 
-Profiles make the capability surface explicit. A module compiled into the binary is not available to a command unless the command uses a profile that selects it.
+The top-level module list makes the JavaScript capability surface explicit. A provider package can be compiled into the binary without exposing every module it registers; only modules listed in `modules` are registered for generated runtime-backed commands.
 
 ## Generated commands
 
 A pure xgoja generated binary currently provides these command families:
 
-- the configured `commands.eval.name` command evaluates a JavaScript string in a selected runtime profile.
+- the configured `commands.eval.name` command evaluates a JavaScript string in a generated module set.
 - the configured `commands.run.name` command executes a JavaScript file with script-local module resolution.
-- the configured `commands.repl.name` command starts an interactive Bubble Tea REPL for a selected runtime profile.
+- the configured `commands.repl.name` command starts an interactive Bubble Tea REPL for a generated module set.
 - `modules` lists provider modules registered in the binary.
 - the configured `jsverbs` command mounts JavaScript functions as Glazed/Cobra commands when enabled.
 

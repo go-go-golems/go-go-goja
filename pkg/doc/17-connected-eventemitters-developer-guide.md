@@ -76,12 +76,12 @@ import (
     "context"
     "time"
 
-    "github.com/go-go-golems/go-go-goja/engine"
+    "github.com/go-go-golems/go-go-goja/pkg/engine"
     "github.com/go-go-golems/go-go-goja/pkg/jsevents"
 )
 
 func NewRuntime(ctx context.Context) (*engine.Runtime, error) {
-    factory, err := engine.NewBuilder().
+    factory, err := engine.NewRuntimeFactoryBuilder().
         Build().
         WithRuntimeInitializers(
             jsevents.Install(),
@@ -131,7 +131,7 @@ func MyHelper(opts MyOptions) engine.RuntimeInitializer {
     return &myHelper{opts: opts}
 }
 
-func (h *myHelper) InitRuntime(ctx *engine.RuntimeContext) error {
+func (h *myHelper) InitRuntime(ctx *engine.RuntimeInitializationContext) error {
     managerValue, ok := ctx.Value(jsevents.RuntimeValueKey)
     if !ok {
         return fmt.Errorf("my helper: manager is not installed; add jsevents.Install() first")

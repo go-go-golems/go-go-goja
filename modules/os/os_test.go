@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	gggengine "github.com/go-go-golems/go-go-goja/engine"
+	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 func TestOSModuleSmoke(t *testing.T) {
-	factory, err := gggengine.NewBuilder().UseModuleMiddleware(gggengine.MiddlewareOnly("os")).Build()
+	factory, err := gggengine.NewRuntimeFactoryBuilder().UseModuleMiddleware(gggengine.MiddlewareOnly("os")).Build()
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}

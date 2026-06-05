@@ -12,7 +12,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 )
 
@@ -97,7 +97,7 @@ func runScriptFile(ctx context.Context, opts runScriptOptions) error {
 		return fmt.Errorf("script file not found %q: %w", scriptPath, err)
 	}
 
-	builder := engine.NewBuilder()
+	builder := engine.NewRuntimeFactoryBuilder()
 	if opts.SafeMode {
 		builder = builder.UseModuleMiddleware(engine.MiddlewareSafe())
 	} else if len(opts.EnableModules) > 0 {

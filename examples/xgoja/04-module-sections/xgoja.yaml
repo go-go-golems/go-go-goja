@@ -1,32 +1,25 @@
 name: module-sections
-# Demonstrates provider module Glazed sections on built-in run and jsverbs commands.
 target:
   kind: xgoja
   output: dist/module-sections
 packages:
-  - id: fixture
-    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
-runtimes:
-  main:
-    modules:
-      - package: fixture
-        name: hello
-        as: hello
+- id: fixture
+  import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
 commands:
   eval:
     enabled: true
-    runtime: main
   run:
     enabled: true
-    runtime: main
   jsverbs:
     enabled: true
-    runtime: main
     name: verbs
   repl:
     enabled: true
-    runtime: main
 jsverbs:
-  - id: local
-    path: ./verbs
-    embed: true
+- id: local
+  path: ./verbs
+  embed: true
+modules:
+- package: fixture
+  name: hello
+  as: hello

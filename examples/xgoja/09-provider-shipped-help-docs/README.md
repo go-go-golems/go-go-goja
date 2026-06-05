@@ -27,4 +27,4 @@ The smoke test validates the spec, builds the generated binary, and checks that 
 ./dist/provider-shipped-help-docs help loupedeck-js-first-live-script
 ```
 
-This example intentionally enables only a minimal `eval` command and selects only `loupedeck/state` in the runtime profile. The point is documentation bundling, not hardware access.
+This example intentionally enables only a minimal `eval` command and selects only `loupedeck/state` in the module set. The point is documentation bundling, not hardware access.

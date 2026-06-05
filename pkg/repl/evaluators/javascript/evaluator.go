@@ -9,9 +9,9 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/bobatea/pkg/repl"
-	ggjengine "github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
 	docaccessruntime "github.com/go-go-golems/go-go-goja/pkg/docaccess/runtime"
+	ggjengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 	"github.com/pkg/errors"
@@ -82,7 +82,7 @@ type Config struct {
 	PluginReporter     *host.ReportCollector
 	HelpSources        []docaccessruntime.HelpSource
 	JSDocSources       []docaccessruntime.JSDocSource
-	RuntimeModules     []ggjengine.RuntimeModuleSpec
+	RuntimeModules     []ggjengine.RuntimeModuleRegistrar
 	CustomModules      map[string]interface{}
 	// Runtime, when set, reuses an existing VM instead of creating a new one.
 	Runtime *goja.Runtime
@@ -113,7 +113,7 @@ func New(config Config) (*Evaluator, error) {
 		runtime = config.Runtime
 	} else if config.EnableModules {
 		// Create runtime with module support using explicit engine composition.
-		builder := ggjengine.NewBuilder().
+		builder := ggjengine.NewRuntimeFactoryBuilder().
 			UseModuleMiddleware(ggjengine.MiddlewareSafe())
 		if len(config.PluginDirectories) > 0 {
 			builder = builder.WithModules(host.NewRegistrar(host.Config{

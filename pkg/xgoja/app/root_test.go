@@ -21,19 +21,15 @@ const fixtureSpecJSON = `{
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
 
 func TestGeneratedRootEvalUsesProviderModule(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -52,7 +48,7 @@ func TestGeneratedRootEvalUsesProviderModule(t *testing.T) {
 }
 
 func TestGeneratedRootRespectsConfiguredReplCommandName(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -60,13 +56,9 @@ func TestGeneratedRootRespectsConfiguredReplCommandName(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "runjs"},
+    "eval": {"enabled": true, "name": "runjs"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -85,7 +77,7 @@ func TestGeneratedRootRespectsConfiguredReplCommandName(t *testing.T) {
 }
 
 func TestGeneratedRootRespectsDisabledReplCommand(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -93,13 +85,9 @@ func TestGeneratedRootRespectsDisabledReplCommand(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": false, "runtime": "repl", "name": "runjs"},
+    "eval": {"enabled": false, "name": "runjs"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -115,7 +103,7 @@ func TestGeneratedRootRespectsDisabledReplCommand(t *testing.T) {
 }
 
 func TestGeneratedRootInstallsHelpAndLogging(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -140,7 +128,7 @@ func TestGeneratedRootInstallsHelpAndLogging(t *testing.T) {
 }
 
 func TestGeneratedRootLoadsProviderHelpSource(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	docs := fstest.MapFS{
 		"topics/01-fixture.md": {Data: []byte(`---
 Title: Fixture JavaScript API reference
@@ -161,7 +149,7 @@ Fixture provider help body.
 `)},
 	}
 	if err := registry.Package("fixture",
-		providerapi.Module{Name: "hello", New: noopAppModuleFactory},
+		providerapi.Module{Name: "hello", NewModuleFactory: noopAppModuleFactory},
 		providerapi.HelpSource{Name: "docs", FS: docs, Root: "."},
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
@@ -170,9 +158,7 @@ Fixture provider help body.
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
   "help": {"sources": [{"id": "fixture-docs", "package": "fixture", "source": "docs"}]}
 }`
@@ -191,7 +177,7 @@ Fixture provider help body.
 }
 
 func TestGeneratedRootLoadsEmbeddedLocalHelpSource(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -217,9 +203,7 @@ Local generated help body.
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
   "help": {"sources": [{"id": "local", "path": "xgoja_embed/help/local", "embed": true}]}
 }`
@@ -238,7 +222,7 @@ Local generated help body.
 }
 
 func TestGeneratedRootReportsMissingProviderHelpSource(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -246,9 +230,7 @@ func TestGeneratedRootReportsMissingProviderHelpSource(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
   "help": {"sources": [{"id": "missing", "package": "fixture", "source": "missing"}]}
 }`
@@ -264,7 +246,7 @@ func TestGeneratedRootReportsMissingProviderHelpSource(t *testing.T) {
 }
 
 func TestGeneratedRootTUIHelp(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -272,13 +254,9 @@ func TestGeneratedRootTUIHelp(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "repl": {"enabled": true, "runtime": "repl", "name": "repl"},
+    "repl": {"enabled": true, "name": "repl"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -291,7 +269,7 @@ func TestGeneratedRootTUIHelp(t *testing.T) {
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute repl help: %v", err)
 	}
-	for _, want := range []string{"interactive TUI REPL", "--runtime", "--alt-screen"} {
+	for _, want := range []string{"interactive TUI REPL", "--alt-screen"} {
 		if !bytes.Contains(out.Bytes(), []byte(want)) {
 			t.Fatalf("expected REPL help to contain %q, got %q", want, out.String())
 		}
@@ -299,7 +277,7 @@ func TestGeneratedRootTUIHelp(t *testing.T) {
 }
 
 func TestGeneratedRootRunCommandExecutesScriptFile(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -321,14 +299,10 @@ if (hello.greet(helper.name) !== "hello intern") {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
-    "run": {"enabled": true, "runtime": "repl", "name": "run"},
+    "eval": {"enabled": true, "name": "eval"},
+    "run": {"enabled": true, "name": "run"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -343,7 +317,7 @@ if (hello.greet(helper.name) !== "hello intern") {
 }
 
 func TestGeneratedRootModulesCommand(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -365,15 +339,15 @@ func TestGeneratedRootModulesCommand(t *testing.T) {
 }
 
 func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	spec := &Spec{}
-	if err := json.Unmarshal([]byte(fixtureSpecJSON), spec); err != nil {
-		t.Fatalf("parse spec: %v", err)
+	runtimeSpec := &RuntimeSpec{}
+	if err := json.Unmarshal([]byte(fixtureSpecJSON), runtimeSpec); err != nil {
+		t.Fatalf("parse runtime spec: %v", err)
 	}
-	rt, err := NewRuntimeFactory(registry, spec).NewRuntime(context.Background(), "repl")
+	rt, err := NewRuntimeFactory(registry, runtimeSpec).NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -385,12 +359,12 @@ func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
 		t.Fatalf("require hello: %v", err)
 	}
 	if _, err := rt.Require.Require("path"); err == nil {
-		t.Fatalf("require path succeeded, want xgoja spec-selected modules only")
+		t.Fatalf("require path succeeded, want xgoja runtime spec-selected modules only")
 	}
 }
 
 func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -398,8 +372,8 @@ func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}, {"package": "fixture", "name": "owner-check", "as": "owner-check"}]}},
-  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}, {"package": "fixture", "name": "owner-check", "as": "owner-check"}],
+  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs"}},
   "jsverbs": [{"id": "provider", "package": "fixture", "source": "verbs"}]
 }`
 	out := &bytes.Buffer{}
@@ -423,7 +397,7 @@ func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
 }
 
 func TestGeneratedRootMountsEmbeddedJSVerbs(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -447,8 +421,8 @@ function embeddedGreet(name) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
-  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
+  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs"}},
   "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
 }`
 	out := &bytes.Buffer{}
@@ -463,7 +437,7 @@ function embeddedGreet(name) {
 }
 
 func TestGeneratedRootMountsEmbeddedJSVerbsAtRoot(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -487,8 +461,8 @@ function embeddedGreet(name) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
-  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs", "mount": "root"}},
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
+  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs", "mount": "root"}},
   "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
 }`
 	out := &bytes.Buffer{}
@@ -503,7 +477,7 @@ function embeddedGreet(name) {
 }
 
 func TestGeneratedRootMountsFilesystemJSVerbs(t *testing.T) {
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -528,8 +502,8 @@ function greet(name) {
   "name": "fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {"repl": {"modules": [{"package": "fixture", "name": "hello", "as": "hello"}]}},
-  "commands": {"eval": {"enabled": true, "runtime": "repl", "name": "eval"}, "jsverbs": {"enabled": true, "runtime": "repl", "name": "verbs"}},
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
+  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs"}},
   "jsverbs": [{"id": "local", "path": %q, "embed": false}]
 }`, verbsDir)
 	out := &bytes.Buffer{}
@@ -567,6 +541,6 @@ func captureStdout(t *testing.T, fn func()) string {
 	return string(data)
 }
 
-func noopAppModuleFactory(providerapi.ModuleContext) (require.ModuleLoader, error) {
+func noopAppModuleFactory(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 	return func(vm *goja.Runtime, module *goja.Object) {}, nil
 }

@@ -16,7 +16,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/runner"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/jsevents"
 	"github.com/stretchr/testify/require"
 )
@@ -583,7 +583,7 @@ func TestInvokeInRuntimeReusesLiveRuntime(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	builder := engine.NewBuilder().
+	builder := engine.NewRuntimeFactoryBuilder().
 		WithRequireOptions(noderequire.WithLoader(registry.RequireLoader())).
 		UseModuleMiddleware(engine.MiddlewareOnly("fs", "events"))
 	if requireOpt != nil {
@@ -640,7 +640,7 @@ func TestFSWatchJsverbUsesInstalledHelper(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	builder := engine.NewBuilder().
+	builder := engine.NewRuntimeFactoryBuilder().
 		WithRequireOptions(noderequire.WithLoader(registry.RequireLoader())).
 		UseModuleMiddleware(engine.MiddlewareOnly("fs", "events")).
 		WithRuntimeInitializers(

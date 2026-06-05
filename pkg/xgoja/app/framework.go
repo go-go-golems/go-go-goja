@@ -17,11 +17,11 @@ import (
 const rootFrameworkInstalledAnnotation = "xgoja/root-framework-installed"
 
 type frameworkOptions struct {
-	Providers    *providerapi.Registry
+	Providers    *providerapi.ProviderRegistry
 	EmbeddedHelp fs.FS
 }
 
-func installRootFramework(root *cobra.Command, spec *Spec, opts frameworkOptions) error {
+func installRootFramework(root *cobra.Command, runtimeSpec *RuntimeSpec, opts frameworkOptions) error {
 	if root == nil {
 		return fmt.Errorf("root command is nil")
 	}
@@ -32,11 +32,11 @@ func installRootFramework(root *cobra.Command, spec *Spec, opts frameworkOptions
 		return nil
 	}
 	appName := "xgoja"
-	if spec != nil {
-		if strings.TrimSpace(spec.AppName) != "" {
-			appName = strings.TrimSpace(spec.AppName)
-		} else if strings.TrimSpace(spec.Name) != "" {
-			appName = strings.TrimSpace(spec.Name)
+	if runtimeSpec != nil {
+		if strings.TrimSpace(runtimeSpec.AppName) != "" {
+			appName = strings.TrimSpace(runtimeSpec.AppName)
+		} else if strings.TrimSpace(runtimeSpec.Name) != "" {
+			appName = strings.TrimSpace(runtimeSpec.Name)
 		}
 	}
 	if err := logging.AddLoggingSectionToRootCommand(root, appName); err != nil {
@@ -49,7 +49,7 @@ func installRootFramework(root *cobra.Command, spec *Spec, opts frameworkOptions
 	if err := xgojadoc.AddDocToHelpSystem(helpSystem); err != nil {
 		return fmt.Errorf("load generated xgoja help docs: %w", err)
 	}
-	if err := loadConfiguredHelpSources(helpSystem, spec, opts); err != nil {
+	if err := loadConfiguredHelpSources(helpSystem, runtimeSpec, opts); err != nil {
 		return err
 	}
 	help_cmd.SetupCobraRootCommand(helpSystem, root)
@@ -57,12 +57,12 @@ func installRootFramework(root *cobra.Command, spec *Spec, opts frameworkOptions
 	return nil
 }
 
-func loadConfiguredHelpSources(helpSystem *help.HelpSystem, spec *Spec, opts frameworkOptions) error {
-	if helpSystem == nil || spec == nil || len(spec.Help.Sources) == 0 {
+func loadConfiguredHelpSources(helpSystem *help.HelpSystem, runtimeSpec *RuntimeSpec, opts frameworkOptions) error {
+	if helpSystem == nil || runtimeSpec == nil || len(runtimeSpec.Help.Sources) == 0 {
 		return nil
 	}
 	seen := map[string]struct{}{}
-	for _, source := range spec.Help.Sources {
+	for _, source := range runtimeSpec.Help.Sources {
 		id := strings.TrimSpace(source.ID)
 		if id == "" {
 			return fmt.Errorf("help source id is required")

@@ -8,9 +8,9 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
-func TestTUICommandIncludesRuntimeProfileModuleSections(t *testing.T) {
+func TestTUICommandIncludesRuntimeModuleSections(t *testing.T) {
 	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runFixtureCapability{}))
-	cmd := newTUICommand(factory, factory.spec)
+	cmd := newTUICommand(factory, factory.runtimeSpec)
 	section, ok := cmd.Description().Schema.Get("fixture")
 	if !ok {
 		t.Fatal("expected fixture section on repl command")
@@ -24,16 +24,16 @@ func TestNewXGojaTUIEvaluatorInitializesRuntimeFromModuleSections(t *testing.T) 
 	called := false
 	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runtimeInitCapability{
 		id: "tui-init",
-		fn: func(context.Context, *values.Values, providerapi.RuntimeHandle) error {
+		fn: func(context.Context, *values.Values, providerapi.RuntimeInitializerHandle) error {
 			called = true
 			return nil
 		},
 	}))
-	descriptors, err := factory.selectedModuleDescriptors("main")
+	descriptors, err := factory.selectedModuleDescriptors()
 	if err != nil {
 		t.Fatalf("selected descriptors: %v", err)
 	}
-	adapter, err := newXGojaTUIEvaluator(context.Background(), factory, "main", values.New(), descriptors)
+	adapter, err := newXGojaTUIEvaluator(context.Background(), factory, values.New(), descriptors)
 	if err != nil {
 		t.Fatalf("new TUI evaluator: %v", err)
 	}

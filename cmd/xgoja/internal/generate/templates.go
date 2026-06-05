@@ -52,14 +52,14 @@ func renderMainTemplate(data mainTemplateData) (string, error) {
 	return string(formatted), nil
 }
 
-func mainTemplateDataFromSpec(spec *buildspec.Spec) mainTemplateData {
-	aliases := importAliases(spec.Packages)
-	hasEmbeddedJSVerb := hasEmbeddedJSVerbSources(spec)
-	hasEmbeddedHelp := hasEmbeddedHelpSources(spec)
-	hasEmbeddedAssets := hasEmbeddedAssetSources(spec)
+func mainTemplateDataFromSpec(buildSpec *buildspec.BuildSpec) mainTemplateData {
+	aliases := importAliases(buildSpec.Packages)
+	hasEmbeddedJSVerb := hasEmbeddedJSVerbSources(buildSpec)
+	hasEmbeddedHelp := hasEmbeddedHelpSources(buildSpec)
+	hasEmbeddedAssets := hasEmbeddedAssetSources(buildSpec)
 	hasEmbedded := hasEmbeddedJSVerb || hasEmbeddedHelp || hasEmbeddedAssets
-	providers := make([]providerImport, 0, len(spec.Packages))
-	for _, pkg := range spec.Packages {
+	providers := make([]providerImport, 0, len(buildSpec.Packages))
+	for _, pkg := range buildSpec.Packages {
 		providers = append(providers, providerImport{
 			Alias:    aliases[pkg.ID],
 			Import:   pkg.Import,
@@ -67,21 +67,21 @@ func mainTemplateDataFromSpec(spec *buildspec.Spec) mainTemplateData {
 		})
 	}
 
-	rootFn := strings.TrimSpace(spec.Target.Root)
+	rootFn := strings.TrimSpace(buildSpec.Target.Root)
 	if rootFn == "" {
 		rootFn = "NewRootCommand"
 	}
 
 	data := mainTemplateData{
-		SpecJSON:          escapeRawString(RenderEmbeddedSpec(spec)),
+		SpecJSON:          escapeRawString(RenderEmbeddedSpec(buildSpec)),
 		HasEmbedded:       hasEmbedded,
 		HasEmbeddedJSVerb: hasEmbeddedJSVerb,
 		HasEmbeddedHelp:   hasEmbeddedHelp,
 		HasEmbeddedAssets: hasEmbeddedAssets,
-		NeedsContext:      spec.Target.Kind == "adapter",
-		HasTargetImport:   spec.Target.Kind == "adapter" || spec.Target.Kind == "cobra",
-		TargetKind:        spec.Target.Kind,
-		TargetImport:      spec.Target.Import,
+		NeedsContext:      buildSpec.Target.Kind == "adapter",
+		HasTargetImport:   buildSpec.Target.Kind == "adapter" || buildSpec.Target.Kind == "cobra",
+		TargetKind:        buildSpec.Target.Kind,
+		TargetImport:      buildSpec.Target.Import,
 		TargetRoot:        rootFn,
 		ProviderImports:   providers,
 	}
@@ -98,10 +98,10 @@ func mainTemplateDataFromSpec(spec *buildspec.Spec) mainTemplateData {
 		embeddedAssetsArg = "embeddedAssets"
 	}
 	if hasEmbedded {
-		data.HostConstruction = fmt.Sprintf("host := app.NewHostWithOptions(registry, spec, app.HostOptions{EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
+		data.HostConstruction = fmt.Sprintf("host := app.NewHostWithOptions(registry, buildSpec, app.HostOptions{EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
 		data.RootConstruction = fmt.Sprintf("root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON, EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
 	} else {
-		data.HostConstruction = "host := app.NewHost(registry, spec)"
+		data.HostConstruction = "host := app.NewHost(registry, buildSpec)"
 		data.RootConstruction = "root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})"
 	}
 	return data

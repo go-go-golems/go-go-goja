@@ -21,14 +21,14 @@ import (
 
 const PackageID = "go-go-goja-http"
 
-func Register(registry *providerapi.Registry) error {
+func Register(registry *providerapi.ProviderRegistry) error {
 	capability := newHTTPCapability()
 	return registry.Package(PackageID,
 		providerapi.Module{
 			Name:        "express",
 			DefaultAs:   "express",
 			Description: "Express-style HTTP route registration backed by gojahttp",
-			New: func(providerapi.ModuleContext) (require.ModuleLoader, error) {
+			NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 				return capability.NewExpressLoader(), nil
 			},
 		},
@@ -59,7 +59,7 @@ func newHTTPCapability() *capability {
 
 func (c *capability) CapabilityID() string { return "go-go-goja-http.config" }
 
-func (c *capability) ConfigSections(providerapi.SectionContext) ([]schema.Section, error) {
+func (c *capability) GlazedConfigSections(providerapi.SectionRequest) ([]schema.Section, error) {
 	section, err := schema.NewSection(
 		"http",
 		"HTTP server",
@@ -75,11 +75,12 @@ func (c *capability) ConfigSections(providerapi.SectionContext) ([]schema.Sectio
 	return []schema.Section{section}, nil
 }
 
-func (c *capability) InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeHandle) error {
+func (c *capability) InitRuntimeFromSections(ctx context.Context, vals *values.Values, handle providerapi.RuntimeInitializerHandle) error {
 	_ = ctx
-	if handle == nil || handle.Runtime() == nil {
+	if handle == nil || handle.EngineRuntime() == nil || handle.EngineRuntime().VM == nil {
 		return fmt.Errorf("http provider runtime handle is nil")
 	}
+	runtime := handle.EngineRuntime()
 	cfg := settings{Enabled: false, Listen: "127.0.0.1:8787"}
 	if vals != nil {
 		cfg.Enabled = true
@@ -87,16 +88,13 @@ func (c *capability) InitRuntimeFromSections(ctx context.Context, vals *values.V
 			return err
 		}
 	}
-	entry := c.entry(handle.Runtime())
+	entry := c.entry(runtime.VM)
 	entry.mu.Lock()
 	entry.settings = normalizeSettings(cfg)
 	entry.mu.Unlock()
-	if closer, ok := handle.(providerapi.RuntimeCloserRegistry); ok {
-		return closer.AddCloser(func(ctx context.Context) error {
-			return c.shutdownRuntime(ctx, handle.Runtime())
-		})
-	}
-	return nil
+	return runtime.AddCloser(func(ctx context.Context) error {
+		return c.shutdownRuntime(ctx, runtime.VM)
+	})
 }
 
 func (c *capability) NewExpressLoader() require.ModuleLoader {

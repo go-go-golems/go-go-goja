@@ -1,17 +1,10 @@
 name: command-provider
-# Demonstrates package-provided Glazed commands mounted by xgoja.
 target:
   kind: xgoja
   output: dist/command-provider
 packages:
-  - id: fixture
-    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
-runtimes:
-  main:
-    modules:
-      - package: fixture
-        name: hello
-        as: hello
+- id: fixture
+  import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
 commands:
   eval:
     enabled: false
@@ -22,8 +15,11 @@ commands:
   jsverbs:
     enabled: false
 commandProviders:
-  - id: fixture-tools
-    package: fixture
-    name: tools
-    mount: fixture
-    runtimeProfile: main
+- id: fixture-tools
+  package: fixture
+  name: tools
+  mount: fixture
+modules:
+- package: fixture
+  name: hello
+  as: hello

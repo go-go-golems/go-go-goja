@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/dop251/goja_nodejs/require"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 // Registrar discovers, validates, and registers plugin-backed runtime modules.
@@ -22,7 +22,7 @@ func (r *Registrar) ID() string {
 	return "hashiplugin-registrar"
 }
 
-func (r *Registrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleContext, reg *require.Registry) error {
+func (r *Registrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleRegistrationContext, reg *require.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("require registry is nil")
 	}
@@ -83,7 +83,7 @@ func (r *Registrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleContext, reg 
 	return nil
 }
 
-func runtimeContext(ctx *engine.RuntimeModuleContext) context.Context {
+func runtimeContext(ctx *engine.RuntimeModuleRegistrationContext) context.Context {
 	if ctx == nil || ctx.Context == nil {
 		return context.Background()
 	}

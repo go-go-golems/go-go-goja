@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
 	"github.com/go-go-golems/go-go-goja/pkg/replsession"
 	"github.com/pkg/errors"
@@ -20,7 +20,7 @@ type App struct {
 }
 
 // New creates a configurable REPL application facade.
-func New(factory *engine.Factory, logger zerolog.Logger, opts ...Option) (*App, error) {
+func New(factory *engine.RuntimeFactory, logger zerolog.Logger, opts ...Option) (*App, error) {
 	config := DefaultConfig()
 	for _, opt := range opts {
 		if opt != nil {
@@ -31,7 +31,7 @@ func New(factory *engine.Factory, logger zerolog.Logger, opts ...Option) (*App, 
 }
 
 // NewWithConfig creates a configurable REPL application facade from an explicit config.
-func NewWithConfig(factory *engine.Factory, logger zerolog.Logger, config Config) (*App, error) {
+func NewWithConfig(factory *engine.RuntimeFactory, logger zerolog.Logger, config Config) (*App, error) {
 	if factory == nil {
 		return nil, errors.New("replapi: factory is nil")
 	}

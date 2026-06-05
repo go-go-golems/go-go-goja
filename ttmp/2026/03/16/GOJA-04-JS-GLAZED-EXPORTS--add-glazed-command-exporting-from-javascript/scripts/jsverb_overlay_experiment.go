@@ -8,7 +8,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 func main() {
@@ -47,7 +47,7 @@ module.exports = {
 		return []byte(src), nil
 	}
 
-	factory, err := engine.NewBuilder(
+	factory, err := engine.NewRuntimeFactoryBuilder(
 		engine.WithRequireOptions(require.WithLoader(loader)),
 	).Build()
 	if err != nil {

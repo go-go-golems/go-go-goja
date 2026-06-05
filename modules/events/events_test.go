@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	gggengine "github.com/go-go-golems/go-go-goja/engine"
 	eventsmodule "github.com/go-go-golems/go-go-goja/modules/events"
+	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/stretchr/testify/require"
 )
 
@@ -188,7 +188,7 @@ func TestEventsModuleIsEnabledByDefault(t *testing.T) {
 
 func newRuntime(t *testing.T) *gggengine.Runtime {
 	t.Helper()
-	factory, err := gggengine.NewBuilder().Build()
+	factory, err := gggengine.NewRuntimeFactoryBuilder().Build()
 	require.NoError(t, err)
 	rt, err := factory.NewRuntime(gggengine.WithStartupContext(context.Background()), gggengine.WithLifetimeContext(context.Background()))
 	require.NoError(t, err)

@@ -28,7 +28,8 @@ type RuntimeOwner interface {
 
 // Options configures a runtime owner.
 type Options struct {
-	Name          string
-	MaxWait       int64 // milliseconds; <=0 disables implicit timeout
-	RecoverPanics bool
+	Name              string
+	MaxWait           int64 // milliseconds; <=0 disables implicit timeout
+	RecoverPanics     bool
+	IncludePanicStack bool // append runtime/debug.Stack() to recovered panic errors
 }

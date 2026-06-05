@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	gggengine "github.com/go-go-golems/go-go-goja/engine"
+	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/stretchr/testify/require"
 )
 
@@ -93,7 +93,7 @@ type timerState struct {
 func newDefaultRuntime(t *testing.T) *gggengine.Runtime {
 	t.Helper()
 
-	factory, err := gggengine.NewBuilder().
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
 		UseModuleMiddleware(gggengine.MiddlewareSafe()).
 		Build()
 	require.NoError(t, err)

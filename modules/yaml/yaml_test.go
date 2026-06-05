@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	gggengine "github.com/go-go-golems/go-go-goja/engine"
+	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/stretchr/testify/require"
 )
 
@@ -255,7 +255,7 @@ func TestYamlStringifyNegativeIndent(t *testing.T) {
 func newDefaultRuntime(t *testing.T) *gggengine.Runtime {
 	t.Helper()
 
-	factory, err := gggengine.NewBuilder().
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
 		UseModuleMiddleware(gggengine.MiddlewareOnly("yaml")).
 		Build()
 	require.NoError(t, err)

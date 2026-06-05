@@ -12,14 +12,14 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 func TestRegistrarRegistersPluginModuleIntoRuntime(t *testing.T) {
 	binDir := t.TempDir()
 	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-echo"), "./plugins/testplugin/echo")
 
-	factory, err := engine.NewBuilder().
+	factory, err := engine.NewRuntimeFactoryBuilder().
 		WithModules(NewRegistrar(Config{
 			Directories: []string{binDir},
 		})).
@@ -87,7 +87,7 @@ func TestRegistrarLoadsSDKAuthoredExamplePlugin(t *testing.T) {
 	binDir := t.TempDir()
 	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-examples-greeter"), "./plugins/examples/greeter")
 
-	factory, err := engine.NewBuilder().
+	factory, err := engine.NewRuntimeFactoryBuilder().
 		WithModules(NewRegistrar(Config{
 			Directories: []string{binDir},
 		})).
@@ -146,7 +146,7 @@ func TestRegistrarLoadsStatefulKVExamplePlugin(t *testing.T) {
 	binDir := t.TempDir()
 	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-examples-kv"), "./plugins/examples/kv")
 
-	factory, err := engine.NewBuilder().
+	factory, err := engine.NewRuntimeFactoryBuilder().
 		WithModules(NewRegistrar(Config{
 			Directories: []string{binDir},
 		})).
@@ -236,7 +236,7 @@ func TestRegistrarSurfacesPluginHandlerErrors(t *testing.T) {
 	binDir := t.TempDir()
 	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-examples-failing"), "./plugins/examples/failing")
 
-	factory, err := engine.NewBuilder().
+	factory, err := engine.NewRuntimeFactoryBuilder().
 		WithModules(NewRegistrar(Config{
 			Directories: []string{binDir},
 		})).
@@ -281,7 +281,7 @@ func TestRegistrarRejectsInvalidManifest(t *testing.T) {
 	binDir := t.TempDir()
 	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-invalid"), "./plugins/testplugin/invalid")
 
-	factory, err := engine.NewBuilder().
+	factory, err := engine.NewRuntimeFactoryBuilder().
 		WithModules(NewRegistrar(Config{
 			Directories: []string{binDir},
 		})).
@@ -303,7 +303,7 @@ func TestRegistrarRejectsModuleOutsideAllowlist(t *testing.T) {
 	binDir := t.TempDir()
 	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-echo"), "./plugins/testplugin/echo")
 
-	factory, err := engine.NewBuilder().
+	factory, err := engine.NewRuntimeFactoryBuilder().
 		WithModules(NewRegistrar(Config{
 			Directories:  []string{binDir},
 			AllowModules: []string{"plugin:examples:greeter"},
@@ -327,7 +327,7 @@ func TestRegistrarRejectsDuplicateModuleNames(t *testing.T) {
 	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-echo-one"), "./plugins/testplugin/echo")
 	buildTestPlugin(t, filepath.Join(binDir, "goja-plugin-echo-two"), "./plugins/testplugin/echo")
 
-	factory, err := engine.NewBuilder().
+	factory, err := engine.NewRuntimeFactoryBuilder().
 		WithModules(NewRegistrar(Config{
 			Directories: []string{binDir},
 		})).

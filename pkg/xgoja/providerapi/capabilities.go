@@ -5,19 +5,18 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dop251/goja"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
-// SectionContext describes why a module's configuration sections are being
-// requested. Built-in commands should set CommandName and RuntimeProfile;
-// custom command providers should set CommandProviderID and, when applicable,
-// RuntimeProfile or ModuleSelector.
-type SectionContext struct {
+// SectionRequest describes why a module's configuration sections are being
+// requested. Built-in commands should set CommandName; custom command providers
+// should set CommandProviderID. PackageID and ModuleID identify the selected
+// provider module when the request is module-specific.
+type SectionRequest struct {
 	CommandName       string
 	CommandProviderID string
-	RuntimeProfile    string
 	PackageID         string
 	ModuleID          string
 }
@@ -37,24 +36,74 @@ type PackageCapability interface {
 	CapabilityID() string
 }
 
-// ConfigSectionCapability lets a module expose Glazed sections that can be
-// attached to built-in commands or package-owned command providers.
-type ConfigSectionCapability interface {
+// GlazedConfigSectionCapability lets a provider expose public Glazed sections
+// that can be attached to built-in commands or package-owned command providers.
+// These sections are user-facing CLI/config/env inputs; they are not necessarily
+// the same schema as a provider's internal xgoja module config.
+type GlazedConfigSectionCapability interface {
 	PackageCapability
-	ConfigSections(SectionContext) ([]schema.Section, error)
+	GlazedConfigSections(SectionRequest) ([]schema.Section, error)
 }
 
-// RuntimeHandle is the minimal handle passed to runtime initializers. It avoids
-// making providerapi depend on the concrete app or engine runtime type.
-type RuntimeHandle interface {
-	Runtime() *goja.Runtime
+// XGojaConfigRequest identifies one selected module instance whose internal
+// xgoja config is being prepared before module setup. StaticConfig contains the
+// values parsed from xgoja.yaml using ConfigSection. GlazedValues contains the
+// public command/config/env values parsed from Glazed sections.
+type XGojaConfigRequest struct {
+	SectionRequest
+	Descriptor    ModuleDescriptor
+	ConfigSection schema.Section
+	StaticConfig  *values.SectionValues
+	GlazedValues  *values.Values
+}
+
+// XGojaConfigSectionCapability exposes a provider's internal xgoja module
+// config section and maps parsed public Glazed values into an internal config
+// override. The returned SectionValues should use ConfigSection and only include
+// fields that should override static xgoja.yaml config for this module instance.
+type XGojaConfigSectionCapability interface {
+	PackageCapability
+	XGojaConfigSection(SectionRequest, ModuleDescriptor) (schema.Section, error)
+	XGojaConfigFromGlazed(context.Context, XGojaConfigRequest) (*values.SectionValues, error)
+}
+
+// HostServiceContributionRequest is passed to package capabilities before a
+// runtime is constructed. Capabilities can inspect the selected runtime modules
+// and parsed Glazed values, then add opaque host services for provider modules
+// to consume during ModuleSetupContext setup.
+type HostServiceContributionRequest struct {
+	SectionRequest
+	Values  *values.Values
+	Modules []ModuleDescriptor
+}
+
+// HostServiceSink collects opaque provider-defined host services. The sink may
+// accept multiple values for the same key; consumers should use
+// HostServiceLookup.HostServiceValues when a key is intentionally multi-valued.
+// Contributors that create runtime-owned resources should register cleanup with
+// AddCloser; xgoja wires those closers into the engine runtime before JavaScript
+// executes.
+type HostServiceSink interface {
+	AddHostService(key string, value any) error
+	AddCloser(fn func(context.Context) error) error
+}
+
+// HostServiceContributionCapability lets a selected package contribute
+// Go-backed host services before provider modules are set up. xgoja core does
+// not interpret the service values; provider packages own keys and payload
+// types.
+type HostServiceContributionCapability interface {
+	PackageCapability
+	ContributeHostServices(context.Context, HostServiceContributionRequest, HostServiceSink) error
+}
+
+// RuntimeInitializerHandle is the runtime-facing handle passed to runtime
+// initializers. It exposes the owned engine runtime so providers can access the
+// Goja VM, event loop, runtime owner, closer registration, and other runtime-scoped
+// services when installing runtime functionality.
+type RuntimeInitializerHandle interface {
+	EngineRuntime() *engine.Runtime
 	Close(context.Context) error
-}
-
-// RuntimeCloserRegistry is an optional extension implemented by runtime handles
-// that can attach cleanup hooks to the underlying engine runtime.
-type RuntimeCloserRegistry interface {
-	AddCloser(func(context.Context) error) error
 }
 
 // RuntimeInitializerCapability is used by built-in xgoja commands such as run,
@@ -62,7 +111,7 @@ type RuntimeCloserRegistry interface {
 // configures it from parsed Glazed sections.
 type RuntimeInitializerCapability interface {
 	PackageCapability
-	InitRuntimeFromSections(context.Context, *values.Values, RuntimeHandle) error
+	InitRuntimeFromSections(context.Context, *values.Values, RuntimeInitializerHandle) error
 }
 
 type capabilityEntry struct {

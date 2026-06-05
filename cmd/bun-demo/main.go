@@ -14,7 +14,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
 )
 
@@ -44,7 +44,7 @@ func main() {
 	flag.Parse()
 	pluginSetup := host.NewRuntimeSetup(pluginDirs, allowPluginModules)
 
-	builder := pluginSetup.WithBuilder(engine.NewBuilder().
+	builder := pluginSetup.WithBuilder(engine.NewRuntimeFactoryBuilder().
 		WithRequireOptions(require.WithLoader(embeddedSourceLoader)).
 		UseModuleMiddleware(engine.MiddlewareSafe()))
 

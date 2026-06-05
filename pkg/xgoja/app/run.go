@@ -13,34 +13,32 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
 type runCommand struct {
 	*cmds.CommandDescription
-	factory    *RuntimeFactory
-	spec       *Spec
-	sectionErr error
+	factory     *RuntimeFactory
+	runtimeSpec *RuntimeSpec
+	sectionErr  error
 }
 
 var _ cmds.BareCommand = (*runCommand)(nil)
 
 type runSettings struct {
 	File      string `glazed:"file"`
-	Runtime   string `glazed:"runtime"`
 	KeepAlive bool   `glazed:"keep-alive"`
 }
 
-func newRunCommand(factory *RuntimeFactory, spec *Spec) cmds.Command {
-	profile := commandRuntime(spec.Commands.Run, firstRuntime(spec))
-	moduleSections, _, sectionErr := factory.sectionsForRuntimeProfile("run", profile)
+func newRunCommand(factory *RuntimeFactory, runtimeSpec *RuntimeSpec) cmds.Command {
+	moduleSections, _, sectionErr := factory.sectionsForRuntime("run")
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Execute a JavaScript file in a generated xgoja runtime"),
 		cmds.WithLong(`
 Run executes a JavaScript file in a fresh xgoja runtime.
 
-The runtime profile controls which provider modules are available through
+The generated runtime controls which provider modules are available through
 require(). The script's directory is added to the module resolution roots so
 sibling JavaScript files can be required by relative path.
 `),
@@ -50,9 +48,6 @@ sibling JavaScript files can be required by relative path.
 				fields.WithHelp("Path to the JavaScript file to execute")),
 		),
 		cmds.WithFlags(
-			fields.New("runtime", fields.TypeString,
-				fields.WithDefault(profile),
-				fields.WithHelp("Runtime profile to use")),
 			fields.New("keep-alive", fields.TypeBool,
 				fields.WithDefault(false),
 				fields.WithHelp("Keep the runtime alive after the script finishes, useful for scripts that register HTTP routes or static mounts")),
@@ -62,9 +57,9 @@ sibling JavaScript files can be required by relative path.
 		options = append(options, cmds.WithSections(moduleSections...))
 	}
 	return &runCommand{
-		CommandDescription: cmds.NewCommandDescription(commandName(spec.Commands.Run, "run"), options...),
+		CommandDescription: cmds.NewCommandDescription(commandName(runtimeSpec.Commands.Run, "run"), options...),
 		factory:            factory,
-		spec:               spec,
+		runtimeSpec:        runtimeSpec,
 		sectionErr:         sectionErr,
 	}
 }
@@ -77,14 +72,14 @@ func (c *runCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	selectedModules, err := c.factory.selectedModuleDescriptors(settings.Runtime)
+	selectedModules, err := c.factory.selectedModuleDescriptors()
 	if err != nil {
 		return err
 	}
-	return runScriptFileWithInitializers(ctx, c.factory, settings.Runtime, settings.File, vals, selectedModules, settings.KeepAlive)
+	return runScriptFileWithInitializers(ctx, c.factory, settings.File, vals, selectedModules, settings.KeepAlive)
 }
 
-func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory, profile string, file string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, keepAlive bool) error {
+func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory, file string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, keepAlive bool) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -105,7 +100,7 @@ func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory,
 	if err != nil {
 		return fmt.Errorf("resolve module roots from script %q: %w", scriptPath, err)
 	}
-	rt, err := factory.NewRuntime(ctx, profile, requireOpt)
+	rt, err := factory.NewRuntimeFromSections(ctx, vals, requireOpt)
 	if err != nil {
 		return fmt.Errorf("create runtime: %w", err)
 	}
@@ -141,11 +136,4 @@ func waitForKeepAlive(ctx context.Context) error {
 		return err
 	}
 	return nil
-}
-
-func commandRuntime(command CommandSpec, fallback string) string {
-	if command.Runtime != "" {
-		return command.Runtime
-	}
-	return fallback
 }

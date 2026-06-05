@@ -7,8 +7,8 @@ import (
 
 	"github.com/dop251/goja"
 	bobarepl "github.com/go-go-golems/bobatea/pkg/repl"
-	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 	js "github.com/go-go-golems/go-go-goja/pkg/repl/evaluators/javascript"
 	"github.com/go-go-golems/go-go-goja/pkg/replapi"

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	gggengine "github.com/go-go-golems/go-go-goja/engine"
+	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/jsevents"
 	"github.com/stretchr/testify/require"
 )
@@ -380,7 +380,7 @@ func TestFSWatchHelperRejectsDebounceAboveHostLimit(t *testing.T) {
 }
 
 func TestFSWatchHelperRequiresManager(t *testing.T) {
-	factory, err := gggengine.NewBuilder().
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
 		WithRuntimeInitializers(jsevents.FSWatchHelper(jsevents.FSWatchOptions{})).
 		Build()
 	require.NoError(t, err)

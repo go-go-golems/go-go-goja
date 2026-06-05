@@ -2,7 +2,7 @@ module github.com/go-go-golems/go-go-goja
 
 go 1.26.1
 
-toolchain go1.26.3
+toolchain go1.26.4
 
 require (
 	dagger.io/dagger v0.20.3

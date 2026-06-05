@@ -12,11 +12,11 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
-	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
 func (r *Registry) invoke(ctx context.Context, verb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
-	builder := engine.NewBuilder().
+	builder := engine.NewRuntimeFactoryBuilder().
 		WithRequireOptions(require.WithLoader(r.sourceLoader))
 	if r.ModuleMiddleware != nil {
 		builder = builder.UseModuleMiddleware(r.ModuleMiddleware)

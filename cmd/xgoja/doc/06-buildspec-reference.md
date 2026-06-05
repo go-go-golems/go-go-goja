@@ -31,19 +31,15 @@ target:
 packages:
   - id: go-go-goja-core
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
-runtimes:
-  main:
-    modules:
-      - package: go-go-goja-core
-        name: path
-        as: path
+modules:
+  - package: go-go-goja-core
+    name: path
+    as: path
 commands:
   eval:
     enabled: true
-    runtime: main
   run:
     enabled: true
-    runtime: main
 assets:
   - id: app-assets
     path: ./assets
@@ -82,23 +78,21 @@ assets:
   - id: app-assets
     path: ./assets
     embed: true
-runtimes:
-  main:
-    modules:
-      - package: go-go-goja-host
-        name: fs
-        as: fs:assets
-        config:
-          embedded:
-            allow: true
-            mounts:
-              - asset: app-assets
-                mount: /app
-      - package: go-go-goja-host
-        name: fs
-        as: fs:host
-        config:
-          allow: true
+modules:
+  - package: go-go-goja-host
+    name: fs
+    as: fs:assets
+    config:
+      embedded:
+        allow: true
+        mounts:
+          - asset: app-assets
+            mount: /app
+  - package: go-go-goja-host
+    name: fs
+    as: fs:host
+    config:
+      allow: true
 ```
 
 Then JavaScript can use `require("fs:assets")` for read-only embedded files and `require("fs:host")` for explicitly allowed host filesystem access.
@@ -117,20 +111,18 @@ assets:
   - id: app-assets
     path: ./assets
     embed: true
-runtimes:
-  main:
-    modules:
-      - package: go-go-goja-host
-        name: fs
-        as: fs:assets
-        config:
-          embedded:
-            allow: true
-            mounts:
-              - asset: app-assets
-                mount: /app
-      - package: go-go-goja-http
-        name: express
+modules:
+  - package: go-go-goja-host
+    name: fs
+    as: fs:assets
+    config:
+      embedded:
+        allow: true
+        mounts:
+          - asset: app-assets
+            mount: /app
+  - package: go-go-goja-http
+    name: express
 ```
 
 JavaScript can then serve embedded files directly:

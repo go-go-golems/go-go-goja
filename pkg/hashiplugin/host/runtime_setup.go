@@ -1,6 +1,6 @@
 package host
 
-import "github.com/go-go-golems/go-go-goja/engine"
+import "github.com/go-go-golems/go-go-goja/pkg/engine"
 
 type StringSliceFlag []string
 
@@ -33,7 +33,7 @@ func NewRuntimeSetup(directories, allowModules []string) RuntimeSetup {
 	}
 }
 
-func (s RuntimeSetup) WithBuilder(builder *engine.FactoryBuilder) *engine.FactoryBuilder {
+func (s RuntimeSetup) WithBuilder(builder *engine.RuntimeFactoryBuilder) *engine.RuntimeFactoryBuilder {
 	if builder == nil {
 		return nil
 	}

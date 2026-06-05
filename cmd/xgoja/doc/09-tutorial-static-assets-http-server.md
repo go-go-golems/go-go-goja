@@ -86,27 +86,23 @@ assets:
   - id: app-assets
     path: ./assets
     embed: true
-runtimes:
-  main:
-    modules:
-      - package: go-go-goja-host
-        name: fs
-        as: fs:assets
-        config:
-          embedded:
-            allow: true
-            mounts:
-              - asset: app-assets
-                mount: /app
-      - package: go-go-goja-http
-        name: express
+modules:
+  - package: go-go-goja-host
+    name: fs
+    as: fs:assets
+    config:
+      embedded:
+        allow: true
+        mounts:
+          - asset: app-assets
+            mount: /app
+  - package: go-go-goja-http
+    name: express
 commands:
   run:
     enabled: true
-    runtime: main
   eval:
     enabled: true
-    runtime: main
   repl:
     enabled: false
   jsverbs:
@@ -139,7 +135,7 @@ console.log("try  http://127.0.0.1:8787/api/config")
 
 ## 4. Validate, build, and run
 
-Validate and inspect the runtime profile:
+Validate and inspect the module set:
 
 ```bash
 xgoja doctor -f xgoja.yaml
@@ -189,7 +185,7 @@ That target builds the generated binary, starts the server on a test port, fetch
 
 | Problem | What to check |
 | --- | --- |
-| `Cannot find module 'express'` | Add `go-go-goja-http` to `packages:` and select `name: express` in the runtime profile. |
+| `Cannot find module 'express'` | Add `go-go-goja-http` to `packages:` and select `name: express` in the module set. |
 | `Cannot find module 'fs:assets'` | Register host provider `name: fs` with `as: fs:assets` and `embedded.allow: true`. |
 | Static site works during build but not after moving the binary | Confirm files live under `assets:` with `embed: true`, not a host filesystem `app.static` path. |
 | Server exits immediately | Use `run ... --keep-alive`; route registration scripts otherwise finish and close the runtime. |

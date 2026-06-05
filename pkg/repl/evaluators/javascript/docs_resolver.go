@@ -5,10 +5,10 @@ import (
 	"errors"
 	"strings"
 
-	ggjengine "github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/docaccess"
 	pluginprovider "github.com/go-go-golems/go-go-goja/pkg/docaccess/plugin"
 	docaccessruntime "github.com/go-go-golems/go-go-goja/pkg/docaccess/runtime"
+	ggjengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 )
 

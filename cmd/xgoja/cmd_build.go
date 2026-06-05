@@ -38,7 +38,7 @@ type buildSettings struct {
 func newBuildCommand(out io.Writer) *buildCommand {
 	return &buildCommand{
 		CommandDescription: cmds.NewCommandDescription("build",
-			cmds.WithShort("Build a custom goja binary from an xgoja spec"),
+			cmds.WithShort("Build a custom goja binary from an xgoja build spec"),
 			cmds.WithLong(`
 Build reads xgoja.yaml, generates a temporary Go program that imports selected
 module provider packages, and compiles a custom binary.
@@ -59,7 +59,7 @@ Examples:
 					fields.WithShortFlag("f"),
 					fields.WithHelp("Path to the xgoja build specification")),
 				fields.New("output", fields.TypeString,
-					fields.WithHelp("Override the output binary path from the spec")),
+					fields.WithHelp("Override the output binary path from the build spec")),
 				fields.New("work-dir", fields.TypeString,
 					fields.WithHelp("Directory for generated build files; defaults to a temporary directory")),
 				fields.New("keep-work", fields.TypeBool,
@@ -84,7 +84,7 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	spec, report, err := buildspec.LoadFile(settings.File)
+	buildSpec, report, err := buildspec.LoadFile(settings.File)
 	if report != nil {
 		_, _ = fmt.Fprintf(c.out, "validated %d check(s) for %s\n", len(report.Checks), settings.File)
 	}
@@ -93,7 +93,7 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	output := settings.Output
 	if output == "" {
-		output = spec.Target.Output
+		output = buildSpec.Target.Output
 	}
 	workDir := settings.WorkDir
 	cleanup := func() {}
@@ -109,12 +109,12 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	defer cleanup()
 
-	if err := generate.WriteAll(workDir, spec, generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace}); err != nil {
+	if err := generate.WriteAll(workDir, buildSpec, generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace}); err != nil {
 		return err
 	}
 	_, _ = fmt.Fprintf(c.out, "generated build workspace: %s\n", workDir)
 	if settings.DryRun {
-		_, err = fmt.Fprintf(c.out, "xgoja dry run ok: name=%s target=%s output=%s runtimes=%d packages=%d\n", spec.Name, spec.Target.Kind, output, len(spec.Runtimes), len(spec.Packages))
+		_, err = fmt.Fprintf(c.out, "xgoja dry run ok: name=%s target=%s output=%s modules=%d packages=%d\n", buildSpec.Name, buildSpec.Target.Kind, output, len(buildSpec.Modules), len(buildSpec.Packages))
 		return err
 	}
 
@@ -128,7 +128,7 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
-	if _, err := buildexec.GoBuild(ctx, workDir, outputPath, spec.Go.Tags, spec.Go.LDFlags); err != nil {
+	if _, err := buildexec.GoBuild(ctx, workDir, outputPath, buildSpec.Go.Tags, buildSpec.Go.LDFlags); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(c.out, "xgoja build ok: %s\n", outputPath)

@@ -34,7 +34,7 @@ func TestDefaultEnvPrefixNormalizesAppName(t *testing.T) {
 
 func TestGeneratedRootReadsModuleSectionFromDerivedEnvPrefix(t *testing.T) {
 	t.Setenv("ENV_FIXTURE_FIXTURE_VALUE", "from-env")
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -43,13 +43,9 @@ func TestGeneratedRootReadsModuleSectionFromDerivedEnvPrefix(t *testing.T) {
   "appName": "env-fixture",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -69,7 +65,7 @@ func TestGeneratedRootReadsModuleSectionFromDerivedEnvPrefix(t *testing.T) {
 
 func TestGeneratedRootReadsModuleSectionFromExplicitEnvPrefix(t *testing.T) {
 	t.Setenv("XGOJA_TEST_FIXTURE_VALUE", "explicit-env")
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -78,13 +74,9 @@ func TestGeneratedRootReadsModuleSectionFromExplicitEnvPrefix(t *testing.T) {
   "envPrefix": "XGOJA_TEST",
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -104,7 +96,7 @@ func TestGeneratedRootReadsModuleSectionFromExplicitEnvPrefix(t *testing.T) {
 
 func TestGeneratedRootKeepsDefaultMiddlewaresWithoutAppSettings(t *testing.T) {
 	t.Setenv("FIXTURE_FIXTURE_VALUE", "ignored")
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -130,23 +122,19 @@ func TestGeneratedRootReadsConfigFile(t *testing.T) {
 
 	chdirForTest(t, dir)
 
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
   "name": "fixture",
   "appName": "config-fixture",
-  "config": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
+  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -173,7 +161,7 @@ func TestConfigPrecedenceEnvBeatsConfig(t *testing.T) {
 
 	chdirForTest(t, dir)
 
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -181,16 +169,12 @@ func TestConfigPrecedenceEnvBeatsConfig(t *testing.T) {
   "name": "fixture",
   "appName": "config-fixture",
   "envPrefix": "CONFIG_FIXTURE",
-  "config": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
+  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -217,7 +201,7 @@ func TestConfigPrecedenceFlagBeatsEnv(t *testing.T) {
 
 	chdirForTest(t, dir)
 
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
@@ -225,16 +209,12 @@ func TestConfigPrecedenceFlagBeatsEnv(t *testing.T) {
   "name": "fixture",
   "appName": "config-fixture",
   "envPrefix": "CONFIG_FIXTURE",
-  "config": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
+  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -259,23 +239,19 @@ func TestExplicitConfigFileRequiresExplicitLayer(t *testing.T) {
 		t.Fatalf("write explicit config: %v", err)
 	}
 
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
   "name": "fixture",
   "appName": "config-fixture",
-  "config": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
+  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`
@@ -300,22 +276,18 @@ func TestExplicitConfigFileLoadsWithExplicitLayer(t *testing.T) {
 		t.Fatalf("write explicit config: %v", err)
 	}
 
-	registry := providerapi.NewRegistry()
+	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
   "name": "fixture",
-  "config": {"enabled": true, "layers": ["explicit"], "fileName": "config.yaml"},
+  "configFile": {"enabled": true, "layers": ["explicit"], "fileName": "config.yaml"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
   "packages": [{"id": "fixture"}],
-  "runtimes": {
-    "repl": {
-      "modules": [{"package": "fixture", "name": "hello", "as": "hello"}]
-    }
-  },
+  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
   "commands": {
-    "eval": {"enabled": true, "runtime": "repl", "name": "eval"},
+    "eval": {"enabled": true, "name": "eval"},
     "jsverbs": {"enabled": false}
   }
 }`

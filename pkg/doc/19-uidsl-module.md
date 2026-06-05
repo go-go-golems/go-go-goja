@@ -28,7 +28,7 @@ const ui = require("ui");
 ## Go setup
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     WithModules(uidsl.NewRegistrar()).
     Build()
 ```

@@ -9,7 +9,7 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/dop251/goja"
-	gggengine "github.com/go-go-golems/go-go-goja/engine"
+	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/jsevents"
 	"github.com/stretchr/testify/require"
 )
@@ -181,7 +181,7 @@ func TestWatermillHelperRejectsDisallowedTopic(t *testing.T) {
 
 func TestWatermillHelperRequiresManager(t *testing.T) {
 	sub := newFakeSubscriber()
-	factory, err := gggengine.NewBuilder().
+	factory, err := gggengine.NewRuntimeFactoryBuilder().
 		WithRuntimeInitializers(jsevents.WatermillHelper(jsevents.WatermillOptions{Subscriber: sub})).
 		Build()
 	require.NoError(t, err)

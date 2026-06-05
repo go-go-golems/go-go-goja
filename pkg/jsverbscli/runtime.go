@@ -8,9 +8,9 @@ import (
 
 	noderequire "github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
-	"github.com/go-go-golems/go-go-goja/engine"
 	databasemod "github.com/go-go-golems/go-go-goja/modules/database"
 	"github.com/go-go-golems/go-go-goja/modules/uidsl"
+	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -41,7 +41,7 @@ func runtimeInvokerFactory(settings *RuntimeSettings) InvokerFactory {
 	}
 }
 
-func newRuntimeFactory(repo ScannedRepository, settings *RuntimeSettings) (*engine.Factory, func(), error) {
+func newRuntimeFactory(repo ScannedRepository, settings *RuntimeSettings) (*engine.RuntimeFactory, func(), error) {
 	if repo.Registry == nil {
 		return nil, nil, fmt.Errorf("repository %s has no jsverbs registry", describeRepository(repo))
 	}
@@ -50,7 +50,7 @@ func newRuntimeFactory(repo ScannedRepository, settings *RuntimeSettings) (*engi
 	}
 
 	cleanup := func() {}
-	moduleSpecs := []engine.RuntimeModuleSpec{}
+	moduleSpecs := []engine.RuntimeModuleRegistrar{}
 	if settings.DBPath != "" {
 		db, err := sql.Open("sqlite3", settings.DBPath)
 		if err != nil {
@@ -71,13 +71,13 @@ func newRuntimeFactory(repo ScannedRepository, settings *RuntimeSettings) (*engi
 			databasemod.WithConfigureEnabled(false),
 		)
 		moduleSpecs = append(moduleSpecs,
-			engine.NativeModuleSpec{ModuleID: "database:configured", ModuleName: databaseModule.Name(), Loader: databaseModule.Loader},
-			engine.NativeModuleSpec{ModuleID: "database:db-alias", ModuleName: dbAliasModule.Name(), Loader: dbAliasModule.Loader},
+			engine.NativeModuleRegistrar{ModuleID: "database:configured", ModuleName: databaseModule.Name(), Loader: databaseModule.Loader},
+			engine.NativeModuleRegistrar{ModuleID: "database:db-alias", ModuleName: dbAliasModule.Name(), Loader: dbAliasModule.Loader},
 		)
 		cleanup = func() { _ = db.Close() }
 	}
 
-	builder := engine.NewBuilder(runtimeOptions(repo)...).
+	builder := engine.NewRuntimeFactoryBuilder(runtimeOptions(repo)...).
 		WithRequireOptions(noderequire.WithLoader(repo.Registry.RequireLoader())).
 		UseModuleMiddleware(engine.MiddlewareOnly("fs", "path", "time", "timer", "yaml")).
 		WithModules(moduleSpecs...).

@@ -1,0 +1,20 @@
+slug: workspace
+profiles:
+  default:
+    slug: default
+    display_name: Workspace Default
+    inference_settings:
+      api:
+        api_keys:
+          openai-api-key: test-key
+      chat:
+        api_type: openai
+        engine: gpt-4o-mini
+  assistant:
+    slug: assistant
+    display_name: Assistant
+    stack:
+      - profile_slug: default
+    inference_settings:
+      chat:
+        engine: gpt-5-mini

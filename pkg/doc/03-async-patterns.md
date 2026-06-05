@@ -183,7 +183,7 @@ In practice:
 
 `engine.Runtime.Close(ctx)` cancels the runtime lifetime context, waits briefly for active owner calls to finish, interrupts active JavaScript if necessary, runs registered closers while runtime services are still available, then removes runtimebridge services and stops the owner/event loop.
 
-Native modules with runtime-owned resources should register closers via `RuntimeModuleContext.AddCloser` or the xgoja runtime handle closer registry. Closers should expect the lifetime context to already be canceled, but they may still use runtime services for final owner-thread cleanup.
+Native modules with runtime-owned resources should register closers via `RuntimeModuleRegistrationContext.AddCloser` or the xgoja runtime handle closer registry. Closers should expect the lifetime context to already be canceled, but they may still use runtime services for final owner-thread cleanup.
 
 ## Connected EventEmitter pattern
 
@@ -216,7 +216,7 @@ conn.close();
 The embedding Go application must explicitly install the manager and helper:
 
 ```go
-factory, err := engine.NewBuilder().
+factory, err := engine.NewRuntimeFactoryBuilder().
     WithRuntimeInitializers(
         jsevents.Install(),
         jsevents.FSWatchHelper(jsevents.FSWatchOptions{

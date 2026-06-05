@@ -3,29 +3,23 @@ target:
   kind: xgoja
   output: dist/runtime-filesystem
 packages:
-  - id: fixture
-    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
-runtimes:
-  repl:
-    modules:
-      - package: fixture
-        name: hello
-        as: hello
+- id: fixture
+  import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
 commands:
   eval:
     enabled: true
-    runtime: repl
   run:
     enabled: true
-    runtime: repl
   jsverbs:
     enabled: true
-    runtime: repl
     name: verbs
   repl:
     enabled: true
-    runtime: repl
 jsverbs:
-  - id: local-dev
-    path: ./verbs
-    embed: false
+- id: local-dev
+  path: ./verbs
+  embed: false
+modules:
+- package: fixture
+  name: hello
+  as: hello
