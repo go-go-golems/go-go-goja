@@ -20,6 +20,11 @@ type PackageOptions struct {
 	PackageName string
 }
 
+type TemplateOptions struct {
+	PackageName  string
+	TemplatePath string
+}
+
 func defaultOptions() Options {
 	return Options{XGojaModuleVersion: "v0.0.0"}
 }
@@ -82,6 +87,61 @@ func WritePackage(dir string, buildSpec *buildspec.BuildSpec, opts PackageOption
 	content := RenderPackage(buildSpec, packageName)
 	if err := os.WriteFile(filepath.Join(dir, "xgoja_runtime.gen.go"), []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write generated package: %w", err)
+	}
+	return nil
+}
+
+func WriteSourceFragments(dir string, buildSpec *buildspec.BuildSpec, opts PackageOptions) error {
+	if dir == "" {
+		return fmt.Errorf("generate directory is required")
+	}
+	if buildSpec == nil {
+		return fmt.Errorf("BuildSpec is nil")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create generate directory %s: %w", dir, err)
+	}
+	if err := copyEmbeddedJSVerbs(dir, buildSpec); err != nil {
+		return err
+	}
+	if err := copyEmbeddedHelpSources(dir, buildSpec); err != nil {
+		return err
+	}
+	if err := copyEmbeddedAssets(dir, buildSpec); err != nil {
+		return err
+	}
+	packageName := strings.TrimSpace(opts.PackageName)
+	if packageName == "" {
+		packageName = packageNameFromDir(dir)
+	}
+	for name, content := range RenderSourceFragments(buildSpec, packageName) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			return fmt.Errorf("write generated source fragment %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func WriteCustomTemplate(outputFile string, buildSpec *buildspec.BuildSpec, opts TemplateOptions) error {
+	if strings.TrimSpace(outputFile) == "" {
+		return fmt.Errorf("custom template output file is required")
+	}
+	if buildSpec == nil {
+		return fmt.Errorf("BuildSpec is nil")
+	}
+	if err := os.MkdirAll(filepath.Dir(outputFile), 0o755); err != nil {
+		return fmt.Errorf("create custom template output directory: %w", err)
+	}
+	packageName := strings.TrimSpace(opts.PackageName)
+	if packageName == "" {
+		packageName = packageNameFromDir(filepath.Dir(outputFile))
+	}
+	content, err := loadCustomTemplate(opts.TemplatePath, packageTemplateDataFromSpec(buildSpec, packageName))
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(outputFile, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write custom template output %s: %w", outputFile, err)
 	}
 	return nil
 }

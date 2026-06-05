@@ -19,3 +19,6 @@
 - [x] Run focused and full validation for GOJA-065
 - [x] Update GOJA-065 diary, changelog, file relations, and docmgr doctor
 - [x] Commit GOJA-065 implementation and documentation changes
+- [ ] Implement source-fragment generation mode
+- [ ] Implement custom template generation mode
+- [ ] Add tests and documentation for source-fragment and custom-template generation

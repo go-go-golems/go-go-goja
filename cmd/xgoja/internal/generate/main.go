@@ -24,6 +24,35 @@ func RenderPackage(buildSpec *buildspec.BuildSpec, packageName string) string {
 	return rendered
 }
 
+func RenderSourceFragments(buildSpec *buildspec.BuildSpec, packageName string) map[string]string {
+	data := packageTemplateDataFromSpec(buildSpec, packageName)
+	fragments := map[string]func(packageTemplateData) (string, error){
+		"spec.gen.go":      renderSpecFragmentTemplate,
+		"providers.gen.go": renderProvidersFragmentTemplate,
+		"bundle.gen.go":    renderBundleFragmentTemplate,
+	}
+	if data.HasEmbedded {
+		fragments["embed.gen.go"] = renderEmbedFragmentTemplate
+	}
+	out := make(map[string]string, len(fragments))
+	for name, render := range fragments {
+		rendered, err := render(data)
+		if err != nil {
+			panic(err)
+		}
+		out[name] = rendered
+	}
+	return out
+}
+
+func RenderCustomTemplate(buildSpec *buildspec.BuildSpec, packageName string, templatePath string) string {
+	rendered, err := loadCustomTemplate(templatePath, packageTemplateDataFromSpec(buildSpec, packageName))
+	if err != nil {
+		panic(err)
+	}
+	return rendered
+}
+
 func RenderEmbeddedSpec(buildSpec *buildspec.BuildSpec) string {
 	buildSpec = runtimeSpec(buildSpec)
 	var helpSpec *buildspec.HelpSpec

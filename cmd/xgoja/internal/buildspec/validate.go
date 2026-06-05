@@ -125,7 +125,7 @@ func usesAppScopedConfigLayer(layers []string) bool {
 func validateTarget(report *Report, buildSpec *BuildSpec) {
 	kind := strings.TrimSpace(buildSpec.Target.Kind)
 	switch kind {
-	case "xgoja", "adapter", "cobra", "package":
+	case "xgoja", "adapter", "cobra", "package", "source", "template":
 		report.AddOK("target-kind", "target.kind", fmt.Sprintf("target kind %q is supported", kind))
 	default:
 		report.AddError("target-kind", "target.kind", fmt.Sprintf("unsupported target kind %q", kind))
@@ -149,11 +149,22 @@ func validateTarget(report *Report, buildSpec *BuildSpec) {
 			report.AddOK("target-root", "target.root", buildSpec.Target.Root)
 		}
 	}
-	if kind == "package" && strings.TrimSpace(buildSpec.Target.Package) != "" {
-		if sanitized := sanitizeGoPackageName(buildSpec.Target.Package); sanitized != strings.TrimSpace(buildSpec.Target.Package) {
-			report.AddError("target-package", "target.package", fmt.Sprintf("target package must be a valid Go package identifier; suggested value %q", sanitized))
+	if kind == "package" || kind == "source" || kind == "template" {
+		if strings.TrimSpace(buildSpec.Target.Package) != "" {
+			if sanitized := sanitizeGoPackageName(buildSpec.Target.Package); sanitized != strings.TrimSpace(buildSpec.Target.Package) {
+				report.AddError("target-package", "target.package", fmt.Sprintf("target package must be a valid Go package identifier; suggested value %q", sanitized))
+			} else {
+				report.AddOK("target-package", "target.package", buildSpec.Target.Package)
+			}
+		}
+	}
+	if kind == "template" {
+		if strings.TrimSpace(buildSpec.Target.Template) == "" {
+			report.AddError("target-template", "target.template", "target template is required for template mode")
+		} else if err := requireExistingPath(buildSpec.BaseDir, buildSpec.Target.Template); err != nil {
+			report.AddError("target-template", "target.template", err.Error())
 		} else {
-			report.AddOK("target-package", "target.package", buildSpec.Target.Package)
+			report.AddOK("target-template", "target.template", buildSpec.Target.Template)
 		}
 	}
 }

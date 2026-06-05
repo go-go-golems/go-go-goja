@@ -23,10 +23,11 @@ type generateCommand struct {
 var _ cmds.BareCommand = (*generateCommand)(nil)
 
 type generateSettings struct {
-	File    string `glazed:"file"`
-	Output  string `glazed:"output"`
-	Package string `glazed:"package"`
-	DryRun  bool   `glazed:"dry-run"`
+	File     string `glazed:"file"`
+	Output   string `glazed:"output"`
+	Package  string `glazed:"package"`
+	Template string `glazed:"template"`
+	DryRun   bool   `glazed:"dry-run"`
 }
 
 func newGenerateCommand(out io.Writer) *generateCommand {
@@ -36,15 +37,16 @@ func newGenerateCommand(out io.Writer) *generateCommand {
 			cmds.WithLong(`
 Generate reads xgoja.yaml and writes source files into an existing Go module.
 
-The first generation mode supports target.kind: package. It writes a reusable
-runtime package containing provider registration, embedded runtime spec JSON,
-optional embedded resource filesystems, NewBundle, NewRuntime, and command
-attachment helpers. It does not create go.mod, run go mod tidy, or compile a
-binary.
+Generation supports target.kind: package, source, and template. Package mode
+writes one reusable runtime package file. Source-fragment mode splits the same
+API across spec/providers/embed/bundle files. Template mode renders a caller
+provided Go template with the same data contract. Generate does not create
+go.mod, run go mod tidy, or compile a binary.
 
 Examples:
   xgoja generate -f xgoja.yaml
   xgoja generate -f xgoja.yaml --output ./internal/xgojaruntime --package xgojaruntime
+  xgoja generate -f xgoja.yaml --template ./runtime.go.tmpl --output ./internal/runtime/custom.gen.go
   xgoja generate -f xgoja.yaml --dry-run
 `),
 			cmds.WithFlags(
@@ -57,6 +59,8 @@ Examples:
 					fields.WithHelp("Override the generated package output directory from target.output")),
 				fields.New("package", fields.TypeString,
 					fields.WithHelp("Override generated Go package name from target.package or output directory")),
+				fields.New("template", fields.TypeString,
+					fields.WithHelp("Override custom template path for target.kind template")),
 				fields.New("dry-run", fields.TypeBool,
 					fields.WithDefault(false),
 					fields.WithHelp("Validate and print the planned generation without writing files")),
@@ -83,8 +87,8 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	if kind == "" {
 		kind = "xgoja"
 	}
-	if kind != "package" {
-		return fmt.Errorf("xgoja generate currently supports target.kind package, got %q", kind)
+	if kind != "package" && kind != "source" && kind != "template" {
+		return fmt.Errorf("xgoja generate supports target.kind package, source, or template; got %q", kind)
 	}
 	output := strings.TrimSpace(settings.Output)
 	if output == "" {
@@ -97,14 +101,29 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	if packageName == "" {
 		packageName = strings.TrimSpace(buildSpec.Target.Package)
 	}
-	if packageName == "" {
-		packageName = filepath.Base(filepath.Clean(output))
+	templatePath := strings.TrimSpace(settings.Template)
+	if templatePath == "" {
+		templatePath = strings.TrimSpace(buildSpec.Target.Template)
+	}
+	if kind == "template" && templatePath == "" {
+		return fmt.Errorf("custom template path is required for target.kind template")
+	}
+	if templatePath != "" && !filepath.IsAbs(templatePath) {
+		templatePath = filepath.Join(buildSpec.BaseDir, templatePath)
 	}
 	if settings.DryRun {
-		_, err = fmt.Fprintf(c.out, "xgoja generate dry run ok: name=%s target=%s output=%s package=%s modules=%d packages=%d\n", buildSpec.Name, kind, output, packageName, len(buildSpec.Modules), len(buildSpec.Packages))
+		_, err = fmt.Fprintf(c.out, "xgoja generate dry run ok: name=%s target=%s output=%s package=%s template=%s modules=%d packages=%d\n", buildSpec.Name, kind, output, packageName, templatePath, len(buildSpec.Modules), len(buildSpec.Packages))
 		return err
 	}
-	if err := generate.WritePackage(output, buildSpec, generate.PackageOptions{PackageName: packageName}); err != nil {
+	switch kind {
+	case "package":
+		err = generate.WritePackage(output, buildSpec, generate.PackageOptions{PackageName: packageName})
+	case "source":
+		err = generate.WriteSourceFragments(output, buildSpec, generate.PackageOptions{PackageName: packageName})
+	case "template":
+		err = generate.WriteCustomTemplate(output, buildSpec, generate.TemplateOptions{PackageName: packageName, TemplatePath: templatePath})
+	}
+	if err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(c.out, "xgoja generate ok: %s\n", output)

@@ -185,6 +185,46 @@ func TestValidatePackageTargetRejectsInvalidPackageName(t *testing.T) {
 	assertCheck(t, report, StatusError, "target-package", "target.package")
 }
 
+func TestValidateSourceTargetAcceptsPackageOutput(t *testing.T) {
+	buildSpec := validSpec()
+	buildSpec.Target = TargetSpec{Kind: "source", Output: "internal/xgojaruntime", Package: "xgojaruntime"}
+
+	report := Validate(buildSpec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusOK, "target-kind", "target.kind")
+	assertCheck(t, report, StatusOK, "target-package", "target.package")
+}
+
+func TestValidateTemplateTargetRequiresExistingTemplate(t *testing.T) {
+	buildSpec := validSpec()
+	buildSpec.Target = TargetSpec{Kind: "template", Output: "internal/xgojaruntime/custom.gen.go", Package: "xgojaruntime"}
+
+	report := Validate(buildSpec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "target-template", "target.template")
+}
+
+func TestValidateTemplateTargetAcceptsExistingTemplate(t *testing.T) {
+	dir := t.TempDir()
+	templatePath := filepath.Join(dir, "runtime.go.tmpl")
+	if err := os.WriteFile(templatePath, []byte("package {{ .PackageName }}\n"), 0o644); err != nil {
+		t.Fatalf("write template: %v", err)
+	}
+	buildSpec := validSpec()
+	buildSpec.BaseDir = dir
+	buildSpec.Target = TargetSpec{Kind: "template", Output: "internal/xgojaruntime/custom.gen.go", Package: "xgojaruntime", Template: "runtime.go.tmpl"}
+
+	report := Validate(buildSpec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusOK, "target-template", "target.template")
+}
+
 func TestValidateJSVerbCommandMountAcceptsRootAliases(t *testing.T) {
 	for _, mount := range []string{"root", "/", "."} {
 		buildSpec := validSpec()

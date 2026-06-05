@@ -3,8 +3,11 @@ package generate
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"go/format"
+	"os"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -54,8 +57,40 @@ func renderPackageTemplate(data packageTemplateData) (string, error) {
 	return renderTemplate("runtime_package.go.tmpl", data, "generated runtime package")
 }
 
+func renderSpecFragmentTemplate(data packageTemplateData) (string, error) {
+	return renderTemplate("spec_fragment.go.tmpl", data, "generated spec fragment")
+}
+
+func renderProvidersFragmentTemplate(data packageTemplateData) (string, error) {
+	return renderTemplate("providers_fragment.go.tmpl", data, "generated providers fragment")
+}
+
+func renderEmbedFragmentTemplate(data packageTemplateData) (string, error) {
+	return renderTemplate("embed_fragment.go.tmpl", data, "generated embed fragment")
+}
+
+func renderBundleFragmentTemplate(data packageTemplateData) (string, error) {
+	return renderTemplate("bundle_fragment.go.tmpl", data, "generated bundle fragment")
+}
+
+func renderCustomTemplate(path string, data packageTemplateData) (string, error) {
+	tmpl, err := template.New(filepathBase(path)).Funcs(templateFuncs()).ParseFiles(path)
+	if err != nil {
+		return "", fmt.Errorf("parse custom template %s: %w", path, err)
+	}
+	var b bytes.Buffer
+	if err := tmpl.Execute(&b, data); err != nil {
+		return "", fmt.Errorf("execute custom template %s: %w", path, err)
+	}
+	formatted, err := format.Source(b.Bytes())
+	if err != nil {
+		return "", fmt.Errorf("format custom template output %s: %w\n%s", path, err, b.String())
+	}
+	return string(formatted), nil
+}
+
 func renderTemplate(name string, data any, label string) (string, error) {
-	tmpl, err := template.ParseFS(templateFS, "templates/"+name)
+	tmpl, err := template.New(name).Funcs(templateFuncs()).ParseFS(templateFS, "templates/"+name)
 	if err != nil {
 		return "", fmt.Errorf("parse %s template: %w", name, err)
 	}
@@ -68,6 +103,42 @@ func renderTemplate(name string, data any, label string) (string, error) {
 		return "", fmt.Errorf("format %s: %w\n%s", label, err, b.String())
 	}
 	return string(formatted), nil
+}
+
+func templateFuncs() template.FuncMap {
+	return template.FuncMap{
+		"quote":     strconv.Quote,
+		"rawString": escapeRawString,
+		"json": func(v any) (string, error) {
+			data, err := json.Marshal(v)
+			if err != nil {
+				return "", err
+			}
+			return string(data), nil
+		},
+	}
+}
+
+func filepathBase(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "custom.tmpl"
+	}
+	idx := strings.LastIndexAny(path, `/\\`)
+	if idx >= 0 {
+		return path[idx+1:]
+	}
+	return path
+}
+
+func loadCustomTemplate(path string, data packageTemplateData) (string, error) {
+	if strings.TrimSpace(path) == "" {
+		return "", fmt.Errorf("custom template path is required")
+	}
+	if _, err := os.Stat(path); err != nil {
+		return "", err
+	}
+	return renderCustomTemplate(path, data)
 }
 
 func mainTemplateDataFromSpec(buildSpec *buildspec.BuildSpec) mainTemplateData {
