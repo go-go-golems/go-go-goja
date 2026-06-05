@@ -11,10 +11,22 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: go-go-goja/cmd/bun-demo/js/src/types/goja-modules.d.ts
+      Note: Regenerated database transaction TypeScript declarations (commit 1b40ae1)
     - Path: go-go-goja/modules/database/database.go
-      Note: Primary implementation target
+      Note: |-
+        Primary implementation target
+        Transaction interfaces
+    - Path: go-go-goja/modules/database/database_test.go
+      Note: Core transaction behavior and context propagation tests (commit 1b40ae1)
+    - Path: go-go-goja/pkg/doc/bun-goja-bundling-playbook.md
+      Note: Updated declaration snippet for database transactions (commit 1b40ae1)
+    - Path: go-go-goja/pkg/jsverbscli/command_test.go
+      Note: Guarded transaction policy tests (commit 1b40ae1)
     - Path: go-go-goja/pkg/jsverbscli/runtime.go
-      Note: Guarded integration target
+      Note: |-
+        Guarded integration target
+        Guarded transaction wrapper implementation (commit 1b40ae1)
     - Path: go-go-goja/ttmp/2026/06/05/XGOJA-DB-TRANSACTIONS--add-transaction-support-to-the-database-module/design-doc/01-database-module-transaction-support-design-and-implementation-guide.md
       Note: Design produced in Step 1
 ExternalSources: []
@@ -23,6 +35,7 @@ LastUpdated: 2026-06-05T11:35:00-04:00
 WhatFor: Track design, implementation, validation, failures, and review guidance for database transaction support.
 WhenToUse: Read before resuming the transaction support ticket or reviewing its commits.
 ---
+
 
 
 # Diary
@@ -107,3 +120,106 @@ Then add tasks to the ticket, and implement step by step, keepig a detailed diar
 - Current root database exports are in `DBModule.Loader`.
 - Current query/exec helpers are `queryRows`, `execResult`, and `flattenArgs`.
 - Existing context propagation tests use `runtimebridge.CurrentOwnerContext(vm)` indirectly through runtime owner calls.
+
+## Step 2: Implement database transactions and guarded wrapper support
+
+This step implemented the transaction API described in the design guide. The database module now exports `begin()`, returning a JavaScript transaction object with `query`, `exec`, `commit`, and `rollback`, and the Go API now has `DBModule.BeginContext` plus wrapper-friendly transaction interfaces.
+
+The implementation also updates the jsverbs guarded database wrapper so transaction writes still respect the same `allowWrites` policy as top-level `db.exec`. This prevents read-only jsverbs database access from being bypassed by `db.begin().exec(...)`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue from the design and implement the transaction feature incrementally with tests, documentation updates, and commits.
+
+**Inferred user intent:** Deliver working transaction support, not just a design, while keeping the ticket diary and tasks useful for review and continuation.
+
+**Commit (code):** `1b40ae1587bc267cc929039565bcb746427973ef` — "feat: add database transaction support"
+
+### What I did
+
+- Added transaction abstractions to `modules/database/database.go`:
+  - `Transaction`
+  - `TransactionContext`
+  - `TransactionBeginner`
+  - `TransactionBeginnerContext`
+  - SQL-specific internal begin interfaces for `*sql.DB` compatibility.
+- Added `DBModule.Begin()` and `DBModule.BeginContext()`.
+- Added `TransactionHandle` with `QueryContext`, `ExecContext`, `Commit`, `Rollback`, and `ToObject`.
+- Exported `begin()` from `DBModule.Loader` so JavaScript can call `db.begin()`.
+- Extracted `rowsToRecords` and `resultToMap` helpers so root and transaction operations share result conversion.
+- Added `rows.Err()` checking during row conversion.
+- Added database module tests for commit, rollback, use-after-commit, unconfigured/non-transactional begin failures, and async owner-context propagation.
+- Added context-aware methods and transaction begin support to `pkg/jsverbscli/runtime.go`'s `guardedDB`.
+- Added guarded transaction tests to ensure read-only mode rejects `tx.exec` and write-enabled mode commits successfully.
+- Updated TypeScript declarations and the bun/goja bundling playbook snippet.
+
+### Why
+
+- `*sql.Tx` alone is not enough because go-go-goja database users can provide wrappers through `WithPreconfiguredDB`.
+- The jsverbs CLI wrapper enforces write policy at the database wrapper layer, so transaction support must give wrappers a way to return guarded transaction handles.
+- JavaScript callers need stable transaction lifecycle errors instead of raw driver behavior after commit/rollback.
+
+### What worked
+
+- Focused tests passed:
+  - `go test ./modules/database ./pkg/jsverbscli -count=1`
+  - `go test ./modules/database ./pkg/jsverbscli ./pkg/xgoja/providers/host ./cmd/gen-dts -count=1`
+- Full tests passed:
+  - `go test ./... -count=1`
+- The commit hook also passed lint and tests before creating commit `1b40ae1587bc267cc929039565bcb746427973ef`.
+
+### What didn't work
+
+- During the pre-commit hook, `go generate ./...` tried a Dagger build for `cmd/bun-demo` and Dagger failed to resolve `docker.io/library/node:20.18.1` because DNS timed out:
+  - `failed to resolve image "docker.io/library/node:20.18.1" ... dial tcp: lookup registry-1.docker.io on 10.87.0.1:53: read udp 10.87.0.1:42117->10.87.0.1:53: i/o timeout`
+- The generate step recovered automatically:
+  - `dagger build failed, falling back to local npm build`
+  - `exported split assets to .../cmd/bun-demo/assets-split (local npm fallback)`
+- The hook completed successfully after the fallback, and the commit was created.
+
+### What I learned
+
+- The existing `QueryExecerContext` shape makes `*sql.Tx` easy to reuse for transaction query/exec because it has compatible `QueryContext` and `ExecContext` methods.
+- Go interface return types are not covariant: an interface method returning `Transaction` is not satisfied by `*sql.DB.BeginTx` returning `*sql.Tx`. The implementation therefore supports both wrapper-specific abstract begin methods and SQL-specific internal begin methods.
+- Existing async context propagation tests were a good template for proving `tx.exec` receives the original owner call context after `await`.
+
+### What was tricky to build
+
+- The sharpest edge was preserving guard policy while still supporting plain `*sql.DB`. A concrete `BeginTx(ctx, opts) (*sql.Tx, error)` interface works for `*sql.DB`, but it does not let wrappers intercept `Exec` inside the transaction. The solution was a two-track begin helper: first prefer wrapper-defined `BeginTransactionContext(ctx, opts) (Transaction, error)`, then fall back to SQL's concrete `BeginTx`/`Begin` methods.
+- Another subtlety was transaction closed state. The handle now owns a mutex and clears its transaction after commit/rollback so later calls return `database transaction is closed` consistently.
+
+### What warrants a second pair of eyes
+
+- Whether `TransactionHandle` should mark itself closed even if `Commit` or `Rollback` returns an error. The current implementation closes the handle after invoking the close operation, which avoids ambiguous reuse after a failed terminal operation.
+- Whether the `TransactionBeginner`/`TransactionBeginnerContext` names are sufficiently clear compared with standard library `Begin`/`BeginTx`.
+- Whether `DatabaseTransaction` TypeScript interfaces should be namespaced or made unique per module alias to avoid declaration collisions if both `database` and `db` declarations are generated together.
+
+### What should be done in the future
+
+- Consider adding a convenience `db.transaction(fn)` helper after explicit transaction handles have soaked.
+- Consider exposing `begin({ readOnly, isolation })` if callers need `sql.TxOptions`.
+- Consider improving TypeScript declaration formatting for `RawDTS` indentation in generated modules.
+
+### Code review instructions
+
+- Start in `modules/database/database.go`:
+  - transaction interfaces near the top of the file;
+  - `DBModule.Loader` for the `begin` export;
+  - `DBModule.BeginContext` and `TransactionHandle` for lifecycle behavior;
+  - `beginTransaction` for wrapper-vs-SQL begin dispatch.
+- Then review `pkg/jsverbscli/runtime.go` to ensure guarded transaction writes cannot bypass `allowWrites`.
+- Review tests in `modules/database/database_test.go` and `pkg/jsverbscli/command_test.go` for behavior coverage.
+- Validate with `go test ./modules/database ./pkg/jsverbscli ./pkg/xgoja/providers/host ./cmd/gen-dts -count=1` and `go test ./... -count=1`.
+
+### Technical details
+
+- JavaScript API:
+  - `const tx = db.begin()`
+  - `tx.query(sql, ...args)`
+  - `tx.exec(sql, ...args)`
+  - `tx.commit()`
+  - `tx.rollback()`
+- Result shape for transaction `exec` matches root `exec`: `{ success, rowsAffected, lastInsertId }`, with `{ success: false, error }` on failure.
+- Commit/rollback result shape is `{ success: true }` or `{ success: false, error }`.
