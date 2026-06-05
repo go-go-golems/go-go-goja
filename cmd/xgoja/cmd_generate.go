@@ -23,11 +23,13 @@ type generateCommand struct {
 var _ cmds.BareCommand = (*generateCommand)(nil)
 
 type generateSettings struct {
-	File     string `glazed:"file"`
-	Output   string `glazed:"output"`
-	Package  string `glazed:"package"`
-	Template string `glazed:"template"`
-	DryRun   bool   `glazed:"dry-run"`
+	File         string `glazed:"file"`
+	Output       string `glazed:"output"`
+	Package      string `glazed:"package"`
+	Template     string `glazed:"template"`
+	TemplateData bool   `glazed:"template-data"`
+	Clean        bool   `glazed:"clean"`
+	DryRun       bool   `glazed:"dry-run"`
 }
 
 func newGenerateCommand(out io.Writer) *generateCommand {
@@ -47,6 +49,8 @@ Examples:
   xgoja generate -f xgoja.yaml
   xgoja generate -f xgoja.yaml --output ./internal/xgojaruntime --package xgojaruntime
   xgoja generate -f xgoja.yaml --template ./runtime.go.tmpl --output ./internal/runtime/custom.gen.go
+  xgoja generate -f xgoja.yaml --template-data
+  xgoja generate -f xgoja.yaml --clean
   xgoja generate -f xgoja.yaml --dry-run
 `),
 			cmds.WithFlags(
@@ -61,6 +65,12 @@ Examples:
 					fields.WithHelp("Override generated Go package name from target.package or output directory")),
 				fields.New("template", fields.TypeString,
 					fields.WithHelp("Override custom template path for target.kind template")),
+				fields.New("template-data", fields.TypeBool,
+					fields.WithDefault(false),
+					fields.WithHelp("Print the JSON template data contract and exit without writing files")),
+				fields.New("clean", fields.TypeBool,
+					fields.WithDefault(false),
+					fields.WithHelp("Remove known generated xgoja outputs before generating")),
 				fields.New("dry-run", fields.TypeBool,
 					fields.WithDefault(false),
 					fields.WithHelp("Validate and print the planned generation without writing files")),
@@ -111,9 +121,35 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	if templatePath != "" && !filepath.IsAbs(templatePath) {
 		templatePath = filepath.Join(buildSpec.BaseDir, templatePath)
 	}
-	if settings.DryRun {
-		_, err = fmt.Fprintf(c.out, "xgoja generate dry run ok: name=%s target=%s output=%s package=%s template=%s modules=%d packages=%d\n", buildSpec.Name, kind, output, packageName, templatePath, len(buildSpec.Modules), len(buildSpec.Packages))
+	dataPackageName := packageName
+	if dataPackageName == "" {
+		if kind == "template" {
+			dataPackageName = generate.InferPackageNameFromDir(filepath.Dir(output))
+		} else {
+			dataPackageName = generate.InferPackageNameFromDir(output)
+		}
+	}
+	if settings.TemplateData {
+		data, err := generate.TemplateDataJSON(buildSpec, dataPackageName)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprint(c.out, data)
 		return err
+	}
+	if settings.DryRun {
+		_, err = fmt.Fprintf(c.out, "xgoja generate dry run ok: name=%s target=%s output=%s package=%s template=%s clean=%v modules=%d packages=%d\n", buildSpec.Name, kind, output, dataPackageName, templatePath, settings.Clean, len(buildSpec.Modules), len(buildSpec.Packages))
+		return err
+	}
+	if settings.Clean {
+		if kind == "template" {
+			err = generate.CleanGeneratedFile(output)
+		} else {
+			err = generate.CleanGenerated(output)
+		}
+		if err != nil {
+			return err
+		}
 	}
 	switch kind {
 	case "package":

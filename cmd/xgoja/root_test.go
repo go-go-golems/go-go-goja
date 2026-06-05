@@ -108,6 +108,63 @@ func TestGenerateCommandLetsGeneratorSanitizeInferredPackageName(t *testing.T) {
 	}
 }
 
+func TestGenerateCommandPrintsTemplateData(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writePackageSpecWithoutPackageName(t)
+	outputDir := filepath.Join(t.TempDir(), "xgoja-runtime")
+	root.SetArgs([]string{"generate", "-f", specPath, "--output", outputDir, "--template-data"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute generate template-data: %v", err)
+	}
+	rendered := out.String()
+	for _, want := range []string{`"PackageName": "xgoja_runtime"`, `"ProviderImports"`, `"SpecJSON"`} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expected template data to contain %s, got %s", want, rendered)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, "xgoja_runtime.gen.go")); !os.IsNotExist(err) {
+		t.Fatalf("template-data should not write output, stat err=%v", err)
+	}
+}
+
+func TestGenerateCommandCleanRemovesKnownGeneratedFiles(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeSourceSpec(t)
+	outputDir := filepath.Join(t.TempDir(), "xgojaruntime")
+	if err := os.MkdirAll(filepath.Join(outputDir, "xgoja_embed"), 0o755); err != nil {
+		t.Fatalf("mkdir stale embed: %v", err)
+	}
+	staleGenerated := filepath.Join(outputDir, "xgoja_runtime.gen.go")
+	if err := os.WriteFile(staleGenerated, []byte("stale"), 0o644); err != nil {
+		t.Fatalf("write stale generated file: %v", err)
+	}
+	keep := filepath.Join(outputDir, "keep.go")
+	if err := os.WriteFile(keep, []byte("package keep"), 0o644); err != nil {
+		t.Fatalf("write keep file: %v", err)
+	}
+	root.SetArgs([]string{"generate", "-f", specPath, "--output", outputDir, "--package", "xgojaruntime", "--clean"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute generate clean source: %v", err)
+	}
+	if _, err := os.Stat(staleGenerated); !os.IsNotExist(err) {
+		t.Fatalf("expected stale generated file removed, err=%v", err)
+	}
+	if _, err := os.Stat(keep); err != nil {
+		t.Fatalf("expected non-generated file preserved: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, "spec.gen.go")); err != nil {
+		t.Fatalf("expected regenerated source fragment: %v", err)
+	}
+}
+
 func TestGenerateCommandWritesSourceFragments(t *testing.T) {
 	out := &bytes.Buffer{}
 	root, err := newRootCommand(out)

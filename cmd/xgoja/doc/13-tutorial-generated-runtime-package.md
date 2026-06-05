@@ -179,7 +179,38 @@ const RuntimeSpec = {{ quote .SpecJSON }}
 
 xgoja still owns buildspec loading, validation, embedded resource copying, runtime spec path rewriting, and `gofmt` formatting. The template controls the Go source body.
 
-## 6. Runnable repository example
+## 6. Inspect template data
+
+Use `--template-data` to print the JSON data passed to package/source/custom templates without writing generated files:
+
+```bash
+xgoja generate -f xgoja.yaml --template-data
+```
+
+This is useful while authoring custom templates because it shows fields such as `PackageName`, `SpecJSON`, embedded-resource booleans, and `ProviderImports`.
+
+## 7. Clean stale generated files
+
+Use `--clean` when switching generation modes or when embedded resources have changed:
+
+```bash
+xgoja generate -f xgoja.yaml --clean
+```
+
+For package and source-fragment modes, `--clean` removes only known xgoja outputs in the output directory:
+
+```text
+xgoja_runtime.gen.go
+spec.gen.go
+providers.gen.go
+bundle.gen.go
+embed.gen.go
+xgoja_embed/
+```
+
+For template mode, `--clean` removes the selected output file only if its name ends in `.gen.go`. It does not delete arbitrary host application files.
+
+## 8. Runnable repository example
 
 The repository contains a complete example at:
 

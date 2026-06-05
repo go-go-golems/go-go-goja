@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -23,6 +24,51 @@ type PackageOptions struct {
 type TemplateOptions struct {
 	PackageName  string
 	TemplatePath string
+}
+
+func TemplateDataJSON(buildSpec *buildspec.BuildSpec, packageName string) (string, error) {
+	if buildSpec == nil {
+		return "", fmt.Errorf("BuildSpec is nil")
+	}
+	data, err := json.MarshalIndent(packageTemplateDataFromSpec(buildSpec, packageName), "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(data) + "\n", nil
+}
+
+func CleanGenerated(dir string) error {
+	if strings.TrimSpace(dir) == "" {
+		return fmt.Errorf("generate directory is required")
+	}
+	for _, name := range []string{
+		"xgoja_runtime.gen.go",
+		"spec.gen.go",
+		"providers.gen.go",
+		"bundle.gen.go",
+		"embed.gen.go",
+		"xgoja_embed",
+	} {
+		path := filepath.Join(dir, name)
+		if err := os.RemoveAll(path); err != nil {
+			return fmt.Errorf("remove generated %s: %w", path, err)
+		}
+	}
+	return nil
+}
+
+func CleanGeneratedFile(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("generated file path is required")
+	}
+	base := filepath.Base(path)
+	if !strings.HasSuffix(base, ".gen.go") {
+		return fmt.Errorf("refusing to clean non-generated file %s", path)
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove generated file %s: %w", path, err)
+	}
+	return nil
 }
 
 func defaultOptions() Options {
@@ -82,7 +128,7 @@ func WritePackage(dir string, buildSpec *buildspec.BuildSpec, opts PackageOption
 	}
 	packageName := strings.TrimSpace(opts.PackageName)
 	if packageName == "" {
-		packageName = packageNameFromDir(dir)
+		packageName = InferPackageNameFromDir(dir)
 	}
 	content := RenderPackage(buildSpec, packageName)
 	if err := os.WriteFile(filepath.Join(dir, "xgoja_runtime.gen.go"), []byte(content), 0o644); err != nil {
@@ -112,7 +158,7 @@ func WriteSourceFragments(dir string, buildSpec *buildspec.BuildSpec, opts Packa
 	}
 	packageName := strings.TrimSpace(opts.PackageName)
 	if packageName == "" {
-		packageName = packageNameFromDir(dir)
+		packageName = InferPackageNameFromDir(dir)
 	}
 	for name, content := range RenderSourceFragments(buildSpec, packageName) {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
@@ -134,7 +180,7 @@ func WriteCustomTemplate(outputFile string, buildSpec *buildspec.BuildSpec, opts
 	}
 	packageName := strings.TrimSpace(opts.PackageName)
 	if packageName == "" {
-		packageName = packageNameFromDir(filepath.Dir(outputFile))
+		packageName = InferPackageNameFromDir(filepath.Dir(outputFile))
 	}
 	content, err := loadCustomTemplate(opts.TemplatePath, packageTemplateDataFromSpec(buildSpec, packageName))
 	if err != nil {
@@ -146,7 +192,7 @@ func WriteCustomTemplate(outputFile string, buildSpec *buildspec.BuildSpec, opts
 	return nil
 }
 
-func packageNameFromDir(dir string) string {
+func InferPackageNameFromDir(dir string) string {
 	base := filepath.Base(filepath.Clean(dir))
 	name := sanitizeIdentifier(base)
 	if name == "" || name == "internal" {
