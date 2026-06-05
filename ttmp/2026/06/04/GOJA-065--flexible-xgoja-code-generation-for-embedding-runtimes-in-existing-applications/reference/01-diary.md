@@ -15,9 +15,17 @@ RelatedFiles:
     - Path: ../../../../../../../pinocchio/cmd/examples/scopedjs-tui-demo/environment.go
       Note: Scoped JS host-specific modules/globals example that shaped integration patterns
     - Path: cmd/xgoja/cmd_generate.go
-      Note: GOJA-065 generate command implementation
+      Note: |-
+        GOJA-065 generate command implementation
+        Dispatches package/source/template generation and fixes template path/package-name handling (commit f963e3034b44abd8f87222ce658981c5c64e7478)
+    - Path: cmd/xgoja/doc/13-tutorial-generated-runtime-package.md
+      Note: Documents package/source/template generation modes (commit f963e3034b44abd8f87222ce658981c5c64e7478)
     - Path: cmd/xgoja/internal/generate/generate_test.go
       Note: Generated-package compile and runtime smoke tests
+    - Path: cmd/xgoja/internal/generate/templates.go
+      Note: Shared template data and custom template helpers (commit f963e3034b44abd8f87222ce658981c5c64e7478)
+    - Path: cmd/xgoja/internal/generate/templates/spec_fragment.go.tmpl
+      Note: Source-fragment spec template (commit f963e3034b44abd8f87222ce658981c5c64e7478)
     - Path: examples/xgoja/14-generated-runtime-package/cmd/host/main.go
       Note: Host application importing generated runtime package
     - Path: ttmp/2026/06/04/GOJA-065--flexible-xgoja-code-generation-for-embedding-runtimes-in-existing-applications/design-doc/01-flexible-xgoja-code-generation-and-runtime-embedding.md
@@ -28,6 +36,7 @@ LastUpdated: 2026-06-04T23:26:00-04:00
 WhatFor: Use to resume or review the GOJA-065 investigation.
 WhenToUse: Read before implementing flexible xgoja source/package/custom-template generation.
 ---
+
 
 
 
@@ -466,3 +475,97 @@ I also added a runnable example and help documentation so the feature is usable 
 - Generated file name: `xgoja_runtime.gen.go`.
 - New help slug: `tutorial-generated-runtime-package`.
 - Runnable example path: `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/examples/xgoja/14-generated-runtime-package`.
+
+## Step 6: Add source-fragment and custom-template generation
+
+I added the second GOJA-065 implementation milestone: `target.kind: source` and `target.kind: template`. Source-fragment mode splits the standard generated runtime package API across smaller generated files, while custom-template mode lets callers provide their own Go template and still reuse xgoja's buildspec loading, validation, embedded path rewriting, provider import data, and gofmt formatting.
+
+During this step I also fixed a useful review finding about inferred package names. The generate command was deriving a package name directly from the output directory basename before calling the generator. That could turn `--output .` into `package .` or `internal/xgoja-runtime` into `package xgoja-runtime`. I changed the CLI to leave the package name empty when the user did not explicitly provide one, allowing the generator's sanitized fallback to derive safe names such as `xgoja_runtime`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, Add custom-template/ source-fragment. keep a diary, commit at appropriate intervals."
+
+**Assistant interpretation:** Implement the deferred GOJA-065 source-fragment and custom-template generation modes, update ticket/diary bookkeeping, and commit in focused steps.
+
+**Inferred user intent:** The user wants the package-generation milestone extended with advanced output customization while preserving the ticket documentation workflow.
+
+**Commit (code):** f963e3034b44abd8f87222ce658981c5c64e7478 — "GOJA-065: add source fragments and custom templates"
+
+### What I did
+- Added GOJA-065 tasks 18–20 for source fragments, custom templates, and tests/docs.
+- Extended target validation to accept `source` and `template` target kinds.
+- Added template validation for `target.kind: template` requiring an existing template path.
+- Added source-fragment templates:
+  - `spec_fragment.go.tmpl`
+  - `providers_fragment.go.tmpl`
+  - `embed_fragment.go.tmpl`
+  - `bundle_fragment.go.tmpl`
+- Added `RenderSourceFragments`, `WriteSourceFragments`, `RenderCustomTemplate`, and `WriteCustomTemplate`.
+- Extended `xgoja generate` to dispatch on `package`, `source`, and `template` target kinds.
+- Added custom template helpers: `quote`, `rawString`, and `json`.
+- Updated the generated runtime package help tutorial with source-fragment and custom-template sections.
+- Added tests for validation, rendering, CLI wiring, source-fragment host smoke, custom template output, and sanitized inferred package names.
+- Committed the implementation in `f963e3034b44abd8f87222ce658981c5c64e7478`.
+
+### Why
+- Source-fragment mode gives users smaller generated files while preserving the same standard generated runtime API.
+- Custom-template mode supports host-specific generated source shapes without forcing users to reimplement xgoja's provider import and embedded spec machinery.
+- The package-name inference fix prevents invalid generated Go when the output path is `.` or contains characters that are not valid in Go package identifiers.
+
+### What worked
+- Focused tests passed:
+  - `GOWORK=off go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./cmd/xgoja -count=1`
+- Full repository tests passed:
+  - `GOWORK=off go test ./...`
+- Pre-commit lint and full tests passed before commit:
+  - `golangci-lint run -v`: `0 issues.`
+  - `go test ./...`: all packages passed.
+- The new source-fragment smoke path builds a temporary host module and runs `require("hello").greet("intern")` through the generated fragment package.
+
+### What didn't work
+- The first custom-template CLI test failed because `target.template: runtime.go.tmpl` was validated relative to the buildspec directory but later rendered relative to the process working directory:
+  - Panic: `stat runtime.go.tmpl: no such file or directory`
+- I fixed this by resolving relative template paths in `xgoja generate` against `buildSpec.BaseDir` before calling `WriteCustomTemplate`.
+- The review finding about direct package-name inference was valid. I removed the CLI fallback that used `filepath.Base(filepath.Clean(output))` and added a regression test that generates into an `xgoja-runtime` directory without `--package`; the generated file now uses `package xgoja_runtime`.
+
+### What I learned
+- Template path resolution has to mirror source path resolution: validation and rendering must agree on the base directory.
+- It is safer for the CLI to pass an empty package name through to the generator than to duplicate package-name inference in two places.
+- The standard package template could be split into fragments with little duplication because the fragment templates share `packageTemplateData`.
+
+### What was tricky to build
+- The fragment templates share symbols across files, so the split has to keep boundaries clean: `spec.gen.go` owns `EmbeddedSpecJSON`/`DecodeSpec`, `providers.gen.go` owns `RegisterProviders`, optional `embed.gen.go` owns embedded filesystem variables, and `bundle.gen.go` owns `NewBundle` and runtime helpers.
+- Custom templates need enough helpers to be usable but not so many that the template contract becomes an unstable API. I started with `quote`, `rawString`, and `json` because they cover string literals, raw strings, and template-data debugging.
+
+### What warrants a second pair of eyes
+- Review whether the custom template data contract should be documented as stable yet, or marked experimental.
+- Review whether `target.kind: template` should copy embedded resources when the custom template may not reference them; the current implementation keeps xgoja's resource-copying behavior consistent.
+- Review whether Go keyword validation should be added for explicit `target.package`/`--package` values.
+
+### What should be done in the future
+- Add `--template-data` to print the JSON data contract for custom-template authors.
+- Consider a `--clean` mode that removes only known generated files/fragments before regenerating.
+- Add a runnable custom-template example if users start relying on that mode heavily.
+
+### Code review instructions
+- Start with `cmd/xgoja/cmd_generate.go` to review target dispatch and template path resolution.
+- Review `cmd/xgoja/internal/generate/templates.go` for the shared template data and helper functions.
+- Review the four `*_fragment.go.tmpl` files for source-fragment boundaries.
+- Review `cmd/xgoja/internal/generate/generate_test.go` for source-fragment and custom-template tests.
+- Validate with:
+  - `GOWORK=off go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./cmd/xgoja -count=1`
+  - `GOWORK=off go test ./...`
+
+### Technical details
+- New target kinds: `source`, `template`.
+- Source-fragment outputs:
+  - `spec.gen.go`
+  - `providers.gen.go`
+  - `bundle.gen.go`
+  - optional `embed.gen.go`
+- Custom-template helpers:
+  - `quote`
+  - `rawString`
+  - `json`
+- Package-name inference fix: the CLI no longer derives package names from output basenames when `--package`/`target.package` is omitted; generator fallback sanitizes the output directory basename.

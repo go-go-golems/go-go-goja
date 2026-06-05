@@ -44,3 +44,14 @@ Committed GOJA-065 generated runtime package implementation (commit 4b9bfae0e4c1
 
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/cmd_generate.go — Committed source-generation command
 
+
+## 2026-06-04
+
+Added source-fragment and custom-template generation modes, plus sanitized inferred package-name handling (commit f963e3034b44abd8f87222ce658981c5c64e7478)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/cmd_generate.go — Generate command mode dispatch and package-name fix
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Regression and smoke tests
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/internal/generate/templates.go — Template helper/data changes
+
