@@ -162,6 +162,29 @@ func validSpec() *BuildSpec {
 	}
 }
 
+func TestValidatePackageTargetAcceptsPackageOutput(t *testing.T) {
+	buildSpec := validSpec()
+	buildSpec.Target = TargetSpec{Kind: "package", Output: "internal/xgojaruntime", Package: "xgojaruntime"}
+
+	report := Validate(buildSpec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusOK, "target-kind", "target.kind")
+	assertCheck(t, report, StatusOK, "target-package", "target.package")
+}
+
+func TestValidatePackageTargetRejectsInvalidPackageName(t *testing.T) {
+	buildSpec := validSpec()
+	buildSpec.Target = TargetSpec{Kind: "package", Output: "internal/bad-name", Package: "bad-name"}
+
+	report := Validate(buildSpec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "target-package", "target.package")
+}
+
 func TestValidateJSVerbCommandMountAcceptsRootAliases(t *testing.T) {
 	for _, mount := range []string{"root", "/", "."} {
 		buildSpec := validSpec()

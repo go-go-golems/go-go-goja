@@ -99,6 +99,17 @@ Then JavaScript can use `require("fs:assets")` for read-only embedded files and 
 
 Asset entries currently support only `id`, `path`, `embed`, and `description`. `include` and `exclude` filters are intentionally rejected until the generator applies them; otherwise excluded secrets or build artifacts could still be bundled silently.
 
+For importable runtime package generation, use `target.kind: package`:
+
+```yaml
+target:
+  kind: package
+  output: internal/xgojaruntime
+  package: xgojaruntime
+```
+
+Generate it with `xgoja generate -f xgoja.yaml`. Package generation writes `xgoja_runtime.gen.go` and embedded `xgoja_embed/...` resources into the output directory, but it does not create a temporary module or compile a binary. See `examples/xgoja/14-generated-runtime-package` and `xgoja help tutorial-generated-runtime-package`.
+
 For static HTTP serving, add the HTTP provider and its `express` module:
 
 ```yaml

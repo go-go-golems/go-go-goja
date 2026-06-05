@@ -16,6 +16,14 @@ func RenderMain(buildSpec *buildspec.BuildSpec) string {
 	return rendered
 }
 
+func RenderPackage(buildSpec *buildspec.BuildSpec, packageName string) string {
+	rendered, err := renderPackageTemplate(packageTemplateDataFromSpec(buildSpec, packageName))
+	if err != nil {
+		panic(err)
+	}
+	return rendered
+}
+
 func RenderEmbeddedSpec(buildSpec *buildspec.BuildSpec) string {
 	buildSpec = runtimeSpec(buildSpec)
 	var helpSpec *buildspec.HelpSpec

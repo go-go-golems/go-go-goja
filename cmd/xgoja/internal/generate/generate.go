@@ -16,6 +16,10 @@ type Options struct {
 	XGojaReplace       string
 }
 
+type PackageOptions struct {
+	PackageName string
+}
+
 func defaultOptions() Options {
 	return Options{XGojaModuleVersion: "v0.0.0"}
 }
@@ -50,6 +54,45 @@ func WriteAll(dir string, buildSpec *buildspec.BuildSpec, opts Options) error {
 		}
 	}
 	return nil
+}
+
+func WritePackage(dir string, buildSpec *buildspec.BuildSpec, opts PackageOptions) error {
+	if dir == "" {
+		return fmt.Errorf("generate directory is required")
+	}
+	if buildSpec == nil {
+		return fmt.Errorf("BuildSpec is nil")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create generate directory %s: %w", dir, err)
+	}
+	if err := copyEmbeddedJSVerbs(dir, buildSpec); err != nil {
+		return err
+	}
+	if err := copyEmbeddedHelpSources(dir, buildSpec); err != nil {
+		return err
+	}
+	if err := copyEmbeddedAssets(dir, buildSpec); err != nil {
+		return err
+	}
+	packageName := strings.TrimSpace(opts.PackageName)
+	if packageName == "" {
+		packageName = packageNameFromDir(dir)
+	}
+	content := RenderPackage(buildSpec, packageName)
+	if err := os.WriteFile(filepath.Join(dir, "xgoja_runtime.gen.go"), []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write generated package: %w", err)
+	}
+	return nil
+}
+
+func packageNameFromDir(dir string) string {
+	base := filepath.Base(filepath.Clean(dir))
+	name := sanitizeIdentifier(base)
+	if name == "" || name == "internal" {
+		return "xgojaruntime"
+	}
+	return name
 }
 
 func copyEmbeddedJSVerbs(dir string, buildSpec *buildspec.BuildSpec) error {

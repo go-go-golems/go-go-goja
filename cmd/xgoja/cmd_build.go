@@ -91,6 +91,9 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
+	if strings.TrimSpace(buildSpec.Target.Kind) == "package" {
+		return fmt.Errorf("target.kind package is source generation only; use xgoja generate -f %s", settings.File)
+	}
 	output := settings.Output
 	if output == "" {
 		output = buildSpec.Target.Output

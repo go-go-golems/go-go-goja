@@ -19,7 +19,7 @@ func TestRootHelp(t *testing.T) {
 		t.Fatalf("execute help: %v", err)
 	}
 	rendered := out.String()
-	for _, want := range []string{"xgoja", "build", "doctor", "inspect", "list-modules"} {
+	for _, want := range []string{"xgoja", "build", "generate", "doctor", "inspect", "list-modules"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("expected help to contain %q, got %q", want, rendered)
 		}
@@ -64,6 +64,26 @@ func TestBuildCommandWired(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(workDir, name)); err != nil {
 			t.Fatalf("expected generated %s: %v", name, err)
 		}
+	}
+}
+
+func TestGenerateCommandWired(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writePackageSpec(t)
+	outputDir := filepath.Join(t.TempDir(), "xgojaruntime")
+	root.SetArgs([]string{"generate", "-f", specPath, "--output", outputDir, "--package", "xgojaruntime"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute generate: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, "xgoja_runtime.gen.go")); err != nil {
+		t.Fatalf("expected generated package: %v", err)
+	}
+	if !strings.Contains(out.String(), "xgoja generate ok") {
+		t.Fatalf("expected generate output, got %q", out.String())
 	}
 }
 
@@ -124,6 +144,29 @@ func TestListModulesCommandWired(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute list-modules: %v", err)
 	}
+}
+
+func writePackageSpec(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: fixture-package
+target:
+  kind: package
+  output: internal/xgojaruntime
+  package: xgojaruntime
+packages:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+modules:
+  - package: fixture
+    name: hello
+    as: hello
+`), 0o644); err != nil {
+		t.Fatalf("write package spec: %v", err)
+	}
+	return specPath
 }
 
 func writeBuildableSpec(t *testing.T) string {

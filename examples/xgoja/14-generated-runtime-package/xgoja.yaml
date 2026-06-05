@@ -1,0 +1,17 @@
+name: generated-runtime-package
+target:
+  kind: package
+  output: internal/xgojaruntime
+  package: xgojaruntime
+packages:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+    register: Register
+modules:
+  - package: fixture
+    name: hello
+    as: hello
+commands:
+  eval:
+    enabled: true
+    name: eval

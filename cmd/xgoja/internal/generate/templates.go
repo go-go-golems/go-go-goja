@@ -30,6 +30,16 @@ type mainTemplateData struct {
 	ProviderImports   []providerImport
 }
 
+type packageTemplateData struct {
+	PackageName       string
+	SpecJSON          string
+	HasEmbedded       bool
+	HasEmbeddedJSVerb bool
+	HasEmbeddedHelp   bool
+	HasEmbeddedAssets bool
+	ProviderImports   []providerImport
+}
+
 type providerImport struct {
 	Alias    string
 	Import   string
@@ -37,35 +47,34 @@ type providerImport struct {
 }
 
 func renderMainTemplate(data mainTemplateData) (string, error) {
-	tmpl, err := template.ParseFS(templateFS, "templates/main.go.tmpl")
+	return renderTemplate("main.go.tmpl", data, "generated main.go")
+}
+
+func renderPackageTemplate(data packageTemplateData) (string, error) {
+	return renderTemplate("runtime_package.go.tmpl", data, "generated runtime package")
+}
+
+func renderTemplate(name string, data any, label string) (string, error) {
+	tmpl, err := template.ParseFS(templateFS, "templates/"+name)
 	if err != nil {
-		return "", fmt.Errorf("parse main template: %w", err)
+		return "", fmt.Errorf("parse %s template: %w", name, err)
 	}
 	var b bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&b, "main.go.tmpl", data); err != nil {
-		return "", fmt.Errorf("execute main template: %w", err)
+	if err := tmpl.ExecuteTemplate(&b, name, data); err != nil {
+		return "", fmt.Errorf("execute %s template: %w", name, err)
 	}
 	formatted, err := format.Source(b.Bytes())
 	if err != nil {
-		return "", fmt.Errorf("format generated main.go: %w\n%s", err, b.String())
+		return "", fmt.Errorf("format %s: %w\n%s", label, err, b.String())
 	}
 	return string(formatted), nil
 }
 
 func mainTemplateDataFromSpec(buildSpec *buildspec.BuildSpec) mainTemplateData {
-	aliases := importAliases(buildSpec.Packages)
 	hasEmbeddedJSVerb := hasEmbeddedJSVerbSources(buildSpec)
 	hasEmbeddedHelp := hasEmbeddedHelpSources(buildSpec)
 	hasEmbeddedAssets := hasEmbeddedAssetSources(buildSpec)
 	hasEmbedded := hasEmbeddedJSVerb || hasEmbeddedHelp || hasEmbeddedAssets
-	providers := make([]providerImport, 0, len(buildSpec.Packages))
-	for _, pkg := range buildSpec.Packages {
-		providers = append(providers, providerImport{
-			Alias:    aliases[pkg.ID],
-			Import:   pkg.Import,
-			Register: pkg.Register,
-		})
-	}
 
 	rootFn := strings.TrimSpace(buildSpec.Target.Root)
 	if rootFn == "" {
@@ -83,7 +92,7 @@ func mainTemplateDataFromSpec(buildSpec *buildspec.BuildSpec) mainTemplateData {
 		TargetKind:        buildSpec.Target.Kind,
 		TargetImport:      buildSpec.Target.Import,
 		TargetRoot:        rootFn,
-		ProviderImports:   providers,
+		ProviderImports:   providerImportsFromSpec(buildSpec),
 	}
 	embeddedJSVerbArg := "nil"
 	if hasEmbeddedJSVerb {
@@ -105,4 +114,32 @@ func mainTemplateDataFromSpec(buildSpec *buildspec.BuildSpec) mainTemplateData {
 		data.RootConstruction = "root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})"
 	}
 	return data
+}
+
+func packageTemplateDataFromSpec(buildSpec *buildspec.BuildSpec, packageName string) packageTemplateData {
+	hasEmbeddedJSVerb := hasEmbeddedJSVerbSources(buildSpec)
+	hasEmbeddedHelp := hasEmbeddedHelpSources(buildSpec)
+	hasEmbeddedAssets := hasEmbeddedAssetSources(buildSpec)
+	return packageTemplateData{
+		PackageName:       packageName,
+		SpecJSON:          escapeRawString(RenderEmbeddedSpec(buildSpec)),
+		HasEmbedded:       hasEmbeddedJSVerb || hasEmbeddedHelp || hasEmbeddedAssets,
+		HasEmbeddedJSVerb: hasEmbeddedJSVerb,
+		HasEmbeddedHelp:   hasEmbeddedHelp,
+		HasEmbeddedAssets: hasEmbeddedAssets,
+		ProviderImports:   providerImportsFromSpec(buildSpec),
+	}
+}
+
+func providerImportsFromSpec(buildSpec *buildspec.BuildSpec) []providerImport {
+	aliases := importAliases(buildSpec.Packages)
+	providers := make([]providerImport, 0, len(buildSpec.Packages))
+	for _, pkg := range buildSpec.Packages {
+		providers = append(providers, providerImport{
+			Alias:    aliases[pkg.ID],
+			Import:   pkg.Import,
+			Register: pkg.Register,
+		})
+	}
+	return providers
 }
