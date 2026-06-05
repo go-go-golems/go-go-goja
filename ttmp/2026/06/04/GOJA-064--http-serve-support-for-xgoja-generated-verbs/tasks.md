@@ -9,4 +9,4 @@
 - [x] Create research logbook and upload updated bundle to reMarkable
 - [x] Implement single-runtime HTTP serve command provider and jsverb source access for command providers
 - [x] Add generated-binary smoke test and runnable xgoja HTTP serve jsverbs example
-- [ ] Harden HTTP serve startup errors and add xgoja help documentation
+- [x] Harden HTTP serve startup errors and add xgoja help documentation

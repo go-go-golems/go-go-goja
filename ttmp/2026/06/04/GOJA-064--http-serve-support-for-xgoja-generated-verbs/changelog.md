@@ -66,3 +66,13 @@ Added generated-binary HTTP serve jsverb smoke test and examples/xgoja/13-http-s
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/examples/xgoja/13-http-serve-jsverbs/verbs/sites.js — New example setup verb
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/examples/xgoja/13-http-serve-jsverbs/xgoja.yaml — New example buildspec
 
+
+## 2026-06-04
+
+Step 9: hardened HTTP serve startup errors with synchronous net.Listen binding and added xgoja help documentation for HTTP serve jsverbs (commit 9af57aabb02a554c746b2ea29c14503bed9373f3)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/doc/12-tutorial-http-serve-jsverbs.md — New tutorial
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/pkg/xgoja/providers/http/http.go — Synchronous bind before serving
+

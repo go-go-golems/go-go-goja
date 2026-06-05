@@ -13,6 +13,12 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../../../../code/wesen/2026-05-03--goja-hosting-site/pkg/app/multi_server.go
       Note: External reference that shaped future multi-site serve discussion
+    - Path: cmd/xgoja/doc/12-tutorial-http-serve-jsverbs.md
+      Note: Embedded xgoja help tutorial for provider-backed HTTP serve jsverbs (commit 9af57aabb02a554c746b2ea29c14503bed9373f3)
+    - Path: pkg/xgoja/providers/http/http.go
+      Note: Synchronous HTTP listener binding for GOJA-064 serve hardening (commit 9af57aabb02a554c746b2ea29c14503bed9373f3)
+    - Path: pkg/xgoja/providers/http/http_test.go
+      Note: Regression coverage for synchronous port conflict errors (commit 9af57aabb02a554c746b2ea29c14503bed9373f3)
     - Path: ttmp/2026/06/04/GOJA-064--http-serve-support-for-xgoja-generated-verbs/design-doc/01-http-serve-support-for-xgoja-generated-verbs.md
       Note: Primary GOJA-064 design produced during this investigation
 ExternalSources: []
@@ -21,6 +27,7 @@ LastUpdated: 2026-06-04T22:43:00-04:00
 WhatFor: Use to resume or review the GOJA-064 investigation.
 WhenToUse: Read before implementing HTTP serve support for xgoja generated verbs.
 ---
+
 
 
 # Diary
@@ -621,3 +628,93 @@ I also added `examples/xgoja/13-http-serve-jsverbs`, which gives future users an
   - `GOWORK=off go test ./pkg/xgoja/app ./pkg/xgoja/providers/http ./cmd/xgoja/internal/generate -run 'GeneratedProgramServesHTTPVerb|TestHostAttachCommandProvidersProvidesJSVerbSources|TestNewServeCommandSet|TestRegister' -count=1`
   - `make -C examples/xgoja/13-http-serve-jsverbs smoke`
 - New example path: `/home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/examples/xgoja/13-http-serve-jsverbs`.
+
+## Step 9: Harden HTTP serve startup and add generated-command help docs
+
+I continued the GOJA-064 follow-up work by addressing two of the remaining hardening/documentation tasks. The HTTP provider now binds its TCP listener synchronously before starting the background server goroutine, which turns address conflicts into immediate command startup errors instead of delayed background log messages.
+
+I also added an embedded xgoja help tutorial for provider-backed HTTP serving of JavaScript verbs and cross-linked it from the overview, user guide, and buildspec reference. The help docs now distinguish short-lived `verbs`, script-based `run --keep-alive`, and provider-backed `serve` commands.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, continue with the other tasks."
+
+**Assistant interpretation:** Continue the GOJA-064 follow-up list after the Obsidian report, especially hardening startup behavior and adding xgoja help/docs.
+
+**Inferred user intent:** The user wants the remaining implementation-quality tasks completed rather than stopping at the initial feature and external report.
+
+**Commit (code):** 9af57aabb02a554c746b2ea29c14503bed9373f3 — "GOJA-064: harden HTTP serve startup docs"
+
+### What I did
+- Changed `pkg/xgoja/providers/http/http.go` so `capability.start` calls `net.Listen("tcp", cfg.Listen)` synchronously and then serves with `server.Serve(listener)` in the goroutine.
+- Added `TestCapabilityStartReportsPortConflictsSynchronously` in `pkg/xgoja/providers/http/http_test.go`.
+- Added `cmd/xgoja/doc/12-tutorial-http-serve-jsverbs.md`.
+- Linked the new tutorial from:
+  - `cmd/xgoja/doc/01-overview.md`
+  - `cmd/xgoja/doc/02-user-guide.md`
+  - `cmd/xgoja/doc/06-buildspec-reference.md`
+- Checked task 7, added task 8, then checked task 8 after the code/docs commit.
+- Ran focused validation and the example smoke target.
+- Committed the hardening and help docs in commit `9af57aabb02a554c746b2ea29c14503bed9373f3`.
+
+### Why
+- Binding before starting the goroutine makes listen-address errors deterministic and visible at command startup.
+- The new help page gives generated-binary users a first-party explanation of when to use `serve` versus `verbs` versus `run --keep-alive`.
+- The task list needed to reflect that the generated-binary smoke/example task had already been completed and that the new follow-up task was completed in this step.
+
+### What worked
+- Focused package test passed:
+  - `GOWORK=off go test ./pkg/xgoja/providers/http -count=1`
+- Combined validation passed before commit:
+  - `GOWORK=off go test ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1`
+  - `GOWORK=off go test ./cmd/xgoja/internal/generate -run GeneratedProgramServesHTTPVerb -count=1`
+  - `make -C examples/xgoja/13-http-serve-jsverbs smoke`
+- The commit pre-commit hook eventually passed full lint and full tests:
+  - `golangci-lint run -v`: `0 issues.`
+  - `go test ./...`: all packages passed.
+
+### What didn't work
+- The first commit attempt failed in the pre-commit lint hook because the new test used an unchecked deferred close:
+  - File: `pkg/xgoja/providers/http/http_test.go:103:22`
+  - Error: `Error return value of listener.Close is not checked (errcheck)`
+  - Problematic code: `defer listener.Close()`
+- I fixed it by changing the defer to:
+  - `defer func() { _ = listener.Close() }()`
+- The pre-commit hook also runs `go generate ./...`, which starts a Dagger session and prints a release notice:
+  - `A new release of dagger is available: v0.20.3 → v0.21.4`
+  - This was informational and did not block the final commit.
+
+### What I learned
+- The HTTP provider startup path can report bind failures synchronously without changing the Express JavaScript authoring model.
+- The generated help system embeds all Markdown files in `cmd/xgoja/doc`, so adding the tutorial only required a new Markdown file with Glazed help frontmatter plus cross-links.
+- Pre-commit catches lint failures that focused package tests do not, especially `errcheck` issues in test cleanup paths.
+
+### What was tricky to build
+- The startup hardening needed to preserve the existing runtime-owned shutdown behavior. The solution was to bind the listener synchronously, store the `http.Server` as before, and let `server.Shutdown(ctx)` close the listener through the server during runtime cleanup.
+- The documentation needed to avoid implying that `serve` replaces `run --keep-alive`. The final wording separates the three modes by command shape and runtime lifetime.
+
+### What warrants a second pair of eyes
+- Review whether `fmt.Printf` in the background `server.Serve` error path should move to stderr or a structured logger.
+- Review whether future readiness reporting should print the bound address after successful `net.Listen`, especially if support for `:0` or inherited listeners is added.
+
+### What should be done in the future
+- Decide whether provider-backed `serve` should filter verbs by tags such as `http`, `site`, or `serve` instead of mirroring every configured verb.
+- Revisit the `providerapi` to `jsverbs` dependency if additional providers need narrower jsverb command descriptors rather than full registries.
+
+### Code review instructions
+- Start with `pkg/xgoja/providers/http/http.go`, especially `capability.start`.
+- Review `pkg/xgoja/providers/http/http_test.go` for the synchronous port-conflict regression test.
+- Review `cmd/xgoja/doc/12-tutorial-http-serve-jsverbs.md` and the cross-links in the overview/user-guide/buildspec docs.
+- Validate with:
+  - `GOWORK=off go test ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1`
+  - `GOWORK=off go test ./cmd/xgoja/internal/generate -run GeneratedProgramServesHTTPVerb -count=1`
+  - `make -C examples/xgoja/13-http-serve-jsverbs smoke`
+
+### Technical details
+- New synchronous bind code path:
+  - `listener, err := net.Listen("tcp", cfg.Listen)`
+  - `server.Serve(listener)`
+- New help slug:
+  - `tutorial-http-serve-jsverbs`
+- Related commit:
+  - `9af57aabb02a554c746b2ea29c14503bed9373f3`
