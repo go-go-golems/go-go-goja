@@ -18,4 +18,4 @@
 - [x] Add xgoja help/user-guide/buildspec documentation for package generation
 - [x] Run focused and full validation for GOJA-065
 - [x] Update GOJA-065 diary, changelog, file relations, and docmgr doctor
-- [ ] Commit GOJA-065 implementation and documentation changes
+- [x] Commit GOJA-065 implementation and documentation changes

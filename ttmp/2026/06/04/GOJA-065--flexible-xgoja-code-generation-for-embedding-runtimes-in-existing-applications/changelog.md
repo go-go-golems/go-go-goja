@@ -35,3 +35,12 @@ Implemented first generated runtime package milestone: target.kind package, xgoj
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/internal/generate/templates/runtime_package.go.tmpl — Generated runtime package template
 - /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/examples/xgoja/14-generated-runtime-package/README.md — Runnable example
 
+
+## 2026-06-04
+
+Committed GOJA-065 generated runtime package implementation (commit 4b9bfae0e4c1a569d7e259c61af9443db6a79979)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-03/goja-runtime-flags/go-go-goja/cmd/xgoja/cmd_generate.go — Committed source-generation command
+
