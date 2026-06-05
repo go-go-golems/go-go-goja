@@ -136,6 +136,21 @@ app.staticFromAssetsModule("/static", assets, "/app/public")
 
 Use `run --keep-alive` for server setup scripts so the runtime stays alive after route registration. See `examples/xgoja/10-embedded-assets-fs` and `xgoja help tutorial-static-assets-http-server`.
 
+To expose HTTP setup functions as generated JavaScript verb commands, add the HTTP provider's `serve` command provider and configure jsverb sources:
+
+```yaml
+command_providers:
+  - id: http-serve
+    package: go-go-goja-http
+    name: serve
+    mount: serve
+jsverbs:
+  - id: local
+    path: verbs
+```
+
+The resulting generated command shape is `./dist/app serve <package> <verb> --http-listen 127.0.0.1:8787`. The selected verb registers Express routes and the provider-backed command keeps the runtime alive. See `examples/xgoja/13-http-serve-jsverbs` and `xgoja help tutorial-http-serve-jsverbs`.
+
 Generated binaries can opt into Glazed-style environment variable parsing with `appName` or `envPrefix`:
 
 ```yaml

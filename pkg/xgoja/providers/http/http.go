@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	stdhttp "net/http"
 	"strings"
 	"sync"
@@ -147,10 +148,14 @@ func (c *capability) start(vm *goja.Runtime, entry *runtimeEntry) error {
 	if entry.server != nil {
 		return nil
 	}
+	listener, err := net.Listen("tcp", cfg.Listen)
+	if err != nil {
+		return fmt.Errorf("listen on %s: %w", cfg.Listen, err)
+	}
 	server := &stdhttp.Server{Addr: cfg.Listen, Handler: entry.host, ReadHeaderTimeout: 5 * time.Second}
 	entry.server = server
 	go func() {
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, stdhttp.ErrServerClosed) {
+		if err := server.Serve(listener); err != nil && !errors.Is(err, stdhttp.ErrServerClosed) {
 			fmt.Printf("xgoja http server failed on %s: %v\n", cfg.Listen, err)
 		}
 	}()

@@ -401,6 +401,8 @@ Long-running scripts, such as Express-style HTTP servers, can use the generated 
 
 See `examples/xgoja/10-embedded-assets-fs` and `xgoja help tutorial-static-assets-http-server` for a static-site example that passes `require("fs:assets")` directly to `require("express").app().staticFromAssetsModule("/static", assets, "/app/public")`, so embedded assets are served without a host staging directory.
 
+Generated binaries can also expose HTTP setup functions as JavaScript verbs by enabling the HTTP provider's `serve` command provider. In that mode, `./dist/my-app serve sites demo --http-listen 127.0.0.1:8787` invokes the selected verb once, then keeps the runtime alive for request handling. See `examples/xgoja/13-http-serve-jsverbs` and `xgoja help tutorial-http-serve-jsverbs`.
+
 ## JavaScript verb sources
 
 `jsverbs` supports three distinct source modes.
