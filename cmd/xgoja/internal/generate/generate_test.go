@@ -35,6 +35,28 @@ func TestRenderGoModDeterministic(t *testing.T) {
 	}
 }
 
+func TestRenderGoModIncludesVersionedExtraImports(t *testing.T) {
+	buildSpec := fixtureSpec()
+	buildSpec.Go.Imports = []buildspec.GoImportSpec{
+		{Import: "github.com/lib/pq", Alias: "_", Version: "v1.10.9"},
+		{Import: "example.com/acme/hooks/register", Alias: "hooks", Module: "example.com/acme/hooks", Version: "v0.2.0"},
+		{Import: "example.com/unversioned", Alias: "_"},
+	}
+
+	got := RenderGoMod(buildSpec, Options{XGojaModuleVersion: "v0.1.0"})
+	for _, want := range []string{
+		"github.com/lib/pq v1.10.9",
+		"example.com/acme/hooks v0.2.0",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected go.mod to contain %q, got:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "example.com/unversioned") {
+		t.Fatalf("unversioned extra import should not be required explicitly, got:\n%s", got)
+	}
+}
+
 func TestRenderGoModResolvesRelativePackageReplaceFromSpecBaseDir(t *testing.T) {
 	buildSpec := fixtureSpec()
 	buildSpec.BaseDir = filepath.Join(string(filepath.Separator), "tmp", "example")
@@ -91,6 +113,23 @@ func TestRenderGoModUsesModuleRootsForSubpackageImports(t *testing.T) {
 	}
 }
 
+func TestRenderMainIncludesExtraImports(t *testing.T) {
+	buildSpec := fixtureSpec()
+	buildSpec.Go.Imports = []buildspec.GoImportSpec{
+		{Import: "github.com/lib/pq", Alias: "_"},
+		{Import: "example.com/acme/hooks", Alias: "hooks"},
+	}
+	got := RenderMain(buildSpec)
+	for _, want := range []string{
+		`_ "github.com/lib/pq"`,
+		`hooks "example.com/acme/hooks"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
+		}
+	}
+}
+
 func TestRenderMainRegistersProviders(t *testing.T) {
 	got := RenderMain(fixtureSpec())
 	for _, want := range []string{
@@ -104,6 +143,16 @@ func TestRenderMainRegistersProviders(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
 		}
+	}
+}
+
+func TestRenderPackageIncludesExtraImports(t *testing.T) {
+	buildSpec := buildableSpec("package", "", "")
+	buildSpec.Target.Package = "xgojaruntime"
+	buildSpec.Go.Imports = []buildspec.GoImportSpec{{Import: "github.com/lib/pq", Alias: "_"}}
+	got := RenderPackage(buildSpec, "xgojaruntime")
+	if !strings.Contains(got, `_ "github.com/lib/pq"`) {
+		t.Fatalf("expected runtime package to contain blank import, got:\n%s", got)
 	}
 }
 
@@ -229,6 +278,7 @@ func main() {
 
 func TestRenderSourceFragmentsSplitsRuntimePackageAPI(t *testing.T) {
 	buildSpec := buildableSpec("source", "", "")
+	buildSpec.Go.Imports = []buildspec.GoImportSpec{{Import: "github.com/lib/pq", Alias: "_"}}
 	fragments := RenderSourceFragments(buildSpec, "xgojaruntime")
 	for _, name := range []string{"spec.gen.go", "providers.gen.go", "bundle.gen.go"} {
 		if fragments[name] == "" {
@@ -240,6 +290,9 @@ func TestRenderSourceFragmentsSplitsRuntimePackageAPI(t *testing.T) {
 	}
 	if !strings.Contains(fragments["providers.gen.go"], "func RegisterProviders") {
 		t.Fatalf("providers fragment should contain RegisterProviders:\n%s", fragments["providers.gen.go"])
+	}
+	if !strings.Contains(fragments["providers.gen.go"], `_ "github.com/lib/pq"`) {
+		t.Fatalf("providers fragment should contain extra blank import:\n%s", fragments["providers.gen.go"])
 	}
 	if !strings.Contains(fragments["bundle.gen.go"], "func NewBundle") {
 		t.Fatalf("bundle fragment should contain NewBundle:\n%s", fragments["bundle.gen.go"])
@@ -259,12 +312,14 @@ func TestWriteCustomTemplateRendersCallerTemplate(t *testing.T) {
 package {{ .PackageName }}
 
 const ProviderCount = {{ len .ProviderImports }}
+const ExtraImportCount = {{ len .ExtraImports }}
 const RuntimeSpec = {{ quote .SpecJSON }}
 `), 0o644); err != nil {
 		t.Fatalf("write template: %v", err)
 	}
 	out := filepath.Join(dir, "custom.gen.go")
 	buildSpec := buildableSpec("template", "", "")
+	buildSpec.Go.Imports = []buildspec.GoImportSpec{{Import: "github.com/lib/pq", Alias: "_"}}
 	if err := WriteCustomTemplate(out, buildSpec, TemplateOptions{PackageName: "customruntime", TemplatePath: templatePath}); err != nil {
 		t.Fatalf("write custom template: %v", err)
 	}
@@ -273,7 +328,7 @@ const RuntimeSpec = {{ quote .SpecJSON }}
 		t.Fatalf("read custom output: %v", err)
 	}
 	got := string(data)
-	for _, want := range []string{"package customruntime", "const ProviderCount = 1", "const RuntimeSpec = "} {
+	for _, want := range []string{"package customruntime", "const ProviderCount = 1", "const ExtraImportCount = 1", "const RuntimeSpec = "} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected custom output to contain %q, got:\n%s", want, got)
 		}

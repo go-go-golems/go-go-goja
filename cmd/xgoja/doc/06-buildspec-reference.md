@@ -97,6 +97,41 @@ modules:
 
 Then JavaScript can use `require("fs:assets")` for read-only embedded files and `require("fs:host")` for explicitly allowed host filesystem access.
 
+Use `go.imports` when generated code must compile an additional Go package even though the generated source does not reference a Go identifier from it. The most common case is a SQL driver package that registers itself through `init()` and is later selected by the database module's runtime `driverName` config:
+
+```yaml
+go:
+  version: "1.26.1"
+  module: example.com/generated/db-app
+  imports:
+    - import: github.com/lib/pq
+      alias: _
+      version: v1.10.9
+packages:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+modules:
+  - package: go-go-goja-host
+    name: db
+    as: db
+    config:
+      driverName: postgres
+      dataSourceName: ${DATABASE_URL}
+```
+
+`go.imports[].alias` is optional. Use `_` for side-effect imports such as SQL drivers, `.` only when a package intentionally needs a dot import, and a normal Go identifier for named imports used by custom templates. `go.imports[].version` adds the module to the generated `go.mod`; if the module path differs from the import path, set `go.imports[].module` explicitly:
+
+```yaml
+go:
+  imports:
+    - import: example.com/acme/hooks/register
+      alias: _
+      module: example.com/acme/hooks
+      version: v0.2.0
+```
+
+Keep the distinction clear: `go.imports` is compile-time linking, while `modules[].config.driverName` is runtime database configuration.
+
 Asset entries currently support only `id`, `path`, `embed`, and `description`. `include` and `exclude` filters are intentionally rejected until the generator applies them; otherwise excluded secrets or build artifacts could still be bundled silently.
 
 For importable runtime package generation, use `target.kind: package`:

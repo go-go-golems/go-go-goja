@@ -16,6 +16,7 @@ func Validate(buildSpec *BuildSpec) *Report {
 
 	validateName(report, buildSpec)
 	validateAppSettings(report, buildSpec)
+	validateGoImports(report, buildSpec.Go.Imports)
 	validateConfig(report, buildSpec)
 	validateTarget(report, buildSpec)
 	packageIDs := validatePackages(report, buildSpec)
@@ -70,6 +71,57 @@ func isShellSafeEnvPrefix(prefix string) bool {
 		}
 	}
 	return true
+}
+
+func validateGoImports(report *Report, imports []GoImportSpec) {
+	if len(imports) == 0 {
+		return
+	}
+	aliases := map[string]int{}
+	seen := map[string]int{}
+	for i, imp := range imports {
+		path := fmt.Sprintf("go.imports[%d]", i)
+		importPath := strings.TrimSpace(imp.Import)
+		if importPath == "" {
+			report.AddError("go-import", path+".import", "import path is required")
+		} else if strings.ContainsAny(importPath, " \t\n\r\"") {
+			report.AddError("go-import", path+".import", fmt.Sprintf("invalid import path %q", imp.Import))
+		} else {
+			report.AddOK("go-import", path+".import", importPath)
+		}
+
+		alias := strings.TrimSpace(imp.Alias)
+		if !isValidGoImportAlias(alias) {
+			report.AddError("go-import-alias", path+".alias", "alias must be empty, _, ., or a Go identifier")
+		} else if alias != "" {
+			report.AddOK("go-import-alias", path+".alias", alias)
+		}
+		if alias != "" && alias != "_" && alias != "." {
+			if prev, ok := aliases[alias]; ok {
+				report.AddError("go-import-alias", path+".alias", fmt.Sprintf("duplicate import alias %q already used by go.imports[%d]", alias, prev))
+			} else {
+				aliases[alias] = i
+			}
+		}
+
+		key := alias + "\x00" + importPath
+		if importPath != "" {
+			if prev, ok := seen[key]; ok {
+				report.AddError("go-import", path+".import", fmt.Sprintf("duplicate import %q already used by go.imports[%d]", importPath, prev))
+			} else {
+				seen[key] = i
+			}
+		}
+	}
+	report.AddOK("go-imports", "go.imports", fmt.Sprintf("%d extra Go import(s) declared", len(imports)))
+}
+
+func isValidGoImportAlias(alias string) bool {
+	alias = strings.TrimSpace(alias)
+	if alias == "" || alias == "_" || alias == "." {
+		return true
+	}
+	return sanitizeGoPackageName(alias) == alias
 }
 
 func validateConfig(report *Report, buildSpec *BuildSpec) {

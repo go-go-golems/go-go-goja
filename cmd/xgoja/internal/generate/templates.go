@@ -31,6 +31,7 @@ type mainTemplateData struct {
 	HostConstruction  string
 	RootConstruction  string
 	ProviderImports   []providerImport
+	ExtraImports      []extraImport
 }
 
 type packageTemplateData struct {
@@ -41,12 +42,19 @@ type packageTemplateData struct {
 	HasEmbeddedHelp   bool
 	HasEmbeddedAssets bool
 	ProviderImports   []providerImport
+	ExtraImports      []extraImport
 }
 
 type providerImport struct {
 	Alias    string
 	Import   string
 	Register string
+}
+
+type extraImport struct {
+	Alias       string
+	AliasPrefix string
+	Import      string
 }
 
 func renderMainTemplate(data mainTemplateData) (string, error) {
@@ -164,6 +172,7 @@ func mainTemplateDataFromSpec(buildSpec *buildspec.BuildSpec) mainTemplateData {
 		TargetImport:      buildSpec.Target.Import,
 		TargetRoot:        rootFn,
 		ProviderImports:   providerImportsFromSpec(buildSpec),
+		ExtraImports:      extraImportsFromSpec(buildSpec),
 	}
 	embeddedJSVerbArg := "nil"
 	if hasEmbeddedJSVerb {
@@ -199,7 +208,34 @@ func packageTemplateDataFromSpec(buildSpec *buildspec.BuildSpec, packageName str
 		HasEmbeddedHelp:   hasEmbeddedHelp,
 		HasEmbeddedAssets: hasEmbeddedAssets,
 		ProviderImports:   providerImportsFromSpec(buildSpec),
+		ExtraImports:      extraImportsFromSpec(buildSpec),
 	}
+}
+
+func extraImportsFromSpec(buildSpec *buildspec.BuildSpec) []extraImport {
+	if buildSpec == nil {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	ret := make([]extraImport, 0, len(buildSpec.Go.Imports))
+	for _, imp := range buildSpec.Go.Imports {
+		importPath := strings.TrimSpace(imp.Import)
+		if importPath == "" {
+			continue
+		}
+		alias := strings.TrimSpace(imp.Alias)
+		key := alias + "\x00" + importPath
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		aliasPrefix := ""
+		if alias != "" {
+			aliasPrefix = alias + " "
+		}
+		ret = append(ret, extraImport{Alias: alias, AliasPrefix: aliasPrefix, Import: importPath})
+	}
+	return ret
 }
 
 func providerImportsFromSpec(buildSpec *buildspec.BuildSpec) []providerImport {

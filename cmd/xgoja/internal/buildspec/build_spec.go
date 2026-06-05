@@ -37,10 +37,21 @@ type ConfigFileSpec struct {
 }
 
 type GoSpec struct {
-	Version string   `yaml:"version" json:"version"`
-	Module  string   `yaml:"module" json:"module"`
-	Tags    []string `yaml:"tags" json:"tags,omitempty"`
-	LDFlags []string `yaml:"ldflags" json:"ldflags,omitempty"`
+	Version string         `yaml:"version" json:"version"`
+	Module  string         `yaml:"module" json:"module"`
+	Tags    []string       `yaml:"tags" json:"tags,omitempty"`
+	LDFlags []string       `yaml:"ldflags" json:"ldflags,omitempty"`
+	Imports []GoImportSpec `yaml:"imports" json:"imports,omitempty"`
+}
+
+// GoImportSpec describes an extra Go import that should be emitted into
+// generated source. It is intended for side-effect imports such as SQL drivers,
+// but can also name regular imports for custom templates.
+type GoImportSpec struct {
+	Import  string `yaml:"import" json:"import"`
+	Alias   string `yaml:"alias" json:"alias,omitempty"`
+	Module  string `yaml:"module" json:"module,omitempty"`
+	Version string `yaml:"version" json:"version,omitempty"`
 }
 
 type TargetSpec struct {
