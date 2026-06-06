@@ -8,6 +8,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
@@ -77,6 +78,28 @@ func TestRuntimeFactoryAttachesPackageCapabilitiesToEverySelectedModule(t *testi
 	}
 	if got := sectionSlugs(sections); strings.Join(got, ",") != "xgoja,fixture" {
 		t.Fatalf("section slugs = %v", got)
+	}
+}
+
+func TestAddSectionsToCommandDescriptionPreservesCommandSchema(t *testing.T) {
+	desc := cmds.NewCommandDescription("fixture",
+		cmds.WithArguments(fields.New("query", fields.TypeString)),
+	)
+	runtimeSection, err := schema.NewSection("runtime", "Runtime", schema.WithFields(fields.New("debug", fields.TypeBool)))
+	if err != nil {
+		t.Fatalf("runtime section: %v", err)
+	}
+
+	if err := addSectionsToCommandDescription(desc, []schema.Section{runtimeSection}, "test runtime"); err != nil {
+		t.Fatalf("add sections: %v", err)
+	}
+	if got := desc.GetDefaultArguments(); got == nil {
+		t.Fatalf("expected original query argument to survive, got %#v", got)
+	} else if _, ok := got.Get("query"); !ok {
+		t.Fatalf("expected original query argument to survive, got %#v", got)
+	}
+	if _, ok := desc.GetSection("runtime"); !ok {
+		t.Fatalf("expected runtime section to be appended")
 	}
 }
 

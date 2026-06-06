@@ -157,7 +157,7 @@ func (r *Registry) buildDescription(verb *VerbSpec) (*cmds.CommandDescription, e
 		}
 		sort.Strings(fieldNames)
 		for _, name := range fieldNames {
-			field, err := buildFieldDefinition(spec.Fields[name])
+			field, err := buildFieldDefinition(spec.Fields[name], false)
 			if err != nil {
 				return nil, fmt.Errorf("%s section %s field %s: %w", verb.SourceRef(), slug, name, err)
 			}
@@ -170,7 +170,7 @@ func (r *Registry) buildDescription(verb *VerbSpec) (*cmds.CommandDescription, e
 		if err != nil {
 			return err
 		}
-		field, err := buildFieldDefinition(fieldSpec)
+		field, err := buildFieldDefinition(fieldSpec, true)
 		if err != nil {
 			return err
 		}
@@ -227,11 +227,14 @@ func inferFieldFromParam(param ParameterSpec) *FieldSpec {
 	return field
 }
 
-func buildFieldDefinition(spec *FieldSpec) (*fields.Definition, error) {
+func buildFieldDefinition(spec *FieldSpec, normalizeName bool) (*fields.Definition, error) {
 	if spec == nil {
 		return nil, fmt.Errorf("field spec is nil")
 	}
 	name := strings.TrimSpace(spec.Name)
+	if normalizeName {
+		name = cliFieldName(name)
+	}
 	if name == "" {
 		return nil, fmt.Errorf("field name is empty")
 	}
@@ -263,6 +266,10 @@ func buildFieldDefinition(spec *FieldSpec) (*fields.Definition, error) {
 		options = append(options, fields.WithDefault(value))
 	}
 	return fields.New(name, fieldType, options...), nil
+}
+
+func cliFieldName(name string) string {
+	return cleanCommandWord(name)
 }
 
 func glazedFieldType(spec *FieldSpec) (fields.Type, error) {

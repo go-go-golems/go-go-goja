@@ -37,11 +37,12 @@ type ConfigFileSpec struct {
 }
 
 type GoSpec struct {
-	Version string         `yaml:"version" json:"version"`
-	Module  string         `yaml:"module" json:"module"`
-	Tags    []string       `yaml:"tags" json:"tags,omitempty"`
-	LDFlags []string       `yaml:"ldflags" json:"ldflags,omitempty"`
-	Imports []GoImportSpec `yaml:"imports" json:"imports,omitempty"`
+	Version string            `yaml:"version" json:"version"`
+	Module  string            `yaml:"module" json:"module"`
+	Tags    []string          `yaml:"tags" json:"tags,omitempty"`
+	LDFlags []string          `yaml:"ldflags" json:"ldflags,omitempty"`
+	Env     map[string]string `yaml:"env" json:"env,omitempty"`
+	Imports []GoImportSpec    `yaml:"imports" json:"imports,omitempty"`
 }
 
 // GoImportSpec describes an extra Go import that should be emitted into

@@ -148,7 +148,7 @@ func buildArguments(parsedValues *values.Values, plan *VerbBindingPlan, rootDir 
 			args = append(args, cloneMap(sectionValues[binding.SectionSlug]))
 			continue
 		case BindingModePositional:
-			value := sectionValues[binding.SectionSlug][binding.Field.Name]
+			value := sectionValues[binding.SectionSlug][cliFieldName(binding.Field.Name)]
 			if binding.Param.Rest {
 				rv := reflect.ValueOf(value)
 				if rv.IsValid() && (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) {

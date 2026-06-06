@@ -72,6 +72,11 @@ func addSectionsToCommandDescription(desc *cmds.CommandDescription, sections []s
 
 func appendSectionsToCommandDescription(desc *cmds.CommandDescription, seen map[string]string, sections []schema.Section, source string) error {
 	collected := []schema.Section{}
+	if desc != nil && desc.Schema != nil {
+		desc.Schema.ForEach(func(_ string, section schema.Section) {
+			collected = append(collected, section)
+		})
+	}
 	if err := providerutil.AppendUniqueSections(&collected, seen, sections, source); err != nil {
 		return err
 	}

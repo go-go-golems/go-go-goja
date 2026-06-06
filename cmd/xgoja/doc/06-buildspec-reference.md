@@ -97,6 +97,19 @@ modules:
 
 Then JavaScript can use `require("fs:assets")` for read-only embedded files and `require("fs:host")` for explicitly allowed host filesystem access.
 
+Use `go.env` when `go build` needs additional environment variables. This is primarily for CGO-enabled packages whose linker flags are too specific to bake into `ldflags`. For example, a Bleve vector-search binary that links FAISS can declare both build tags and CGO linker flags:
+
+```yaml
+go:
+  tags:
+    - vectors
+  ldflags:
+    - -r
+    - /usr/local/lib
+  env:
+    CGO_LDFLAGS: "-L/usr/local/lib -lfaiss_c -lfaiss -lstdc++ -lm"
+```
+
 Use `go.imports` when generated code must compile an additional Go package even though the generated source does not reference a Go identifier from it. The most common case is a SQL driver package that registers itself through `init()` and is later selected by the database module's runtime `driverName` config:
 
 ```yaml

@@ -516,6 +516,46 @@ func TestCommandDescriptionForVerb(t *testing.T) {
 	require.NotNil(t, desc.Schema)
 }
 
+func TestTopLevelFieldNamesUseKebabCaseCLI(t *testing.T) {
+	registry, err := ScanSource("naming.js", `
+function show(profilePath, foo_bar) {
+  return [{ profilePath, foo_bar }];
+}
+
+__verb__("show", {
+  fields: {
+    profilePath: { help: "Profile path" },
+    foo_bar: { help: "Foo bar" }
+  }
+});
+`)
+	require.NoError(t, err)
+	verb, ok := registry.Verb("naming show")
+	require.True(t, ok)
+	desc, err := registry.CommandDescriptionForVerb(verb)
+	require.NoError(t, err)
+	flags := desc.GetDefaultFlags()
+	require.NotNil(t, flags)
+	_, ok = flags.Get("profile-path")
+	require.True(t, ok, "camelCase field should be exposed as kebab-case CLI flag")
+	_, ok = flags.Get("foo-bar")
+	require.True(t, ok, "snake_case field should be exposed as kebab-case CLI flag")
+	_, ok = flags.Get("profilePath")
+	require.False(t, ok, "camelCase field should not be exposed literally")
+	_, ok = flags.Get("foo_bar")
+	require.False(t, ok, "snake_case field should not be exposed literally")
+
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["naming show"], map[string]map[string]interface{}{
+		"default": {
+			"profile-path": "profiles.yaml",
+			"foo-bar":      "snake",
+		},
+	})
+	require.Equal(t, "profiles.yaml", rows[0]["profilePath"])
+	require.Equal(t, "snake", rows[0]["foo_bar"])
+}
+
 func TestCommandForVerbWithInvokerUsesCustomInvoker(t *testing.T) {
 	registry := mustRegistry(t)
 	verb, ok := registry.Verb("basics greet")
