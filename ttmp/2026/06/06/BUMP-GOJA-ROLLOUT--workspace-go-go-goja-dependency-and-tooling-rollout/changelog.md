@@ -114,3 +114,24 @@ Updated GGG rollout guidance: PR opening already triggers Codex, so codex-trigge
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Recorded Step 11 documentation correction
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/02-ggg-rollout-research-logbook.md — Recorded upstream documentation clarification needed
 
+
+## 2026-06-07
+
+Persisted the rollout PR-opening script after discovering worktree .git handling and gh pr create --json portability issues.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Recorded Step 12 operational script persistence
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/02-open-rollout-prs.sh — Idempotent PR creation script
+
+
+## 2026-06-07
+
+Opened rollout PRs, generated scripts/prs.yaml, and recorded goja-text pre-push hook recovery; no manual Codex trigger was run because PR-open automation starts Codex.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Recorded Step 13 PR opening
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/03-resume-open-remaining-prs.sh — Resume script after goja-text pre-push hook failure
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/prs.yaml — Generated rollout PR list
+
