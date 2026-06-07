@@ -138,7 +138,7 @@ Then:
 
 - `BindingModeSection` should pass `cloneMap(jsBySection[binding.SectionSlug])`.
 - `BindingModeContext` should expose both the JS-facing `sections` and the raw parsed values if useful.
-- `BindingModeAll` should be evaluated carefully. The safest behavior is to return a JS-facing data map for command-authored fields, because `all` is consumed by JavaScript. If callers need raw CLI names, that can be exposed in context later as `rawValues`.
+- `BindingModeAll` should preserve its historical shape: a flat map of all parsed fields. The field names in that flat map should be JavaScript-facing names, not CLI names. This keeps existing verbs like `options.owner` working while still remapping `profile-path` back to `profilePath`.
 - `BindingModePositional` should look up values using the binding's CLI name, then pass the value positionally.
 
 ## Handling fields not known to the plan
@@ -177,7 +177,7 @@ func buildArguments(parsedValues, plan, rootDir) []interface{} {
         case BindingModeSection:
             args = append(args, cloneMap(js[binding.SectionSlug]))
         case BindingModeAll:
-            args = append(args, js)
+            args = append(args, flatten(js))
         case BindingModeContext:
             args = append(args, map[string]any{
                 "values": js,

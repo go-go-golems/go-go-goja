@@ -19,6 +19,7 @@ This ticket tracks the follow-up to jsverb top-level field-name normalization. T
 
 - `design-doc/01-kebab-case-section-flags-preserve-js-object-keys.md` — design and implementation guide.
 - `reference/01-diary.md` — chronological implementation diary.
+- `changelog.md` — concise commit and validation log.
 - `tasks.md` — task checklist.
 
 ## Key files
