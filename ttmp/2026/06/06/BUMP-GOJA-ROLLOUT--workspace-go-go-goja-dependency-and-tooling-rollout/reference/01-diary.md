@@ -739,3 +739,59 @@ After moving the chat/webchat ownership into `go-go-os-chat` and migrating `go-g
 - Deleted local-only artifacts:
   - branch `pinocchio/compat/webchat-goja-v0.8`
   - tag `pinocchio/v0.10.14`
+
+## Step 11: Correct Codex trigger guidance in the GGG playbook
+
+I updated the `ggg` rollout playbook after the operator clarified that opening a PR already triggers a Codex run in the current repository setup. The playbook now treats `ggg pr codex-trigger` as a recovery command for missing, stale, or stuck Codex runs rather than as a default post-PR-open step.
+
+I also updated the research logbook so future documentation updates capture this mismatch: the original infra-tooling guidance and my first ticket playbook made the trigger command too prominent and did not state clearly enough that PR creation itself starts Codex.
+
+### Prompt Context
+
+**User prompt (verbatim):** "opening the PR triggers a codex run, btw, so no need to do that on PR open. update th eplaybook accordingly. As you work, keep a diary and keep note of the things to update in teh original documentation that would have made things clearer."
+
+**Assistant interpretation:** Revise the ticket playbook so Codex triggering is not recommended immediately after PR open, update the research/documentation-improvement notes, and record the work in the diary.
+
+**Inferred user intent:** Prevent duplicate Codex review triggers and make the rollout docs more accurate for future operators.
+
+**Commit (code):** N/A — documentation-only change not yet committed at the time of this diary entry.
+
+### What I did
+- Edited `design-doc/02-ggg-rollout-operations-playbook.md` to rename Phase 6 to “Let PR-Open Automation Start Codex”.
+- Reworded the workflow summary so PR creation is followed by automatic Codex startup and readiness watching.
+- Kept `ggg pr codex-trigger` examples, but framed them as recovery commands only.
+- Edited `reference/02-ggg-rollout-research-logbook.md` to record that original documentation should explicitly say PR-open automation starts Codex.
+- Added the needed documentation update to the research logbook recommendation list.
+
+### Why
+- Running `ggg pr codex-trigger` immediately after PR creation is unnecessary in this setup and risks noisy duplicate review requests.
+- Future operators should first watch readiness and only trigger Codex manually when readiness evidence shows that automation did not start or got stuck.
+
+### What worked
+- The playbook now preserves the recovery command while removing it from the normal happy path.
+- The research logbook now captures the documentation gap that caused the confusion.
+
+### What didn't work
+- The first version of the playbook over-emphasized manual triggering because the consulted docs documented `ggg pr codex-trigger` mechanics but did not clearly state the current PR-open automation behavior.
+
+### What I learned
+- For this repository setup, PR open is already enough to start Codex.
+- `ggg pr codex-trigger` should be described as a safe fallback/recovery command, not a mandatory rollout phase.
+
+### What was tricky to build
+- The tricky part was not code; it was operator sequencing. The command is valid and safe-guarded, so the documentation had to distinguish “available command” from “default step”. The fix was to keep the command examples but move them under recovery language.
+
+### What warrants a second pair of eyes
+- Review whether infra-tooling docs should say “opening a PR triggers Codex automatically” globally, or whether that statement is repository/organization-specific and should be scoped.
+
+### What should be done in the future
+- Update upstream infra-tooling docs so `ggg pr codex-trigger` is documented primarily as a fallback after readiness shows no automatic Codex run.
+
+### Code review instructions
+- Start with `design-doc/02-ggg-rollout-operations-playbook.md`, Phase 6.
+- Then review `reference/02-ggg-rollout-research-logbook.md`, especially the recommended documentation updates and Codex trigger entries.
+- Validate with `docmgr validate frontmatter` for the edited docs.
+
+### Technical details
+- Normal flow should be: `ggg rollout push-prs` → PR-open automation starts Codex → `ggg batch ready --watch --until actionable`.
+- Recovery flow should be: readiness shows missing/stale/stuck Codex → `ggg pr codex-trigger --file prs.yaml --wait-for-auto 30s`.

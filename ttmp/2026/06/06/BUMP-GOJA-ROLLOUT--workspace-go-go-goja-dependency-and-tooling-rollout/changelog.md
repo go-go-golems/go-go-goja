@@ -103,3 +103,14 @@ Added GGG rollout operations playbook and research logbook evaluating infra-tool
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/design-doc/02-ggg-rollout-operations-playbook.md — New operator playbook
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/02-ggg-rollout-research-logbook.md — Research logbook and documentation freshness review
 
+
+## 2026-06-07
+
+Updated GGG rollout guidance: PR opening already triggers Codex, so codex-trigger is now documented as recovery-only; recorded the doc gap in the research logbook and diary.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/design-doc/02-ggg-rollout-operations-playbook.md — Corrected Codex trigger sequencing
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Recorded Step 11 documentation correction
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/02-ggg-rollout-research-logbook.md — Recorded upstream documentation clarification needed
+

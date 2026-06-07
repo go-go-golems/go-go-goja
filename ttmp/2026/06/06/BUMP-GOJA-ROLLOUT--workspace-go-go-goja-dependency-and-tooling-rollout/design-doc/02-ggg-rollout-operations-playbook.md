@@ -27,7 +27,7 @@ RelatedFiles:
         Rollout YAML schema used by `ggg rollout` commands
         Rollout YAML schema source
 ExternalSources: []
-Summary: Operational playbook for using ggg to run large go-go-golems dependency rollouts, open PRs, trigger Codex, watch readiness, and verify CI/CD.
+Summary: Operational playbook for using ggg to run large go-go-golems dependency rollouts, open PRs, rely on PR-open Codex automation, watch readiness, and verify CI/CD.
 LastUpdated: 2026-06-07T09:15:00-04:00
 WhatFor: Use this during multi-repository go-go-golems dependency rollouts after local code changes are ready and before opening, reviewing, merging, and tagging PRs.
 WhenToUse: When operating a release train or large dependency bump across multiple cloned repositories, especially when Codex review and GitHub Actions readiness must be tracked in batch.
@@ -38,7 +38,7 @@ WhenToUse: When operating a release train or large dependency bump across multip
 
 ## Executive Summary
 
-Use the installed `ggg` CLI as the operator control plane for large go-go-golems rollouts. The intended workflow is: inventory repositories, capture a rollout YAML config, validate every target with `GOWORK=off`, push branches and open PRs, trigger or wait for Codex review, watch PR readiness in batch, merge in dependency order with merge commits, verify post-merge GitHub Actions, and only then publish upstream tags or continue downstream.
+Use the installed `ggg` CLI as the operator control plane for large go-go-golems rollouts. The intended workflow is: inventory repositories, capture a rollout YAML config, validate every target with `GOWORK=off`, push branches and open PRs, let the PR-open automation start Codex, watch PR readiness in batch, merge in dependency order with merge commits, verify post-merge GitHub Actions, and only then publish upstream tags or continue downstream.
 
 This playbook turns the infra-tooling documentation into a copy/paste-ready procedure for the `BUMP-GOJA-ROLLOUT` style of work. It assumes code changes are made per repository and committed locally, and focuses on the PR/review/release-operations layer.
 
@@ -248,15 +248,19 @@ prs:
   - ref: go-go-golems/go-go-app-inventory#17
 ```
 
-## Phase 6: Trigger Codex Review
+## Phase 6: Let PR-Open Automation Start Codex
 
-Let automatic Codex start first. Then trigger only if needed:
+Opening the PR already triggers a Codex run in the current repository setup. Do **not** run `ggg pr codex-trigger` immediately after PR creation as a normal step; doing so creates noise and can duplicate the automatic review request.
+
+Instead, after opening PRs, move directly to readiness watching. Use `ggg pr codex-trigger` only as a recovery tool when readiness shows that Codex did not start, appears stale/stuck, or must be retriggered after an unusual workflow failure.
+
+Recovery trigger for the whole PR list:
 
 ```bash
 ggg pr codex-trigger --file ttmp/.../scripts/prs.yaml --wait-for-auto 30s
 ```
 
-Single PR:
+Recovery trigger for one PR:
 
 ```bash
 ggg pr codex-trigger https://github.com/go-go-golems/<repo>/pull/<n> --wait-for-auto 30s
@@ -270,7 +274,7 @@ Safety rules built into `ggg pr codex-trigger`:
 - skips if Codex is already satisfied for the current head,
 - use `--force` only when intentionally replacing a stale/stuck run.
 
-Dry-run if uncertain:
+Dry-run before recovery if uncertain:
 
 ```bash
 ggg pr codex-trigger --file ttmp/.../scripts/prs.yaml --wait-for-auto 30s --dry-run --output json

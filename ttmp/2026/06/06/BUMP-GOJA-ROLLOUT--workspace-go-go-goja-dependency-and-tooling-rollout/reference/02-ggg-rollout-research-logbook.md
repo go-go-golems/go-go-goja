@@ -114,6 +114,8 @@ ggg rollout inventory ...
 ggg rollout init ...
 ggg rollout validate rollout.yaml
 ggg rollout push-prs rollout.yaml --yes
+# Do not run this immediately after PR creation; PR-open automation starts Codex.
+# Use only as recovery if readiness shows Codex did not start or is stale/stuck.
 ggg pr codex-trigger --file prs.yaml --wait-for-auto 30s
 ggg batch ready prs.yaml --watch --until actionable
 ggg batch actions actions.yaml --watch
@@ -127,7 +129,7 @@ I was researching the correct operator flow for package publishing and dependenc
 
 ### What I was looking for in this document in particular
 
-I wanted the high-level policy and sequence: what must happen before merging, how to avoid workspace leakage, how to trigger Codex, how to watch PRs in batch, and how to verify post-merge CI.
+I wanted the high-level policy and sequence: what must happen before merging, how to avoid workspace leakage, how Codex is started or recovered, how to watch PRs in batch, and how to verify post-merge CI.
 
 ### Why I chose it
 
@@ -143,7 +145,7 @@ The README listed it under “Current Recommended Reuse Points.” It also appea
 - The explicit `GOWORK=off` guidance for downstream validation.
 - Early downstream PR guidance: open PRs early for feedback, but do not merge until upstream tags are available.
 - Exact `ggg` commands for:
-  - `ggg pr codex-trigger --file ... --wait-for-auto 30s`
+  - `ggg pr codex-trigger --file ... --wait-for-auto 30s` as a recovery tool, not a default PR-open step
   - `ggg batch ready ... --watch --until actionable`
   - `ggg pr ready --findings`
   - `ggg run status`
@@ -213,7 +215,7 @@ It appeared in the README and in `rg` search output for `codex`, `PR`, and `read
   - `ggg pr watch`,
   - `ggg batch ready`.
 - It documents PR list YAML format.
-- It explains Codex trigger safety behavior.
+- It explains Codex trigger safety behavior, but it does not make clear enough that PR creation already starts Codex in the current setup.
 - It documents batch watch `--until actionable`, `--until all-ready`, `--until terminal`, and `--until first-ready`.
 - It lists exit codes `0` through `6` and their meanings.
 - It explains readiness states such as `waiting_checks`, `waiting_codex`, `failed_checks`, `merge_conflict`, and `codex_feedback`.
@@ -333,7 +335,7 @@ Add examples for:
 ```bash
 ggg rollout validate rollout.yaml
 ggg rollout push-prs rollout.yaml --yes
-ggg pr codex-trigger --file prs.yaml --wait-for-auto 30s
+# PR-open automation starts Codex; only recover with codex-trigger if readiness shows it did not start.
 ggg batch ready prs.yaml --watch --until actionable
 ```
 
@@ -569,7 +571,7 @@ No source issue found.
 Document the file handoff explicitly:
 
 ```text
-ggg rollout push-prs -> pull_request.output_prs -> ggg batch ready / ggg pr codex-trigger --file
+ggg rollout push-prs -> pull_request.output_prs -> ggg batch ready; only then use ggg pr codex-trigger --file as recovery if Codex did not auto-start
 ```
 
 ## Entry 10: `pkg/prready/prready.go`
@@ -687,11 +689,12 @@ Cross-link docsctl rollout docs from the package release-train document is alrea
 ## Recommended Documentation Updates
 
 1. **Add a `ggg rollout` quickstart to `infra-tooling/README.md`.**
-2. **Add a `rollout.yaml` schema section to `package-publishing-release-train.md`.**
-3. **Rename or alias `pr-readiness-check-scripts.md` to “PR readiness with ggg.”**
-4. **Add `ggg rollout` examples to the Glazed lint and logcopter playbooks.**
-5. **Add a deprecation README to `scripts/go-go-golems/`.**
-6. **Add concise examples to `ggg rollout --help` or provide a `ggg rollout quickstart` help topic.**
+2. **State explicitly that opening a PR triggers Codex automatically, so `ggg pr codex-trigger` is a recovery command rather than a default post-open step.**
+3. **Add a `rollout.yaml` schema section to `package-publishing-release-train.md`.**
+4. **Rename or alias `pr-readiness-check-scripts.md` to “PR readiness with ggg.”**
+5. **Add `ggg rollout` examples to the Glazed lint and logcopter playbooks.**
+6. **Add a deprecation README to `scripts/go-go-golems/`.**
+7. **Add concise examples to `ggg rollout --help` or provide a `ggg rollout quickstart` help topic.**
 
 ## Quick Resource Ranking for Future Operators
 
