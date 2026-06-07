@@ -921,3 +921,62 @@ build failed: exit status 1: go: updates to go.mod needed; to update it:
 - PR list path: `ttmp/.../scripts/prs.yaml`.
 - PR count: 21.
 - Manual Codex trigger: not run.
+
+## Step 14: Capture PR readiness and Codex triage artifacts
+
+After opening all rollout PRs, I saved and ran ticket-local readiness and Codex-comment collection scripts. The first one-shot readiness check found no PRs ready to merge yet: most were blocked by Codex feedback or failed checks, with a few showing `no_codex` and one still waiting on checks.
+
+I then collected grouped Codex comments into a ticket-local artifact so the next phase can address concrete review findings rather than relying on the terminal table output.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 12)
+
+**Assistant interpretation:** Keep continuing rollout operations, but save the scripts and outputs that make the process retraceable.
+
+**Inferred user intent:** Preserve evidence for PR readiness and Codex triage before fixing follow-up issues.
+
+**Commit (code):** N/A — documentation/script change not yet committed at the time of this diary entry.
+
+### What I did
+- Added `scripts/04-check-pr-readiness.sh` for one-shot or watch-mode `ggg batch ready` checks.
+- Ran `scripts/04-check-pr-readiness.sh` against `scripts/prs.yaml`.
+- Saved a JSON readiness snapshot to `scripts/readiness-2026-06-07T0925.json`.
+- Added `scripts/05-collect-codex-comments.sh`.
+- Ran the Codex-comment collection script and saved grouped output to `scripts/codex-comments-2026-06-07T0926.md`.
+
+### Why
+- Readiness and Codex comments determine the next operator action.
+- Capturing them in the ticket makes the batch state auditable and lets future work resume without rerunning GitHub queries immediately.
+
+### What worked
+- `ggg batch ready` produced a complete readiness table for all 21 PRs.
+- `ggg batch codex-comments --group-by-message` produced a compact triage table of current Codex comments.
+
+### What didn't work
+- `docmgr validate frontmatter` was briefly invoked with a doubled `ttmp/ttmp/...` path due to mixing a relative ticket path with the repo-root `ttmp` config. The later commit proceeded, but future commands should use absolute doc paths or paths relative to the docmgr root consistently.
+- `ggg batch ready` exited with code `3`, which is expected for current-head Codex feedback but means the batch is not ready.
+
+### What I learned
+- The first actionable group is Codex feedback, not manual Codex triggering.
+- Three PRs reported `no_codex`; those should be rechecked after a short wait before using `ggg pr codex-trigger` as recovery.
+
+### What was tricky to build
+- Readiness output is useful but wide. Saving JSON plus grouped Codex comments gives both machine-readable state and a human-readable triage list.
+
+### What warrants a second pair of eyes
+- Some Codex comments are likely valid P1/P2 findings and should be fixed before merge.
+- Some failed checks are vulnerability/lint failures that may be pre-existing or unrelated; each needs classification before deciding whether to fix or document.
+
+### What should be done in the future
+- Add a standard readiness snapshot command to upstream rollout docs.
+- Document `ggg batch ready` exit code `3` as “expected but blocking” when Codex feedback exists.
+
+### Code review instructions
+- Review `scripts/readiness-2026-06-07T0925.json` for batch state.
+- Review `scripts/codex-comments-2026-06-07T0926.md` for concrete review findings.
+- Start fixes with P1 Codex findings.
+
+### Technical details
+- Readiness summary from JSON snapshot: `failed_checks=4`, `codex_feedback=13`, `no_codex=3`, `waiting_checks=1`.
+- Manual Codex trigger: not run.

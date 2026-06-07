@@ -135,3 +135,15 @@ Opened rollout PRs, generated scripts/prs.yaml, and recorded goja-text pre-push 
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/03-resume-open-remaining-prs.sh — Resume script after goja-text pre-push hook failure
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/prs.yaml — Generated rollout PR list
 
+
+## 2026-06-07
+
+Captured PR readiness and grouped Codex comment artifacts for the 21 rollout PRs; batch readiness currently blocked by Codex feedback and failed checks.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/04-check-pr-readiness.sh — Readiness check script
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/05-collect-codex-comments.sh — Codex comment collection script
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/codex-comments-2026-06-07T0926.md — Grouped Codex comments
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/readiness-2026-06-07T0925.json — Readiness snapshot
+
