@@ -62,3 +62,14 @@ Validated migrated repos and repaired test-only go-go-goja v0.8 API drift in wor
 
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Diary Step 7 validation and test cleanup
 
+
+## 2026-06-07
+
+Published plz-confirm v0.0.6, upgraded go-go-app-inventory to that tag, and validated smailnail with -tags sqlite_fts5 after updating stale runtime factory test calls.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Diary Step 8
+- /home/manuel/workspaces/2026-06-06/bump-goja/plz-confirm/go.mod — Published v0.0.6 includes go-go-goja v0.8.3 dependency
+- /home/manuel/workspaces/2026-06-06/bump-goja/smailnail/pkg/js/modules/smailnail/module_test.go — Runtime factory test-call migration for smailnail
+

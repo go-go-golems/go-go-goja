@@ -526,3 +526,69 @@ After the provider migrations built successfully, I ran `GOWORK=off go test ./..
 - New command-set factory field: `providerapi.CommandSetProvider.NewCommandSet`.
 - New runtime owner constructor: `runtimeowner.NewRuntimeOwner`.
 - New runtime initializer handle access pattern: `handle.EngineRuntime().VM` or `handle.EngineRuntime().AddCloser(...)`.
+
+## Step 8: Publish plz-confirm v0.0.6 and validate smailnail with SQLite FTS5 tag
+
+I followed the user's instruction to fix the `plz-confirm` blocker first, then reran `smailnail` validation using the SQLite FTS5 build tag instead of treating missing FTS5 as an environment-independent failure. Publishing `plz-confirm` v0.0.6 removes the stale published dependency that still imported `github.com/go-go-golems/go-go-goja/engine`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "fix plz-confirm first, use sqlite go tag when building for fts5 in smailnail"
+
+**Assistant interpretation:** Publish/advance the fixed `plz-confirm` dependency before continuing `go-go-app-inventory`, and validate `smailnail` with `-tags sqlite_fts5` so SQLite FTS5 tests use the intended build configuration.
+
+**Inferred user intent:** Unblock downstream module resolution accurately and avoid misclassifying `smailnail` FTS5 failures as migration failures when they are build-tag gated.
+
+**Commit (code):** 9dbaed9 — "Bump go-go-goja v0.4.0 -> v0.8.3, migrate to pkg/engine API, add glazed-lint and bump-go-go-golems targets" (plz-confirm; tagged `v0.0.6`)
+
+**Commit (code):** bec86ca — "Update smailnail module tests for runtime factory options"
+
+### What I did
+- Verified `plz-confirm` has no production imports of the old `github.com/go-go-golems/go-go-goja/engine` path.
+- Ran `GOWORK=off go test ./...` in `plz-confirm` successfully.
+- Tagged `plz-confirm` commit `9dbaed9` as `v0.0.6` and pushed both `task/bump-goja` and `v0.0.6` to origin.
+- Updated `go-go-app-inventory` to use `github.com/go-go-golems/plz-confirm@v0.0.6` with `GOWORK=off GOPROXY=direct go get ...`.
+- Ran `GOWORK=off go build ./...` in `go-go-app-inventory`; the old plz-confirm import error disappeared.
+- Reran `smailnail` tests with `GOWORK=off go test -tags sqlite_fts5 ./...`.
+- Fixed remaining smailnail test compile errors by changing test runtime creation from `factory.NewRuntime(context.Background())` to `factory.NewRuntime(ggjengine.WithStartupContext(context.Background()), ggjengine.WithLifetimeContext(context.Background()))`.
+
+### Why
+- `go-go-app-inventory` depends on the published module graph, not local workspace state, so it needed a published `plz-confirm` tag that contains the go-go-goja v0.8 migration.
+- `smailnail` intentionally gates mirror tests on SQLite FTS5; validating without `-tags sqlite_fts5` exercises the sentinel failure path rather than the real migration state.
+
+### What worked
+- `plz-confirm` passes `GOWORK=off go test ./...` and is now available as `v0.0.6`.
+- `go-go-app-inventory` no longer reports the stale `plz-confirm@v0.0.5/internal/scriptengine/engine.go` import of `go-go-goja/engine` after upgrading to `v0.0.6`.
+- `smailnail` now passes `GOWORK=off go test -tags sqlite_fts5 ./...`.
+
+### What didn't work
+- `go-go-app-inventory` still does not build under `GOWORK=off`; remaining blockers are now unrelated to `plz-confirm`:
+  - `go-go-os-chat@v0.0.2` imports missing `github.com/go-go-golems/pinocchio/pkg/webchat` and `github.com/go-go-golems/pinocchio/pkg/webchat/http`.
+  - `go-go-app-inventory/pkg/pinoweb/hypercard_events.go` imports missing `github.com/go-go-golems/pinocchio/pkg/sem/pb/proto/sem/timeline` and `github.com/go-go-golems/pinocchio/pkg/sem/registry` from published `pinocchio@v0.11.4`.
+  - There are also missing go.sum entries for transitive packages that can be handled after the missing-package blockers are resolved.
+
+### What I learned
+- The earlier `smailnail` failures were caused by invoking tests without the expected `sqlite_fts5` build tag; once the tag was supplied, the true remaining issue was only stale test use of the old runtime factory signature.
+- Publishing `plz-confirm` as a tag is enough to remove that transitive blocker from downstream `GOWORK=off` builds; no local workspace replacement is needed for that dependency.
+
+### What was tricky to build
+- The smailnail validation had two layers: first the environment/build-tag layer (`fts5 is required but unavailable`), then the actual go-go-goja v0.8 API layer (`context.Context` passed where `engine.RuntimeOption` is now required). Using the correct tag exposed the real migration compile errors.
+- `go-go-app-inventory` now has a cleaner blocker set. It is important not to reintroduce local `replace` directives that make unpublished pinocchio package gaps look fixed under workspace conditions.
+
+### What warrants a second pair of eyes
+- Confirm that tagging `plz-confirm` v0.0.6 from `task/bump-goja` is acceptable for the release workflow, since the tag is not on `main` until the branch is merged.
+- Review whether the remaining `go-go-app-inventory` pinocchio imports should be migrated to replacement packages or whether pinocchio should restore/republish those package paths.
+
+### What should be done in the future
+- Resolve the pinocchio/go-go-os-chat missing package blockers before committing the `go-go-app-inventory` dependency bump.
+- For future smailnail validation, use `GOWORK=off go test -tags sqlite_fts5 ./...`.
+
+### Code review instructions
+- For plz-confirm, review commit `9dbaed9` and tag `v0.0.6`; validate with `GOWORK=off go test ./...`.
+- For smailnail, review `pkg/js/modules/smailnail/module_test.go` and validate with `GOWORK=off go test -tags sqlite_fts5 ./...`.
+- For go-go-app-inventory, inspect the current build output after `plz-confirm@v0.0.6`; only pinocchio/go-go-os-chat package gaps should remain.
+
+### Technical details
+- Published fixed plz-confirm tag: `git tag -a v0.0.6 -m "plz-confirm v0.0.6" && git push origin task/bump-goja v0.0.6`.
+- smailnail validation command: `GOWORK=off go test -tags sqlite_fts5 ./...`.
+- New runtime-factory test call shape: `factory.NewRuntime(ggjengine.WithStartupContext(context.Background()), ggjengine.WithLifetimeContext(context.Background()))`.
