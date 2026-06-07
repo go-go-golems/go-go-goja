@@ -980,3 +980,145 @@ I then collected grouped Codex comments into a ticket-local artifact so the next
 ### Technical details
 - Readiness summary from JSON snapshot: `failed_checks=4`, `codex_feedback=13`, `no_codex=3`, `waiting_checks=1`.
 - Manual Codex trigger: not run.
+
+## Step 15: Start Codex feedback remediation pass
+
+I started the post-PR remediation pass by reading the grouped Codex comments and classifying the work into P1 and P2 batches. The first priority is to fix P1 correctness findings, validate each affected repository with `GOWORK=off`, commit, and push the same `task/bump-goja` PR branches.
+
+Before making edits, I checked repository cleanliness for all repos with Codex comments. Most were clean; `go-go-host` had a pre-existing `go.sum` tidy diff from earlier hook/test activity, so I inspected it before making functional changes. I also began validating the `go-go-os-backend` P1 claim about `go-go-goja v0.8.3` being malformed and found that the local module cache currently parses `v0.8.3` successfully, which may mean the Codex comment observed stale module-proxy state or an earlier tag state.
+
+### Prompt Context
+
+**User prompt (verbatim):** "keep a detailed diary as you work, btw. continue"
+
+**Assistant interpretation:** Continue fixing Codex comments, but make sure the diary records decisions, commands, failures, and uncertainty in detail.
+
+**Inferred user intent:** Preserve a detailed audit trail for the remediation pass, not just the final fixes.
+
+**Commit (code):** N/A — remediation pass just started.
+
+### What I did
+- Listed all Codex comments and grouped them by P1/P2 priority.
+- Checked cleanliness of affected repos: `go-go-os-backend`, `goja-text`, `go-go-gepa`, `go-go-host`, `discord-bot`, `vm-system`, `go-go-os-chat`, `smailnail`, `css-visual-diff`, `loupedeck`, `jesus`, `goja-github-actions`, and `go-minitrace`.
+- Inspected `go-go-host/go.sum` because it was dirty before new edits.
+- Checked `go-go-goja` tags and verified `GOWORK=off go list -m -json github.com/go-go-golems/go-go-goja@v0.8.3` parses successfully locally.
+
+### Why
+- Codex findings need to be fixed in priority order so PR readiness can converge.
+- Dirty working trees must be understood before edits so unrelated generated/tidy changes are not accidentally mixed into semantic fixes.
+- The `go-go-os-backend` P1 depends on whether the published `v0.8.3` tag is actually unusable; if it is stale rather than current, the right action may be to document/recheck rather than repin every repo.
+
+### What worked
+- The affected repository status check found only one pre-existing dirty repo (`go-go-host`).
+- The local module cache currently resolves and parses `go-go-goja@v0.8.3`.
+
+### What didn't work
+- The current Codex comment artifact truncates long comment bodies, so some fixes require inspecting code and inferred intent rather than relying only on the saved table.
+
+### What I learned
+- `go-go-goja@v0.8.3` appears parseable locally now, despite Codex reporting a malformed tag for `go-go-os-backend`.
+- `go-go-host/go.sum` had stale checksum cleanup already pending, likely from earlier `go mod tidy`/hook activity.
+
+### What was tricky to build
+- The tricky part is distinguishing real migration bugs from stale automation observations. For `go-go-os-backend`, the version-pinning finding may require a second readiness run after fixing other issues, because the local Go tool no longer reproduces the malformed-module claim.
+
+### What warrants a second pair of eyes
+- Whether to create/pin a new `go-go-goja` patch tag despite `v0.8.3` parsing locally.
+- Whether to include the `go-go-host go.sum` cleanup in the lifetime-context fix commit.
+
+### What should be done in the future
+- Store full Codex comment bodies, not only grouped/truncated tables, when collecting triage artifacts.
+- Add a standard “reproduce Codex claim locally” step before broad dependency repinning.
+
+### Code review instructions
+- Start with the P1 repos: `go-go-os-backend`, `goja-text`, `go-go-gepa`, `go-go-host`, and `discord-bot`.
+- For each, compare the Codex location with the final commit diff and validation command output.
+
+### Technical details
+- Local verification command for the version claim:
+  `GOWORK=off go list -m -json github.com/go-go-golems/go-go-goja@v0.8.3`.
+- Result: parsed successfully with `GoVersion: 1.26.1` and module dir under `/home/manuel/go/pkg/mod/github.com/go-go-golems/go-go-goja@v0.8.3`.
+
+## Step 16: Fix P1/P2 Codex feedback and reply on every review thread
+
+I addressed the Codex feedback pass in priority order, starting with P1 findings and then moving through the P2 findings. For each resolved issue, I pushed a focused commit to the affected repository's `task/bump-goja` branch and replied directly to the corresponding GitHub review comment with the commit hash and validation evidence.
+
+One P1 finding (`go-go-os-backend` malformed `go-go-goja v0.8.3`) did not reproduce after clearing the module cache. I replied on the PR with the exact `go mod download`, `go list -m -json`, and `go test` evidence instead of inventing a new tag. All other findings received code changes.
+
+### Prompt Context
+
+**User prompt (verbatim):** "definitely comment on each pr's by answering to each resolved issue, so taht we can properly understand and keep track of what you did (in addition ot the diary)"
+
+**Assistant interpretation:** In addition to the diary, reply directly to each Codex review thread as fixes are pushed so the PRs themselves show what changed and how it was validated.
+
+**Inferred user intent:** Make PR review history self-contained and auditable, not only ticket-local.
+
+**Commit (code):** Multiple repository commits; see details below.
+
+### What I did
+- Fixed P1 `go-go-host`: commit `72959e3` — `Use persistent lifetime context for site runtimes`.
+- Fixed P1 `discord-bot`: commit `2415599` — `Use section-aware runtime construction`.
+- Fixed P1 `goja-text`: commit `9689640` — `Regenerate goja-text CLI for xgoja v0.8`.
+- Fixed P1 `go-go-gepa`: commit `f8ac63a` — `Restore gepa runner profile env parsing`.
+- Rechecked P1 `go-go-os-backend`: no code change; `go-go-goja@v0.8.3` parsed successfully after `GOWORK=off go clean -modcache`.
+- Fixed P2 `css-visual-diff`: commit `d2ae468` — `Pass parsed values to xgoja runtime factory`.
+- Fixed P2 `loupedeck`: commit `c3f2d86` — `Pass parsed values to loupedeck xgoja runtime`.
+- Fixed P2 `vm-system`: commit `951898a` — `Clean up runtime on session creation failure`.
+- Fixed P2 `go-go-os-chat`: commit `5ad1e52` — `Fix timeline cursor and redis group handling`.
+- Fixed P2 `smailnail`: commit `e3f1a39` — `Fail closed when sqlite fts5 tag is missing`.
+- Fixed P2 `jesus`: commit `469694f` — `Preserve XDG config precedence`.
+- Fixed P2 `goja-github-actions`: commit `0781183` — `Honor explicit config file without fallback discovery`.
+- Fixed P2 `go-minitrace`: commit `9a6e08a` — `Update minitrace xgoja smoke spec`.
+- Replied to all 14 Codex threads using GitHub's review-comment reply endpoint.
+
+### Why
+- Codex readiness was blocking the batch.
+- Direct PR replies make each review thread understandable without cross-referencing the ticket diary.
+- Fixes needed to preserve the v0.8 runtime semantics: section-aware construction, stable lifetime contexts, correct config precedence, and v0.8 xgoja spec format.
+
+### What worked
+- All affected branches pushed successfully.
+- Focused and/or full `GOWORK=off` validation passed for each code-changing repo.
+- GitHub review replies worked after switching from the wrong REST endpoint form to `/pulls/{number}/comments/{comment_id}/replies`.
+- Workspace status is clean for all modified repos after pushes.
+
+### What didn't work
+- Initial GitHub reply attempts used `POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/replies` and returned HTTP 404. Correct endpoint requires the PR number: `POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies`.
+- `css-visual-diff` validation initially used stale package paths (`./pkg/verbcli`, `./pkg/commands`, etc.) and failed for non-existent directories. The provider package itself passed and the PR reply explicitly documents this.
+- `go-minitrace` validation initially tried `GOWORK=off go run ../go-go-goja/cmd/xgoja validate ...`, which failed because sibling module paths are outside the module under `GOWORK=off`. The installed `xgoja` also lacked `validate`. The correct v0.8 command was `doctor` via `GOWORK=off go run github.com/go-go-golems/go-go-goja/cmd/xgoja@v0.8.3 doctor -f ...`.
+- `go-go-os-backend` Codex P1 did not reproduce locally after clearing the module cache; I treated it as stale proxy/tag state unless CI reproduces it.
+
+### What I learned
+- The `RuntimeFactory.NewRuntimeFromSections(ctx, vals, opts...)` path is the correct v0.8 pattern for generated xgoja providers that attach Glazed sections.
+- xgoja v0.8 specs use top-level `modules:` and reject old `runtimes:` / `runtimeProfile` selectors.
+- Review-thread replies should be part of the rollout checklist, because they materially improve PR auditability.
+- The GitHub review-comment reply API shape is easy to get wrong; include the PR number.
+
+### What was tricky to build
+- The trickiest fixes were section-aware runtime construction and goja-text regeneration. Section-aware runtime fixes require not just replacing `NewRuntime` with `NewRuntimeFromSections`, but also removing old manual post-construction initialization to avoid duplicate initialization. goja-text required migrating both root and checked-in generated xgoja specs before regeneration could succeed.
+- The timeline cursor fix needed to avoid advancing to the store's current version when the query is truncated. The solution fetches `limit+1` rows and, when truncated, returns the version of the last returned row instead of the current conversation version.
+
+### What warrants a second pair of eyes
+- `go-go-os-chat` timeline pagination assumes the returned row version is a safe cursor when the first-seen ordering is truncated. This fixes the immediate skip-ahead bug but should be reviewed against any ordering/version invariants expected by clients.
+- `go-go-gepa` now restores `PINOCCHIO_*` env parsing via `AppName: "pinocchio"`; confirm this is the intended prefix for GEPA runner profile configuration.
+- `go-go-os-backend` should be watched in CI to ensure the stale malformed-module finding does not recur in GitHub's environment.
+- `smailnail` intentionally fails untagged builds for `pkg/mirror`; CI must use `-tags sqlite_fts5` for this repo.
+
+### What should be done in the future
+- Add a ticket-local script for replying to Codex comments by comment ID and PR number.
+- Extend the upstream playbook to require direct review-thread replies for each fixed Codex issue.
+- Store full Codex comments rather than truncated table samples so remediation can quote exact findings.
+- Document xgoja v0.8 command names (`doctor`, not `validate`) and spec migration rules.
+
+### Code review instructions
+- Review PR comments for each Codex thread; every thread has a reply with commit and validation.
+- Re-run `scripts/04-check-pr-readiness.sh` after GitHub/Codex catches up.
+- If any PR still reports Codex feedback, collect fresh comments with `scripts/05-collect-codex-comments.sh` and compare against the resolved thread replies.
+
+### Technical details
+- Correct GitHub reply endpoint:
+  `gh api -X POST repos/<owner>/<repo>/pulls/<pr-number>/comments/<comment-id>/replies -f body='...'`.
+- Important validation commands included:
+  - `GOWORK=off go test ./...`
+  - `GOWORK=off go test -tags sqlite_fts5 ./...` for `smailnail`
+  - `GOWORK=off go run github.com/go-go-golems/go-go-goja/cmd/xgoja@v0.8.3 doctor -f examples/xgoja/minitrace-command-provider/xgoja.yaml`

@@ -147,3 +147,22 @@ Captured PR readiness and grouped Codex comment artifacts for the 21 rollout PRs
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/codex-comments-2026-06-07T0926.md — Grouped Codex comments
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/readiness-2026-06-07T0925.json — Readiness snapshot
 
+
+## 2026-06-07
+
+Started Codex feedback remediation pass; recorded affected repo status and local verification that go-go-goja v0.8.3 currently parses.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Step 15 remediation diary
+
+
+## 2026-06-07
+
+Fixed and pushed all P1/P2 Codex feedback items, replied on each GitHub review thread with commit and validation evidence, and recorded stale/non-reproducible go-go-os-backend module finding.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Step 16 Codex remediation details
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/codex-comments-2026-06-07T0926.md — Source Codex triage artifact
+
