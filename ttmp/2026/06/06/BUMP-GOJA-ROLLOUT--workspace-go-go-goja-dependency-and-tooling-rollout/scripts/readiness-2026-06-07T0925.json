@@ -1,0 +1,487 @@
+[
+{
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "lint"
+  ],
+  "failed_checks": [
+    "goreleaser-linux: conclusion=FAILURE",
+    "lint: conclusion=FAILURE",
+    "lint: conclusion=FAILURE",
+    "goreleaser-darwin: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "9dbaed9c0574f95e7a12b9f786eb5ed2cf036b24",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_fix_failed_checks",
+  "number": 13,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/plz-confirm/pull/13",
+  "repository": "go-go-golems/plz-confirm",
+  "state": "failed_checks",
+  "terminal": true,
+  "terminal_reason": "failed_checks",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [],
+  "failed_checks": null,
+  "head_ref_oid": "60b5b9bd99c6fbf99ca29785f7638a1107bb4491",
+  "merge_state_status": "CLEAN",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 2,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/go-go-os-chat/pull/2",
+  "repository": "go-go-golems/go-go-os-chat",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "govulncheck"
+  ],
+  "failed_checks": [
+    "Go Vulnerability Check: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "0fa6f5e80d35ebfd43f550da93ff9f6e88f059a5",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_fix_failed_checks",
+  "number": 17,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/go-go-app-inventory/pull/17",
+  "repository": "go-go-golems/go-go-app-inventory",
+  "state": "failed_checks",
+  "terminal": true,
+  "terminal_reason": "failed_checks",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "govulncheck",
+    "lint"
+  ],
+  "failed_checks": [
+    "lint: conclusion=FAILURE",
+    "Go Vulnerability Check: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "bec86ca9ac321c80624e58e8e78b8f8f51f52465",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 5,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/smailnail/pull/5",
+  "repository": "go-go-golems/smailnail",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [],
+  "failed_checks": null,
+  "head_ref_oid": "4809ea3bc3b458f71ed938492b175d85fadbe44f",
+  "merge_state_status": "CLEAN",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 4,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/vm-system/pull/4",
+  "repository": "go-go-golems/vm-system",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [],
+  "failed_checks": null,
+  "head_ref_oid": "743245db89e99a1e0d9c299217606992d2e947ff",
+  "merge_state_status": "CLEAN",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 7,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/go-go-os-backend/pull/7",
+  "repository": "go-go-golems/go-go-os-backend",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "govulncheck"
+  ],
+  "failed_checks": [
+    "Go Vulnerability Check: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "bf24e13dd8d7ba9ca296ca6124a5b6e4c912219a",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 4,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/go-go-host/pull/4",
+  "repository": "go-go-golems/go-go-host",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [],
+  "failed_checks": null,
+  "head_ref_oid": "3dbc75ee6e5fbd943ca1b9bb20a7e9f8d2130a0c",
+  "merge_state_status": "CLEAN",
+  "next_action": "trigger_codex_review",
+  "number": 172,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/pinocchio/pull/172",
+  "repository": "go-go-golems/pinocchio",
+  "state": "no_codex",
+  "terminal": false,
+  "terminal_reason": "",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "govulncheck"
+  ],
+  "failed_checks": [
+    "Go Vulnerability Check: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "3ef07ffb36bdb3b52db02b4edf1d8780904733a8",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_fix_failed_checks",
+  "number": 24,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/workspace-manager/pull/24",
+  "repository": "go-go-golems/workspace-manager",
+  "state": "failed_checks",
+  "terminal": true,
+  "terminal_reason": "failed_checks",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [],
+  "failed_checks": null,
+  "head_ref_oid": "9af517005e957bf26cf8568733a5984e0ef6a385",
+  "merge_state_status": "CLEAN",
+  "next_action": "trigger_codex_review",
+  "number": 6,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/goja-git/pull/6",
+  "repository": "go-go-golems/goja-git",
+  "state": "no_codex",
+  "terminal": false,
+  "terminal_reason": "",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "lint"
+  ],
+  "failed_checks": [
+    "lint: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "06b8c37b6583561cd189bab51968d18cb6053c6e",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 2,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/goja-github-actions/pull/2",
+  "repository": "go-go-golems/goja-github-actions",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "govulncheck"
+  ],
+  "failed_checks": [
+    "Go Vulnerability Check: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "58e905636e23d158bebc9b2b2cf9a0e9a8e5e7d6",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 15,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/go-minitrace/pull/15",
+  "repository": "go-go-golems/go-minitrace",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [],
+  "failed_checks": null,
+  "head_ref_oid": "df46fc2afe4bafbc9a373ae109e47f2d3efd28d1",
+  "merge_state_status": "CLEAN",
+  "next_action": "trigger_codex_review",
+  "number": 2,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/js-analyzer/pull/2",
+  "repository": "go-go-golems/js-analyzer",
+  "state": "no_codex",
+  "terminal": false,
+  "terminal_reason": "",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "govulncheck"
+  ],
+  "failed_checks": [
+    "Go Vulnerability Check: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "35af1bc26296cce3324c26271ef41fc4354dca9f",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 4,
+  "ok": false,
+  "pending_checks": null,
+  "pr": "https://github.com/go-go-golems/goja-text/pull/4",
+  "repository": "go-go-golems/goja-text",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "lint",
+    "pending_checks",
+    "test"
+  ],
+  "failed_checks": [
+    "test: conclusion=FAILURE",
+    "lint: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "e3827ca522d70a107f4ece4e1032719915378399",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_fix_failed_checks",
+  "number": 7,
+  "ok": false,
+  "pending_checks": [
+    "Go Vulnerability Check: status=IN_PROGRESS",
+    "GoSec Security Scan: status=IN_PROGRESS"
+  ],
+  "pr": "https://github.com/go-go-golems/scraper/pull/7",
+  "repository": "go-go-golems/scraper",
+  "state": "failed_checks",
+  "terminal": true,
+  "terminal_reason": "failed_checks",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "govulncheck",
+    "pending_checks"
+  ],
+  "failed_checks": [
+    "Go Vulnerability Check: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "eb47531659f33dbd654e316171bc4d4d1a05bbf5",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 8,
+  "ok": false,
+  "pending_checks": [
+    "lint: status=IN_PROGRESS"
+  ],
+  "pr": "https://github.com/go-go-golems/jesus/pull/8",
+  "repository": "go-go-golems/jesus",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "lint",
+    "pending_checks"
+  ],
+  "failed_checks": [
+    "lint: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "be6c0da1b139ec38104ab95475cd499bb41d3f33",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 5,
+  "ok": false,
+  "pending_checks": [
+    "unit: status=IN_PROGRESS"
+  ],
+  "pr": "https://github.com/go-go-golems/go-go-gepa/pull/5",
+  "repository": "go-go-golems/go-go-gepa",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "lint",
+    "pending_checks"
+  ],
+  "failed_checks": [
+    "lint: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "2228b1e18e8be33368a28807c072b6e3f5040250",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 13,
+  "ok": false,
+  "pending_checks": [
+    "Analyze: status=IN_PROGRESS",
+    "Go Vulnerability Check: status=IN_PROGRESS",
+    "GoSec Security Scan: status=IN_PROGRESS"
+  ],
+  "pr": "https://github.com/go-go-golems/discord-bot/pull/13",
+  "repository": "go-go-golems/discord-bot",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "govulncheck",
+    "pending_checks"
+  ],
+  "failed_checks": [
+    "Go Vulnerability Check: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "42a4ef155c5abd8c9e136c19deb9b1cc5f3203c2",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 12,
+  "ok": false,
+  "pending_checks": [
+    "Analyze: status=IN_PROGRESS",
+    "test: status=IN_PROGRESS",
+    "lint: status=IN_PROGRESS",
+    "GoSec Security Scan: status=IN_PROGRESS"
+  ],
+  "pr": "https://github.com/go-go-golems/css-visual-diff/pull/12",
+  "repository": "go-go-golems/css-visual-diff",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "checks",
+    "govulncheck",
+    "pending_checks"
+  ],
+  "failed_checks": [
+    "Go Vulnerability Check: conclusion=FAILURE"
+  ],
+  "head_ref_oid": "3f9ee1bf5f1f1aeef7922ee3a6fb174519e52660",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "inspect_and_address_codex_feedback",
+  "number": 9,
+  "ok": false,
+  "pending_checks": [
+    "Analyze: status=IN_PROGRESS",
+    "test-build-smoke: status=IN_PROGRESS",
+    "GoSec Security Scan: status=IN_PROGRESS"
+  ],
+  "pr": "https://github.com/go-go-golems/loupedeck/pull/9",
+  "repository": "go-go-golems/loupedeck",
+  "state": "codex_feedback",
+  "terminal": true,
+  "terminal_reason": "codex_feedback",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "failed_check_kinds": [
+    "pending_checks"
+  ],
+  "failed_checks": null,
+  "head_ref_oid": "8bb0871c0f0c6a1215ee3abbde1fab6c43ad36be",
+  "merge_state_status": "UNSTABLE",
+  "next_action": "wait_for_pending_checks",
+  "number": 60,
+  "ok": false,
+  "pending_checks": [
+    "Analyze: status=QUEUED",
+    "Dependency Review: status=QUEUED",
+    "TruffleHog Secret Scan: status=QUEUED",
+    "inspector-validation: status=QUEUED",
+    "lint: status=QUEUED",
+    "docker: status=QUEUED",
+    "Go Vulnerability Check: status=QUEUED",
+    "GoSec Security Scan: status=QUEUED"
+  ],
+  "pr": "https://github.com/go-go-golems/go-go-goja/pull/60",
+  "repository": "go-go-golems/go-go-goja",
+  "state": "waiting_checks",
+  "terminal": false,
+  "terminal_reason": "",
+  "trigger_url": ""
+}
+, {
+  "attempt": 1,
+  "codex_feedback": 13,
+  "errors": 0,
+  "failed_checks": 4,
+  "merge_conflicts": 0,
+  "not_ready": 21,
+  "number": 0,
+  "ok": false,
+  "pr": "",
+  "ready": 0,
+  "repository": "summary",
+  "state": "codex_feedback"
+}
+]

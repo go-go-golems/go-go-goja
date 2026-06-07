@@ -121,6 +121,8 @@ topics:
       description: JavaScript verb command definitions and generated verb commands
     - slug: application-integration
       description: Integrating generated/runtime code into existing applications
+    - slug: maintenance
+      description: Maintenance work across repositories, dependencies, tooling, and release hygiene.
 docTypes:
     - slug: index
       description: Index document for a ticket
