@@ -166,3 +166,13 @@ Fixed and pushed all P1/P2 Codex feedback items, replied on each GitHub review t
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Step 16 Codex remediation details
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/codex-comments-2026-06-07T0926.md — Source Codex triage artifact
 
+
+## 2026-06-07
+
+Cleared concrete CI failures, bumped govulncheck-failing repos to Go 1.26.4, posted PR remediation comments, and triggered missing Codex reviews as recovery-only.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Step 17 CI and Codex recovery details
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/readiness-2026-06-07T1429.txt — Latest readiness artifact after CI remediation
+
