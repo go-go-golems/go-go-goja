@@ -592,3 +592,81 @@ I followed the user's instruction to fix the `plz-confirm` blocker first, then r
 - Published fixed plz-confirm tag: `git tag -a v0.0.6 -m "plz-confirm v0.0.6" && git push origin task/bump-goja v0.0.6`.
 - smailnail validation command: `GOWORK=off go test -tags sqlite_fts5 ./...`.
 - New runtime-factory test call shape: `factory.NewRuntime(ggjengine.WithStartupContext(context.Background()), ggjengine.WithLifetimeContext(context.Background()))`.
+
+## Step 9: Fix go-go-os-chat and go-go-app-inventory without reviving pinocchio compatibility tags
+
+The user clarified that the right fix was not to repair or publish an old `pinocchio` compatibility branch. Instead, I moved the chat runtime/webchat surface needed by `go-go-os-chat` and `go-go-app-inventory` into `go-go-os-chat`, then migrated app-inventory imports to that package boundary. This removes the dependency on removed `pinocchio/pkg/webchat` and `pinocchio/pkg/sem` packages for the downstream application.
+
+### Prompt Context
+
+**User prompt (verbatim):** "no, just fix go-go-app-inventory and go-go-os-chat"
+
+**Assistant interpretation:** Stop trying to make pinocchio publish old package paths; make the two affected repos self-consistent by moving/migrating their imports.
+
+**Inferred user intent:** Complete the dependency rollout pragmatically in the affected repos rather than adding compatibility burden to pinocchio.
+
+**Commit (code):** 162c1a4 — "Vendor chat runtime packages and migrate to go-go-goja v0.8" (go-go-os-chat, tagged through later v0.0.5)
+
+**Commit (code):** 60b5b9b — "Update vendored webchat for geppetto v0.13 events" (go-go-os-chat, tagged `v0.0.5`)
+
+**Commit (code):** 0fa6f5e — "Migrate app inventory chat integration to go-go-os-chat packages" (go-go-app-inventory)
+
+### What I did
+- Copied the webchat/runtime surface formerly consumed from pinocchio into `go-go-os-chat`:
+  - `pkg/webchat`
+  - `pkg/webchat/http`
+  - `pkg/inference/runtime`
+  - `pkg/persistence/chatstore`
+  - `pkg/redisstream`
+  - `pkg/sem/registry`
+  - `pkg/sem/pb/proto/sem/...`
+- Rewrote `go-go-os-chat` imports from `github.com/go-go-golems/pinocchio/pkg/...` to `github.com/go-go-golems/go-go-os-chat/pkg/...`.
+- Migrated the copied timeline JS runtime to go-go-goja v0.8 APIs.
+- Updated the copied SEM translator and tests from older geppetto event constructors/types to the v0.13 canonical event types (`EventTextDelta`, `EventTextSegmentFinished`, `EventToolCallRequested`, `EventToolResultReady`, etc.).
+- Validated `go-go-os-chat` with `GOWORK=off go test ./...`.
+- Tagged and pushed `go-go-os-chat v0.0.5`.
+- Rewrote `go-go-app-inventory` imports from pinocchio webchat/SEM/runtime packages to the new `go-go-os-chat` package paths.
+- Updated `go-go-app-inventory` to consume `go-go-os-chat@v0.0.5` and `plz-confirm@v0.0.6`.
+- Validated `go-go-app-inventory` with `GOWORK=off go build ./...` and `GOWORK=off go test ./...`.
+
+### Why
+- Latest pinocchio removed the old webchat and SEM packages, while older pinocchio versions that contained them depended on old go-go-goja and stale geppetto APIs.
+- `go-go-os-chat` is the better ownership boundary for app-scoped chat runtime/webchat functionality consumed by `go-go-app-inventory`.
+
+### What worked
+- `go-go-os-chat` now passes `GOWORK=off go test ./...`.
+- `go-go-app-inventory` now passes `GOWORK=off go build ./...` and `GOWORK=off go test ./...`.
+- The previous missing package blockers for `pinocchio/pkg/webchat`, `pinocchio/pkg/webchat/http`, `pinocchio/pkg/sem/registry`, and `pinocchio/pkg/sem/pb/proto/sem/timeline` are gone.
+
+### What didn't work
+- A first attempt to rewrite generated protobuf files with broad `sed` corrupted raw descriptor strings and caused a runtime panic from `google.golang.org/protobuf/internal/filedesc.(*File).unmarshalSeed`. I fixed it by restoring the generated files and only rewriting real import declarations, not raw descriptor literals.
+- `go-go-os-chat v0.0.4` was pushed before the geppetto v0.13 event migration and failed when downstream `go-go-app-inventory` selected geppetto v0.13 through MVS. I corrected that with `v0.0.5`.
+
+### What I learned
+- Generated protobuf `.pb.go` files must not be treated with whole-file import-path replacement because `go_package` strings are embedded in raw descriptors with length-sensitive binary encoding.
+- A module can pass its own tests under one dependency graph but fail as a dependency under downstream MVS. `go-go-os-chat` needed to be explicitly compatible with `geppetto v0.13.3`, not only with its originally selected geppetto version.
+
+### What was tricky to build
+- The ownership move was larger than a dependency bump because the old pinocchio API surface was both removed from latest and stale in older versions. Copying the runtime surface into `go-go-os-chat` was the direct way to make the two requested repos self-contained.
+- The event API changed semantically from legacy completion/tool events to canonical segment/tool-call events. The translator kept the same SEM output but now listens to the new geppetto v0.13 types.
+
+### What warrants a second pair of eyes
+- Review whether all copied packages in `go-go-os-chat` should remain public long-term or be trimmed after `go-go-app-inventory` stabilizes.
+- Review SEM translator mappings for canonical geppetto events to confirm they preserve the UI timeline semantics expected by app-inventory.
+
+### What should be done in the future
+- Avoid adding any new dependency on removed pinocchio webchat/SEM paths.
+- Consider a follow-up cleanup to reduce the copied `go-go-os-chat` surface if some packages are only needed for tests.
+
+### Code review instructions
+- In `go-go-os-chat`, start with `pkg/chatservice/component.go`, `pkg/profilechat/*.go`, and the newly copied `pkg/webchat`, `pkg/inference/runtime`, `pkg/persistence/chatstore`, and `pkg/sem` packages.
+- In `go-go-app-inventory`, start with `pkg/backendcomponent/component.go`, `pkg/backendmodule/module.go`, `pkg/pinoweb/*.go`, and `pkg/inventorytools/tools.go`.
+- Validate with:
+  - `cd go-go-os-chat && GOWORK=off go test ./...`
+  - `cd go-go-app-inventory && GOWORK=off go build ./... && GOWORK=off go test ./...`
+
+### Technical details
+- Fixed downstream versions:
+  - `github.com/go-go-golems/go-go-os-chat v0.0.5`
+  - `github.com/go-go-golems/plz-confirm v0.0.6`
+- Important migration pattern for generated protobuf code: rewrite import declarations only; do not rewrite raw descriptor string literals.

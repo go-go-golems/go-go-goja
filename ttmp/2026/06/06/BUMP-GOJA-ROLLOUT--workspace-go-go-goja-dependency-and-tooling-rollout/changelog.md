@@ -73,3 +73,14 @@ Published plz-confirm v0.0.6, upgraded go-go-app-inventory to that tag, and vali
 - /home/manuel/workspaces/2026-06-06/bump-goja/plz-confirm/go.mod — Published v0.0.6 includes go-go-goja v0.8.3 dependency
 - /home/manuel/workspaces/2026-06-06/bump-goja/smailnail/pkg/js/modules/smailnail/module_test.go — Runtime factory test-call migration for smailnail
 
+
+## 2026-06-07
+
+Fixed go-go-os-chat by owning the chat/webchat runtime packages and migrated go-go-app-inventory away from removed pinocchio package paths; both repos now pass GOWORK=off tests.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-app-inventory/pkg/pinoweb/hypercard_events.go — App inventory import migration to go-go-os-chat SEM/webchat packages
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Diary Step 9
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-os-chat/pkg/webchat/sem_translator.go — Geppetto v0.13 canonical event migration
+
