@@ -67,3 +67,13 @@ Step 6: Updated xgoja docs for xgoja.generated default, explicit go.module, and 
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md — Tutorial example updated to new default
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/doc/06-buildspec-reference.md — Quick reference for module path and GoReleaser snippet
 
+
+## 2026-06-07
+
+Step 7: Validated xgoja packages and a real xgoja build --keep-work smoke with the core provider example; generated binary worked with require("path"). goja-bleve release validation remains environment-dependent.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/examples/xgoja/01-core-provider/xgoja.yaml — Smoke spec used for validation
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/ttmp/2026/06/07/XGOJA-018--improve-generated-module-paths-and-nested-module-release-build-guidance/reference/01-diary.md — Final validation evidence
+

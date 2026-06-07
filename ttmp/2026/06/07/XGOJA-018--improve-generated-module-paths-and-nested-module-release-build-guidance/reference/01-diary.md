@@ -406,3 +406,96 @@ The documentation now distinguishes xgoja's generated build workspace from a per
 
 ### Technical details
 - Remaining `example.com/generated/...` references are explicit Go test fixture module names, not user docs or defaults.
+
+## Step 7: Final Validation and Bookkeeping
+
+This step validates the implementation after the defaulting, build output, tests, and documentation commits. The focused xgoja test suite passes with `GOWORK=off`, and a real `xgoja build --keep-work` smoke builds the core provider example with the new module path and guidance output.
+
+The generated smoke binary also executed successfully after correcting the JavaScript expression to use `require("path")`; xgoja modules are not injected as globals.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Finish the implementation sequence with validation, diary, task checks, and final docmgr bookkeeping.
+
+**Inferred user intent:** The user wants a complete implementation with evidence and clean ticket state.
+
+**Commit (docs/bookkeeping):** pending — "XGOJA-018: record validation results"
+
+### What I did
+- Ran xgoja package tests:
+  ```bash
+  GOWORK=off go test ./cmd/xgoja/... -count=1
+  ```
+- Built the simplest core provider example with a kept work directory and local replacement:
+  ```bash
+  SMOKE_DIR=$(mktemp -d /tmp/xgoja-smoke-XXXXXX)
+  GOWORK=off go run ./cmd/xgoja build -f examples/xgoja/01-core-provider/xgoja.yaml \
+    --work-dir "$SMOKE_DIR/work" \
+    --output "$SMOKE_DIR/core-provider" \
+    --keep-work \
+    --xgoja-replace "$PWD"
+  ```
+- Verified the generated build output printed:
+  - `generated module: xgoja.generated/core-provider`
+  - generated module root build guidance
+  - GoReleaser nested-module note
+- Ran the generated binary successfully:
+  ```bash
+  /tmp/xgoja-smoke-fDnxfv/core-provider eval 'require("path").basename("/tmp/demo.txt")'
+  ```
+
+### Why
+- Tests validate the Go packages touched by this ticket.
+- The smoke build validates the new default module path in a real generated workspace and checks the new command output.
+
+### What worked
+- `GOWORK=off go test ./cmd/xgoja/... -count=1` passed.
+- `xgoja build` smoke succeeded and produced `/tmp/xgoja-smoke-fDnxfv/core-provider`.
+- The generated binary returned `demo.txt` for the corrected `require("path")` expression.
+
+### What didn't work
+- The first generated-binary smoke command used `path.basename(...)` as if `path` were a global:
+  ```text
+  Error: ReferenceError: path is not defined at <eval>:1:1(0)
+  ```
+- Correct command:
+  ```bash
+  /tmp/xgoja-smoke-fDnxfv/core-provider eval 'require("path").basename("/tmp/demo.txt")'
+  ```
+- Full repository `go test`/pre-commit hooks still hit the known `go.work` mismatch unless `GOWORK=off` is used.
+- goja-bleve vector/GoReleaser validation was not run because it depends on FAISS/CGO/cross-compiler environment setup beyond this focused xgoja change.
+
+### What I learned
+- The smoke test should exercise xgoja's CommonJS module loading style explicitly with `require()`.
+- The new output is visible in a real `xgoja build`, not only in dry-run tests.
+
+### What was tricky to build
+- Validation had to avoid the workspace-level Go version mismatch. `GOWORK=off` keeps tests scoped to this module and avoids unrelated sibling-module constraints.
+
+### What warrants a second pair of eyes
+- Whether the generated build output is too verbose for every invocation.
+- Whether maintainers want to update `go.work` separately so hooks can run without `--no-verify`.
+
+### What should be done in the future
+- Consider a separate maintenance task to reconcile `go.work` with goja-bleve's `go >= 1.26.4` requirement.
+- Consider a dedicated release-packaging example if multiple generated-host projects adopt the pattern.
+
+### Code review instructions
+- Review commits in order:
+  1. planning docs baseline
+  2. default module path and tests
+  3. build workspace output and command test
+  4. documentation updates
+  5. validation diary/bookkeeping
+- Validate with:
+  ```bash
+  GOWORK=off go test ./cmd/xgoja/... -count=1
+  ```
+- Smoke with `examples/xgoja/01-core-provider/xgoja.yaml` and `--xgoja-replace "$PWD"`.
+
+### Technical details
+- Smoke work dir: `/tmp/xgoja-smoke-fDnxfv/work`
+- Smoke output binary: `/tmp/xgoja-smoke-fDnxfv/core-provider`
+- Generated smoke module: `xgoja.generated/core-provider`
