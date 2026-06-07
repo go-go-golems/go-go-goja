@@ -84,3 +84,12 @@ Fixed go-go-os-chat by owning the chat/webchat runtime packages and migrated go-
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Diary Step 9
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-os-chat/pkg/webchat/sem_translator.go — Geppetto v0.13 canonical event migration
 
+
+## 2026-06-07
+
+Final-validated go-go-os-chat, go-go-app-inventory, plz-confirm, and smailnail under GOWORK=off; cleaned abandoned local pinocchio compatibility branch/tag.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Diary Step 10 final validation
+

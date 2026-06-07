@@ -670,3 +670,72 @@ The user clarified that the right fix was not to repair or publish an old `pinoc
   - `github.com/go-go-golems/go-go-os-chat v0.0.5`
   - `github.com/go-go-golems/plz-confirm v0.0.6`
 - Important migration pattern for generated protobuf code: rewrite import declarations only; do not rewrite raw descriptor string literals.
+
+## Step 10: Final validation of the direct go-go-os-chat/app-inventory fix
+
+After moving the chat/webchat ownership into `go-go-os-chat` and migrating `go-go-app-inventory` to consume it, I ran a focused final validation pass on the repositories affected by the last dependency-blocker fixes. I also cleaned up the abandoned local `pinocchio` compatibility branch/tag so the workspace reflects the chosen approach.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue from the direct `go-go-os-chat` / `go-go-app-inventory` fix by validating the result and cleaning up any leftover local state.
+
+**Inferred user intent:** Get the rollout back to a clean, reviewable state after the last blocker fix.
+
+### What I did
+- Switched `pinocchio` back to `task/bump-goja`.
+- Deleted the abandoned local-only `pinocchio` branch `compat/webchat-goja-v0.8`.
+- Deleted the abandoned local-only `pinocchio` tag `v0.10.14`.
+- Ran `GOWORK=off go build ./...` in:
+  - `go-go-os-chat`
+  - `go-go-app-inventory`
+  - `plz-confirm`
+  - `smailnail`
+- Ran `GOWORK=off go test ./...` in:
+  - `go-go-os-chat`
+  - `go-go-app-inventory`
+  - `plz-confirm`
+- Ran `GOWORK=off go test -tags sqlite_fts5 ./...` in `smailnail`.
+- Checked that there are no uncommitted changes in any workspace repository.
+
+### Why
+- The previous pinocchio compatibility branch was from an abandoned approach and should not remain as an implicit candidate for the rollout.
+- The direct fix only counts as complete if both upstream (`go-go-os-chat`) and downstream (`go-go-app-inventory`) pass outside the Go workspace.
+- `smailnail` requires `sqlite_fts5` for its FTS5 mirror tests, per the user's instruction.
+
+### What worked
+- `go-go-os-chat` passes `GOWORK=off go build ./...` and `GOWORK=off go test ./...`.
+- `go-go-app-inventory` passes `GOWORK=off go build ./...` and `GOWORK=off go test ./...`.
+- `plz-confirm` passes `GOWORK=off go build ./...` and `GOWORK=off go test ./...`.
+- `smailnail` passes `GOWORK=off go build ./...` and `GOWORK=off go test -tags sqlite_fts5 ./...`.
+- The workspace has no uncommitted changes.
+
+### What didn't work
+- N/A in this validation step.
+
+### What I learned
+- The final direct-fix path is clean without any pinocchio compatibility tag.
+- The key validation commands are now explicit and reproducible for reviewers.
+
+### What was tricky to build
+- The tricky part was avoiding stale local state from the rejected pinocchio compatibility attempt. Because that branch had a local commit and tag, leaving it around could confuse later release/PR prep even though it was no longer referenced by the selected solution.
+
+### What warrants a second pair of eyes
+- Review `go-go-os-chat`'s enlarged package surface; the immediate goal is green downstream builds, but long-term ownership boundaries may deserve follow-up cleanup.
+
+### What should be done in the future
+- Prepare PRs/tags in dependency order: `plz-confirm`, `go-go-os-chat`, then `go-go-app-inventory`.
+- Keep using `GOWORK=off` in validation to avoid accidentally relying on local workspace replacements.
+
+### Code review instructions
+- Validate with:
+  - `cd go-go-os-chat && GOWORK=off go test ./...`
+  - `cd go-go-app-inventory && GOWORK=off go build ./... && GOWORK=off go test ./...`
+  - `cd plz-confirm && GOWORK=off go test ./...`
+  - `cd smailnail && GOWORK=off go test -tags sqlite_fts5 ./...`
+
+### Technical details
+- Deleted local-only artifacts:
+  - branch `pinocchio/compat/webchat-goja-v0.8`
+  - tag `pinocchio/v0.10.14`
