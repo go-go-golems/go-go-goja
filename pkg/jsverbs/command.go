@@ -170,7 +170,8 @@ func (r *Registry) buildDescription(verb *VerbSpec) (*cmds.CommandDescription, e
 		if err != nil {
 			return err
 		}
-		field, err := buildFieldDefinition(fieldSpec, true)
+		normalizeName := sectionSlug == schema.DefaultSlug
+		field, err := buildFieldDefinition(fieldSpec, normalizeName)
 		if err != nil {
 			return err
 		}

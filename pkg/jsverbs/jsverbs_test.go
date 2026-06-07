@@ -556,6 +556,38 @@ __verb__("show", {
 	require.Equal(t, "snake", rows[0]["foo_bar"])
 }
 
+func TestBoundSectionFieldNamesPreserveJavaScriptObjectKeys(t *testing.T) {
+	registry, err := ScanSource("section_keys.js", `
+__section__("filters", {
+  title: "Filters"
+});
+
+function summarize(filters) {
+  return [{
+    local: filters.localOnly,
+    hasKebabKey: Object.prototype.hasOwnProperty.call(filters, "local-only")
+  }];
+}
+
+__verb__("summarize", {
+  fields: {
+    filters: { bind: "filters" },
+    localOnly: { section: "filters", help: "Local-only section field" }
+  }
+});
+`)
+	require.NoError(t, err)
+
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["section-keys summarize"], map[string]map[string]interface{}{
+		"filters": {
+			"localOnly": "from-section",
+		},
+	})
+	require.Equal(t, "from-section", rows[0]["local"])
+	require.Equal(t, false, rows[0]["hasKebabKey"])
+}
+
 func TestCommandForVerbWithInvokerUsesCustomInvoker(t *testing.T) {
 	registry := mustRegistry(t)
 	verb, ok := registry.Verb("basics greet")

@@ -11,6 +11,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
@@ -148,7 +149,11 @@ func buildArguments(parsedValues *values.Values, plan *VerbBindingPlan, rootDir 
 			args = append(args, cloneMap(sectionValues[binding.SectionSlug]))
 			continue
 		case BindingModePositional:
-			value := sectionValues[binding.SectionSlug][cliFieldName(binding.Field.Name)]
+			fieldName := binding.Field.Name
+			if binding.SectionSlug == "" || binding.SectionSlug == schema.DefaultSlug {
+				fieldName = cliFieldName(fieldName)
+			}
+			value := sectionValues[binding.SectionSlug][fieldName]
 			if binding.Param.Rest {
 				rv := reflect.ValueOf(value)
 				if rv.IsValid() && (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) {
