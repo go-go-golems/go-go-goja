@@ -93,3 +93,13 @@ Final-validated go-go-os-chat, go-go-app-inventory, plz-confirm, and smailnail u
 
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Diary Step 10 final validation
 
+
+## 2026-06-07
+
+Added GGG rollout operations playbook and research logbook evaluating infra-tooling resources for rollout, Codex, CI/CD, and release train workflows.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/design-doc/02-ggg-rollout-operations-playbook.md — New operator playbook
+- /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/02-ggg-rollout-research-logbook.md — Research logbook and documentation freshness review
+
