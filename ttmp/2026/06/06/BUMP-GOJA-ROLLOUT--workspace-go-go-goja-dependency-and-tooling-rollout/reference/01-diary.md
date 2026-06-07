@@ -1199,3 +1199,59 @@ I also followed the PR-thread tracking requirement by posting PR comments for ea
   - `ggg pr codex-trigger https://github.com/go-go-golems/pinocchio/pull/172 --wait-for-auto 5s --yes`
   - `ggg pr codex-trigger https://github.com/go-go-golems/goja-git/pull/6 --wait-for-auto 5s --yes`
   - `ggg pr codex-trigger https://github.com/go-go-golems/js-analyzer/pull/2 --wait-for-auto 5s --yes`
+
+## Step 18: Resolve final plz-confirm Codex feedback
+
+After Manuel manually merged the remaining Codex-approved rollout PRs, only `plz-confirm#13` remained open with actionable Codex feedback. The review pointed out that runtime startup deadline failures were being converted into setup errors instead of preserving cancellation/deadline semantics.
+
+I fixed `plz-confirm` so startup errors that match either `context.Canceled` or `context.DeadlineExceeded` are classified as `ErrScriptCancelled`, and I changed the wrapping from `%v` to `%w` so callers can still detect the underlying context deadline cause.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, mergeed them all"
+
+**Assistant interpretation:** Verify the rollout state after manual merges and continue by handling anything left open, especially the previously noted `plz-confirm` Codex issue.
+
+**Inferred user intent:** Finish the rollout by clearing the final open PR blocker.
+
+**Commit (code):** `be12ed0` — "Preserve runtime startup deadline errors"
+
+### What I did
+- Verified that all rollout PRs except `plz-confirm#13` were merged; `go-go-goja#60` was also merged.
+- Updated `plz-confirm/internal/scriptengine/engine.go` to wrap startup `context.Canceled` and `context.DeadlineExceeded` as `ErrScriptCancelled` while preserving the original context error with `%w`.
+- Added `TestContextDeadlineExceededBeforeRuntimeStartup` in `plz-confirm/internal/scriptengine/engine_test.go`.
+- Validated with `GOWORK=off go test ./...` and `GOWORK=off make lint`.
+- Pushed commit `be12ed0` to `plz-confirm` and replied directly to Codex thread `3369523503` with the corrected commit hash and validation evidence.
+
+### Why
+- The v0.8 runtime startup path can return a deadline error before script execution begins.
+- Treating that as setup failure loses the caller-visible cancellation/deadline semantics.
+- Preserving the wrapped context error makes both product behavior and tests more precise.
+
+### What worked
+- The new regression test initially failed because the underlying context error was not wrapped; after changing `%v` to `%w`, it passed.
+- Full tests and lint pass locally under `GOWORK=off`.
+
+### What didn't work
+- My first PR reply used the wrong short hash; I immediately patched the GitHub review reply to `be12ed0`.
+
+### What I learned
+- Classification alone is not enough when callers use `errors.Is`; wrapped sentinel and wrapped cause both matter.
+- Multiple `%w` wrapping is useful here because the returned error needs to match both `ErrScriptCancelled` and `context.DeadlineExceeded`.
+
+### What was tricky to build
+- The code already mapped `context.Canceled`, so the fix looked like a simple condition change. The regression test showed the subtler issue: the original context error was rendered with `%v`, so it was not discoverable via `errors.Is` even after classification.
+
+### What warrants a second pair of eyes
+- Confirm that treating deadline-exceeded startup as `ErrScriptCancelled` is the desired public error category, rather than `ErrScriptTimeout`. The Codex feedback specifically asked to preserve deadline errors from runtime startup, and the existing cancellation path uses `ErrScriptCancelled`.
+
+### What should be done in the future
+- Once `plz-confirm#13` CI/Codex reruns are green, merge it with a merge commit.
+
+### Code review instructions
+- Review `internal/scriptengine/engine.go:newRuntime` and `internal/scriptengine/engine_test.go:TestContextDeadlineExceededBeforeRuntimeStartup`.
+- Validate with `GOWORK=off go test ./...` and `GOWORK=off make lint`.
+
+### Technical details
+- Final pushed commit: `be12ed0`.
+- GitHub review reply corrected via `PATCH /repos/go-go-golems/plz-confirm/pulls/comments/3369578613`.

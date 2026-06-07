@@ -176,3 +176,13 @@ Cleared concrete CI failures, bumped govulncheck-failing repos to Go 1.26.4, pos
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/reference/01-diary.md — Step 17 CI and Codex recovery details
 - /home/manuel/workspaces/2026-06-06/bump-goja/go-go-goja/ttmp/2026/06/06/BUMP-GOJA-ROLLOUT--workspace-go-go-goja-dependency-and-tooling-rollout/scripts/readiness-2026-06-07T1429.txt — Latest readiness artifact after CI remediation
 
+
+## 2026-06-07
+
+Resolved final plz-confirm Codex feedback by preserving runtime startup deadline errors and replying on the review thread (commit be12ed0).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-06/bump-goja/plz-confirm/internal/scriptengine/engine.go — Deadline/cancel startup error wrapping fix
+- /home/manuel/workspaces/2026-06-06/bump-goja/plz-confirm/internal/scriptengine/engine_test.go — Regression test for expired context before runtime startup
+
