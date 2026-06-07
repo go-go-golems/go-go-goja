@@ -178,13 +178,13 @@ These keys are intentionally close to Glazed concepts. The subsystem is not inve
 
 ## Field naming
 
-Top-level JavaScript parameter fields are exposed on the CLI using kebab-case. This keeps command lines idiomatic while preserving JavaScript parameter names at invocation time:
+JavaScript parameter and field names are exposed on the CLI using kebab-case. This keeps command lines idiomatic while preserving JavaScript parameter names and bound-section object keys at invocation time:
 
 - `profilePath` becomes `--profile-path`, but the function still receives the `profilePath` argument.
 - `foo_bar` becomes `--foo-bar`, but the function still receives the `foo_bar` argument.
 - Already-kebab names such as `profile-path` remain `--profile-path`.
 
-Section fields currently preserve their declared field names because bound section objects are passed to JavaScript as objects. Renaming those fields at the CLI boundary would otherwise also change object keys such as `filters.localOnly`.
+Section fields follow the same CLI naming rule without changing JavaScript object keys. A field declared as `localOnly` inside a `filters` section is exposed as `--local-only`, but JavaScript still reads `filters.localOnly`. Internally, jsverbs remaps parsed CLI/Glazed field names back to the declared JavaScript names before invoking the function.
 
 ## Field type mapping
 

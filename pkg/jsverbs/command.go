@@ -157,7 +157,7 @@ func (r *Registry) buildDescription(verb *VerbSpec) (*cmds.CommandDescription, e
 		}
 		sort.Strings(fieldNames)
 		for _, name := range fieldNames {
-			field, err := buildFieldDefinition(spec.Fields[name], false)
+			field, err := buildFieldDefinition(spec.Fields[name], true)
 			if err != nil {
 				return nil, fmt.Errorf("%s section %s field %s: %w", verb.SourceRef(), slug, name, err)
 			}
@@ -170,8 +170,7 @@ func (r *Registry) buildDescription(verb *VerbSpec) (*cmds.CommandDescription, e
 		if err != nil {
 			return err
 		}
-		normalizeName := sectionSlug == schema.DefaultSlug
-		field, err := buildFieldDefinition(fieldSpec, normalizeName)
+		field, err := buildFieldDefinition(fieldSpec, true)
 		if err != nil {
 			return err
 		}

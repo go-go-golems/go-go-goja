@@ -28,7 +28,7 @@ Use the `sources` subcommand under the verbs root to list configured source IDs.
 
 ## Field naming
 
-Top-level JavaScript function parameters and verb fields are exposed as idiomatic kebab-case CLI flags while the JavaScript invocation still receives the original parameter names.
+JavaScript function parameters and verb fields are exposed as idiomatic kebab-case CLI flags while JavaScript invocation still receives the original author-declared names.
 
 For example:
 
@@ -48,4 +48,4 @@ __verb__("indexQuery", {
 
 The generated command exposes `--profile-path`, `--docs-json`, and `--foo-bar`, but `indexQuery` is still called with `profilePath`, `docsJson`, and `foo_bar` argument values.
 
-Section fields currently preserve their declared names because bound sections are passed to JavaScript as objects. This avoids changing object keys such as `filters.localOnly` into `filters["local-only"]`.
+The same rule applies to fields in named sections. A section field declared as `localOnly` is exposed as `--local-only` on the CLI, but a function bound to that section still receives `filters.localOnly`. jsverbs keeps an explicit mapping between the CLI/Glazed field name and the JavaScript object key.

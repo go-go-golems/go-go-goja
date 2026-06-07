@@ -11,7 +11,6 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
-	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 )
@@ -111,28 +110,18 @@ func (r *Registry) InvokeInRuntime(ctx context.Context, runtime *engine.Runtime,
 }
 
 func buildArguments(parsedValues *values.Values, plan *VerbBindingPlan, rootDir string) ([]interface{}, error) {
-	sectionValues := map[string]map[string]interface{}{}
 	if parsedValues == nil {
 		parsedValues = values.New()
 	}
-	allValues := parsedValues.GetDataMap()
-
-	parsedValues.ForEach(func(slug string, value *values.SectionValues) {
-		sectionMap := map[string]interface{}{}
-		value.Fields.ForEach(func(_ string, fieldValue *fields.FieldValue) {
-			if fieldValue == nil || fieldValue.Definition == nil {
-				return
-			}
-			sectionMap[fieldValue.Definition.Name] = fieldValue.Value
-		})
-		sectionValues[slug] = sectionMap
-	})
+	rawSectionValues := collectSectionValues(parsedValues)
+	jsSectionValues := remapSectionValues(rawSectionValues, plan)
+	allValues := flattenSectionValues(jsSectionValues)
 
 	args := make([]interface{}, 0, len(plan.Parameters))
 	for _, binding := range plan.Parameters {
 		switch binding.Mode {
 		case BindingModeAll:
-			args = append(args, allValues)
+			args = append(args, cloneMap(allValues))
 			continue
 		case BindingModeContext:
 			args = append(args, map[string]interface{}{
@@ -141,19 +130,16 @@ func buildArguments(parsedValues *values.Values, plan *VerbBindingPlan, rootDir 
 				"module":     plan.Verb.File.ModulePath,
 				"sourceFile": fileSourcePath(plan.Verb.File),
 				"rootDir":    rootDir,
-				"values":     allValues,
-				"sections":   sectionValues,
+				"values":     cloneMap(allValues),
+				"rawValues":  cloneSectionValues(rawSectionValues),
+				"sections":   cloneSectionValues(jsSectionValues),
 			})
 			continue
 		case BindingModeSection:
-			args = append(args, cloneMap(sectionValues[binding.SectionSlug]))
+			args = append(args, cloneMap(jsSectionValues[binding.SectionSlug]))
 			continue
 		case BindingModePositional:
-			fieldName := binding.Field.Name
-			if binding.SectionSlug == "" || binding.SectionSlug == schema.DefaultSlug {
-				fieldName = cliFieldName(fieldName)
-			}
-			value := sectionValues[binding.SectionSlug][fieldName]
+			value := rawSectionValues[binding.SectionSlug][cliFieldName(binding.Field.Name)]
 			if binding.Param.Rest {
 				rv := reflect.ValueOf(value)
 				if rv.IsValid() && (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) {
@@ -274,6 +260,72 @@ func valueString(value goja.Value) string {
 		return "undefined"
 	}
 	return value.String()
+}
+
+func collectSectionValues(parsedValues *values.Values) map[string]map[string]interface{} {
+	sectionValues := map[string]map[string]interface{}{}
+	if parsedValues == nil {
+		return sectionValues
+	}
+	parsedValues.ForEach(func(slug string, value *values.SectionValues) {
+		sectionMap := map[string]interface{}{}
+		value.Fields.ForEach(func(_ string, fieldValue *fields.FieldValue) {
+			if fieldValue == nil || fieldValue.Definition == nil {
+				return
+			}
+			sectionMap[fieldValue.Definition.Name] = fieldValue.Value
+		})
+		sectionValues[slug] = sectionMap
+	})
+	return sectionValues
+}
+
+func remapSectionValues(raw map[string]map[string]interface{}, plan *VerbBindingPlan) map[string]map[string]interface{} {
+	jsValues := cloneSectionValues(raw)
+	if plan == nil {
+		return jsValues
+	}
+	for _, binding := range plan.FieldNames {
+		if binding.SectionSlug == "" || binding.JSName == "" || binding.CLIName == "" {
+			continue
+		}
+		rawSection := raw[binding.SectionSlug]
+		if rawSection == nil {
+			continue
+		}
+		value, ok := rawSection[binding.CLIName]
+		if !ok {
+			continue
+		}
+		jsSection := jsValues[binding.SectionSlug]
+		if jsSection == nil {
+			jsSection = map[string]interface{}{}
+			jsValues[binding.SectionSlug] = jsSection
+		}
+		if binding.CLIName != binding.JSName {
+			delete(jsSection, binding.CLIName)
+		}
+		jsSection[binding.JSName] = value
+	}
+	return jsValues
+}
+
+func flattenSectionValues(in map[string]map[string]interface{}) map[string]interface{} {
+	out := map[string]interface{}{}
+	for _, section := range in {
+		for key, value := range section {
+			out[key] = value
+		}
+	}
+	return out
+}
+
+func cloneSectionValues(in map[string]map[string]interface{}) map[string]map[string]interface{} {
+	out := map[string]map[string]interface{}{}
+	for slug, section := range in {
+		out[slug] = cloneMap(section)
+	}
+	return out
 }
 
 func cloneMap(in map[string]interface{}) map[string]interface{} {
