@@ -34,7 +34,7 @@ A minimal shape looks like this:
 name: fixture
 go:
   version: "1.26"
-  module: example.com/generated/fixture
+  module: xgoja.generated/fixture
 target:
   kind: xgoja
   output: dist/fixture
@@ -73,7 +73,7 @@ commands:
 
 `config` optionally enables Glazed config-file loading for generated commands.
 
-`go` controls the generated module. `go.version` defaults to `1.26`, and `go.module` defaults to `example.com/generated/<name>`.
+`go` controls the generated module. `go.version` defaults to `1.26`, and `go.module` defaults to `xgoja.generated/<name>`. Set `go.module` explicitly when you check generated host files into a repository and want the nested module to carry a project-owned path.
 
 `target` controls the generated binary shape and output path. `target.output` is resolved by `xgoja build` from the shell's current working directory, unless it is absolute or overridden with `xgoja build --output`. It is not resolved relative to the spec file and it is not written inside the temporary generated module.
 
@@ -280,6 +280,35 @@ Adapter packages expose a function compatible with:
 ```go
 Build(context.Context, *app.Host) (*cobra.Command, error)
 ```
+
+## Release packaging generated hosts
+
+`xgoja build` creates a generated Go module in its build workspace, runs `go mod tidy`, and then runs `go build .` from that generated module root. The workspace is temporary unless you pass `--work-dir` or `--keep-work`.
+
+If a project checks the generated host into a repository as a nested module, release tools must also build from that nested module root. For example, if the generated host lives in `cmd/my-app` and that directory contains its own `go.mod`, configure GoReleaser with `dir: cmd/my-app` and `main: .`:
+
+```yaml
+builds:
+  - id: my-app-linux
+    dir: cmd/my-app
+    main: .
+    binary: my-app
+    goos:
+      - linux
+    goarch:
+      - amd64
+```
+
+Do not use `main: ./cmd/my-app` for this nested-module shape. That form asks GoReleaser to build a package inside the parent module; it fails once `cmd/my-app/go.mod` makes the generated host a separate module. A failure such as `main module (...) does not contain package .../cmd/my-app` usually means the release config crossed this module boundary.
+
+For checked-in generated hosts, set a meaningful module path explicitly:
+
+```yaml
+go:
+  module: github.com/acme/project/cmd/my-app
+```
+
+This module path names the generated host module. Provider and runtime dependencies still come from the generated `require` and `replace` entries.
 
 ## Help document sources
 
@@ -511,6 +540,7 @@ The validator checks supported target kinds, package uniqueness, known runtime p
 | command provider not mounted | `commandProviders[].package` or `commandProviders[].name` does not match a registered command set provider, or mounting failed during generated command construction. | Verify the provider registration and run the generated binary with `--help` to inspect the command tree. |
 | generated build cannot resolve `github.com/go-go-golems/go-go-goja v0.0.0` | You are running xgoja from source, so no released module version is recorded in the binary. | Pass `--xgoja-replace /path/to/go-go-goja` while developing locally, or build with a released xgoja binary. |
 | generated build fails | The generated module cannot resolve imports or replacements. | Re-run with `--keep-work` and inspect generated `go.mod` and `main.go`. |
+| `main module ... does not contain package .../cmd/...` in GoReleaser | The generated host directory has its own `go.mod`, so it is a nested module rather than a package in the parent module. | Configure GoReleaser with `dir: <generated-module-dir>` and `main: .`. |
 
 ## See also
 

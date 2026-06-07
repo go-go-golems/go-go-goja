@@ -115,7 +115,7 @@ Use `go.imports` when generated code must compile an additional Go package even 
 ```yaml
 go:
   version: "1.26.1"
-  module: example.com/generated/db-app
+  module: xgoja.generated/db-app
   imports:
     - import: github.com/lib/pq
       alias: _
@@ -144,6 +144,25 @@ go:
 ```
 
 Keep the distinction clear: `go.imports` is compile-time linking, while `modules[].config.driverName` is runtime database configuration.
+
+`go.module` names the generated host module. It defaults to `xgoja.generated/<name>`. For checked-in generated hosts, set it explicitly so the nested module looks intentional:
+
+```yaml
+go:
+  module: github.com/acme/project/cmd/my-app
+```
+
+When packaging that checked-in generated host with GoReleaser, build from the nested module directory:
+
+```yaml
+builds:
+  - id: my-app-linux
+    dir: cmd/my-app
+    main: .
+    binary: my-app
+```
+
+Use `main: ./cmd/my-app` only when `cmd/my-app` is a package inside the parent module and does not contain its own `go.mod`.
 
 Asset entries currently support only `id`, `path`, `embed`, and `description`. `include` and `exclude` filters are intentionally rejected until the generator applies them; otherwise excluded secrets or build artifacts could still be bundled silently.
 

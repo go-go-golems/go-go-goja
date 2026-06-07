@@ -56,3 +56,14 @@ Step 5: Extended xgoja build output with generated module, build-workspace guida
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/cmd_build.go — User-facing build guidance output
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/root_test.go — Build command output assertions
 
+
+## 2026-06-07
+
+Step 6: Updated xgoja docs for xgoja.generated default, explicit go.module, and GoReleaser nested generated host packaging. Command package tests pass with GOWORK=off.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/doc/02-user-guide.md — Main release packaging and troubleshooting guidance
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md — Tutorial example updated to new default
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/doc/06-buildspec-reference.md — Quick reference for module path and GoReleaser snippet
+

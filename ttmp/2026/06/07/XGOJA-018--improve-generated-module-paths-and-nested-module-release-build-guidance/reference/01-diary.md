@@ -348,3 +348,61 @@ The change is intentionally placed in `cmd/xgoja/cmd_build.go`, not `internal/bu
 ### Technical details
 - The `--keep-work` hint only prints when `settings.WorkDir == "" && !settings.KeepWork`.
 - Explicit `--work-dir` dry runs still print the workspace/module/release guidance, but not the temp cleanup hint.
+
+## Step 6: User Guide and Buildspec Documentation
+
+This step updates xgoja user-facing documentation so it no longer teaches the old `example.com/generated/...` default and now explains checked-in generated hosts as nested modules for release tooling.
+
+The documentation now distinguishes xgoja's generated build workspace from a persistent generated host directory that a repository may check in and package with GoReleaser.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue implementing and documenting the ticket one focused phase at a time.
+
+**Inferred user intent:** The user wants the behavior change reflected in docs before final validation.
+
+**Commit (code/docs):** pending — "XGOJA-018: document generated host release packaging"
+
+### What I did
+- Updated `cmd/xgoja/doc/02-user-guide.md` minimal examples from `example.com/generated/fixture` to `xgoja.generated/fixture`.
+- Updated the `go.module` field description to mention the new default and explicit project-owned paths.
+- Added a "Release packaging generated hosts" section to the user guide.
+- Added a GoReleaser troubleshooting row for `main module ... does not contain package .../cmd/...`.
+- Updated `cmd/xgoja/doc/06-buildspec-reference.md` with the new default, explicit `go.module`, and GoReleaser snippet.
+- Updated `cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md` tutorial example to use `xgoja.generated/fixture`.
+
+### Why
+- The code default changed, so docs must teach the new default.
+- Issue #61 specifically asks for clearer build/release guidance for nested generated modules.
+
+### What worked
+- Scanned xgoja docs and related tests for stale `example.com/generated` references.
+- Command package test passed after doc updates:
+  ```bash
+  GOWORK=off go test ./cmd/xgoja -count=1
+  ```
+
+### What didn't work
+- N/A for this phase.
+
+### What I learned
+- The docs needed both a short reference snippet and a longer explanation; otherwise the GoReleaser distinction remains easy to miss.
+
+### What was tricky to build
+- The docs must avoid saying `xgoja build` directly writes to the repository's checked-in generated host directory by default. It writes to a build workspace; release tools build checked-in nested modules only when the project chooses that layout.
+
+### What warrants a second pair of eyes
+- Whether the release packaging section should also link to or become a standalone tutorial/example in a follow-up ticket.
+
+### What should be done in the future
+- Consider adding an example repository fixture for GoReleaser packaging if this pattern becomes common.
+
+### Code review instructions
+- Start with the new release packaging section in `cmd/xgoja/doc/02-user-guide.md`.
+- Check the compact reference additions in `cmd/xgoja/doc/06-buildspec-reference.md`.
+- Verify tutorial examples use the new default path.
+
+### Technical details
+- Remaining `example.com/generated/...` references are explicit Go test fixture module names, not user docs or defaults.

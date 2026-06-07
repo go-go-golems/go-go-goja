@@ -33,7 +33,7 @@ Create `xgoja.yaml`:
 name: fixture
 go:
   version: "1.26"
-  module: example.com/generated/fixture
+  module: xgoja.generated/fixture
 target:
   kind: xgoja
   output: dist/fixture
