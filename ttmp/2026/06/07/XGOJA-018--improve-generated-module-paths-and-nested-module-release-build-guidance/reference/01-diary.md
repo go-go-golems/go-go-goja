@@ -287,3 +287,64 @@ go: module ../goja-bleve listed in go.work file requires go >= 1.26.4, but go.wo
 ```
 
 Because this failure is unrelated to the changed packages and the focused tests passed with `GOWORK=off`, the Step 4 commit was made with `--no-verify`.
+
+## Step 5: Build Workspace Guidance Output
+
+This step improves the `xgoja build` command's user-facing output. After generation, the command now prints the generated module path, clarifies that xgoja builds from the generated module root, gives a `--keep-work` inspection hint for disposable temp workspaces, and includes a compact GoReleaser nested-module note.
+
+The change is intentionally placed in `cmd/xgoja/cmd_build.go`, not `internal/buildexec`, because the build command owns the output writer and has access to the build spec and settings.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue the next implementation task with tests, focused commit, and diary update.
+
+**Inferred user intent:** The user wants the corrected plan implemented one focused phase at a time.
+
+**Commit (code):** pending — "XGOJA-018: explain generated build workspace"
+
+### What I did
+- Extended `cmd/xgoja/cmd_build.go` output after `generate.WriteAll()`.
+- Added output for `generated module: <module>`.
+- Added output explaining xgoja builds from `workDir` with `go mod tidy` and `go build .`.
+- Added `--keep-work` inspection hint when xgoja created a temporary workspace that will be cleaned.
+- Added compact GoReleaser nested-module release note.
+- Updated `cmd/xgoja/root_test.go` to assert the new guidance in the build dry-run path.
+
+### Why
+- Issue #61 was partly caused by confusing nested-module build failures.
+- The existing `generated build workspace` line was useful but did not explain the module root or release-tooling implication.
+
+### What worked
+- Focused command package test passed:
+  ```bash
+  GOWORK=off go test ./cmd/xgoja -count=1
+  ```
+
+### What didn't work
+- N/A for this phase. The known repository `go.work` mismatch remains, so focused tests continue to use `GOWORK=off`.
+
+### What I learned
+- The dry-run build path is a good low-cost assertion point because it exercises generation and output without compiling the generated binary.
+
+### What was tricky to build
+- The guidance must avoid pretending xgoja knows the eventual repository release directory. The output therefore gives a generic GoReleaser pattern (`dir: <generated-module-dir>`, `main: .`) rather than guessing a path.
+
+### What warrants a second pair of eyes
+- Whether the guidance line is too verbose for every build. If it is, it could be shortened or gated later.
+
+### What should be done in the future
+- Update documentation with the fuller GoReleaser explanation and troubleshooting entry.
+
+### Code review instructions
+- Review `cmd/xgoja/cmd_build.go` output placement after `generate.WriteAll()`.
+- Review `cmd/xgoja/root_test.go` for expected dry-run snippets.
+- Validate with:
+  ```bash
+  GOWORK=off go test ./cmd/xgoja -count=1
+  ```
+
+### Technical details
+- The `--keep-work` hint only prints when `settings.WorkDir == "" && !settings.KeepWork`.
+- Explicit `--work-dir` dry runs still print the workspace/module/release guidance, but not the temp cleanup hint.

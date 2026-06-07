@@ -46,3 +46,13 @@ Step 4: Changed default generated module path to xgoja.generated/<name>, added d
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/internal/buildspec/load_test.go — Default and explicit module path tests
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Generator fixtures updated to new convention
 
+
+## 2026-06-07
+
+Step 5: Extended xgoja build output with generated module, build-workspace guidance, --keep-work hint, and GoReleaser nested-module note. Command package test passes with GOWORK=off.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/cmd_build.go — User-facing build guidance output
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/root_test.go — Build command output assertions
+
