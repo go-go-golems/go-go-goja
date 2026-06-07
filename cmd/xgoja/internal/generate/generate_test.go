@@ -22,7 +22,7 @@ func TestRenderGoModDeterministic(t *testing.T) {
 	buildSpec := fixtureSpec()
 	got := RenderGoMod(buildSpec, Options{XGojaModuleVersion: "v0.1.0", XGojaReplace: "../go-go-goja"})
 	for _, want := range []string{
-		"module example.com/generated/fixture",
+		"module xgoja.generated/fixture",
 		"go 1.26",
 		"github.com/go-go-golems/go-go-goja v0.1.0",
 		"github.com/go-go-golems/web-stuff v0.3.0",
@@ -980,7 +980,7 @@ func runGeneratedCommandWithOutput(t *testing.T, buildSpec *buildspec.BuildSpec,
 func buildableSpec(kind, targetImport, root string) *buildspec.BuildSpec {
 	return &buildspec.BuildSpec{
 		Name:   "fixture",
-		Go:     buildspec.GoSpec{Version: "1.26", Module: "example.com/generated/fixture"},
+		Go:     buildspec.GoSpec{Version: "1.26", Module: "xgoja.generated/fixture"},
 		Target: buildspec.TargetSpec{Kind: kind, Import: targetImport, Root: root, Output: "dist/fixture"},
 		Packages: []buildspec.PackageSpec{
 			{ID: "fixture", Import: "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider", Register: "Register"},
@@ -995,7 +995,7 @@ func fixtureSpec() *buildspec.BuildSpec {
 		Name: "fixture",
 		Go: buildspec.GoSpec{
 			Version: "1.26",
-			Module:  "example.com/generated/fixture",
+			Module:  "xgoja.generated/fixture",
 		},
 		Target: buildspec.TargetSpec{Kind: "xgoja", Output: "dist/fixture"},
 		Packages: []buildspec.PackageSpec{

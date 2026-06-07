@@ -35,3 +35,14 @@ Step 3: Added granular implementation tasks and prepared the planning baseline c
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/ttmp/2026/06/07/XGOJA-018--improve-generated-module-paths-and-nested-module-release-build-guidance/reference/01-diary.md — Diary entry for task breakdown
 - /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/ttmp/2026/06/07/XGOJA-018--improve-generated-module-paths-and-nested-module-release-build-guidance/tasks.md — Granular implementation task list
 
+
+## 2026-06-07
+
+Step 4: Changed default generated module path to xgoja.generated/<name>, added defaulting and explicit module preservation tests, and updated generator fixtures. Focused tests pass with GOWORK=off.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/internal/buildspec/load.go — Default module path changed
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/internal/buildspec/load_test.go — Default and explicit module path tests
+- /home/manuel/workspaces/2026-05-27/rag-evaluation-system/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Generator fixtures updated to new convention
+

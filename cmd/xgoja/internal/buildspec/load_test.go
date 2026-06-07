@@ -191,6 +191,62 @@ jsverbs:
 	}
 }
 
+func TestLoadFileDefaultsGeneratedModulePath(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: My Fixture_App.v2
+packages:
+  - id: core
+    import: github.com/go-go-golems/go-go-goja/xgoja
+modules:
+  - package: core
+    name: fs
+`), 0o644); err != nil {
+		t.Fatalf("write build spec: %v", err)
+	}
+
+	buildSpec, report, err := LoadFile(specPath)
+	if err != nil {
+		t.Fatalf("load build spec: %v", err)
+	}
+	if report == nil || report.HasErrors() {
+		t.Fatalf("expected non-error report, got %#v", report)
+	}
+	if buildSpec.Go.Module != "xgoja.generated/my-fixture-app-v2" {
+		t.Fatalf("go.module = %q, want xgoja.generated/my-fixture-app-v2", buildSpec.Go.Module)
+	}
+}
+
+func TestLoadFilePreservesExplicitModulePath(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: checked-in-host
+go:
+  module: github.com/acme/project/cmd/checked-in-host
+packages:
+  - id: core
+    import: github.com/go-go-golems/go-go-goja/xgoja
+modules:
+  - package: core
+    name: fs
+`), 0o644); err != nil {
+		t.Fatalf("write build spec: %v", err)
+	}
+
+	buildSpec, report, err := LoadFile(specPath)
+	if err != nil {
+		t.Fatalf("load build spec: %v", err)
+	}
+	if report == nil || report.HasErrors() {
+		t.Fatalf("expected non-error report, got %#v", report)
+	}
+	if buildSpec.Go.Module != "github.com/acme/project/cmd/checked-in-host" {
+		t.Fatalf("go.module = %q, want explicit module path", buildSpec.Go.Module)
+	}
+}
+
 func TestLoadFileAppliesConfigDefaults(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "xgoja.yaml")

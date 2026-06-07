@@ -160,7 +160,7 @@ func applyDefaults(buildSpec *BuildSpec) {
 		buildSpec.Go.Version = "1.26"
 	}
 	if strings.TrimSpace(buildSpec.Go.Module) == "" {
-		buildSpec.Go.Module = "example.com/generated/" + sanitizeModulePathPart(buildSpec.Name)
+		buildSpec.Go.Module = "xgoja.generated/" + sanitizeModulePathPart(buildSpec.Name)
 	}
 	if strings.TrimSpace(buildSpec.Target.Kind) == "" {
 		buildSpec.Target.Kind = "xgoja"
