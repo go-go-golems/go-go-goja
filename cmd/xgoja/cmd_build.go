@@ -116,6 +116,12 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 		return err
 	}
 	_, _ = fmt.Fprintf(c.out, "generated build workspace: %s\n", workDir)
+	_, _ = fmt.Fprintf(c.out, "generated module: %s\n", buildSpec.Go.Module)
+	_, _ = fmt.Fprintf(c.out, "xgoja builds from the generated module root: cd %s && go mod tidy && go build .\n", workDir)
+	if settings.WorkDir == "" && !settings.KeepWork {
+		_, _ = fmt.Fprintln(c.out, "use --keep-work to inspect generated go.mod/main.go after the build")
+	}
+	_, _ = fmt.Fprintln(c.out, "release note: if you check this generated host into a repository as a nested Go module, configure GoReleaser with dir: <generated-module-dir> and main: .")
 	if settings.DryRun {
 		_, err = fmt.Fprintf(c.out, "xgoja dry run ok: name=%s target=%s output=%s modules=%d packages=%d\n", buildSpec.Name, buildSpec.Target.Kind, output, len(buildSpec.Modules), len(buildSpec.Packages))
 		return err

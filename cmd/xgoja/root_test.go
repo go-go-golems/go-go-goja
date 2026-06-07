@@ -57,8 +57,17 @@ func TestBuildCommandWired(t *testing.T) {
 		t.Fatalf("execute build: %v", err)
 	}
 	rendered := out.String()
-	if !strings.Contains(rendered, "xgoja dry run ok") || !strings.Contains(rendered, "./dist/fixture") || !strings.Contains(rendered, "generated build workspace") {
-		t.Fatalf("expected build output to mention dry-run plan, got %q", rendered)
+	for _, want := range []string{
+		"generated build workspace",
+		"generated module: xgoja.generated/fixture",
+		"xgoja builds from the generated module root",
+		"release note: if you check this generated host into a repository as a nested Go module",
+		"xgoja dry run ok",
+		"./dist/fixture",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expected build output to contain %q, got %q", want, rendered)
+		}
 	}
 	for _, name := range []string{"go.mod", "main.go", "xgoja.gen.json"} {
 		if _, err := os.Stat(filepath.Join(workDir, name)); err != nil {
