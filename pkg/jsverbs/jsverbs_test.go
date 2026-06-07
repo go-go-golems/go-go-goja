@@ -705,12 +705,12 @@ func TestFSWatchJsverbUsesInstalledHelper(t *testing.T) {
 	cmd := &Command{CommandDescription: desc, registry: registry, verb: verb}
 	parsedValues, err := runner.ParseCommandValues(cmd, runner.WithValuesForSections(map[string]map[string]interface{}{
 		"default": {
-			"dir":        dir,
-			"fileName":   "nested/from-jsverb.txt",
-			"recursive":  true,
-			"debounceMs": 25,
-			"include":    []string{"**/*.txt"},
-			"exclude":    []string{"**/ignored/**"},
+			"dir":         dir,
+			"file-name":   "nested/from-jsverb.txt",
+			"recursive":   true,
+			"debounce-ms": 25,
+			"include":     []string{"**/*.txt"},
+			"exclude":     []string{"**/ignored/**"},
 		},
 	}))
 	require.NoError(t, err)
