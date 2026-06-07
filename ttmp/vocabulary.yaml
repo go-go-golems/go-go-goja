@@ -123,6 +123,10 @@ topics:
       description: Integrating generated/runtime code into existing applications
     - slug: maintenance
       description: Maintenance work across repositories, dependencies, tooling, and release hygiene.
+    - slug: goja-text
+      description: 'Goja-text: Go-backed text modules for Goja (markdown, sanitize, extract)'
+    - slug: release
+      description: Release engineering, versioning, and publishing for generated binaries
 docTypes:
     - slug: index
       description: Index document for a ticket
