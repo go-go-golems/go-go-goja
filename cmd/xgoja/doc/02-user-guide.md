@@ -61,6 +61,8 @@ commands:
     name: verbs
 ```
 
+`go.env` can pass build-time environment variables to `go build`. Use it for CGO-heavy builds that need linker environment in addition to `go.tags` and `go.ldflags`; for example, Bleve vector-search binaries can set `CGO_LDFLAGS` for FAISS. See `xgoja help buildspec-reference` for a complete example.
+
 ## Top-level fields
 
 `name` is the generated application name. It defaults to `xgoja-app`.

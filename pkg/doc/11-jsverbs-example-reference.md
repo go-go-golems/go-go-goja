@@ -176,6 +176,16 @@ Supported field metadata keys:
 
 These keys are intentionally close to Glazed concepts. The subsystem is not inventing a separate CLI schema language; it is translating a small JavaScript-friendly metadata format into existing Glazed schema structures.
 
+## Field naming
+
+JavaScript parameter and field names are exposed on the CLI using kebab-case. This keeps command lines idiomatic while preserving JavaScript parameter names and bound-section object keys at invocation time:
+
+- `profilePath` becomes `--profile-path`, but the function still receives the `profilePath` argument.
+- `foo_bar` becomes `--foo-bar`, but the function still receives the `foo_bar` argument.
+- Already-kebab names such as `profile-path` remain `--profile-path`.
+
+Section fields follow the same CLI naming rule without changing JavaScript object keys. A field declared as `localOnly` inside a `filters` section is exposed as `--local-only`, but JavaScript still reads `filters.localOnly`. Internally, jsverbs remaps parsed CLI/Glazed field names back to the declared JavaScript names before invoking the function.
+
 ## Field type mapping
 
 Supported field types currently map to Glazed like this:

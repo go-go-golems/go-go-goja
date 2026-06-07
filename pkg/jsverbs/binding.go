@@ -30,11 +30,18 @@ type ExtraFieldBinding struct {
 	SectionSlug string
 }
 
+type FieldNameBinding struct {
+	SectionSlug string
+	JSName      string
+	CLIName     string
+}
+
 type VerbBindingPlan struct {
 	Verb               *VerbSpec
 	Parameters         []ParameterBinding
 	ExtraFields        []ExtraFieldBinding
 	ReferencedSections []string
+	FieldNames         []FieldNameBinding
 }
 
 func buildVerbBindingPlan(r *Registry, verb *VerbSpec) (*VerbBindingPlan, error) {
@@ -85,6 +92,9 @@ func buildVerbBindingPlan(r *Registry, verb *VerbSpec) (*VerbBindingPlan, error)
 			return nil, err
 		}
 		plan.Parameters = append(plan.Parameters, binding)
+		if binding.Mode == BindingModePositional {
+			plan.addFieldNameBinding(binding.SectionSlug, binding.Field.Name)
+		}
 	}
 
 	extraFieldNames := make([]string, 0, len(verb.Fields))
@@ -116,6 +126,7 @@ func buildVerbBindingPlan(r *Registry, verb *VerbSpec) (*VerbBindingPlan, error)
 			Field:       fieldSpec,
 			SectionSlug: sectionSlug,
 		})
+		plan.addFieldNameBinding(sectionSlug, fieldSpec.Name)
 	}
 
 	for slug := range referencedSections {
@@ -156,7 +167,45 @@ func buildVerbBindingPlan(r *Registry, verb *VerbSpec) (*VerbBindingPlan, error)
 		appendSection(slug)
 	}
 
+	for _, slug := range plan.ReferencedSections {
+		section, ok := r.ResolveSection(verb, slug)
+		if !ok || section == nil {
+			continue
+		}
+		fieldNames := make([]string, 0, len(section.Fields))
+		for name := range section.Fields {
+			fieldNames = append(fieldNames, name)
+		}
+		sort.Strings(fieldNames)
+		for _, name := range fieldNames {
+			field := section.Fields[name]
+			if field == nil {
+				continue
+			}
+			plan.addFieldNameBinding(slug, field.Name)
+		}
+	}
+
 	return plan, nil
+}
+
+func (p *VerbBindingPlan) addFieldNameBinding(sectionSlug string, jsName string) {
+	if p == nil {
+		return
+	}
+	jsName = strings.TrimSpace(jsName)
+	if jsName == "" {
+		return
+	}
+	sectionSlug = cleanCommandWord(sectionSlug)
+	if sectionSlug == "" {
+		sectionSlug = schema.DefaultSlug
+	}
+	p.FieldNames = append(p.FieldNames, FieldNameBinding{
+		SectionSlug: sectionSlug,
+		JSName:      jsName,
+		CLIName:     cliFieldName(jsName),
+	})
 }
 
 func resolveParameterBinding(verb *VerbSpec, param ParameterSpec, fieldSpec *FieldSpec) (ParameterBinding, error) {

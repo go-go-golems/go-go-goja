@@ -456,7 +456,7 @@ __verb__("summarize", {
 	commandMap := mustCommandMap(t, registry)
 	rows := runCommand(t, commandMap["local summarize"], map[string]map[string]interface{}{
 		"filters": {
-			"localOnly": "from-local",
+			"local-only": "from-local",
 		},
 	})
 	require.Equal(t, "from-local", rows[0]["local"])
@@ -514,6 +514,183 @@ func TestCommandDescriptionForVerb(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "greet", desc.Name)
 	require.NotNil(t, desc.Schema)
+}
+
+func TestTopLevelFieldNamesUseKebabCaseCLI(t *testing.T) {
+	registry, err := ScanSource("naming.js", `
+function show(profilePath, foo_bar) {
+  return [{ profilePath, foo_bar }];
+}
+
+__verb__("show", {
+  fields: {
+    profilePath: { help: "Profile path" },
+    foo_bar: { help: "Foo bar" }
+  }
+});
+`)
+	require.NoError(t, err)
+	verb, ok := registry.Verb("naming show")
+	require.True(t, ok)
+	desc, err := registry.CommandDescriptionForVerb(verb)
+	require.NoError(t, err)
+	flags := desc.GetDefaultFlags()
+	require.NotNil(t, flags)
+	_, ok = flags.Get("profile-path")
+	require.True(t, ok, "camelCase field should be exposed as kebab-case CLI flag")
+	_, ok = flags.Get("foo-bar")
+	require.True(t, ok, "snake_case field should be exposed as kebab-case CLI flag")
+	_, ok = flags.Get("profilePath")
+	require.False(t, ok, "camelCase field should not be exposed literally")
+	_, ok = flags.Get("foo_bar")
+	require.False(t, ok, "snake_case field should not be exposed literally")
+
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["naming show"], map[string]map[string]interface{}{
+		"default": {
+			"profile-path": "profiles.yaml",
+			"foo-bar":      "snake",
+		},
+	})
+	require.Equal(t, "profiles.yaml", rows[0]["profilePath"])
+	require.Equal(t, "snake", rows[0]["foo_bar"])
+}
+
+func TestBoundSectionFieldNamesPreserveJavaScriptObjectKeys(t *testing.T) {
+	registry, err := ScanSource("section_keys.js", `
+__section__("filters", {
+  title: "Filters"
+});
+
+function summarize(filters) {
+  return [{
+    local: filters.localOnly,
+    hasKebabKey: Object.prototype.hasOwnProperty.call(filters, "local-only")
+  }];
+}
+
+__verb__("summarize", {
+  fields: {
+    filters: { bind: "filters" },
+    localOnly: { section: "filters", help: "Local-only section field" }
+  }
+});
+`)
+	require.NoError(t, err)
+
+	verb, ok := registry.Verb("section-keys summarize")
+	require.True(t, ok)
+	desc, err := registry.CommandDescriptionForVerb(verb)
+	require.NoError(t, err)
+	section, ok := desc.GetSection("filters")
+	require.True(t, ok)
+	fields := section.GetDefinitions()
+	_, ok = fields.Get("local-only")
+	require.True(t, ok, "section field should be exposed as kebab-case CLI/config key")
+	_, ok = fields.Get("localOnly")
+	require.False(t, ok, "section field should not be exposed literally at the CLI boundary")
+
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["section-keys summarize"], map[string]map[string]interface{}{
+		"filters": {
+			"local-only": "from-section",
+		},
+	})
+	require.Equal(t, "from-section", rows[0]["local"])
+	require.Equal(t, false, rows[0]["hasKebabKey"])
+}
+
+func TestSharedSectionFieldNamesUseKebabCaseCLIAndCamelCaseObjectKeys(t *testing.T) {
+	registry, err := ScanSource("shared_section_keys.js", `
+function summarize(filters) {
+  return [{
+    max: filters.maxResults,
+    hasKebabKey: Object.prototype.hasOwnProperty.call(filters, "max-results")
+  }];
+}
+
+__verb__("summarize", {
+  fields: {
+    filters: { bind: "filters" }
+  }
+});
+`)
+	require.NoError(t, err)
+	require.NoError(t, registry.AddSharedSection(&SectionSpec{
+		Slug:  "filters",
+		Title: "Filters",
+		Fields: map[string]*FieldSpec{
+			"maxResults": {Type: "int"},
+		},
+	}))
+
+	verb, ok := registry.Verb("shared-section-keys summarize")
+	require.True(t, ok)
+	desc, err := registry.CommandDescriptionForVerb(verb)
+	require.NoError(t, err)
+	section, ok := desc.GetSection("filters")
+	require.True(t, ok)
+	fields := section.GetDefinitions()
+	_, ok = fields.Get("max-results")
+	require.True(t, ok)
+	_, ok = fields.Get("maxResults")
+	require.False(t, ok)
+
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["shared-section-keys summarize"], map[string]map[string]interface{}{
+		"filters": {
+			"max-results": 10,
+		},
+	})
+	require.EqualValues(t, 10, rows[0]["max"])
+	require.Equal(t, false, rows[0]["hasKebabKey"])
+}
+
+func TestBindAllAndContextUseJavaScriptFieldNames(t *testing.T) {
+	registry, err := ScanSource("all_context_keys.js", `
+__section__("filters", {
+  fields: {
+    maxResults: { type: "int" }
+  }
+});
+
+function inspect(allValues, meta) {
+  return [{
+    defaultProfile: allValues.profilePath,
+    defaultHasKebabKey: Object.prototype.hasOwnProperty.call(allValues, "profile-path"),
+    filterMax: allValues.maxResults,
+    filterHasKebabKey: Object.prototype.hasOwnProperty.call(allValues, "max-results"),
+    contextMax: meta.sections.filters.maxResults,
+    rawContextMax: meta.rawValues.filters["max-results"]
+  }];
+}
+
+__verb__("inspect", {
+  sections: ["filters"],
+  fields: {
+    allValues: { bind: "all" },
+    meta: { bind: "context" },
+    profilePath: { help: "Profile path" }
+  }
+});
+`)
+	require.NoError(t, err)
+
+	commandMap := mustCommandMap(t, registry)
+	rows := runCommand(t, commandMap["all-context-keys inspect"], map[string]map[string]interface{}{
+		"default": {
+			"profile-path": "profiles.yaml",
+		},
+		"filters": {
+			"max-results": 42,
+		},
+	})
+	require.Equal(t, "profiles.yaml", rows[0]["defaultProfile"])
+	require.Equal(t, false, rows[0]["defaultHasKebabKey"])
+	require.EqualValues(t, 42, rows[0]["filterMax"])
+	require.Equal(t, false, rows[0]["filterHasKebabKey"])
+	require.EqualValues(t, 42, rows[0]["contextMax"])
+	require.EqualValues(t, 42, rows[0]["rawContextMax"])
 }
 
 func TestCommandForVerbWithInvokerUsesCustomInvoker(t *testing.T) {
@@ -665,12 +842,12 @@ func TestFSWatchJsverbUsesInstalledHelper(t *testing.T) {
 	cmd := &Command{CommandDescription: desc, registry: registry, verb: verb}
 	parsedValues, err := runner.ParseCommandValues(cmd, runner.WithValuesForSections(map[string]map[string]interface{}{
 		"default": {
-			"dir":        dir,
-			"fileName":   "nested/from-jsverb.txt",
-			"recursive":  true,
-			"debounceMs": 25,
-			"include":    []string{"**/*.txt"},
-			"exclude":    []string{"**/ignored/**"},
+			"dir":         dir,
+			"file-name":   "nested/from-jsverb.txt",
+			"recursive":   true,
+			"debounce-ms": 25,
+			"include":     []string{"**/*.txt"},
+			"exclude":     []string{"**/ignored/**"},
 		},
 	}))
 	require.NoError(t, err)

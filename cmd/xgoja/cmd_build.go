@@ -131,7 +131,7 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
-	if _, err := buildexec.GoBuild(ctx, workDir, outputPath, buildSpec.Go.Tags, buildSpec.Go.LDFlags); err != nil {
+	if _, err := buildexec.GoBuild(ctx, workDir, outputPath, buildSpec.Go.Tags, buildSpec.Go.LDFlags, buildSpec.Go.Env); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(c.out, "xgoja build ok: %s\n", outputPath)
