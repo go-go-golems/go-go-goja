@@ -101,6 +101,10 @@ bump-glazed:
 	go get github.com/go-go-golems/bobatea@latest
 	go mod tidy
 
+install:
+	GOWORK=off go build -o ~/.local/bin/xgoja ./cmd/xgoja
+	GOWORK=off go build -o ~/.local/bin/goja-repl ./cmd/goja-repl
+
 .PHONY: fuzz fuzz-seeds
 
 .PHONY: bump-go-go-golems
