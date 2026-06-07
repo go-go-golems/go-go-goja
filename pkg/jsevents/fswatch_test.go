@@ -329,10 +329,16 @@ func TestFSWatchHelperDebouncesEvents(t *testing.T) {
 		return err == nil && strings.Contains(got, "debounced.txt") && strings.Contains(got, `"debounced":true`)
 	}, 3*time.Second, 20*time.Millisecond)
 
-	countAfterFlush := runJS(t, rt, `globalThis.events.filter(ev => ev.relativeName === "debounced.txt").length`)
-	time.Sleep(200 * time.Millisecond)
-	countAfterStability := runJS(t, rt, `globalThis.events.filter(ev => ev.relativeName === "debounced.txt").length`)
-	require.Equal(t, countAfterFlush, countAfterStability)
+	require.Eventually(t, func() bool {
+		before := runJS(t, rt, `globalThis.events.filter(ev => ev.relativeName === "debounced.txt").length`)
+		time.Sleep(250 * time.Millisecond)
+		after := runJS(t, rt, `globalThis.events.filter(ev => ev.relativeName === "debounced.txt").length`)
+		return before == after
+	}, 3*time.Second, 25*time.Millisecond)
+
+	debouncedEvents := runJS(t, rt, `globalThis.events.filter(ev => ev.relativeName === "debounced.txt")`)
+	require.JSONEq(t, `true`, runJS(t, rt, `JSON.stringify(globalThis.events.filter(ev => ev.relativeName === "debounced.txt").every(ev => ev.debounced))`))
+	require.JSONEq(t, `true`, runJS(t, rt, `JSON.stringify(globalThis.events.filter(ev => ev.relativeName === "debounced.txt").some(ev => ev.count > 1))`), debouncedEvents)
 }
 
 func TestFSWatchHelperCloseStopsPendingDebounce(t *testing.T) {
