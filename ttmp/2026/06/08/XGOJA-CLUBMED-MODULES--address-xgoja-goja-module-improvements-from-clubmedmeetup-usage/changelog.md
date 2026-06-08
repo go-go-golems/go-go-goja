@@ -36,3 +36,13 @@ Updated user-facing jsverbs and xgoja example documentation for JSVerb include/e
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/doc/11-jsverbs-example-reference.md — ScanOptions reference
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-CLUBMED-MODULES--address-xgoja-goja-module-improvements-from-clubmedmeetup-usage/reference/01-investigation-diary.md — Recorded documentation update step
 
+
+## 2026-06-08
+
+Committed JSVerb source filtering implementation and docs (commit 3ae1cbb5cf5303b4dc8d7cf7b12817240b11734d)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/jsverbs/scan.go — Committed scanner implementation
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-CLUBMED-MODULES--address-xgoja-goja-module-improvements-from-clubmedmeetup-usage/reference/01-investigation-diary.md — Updated diary with commit hash
+

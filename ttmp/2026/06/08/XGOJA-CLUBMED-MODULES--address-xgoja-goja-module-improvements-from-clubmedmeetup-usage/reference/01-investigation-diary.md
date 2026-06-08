@@ -184,7 +184,7 @@ The implementation keeps existing defaults unchanged while adding opt-in filteri
 
 **Inferred user intent:** Avoid spending time on unrelated xgoja module improvements and turn the concrete ClubMedMeetup JSVerb scanner failure into a completed, test-backed go-go-goja change.
 
-**Commit (code):** Not committed yet — working tree contains code and ticket documentation changes.
+**Commit (code):** 3ae1cbb5cf5303b4dc8d7cf7b12817240b11734d — "Add JSVerb source filters"
 
 ### What I did
 
@@ -317,7 +317,7 @@ The docs emphasize the operational reason for the feature: application roots oft
 
 **Inferred user intent:** Make the new feature discoverable and explain how to use it safely in both direct `pkg/jsverbs` callers and generated xgoja applications.
 
-**Commit (code):** Not committed yet — working tree contains code and documentation changes.
+**Commit (code):** 3ae1cbb5cf5303b4dc8d7cf7b12817240b11734d — "Add JSVerb source filters"
 
 ### What I did
 
