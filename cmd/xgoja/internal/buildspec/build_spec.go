@@ -122,11 +122,14 @@ type CommandProviderInstanceSpec struct {
 }
 
 type JSVerbSourceSpec struct {
-	ID      string `yaml:"id" json:"id"`
-	Path    string `yaml:"path" json:"path,omitempty"`
-	Embed   bool   `yaml:"embed" json:"embed"`
-	Package string `yaml:"package" json:"package,omitempty"`
-	Source  string `yaml:"source" json:"source,omitempty"`
+	ID         string   `yaml:"id" json:"id"`
+	Path       string   `yaml:"path" json:"path,omitempty"`
+	Embed      bool     `yaml:"embed" json:"embed"`
+	Package    string   `yaml:"package" json:"package,omitempty"`
+	Source     string   `yaml:"source" json:"source,omitempty"`
+	Include    []string `yaml:"include,omitempty" json:"include,omitempty"`
+	Exclude    []string `yaml:"exclude,omitempty" json:"exclude,omitempty"`
+	Extensions []string `yaml:"extensions,omitempty" json:"extensions,omitempty"`
 }
 
 type HelpSpec struct {

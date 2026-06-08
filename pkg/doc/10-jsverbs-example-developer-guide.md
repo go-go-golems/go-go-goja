@@ -101,6 +101,8 @@ Use it as a map:
 
 The fixture tree is still disk-based because it is meant to be browsed by humans and exercised by the example runner. The package itself is now broader than that. It can also scan a generic `fs.FS` or a raw list of in-memory source files. That matters when you move from “example runner” thinking to “library API” thinking. The fixture tree teaches the metadata format and runtime behavior; it does not define the full list of supported source origins anymore.
 
+Directory and `fs.FS` scanning can also be filtered. `ScanOptions.Include` and `ScanOptions.Exclude` match slash-separated paths relative to the scan root. This is important for generated xgoja applications where the source tree may contain both authored verb files and bundled assets. For example, an app can scan only `site.js` and `jsverbs/**/*.js` while excluding `assets/**`, `dist/**`, and `webapp/**`. Keep the scan root narrow when you can; use filters when the application layout makes that difficult.
+
 When you are unsure how a feature should behave, start by adding or changing a fixture first and then make the implementation satisfy it.
 
 This is not just a testing convenience. It is a design discipline. The fixture tree acts as the most concrete form of subsystem documentation because it shows what JavaScript authors are actually expected to write. A fixture is harder to misread than a prose sentence and easier to stabilize than an informal code comment. In practice, the safest development loop is: write or update a fixture, make the scanner see it, make the compiler shape it, and then make the runtime execute it.
@@ -477,8 +479,9 @@ The main habit to build here is phase isolation. Ask first whether the issue is 
 When a verb is missing:
 
 1. run `jsverbs-example --dir ... list`
-2. if it is absent, debug `scan.go`
-3. if it is present but malformed, debug `command.go`
+2. if the host/xgoja app configured include/exclude filters, confirm the relative source path matches the intended filter set
+3. if it is absent, debug `scan.go`
+4. if it is present but malformed, debug `command.go`
 
 When a verb is listed but crashes:
 

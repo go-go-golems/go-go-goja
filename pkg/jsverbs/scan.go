@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 	tree_sitter_javascript "github.com/tree-sitter/tree-sitter-javascript/bindings/go"
 )
@@ -47,12 +48,13 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 			}
 			return nil
 		}
-		if !supportsExtension(filePath, options.Extensions) {
-			return nil
-		}
 		relPath, err := filepath.Rel(absRoot, filePath)
 		if err != nil {
 			return fmt.Errorf("relpath %s: %w", filePath, err)
+		}
+		relPathSlash := filepath.ToSlash(relPath)
+		if !supportsExtension(relPathSlash, options.Extensions) || !matchesScanPatterns(relPathSlash, options) {
+			return nil
 		}
 		source, err := rootHandle.ReadFile(relPath)
 		if err != nil {
@@ -60,7 +62,7 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 		}
 		inputs = append(inputs, sourceInput{
 			AbsPath:    filePath,
-			RelPath:    filepath.ToSlash(relPath),
+			RelPath:    relPathSlash,
 			ModulePath: modulePathFromRelative(relPath),
 			Source:     source,
 		})
@@ -98,19 +100,20 @@ func ScanFS(fsys fs.FS, root string, opts ...ScanOptions) (*Registry, error) {
 			}
 			return nil
 		}
-		if !supportsExtension(filePath, options.Extensions) {
+		relPath, err := filepath.Rel(root, filePath)
+		if err != nil {
+			return fmt.Errorf("relpath %s: %w", filePath, err)
+		}
+		relPathSlash := filepath.ToSlash(relPath)
+		if !supportsExtension(relPathSlash, options.Extensions) || !matchesScanPatterns(relPathSlash, options) {
 			return nil
 		}
 		source, err := fs.ReadFile(fsys, filePath)
 		if err != nil {
 			return fmt.Errorf("read %s: %w", filePath, err)
 		}
-		relPath, err := filepath.Rel(root, filePath)
-		if err != nil {
-			return fmt.Errorf("relpath %s: %w", filePath, err)
-		}
 		inputs = append(inputs, sourceInput{
-			RelPath:    filepath.ToSlash(relPath),
+			RelPath:    relPathSlash,
 			ModulePath: modulePathFromRelative(relPath),
 			Source:     source,
 		})
@@ -195,7 +198,40 @@ func scanInputs(rootDir string, inputs []sourceInput, options ScanOptions) (*Reg
 func supportsExtension(filePath string, extensions []string) bool {
 	ext := strings.ToLower(filepath.Ext(filePath))
 	for _, candidate := range extensions {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if !strings.HasPrefix(candidate, ".") {
+			candidate = "." + candidate
+		}
 		if strings.EqualFold(ext, candidate) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchesScanPatterns(relPath string, options ScanOptions) bool {
+	relPath = filepath.ToSlash(strings.TrimPrefix(relPath, "./"))
+	if len(options.Include) > 0 && !matchesAnyScanPattern(relPath, options.Include) {
+		return false
+	}
+	if matchesAnyScanPattern(relPath, options.Exclude) {
+		return false
+	}
+	return true
+}
+
+func matchesAnyScanPattern(relPath string, patterns []string) bool {
+	for _, pattern := range patterns {
+		pattern = filepath.ToSlash(strings.TrimSpace(pattern))
+		pattern = strings.TrimPrefix(pattern, "./")
+		if pattern == "" {
+			continue
+		}
+		matched, err := doublestar.PathMatch(pattern, relPath)
+		if err == nil && matched {
 			return true
 		}
 	}

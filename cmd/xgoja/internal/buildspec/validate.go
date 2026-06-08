@@ -376,6 +376,7 @@ func validateJSVerbs(report *Report, buildSpec *BuildSpec, packageIDs map[string
 		} else {
 			ids[id] = struct{}{}
 		}
+		validateJSVerbFilters(report, path, source)
 		if strings.TrimSpace(source.Package) != "" || strings.TrimSpace(source.Source) != "" {
 			if strings.TrimSpace(source.Package) == "" || strings.TrimSpace(source.Source) == "" {
 				report.AddError("jsverb-provider-source", path, "provider jsverb sources require both package and source")
@@ -401,6 +402,27 @@ func validateJSVerbs(report *Report, buildSpec *BuildSpec, packageIDs map[string
 		} else {
 			report.AddOK("jsverb-path", path+".path", "runtime filesystem source")
 		}
+	}
+}
+
+func validateJSVerbFilters(report *Report, path string, source JSVerbSourceSpec) {
+	for i, pattern := range source.Include {
+		if strings.TrimSpace(pattern) == "" {
+			report.AddError("jsverb-include", fmt.Sprintf("%s.include[%d]", path, i), "include pattern cannot be empty")
+		}
+	}
+	for i, pattern := range source.Exclude {
+		if strings.TrimSpace(pattern) == "" {
+			report.AddError("jsverb-exclude", fmt.Sprintf("%s.exclude[%d]", path, i), "exclude pattern cannot be empty")
+		}
+	}
+	for i, ext := range source.Extensions {
+		if strings.TrimSpace(ext) == "" {
+			report.AddError("jsverb-extension", fmt.Sprintf("%s.extensions[%d]", path, i), "extension cannot be empty")
+		}
+	}
+	if len(source.Include) > 0 || len(source.Exclude) > 0 || len(source.Extensions) > 0 {
+		report.AddOK("jsverb-filters", path, "jsverb source filters declared")
 	}
 }
 

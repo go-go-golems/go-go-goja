@@ -26,11 +26,14 @@ type RuntimeFactory interface {
 // JSVerbSourceDescriptor describes one configured JavaScript verb source in the
 // generated binary's runtime spec.
 type JSVerbSourceDescriptor struct {
-	ID      string
-	Path    string
-	Embed   bool
-	Package string
-	Source  string
+	ID         string
+	Path       string
+	Embed      bool
+	Package    string
+	Source     string
+	Include    []string
+	Exclude    []string
+	Extensions []string
 }
 
 // JSVerbSourceSet lets command providers discover and scan the JavaScript verb

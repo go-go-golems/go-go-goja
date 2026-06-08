@@ -30,11 +30,14 @@ func (s *jsVerbSourceSet) ListJSVerbSources() []providerapi.JSVerbSourceDescript
 	out := make([]providerapi.JSVerbSourceDescriptor, 0, len(s.sources))
 	for _, source := range s.sources {
 		out = append(out, providerapi.JSVerbSourceDescriptor{
-			ID:      source.ID,
-			Path:    source.Path,
-			Embed:   source.Embed,
-			Package: source.Package,
-			Source:  source.Source,
+			ID:         source.ID,
+			Path:       source.Path,
+			Embed:      source.Embed,
+			Package:    source.Package,
+			Source:     source.Source,
+			Include:    append([]string(nil), source.Include...),
+			Exclude:    append([]string(nil), source.Exclude...),
+			Extensions: append([]string(nil), source.Extensions...),
 		})
 	}
 	return out

@@ -44,3 +44,20 @@ jsverbs:
     path: ./verbs
     embed: false
 ```
+
+If your runtime source root contains generated files or browser bundles, keep the root narrow or add filters:
+
+```yaml
+jsverbs:
+  - id: local-dev
+    path: .
+    embed: false
+    include:
+      - verbs/**/*.js
+      - site.js
+    exclude:
+      - assets/**
+      - dist/**
+```
+
+`include` and `exclude` match slash-separated paths relative to `path`.

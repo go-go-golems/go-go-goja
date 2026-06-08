@@ -47,6 +47,46 @@ func TestScanDirDiscoversExpectedPaths(t *testing.T) {
 	}, paths)
 }
 
+func TestScanDirIncludeExcludeFilters(t *testing.T) {
+	dir := t.TempDir()
+	writeFile := func(rel, body string) {
+		t.Helper()
+		path := filepath.Join(dir, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+	}
+	writeFile("site.js", `function start() { return { ok: true }; }`)
+	writeFile("assets/public/bundle.js", `function generated() { return { skip: true }; }`)
+	writeFile("dist/app.js", `function built() { return { skip: true }; }`)
+	writeFile("notes.txt", `function ignored() {}`)
+
+	registry, err := ScanDir(dir, ScanOptions{
+		IncludePublicFunctions: true,
+		Extensions:             []string{".js"},
+		FailOnErrorDiagnostics: true,
+		Include:                []string{"*.js", "**/*.js"},
+		Exclude:                []string{"assets/**", "dist/**"},
+	})
+	require.NoError(t, err)
+	require.Len(t, registry.Files, 1)
+	require.Equal(t, "site.js", registry.Files[0].RelPath)
+}
+
+func TestScanFSIncludeFilters(t *testing.T) {
+	registry, err := ScanFS(fstest.MapFS{
+		"site.js":                 &fstest.MapFile{Data: []byte(`function start() { return { ok: true }; }`)},
+		"assets/public/bundle.js": &fstest.MapFile{Data: []byte(`function generated() { return { skip: true }; }`)},
+	}, ".", ScanOptions{
+		IncludePublicFunctions: true,
+		Extensions:             []string{"js"},
+		FailOnErrorDiagnostics: true,
+		Include:                []string{"site.js"},
+	})
+	require.NoError(t, err)
+	require.Len(t, registry.Files, 1)
+	require.Equal(t, "site.js", registry.Files[0].RelPath)
+}
+
 func TestFixtureCommandsExecute(t *testing.T) {
 	registry := mustRegistry(t)
 	commandMap := mustCommandMap(t, registry)

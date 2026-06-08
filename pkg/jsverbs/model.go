@@ -58,6 +58,8 @@ type ScanOptions struct {
 	IncludePublicFunctions bool
 	Extensions             []string
 	FailOnErrorDiagnostics bool
+	Include                []string
+	Exclude                []string
 }
 
 func DefaultScanOptions() ScanOptions {

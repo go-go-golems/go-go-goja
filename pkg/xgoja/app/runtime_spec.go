@@ -87,11 +87,14 @@ type CommandProviderInstanceSpec struct {
 }
 
 type JSVerbSourceSpec struct {
-	ID      string `json:"id"`
-	Path    string `json:"path,omitempty"`
-	Embed   bool   `json:"embed"`
-	Package string `json:"package,omitempty"`
-	Source  string `json:"source,omitempty"`
+	ID         string   `json:"id"`
+	Path       string   `json:"path,omitempty"`
+	Embed      bool     `json:"embed"`
+	Package    string   `json:"package,omitempty"`
+	Source     string   `json:"source,omitempty"`
+	Include    []string `json:"include,omitempty"`
+	Exclude    []string `json:"exclude,omitempty"`
+	Extensions []string `json:"extensions,omitempty"`
 }
 
 type HelpSpec struct {

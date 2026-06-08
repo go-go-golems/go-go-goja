@@ -38,6 +38,20 @@ jsverbs:
     source: verbs
 ```
 
+Provider sources can also be filtered by paths relative to the provider source root:
+
+```yaml
+jsverbs:
+  - id: provider-defaults
+    package: fixture
+    source: verbs
+    include:
+      - tools.js
+      - commands/**/*.js
+    exclude:
+      - generated/**
+```
+
 The provider fixture exposes that source from:
 
 ```text

@@ -268,6 +268,7 @@ func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *Runtime
 }
 
 func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, source JSVerbSourceSpec) (*jsverbs.Registry, error) {
+	scanOptions := jsVerbScanOptions(source)
 	if source.Package != "" || source.Source != "" {
 		if providers == nil {
 			return nil, fmt.Errorf("scan jsverb source %s: providers registry is required", source.ID)
@@ -279,7 +280,7 @@ func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.
 		if providerSource.FS == nil {
 			return nil, fmt.Errorf("scan jsverb source %s: provider verb source %s.%s has no filesystem", source.ID, source.Package, source.Source)
 		}
-		registry, err := jsverbs.ScanFS(providerSource.FS, providerSource.Root)
+		registry, err := jsverbs.ScanFS(providerSource.FS, providerSource.Root, scanOptions)
 		if err != nil {
 			return nil, fmt.Errorf("scan provider jsverb source %s (%s.%s): %w", source.ID, source.Package, source.Source, err)
 		}
@@ -292,17 +293,27 @@ func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.
 		if embeddedJSVerbs == nil {
 			return nil, fmt.Errorf("scan jsverb source %s: embedded jsverbs filesystem is not configured", source.ID)
 		}
-		registry, err := jsverbs.ScanFS(embeddedJSVerbs, source.Path)
+		registry, err := jsverbs.ScanFS(embeddedJSVerbs, source.Path, scanOptions)
 		if err != nil {
 			return nil, fmt.Errorf("scan embedded jsverb source %s: %w", source.ID, err)
 		}
 		return registry, nil
 	}
-	registry, err := jsverbs.ScanDir(source.Path)
+	registry, err := jsverbs.ScanDir(source.Path, scanOptions)
 	if err != nil {
 		return nil, fmt.Errorf("scan jsverb source %s: %w", source.ID, err)
 	}
 	return registry, nil
+}
+
+func jsVerbScanOptions(source JSVerbSourceSpec) jsverbs.ScanOptions {
+	options := jsverbs.DefaultScanOptions()
+	if len(source.Extensions) > 0 {
+		options.Extensions = append([]string(nil), source.Extensions...)
+	}
+	options.Include = append([]string(nil), source.Include...)
+	options.Exclude = append([]string(nil), source.Exclude...)
+	return options
 }
 
 func commandName(command CommandSpec, fallback string) string {
