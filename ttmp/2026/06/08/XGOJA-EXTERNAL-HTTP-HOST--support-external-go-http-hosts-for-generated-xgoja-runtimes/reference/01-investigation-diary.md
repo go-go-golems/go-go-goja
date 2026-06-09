@@ -1008,3 +1008,101 @@ Result:
 ```text
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.058s
 ```
+
+## Step 11: Implement serve --hot-reload execution
+
+I replaced the temporary `--hot-reload` not-implemented guard with the actual generated-binary execution path. HTTP serve commands can now run through `pkg/xgoja/hotreload`: the command starts one Go-owned listener, builds a fresh candidate `gojahttp.Host` and runtime on each reload, injects that host via `ExternalHostService{OwnsListen:false}`, smoke-tests candidates when configured, and swaps only successful candidates live.
+
+The implementation also rescans JSVerb sources on every reload attempt. That matters because simply rebuilding a runtime with the original registry would reload the old in-memory JavaScript source rather than the edited file.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue after explaining the temporary guard by implementing the actual `serve --hot-reload` execution branch.
+
+**Inferred user intent:** Make the generated xgoja `serve` command hot-reloadable in practice, not merely configurable.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Added `serveVerbHotReload` in `pkg/xgoja/providers/http/serve.go`.
+- Changed `serveVerb` so `--hot-reload` branches to the new path.
+- Added per-candidate runtime creation through `providerapi.RuntimeFactoryWithHostServices`.
+- Injected `ExternalHostService{Host: candidate.Host, OwnsListen: false}` for every candidate runtime.
+- Started a Go-owned `net/http.Server` around `hotreload.Manager` using the existing `--http-listen` value.
+- Added optional status endpoint handling via `--hot-reload-status-path`.
+- Added optional smoke-path validation via `--hot-reload-smoke-path`.
+- Wired polling watch roots, extensions, poll duration, debounce duration, and close grace into `manager.Watch` / `hotreload.Options`.
+- Added reload-time JSVerb rescanning with `resolveServeHotReloadVerb`.
+- Added `TestServeVerbHotReloadServesStatusAndReloadsChangedSource`, which validates:
+  - initial hot-reload serve responds on `/healthz`,
+  - status endpoint reports active version and routes,
+  - editing the source updates the served version,
+  - a broken edit records `LastError`,
+  - the previous good runtime keeps serving.
+- Ran focused validation:
+  - `go test ./pkg/xgoja/providers/http ./pkg/xgoja/hotreload ./pkg/gojahttp -count=1`
+
+### Why
+
+- Generated xgoja binaries need the same last-known-good reload semantics as the custom Go host, but without requiring users to write Go code.
+- The HTTP provider must not bind a provider-owned listener in hot-reload mode; the command owns the listener and delegates requests to the active manager snapshot.
+- Rescanning JSVerb sources is necessary for hot reload to observe file edits.
+
+### What worked
+
+- The Phase 2 per-runtime host service factory extension fit the hot reload candidate creation path directly.
+- The existing `hotreload.Manager` handled status, last-known-good behavior, and retired runtime shutdown without changes.
+- The focused provider test exercises the real serve branch, real HTTP server, real file watcher, and real JSVerb rescan.
+
+### What didn't work
+
+- The first version of the hot reload branch reused the original scanned JSVerb registry. That would have rebuilt fresh runtimes but from stale source bytes. I fixed it by adding `resolveServeHotReloadVerb`, which rescans `commandCtx.JSVerbs` on every reload and resolves the same verb full path in the new registry.
+- The test observed two reloads for one file write on this filesystem, so the active version advanced from 1 to 3 instead of exactly 2. The assertion now checks `>= 2` and verifies the served content changed to version 2.
+
+### What I learned
+
+- Hot reload has two independent freshness requirements: a fresh Goja runtime and fresh JSVerb source registry. Both are required.
+- The existing HTTP provider settings are still useful in hot-reload mode for `--http-listen`, even though provider listener ownership is disabled for candidate runtimes.
+
+### What was tricky to build
+
+- The package name is `http`, so the standard library package needs an alias (`stdhttp`) in the hot-reload server code.
+- Context cancellation must shut down both the Go-owned server and the manager. The command uses a signal context for normal Ctrl-C behavior and also respects parent context cancellation in tests.
+- The status endpoint is mounted before the manager catch-all so it remains Go-owned and cannot be accidentally handled by JavaScript routes.
+
+### What warrants a second pair of eyes
+
+- Whether the status endpoint should be enabled by default or require explicit opt-in to avoid route shadowing.
+- Whether provider-shipped or embedded JSVerb sources should produce a warning when no explicit watch roots are provided, since they cannot be watched meaningfully by default.
+- Whether reload-time rescanning should target only the original source ID rather than scanning all JSVerb sources.
+
+### What should be done in the future
+
+- Add generated-binary integration coverage that exercises `serve --hot-reload` through the generated CLI.
+- Update user docs with the final command syntax and recommended smoke path.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/providers/http/serve.go`, especially `serveVerbHotReload`, `resolveServeHotReloadVerb`, and the manager/server setup.
+- Review `pkg/xgoja/providers/http/serve_test.go` for the end-to-end provider-level hot reload test.
+- Validate with:
+  - `go test ./pkg/xgoja/providers/http ./pkg/xgoja/hotreload ./pkg/gojahttp -count=1`
+
+### Technical details
+
+Focused validation command:
+
+```bash
+cd go-go-goja && go test ./pkg/xgoja/providers/http ./pkg/xgoja/hotreload ./pkg/gojahttp -count=1
+```
+
+Result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.285s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hotreload	0.086s
+ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp	0.005s
+```

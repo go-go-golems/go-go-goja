@@ -48,13 +48,13 @@
 
 ### Phase 4: serve hot-reload execution path
 
-- [ ] Branch `serveVerb` to a hot-reload path when `--hot-reload` is enabled.
-- [ ] Inject candidate `ExternalHostService{OwnsListen:false}` per reload.
-- [ ] Start one Go-owned HTTP server around `hotreload.Manager` using `--http-listen`.
-- [ ] Implement optional status endpoint and optional smoke path.
-- [ ] Wire watcher roots/extensions/poll/debounce/close grace.
-- [ ] Add focused provider tests for reload success, last-known-good, status, and smoke failure.
-- [ ] Commit Phase 4 implementation and diary update.
+- [x] Branch `serveVerb` to a hot-reload path when `--hot-reload` is enabled.
+- [x] Inject candidate `ExternalHostService{OwnsListen:false}` per reload.
+- [x] Start one Go-owned HTTP server around `hotreload.Manager` using `--http-listen`.
+- [x] Implement optional status endpoint and optional smoke path.
+- [x] Wire watcher roots/extensions/poll/debounce/close grace.
+- [x] Add focused provider tests for reload success, last-known-good, status, and smoke failure.
+- [x] Commit Phase 4 implementation and diary update.
 
 ### Phase 5: generated binary integration test
 

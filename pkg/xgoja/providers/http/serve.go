@@ -2,9 +2,15 @@ package http
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
+	stdhttp "net/http"
+	"net/http/httptest"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,6 +21,8 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/hotreload"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerutil"
 )
@@ -82,18 +90,18 @@ func newServeCommandSet(ctx providerapi.CommandSetContext) (*providerapi.Command
 }
 
 func serveVerb(ctx context.Context, commandCtx providerapi.CommandSetContext, registry *jsverbs.Registry, verb *jsverbs.VerbSpec, parsedValues *values.Values) (interface{}, error) {
-	hotReloadSettings, err := decodeServeHotReloadSettings(parsedValues)
-	if err != nil {
-		return nil, err
-	}
-	if hotReloadSettings.Enabled {
-		return nil, fmt.Errorf("http serve hot reload execution is not implemented yet")
-	}
 	if registry == nil {
 		return nil, fmt.Errorf("jsverb registry is nil")
 	}
 	if verb == nil {
 		return nil, fmt.Errorf("jsverb is nil")
+	}
+	hotReloadSettings, err := decodeServeHotReloadSettings(parsedValues)
+	if err != nil {
+		return nil, err
+	}
+	if hotReloadSettings.Enabled {
+		return serveVerbHotReload(ctx, commandCtx, registry, verb, parsedValues, hotReloadSettings)
 	}
 	rt, err := commandCtx.RuntimeFactory.NewRuntimeFromSections(ctx, parsedValues, require.WithLoader(registry.RequireLoader()))
 	if err != nil {
@@ -112,6 +120,231 @@ func serveVerb(ctx context.Context, commandCtx providerapi.CommandSetContext, re
 
 	fmt.Fprintln(os.Stderr, "xgoja http serve: runtime is alive; press Ctrl-C to stop")
 	return nil, waitForServeShutdown(ctx)
+}
+
+func serveVerbHotReload(ctx context.Context, commandCtx providerapi.CommandSetContext, registry *jsverbs.Registry, verb *jsverbs.VerbSpec, parsedValues *values.Values, hotReloadSettings serveHotReloadSettings) (interface{}, error) {
+	factory, ok := commandCtx.RuntimeFactory.(providerapi.RuntimeFactoryWithHostServices)
+	if !ok || factory == nil {
+		return nil, fmt.Errorf("http serve hot reload requires runtime factory with per-runtime host services")
+	}
+	httpSettings, err := decodeHTTPServeSettings(parsedValues)
+	if err != nil {
+		return nil, err
+	}
+	if !httpSettings.Enabled {
+		return nil, fmt.Errorf("http serve hot reload requires http.enabled=true")
+	}
+	poll, err := parseServeHotReloadDuration("hot-reload-poll", hotReloadSettings.Poll)
+	if err != nil {
+		return nil, err
+	}
+	debounce, err := parseServeHotReloadDuration("hot-reload-debounce", hotReloadSettings.Debounce)
+	if err != nil {
+		return nil, err
+	}
+	closeGrace, err := parseServeHotReloadDuration("hot-reload-close-grace", hotReloadSettings.CloseGrace)
+	if err != nil {
+		return nil, err
+	}
+
+	verbPath := verb.FullPath()
+	manager, err := hotreload.NewManager(hotreload.Options{
+		CloseGrace: closeGrace,
+		Load: func(ctx context.Context, candidate hotreload.Candidate) (hotreload.Runtime, error) {
+			activeRegistry, activeVerb, err := resolveServeHotReloadVerb(commandCtx.JSVerbs, registry, verb, verbPath)
+			if err != nil {
+				return nil, err
+			}
+			services := app.HostServices{}
+			if err := services.SetHostService(HostServiceKey, ExternalHostService{Host: candidate.Host, OwnsListen: false}); err != nil {
+				return nil, err
+			}
+			rt, err := factory.NewRuntimeFromSectionsWithHostServices(ctx, parsedValues, services, require.WithLoader(activeRegistry.RequireLoader()))
+			if err != nil {
+				return nil, err
+			}
+			if len(commandCtx.SelectedModules) > 0 {
+				if err := providerutil.InitRuntimeFromSections(ctx, parsedValues, runtimeHandle{rt: rt}, commandCtx.SelectedModules); err != nil {
+					_ = rt.Close(ctx)
+					return nil, err
+				}
+			}
+			if _, err := activeRegistry.InvokeInRuntime(ctx, rt, activeVerb, parsedValues); err != nil {
+				_ = rt.Close(ctx)
+				return nil, err
+			}
+			return rt, nil
+		},
+		Smoke: serveHotReloadSmoke(hotReloadSettings.SmokePath),
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = manager.Close(context.Background()) }()
+
+	if _, err := manager.Reload(ctx); err != nil {
+		return nil, fmt.Errorf("initial hot reload: %w", err)
+	}
+	listener, err := net.Listen("tcp", httpSettings.Listen)
+	if err != nil {
+		return nil, fmt.Errorf("listen on %s: %w", httpSettings.Listen, err)
+	}
+
+	serveCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	watchRoots := hotReloadSettings.WatchRoots
+	if len(watchRoots) == 0 {
+		watchRoots = defaultServeHotReloadWatchRoots(commandCtx.JSVerbs)
+	}
+	if len(watchRoots) > 0 {
+		go func() {
+			err := manager.Watch(serveCtx, hotreload.WatchOptions{
+				Roots:        watchRoots,
+				Extensions:   hotReloadSettings.WatchExts,
+				PollInterval: poll,
+				Debounce:     debounce,
+				OnReload: func(snapshot *hotreload.Snapshot) {
+					fmt.Fprintf(os.Stderr, "xgoja http serve: hot reloaded version %d (%d routes)\n", snapshot.Version, len(snapshot.Routes))
+				},
+				OnError: func(err error) {
+					fmt.Fprintf(os.Stderr, "xgoja http serve: hot reload failed: %v\n", err)
+				},
+			})
+			if err != nil && !errors.Is(err, context.Canceled) {
+				fmt.Fprintf(os.Stderr, "xgoja http serve: hot reload watcher stopped: %v\n", err)
+			}
+		}()
+	}
+
+	mux := stdhttp.NewServeMux()
+	statusPath := normalizeServeHotReloadStatusPath(hotReloadSettings.StatusPath)
+	if statusPath != "" {
+		mux.HandleFunc(statusPath, func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(manager.Status())
+		})
+	}
+	mux.Handle("/", manager)
+	server := &stdhttp.Server{Addr: httpSettings.Listen, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.Serve(listener)
+	}()
+
+	fmt.Fprintf(os.Stderr, "xgoja http serve: hot reload runtime is alive on %s; press Ctrl-C to stop\n", httpSettings.Listen)
+	select {
+	case err := <-serverErr:
+		if err != nil && !errors.Is(err, stdhttp.ErrServerClosed) {
+			return nil, err
+		}
+	case <-serveCtx.Done():
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func resolveServeHotReloadVerb(sources providerapi.JSVerbSourceSet, fallbackRegistry *jsverbs.Registry, fallbackVerb *jsverbs.VerbSpec, fullPath string) (*jsverbs.Registry, *jsverbs.VerbSpec, error) {
+	fullPath = strings.TrimSpace(fullPath)
+	if sources == nil {
+		return fallbackRegistry, fallbackVerb, nil
+	}
+	registries, err := sources.ScanAllJSVerbSources()
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, registry := range registries {
+		if registry == nil {
+			continue
+		}
+		if verb, ok := registry.Verb(fullPath); ok {
+			return registry, verb, nil
+		}
+	}
+	return nil, nil, fmt.Errorf("hot reload could not find jsverb %q after rescan", fullPath)
+}
+
+func serveHotReloadSmoke(path string) hotreload.SmokeFunc {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return nil
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return func(_ context.Context, snapshot *hotreload.Snapshot) error {
+		if snapshot == nil || snapshot.Host == nil {
+			return fmt.Errorf("hot reload smoke requires candidate host")
+		}
+		recorder := httptest.NewRecorder()
+		snapshot.Host.ServeHTTP(recorder, httptest.NewRequest(stdhttp.MethodGet, path, nil))
+		if recorder.Code < 200 || recorder.Code >= 300 {
+			return fmt.Errorf("hot reload smoke GET %s status=%d body=%s", path, recorder.Code, recorder.Body.String())
+		}
+		return nil
+	}
+}
+
+func decodeHTTPServeSettings(vals *values.Values) (settings, error) {
+	cfg := settings{Enabled: true, Listen: "127.0.0.1:8787"}
+	if vals != nil {
+		if err := vals.DecodeSectionInto("http", &cfg); err != nil {
+			return settings{}, err
+		}
+	}
+	return normalizeSettings(cfg), nil
+}
+
+func parseServeHotReloadDuration(name, raw string) (time.Duration, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("parse %s %q: %w", name, raw, err)
+	}
+	if d < 0 {
+		return 0, fmt.Errorf("%s must not be negative", name)
+	}
+	return d, nil
+}
+
+func defaultServeHotReloadWatchRoots(sources providerapi.JSVerbSourceSet) []string {
+	if sources == nil {
+		return nil
+	}
+	out := []string{}
+	seen := map[string]struct{}{}
+	for _, source := range sources.ListJSVerbSources() {
+		path := strings.TrimSpace(source.Path)
+		if path == "" || source.Embed || source.Package != "" || source.Source != "" {
+			continue
+		}
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		out = append(out, path)
+	}
+	return out
+}
+
+func normalizeServeHotReloadStatusPath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return path
 }
 
 func serveHotReloadSection() (schema.Section, error) {

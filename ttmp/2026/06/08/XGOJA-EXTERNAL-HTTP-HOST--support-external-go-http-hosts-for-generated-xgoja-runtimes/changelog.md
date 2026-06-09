@@ -144,3 +144,15 @@ Step 10: added HTTP serve hot reload command flags
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/reference/01-investigation-diary.md — Step 10 diary entry
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/tasks.md — Phase 3 tasks checked
 
+
+## 2026-06-08
+
+Step 11: implemented xgoja HTTP serve hot reload execution path
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providers/http/serve.go — serve --hot-reload manager/server/watch/smoke implementation
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providers/http/serve_test.go — Provider-level hot reload serve/status/reload/last-known-good test
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/reference/01-investigation-diary.md — Step 11 diary entry
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/tasks.md — Phase 4 tasks checked
+
