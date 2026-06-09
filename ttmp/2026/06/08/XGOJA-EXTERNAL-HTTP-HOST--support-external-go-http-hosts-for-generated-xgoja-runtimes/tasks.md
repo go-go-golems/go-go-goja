@@ -66,8 +66,8 @@
 
 ### Phase 6: docs and final validation
 
-- [ ] Update xgoja user docs for `serve --hot-reload`.
-- [ ] Run focused tests and `go test ./...`.
-- [ ] Run `docmgr doctor`.
-- [ ] Mark all hot reload serve tasks complete.
+- [x] Update xgoja user docs for `serve --hot-reload`.
+- [x] Run focused tests and `go test ./...`.
+- [x] Run `docmgr doctor`.
+- [x] Mark all hot reload serve tasks complete.
 - [ ] Commit final docs and diary update.

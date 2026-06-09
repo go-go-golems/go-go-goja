@@ -10,6 +10,16 @@ DocType: design-doc
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/doc/02-user-guide.md
+      Note: User-facing serve --hot-reload behavior and status endpoint
+    - Path: cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md
+      Note: Tutorial mention for opt-in generated serve hot reload
+    - Path: cmd/xgoja/doc/06-buildspec-reference.md
+      Note: Buildspec reference note for generated serve hot reload flags
+    - Path: cmd/xgoja/doc/12-tutorial-http-serve-jsverbs.md
+      Note: Full generated HTTP serve tutorial hot reload section
+    - Path: examples/xgoja/13-http-serve-jsverbs/README.md
+      Note: Runnable example README hot reload usage
     - Path: go-go-goja/pkg/xgoja/app/factory.go
       Note: Runtime factory needs per-runtime host service injection
     - Path: go-go-goja/pkg/xgoja/hotreload/manager.go
@@ -26,6 +36,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # HTTP Serve Hot Reload Implementation Guide

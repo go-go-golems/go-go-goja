@@ -38,3 +38,20 @@ Then open:
 - <http://127.0.0.1:8787/healthz>
 
 Stop the server with Ctrl-C.
+
+Development hot reload is opt-in:
+
+```bash
+./examples/xgoja/13-http-serve-jsverbs/dist/http-serve-jsverbs \
+  serve sites demo \
+  --http-listen 127.0.0.1:8787 \
+  --hot-reload \
+  --hot-reload-watch-root examples/xgoja/13-http-serve-jsverbs/verbs \
+  --hot-reload-smoke-path /healthz
+```
+
+While hot reload is enabled, xgoja keeps one Go HTTP listener alive, reloads the
+JavaScript runtime from watched source files, swaps successful candidates live,
+and keeps serving the last-known-good runtime after broken edits. Inspect
+`http://127.0.0.1:8787/__xgoja/status` for the active version, route list, and
+latest reload error.

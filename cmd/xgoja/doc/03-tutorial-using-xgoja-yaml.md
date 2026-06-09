@@ -344,6 +344,18 @@ Run it with `--keep-alive` so the generated runtime stays alive after registerin
 
 Open `http://127.0.0.1:8787/static/`. For a complete runnable project, see `examples/xgoja/10-embedded-assets-fs` or `xgoja help tutorial-static-assets-http-server`.
 
+If the HTTP site is exposed through the HTTP provider's `serve` command provider, development builds can opt into hot reload:
+
+```bash
+./dist/fixture serve sites demo \
+  --http-listen 127.0.0.1:8787 \
+  --hot-reload \
+  --hot-reload-watch-root ./sites \
+  --hot-reload-smoke-path /healthz
+```
+
+`--hot-reload-smoke-path` is a candidate-runtime URL path that must return a 2xx response before the new runtime is swapped live. If a reload fails or the smoke path is unhealthy, xgoja keeps serving the previous good runtime and reports the error at `/__xgoja/status`.
+
 ## 11. Use provider-shipped jsverbs
 
 Provider packages can ship JS verbs next to their native Go modules.

@@ -227,7 +227,7 @@ jsverbs:
     path: verbs
 ```
 
-The resulting generated command shape is `./dist/app serve <package> <verb> --http-listen 127.0.0.1:8787`. The selected verb registers Express routes and the provider-backed command keeps the runtime alive. See `examples/xgoja/13-http-serve-jsverbs` and `xgoja help tutorial-http-serve-jsverbs`.
+The resulting generated command shape is `./dist/app serve <package> <verb> --http-listen 127.0.0.1:8787`. The selected verb registers Express routes and the provider-backed command keeps the runtime alive. Development builds can add `--hot-reload` plus optional `--hot-reload-watch-root` and `--hot-reload-smoke-path` flags to reload runtime filesystem jsverb sources with last-known-good fallback. See `examples/xgoja/13-http-serve-jsverbs` and `xgoja help tutorial-http-serve-jsverbs`.
 
 Generated binaries can opt into Glazed-style environment variable parsing with `appName` or `envPrefix`:
 

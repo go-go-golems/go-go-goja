@@ -1121,7 +1121,7 @@ The same test also writes a broken JavaScript edit and verifies last-known-good 
 
 **Inferred user intent:** Prove the feature works from the actual generated xgoja binary UX, not just internal provider tests.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** 3613e2d — "Test generated xgoja serve hot reload"
 
 ### What I did
 
@@ -1203,4 +1203,107 @@ Results:
 ```text
 ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	4.206s
 ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	31.136s
+```
+
+## Step 13: Document final generated serve hot reload behavior
+
+I documented the final `serve --hot-reload` user experience after the generated-binary integration test passed. The docs now explain the opt-in command shape, the blue/green/last-known-good behavior, the smoke path, default status endpoint, watch-root defaults, and the distinction between runtime filesystem jsverb sources and embedded/provider-shipped sources.
+
+This step closes the implementation loop by moving the feature from internal tests into the user-facing xgoja guide, YAML tutorial, buildspec reference, HTTP serve jsverbs tutorial, and runnable example README.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 11)
+
+**Assistant interpretation:** Continue by completing the final documentation and validation phase for generated `serve --hot-reload`.
+
+**Inferred user intent:** Make the implemented feature discoverable and reviewable, then validate the whole ticket before final commit.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Updated `cmd/xgoja/doc/02-user-guide.md` with the hot reload command shape, status endpoint, smoke path, and last-known-good fallback.
+- Updated `cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md` with a short hot reload example in the HTTP section.
+- Updated `cmd/xgoja/doc/06-buildspec-reference.md` to mention generated HTTP serve hot reload flags near `command_providers`.
+- Expanded `cmd/xgoja/doc/12-tutorial-http-serve-jsverbs.md` with a dedicated hot reload section, flag metadata, and troubleshooting rows.
+- Updated `examples/xgoja/13-http-serve-jsverbs/README.md` with a runnable hot reload command and status endpoint guidance.
+- Related the documentation files to the hot reload design doc with `docmgr doc relate`.
+- Ran focused, full, and ticket validation:
+  - `go test ./cmd/xgoja/internal/generate ./pkg/xgoja/providers/http ./pkg/xgoja/hotreload ./pkg/xgoja/app ./pkg/gojahttp -count=1`
+  - `go test ./...`
+  - `docmgr --root ttmp doctor --ticket XGOJA-EXTERNAL-HTTP-HOST --stale-after 30`
+
+### Why
+
+- The feature is intentionally opt-in and has several development-oriented flags; users need examples that explain when and why to use them.
+- The status endpoint and smoke path are important operational concepts, not just implementation details.
+- Final docs should align the buildspec reference, tutorial, and runnable example before the implementation series is considered complete.
+
+### What worked
+
+- The existing HTTP serve tutorial was the right place for the full explanation because it already introduces provider-backed `serve` commands.
+- The shorter user guide and YAML tutorial sections can link conceptually to that fuller tutorial without duplicating every flag.
+- Focused tests, `go test ./...`, and `docmgr doctor` passed after the documentation edits.
+
+### What didn't work
+
+- N/A. The documentation edits and validation passed without new code failures.
+
+### What I learned
+
+- The most important user distinction is source watchability: runtime filesystem jsverb sources can be watched directly, while embedded and provider-shipped sources usually need explicit external watch roots or rebuild flows.
+- The default `/__xgoja/status` endpoint is useful enough to document prominently because it explains last-known-good behavior during broken edits.
+
+### What was tricky to build
+
+- The docs must avoid implying that hot reload works for every source mode automatically. The implementation defaults watch roots from non-embedded runtime filesystem jsverb paths only.
+- The `--hot-reload-status-path ""` disabling example depends on shell quoting, so it is documented tersely rather than overemphasized.
+
+### What warrants a second pair of eyes
+
+- Whether the docs should include a full option table for every hot reload flag or keep that discoverable through generated command help.
+- Whether the example README should grow a dedicated smoke target for hot reload in addition to the existing non-hot smoke target.
+
+### What should be done in the future
+
+- Consider adding a `make smoke-hot-reload` target to `examples/xgoja/13-http-serve-jsverbs` if reviewers want manual example validation beyond generated integration tests.
+- Consider documenting route shadowing implications if the default status endpoint conflicts with a JavaScript route in real projects.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/doc/12-tutorial-http-serve-jsverbs.md` for the complete user-facing behavior.
+- Skim `cmd/xgoja/doc/02-user-guide.md`, `cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md`, and `cmd/xgoja/doc/06-buildspec-reference.md` for consistency.
+- Review `examples/xgoja/13-http-serve-jsverbs/README.md` for copy/paste correctness.
+- Validate with:
+  - `go test ./cmd/xgoja/internal/generate ./pkg/xgoja/providers/http ./pkg/xgoja/hotreload ./pkg/xgoja/app ./pkg/gojahttp -count=1`
+  - `go test ./...`
+  - `docmgr --root ttmp doctor --ticket XGOJA-EXTERNAL-HTTP-HOST --stale-after 30`
+
+### Technical details
+
+Validation commands:
+
+```bash
+cd go-go-goja && go test ./cmd/xgoja/internal/generate ./pkg/xgoja/providers/http ./pkg/xgoja/hotreload ./pkg/xgoja/app ./pkg/gojahttp -count=1
+cd go-go-goja && go test ./...
+cd go-go-goja && docmgr --root ttmp doctor --ticket XGOJA-EXTERNAL-HTTP-HOST --stale-after 30
+```
+
+Results:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	25.066s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.298s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hotreload	0.087s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.152s
+ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp	0.005s
+...
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	31.800s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	(cached)
+## Doctor Report (1 findings)
+
+### XGOJA-EXTERNAL-HTTP-HOST
+
+- ✅ All checks passed
 ```
