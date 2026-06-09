@@ -837,7 +837,7 @@ This is the key bridge between generated-binary commands and the external host p
 
 **Inferred user intent:** Make generated xgoja `serve` capable of using the same candidate-host injection mechanism as the custom Go hot-reload host.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** fc17b11 — "Allow per-runtime xgoja host services"
 
 ### What I did
 
