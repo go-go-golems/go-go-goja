@@ -750,7 +750,7 @@ The key design finding is that generated-binary `serve` cannot inject a candidat
 
 **Inferred user intent:** Make hot reload available to normal generated xgoja binaries through configuration, not only through the custom minitrace-viz Go host.
 
-**Commit (code):** Pending — planning docs will be committed before implementation begins.
+**Commit (code):** 2c17f6c — "Design xgoja serve hot reload"
 
 ### What I did
 
