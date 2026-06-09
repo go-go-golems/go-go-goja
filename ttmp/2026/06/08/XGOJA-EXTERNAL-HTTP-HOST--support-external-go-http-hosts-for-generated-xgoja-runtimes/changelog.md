@@ -64,3 +64,17 @@ Step 4: added HTTP provider external gojahttp host mode
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/reference/01-investigation-diary.md — Step 4 diary entry
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/tasks.md — HTTP provider tasks checked
 
+
+## 2026-06-08
+
+Step 5: added gojahttp route introspection
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/gojahttp/host.go — Host.Routes delegation
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/gojahttp/route_registry.go — RouteDescriptor and Registry.Routes
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/gojahttp/route_registry_test.go — Copy-safe route descriptor tests
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providers/http/http_test.go — External host route descriptor assertion
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/reference/01-investigation-diary.md — Step 5 diary entry
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/tasks.md — Route introspection and focused tests checked
+

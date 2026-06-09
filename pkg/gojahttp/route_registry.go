@@ -13,6 +13,11 @@ type Route struct {
 	Handler goja.Callable
 }
 
+type RouteDescriptor struct {
+	Method  string `json:"method"`
+	Pattern string `json:"pattern"`
+}
+
 type Registry struct {
 	mu     sync.RWMutex
 	routes []Route
@@ -24,6 +29,19 @@ func (r *Registry) Add(method, pattern string, handler goja.Callable) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.routes = append(r.routes, Route{Method: strings.ToUpper(method), Pattern: cleanPath(pattern), Handler: handler})
+}
+
+func (r *Registry) Routes() []RouteDescriptor {
+	if r == nil {
+		return nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]RouteDescriptor, 0, len(r.routes))
+	for _, route := range r.routes {
+		out = append(out, RouteDescriptor{Method: route.Method, Pattern: route.Pattern})
+	}
+	return out
 }
 
 func (r *Registry) Match(method, path string) (Route, map[string]string, bool) {

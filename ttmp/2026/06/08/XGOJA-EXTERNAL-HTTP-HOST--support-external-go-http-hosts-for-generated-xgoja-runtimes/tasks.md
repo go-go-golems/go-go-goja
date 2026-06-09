@@ -17,7 +17,7 @@
 - [x] Add HTTP provider `HostServiceKey` and `ExternalHostService` payload.
 - [x] Make the HTTP provider consume external host services from `ModuleSetupContext.Host`.
 - [x] Ensure external no-listen mode does not bind a TCP listener.
-- [ ] Add `gojahttp` route introspection for registry/host route descriptors.
-- [ ] Add focused app/provider/gojahttp tests.
+- [x] Add `gojahttp` route introspection for registry/host route descriptors.
+- [x] Add focused app/provider/gojahttp tests.
 - [x] Add generated package smoke coverage for service injection.
 - [ ] Prototype RuntimeManager behavior app-locally before extracting generic runtime-manager APIs.

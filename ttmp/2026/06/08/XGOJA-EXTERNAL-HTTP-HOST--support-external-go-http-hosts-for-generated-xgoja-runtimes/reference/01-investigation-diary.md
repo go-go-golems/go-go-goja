@@ -433,3 +433,88 @@ Result:
 ```text
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.021s
 ```
+
+## Step 5: Add gojahttp route introspection
+
+I added copy-safe route introspection to `gojahttp.Registry` and `gojahttp.Host`. This gives tests and future RuntimeManager status endpoints a way to list JavaScript-registered routes without exposing Goja callables or mutable registry internals.
+
+I also connected the new introspection surface to the external-host provider test so it proves not only that requests are served, but also that Express route registration populated the externally supplied host's route registry.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue the implementation phases by adding route metadata needed for validation and future runtime-manager status/debug surfaces.
+
+**Inferred user intent:** Keep implementation progressing through the checklist while preserving small, reviewable commits.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Added `RouteDescriptor{Method, Pattern}` to `pkg/gojahttp/route_registry.go`.
+- Added `(*Registry).Routes() []RouteDescriptor`, returning normalized method/pattern descriptors and a copy-safe slice.
+- Added `(*Host).Routes() []RouteDescriptor`, delegating to the underlying registry.
+- Added route introspection tests in `pkg/gojahttp/route_registry_test.go`.
+- Updated the HTTP provider external-host test to assert the externally supplied host lists the registered `/hello/:name` route.
+- Checked off the route introspection and focused test tasks in `tasks.md`.
+
+### Why
+
+- RuntimeManager hot reload needs status/debug evidence such as active version, last error, and route list.
+- Tests that inspect route descriptors can distinguish "route registered into the external host" from only "some request happened to return OK".
+- The descriptor type intentionally omits handlers because Goja callables should not be exposed outside the registry.
+
+### What worked
+
+- `Registry` already had a mutex, so adding a read-locked copy method was straightforward.
+- `Host.Routes()` was a tiny delegating method and works for both provider-created and externally supplied hosts.
+- Focused validation passed:
+  - `go test ./pkg/gojahttp ./pkg/xgoja/providers/http -count=1`
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Route pattern normalization happens at registration time through `cleanPath`, so route descriptors naturally report canonical patterns such as `/cards/:id`.
+- Route introspection does not need to know about request matching or params; it only needs method and pattern for the current use case.
+
+### What was tricky to build
+
+- The main correctness concern was not leaking mutable backing storage. The test mutates the returned slice and then reads routes again to prove the registry was not modified.
+- Static mounts are intentionally not included in `Routes()` yet. They are a different kind of mount and can get a separate descriptor later if runtime status needs them.
+
+### What warrants a second pair of eyes
+
+- Whether route descriptors should include registration order explicitly. The current slice order is registration order, but it is not named in the type.
+- Whether static mount descriptors should be added in the same API family before RuntimeManager status work begins.
+
+### What should be done in the future
+
+- Use `Host.Routes()` in RuntimeManager candidate snapshots after successful bootstrap/smoke tests.
+- Consider adding static mount introspection if SPA/static reload status needs it.
+
+### Code review instructions
+
+- Review `pkg/gojahttp/route_registry.go` for `RouteDescriptor` and copy-safe `Routes()`.
+- Review `pkg/gojahttp/host.go` for the host-level delegation.
+- Review tests in `pkg/gojahttp/route_registry_test.go` and `pkg/xgoja/providers/http/http_test.go`.
+- Validate with:
+  - `go test ./pkg/gojahttp ./pkg/xgoja/providers/http -count=1`
+
+### Technical details
+
+Focused validation command:
+
+```bash
+cd go-go-goja && gofmt -w pkg/gojahttp/route_registry.go pkg/gojahttp/host.go pkg/gojahttp/route_registry_test.go pkg/xgoja/providers/http/http_test.go && go test ./pkg/gojahttp ./pkg/xgoja/providers/http -count=1
+```
+
+Result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp	0.005s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.030s
+```

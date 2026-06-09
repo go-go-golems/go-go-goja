@@ -134,6 +134,10 @@ func TestExpressProviderRegistersIntoExternalHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("register route: %v", err)
 	}
+	routes := jsHost.Routes()
+	if len(routes) != 1 || routes[0].Method != "GET" || routes[0].Pattern != "/hello/:name" {
+		t.Fatalf("external host routes = %#v", routes)
+	}
 
 	rr := httptest.NewRecorder()
 	jsHost.ServeHTTP(rr, httptest.NewRequest(stdhttp.MethodGet, "/hello/goja", nil))

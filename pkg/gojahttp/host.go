@@ -40,6 +40,12 @@ func (h *Host) SetRuntime(owner runtimeowner.RuntimeOwner) { h.owner = owner }
 func (h *Host) Register(method, pattern string, handler goja.Callable) {
 	h.registry.Add(method, pattern, handler)
 }
+func (h *Host) Routes() []RouteDescriptor {
+	if h == nil || h.registry == nil {
+		return nil
+	}
+	return h.registry.Routes()
+}
 func (h *Host) RegisterStatic(prefix, dir string) {
 	h.RegisterStaticHandler(prefix, http.FileServer(http.Dir(dir)))
 }
