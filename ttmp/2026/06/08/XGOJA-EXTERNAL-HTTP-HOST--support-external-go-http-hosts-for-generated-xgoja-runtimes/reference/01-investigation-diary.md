@@ -252,3 +252,95 @@ Result:
 ```text
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.022s
 ```
+
+## Step 3: Wire ConfigureServices into generated package outputs
+
+I implemented the generated-code half of the service injection hook. Generated runtime packages and source-fragment bundles now expose `ConfigureServices func(*app.HostServices)` on their `Options` type and pass it through to `app.NewHostWithOptions`.
+
+This makes the Phase 2 implementation usable by actual generated-package callers instead of only handwritten `app.NewHostWithOptions` tests. A host application can now import a generated package and configure the same service bag that provider modules receive through `ModuleSetupContext.Host`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue the ticket implementation by wiring the previously added app-level service hook through generated runtime package code.
+
+**Inferred user intent:** Keep implementation increments reviewable while making sure generated-package integrations, not just internal app tests, are covered.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Added `ConfigureServices func(*app.HostServices)` to `Options` in `runtime_package.go.tmpl`.
+- Passed `opts.ConfigureServices` into `app.HostOptions` in `runtime_package.go.tmpl`.
+- Made the same `Options` and `NewBundle` updates in `bundle_fragment.go.tmpl` so source-fragment generation stays consistent.
+- Updated package rendering tests to assert the generated API includes `ConfigureServices` and passes it through.
+- Updated source-fragment rendering tests to assert `bundle.gen.go` includes the service hook.
+- Updated generated package host smoke code to compile a caller using `xgojaruntime.Options{ConfigureServices: func(*app.HostServices) { ... }}`.
+- Ran `go generate ./...` to check whether committed generated fixtures needed updates; no generated files changed.
+- Checked off the generated template and generated package smoke tasks in `tasks.md`.
+
+### Why
+
+- The external HTTP host integration target is generated-package embedding. If the hook only exists on `app.HostOptions`, generated-package users still cannot use it without custom templates.
+- Package and source-fragment outputs should expose the same host embedding API because both are meant to be imported by Go applications.
+
+### What worked
+
+- The template renderer formats generated Go with `go/format`, so adding the extra field in templates produced normal formatted output in tests.
+- The existing generated package host smoke helper was a good validation point because it builds a temporary host module, imports the generated package, and runs it with `go run`.
+- Focused validation passed:
+  - `go test ./cmd/xgoja/internal/generate -run 'TestRenderPackageExposesRuntimeBundleAPI|TestRenderSourceFragmentsSplitsRuntimePackageAPI|TestGeneratedPackageTargetBuildsAndCreatesRuntime|TestWriteSourceFragmentsBuildsAndCreatesRuntime' -count=1`
+
+### What didn't work
+
+- N/A. Running `go generate ./...` was noisy because the bun-demo Dagger generator prints engine/session logs, but it completed and did not leave unrelated generated output changes.
+
+### What I learned
+
+- `runtime_package.go.tmpl` and `bundle_fragment.go.tmpl` must be kept in sync for embedding APIs; otherwise package mode and source-fragment mode drift.
+- The existing smoke harness can validate compile-time API availability without inventing a new generated fixture provider.
+
+### What was tricky to build
+
+- The smoke test needed to import `pkg/xgoja/app` only to type the callback argument. That is intentional because generated package users will need that type to configure services.
+- The test only validates generated API plumbing, not that a specific provider consumes the service. Provider consumption belongs to the HTTP external-host phase.
+
+### What warrants a second pair of eyes
+
+- Whether generated package docs should be updated in the same implementation PR or after HTTP external-host mode lands.
+- Whether committed example generated code should be regenerated manually if future `go generate` behavior changes.
+
+### What should be done in the future
+
+- Add HTTP provider `ExternalHostService` and tests that use this generated hook for real route registration.
+- Update generated package tutorial docs once the full external-host story is implemented.
+
+### Code review instructions
+
+- Review `cmd/xgoja/internal/generate/templates/runtime_package.go.tmpl` and `bundle_fragment.go.tmpl` together.
+- Review `cmd/xgoja/internal/generate/generate_test.go` for string assertions and the generated package smoke update.
+- Validate with:
+  - `go test ./cmd/xgoja/internal/generate -run 'TestRenderPackageExposesRuntimeBundleAPI|TestRenderSourceFragmentsSplitsRuntimePackageAPI|TestGeneratedPackageTargetBuildsAndCreatesRuntime|TestWriteSourceFragmentsBuildsAndCreatesRuntime' -count=1`
+
+### Technical details
+
+Focused validation command:
+
+```bash
+cd go-go-goja && gofmt -w cmd/xgoja/internal/generate/generate_test.go && go test ./cmd/xgoja/internal/generate -run 'TestRenderPackageExposesRuntimeBundleAPI|TestRenderSourceFragmentsSplitsRuntimePackageAPI|TestGeneratedPackageTargetBuildsAndCreatesRuntime|TestWriteSourceFragmentsBuildsAndCreatesRuntime' -count=1
+```
+
+Result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	2.963s
+```
+
+Generator check:
+
+```bash
+cd go-go-goja && go generate ./...
+```
+
+The command completed and left only the intended template/test/doc changes in `git status`.

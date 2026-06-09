@@ -16,8 +16,9 @@ import (
 )
 
 type Options struct {
-	Out             io.Writer
-	MiddlewaresFunc cli.CobraMiddlewaresFunc
+	Out               io.Writer
+	MiddlewaresFunc   cli.CobraMiddlewaresFunc
+	ConfigureServices func(*app.HostServices)
 }
 
 type Bundle struct {
@@ -47,6 +48,7 @@ func NewBundle(opts Options) (*Bundle, error) {
 {{- end }}
 		Out: opts.Out,
 		MiddlewaresFunc: opts.MiddlewaresFunc,
+		ConfigureServices: opts.ConfigureServices,
 	})
 	return &Bundle{Providers: registry, RuntimeSpec: runtimeSpec, Host: host}, nil
 }

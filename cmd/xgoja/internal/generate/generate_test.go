@@ -167,6 +167,8 @@ func TestRenderPackageExposesRuntimeBundleAPI(t *testing.T) {
 		"func RegisterProviders(registry *providerapi.ProviderRegistry) error",
 		"func DecodeSpec() (*app.RuntimeSpec, error)",
 		"func NewBundle(opts Options) (*Bundle, error)",
+		"ConfigureServices func(*app.HostServices)",
+		"ConfigureServices: opts.ConfigureServices",
 		"func (b *Bundle) NewRuntime(ctx context.Context, opts ...require.Option) (*engine.Runtime, error)",
 		"func (b *Bundle) AttachDefaultCommands(root *cobra.Command)",
 		"fixture.Register(registry)",
@@ -241,11 +243,14 @@ import (
 	"fmt"
 
 	"github.com/dop251/goja"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 	"example.com/host/internal/xgojaruntime"
 )
 
 func main() {
-	bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{})
+	bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{ConfigureServices: func(services *app.HostServices) {
+		if err := services.SetHostService("host-smoke", "configured"); err != nil { panic(err) }
+	}})
 	if err != nil { panic(err) }
 	rt, err := bundle.NewRuntime(context.Background())
 	if err != nil { panic(err) }
@@ -294,8 +299,10 @@ func TestRenderSourceFragmentsSplitsRuntimePackageAPI(t *testing.T) {
 	if !strings.Contains(fragments["providers.gen.go"], `_ "github.com/lib/pq"`) {
 		t.Fatalf("providers fragment should contain extra blank import:\n%s", fragments["providers.gen.go"])
 	}
-	if !strings.Contains(fragments["bundle.gen.go"], "func NewBundle") {
-		t.Fatalf("bundle fragment should contain NewBundle:\n%s", fragments["bundle.gen.go"])
+	for _, want := range []string{"func NewBundle", "ConfigureServices func(*app.HostServices)", "ConfigureServices: opts.ConfigureServices"} {
+		if !strings.Contains(fragments["bundle.gen.go"], want) {
+			t.Fatalf("bundle fragment should contain %q:\n%s", want, fragments["bundle.gen.go"])
+		}
 	}
 }
 

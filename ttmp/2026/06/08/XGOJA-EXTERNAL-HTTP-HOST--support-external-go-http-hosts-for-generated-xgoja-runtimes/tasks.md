@@ -13,11 +13,11 @@
 
 - [x] Add `app.HostServices` helper methods for host-supplied keyed services.
 - [x] Add `ConfigureServices func(*app.HostServices)` to `app.HostOptions`.
-- [ ] Wire `ConfigureServices` into generated package and bundle-fragment templates.
+- [x] Wire `ConfigureServices` into generated package and bundle-fragment templates.
 - [ ] Add HTTP provider `HostServiceKey` and `ExternalHostService` payload.
 - [ ] Make the HTTP provider consume external host services from `ModuleSetupContext.Host`.
 - [ ] Ensure external no-listen mode does not bind a TCP listener.
 - [ ] Add `gojahttp` route introspection for registry/host route descriptors.
 - [ ] Add focused app/provider/gojahttp tests.
-- [ ] Add generated package smoke coverage for service injection.
+- [x] Add generated package smoke coverage for service injection.
 - [ ] Prototype RuntimeManager behavior app-locally before extracting generic runtime-manager APIs.
