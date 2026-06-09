@@ -116,10 +116,9 @@ func (c *capability) NewExpressLoader() require.ModuleLoader {
 		host := entry.host
 		entry.mu.Unlock()
 
-		if err := c.start(vm, entry); err != nil {
-			panic(vm.NewGoError(err))
-		}
-		express.NewLoader(host)(vm, moduleObj)
+		express.NewLoader(host, express.WithOnUse(func(vm *goja.Runtime) error {
+			return c.start(vm, entry)
+		}))(vm, moduleObj)
 	}
 }
 

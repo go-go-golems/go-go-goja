@@ -285,3 +285,89 @@ Result:
 ```text
 ok  	github.com/go-go-golems/go-go-goja/modules/fs	0.052s
 ```
+
+## Step 4: Make Express require side-effect-light
+
+I changed the xgoja HTTP provider and Express module so that `require("express")` no longer binds the configured HTTP listener. Listener startup is now deferred until the app is actually used for route/static registration or `app.listen()` is called.
+
+This keeps introspection safe while preserving the generated app pattern where `server.js` requires Express, creates an app, registers routes/static mounts, and then relies on `run --keep-alive` to keep the runtime alive.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue the runtime polish task list by addressing Express eager binding.
+
+**Inferred user intent:** Make `require("express")` safe for eval/repl/introspection and avoid port conflicts unless the script actually starts using HTTP server behavior.
+
+**Commit (code):** Pending — to be committed after this diary update.
+
+### What I did
+
+- Added `StartFunc` and `WithOnUse` to `modules/express`.
+- Added `Registrar.start(vm)` as a small helper that invokes the optional start hook.
+- Changed route registration (`get`, `post`, `put`, `patch`, `delete`, `all`) to call the start hook before registering the handler.
+- Changed static/SPAs mount helpers to call the start hook before registering static handlers.
+- Added `app.listen()` as an explicit start path.
+- Changed `pkg/xgoja/providers/http.NewExpressLoader` so module loading only constructs exports and passes the start hook into Express; it no longer calls `c.start(...)` during `require("express")`.
+- Added `TestExpressRequireDoesNotBindHTTPPort` in `pkg/xgoja/providers/http/http_test.go`.
+- Updated `tasks.md` to check off Express lifecycle and test tasks.
+
+### Why
+
+- CommonJS `require()` should be safe for introspection and should not perform network IO merely by loading a module.
+- Route/static registration is a better compatibility boundary because existing server scripts register routes immediately after creating the app.
+- An explicit `app.listen()` hook gives scripts a direct start path without importing provider internals.
+
+### What worked
+
+- The existing Express registrar option pattern made it easy to add `WithOnUse` without creating an import cycle between `modules/express` and `pkg/xgoja/providers/http`.
+- Focused tests passed:
+  - `go test ./pkg/xgoja/providers/http ./modules/express -count=1`
+
+### What didn't work
+
+- N/A for the final implementation. The design fit the existing registrar structure cleanly.
+
+### What I learned
+
+- The HTTP provider already centralizes listener state in `runtimeEntry`; the Express module only needed a start callback to defer listener binding.
+- This is a cleaner separation than having Express know about xgoja HTTP settings.
+
+### What was tricky to build
+
+- The main tricky point was preserving compatibility. Starting only on explicit `listen()` would be cleaner, but it could break existing scripts that expect route registration to be enough. Starting on first route/static registration preserves that behavior while fixing require-only introspection.
+- The test needed to prove both sides: require-only succeeds while route registration still reports an occupied port when configured to bind one.
+
+### What warrants a second pair of eyes
+
+- Whether `app.listen()` should accept a listen address override. The first implementation simply triggers the configured xgoja listener.
+- Whether static handler construction should happen before or after start. The current implementation starts first, matching route behavior.
+
+### What should be done in the future
+
+- Document the lifecycle: `require()` is pure, route/static registration autostarts when HTTP is enabled, `app.listen()` explicitly starts.
+- Consider exposing server state for diagnostics if users ask for it.
+
+### Code review instructions
+
+- Review `pkg/xgoja/providers/http/http.go` to confirm listener startup moved out of module load.
+- Review `modules/express/express.go` for the `WithOnUse` callback and the registration-time start calls.
+- Review `pkg/xgoja/providers/http/http_test.go` for the require-only port-conflict regression test.
+- Validate with:
+  - `go test ./pkg/xgoja/providers/http ./modules/express -count=1`
+
+### Technical details
+
+Focused validation command:
+
+```bash
+cd go-go-goja && gofmt -w modules/express/express.go pkg/xgoja/providers/http/http.go pkg/xgoja/providers/http/http_test.go && go test ./pkg/xgoja/providers/http ./modules/express -count=1
+```
+
+Result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.027s
+ok  	github.com/go-go-golems/go-go-goja/modules/express	0.035s
+```

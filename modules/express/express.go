@@ -16,9 +16,12 @@ import (
 
 type Option func(*Registrar)
 
+type StartFunc func(*goja.Runtime) error
+
 type Registrar struct {
-	host *gojahttp.Host
-	name string
+	host  *gojahttp.Host
+	name  string
+	onUse StartFunc
 }
 
 func NewRegistrar(host *gojahttp.Host, opts ...Option) *Registrar {
@@ -35,6 +38,14 @@ func WithName(name string) Option {
 	return func(r *Registrar) {
 		if r != nil && name != "" {
 			r.name = name
+		}
+	}
+}
+
+func WithOnUse(fn StartFunc) Option {
+	return func(r *Registrar) {
+		if r != nil {
+			r.onUse = fn
 		}
 	}
 }
@@ -127,6 +138,9 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 			if !ok {
 				return fmt.Errorf("app.%s(%q) requires a function handler", method, pattern)
 			}
+			if err := r.start(vm); err != nil {
+				return err
+			}
 			r.host.Register(strings.ToUpper(method), pattern, fn)
 			return nil
 		})
@@ -135,12 +149,18 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 		if prefix == "" || dir == "" {
 			return fmt.Errorf("app.static requires prefix and directory")
 		}
+		if err := r.start(vm); err != nil {
+			return err
+		}
 		r.host.RegisterStatic(prefix, dir)
 		return nil
 	})
 	_ = obj.Set("staticFromAssetsModule", func(prefix string, assetsModule goja.Value, root string) error {
 		if prefix == "" || root == "" {
 			return fmt.Errorf("app.staticFromAssetsModule requires prefix and root")
+		}
+		if err := r.start(vm); err != nil {
+			return err
 		}
 		handler, err := fsmod.StaticHandlerFromAssetsModule(vm, assetsModule, root)
 		if err != nil {
@@ -153,6 +173,9 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 		if prefix == "" || root == "" {
 			return fmt.Errorf("app.spaFromAssetsModule requires prefix and root")
 		}
+		if err := r.start(vm); err != nil {
+			return err
+		}
 		spaOptions := spaFromAssetsOptions(vm, options)
 		handler, err := fsmod.SPAHandlerFromAssetsModule(vm, assetsModule, root, spaOptions.Index)
 		if err != nil {
@@ -161,5 +184,13 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 		r.host.RegisterStaticHandlerWithOptions(prefix, handler, spaOptions.ExcludePrefixes)
 		return nil
 	})
+	_ = obj.Set("listen", func() error { return r.start(vm) })
 	return obj
+}
+
+func (r *Registrar) start(vm *goja.Runtime) error {
+	if r.onUse == nil {
+		return nil
+	}
+	return r.onUse(vm)
 }

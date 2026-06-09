@@ -36,3 +36,14 @@ Added fs module capability metadata for host and embedded read-only backends
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/modules/fs/fs.go — JavaScript isReadOnly and capabilities exports
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-RUNTIME-POLISH--polish-xgoja-runtime-ergonomics-for-express-fs-assets-and-module-inventory/reference/01-investigation-diary.md — Step 3 implementation diary
 
+
+## 2026-06-08
+
+Deferred Express HTTP listener binding until route/static registration or app.listen
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/modules/express/express.go — Express start hook on app use
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providers/http/http.go — HTTP provider no longer starts listener during require
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-RUNTIME-POLISH--polish-xgoja-runtime-ergonomics-for-express-fs-assets-and-module-inventory/reference/01-investigation-diary.md — Step 4 implementation diary
+

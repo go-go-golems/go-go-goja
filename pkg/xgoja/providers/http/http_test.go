@@ -95,6 +95,49 @@ func TestCapabilityAllowsExplicitHTTPDisable(t *testing.T) {
 	}
 }
 
+func TestExpressRequireDoesNotBindHTTPPort(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve listen address: %v", err)
+	}
+	defer func() { _ = listener.Close() }()
+
+	capability := newHTTPCapability()
+	factory, err := engine.NewRuntimeFactoryBuilder().WithModules(engine.NativeModuleRegistrar{ModuleName: "express", Loader: capability.NewExpressLoader()}).Build()
+	if err != nil {
+		t.Fatalf("build runtime factory: %v", err)
+	}
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	vals := httpValues(t, map[string]any{"enabled": true, "listen": listener.Addr().String()})
+	if err := capability.InitRuntimeFromSections(context.Background(), vals, testRuntimeInitializerHandle{rt: rt}); err != nil {
+		t.Fatalf("init runtime: %v", err)
+	}
+
+	_, err = rt.Owner.Call(context.Background(), "require express", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, runErr := vm.RunString(`require("express")`)
+		return nil, runErr
+	})
+	if err != nil {
+		t.Fatalf("require express should not bind occupied port: %v", err)
+	}
+
+	_, err = rt.Owner.Call(context.Background(), "register route", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, runErr := vm.RunString(`require("express").app().get("/healthz", (_req, res) => res.json({ ok: true }))`)
+		return nil, runErr
+	})
+	if err == nil {
+		t.Fatal("expected route registration to report occupied port")
+	}
+	if !strings.Contains(err.Error(), "listen on ") {
+		t.Fatalf("expected listen error after route registration, got %v", err)
+	}
+}
+
 func TestCapabilityStartReportsPortConflictsSynchronously(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -148,9 +191,13 @@ func httpValues(t *testing.T, overrides map[string]any) *values.Values {
 
 type testRuntimeInitializerHandle struct {
 	vm *goja.Runtime
+	rt *engine.Runtime
 }
 
 func (h testRuntimeInitializerHandle) EngineRuntime() *engine.Runtime {
+	if h.rt != nil {
+		return h.rt
+	}
 	return &engine.Runtime{VM: h.vm}
 }
 func (h testRuntimeInitializerHandle) Close(context.Context) error { return nil }
