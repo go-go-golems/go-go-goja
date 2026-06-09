@@ -43,3 +43,21 @@ jsverbs:
     path: ./verbs
     embed: true
 ```
+
+Embedded sources also support filters. This is useful when the embedded source root is an application directory rather than a dedicated `verbs/` directory:
+
+```yaml
+jsverbs:
+  - id: local
+    path: .
+    embed: true
+    include:
+      - site.js
+      - jsverbs/**/*.js
+    exclude:
+      - assets/**
+      - dist/**
+      - webapp/**
+```
+
+Filters are preserved in the generated runtime spec and are applied when the embedded filesystem is scanned.

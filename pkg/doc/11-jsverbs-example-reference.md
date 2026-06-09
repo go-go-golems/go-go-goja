@@ -48,6 +48,46 @@ Runtime entrypoints:
 
 The example runner uses `ScanDir(...)` plus the default `registry.Commands()` path, but the package itself is no longer limited to disk directories or to runtime-owning command wrappers.
 
+## Scan options
+
+`ScanDir(...)` and `ScanFS(...)` accept `ScanOptions`. Defaults come from `DefaultScanOptions()`:
+
+- `IncludePublicFunctions: true`
+- `Extensions: [".js", ".cjs"]`
+- `FailOnErrorDiagnostics: true`
+- no include/exclude path filters
+
+Path filters are evaluated against slash-separated paths relative to the scan root. This keeps filters stable across platforms and across disk-backed and `fs.FS` sources.
+
+Filtering order:
+
+1. compute the relative slash path, for example `site.js` or `assets/public/bundle.js`;
+2. require the file extension to match `Extensions`;
+3. if `Include` is non-empty, require the relative path to match at least one include glob;
+4. reject the file if it matches any exclude glob;
+5. read and parse only the remaining files.
+
+Extensions may be written with or without a leading dot. These are equivalent:
+
+```go
+jsverbs.ScanOptions{Extensions: []string{"js", "cjs"}}
+jsverbs.ScanOptions{Extensions: []string{".js", ".cjs"}}
+```
+
+Example: scan an application root while ignoring generated assets and build output:
+
+```go
+registry, err := jsverbs.ScanDir(".", jsverbs.ScanOptions{
+    IncludePublicFunctions: true,
+    Extensions:             []string{".js", ".cjs"},
+    FailOnErrorDiagnostics: true,
+    Include:                []string{"site.js", "jsverbs/**/*.js"},
+    Exclude:                []string{"assets/**", "dist/**", "webapp/**"},
+})
+```
+
+Use include/exclude filters when the scan root contains bundled browser assets, generated files, copied dependencies, or other JavaScript that is not intended to declare CLI verbs. Prefer a narrow scan root when possible; filters are the safety valve for application layouts where a narrow root is inconvenient.
+
 Supported function declarations:
 
 - top-level `function name(...) {}`

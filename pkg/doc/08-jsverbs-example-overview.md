@@ -36,6 +36,8 @@ Under the hood, the scanner now parses metadata literals directly from the tree-
 
 By default, public top-level functions become commands even without explicit `__verb__` metadata. Files under subdirectories become nested command groups.
 
+Library callers and generated xgoja binaries can narrow directory/`fs.FS` scans with include/exclude filters. The filters match slash-separated paths relative to the scan root and are intended for application layouts that contain both authored verb files and generated JavaScript assets. For example, an xgoja app can scan `path: .` but include only `site.js` and exclude `assets/**` or `dist/**`.
+
 ## Command shape
 
 Each discovered function is compiled into an ordinary Glazed command. Scalar parameters become Glazed fields, file-local sections become flag groups, and the JavaScript result is converted back into rows:
@@ -110,7 +112,7 @@ jsverbs-example --log-level debug --dir ./examples/jsverbs/basic list
 | --- | --- | --- |
 | A command prints nothing | A required positional argument was omitted earlier and the function returned `undefined` | Re-run with the required positional argument or inspect `--help` |
 | Relative `require()` fails | The helper file is outside the scanned directory or uses an unsupported resolution path | Keep helper files under the scanned tree and use relative imports like `./helper` |
-| A function is not listed | It is not top-level, starts with `_`, is only defined as an object method, or metadata parsing failed | Export it as a top-level function and check the scanner error output for invalid metadata |
+| A function is not listed | It is not top-level, starts with `_`, is only defined as an object method, metadata parsing failed, or scan filters excluded the file | Export it as a top-level function, check scanner errors, and verify include/exclude filters |
 | A `__verb__` block seems to be ignored | The metadata used dynamic JavaScript instead of static literals | Restrict metadata to literal objects, arrays, strings, numbers, booleans, and `null` |
 | The `fswatch` fixture says `fswatch is not defined` | The default `jsverbs-example` runtime does not install host-specific connected helpers | Run the integration test or embed `pkg/jsverbs` with a runtime that installs `jsevents.Install()` and `jsevents.FSWatchHelper(...)`; see `connected-eventemitters-developer-guide`. |
 

@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 func Validate(buildSpec *BuildSpec) *Report {
@@ -376,6 +378,7 @@ func validateJSVerbs(report *Report, buildSpec *BuildSpec, packageIDs map[string
 		} else {
 			ids[id] = struct{}{}
 		}
+		validateJSVerbFilters(report, path, source)
 		if strings.TrimSpace(source.Package) != "" || strings.TrimSpace(source.Source) != "" {
 			if strings.TrimSpace(source.Package) == "" || strings.TrimSpace(source.Source) == "" {
 				report.AddError("jsverb-provider-source", path, "provider jsverb sources require both package and source")
@@ -401,6 +404,35 @@ func validateJSVerbs(report *Report, buildSpec *BuildSpec, packageIDs map[string
 		} else {
 			report.AddOK("jsverb-path", path+".path", "runtime filesystem source")
 		}
+	}
+}
+
+func validateJSVerbFilters(report *Report, path string, source JSVerbSourceSpec) {
+	for i, pattern := range source.Include {
+		validateJSVerbGlob(report, "jsverb-include", fmt.Sprintf("%s.include[%d]", path, i), "include", pattern)
+	}
+	for i, pattern := range source.Exclude {
+		validateJSVerbGlob(report, "jsverb-exclude", fmt.Sprintf("%s.exclude[%d]", path, i), "exclude", pattern)
+	}
+	for i, ext := range source.Extensions {
+		if strings.TrimSpace(ext) == "" {
+			report.AddError("jsverb-extension", fmt.Sprintf("%s.extensions[%d]", path, i), "extension cannot be empty")
+		}
+	}
+	if len(source.Include) > 0 || len(source.Exclude) > 0 || len(source.Extensions) > 0 {
+		report.AddOK("jsverb-filters", path, "jsverb source filters declared")
+	}
+}
+
+func validateJSVerbGlob(report *Report, name string, path string, kind string, pattern string) {
+	pattern = filepath.ToSlash(strings.TrimSpace(pattern))
+	pattern = strings.TrimPrefix(pattern, "./")
+	if pattern == "" {
+		report.AddError(name, path, fmt.Sprintf("%s pattern cannot be empty", kind))
+		return
+	}
+	if !doublestar.ValidatePathPattern(pattern) {
+		report.AddError(name, path, fmt.Sprintf("invalid %s glob pattern", kind))
 	}
 }
 

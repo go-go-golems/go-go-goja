@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 	tree_sitter_javascript "github.com/tree-sitter/tree-sitter-javascript/bindings/go"
 )
@@ -18,6 +19,9 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 	options := DefaultScanOptions()
 	if len(opts) > 0 {
 		options = opts[0]
+	}
+	if err := validateScanPatterns(options); err != nil {
+		return nil, err
 	}
 
 	absRoot, err := filepath.Abs(root)
@@ -47,12 +51,17 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 			}
 			return nil
 		}
-		if !supportsExtension(filePath, options.Extensions) {
-			return nil
-		}
 		relPath, err := filepath.Rel(absRoot, filePath)
 		if err != nil {
 			return fmt.Errorf("relpath %s: %w", filePath, err)
+		}
+		relPathSlash := filepath.ToSlash(relPath)
+		matched, err := matchesScanPatterns(relPathSlash, options)
+		if err != nil {
+			return err
+		}
+		if !supportsExtension(relPathSlash, options.Extensions) || !matched {
+			return nil
 		}
 		source, err := rootHandle.ReadFile(relPath)
 		if err != nil {
@@ -60,7 +69,7 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 		}
 		inputs = append(inputs, sourceInput{
 			AbsPath:    filePath,
-			RelPath:    filepath.ToSlash(relPath),
+			RelPath:    relPathSlash,
 			ModulePath: modulePathFromRelative(relPath),
 			Source:     source,
 		})
@@ -77,6 +86,9 @@ func ScanFS(fsys fs.FS, root string, opts ...ScanOptions) (*Registry, error) {
 	options := DefaultScanOptions()
 	if len(opts) > 0 {
 		options = opts[0]
+	}
+	if err := validateScanPatterns(options); err != nil {
+		return nil, err
 	}
 	root = strings.TrimSpace(root)
 	if root == "" {
@@ -98,19 +110,24 @@ func ScanFS(fsys fs.FS, root string, opts ...ScanOptions) (*Registry, error) {
 			}
 			return nil
 		}
-		if !supportsExtension(filePath, options.Extensions) {
+		relPath, err := filepath.Rel(root, filePath)
+		if err != nil {
+			return fmt.Errorf("relpath %s: %w", filePath, err)
+		}
+		relPathSlash := filepath.ToSlash(relPath)
+		matched, err := matchesScanPatterns(relPathSlash, options)
+		if err != nil {
+			return err
+		}
+		if !supportsExtension(relPathSlash, options.Extensions) || !matched {
 			return nil
 		}
 		source, err := fs.ReadFile(fsys, filePath)
 		if err != nil {
 			return fmt.Errorf("read %s: %w", filePath, err)
 		}
-		relPath, err := filepath.Rel(root, filePath)
-		if err != nil {
-			return fmt.Errorf("relpath %s: %w", filePath, err)
-		}
 		inputs = append(inputs, sourceInput{
-			RelPath:    filepath.ToSlash(relPath),
+			RelPath:    relPathSlash,
 			ModulePath: modulePathFromRelative(relPath),
 			Source:     source,
 		})
@@ -131,6 +148,9 @@ func ScanSources(files []SourceFile, opts ...ScanOptions) (*Registry, error) {
 	options := DefaultScanOptions()
 	if len(opts) > 0 {
 		options = opts[0]
+	}
+	if err := validateScanPatterns(options); err != nil {
+		return nil, err
 	}
 
 	inputs := make([]sourceInput, 0, len(files))
@@ -195,11 +215,75 @@ func scanInputs(rootDir string, inputs []sourceInput, options ScanOptions) (*Reg
 func supportsExtension(filePath string, extensions []string) bool {
 	ext := strings.ToLower(filepath.Ext(filePath))
 	for _, candidate := range extensions {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if !strings.HasPrefix(candidate, ".") {
+			candidate = "." + candidate
+		}
 		if strings.EqualFold(ext, candidate) {
 			return true
 		}
 	}
 	return false
+}
+
+func validateScanPatterns(options ScanOptions) error {
+	if err := validateScanPatternSet("include", options.Include); err != nil {
+		return err
+	}
+	return validateScanPatternSet("exclude", options.Exclude)
+}
+
+func validateScanPatternSet(kind string, patterns []string) error {
+	for i, pattern := range patterns {
+		pattern = normalizeScanPattern(pattern)
+		if pattern == "" {
+			continue
+		}
+		if !doublestar.ValidatePathPattern(pattern) {
+			return fmt.Errorf("invalid jsverb %s glob at index %d: %q", kind, i, patterns[i])
+		}
+	}
+	return nil
+}
+
+func matchesScanPatterns(relPath string, options ScanOptions) (bool, error) {
+	relPath = filepath.ToSlash(strings.TrimPrefix(relPath, "./"))
+	if len(options.Include) > 0 {
+		matched, err := matchesAnyScanPattern(relPath, options.Include)
+		if err != nil || !matched {
+			return false, err
+		}
+	}
+	excluded, err := matchesAnyScanPattern(relPath, options.Exclude)
+	if err != nil || excluded {
+		return false, err
+	}
+	return true, nil
+}
+
+func matchesAnyScanPattern(relPath string, patterns []string) (bool, error) {
+	for _, pattern := range patterns {
+		pattern = normalizeScanPattern(pattern)
+		if pattern == "" {
+			continue
+		}
+		matched, err := doublestar.PathMatch(pattern, relPath)
+		if err != nil {
+			return false, fmt.Errorf("match jsverb glob %q against %q: %w", pattern, relPath, err)
+		}
+		if matched {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func normalizeScanPattern(pattern string) string {
+	pattern = filepath.ToSlash(strings.TrimSpace(pattern))
+	return strings.TrimPrefix(pattern, "./")
 }
 
 func shouldSkipDir(name string) bool {

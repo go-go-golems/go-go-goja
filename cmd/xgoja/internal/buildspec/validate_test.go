@@ -286,6 +286,41 @@ func TestValidateJSVerbCommandMountRejectsUnknownValue(t *testing.T) {
 	assertCheck(t, report, StatusError, "command-mount", "commands.jsverbs.mount")
 }
 
+func TestValidateJSVerbFiltersRejectEmptyPatterns(t *testing.T) {
+	buildSpec := validSpec()
+	buildSpec.JSVerbs = []JSVerbSourceSpec{{ID: "site", Path: "verbs", Include: []string{""}, Exclude: []string{"assets/**"}, Extensions: []string{" "}}}
+
+	report := Validate(buildSpec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "jsverb-include", "jsverbs[0].include[0]")
+	assertCheck(t, report, StatusError, "jsverb-extension", "jsverbs[0].extensions[0]")
+}
+
+func TestValidateJSVerbFiltersAcceptNonEmptyPatterns(t *testing.T) {
+	buildSpec := validSpec()
+	buildSpec.JSVerbs = []JSVerbSourceSpec{{ID: "site", Path: "verbs", Include: []string{"site.js"}, Exclude: []string{"assets/**"}, Extensions: []string{"js", ".cjs"}}}
+
+	report := Validate(buildSpec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusOK, "jsverb-filters", "jsverbs[0]")
+}
+
+func TestValidateJSVerbFiltersRejectMalformedGlobs(t *testing.T) {
+	buildSpec := validSpec()
+	buildSpec.JSVerbs = []JSVerbSourceSpec{{ID: "site", Path: "verbs", Include: []string{"verbs/["}, Exclude: []string{"assets/["}}}
+
+	report := Validate(buildSpec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "jsverb-include", "jsverbs[0].include[0]")
+	assertCheck(t, report, StatusError, "jsverb-exclude", "jsverbs[0].exclude[0]")
+}
+
 func assertCheck(t *testing.T, report *Report, status Status, name string, path string) {
 	t.Helper()
 	for _, check := range report.Checks {

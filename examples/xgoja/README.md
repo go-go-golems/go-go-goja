@@ -23,6 +23,34 @@ Each example directory has its own `README.md`, `Makefile`, and `xgoja.yaml`. St
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 
+## JSVerb source filters
+
+Generated xgoja binaries can mount JavaScript verbs from three source kinds:
+
+- runtime filesystem directories (`path`, `embed: false`),
+- local directories copied and embedded into the generated binary (`path`, `embed: true`),
+- provider-shipped sources (`package` + `source`).
+
+Each source can optionally declare `include`, `exclude`, and `extensions` filters. Filters match slash-separated paths relative to that source root and are applied before a file is read or parsed.
+
+```yaml
+jsverbs:
+  - id: site
+    path: .
+    include:
+      - site.js
+      - jsverbs/**/*.js
+    exclude:
+      - assets/**
+      - dist/**
+      - webapp/**
+    extensions:
+      - .js
+      - .cjs
+```
+
+Use filters when the source root also contains bundled browser assets, generated files, or other JavaScript that should not declare CLI verbs. Prefer a narrow `path` such as `./verbs` when possible; filters are most useful for application roots or provider sources that intentionally contain multiple kinds of JavaScript.
+
 ## Run all examples
 
 ```bash

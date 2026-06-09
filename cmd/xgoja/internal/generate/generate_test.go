@@ -380,7 +380,7 @@ func TestRenderEmbeddedSpecIncludesRuntimeAppSettings(t *testing.T) {
 func TestRenderMainIncludesEmbeddedVerbFS(t *testing.T) {
 	buildSpec := buildableSpec("xgoja", "", "")
 	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
-	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true}}
+	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true, Include: []string{"site.js"}, Exclude: []string{"assets/**"}, Extensions: []string{".js", ".mjs"}}}
 	got := RenderMain(buildSpec)
 	for _, want := range []string{
 		`"embed"`,
@@ -393,8 +393,18 @@ func TestRenderMainIncludesEmbeddedVerbFS(t *testing.T) {
 		}
 	}
 	embeddedSpec := RenderEmbeddedSpec(buildSpec)
-	if !strings.Contains(embeddedSpec, `"path": "xgoja_embed/jsverbs/local"`) {
-		t.Fatalf("expected embedded runtime spec to rewrite local embedded path, got:\n%s", embeddedSpec)
+	for _, want := range []string{
+		`"path": "xgoja_embed/jsverbs/local"`,
+		`"include": [`,
+		`"site.js"`,
+		`"exclude": [`,
+		`"assets/**"`,
+		`"extensions": [`,
+		`".mjs"`,
+	} {
+		if !strings.Contains(embeddedSpec, want) {
+			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, embeddedSpec)
+		}
 	}
 }
 
