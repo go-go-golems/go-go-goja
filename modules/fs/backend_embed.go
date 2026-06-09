@@ -37,6 +37,14 @@ func NewReadOnlyFSBackend(mounts ...FSMount) *ReadOnlyFSBackend {
 	return out
 }
 
+func (b *ReadOnlyFSBackend) FSCapabilities() Capabilities {
+	mounts := make([]MountInfo, 0, len(b.mounts))
+	for _, mount := range b.mounts {
+		mounts = append(mounts, MountInfo{Mount: mount.Mount, Root: mount.Root})
+	}
+	return Capabilities{Backend: "embedded", Read: true, Write: false, Embedded: true, Mounts: mounts}
+}
+
 func (b *ReadOnlyFSBackend) ReadFile(p string) ([]byte, error) {
 	fsys, subpath, ok := b.resolve(p)
 	if !ok {

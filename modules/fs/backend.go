@@ -16,6 +16,30 @@ type Backend interface {
 	RemoveAll(path string) error
 }
 
+type MountInfo struct {
+	Mount string `json:"mount"`
+	Root  string `json:"root"`
+}
+
+type Capabilities struct {
+	Backend  string      `json:"backend"`
+	Read     bool        `json:"read"`
+	Write    bool        `json:"write"`
+	Embedded bool        `json:"embedded"`
+	Mounts   []MountInfo `json:"mounts,omitempty"`
+}
+
+type CapabilityReporter interface {
+	FSCapabilities() Capabilities
+}
+
+func CapabilitiesForBackend(backend Backend) Capabilities {
+	if reporter, ok := backend.(CapabilityReporter); ok {
+		return reporter.FSCapabilities()
+	}
+	return Capabilities{Backend: "custom", Read: true, Write: true}
+}
+
 type Option func(*m)
 
 func New(opts ...Option) *m {

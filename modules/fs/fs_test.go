@@ -13,6 +13,30 @@ import (
 	gggengine "github.com/go-go-golems/go-go-goja/pkg/engine"
 )
 
+func TestHostFsCapabilities(t *testing.T) {
+	rt := newRuntime(t)
+	ret, err := rt.Owner.Call(context.Background(), "fs.capabilities", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`
+			const fs = require("fs");
+			const caps = fs.capabilities();
+			JSON.stringify({ isReadOnly: fs.isReadOnly, backend: caps.backend, read: caps.read, write: caps.write, embedded: caps.embedded });
+		`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("run capabilities: %v", err)
+	}
+	state := ret.(string)
+	for _, want := range []string{`"isReadOnly":false`, `"backend":"host"`, `"read":true`, `"write":true`, `"embedded":false`} {
+		if !strings.Contains(state, want) {
+			t.Fatalf("host capabilities missing %s: %s", want, state)
+		}
+	}
+}
+
 func TestAsyncFsSmoke(t *testing.T) {
 	dir := t.TempDir()
 	rt := newRuntime(t)

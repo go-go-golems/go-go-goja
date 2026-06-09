@@ -39,6 +39,18 @@ func (m m) TypeScriptModule() *spec.Module {
 			"  isDir: boolean;",
 			"  isFile: boolean;",
 			"}",
+			"interface FSMountInfo {",
+			"  mount: string;",
+			"  root: string;",
+			"}",
+			"interface FSCapabilities {",
+			"  backend: string;",
+			"  read: boolean;",
+			"  write: boolean;",
+			"  embedded: boolean;",
+			"  mounts?: FSMountInfo[];",
+			"}",
+			"export const isReadOnly: boolean;",
 		},
 		Functions: []spec.Function{
 			{Name: "readFile", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "encoding", Type: spec.Union(spec.String(), spec.Object()), Optional: true}}, Returns: spec.Named("Promise<string | Buffer>")},
@@ -63,8 +75,26 @@ func (m m) TypeScriptModule() *spec.Module {
 			{Name: "renameSync", Params: []spec.Param{{Name: "oldPath", Type: spec.String()}, {Name: "newPath", Type: spec.String()}}, Returns: spec.Void()},
 			{Name: "copyFileSync", Params: []spec.Param{{Name: "src", Type: spec.String()}, {Name: "dst", Type: spec.String()}}, Returns: spec.Void()},
 			{Name: "rmSync", Params: []spec.Param{{Name: "path", Type: spec.String()}, {Name: "options", Type: spec.Object(), Optional: true}}, Returns: spec.Void()},
+			{Name: "capabilities", Returns: spec.Named("FSCapabilities")},
 		},
 	}
+}
+
+func capabilitiesObject(c Capabilities) map[string]any {
+	ret := map[string]any{
+		"backend":  c.Backend,
+		"read":     c.Read,
+		"write":    c.Write,
+		"embedded": c.Embedded,
+	}
+	if len(c.Mounts) > 0 {
+		mounts := make([]map[string]any, 0, len(c.Mounts))
+		for _, mount := range c.Mounts {
+			mounts = append(mounts, map[string]any{"mount": mount.Mount, "root": mount.Root})
+		}
+		ret["mounts"] = mounts
+	}
+	return ret
 }
 
 func (m m) Doc() string {
@@ -90,9 +120,13 @@ func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	}
 
 	backend := mod.fileSystem()
+	capabilities := CapabilitiesForBackend(backend)
 	if err := exports.DefineDataProperty(backendExportKey, vm.ToValue(backend), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_FALSE); err != nil {
 		panic(vm.NewGoError(err))
 	}
+
+	modules.SetExport(exports, mod.Name(), "isReadOnly", !capabilities.Write)
+	modules.SetExport(exports, mod.Name(), "capabilities", func() map[string]any { return capabilitiesObject(capabilities) })
 
 	modules.SetExport(exports, mod.Name(), "readFile", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()

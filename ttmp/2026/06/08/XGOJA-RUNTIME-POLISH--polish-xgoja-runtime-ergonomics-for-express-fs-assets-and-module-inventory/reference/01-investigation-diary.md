@@ -197,3 +197,91 @@ Result:
 ```text
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.049s
 ```
+
+## Step 3: Add filesystem read-only capability metadata
+
+I implemented the `fs:assets` discoverability improvement by adding backend capability metadata to the filesystem module. Embedded read-only backends now report that they are read-only, while the host OS backend reports read/write capability. JavaScript code can inspect `fs.isReadOnly` and `fs.capabilities()` without attempting a write just to discover behavior.
+
+The existing mutation behavior is unchanged: embedded filesystems still reject writes, mkdirs, removes, appends, renames, and copies with read-only errors where appropriate. The new API is purely descriptive.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue the task list after selected-module inventory by making `fs:assets` advertise read-only behavior.
+
+**Inferred user intent:** Improve runtime self-discovery so generated xgoja app authors can distinguish writable host fs aliases from read-only embedded asset fs aliases.
+
+**Commit (code):** Pending — to be committed after this diary update.
+
+### What I did
+
+- Added `Capabilities`, `MountInfo`, `CapabilityReporter`, and `CapabilitiesForBackend` in `modules/fs/backend.go`.
+- Added `FSCapabilities()` to `OSBackend`, returning `{backend: "host", read: true, write: true}`.
+- Added `FSCapabilities()` to `ReadOnlyFSBackend`, returning `{backend: "embedded", read: true, write: false, embedded: true, mounts: [...]}`.
+- Exported `isReadOnly` and `capabilities()` from the JavaScript fs module in `modules/fs/fs.go`.
+- Updated TypeScript declaration metadata with `FSMountInfo`, `FSCapabilities`, `isReadOnly`, and `capabilities()`.
+- Added host and embedded fs tests:
+  - `TestHostFsCapabilities`
+  - extended `TestReadOnlyEmbeddedFsSync`
+- Updated `tasks.md` to check off fs capability metadata tasks.
+
+### Why
+
+- `fs:assets` already behaves correctly at mutation time, but users need an introspection API that says writes are impossible.
+- Keeping one fs module API is backward compatible; metadata avoids splitting read-only and writable modules into separate JavaScript APIs.
+
+### What worked
+
+- The backend abstraction was a good place to attach capability reporting because the module can derive `isReadOnly` from actual backend behavior.
+- Focused fs tests passed after normalizing the JS export shape:
+  - `go test ./modules/fs -count=1`
+
+### What didn't work
+
+- My first `capabilities()` export returned the Go `Capabilities` struct directly. In JavaScript, `JSON.stringify(fs.capabilities())` did not expose lower-camel/json-tagged fields as expected; the host test only saw `{"isReadOnly":false}`.
+- The embedded test also failed because `caps.mounts` was undefined:
+  - `TypeError: Cannot read property '0' of undefined at <eval>:12:311(112)`
+- I fixed this by converting `Capabilities` to an explicit `map[string]any` with lower-camel keys before returning it from the JS function.
+
+### What I learned
+
+- Go struct JSON tags are not the right mechanism for shaping Goja-exported JavaScript objects.
+- For JS-facing native module APIs, explicit maps or objects are safer when field casing is part of the public contract.
+
+### What was tricky to build
+
+- The main tricky point was making the capability API backend-owned without forcing every backend implementation to change. `CapabilitiesForBackend` returns custom read/write defaults when a backend does not implement `CapabilityReporter`.
+- Mount metadata needed to avoid exposing `fs.FS` internals. The public mount info only includes virtual mount and cleaned root.
+
+### What warrants a second pair of eyes
+
+- Whether the default for unknown custom backends should be `write: true` or a more conservative `write: false`.
+- Whether detailed mount metadata should include asset IDs when the backend came from xgoja assets; currently the backend only knows mount/root.
+
+### What should be done in the future
+
+- Update `pkg/doc/24-fs-module.md` with the new capability API.
+- Consider exposing backend capabilities through generated module inventory later if useful.
+
+### Code review instructions
+
+- Start with `modules/fs/backend.go` to review the public capability types.
+- Review backend implementations in `modules/fs/fs_sync.go` and `modules/fs/backend_embed.go`.
+- Review JS exports and TypeScript declaration changes in `modules/fs/fs.go`.
+- Validate with:
+  - `go test ./modules/fs -count=1`
+
+### Technical details
+
+Focused validation command:
+
+```bash
+cd go-go-goja && gofmt -w modules/fs/backend.go modules/fs/backend_embed.go modules/fs/fs.go modules/fs/fs_sync.go modules/fs/fs_test.go modules/fs/fs_embed_test.go && go test ./modules/fs -count=1
+```
+
+Result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/modules/fs	0.052s
+```

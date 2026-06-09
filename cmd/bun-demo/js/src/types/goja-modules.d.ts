@@ -54,6 +54,7 @@ declare module "exec" {
 declare module "fs" {
   export function appendFile(path: string, data: string | Buffer | Uint8Array | DataView, encoding?: string | {  }): Promise<void>;
   export function appendFileSync(path: string, data: string | Buffer | Uint8Array | DataView, encoding?: string | {  }): void;
+  export function capabilities(): FSCapabilities;
   export function copyFile(src: string, dst: string): Promise<void>;
   export function copyFileSync(src: string, dst: string): void;
   export function exists(path: string): Promise<boolean>;
@@ -82,6 +83,18 @@ declare module "fs" {
   isDir: boolean;
   isFile: boolean;
   }
+  interface FSMountInfo {
+  mount: string;
+  root: string;
+  }
+  interface FSCapabilities {
+  backend: string;
+  read: boolean;
+  write: boolean;
+  embedded: boolean;
+  mounts?: FSMountInfo[];
+  }
+  export const isReadOnly: boolean;
 }
 
 declare module "node:crypto" {
@@ -114,6 +127,7 @@ declare module "node:events" {
 declare module "node:fs" {
   export function appendFile(path: string, data: string | Buffer | Uint8Array | DataView, encoding?: string | {  }): Promise<void>;
   export function appendFileSync(path: string, data: string | Buffer | Uint8Array | DataView, encoding?: string | {  }): void;
+  export function capabilities(): FSCapabilities;
   export function copyFile(src: string, dst: string): Promise<void>;
   export function copyFileSync(src: string, dst: string): void;
   export function exists(path: string): Promise<boolean>;
@@ -142,6 +156,18 @@ declare module "node:fs" {
   isDir: boolean;
   isFile: boolean;
   }
+  interface FSMountInfo {
+  mount: string;
+  root: string;
+  }
+  interface FSCapabilities {
+  backend: string;
+  read: boolean;
+  write: boolean;
+  embedded: boolean;
+  mounts?: FSMountInfo[];
+  }
+  export const isReadOnly: boolean;
 }
 
 declare module "node:os" {
