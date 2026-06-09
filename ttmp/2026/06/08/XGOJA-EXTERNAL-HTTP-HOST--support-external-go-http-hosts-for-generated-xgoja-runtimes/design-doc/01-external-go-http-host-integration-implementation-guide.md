@@ -82,8 +82,9 @@ The core non-invasive `go-go-goja` implementation is now complete through route 
 - `pkg/xgoja/providers/http` exposes `HostServiceKey` and `ExternalHostService{Host *gojahttp.Host, OwnsListen bool}`.
 - The HTTP provider consumes an injected external host from `ModuleSetupContext.Host`; when `OwnsListen` is false, route registration does not bind a provider TCP listener.
 - `gojahttp.Registry` and `gojahttp.Host` expose copy-safe `Routes() []RouteDescriptor` introspection.
+- `pkg/xgoja/hotreload` provides the first blue/green runtime manager: it builds fresh candidate hosts, delegates runtime/bootstrap construction to the embedding app, smoke-tests candidates, atomically swaps successful snapshots, keeps the last-known-good runtime on failures, exposes status/route metadata, and can poll watched files with debounce.
 
-The generic/app-local RuntimeManager proof remains deliberately deferred. The design still recommends proving reload policy in a real application before extracting a reusable manager API into `go-go-goja`.
+The remaining application work is wiring `hotreload.Manager` into a concrete host such as `ClubMedMeetup/minitrace-viz`: generate/import an xgoja package, inject `httpprovider.ExternalHostService{Host: candidate.Host, OwnsListen: false}` inside the manager load callback, bootstrap `server.js`, choose watch roots, and mount the manager on the Go-owned mux.
 
 ---
 

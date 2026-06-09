@@ -20,4 +20,4 @@
 - [x] Add `gojahttp` route introspection for registry/host route descriptors.
 - [x] Add focused app/provider/gojahttp tests.
 - [x] Add generated package smoke coverage for service injection.
-- [ ] Prototype RuntimeManager behavior app-locally before extracting generic runtime-manager APIs.
+- [x] Prototype RuntimeManager behavior with blue/green reload, last-known-good fallback, status, and polling watcher.

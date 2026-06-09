@@ -455,6 +455,8 @@ The generated package exposes `NewBundle`, `NewRuntime`, `NewRuntimeFromSections
 
 Package generation writes source into the existing module and does not create `go.mod`, write `main.go`, run `go mod tidy`, or compile a binary. See `examples/xgoja/14-generated-runtime-package` and `xgoja help tutorial-generated-runtime-package`.
 
+For hot reload in embedding applications, use `pkg/xgoja/hotreload` as a blue/green manager: its reload callback builds a fresh generated runtime bundle around a fresh `gojahttp.Host`, bootstraps JavaScript routes, smoke-tests the candidate, and swaps it into service only on success. Broken reloads keep serving the previous runtime.
+
 ## JavaScript verb sources
 
 `jsverbs` supports three distinct source modes.

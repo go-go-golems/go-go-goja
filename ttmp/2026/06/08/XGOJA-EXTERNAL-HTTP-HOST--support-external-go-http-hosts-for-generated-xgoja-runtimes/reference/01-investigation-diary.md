@@ -602,3 +602,136 @@ Result:
 
 - ✅ All checks passed
 ```
+
+## Step 7: Add blue/green hot reload manager
+
+I added the first hot-reload manager implementation in `pkg/xgoja/hotreload`. The manager follows a blue/green model: every reload gets a fresh `gojahttp.Host`, the embedding app builds and bootstraps a candidate runtime against that host, an optional smoke test validates it, and only then does the manager atomically swap the candidate into service.
+
+This gives us the hot reload behavior we wanted from the external-host work. Broken reloads preserve the previous active runtime, status exposes the active version/error/routes, retired runtimes close after an optional grace period, and a polling watcher can trigger reloads from JavaScript file changes without adding a new fsnotify dependency.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Implement the hot reload RuntimeManager described in the previous response, now that the external host provider path and route introspection prerequisites exist.
+
+**Inferred user intent:** Move from external host plumbing to actual developer-facing hot reload behavior.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Added `pkg/xgoja/hotreload/doc.go` with package-level guidance for generated-package hosts.
+- Added `pkg/xgoja/hotreload/manager.go`:
+  - `Manager`, `Options`, `Candidate`, `Snapshot`, and `Status`.
+  - `Reload(ctx)` builds a fresh candidate host and delegates runtime/bootstrap construction to `LoadFunc`.
+  - Optional `SmokeFunc` validates candidates before swap.
+  - Failed reloads record `LastError` and keep serving the previous active snapshot.
+  - Successful reloads atomically swap the active snapshot and asynchronously close the retired runtime after `CloseGrace`.
+  - `ServeHTTP`, `Active`, `Status`, and `Close` expose the app-facing runtime host behavior.
+- Added `pkg/xgoja/hotreload/watch.go`:
+  - polling watch roots,
+  - extension filtering,
+  - default ignored dirs for `.git`, `.bin`, `dist`, and `node_modules`,
+  - debounce,
+  - reload/error callbacks.
+- Added tests for:
+  - successful reload serving version 1,
+  - broken reload keeping last-known-good version 1,
+  - later successful reload swapping to version 2,
+  - candidate smoke failure closing the candidate runtime,
+  - file watcher triggering reload after a `.js` file change.
+- Updated `cmd/xgoja/doc/02-user-guide.md` to mention `pkg/xgoja/hotreload` for embedding apps.
+- Updated the external host design guide implementation status.
+- Checked the RuntimeManager task in `tasks.md`.
+
+### Why
+
+- JavaScript route callables are tied to a specific Goja runtime, so mutating a live host in place is unsafe for hot reload.
+- Building a fresh runtime/host pair and swapping only after bootstrap/smoke success gives last-known-good semantics.
+- Keeping the manager callback-based avoids coupling the package to any one generated runtime package; the embedding app decides how to call `xgojaruntime.NewBundle`, inject `httpprovider.ExternalHostService`, and bootstrap route registration.
+
+### What worked
+
+- `gojahttp.Host.Routes()` from Step 5 fit directly into `Snapshot` and `Status`.
+- The manager does not need to import generated code or the HTTP provider; it only hands the fresh candidate host to app code.
+- Focused validation passed:
+  - `go test ./pkg/xgoja/hotreload ./pkg/xgoja/app ./pkg/xgoja/providers/http ./pkg/gojahttp ./modules/express -count=1`
+- Ticket validation passed:
+  - `docmgr --root ttmp doctor --ticket XGOJA-EXTERNAL-HTTP-HOST --stale-after 30`
+
+### What didn't work
+
+- Initial watcher test attempt timed out because the test wrote the watched file immediately after starting the watch goroutine. The watcher took its initial snapshot after the write, so there was no observed state transition.
+
+Exact failure:
+
+```text
+--- FAIL: TestWatchReloadsAfterFileChange (2.00s)
+    watch_test.go:67: timed out waiting for reload
+FAIL
+FAIL	github.com/go-go-golems/go-go-goja/pkg/xgoja/hotreload	2.015s
+FAIL
+```
+
+I fixed the test by adding a short sleep after starting the watcher so it can capture the initial state before the file mutation.
+
+### What I learned
+
+- For a dependency-free watcher, polling plus debounce is enough for the first app-local/prototype hot reload path and keeps the API portable.
+- The manager should remain callback-driven: generated runtime package names, bootstrap scripts, smoke tests, URL prefixes, and watch roots are app-specific.
+
+### What was tricky to build
+
+- The manager must not close the old runtime until after the active pointer is swapped. Closing before swap could create a window where old requests fail and no new runtime is active.
+- Retired runtime close is asynchronous so reload does not block on graceful shutdown. `Close(ctx)` remains synchronous for final app shutdown.
+- Watch tests are inherently timing-sensitive; the test now explicitly allows the initial scan to happen before writing the changed file.
+
+### What warrants a second pair of eyes
+
+- Whether `pkg/xgoja/hotreload` should live in `go-go-goja` as the reusable core or be copied into the first consuming application and extracted later. I placed it in `go-go-goja` because the user explicitly wanted hot reload now and the package is intentionally callback-based.
+- Whether `Watch` should eventually move to `fsnotify` for lower latency and fewer polling edge cases.
+- Whether static mount introspection should join route introspection in `Status` before wiring this into a real minitrace-viz host.
+
+### What should be done in the future
+
+- Wire `hotreload.Manager` into `ClubMedMeetup/minitrace-viz` with generated package output.
+- Add an app smoke test that bootstraps `server.js`, checks `/api/widget/health`, breaks a JS file, and verifies last-known-good behavior.
+- Consider an explicit `StatusHandler` helper once the app status endpoint shape is known.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/hotreload/manager.go` for reload/swap/close semantics.
+- Review `pkg/xgoja/hotreload/watch.go` for polling/debounce behavior and ignored directory defaults.
+- Review `pkg/xgoja/hotreload/*_test.go` for last-known-good and watcher validation.
+- Review the generated-package hot reload paragraph in `cmd/xgoja/doc/02-user-guide.md`.
+- Validate with:
+  - `go test ./pkg/xgoja/hotreload ./pkg/xgoja/app ./pkg/xgoja/providers/http ./pkg/gojahttp ./modules/express -count=1`
+
+### Technical details
+
+Focused validation command:
+
+```bash
+cd go-go-goja && go test ./pkg/xgoja/hotreload ./pkg/xgoja/app ./pkg/xgoja/providers/http ./pkg/gojahttp ./modules/express -count=1
+```
+
+Result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hotreload	0.076s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.157s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.046s
+ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp	0.004s
+ok  	github.com/go-go-golems/go-go-goja/modules/express	0.039s
+```
+
+Ticket validation:
+
+```text
+## Doctor Report (1 findings)
+
+### XGOJA-EXTERNAL-HTTP-HOST
+
+- ✅ All checks passed
+```
