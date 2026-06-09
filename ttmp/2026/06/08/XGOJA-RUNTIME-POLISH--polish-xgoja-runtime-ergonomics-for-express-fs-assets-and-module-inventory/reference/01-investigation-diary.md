@@ -17,7 +17,7 @@ RelatedFiles:
         Initial runtime polish implementation guide
 ExternalSources: []
 Summary: Chronological diary for the runtime ergonomics polish ticket.
-LastUpdated: 2026-06-08T23:50:00-04:00
+LastUpdated: 2026-06-09T00:20:00-04:00
 WhatFor: Use this diary when implementing the smaller go-go-goja runtime polish items.
 WhenToUse: Read before resuming work on Express lazy startup, fs:assets capability metadata, or selected module inventory.
 ---
@@ -129,7 +129,7 @@ This matters because xgoja lets one provider module be selected multiple times u
 
 **Inferred user intent:** Make generated xgoja runtimes easier to inspect and ensure module inventory output supports structured output such as `--output json`.
 
-**Commit (code):** Pending — to be committed after this diary update.
+**Commit (code):** `dc1b74f` — `Add selected xgoja module inventory`
 
 ### What I did
 
@@ -212,7 +212,7 @@ The existing mutation behavior is unchanged: embedded filesystems still reject w
 
 **Inferred user intent:** Improve runtime self-discovery so generated xgoja app authors can distinguish writable host fs aliases from read-only embedded asset fs aliases.
 
-**Commit (code):** Pending — to be committed after this diary update.
+**Commit (code):** `ef2fb81` — `Expose fs backend capabilities`
 
 ### What I did
 
@@ -300,7 +300,7 @@ This keeps introspection safe while preserving the generated app pattern where `
 
 **Inferred user intent:** Make `require("express")` safe for eval/repl/introspection and avoid port conflicts unless the script actually starts using HTTP server behavior.
 
-**Commit (code):** Pending — to be committed after this diary update.
+**Commit (code):** `f16430e` — `Defer Express HTTP listener binding`
 
 ### What I did
 
@@ -370,4 +370,76 @@ Result:
 ```text
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.027s
 ok  	github.com/go-go-golems/go-go-goja/modules/express	0.035s
+```
+
+## Step 5: Finalize runtime polish documentation
+
+I performed the docs-only wrap-up after the runtime polish implementation commits had been rebased. The important part was to avoid stale commit references: the selected-module, fs capability, and Express lifecycle commits now have different hashes than the earlier pre-rebase history.
+
+This step marks the ticket documentation as implementation-complete without mixing more code changes into the runtime commits.
+
+### Prompt Context
+
+**User prompt (verbatim):** "1-4 and commit, we rebased the branch also so you need new hashes."
+
+**Assistant interpretation:** Complete the documentation wrap-up tasks, use the rebased commit hashes, validate the ticket, and commit the docs-only changes.
+
+**Inferred user intent:** Keep the ticket docs accurate for review after rebasing changed commit IDs.
+
+**Commit (code):** N/A — docs-only wrap-up commit follows this diary entry.
+
+### What I did
+
+- Checked the rebased branch history and recorded the new runtime polish commit hashes:
+  - `dc1b74f` — `Add selected xgoja module inventory`
+  - `ef2fb81` — `Expose fs backend capabilities`
+  - `f16430e` — `Defer Express HTTP listener binding`
+- Added an implemented-outcome section to the design doc.
+- Replaced pending diary commit markers in Steps 2–4 with the rebased hashes.
+- Checked off the final docs/diary task in `tasks.md`.
+
+### Why
+
+- Stale hashes make ticket docs harder to use during review, especially after branch rebases.
+- Keeping this as a docs-only wrap-up commit preserves the separation between implementation and bookkeeping.
+
+### What worked
+
+- `git log --oneline --decorate -10` clearly showed the post-rebase commit IDs.
+- The ticket docs already had the right structure, so the update was targeted.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- After rebases, diary commit references should be treated as mutable review aids rather than historical facts until the branch is finalized.
+
+### What was tricky to build
+
+- The only tricky part was ensuring the repeated `Pending — to be committed after this diary update` marker was replaced with the correct hash for each step. I used surrounding intent text to disambiguate the three entries.
+
+### What warrants a second pair of eyes
+
+- Confirm the implemented-outcome section points to the intended rebased commits.
+- Confirm no implementation documentation still references old pre-rebase hashes.
+
+### What should be done in the future
+
+- Upload the runtime polish bundle to reMarkable if a paper-review copy is desired.
+
+### Code review instructions
+
+- Review the design doc implemented-outcome section first.
+- Then review diary Steps 2–5 for commit references and validation details.
+- Validate with:
+  - `docmgr --root go-go-goja/ttmp doctor --ticket XGOJA-RUNTIME-POLISH --stale-after 30`
+
+### Technical details
+
+Commands used for orientation:
+
+```bash
+git -C go-go-goja log --oneline --decorate -10
 ```

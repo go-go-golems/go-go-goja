@@ -47,3 +47,14 @@ Deferred Express HTTP listener binding until route/static registration or app.li
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providers/http/http.go — HTTP provider no longer starts listener during require
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-RUNTIME-POLISH--polish-xgoja-runtime-ergonomics-for-express-fs-assets-and-module-inventory/reference/01-investigation-diary.md — Step 4 implementation diary
 
+
+## 2026-06-08
+
+Finalized runtime polish documentation with rebased commit hashes
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-RUNTIME-POLISH--polish-xgoja-runtime-ergonomics-for-express-fs-assets-and-module-inventory/design-doc/01-runtime-ergonomics-polish-implementation-guide.md — Implemented outcome summary
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-RUNTIME-POLISH--polish-xgoja-runtime-ergonomics-for-express-fs-assets-and-module-inventory/reference/01-investigation-diary.md — Rebased commit references and docs wrap-up diary
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-RUNTIME-POLISH--polish-xgoja-runtime-ergonomics-for-express-fs-assets-and-module-inventory/tasks.md — Final docs task completion
+

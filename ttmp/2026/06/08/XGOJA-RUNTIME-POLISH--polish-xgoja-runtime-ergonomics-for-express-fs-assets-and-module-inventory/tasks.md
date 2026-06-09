@@ -9,4 +9,4 @@
 - [x] Clarify generated runtime module inventory: distinguish compiled provider catalog from selected runtime aliases.
 - [x] Ensure selected module inventory is a Glazed structured command that supports normal output flags such as `--output json`.
 - [x] Add tests for Express require-only behavior, fs capabilities, and selected-module output.
-- [ ] Update docs/examples and diary as implementation proceeds.
+- [x] Update docs/examples and diary as implementation proceeds.

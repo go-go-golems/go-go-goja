@@ -37,7 +37,7 @@ RelatedFiles:
         HTTP provider listener lifecycle
 ExternalSources: []
 Summary: 'Design guide for three go-go-goja runtime ergonomics fixes: lazy Express listener startup, read-only fs:assets discovery, and structured selected-module inventory.'
-LastUpdated: 2026-06-08T23:50:00-04:00
+LastUpdated: 2026-06-09T00:20:00-04:00
 WhatFor: Use this to implement small go-go-goja runtime polish items after JSVerb filtering.
 WhenToUse: Read before changing the HTTP provider, Express module, fs module, or generated runtime module inventory commands.
 ---
@@ -175,6 +175,22 @@ Keep the existing `modules` command as a provider catalog, but rename/clarify co
 1. Add selected-module inventory command first. It is additive and low risk.
 2. Add fs read-only metadata. It is local to `modules/fs` and docs/tests.
 3. Change Express lifecycle last. It has the highest compatibility risk and needs careful tests.
+
+## Implemented outcome
+
+The ticket has been implemented in three focused code commits after the branch rebase:
+
+1. `dc1b74f` — `Add selected xgoja module inventory`
+   - Adds the structured `selected-modules` Glazed command.
+   - Clarifies that `modules` is a provider catalog by using `provider_ref` for provider identities.
+2. `ef2fb81` — `Expose fs backend capabilities`
+   - Adds backend capability metadata and JavaScript exports `fs.isReadOnly` and `fs.capabilities()`.
+   - Reports embedded asset backends as read-only while preserving existing EROFS mutation failures.
+3. `f16430e` — `Defer Express HTTP listener binding`
+   - Makes `require("express")` side-effect-light.
+   - Defers HTTP listener startup until route/static registration or explicit `app.listen()`.
+
+The documentation wrap-up is recorded separately so reviewers can inspect code behavior and ticket bookkeeping independently.
 
 ## Validation
 
