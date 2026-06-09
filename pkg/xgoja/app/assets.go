@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io/fs"
 	"path"
 	"strings"
@@ -55,6 +56,36 @@ func (s *AssetStore) ResolveAsset(id string) (fs.FS, string, bool) {
 
 func (s HostServices) AssetResolver() providerapi.AssetResolver {
 	return s.Assets
+}
+
+func (s *HostServices) SetHostService(key string, value any) error {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return fmt.Errorf("host service key is required")
+	}
+	if value == nil {
+		return fmt.Errorf("host service %q value is nil", key)
+	}
+	if s.Services == nil {
+		s.Services = map[string][]any{}
+	}
+	s.Services[key] = []any{value}
+	return nil
+}
+
+func (s *HostServices) AddHostService(key string, value any) error {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return fmt.Errorf("host service key is required")
+	}
+	if value == nil {
+		return fmt.Errorf("host service %q value is nil", key)
+	}
+	if s.Services == nil {
+		s.Services = map[string][]any{}
+	}
+	s.Services[key] = append(s.Services[key], value)
+	return nil
 }
 
 func (s HostServices) HostService(key string) (any, bool) {

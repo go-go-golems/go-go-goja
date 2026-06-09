@@ -22,11 +22,12 @@ type Host struct {
 }
 
 type HostOptions struct {
-	EmbeddedJSVerbs fs.FS
-	EmbeddedHelp    fs.FS
-	EmbeddedAssets  fs.FS
-	Out             io.Writer
-	MiddlewaresFunc cli.CobraMiddlewaresFunc
+	EmbeddedJSVerbs   fs.FS
+	EmbeddedHelp      fs.FS
+	EmbeddedAssets    fs.FS
+	Out               io.Writer
+	MiddlewaresFunc   cli.CobraMiddlewaresFunc
+	ConfigureServices func(*HostServices)
 }
 
 func NewHost(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec) *Host {
@@ -35,6 +36,9 @@ func NewHost(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec) 
 
 func NewHostWithOptions(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec, opts HostOptions) *Host {
 	services := HostServices{Assets: NewAssetStore(opts.EmbeddedAssets, runtimeSpec)}
+	if opts.ConfigureServices != nil {
+		opts.ConfigureServices(&services)
+	}
 	middlewaresFunc := opts.MiddlewaresFunc
 	if middlewaresFunc == nil {
 		middlewaresFunc = MiddlewaresFromSpec(runtimeSpec)

@@ -434,6 +434,18 @@ See `examples/xgoja/10-embedded-assets-fs` and `xgoja help tutorial-static-asset
 
 Generated binaries can also expose HTTP setup functions as JavaScript verbs by enabling the HTTP provider's `serve` command provider. In that mode, `./dist/my-app serve sites demo --http-listen 127.0.0.1:8787` invokes the selected verb once, then keeps the runtime alive for request handling. See `examples/xgoja/13-http-serve-jsverbs` and `xgoja help tutorial-http-serve-jsverbs`.
 
+During development, add `--hot-reload` to the HTTP `serve` command to enable blue/green reloads with last-known-good fallback:
+
+```bash
+./dist/my-app serve sites demo \
+  --http-listen 127.0.0.1:8787 \
+  --hot-reload \
+  --hot-reload-watch-root ./sites \
+  --hot-reload-smoke-path /healthz
+```
+
+Hot reload starts one Go-owned listener, runs each reload in a fresh JavaScript runtime with a fresh route host, smoke-tests the candidate path when configured, and swaps only successful candidates live. Broken edits record an error on the status endpoint and keep serving the previous good runtime. The default status endpoint is `/__xgoja/status`; set `--hot-reload-status-path ""` to disable it.
+
 ## Generated runtime packages
 
 Use `xgoja generate` with `target.kind: package` when an existing Go application should import xgoja-generated runtime wiring instead of executing a generated binary.
@@ -451,7 +463,11 @@ Then run:
 xgoja generate -f xgoja.yaml
 ```
 
-The generated package exposes `NewBundle`, `NewRuntime`, `NewRuntimeFromSections`, `DecodeSpec`, `RegisterProviders`, and `AttachDefaultCommands`. It writes source into the existing module and does not create `go.mod`, write `main.go`, run `go mod tidy`, or compile a binary. See `examples/xgoja/14-generated-runtime-package` and `xgoja help tutorial-generated-runtime-package`.
+The generated package exposes `NewBundle`, `NewRuntime`, `NewRuntimeFromSections`, `DecodeSpec`, `RegisterProviders`, and `AttachDefaultCommands`. `NewBundle` accepts `Options{ConfigureServices: func(*app.HostServices) { ... }}` so an embedding Go application can inject host-owned services before provider module setup. For example, an application that owns its `net/http.Server` can inject `httpprovider.ExternalHostService{Host: jsHost, OwnsListen: false}` and let JavaScript register Express routes into that host without the generated runtime binding its own listener.
+
+Package generation writes source into the existing module and does not create `go.mod`, write `main.go`, run `go mod tidy`, or compile a binary. See `examples/xgoja/14-generated-runtime-package` and `xgoja help tutorial-generated-runtime-package`.
+
+For hot reload in embedding applications, use `pkg/xgoja/hotreload` as a blue/green manager: its reload callback builds a fresh generated runtime bundle around a fresh `gojahttp.Host`, bootstraps JavaScript routes, smoke-tests the candidate, and swaps it into service only on success. Broken reloads keep serving the previous runtime.
 
 ## JavaScript verb sources
 

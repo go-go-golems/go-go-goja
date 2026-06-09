@@ -250,6 +250,42 @@ func (capability) ContributeHostServices(
 
 xgoja treats service values as opaque. Provider packages own their keys and payload types. Prefer stable, versioned keys such as `my-provider.host-options.v1`.
 
+## Host-supplied services from generated package hosts
+
+Generated runtime packages can also receive services from the embedding Go application. The generated package's `Options` type includes:
+
+```go
+ConfigureServices func(*app.HostServices)
+```
+
+The callback runs before `NewRuntimeFactory` captures the provider-neutral service bag. Use `SetHostService` for singleton host-owned services and `AddHostService` for intentionally multi-valued keys:
+
+```go
+bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{
+    ConfigureServices: func(services *app.HostServices) {
+        _ = services.SetHostService(MyServiceKey, MyHostOptions{Client: client})
+    },
+})
+```
+
+This path is useful when a long-lived Go program owns infrastructure that should be visible during module setup: HTTP hosts, database handles, registries, middleware chains, event sinks, or application-specific clients. Validation errors from provider consumption surface when the bundle creates a runtime, because providers read the service bag inside `Module.NewModuleFactory`.
+
+The built-in HTTP provider uses this pattern for Go-owned servers. Inject `httpprovider.ExternalHostService` under `httpprovider.HostServiceKey` when JavaScript should register Express routes into an existing `*gojahttp.Host`:
+
+```go
+jsHost := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
+bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{
+    ConfigureServices: func(services *app.HostServices) {
+        _ = services.SetHostService(httpprovider.HostServiceKey, httpprovider.ExternalHostService{
+            Host:       jsHost,
+            OwnsListen: false,
+        })
+    },
+})
+```
+
+With `OwnsListen: false`, Express route/static registration populates `jsHost` but the HTTP provider does not bind a TCP listener. The outer Go application remains responsible for mounting `jsHost` on its mux and starting `net/http.Server`.
+
 ## Reading host services during module setup
 
 Provider modules read contributed services from `ModuleSetupContext.Host` by asserting `providerapi.HostServiceLookup`.

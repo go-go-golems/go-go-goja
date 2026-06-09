@@ -14,6 +14,10 @@ Commands:
 - xgoja list-modules
 Flags:
 - --http-listen
+- --hot-reload
+- --hot-reload-watch-root
+- --hot-reload-smoke-path
+- --hot-reload-status-path
 IsTopLevel: true
 IsTemplate: false
 ShowPerDefault: true
@@ -113,7 +117,31 @@ http://127.0.0.1:8787/healthz
 
 Stop the server with Ctrl-C.
 
-## 4. Compare the three HTTP execution modes
+## 4. Enable development hot reload
+
+The HTTP `serve` command also supports opt-in blue/green hot reload for runtime filesystem `jsverbs:` sources:
+
+```bash
+./dist/http-serve-jsverbs serve sites demo \
+  --http-listen 127.0.0.1:8787 \
+  --hot-reload \
+  --hot-reload-watch-root verbs \
+  --hot-reload-smoke-path /healthz
+```
+
+Hot reload keeps the Go HTTP listener stable and rebuilds JavaScript route state in a fresh runtime on each watched file change. If the candidate runtime loads and the optional smoke path returns a 2xx response, xgoja atomically swaps it live. If the JavaScript edit is broken, the smoke request fails, or route setup returns an error, xgoja records the error and keeps serving the previous good runtime.
+
+By default, hot reload watches non-embedded runtime `jsverbs:` source paths and file extensions `.js`, `.json`, `.md`, `.yaml`, and `.yml`. Repeat `--hot-reload-watch-root` to override the watched files or directories, and repeat `--hot-reload-watch-ext` to override extensions.
+
+The default status endpoint is:
+
+```text
+http://127.0.0.1:8787/__xgoja/status
+```
+
+It reports readiness, active version, route descriptors, and the most recent reload error. Pass `--hot-reload-status-path ""` to disable the endpoint.
+
+## 5. Compare the three HTTP execution modes
 
 | Mode | Command shape | Runtime lifetime | Use when |
 | --- | --- | --- | --- |
@@ -123,7 +151,7 @@ Stop the server with Ctrl-C.
 
 Use `run --keep-alive` for standalone setup scripts. Use provider-backed `serve` when the route setup should be part of the generated verb command tree.
 
-## 5. Runnable repository example
+## 6. Runnable repository example
 
 The repository contains a complete smoke-tested version at:
 
@@ -148,3 +176,5 @@ That target builds the generated binary, starts `serve sites demo` on a test por
 | No `serve sites demo` command exists | Confirm the `jsverbs:` path points at the directory containing `sites.js` and that the file scans correctly. |
 | Server exits immediately when using `verbs` | Use `serve sites demo`; the built-in `verbs` command is intentionally short-lived. |
 | Address is already in use | Change `--http-listen` or stop the process currently bound to that address. The HTTP provider reports listen failures during startup. |
+| Hot reload does not notice edits | Confirm the source is a runtime filesystem `jsverbs:` path or pass `--hot-reload-watch-root` explicitly. Embedded and provider-shipped sources are not automatically watchable from inside the built binary. |
+| Broken edit keeps serving old routes | This is intentional last-known-good behavior. Check `/__xgoja/status` or stderr for the reload error, fix the file, and save again. |

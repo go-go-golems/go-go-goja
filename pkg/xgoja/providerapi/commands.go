@@ -23,6 +23,11 @@ type RuntimeFactory interface {
 	NewRuntimeFromSections(ctx context.Context, vals *values.Values, opts ...require.Option) (*engine.Runtime, error)
 }
 
+type RuntimeFactoryWithHostServices interface {
+	RuntimeFactory
+	NewRuntimeFromSectionsWithHostServices(ctx context.Context, vals *values.Values, hostServices HostServices, opts ...require.Option) (*engine.Runtime, error)
+}
+
 // JSVerbSourceDescriptor describes one configured JavaScript verb source in the
 // generated binary's runtime spec.
 type JSVerbSourceDescriptor struct {

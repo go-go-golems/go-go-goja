@@ -24,3 +24,35 @@ func TestRegistryMethodAndWildcard(t *testing.T) {
 		t.Fatal("unexpected missing match")
 	}
 }
+
+func TestRegistryRoutesReturnsCopySafeDescriptors(t *testing.T) {
+	r := NewRegistry()
+	r.Add("get", "cards/:id", nil)
+	r.Add("POST", "/cards", nil)
+
+	routes := r.Routes()
+	if len(routes) != 2 {
+		t.Fatalf("Routes len = %d", len(routes))
+	}
+	if routes[0] != (RouteDescriptor{Method: "GET", Pattern: "/cards/:id"}) {
+		t.Fatalf("first route = %#v", routes[0])
+	}
+	if routes[1] != (RouteDescriptor{Method: "POST", Pattern: "/cards"}) {
+		t.Fatalf("second route = %#v", routes[1])
+	}
+
+	routes[0].Method = "PATCH"
+	again := r.Routes()
+	if again[0].Method != "GET" {
+		t.Fatalf("Routes returned mutable backing storage: %#v", again)
+	}
+}
+
+func TestHostRoutesDelegatesToRegistry(t *testing.T) {
+	host := NewHost(HostOptions{})
+	host.Register("GET", "/hello", nil)
+	routes := host.Routes()
+	if len(routes) != 1 || routes[0] != (RouteDescriptor{Method: "GET", Pattern: "/hello"}) {
+		t.Fatalf("Routes = %#v", routes)
+	}
+}

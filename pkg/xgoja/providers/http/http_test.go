@@ -3,6 +3,8 @@ package http
 import (
 	"context"
 	"net"
+	stdhttp "net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -10,6 +12,8 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
@@ -92,6 +96,103 @@ func TestCapabilityAllowsExplicitHTTPDisable(t *testing.T) {
 	defer entry.mu.Unlock()
 	if entry.settings.Enabled || entry.settings.Listen != "127.0.0.1:9999" {
 		t.Fatalf("settings = %#v", entry.settings)
+	}
+}
+
+func TestExternalHostServiceValidation(t *testing.T) {
+	capability := newHTTPCapability()
+	if _, err := capability.newExpressLoader(app.HostServices{Services: map[string][]any{HostServiceKey: {"bad"}}}); err == nil || !strings.Contains(err.Error(), "must be ExternalHostService") {
+		t.Fatalf("expected wrong type error, got %v", err)
+	}
+	if _, err := capability.newExpressLoader(app.HostServices{Services: map[string][]any{HostServiceKey: {ExternalHostService{}}}}); err == nil || !strings.Contains(err.Error(), "nil Host") {
+		t.Fatalf("expected nil host error, got %v", err)
+	}
+}
+
+func TestExpressProviderRegistersIntoExternalHost(t *testing.T) {
+	jsHost := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
+	registry := providerapi.NewProviderRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	runtimeSpec := &app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{{Package: PackageID, Name: "express", As: "express"}}}
+	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{ConfigureServices: func(services *app.HostServices) {
+		if err := services.SetHostService(HostServiceKey, ExternalHostService{Host: jsHost, OwnsListen: false}); err != nil {
+			t.Fatalf("SetHostService: %v", err)
+		}
+	}})
+	rt, err := host.Factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	_, err = rt.Owner.Call(context.Background(), "register external route", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, runErr := vm.RunString(`require("express").app().get("/hello/:name", (req, res) => res.json({ hello: req.params.name }))`)
+		return nil, runErr
+	})
+	if err != nil {
+		t.Fatalf("register route: %v", err)
+	}
+	routes := jsHost.Routes()
+	if len(routes) != 1 || routes[0].Method != "GET" || routes[0].Pattern != "/hello/:name" {
+		t.Fatalf("external host routes = %#v", routes)
+	}
+
+	rr := httptest.NewRecorder()
+	jsHost.ServeHTTP(rr, httptest.NewRequest(stdhttp.MethodGet, "/hello/goja", nil))
+	if rr.Code != stdhttp.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"hello":"goja"`) {
+		t.Fatalf("body=%s", rr.Body.String())
+	}
+}
+
+func TestExpressExternalHostDoesNotBindConfiguredHTTPPort(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve listen address: %v", err)
+	}
+	defer func() { _ = listener.Close() }()
+
+	capability := newHTTPCapability()
+	jsHost := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
+	services := app.HostServices{}
+	if err := services.SetHostService(HostServiceKey, ExternalHostService{Host: jsHost, OwnsListen: false}); err != nil {
+		t.Fatalf("SetHostService: %v", err)
+	}
+	loader, err := capability.newExpressLoader(services)
+	if err != nil {
+		t.Fatalf("new express loader: %v", err)
+	}
+	factory, err := engine.NewRuntimeFactoryBuilder().WithModules(engine.NativeModuleRegistrar{ModuleName: "express", Loader: loader}).Build()
+	if err != nil {
+		t.Fatalf("build runtime factory: %v", err)
+	}
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	vals := httpValues(t, map[string]any{"enabled": true, "listen": listener.Addr().String()})
+	if err := capability.InitRuntimeFromSections(context.Background(), vals, testRuntimeInitializerHandle{rt: rt}); err != nil {
+		t.Fatalf("init runtime: %v", err)
+	}
+
+	_, err = rt.Owner.Call(context.Background(), "register external route", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, runErr := vm.RunString(`require("express").app().get("/external", (_req, res) => res.json({ ok: true }))`)
+		return nil, runErr
+	})
+	if err != nil {
+		t.Fatalf("external route registration should not bind occupied port: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	jsHost.ServeHTTP(rr, httptest.NewRequest(stdhttp.MethodGet, "/external", nil))
+	if rr.Code != stdhttp.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
 	}
 }
 
