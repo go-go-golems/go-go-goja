@@ -99,6 +99,53 @@ func (r hostServiceCloserRegistrar) RegisterRuntimeModule(ctx *engine.RuntimeMod
 	return nil
 }
 
+type layeredHostServices struct {
+	base    providerapi.HostServices
+	overlay providerapi.HostServices
+}
+
+var _ providerapi.HostServices = layeredHostServices{}
+var _ providerapi.HostServiceLookup = layeredHostServices{}
+
+func (s layeredHostServices) AssetResolver() providerapi.AssetResolver {
+	if s.overlay != nil {
+		if resolver := s.overlay.AssetResolver(); resolver != nil {
+			return resolver
+		}
+	}
+	if s.base == nil {
+		return nil
+	}
+	return s.base.AssetResolver()
+}
+
+func (s layeredHostServices) HostService(key string) (any, bool) {
+	values := s.HostServiceValues(key)
+	switch len(values) {
+	case 0:
+		return nil, false
+	case 1:
+		return values[0], true
+	default:
+		return values, true
+	}
+}
+
+func (s layeredHostServices) HostServiceValues(key string) []any {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return nil
+	}
+	out := []any{}
+	if lookup, ok := s.base.(providerapi.HostServiceLookup); ok && lookup != nil {
+		out = append(out, lookup.HostServiceValues(key)...)
+	}
+	if lookup, ok := s.overlay.(providerapi.HostServiceLookup); ok && lookup != nil {
+		out = append(out, lookup.HostServiceValues(key)...)
+	}
+	return append([]any(nil), out...)
+}
+
 type contributedHostServices struct {
 	base     providerapi.HostServices
 	services map[string][]any

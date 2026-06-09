@@ -822,3 +822,90 @@ Result:
 
 - ✅ All checks passed
 ```
+
+## Step 9: Add per-runtime host service injection to RuntimeFactory
+
+I implemented the Phase 2 runtime factory extension needed by `serve --hot-reload`. Command providers can now detect `providerapi.RuntimeFactoryWithHostServices` and create a runtime with an additional service bag that is visible during provider module setup.
+
+This is the key bridge between generated-binary commands and the external host provider path. The existing `NewRuntime` and `NewRuntimeFromSections` methods remain unchanged; they delegate to the new method with no per-runtime services.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 8)
+
+**Assistant interpretation:** Begin implementing the `serve --hot-reload` design one phase at a time after committing the planning document.
+
+**Inferred user intent:** Make generated xgoja `serve` capable of using the same candidate-host injection mechanism as the custom Go hot-reload host.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Added `providerapi.RuntimeFactoryWithHostServices` in `pkg/xgoja/providerapi/commands.go`.
+- Added `(*app.RuntimeFactory).NewRuntimeFromSectionsWithHostServices(...)`.
+- Changed `NewRuntimeFromSections` to delegate to the new method with `nil` runtime-local services.
+- Added `layeredHostServices` so base app services and runtime-local services are both visible through `HostServiceLookup`.
+- Updated runtime host service collection so provider-contributed services layer on top of base plus runtime-local services.
+- Added `TestRuntimeFactoryPerRuntimeHostServicesVisibleToModuleSetup`.
+- Ran focused validation:
+  - `go test ./pkg/xgoja/app ./pkg/xgoja/providerapi -count=1`
+
+### Why
+
+- Hot reload candidates each need their own fresh `gojahttp.Host`.
+- Generated binary command providers only receive a runtime factory; they do not have generated-package `NewBundle` access.
+- A small optional interface lets hot-reload-capable providers request per-runtime services without breaking existing `RuntimeFactory` implementations.
+
+### What worked
+
+- The existing host service collector already had the right layering model for provider-contributed services.
+- Adding a base/overlay `layeredHostServices` kept the implementation small and avoided changing `HostServices` storage representation.
+- Focused tests passed.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Per-runtime services need to be included before provider service contributions run, because providers may inspect or augment service state before module setup.
+- The safest compatibility path is an optional interface instead of adding a method to the existing `RuntimeFactory` interface.
+
+### What was tricky to build
+
+- `HostService(key)` returns a `[]any` when more than one value exists. The layering test intentionally checks `HostServiceValues` to verify ordering without imposing singleton semantics.
+- Asset resolution should continue to work from the base generated app services. `layeredHostServices.AssetResolver` tries the overlay first only if it has a resolver, otherwise it falls back to the base.
+
+### What warrants a second pair of eyes
+
+- Whether runtime-local services should appear before or after base services in `HostServiceValues`. The current order is base first, runtime overlay second, provider contributions last.
+- Whether `RuntimeFactoryWithHostServices` should also include `NewRuntimeWithHostServices` for static-config-only callers. Current hot reload only needs section-aware runtime creation.
+
+### What should be done in the future
+
+- Use the optional interface in `pkg/xgoja/providers/http/serve.go` when `--hot-reload` is enabled.
+- Add generated-binary integration coverage once the serve branch exists.
+
+### Code review instructions
+
+- Review `pkg/xgoja/providerapi/commands.go` for the optional interface.
+- Review `pkg/xgoja/app/factory.go` for delegation and service layering into runtime construction.
+- Review `pkg/xgoja/app/host_services.go` for `layeredHostServices`.
+- Review `pkg/xgoja/app/host_services_test.go` for command-time service visibility.
+- Validate with:
+  - `go test ./pkg/xgoja/app ./pkg/xgoja/providerapi -count=1`
+
+### Technical details
+
+Focused validation command:
+
+```bash
+cd go-go-goja && gofmt -w pkg/xgoja/providerapi/commands.go pkg/xgoja/app/factory.go pkg/xgoja/app/host_services.go pkg/xgoja/app/host_services_test.go && go test ./pkg/xgoja/app ./pkg/xgoja/providerapi -count=1
+```
+
+Result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.183s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi	0.010s
+```

@@ -77,6 +77,42 @@ func TestHostOptionsConfigureServicesVisibleToModuleSetup(t *testing.T) {
 	}
 }
 
+func TestRuntimeFactoryPerRuntimeHostServicesVisibleToModuleSetup(t *testing.T) {
+	var _ providerapi.RuntimeFactoryWithHostServices = (*RuntimeFactory)(nil)
+	registry := providerapi.NewProviderRegistry()
+	seen := []any{}
+	if err := registry.Package("fixture",
+		providerapi.Module{
+			Name:      "mod",
+			DefaultAs: "mod",
+			NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
+				lookup, ok := ctx.Host.(providerapi.HostServiceLookup)
+				if !ok {
+					t.Fatalf("host does not implement HostServiceLookup")
+				}
+				seen = lookup.HostServiceValues("demo")
+				return func(*goja.Runtime, *goja.Object) {}, nil
+			},
+		},
+	); err != nil {
+		t.Fatalf("register package: %v", err)
+	}
+	runtimeSpec := &RuntimeSpec{Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}}}
+	factory := NewRuntimeFactory(registry, runtimeSpec, HostServices{Services: map[string][]any{"demo": {"base"}}})
+	runtimeServices := HostServices{}
+	if err := runtimeServices.SetHostService("demo", "runtime"); err != nil {
+		t.Fatalf("SetHostService: %v", err)
+	}
+	rt, err := factory.NewRuntimeFromSectionsWithHostServices(context.Background(), values.New(), runtimeServices)
+	if err != nil {
+		t.Fatalf("NewRuntimeFromSectionsWithHostServices: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+	if len(seen) != 2 || seen[0] != "base" || seen[1] != "runtime" {
+		t.Fatalf("seen host services = %#v", seen)
+	}
+}
+
 func TestRuntimeFactoryCollectsHostServiceContributionsBeforeModuleSetup(t *testing.T) {
 	registry := providerapi.NewProviderRegistry()
 	capability := &hostServiceCapability{key: "demo", value: "from-capability"}

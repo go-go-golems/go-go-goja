@@ -33,11 +33,11 @@
 
 ### Phase 2: runtime factory per-runtime host services
 
-- [ ] Add optional `providerapi.RuntimeFactoryWithHostServices` interface.
-- [ ] Implement per-runtime host service injection in `app.RuntimeFactory`.
-- [ ] Preserve existing `NewRuntime` / `NewRuntimeFromSections` behavior.
-- [ ] Add focused tests proving command-time services reach provider module setup.
-- [ ] Commit Phase 2 implementation and diary update.
+- [x] Add optional `providerapi.RuntimeFactoryWithHostServices` interface.
+- [x] Implement per-runtime host service injection in `app.RuntimeFactory`.
+- [x] Preserve existing `NewRuntime` / `NewRuntimeFromSections` behavior.
+- [x] Add focused tests proving command-time services reach provider module setup.
+- [x] Commit Phase 2 implementation and diary update.
 
 ### Phase 3: serve hot-reload command flags
 

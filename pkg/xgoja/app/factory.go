@@ -72,6 +72,10 @@ func (f *RuntimeFactory) NewRuntime(ctx context.Context, opts ...require.Option)
 }
 
 func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, vals *values.Values, opts ...require.Option) (*JSRuntime, error) {
+	return f.NewRuntimeFromSectionsWithHostServices(ctx, vals, nil, opts...)
+}
+
+func (f *RuntimeFactory) NewRuntimeFromSectionsWithHostServices(ctx context.Context, vals *values.Values, hostServices providerapi.HostServices, opts ...require.Option) (*JSRuntime, error) {
 	if f == nil || f.providers == nil || f.runtimeSpec == nil {
 		return nil, fmt.Errorf("xgoja runtime factory is not initialized")
 	}
@@ -79,7 +83,7 @@ func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, vals *value
 	if err != nil {
 		return nil, err
 	}
-	runtimeServices, err := f.hostServicesForRuntime(ctx, vals, descriptors)
+	runtimeServices, err := f.hostServicesForRuntime(ctx, vals, descriptors, hostServices)
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +144,12 @@ func moduleDescriptorKey(packageID, moduleID, as string) string {
 	return packageID + "\x00" + moduleID + "\x00" + as
 }
 
-func (f *RuntimeFactory) hostServicesForRuntime(ctx context.Context, vals *values.Values, descriptors []providerapi.ModuleDescriptor) (hostServicesForRuntime, error) {
-	collector := newHostServiceCollector(f.services)
+func (f *RuntimeFactory) hostServicesForRuntime(ctx context.Context, vals *values.Values, descriptors []providerapi.ModuleDescriptor, runtimeServices providerapi.HostServices) (hostServicesForRuntime, error) {
+	baseServices := f.services
+	if runtimeServices != nil {
+		baseServices = layeredHostServices{base: f.services, overlay: runtimeServices}
+	}
+	collector := newHostServiceCollector(baseServices)
 	success := false
 	defer func() {
 		if !success {
