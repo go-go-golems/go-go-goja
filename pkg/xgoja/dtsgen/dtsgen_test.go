@@ -6,7 +6,6 @@ import (
 
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
-	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
@@ -32,7 +31,7 @@ func TestRenderRuntimeSpecUsesAliasesAndDoesNotMutateProviderDescriptor(t *testi
 		t.Fatalf("register package: %v", err)
 	}
 
-	result, err := RenderRuntimeSpec(registry, &app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{{Package: "host", Name: "fs", As: "fs:assets"}}}, Options{})
+	result, err := RenderModules(registry, []ModuleInstance{{Package: "host", Name: "fs", As: "fs:assets"}}, Options{})
 	if err != nil {
 		t.Fatalf("render runtime spec: %v", err)
 	}
@@ -51,7 +50,7 @@ func TestRenderRuntimeSpecReportsMissingDescriptorsInNonStrictMode(t *testing.T)
 	if err := registry.Package("pkg", providerapi.Module{Name: "untyped", DefaultAs: "untyped", NewModuleFactory: noopFactory}); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	result, err := RenderRuntimeSpec(registry, &app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{{Package: "pkg", Name: "untyped"}}}, Options{})
+	result, err := RenderModules(registry, []ModuleInstance{{Package: "pkg", Name: "untyped"}}, Options{})
 	if err != nil {
 		t.Fatalf("render runtime spec: %v", err)
 	}
@@ -70,7 +69,7 @@ func TestRenderRuntimeSpecStrictModeFailsOnMissingDescriptor(t *testing.T) {
 	if err := registry.Package("pkg", providerapi.Module{Name: "untyped", DefaultAs: "untyped", NewModuleFactory: noopFactory}); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	_, err := RenderRuntimeSpec(registry, &app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{{Package: "pkg", Name: "untyped"}}}, Options{Strict: true})
+	_, err := RenderModules(registry, []ModuleInstance{{Package: "pkg", Name: "untyped"}}, Options{Strict: true})
 	if err == nil || !strings.Contains(err.Error(), "has no TypeScript descriptor") {
 		t.Fatalf("expected missing descriptor error, got %v", err)
 	}
@@ -86,7 +85,7 @@ func TestRenderRuntimeSpecRejectsDuplicateRequireAliases(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	_, err := RenderRuntimeSpec(registry, &app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{{Package: "pkg", Name: "a"}, {Package: "pkg", Name: "b"}}}, Options{})
+	_, err := RenderModules(registry, []ModuleInstance{{Package: "pkg", Name: "a"}, {Package: "pkg", Name: "b"}}, Options{})
 	if err == nil || !strings.Contains(err.Error(), `duplicate require module alias "dup"`) {
 		t.Fatalf("expected duplicate alias error, got %v", err)
 	}

@@ -253,3 +253,120 @@ ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host	0.078s
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.349s
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen	0.036s
 ```
+
+## Step 3: Phase 2 Generated Runtime Type Exposure
+
+This step exposed TypeScript declarations from generated xgoja runtimes. Generated/default xgoja hosts now get a `types` cobra command, and generated package/source outputs get programmatic declaration APIs via the generated `Bundle` type.
+
+The implementation reuses the `pkg/xgoja/dtsgen` library from Step 2, but needed one important package-boundary correction: `dtsgen` cannot import `app` if `app` also imports `dtsgen` to expose host APIs.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue implementing corrected XGOJA-019 phases and keep committing at sensible boundaries.
+
+**Inferred user intent:** Make the generated runtime itself able to expose declarations, not just store provider metadata.
+
+**Commit (code):** pending at time of diary update — "xgoja: expose TypeScript declarations from generated runtimes"
+
+### What I did
+
+- Added `pkg/xgoja/app/types.go` with:
+  - `Host.TypeScriptDeclarations(...)`
+  - `Host.WriteTypeScriptDeclarations(...)`
+  - `Host.AttachTypes(...)`
+  - generated/default `types` cobra command
+- Attached the `types` command in `Host.AttachDefaultCommands`.
+- Added generated package/source template methods:
+  - `Bundle.TypeScriptDeclarations() (string, error)`
+  - `Bundle.WriteTypeScriptDeclarations(io.Writer) error`
+- Added app tests for:
+  - declaration rendering through `Host.TypeScriptDeclarations`
+  - `types --strict` command output
+- Updated `pkg/xgoja/dtsgen` to accept a small provider-neutral `ModuleInstance` DTO instead of importing `pkg/xgoja/app`.
+- Ran targeted validation:
+  - `go test ./pkg/xgoja/dtsgen ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1`
+
+### Why
+
+The corrected design requires declaration access inside generated code, because generated code is where arbitrary provider imports become real Go imports. Exposing declarations from `app.Host` makes the feature available to generated binaries, generated packages, and future target integrations.
+
+### What worked
+
+- A cobra subcommand is a good fit: `types`, `types --out`, `types --check`, and `types --strict` avoid global flag parsing ambiguity.
+- The generated package template already has a `Bundle` abstraction, so adding declaration methods there is natural.
+- Existing generate tests caught template issues, which is exactly why this change was made at the template level rather than only in hand-written app code.
+
+### What didn't work
+
+The first Phase 2 test run failed with an import cycle:
+
+```text
+# github.com/go-go-golems/go-go-goja/pkg/xgoja/app
+package github.com/go-go-golems/go-go-goja/pkg/xgoja/app
+	imports github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen from types.go
+	imports github.com/go-go-golems/go-go-goja/pkg/xgoja/app from dtsgen.go: import cycle not allowed
+FAIL	github.com/go-go-golems/go-go-goja/pkg/xgoja/app [setup failed]
+```
+
+The cause was that Step 2 originally made `dtsgen` import `app.RuntimeSpec`, then Phase 2 made `app` import `dtsgen`. The fix was to make `dtsgen` provider-neutral: it now accepts `[]dtsgen.ModuleInstance` and knows nothing about `app.RuntimeSpec`. `app.Host` converts runtime modules into that DTO before calling dtsgen.
+
+### What I learned
+
+- The corrected design's “reusable library seam” needed to be even cleaner than initially implemented. `dtsgen` must sit below `app`, not beside it.
+- Generated package APIs are much easier to support when the app package owns the bridge from runtime spec to provider-neutral dtsgen selections.
+- A `types` command is less invasive than a global `--emit-types` flag and works with existing cobra command attachment.
+
+### What was tricky to build
+
+The tricky part was maintaining a package dependency direction that can serve both generated package APIs and a future sidecar generator. The final direction is:
+
+```text
+app → dtsgen → providerapi / tsgen
+```
+
+not:
+
+```text
+dtsgen → app
+```
+
+This means future sidecars that already decode `app.RuntimeSpec` should either use app helpers through a generated host or map runtime modules into `dtsgen.ModuleInstance` directly.
+
+### What warrants a second pair of eyes
+
+- Whether the `types` command should be attached unconditionally to all generated default roots. It is currently always attached by `AttachDefaultCommands`.
+- Whether `types --check PATH` should be separate from `--out PATH`, as implemented, or whether `--check` should be a boolean that checks `--out` like `cmd/gen-dts` does.
+- Whether generated package methods should expose strict variants or options, rather than defaulting to non-strict behavior.
+
+### What should be done in the future
+
+- Add an options-bearing generated package method if callers need strict/check behavior programmatically.
+- Move on to Phase 3: sidecar-backed `xgoja gen-dts` for source-tree declaration generation.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/app/types.go` for the public runtime command/API behavior.
+- Review `pkg/xgoja/app/host.go` to see where `AttachTypes` enters the default command tree.
+- Review generated template changes in:
+  - `cmd/xgoja/internal/generate/templates/runtime_package.go.tmpl`
+  - `cmd/xgoja/internal/generate/templates/bundle_fragment.go.tmpl`
+- Validate with:
+  - `go test ./pkg/xgoja/dtsgen ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1`
+
+### Technical details
+
+Successful validation command:
+
+```bash
+go test ./pkg/xgoja/dtsgen ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1
+```
+
+Successful output:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen	0.007s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.183s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	33.894s
+```

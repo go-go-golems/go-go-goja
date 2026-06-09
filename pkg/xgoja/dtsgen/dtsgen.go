@@ -7,13 +7,18 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/render"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/validate"
-	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
 type Options struct {
 	Strict bool
 	Header string
+}
+
+type ModuleInstance struct {
+	Package string
+	Name    string
+	As      string
 }
 
 type MissingDescriptor struct {
@@ -27,8 +32,8 @@ type Result struct {
 	Missing []MissingDescriptor
 }
 
-func RenderRuntimeSpec(registry *providerapi.ProviderRegistry, runtimeSpec *app.RuntimeSpec, opts Options) (*Result, error) {
-	bundle, missing, err := BundleRuntimeSpec(registry, runtimeSpec, opts)
+func RenderModules(registry *providerapi.ProviderRegistry, modules []ModuleInstance, opts Options) (*Result, error) {
+	bundle, missing, err := BundleModules(registry, modules, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -39,19 +44,15 @@ func RenderRuntimeSpec(registry *providerapi.ProviderRegistry, runtimeSpec *app.
 	return &Result{DTS: out, Missing: missing}, nil
 }
 
-func BundleRuntimeSpec(registry *providerapi.ProviderRegistry, runtimeSpec *app.RuntimeSpec, opts Options) (*spec.Bundle, []MissingDescriptor, error) {
+func BundleModules(registry *providerapi.ProviderRegistry, modules []ModuleInstance, opts Options) (*spec.Bundle, []MissingDescriptor, error) {
 	if registry == nil {
 		return nil, nil, fmt.Errorf("provider registry is nil")
 	}
-	if runtimeSpec == nil {
-		return nil, nil, fmt.Errorf("runtime spec is nil")
-	}
-
 	seen := map[string]struct{}{}
-	modules := make([]*spec.Module, 0, len(runtimeSpec.Modules))
+	descriptors := make([]*spec.Module, 0, len(modules))
 	missing := make([]MissingDescriptor, 0)
 
-	for i, instance := range runtimeSpec.Modules {
+	for i, instance := range modules {
 		packageID := strings.TrimSpace(instance.Package)
 		moduleName := strings.TrimSpace(instance.Name)
 		if packageID == "" {
@@ -85,17 +86,17 @@ func BundleRuntimeSpec(registry *providerapi.ProviderRegistry, runtimeSpec *app.
 		if err := validate.Module(descriptor); err != nil {
 			return nil, nil, fmt.Errorf("runtime module %s.%s as %q TypeScript descriptor: %w", packageID, moduleName, alias, err)
 		}
-		modules = append(modules, descriptor)
+		descriptors = append(descriptors, descriptor)
 	}
 
-	bundle := &spec.Bundle{HeaderComment: opts.Header, Modules: modules}
+	bundle := &spec.Bundle{HeaderComment: opts.Header, Modules: descriptors}
 	if err := validate.Bundle(bundle); err != nil {
 		return nil, nil, err
 	}
 	return bundle, missing, nil
 }
 
-func requireName(instance app.ModuleInstanceSpec, providerModule providerapi.Module) string {
+func requireName(instance ModuleInstance, providerModule providerapi.Module) string {
 	if alias := strings.TrimSpace(instance.As); alias != "" {
 		return alias
 	}
