@@ -7,3 +7,7 @@ __package__({
 function ping() {
   return { ok: true };
 }
+
+__verb__("ping", {
+  short: "Ping package metadata demo"
+});

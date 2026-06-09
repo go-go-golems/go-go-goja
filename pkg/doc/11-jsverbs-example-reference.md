@@ -52,7 +52,6 @@ The example runner uses `ScanDir(...)` plus the default `registry.Commands()` pa
 
 `ScanDir(...)` and `ScanFS(...)` accept `ScanOptions`. Defaults come from `DefaultScanOptions()`:
 
-- `IncludePublicFunctions: true`
 - `Extensions: [".js", ".cjs"]`
 - `FailOnErrorDiagnostics: true`
 - no include/exclude path filters
@@ -78,7 +77,6 @@ Example: scan an application root while ignoring generated assets and build outp
 
 ```go
 registry, err := jsverbs.ScanDir(".", jsverbs.ScanOptions{
-    IncludePublicFunctions: true,
     Extensions:             []string{".js", ".cjs"},
     FailOnErrorDiagnostics: true,
     Include:                []string{"site.js", "jsverbs/**/*.js"},
@@ -88,14 +86,15 @@ registry, err := jsverbs.ScanDir(".", jsverbs.ScanOptions{
 
 Use include/exclude filters when the scan root contains bundled browser assets, generated files, copied dependencies, or other JavaScript that is not intended to declare CLI verbs. Prefer a narrow scan root when possible; filters are the safety valve for application layouts where a narrow root is inconvenient.
 
-Supported function declarations:
+Supported command declarations:
 
-- top-level `function name(...) {}`
-- top-level `const name = (...) => {}`
-- top-level `const name = function(...) {}`
+- top-level `function name(...) {}` with matching `__verb__("name", ...)` metadata
+- top-level `const name = (...) => {}` with matching `__verb__("name", ...)` metadata
+- top-level `const name = function(...) {}` with matching `__verb__("name", ...)` metadata
 
 Ignored for command discovery:
 
+- functions without explicit `__verb__()` metadata
 - nested functions
 - object methods
 - functions whose names start with `_`

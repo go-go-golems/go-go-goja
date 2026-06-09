@@ -94,10 +94,10 @@ The test fixture directory at `examples/jsverbs/basic` is the shortest path to u
 
 Use it as a map:
 
-- `basics.js` shows public functions, explicit verb metadata, file-local sections, `bind: "all"`, `bind: "context"`, structured output, and text output.
+- `basics.js` shows explicit verb metadata, file-local sections, `bind: "all"`, `bind: "context"`, structured output, and text output.
 - `advanced/numbers.js` shows integer arguments, async results, and rest parameters.
 - `nested/with-helper.js` and `nested/sub/helper.js` show relative `require()` behavior.
-- `packaged.js` shows `__package__` metadata and automatic exposure of public functions.
+- `packaged.js` shows `__package__` metadata plus explicit `__verb__()` command metadata.
 
 The fixture tree is still disk-based because it is meant to be browsed by humans and exercised by the example runner. The package itself is now broader than that. It can also scan a generic `fs.FS` or a raw list of in-memory source files. That matters when you move from “example runner” thinking to “library API” thinking. The fixture tree teaches the metadata format and runtime behavior; it does not define the full list of supported source origins anymore.
 

@@ -84,6 +84,36 @@ func TestHostAttachCommandProvidersPassesSelectedModules(t *testing.T) {
 	}
 }
 
+func TestJSVerbSourcesOnlyExposeExplicitVerbsButKeepHelpersLoadable(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "site.js"), []byte(`
+__package__({ name: "site" });
+__verb__("start", { name: "start", short: "Start", output: "text" });
+function start() { return require("./helper.js").helper(); }
+`), 0o644); err != nil {
+		t.Fatalf("write site jsverb: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "helper.js"), []byte(`
+function helper() { return "helper"; }
+function helperThatMustNotBecomeACommand() { return "hidden"; }
+module.exports = { helper };
+`), 0o644); err != nil {
+		t.Fatalf("write helper module: %v", err)
+	}
+
+	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, JSVerbSourceSpec{ID: "local", Path: dir})
+	if err != nil {
+		t.Fatalf("scan source: %v", err)
+	}
+	verbs := registry.Verbs()
+	if len(verbs) != 1 || verbs[0].FullPath() != "site start" {
+		t.Fatalf("verbs = %#v, want only explicit site start", verbs)
+	}
+	if _, err := registry.RequireLoader()("/helper.js"); err != nil {
+		t.Fatalf("registry loader lost helper module: %v", err)
+	}
+}
+
 func TestHostAttachCommandProvidersProvidesJSVerbSources(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "tools.js"), []byte(`
