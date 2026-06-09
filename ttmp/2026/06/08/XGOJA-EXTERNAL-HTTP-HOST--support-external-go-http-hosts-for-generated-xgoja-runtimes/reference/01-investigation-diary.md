@@ -167,3 +167,88 @@ reMarkable dry-run succeeded and listed the four bundled files: index, implement
 ```text
 OK: uploaded XGOJA External HTTP Host Guide.pdf -> /ai/2026/06/09/XGOJA-EXTERNAL-HTTP-HOST
 ```
+
+## Step 2: Add host service configuration to app HostOptions
+
+I implemented the first, intentionally non-invasive code slice: `app.HostServices` now has small helper methods for setting and appending keyed host services, and `app.HostOptions` can configure the service bag before `NewRuntimeFactory` captures it. This gives handwritten Go hosts a clean way to inject live services without manually constructing `map[string][]any`.
+
+This step does not touch generated package templates or the HTTP provider yet. It only proves that the existing provider-facing `ModuleSetupContext.Host` path can carry host-supplied services from `app.NewHostWithOptions` into provider module setup.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go on, implement task by task, commiting at appropriate intervals, keeping a detailed diary."
+
+**Assistant interpretation:** Start implementing the new external HTTP host ticket one phase at a time, validating and committing at sensible boundaries while keeping the ticket diary current.
+
+**Inferred user intent:** Move from design into implementation without batching all phases into one hard-to-review commit.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Added `(*HostServices).SetHostService(key, value)` in `pkg/xgoja/app/assets.go`.
+- Added `(*HostServices).AddHostService(key, value)` in `pkg/xgoja/app/assets.go`.
+- Added `ConfigureServices func(*HostServices)` to `pkg/xgoja/app.HostOptions`.
+- Updated `NewHostWithOptions` so it creates the asset-backed service bag, calls `ConfigureServices`, and only then builds `NewRuntimeFactory`.
+- Added `TestHostServicesSetAndAddHelpers` in `pkg/xgoja/app/host_services_test.go`.
+- Added `TestHostOptionsConfigureServicesVisibleToModuleSetup` in `pkg/xgoja/app/host_services_test.go`.
+- Checked off the first two implementation tasks in `tasks.md`.
+
+### Why
+
+- External HTTP host injection needs a service value to reach provider module setup through the existing `ctx.Host` mechanism.
+- The helper methods keep host application code from depending on the internal `map[string][]any` representation.
+- Calling `ConfigureServices` before `NewRuntimeFactory` preserves the existing construction flow: runtime factory receives one base service bag and later merges provider contributions into runtime-specific service bags.
+
+### What worked
+
+- The existing `HostServices` type already implemented `providerapi.HostServiceLookup`, so adding mutation helpers was small.
+- The module setup test confirmed host-supplied services are visible through `ctx.Host` during `NewModuleFactory`.
+- Focused validation passed:
+  - `go test ./pkg/xgoja/app -run 'TestHostServices(SetAndAddHelpers|ConfigureServicesVisibleToModuleSetup)|TestRuntimeFactoryPassesHostServicesToModules' -count=1`
+
+### What didn't work
+
+- N/A. This phase matched the design-guide sketch closely.
+
+### What I learned
+
+- `HostServices` is currently value-passed into `NewRuntimeFactory`, but the mutation callback runs before that value is copied, so the service map is captured correctly.
+- The existing contribution collector already handles merging base services with provider-contributed services; no new collector path was needed.
+
+### What was tricky to build
+
+- The helper methods need pointer receivers because they may initialize the `Services` map. Read methods remain value receivers because they should not mutate the service bag.
+- The test must trigger module setup by actually creating a runtime; simply constructing `app.Host` is not enough because provider module factories run during runtime module registration.
+
+### What warrants a second pair of eyes
+
+- Whether `SetHostService` should replace all existing values for a key, as implemented, or return an error if the key already exists. The current behavior is useful for host-owned singleton services.
+- Whether `ConfigureServices` should eventually return an error. This phase keeps the non-invasive `func(*HostServices)` shape from the guide.
+
+### What should be done in the future
+
+- Wire the same callback into generated package and source-fragment templates.
+- Use the callback to inject the HTTP provider's external host service.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/app/host.go` to confirm callback ordering.
+- Review `pkg/xgoja/app/assets.go` for helper validation and map initialization.
+- Review `pkg/xgoja/app/host_services_test.go` for service visibility through `ModuleSetupContext.Host`.
+- Validate with:
+  - `go test ./pkg/xgoja/app -run 'TestHostServices(SetAndAddHelpers|ConfigureServicesVisibleToModuleSetup)|TestRuntimeFactoryPassesHostServicesToModules' -count=1`
+
+### Technical details
+
+Focused validation command:
+
+```bash
+cd go-go-goja && gofmt -w pkg/xgoja/app/assets.go pkg/xgoja/app/host.go pkg/xgoja/app/host_services_test.go && go test ./pkg/xgoja/app -run 'TestHostServices(SetAndAddHelpers|ConfigureServicesVisibleToModuleSetup)|TestRuntimeFactoryPassesHostServicesToModules' -count=1
+```
+
+Result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.022s
+```

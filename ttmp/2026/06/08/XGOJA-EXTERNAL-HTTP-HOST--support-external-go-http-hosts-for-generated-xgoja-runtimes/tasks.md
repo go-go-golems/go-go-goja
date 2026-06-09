@@ -11,8 +11,8 @@
 
 ## Future implementation phases
 
-- [ ] Add `app.HostServices` helper methods for host-supplied keyed services.
-- [ ] Add `ConfigureServices func(*app.HostServices)` to `app.HostOptions`.
+- [x] Add `app.HostServices` helper methods for host-supplied keyed services.
+- [x] Add `ConfigureServices func(*app.HostServices)` to `app.HostOptions`.
 - [ ] Wire `ConfigureServices` into generated package and bundle-fragment templates.
 - [ ] Add HTTP provider `HostServiceKey` and `ExternalHostService` payload.
 - [ ] Make the HTTP provider consume external host services from `ModuleSetupContext.Host`.
