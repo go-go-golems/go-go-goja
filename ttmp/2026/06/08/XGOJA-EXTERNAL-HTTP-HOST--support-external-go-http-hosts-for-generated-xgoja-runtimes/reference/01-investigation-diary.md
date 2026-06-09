@@ -617,7 +617,7 @@ This gives us the hot reload behavior we wanted from the external-host work. Bro
 
 **Inferred user intent:** Move from external host plumbing to actual developer-facing hot reload behavior.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** 41fb0f7 — "Add xgoja hot reload manager"
 
 ### What I did
 
