@@ -58,11 +58,11 @@
 
 ### Phase 5: generated binary integration test
 
-- [ ] Add/update generated binary integration coverage for `serve --hot-reload`.
-- [ ] Verify health endpoint response.
-- [ ] Verify file change increments hot reload status version.
-- [ ] Verify broken edit keeps last-known-good runtime serving.
-- [ ] Commit Phase 5 tests and diary update.
+- [x] Add/update generated binary integration coverage for `serve --hot-reload`.
+- [x] Verify health endpoint response.
+- [x] Verify file change increments hot reload status version.
+- [x] Verify broken edit keeps last-known-good runtime serving.
+- [x] Commit Phase 5 tests and diary update.
 
 ### Phase 6: docs and final validation
 

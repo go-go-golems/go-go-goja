@@ -1106,3 +1106,101 @@ ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.285s
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hotreload	0.086s
 ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp	0.005s
 ```
+
+## Step 12: Add generated-binary hot reload integration coverage
+
+I added generated-binary integration coverage for `serve --hot-reload`. The new test builds a temporary xgoja binary, starts its generated `serve sites demo` command with hot reload enabled, exercises the JavaScript health endpoint and Go-owned status endpoint, edits the watched JavaScript source, and verifies the generated process hot reloads without restarting.
+
+The same test also writes a broken JavaScript edit and verifies last-known-good behavior through the generated binary: `activeVersion` stays on the previous successful runtime and `/healthz` continues serving the previous version.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 11)
+
+**Assistant interpretation:** Continue from the provider-level hot reload implementation by adding generated CLI integration coverage.
+
+**Inferred user intent:** Prove the feature works from the actual generated xgoja binary UX, not just internal provider tests.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Added `TestGeneratedProgramServesHTTPVerbWithHotReload` in `cmd/xgoja/internal/generate/generate_test.go`.
+- Added helper functions to write versioned serve JSVerb sources.
+- Added helper polling functions for generated HTTP response bodies and status JSON.
+- The test validates:
+  - generated binary startup with `serve ... --hot-reload`,
+  - `/healthz` returns version 1 initially,
+  - `/__xgoja/status` reports active version,
+  - editing the watched source reloads and serves version 2,
+  - a broken edit records `lastError`,
+  - the last-known-good version 2 continues serving.
+- Ran focused validation:
+  - `go test ./cmd/xgoja/internal/generate -run TestGeneratedProgramServesHTTPVerbWithHotReload -count=1`
+  - `go test ./cmd/xgoja/internal/generate -count=1`
+
+### Why
+
+- The provider-level test proves the core branch, but generated binaries add code generation, module selection, Glazed/Cobra parsing, and real process lifecycle concerns.
+- Hot reload is user-facing through the generated CLI, so this test catches command wiring regressions that unit tests cannot.
+
+### What worked
+
+- The generated binary test uses the same `startGeneratedCommand` harness as the existing non-hot HTTP serve test.
+- The default status path made it easy to observe reload state without adding app-specific endpoints.
+- The generated binary successfully watched the source directory, rescanned JSVerb source, and swapped to the new runtime.
+
+### What didn't work
+
+- The first compile attempt failed because the new helper used `fmt.Sprintf` but `fmt` was not imported in `generate_test.go`.
+
+Exact failure:
+
+```text
+cmd/xgoja/internal/generate/generate_test.go:875:12: undefined: fmt
+```
+
+I fixed it by adding the missing `fmt` import.
+
+### What I learned
+
+- Generated integration coverage is still fast enough for this feature; the hot reload test completed in roughly four seconds when run alone.
+- The status JSON endpoint is useful as both user diagnostics and test synchronization.
+
+### What was tricky to build
+
+- The test must synchronize on HTTP status rather than sleeps. It polls `/__xgoja/status` until the desired active version or last error appears.
+- The broken-source check must compare the active version before and after the bad edit to prove the manager did not swap in a failed candidate.
+
+### What warrants a second pair of eyes
+
+- Whether generated integration test runtime is acceptable for regular CI, given it builds a temporary generated binary.
+- Whether this test should share helper code with `TestGeneratedProgramServesHTTPVerb` to reduce duplication.
+
+### What should be done in the future
+
+- Update user docs and examples for `serve --hot-reload`.
+- Run full pre-PR validation after final docs land.
+
+### Code review instructions
+
+- Review `cmd/xgoja/internal/generate/generate_test.go`, especially `TestGeneratedProgramServesHTTPVerbWithHotReload`.
+- Validate with:
+  - `go test ./cmd/xgoja/internal/generate -run TestGeneratedProgramServesHTTPVerbWithHotReload -count=1`
+  - `go test ./cmd/xgoja/internal/generate -count=1`
+
+### Technical details
+
+Focused validation commands:
+
+```bash
+cd go-go-goja && go test ./cmd/xgoja/internal/generate -run TestGeneratedProgramServesHTTPVerbWithHotReload -count=1
+cd go-go-goja && go test ./cmd/xgoja/internal/generate -count=1
+```
+
+Results:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	4.206s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	31.136s
+```

@@ -3,6 +3,7 @@ package generate
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -783,6 +784,154 @@ function demo() {
 	}
 	cancel()
 	_ = cmd.Wait()
+}
+
+func TestGeneratedProgramServesHTTPVerbWithHotReload(t *testing.T) {
+	baseDir := t.TempDir()
+	verbsDir := filepath.Join(baseDir, "verbs")
+	if err := os.MkdirAll(verbsDir, 0o755); err != nil {
+		t.Fatalf("mkdir verbs: %v", err)
+	}
+	verbPath := filepath.Join(verbsDir, "sites.js")
+	writeGeneratedHotReloadServeVerb(t, verbPath, 1)
+	buildSpec := generatedHTTPServeVerbSpec(baseDir, verbsDir)
+	addr := freeTCPAddr(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cmd, dir := startGeneratedCommand(t, ctx, buildSpec,
+		"serve", "sites", "demo",
+		"--http-listen", addr,
+		"--hot-reload",
+		"--hot-reload-watch-root", verbsDir,
+		"--hot-reload-poll", "50ms",
+		"--hot-reload-debounce", "50ms",
+		"--hot-reload-smoke-path", "/healthz",
+	)
+	_ = dir
+	healthURL := "http://" + addr + "/healthz"
+	if body := waitGeneratedHTTPBody(t, cmd, healthURL); !strings.Contains(body, `"version":1`) {
+		t.Fatalf("initial health response = %s", body)
+	}
+	statusURL := "http://" + addr + "/__xgoja/status"
+	status := waitGeneratedHTTPStatus(t, cmd, statusURL, func(status map[string]any) bool {
+		return status["ready"] == true && status["activeVersion"].(float64) >= 1
+	})
+	if status["lastError"] != nil && status["lastError"] != "" {
+		t.Fatalf("unexpected initial status error: %#v", status)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	writeGeneratedHotReloadServeVerb(t, verbPath, 2)
+	status = waitGeneratedHTTPStatus(t, cmd, statusURL, func(status map[string]any) bool {
+		return status["ready"] == true && status["activeVersion"].(float64) >= 2
+	})
+	activeVersion := status["activeVersion"].(float64)
+	if body := waitGeneratedHTTPBody(t, cmd, healthURL); !strings.Contains(body, `"version":2`) {
+		t.Fatalf("reloaded health response = %s", body)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	if err := os.WriteFile(verbPath, []byte(`__package__({ name: "sites" }); function demo( {`), 0o644); err != nil {
+		t.Fatalf("write broken verb: %v", err)
+	}
+	status = waitGeneratedHTTPStatus(t, cmd, statusURL, func(status map[string]any) bool {
+		lastError, _ := status["lastError"].(string)
+		return status["activeVersion"].(float64) == activeVersion && lastError != ""
+	})
+	if body := waitGeneratedHTTPBody(t, cmd, healthURL); !strings.Contains(body, `"version":2`) {
+		t.Fatalf("last-known-good health response = %s status=%#v", body, status)
+	}
+
+	cancel()
+	_ = cmd.Wait()
+}
+
+func generatedHTTPServeVerbSpec(baseDir, verbsDir string) *buildspec.BuildSpec {
+	return &buildspec.BuildSpec{
+		Name:    "http-serve-verb",
+		Go:      buildspec.GoSpec{Version: "1.26", Module: "example.com/generated/http-serve-verb"},
+		Target:  buildspec.TargetSpec{Kind: "xgoja", Output: "dist/http-serve-verb"},
+		BaseDir: baseDir,
+		Packages: []buildspec.PackageSpec{{
+			ID:       "go-go-goja-http",
+			Import:   "github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http",
+			Register: "Register",
+		}},
+		Modules: []buildspec.ModuleInstanceSpec{{Package: "go-go-goja-http", Name: "express", As: "express"}},
+		Commands: buildspec.CommandsSpec{
+			JSVerbs: buildspec.CommandSpec{Enabled: true, Name: "verbs"},
+		},
+		CommandProviders: []buildspec.CommandProviderInstanceSpec{{
+			ID:      "http-serve",
+			Package: "go-go-goja-http",
+			Name:    "serve",
+			Mount:   "serve",
+		}},
+		JSVerbs: []buildspec.JSVerbSourceSpec{{ID: "local", Path: verbsDir}},
+	}
+}
+
+func writeGeneratedHotReloadServeVerb(t *testing.T, path string, version int) {
+	t.Helper()
+	source := fmt.Sprintf(`
+__package__({ name: "sites" })
+__verb__("demo", { name: "demo", output: "text", short: "Serve demo" })
+function demo() {
+  const express = require("express")
+  const app = express.app()
+  app.get("/healthz", (_req, res) => res.json({ ok: true, version: %d }))
+}
+`, version)
+	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+		t.Fatalf("write verb: %v", err)
+	}
+}
+
+func waitGeneratedHTTPBody(t *testing.T, cmd *exec.Cmd, url string) string {
+	t.Helper()
+	var body string
+	for i := 0; i < 100; i++ {
+		resp, err := http.Get(url)
+		if err == nil {
+			data, readErr := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if readErr == nil && resp.StatusCode == http.StatusOK {
+				body = string(data)
+				break
+			}
+		}
+		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+			t.Fatalf("generated serve command exited early")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if body == "" {
+		t.Fatalf("timed out waiting for %s", url)
+	}
+	return body
+}
+
+func waitGeneratedHTTPStatus(t *testing.T, cmd *exec.Cmd, url string, accept func(map[string]any) bool) map[string]any {
+	t.Helper()
+	for i := 0; i < 100; i++ {
+		resp, err := http.Get(url)
+		if err == nil {
+			data, readErr := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if readErr == nil && resp.StatusCode == http.StatusOK {
+				status := map[string]any{}
+				if err := json.Unmarshal(data, &status); err == nil && accept(status) {
+					return status
+				}
+			}
+		}
+		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+			t.Fatalf("generated serve command exited early")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for status from %s", url)
+	return nil
 }
 
 func TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases(t *testing.T) {
