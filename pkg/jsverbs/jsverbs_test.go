@@ -87,6 +87,19 @@ func TestScanFSIncludeFilters(t *testing.T) {
 	require.Equal(t, "site.js", registry.Files[0].RelPath)
 }
 
+func TestScanRejectsInvalidFilterGlob(t *testing.T) {
+	_, err := ScanFS(fstest.MapFS{
+		"site.js": &fstest.MapFile{Data: []byte(`function start() { return { ok: true }; }`)},
+	}, ".", ScanOptions{
+		IncludePublicFunctions: true,
+		Extensions:             []string{"js"},
+		FailOnErrorDiagnostics: true,
+		Exclude:                []string{"assets/["},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid jsverb exclude glob")
+}
+
 func TestFixtureCommandsExecute(t *testing.T) {
 	registry := mustRegistry(t)
 	commandMap := mustCommandMap(t, registry)

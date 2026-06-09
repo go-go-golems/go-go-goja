@@ -20,6 +20,9 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 	if len(opts) > 0 {
 		options = opts[0]
 	}
+	if err := validateScanPatterns(options); err != nil {
+		return nil, err
+	}
 
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
@@ -53,7 +56,11 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 			return fmt.Errorf("relpath %s: %w", filePath, err)
 		}
 		relPathSlash := filepath.ToSlash(relPath)
-		if !supportsExtension(relPathSlash, options.Extensions) || !matchesScanPatterns(relPathSlash, options) {
+		matched, err := matchesScanPatterns(relPathSlash, options)
+		if err != nil {
+			return err
+		}
+		if !supportsExtension(relPathSlash, options.Extensions) || !matched {
 			return nil
 		}
 		source, err := rootHandle.ReadFile(relPath)
@@ -80,6 +87,9 @@ func ScanFS(fsys fs.FS, root string, opts ...ScanOptions) (*Registry, error) {
 	if len(opts) > 0 {
 		options = opts[0]
 	}
+	if err := validateScanPatterns(options); err != nil {
+		return nil, err
+	}
 	root = strings.TrimSpace(root)
 	if root == "" {
 		root = "."
@@ -105,7 +115,11 @@ func ScanFS(fsys fs.FS, root string, opts ...ScanOptions) (*Registry, error) {
 			return fmt.Errorf("relpath %s: %w", filePath, err)
 		}
 		relPathSlash := filepath.ToSlash(relPath)
-		if !supportsExtension(relPathSlash, options.Extensions) || !matchesScanPatterns(relPathSlash, options) {
+		matched, err := matchesScanPatterns(relPathSlash, options)
+		if err != nil {
+			return err
+		}
+		if !supportsExtension(relPathSlash, options.Extensions) || !matched {
 			return nil
 		}
 		source, err := fs.ReadFile(fsys, filePath)
@@ -134,6 +148,9 @@ func ScanSources(files []SourceFile, opts ...ScanOptions) (*Registry, error) {
 	options := DefaultScanOptions()
 	if len(opts) > 0 {
 		options = opts[0]
+	}
+	if err := validateScanPatterns(options); err != nil {
+		return nil, err
 	}
 
 	inputs := make([]sourceInput, 0, len(files))
@@ -212,30 +229,61 @@ func supportsExtension(filePath string, extensions []string) bool {
 	return false
 }
 
-func matchesScanPatterns(relPath string, options ScanOptions) bool {
-	relPath = filepath.ToSlash(strings.TrimPrefix(relPath, "./"))
-	if len(options.Include) > 0 && !matchesAnyScanPattern(relPath, options.Include) {
-		return false
+func validateScanPatterns(options ScanOptions) error {
+	if err := validateScanPatternSet("include", options.Include); err != nil {
+		return err
 	}
-	if matchesAnyScanPattern(relPath, options.Exclude) {
-		return false
-	}
-	return true
+	return validateScanPatternSet("exclude", options.Exclude)
 }
 
-func matchesAnyScanPattern(relPath string, patterns []string) bool {
+func validateScanPatternSet(kind string, patterns []string) error {
+	for i, pattern := range patterns {
+		pattern = normalizeScanPattern(pattern)
+		if pattern == "" {
+			continue
+		}
+		if !doublestar.ValidatePathPattern(pattern) {
+			return fmt.Errorf("invalid jsverb %s glob at index %d: %q", kind, i, patterns[i])
+		}
+	}
+	return nil
+}
+
+func matchesScanPatterns(relPath string, options ScanOptions) (bool, error) {
+	relPath = filepath.ToSlash(strings.TrimPrefix(relPath, "./"))
+	if len(options.Include) > 0 {
+		matched, err := matchesAnyScanPattern(relPath, options.Include)
+		if err != nil || !matched {
+			return false, err
+		}
+	}
+	excluded, err := matchesAnyScanPattern(relPath, options.Exclude)
+	if err != nil || excluded {
+		return false, err
+	}
+	return true, nil
+}
+
+func matchesAnyScanPattern(relPath string, patterns []string) (bool, error) {
 	for _, pattern := range patterns {
-		pattern = filepath.ToSlash(strings.TrimSpace(pattern))
-		pattern = strings.TrimPrefix(pattern, "./")
+		pattern = normalizeScanPattern(pattern)
 		if pattern == "" {
 			continue
 		}
 		matched, err := doublestar.PathMatch(pattern, relPath)
-		if err == nil && matched {
-			return true
+		if err != nil {
+			return false, fmt.Errorf("match jsverb glob %q against %q: %w", pattern, relPath, err)
+		}
+		if matched {
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
+}
+
+func normalizeScanPattern(pattern string) string {
+	pattern = filepath.ToSlash(strings.TrimSpace(pattern))
+	return strings.TrimPrefix(pattern, "./")
 }
 
 func shouldSkipDir(name string) bool {

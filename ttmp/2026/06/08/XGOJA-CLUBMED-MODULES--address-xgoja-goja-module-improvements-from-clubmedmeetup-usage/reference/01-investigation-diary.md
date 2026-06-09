@@ -413,3 +413,94 @@ ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.135s
 ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.005s
 ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	29.130s
 ```
+
+## Step 4: Reject malformed JSVerb filter globs
+
+I addressed a pull-request review finding on PR #63: malformed JSVerb include/exclude glob patterns were previously treated as non-matches by the scanner. That meant an invalid exclude pattern could fail open and allow generated or bundled JavaScript back into the parser.
+
+The fix validates glob syntax during buildspec validation and also at scanner entry points, so direct `pkg/jsverbs` callers receive an error instead of silently scanning with a broken filter.
+
+### Prompt Context
+
+**User prompt (verbatim):** "pkg/jsverbs/scan.go
+Comment on lines +233 to +234
+        matched, err := doublestar.PathMatch(pattern, relPath)
+        if err == nil && matched {
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+15 minutes ago
+
+P2 Badge Reject invalid JSVerb filter globs
+
+When a configured include/exclude pattern is malformed, doublestar.PathMatch returns an error, but this code silently treats it as no match. Since buildspec validation only rejects empty strings, a typo in an exclude glob (for example an unterminated character class) will fail open and scan the files the user intended to omit, which reintroduces the broad-source parsing problem this feature is meant to solve; malformed patterns should be surfaced during validation or scanning instead of ignored.
+
+Useful? React with 👍 / 👎.
+
+Address code review comment on go-go-goja"
+
+**Assistant interpretation:** Fix PR #63 so invalid JSVerb include/exclude glob patterns are reported instead of ignored.
+
+**Inferred user intent:** Close the reviewer’s fail-open concern for malformed filter globs before merging the JSVerb source filter pull request.
+
+**Commit (code):** Pending.
+
+### What I did
+
+- Read this diary to recover the JSVerb filtering context and prior TODO about stricter glob validation.
+- Added scanner-side validation in `pkg/jsverbs/scan.go` with `doublestar.ValidatePathPattern` for include/exclude patterns.
+- Changed `matchesScanPatterns` and `matchesAnyScanPattern` to return errors, preserving errors from `doublestar.PathMatch` rather than ignoring them.
+- Added buildspec validation for malformed include/exclude globs in `cmd/xgoja/internal/buildspec/validate.go`.
+- Added tests for malformed buildspec filters and direct scanner filter errors.
+
+### Why
+
+- Invalid excludes must not fail open, because the feature exists to keep broad source roots from parsing generated assets.
+- Validation catches mistakes early in `xgoja.yaml`, while scanner errors protect library callers and any runtime path that bypasses buildspec validation.
+
+### What worked
+
+- `doublestar.ValidatePathPattern` matched the scanner’s matching semantics and rejected unterminated character classes.
+- Focused validation passed:
+  - `go test ./pkg/jsverbs ./cmd/xgoja/internal/buildspec -count=1`
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The previous diary had already identified malformed glob validation as a future review item; the PR review confirmed it needed to be fixed immediately.
+
+### What was tricky to build
+
+- The scanner intentionally continues to skip empty patterns for direct `ScanOptions` compatibility, while buildspec validation still rejects empty configured strings. Malformed non-empty globs are now errors in both layers.
+
+### What warrants a second pair of eyes
+
+- Confirm that using `ValidatePathPattern` is the desired validation surface for slash-normalized xgoja path globs.
+- Confirm direct `ScanSources` should validate patterns even though it does not currently filter the in-memory source list.
+
+### What should be done in the future
+
+- N/A.
+
+### Code review instructions
+
+- Start with `pkg/jsverbs/scan.go`, especially `validateScanPatterns`, `matchesScanPatterns`, and `matchesAnyScanPattern`.
+- Review buildspec validation in `cmd/xgoja/internal/buildspec/validate.go`.
+- Validate with `go test ./pkg/jsverbs ./cmd/xgoja/internal/buildspec -count=1`.
+
+### Technical details
+
+Validation command run:
+
+```bash
+cd go-go-goja && gofmt -w pkg/jsverbs/scan.go pkg/jsverbs/jsverbs_test.go cmd/xgoja/internal/buildspec/validate.go cmd/xgoja/internal/buildspec/validate_test.go && go test ./pkg/jsverbs ./cmd/xgoja/internal/buildspec -count=1
+```
+
+Result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/jsverbs	0.177s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec	0.008s
+```

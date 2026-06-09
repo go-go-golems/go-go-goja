@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 func Validate(buildSpec *BuildSpec) *Report {
@@ -407,14 +409,10 @@ func validateJSVerbs(report *Report, buildSpec *BuildSpec, packageIDs map[string
 
 func validateJSVerbFilters(report *Report, path string, source JSVerbSourceSpec) {
 	for i, pattern := range source.Include {
-		if strings.TrimSpace(pattern) == "" {
-			report.AddError("jsverb-include", fmt.Sprintf("%s.include[%d]", path, i), "include pattern cannot be empty")
-		}
+		validateJSVerbGlob(report, "jsverb-include", fmt.Sprintf("%s.include[%d]", path, i), "include", pattern)
 	}
 	for i, pattern := range source.Exclude {
-		if strings.TrimSpace(pattern) == "" {
-			report.AddError("jsverb-exclude", fmt.Sprintf("%s.exclude[%d]", path, i), "exclude pattern cannot be empty")
-		}
+		validateJSVerbGlob(report, "jsverb-exclude", fmt.Sprintf("%s.exclude[%d]", path, i), "exclude", pattern)
 	}
 	for i, ext := range source.Extensions {
 		if strings.TrimSpace(ext) == "" {
@@ -423,6 +421,18 @@ func validateJSVerbFilters(report *Report, path string, source JSVerbSourceSpec)
 	}
 	if len(source.Include) > 0 || len(source.Exclude) > 0 || len(source.Extensions) > 0 {
 		report.AddOK("jsverb-filters", path, "jsverb source filters declared")
+	}
+}
+
+func validateJSVerbGlob(report *Report, name string, path string, kind string, pattern string) {
+	pattern = filepath.ToSlash(strings.TrimSpace(pattern))
+	pattern = strings.TrimPrefix(pattern, "./")
+	if pattern == "" {
+		report.AddError(name, path, fmt.Sprintf("%s pattern cannot be empty", kind))
+		return
+	}
+	if !doublestar.ValidatePathPattern(pattern) {
+		report.AddError(name, path, fmt.Sprintf("invalid %s glob pattern", kind))
 	}
 }
 
