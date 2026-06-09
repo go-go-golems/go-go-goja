@@ -41,10 +41,10 @@
 
 ### Phase 3: serve hot-reload command flags
 
-- [ ] Add serve-specific hot reload Glazed section/flags.
-- [ ] Decode hot reload settings from parsed command values.
-- [ ] Test that generated serve commands expose the new flags.
-- [ ] Commit Phase 3 implementation and diary update.
+- [x] Add serve-specific hot reload Glazed section/flags.
+- [x] Decode hot reload settings from parsed command values.
+- [x] Test that generated serve commands expose the new flags.
+- [x] Commit Phase 3 implementation and diary update.
 
 ### Phase 4: serve hot-reload execution path
 

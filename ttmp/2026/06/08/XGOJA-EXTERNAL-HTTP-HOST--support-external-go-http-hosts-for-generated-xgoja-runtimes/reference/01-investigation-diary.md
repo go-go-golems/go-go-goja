@@ -909,3 +909,95 @@ Result:
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.183s
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi	0.010s
 ```
+
+## Step 10: Add serve hot-reload command flags
+
+I implemented Phase 3 by adding the user-facing hot reload configuration surface to HTTP serve commands. Every generated `serve` verb command now receives a serve-specific Glazed section with `--hot-reload`, watch roots/extensions, smoke path, polling/debounce durations, close grace, and status path fields.
+
+This step only exposes and decodes configuration. It deliberately does not change serve execution yet, so the default non-hot path remains behaviorally unchanged.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 8)
+
+**Assistant interpretation:** Continue the task-by-task implementation after per-runtime host services by adding the serve command configuration flags.
+
+**Inferred user intent:** Build `serve --hot-reload` incrementally, with a small commit that only changes command UX/config plumbing before runtime behavior changes.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Added `serveHotReloadSettings` in `pkg/xgoja/providers/http/serve.go`.
+- Added `serveHotReloadSection()` with fields:
+  - `hot-reload`,
+  - `hot-reload-watch-root`,
+  - `hot-reload-watch-ext`,
+  - `hot-reload-smoke-path`,
+  - `hot-reload-poll`,
+  - `hot-reload-debounce`,
+  - `hot-reload-close-grace`,
+  - `hot-reload-status-path`.
+- Added `decodeServeHotReloadSettings` with defaults matching the design document.
+- Appended the hot-reload section to every generated HTTP serve command.
+- Made `serveVerb` decode hot reload settings and return a clear not-implemented error if `--hot-reload` is enabled before the execution branch lands.
+- Updated `TestNewServeCommandSetBuildsVerbCommandsWithHTTPSection` to assert the new section and fields are present.
+- Ran focused validation:
+  - `go test ./pkg/xgoja/providers/http -count=1`
+
+### Why
+
+- Users need explicit opt-in configuration before the serve execution path can branch.
+- Keeping the flags in a serve-specific section avoids changing provider module config and keeps hot reload as command behavior, not module setup behavior.
+- Testing field presence catches generated command regressions before adding runtime behavior.
+
+### What worked
+
+- The existing `addSectionsToServeCommand` helper could attach the new section alongside provider module sections.
+- `fields.TypeStringList` covers repeatable watch roots/extensions without custom parsing at the CLI layer.
+- Focused HTTP provider tests passed.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The hot reload settings can use field names with the full `hot-reload-` prefix, keeping the eventual Cobra flags clear even though the Glazed section slug is internal.
+- Duration fields are strings for now so we can parse with `time.ParseDuration` in the execution phase and produce contextual errors.
+
+### What was tricky to build
+
+- The settings defaults need to exist both in the schema and decode helper, because tests or direct calls may decode with nil values before the Glazed parser has populated defaults.
+- The hot-reload section must be attached even when no provider module sections are present; appending it to the collected section list keeps that invariant.
+
+### What warrants a second pair of eyes
+
+- Whether the internal section slug `http-serve` is the best long-term config-file namespace for serve command behavior.
+- Whether `hot-reload-status-path` should default to `/__xgoja/status` or empty before the execution path lands.
+
+### What should be done in the future
+
+- Use `decodeServeHotReloadSettings` in `serveVerb` and add the actual hot-reload branch.
+- Add generated-binary tests once the branch can run.
+
+### Code review instructions
+
+- Review `pkg/xgoja/providers/http/serve.go` for the new section and decode helper.
+- Review `pkg/xgoja/providers/http/serve_test.go` for command schema coverage.
+- Validate with:
+  - `go test ./pkg/xgoja/providers/http -count=1`
+
+### Technical details
+
+Focused validation command:
+
+```bash
+cd go-go-goja && gofmt -w pkg/xgoja/providers/http/serve.go pkg/xgoja/providers/http/serve_test.go && go test ./pkg/xgoja/providers/http -count=1
+```
+
+Result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.058s
+```

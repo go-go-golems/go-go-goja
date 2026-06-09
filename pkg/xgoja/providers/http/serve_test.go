@@ -55,6 +55,15 @@ func TestNewServeCommandSetBuildsVerbCommandsWithHTTPSection(t *testing.T) {
 	if _, ok := desc.Schema.Get("http"); !ok {
 		t.Fatalf("expected http section on serve command; schema=%#v", desc.Schema)
 	}
+	hotReloadSection, ok := desc.Schema.Get(serveHotReloadSectionSlug)
+	if !ok {
+		t.Fatalf("expected hot reload section on serve command; schema=%#v", desc.Schema)
+	}
+	for _, name := range []string{"hot-reload", "hot-reload-watch-root", "hot-reload-watch-ext", "hot-reload-smoke-path", "hot-reload-poll", "hot-reload-debounce", "hot-reload-close-grace", "hot-reload-status-path"} {
+		if _, ok := hotReloadSection.GetDefinitions().Get(name); !ok {
+			t.Fatalf("missing hot reload field %q", name)
+		}
+	}
 }
 
 func scanServeTestRegistry(t *testing.T) *jsverbs.Registry {
