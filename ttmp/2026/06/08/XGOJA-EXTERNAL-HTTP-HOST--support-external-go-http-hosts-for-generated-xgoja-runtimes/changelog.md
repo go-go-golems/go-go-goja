@@ -203,3 +203,14 @@ Step 14: fixed serve --hot-reload watcher baseline startup race from review
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providers/http/serve.go — Starts watcher and waits for baseline before initial runtime load
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/reference/01-investigation-diary.md — Step 14 review-fix diary entry
 
+
+## 2026-06-08
+
+Step 14 review fix committed as 0c353ff (Fix hot reload watcher startup baseline)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providers/http/serve.go — Committed watcher-before-initial-load ordering fix
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/reference/01-investigation-diary.md — Backfilled Step 14 commit hash
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/tasks.md — Checked review-fix commit task
+

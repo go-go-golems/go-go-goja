@@ -77,4 +77,4 @@
 - [x] Add a watcher baseline readiness callback.
 - [x] Start and baseline the watcher before the initial hot reload runtime load.
 - [x] Replace sleep-based watcher test synchronization with baseline synchronization.
-- [ ] Commit the review fix and diary update.
+- [x] Commit the review fix and diary update.

@@ -1333,7 +1333,7 @@ When hot reload starts, the runtime is loaded from disk here, but the watcher do
 
 **Inferred user intent:** Address the PR review comment with a concrete code change and validation.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** 0c353ff — "Fix hot reload watcher startup baseline"
 
 ### What I did
 
