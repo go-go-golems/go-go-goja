@@ -15,3 +15,15 @@
 - Implemented Phase 3: sidecar-backed `xgoja gen-dts` command for arbitrary provider imports
 - Added embedded xgoja help tutorial for TypeScript declaration workflows and generated runtime `types` command (commit 41079a8)
 - Ran `xgoja gen-dts` for `ClubMedMeetup/minitrace-viz`, generated `types/xgoja-modules.d.ts`, and added a root `jsconfig.json` for JetBrains indexing
+
+## 2026-06-09
+
+Added third-party provider TypeScript descriptors for go-minitrace, goja-text forwarding, and rag-widget-site Widget DSL; strict minitrace-viz xgoja declaration generation now passes (provider commits c0a0165, 0648b48, 1b44ea5; ClubMedMeetup commit 4835055; diary commit ce80071).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/2026-05-27--rag-evaluation-system/pkg/widgetdsl/typescript.go — Widget DSL descriptors
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/ClubMedMeetup/minitrace-viz/types/xgoja-modules.d.ts — strict generated declarations
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-minitrace/pkg/minitracejs/typescript.go — go-minitrace descriptor
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/goja-text/pkg/xgoja/providers/text/text.go — descriptor forwarding
+

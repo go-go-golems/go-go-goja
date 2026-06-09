@@ -12,26 +12,35 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/modules/typing.go
-      Note: TypeScriptDeclarer interface
-    - Path: /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/tsgen/spec/types.go
-      Note: spec.Module data model
-    - Path: /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/tsgen/render/dts_renderer.go
-      Note: d.ts renderer
-    - Path: /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/cmd/gen-dts/main.go
+    - Path: ../../../../../../../2026-05-27--rag-evaluation-system/pkg/widgetdsl/typescript.go
+      Note: Widget DSL descriptors for strict minitrace-viz generation commit 1b44ea5
+    - Path: ../../../../../../../ClubMedMeetup/minitrace-viz/types/xgoja-modules.d.ts
+      Note: Strictly generated minitrace-viz declarations commit 4835055
+    - Path: ../../../../../../../go-minitrace/pkg/minitracejs/typescript.go
+      Note: go-minitrace descriptor added for require mt commit c0a0165
+    - Path: ../../../../../../../goja-text/pkg/xgoja/providers/text/text.go
+      Note: goja-text provider forwards native TypeScript descriptors commit 0648b48
+    - Path: cmd/gen-dts/main.go
       Note: Standalone gen-dts tool
-    - Path: /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providerapi/module.go
+    - Path: modules/typing.go
+      Note: TypeScriptDeclarer interface
+    - Path: pkg/tsgen/render/dts_renderer.go
+      Note: d.ts renderer
+    - Path: pkg/tsgen/spec/types.go
+      Note: spec.Module data model
+    - Path: pkg/xgoja/providerapi/module.go
       Note: providerapi.Module — gap A location
-    - Path: /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providers/core/core.go
+    - Path: pkg/xgoja/providers/core/core.go
       Note: Core provider — discards TypeScriptDeclarer
-    - Path: /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providers/host/host.go
+    - Path: pkg/xgoja/providers/host/host.go
       Note: Host provider — discards TypeScriptDeclarer
 ExternalSources: []
 Summary: Investigation of the existing d.ts generation pipeline and identification of three architectural gaps that prevent xgoja-generated binaries from exposing TypeScript type definitions.
-LastUpdated: 2026-06-09
+LastUpdated: 2026-06-09T00:00:00Z
 WhatFor: Record the investigation findings and architectural analysis for XGOJA-019.
 WhenToUse: Read this before starting implementation work on XGOJA-019 to understand what was discovered and why the proposed design looks the way it does.
 ---
+
 
 # Investigation Diary
 
