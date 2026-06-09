@@ -18,6 +18,7 @@ The generated package exposes:
 - `DecodeSpec()`
 - `RegisterProviders(registry)`
 - `NewBundle(options)`
+- `Options.ConfigureServices func(*app.HostServices)` for host-owned service injection
 - `Bundle.NewRuntime(ctx, ...)`
 - `Bundle.NewRuntimeFromSections(ctx, vals, ...)`
 - `Bundle.AttachDefaultCommands(root)`
@@ -33,3 +34,15 @@ Expected output:
 ```text
 hello package host
 ```
+
+Embedding applications can pass host-owned services when creating the bundle:
+
+```go
+bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{
+    ConfigureServices: func(services *app.HostServices) {
+        _ = services.SetHostService("example.service", someGoService)
+    },
+})
+```
+
+The HTTP provider uses the same hook for hybrid Go/JavaScript servers: inject `httpprovider.ExternalHostService{Host: jsHost, OwnsListen: false}` so JavaScript Express routes register into a Go-owned `*gojahttp.Host` while the Go application owns the outer listener and mux.

@@ -182,7 +182,7 @@ This step does not touch generated package templates or the HTTP provider yet. I
 
 **Inferred user intent:** Move from design into implementation without batching all phases into one hard-to-review commit.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** ed5c24a — "Add xgoja host service configuration hook"
 
 ### What I did
 
@@ -267,7 +267,7 @@ This makes the Phase 2 implementation usable by actual generated-package callers
 
 **Inferred user intent:** Keep implementation increments reviewable while making sure generated-package integrations, not just internal app tests, are covered.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** bdb28e4 — "Expose service configuration in generated xgoja packages"
 
 ### What I did
 
@@ -359,7 +359,7 @@ This is the main behavior needed by a Go-owned HTTP server. The Go application c
 
 **Inferred user intent:** Deliver the key non-invasive bridge between generated xgoja packages and Go-owned HTTP hosts.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** cf521dd — "Support external hosts in xgoja HTTP provider"
 
 ### What I did
 
@@ -448,7 +448,7 @@ I also connected the new introspection surface to the external-host provider tes
 
 **Inferred user intent:** Keep implementation progressing through the checklist while preserving small, reviewable commits.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** 7bdc617 — "Add gojahttp route introspection"
 
 ### What I did
 
@@ -517,4 +517,88 @@ Result:
 ```text
 ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp	0.005s
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.030s
+```
+
+## Step 6: Update public docs and implementation status
+
+I updated the public xgoja documentation now that the external-host service injection path exists in code. The docs now explain that generated runtime package bundles can receive host-owned services through `Options.ConfigureServices`, and they call out the HTTP provider's `ExternalHostService` pattern for Go-owned servers.
+
+I also refreshed this ticket's design guide with an implementation status section so future readers can distinguish the completed non-invasive `go-go-goja` work from the intentionally deferred app-local RuntimeManager proof.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the XGOJA-EXTERNAL-HTTP-HOST implementation workflow after the HTTP provider and route-introspection commits by closing documentation gaps and keeping the diary accurate.
+
+**Inferred user intent:** Finish the current ticket's reviewable implementation/documentation slices without losing the commit history and validation trail.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Replaced pending commit placeholders in Steps 2-5 with actual commit hashes.
+- Updated `cmd/xgoja/doc/02-user-guide.md` to mention generated package `ConfigureServices` and the HTTP external-host use case.
+- Updated `cmd/xgoja/doc/11-provider-runtime-config-and-host-services.md` with a new host-supplied service section and HTTP provider example.
+- Updated `examples/xgoja/14-generated-runtime-package/README.md` to list `Options.ConfigureServices` and show host-owned service injection.
+- Added an implementation status section to the external host design guide.
+
+### Why
+
+- The generated package API changed, so user-facing docs should describe how embedding applications use the new hook.
+- The HTTP external-host API is a cross-package integration point; docs need to make the listener ownership invariant explicit.
+- The ticket design document was written before implementation and needed a status note to avoid stale "planned" language being misread as unimplemented.
+
+### What worked
+
+- The documentation changes were limited to existing xgoja user/provider docs and the generated-package example README.
+- The implementation status section provides a compact checklist of what landed and what remains deferred.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The provider host-service documentation already had the right conceptual home for both provider-contributed and host-supplied services; adding the generated-package callback there keeps the API story in one place.
+
+### What was tricky to build
+
+- The terminology is still overloaded because `HostServices` is both the current provider API name and the host-supplied service bag name. The docs avoid introducing the future `RuntimeService` rename until the breaking cleanup issue is implemented.
+- The design guide still contains pre-implementation evidence sections. Rather than rewriting the whole guide, I added an explicit implementation status section near the top.
+
+### What warrants a second pair of eyes
+
+- Whether `cmd/xgoja/doc/11-provider-runtime-config-and-host-services.md` should include full imports for the HTTP example or stay focused on the API shape.
+- Whether the generated runtime package example should grow a real external HTTP host sample in a later PR.
+
+### What should be done in the future
+
+- Add a complete generated-package HTTP example once an app-local RuntimeManager proof exists.
+- Revisit the docs after the deferred `HostService*` to `RuntimeService*` rename is implemented.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/doc/11-provider-runtime-config-and-host-services.md` for the new host-supplied services section.
+- Review `cmd/xgoja/doc/02-user-guide.md` and `examples/xgoja/14-generated-runtime-package/README.md` for user-facing generated-package wording.
+- Review the implementation status block at the top of the ticket design guide.
+- Validate with:
+  - `docmgr --root go-go-goja/ttmp doctor --ticket XGOJA-EXTERNAL-HTTP-HOST --stale-after 30`
+
+### Technical details
+
+Doc validation command:
+
+```bash
+docmgr --root go-go-goja/ttmp doctor --ticket XGOJA-EXTERNAL-HTTP-HOST --stale-after 30
+```
+
+Result:
+
+```text
+## Doctor Report (1 findings)
+
+### XGOJA-EXTERNAL-HTTP-HOST
+
+- ✅ All checks passed
 ```

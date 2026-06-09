@@ -451,7 +451,9 @@ Then run:
 xgoja generate -f xgoja.yaml
 ```
 
-The generated package exposes `NewBundle`, `NewRuntime`, `NewRuntimeFromSections`, `DecodeSpec`, `RegisterProviders`, and `AttachDefaultCommands`. It writes source into the existing module and does not create `go.mod`, write `main.go`, run `go mod tidy`, or compile a binary. See `examples/xgoja/14-generated-runtime-package` and `xgoja help tutorial-generated-runtime-package`.
+The generated package exposes `NewBundle`, `NewRuntime`, `NewRuntimeFromSections`, `DecodeSpec`, `RegisterProviders`, and `AttachDefaultCommands`. `NewBundle` accepts `Options{ConfigureServices: func(*app.HostServices) { ... }}` so an embedding Go application can inject host-owned services before provider module setup. For example, an application that owns its `net/http.Server` can inject `httpprovider.ExternalHostService{Host: jsHost, OwnsListen: false}` and let JavaScript register Express routes into that host without the generated runtime binding its own listener.
+
+Package generation writes source into the existing module and does not create `go.mod`, write `main.go`, run `go mod tidy`, or compile a binary. See `examples/xgoja/14-generated-runtime-package` and `xgoja help tutorial-generated-runtime-package`.
 
 ## JavaScript verb sources
 

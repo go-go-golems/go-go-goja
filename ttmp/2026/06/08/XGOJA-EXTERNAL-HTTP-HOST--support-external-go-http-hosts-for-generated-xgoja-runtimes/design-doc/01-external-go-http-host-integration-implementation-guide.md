@@ -73,6 +73,18 @@ mux.HandleFunc("POST /upload", uploadHandler)
 
 The key invariant is: **the outer Go application owns the listener and mux; JavaScript only registers route handlers into a `gojahttp.Host` that Go mounts.**
 
+## Implementation status
+
+The core non-invasive `go-go-goja` implementation is now complete through route introspection:
+
+- `app.HostServices` has `SetHostService` / `AddHostService` helpers.
+- `app.HostOptions` and generated package/source-fragment `Options` expose `ConfigureServices func(*app.HostServices)`.
+- `pkg/xgoja/providers/http` exposes `HostServiceKey` and `ExternalHostService{Host *gojahttp.Host, OwnsListen bool}`.
+- The HTTP provider consumes an injected external host from `ModuleSetupContext.Host`; when `OwnsListen` is false, route registration does not bind a provider TCP listener.
+- `gojahttp.Registry` and `gojahttp.Host` expose copy-safe `Routes() []RouteDescriptor` introspection.
+
+The generic/app-local RuntimeManager proof remains deliberately deferred. The design still recommends proving reload policy in a real application before extracting a reusable manager API into `go-go-goja`.
+
 ---
 
 ## 1. Problem statement and scope

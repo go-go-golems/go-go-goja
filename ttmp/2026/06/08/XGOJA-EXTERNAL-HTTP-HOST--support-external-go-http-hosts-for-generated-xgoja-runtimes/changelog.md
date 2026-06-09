@@ -78,3 +78,16 @@ Step 5: added gojahttp route introspection
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/reference/01-investigation-diary.md — Step 5 diary entry
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/tasks.md — Route introspection and focused tests checked
 
+
+## 2026-06-08
+
+Step 6: documented generated package service injection and HTTP external host usage
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/cmd/xgoja/doc/02-user-guide.md — Generated package ConfigureServices and HTTP external-host mention
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/cmd/xgoja/doc/11-provider-runtime-config-and-host-services.md — Host-supplied services and HTTP provider example
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/examples/xgoja/14-generated-runtime-package/README.md — Generated package example documents ConfigureServices
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/design-doc/01-external-go-http-host-integration-implementation-guide.md — Implementation status added
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/ttmp/2026/06/08/XGOJA-EXTERNAL-HTTP-HOST--support-external-go-http-hosts-for-generated-xgoja-runtimes/reference/01-investigation-diary.md — Step 6 diary entry and commit hash backfill
+
