@@ -1023,7 +1023,7 @@ The implementation also rescans JSVerb sources on every reload attempt. That mat
 
 **Inferred user intent:** Make the generated xgoja `serve` command hot-reloadable in practice, not merely configurable.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** 1d5912e — "Implement xgoja serve hot reload"
 
 ### What I did
 
