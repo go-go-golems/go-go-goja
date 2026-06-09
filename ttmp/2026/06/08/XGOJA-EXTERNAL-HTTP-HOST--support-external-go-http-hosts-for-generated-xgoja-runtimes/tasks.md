@@ -70,4 +70,4 @@
 - [x] Run focused tests and `go test ./...`.
 - [x] Run `docmgr doctor`.
 - [x] Mark all hot reload serve tasks complete.
-- [ ] Commit final docs and diary update.
+- [x] Commit final docs and diary update.

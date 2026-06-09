@@ -1219,7 +1219,7 @@ This step closes the implementation loop by moving the feature from internal tes
 
 **Inferred user intent:** Make the implemented feature discoverable and reviewable, then validate the whole ticket before final commit.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** 0e633a9 — "Document xgoja serve hot reload"
 
 ### What I did
 
