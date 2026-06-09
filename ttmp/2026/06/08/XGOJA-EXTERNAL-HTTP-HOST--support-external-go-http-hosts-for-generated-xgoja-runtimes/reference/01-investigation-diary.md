@@ -924,7 +924,7 @@ This step only exposes and decodes configuration. It deliberately does not chang
 
 **Inferred user intent:** Build `serve --hot-reload` incrementally, with a small commit that only changes command UX/config plumbing before runtime behavior changes.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** 49479a4 — "Add xgoja serve hot reload flags"
 
 ### What I did
 
@@ -959,7 +959,14 @@ This step only exposes and decodes configuration. It deliberately does not chang
 
 ### What didn't work
 
-- N/A.
+- The first commit attempt failed because Phase 3 added the decode helper before using it. `golangci-lint` reported:
+
+```text
+pkg/xgoja/providers/http/serve.go:22:6: type serveHotReloadSettings is unused (unused)
+pkg/xgoja/providers/http/serve.go:127:6: func decodeServeHotReloadSettings is unused (unused)
+```
+
+I fixed this by making `serveVerb` decode the new settings immediately and return a clear not-implemented error when `--hot-reload` is enabled before the execution branch lands.
 
 ### What I learned
 
