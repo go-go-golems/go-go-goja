@@ -13,3 +13,5 @@
 - Implemented Phase 1: provider TypeScript metadata and reusable `pkg/xgoja/dtsgen` library (commit ffdae1b)
 - Implemented Phase 2: generated runtime/package declaration exposure via `types` command and `Bundle.TypeScriptDeclarations()` APIs (commit a92940e)
 - Implemented Phase 3: sidecar-backed `xgoja gen-dts` command for arbitrary provider imports
+- Added embedded xgoja help tutorial for TypeScript declaration workflows and generated runtime `types` command (commit 41079a8)
+- Ran `xgoja gen-dts` for `ClubMedMeetup/minitrace-viz`, generated `types/xgoja-modules.d.ts`, and added a root `jsconfig.json` for JetBrains indexing

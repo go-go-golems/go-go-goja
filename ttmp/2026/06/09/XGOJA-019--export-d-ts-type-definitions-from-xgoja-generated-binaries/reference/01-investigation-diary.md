@@ -505,3 +505,111 @@ ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildexec	0.004s
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen	0.016s
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.399s
 ```
+
+## Step 5: Help Documentation and minitrace-viz Declaration Generation
+
+This step added user-facing documentation for the new TypeScript declaration workflows and then used the new `xgoja gen-dts` command against the real `ClubMedMeetup/minitrace-viz` xgoja spec.
+
+The resulting `.d.ts` file gives JetBrains IDEs declarations for the first-party modules that currently expose descriptors, while strict mode identified the first missing third-party descriptor (`go-minitrace.minitrace` as `mt`).
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead.  then run it in @ClubMedMeetup/minitrace-viz/ so that I can point goland / intellij at them"
+
+**Assistant interpretation:** Add the planned user-facing help/docs for xgoja TypeScript declarations, then generate declarations in the minitrace-viz project and make them discoverable by JetBrains IDEs.
+
+**Inferred user intent:** Use GoLand/IntelliJ code intelligence for JavaScript files that call xgoja `require()` modules in the minitrace-viz runtime.
+
+**Commit (docs):** 41079a8 — "Docs: document xgoja TypeScript declarations"
+
+### What I did
+
+- Added `cmd/xgoja/doc/14-tutorial-typescript-declarations.md` covering:
+  - `xgoja gen-dts`
+  - `--strict`
+  - `--check`
+  - `--xgoja-replace`
+  - generated binary `types` command
+  - generated package `Bundle.TypeScriptDeclarations()` APIs
+  - IntelliJ/GoLand indexing guidance
+- Ran the generator for minitrace-viz:
+  - `go run ./cmd/xgoja gen-dts -f ../ClubMedMeetup/minitrace-viz/xgoja.yaml --out ../ClubMedMeetup/minitrace-viz/types/xgoja-modules.d.ts --xgoja-replace "$PWD"`
+- Added `ClubMedMeetup/minitrace-viz/jsconfig.json` so JetBrains indexes:
+  - `site.js`
+  - `server.js`
+  - `lib/**/*.js`
+  - `types/**/*.d.ts`
+- Ran strict mode once to identify missing descriptors:
+  - `go-minitrace.minitrace` selected as `mt` currently has no TypeScript descriptor.
+
+### Why
+
+The user wanted concrete IDE-consumable declarations, not just the generator implementation. The root `jsconfig.json` makes the generated declaration file visible to JetBrains for the non-webapp JavaScript files that are executed by the xgoja runtime.
+
+### What worked
+
+- Non-strict generation succeeded and produced `ClubMedMeetup/minitrace-viz/types/xgoja-modules.d.ts`.
+- The generated declaration file includes selected aliases such as `fs:host`, `fs:assets`, `db`, `express`, `path`, and `yaml`.
+- `cmd/xgoja` tests passed after adding the embedded help page.
+
+### What didn't work
+
+Strict mode failed as expected because not all selected providers have descriptors yet:
+
+```text
+runtime module go-minitrace.minitrace as "mt" has no TypeScript descriptor
+```
+
+Because strict mode stops at the first missing descriptor, there may be additional untyped third-party modules after `mt` (for example goja-text or rag-widget-site modules). Non-strict mode still emits the descriptors that are available.
+
+### What I learned
+
+- The generator is immediately useful even before every provider is typed, because non-strict mode emits partial declarations.
+- The next highest-value descriptor is probably the `go-minitrace` provider's `minitrace` module, because it is selected as `mt` and is likely central to the minitrace-viz scripts.
+
+### What was tricky to build
+
+The tricky part was deciding where to put the generated file so JetBrains sees it. The runtime JS files live at the minitrace-viz root (`site.js`, `server.js`, `lib/**/*.js`), while the webapp has its own separate `webapp/tsconfig.json`. I added a root `jsconfig.json` instead of modifying the webapp config, because the generated xgoja declarations apply to the root xgoja runtime scripts, not the React/Vite webapp.
+
+### What warrants a second pair of eyes
+
+- Whether `jsconfig.json` should include additional folders if more runtime JS files live outside `site.js`, `server.js`, and `lib/**/*.js`.
+- Whether to add TypeScript descriptors to `go-minitrace`, `goja-text`, and `rag-widget-site` providers next.
+
+### What should be done in the future
+
+- Add a TypeScript descriptor for `go-minitrace`'s `minitrace` module so `require("mt")` gets completions.
+- Re-run strict mode after typing each provider until `minitrace-viz` can generate fully typed declarations.
+
+### Code review instructions
+
+- Review `cmd/xgoja/doc/14-tutorial-typescript-declarations.md` for user-facing command accuracy.
+- Review `ClubMedMeetup/minitrace-viz/types/xgoja-modules.d.ts` to confirm emitted module aliases match `xgoja.yaml`.
+- Review `ClubMedMeetup/minitrace-viz/jsconfig.json` to confirm JetBrains indexes the intended JS files and generated declarations.
+
+### Technical details
+
+Successful non-strict generation command:
+
+```bash
+go run ./cmd/xgoja gen-dts \
+  -f ../ClubMedMeetup/minitrace-viz/xgoja.yaml \
+  --out ../ClubMedMeetup/minitrace-viz/types/xgoja-modules.d.ts \
+  --xgoja-replace "$PWD"
+```
+
+Strict-mode probe:
+
+```bash
+go run ./cmd/xgoja gen-dts \
+  -f ../ClubMedMeetup/minitrace-viz/xgoja.yaml \
+  --out /tmp/minitrace-viz-strict.d.ts \
+  --xgoja-replace "$PWD" \
+  --strict
+```
+
+Strict-mode result:
+
+```text
+runtime module go-minitrace.minitrace as "mt" has no TypeScript descriptor
+```
