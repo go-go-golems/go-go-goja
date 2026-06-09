@@ -533,7 +533,7 @@ I also refreshed this ticket's design guide with an implementation status sectio
 
 **Inferred user intent:** Finish the current ticket's reviewable implementation/documentation slices without losing the commit history and validation trail.
 
-**Commit (code):** Pending — to be committed after validation and this diary update.
+**Commit (code):** 91d88f8 — "Document external xgoja host services"
 
 ### What I did
 
