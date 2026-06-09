@@ -344,3 +344,92 @@ cd go-go-goja && go generate ./...
 ```
 
 The command completed and left only the intended template/test/doc changes in `git status`.
+
+## Step 4: Add HTTP provider external-host mode
+
+I implemented the core HTTP provider integration: selected xgoja runtimes can now carry an externally supplied `*gojahttp.Host` through the existing `ModuleSetupContext.Host` service bag, and the HTTP provider's Express module will register JavaScript routes into that host. In external no-listen mode, route registration does not bind the provider's TCP listener.
+
+This is the main behavior needed by a Go-owned HTTP server. The Go application can own the outer `net/http.Server` and `ServeMux`, while JavaScript continues to use `require("express").app().get(...)` to register flexible route handlers.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue implementation after generated service hooks by making the HTTP provider consume the injected service and prove it does not bind a listener in external mode.
+
+**Inferred user intent:** Deliver the key non-invasive bridge between generated xgoja packages and Go-owned HTTP hosts.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Added `HostServiceKey = "go-go-goja-http.host"` in `pkg/xgoja/providers/http/http.go`.
+- Added `ExternalHostService{Host *gojahttp.Host, OwnsListen bool}`.
+- Changed the provider module factory so it passes `ModuleSetupContext.Host` into HTTP loader construction.
+- Added `capability.newExpressLoader(hostServices)` to resolve and validate external host services during module setup.
+- Kept `capability.NewExpressLoader()` as the existing no-argument helper for tests and direct callers.
+- Extended `runtimeEntry` with `external` and `ownsListen` flags.
+- Changed `start` so `external && !ownsListen` returns before any `net.Listen` call.
+- Added tests for:
+  - wrong/nil external host service validation,
+  - registering an Express route into an external `gojahttp.Host` through the full xgoja app/provider path,
+  - route registration with an occupied configured listen address in external no-listen mode.
+- Checked off the HTTP provider service, consumption, and no-listen tasks in `tasks.md`.
+
+### Why
+
+- The raw Express module already accepts a `gojahttp.Host`; the provider path was the missing layer.
+- Service validation belongs in module setup because `NewModuleFactory` can return errors before JavaScript executes.
+- Listener ownership must be explicit to prevent hybrid Go hosts from accidentally racing with the xgoja provider for the same TCP address.
+
+### What worked
+
+- The `ConfigureServices` hook from Step 2 made the full provider-path test straightforward: `app.NewHostWithOptions(... ConfigureServices ...)` injects the external host, and the HTTP provider sees it in `ctx.Host`.
+- The recent Express lazy-start behavior made no-listen mode easy: route registration still calls `start`, but `start` can no-op when the host is external and the listener is owned by the embedding app.
+- Focused validation passed:
+  - `go test ./pkg/xgoja/providers/http -count=1`
+
+### What didn't work
+
+- N/A in the final implementation. The existing `NewExpressLoader()` API was preserved by adding an internal `newExpressLoader(hostServices)` helper rather than changing every direct test caller.
+
+### What I learned
+
+- Full app/provider tests are more useful than only testing `engine.NativeModuleRegistrar` because they prove `ModuleSetupContext.Host` carries the service through xgoja's runtime factory.
+- A second lower-level occupied-port test is still valuable because it explicitly initializes HTTP settings to the occupied address and proves no bind happens in external no-listen mode.
+
+### What was tricky to build
+
+- The provider needs to validate service type early without breaking the existing no-arg `NewExpressLoader()` helper. The split between exported `NewExpressLoader()` and internal `newExpressLoader(hostServices)` keeps compatibility while allowing provider setup to return validation errors.
+- `HostService(key)` may return a `[]any` when multiple values exist for a key. The external HTTP service is intentionally singular, so a multi-valued key will fail the type assertion with a clear error.
+
+### What warrants a second pair of eyes
+
+- Whether `OwnsListen: true` with an externally supplied host should be supported immediately or treated as reserved behavior. The start path supports it, but tests focus on `OwnsListen: false`.
+- Whether the service key string should be versioned (`go-go-goja-http.host.v1`) before this becomes a compatibility contract.
+
+### What should be done in the future
+
+- Add route introspection so external-host tests and future runtime-manager status endpoints can list registered routes.
+- Add generated-package end-to-end coverage once route introspection and/or a small generated HTTP fixture is available.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/providers/http/http.go`, especially `ExternalHostService`, `externalHostService`, `newExpressLoader`, and the ownership checks in `start`.
+- Review `pkg/xgoja/providers/http/http_test.go` for the full xgoja app/provider external-host test and the occupied-port no-listen regression test.
+- Validate with:
+  - `go test ./pkg/xgoja/providers/http -count=1`
+
+### Technical details
+
+Focused validation command:
+
+```bash
+cd go-go-goja && gofmt -w pkg/xgoja/providers/http/http.go pkg/xgoja/providers/http/http_test.go && go test ./pkg/xgoja/providers/http -count=1
+```
+
+Result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.021s
+```

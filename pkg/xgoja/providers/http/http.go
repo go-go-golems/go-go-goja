@@ -22,6 +22,13 @@ import (
 
 const PackageID = "go-go-goja-http"
 
+const HostServiceKey = "go-go-goja-http.host"
+
+type ExternalHostService struct {
+	Host       *gojahttp.Host
+	OwnsListen bool
+}
+
 func Register(registry *providerapi.ProviderRegistry) error {
 	capability := newHTTPCapability()
 	return registry.Package(PackageID,
@@ -29,8 +36,8 @@ func Register(registry *providerapi.ProviderRegistry) error {
 			Name:        "express",
 			DefaultAs:   "express",
 			Description: "Express-style HTTP route registration backed by gojahttp",
-			NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
-				return capability.NewExpressLoader(), nil
+			NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
+				return capability.newExpressLoader(ctx.Host)
 			},
 		},
 		providerapi.WithPackageCapability(capability),
@@ -51,10 +58,12 @@ type settings struct {
 }
 
 type runtimeEntry struct {
-	mu       sync.Mutex
-	settings settings
-	host     *gojahttp.Host
-	server   *stdhttp.Server
+	mu         sync.Mutex
+	settings   settings
+	host       *gojahttp.Host
+	server     *stdhttp.Server
+	external   bool
+	ownsListen bool
 }
 
 type capability struct {
@@ -107,11 +116,28 @@ func (c *capability) InitRuntimeFromSections(ctx context.Context, vals *values.V
 }
 
 func (c *capability) NewExpressLoader() require.ModuleLoader {
+	loader, _ := c.newExpressLoader(nil)
+	return loader
+}
+
+func (c *capability) newExpressLoader(hostServices providerapi.HostServices) (require.ModuleLoader, error) {
+	externalHost, err := externalHostService(hostServices)
+	if err != nil {
+		return nil, err
+	}
 	return func(vm *goja.Runtime, moduleObj *goja.Object) {
 		entry := c.entry(vm)
 		entry.mu.Lock()
 		if entry.host == nil {
-			entry.host = gojahttp.NewHost(gojahttp.HostOptions{})
+			if externalHost.Host != nil {
+				entry.host = externalHost.Host
+				entry.external = true
+				entry.ownsListen = externalHost.OwnsListen
+			} else {
+				entry.host = gojahttp.NewHost(gojahttp.HostOptions{})
+				entry.external = false
+				entry.ownsListen = true
+			}
 		}
 		host := entry.host
 		entry.mu.Unlock()
@@ -119,7 +145,26 @@ func (c *capability) NewExpressLoader() require.ModuleLoader {
 		express.NewLoader(host, express.WithOnUse(func(vm *goja.Runtime) error {
 			return c.start(vm, entry)
 		}))(vm, moduleObj)
+	}, nil
+}
+
+func externalHostService(hostServices providerapi.HostServices) (ExternalHostService, error) {
+	lookup, ok := hostServices.(providerapi.HostServiceLookup)
+	if !ok || lookup == nil {
+		return ExternalHostService{}, nil
 	}
+	raw, ok := lookup.HostService(HostServiceKey)
+	if !ok {
+		return ExternalHostService{}, nil
+	}
+	service, ok := raw.(ExternalHostService)
+	if !ok {
+		return ExternalHostService{}, fmt.Errorf("http host service %q must be ExternalHostService, got %T", HostServiceKey, raw)
+	}
+	if service.Host == nil {
+		return ExternalHostService{}, fmt.Errorf("http host service %q has nil Host", HostServiceKey)
+	}
+	return service, nil
 }
 
 func (c *capability) entry(vm *goja.Runtime) *runtimeEntry {
@@ -143,6 +188,11 @@ func (c *capability) start(vm *goja.Runtime, entry *runtimeEntry) error {
 	}
 	if entry.host == nil {
 		entry.host = gojahttp.NewHost(gojahttp.HostOptions{})
+		entry.external = false
+		entry.ownsListen = true
+	}
+	if entry.external && !entry.ownsListen {
+		return nil
 	}
 	if entry.server != nil {
 		return nil
