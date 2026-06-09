@@ -127,6 +127,10 @@ topics:
       description: 'Goja-text: Go-backed text modules for Goja (markdown, sanitize, extract)'
     - slug: release
       description: Release engineering, versioning, and publishing for generated binaries
+    - slug: developer-experience
+      description: Developer experience improvements, ergonomics, and usability
+    - slug: typescript
+      description: TypeScript type definitions, d.ts generation, and type safety for JS modules
 docTypes:
     - slug: index
       description: Index document for a ticket
