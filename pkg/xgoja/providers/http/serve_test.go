@@ -76,6 +76,93 @@ func TestNewServeCommandSetBuildsVerbCommandsWithHTTPSection(t *testing.T) {
 	}
 }
 
+func TestServeVerbLoadsIncludedHelperModulesWithoutHelperCommands(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "site.js"), []byte(`
+__package__({ name: "site" });
+function start() {
+  const express = require("express");
+  const app = express.app();
+  require("./server.js").register(app);
+}
+__verb__("start", { name: "start", short: "Serve site", output: "text" });
+`), 0o644); err != nil {
+		t.Fatalf("write site.js: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "server.js"), []byte(`
+function register(app) {
+  app.get("/healthz", (_req, res) => res.json({ ok: true, source: "helper" }));
+}
+function helperThatMustNotBecomeACommand() {
+  return "helper";
+}
+module.exports = { register };
+`), 0o644); err != nil {
+		t.Fatalf("write server.js: %v", err)
+	}
+
+	registry, err := jsverbs.ScanDir(dir)
+	if err != nil {
+		t.Fatalf("scan dir: %v", err)
+	}
+	if verbs := registry.Verbs(); len(verbs) != 1 || verbs[0].FullPath() != "site start" {
+		t.Fatalf("verbs = %#v, want only site start", verbs)
+	}
+	set, err := newServeCommandSet(providerapi.CommandSetContext{
+		Name:           "serve",
+		RuntimeFactory: fakeRuntimeFactory{},
+		JSVerbs:        fakeJSVerbSourceSet{registries: []*jsverbs.Registry{registry}},
+	})
+	if err != nil {
+		t.Fatalf("new serve command set: %v", err)
+	}
+	if len(set.Commands) != 1 {
+		t.Fatalf("serve commands = %d, want only the explicit start command", len(set.Commands))
+	}
+
+	providers := providerapi.NewProviderRegistry()
+	if err := Register(providers); err != nil {
+		t.Fatalf("register http provider: %v", err)
+	}
+	capabilities, ok := providers.ResolvePackageCapabilities(PackageID)
+	if !ok || len(capabilities) != 1 {
+		t.Fatalf("http capabilities = %#v", capabilities)
+	}
+	runtimeSpec := &app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{{Package: PackageID, Name: "express", As: "express"}}}
+	factory := app.NewRuntimeFactory(providers, runtimeSpec, app.HostServices{})
+	addr := freeServeTestAddr(t)
+	parsedValues := serveHotReloadTestValues(t, addr, map[string]any{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		verb, _ := registry.Verb("site start")
+		_, err := serveVerb(ctx, providerapi.CommandSetContext{
+			RuntimeFactory: factory,
+			SelectedModules: []providerapi.ModuleDescriptor{{
+				PackageID:           PackageID,
+				ModuleID:            "express",
+				As:                  "express",
+				PackageCapabilities: capabilities,
+			}},
+		}, registry, verb, parsedValues)
+		done <- err
+	}()
+
+	if body := waitForServeTestBody(t, "http://"+addr+"/healthz", done); !strings.Contains(body, `"source":"helper"`) {
+		t.Fatalf("health body = %s", body)
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil && !strings.Contains(err.Error(), "context canceled") {
+			t.Fatalf("serve returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("serve did not stop after cancel")
+	}
+}
+
 func TestServeVerbHotReloadServesStatusAndReloadsChangedSource(t *testing.T) {
 	dir := t.TempDir()
 	verbPath := filepath.Join(dir, "sites.js")

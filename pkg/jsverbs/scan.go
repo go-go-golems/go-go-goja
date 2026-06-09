@@ -348,26 +348,6 @@ func (r *Registry) finalizeVerbs() error {
 				return err
 			}
 		}
-
-		if !r.options.IncludePublicFunctions {
-			continue
-		}
-		for _, fn := range file.Functions {
-			if strings.HasPrefix(fn.Name, "_") {
-				continue
-			}
-			if _, ok := file.VerbMeta[fn.Name]; ok {
-				continue
-			}
-			verb := &VerbSpec{
-				FunctionName: fn.Name,
-				Fields:       map[string]*FieldSpec{},
-				OutputMode:   OutputModeGlaze,
-			}
-			if err := r.finalizeVerb(file, verb); err != nil {
-				return err
-			}
-		}
 	}
 	return nil
 }

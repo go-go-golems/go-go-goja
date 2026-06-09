@@ -103,7 +103,6 @@ func newCommandWithInvokerFactory(bootstrap jsverbrepos.Bootstrap, invokers Invo
 
 func ScanRepositories(bootstrap jsverbrepos.Bootstrap) ([]ScannedRepository, error) {
 	opts := jsverbs.DefaultScanOptions()
-	opts.IncludePublicFunctions = false
 
 	ret := make([]ScannedRepository, 0, len(bootstrap.Repositories))
 	for _, repo := range bootstrap.Repositories {

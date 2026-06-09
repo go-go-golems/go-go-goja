@@ -85,6 +85,20 @@ jsverbs:
     path: verbs
 ```
 
+If the serve verb is a small wrapper that calls `require("./server.js")`, include the helper files too:
+
+```yaml
+jsverbs:
+  - id: local
+    path: verbs
+    include:
+      - site.js
+      - server.js
+      - lib/**/*.js
+```
+
+The helper files stay available to the jsverb `require()` loader, but only functions with explicit `__verb__()` metadata become generated commands.
+
 The single top-level `modules:` list is the module set used by generated commands and provider commands. There is no separate runtime profile selection for this mode.
 
 ## 3. Validate, build, and run

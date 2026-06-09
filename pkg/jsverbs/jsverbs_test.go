@@ -61,7 +61,6 @@ func TestScanDirIncludeExcludeFilters(t *testing.T) {
 	writeFile("notes.txt", `function ignored() {}`)
 
 	registry, err := ScanDir(dir, ScanOptions{
-		IncludePublicFunctions: true,
 		Extensions:             []string{".js"},
 		FailOnErrorDiagnostics: true,
 		Include:                []string{"*.js", "**/*.js"},
@@ -77,7 +76,6 @@ func TestScanFSIncludeFilters(t *testing.T) {
 		"site.js":                 &fstest.MapFile{Data: []byte(`function start() { return { ok: true }; }`)},
 		"assets/public/bundle.js": &fstest.MapFile{Data: []byte(`function generated() { return { skip: true }; }`)},
 	}, ".", ScanOptions{
-		IncludePublicFunctions: true,
 		Extensions:             []string{"js"},
 		FailOnErrorDiagnostics: true,
 		Include:                []string{"site.js"},
@@ -91,7 +89,6 @@ func TestScanRejectsInvalidFilterGlob(t *testing.T) {
 	_, err := ScanFS(fstest.MapFS{
 		"site.js": &fstest.MapFile{Data: []byte(`function start() { return { ok: true }; }`)},
 	}, ".", ScanOptions{
-		IncludePublicFunctions: true,
 		Extensions:             []string{"js"},
 		FailOnErrorDiagnostics: true,
 		Exclude:                []string{"assets/["},
@@ -261,7 +258,6 @@ __verb__("render", {
 			Data: []byte(`exports.decorate = (prefix, target) => prefix + ":" + target;`),
 		},
 	}, ".", ScanOptions{
-		IncludePublicFunctions: true,
 		Extensions:             []string{".js"},
 		FailOnErrorDiagnostics: true,
 	})
@@ -356,6 +352,8 @@ func TestCommandsFailForObjectParamWithoutBind(t *testing.T) {
 function summarize({ owner }) {
   return { owner };
 }
+
+__verb__("summarize", {});
 `)
 	require.NoError(t, err)
 
@@ -536,7 +534,6 @@ __verb__("render", {
 			Data: []byte(`exports.decorate = (value) => "decorated:" + value;`),
 		},
 	}, ".", ScanOptions{
-		IncludePublicFunctions: true,
 		Extensions:             []string{".js"},
 		FailOnErrorDiagnostics: true,
 	})

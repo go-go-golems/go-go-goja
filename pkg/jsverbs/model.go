@@ -55,7 +55,6 @@ func (e *ScanError) Error() string {
 }
 
 type ScanOptions struct {
-	IncludePublicFunctions bool
 	Extensions             []string
 	FailOnErrorDiagnostics bool
 	Include                []string
@@ -64,7 +63,6 @@ type ScanOptions struct {
 
 func DefaultScanOptions() ScanOptions {
 	return ScanOptions{
-		IncludePublicFunctions: true,
 		Extensions:             []string{".js", ".cjs"},
 		FailOnErrorDiagnostics: true,
 	}
