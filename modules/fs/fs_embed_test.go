@@ -16,6 +16,7 @@ func TestReadOnlyEmbeddedFsSync(t *testing.T) {
 	ret, err := rt.Owner.Call(context.Background(), "fs.embedded.sync", func(_ context.Context, vm *goja.Runtime) (any, error) {
 		value, runErr := vm.RunString(`
 			const fs = require("fs:assets");
+			const caps = fs.capabilities();
 			let writeCode = "";
 			let writePath = "";
 			let missingCode = "";
@@ -24,7 +25,7 @@ func TestReadOnlyEmbeddedFsSync(t *testing.T) {
 			const text = fs.readFileSync("/app/config/default.json", "utf8");
 			const entries = fs.readdirSync("/app/config");
 			const stat = fs.statSync("/app/config/default.json");
-			JSON.stringify({ text, entries, exists: fs.existsSync("/app/config/default.json"), missing: fs.existsSync("/app/missing.txt"), isFile: stat.isFile, writeCode, writePath, missingCode });
+			JSON.stringify({ text, entries, exists: fs.existsSync("/app/config/default.json"), missing: fs.existsSync("/app/missing.txt"), isFile: stat.isFile, writeCode, writePath, missingCode, isReadOnly: fs.isReadOnly, capWrite: caps.write, capEmbedded: caps.embedded, capBackend: caps.backend, capMount: caps.mounts[0].mount });
 		`)
 		if runErr != nil {
 			return nil, runErr
@@ -35,7 +36,7 @@ func TestReadOnlyEmbeddedFsSync(t *testing.T) {
 		t.Fatalf("run embedded sync: %v", err)
 	}
 	state := ret.(string)
-	for _, want := range []string{`"text":"{\"ok\":true}"`, `"default.json"`, `"exists":true`, `"missing":false`, `"isFile":true`, `"writeCode":"EROFS"`, `"writePath":"/app/config/default.json"`, `"missingCode":"ENOENT:open"`} {
+	for _, want := range []string{`"text":"{\"ok\":true}"`, `"default.json"`, `"exists":true`, `"missing":false`, `"isFile":true`, `"writeCode":"EROFS"`, `"writePath":"/app/config/default.json"`, `"missingCode":"ENOENT:open"`, `"isReadOnly":true`, `"capWrite":false`, `"capEmbedded":true`, `"capBackend":"embedded"`, `"capMount":"/app"`} {
 		if !strings.Contains(state, want) {
 			t.Fatalf("embedded sync state missing %s: %s", want, state)
 		}

@@ -154,16 +154,32 @@ type modulesCommand struct {
 	providers *providerapi.ProviderRegistry
 }
 
+type selectedModulesCommand struct {
+	*cmds.CommandDescription
+	runtimeSpec *RuntimeSpec
+}
+
 var _ cmds.GlazeCommand = (*modulesCommand)(nil)
+var _ cmds.GlazeCommand = (*selectedModulesCommand)(nil)
 
 func newModulesCommand(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec) cmds.Command {
 	_ = runtimeSpec
 	return &modulesCommand{
 		CommandDescription: cmds.NewCommandDescription("modules",
-			cmds.WithShort("List provider modules registered in this generated binary"),
-			cmds.WithLong("List provider modules compiled into this generated xgoja binary."),
+			cmds.WithShort("List provider modules compiled into this generated binary"),
+			cmds.WithLong("List provider modules compiled into this generated xgoja binary. This is a provider catalog, not the selected require() aliases for this runtime. Use selected-modules for runtime aliases."),
 		),
 		providers: providers,
+	}
+}
+
+func newSelectedModulesCommand(runtimeSpec *RuntimeSpec) cmds.Command {
+	return &selectedModulesCommand{
+		CommandDescription: cmds.NewCommandDescription("selected-modules",
+			cmds.WithShort("List require() modules selected for this generated runtime"),
+			cmds.WithLong("List the provider modules selected into this generated xgoja runtime, including the actual CommonJS require() alias and static module config."),
+		),
+		runtimeSpec: runtimeSpec,
 	}
 }
 
@@ -179,13 +195,41 @@ func (c *modulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values
 		}
 		sort.Strings(names)
 		for _, name := range names {
+			providerRef := fmt.Sprintf("%s.%s", pkg.ID, name)
 			if err := gp.AddRow(ctx, types.NewRow(
 				types.MRP("package", pkg.ID),
 				types.MRP("module", name),
-				types.MRP("require", fmt.Sprintf("%s.%s", pkg.ID, name)),
+				types.MRP("provider_ref", providerRef),
 			)); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func (c *selectedModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.Values, gp middlewares.Processor) error {
+	_ = vals
+	if c.runtimeSpec == nil {
+		return fmt.Errorf("runtime spec is required")
+	}
+	for _, mod := range c.runtimeSpec.Modules {
+		config := "{}"
+		if len(mod.Config) > 0 {
+			data, err := json.Marshal(mod.Config)
+			if err != nil {
+				return fmt.Errorf("marshal config for %s.%s: %w", mod.Package, mod.Name, err)
+			}
+			config = string(data)
+		}
+		if err := gp.AddRow(ctx, types.NewRow(
+			types.MRP("package", mod.Package),
+			types.MRP("module", mod.Name),
+			types.MRP("alias", mod.Alias()),
+			types.MRP("provider_ref", fmt.Sprintf("%s.%s", mod.Package, mod.Name)),
+			types.MRP("config", config),
+		)); err != nil {
+			return err
 		}
 	}
 	return nil

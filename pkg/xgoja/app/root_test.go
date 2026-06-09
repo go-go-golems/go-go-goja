@@ -338,6 +338,38 @@ func TestGeneratedRootModulesCommand(t *testing.T) {
 	}
 }
 
+func TestGeneratedRootSelectedModulesCommand(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := testprovider.Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	specJSON := `{
+  "name": "fixture",
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "packages": [{"id": "fixture"}],
+  "modules": [
+    {"package": "fixture", "name": "hello", "as": "hello"},
+    {"package": "fixture", "name": "hello", "as": "hello:custom", "config": {"message": "hi"}}
+  ],
+  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": false}}
+}`
+	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON})
+	if err != nil {
+		t.Fatalf("new root: %v", err)
+	}
+	root.SetArgs([]string{"selected-modules", "--output", "json"})
+	got := captureStdout(t, func() {
+		if err := root.ExecuteContext(context.Background()); err != nil {
+			t.Fatalf("execute selected-modules: %v", err)
+		}
+	})
+	for _, want := range []string{`"alias": "hello"`, `"alias": "hello:custom"`, `"provider_ref": "fixture.hello"`, `"config": "{\"message\":\"hi\"}"`} {
+		if !bytes.Contains([]byte(got), []byte(want)) {
+			t.Fatalf("selected-modules json should contain %q, got %q", want, got)
+		}
+	}
+}
+
 func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
 	registry := providerapi.NewProviderRegistry()
 	if err := testprovider.Register(registry); err != nil {

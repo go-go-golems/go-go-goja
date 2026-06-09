@@ -11,6 +11,10 @@ type fileStats map[string]any
 
 type OSBackend struct{}
 
+func (OSBackend) FSCapabilities() Capabilities {
+	return Capabilities{Backend: "host", Read: true, Write: true}
+}
+
 func statMap(info os.FileInfo) fileStats {
 	return fileStats{
 		"name":    info.Name(),
