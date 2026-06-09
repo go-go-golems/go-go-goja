@@ -1307,3 +1307,92 @@ ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	(cached)
 
 - ✅ All checks passed
 ```
+
+## Step 14: Fix hot reload watcher baseline startup race
+
+I addressed a review finding in the generated HTTP `serve --hot-reload` startup path. The problem was ordering: the command performed its initial `manager.Reload(ctx)` before the watcher goroutine had taken its baseline filesystem scan. A file saved in the interval between those two events could become the watcher's baseline and therefore would not trigger a reload, leaving the server on the pre-change runtime until a later edit.
+
+The fix makes watcher baseline establishment explicit. `hotreload.WatchOptions` now has an `OnBaseline` callback that fires immediately after the initial watch-root scan succeeds. The HTTP serve hot-reload path starts the watcher, waits for that baseline callback, and only then performs the initial runtime load. This preserves the intended last-known-good behavior while removing the startup gap identified in review.
+
+### Prompt Context
+
+**User prompt (verbatim):** "pkg/xgoja/providers/http/serve.go
+Comment on lines +185 to +187
+    if _, err := manager.Reload(ctx); err != nil {
+        return nil, fmt.Errorf("initial hot reload: %w", err)
+    }
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+1 minute ago
+
+P2 Badge Start watching before the initial hot-reload load
+
+When hot reload starts, the runtime is loaded from disk here, but the watcher does not take its baseline until later inside the goroutine (Watch calls scanWatchRoots before entering its polling loop). If a source file changes after this load but before that first scan, the changed file becomes the watcher baseline and no reload is triggered, so the server keeps serving the pre-change runtime until another edit happens. Establish the watch baseline before the initial load, or force a reload after the watcher is initialized."
+
+**Assistant interpretation:** Fix the startup ordering bug in `serve --hot-reload` so the watcher baseline is established before the first runtime load.
+
+**Inferred user intent:** Address the PR review comment with a concrete code change and validation.
+
+**Commit (code):** Pending — to be committed after validation and this diary update.
+
+### What I did
+
+- Added `OnBaseline func()` to `pkg/xgoja/hotreload.WatchOptions`.
+- Made `Manager.Watch` call `OnBaseline` immediately after the initial `scanWatchRoots` succeeds and before the polling loop starts.
+- Refactored `pkg/xgoja/providers/http/serve.go` so hot reload serve startup calls `startServeHotReloadWatcher(...)` before `manager.Reload(ctx)` when watch roots are configured.
+- Added `startServeHotReloadWatcher` to wait until the watcher has established its baseline before returning to the initial load path.
+- Updated `TestWatchReloadsAfterFileChange` to wait for `OnBaseline` instead of using a fixed sleep.
+- Ran validation:
+  - `go test ./pkg/xgoja/hotreload ./pkg/xgoja/providers/http -count=1`
+  - `go test ./cmd/xgoja/internal/generate ./pkg/xgoja/hotreload ./pkg/xgoja/providers/http -count=1`
+
+### Why
+
+- The initial runtime load and watcher baseline need a defined ordering. Without it, a file change during startup can be lost because the watcher treats the changed file state as its initial state.
+- Waiting for a baseline is deterministic and does not rely on sleeps or timing assumptions.
+
+### What worked
+
+- The watcher already had a single initial scan point, so adding an explicit callback there was small and localized.
+- The existing serve hot reload path could move watcher startup before initial load without changing the public command flags or runtime manager semantics.
+- Focused and generated integration tests passed.
+
+### What didn't work
+
+- N/A. The review finding was accepted and fixed directly.
+
+### What I learned
+
+- A polling watcher needs a readiness signal when caller ordering matters. Without a baseline callback, callers can only guess when the first scan has completed.
+- Starting the watcher before the first load is safe because `hotreload.Manager.Reload` is serialized by `reloadMu`; if an edit triggers a concurrent reload during startup, reload attempts remain ordered.
+
+### What was tricky to build
+
+- The watcher goroutine can fail before or after baseline. `startServeHotReloadWatcher` returns startup scan errors before the initial load, but logs later watcher failures to stderr like the previous implementation.
+- The baseline callback must fire only once. The serve helper uses `atomic.Bool` to close the readiness channel exactly once.
+
+### What warrants a second pair of eyes
+
+- Whether `OnBaseline` is the right public callback name for `hotreload.WatchOptions`, or whether `OnReady` would read better in future watcher uses.
+- Whether a future API should expose a prepared watch state object instead of a callback if more startup ordering control is needed.
+
+### What should be done in the future
+
+- N/A.
+
+### Code review instructions
+
+- Review `pkg/xgoja/hotreload/watch.go` for the new baseline callback.
+- Review `pkg/xgoja/providers/http/serve.go` for the startup ordering: watcher baseline first, initial reload second.
+- Validate with:
+  - `go test ./cmd/xgoja/internal/generate ./pkg/xgoja/hotreload ./pkg/xgoja/providers/http -count=1`
+
+### Technical details
+
+Validation output:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	30.554s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hotreload	0.035s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.296s
+```

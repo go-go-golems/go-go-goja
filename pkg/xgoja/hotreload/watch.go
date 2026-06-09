@@ -23,6 +23,7 @@ type WatchOptions struct {
 	IgnoreDirs   []string
 	PollInterval time.Duration
 	Debounce     time.Duration
+	OnBaseline   func()
 	OnReload     func(*Snapshot)
 	OnError      func(error)
 }
@@ -49,6 +50,9 @@ func (m *Manager) Watch(ctx context.Context, opts WatchOptions) error {
 	state, err := scanWatchRoots(opts)
 	if err != nil {
 		return err
+	}
+	if opts.OnBaseline != nil {
+		opts.OnBaseline()
 	}
 	ticker := time.NewTicker(opts.PollInterval)
 	defer ticker.Stop()

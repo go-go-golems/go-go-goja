@@ -71,3 +71,10 @@
 - [x] Run `docmgr doctor`.
 - [x] Mark all hot reload serve tasks complete.
 - [x] Commit final docs and diary update.
+
+## Post-review follow-up: watcher baseline startup race
+
+- [x] Add a watcher baseline readiness callback.
+- [x] Start and baseline the watcher before the initial hot reload runtime load.
+- [x] Replace sleep-based watcher test synchronization with baseline synchronization.
+- [ ] Commit the review fix and diary update.

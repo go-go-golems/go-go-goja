@@ -32,6 +32,7 @@ func TestWatchReloadsAfterFileChange(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	baseline := make(chan struct{})
 	reloaded := make(chan *Snapshot, 1)
 	errs := make(chan error, 1)
 	go func() {
@@ -40,6 +41,9 @@ func TestWatchReloadsAfterFileChange(t *testing.T) {
 			Extensions:   []string{".js"},
 			PollInterval: 10 * time.Millisecond,
 			Debounce:     10 * time.Millisecond,
+			OnBaseline: func() {
+				close(baseline)
+			},
 			OnReload: func(snapshot *Snapshot) {
 				reloaded <- snapshot
 			},
@@ -52,8 +56,13 @@ func TestWatchReloadsAfterFileChange(t *testing.T) {
 		}
 	}()
 
-	// Give Watch enough time to take its initial snapshot before mutating the file.
-	time.Sleep(50 * time.Millisecond)
+	select {
+	case <-baseline:
+	case err := <-errs:
+		t.Fatalf("watch error before baseline: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for watch baseline")
+	}
 	if err := os.WriteFile(path, []byte("version 2 changed"), 0o644); err != nil {
 		t.Fatalf("write changed file: %v", err)
 	}

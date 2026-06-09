@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -182,14 +183,6 @@ func serveVerbHotReload(ctx context.Context, commandCtx providerapi.CommandSetCo
 	}
 	defer func() { _ = manager.Close(context.Background()) }()
 
-	if _, err := manager.Reload(ctx); err != nil {
-		return nil, fmt.Errorf("initial hot reload: %w", err)
-	}
-	listener, err := net.Listen("tcp", httpSettings.Listen)
-	if err != nil {
-		return nil, fmt.Errorf("listen on %s: %w", httpSettings.Listen, err)
-	}
-
 	serveCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	watchRoots := hotReloadSettings.WatchRoots
@@ -197,23 +190,17 @@ func serveVerbHotReload(ctx context.Context, commandCtx providerapi.CommandSetCo
 		watchRoots = defaultServeHotReloadWatchRoots(commandCtx.JSVerbs)
 	}
 	if len(watchRoots) > 0 {
-		go func() {
-			err := manager.Watch(serveCtx, hotreload.WatchOptions{
-				Roots:        watchRoots,
-				Extensions:   hotReloadSettings.WatchExts,
-				PollInterval: poll,
-				Debounce:     debounce,
-				OnReload: func(snapshot *hotreload.Snapshot) {
-					fmt.Fprintf(os.Stderr, "xgoja http serve: hot reloaded version %d (%d routes)\n", snapshot.Version, len(snapshot.Routes))
-				},
-				OnError: func(err error) {
-					fmt.Fprintf(os.Stderr, "xgoja http serve: hot reload failed: %v\n", err)
-				},
-			})
-			if err != nil && !errors.Is(err, context.Canceled) {
-				fmt.Fprintf(os.Stderr, "xgoja http serve: hot reload watcher stopped: %v\n", err)
-			}
-		}()
+		if err := startServeHotReloadWatcher(serveCtx, manager, watchRoots, hotReloadSettings, poll, debounce); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err := manager.Reload(ctx); err != nil {
+		return nil, fmt.Errorf("initial hot reload: %w", err)
+	}
+	listener, err := net.Listen("tcp", httpSettings.Listen)
+	if err != nil {
+		return nil, fmt.Errorf("listen on %s: %w", httpSettings.Listen, err)
 	}
 
 	mux := stdhttp.NewServeMux()
@@ -248,6 +235,47 @@ func serveVerbHotReload(ctx context.Context, commandCtx providerapi.CommandSetCo
 		return nil, err
 	}
 	return nil, nil
+}
+
+func startServeHotReloadWatcher(ctx context.Context, manager *hotreload.Manager, watchRoots []string, hotReloadSettings serveHotReloadSettings, poll, debounce time.Duration) error {
+	baselineReady := make(chan struct{})
+	initialErr := make(chan error, 1)
+	var baselineClosed atomic.Bool
+	go func() {
+		err := manager.Watch(ctx, hotreload.WatchOptions{
+			Roots:        watchRoots,
+			Extensions:   hotReloadSettings.WatchExts,
+			PollInterval: poll,
+			Debounce:     debounce,
+			OnBaseline: func() {
+				if baselineClosed.CompareAndSwap(false, true) {
+					close(baselineReady)
+				}
+			},
+			OnReload: func(snapshot *hotreload.Snapshot) {
+				fmt.Fprintf(os.Stderr, "xgoja http serve: hot reloaded version %d (%d routes)\n", snapshot.Version, len(snapshot.Routes))
+			},
+			OnError: func(err error) {
+				fmt.Fprintf(os.Stderr, "xgoja http serve: hot reload failed: %v\n", err)
+			},
+		})
+		if err != nil && !errors.Is(err, context.Canceled) {
+			if baselineClosed.Load() {
+				fmt.Fprintf(os.Stderr, "xgoja http serve: hot reload watcher stopped: %v\n", err)
+				return
+			}
+			initialErr <- err
+		}
+	}()
+
+	select {
+	case <-baselineReady:
+		return nil
+	case err := <-initialErr:
+		return fmt.Errorf("initialize hot reload watcher: %w", err)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func resolveServeHotReloadVerb(sources providerapi.JSVerbSourceSet, fallbackRegistry *jsverbs.Registry, fallbackVerb *jsverbs.VerbSpec, fullPath string) (*jsverbs.Registry, *jsverbs.VerbSpec, error) {
