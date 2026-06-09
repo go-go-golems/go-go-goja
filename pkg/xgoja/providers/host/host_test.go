@@ -20,8 +20,12 @@ func TestRegisterHostProvider(t *testing.T) {
 		t.Fatalf("register host provider: %v", err)
 	}
 	for _, name := range []string{"fs", "node:fs", "exec", "database", "db"} {
-		if _, ok := registry.ResolveModule(PackageID, name); !ok {
+		mod, ok := registry.ResolveModule(PackageID, name)
+		if !ok {
 			t.Fatalf("expected host module %q", name)
+		}
+		if mod.TypeScript == nil {
+			t.Fatalf("expected host module %q to carry TypeScript descriptor", name)
 		}
 	}
 }

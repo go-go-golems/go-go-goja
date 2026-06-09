@@ -138,3 +138,118 @@ declare module "fs" {
   // ... 20+ more functions
 }
 ```
+
+## Step 2: Phase 1 Provider Metadata and dtsgen Library
+
+This step implemented the corrected design's first layer: provider modules can now carry TypeScript declaration descriptors, and a reusable `pkg/xgoja/dtsgen` package can render declarations for the exact module set selected by an `app.RuntimeSpec`.
+
+The implementation deliberately keeps declaration generation out of `cmd/xgoja` for now. The reusable library is the stable seam needed by generated package APIs, generated binary `types` commands, and the future sidecar-backed `xgoja gen-dts` command.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue from the corrected XGOJA-019 design by starting implementation, keeping the diary updated, and committing at sensible boundaries.
+
+**Inferred user intent:** Move from design into code, beginning with the corrected Phase 1 plan rather than the earlier flawed plan.
+
+**Commit (code):** pending at time of diary update — "xgoja: add provider TypeScript declaration metadata"
+
+### What I did
+
+- Added `TypeScript *spec.Module` to `providerapi.Module`.
+- Wired first-party descriptors through:
+  - `pkg/xgoja/providers/core/core.go`
+  - `pkg/xgoja/providers/host/host.go`
+  - `pkg/xgoja/providers/http/http.go`
+- Added `pkg/xgoja/dtsgen` with:
+  - `RenderRuntimeSpec`
+  - `BundleRuntimeSpec`
+  - strict/non-strict missing descriptor behavior
+  - alias normalization (`as`, then provider default alias, then module name)
+  - deep-copy descriptor handling so alias rewriting does not mutate provider-owned descriptors
+  - duplicate require-alias detection
+- Added tests for dtsgen behavior and provider descriptor propagation.
+- Ran targeted validation:
+  - `go test ./pkg/xgoja/providerapi ./pkg/xgoja/providers/core ./pkg/xgoja/providers/host ./pkg/xgoja/providers/http ./pkg/xgoja/dtsgen -count=1`
+
+### Why
+
+The corrected design depends on provider metadata being available at the provider layer, not just on legacy `modules.NativeModule` implementations. Without this, generated binaries and sidecar generators cannot ask the selected provider modules for their declarations.
+
+The dtsgen package also prevents command-specific duplication. It can be reused by generated package mode, generated binary commands, and future `xgoja gen-dts` sidecars.
+
+### What worked
+
+- The provider metadata field was a small, low-friction addition because `pkg/tsgen/spec` is a pure descriptor package.
+- Core provider modules that wrap `modules.NativeModule` can preserve existing `TypeScriptDeclarer` descriptors through a small helper.
+- Host provider modules can attach descriptors even when their runtime behavior is guarded/customized (`fs`, `exec`, `database`).
+- HTTP provider can attach the existing express TypeScript descriptor via `express.NewRegistrar(nil).TypeScriptModule()`.
+- dtsgen can render aliased declarations without mutating the original provider descriptor.
+
+### What didn't work
+
+The first targeted test run failed:
+
+```text
+--- FAIL: TestRegisterCoreProvider (0.00s)
+    core_test.go:27: expected core module "timer" to carry TypeScript descriptor
+FAIL
+FAIL	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core	0.019s
+```
+
+The cause was an incorrect test assumption. `timer` is registered by the core provider, but it does not currently implement `modules.TypeScriptDeclarer`. I corrected the test to assert descriptors only for the core modules that actually provide them, leaving `timer` as an intentionally untyped module for non-strict rendering.
+
+### What I learned
+
+- Not every core provider module is typed yet. Strict mode is therefore useful immediately: it lets users decide whether missing declarations are acceptable.
+- The provider metadata design supports progressive typing: modules can be selected and used even if their `TypeScript` field is nil.
+- Alias handling must happen at selected-module instance time, not provider-module definition time.
+
+### What was tricky to build
+
+The main tricky part was avoiding accidental descriptor mutation. Provider descriptors are shared metadata. If runtime spec aliases `fs` as `fs:assets`, the rendered descriptor must be renamed to `fs:assets`, but the provider's original `fs` descriptor must remain named `fs` for other selections and future calls. I solved this by deep-copying `spec.Module`, including functions, parameters, type references, unions, arrays, and object fields before rewriting `Name`.
+
+The second tricky part was host `exec`: the host provider implements guarded exec behavior directly rather than using the legacy unguarded `modules/exec` loader. The descriptor is still the same shape, so the provider imports the exec module for registration side effects and reads its descriptor from the default module registry. This should be reviewed because it couples descriptor discovery to a side-effect import.
+
+### What warrants a second pair of eyes
+
+- The new dependency from `providerapi` to `pkg/tsgen/spec`.
+- The host provider's `exec` descriptor source: importing `modules/exec` for descriptor registration is pragmatic but may be less explicit than manually constructing the descriptor or exporting a constructor from the exec module.
+- Whether `timer` should get a TypeScript descriptor now, or remain a test case for missing descriptor behavior.
+- The duplicate-alias error policy: it is strict and early, which seems correct because duplicate `declare module` blocks for the same require name would be ambiguous.
+
+### What should be done in the future
+
+- Add a TypeScript descriptor for `timer` if it is part of the stable JS-facing core API.
+- Consider making descriptor helper functions available for first-party modules whose runtime provider implementation is custom but API shape is shared.
+- Move on to Phase 2: generated package/binary declaration exposure using `pkg/xgoja/dtsgen`.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/providerapi/module.go` to see the metadata contract.
+- Then review `pkg/xgoja/dtsgen/dtsgen.go`, especially `BundleRuntimeSpec`, `requireName`, and `cloneTypeRef`.
+- Review provider wiring in:
+  - `pkg/xgoja/providers/core/core.go`
+  - `pkg/xgoja/providers/host/host.go`
+  - `pkg/xgoja/providers/http/http.go`
+- Validate with:
+  - `go test ./pkg/xgoja/providerapi ./pkg/xgoja/providers/core ./pkg/xgoja/providers/host ./pkg/xgoja/providers/http ./pkg/xgoja/dtsgen -count=1`
+
+### Technical details
+
+The successful validation command was:
+
+```bash
+go test ./pkg/xgoja/providerapi ./pkg/xgoja/providers/core ./pkg/xgoja/providers/host ./pkg/xgoja/providers/http ./pkg/xgoja/dtsgen -count=1
+```
+
+The successful output was:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi	0.019s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core	0.015s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host	0.078s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.349s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen	0.036s
+```

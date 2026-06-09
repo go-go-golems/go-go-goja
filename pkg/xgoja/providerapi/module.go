@@ -7,6 +7,7 @@ import (
 
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
+	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 )
 
 // ModuleSetupContext is passed to a provider module while it creates the
@@ -45,6 +46,7 @@ type Module struct {
 	DefaultAs        string
 	Description      string
 	ConfigSchema     json.RawMessage
+	TypeScript       *spec.Module
 	NewModuleFactory func(ModuleSetupContext) (require.ModuleLoader, error)
 }
 
