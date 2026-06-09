@@ -17,6 +17,10 @@ func GoModTidy(ctx context.Context, dir string) (Result, error) {
 	return run(ctx, dir, nil, "go", "mod", "tidy")
 }
 
+func GoRun(ctx context.Context, dir string, env map[string]string) (Result, error) {
+	return run(ctx, dir, env, "go", "run", ".")
+}
+
 func GoBuild(ctx context.Context, dir string, output string, tags []string, ldflags []string, env map[string]string) (Result, error) {
 	args := []string{"build", "-o", output}
 	if len(tags) > 0 {

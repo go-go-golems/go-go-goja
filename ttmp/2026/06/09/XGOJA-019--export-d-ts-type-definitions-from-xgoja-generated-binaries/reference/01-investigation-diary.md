@@ -370,3 +370,138 @@ ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen	0.007s
 ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.183s
 ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	33.894s
 ```
+
+## Step 4: Phase 3 Sidecar-backed `xgoja gen-dts`
+
+This step added the source-tree declaration generation surface: `xgoja gen-dts -f xgoja.yaml --out types.d.ts`. The command uses a generated sidecar Go module instead of trying to dynamically import provider packages into the precompiled xgoja CLI.
+
+The sidecar approach is the key correction from the design review. Provider imports listed in `xgoja.yaml` only become real Go imports inside generated code, so the `gen-dts` command now generates and runs a small Go program that imports those providers, registers them, decodes the embedded runtime spec, and calls `pkg/xgoja/dtsgen`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue implementing corrected XGOJA-019 phases, now adding the user-facing `xgoja gen-dts` command.
+
+**Inferred user intent:** Give users a CLI workflow that writes `.d.ts` files next to JS/TS source without requiring them to manually reproduce xgoja module selections.
+
+**Commit (code):** pending at time of diary update — "xgoja: add sidecar-backed gen-dts command"
+
+### What I did
+
+- Added `cmd/xgoja/cmd_gen_dts.go` with a Glazed command:
+  - `--file/-f`
+  - `--out`
+  - `--check`
+  - `--strict`
+  - `--work-dir`
+  - `--keep-work`
+  - `--xgoja-version`
+  - `--xgoja-replace`
+- Wired `gen-dts` into `cmd/xgoja/root.go`.
+- Added `cmd/xgoja/internal/generate/templates/dtsgen_main.go.tmpl`.
+- Added generator helpers:
+  - `RenderDTSGenMain`
+  - `dtsGenTemplateDataFromSpec`
+  - `renderDTSGenMainTemplate`
+- Added `buildexec.GoRun` so sidecar execution uses the existing buildexec wrapper style.
+- Added a root command integration test that:
+  - writes a minimal xgoja spec using `pkg/xgoja/providers/core`
+  - runs `xgoja gen-dts --strict --xgoja-replace <repo-root>`
+  - verifies the generated d.ts contains the selected alias `declare module "path:typed"`
+- Ran targeted validation:
+  - `go test ./cmd/xgoja -run 'TestGenDTSCommandWired|TestRootHelp' -count=1 -v`
+  - `go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./cmd/xgoja/internal/buildexec ./pkg/xgoja/dtsgen ./pkg/xgoja/app -count=1`
+
+### Why
+
+A direct `xgoja gen-dts` implementation cannot support arbitrary third-party providers because a compiled Go binary cannot import packages by string import path at runtime. The sidecar uses the same code-generation pattern as `xgoja build`: write a temporary Go module, import the provider packages, compile/run it with normal Go tooling, and capture the output.
+
+### What worked
+
+- Reusing `generate.RenderGoMod` let the sidecar honor the same module version/replace behavior as generated builds.
+- Reusing provider import aliases from the existing generator kept sidecar imports consistent with generated binaries.
+- The sidecar test passed quickly enough (~2 seconds for the focused test) when using `--xgoja-replace` against the local repo.
+- The existing generated-template test suite passed after adding the new template.
+
+### What didn't work
+
+During the Phase 2 commit attempt, the pre-commit lint hook rejected raw Cobra flag declarations in `pkg/xgoja/app/types.go`:
+
+```text
+pkg/xgoja/app/types.go:81:2: define CLI flags with cmds.WithFlags(fields.New(...)) instead of raw Cobra/pflag/flag APIs
+pkg/xgoja/app/types.go:82:2: define CLI flags with cmds.WithFlags(fields.New(...)) instead of raw Cobra/pflag/flag APIs
+pkg/xgoja/app/types.go:83:2: define CLI flags with cmds.WithFlags(fields.New(...)) instead of raw Cobra/pflag/flag APIs
+make: *** [Makefile:34: lint] Error 1
+```
+
+I fixed that before committing Phase 2 by rewriting the generated runtime `types` command as a Glazed `cmds.BareCommand` with `cmds.WithFlags(fields.New(...))`. That kept generated app commands aligned with repository CLI conventions.
+
+For Phase 3, the main implementation risk was accidentally reintroducing direct provider loading. The command avoids this by only loading the build spec in the parent xgoja process; provider registration happens inside the generated sidecar.
+
+### What I learned
+
+- The sidecar command can stay small: it only needs `go.mod`, `main.go`, and the embedded runtime spec string inside `main.go`.
+- `--xgoja-replace` is essential for local development and tests, just as it is for `xgoja build`.
+- Check mode belongs in the parent command after sidecar output capture; the sidecar should simply print deterministic declarations to stdout.
+
+### What was tricky to build
+
+The tricky part was threading strict mode and replacement behavior into the sidecar while keeping the sidecar deterministic. I chose to bake strict mode into the generated sidecar source because it affects whether `dtsgen.RenderModules` errors, not the command-line shape of the sidecar itself. The parent command owns user-facing flags and output/check behavior.
+
+Another sharp edge is generated sidecar imports: any provider or extra import has to be represented as actual Go source, so import alias generation must match existing xgoja generated programs. This is why the sidecar template reuses the same provider import data model as the main/package templates.
+
+### What warrants a second pair of eyes
+
+- Whether `writeOrCheckDTS` should report a success message after writing/checking. It currently stays quiet except for the sidecar workspace message.
+- Whether `--check` should take a path separately or always check `--out`; the current command follows `cmd/gen-dts` semantics with `--out` as the path and `--check` as a boolean.
+- Whether generated sidecar workspaces should include a copy of `xgoja.gen.json` for debugging. Currently the runtime spec is embedded directly into `main.go`.
+
+### What should be done in the future
+
+- Add docs/help-page coverage for `xgoja gen-dts`.
+- Consider adding `--stdout` or allowing `--out -` if users want raw stdout without writing a file.
+- Add a test for `--check` mismatch behavior if this command grows more validation logic.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/cmd_gen_dts.go` for user-facing command behavior.
+- Review `cmd/xgoja/internal/generate/templates/dtsgen_main.go.tmpl` to confirm provider registration happens in generated code.
+- Review `cmd/xgoja/root_test.go::TestGenDTSCommandWired` for the end-to-end local provider test.
+- Validate with:
+  - `go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./cmd/xgoja/internal/buildexec ./pkg/xgoja/dtsgen ./pkg/xgoja/app -count=1`
+
+### Technical details
+
+Successful focused sidecar test:
+
+```bash
+go test ./cmd/xgoja -run 'TestGenDTSCommandWired|TestRootHelp' -count=1 -v
+```
+
+Output:
+
+```text
+=== RUN   TestRootHelp
+--- PASS: TestRootHelp (0.01s)
+=== RUN   TestGenDTSCommandWired
+--- PASS: TestGenDTSCommandWired (1.99s)
+PASS
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	2.034s
+```
+
+Successful broader targeted suite:
+
+```bash
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./cmd/xgoja/internal/buildexec ./pkg/xgoja/dtsgen ./pkg/xgoja/app -count=1
+```
+
+Output:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	8.216s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	35.940s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildexec	0.004s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen	0.016s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.399s
+```

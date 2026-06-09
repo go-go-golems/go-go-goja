@@ -45,6 +45,14 @@ func RenderSourceFragments(buildSpec *buildspec.BuildSpec, packageName string) m
 	return out
 }
 
+func RenderDTSGenMain(buildSpec *buildspec.BuildSpec, strict bool) string {
+	rendered, err := renderDTSGenMainTemplate(dtsGenTemplateDataFromSpec(buildSpec, strict))
+	if err != nil {
+		panic(err)
+	}
+	return rendered
+}
+
 func RenderCustomTemplate(buildSpec *buildspec.BuildSpec, packageName string, templatePath string) string {
 	rendered, err := loadCustomTemplate(templatePath, packageTemplateDataFromSpec(buildSpec, packageName))
 	if err != nil {

@@ -38,6 +38,7 @@ buildspec validation and code generation are added in follow-up phases.`,
 	commands := []cmds.Command{
 		newBuildCommand(out),
 		newGenerateCommand(out),
+		newGenDTSCommand(out),
 		newDoctorCommand(),
 		newInspectCommand(),
 		newListModulesCommand(),

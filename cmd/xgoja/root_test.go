@@ -19,7 +19,7 @@ func TestRootHelp(t *testing.T) {
 		t.Fatalf("execute help: %v", err)
 	}
 	rendered := out.String()
-	for _, want := range []string{"xgoja", "build", "generate", "doctor", "inspect", "list-modules"} {
+	for _, want := range []string{"xgoja", "build", "generate", "gen-dts", "doctor", "inspect", "list-modules"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("expected help to contain %q, got %q", want, rendered)
 		}
@@ -260,6 +260,31 @@ func TestInspectCommandReadsCurrentBinary(t *testing.T) {
 	}
 }
 
+func TestGenDTSCommandWired(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeTypedCoreSpec(t)
+	outputPath := filepath.Join(t.TempDir(), "xgoja-modules.d.ts")
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	root.SetArgs([]string{"gen-dts", "-f", specPath, "--out", outputPath, "--strict", "--xgoja-replace", repoRoot})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute gen-dts: %v\n%s", err, out.String())
+	}
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read generated dts: %v", err)
+	}
+	if !strings.Contains(string(data), `declare module "path:typed"`) {
+		t.Fatalf("expected aliased path declaration, got:\n%s", data)
+	}
+}
+
 func TestListModulesCommandWired(t *testing.T) {
 	out := &bytes.Buffer{}
 	root, err := newRootCommand(out)
@@ -392,6 +417,28 @@ commands:
     enabled: true
 `), 0o644); err != nil {
 		t.Fatalf("write build spec: %v", err)
+	}
+	return specPath
+}
+
+func writeTypedCoreSpec(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+name: typed-core
+packages:
+  - id: go-go-goja-core
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
+modules:
+  - package: go-go-goja-core
+    name: path
+    as: path:typed
+commands:
+  eval:
+    enabled: true
+`), 0o644); err != nil {
+		t.Fatalf("write typed core spec: %v", err)
 	}
 	return specPath
 }
