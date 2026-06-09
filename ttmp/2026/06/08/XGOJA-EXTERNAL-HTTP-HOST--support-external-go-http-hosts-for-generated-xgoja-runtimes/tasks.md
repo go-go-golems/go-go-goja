@@ -21,3 +21,53 @@
 - [x] Add focused app/provider/gojahttp tests.
 - [x] Add generated package smoke coverage for service injection.
 - [x] Prototype RuntimeManager behavior with blue/green reload, last-known-good fallback, status, and polling watcher.
+
+## HTTP serve hot reload integration
+
+### Phase 1: design and planning
+
+- [x] Add `HTTP Serve Hot Reload Implementation Guide` design document.
+- [x] Add detailed task checklist for `serve --hot-reload`.
+- [x] Relate the hot reload serve design to implementation files.
+- [x] Commit planning docs.
+
+### Phase 2: runtime factory per-runtime host services
+
+- [ ] Add optional `providerapi.RuntimeFactoryWithHostServices` interface.
+- [ ] Implement per-runtime host service injection in `app.RuntimeFactory`.
+- [ ] Preserve existing `NewRuntime` / `NewRuntimeFromSections` behavior.
+- [ ] Add focused tests proving command-time services reach provider module setup.
+- [ ] Commit Phase 2 implementation and diary update.
+
+### Phase 3: serve hot-reload command flags
+
+- [ ] Add serve-specific hot reload Glazed section/flags.
+- [ ] Decode hot reload settings from parsed command values.
+- [ ] Test that generated serve commands expose the new flags.
+- [ ] Commit Phase 3 implementation and diary update.
+
+### Phase 4: serve hot-reload execution path
+
+- [ ] Branch `serveVerb` to a hot-reload path when `--hot-reload` is enabled.
+- [ ] Inject candidate `ExternalHostService{OwnsListen:false}` per reload.
+- [ ] Start one Go-owned HTTP server around `hotreload.Manager` using `--http-listen`.
+- [ ] Implement optional status endpoint and optional smoke path.
+- [ ] Wire watcher roots/extensions/poll/debounce/close grace.
+- [ ] Add focused provider tests for reload success, last-known-good, status, and smoke failure.
+- [ ] Commit Phase 4 implementation and diary update.
+
+### Phase 5: generated binary integration test
+
+- [ ] Add/update generated binary integration coverage for `serve --hot-reload`.
+- [ ] Verify health endpoint response.
+- [ ] Verify file change increments hot reload status version.
+- [ ] Verify broken edit keeps last-known-good runtime serving.
+- [ ] Commit Phase 5 tests and diary update.
+
+### Phase 6: docs and final validation
+
+- [ ] Update xgoja user docs for `serve --hot-reload`.
+- [ ] Run focused tests and `go test ./...`.
+- [ ] Run `docmgr doctor`.
+- [ ] Mark all hot reload serve tasks complete.
+- [ ] Commit final docs and diary update.

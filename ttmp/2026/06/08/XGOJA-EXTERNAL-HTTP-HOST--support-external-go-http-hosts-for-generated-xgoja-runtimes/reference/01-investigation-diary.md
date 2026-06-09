@@ -735,3 +735,90 @@ Ticket validation:
 
 - ✅ All checks passed
 ```
+
+## Step 8: Design opt-in hot reload for generated HTTP serve commands
+
+I added a focused design document for making hot reload available from generated xgoja binaries, not just from an embedding Go host. The design keeps `serve` behavior unchanged by default and introduces an opt-in `--hot-reload` mode that reuses the blue/green `pkg/xgoja/hotreload` manager.
+
+The key design finding is that generated-binary `serve` cannot inject a candidate `gojahttp.Host` today because `providerapi.RuntimeFactory` has no per-runtime host-service override. The implementation plan therefore starts with a narrow runtime factory extension, then adds serve flags, then adds the hot-reload execution path and generated-binary tests.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, let's add a new design document to the ticket, and a detailed list of tasks, and then work on them one by one, commititng (in go-go-goja) as you go."
+
+**Assistant interpretation:** Create a new ticket design for `xgoja serve --hot-reload`, add a detailed task breakdown, then proceed in small committed implementation phases in the `go-go-goja` repository.
+
+**Inferred user intent:** Make hot reload available to normal generated xgoja binaries through configuration, not only through the custom minitrace-viz Go host.
+
+**Commit (code):** Pending — planning docs will be committed before implementation begins.
+
+### What I did
+
+- Added `design-doc/02-http-serve-hot-reload-implementation-guide.md`.
+- Documented the target CLI shape: `serve ... --hot-reload --hot-reload-smoke-path /api/widget/health`.
+- Identified the missing abstraction: per-runtime host service injection from command providers.
+- Proposed `providerapi.RuntimeFactoryWithHostServices` and an `app.RuntimeFactory` implementation.
+- Proposed serve-specific hot reload flags for watch roots, extensions, smoke path, poll/debounce durations, close grace, and status path.
+- Added a detailed Phase 1-6 task checklist to `tasks.md`.
+- Related the new design doc to the expected implementation files.
+
+### Why
+
+- Generated binary users should not need to write a Go host just to get development-time reloads.
+- The design needs to preserve production/default serve behavior while giving development users last-known-good hot reload.
+- Committing the design and tasks first gives us a stable checklist for small implementation commits.
+
+### What worked
+
+- Existing external host, route introspection, and `hotreload.Manager` work map cleanly onto the generated `serve` problem.
+- The new task list naturally splits into runtime-factory support, command flags, execution path, generated-binary integration tests, and docs.
+- `docmgr doc relate` updated the new design document with the key implementation files.
+
+### What didn't work
+
+- N/A. This was a planning/documentation step.
+
+### What I learned
+
+- The current `serveVerb` path can invoke a JSVerb with the right runtime values, but it cannot yet change host services per candidate runtime.
+- The generated-binary path needs a different integration from generated-package hosts: command providers must be able to add runtime-local services while reusing the generated app's selected module set.
+
+### What was tricky to build
+
+- The hard boundary is API shape: adding hot reload directly inside `serve.go` without a runtime factory extension would either mutate global provider state or bypass the normal provider module setup path. The design avoids both by making host-service override explicit and per-runtime.
+- Watch-root defaults are ambiguous for provider-shipped or embedded JSVerb sources, so the design calls out explicit roots and best-effort defaults instead of pretending every source is watchable.
+
+### What warrants a second pair of eyes
+
+- The exact name and signature of `RuntimeFactoryWithHostServices` before it becomes part of providerapi.
+- Whether hot reload status should default to `/__xgoja/status` or require an explicit flag to avoid route shadowing.
+
+### What should be done in the future
+
+- Implement Phase 2 first: per-runtime host service injection.
+- Keep the hot-reload serve path opt-in until it has generated-binary integration coverage.
+
+### Code review instructions
+
+- Start with `design-doc/02-http-serve-hot-reload-implementation-guide.md` for the proposed CLI and phased plan.
+- Review `tasks.md` for the implementation checklist.
+- Validate with:
+  - `docmgr --root go-go-goja/ttmp doctor --ticket XGOJA-EXTERNAL-HTTP-HOST --stale-after 30`
+
+### Technical details
+
+Planning validation command:
+
+```bash
+docmgr --root go-go-goja/ttmp doctor --ticket XGOJA-EXTERNAL-HTTP-HOST --stale-after 30
+```
+
+Result:
+
+```text
+## Doctor Report (1 findings)
+
+### XGOJA-EXTERNAL-HTTP-HOST
+
+- ✅ All checks passed
+```
