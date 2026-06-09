@@ -69,6 +69,7 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 		h.AttachRepl(root)
 	}
 	h.AttachModules(root)
+	h.AttachSelectedModules(root)
 	if h.RuntimeSpec.Commands.JSVerbs.Enabled {
 		h.AttachVerbs(root)
 	}
@@ -121,7 +122,19 @@ func (h *Host) AttachModules(root *cobra.Command) {
 	}
 	cmd, err := buildGlazedCobraCommand(newModulesCommand(h.Providers, h.RuntimeSpec), h.MiddlewaresFunc)
 	if err != nil {
-		root.AddCommand(commandErrorStub("modules", "List provider modules registered in this generated binary", err))
+		root.AddCommand(commandErrorStub("modules", "List provider modules compiled into this generated binary", err))
+		return
+	}
+	root.AddCommand(cmd)
+}
+
+func (h *Host) AttachSelectedModules(root *cobra.Command) {
+	if root == nil || h == nil {
+		return
+	}
+	cmd, err := buildGlazedCobraCommand(newSelectedModulesCommand(h.RuntimeSpec), h.MiddlewaresFunc)
+	if err != nil {
+		root.AddCommand(commandErrorStub("selected-modules", "List require() modules selected for this generated runtime", err))
 		return
 	}
 	root.AddCommand(cmd)
