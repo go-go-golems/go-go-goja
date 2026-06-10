@@ -126,7 +126,7 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	return writeOrCheckDTS(settings.Output, result.Output, settings.Check)
+	return writeOrCheckDTS(settings.Output, result.Stdout, settings.Check)
 }
 
 func writeDTSSidecar(dir string, buildSpec *buildspec.BuildSpec, settings genDTSSettings) error {

@@ -66,7 +66,7 @@ func BundleModules(registry *providerapi.ProviderRegistry, modules []ModuleInsta
 		if !ok {
 			return nil, nil, fmt.Errorf("runtime module %s.%s is not registered", packageID, moduleName)
 		}
-		alias := requireName(instance, providerModule)
+		alias := requireName(instance)
 		if _, ok := seen[alias]; ok {
 			return nil, nil, fmt.Errorf("duplicate require module alias %q", alias)
 		}
@@ -96,11 +96,8 @@ func BundleModules(registry *providerapi.ProviderRegistry, modules []ModuleInsta
 	return bundle, missing, nil
 }
 
-func requireName(instance ModuleInstance, providerModule providerapi.Module) string {
+func requireName(instance ModuleInstance) string {
 	if alias := strings.TrimSpace(instance.As); alias != "" {
-		return alias
-	}
-	if alias := strings.TrimSpace(providerModule.DefaultAs); alias != "" {
 		return alias
 	}
 	return strings.TrimSpace(instance.Name)

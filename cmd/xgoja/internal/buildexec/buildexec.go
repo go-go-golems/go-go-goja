@@ -1,6 +1,7 @@
 package buildexec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -10,6 +11,8 @@ import (
 
 type Result struct {
 	Command string
+	Stdout  string
+	Stderr  string
 	Output  string
 }
 
@@ -39,8 +42,17 @@ func run(ctx context.Context, dir string, env map[string]string, name string, ar
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), sortedEnv(env)...)
 	}
-	out, err := cmd.CombinedOutput()
-	result := Result{Command: commandString(env, name, args), Output: string(out)}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	result := Result{
+		Command: commandString(env, name, args),
+		Stdout:  stdout.String(),
+		Stderr:  stderr.String(),
+		Output:  stdout.String() + stderr.String(),
+	}
 	if err != nil {
 		return result, fmt.Errorf("%s failed: %w\n%s", result.Command, err, result.Output)
 	}

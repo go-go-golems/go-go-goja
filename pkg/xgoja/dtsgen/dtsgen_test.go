@@ -43,6 +43,30 @@ func TestRenderRuntimeSpecUsesAliasesAndDoesNotMutateProviderDescriptor(t *testi
 	}
 }
 
+func TestRenderRuntimeSpecFallsBackToRuntimeModuleName(t *testing.T) {
+	t.Parallel()
+
+	registry := providerapi.NewProviderRegistry()
+	if err := registry.Package("pkg", providerapi.Module{
+		Name:             "actual-name",
+		DefaultAs:        "default-alias",
+		TypeScript:       moduleDescriptor("default-alias"),
+		NewModuleFactory: noopFactory,
+	}); err != nil {
+		t.Fatalf("register package: %v", err)
+	}
+	result, err := RenderModules(registry, []ModuleInstance{{Package: "pkg", Name: "actual-name"}}, Options{})
+	if err != nil {
+		t.Fatalf("render runtime spec: %v", err)
+	}
+	if !strings.Contains(result.DTS, `declare module "actual-name"`) {
+		t.Fatalf("expected runtime module name declaration, got:\n%s", result.DTS)
+	}
+	if strings.Contains(result.DTS, `declare module "default-alias"`) {
+		t.Fatalf("unexpected provider default alias declaration, got:\n%s", result.DTS)
+	}
+}
+
 func TestRenderRuntimeSpecReportsMissingDescriptorsInNonStrictMode(t *testing.T) {
 	t.Parallel()
 
@@ -80,12 +104,12 @@ func TestRenderRuntimeSpecRejectsDuplicateRequireAliases(t *testing.T) {
 
 	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("pkg",
-		providerapi.Module{Name: "a", DefaultAs: "dup", TypeScript: moduleDescriptor("a"), NewModuleFactory: noopFactory},
-		providerapi.Module{Name: "b", DefaultAs: "dup", TypeScript: moduleDescriptor("b"), NewModuleFactory: noopFactory},
+		providerapi.Module{Name: "a", TypeScript: moduleDescriptor("a"), NewModuleFactory: noopFactory},
+		providerapi.Module{Name: "b", TypeScript: moduleDescriptor("b"), NewModuleFactory: noopFactory},
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	_, err := RenderModules(registry, []ModuleInstance{{Package: "pkg", Name: "a"}, {Package: "pkg", Name: "b"}}, Options{})
+	_, err := RenderModules(registry, []ModuleInstance{{Package: "pkg", Name: "a", As: "dup"}, {Package: "pkg", Name: "b", As: "dup"}}, Options{})
 	if err == nil || !strings.Contains(err.Error(), `duplicate require module alias "dup"`) {
 		t.Fatalf("expected duplicate alias error, got %v", err)
 	}
