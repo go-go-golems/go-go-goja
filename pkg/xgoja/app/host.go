@@ -74,6 +74,7 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 	}
 	h.AttachModules(root)
 	h.AttachSelectedModules(root)
+	h.AttachTypes(root)
 	if h.RuntimeSpec.Commands.JSVerbs.Enabled {
 		h.AttachVerbs(root)
 	}

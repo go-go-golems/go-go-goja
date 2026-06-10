@@ -22,8 +22,12 @@ func TestRegister(t *testing.T) {
 	if err := Register(registry); err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if _, ok := registry.ResolveModule(PackageID, "express"); !ok {
+	mod, ok := registry.ResolveModule(PackageID, "express")
+	if !ok {
 		t.Fatal("expected express module")
+	}
+	if mod.TypeScript == nil {
+		t.Fatal("expected express module to carry TypeScript descriptor")
 	}
 	if _, ok := registry.ResolveCommandSetProvider(PackageID, "serve"); !ok {
 		t.Fatal("expected serve command provider")

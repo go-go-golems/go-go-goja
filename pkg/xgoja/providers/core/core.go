@@ -11,6 +11,7 @@ import (
 	_ "github.com/go-go-golems/go-go-goja/modules/time"
 	_ "github.com/go-go-golems/go-go-goja/modules/timer"
 	_ "github.com/go-go-golems/go-go-goja/modules/yaml"
+	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
@@ -48,8 +49,17 @@ func nativeModuleEntry(mod modules.NativeModule) providerapi.Module {
 		Name:        mod.Name(),
 		DefaultAs:   mod.Name(),
 		Description: mod.Doc(),
+		TypeScript:  nativeModuleTypeScript(mod),
 		NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 			return mod.Loader, nil
 		},
 	}
+}
+
+func nativeModuleTypeScript(mod modules.NativeModule) *spec.Module {
+	declarer, ok := mod.(modules.TypeScriptDeclarer)
+	if !ok {
+		return nil
+	}
+	return declarer.TypeScriptModule()
 }

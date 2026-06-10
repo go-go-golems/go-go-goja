@@ -45,6 +45,13 @@ type packageTemplateData struct {
 	ExtraImports      []extraImport
 }
 
+type dtsGenTemplateData struct {
+	SpecJSON        string
+	ProviderImports []providerImport
+	ExtraImports    []extraImport
+	Strict          bool
+}
+
 type providerImport struct {
 	Alias    string
 	Import   string
@@ -79,6 +86,10 @@ func renderEmbedFragmentTemplate(data packageTemplateData) (string, error) {
 
 func renderBundleFragmentTemplate(data packageTemplateData) (string, error) {
 	return renderTemplate("bundle_fragment.go.tmpl", data, "generated bundle fragment")
+}
+
+func renderDTSGenMainTemplate(data dtsGenTemplateData) (string, error) {
+	return renderTemplate("dtsgen_main.go.tmpl", data, "generated dtsgen main.go")
 }
 
 func renderCustomTemplate(path string, data packageTemplateData) (string, error) {
@@ -194,6 +205,15 @@ func mainTemplateDataFromSpec(buildSpec *buildspec.BuildSpec) mainTemplateData {
 		data.RootConstruction = "root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})"
 	}
 	return data
+}
+
+func dtsGenTemplateDataFromSpec(buildSpec *buildspec.BuildSpec, strict bool) dtsGenTemplateData {
+	return dtsGenTemplateData{
+		SpecJSON:        escapeRawString(RenderEmbeddedSpec(buildSpec)),
+		ProviderImports: providerImportsFromSpec(buildSpec),
+		ExtraImports:    extraImportsFromSpec(buildSpec),
+		Strict:          strict,
+	}
 }
 
 func packageTemplateDataFromSpec(buildSpec *buildspec.BuildSpec, packageName string) packageTemplateData {

@@ -12,7 +12,9 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/modules"
 	dbm "github.com/go-go-golems/go-go-goja/modules/database"
+	_ "github.com/go-go-golems/go-go-goja/modules/exec"
 	fsmod "github.com/go-go-golems/go-go-goja/modules/fs"
+	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
@@ -70,6 +72,7 @@ func fsModule(name string) providerapi.Module {
 		Name:        name,
 		DefaultAs:   name,
 		Description: "Configurable filesystem module. Use config.allow=true for host filesystem access, or config.embedded.allow=true with mounts for read-only embedded assets. Prefer separate aliases such as fs:host and fs:assets.",
+		TypeScript:  fsmod.New(fsmod.WithName(name)).TypeScriptModule(),
 		ConfigSchema: json.RawMessage(`{
   "type": "object",
   "properties": {
@@ -160,6 +163,7 @@ func execModule() providerapi.Module {
 		Name:        "exec",
 		DefaultAs:   "exec",
 		Description: "Guarded process execution module. Requires config.allow=true and can optionally restrict command names.",
+		TypeScript:  nativeModuleTypeScript("exec"),
 		ConfigSchema: json.RawMessage(`{
   "type": "object",
   "required": ["allow"],
@@ -205,6 +209,7 @@ func databaseModule(name string) providerapi.Module {
 		Name:        name,
 		DefaultAs:   name,
 		Description: "Guarded database module. configure() is disabled unless config.allowConfigure=true.",
+		TypeScript:  dbm.New(dbm.WithName(name)).TypeScriptModule(),
 		ConfigSchema: json.RawMessage(`{
   "type": "object",
   "properties": {
@@ -241,6 +246,18 @@ func databaseModuleFromConfig(name string, cfg DatabaseConfig) (*dbm.DBModule, e
 		return nil, fmt.Errorf("open preconfigured database %q: %w", driverName, err)
 	}
 	return dbm.New(dbm.WithName(name), dbm.WithPreconfiguredDB(db), dbm.WithCloseFn(db.Close)), nil
+}
+
+func nativeModuleTypeScript(name string) *spec.Module {
+	mod := modules.GetModule(name)
+	if mod == nil {
+		return nil
+	}
+	declarer, ok := mod.(modules.TypeScriptDeclarer)
+	if !ok {
+		return nil
+	}
+	return declarer.TypeScriptModule()
 }
 
 func decodeConfig(data json.RawMessage, out any) error {

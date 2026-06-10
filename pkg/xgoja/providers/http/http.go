@@ -36,6 +36,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
 			Name:        "express",
 			DefaultAs:   "express",
 			Description: "Express-style HTTP route registration backed by gojahttp",
+			TypeScript:  express.NewRegistrar(nil).TypeScriptModule(),
 			NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
 				return capability.newExpressLoader(ctx.Host)
 			},
