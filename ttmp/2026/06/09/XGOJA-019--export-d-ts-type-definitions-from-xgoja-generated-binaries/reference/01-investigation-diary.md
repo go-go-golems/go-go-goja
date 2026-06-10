@@ -22,6 +22,8 @@ RelatedFiles:
       Note: goja-text provider forwards native TypeScript descriptors commit 0648b48
     - Path: cmd/gen-dts/main.go
       Note: Standalone gen-dts tool
+    - Path: modules/timer/timer.go
+      Note: timer TypeScript descriptor commit 7dcd920
     - Path: modules/typing.go
       Note: TypeScriptDeclarer interface
     - Path: pkg/tsgen/render/dts_renderer.go
@@ -32,6 +34,8 @@ RelatedFiles:
       Note: providerapi.Module — gap A location
     - Path: pkg/xgoja/providers/core/core.go
       Note: Core provider — discards TypeScriptDeclarer
+    - Path: pkg/xgoja/providers/core/core_test.go
+      Note: core provider expects timer descriptor commit 7dcd920
     - Path: pkg/xgoja/providers/host/host.go
       Note: Host provider — discards TypeScriptDeclarer
 ExternalSources: []
@@ -40,6 +44,7 @@ LastUpdated: 2026-06-09T00:00:00Z
 WhatFor: Record the investigation findings and architectural analysis for XGOJA-019.
 WhenToUse: Read this before starting implementation work on XGOJA-019 to understand what was discovered and why the proposed design looks the way it does.
 ---
+
 
 
 # Investigation Diary
@@ -774,4 +779,76 @@ The generated strict declaration file is:
 
 ```text
 /home/manuel/workspaces/2026-06-07/club-meetup-site/ClubMedMeetup/minitrace-viz/types/xgoja-modules.d.ts
+```
+
+## Step 7: Timer Module TypeScript Descriptor
+
+This step closed the remaining known untyped first-party core module by adding a declaration descriptor for `require("timer")`. The runtime API is intentionally small: `timer.sleep(ms)` returns a Promise that resolves after the requested delay, or rejects for negative durations.
+
+Because the xgoja core provider already forwards descriptors from `modules.TypeScriptDeclarer`, typing the native timer module was enough for provider-level d.ts generation. I updated the core provider test so `timer` is now expected to carry a descriptor alongside path, yaml, crypto, time, and events.
+
+### Prompt Context
+
+**User prompt (verbatim):** "type timer."
+
+**Assistant interpretation:** Add TypeScript declaration support for the `timer` module identified as the remaining obvious first-party missing descriptor.
+
+**Inferred user intent:** Finish the easy remaining DTS coverage gap so `require("timer").sleep(...)` gets TypeScript/IDE support.
+
+**Commit (code):** 7dcd9200a5d1f633333ec17ed49749d7393c9d87 — "timer: add TypeScript declaration descriptor"
+
+### What I did
+
+- Updated `/home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/modules/timer/timer.go` so the module implements `modules.TypeScriptDeclarer`.
+- Added a descriptor declaring `sleep(ms: number): Promise<void>`.
+- Updated `/home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providers/core/core_test.go` so `timer` is expected to have provider-level TypeScript metadata.
+- Ran targeted validation:
+  - `go test ./modules/timer ./pkg/xgoja/providers/core ./pkg/xgoja/dtsgen -count=1`
+- Committed the change; the repository pre-commit hook also ran full lint and tests successfully.
+
+### Why
+
+`timer` was the one obvious first-party core module still missing DTS coverage after the xgoja provider metadata work. Adding this descriptor improves strict-mode coverage for runtimes that select `timer` and gives JavaScript authors completions for the async sleep helper.
+
+### What worked
+
+- The descriptor was simple because the timer module exposes one exported function.
+- The existing xgoja core provider forwarding path picked it up automatically once the native module implemented `modules.TypeScriptDeclarer`.
+- Targeted tests passed, and the commit hook completed successfully with lint and full test suite.
+
+### What didn't work
+
+N/A
+
+### What I learned
+
+- The remaining core descriptor gap was local to `modules/timer`; no xgoja provider changes were required.
+- `Promise<void>` works as a named type in the current renderer, matching the style used for other raw TypeScript-friendly descriptor strings.
+
+### What was tricky to build
+
+The only subtle point was representing a generic TypeScript return type with the current `spec.TypeRef` model. The renderer supports named types as strings, so `spec.Named("Promise<void>")` is sufficient for this simple case.
+
+### What warrants a second pair of eyes
+
+- Whether `ms` should be modeled as `number` rather than a branded/non-negative millisecond type. Runtime rejects negative values, but TypeScript cannot easily express that without additional helper types.
+
+### What should be done in the future
+
+- If timer later grows cancellation helpers or interval-like APIs, extend the descriptor and tests at the same time.
+
+### Code review instructions
+
+- Review `modules/timer/timer.go`, especially `TypeScriptModule()`.
+- Review `pkg/xgoja/providers/core/core_test.go` to confirm provider-level descriptor forwarding now includes timer.
+- Validate with `go test ./modules/timer ./pkg/xgoja/providers/core ./pkg/xgoja/dtsgen -count=1`.
+
+### Technical details
+
+Successful targeted validation:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/modules/timer	0.051s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core	0.009s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen	0.008s
 ```

@@ -27,3 +27,13 @@ Added third-party provider TypeScript descriptors for go-minitrace, goja-text fo
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/go-minitrace/pkg/minitracejs/typescript.go — go-minitrace descriptor
 - /home/manuel/workspaces/2026-06-07/club-meetup-site/goja-text/pkg/xgoja/providers/text/text.go — descriptor forwarding
 
+
+## 2026-06-09
+
+Added TypeScript descriptor for the core timer module so require timer exposes sleep(ms): Promise<void> in generated d.ts output (commit 7dcd920).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/modules/timer/timer.go — timer TypeScript descriptor
+- /home/manuel/workspaces/2026-06-07/club-meetup-site/go-go-goja/pkg/xgoja/providers/core/core_test.go — provider descriptor expectation
+
