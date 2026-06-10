@@ -2,6 +2,8 @@ package app
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -27,18 +29,46 @@ func TestHostTypeScriptDeclarationsUsesSelectedAliases(t *testing.T) {
 func TestTypesCommandPrintsDeclarations(t *testing.T) {
 	t.Parallel()
 
-	host := typedTestHost(t)
-	root := &cobra.Command{Use: "test"}
 	buf := &bytes.Buffer{}
-	root.SetOut(buf)
-	host.AttachTypes(root)
-	root.SetArgs([]string{"types", "--strict"})
-	if err := root.Execute(); err != nil {
+	if err := executeTypesCommand(t, buf, "types", "--strict"); err != nil {
 		t.Fatalf("execute types command: %v", err)
 	}
 	if !strings.Contains(buf.String(), `declare module "path:runtime"`) {
 		t.Fatalf("expected declarations on stdout, got:\n%s", buf.String())
 	}
+	if !strings.HasSuffix(buf.String(), "\n") {
+		t.Fatalf("expected declarations to end with newline")
+	}
+}
+
+func TestTypesCommandCheckAcceptsTrailingNewline(t *testing.T) {
+	t.Parallel()
+
+	host := typedTestHost(t)
+	result, err := host.TypeScriptDeclarations(dtsgen.Options{Strict: true})
+	if err != nil {
+		t.Fatalf("typescript declarations: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "xgoja-modules.d.ts")
+	if err := os.WriteFile(path, []byte(result.DTS+"\n"), 0o644); err != nil {
+		t.Fatalf("write declarations: %v", err)
+	}
+	if err := executeTypesCommand(t, nil, "types", "--strict", "--check", path); err != nil {
+		t.Fatalf("check declarations with trailing newline: %v", err)
+	}
+}
+
+func executeTypesCommand(t *testing.T, out *bytes.Buffer, args ...string) error {
+	t.Helper()
+	host := typedTestHost(t)
+	root := &cobra.Command{Use: "test"}
+	if out == nil {
+		out = &bytes.Buffer{}
+	}
+	root.SetOut(out)
+	host.AttachTypes(root)
+	root.SetArgs(args)
+	return root.Execute()
 }
 
 func typedTestHost(t *testing.T) *Host {

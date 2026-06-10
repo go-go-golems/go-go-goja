@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
@@ -100,24 +101,32 @@ func (c *typesCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
+	content := dtsWithTrailingNewline(result.DTS)
 	switch {
 	case settings.Check != "":
 		data, err := os.ReadFile(settings.Check)
 		if err != nil {
 			return fmt.Errorf("read %s: %w", settings.Check, err)
 		}
-		if string(data) != result.DTS {
+		if string(data) != content {
 			return fmt.Errorf("generated TypeScript declarations differ from %s", settings.Check)
 		}
 		return nil
 	case settings.Out != "":
-		return os.WriteFile(settings.Out, []byte(result.DTS), 0o644)
+		return os.WriteFile(settings.Out, []byte(content), 0o644)
 	default:
 		out := c.out
 		if out == nil {
 			out = io.Discard
 		}
-		_, err = io.WriteString(out, result.DTS)
+		_, err = io.WriteString(out, content)
 		return err
 	}
+}
+
+func dtsWithTrailingNewline(content string) string {
+	if strings.HasSuffix(content, "\n") {
+		return content
+	}
+	return content + "\n"
 }
