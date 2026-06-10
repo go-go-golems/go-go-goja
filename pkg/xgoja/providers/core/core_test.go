@@ -25,6 +25,7 @@ func TestRegisterCoreProvider(t *testing.T) {
 		"crypto":      true,
 		"node:crypto": true,
 		"time":        true,
+		"timer":       true,
 		"events":      true,
 		"node:events": true,
 	}

@@ -8,11 +8,13 @@ import (
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/modules"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
+	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 )
 
 type m struct{}
 
 var _ modules.NativeModule = (*m)(nil)
+var _ modules.TypeScriptDeclarer = (*m)(nil)
 
 func (m) Name() string { return "timer" }
 
@@ -23,6 +25,22 @@ The timer module provides Promise-based timing helpers.
 Functions:
   sleep(ms): Returns a Promise that resolves after the provided duration.
 `
+}
+
+func (m) TypeScriptModule() *spec.Module {
+	return &spec.Module{
+		Name:        "timer",
+		Description: "Promise-based timing helpers.",
+		Functions: []spec.Function{
+			{
+				Name: "sleep",
+				Params: []spec.Param{
+					{Name: "ms", Type: spec.Number(), Description: "Duration in milliseconds."},
+				},
+				Returns: spec.Named("Promise<void>"),
+			},
+		},
+	}
 }
 
 func (mod m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
