@@ -31,5 +31,3 @@
 
 ## Phase 4: Future HTTP serving (separate ticket)
 
-- [ ] 4.1 Decide whether generated web hosts should serve declarations at `/xgoja/types.d.ts`
-- [ ] 4.2 Define route conflict and security behavior before implementation

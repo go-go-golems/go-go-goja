@@ -1,7 +1,7 @@
 ---
 Title: Export d.ts type definitions from xgoja-generated binaries
 Ticket: XGOJA-019
-Status: active
+Status: closed
 Topics:
     - xgoja
     - typescript
@@ -26,10 +26,11 @@ RelatedFiles:
       Note: Host provider — needs TypeScriptDeclarer extraction
 ExternalSources: []
 Summary: Make TypeScript type definitions for native modules available to JS developers working with xgoja-generated binaries. The d.ts generation pipeline exists (TypeScriptDeclarer → spec → render → gen-dts) but is disconnected from the xgoja provider layer and generated binaries.
-LastUpdated: 2026-06-09
+LastUpdated: 2026-06-10T10:42:43.145079464-04:00
 WhatFor: Enable JS developers to get accurate TypeScript type definitions for the native modules available in any xgoja-generated binary.
 WhenToUse: When implementing d.ts export from xgoja, adding the gen-dts subcommand, or wiring runtime type-definition exposure.
 ---
+
 
 # Export d.ts type definitions from xgoja-generated binaries
 
