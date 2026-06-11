@@ -1,0 +1,48 @@
+name: typescript-jsverbs
+appName: typescript-jsverbs
+
+target:
+  kind: xgoja
+  output: dist/typescript-jsverbs
+
+packages:
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+
+modules:
+  - package: go-go-goja-http
+    name: express
+
+commands:
+  jsverbs:
+    enabled: true
+    name: verbs
+  eval:
+    enabled: false
+  run:
+    enabled: true
+    name: run
+  repl:
+    enabled: false
+
+commandProviders:
+  - id: http-serve
+    package: go-go-goja-http
+    name: serve
+    mount: serve
+
+jsverbs:
+  - id: local-sites
+    path: ./verbs
+    embed: false
+    extensions: [".ts"]
+    include: ["**/*.ts"]
+    exclude: ["**/*.test.ts"]
+    typescript:
+      enabled: true
+      bundle: true
+      target: es2015
+      format: cjs
+      platform: neutral
+      external:
+        - express
