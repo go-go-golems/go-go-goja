@@ -28,6 +28,10 @@ RelatedFiles:
       Note: Step 5 focused tests for transform/bundle/diagnostics (commit 9f8c8be)
     - Path: pkg/tsscript/options.go
       Note: Step 5 public compiler options and extension helpers (commit 9f8c8be)
+    - Path: pkg/xgoja/app/run.go
+      Note: Step 8 xgoja run TypeScript entry support (commit 5b06447)
+    - Path: pkg/xgoja/app/run_typescript_test.go
+      Note: Step 8 TypeScript run tests (commit 5b06447)
     - Path: pkg/xgoja/app/runtime_spec.go
       Note: Step 6 runtime TypeScriptSpec transport (commit d2b9d58)
     - Path: pkg/xgoja/app/typescript.go
@@ -43,6 +47,7 @@ LastUpdated: 2026-06-10T21:35:00-04:00
 WhatFor: Use to understand how the TypeScript support design was researched, written, validated, and delivered.
 WhenToUse: Read before continuing implementation or changing the design doc for XGOJA-TS-001.
 ---
+
 
 
 
@@ -665,3 +670,84 @@ This is the core behavioral step for TypeScript jsverbs. It preserves the existi
 - TypeScript scan transform uses `tsscript.TransformSource`.
 - TypeScript runtime transform uses `tsscript.BundleVirtualEntry` when `typescript.bundle` is true; otherwise it uses `tsscript.TransformSource`.
 - The test fixture uses a `sites.ts` verb importing `./helper.ts` and verifies execution through the existing goja runtime owner path.
+
+
+## Step 8: Add `xgoja run` support for TypeScript entry files
+
+I added the `xgoja run file.ts` execution path. When the run command sees a TypeScript-family extension, it bundles the entry file with esbuild and executes the resulting JavaScript in the already-created xgoja runtime.
+
+This keeps the existing JavaScript `require()` path untouched for `.js` files while allowing development scripts to use `.ts` files and local TypeScript helper imports.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 5)
+
+**Assistant interpretation:** Continue implementation with the planned `xgoja run` TypeScript entry support.
+
+**Inferred user intent:** Make the generated runtime's direct script runner useful for TypeScript files, not only jsverb command sources.
+
+**Commit (code):** `5b064476dba83ff68fbdfbec650f9f27cf4734c7` — "xgoja: run TypeScript entry files"
+
+### What I did
+
+- Updated `pkg/xgoja/app/run.go`:
+  - detects TypeScript-family script paths with `tsscript.IsTypeScriptPath`;
+  - compiles `.ts/.tsx/.mts/.cts` entries with `tsscript.BundleEntry`;
+  - runs the compiled JavaScript through `vm.RunScript` inside `rt.Owner.Call`;
+  - preserves existing `rt.Require.Require(scriptPath)` behavior for non-TypeScript files;
+  - marks selected xgoja module aliases as esbuild externals via `moduleAliases`.
+- Added `pkg/xgoja/app/run_typescript_test.go`:
+  - creates `entry.ts` importing `helper.ts`;
+  - runs it through `runScriptFileWithInitializers`;
+  - tests alias deduplication for selected module descriptors.
+
+### Why
+
+- `xgoja run` is the simplest direct execution path for development scripts.
+- Bundling the entry file avoids asking goja_nodejs to resolve `.ts` helper files.
+- Marking selected module aliases external prevents esbuild from trying to bundle Go-backed xgoja modules.
+
+### What worked
+
+- Focused validation passed:
+  - `go test ./pkg/xgoja/app -count=1`
+- Final pre-commit validation passed:
+  - lint;
+  - glazed lint;
+  - `go generate ./...`;
+  - `go test ./...`.
+
+### What didn't work
+
+- No implementation failure in this step.
+
+### What I learned
+
+- The existing `runScriptFileWithInitializers` already resolves script-local module roots and initializes selected modules before execution, so the TypeScript path only needed to replace the final module execution step.
+- The helper import case is a good minimum test because it verifies that `BundleEntry` follows local `.ts` imports.
+
+### What was tricky to build
+
+- The TypeScript entry path uses `FormatIIFE` rather than CommonJS because `xgoja run` does not need module exports from the entry file. This should be tested later with scripts that import xgoja native modules.
+- `moduleAliases` must deduplicate aliases and fall back from `As` to `ModuleID` so the esbuild `External` list is stable.
+
+### What warrants a second pair of eyes
+
+- Review whether `FormatIIFE` is the right long-term default for `xgoja run file.ts`, especially for scripts with external `require()` calls or top-level exports.
+- The current implementation does not expose per-command TypeScript options for `xgoja run`; it uses conservative defaults.
+
+### What should be done in the future
+
+- Add a generated-binary or CLI-level test for `xgoja run script.ts` once examples are added.
+- Consider allowing `xgoja run --tsconfig` or spec-level defaults if users need project-specific TypeScript options.
+
+### Code review instructions
+
+- Start in `pkg/xgoja/app/run.go`, especially `runTypeScriptScript` and `moduleAliases`.
+- Validate with:
+  - `go test ./pkg/xgoja/app -count=1`
+
+### Technical details
+
+- TypeScript entries compile with target `api.ES2015`, format `api.FormatIIFE`, and platform `api.PlatformNeutral`.
+- Selected module aliases are passed to esbuild as `External`.

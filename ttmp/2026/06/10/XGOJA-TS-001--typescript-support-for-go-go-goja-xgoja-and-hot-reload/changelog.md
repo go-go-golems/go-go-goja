@@ -54,3 +54,13 @@ Step 7: wired TypeScript scan/runtime transforms into jsverbs and xgoja app, wit
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/jsverbs/runtime.go — Runtime transform and overlay handling
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/typescript.go — TypeScript adapter
 
+
+## 2026-06-10
+
+Step 8: added xgoja run support for TypeScript entry files with bundling and module-alias externals (commit 5b06447).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/run.go — TypeScript run path
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/run_typescript_test.go — TypeScript run tests
+
