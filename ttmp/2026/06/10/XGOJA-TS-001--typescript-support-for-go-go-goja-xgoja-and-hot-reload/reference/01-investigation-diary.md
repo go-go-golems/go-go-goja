@@ -16,6 +16,12 @@ RelatedFiles:
       Note: Primary deliverable produced during this diary
     - Path: go-go-goja/ttmp/2026/06/10/XGOJA-TS-001--typescript-support-for-go-go-goja-xgoja-and-hot-reload/sources/local/01-goja-typescript-esbuild-note.md
       Note: Imported source note studied before writing the design
+    - Path: pkg/tsscript/compiler.go
+      Note: Step 5 compiler facade implementation (commit 9f8c8be)
+    - Path: pkg/tsscript/compiler_test.go
+      Note: Step 5 focused tests for transform/bundle/diagnostics (commit 9f8c8be)
+    - Path: pkg/tsscript/options.go
+      Note: Step 5 public compiler options and extension helpers (commit 9f8c8be)
 ExternalSources:
     - local:01-goja-typescript-esbuild-note.md
 Summary: Chronological diary for the TypeScript support research/design ticket.
@@ -23,6 +29,7 @@ LastUpdated: 2026-06-10T21:35:00-04:00
 WhatFor: Use to understand how the TypeScript support design was researched, written, validated, and delivered.
 WhenToUse: Read before continuing implementation or changing the design doc for XGOJA-TS-001.
 ---
+
 
 
 # Diary
@@ -345,3 +352,108 @@ After validation passed, I uploaded a bundled PDF containing the index, design g
   - `reference/01-investigation-diary.md`
   - `tasks.md`
   - `sources/local/01-goja-typescript-esbuild-note.md`
+
+
+## Step 5: Add the `pkg/tsscript` esbuild compiler facade
+
+I implemented the first code phase from the design: a small `pkg/tsscript` package that wraps esbuild's Go API. This package gives the rest of the repository one place to ask for TypeScript transformation, entry bundling, virtual-entry bundling, loader selection, diagnostics, and default goja-safe options.
+
+This step intentionally does not wire TypeScript into xgoja or jsverbs yet. It creates the reusable compiler seam and verifies it with focused tests before changing existing runtime behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead. step by step, commit at appropriate intervals, keep a detailed diary"
+
+**Assistant interpretation:** Start implementing the TypeScript support plan incrementally, commit focused chunks, and keep the ticket diary current.
+
+**Inferred user intent:** Move from design to implementation while preserving reviewable commits and a continuation-friendly record of commands, failures, and decisions.
+
+**Commit (code):** `9f8c8bef8a1cfc1e7714988751e55a563d785f6d` — "tsscript: add esbuild compiler facade"
+
+### What I did
+
+- Added the esbuild Go dependency with:
+  - `go get github.com/evanw/esbuild@v0.25.12`
+- Added `pkg/tsscript/options.go`:
+  - `Options`, `Source`, `Artifact` DTOs.
+  - `IsTypeScriptPath` and `LoaderForPath` helpers.
+  - default target/platform/format helpers.
+- Added `pkg/tsscript/compiler.go`:
+  - `TransformSource` for source-string transpilation.
+  - `BundleEntry` for filesystem entry bundling.
+  - `BundleVirtualEntry` for in-memory entry bundling with `ResolveDir`.
+  - output-file selection and default loader map.
+- Added `pkg/tsscript/diagnostics.go`:
+  - stable diagnostic conversion and aggregated esbuild error formatting.
+- Added `pkg/tsscript/compiler_test.go`:
+  - transform strips TypeScript and runs in goja.
+  - virtual entry follows `./helper.ts` imports.
+  - entry bundling preserves an external native-module `require()`.
+  - transform diagnostics include the source file.
+  - loader selection covers `.ts`, `.tsx`, `.mts`, `.cts`, `.jsx`, `.json`, and `.js`.
+- Included generated `pkg/tsscript/logcopter.go` after the pre-commit hook generated it.
+- Ran focused validation:
+  - `go test ./pkg/tsscript -count=1`
+- Committed the code after the repository pre-commit hook ran lint and full tests.
+
+### Why
+
+- The compiler facade isolates esbuild dependency details from xgoja, jsverbs, and hot reload.
+- Tests prove the core behavior before existing runtime paths are changed.
+- The facade defaults to conservative goja-friendly output (`ES2015`, neutral platform, CommonJS for bundles, IIFE for transforms).
+
+### What worked
+
+- `go test ./pkg/tsscript -count=1` passed.
+- The final pre-commit hook passed:
+  - `golangci-lint run -v`
+  - glazed lint via `go vet -vettool=/tmp/glazed-lint ...`
+  - `go generate ./...`
+  - `go test ./...`
+- Full test output included `ok github.com/go-go-golems/go-go-goja/pkg/tsscript` and existing package tests passed.
+
+### What didn't work
+
+- The first commit attempt failed in pre-commit lint because the external require assertion accidentally compared the same expression twice:
+  - `pkg/tsscript/compiler_test.go:78:5: SA4000: identical expressions on the left and right side of the '&&' operator`
+- I fixed the assertion to a single `strings.Contains(code, require("native-module"))` check.
+- One commit command timed out at 240 seconds while the pre-commit hook was still running full tests. I reran the commit with a longer timeout, and it completed successfully.
+
+### What I learned
+
+- The repository pre-commit hook runs more than the focused package test: it invokes lint, glazed lint, `go generate ./...`, and `go test ./...`.
+- `go generate ./...` generated `pkg/tsscript/logcopter.go`, which needed to be included in the focused commit.
+- esbuild `Build` with `Write: false` returns generated output in `OutputFiles`, and source maps may appear as separate output files.
+
+### What was tricky to build
+
+- `BundleVirtualEntry` needs `StdinOptions.ResolveDir` so esbuild can resolve relative imports from an in-memory source. Without that, a virtual `entry.ts` importing `./helper` cannot find `helper.ts` on disk.
+- `BundleEntry` and `BundleVirtualEntry` need a loader map for TypeScript-family extensions because future callers may import `.ts`, `.tsx`, `.mts`, or `.cts` helpers.
+- The output-file extraction has to skip `.map` files and keep the JavaScript artifact as `Artifact.Code`.
+
+### What warrants a second pair of eyes
+
+- `BundleEntry` currently derives `AbsWorkingDir` from `filepath.Dir(entryPath)`. That is fine for focused tests, but xgoja callers should verify behavior with relative and absolute script paths when wiring `xgoja run file.ts`.
+- The default `FormatCommonJS` for bundling should be revisited when jsverbs overlay-before-bundling is implemented.
+
+### What should be done in the future
+
+- Wire `pkg/tsscript` into jsverbs scan/runtime loading.
+- Add xgoja schema fields for TypeScript settings.
+- Add `xgoja run file.ts` support.
+
+### Code review instructions
+
+- Start with `pkg/tsscript/options.go` to review the public API and defaults.
+- Then review `pkg/tsscript/compiler.go` for esbuild option mapping and output selection.
+- Validate with:
+  - `go test ./pkg/tsscript -count=1`
+  - `go test ./... -count=1` if a full validation is desired.
+
+### Technical details
+
+- Dependency added: `github.com/evanw/esbuild v0.25.12`.
+- Default target: `api.ES2015`.
+- Default transform format: `api.FormatIIFE`.
+- Default bundle format: `api.FormatCommonJS`.
+- Default platform: `api.PlatformNeutral`.
