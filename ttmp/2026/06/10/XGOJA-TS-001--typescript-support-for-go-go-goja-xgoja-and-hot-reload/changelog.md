@@ -64,3 +64,13 @@ Step 8: added xgoja run support for TypeScript entry files with bundling and mod
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/run.go — TypeScript run path
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/run_typescript_test.go — TypeScript run tests
 
+
+## 2026-06-10
+
+Step 9: appended TypeScript-family extensions to HTTP hot reload watches for TypeScript-enabled jsverb sources (commit db825ba).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/providers/http/serve.go — Hot reload watch extension handling
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/providers/http/serve_test.go — Hot reload watch tests
+

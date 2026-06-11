@@ -40,6 +40,10 @@ RelatedFiles:
       Note: Step 7 TypeScript jsverb invocation test (commit 5fc1baa)
     - Path: pkg/xgoja/providerapi/commands.go
       Note: Step 6 command-provider TypeScript descriptor (commit d2b9d58)
+    - Path: pkg/xgoja/providers/http/serve.go
+      Note: Step 9 TypeScript hot reload watch extension handling (commit db825ba)
+    - Path: pkg/xgoja/providers/http/serve_test.go
+      Note: Step 9 hot reload TypeScript watch tests (commit db825ba)
 ExternalSources:
     - local:01-goja-typescript-esbuild-note.md
 Summary: Chronological diary for the TypeScript support research/design ticket.
@@ -47,6 +51,7 @@ LastUpdated: 2026-06-10T21:35:00-04:00
 WhatFor: Use to understand how the TypeScript support design was researched, written, validated, and delivered.
 WhenToUse: Read before continuing implementation or changing the design doc for XGOJA-TS-001.
 ---
+
 
 
 
@@ -751,3 +756,78 @@ This keeps the existing JavaScript `require()` path untouched for `.js` files wh
 
 - TypeScript entries compile with target `api.ES2015`, format `api.FormatIIFE`, and platform `api.PlatformNeutral`.
 - Selected module aliases are passed to esbuild as `External`.
+
+
+## Step 9: Include TypeScript files in HTTP hot reload watches
+
+I updated the HTTP serve hot reload path so TypeScript-enabled jsverb sources automatically add TypeScript-family extensions to the file watcher. This lets the existing blue/green reload manager notice `.ts`, `.tsx`, `.mts`, and `.cts` edits without requiring users to repeat all watch extensions manually.
+
+The actual reload/compile path was already enabled by Step 7 because hot reload rescans jsverb sources on each candidate load. This step makes sure TypeScript file changes trigger those rescans.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 5)
+
+**Assistant interpretation:** Continue with the hot reload portion of the TypeScript support plan.
+
+**Inferred user intent:** Ensure TypeScript-authored HTTP jsverbs participate in the existing hot reload workflow.
+
+**Commit (code):** `db825ba7e1400c6c2b85c10f21af6568ef8d6627` — "http: include TypeScript sources in hot reload watches"
+
+### What I did
+
+- Updated `pkg/xgoja/providers/http/serve.go`:
+  - added `sourceSetHasTypeScript` to inspect configured jsverb source descriptors;
+  - added `appendTypeScriptWatchExtensions` to append `.ts`, `.tsx`, `.mts`, and `.cts` without duplicates;
+  - applied the extension merge before starting the hot reload watcher.
+- Updated `pkg/xgoja/providers/http/serve_test.go`:
+  - added unit coverage for extension merging;
+  - added unit coverage for detecting TypeScript-enabled source sets;
+  - extended the fake jsverb source set to expose a `TypeScriptDescriptor`.
+
+### Why
+
+- The hot reload watcher filters by extension before calling `Reload()`. Without TypeScript extensions in the watch list, a `.ts` edit might not trigger the already-working rescan/compile path.
+- The change is intentionally small and builds on the existing manager and jsverb source set abstractions.
+
+### What worked
+
+- Focused validation passed:
+  - `go test ./pkg/xgoja/providers/http -count=1`
+- Final pre-commit validation passed:
+  - lint;
+  - glazed lint;
+  - `go generate ./...`;
+  - `go test ./...`.
+
+### What didn't work
+
+- No implementation failure in this step.
+
+### What I learned
+
+- The HTTP hot reload command already has enough context to inspect `commandCtx.JSVerbs.ListJSVerbSources()` and decide whether TypeScript watch extensions are needed.
+- Appending TypeScript extensions is safer than replacing the existing defaults because JSON/YAML/Markdown edits may also affect route setup.
+
+### What was tricky to build
+
+- `decodeServeHotReloadSettings` applies default watch extensions before `serveVerbHotReload` has command-provider context. The cleanest small change was to augment the already-decoded settings inside `serveVerbHotReload`, where `commandCtx.JSVerbs` is available.
+
+### What warrants a second pair of eyes
+
+- The current implementation always appends TypeScript extensions when any source is TypeScript-enabled, even if the user supplied a custom `--hot-reload-watch-ext`. This is convenient, but reviewers should decide whether explicit user overrides should remain exact.
+
+### What should be done in the future
+
+- Add a full end-to-end HTTP hot reload test with a `.ts` jsverb site, a helper import, and a broken edit preserving the last-known-good runtime.
+
+### Code review instructions
+
+- Review `pkg/xgoja/providers/http/serve.go`, especially `sourceSetHasTypeScript`, `appendTypeScriptWatchExtensions`, and the call site before `startServeHotReloadWatcher`.
+- Validate with:
+  - `go test ./pkg/xgoja/providers/http -count=1`
+
+### Technical details
+
+- Added watch extensions: `.ts`, `.tsx`, `.mts`, `.cts`.
+- Existing default watch extensions remain `.js`, `.json`, `.md`, `.yaml`, and `.yml`.
