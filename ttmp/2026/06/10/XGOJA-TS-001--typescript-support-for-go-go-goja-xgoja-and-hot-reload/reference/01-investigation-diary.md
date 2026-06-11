@@ -18,6 +18,10 @@ RelatedFiles:
       Note: Primary deliverable produced during this diary
     - Path: go-go-goja/ttmp/2026/06/10/XGOJA-TS-001--typescript-support-for-go-go-goja-xgoja-and-hot-reload/sources/local/01-goja-typescript-esbuild-note.md
       Note: Imported source note studied before writing the design
+    - Path: pkg/jsverbs/runtime.go
+      Note: Step 7 runtime transform and overlay split (commit 5fc1baa)
+    - Path: pkg/jsverbs/scan.go
+      Note: Step 7 source transform support for TypeScript scanning (commit 5fc1baa)
     - Path: pkg/tsscript/compiler.go
       Note: Step 5 compiler facade implementation (commit 9f8c8be)
     - Path: pkg/tsscript/compiler_test.go
@@ -26,6 +30,10 @@ RelatedFiles:
       Note: Step 5 public compiler options and extension helpers (commit 9f8c8be)
     - Path: pkg/xgoja/app/runtime_spec.go
       Note: Step 6 runtime TypeScriptSpec transport (commit d2b9d58)
+    - Path: pkg/xgoja/app/typescript.go
+      Note: Step 7 TypeScript scan/runtime compile adapter (commit 5fc1baa)
+    - Path: pkg/xgoja/app/typescript_jsverbs_test.go
+      Note: Step 7 TypeScript jsverb invocation test (commit 5fc1baa)
     - Path: pkg/xgoja/providerapi/commands.go
       Note: Step 6 command-provider TypeScript descriptor (commit d2b9d58)
 ExternalSources:
@@ -35,6 +43,7 @@ LastUpdated: 2026-06-10T21:35:00-04:00
 WhatFor: Use to understand how the TypeScript support design was researched, written, validated, and delivered.
 WhenToUse: Read before continuing implementation or changing the design doc for XGOJA-TS-001.
 ---
+
 
 
 
@@ -556,3 +565,103 @@ This step is intentionally mostly declarative. It validates and transports setti
 - Supported formats are `cjs`, `commonjs`, `iife`, and `esm`.
 - Supported platforms are `neutral`, `browser`, and `node`.
 - Supported sourcemap values are `none`, `false`, `inline`, `external`, `linked`, and `both`.
+
+
+## Step 7: Wire TypeScript compilation into jsverbs scan and runtime loading
+
+I connected the new compiler facade to the jsverbs source path used by xgoja. TypeScript-enabled jsverb sources now transform `.ts` inputs before metadata scanning and compile the original TypeScript plus the jsverbs overlay before goja executes the module.
+
+This is the core behavioral step for TypeScript jsverbs. It preserves the existing JavaScript scanner and runtime invocation model while adding a TypeScript transform/compile seam around it.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 5)
+
+**Assistant interpretation:** Continue implementation with the jsverbs scan/runtime integration phase.
+
+**Inferred user intent:** Make the TypeScript support plan actually execute TypeScript-authored jsverbs, not just carry configuration.
+
+**Commit (code):** `5fc1baa3233fcdecfe650b85e958ffcff13574a2` — "jsverbs: compile TypeScript sources for xgoja"
+
+### What I did
+
+- Extended `pkg/jsverbs` data structures:
+  - added `SourceTransform` and `RuntimeTransform` hooks to `ScanOptions`;
+  - added `OriginalSource`, `SourceLanguage`, and `ResolveDir` tracking to file/source metadata;
+  - added `Prelude` and `Overlay` inputs for runtime transforms.
+- Updated scanner flow in `pkg/jsverbs/scan.go`:
+  - file inputs now carry `ResolveDir` for filesystem scans;
+  - transforms run before tree-sitter JavaScript parsing;
+  - transformed JavaScript is parsed while original TypeScript is retained.
+- Updated runtime loading in `pkg/jsverbs/runtime.go`:
+  - default JavaScript loader behavior remains prelude + source + overlay;
+  - TypeScript-aware callers can compile original source plus overlay through `RuntimeTransform`.
+- Added `pkg/xgoja/app/typescript.go`:
+  - converts runtime `TypeScriptSpec` to `tsscript.Options`;
+  - transforms TypeScript files before scan;
+  - bundles/transforms original TypeScript plus jsverbs overlay before runtime execution;
+  - maps target/format/platform/sourcemap strings to esbuild API values.
+- Updated `pkg/xgoja/app/root.go` to apply TypeScript scan options.
+- Added `pkg/xgoja/app/typescript_jsverbs_test.go`:
+  - writes `sites.ts` and `helper.ts`;
+  - scans a TypeScript jsverb source;
+  - invokes the discovered verb in an engine runtime using `registry.RequireLoader()`;
+  - verifies the bundled helper import returns `hello goja`.
+
+### Why
+
+- jsverbs currently uses tree-sitter JavaScript and goja execution. The safest TypeScript path is to transform before scanning and compile before loading, rather than replacing the parser or runtime model.
+- Appending the overlay before compilation lets esbuild bundle the function body and overlay capture code in the same module scope.
+
+### What worked
+
+- Focused tests passed:
+  - `go test ./pkg/jsverbs ./pkg/xgoja/app -count=1`
+- Final pre-commit validation passed after fixing one lint issue:
+  - lint;
+  - glazed lint;
+  - `go generate ./...`;
+  - `go test ./...`.
+
+### What didn't work
+
+- The first commit attempt failed lint because `(*Registry).injectOverlay` became unused after `sourceLoader` was refactored:
+  - `pkg/jsverbs/runtime.go:189:20: func (*Registry).injectOverlay is unused`
+- I removed the unused helper and reran the focused tests before committing.
+
+### What I learned
+
+- The jsverbs overlay must be represented as two pieces for transform callers: a prelude that defines `__verb__`, `__package__`, etc., and a suffix overlay that captures functions in `globalThis.__glazedVerbRegistry`.
+- The runtime transform needs original TypeScript, not the transformed JavaScript used for scan, otherwise local TypeScript imports cannot be bundled correctly.
+- Filesystem scans need `ResolveDir` to support esbuild bundling of relative helper imports.
+
+### What was tricky to build
+
+- The scan path and runtime path need different artifacts from the same source file. Scan needs JavaScript that tree-sitter can parse. Runtime needs original TypeScript plus overlay so esbuild can bundle helpers and keep captured functions available.
+- Mixed source sets matter. If a TypeScript-enabled source also includes `.js`, the runtime transform must still return valid JavaScript for non-TypeScript files.
+
+### What warrants a second pair of eyes
+
+- `pkg/xgoja/app/typescript.go` should be reviewed carefully for esbuild option mapping and overlay ordering.
+- The non-TypeScript fallback in the runtime transform currently emits prelude + source + overlay and does not preserve a leading `"use strict"` position as precisely as the default `injectPrelude` helper. This is acceptable for now but worth reviewing.
+
+### What should be done in the future
+
+- Wire `.ts` entry support into `xgoja run`.
+- Add HTTP hot reload tests that edit TypeScript jsverb files and verify reload status behavior.
+- Add selected xgoja module aliases to esbuild `External` automatically, not just via explicit `typescript.external`.
+
+### Code review instructions
+
+- Start with `pkg/jsverbs/model.go` to understand the new transform hooks.
+- Then review `pkg/jsverbs/scan.go` and `pkg/jsverbs/runtime.go` together; the scanner and runtime loader are coupled by `OriginalSource` and `SourceLanguage`.
+- Review `pkg/xgoja/app/typescript.go` for TypeScript-specific behavior.
+- Validate with:
+  - `go test ./pkg/jsverbs ./pkg/xgoja/app -count=1`
+  - `go test ./... -count=1` for full coverage.
+
+### Technical details
+
+- TypeScript scan transform uses `tsscript.TransformSource`.
+- TypeScript runtime transform uses `tsscript.BundleVirtualEntry` when `typescript.bundle` is true; otherwise it uses `tsscript.TransformSource`.
+- The test fixture uses a `sites.ts` verb importing `./helper.ts` and verifies execution through the existing goja runtime owner path.

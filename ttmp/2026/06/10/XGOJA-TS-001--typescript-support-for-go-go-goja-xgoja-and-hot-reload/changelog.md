@@ -44,3 +44,13 @@ Step 6: added TypeScript configuration schema/defaulting/validation and provider
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go — Build-time TypeScript schema
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/runtime_spec.go — Runtime TypeScript schema
 
+
+## 2026-06-10
+
+Step 7: wired TypeScript scan/runtime transforms into jsverbs and xgoja app, with a bundled TypeScript jsverb invocation test (commit 5fc1baa).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/jsverbs/runtime.go — Runtime transform and overlay handling
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/typescript.go — TypeScript adapter
+
