@@ -21,8 +21,9 @@ type accessLogResponseWriter struct {
 	wroteHeader bool
 }
 
-func newAccessLogResponseWriter(w http.ResponseWriter) *accessLogResponseWriter {
-	return &accessLogResponseWriter{ResponseWriter: w, status: http.StatusOK}
+func newAccessLogResponseWriter(w http.ResponseWriter) (*accessLogResponseWriter, http.ResponseWriter) {
+	logger := &accessLogResponseWriter{ResponseWriter: w, status: http.StatusOK}
+	return logger, accessLogOptionalInterfaces(logger, w)
 }
 
 func (w *accessLogResponseWriter) WriteHeader(status int) {
@@ -43,40 +44,137 @@ func (w *accessLogResponseWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func (w *accessLogResponseWriter) Flush() {
-	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
-		flusher.Flush()
-	}
+type accessLogFlusher struct{ *accessLogResponseWriter }
+
+type accessLogHijacker struct{ *accessLogResponseWriter }
+
+type accessLogReaderFrom struct{ *accessLogResponseWriter }
+
+type accessLogPusher struct{ *accessLogResponseWriter }
+
+func (w accessLogFlusher) Flush() {
+	w.ResponseWriter.(http.Flusher).Flush()
 }
 
-func (w *accessLogResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	hijacker, ok := w.ResponseWriter.(http.Hijacker)
-	if !ok {
-		return nil, nil, http.ErrNotSupported
-	}
-	return hijacker.Hijack()
+func (w accessLogHijacker) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return w.ResponseWriter.(http.Hijacker).Hijack()
 }
 
-func (w *accessLogResponseWriter) ReadFrom(r io.Reader) (int64, error) {
+func (w accessLogReaderFrom) ReadFrom(r io.Reader) (int64, error) {
 	if !w.wroteHeader {
 		w.WriteHeader(http.StatusOK)
 	}
-	if readerFrom, ok := w.ResponseWriter.(io.ReaderFrom); ok {
-		n, err := readerFrom.ReadFrom(r)
-		w.bytes += n
-		return n, err
-	}
-	n, err := io.Copy(w.ResponseWriter, r)
+	n, err := w.ResponseWriter.(io.ReaderFrom).ReadFrom(r)
 	w.bytes += n
 	return n, err
 }
 
-func (w *accessLogResponseWriter) Push(target string, opts *http.PushOptions) error {
-	pusher, ok := w.ResponseWriter.(http.Pusher)
-	if !ok {
-		return http.ErrNotSupported
+func (w accessLogPusher) Push(target string, opts *http.PushOptions) error {
+	return w.ResponseWriter.(http.Pusher).Push(target, opts)
+}
+
+func accessLogOptionalInterfaces(logger *accessLogResponseWriter, underlying http.ResponseWriter) http.ResponseWriter {
+	_, flusher := underlying.(http.Flusher)
+	_, hijacker := underlying.(http.Hijacker)
+	_, readerFrom := underlying.(io.ReaderFrom)
+	_, pusher := underlying.(http.Pusher)
+
+	switch {
+	case flusher && hijacker && readerFrom && pusher:
+		return struct {
+			*accessLogResponseWriter
+			accessLogFlusher
+			accessLogHijacker
+			accessLogReaderFrom
+			accessLogPusher
+		}{logger, accessLogFlusher{logger}, accessLogHijacker{logger}, accessLogReaderFrom{logger}, accessLogPusher{logger}}
+	case flusher && hijacker && readerFrom:
+		return struct {
+			*accessLogResponseWriter
+			accessLogFlusher
+			accessLogHijacker
+			accessLogReaderFrom
+		}{logger, accessLogFlusher{logger}, accessLogHijacker{logger}, accessLogReaderFrom{logger}}
+	case flusher && hijacker && pusher:
+		return struct {
+			*accessLogResponseWriter
+			accessLogFlusher
+			accessLogHijacker
+			accessLogPusher
+		}{logger, accessLogFlusher{logger}, accessLogHijacker{logger}, accessLogPusher{logger}}
+	case flusher && readerFrom && pusher:
+		return struct {
+			*accessLogResponseWriter
+			accessLogFlusher
+			accessLogReaderFrom
+			accessLogPusher
+		}{logger, accessLogFlusher{logger}, accessLogReaderFrom{logger}, accessLogPusher{logger}}
+	case hijacker && readerFrom && pusher:
+		return struct {
+			*accessLogResponseWriter
+			accessLogHijacker
+			accessLogReaderFrom
+			accessLogPusher
+		}{logger, accessLogHijacker{logger}, accessLogReaderFrom{logger}, accessLogPusher{logger}}
+	case flusher && hijacker:
+		return struct {
+			*accessLogResponseWriter
+			accessLogFlusher
+			accessLogHijacker
+		}{logger, accessLogFlusher{logger}, accessLogHijacker{logger}}
+	case flusher && readerFrom:
+		return struct {
+			*accessLogResponseWriter
+			accessLogFlusher
+			accessLogReaderFrom
+		}{logger, accessLogFlusher{logger}, accessLogReaderFrom{logger}}
+	case flusher && pusher:
+		return struct {
+			*accessLogResponseWriter
+			accessLogFlusher
+			accessLogPusher
+		}{logger, accessLogFlusher{logger}, accessLogPusher{logger}}
+	case hijacker && readerFrom:
+		return struct {
+			*accessLogResponseWriter
+			accessLogHijacker
+			accessLogReaderFrom
+		}{logger, accessLogHijacker{logger}, accessLogReaderFrom{logger}}
+	case hijacker && pusher:
+		return struct {
+			*accessLogResponseWriter
+			accessLogHijacker
+			accessLogPusher
+		}{logger, accessLogHijacker{logger}, accessLogPusher{logger}}
+	case readerFrom && pusher:
+		return struct {
+			*accessLogResponseWriter
+			accessLogReaderFrom
+			accessLogPusher
+		}{logger, accessLogReaderFrom{logger}, accessLogPusher{logger}}
+	case flusher:
+		return struct {
+			*accessLogResponseWriter
+			accessLogFlusher
+		}{logger, accessLogFlusher{logger}}
+	case hijacker:
+		return struct {
+			*accessLogResponseWriter
+			accessLogHijacker
+		}{logger, accessLogHijacker{logger}}
+	case readerFrom:
+		return struct {
+			*accessLogResponseWriter
+			accessLogReaderFrom
+		}{logger, accessLogReaderFrom{logger}}
+	case pusher:
+		return struct {
+			*accessLogResponseWriter
+			accessLogPusher
+		}{logger, accessLogPusher{logger}}
+	default:
+		return logger
 	}
-	return pusher.Push(target, opts)
 }
 
 func (w *accessLogResponseWriter) Unwrap() http.ResponseWriter {

@@ -96,9 +96,9 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	requestID := ensureRequestID(w, r)
 	logger := requestLogger(r, requestID)
 	logger.Info().Str("event", "http_request_started").Msg("http request started")
-	loggingWriter := newAccessLogResponseWriter(w)
+	loggingWriter, wrappedWriter := newAccessLogResponseWriter(w)
 	defer logRequestDone(logger, loggingWriter, started)
-	w = loggingWriter
+	w = wrappedWriter
 
 	for _, mount := range h.static {
 		if staticMountMatches(mount.Prefix, r.URL.Path) {
