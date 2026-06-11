@@ -3,7 +3,7 @@
 ## TODO
 
 - [x] Implement `pkg/tsscript` compiler facade using esbuild Go API.
-- [ ] Add TypeScript config schema to xgoja build/runtime specs.
+- [x] Add TypeScript config schema to xgoja build/runtime specs.
 - [ ] Add TypeScript-aware jsverbs scan and runtime loader support.
 - [ ] Add `xgoja run` support for `.ts`, `.tsx`, `.mts`, and `.cts` entry files.
 - [ ] Extend HTTP hot reload watch defaults and tests for TypeScript jsverb sources.

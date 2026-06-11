@@ -34,3 +34,13 @@ Step 5: added pkg/tsscript esbuild compiler facade and tests (commit 9f8c8be).
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/tsscript/compiler.go — Compiler facade
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/tsscript/compiler_test.go — Compiler facade tests
 
+
+## 2026-06-10
+
+Step 6: added TypeScript configuration schema/defaulting/validation and provider descriptors (commit d2b9d58).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go — Build-time TypeScript schema
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/runtime_spec.go — Runtime TypeScript schema
+

@@ -12,6 +12,8 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/internal/buildspec/build_spec.go
+      Note: Step 6 TypeScriptSpec build-time schema (commit d2b9d58)
     - Path: go-go-goja/ttmp/2026/06/10/XGOJA-TS-001--typescript-support-for-go-go-goja-xgoja-and-hot-reload/design/01-typescript-support-analysis-and-implementation-guide.md
       Note: Primary deliverable produced during this diary
     - Path: go-go-goja/ttmp/2026/06/10/XGOJA-TS-001--typescript-support-for-go-go-goja-xgoja-and-hot-reload/sources/local/01-goja-typescript-esbuild-note.md
@@ -22,6 +24,10 @@ RelatedFiles:
       Note: Step 5 focused tests for transform/bundle/diagnostics (commit 9f8c8be)
     - Path: pkg/tsscript/options.go
       Note: Step 5 public compiler options and extension helpers (commit 9f8c8be)
+    - Path: pkg/xgoja/app/runtime_spec.go
+      Note: Step 6 runtime TypeScriptSpec transport (commit d2b9d58)
+    - Path: pkg/xgoja/providerapi/commands.go
+      Note: Step 6 command-provider TypeScript descriptor (commit d2b9d58)
 ExternalSources:
     - local:01-goja-typescript-esbuild-note.md
 Summary: Chronological diary for the TypeScript support research/design ticket.
@@ -29,6 +35,7 @@ LastUpdated: 2026-06-10T21:35:00-04:00
 WhatFor: Use to understand how the TypeScript support design was researched, written, validated, and delivered.
 WhenToUse: Read before continuing implementation or changing the design doc for XGOJA-TS-001.
 ---
+
 
 
 
@@ -457,3 +464,95 @@ This step intentionally does not wire TypeScript into xgoja or jsverbs yet. It c
 - Default transform format: `api.FormatIIFE`.
 - Default bundle format: `api.FormatCommonJS`.
 - Default platform: `api.PlatformNeutral`.
+
+
+## Step 6: Add TypeScript configuration schema to xgoja specs
+
+I implemented the schema layer for TypeScript source configuration. This gives `xgoja.yaml`, generated runtime specs, and command-provider source descriptors a place to carry TypeScript settings before the scanner/runtime execution paths are wired to use them.
+
+This step is intentionally mostly declarative. It validates and transports settings, but it does not yet compile TypeScript jsverb files or change runtime behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 5)
+
+**Assistant interpretation:** Continue the implementation plan with a focused schema/configuration commit.
+
+**Inferred user intent:** Keep changes incremental and commit a reviewable chunk before changing jsverbs execution semantics.
+
+**Commit (code):** `d2b9d58b9974d3904d473f5849874974f54d316e` — "xgoja: add TypeScript source configuration schema"
+
+### What I did
+
+- Added `TypeScriptSpec` to build-time `JSVerbSourceSpec` in `cmd/xgoja/internal/buildspec/build_spec.go`.
+- Added runtime `TypeScriptSpec` to `pkg/xgoja/app/runtime_spec.go`.
+- Added defaulting in `cmd/xgoja/internal/buildspec/load.go`:
+  - `target: es2015`
+  - `format: cjs`
+  - `platform: neutral`
+  - trimming for `tsconfig`, `sourcemap`, `external`, and `checkCommand`.
+- Added validation in `cmd/xgoja/internal/buildspec/validate.go` for supported targets, formats, platforms, sourcemap modes, non-empty externals, and non-empty check-command arguments.
+- Added `providerapi.TypeScriptDescriptor` and included it in `JSVerbSourceDescriptor` so command providers can inspect configured TypeScript sources.
+- Updated `pkg/xgoja/app/jsverb_sources.go` to copy TypeScript descriptors defensively into provider descriptors.
+- Added tests in:
+  - `cmd/xgoja/internal/buildspec/load_test.go`
+  - `cmd/xgoja/internal/buildspec/validate_test.go`
+  - `cmd/xgoja/internal/generate/generate_test.go`
+  - `pkg/xgoja/app/jsverb_sources_test.go`
+- Updated generated-program test helper to build with `go build -buildvcs=false` because a focused package test hit a VCS stamping failure while building generated programs from a temporary module.
+
+### Why
+
+- Runtime TypeScript support needs settings such as `enabled`, `bundle`, `target`, `format`, `platform`, `tsconfig`, `external`, and `checkCommand` to flow from `xgoja.yaml` into generated binaries and command providers.
+- Schema and validation should land before behavior so future jsverbs wiring can assume normalized config.
+
+### What worked
+
+- Focused validation passed:
+  - `go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi -count=1`
+- The final commit hook passed lint, glazed lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- The first focused test run failed in `cmd/xgoja/internal/generate` with generated program builds reporting:
+  - `error obtaining VCS status: exit status 128`
+  - `Use -buildvcs=false to disable VCS stamping.`
+- I fixed the generated test helper to call:
+  - `go build -buildvcs=false -o <bin> .`
+- After that, the focused package test passed.
+
+### What I learned
+
+- `RenderEmbeddedSpec` already carries `buildspec.JSVerbSourceSpec` into generated runtime JSON, so adding a JSON-tagged `TypeScript` field is enough for spec transport.
+- Command providers need a providerapi-facing descriptor type because they should not import `pkg/xgoja/app` internals.
+- Defensive copying matters for `External`, `Define`, and `CheckCommand` because command providers receive descriptors that should not mutate the source set.
+
+### What was tricky to build
+
+- The TypeScript config exists in three layers now: buildspec, app runtime spec, and providerapi descriptor. Keeping the shapes aligned without introducing import cycles required a small conversion helper in `pkg/xgoja/app/jsverb_sources.go`.
+- Validation needed to be strict enough to catch typos but not overfit esbuild internals. I used a conservative set of supported string values matching the design guide.
+
+### What warrants a second pair of eyes
+
+- The accepted enum values for `target`, `format`, `platform`, and `sourcemap` should be reviewed before public documentation is finalized.
+- The `CheckCommand []string` field is transported and validated, but not executed; this should be clearly documented when examples are added.
+
+### What should be done in the future
+
+- Convert runtime `TypeScriptSpec` into `pkg/tsscript.Options` when jsverbs scan/load support is implemented.
+- Add TypeScript-aware hot reload defaults once source descriptors can identify TypeScript-enabled sources.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/buildspec/build_spec.go` and `pkg/xgoja/app/runtime_spec.go` to review schema shape.
+- Review `cmd/xgoja/internal/buildspec/validate.go` for validation strictness.
+- Review `pkg/xgoja/app/jsverb_sources.go` and `pkg/xgoja/providerapi/commands.go` for descriptor copying and command-provider API impact.
+- Validate with:
+  - `go test ./cmd/xgoja/internal/buildspec ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi -count=1`
+
+### Technical details
+
+- Supported TypeScript targets currently include `es5`, `es2015` through `es2024`, and `esnext`.
+- Supported formats are `cjs`, `commonjs`, `iife`, and `esm`.
+- Supported platforms are `neutral`, `browser`, and `node`.
+- Supported sourcemap values are `none`, `false`, `inline`, `external`, `linked`, and `both`.
