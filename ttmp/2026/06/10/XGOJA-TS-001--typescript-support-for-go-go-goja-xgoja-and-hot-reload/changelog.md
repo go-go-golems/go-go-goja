@@ -74,3 +74,13 @@ Step 9: appended TypeScript-family extensions to HTTP hot reload watches for Typ
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/providers/http/serve.go — Hot reload watch extension handling
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/providers/http/serve_test.go — Hot reload watch tests
 
+
+## 2026-06-10
+
+Step 10: added TypeScript jsverbs tutorial/example and fixed generated builds with -buildvcs=false; example smoke passes (commits 275fe6c, 0bd8966).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/15-tutorial-typescript-jsverbs.md — User-facing tutorial
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/examples/xgoja/15-typescript-jsverbs/Makefile — Runnable smoke test
+

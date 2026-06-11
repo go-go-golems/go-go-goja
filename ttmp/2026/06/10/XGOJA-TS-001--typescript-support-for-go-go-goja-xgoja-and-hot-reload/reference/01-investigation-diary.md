@@ -12,8 +12,16 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/doc/15-tutorial-typescript-jsverbs.md
+      Note: Step 10 TypeScript jsverbs tutorial (commit 0bd8966)
+    - Path: cmd/xgoja/internal/buildexec/buildexec.go
+      Note: Step 10 generated build VCS stamping fix (commit 275fe6c)
     - Path: cmd/xgoja/internal/buildspec/build_spec.go
       Note: Step 6 TypeScriptSpec build-time schema (commit d2b9d58)
+    - Path: examples/xgoja/15-typescript-jsverbs/Makefile
+      Note: Step 10 runnable TypeScript jsverbs smoke workflow (commit 0bd8966)
+    - Path: examples/xgoja/15-typescript-jsverbs/xgoja.yaml
+      Note: Step 10 TypeScript jsverb example configuration (commit 0bd8966)
     - Path: go-go-goja/ttmp/2026/06/10/XGOJA-TS-001--typescript-support-for-go-go-goja-xgoja-and-hot-reload/design/01-typescript-support-analysis-and-implementation-guide.md
       Note: Primary deliverable produced during this diary
     - Path: go-go-goja/ttmp/2026/06/10/XGOJA-TS-001--typescript-support-for-go-go-goja-xgoja-and-hot-reload/sources/local/01-goja-typescript-esbuild-note.md
@@ -51,6 +59,7 @@ LastUpdated: 2026-06-10T21:35:00-04:00
 WhatFor: Use to understand how the TypeScript support design was researched, written, validated, and delivered.
 WhenToUse: Read before continuing implementation or changing the design doc for XGOJA-TS-001.
 ---
+
 
 
 
@@ -831,3 +840,103 @@ The actual reload/compile path was already enabled by Step 7 because hot reload 
 
 - Added watch extensions: `.ts`, `.tsx`, `.mts`, `.cts`.
 - Existing default watch extensions remain `.js`, `.json`, `.md`, `.yaml`, and `.yml`.
+
+
+## Step 10: Add tutorial/example and fix generated build VCS stamping
+
+I added the user-facing TypeScript jsverbs tutorial and a runnable example under `examples/xgoja/15-typescript-jsverbs`. While validating the example, `xgoja build` failed inside the generated temporary module because Go attempted VCS stamping and could not obtain VCS status. I fixed generated builds by passing `-buildvcs=false` in the xgoja build executor, then reran the example smoke successfully.
+
+The example demonstrates the complete workflow: doctor, declaration generation, generated binary build, `xgoja run` with a TypeScript entry, TypeScript jsverb serving, and hot reload from version 1 to version 2.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the remaining implementation/documentation work from the prior step, especially the tutorial/example follow-up.
+
+**Inferred user intent:** Finish the planned TypeScript support package and keep committing focused changes with diary updates.
+
+**Commit (code):** `275fe6c0001650418370af3ffef9d6746c489a89` — "xgoja: disable VCS stamping for generated builds"
+
+**Commit (docs/example):** `0bd89661e012e1e71b389365b809218646bf28cf` — "docs: add TypeScript jsverbs tutorial and example"
+
+### What I did
+
+- Added `cmd/xgoja/doc/15-tutorial-typescript-jsverbs.md` with:
+  - xgoja YAML TypeScript config;
+  - TypeScript jsverb example;
+  - declaration generation guidance;
+  - hot reload command flow;
+  - pointer to the runnable example.
+- Added `examples/xgoja/15-typescript-jsverbs/`:
+  - `xgoja.yaml` with `typescript.enabled`, `bundle`, `target`, `format`, `platform`, and `external: [express]`;
+  - `verbs/sites.ts` and `verbs/message.ts`;
+  - `tsconfig.json`;
+  - `js/types/globals.d.ts`;
+  - generated `js/types/xgoja-modules.d.ts`;
+  - `README.md`;
+  - `Makefile` smoke test;
+  - `.gitignore` for generated `dist/`.
+- Updated `examples/xgoja/README.md` to include example 15 and the bulk smoke loop entry.
+- Updated `cmd/xgoja/internal/buildexec/buildexec.go` so generated builds run:
+  - `go build -buildvcs=false -o <output> .`
+- Validated the example with:
+  - `make -C examples/xgoja/15-typescript-jsverbs smoke`
+
+### Why
+
+- The implementation needed a concrete example and user documentation so future users can reproduce the workflow without reading internal code.
+- The VCS stamping fix makes generated temporary-module builds reliable when the generated module is outside a Git worktree or when the replacement repo's status cannot be stamped from that context.
+
+### What worked
+
+- `make -C examples/xgoja/15-typescript-jsverbs smoke` passed after the VCS stamping fix.
+- The smoke target validated:
+  - `xgoja doctor`;
+  - `xgoja gen-dts --strict`;
+  - `xgoja build`;
+  - `run` with a temporary TypeScript entry importing a helper;
+  - `serve sites demo --hot-reload`;
+  - hot reload after editing `const version = 1` to `const version = 2`.
+
+### What didn't work
+
+- Initial example smoke failed during `xgoja build` with:
+  - `Error: go build -o ... failed: exit status 1`
+  - `error obtaining VCS status: exit status 128`
+  - `Use -buildvcs=false to disable VCS stamping.`
+- I fixed this by changing `cmd/xgoja/internal/buildexec.GoBuild` to include `-buildvcs=false`.
+
+### What I learned
+
+- The generated build path needed the same VCS-stamping treatment that had already been added to the generated-program test helper earlier.
+- The example smoke can validate TypeScript hot reload without adding another long generated-binary test to the Go test suite.
+
+### What was tricky to build
+
+- The Makefile smoke needed to modify `verbs/sites.ts` during hot reload but restore the original file on exit so the repository stays clean. The recipe copies the original to a temp file and restores it in a shell trap.
+- The generated declaration file is tracked so the example has a complete editor setup, while `dist/` is ignored because it contains generated binaries.
+
+### What warrants a second pair of eyes
+
+- Review whether `-buildvcs=false` should be used for all generated xgoja builds permanently or exposed as an option. The current choice favors reproducible generated temp-module builds.
+- Review whether tracking generated `xgoja-modules.d.ts` in the example is desirable; it improves onboarding but means provider descriptor changes can update the example file.
+
+### What should be done in the future
+
+- Consider adding a short release note or changelog entry outside the ticket docs before merging.
+- Optional: add an end-to-end Go test for TypeScript HTTP hot reload if the Makefile smoke is not enough for CI.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/doc/15-tutorial-typescript-jsverbs.md` for the user-facing workflow.
+- Then run or inspect `examples/xgoja/15-typescript-jsverbs/Makefile`.
+- Validate with:
+  - `make -C examples/xgoja/15-typescript-jsverbs smoke`
+  - `go test ./cmd/xgoja/internal/buildexec -count=1`
+
+### Technical details
+
+- Example HTTP address: `127.0.0.1:18789`.
+- Example remote module declaration file: `examples/xgoja/15-typescript-jsverbs/js/types/xgoja-modules.d.ts`.
+- Example hot reload edits `verbs/sites.ts` from `version = 1` to `version = 2` and checks the HTTP response.

@@ -7,7 +7,7 @@
 - [x] Add TypeScript-aware jsverbs scan and runtime loader support.
 - [x] Add `xgoja run` support for `.ts`, `.tsx`, `.mts`, and `.cts` entry files.
 - [x] Extend HTTP hot reload watch defaults and tests for TypeScript jsverb sources.
-- [ ] Add xgoja TypeScript jsverbs tutorial/example after implementation.
+- [x] Add xgoja TypeScript jsverbs tutorial/example after implementation.
 
 ## DONE
 
