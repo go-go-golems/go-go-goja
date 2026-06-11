@@ -25,7 +25,7 @@ func GoRun(ctx context.Context, dir string, env map[string]string) (Result, erro
 }
 
 func GoBuild(ctx context.Context, dir string, output string, tags []string, ldflags []string, env map[string]string) (Result, error) {
-	args := []string{"build", "-o", output}
+	args := []string{"build", "-buildvcs=false", "-o", output}
 	if len(tags) > 0 {
 		args = append(args, "-tags", joinSpace(tags))
 	}
