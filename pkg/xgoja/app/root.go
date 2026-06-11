@@ -357,6 +357,7 @@ func jsVerbScanOptions(source JSVerbSourceSpec) jsverbs.ScanOptions {
 	}
 	options.Include = append([]string(nil), source.Include...)
 	options.Exclude = append([]string(nil), source.Exclude...)
+	applyTypeScriptScanOptions(source, &options)
 	return options
 }
 
