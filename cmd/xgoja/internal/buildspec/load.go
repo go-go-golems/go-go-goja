@@ -185,6 +185,35 @@ func applyDefaults(buildSpec *BuildSpec) {
 	if buildSpec.Commands.JSVerbs.Enabled && strings.TrimSpace(buildSpec.Commands.JSVerbs.Name) == "" {
 		buildSpec.Commands.JSVerbs.Name = "verbs"
 	}
+	for i := range buildSpec.JSVerbs {
+		applyTypeScriptDefaults(buildSpec.JSVerbs[i].TypeScript)
+	}
+}
+
+func applyTypeScriptDefaults(spec *TypeScriptSpec) {
+	if spec == nil {
+		return
+	}
+	spec.Target = strings.TrimSpace(spec.Target)
+	if spec.Enabled && spec.Target == "" {
+		spec.Target = "es2015"
+	}
+	spec.Format = strings.TrimSpace(spec.Format)
+	if spec.Enabled && spec.Format == "" {
+		spec.Format = "cjs"
+	}
+	spec.Platform = strings.TrimSpace(spec.Platform)
+	if spec.Enabled && spec.Platform == "" {
+		spec.Platform = "neutral"
+	}
+	spec.Tsconfig = strings.TrimSpace(spec.Tsconfig)
+	spec.Sourcemap = strings.TrimSpace(spec.Sourcemap)
+	for i := range spec.External {
+		spec.External[i] = strings.TrimSpace(spec.External[i])
+	}
+	for i := range spec.CheckCommand {
+		spec.CheckCommand[i] = strings.TrimSpace(spec.CheckCommand[i])
+	}
 }
 
 func sanitizeModulePathPart(s string) string {

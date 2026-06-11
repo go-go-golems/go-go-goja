@@ -388,7 +388,7 @@ func TestRenderEmbeddedSpecIncludesRuntimeAppSettings(t *testing.T) {
 func TestRenderMainIncludesEmbeddedVerbFS(t *testing.T) {
 	buildSpec := buildableSpec("xgoja", "", "")
 	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
-	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true, Include: []string{"site.js"}, Exclude: []string{"assets/**"}, Extensions: []string{".js", ".mjs"}}}
+	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true, Include: []string{"site.js"}, Exclude: []string{"assets/**"}, Extensions: []string{".js", ".mjs"}, TypeScript: &buildspec.TypeScriptSpec{Enabled: true, Bundle: true, Target: "es2015", Format: "cjs", Platform: "neutral", External: []string{"express"}}}}
 	got := RenderMain(buildSpec)
 	for _, want := range []string{
 		`"embed"`,
@@ -409,6 +409,10 @@ func TestRenderMainIncludesEmbeddedVerbFS(t *testing.T) {
 		`"assets/**"`,
 		`"extensions": [`,
 		`".mjs"`,
+		`"typescript": {`,
+		`"enabled": true`,
+		`"external": [`,
+		`"express"`,
 	} {
 		if !strings.Contains(embeddedSpec, want) {
 			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, embeddedSpec)
@@ -1093,7 +1097,7 @@ func startGeneratedCommand(t *testing.T, ctx context.Context, buildSpec *buildsp
 		t.Fatalf("go mod tidy: %v\n%s", err, out)
 	}
 	binPath := filepath.Join(dir, "generated-test")
-	cmd = exec.Command("go", "build", "-o", binPath, ".")
+	cmd = exec.Command("go", "build", "-buildvcs=false", "-o", binPath, ".")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOWORK=off")
 	if out, err := cmd.CombinedOutput(); err != nil {

@@ -321,6 +321,60 @@ func TestValidateJSVerbFiltersRejectMalformedGlobs(t *testing.T) {
 	assertCheck(t, report, StatusError, "jsverb-exclude", "jsverbs[0].exclude[0]")
 }
 
+func TestValidateTypeScriptSpecAcceptsSupportedValues(t *testing.T) {
+	buildSpec := validSpec()
+	buildSpec.JSVerbs = []JSVerbSourceSpec{{
+		ID:         "site",
+		Path:       "verbs",
+		Extensions: []string{".ts", ".tsx"},
+		TypeScript: &TypeScriptSpec{
+			Enabled:      true,
+			Bundle:       true,
+			Target:       "es2015",
+			Format:       "cjs",
+			Platform:     "neutral",
+			Sourcemap:    "inline",
+			External:     []string{"express"},
+			CheckCommand: []string{"tsc", "--noEmit"},
+		},
+	}}
+
+	report := Validate(buildSpec)
+	if report.HasErrors() {
+		t.Fatalf("expected no validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusOK, "typescript", "jsverbs[0].typescript")
+	assertCheck(t, report, StatusOK, "typescript-bundle", "jsverbs[0].typescript.bundle")
+}
+
+func TestValidateTypeScriptSpecRejectsUnsupportedValues(t *testing.T) {
+	buildSpec := validSpec()
+	buildSpec.JSVerbs = []JSVerbSourceSpec{{
+		ID:   "site",
+		Path: "verbs",
+		TypeScript: &TypeScriptSpec{
+			Enabled:      true,
+			Target:       "future-js",
+			Format:       "amd",
+			Platform:     "deno",
+			Sourcemap:    "surprise",
+			External:     []string{""},
+			CheckCommand: []string{"tsc", ""},
+		},
+	}}
+
+	report := Validate(buildSpec)
+	if !report.HasErrors() {
+		t.Fatalf("expected validation errors, got %#v", report.Checks)
+	}
+	assertCheck(t, report, StatusError, "typescript-target", "jsverbs[0].typescript.target")
+	assertCheck(t, report, StatusError, "typescript-format", "jsverbs[0].typescript.format")
+	assertCheck(t, report, StatusError, "typescript-platform", "jsverbs[0].typescript.platform")
+	assertCheck(t, report, StatusError, "typescript-sourcemap", "jsverbs[0].typescript.sourcemap")
+	assertCheck(t, report, StatusError, "typescript-external", "jsverbs[0].typescript.external[0]")
+	assertCheck(t, report, StatusError, "typescript-check-command", "jsverbs[0].typescript.checkCommand[1]")
+}
+
 func assertCheck(t *testing.T, report *Report, status Status, name string, path string) {
 	t.Helper()
 	for _, check := range report.Checks {

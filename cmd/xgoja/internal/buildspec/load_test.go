@@ -48,6 +48,10 @@ jsverbs:
   - id: local
     path: ./verbs
     embed: true
+    extensions: [.ts]
+    typescript:
+      enabled: true
+      bundle: true
 assets:
   - id: app-assets
     path: ./assets
@@ -75,6 +79,9 @@ assets:
 	}
 	if len(buildSpec.Go.Imports) != 1 || buildSpec.Go.Imports[0].Import != "github.com/lib/pq" || buildSpec.Go.Imports[0].Alias != "_" || buildSpec.Go.Imports[0].Version != "v1.10.9" {
 		t.Fatalf("go imports = %#v", buildSpec.Go.Imports)
+	}
+	if buildSpec.JSVerbs[0].TypeScript == nil || !buildSpec.JSVerbs[0].TypeScript.Enabled || buildSpec.JSVerbs[0].TypeScript.Target != "es2015" || buildSpec.JSVerbs[0].TypeScript.Format != "cjs" || buildSpec.JSVerbs[0].TypeScript.Platform != "neutral" {
+		t.Fatalf("typescript defaults = %#v", buildSpec.JSVerbs[0].TypeScript)
 	}
 	if buildSpec.Target.Kind != "xgoja" {
 		t.Fatalf("default target kind = %q", buildSpec.Target.Kind)

@@ -379,6 +379,7 @@ func validateJSVerbs(report *Report, buildSpec *BuildSpec, packageIDs map[string
 			ids[id] = struct{}{}
 		}
 		validateJSVerbFilters(report, path, source)
+		validateTypeScriptSpec(report, path+".typescript", source.TypeScript)
 		if strings.TrimSpace(source.Package) != "" || strings.TrimSpace(source.Source) != "" {
 			if strings.TrimSpace(source.Package) == "" || strings.TrimSpace(source.Source) == "" {
 				report.AddError("jsverb-provider-source", path, "provider jsverb sources require both package and source")
@@ -434,6 +435,64 @@ func validateJSVerbGlob(report *Report, name string, path string, kind string, p
 	if !doublestar.ValidatePathPattern(pattern) {
 		report.AddError(name, path, fmt.Sprintf("invalid %s glob pattern", kind))
 	}
+}
+
+func validateTypeScriptSpec(report *Report, path string, spec *TypeScriptSpec) {
+	if spec == nil {
+		return
+	}
+	if !spec.Enabled {
+		report.AddOK("typescript", path, "typescript disabled")
+		return
+	}
+	validateTypeScriptEnum(report, "typescript-target", path+".target", spec.Target, knownTypeScriptTargets, "target")
+	validateTypeScriptEnum(report, "typescript-format", path+".format", spec.Format, knownTypeScriptFormats, "format")
+	validateTypeScriptEnum(report, "typescript-platform", path+".platform", spec.Platform, knownTypeScriptPlatforms, "platform")
+	if strings.TrimSpace(spec.Sourcemap) != "" {
+		validateTypeScriptEnum(report, "typescript-sourcemap", path+".sourcemap", spec.Sourcemap, knownTypeScriptSourcemaps, "sourcemap")
+	}
+	for i, external := range spec.External {
+		if strings.TrimSpace(external) == "" {
+			report.AddError("typescript-external", fmt.Sprintf("%s.external[%d]", path, i), "external module name cannot be empty")
+		}
+	}
+	for i, arg := range spec.CheckCommand {
+		if strings.TrimSpace(arg) == "" {
+			report.AddError("typescript-check-command", fmt.Sprintf("%s.checkCommand[%d]", path, i), "check command argument cannot be empty")
+		}
+	}
+	if spec.Bundle {
+		report.AddOK("typescript-bundle", path+".bundle", "typescript bundling enabled")
+	}
+	report.AddOK("typescript", path, "typescript enabled")
+}
+
+func validateTypeScriptEnum(report *Report, name string, path string, value string, allowed map[string]struct{}, label string) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		report.AddError(name, path, fmt.Sprintf("typescript %s is required when enabled", label))
+		return
+	}
+	if _, ok := allowed[value]; !ok {
+		report.AddError(name, path, fmt.Sprintf("unsupported typescript %s %q", label, value))
+	}
+}
+
+var knownTypeScriptTargets = map[string]struct{}{
+	"es5": {}, "es2015": {}, "es2016": {}, "es2017": {}, "es2018": {}, "es2019": {},
+	"es2020": {}, "es2021": {}, "es2022": {}, "es2023": {}, "es2024": {}, "esnext": {},
+}
+
+var knownTypeScriptFormats = map[string]struct{}{
+	"cjs": {}, "commonjs": {}, "iife": {}, "esm": {},
+}
+
+var knownTypeScriptPlatforms = map[string]struct{}{
+	"neutral": {}, "browser": {}, "node": {},
+}
+
+var knownTypeScriptSourcemaps = map[string]struct{}{
+	"none": {}, "false": {}, "inline": {}, "external": {}, "linked": {}, "both": {},
 }
 
 func validateHelp(report *Report, buildSpec *BuildSpec, packageIDs map[string]PackageSpec) {

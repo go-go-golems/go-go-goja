@@ -122,14 +122,31 @@ type CommandProviderInstanceSpec struct {
 }
 
 type JSVerbSourceSpec struct {
-	ID         string   `yaml:"id" json:"id"`
-	Path       string   `yaml:"path" json:"path,omitempty"`
-	Embed      bool     `yaml:"embed" json:"embed"`
-	Package    string   `yaml:"package" json:"package,omitempty"`
-	Source     string   `yaml:"source" json:"source,omitempty"`
-	Include    []string `yaml:"include,omitempty" json:"include,omitempty"`
-	Exclude    []string `yaml:"exclude,omitempty" json:"exclude,omitempty"`
-	Extensions []string `yaml:"extensions,omitempty" json:"extensions,omitempty"`
+	ID         string          `yaml:"id" json:"id"`
+	Path       string          `yaml:"path" json:"path,omitempty"`
+	Embed      bool            `yaml:"embed" json:"embed"`
+	Package    string          `yaml:"package" json:"package,omitempty"`
+	Source     string          `yaml:"source" json:"source,omitempty"`
+	Include    []string        `yaml:"include,omitempty" json:"include,omitempty"`
+	Exclude    []string        `yaml:"exclude,omitempty" json:"exclude,omitempty"`
+	Extensions []string        `yaml:"extensions,omitempty" json:"extensions,omitempty"`
+	TypeScript *TypeScriptSpec `yaml:"typescript,omitempty" json:"typescript,omitempty"`
+}
+
+// TypeScriptSpec configures optional TypeScript compilation for JavaScript verb
+// sources. esbuild transpiles/bundles the source; full type checking remains a
+// separate project/CI concern such as `tsc --noEmit`.
+type TypeScriptSpec struct {
+	Enabled      bool              `yaml:"enabled" json:"enabled"`
+	Bundle       bool              `yaml:"bundle" json:"bundle"`
+	Target       string            `yaml:"target,omitempty" json:"target,omitempty"`
+	Format       string            `yaml:"format,omitempty" json:"format,omitempty"`
+	Platform     string            `yaml:"platform,omitempty" json:"platform,omitempty"`
+	Tsconfig     string            `yaml:"tsconfig,omitempty" json:"tsconfig,omitempty"`
+	Sourcemap    string            `yaml:"sourcemap,omitempty" json:"sourcemap,omitempty"`
+	External     []string          `yaml:"external,omitempty" json:"external,omitempty"`
+	Define       map[string]string `yaml:"define,omitempty" json:"define,omitempty"`
+	CheckCommand []string          `yaml:"checkCommand,omitempty" json:"checkCommand,omitempty"`
 }
 
 type HelpSpec struct {

@@ -38,7 +38,37 @@ func (s *jsVerbSourceSet) ListJSVerbSources() []providerapi.JSVerbSourceDescript
 			Include:    append([]string(nil), source.Include...),
 			Exclude:    append([]string(nil), source.Exclude...),
 			Extensions: append([]string(nil), source.Extensions...),
+			TypeScript: providerTypeScriptDescriptor(source.TypeScript),
 		})
+	}
+	return out
+}
+
+func providerTypeScriptDescriptor(spec *TypeScriptSpec) *providerapi.TypeScriptDescriptor {
+	if spec == nil {
+		return nil
+	}
+	return &providerapi.TypeScriptDescriptor{
+		Enabled:      spec.Enabled,
+		Bundle:       spec.Bundle,
+		Target:       spec.Target,
+		Format:       spec.Format,
+		Platform:     spec.Platform,
+		Tsconfig:     spec.Tsconfig,
+		Sourcemap:    spec.Sourcemap,
+		External:     append([]string(nil), spec.External...),
+		Define:       cloneStringMap(spec.Define),
+		CheckCommand: append([]string(nil), spec.CheckCommand...),
+	}
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
 	}
 	return out
 }
