@@ -1093,7 +1093,7 @@ func startGeneratedCommand(t *testing.T, ctx context.Context, buildSpec *buildsp
 		t.Fatalf("go mod tidy: %v\n%s", err, out)
 	}
 	binPath := filepath.Join(dir, "generated-test")
-	cmd = exec.Command("go", "build", "-o", binPath, ".")
+	cmd = exec.Command("go", "build", "-buildvcs=false", "-o", binPath, ".")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOWORK=off")
 	if out, err := cmd.CombinedOutput(); err != nil {
