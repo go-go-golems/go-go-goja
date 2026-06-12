@@ -199,7 +199,7 @@
   - declaration plan.
 - [x] Update `xgoja doctor` to load v2 and validate through the planner.
 - [x] Update `xgoja build` to generate from v2 artifact plan.
-- [ ] Update `xgoja gen-dts` to use v2 provider graph and declaration artifact plan.
+- [x] Update `xgoja gen-dts` to use v2 provider graph and declaration artifact plan.
 - [x] Update generated `go.mod` rendering to consume `GoModulePlan`.
 - [ ] Update embedded source copying to consume source/artifact plans.
 - [ ] Update generated runtime spec rendering to consume the runtime plan.

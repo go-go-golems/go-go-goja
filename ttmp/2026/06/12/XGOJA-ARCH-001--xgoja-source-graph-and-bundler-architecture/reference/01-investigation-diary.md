@@ -21,7 +21,9 @@ RelatedFiles:
         Module resolution diagnostics for Step 18
         V2 doctor planner path for Step 19
     - Path: cmd/xgoja/cmd_gen_dts.go
-      Note: gen-dts sidecar passes workspace plan for Step 17
+      Note: |-
+        gen-dts sidecar passes workspace plan for Step 17
+        V2 gen-dts planner bridge for Step 21
     - Path: cmd/xgoja/empty_fs.go
       Note: Synthetic provider source filesystem for Step 19
     - Path: cmd/xgoja/internal/buildspec/build_spec.go
@@ -35,13 +37,16 @@ RelatedFiles:
         Diary Step 2 workspace resolution evidence and integration target
         RenderGoMod consumes workspace plans for Step 17
     - Path: cmd/xgoja/internal/plan/plan.go
-      Note: Initial v2 Plan compiler for Step 16
+      Note: |-
+        Initial v2 Plan compiler for Step 16
+        Provider import module-root normalization for Step 21
     - Path: cmd/xgoja/internal/plan/plan_test.go
       Note: Planner regression tests for Step 16
     - Path: cmd/xgoja/root_test.go
       Note: |-
         V2 doctor smoke test for Step 19
         V2 build dry-run test for Step 20
+        V2 gen-dts smoke test for Step 21
     - Path: cmd/xgoja/v2_bridge.go
       Note: V2 build bridge for Step 20
     - Path: cmd/xgoja/workspace_plan.go
@@ -93,10 +98,11 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T18:55:00-04:00
+LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -1866,3 +1872,75 @@ The bridge maps providers, runtime modules, jsverbs sources, assets, help source
 
 - V2 build still uses the synthetic provider registry for planning; generated build output imports real provider packages from the converted buildspec.
 - The bridge passes `compiledPlan.GoModules` into generated go.mod rendering.
+
+
+## Step 21: Let gen-dts consume v2 provider/declaration plans
+
+I updated `xgoja gen-dts` so it can load native v2 specs through the same planner bridge used by build. The command now detects v2 input, compiles it through `plan.Compile`, converts the plan into the existing sidecar generator DTOs, and uses the planner Go module plan when rendering the sidecar `go.mod`.
+
+This keeps the current sidecar execution model: gen-dts still imports real provider packages in a temporary Go module so declaration generation sees actual provider registrations. The v2 planner now drives the command boundary and module planning.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the next v2 command cutover step after build, specifically `gen-dts`.
+
+**Inferred user intent:** Keep implementing the hard-cutover checklist without stopping for additional confirmation.
+
+**Commit (code):** pending — v2 gen-dts planner bridge staged after this diary update.
+
+### What I did
+
+- Updated `cmd/xgoja/cmd_gen_dts.go` to use `loadBuildSpecOrV2Plan`.
+- For v2 specs, `gen-dts` now prints `validated xgoja/v2 plan` and passes `compiledPlan.GoModules` to sidecar `go.mod` rendering.
+- Added a v2 typed-core gen-dts smoke test that generates declarations and checks for `declare module "path:typed"`.
+- Updated the v2 planner Go module requirement logic to infer module roots from provider import paths, matching generated `go.mod` behavior for imports under `/pkg/`, `/cmd/`, `/internal/`, and `/xgoja` suffixes.
+- Checked task ID 81.
+
+### Why
+
+- `gen-dts` is the next command that must accept v2 specs and use provider graph/declaration planning.
+- Sidecar declaration generation needs real provider packages, so the bridge preserves the existing sidecar execution model while moving the input/planning boundary to v2.
+
+### What worked
+
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/plan ./cmd/xgoja/internal/specv2 ./cmd/xgoja/internal/generate -count=1` passed.
+- The v2 gen-dts smoke test generated a declaration file containing `declare module "path:typed"`.
+
+### What didn't work
+
+- The first v2 gen-dts test used artifact type `declarations`; specv2 validation currently supports `dts`, so I changed the test spec to `type: dts`.
+- The next test run failed because the v2 planner used the provider package import path as a module path, producing a bad requirement such as `github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core v0.0.0`. I fixed this by normalizing provider import paths to module roots in the planner.
+
+### What I learned
+
+- V2 provider specs need a clear distinction between provider package import path and Go module path. The current schema has provider import plus provider module version/replace, so the planner must infer a module path until a more explicit field exists.
+- The existing sidecar path is still valuable because it validates declaration output against actual provider registration code.
+
+### What was tricky to build
+
+- The planner runs before generated sidecar code exists, but gen-dts still needs real providers at sidecar runtime. The bridge therefore plans statically, then converts to the generator shape that imports real packages.
+- Module-root inference must stay consistent between the planner and `generate.RenderGoMod` or generated sidecars can require the wrong module path.
+
+### What warrants a second pair of eyes
+
+- Review whether v2 should add an explicit provider module path field rather than inferring it from `provider.import`.
+- Review whether `type: dts` is the desired artifact spelling for declarations in final docs.
+
+### What should be done in the future
+
+- Use v2 artifact `output` when `--out` is omitted or no longer required.
+- Move declaration generation closer to direct `plan.Plan` consumption and reduce buildspec bridge reliance.
+
+### Code review instructions
+
+- Review `cmd/xgoja/cmd_gen_dts.go` for v2 command dispatch.
+- Review `cmd/xgoja/internal/plan/plan.go` for `modulePathFromImport`.
+- Review `cmd/xgoja/root_test.go` for the v2 gen-dts smoke test.
+- Validate with `go test ./cmd/xgoja -run TestGenDTSCommandLoadsV2Spec -count=1`.
+
+### Technical details
+
+- V2 gen-dts still requires `--out` for now.
+- The generated sidecar uses the converted buildspec plus `compiledPlan.GoModules`.

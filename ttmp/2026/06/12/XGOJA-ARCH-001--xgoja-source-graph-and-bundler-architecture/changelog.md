@@ -232,3 +232,14 @@ Updated xgoja build to load v2 specs through the v2 planner and convert the arti
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root_test.go — V2 build dry-run smoke test
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/v2_bridge.go — V2 plan to buildspec bridge for generated builds
 
+
+## 2026-06-12
+
+Updated xgoja gen-dts to load v2 specs through the planner bridge and use planned Go modules for sidecar go.mod rendering; normalized provider import module paths in the v2 planner.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/cmd_gen_dts.go — gen-dts detects v2 specs and uses planner bridge
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/plan/plan.go — Provider import paths are normalized to module roots for Go module planning
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root_test.go — V2 gen-dts command smoke test
+

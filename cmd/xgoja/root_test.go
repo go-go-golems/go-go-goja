@@ -388,6 +388,34 @@ func TestInspectCommandReadsCurrentBinary(t *testing.T) {
 	}
 }
 
+func TestGenDTSCommandLoadsV2Spec(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeTypedCoreV2Spec(t)
+	outputPath := filepath.Join(t.TempDir(), "xgoja-modules.d.ts")
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	root.SetArgs([]string{"gen-dts", "-f", specPath, "--out", outputPath, "--strict", "--xgoja-replace", repoRoot})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute v2 gen-dts: %v\n%s", err, out.String())
+	}
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read generated dts: %v", err)
+	}
+	if !strings.Contains(string(data), `declare module "path:typed"`) {
+		t.Fatalf("expected aliased path declaration, got:\n%s", data)
+	}
+	if !strings.Contains(out.String(), "validated xgoja/v2 plan") {
+		t.Fatalf("expected v2 validation output, got %q", out.String())
+	}
+}
+
 func TestGenDTSCommandWired(t *testing.T) {
 	out := &bytes.Buffer{}
 	root, err := newRootCommand(out)
@@ -549,6 +577,42 @@ commands:
 	return specPath
 }
 
+func writeTypedCoreV2Spec(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+schema: xgoja/v2
+name: typed-core
+go:
+  module: xgoja.generated/typed-core
+  version: "1.26"
+workspace:
+  mode: off
+providers:
+  - id: go-go-goja-core
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
+    register: Register
+runtime:
+  modules:
+    - provider: go-go-goja-core
+      name: path
+      as: path:typed
+commands:
+  - id: eval
+    type: builtin.eval
+    name: eval
+artifacts:
+  - id: declarations
+    type: dts
+    output: xgoja-modules.d.ts
+    strict: true
+`), 0o644); err != nil {
+		t.Fatalf("write typed core v2 spec: %v", err)
+	}
+	return specPath
+}
+
 func writeTypedCoreSpec(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -594,8 +658,6 @@ providers:
   - id: fixture
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
     register: Register
-    module:
-      version: v0.0.0
 runtime:
   modules:
     - provider: fixture

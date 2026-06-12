@@ -91,12 +91,20 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	buildSpec, report, err := buildspec.LoadFile(settings.File)
-	if report != nil {
-		_, _ = fmt.Fprintf(c.out, "validated %d check(s) for %s\n", len(report.Checks), settings.File)
-	}
+	buildSpec, compiledPlan, isV2, err := loadBuildSpecOrV2Plan(settings.File)
 	if err != nil {
 		return err
+	}
+	if isV2 {
+		_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
+	} else {
+		_, report, err := buildspec.LoadFile(settings.File)
+		if report != nil {
+			_, _ = fmt.Fprintf(c.out, "validated %d check(s) for %s\n", len(report.Checks), settings.File)
+		}
+		if err != nil {
+			return err
+		}
 	}
 
 	workDir := strings.TrimSpace(settings.WorkDir)
@@ -116,6 +124,9 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	goModules, err := goModulePlanForBuildSpec(buildSpec)
 	if err != nil {
 		return err
+	}
+	if compiledPlan != nil {
+		goModules = compiledPlan.GoModules
 	}
 	if err := writeDTSSidecar(workDir, buildSpec, settings, goModules); err != nil {
 		return err

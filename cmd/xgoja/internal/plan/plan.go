@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -108,7 +109,7 @@ func buildGoModulePlan(cfg specv2.Config, startDir string, cliReplace map[string
 	requirements := []workspace.Requirement{}
 	for _, provider := range cfg.Providers {
 		requirements = append(requirements, workspace.Requirement{
-			ModulePath:      provider.Import,
+			ModulePath:      modulePathFromImport(provider.Import),
 			Version:         provider.Module.Version,
 			ExplicitReplace: provider.Module.Replace,
 			RequiredBy:      []string{"provider:" + provider.ID},
@@ -117,7 +118,7 @@ func buildGoModulePlan(cfg specv2.Config, startDir string, cliReplace map[string
 	for _, goImport := range cfg.Go.Imports {
 		modulePath := goImport.Module
 		if strings.TrimSpace(modulePath) == "" {
-			modulePath = goImport.Import
+			modulePath = modulePathFromImport(goImport.Import)
 		}
 		requirements = append(requirements, workspace.Requirement{
 			ModulePath: modulePath,
@@ -150,6 +151,22 @@ func buildSourceGraph(cfg specv2.Config, registry *providerapi.ProviderRegistry,
 		return nil, fmt.Errorf("build source graph: %w", err)
 	}
 	return graph, nil
+}
+
+func modulePathFromImport(importPath string) string {
+	importPath = strings.Trim(path.Clean(strings.TrimSpace(importPath)), "/")
+	if importPath == "." {
+		return ""
+	}
+	for _, marker := range []string{"/pkg/", "/cmd/", "/internal/"} {
+		if idx := strings.Index(importPath, marker); idx >= 0 {
+			return importPath[:idx]
+		}
+	}
+	if strings.HasSuffix(importPath, "/xgoja") {
+		return path.Dir(importPath)
+	}
+	return importPath
 }
 
 func sourceSetFromSpec(cfg specv2.Config, registry *providerapi.ProviderRegistry, goModules *workspace.Plan, source specv2.SourceSpec) (sourcegraph.SourceSet, error) {
