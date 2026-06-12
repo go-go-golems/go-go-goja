@@ -150,3 +150,13 @@ Added generated message prototype tokens: protogoja namespace prototype refs, ge
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/prototype.go — Runtime MessagePrototypeRef and hidden namespace token attachment
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/prototype_test.go — Prototype token extraction and clone tests
 
+
+## 2026-06-12
+
+Closed Phase 5 generated fluent builders: namespace exports, builder methods, enum exports, nested messages, prototype tokens, and runtime generated-builder validation are complete through commit bcaf348.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Phase 5 generated fluent builder implementation
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/prototype.go — Phase 5 prototype token runtime support
+

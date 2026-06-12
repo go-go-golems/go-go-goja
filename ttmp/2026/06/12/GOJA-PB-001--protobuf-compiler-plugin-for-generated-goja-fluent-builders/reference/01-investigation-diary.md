@@ -1327,3 +1327,103 @@ Task update command:
 ```bash
 docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 37
 ```
+
+## Step 12: Close Phase 5 generated fluent builders
+
+I closed the Phase 5 task marker after the generated builder work reached a coherent checkpoint. The generator now emits message namespaces, fluent builder objects, field setters, clear/build/clone helpers, enum exports, nested message support, hidden prototype tokens, and runtime tests that execute generated Goja-facing APIs.
+
+This is not the end of the project. It is the end of the first generated fluent builder phase. Phase 6 should now focus on TypeScript declarations for the API surface that Phase 5 made real.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 10)
+
+**Assistant interpretation:** Continue until the remaining Phase 5 tasks are closed and validated.
+
+**Inferred user intent:** The user wants phase-level completion, not only isolated code commits.
+
+**Commit (code):** N/A — Phase 5 closure is represented by prior code commits through `bcaf348b648a0a54d4ef9c0e6cf3b23779bfb20b`.
+
+### What I did
+
+- Checked task 40: `Commit Phase 5 generated fluent builders`.
+- Updated the changelog to summarize Phase 5 closure.
+- Ran:
+
+```bash
+go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+- Ran:
+
+```bash
+docmgr --root go-go-goja/ttmp doctor --ticket GOJA-PB-001 --stale-after 30
+```
+
+### Why
+
+- Phase 5 now has all listed tasks checked and a validation command confirming the generated builder and runtime support packages still pass together.
+- Recording the phase boundary makes the next continuation point clear: Phase 6 TypeScript declarations.
+
+### What worked
+
+- Focused validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	0.479s
+ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	0.008s
+```
+
+- Docmgr validation passed:
+
+```text
+## Doctor Report (1 findings)
+
+### GOJA-PB-001
+
+- ✅ All checks passed
+```
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The generator can now be evolved from a working API surface rather than a design sketch. Golden output, compile tests, and runtime generated-builder tests are all in place.
+
+### What was tricky to build
+
+- The Phase 5 work had to coordinate three layers: generated Go code, Goja runtime behavior, and `pkg/protogoja` hidden references. The tests now cover all three together.
+
+### What warrants a second pair of eyes
+
+- Review generated public names before Phase 6 locks them into TypeScript declarations.
+- Review helper collision handling before broader schema coverage.
+
+### What should be done in the future
+
+- Start Phase 6 by generating `TypeScriptModule(moduleName string) *spec.Module` with `RawDTS`.
+- Add DTS tests through `pkg/tsgen/render` and `pkg/xgoja/dtsgen`.
+
+### Code review instructions
+
+- Review the Phase 5 code commits in order:
+  - `2100678` generated initial namespace/builder APIs.
+  - `db84885` added runtime generated-builder validation.
+  - `5495137` generated enum exports.
+  - `bcaf348` added prototype tokens.
+- Validate with:
+
+```bash
+go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+docmgr --root go-go-goja/ttmp doctor --ticket GOJA-PB-001 --stale-after 30
+```
+
+### Technical details
+
+Task update command:
+
+```bash
+docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 40
+```
