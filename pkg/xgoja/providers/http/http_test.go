@@ -153,6 +153,48 @@ func TestExpressProviderRegistersIntoExternalHost(t *testing.T) {
 	}
 }
 
+func TestExpressProviderRegistersPlannedPublicRouteIntoExternalHost(t *testing.T) {
+	jsHost := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
+	registry := providerapi.NewProviderRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	runtimeSpec := &app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{{Package: PackageID, Name: "express", As: "express"}}}
+	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{ConfigureServices: func(services *app.HostServices) {
+		if err := services.SetHostService(HostServiceKey, ExternalHostService{Host: jsHost, OwnsListen: false}); err != nil {
+			t.Fatalf("SetHostService: %v", err)
+		}
+	}})
+	rt, err := host.Factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	_, err = rt.Owner.Call(context.Background(), "register planned external route", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, runErr := vm.RunString(`
+			const express = require("express");
+			const app = express.app();
+			app.route("GET", "/planned/:name")
+			  .public()
+			  .handle((ctx, res) => res.json({ hello: ctx.params.name }));
+		`)
+		return nil, runErr
+	})
+	if err != nil {
+		t.Fatalf("register planned route: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	jsHost.ServeHTTP(rr, httptest.NewRequest(stdhttp.MethodGet, "/planned/goja", nil))
+	if rr.Code != stdhttp.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"hello":"goja"`) {
+		t.Fatalf("body=%s", rr.Body.String())
+	}
+}
+
 func TestExpressExternalHostDoesNotBindConfiguredHTTPPort(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

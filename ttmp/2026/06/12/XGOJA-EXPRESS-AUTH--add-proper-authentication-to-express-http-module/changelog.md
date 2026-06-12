@@ -105,3 +105,15 @@ Phase 4: documented planned auth builders in TypeScript declarations and Express
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/18-express-module.md — Documented planned auth route usage and host auth setup
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Recorded Phase 4 docs/types update
 
+
+## 2026-06-12
+
+Phase 5: added provider planned-route coverage, example route script, and final validation
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/15-express-planned-auth/README.md — Example notes and host auth caveat
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/15-express-planned-auth/scripts/server.js — Example planned auth route declarations
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/http_test.go — Provider test for planned public route registration through external host service
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Recorded final validation including VCS stamping workaround
+

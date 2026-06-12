@@ -946,3 +946,132 @@ app.route("PATCH", "/orgs/:orgId/projects/:projectId")
   .allow("project.update")
   .handle((ctx, res) => { /* ... */ })
 ```
+
+
+## Step 10: Add provider coverage, example script, and final validation
+
+I added xgoja HTTP provider coverage for planned public routes and a small example script that demonstrates public, current-user, and resource-bound planned route declarations. I then ran targeted tests and a broad test suite. The plain broad test failed because generated `go build` test fixtures attempted VCS stamping in temporary generated workspaces; rerunning with `GOFLAGS=-buildvcs=false` passed.
+
+This completes the implemented MVP path: host route plans, planned dispatch, Go-backed Express builders, TypeScript/docs, provider coverage, and example route authoring material.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Finish the implementation loop with provider/example coverage, validation, task updates, and a final commit.
+
+**Inferred user intent:** Leave the branch in a reviewable state with code, tests, docs, examples, and diary evidence.
+
+**Commit (code):** pending — final implementation changes are ready to commit after this diary update.
+
+### What I did
+
+- Added `TestExpressProviderRegistersPlannedPublicRouteIntoExternalHost` in `pkg/xgoja/providers/http/http_test.go`.
+- Added example files:
+  - `examples/xgoja/15-express-planned-auth/README.md`
+  - `examples/xgoja/15-express-planned-auth/scripts/server.js`
+- Ran targeted validation:
+
+```bash
+go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1
+```
+
+- Ran broad validation first without `GOFLAGS`, then with VCS stamping disabled:
+
+```bash
+go test ./... -count=1
+GOFLAGS=-buildvcs=false go test ./... -count=1
+```
+
+### Why
+
+- The provider test verifies the generated-runtime provider path can register planned public routes into an externally supplied host.
+- The example gives future implementers and users a concise JS authoring reference without pretending auth routes work in a standalone generated binary before host auth services are configured.
+- The broad test run catches cross-package compile or integration regressions beyond the direct `gojahttp`/`express` packages.
+
+### What worked
+
+- Targeted tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp
+ok  	github.com/go-go-golems/go-go-goja/modules/express
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+```
+
+- Broad tests passed with VCS stamping disabled:
+
+```bash
+GOFLAGS=-buildvcs=false go test ./... -count=1
+```
+
+### What didn't work
+
+- Plain broad tests failed in generated xgoja build tests due VCS stamping in temporary generated workspaces:
+
+```text
+Error: go build -o /tmp/TestBuildCommandBuildsBinary2222595658/002/fixture . failed: exit status 1
+error obtaining VCS status: exit status 128
+	Use -buildvcs=false to disable VCS stamping.
+
+FAIL	github.com/go-go-golems/go-go-goja/cmd/xgoja	1.928s
+...
+--- FAIL: TestGeneratedProgramServesHTTPVerb (0.14s)
+    generate_test.go:764: go build generated program: exit status 1
+        error obtaining VCS status: exit status 128
+        	Use -buildvcs=false to disable VCS stamping.
+--- FAIL: TestGeneratedProgramServesHTTPVerbWithHotReload (0.16s)
+    generate_test.go:801: go build generated program: exit status 1
+        error obtaining VCS status: exit status 128
+        	Use -buildvcs=false to disable VCS stamping.
+FAIL	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	39.271s
+```
+
+- The failures were not caused by the planned auth code path; they were generated-program `go build` failures. The suggested `-buildvcs=false` workaround made the broad suite pass.
+
+### What I learned
+
+- Provider-level planned public route registration works through the existing external host service path.
+- Authenticated planned routes still require host-provided auth services, so the example must be framed as an authoring sketch unless a full Go host example is added later.
+
+### What was tricky to build
+
+- The broad test failure looked serious at first because it occurred in xgoja generated-program tests, but the error text clearly pointed to VCS stamping. Re-running with `GOFLAGS=-buildvcs=false` isolated the issue from this feature work.
+
+### What warrants a second pair of eyes
+
+- Whether the example should become a full runnable generated-runtime example with fake auth services in a future ticket.
+- Whether the provider should expose an official auth service contribution mechanism instead of relying only on external host construction.
+
+### What should be done in the future
+
+- Add `.body(...)`, `.csrf()`, and `.audit(...)` as separate follow-up phases.
+- Consider a generated-host example that configures fake auth services and demonstrates an end-to-end authenticated route.
+- Consider whether generated xgoja tests should set `-buildvcs=false` for temporary generated programs.
+
+### Code review instructions
+
+- Review the implementation commits in order:
+  1. `Add gojahttp planned route auth model`
+  2. `Dispatch planned routes through auth envelope`
+  3. `Add Express fluent auth route builders`
+  4. `Document Express planned auth routes`
+  5. final provider/example commit
+- Validate locally with:
+
+```bash
+go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1
+GOFLAGS=-buildvcs=false go test ./... -count=1
+```
+
+### Technical details
+
+The provider test registers this through the generated-runtime provider path:
+
+```js
+const express = require("express")
+const app = express.app()
+app.route("GET", "/planned/:name")
+  .public()
+  .handle((ctx, res) => res.json({ hello: ctx.params.name }))
+```

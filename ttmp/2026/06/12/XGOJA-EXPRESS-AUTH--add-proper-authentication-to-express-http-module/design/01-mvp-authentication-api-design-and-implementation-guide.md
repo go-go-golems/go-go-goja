@@ -11,6 +11,8 @@ DocType: design
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/xgoja/15-express-planned-auth/scripts/server.js
+      Note: Example JavaScript route authoring for planned auth routes
     - Path: modules/express/auth_builders.go
       Note: Phase 3 Go-backed staged fluent builder implementation
     - Path: modules/express/auth_builders_integration_test.go
@@ -39,6 +41,8 @@ RelatedFiles:
       Note: Existing opaque cookie session foundation that is not sufficient as authentication by itself
     - Path: pkg/xgoja/providers/http/http.go
       Note: xgoja provider host creation and external host service injection point
+    - Path: pkg/xgoja/providers/http/http_test.go
+      Note: Phase 5 provider coverage for planned public routes
     - Path: ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/sources/01-auth-preliminary-api-ideas.md
       Note: Imported preliminary API idea source reconciled into the MVP design
 ExternalSources:
@@ -48,6 +52,7 @@ LastUpdated: 2026-06-12T14:25:00-04:00
 WhatFor: Use this to implement the MVP auth API for modules/express and pkg/gojahttp without first needing deep context on the HTTP provider.
 WhenToUse: Read before changing Express route registration, gojahttp route dispatch, session handling, or xgoja HTTP provider integration.
 ---
+
 
 
 

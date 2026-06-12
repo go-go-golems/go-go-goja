@@ -61,13 +61,13 @@
 
 ## Phase 5 — Validation, examples, and provider integration
 
-- [ ] Add/adjust xgoja HTTP provider tests to ensure generated runtimes can use planned public routes
-- [ ] Add an example script demonstrating public, self, and resource-bound routes
-- [ ] Run `go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1`
-- [ ] Run broader test subset if targeted tests pass
-- [ ] Update diary with final validation, commands, failures, and review instructions
-- [ ] Update changelog and mark completed implementation tasks
-- [ ] Commit final docs/test updates
+- [x] Add/adjust xgoja HTTP provider tests to ensure generated runtimes can use planned public routes
+- [x] Add an example script demonstrating public, self, and resource-bound routes
+- [x] Run `go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1`
+- [x] Run broader test subset if targeted tests pass
+- [x] Update diary with final validation, commands, failures, and review instructions
+- [x] Update changelog and mark completed implementation tasks
+- [x] Commit final docs/test updates
 
 ## Future / out of MVP
 
