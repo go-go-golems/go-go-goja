@@ -116,7 +116,7 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	_, _ = fmt.Fprintf(c.out, "generated build workspace: %s\n", workDir)
 	_, _ = fmt.Fprintf(c.out, "generated module: %s\n", compiledPlan.Config.Go.Module)
-	_, _ = fmt.Fprintf(c.out, "xgoja builds from the generated module root: cd %s && go mod tidy && go build .\n", workDir)
+	_, _ = fmt.Fprintf(c.out, "xgoja builds from the generated module root: cd %s && go mod tidy && go build -buildvcs=false .\n", workDir)
 	if settings.WorkDir == "" && !settings.KeepWork {
 		_, _ = fmt.Fprintln(c.out, "use --keep-work to inspect generated go.mod/main.go after the build")
 	}
