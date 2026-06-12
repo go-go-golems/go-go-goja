@@ -136,6 +136,10 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if route.Plan != nil {
+		h.servePlannedRoute(w, r, route, req)
+		return
+	}
 	res := NewResponse(w, h.renderer)
 	ret, err := h.owner.Call(r.Context(), "http-handler", func(ctx context.Context, vm *goja.Runtime) (any, error) {
 		result, err := route.Handler(goja.Undefined(), vm.ToValue(req.Map()), res.JSObject(vm))

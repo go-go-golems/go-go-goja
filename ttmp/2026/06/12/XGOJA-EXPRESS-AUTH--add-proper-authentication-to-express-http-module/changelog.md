@@ -70,3 +70,15 @@ Phase 1: added gojahttp RoutePlan model, auth interfaces, planned route registra
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/route_registry.go — Route Plan field and AddPlanned support
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Recorded Phase 1 implementation
 
+
+## 2026-06-12
+
+Phase 2: added planned route dispatch, secure context, auth/resource/authorization enforcement, and host tests
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/host.go — Branches to planned dispatch for routes with RoutePlan
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/planned_dispatch.go — Planned route auth/resource/authorization dispatch and secure JS context
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/planned_dispatch_test.go — Host-level planned dispatch integration tests
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Recorded Phase 2 implementation and test failure/fix
+

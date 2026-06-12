@@ -30,13 +30,13 @@
 
 ## Phase 2 — Planned route dispatch and secure context
 
-- [ ] Add planned-route dispatch branch in `Host.ServeHTTP`
-- [ ] Implement actor authentication before handler invocation
-- [ ] Implement resource resolution from typed value sources such as `idFromParam` and `tenantFromParam`
-- [ ] Implement authorization using host-provided `Authorizer`
-- [ ] Build Go-owned secure JS context with `ctx.actor`, `ctx.request`, `ctx.body`, `ctx.params`, `ctx.resource(name)`, and `ctx.resources`
-- [ ] Preserve existing return-value and promise handling behavior for planned handlers
-- [ ] Add host-level integration tests for public, authenticated, unauthorized, missing resource, and resource success paths
+- [x] Add planned-route dispatch branch in `Host.ServeHTTP`
+- [x] Implement actor authentication before handler invocation
+- [x] Implement resource resolution from typed value sources such as `idFromParam` and `tenantFromParam`
+- [x] Implement authorization using host-provided `Authorizer`
+- [x] Build Go-owned secure JS context with `ctx.actor`, `ctx.request`, `ctx.body`, `ctx.params`, `ctx.resource(name)`, and `ctx.resources`
+- [x] Preserve existing return-value and promise handling behavior for planned handlers
+- [x] Add host-level integration tests for public, authenticated, unauthorized, missing resource, and resource success paths
 - [ ] Commit Phase 2
 
 ## Phase 3 — Express Go-backed fluent builders

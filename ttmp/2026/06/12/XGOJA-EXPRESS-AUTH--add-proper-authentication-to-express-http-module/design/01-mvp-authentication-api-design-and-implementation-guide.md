@@ -21,6 +21,10 @@ RelatedFiles:
       Note: Phase 1 tests for route-plan validation and planned registration
     - Path: pkg/gojahttp/host.go
       Note: Central HTTP dispatch path where planned route auth enforcement should run
+    - Path: pkg/gojahttp/planned_dispatch.go
+      Note: Phase 2 implementation of planned-route enforcement and secure JS context
+    - Path: pkg/gojahttp/planned_dispatch_test.go
+      Note: Phase 2 host dispatch tests for public/auth/resource/denial paths
     - Path: pkg/gojahttp/request_response.go
       Note: Request and response DTOs reused by the secure handler context
     - Path: pkg/gojahttp/route_registry.go
@@ -38,6 +42,7 @@ LastUpdated: 2026-06-12T14:25:00-04:00
 WhatFor: Use this to implement the MVP auth API for modules/express and pkg/gojahttp without first needing deep context on the HTTP provider.
 WhenToUse: Read before changing Express route registration, gojahttp route dispatch, session handling, or xgoja HTTP provider integration.
 ---
+
 
 
 

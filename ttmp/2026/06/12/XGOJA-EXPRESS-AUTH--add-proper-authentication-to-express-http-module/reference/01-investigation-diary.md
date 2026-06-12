@@ -650,3 +650,104 @@ type Route struct {
     Plan    *RoutePlan
 }
 ```
+
+
+## Step 7: Implement Phase 2 planned route dispatch and secure context
+
+I implemented planned-route request dispatch in `gojahttp.Host`. Planned routes now authenticate the actor, resolve typed resources from route/query/body/literal value sources, authorize the action, and only then invoke the JavaScript handler with a Go-built secure context object.
+
+This phase still does not expose the JavaScript fluent builder. Instead, tests register planned routes directly through `Host.RegisterPlanned`, which keeps the host auth pipeline testable before adding the Express API layer.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue implementing the selected plan, now adding runtime behavior for planned routes after the Phase 1 data model.
+
+**Inferred user intent:** Build the security enforcement path before exposing it to JavaScript authors.
+
+**Commit (code):** pending — Phase 2 code is ready to commit after this diary update.
+
+### What I did
+
+- Added `pkg/gojahttp/planned_dispatch.go`.
+- Added a planned-route branch in `Host.ServeHTTP` after route matching and request DTO construction.
+- Implemented `buildSecureEnvelope` for:
+  - public planned routes,
+  - user-auth planned routes,
+  - resource resolution,
+  - action authorization.
+- Implemented value-source resolution for params, query, body object fields, and literals.
+- Implemented secure JS context fields:
+  - `ctx.request`
+  - `ctx.actor`
+  - `ctx.body`
+  - `ctx.params`
+  - `ctx.resources`
+  - `ctx.resource(name)`
+  - `ctx.action`
+  - `ctx.routeName`
+- Added `pkg/gojahttp/planned_dispatch_test.go` with public, auth success, 401, resource success, 404, and authorizer error coverage.
+- Ran:
+
+```bash
+gofmt -w pkg/gojahttp/planned_dispatch.go pkg/gojahttp/planned_dispatch_test.go pkg/gojahttp/host.go
+go test ./pkg/gojahttp -count=1
+```
+
+### Why
+
+- The host must own enforcement before JavaScript handler logic runs.
+- Testing planned dispatch directly avoids conflating host security bugs with future builder bugs.
+- The secure context deliberately exposes lower-case JavaScript field names (`actor.id`, `resource.id`) even though the internal Go structs use exported Go field names.
+
+### What worked
+
+- `go test ./pkg/gojahttp -count=1` passed after fixing JS object field exposure.
+- Planned handlers reuse the existing response object and promise/return handling path.
+- Resource resolver and authorizer test fakes receive domain-oriented requests with resolved IDs and tenant IDs rather than raw `req.params` parsing responsibilities.
+
+### What didn't work
+
+- The first test run failed because Go structs exposed through Goja did not provide the lower-case JavaScript properties the tests expected:
+
+```text
+--- FAIL: TestPlannedUserRouteAuthenticatesAndAuthorizes (0.00s)
+    planned_dispatch_test.go:97: body={"action":"user.self.read","actor":null}
+--- FAIL: TestPlannedResourceRouteResolvesAndAuthorizesResource (0.00s)
+    planned_dispatch_test.go:168: body={"project":null,"tenant":null}
+FAIL
+FAIL	github.com/go-go-golems/go-go-goja/pkg/gojahttp	0.006s
+```
+
+- I fixed this by converting `Actor` and `ResourceRef` to explicit lower-case JavaScript maps inside `secureEnvelope.JSObject` and `ctx.resource(name)`.
+
+### What I learned
+
+- Goja's Go struct exposure does not automatically behave like JSON tags for JavaScript property access in this context.
+- For public API context objects, explicit JS maps are clearer and avoid accidental exposure of Go-shaped field names.
+
+### What was tricky to build
+
+- The subtle part was keeping the host pipeline fail-closed without hiding developer errors. Missing auth services return 500 because they are host misconfiguration; missing credentials return 401; denied authorization returns 403; missing resources return 404.
+- Another subtle point was keeping the planned route handler call consistent with existing handler behavior, including explicit `res.*` sends and returned promises.
+
+### What warrants a second pair of eyes
+
+- Whether authorizer backend errors should always map to 500, or whether application-specific errors should be able to choose status codes later.
+- Whether `ctx.resources` should expose a snapshot map or only `ctx.resource(name)` to discourage direct mutation.
+
+### What should be done in the future
+
+- Phase 3 should add the Express fluent builder and strict Go-backed spec validation.
+- Later phases should add TypeScript declarations and docs for the `ctx` shape.
+
+### Code review instructions
+
+- Start in `pkg/gojahttp/planned_dispatch.go` and read `buildSecureEnvelope` top to bottom.
+- Then review `planned_dispatch_test.go` to see the expected HTTP status mapping and context shape.
+- Validate with `go test ./pkg/gojahttp -count=1`.
+
+### Technical details
+
+The planned dispatch branch is intentionally after `NewRequestDTO`, so planned routes reuse body parsing, query normalization, cookies, session IDs, and params from the existing request model.
