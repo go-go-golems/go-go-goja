@@ -335,3 +335,14 @@ Step 30: renamed legacy buildspec package to migratebuildspec and gave specv2 it
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/migratebuildspec/build_spec.go — Legacy v1 schema quarantined for migrate-spec
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/report.go — Native v2 validation report types remove dependency on legacy schema package
 
+
+## 2026-06-12
+
+Step 31: archived buildspec-era help behind v2 docs and updated user guide/reference wording for plan-native v2 commands (commit a6fe8dd)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/02-user-guide.md — Rewritten as native xgoja/v2 user guide
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/06-buildspec-reference.md — Legacy buildspec page reduced to migration pointer
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/17-xgoja-v2-reference.md — Transition limits updated to plan-native command state
+

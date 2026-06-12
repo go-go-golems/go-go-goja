@@ -30,10 +30,15 @@ RelatedFiles:
       Note: Generate now loads native v2 specs through planner bridge
     - Path: cmd/xgoja/cmd_list_modules.go
       Note: list-modules now uses v2 loader
+    - Path: cmd/xgoja/doc/02-user-guide.md
+      Note: Native v2 user guide replaces buildspec-era reference
+    - Path: cmd/xgoja/doc/06-buildspec-reference.md
+      Note: Compatibility pointer for old buildspec help links
     - Path: cmd/xgoja/doc/17-xgoja-v2-reference.md
       Note: |-
         Native xgoja/v2 reference doc added in commit 12ca66e
         Reference documents artifact source dependencies for embedded jsverb/help sources
+        V2 reference now describes plan-native command/generator path
     - Path: cmd/xgoja/empty_fs.go
       Note: Synthetic provider source filesystem for Step 19
     - Path: cmd/xgoja/internal/buildspec/build_spec.go
@@ -149,6 +154,7 @@ LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -2781,3 +2787,76 @@ I also removed the last non-migration dependency on that package by giving `spec
 
 - The package directory rename was committed as a Git rename, preserving file history.
 - `cmd/xgoja/internal/specv2/report.go` now owns `Status`, `Check`, `Report`, and `ValidationError` for v2.
+
+
+## Step 31: Archive buildspec-era help behind v2 docs
+
+I updated the bundled xgoja help so the normal documentation path describes native `schema: xgoja/v2` specs and plan-native command behavior. The old `buildspec-reference` slug remains only as a compatibility pointer for older links; it now directs readers to the v2 user guide, v2 reference, and migration guide.
+
+This keeps the docs aligned with the code boundary: normal commands use v2 plans directly, while legacy v1 parsing is quarantined to migration.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Continue with the next suggested cleanup: archive/update buildspec-era help pages and tutorials now that the code is migration-only for v1.
+
+**Inferred user intent:** Remove misleading documentation that presents the legacy buildspec as the normal configuration model.
+
+**Commit (code):** a6fe8dd2f3f92133475d922a30c3e9ac10839202 — "docs: archive buildspec docs behind v2 reference"
+
+### What I did
+
+- Rewrote `cmd/xgoja/doc/02-user-guide.md` as a native xgoja/v2 user guide.
+- Replaced `cmd/xgoja/doc/06-buildspec-reference.md` with a legacy migration pointer while retaining the `buildspec-reference` slug for old links.
+- Updated `cmd/xgoja/doc/17-xgoja-v2-reference.md` to remove stale bridge/transition wording and document current plan-native command behavior.
+- Updated smaller doc references from buildspec terminology toward v2 spec terminology.
+- Updated the bundled-help root test expectations.
+
+### Why
+
+- The code no longer treats buildspec as a normal internal model, so bundled help should not teach it as the primary user-facing schema.
+- Retaining the old slug avoids breaking users who run `xgoja help buildspec-reference`, while making the page explicitly legacy.
+
+### What worked
+
+- `go test ./cmd/xgoja/doc ./cmd/xgoja -count=1` passed.
+- Full pre-commit passed, including lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- The first help test run failed because the user guide no longer contained old strings like `Runtime filesystem source` and `Provider-shipped source`.
+- I updated `TestBundledHelpTopic` to assert v2 guide content instead.
+
+### What I learned
+
+- The old `user-guide` was effectively a v1 buildspec reference, so a targeted rewrite was cleaner than trying to patch it field by field.
+- The v2 reference already had most of the detailed schema material; the user guide can now stay shorter and point to the field reference.
+
+### What was tricky to build
+
+- The compatibility slug is named `buildspec-reference`, so grep will still find intentional legacy wording there. The page content now makes clear that it is an archived migration pointer.
+- Some older provider/migration docs mention buildspec-era terminology historically; I updated obvious references without rewriting every historical document.
+
+### What warrants a second pair of eyes
+
+- Review the new `user-guide` for completeness compared with the old v1 reference.
+- Review whether old tutorial pages should be fully rewritten to v2 examples instead of just terminology-patched.
+
+### What should be done in the future
+
+- Consider renaming or de-emphasizing older tutorial slugs that still describe historical provider/runtime migrations.
+- Add a short `xgoja help migration-policy` page if users need a single place explaining the v1 retention window.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/doc/02-user-guide.md` and `cmd/xgoja/doc/17-xgoja-v2-reference.md`.
+- Then check `cmd/xgoja/doc/06-buildspec-reference.md` to ensure it is clearly legacy and points to migration.
+- Validate with:
+  - `go test ./cmd/xgoja/doc ./cmd/xgoja -count=1`
+  - full pre-commit.
+
+### Technical details
+
+- `buildspec-reference` keeps `ShowPerDefault: false` so it is retained for compatibility but not emphasized as a primary help topic.
+- The v2 reference now states that `doctor`, `build`, `generate`, `gen-dts`, and `list-modules` consume `plan.Plan` directly.
