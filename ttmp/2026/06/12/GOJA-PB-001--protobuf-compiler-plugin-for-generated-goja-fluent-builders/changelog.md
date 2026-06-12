@@ -222,3 +222,13 @@ Completed Phase 2 builder runtime helpers: added field-path-rich repeated/map co
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Added contextual repeated/map error wrappers and completed Phase 2 runtime helpers (commit f98cdf0)
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Added field-path-rich error tests for repeated indexes and map keys (commit f98cdf0)
 
+
+## 2026-06-12
+
+Completed Phase 3 well-known type support: Timestamp RFC3339/Date, Duration strings, Any wrapping, Struct/Value/ListValue JSON-shaped input, wrapper scalars, FieldMask input, strict plain-object rules, focused tests, and Phase 3 commit (commit b65868b).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Added WKT conversion support and plain-object restrictions (commit b65868b)
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Added dynamic WKT descriptor tests for Timestamp Date/RFC3339
+

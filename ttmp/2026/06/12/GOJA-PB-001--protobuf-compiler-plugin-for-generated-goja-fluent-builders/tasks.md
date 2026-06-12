@@ -31,11 +31,11 @@
 
 ## Phase 3 — Well-known type support
 
-- [ ] Add helpers for `Timestamp`, `Duration`, `Any`, `Struct`, `Value`, `ListValue`, wrappers, and `FieldMask`
-- [ ] Define strict plain-object acceptance rules for `Struct`/`Value` only
-- [ ] Add tests for Date/RFC3339 timestamp input, duration strings, Any wrapping, Struct/Value objects, wrappers, and FieldMask
-- [ ] Run `go test ./pkg/protogoja -count=1`
-- [ ] Commit Phase 3 well-known type support
+- [x] Add helpers for `Timestamp`, `Duration`, `Any`, `Struct`, `Value`, `ListValue`, wrappers, and `FieldMask`
+- [x] Define strict plain-object acceptance rules for `Struct`/`Value` only
+- [x] Add tests for Date/RFC3339 timestamp input, duration strings, Any wrapping, Struct/Value objects, wrappers, and FieldMask
+- [x] Run `go test ./pkg/protogoja -count=1`
+- [x] Commit Phase 3 well-known type support
 
 ## Phase 4 — `cmd/protoc-gen-goja-builder` skeleton
 
