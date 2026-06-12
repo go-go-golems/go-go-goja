@@ -126,3 +126,13 @@ Marked phase commit bookkeeping tasks complete after implementation commits 99a2
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/tasks.md — Phase commit bookkeeping updated
 
+
+## 2026-06-12
+
+Updated MVP design to keep .get/.post/... names but hard-cut them over to explicit planned routes requiring .public() or auth before .handle().
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/design/01-mvp-authentication-api-design-and-implementation-guide.md — Primary design updated for verb-helper hard cutover
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Diary records the hard-cutover decision update
+

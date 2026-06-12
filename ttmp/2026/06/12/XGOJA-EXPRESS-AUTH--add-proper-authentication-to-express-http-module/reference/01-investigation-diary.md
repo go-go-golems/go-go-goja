@@ -18,7 +18,7 @@ RelatedFiles:
 ExternalSources:
     - ../sources/01-auth-preliminary-api-ideas.md
 Summary: Chronological diary for the Express authentication design investigation.
-LastUpdated: 2026-06-12T14:25:00-04:00
+LastUpdated: 2026-06-12T15:31:00-04:00
 WhatFor: Use this to resume or review the ticket research and design work.
 WhenToUse: Read before continuing implementation work for XGOJA-EXPRESS-AUTH.
 ---
@@ -1075,3 +1075,75 @@ app.route("GET", "/planned/:name")
   .public()
   .handle((ctx, res) => res.json({ hello: ctx.params.name }))
 ```
+
+
+## Step 11: Revise design for hard cutover of verb helpers
+
+I updated the primary MVP design to make the existing Express-style verb helper names the primary planned-route API. The design now says `app.get`, `app.post`, `app.patch`, and the other direct methods should keep their ergonomic names but stop accepting raw two-argument handlers; every route must explicitly choose `.public()` or an authenticated policy chain before `.handle(...)`.
+
+This is an intentional breaking change. The design now treats breakage of old `app.get(path, handler)` programs as acceptable because it makes route security explicit across the normal API surface and removes the most likely bypass from application code.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, update the design document to keep the .get/.post/... API, even if it will break existing programs until they become auth aware. That is the safer route and the more elegant one, i think."
+
+**Assistant interpretation:** Update the design document so the existing verb helper names remain, but they become staged planned-route builders that require `.public()` or `.auth(...)` instead of continuing to support raw direct handlers.
+
+**Inferred user intent:** Prefer a hard, security-oriented API cutover over backward compatibility, while preserving the familiar Express-style `.get/.post/...` authoring surface.
+
+**Commit (code):** N/A — documentation-only design update at this point.
+
+### What I did
+- Updated `design/01-mvp-authentication-api-design-and-implementation-guide.md` frontmatter and executive summary.
+- Replaced the compatibility-oriented recommendation with a hard-cutover recommendation for `app.get`, `app.post`, `app.put`, `app.patch`, `app.delete`, and related helpers.
+- Updated API sketches, examples, implementation guidance, decision records, testing guidance, risks, open questions, and checklist items to reflect planned verb helpers.
+- Kept `app.route(method, pattern)` in the design as the generic escape hatch for dynamic or uncommon HTTP methods.
+
+### Why
+- Keeping raw `app.get(path, handler)` as a normal route registration path would preserve the easiest way to bypass explicit auth declarations.
+- The hard cutover makes public exposure reviewable because even public routes must call `.public()`.
+- Preserving verb names keeps the API elegant while still forcing route authors to become auth-aware.
+
+### What worked
+- The design now has one coherent primary route-authoring story: direct verb helpers return staged planned builders.
+- The migration path is mechanical for intentionally public routes: `app.get(path, handler)` becomes `app.get(path).public().handle(handler)`.
+- Protected routes now have no compatibility-oriented shortcut around `.auth(...)` and `.allow(...)`.
+
+### What didn't work
+- N/A; this was a focused document update and did not require code execution beyond file inspection and edits.
+
+### What I learned
+- The route API and the verb-helper API do not need to compete. `app.route(method, pattern)` can remain for dynamic methods while `.get/.post/...` become the preferred planned-route spelling.
+- Backward compatibility is less valuable than fail-closed route registration for this module because the old API shape does not encode security intent.
+
+### What was tricky to build
+- The tricky part was keeping the distinction between current-state documentation and target-state design clear. The current implementation still has raw direct handlers, but the target design now intentionally breaks that surface. I updated the proposed architecture, decision records, tests, and checklist so they do not continue to recommend legacy raw route compatibility.
+
+### What warrants a second pair of eyes
+- Review whether any remaining design references still imply that raw Express routes are an acceptable long-term public API.
+- Review whether the implementation plan should include a temporary migration error message for two-argument verb calls to make the hard cutover easier to diagnose.
+
+### What should be done in the future
+- Implement the hard cutover in `modules/express/express.go` and `modules/express/typescript.go`.
+- Update Express module docs and examples so all routes use `.public().handle(...)` or `.auth(...).allow(...).handle(...)`.
+- Add tests that old `app.get(path, handler)` calls fail with a clear migration error.
+
+### Code review instructions
+- Start with `ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/design/01-mvp-authentication-api-design-and-implementation-guide.md`.
+- Search for `Hard-cutover direct verb helpers to planned routes`, `app.get(pattern)`, and `app.get(path, handler)` to review the changed design stance.
+- Validate by reading the updated examples and ensuring each route calls `.public()` or `.auth(...).allow(...)` before `.handle(...)`.
+
+### Technical details
+- Target public migration pattern:
+  ```js
+  app.get("/healthz")
+    .public()
+    .handle((ctx, res) => res.json({ ok: true }))
+  ```
+- Target protected migration pattern:
+  ```js
+  app.post("/projects")
+    .auth(express.user().required())
+    .allow("project.create")
+    .handle((ctx, res) => res.json({ actor: ctx.actor.id }))
+  ```

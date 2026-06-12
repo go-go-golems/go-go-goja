@@ -18,9 +18,13 @@ RelatedFiles:
     - Path: modules/express/auth_builders_integration_test.go
       Note: Phase 3 integration tests for strict builder validation and planned routes
     - Path: modules/express/express.go
-      Note: Current JavaScript Express app and raw route registration surface reconciled by the MVP builder design
+      Note: |-
+        Current JavaScript Express app and direct verb helpers to cut over to staged planned route builders
+        Design now calls for hard cutover of direct verb helpers to staged planned builders
     - Path: modules/express/typescript.go
-      Note: Declaration source that must be expanded for staged secure route builders
+      Note: |-
+        Declaration source that must be expanded for staged secure route builders
+        Design now requires TypeScript declarations to model planned verb helpers
     - Path: pkg/doc/18-express-module.md
       Note: Phase 4 user-facing documentation for planned auth routes
     - Path: pkg/gojahttp/auth_plan.go
@@ -47,11 +51,12 @@ RelatedFiles:
       Note: Imported preliminary API idea source reconciled into the MVP design
 ExternalSources:
     - ../sources/01-auth-preliminary-api-ideas.md
-Summary: Design for a Go-owned, declarative MVP authentication and authorization layer for the go-go-goja Express HTTP module.
-LastUpdated: 2026-06-12T14:25:00-04:00
+Summary: Design for a Go-owned, declarative MVP authentication and authorization layer for the go-go-goja Express HTTP module, including a hard cutover of direct verb helpers to explicit planned routes.
+LastUpdated: 2026-06-12T15:31:00-04:00
 WhatFor: Use this to implement the MVP auth API for modules/express and pkg/gojahttp without first needing deep context on the HTTP provider.
 WhenToUse: Read before changing Express route registration, gojahttp route dispatch, session handling, or xgoja HTTP provider integration.
 ---
+
 
 
 
@@ -65,13 +70,13 @@ WhenToUse: Read before changing Express route registration, gojahttp route dispa
 
 The current `express` module is intentionally small: JavaScript creates `const app = express.app()` and registers handlers with `app.get(pattern, handler)`, `app.post(...)`, static mounts, and SPA mounts. That shape is good for examples and lightweight tools, but it gives route authors a raw request object and no Go-owned authentication or authorization envelope. The MVP should add a declarative security route API that lets JavaScript describe route intent while Go owns session loading, actor loading, resource loading, policy checks, CSRF checks, body validation hooks, and audit emission before the JavaScript handler runs.
 
-This document reconciles the preliminary API ideas in `../sources/01-auth-preliminary-api-ideas.md` with the current codebase. The recommended MVP is a staged secure-route builder exposed next to the existing Express-like API:
+This document reconciles the preliminary API ideas in `../sources/01-auth-preliminary-api-ideas.md` with the current codebase. The recommended MVP is a hard cutover of the existing Express-like verb helpers into staged secure-route builders. `app.get`, `app.post`, `app.patch`, and the other direct HTTP methods should keep their ergonomic method-specific names, but they should no longer accept a raw `(req, res)` handler as the second argument. Instead, each verb helper should return the same staged builder as `app.route(method, pattern)`:
 
 ```js
 const express = require("express")
 const app = express.app()
 
-app.route("PATCH", "/orgs/:orgId/projects/:projectId")
+app.patch("/orgs/:orgId/projects/:projectId")
   .auth(express.user().required())
   .resource(express.resource("project").fromParam("projectId").withinTenantParam("orgId"))
   .allow("project.update")
@@ -82,7 +87,7 @@ app.route("PATCH", "/orgs/:orgId/projects/:projectId")
   })
 ```
 
-The old `app.get(pattern, handler)` API should remain available for compatibility and for explicitly simple examples, but security-sensitive docs should teach `app.route(...).public().handle(...)` or `.auth(...).allow(...).handle(...)`. The key MVP property is not full policy-language expressiveness. It is that a route author can no longer accidentally register an authenticated mutating route without declaring its security mode and authorization action.
+This is an intentional breaking change. Existing programs that call `app.get(pattern, handler)` or `app.post(pattern, handler)` must become auth-aware by inserting `.public()` for intentionally public endpoints or `.auth(...).allow(...)` for protected endpoints before `.handle(...)`. That break is the safer route because it removes the easiest raw-route bypass from the normal API surface while preserving the elegant Express-style verb names. `app.route(method, pattern)` remains as the generic escape hatch for dynamic or unusual HTTP methods, but direct verb helpers should be the documented primary API.
 
 ## Problem statement and scope
 
@@ -94,7 +99,7 @@ The existing HTTP host dispatches matched routes directly into Goja with a reque
 
 The MVP should provide:
 
-- A route builder that forces one explicit security mode before `.handle(...)`:
+- Route builders returned by both `app.route(method, pattern)` and the direct verb helpers (`app.get(pattern)`, `app.post(pattern)`, `app.patch(pattern)`, and friends) that force one explicit security mode before `.handle(...)`:
   - `.public()`
   - `.auth(userSpec)`
   - `.system(systemSpec)` as an extension point, possibly stubbed in Phase 1
@@ -104,7 +109,7 @@ The MVP should provide:
 - Small host interfaces for applications to plug in identity, resources, policy, body validation, and audit.
 - A JavaScript `ctx` object for secure handlers, separate from the raw Express `(req, res)` pair.
 - TypeScript declarations and documentation.
-- Integration tests demonstrating denial by default, success paths, body validation failures, resource ownership failures, and backward-compatible raw routes.
+- Integration tests demonstrating denial by default, success paths, body validation failures, resource ownership failures, verb-helper planned routes, and rejection or compile-time/runtime failure of the old direct-handler overload.
 
 The MVP should not provide:
 
@@ -236,18 +241,16 @@ The secure flow inserts an auth envelope between route matching and JavaScript i
 ```text
 HTTP request
   -> match route
-  -> if raw route: existing behavior
-  -> if secure route:
-       ensure RoutePlan is valid
-       build RequestDTO
-       run Authenticator if route requires actor
-       run CSRF check if configured and unsafe method
-       resolve resources from params/body/session
-       authorize actor/action/resource
-       validate body schema if declared
-       create SecureContextDTO
-       emit audit start/denied/completed events
-       call secure handler(ctx, res) or handler(ctx)
+  -> ensure matched Express route has a RoutePlan
+  -> build RequestDTO
+  -> run Authenticator if route requires actor
+  -> run CSRF check if configured and unsafe method
+  -> resolve resources from params/body/session
+  -> authorize actor/action/resource
+  -> validate body schema if declared
+  -> create SecureContextDTO
+  -> emit audit start/denied/completed events
+  -> call secure handler(ctx, res) or handler(ctx)
 ```
 
 ```mermaid
@@ -259,19 +262,15 @@ sequenceDiagram
   participant Pol as Authorizer
   participant JS as Goja handler
   Browser->>Host: HTTP request
-  Host->>Host: match method/path
-  alt raw route
-    Host->>JS: handler(req,res)
-  else secure route
-    Host->>Auth: Authenticate(request, session, plan.auth)
-    Auth-->>Host: Actor or unauthenticated
-    Host->>Res: ResolveResource(params, actor, plan.resource)
-    Res-->>Host: ResourceRef
-    Host->>Pol: Authorize(actor, action, resource)
-    Pol-->>Host: allow/deny
-    Host->>Host: validate body + build ctx
-    Host->>JS: handler(ctx,res)
-  end
+  Host->>Host: match method/path and load RoutePlan
+  Host->>Auth: Authenticate(request, session, plan.auth) when needed
+  Auth-->>Host: Actor or unauthenticated
+  Host->>Res: ResolveResource(params, actor, plan.resource)
+  Res-->>Host: ResourceRef
+  Host->>Pol: Authorize(actor, action, resource)
+  Pol-->>Host: allow/deny
+  Host->>Host: validate body + build ctx
+  Host->>JS: handler(ctx,res)
 ```
 
 ### New core data model
@@ -283,7 +282,7 @@ type Route struct {
     Method  string
     Pattern string
     Handler goja.Callable
-    Plan    *RoutePlan // nil for legacy raw routes
+    Plan    *RoutePlan // required for Express routes after the hard cutover; nil only for low-level/internal raw registrations
 }
 
 type RoutePlan struct {
@@ -416,6 +415,12 @@ const express = require("express")
 const app = express.app()
 
 app.route(method: string, pattern: string): RouteNeedsSecurity
+app.get(pattern: string): RouteNeedsSecurity
+app.post(pattern: string): RouteNeedsSecurity
+app.put(pattern: string): RouteNeedsSecurity
+app.patch(pattern: string): RouteNeedsSecurity
+app.delete(pattern: string): RouteNeedsSecurity
+app.all(pattern: string): RouteNeedsSecurity
 
 express.user(): UserAuthSpecBuilder
 express.system(): SystemAuthSpecBuilder
@@ -452,14 +457,14 @@ interface RouteNeedsHandler {
 type SecureHandler = (ctx: SecureContext, res: Response) => unknown
 ```
 
-The stage names are implementation guidance. In JavaScript, this is dynamic, but Go-backed objects can omit invalid methods at each stage. For example, the object returned by `app.route(...)` has `.public()`, `.auth(...)`, `.system(...)`, and `.capability(...)`, but no `.handle(...)`. The object returned after `.auth(...)` has `.allow(...)` and `.resource(...)`, but not `.public()`.
+The stage names are implementation guidance. In JavaScript, this is dynamic, but Go-backed objects can omit invalid methods at each stage. For example, the object returned by `app.get(...)`, `app.post(...)`, or `app.route(...)` has `.public()`, `.auth(...)`, `.system(...)`, and `.capability(...)`, but no `.handle(...)`. The object returned after `.auth(...)` has `.allow(...)` and `.resource(...)`, but not `.public()`.
 
 ### Minimal examples
 
 #### Public route
 
 ```js
-app.route("GET", "/healthz")
+app.get("/healthz")
   .public()
   .handle(function () {
     return { ok: true }
@@ -471,7 +476,7 @@ Public routes require an explicit `.public()` call. This makes public exposure r
 #### Current user route
 
 ```js
-app.route("GET", "/me")
+app.get("/me")
   .auth(express.user().required())
   .allow("user.self.read")
   .handle(function (ctx) {
@@ -487,7 +492,7 @@ This route has no external resource. The action is explicitly global/current-use
 #### Resource-bound route
 
 ```js
-app.route("PATCH", "/orgs/:orgId/projects/:projectId")
+app.patch("/orgs/:orgId/projects/:projectId")
   .auth(express.user().required().mfaFresh("10m"))
   .resource(express.resource("project")
     .named("project")
@@ -511,15 +516,15 @@ The resource loader resolves and authorizes the project before handler execution
 These failures should occur while JavaScript is registering routes, not at first request:
 
 ```js
-app.route("GET", "/admin").handle(fn)
+app.get("/admin").handle(fn)
 // TypeError or Go error: route must declare .public(), .auth(), .system(), or .capability() before .handle()
 
-app.route("POST", "/users/:id")
+app.post("/users/:id")
   .auth(express.user().required())
   .handle(fn)
 // Error: authenticated mutating route must declare .allow(action)
 
-app.route("PATCH", "/projects/:projectId")
+app.patch("/projects/:projectId")
   .auth(express.user().required())
   .resource(express.resource("project").fromParam("id"))
   .allow("project.update")
@@ -561,7 +566,7 @@ func (h *Host) RegisterPlanned(plan RoutePlan, handler goja.Callable) error {
 }
 ```
 
-Keep `Host.Register` for legacy raw routes. Add a second path for planned routes. Avoid changing every caller in the first patch.
+Keep `Host.Register` as a low-level/internal primitive for non-Express callers and focused tests, but do not let the Express direct verb helpers call it after the hard cutover. Add `Host.RegisterPlanned` for route plans and make `app.get`, `app.post`, `app.patch`, and friends compile into that planned path. The point of this change is to remove raw handler registration from the normal Express surface rather than preserving it for compatibility.
 
 Tests:
 
@@ -623,12 +628,15 @@ Do not silently allow authenticated routes when `Authorizer` is nil.
 Modify `Host.ServeHTTP` after route matching and request DTO creation:
 
 ```go
-if route.Plan != nil {
-    h.servePlannedRoute(w, r, route, params, session)
+if route.Plan == nil {
+    // After the Express hard cutover this should only happen for low-level
+    // non-Express registrations. Production hosts may choose to reject it.
+    h.serveRawRoute(w, r, route, params, session)
     return
 }
 
-// existing raw route path
+h.servePlannedRoute(w, r, route, params, session)
+return
 ```
 
 Then implement:
@@ -682,13 +690,21 @@ _ = exports.Set("user", func() goja.Value { return newUserSpecBuilder(vm) })
 _ = exports.Set("resource", func(kind string) goja.Value { return newResourceSpecBuilder(vm, kind) })
 ```
 
-Add `app.route(method, pattern)` in `appObject`:
+Add `app.route(method, pattern)` and convert the existing direct HTTP verb helpers in `appObject` so they return the same staged builder:
 
 ```go
 _ = obj.Set("route", func(method, pattern string) goja.Value {
     return newRouteNeedsSecurity(vm, r, method, pattern)
 })
+for _, verb := range []string{"get", "post", "put", "patch", "delete", "all"} {
+    method := strings.ToUpper(verb)
+    _ = obj.Set(verb, func(pattern string) goja.Value {
+        return newRouteNeedsSecurity(vm, r, method, pattern)
+    })
+}
 ```
+
+Do not keep a second-argument handler overload for `app.get(pattern, handler)`. If a script passes a handler as the second argument, it should fail with a clear error explaining the new shape: `app.get(pattern).public().handle(handler)` or `app.get(pattern).auth(...).allow(...).handle(handler)`.
 
 Stage object implementation pattern:
 
@@ -795,9 +811,9 @@ Use consistent statuses:
 
 - **Context:** The current module is Express-style but not Express-compatible. It does not have middleware stacks, routers, or `next()`.
 - **Options considered:** Add `app.use` middleware; add a contract object API; add a staged builder; keep manual checks in JS.
-- **Decision:** Add `app.route(method, pattern)` with staged `.public()`, `.auth(...)`, `.resource(...)`, `.allow(...)`, and `.handle(...)`.
-- **Rationale:** It fits the existing app object, lets Go validate route plans at registration time, and makes missing auth declarations hard to miss.
-- **Consequences:** Existing raw routes remain possible, so docs and route inspection must distinguish raw routes from planned routes. The builder is dynamic at runtime but can still expose stage-specific Goja objects and TypeScript types.
+- **Decision:** Add staged `.public()`, `.auth(...)`, `.resource(...)`, `.allow(...)`, and `.handle(...)` builders, and expose them through both `app.route(method, pattern)` and the direct verb helpers such as `app.get(pattern)` and `app.post(pattern)`.
+- **Rationale:** It fits the existing app object, lets Go validate route plans at registration time, keeps the elegant Express-style verb names, and makes missing auth declarations hard to miss.
+- **Consequences:** Existing `app.get(pattern, handler)`-style programs must be updated to call `.public().handle(handler)` or `.auth(...).allow(...).handle(handler)`. The builder is dynamic at runtime but can still expose stage-specific Goja objects and TypeScript types.
 - **Status:** proposed
 
 ### Decision: Enforce auth in `pkg/gojahttp`, not `modules/express`
@@ -806,7 +822,7 @@ Use consistent statuses:
 - **Options considered:** Put all auth in the Express module; put auth in host dispatch; rely on host application middleware outside gojahttp.
 - **Decision:** Compile plans in `modules/express`, store them in the registry, and enforce them in `pkg/gojahttp`.
 - **Rationale:** The host is the central point that cannot be bypassed by a secure planned route. It also works with xgoja hot reload because each candidate host carries its own route metadata.
-- **Consequences:** `gojahttp` gains auth concepts, but they are interface-based and optional for public/raw routes.
+- **Consequences:** `gojahttp` gains auth concepts, but they are interface-based and optional for public planned routes.
 - **Status:** proposed
 
 ### Decision: Use host-provided interfaces instead of a built-in policy engine
@@ -818,14 +834,14 @@ Use consistent statuses:
 - **Consequences:** The MVP needs good test doubles and examples because real applications must plug in services.
 - **Status:** proposed
 
-### Decision: Keep legacy `app.get(pattern, handler)` routes
+### Decision: Hard-cutover direct verb helpers to planned routes
 
-- **Context:** Existing docs, examples, and tests use direct route methods.
-- **Options considered:** Break direct methods; mark them as public planned routes; keep them as raw legacy routes; require a feature flag.
-- **Decision:** Keep them as raw legacy routes for compatibility, while new security-sensitive docs use planned routes.
-- **Rationale:** This avoids breaking the current lightweight use cases and allows incremental adoption.
-- **Consequences:** A route inspection API should flag raw routes as `securityMode: "raw"` so production hosts can reject or warn on raw routes in a later hardening pass.
-- **Status:** proposed
+- **Context:** Existing docs, examples, and tests use direct route methods such as `app.get(pattern, handler)`. Keeping that overload would preserve compatibility, but it would also preserve a normal API path that bypasses explicit `.public()` or `.auth(...)` declarations.
+- **Options considered:** Break direct methods into planned builders; mark old two-argument direct handlers as implicitly public; keep them as raw legacy routes; add a host feature flag that rejects raw routes later.
+- **Decision:** Keep the `.get`, `.post`, `.put`, `.patch`, `.delete`, and related method names, but change them to return staged planned route builders. Remove the raw direct-handler overload from the Express module surface.
+- **Rationale:** This is safer and more elegant: existing verb names stay, but every route must become security-aware. Public exposure becomes explicit through `.public()`, and protected routes must declare `.auth(...)` and `.allow(...)` before `.handle(...)`.
+- **Consequences:** Existing programs break until migrated. The migration is mechanical for public endpoints (`app.get(path, handler)` becomes `app.get(path).public().handle(handler)`) and intentional for protected endpoints (`app.post(path, handler)` must choose an auth spec and action). `app.route(method, pattern)` remains useful for dynamic or uncommon methods.
+- **Status:** accepted
 
 ## Testing and validation strategy
 
@@ -851,8 +867,8 @@ Add tests in `pkg/gojahttp` or `modules/express` using `httptest`:
 5. Resource resolver not found returns 404.
 6. Body validator failure returns 400/422.
 7. Successful secure route receives `ctx.actor`, `ctx.body`, and `ctx.resource("...")`.
-8. Legacy `app.get` route still works.
-9. Promise-returning secure handler is awaited like legacy handlers.
+8. `app.get(path).public().handle(handler)` works as a planned route.
+9. Promise-returning planned handler is awaited like the previous raw handler path.
 10. HEAD-to-GET fallback still works for planned GET routes.
 
 ### xgoja provider tests
@@ -871,11 +887,11 @@ A minimal smoke script should be placed under an example or ticket script before
 const express = require("express")
 const app = express.app()
 
-app.route("GET", "/healthz")
+app.get("/healthz")
   .public()
   .handle(() => ({ ok: true }))
 
-app.route("GET", "/me")
+app.get("/me")
   .auth(express.user().required())
   .allow("user.self.read")
   .handle((ctx) => ({ actor: ctx.actor.id }))
@@ -902,6 +918,8 @@ curl -i -H 'Authorization: Bearer test-user' http://127.0.0.1:8787/me
 ### Phase 2: Express staged builder
 
 - Add `app.route(method, pattern)`.
+- Convert `app.get`, `app.post`, `app.put`, `app.patch`, `app.delete`, and related direct helpers to return the same staged planned builder.
+- Remove the raw two-argument handler overload from the Express module surface.
 - Add `express.user()` and `express.resource(type)` builders.
 - Implement stage objects and registration-time validation.
 - Update TypeScript declarations.
@@ -926,7 +944,6 @@ curl -i -H 'Authorization: Bearer test-user' http://127.0.0.1:8787/me
 
 ### Phase 5: Production hardening follow-up
 
-- Add a host option to reject raw routes in production.
 - Add route plan export for docs and audits.
 - Add capability route mode for simple signed one-time tokens.
 - Add optional contract-first `.contract({...})` API that compiles into `RoutePlan`.
@@ -934,7 +951,7 @@ curl -i -H 'Authorization: Bearer test-user' http://127.0.0.1:8787/me
 ## Risks and review-critical areas
 
 - **Fail-open risk:** Missing auth services must never allow authenticated planned routes. Tests should assert this explicitly.
-- **Raw route bypass:** Keeping `app.get` means production apps need a way to inspect or reject raw routes later.
+- **Raw route bypass:** The hard cutover removes the normal Express raw-route bypass, but low-level `Host.Register` and any non-Express registration paths should still be audited so production apps cannot accidentally mix planned and raw routes.
 - **Resource mismatch:** The handler should use Go-resolved `ctx.resource(...)`; examples must avoid raw `ctx.params.id` mutations.
 - **Hot reload isolation:** Plans and host services must be per-host/per-runtime, not global.
 - **Promise and response semantics:** Secure handlers must finish exactly like raw handlers, or users will see inconsistent response behavior.
@@ -943,7 +960,7 @@ curl -i -H 'Authorization: Bearer test-user' http://127.0.0.1:8787/me
 
 ## Open questions
 
-1. Should `app.get(pattern, handler)` be treated as `raw` forever, or should there be an opt-in host mode that rejects all raw routes?
+1. Should any non-Express raw `Host.Register` routes be allowed in production hosts, or should production host options reject them globally?
 2. Should body validation failures return 400 or 422?
 3. Should missing resources default to 404 even when the actor is authenticated, or should the resolver/authorizer choose 403 versus 404?
 4. Should CSRF be mandatory for all unsafe session-authenticated routes in the first MVP, or should `.csrf()` be explicit but strongly documented?
@@ -951,7 +968,7 @@ curl -i -H 'Authorization: Bearer test-user' http://127.0.0.1:8787/me
 
 ## File reference map
 
-- `modules/express/express.go`: CommonJS `express` loader, app object, raw route methods, static and SPA registration.
+- `modules/express/express.go`: CommonJS `express` loader, app object, planned verb helper registration, static and SPA registration.
 - `modules/express/typescript.go`: TypeScript declaration source for the Express module.
 - `modules/express/express_integration_test.go`: Existing route/static/promise/HEAD behavior tests that secure routes must not regress.
 - `pkg/gojahttp/host.go`: Central HTTP dispatch point and best location for secure route enforcement.
@@ -970,6 +987,6 @@ Before opening a PR, verify:
 - [ ] Existing tests pass with `go test ./modules/express ./pkg/gojahttp ./pkg/xgoja/providers/http`.
 - [ ] New secure route tests cover public, authenticated, denied, resource missing, body invalid, and successful paths.
 - [ ] TypeScript declarations include the route builder and secure context.
-- [ ] `pkg/doc/18-express-module.md` documents both legacy raw routes and secure planned routes.
+- [ ] `pkg/doc/18-express-module.md` documents the hard-cutover verb-helper API and includes migration notes for `app.get(path, handler)` programs.
 - [ ] No authenticated planned route can execute without an `Authenticator` and `Authorizer` unless explicitly public.
-- [ ] Route descriptors or diagnostics show which routes are raw, public, authenticated, system, or capability-based.
+- [ ] Route descriptors or diagnostics show which routes are public, authenticated, system, or capability-based, and separately flag any non-Express raw routes if they still exist.
