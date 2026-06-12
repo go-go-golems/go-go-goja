@@ -11,6 +11,7 @@ type Route struct {
 	Method  string
 	Pattern string
 	Handler goja.Callable
+	Plan    *RoutePlan
 }
 
 type RouteDescriptor struct {
@@ -29,6 +30,14 @@ func (r *Registry) Add(method, pattern string, handler goja.Callable) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.routes = append(r.routes, Route{Method: strings.ToUpper(method), Pattern: cleanPath(pattern), Handler: handler})
+}
+
+func (r *Registry) AddPlanned(plan RoutePlan, handler goja.Callable) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	plan.Method = strings.ToUpper(plan.Method)
+	plan.Pattern = cleanPath(plan.Pattern)
+	r.routes = append(r.routes, Route{Method: plan.Method, Pattern: plan.Pattern, Handler: handler, Plan: &plan})
 }
 
 func (r *Registry) Routes() []RouteDescriptor {

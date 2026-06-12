@@ -15,6 +15,7 @@ type HostOptions struct {
 	Dev      bool
 	Renderer Renderer
 	Sessions SessionOptions
+	Auth     AuthOptions
 }
 
 type StaticMount struct {
@@ -29,16 +30,25 @@ type Host struct {
 	renderer Renderer
 	owner    runtimeowner.RuntimeOwner
 	sessions *SessionManager
+	auth     AuthOptions
 	static   []StaticMount
 }
 
 func NewHost(opts HostOptions) *Host {
-	return &Host{registry: NewRegistry(), dev: opts.Dev, renderer: opts.Renderer, sessions: NewSessionManager(opts.Sessions)}
+	return &Host{registry: NewRegistry(), dev: opts.Dev, renderer: opts.Renderer, sessions: NewSessionManager(opts.Sessions), auth: opts.Auth}
 }
 
 func (h *Host) SetRuntime(owner runtimeowner.RuntimeOwner) { h.owner = owner }
 func (h *Host) Register(method, pattern string, handler goja.Callable) {
 	h.registry.Add(method, pattern, handler)
+}
+func (h *Host) RegisterPlanned(plan RoutePlan, handler goja.Callable) error {
+	plan, err := ValidateRoutePlan(plan)
+	if err != nil {
+		return err
+	}
+	h.registry.AddPlanned(plan, handler)
+	return nil
 }
 func (h *Host) Routes() []RouteDescriptor {
 	if h == nil || h.registry == nil {

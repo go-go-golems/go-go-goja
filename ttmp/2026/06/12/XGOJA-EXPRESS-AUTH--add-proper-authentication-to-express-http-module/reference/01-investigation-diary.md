@@ -552,3 +552,101 @@ app.route("PATCH", "/orgs/:orgId/projects/:projectId")
   .allow("project.update")
   .handle(handler)
 ```
+
+
+## Step 6: Implement Phase 1 route-plan model and registry support
+
+I implemented the first code phase: the host-level route-plan model, auth service interfaces, planned route registration, and route-plan validation. This phase deliberately does not change request dispatch yet; it creates the typed Go foundation that the later Express fluent builders will compile into.
+
+The new model keeps HTTP adapter binding explicit with `ValueSource` and `ResourceSpec`, while the actual authentication, resource lookup, and authorization decisions are delegated to host-provided Go interfaces.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Start implementing the selected Go-backed fluent builder design task by task, beginning with host-level plan data structures and validation.
+
+**Inferred user intent:** Make the auth design concrete in the codebase through small, reviewable commits.
+
+**Commit (code):** pending — Phase 1 code is ready to commit after this diary update.
+
+### What I did
+
+- Added `pkg/gojahttp/auth_plan.go` with:
+  - `RoutePlan`
+  - `SecuritySpec`
+  - `ResourceSpec`
+  - `ValueSource`
+  - `Actor`
+  - `ResourceRef`
+  - `AuthOptions`
+  - `Authenticator`, `ResourceResolver`, and `Authorizer` interfaces
+  - `ErrUnauthenticated`, `ErrForbidden`, and `ErrNotFound`
+  - `ValidateRoutePlan`
+- Extended `HostOptions` with `Auth AuthOptions`.
+- Added `auth AuthOptions` to `Host`.
+- Extended `Route` with `Plan *RoutePlan`.
+- Added `Registry.AddPlanned`.
+- Added `Host.RegisterPlanned`.
+- Added `pkg/gojahttp/auth_plan_test.go` with validation and planned registration tests.
+- Ran:
+
+```bash
+gofmt -w pkg/gojahttp/auth_plan.go pkg/gojahttp/auth_plan_test.go pkg/gojahttp/host.go pkg/gojahttp/route_registry.go
+go test ./pkg/gojahttp -count=1
+```
+
+### Why
+
+- The Express fluent builder should compile to a typed Go `RoutePlan`; it should not parse arbitrary JavaScript maps during request handling.
+- Host-level interfaces keep access control independent of raw HTTP request parsing.
+- Planned routes need to coexist with current raw routes, so `RegisterPlanned` was added beside `Register` instead of replacing it.
+
+### What worked
+
+- `go test ./pkg/gojahttp -count=1` passed.
+- Existing registry behavior still works because `Host.Register` and `Registry.Add` keep their raw route path.
+- Planned route validation catches missing security mode, missing `.allow(action)` on user routes, and resource specs that reference missing path params.
+
+### What didn't work
+
+- No test or compile failures occurred in this phase.
+
+### What I learned
+
+- The existing registry shape was easy to extend with `Plan *RoutePlan` while preserving route matching behavior.
+- Keeping `ValueSource` as a small typed struct is enough for `idFromParam`/`tenantFromParam` without coupling the future `ResourceResolver` to raw `req.params`.
+
+### What was tricky to build
+
+- The main tradeoff was how strict `ValidateRoutePlan` should be before the builder exists. I made user-auth routes require an action immediately, because the selected staged builder is supposed to force `.allow(action)` before `.handle(...)`.
+- I kept body schema, CSRF, audit, system auth, and capability auth out of the Phase 1 model to avoid designing unused types before the core path compiles.
+
+### What warrants a second pair of eyes
+
+- Whether `SecuritySpec.Required` should be derived for public/user modes as it is now, or left exactly as the builder set it.
+- Whether user-auth routes with no action should ever be allowed for current-user endpoints, or whether `.allow("user.self.read")` should always be required.
+
+### What should be done in the future
+
+- Phase 2 should add planned-route dispatch in `Host.ServeHTTP` and use the new auth interfaces.
+- Phase 3 should add the JavaScript fluent builders that produce these typed plans.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/auth_plan.go` and review the type boundaries.
+- Then review `Host.RegisterPlanned` in `pkg/gojahttp/host.go` and `Registry.AddPlanned` in `pkg/gojahttp/route_registry.go`.
+- Validate with `go test ./pkg/gojahttp -count=1`.
+
+### Technical details
+
+A planned route is stored as the same matched route shape as legacy routes, with an optional plan:
+
+```go
+type Route struct {
+    Method  string
+    Pattern string
+    Handler goja.Callable
+    Plan    *RoutePlan
+}
+```

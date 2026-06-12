@@ -57,3 +57,16 @@ Selected Go-backed fluent staged route builders and expanded implementation task
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Recorded implementation kickoff and selected direction
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/tasks.md — Detailed phased implementation task list
 
+
+## 2026-06-12
+
+Phase 1: added gojahttp RoutePlan model, auth interfaces, planned route registration, and validation tests
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth_plan.go — New typed route-plan and auth service model
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth_plan_test.go — Validation and planned registration tests
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/host.go — HostOptions Auth and RegisterPlanned support
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/route_registry.go — Route Plan field and AddPlanned support
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Recorded Phase 1 implementation
+

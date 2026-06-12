@@ -18,14 +18,14 @@
 
 ## Phase 1 — RoutePlan model and host auth interfaces
 
-- [ ] Add `pkg/gojahttp` route-plan types: `RoutePlan`, `SecuritySpec`, `ResourceSpec`, `ValueSource`, `Actor`, `ResourceRef`
-- [ ] Add host auth service interfaces: `Authenticator`, `ResourceResolver`, `Authorizer`, optional future placeholders for body/CSRF/audit
-- [ ] Add sentinel auth errors and HTTP status mapping helpers for unauthenticated, forbidden, and not-found cases
-- [ ] Extend `HostOptions` with `Auth AuthOptions`
-- [ ] Extend `Route` with optional `Plan *RoutePlan`
-- [ ] Add `Registry.AddPlanned` and `Host.RegisterPlanned`
-- [ ] Add route-plan validation for method/path/security mode/action/resource parameter references
-- [ ] Add unit tests for planned route registration and validation
+- [x] Add `pkg/gojahttp` route-plan types: `RoutePlan`, `SecuritySpec`, `ResourceSpec`, `ValueSource`, `Actor`, `ResourceRef`
+- [x] Add host auth service interfaces: `Authenticator`, `ResourceResolver`, `Authorizer`, optional future placeholders for body/CSRF/audit
+- [x] Add sentinel auth errors and HTTP status mapping helpers for unauthenticated, forbidden, and not-found cases
+- [x] Extend `HostOptions` with `Auth AuthOptions`
+- [x] Extend `Route` with optional `Plan *RoutePlan`
+- [x] Add `Registry.AddPlanned` and `Host.RegisterPlanned`
+- [x] Add route-plan validation for method/path/security mode/action/resource parameter references
+- [x] Add unit tests for planned route registration and validation
 - [ ] Commit Phase 1
 
 ## Phase 2 — Planned route dispatch and secure context
