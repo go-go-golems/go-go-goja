@@ -21,7 +21,7 @@ ShowPerDefault: true
 SectionType: Tutorial
 ---
 
-This tutorial shows the normal xgoja workflow: write a build spec, validate it, inspect selected modules, build a generated binary, and run JavaScript through the generated runtime.
+This tutorial shows the normal xgoja workflow: write a native v2 spec, validate it, inspect selected modules, build a generated binary, and run JavaScript through the generated runtime.
 
 The examples assume a provider package already exists and exposes a module named `hello` under provider package ID `fixture`. Replace the import path and module names with your own provider package.
 
@@ -134,7 +134,7 @@ The REPL command starts a Bubble Tea terminal UI backed by the same module-set m
 
 ## 6. Optional: enable env vars and config files for command fields
 
-Generated Glazed commands can read field values from config files and environment variables when the buildspec opts in.
+Generated Glazed commands can read field values from config files and environment variables when the v2 spec opts in.
 
 Add app identity, an environment prefix, and config layers to `xgoja.yaml`:
 
@@ -421,4 +421,4 @@ If the generated build fails, the generated source usually shows whether the pro
 ## See also
 
 - `overview` for the architecture.
-- `buildspec` for the complete spec reference.
+- `xgoja-v2-reference` for the complete spec reference.

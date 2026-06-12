@@ -57,7 +57,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
 }
 ```
 
-The first argument to `registry.Package` is the provider package ID. That ID is part of the public buildspec surface. It must match `packages[].id` in `xgoja.yaml`.
+The first argument to `registry.Package` is the provider package ID. That ID is part of the public xgoja/v2 provider surface. It must match `packages[].id` in `xgoja.yaml`.
 
 ```yaml
 packages:
@@ -185,7 +185,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
 }
 ```
 
-A buildspec can mount that source under the generated jsverbs command.
+A v2 spec can mount that source under the generated jsverbs command.
 
 ```yaml
 commands:
@@ -258,7 +258,7 @@ Use `values.Values.DecodeSectionInto` instead of reaching into raw maps. The pro
 | Need | Use | Notes |
 | --- | --- | --- |
 | Expose one JavaScript `require(...)` module | `providerapi.Module` | The simplest and most common provider contribution. |
-| Configure a module statically from `xgoja.yaml` | `ModuleSetupContext.Config` | Use for buildspec/module-set settings such as allowlists or base paths. |
+| Configure a module statically from `xgoja.yaml` | `ModuleSetupContext.Config` | Use for v2 module-set settings such as allowlists or base paths. |
 | Add command-line flags for selected modules | `GlazedConfigSectionCapability` | The section is appended to built-in commands and provider-owned commands that opt in. |
 | Apply parsed command values to a JS runtime | `RuntimeInitializerCapability` | Use `DecodeSectionInto`; avoid side effects when `values == nil`. |
 | Access runtime-scoped services | `RuntimeInitializerHandle.EngineRuntime()` | Use the owned `*engine.Runtime` for the Goja VM, event loop, owner, values, and closer registration. |
@@ -292,7 +292,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
 }
 ```
 
-Buildspec usage:
+V2 spec usage:
 
 ```yaml
 commandProviders:

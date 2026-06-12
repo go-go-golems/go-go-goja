@@ -519,5 +519,5 @@ Each commit should have its own validation command in the commit message, PR des
 - `xgoja help tutorial-using-xgoja-yaml`
 - `xgoja help tutorial-providing-package-and-modules`
 - `xgoja help tutorial-providing-commands`
-- `xgoja help buildspec-reference`
+- `xgoja help xgoja-v2-reference`
 - `xgoja help migrating-runtime-context-api`

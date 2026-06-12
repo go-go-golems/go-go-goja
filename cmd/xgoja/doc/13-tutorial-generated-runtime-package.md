@@ -177,7 +177,7 @@ const ProviderCount = {{ len .ProviderImports }}
 const RuntimeSpec = {{ quote .SpecJSON }}
 ```
 
-xgoja still owns buildspec loading, validation, embedded resource copying, runtime spec path rewriting, and `gofmt` formatting. The template controls the Go source body.
+xgoja still owns v2 plan loading, validation, embedded resource copying, runtime spec path rewriting, and `gofmt` formatting. The template controls the Go source body.
 
 ## 6. Inspect template data
 

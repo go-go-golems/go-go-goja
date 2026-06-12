@@ -39,7 +39,7 @@ func TestBundledHelpTopic(t *testing.T) {
 		t.Fatalf("execute help topic: %v", err)
 	}
 	rendered := out.String()
-	for _, want := range []string{"xgoja user guide and buildspec reference", "Runtime filesystem source", "Provider-shipped source"} {
+	for _, want := range []string{"xgoja user guide and v2 spec reference", "Source sets", "Providers and runtime modules"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("expected bundled help to contain %q, got %q", want, rendered)
 		}

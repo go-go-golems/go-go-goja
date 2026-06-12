@@ -224,7 +224,7 @@ sources:
 | Kind | Meaning |
 | --- | --- |
 | `jsverbs` | JavaScript or TypeScript files scanned for jsverb command metadata. |
-| `script` | Goja-executed script source. Current build bridge does not yet emit separate script artifacts. |
+| `script` | Goja-executed script source for run/runtime planning. |
 | `help` | Help markdown source files. |
 | `assets` | Static asset files. Build frontend/browser outputs outside xgoja, then include them as assets. |
 
@@ -342,16 +342,15 @@ Common artifact types are:
 | `binary` | Generated xgoja binary. When `sources` lists local jsverb/help source sets, those sources are copied into the generated embedded filesystem. |
 | `dts` | TypeScript declaration output for selected runtime modules. |
 | `embedded-assets` | Static assets embedded into the generated host. |
-| `runtime-package` | Generated runtime package output. Current v2 command paths still bridge through the legacy generator. |
-| `adapter`, `cobra`, `source`, `template` | Legacy generator outputs retained during the transition. |
+| `runtime-package` | Generated runtime package output. |
+| `adapter`, `cobra`, `source`, `template` | Additional generated output shapes consumed through the v2 plan-backed generator. |
 
 For binary/runtime-package style artifacts, `sources` marks local jsverb and
 help source sets that should be copied into the generated embedded filesystem.
 For assets, use a separate `embedded-assets` artifact with `sources` pointing at
 asset source IDs.
 
-Current limitation: `xgoja gen-dts` still requires `--out`; using the v2 `dts`
-artifact output as the default is planned.
+`xgoja gen-dts` uses the first `type: dts` artifact as its default output when `--out` is omitted; `strict: true` on the artifact enables strict declaration checks.
 
 ## TypeScript jsverbs example
 
@@ -415,23 +414,15 @@ export function demo() {
 The local helper import is bundled. The `express` import is externalized because
 it is a selected runtime module alias.
 
-## Current transition limits
+## Current limits
 
-The v2 planner is active for `doctor`, `build`, and `gen-dts`, but build and
-gen-dts still use a bridge into the existing generator. The bridge keeps current
-behavior stable while the generator is moved toward direct `plan.Plan`
-consumption.
+The normal command path is v2-plan-native: `doctor`, `build`, `generate`, `gen-dts`, and `list-modules` load `schema: xgoja/v2` and consume `plan.Plan` directly.
 
-Known limits during this transition:
+Known limits:
 
-- v2 doctor uses a synthetic provider registry for static validation. It cannot
-  fully validate provider package implementation details unless a provider is
-  linked into a generated sidecar or described by future provider manifests.
-- Multiple artifacts are not fully orchestrated by the build bridge. The first
-  binary artifact controls the current build target.
-- `gen-dts` still requires `--out` even when a `type: dts` artifact exists.
-- Provider package import path and Go module path are currently inferred when a
-  provider does not specify replacement/version metadata.
+- v2 doctor uses a synthetic provider registry for static validation. It cannot fully validate provider package implementation details unless a provider is linked into a generated sidecar or described by future provider manifests.
+- Multiple artifacts are not fully orchestrated by `xgoja build`. The first binary-style artifact controls the current build target.
+- Provider package import path and Go module path are inferred when a provider does not specify replacement/version metadata.
 
 ## Migration policy
 
