@@ -85,7 +85,7 @@ func (s *jsVerbSourceSet) ScanJSVerbSource(id string) (*jsverbs.Registry, error)
 		if source.ID != id {
 			continue
 		}
-		return scanVerbSource(s.providers, s.embeddedJSVerbs, source)
+		return scanVerbSource(s.providers, s.embeddedJSVerbs, source, sourceGraphRuntimeAliases(s.providers, nil))
 	}
 	return nil, fmt.Errorf("unknown jsverb source %q", id)
 }
@@ -96,7 +96,7 @@ func (s *jsVerbSourceSet) ScanAllJSVerbSources() ([]*jsverbs.Registry, error) {
 	}
 	registries := make([]*jsverbs.Registry, 0, len(s.sources))
 	for _, source := range s.sources {
-		registry, err := scanVerbSource(s.providers, s.embeddedJSVerbs, source)
+		registry, err := scanVerbSource(s.providers, s.embeddedJSVerbs, source, sourceGraphRuntimeAliases(s.providers, nil))
 		if err != nil {
 			return nil, err
 		}

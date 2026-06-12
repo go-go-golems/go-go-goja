@@ -46,21 +46,28 @@ RelatedFiles:
         ScanFS now attaches fs.Sub roots for Step 14
     - Path: pkg/tsscript/compiler.go
       Note: Diary Step 1 TypeScript bundling evidence
+    - Path: pkg/xgoja/app/root.go
+      Note: Graph-backed jsverbs scan adapter for Step 15
     - Path: pkg/xgoja/app/runtime_spec.go
       Note: Diary Step 1 runtime schema evidence
     - Path: pkg/xgoja/app/typescript.go
-      Note: Runtime TypeScript bundling now uses BundleVirtualEntryFS when possible for Step 14
+      Note: |-
+        Runtime TypeScript bundling now uses BundleVirtualEntryFS when possible for Step 14
+        Runtime aliases added to TypeScript externals for Step 15
     - Path: pkg/xgoja/app/typescript_jsverbs_test.go
       Note: Provider fs.FS TypeScript helper import regression test for Step 14
+    - Path: pkg/xgoja/sourcegraph/graph.go
+      Note: File origin metadata added for Step 15
     - Path: ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/design/02-xgoja-v2-spec-and-migration-architecture.md
       Note: Diary Step 3 v2 spec and migration design
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T16:55:00-04:00
+LastUpdated: 2026-06-12T17:20:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -1338,3 +1345,87 @@ This fixes the key embedded/provider TypeScript local-import gap without yet rep
 - `ScanFS` creates `rootFS := fs.Sub(fsys, root)` for non-dot roots.
 - `BundleVirtualEntryFS` receives `input.RelPath`, so imports are resolved relative to source-set-root paths.
 - Runtime aliases still come from TypeScript `External` fields in current v1 runtime specs; v2 provider graph will derive these automatically later.
+
+
+## Step 15: Route xgoja jsverbs scanning through the source graph
+
+I replaced the app-level direct `jsverbs.ScanDir` and `jsverbs.ScanFS` calls with a sourcegraph-backed adapter. The lower-level jsverbs scan helpers remain available, but generated/runtime xgoja jsverb command mounting now discovers disk, embedded, and provider source files through `pkg/xgoja/sourcegraph` first.
+
+This moves the active xgoja execution path closer to the v2 planner model. Source discovery, import classification, and origin metadata are now centralized before jsverbs parsing and runtime transform setup.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the next implementation step in the v2/sourcegraph cutover backlog.
+
+**Inferred user intent:** Keep progressing without a new planning interruption, preserving the commit-and-diary workflow.
+
+**Commit (code):** 5bdad8ba890679a63fb663ec42f9719dc3a12490 — "xgoja: scan jsverbs through source graph"
+
+### What I did
+
+- Added origin metadata to `sourcegraph.File` so graph-backed consumers can read files and reconstruct FS roots.
+- Reworked `pkg/xgoja/app/root.go` so `scanVerbSource`:
+  - converts `JSVerbSourceSpec` into a `sourcegraph.SourceSet`;
+  - builds a `sourcegraph.Graph`;
+  - resolves imports with runtime aliases;
+  - reads graph files into `jsverbs.SourceFile` values;
+  - calls `jsverbs.ScanSources` instead of direct `ScanDir`/`ScanFS`.
+- Passed selected runtime module aliases from `buildVerbCommands` into scanning.
+- Appended runtime aliases to TypeScript compiler externals, centralizing runtime-module handling instead of requiring every source spec to list them manually.
+- Updated tests that call the private `scanVerbSource` helper.
+- Checked task IDs 72 and 73.
+
+### Why
+
+- v2 needs a single source planning layer before command generation, runtime bundling, and diagnostics.
+- Direct `ScanDir`/`ScanFS` calls hid source origin/import context from the app layer.
+- Runtime module aliases should be derived from selected Go provider modules, not duplicated in TypeScript source config.
+
+### What worked
+
+- `go test ./pkg/xgoja/sourcegraph ./pkg/xgoja/app ./pkg/jsverbs ./pkg/tsscript -count=1` passed.
+- Existing jsverbs behavior remains intact through `jsverbs.ScanSources`.
+- Provider and embedded FS metadata still reaches the TypeScript runtime bundler through `RootFS`.
+
+### What didn't work
+
+- The first full pre-commit attempt failed in `go test ./...` after lint passed. The generated-program tests lost provider/http jsverb command fields because strict sourcegraph import resolution rejected or under-classified provider source files that referenced provider modules not selected in the immediate runtime module list. The visible errors were:
+  - `Error: unknown flag: --name` in `TestGeneratedProgramRunsProviderVerbSource`
+  - `Error: unknown flag: --http-listen` in `TestGeneratedProgramServesHTTPVerb`
+- I fixed this by passing all registered provider module names/default aliases as sourcegraph runtime aliases for scan-time import classification, while still letting runtime initialization decide whether a module is actually selected when a verb is invoked.
+- This is still an app-local adapter, not the full v2 planner type.
+- `xgoja build`, `doctor`, and `gen-dts` are not yet using a shared v2 `Plan` object.
+
+### What I learned
+
+- `sourcegraph.File` needs more than a path and origin kind for real execution. Carrying the `Origin` object lets graph consumers read disk and FS-backed files uniformly.
+- The existing `ScanSources` API is a good bridge because it preserves jsverbs parsing while allowing upstream graph discovery.
+
+### What was tricky to build
+
+- FS-backed sourcegraph files store paths relative to the source-set root, but `fs.ReadFile` needs the original root plus the relative path. The adapter now reconstructs that path and separately creates an `fs.Sub` root for jsverbs runtime transforms.
+- Disk sources need `ResolveDir` for esbuild disk resolution, while provider/embedded sources need `RootFS` for fs-backed resolution.
+
+### What warrants a second pair of eyes
+
+- Review whether `sourcegraph.File` should carry the full `Origin` or a smaller resolved reader/root descriptor.
+- Review whether sourcegraph import resolution should be optional for non-bundled legacy JS sources that intentionally use runtime `require()` side effects.
+
+### What should be done in the future
+
+- Extract this app-local adapter into a v2 planner/plan compiler.
+- Add doctor output for sourcegraph import diagnostics.
+- Apply the same graph plan to build and generated runtime spec rendering.
+
+### Code review instructions
+
+- Start in `pkg/xgoja/app/root.go`, especially `scanVerbSource`, `sourceGraphSourceSet`, and `jsverbSourceFilesFromGraph`.
+- Then review `pkg/xgoja/sourcegraph/graph.go` for `File.Origin` propagation.
+- Validate with `go test ./pkg/xgoja/sourcegraph ./pkg/xgoja/app ./pkg/jsverbs ./pkg/tsscript -count=1`.
+
+### Technical details
+
+- Runtime aliases are passed into `sourcegraph.Build(..., sourcegraph.Options{RuntimeModuleAliases: runtimeAliases})` and into TypeScript externals.
+- `jsverbs.ScanDir` and `ScanFS` remain lower-level helpers; xgoja app command mounting now uses graph discovery plus `ScanSources`.

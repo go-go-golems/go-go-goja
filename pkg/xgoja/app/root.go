@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -20,6 +22,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/sourcegraph"
 	"github.com/spf13/cobra"
 )
 
@@ -274,7 +277,7 @@ func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *Runtime
 	}
 	commands := []cmds.Command{}
 	for _, source := range runtimeSpec.JSVerbs {
-		registry, err := scanVerbSource(providers, embeddedJSVerbs, source)
+		registry, err := scanVerbSource(providers, embeddedJSVerbs, source, sourceGraphRuntimeAliases(providers, moduleAliases(selectedModules)))
 		if err != nil {
 			return nil, err
 		}
@@ -311,8 +314,41 @@ func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *Runtime
 	return commands, nil
 }
 
-func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, source JSVerbSourceSpec) (*jsverbs.Registry, error) {
-	scanOptions := jsVerbScanOptions(source)
+func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, source JSVerbSourceSpec, runtimeAliases []string) (*jsverbs.Registry, error) {
+	scanOptions := jsVerbScanOptions(source, runtimeAliases)
+	sourceSet, err := sourceGraphSourceSet(providers, embeddedJSVerbs, source)
+	if err != nil {
+		return nil, err
+	}
+	if sourceSet == nil {
+		return nil, nil
+	}
+	graph, err := sourcegraph.Build([]sourcegraph.SourceSet{*sourceSet}, sourcegraph.Options{RuntimeModuleAliases: runtimeAliases})
+	if err != nil {
+		return nil, fmt.Errorf("build source graph for jsverb source %s: %w", source.ID, err)
+	}
+	if err := graph.ResolveImports(readSourceGraphFile); err != nil {
+		return nil, fmt.Errorf("resolve imports for jsverb source %s: %w", source.ID, err)
+	}
+	files, err := jsverbSourceFilesFromGraph(graph, source.ID)
+	if err != nil {
+		return nil, fmt.Errorf("read jsverb source %s: %w", source.ID, err)
+	}
+	registry, err := jsverbs.ScanSources(files, scanOptions)
+	if err != nil {
+		return nil, fmt.Errorf("scan jsverb source %s: %w", source.ID, err)
+	}
+	return registry, nil
+}
+
+func sourceGraphSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, source JSVerbSourceSpec) (*sourcegraph.SourceSet, error) {
+	set := sourcegraph.SourceSet{
+		ID:         source.ID,
+		Kind:       sourcegraph.SourceKindJSVerbs,
+		Include:    append([]string(nil), source.Include...),
+		Exclude:    append([]string(nil), source.Exclude...),
+		Extensions: sourceGraphExtensions(source),
+	}
 	if source.Package != "" || source.Source != "" {
 		if providers == nil {
 			return nil, fmt.Errorf("scan jsverb source %s: providers registry is required", source.ID)
@@ -324,11 +360,8 @@ func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.
 		if providerSource.FS == nil {
 			return nil, fmt.Errorf("scan jsverb source %s: provider verb source %s.%s has no filesystem", source.ID, source.Package, source.Source)
 		}
-		registry, err := jsverbs.ScanFS(providerSource.FS, providerSource.Root, scanOptions)
-		if err != nil {
-			return nil, fmt.Errorf("scan provider jsverb source %s (%s.%s): %w", source.ID, source.Package, source.Source, err)
-		}
-		return registry, nil
+		set.Origin = sourcegraph.Origin{Kind: sourcegraph.OriginProvider, FS: providerSource.FS, Root: providerSource.Root, Provider: source.Package, Source: source.Source}
+		return &set, nil
 	}
 	if source.Path == "" {
 		return nil, nil
@@ -337,27 +370,97 @@ func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.
 		if embeddedJSVerbs == nil {
 			return nil, fmt.Errorf("scan jsverb source %s: embedded jsverbs filesystem is not configured", source.ID)
 		}
-		registry, err := jsverbs.ScanFS(embeddedJSVerbs, source.Path, scanOptions)
-		if err != nil {
-			return nil, fmt.Errorf("scan embedded jsverb source %s: %w", source.ID, err)
-		}
-		return registry, nil
+		set.Origin = sourcegraph.Origin{Kind: sourcegraph.OriginEmbedded, FS: embeddedJSVerbs, Root: source.Path}
+		return &set, nil
 	}
-	registry, err := jsverbs.ScanDir(source.Path, scanOptions)
-	if err != nil {
-		return nil, fmt.Errorf("scan jsverb source %s: %w", source.ID, err)
-	}
-	return registry, nil
+	set.Origin = sourcegraph.Origin{Kind: sourcegraph.OriginDisk, Dir: source.Path}
+	return &set, nil
 }
 
-func jsVerbScanOptions(source JSVerbSourceSpec) jsverbs.ScanOptions {
+func sourceGraphRuntimeAliases(providers *providerapi.ProviderRegistry, selectedAliases []string) []string {
+	aliases := append([]string(nil), selectedAliases...)
+	if providers == nil {
+		return aliases
+	}
+	for _, pkg := range providers.Packages() {
+		for name, module := range pkg.Modules {
+			aliases = append(aliases, name)
+			if module.DefaultAs != "" {
+				aliases = append(aliases, module.DefaultAs)
+			}
+		}
+	}
+	return appendUniqueStrings(nil, aliases...)
+}
+
+func sourceGraphExtensions(source JSVerbSourceSpec) []string {
+	if len(source.Extensions) > 0 {
+		return append([]string(nil), source.Extensions...)
+	}
+	options := jsverbs.DefaultScanOptions()
+	return append([]string(nil), options.Extensions...)
+}
+
+func jsverbSourceFilesFromGraph(graph *sourcegraph.Graph, sourceSetID string) ([]jsverbs.SourceFile, error) {
+	files := graph.FilesForSourceSet(sourceSetID)
+	out := make([]jsverbs.SourceFile, 0, len(files))
+	for _, file := range files {
+		data, err := readSourceGraphFile(file)
+		if err != nil {
+			return nil, err
+		}
+		rootFS, err := sourceGraphRootFS(file.Origin)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, jsverbs.SourceFile{
+			Path:       file.Path,
+			AbsPath:    file.AbsPath,
+			ResolveDir: sourceGraphResolveDir(file),
+			RootFS:     rootFS,
+			Source:     data,
+		})
+	}
+	return out, nil
+}
+
+func readSourceGraphFile(file sourcegraph.File) ([]byte, error) {
+	if file.AbsPath != "" {
+		return os.ReadFile(file.AbsPath)
+	}
+	root := strings.Trim(strings.TrimSpace(file.Origin.Root), "/")
+	if root == "" || root == "." {
+		return fs.ReadFile(file.Origin.FS, file.Path)
+	}
+	return fs.ReadFile(file.Origin.FS, filepath.ToSlash(filepath.Join(root, file.Path)))
+}
+
+func sourceGraphRootFS(origin sourcegraph.Origin) (fs.FS, error) {
+	if origin.FS == nil {
+		return nil, nil
+	}
+	root := strings.Trim(strings.TrimSpace(origin.Root), "/")
+	if root == "" || root == "." {
+		return origin.FS, nil
+	}
+	return fs.Sub(origin.FS, root)
+}
+
+func sourceGraphResolveDir(file sourcegraph.File) string {
+	if file.AbsPath == "" {
+		return ""
+	}
+	return filepath.Dir(file.AbsPath)
+}
+
+func jsVerbScanOptions(source JSVerbSourceSpec, runtimeAliases []string) jsverbs.ScanOptions {
 	options := jsverbs.DefaultScanOptions()
 	if len(source.Extensions) > 0 {
 		options.Extensions = append([]string(nil), source.Extensions...)
 	}
 	options.Include = append([]string(nil), source.Include...)
 	options.Exclude = append([]string(nil), source.Exclude...)
-	applyTypeScriptScanOptions(source, &options)
+	applyTypeScriptScanOptions(source, &options, runtimeAliases)
 	return options
 }
 

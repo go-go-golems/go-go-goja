@@ -158,3 +158,24 @@ Step 14: wired fs.FS-backed TypeScript runtime bundling for jsverbs provider/emb
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/jsverbs/scan.go — Carries fs.FS roots through ScanFS (commit 2b9873166f7bf464f181d347f21fbf3a357aec47)
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/typescript.go — Uses BundleVirtualEntryFS for fs-backed runtime transforms (commit 2b9873166f7bf464f181d347f21fbf3a357aec47)
 
+
+## 2026-06-12
+
+Replaced xgoja jsverbs source scanning with a sourcegraph-backed adapter and threaded runtime module aliases into TypeScript externals.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/root.go — scanVerbSource now builds a sourcegraph and scans jsverbs from graph files
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/typescript.go — Runtime aliases are appended to TypeScript externals
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/sourcegraph/graph.go — File entries now carry origin metadata for graph-backed readers
+
+
+## 2026-06-12
+
+Fixed graph-backed scan compatibility by classifying all registered provider modules as scan-time runtime aliases for provider jsverb sources.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/jsverb_sources.go — command-provider JSVerbSourceSet scans use provider-wide aliases
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/root.go — sourceGraphRuntimeAliases includes provider module names/default aliases
+

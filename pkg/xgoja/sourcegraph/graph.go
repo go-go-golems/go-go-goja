@@ -52,6 +52,7 @@ type SourceSet struct {
 type File struct {
 	SourceSetID string
 	Kind        SourceKind
+	Origin      Origin
 	OriginKind  OriginKind
 	Path        string
 	AbsPath     string
@@ -242,7 +243,7 @@ func discoverDisk(source SourceSet) ([]File, error) {
 		if !includePath(rel, source) {
 			return nil
 		}
-		out = append(out, File{SourceSetID: source.ID, Kind: source.Kind, OriginKind: OriginDisk, Path: rel, AbsPath: absPath})
+		out = append(out, File{SourceSetID: source.ID, Kind: source.Kind, Origin: source.Origin, OriginKind: OriginDisk, Path: rel, AbsPath: absPath})
 		return nil
 	})
 	return out, err
@@ -272,7 +273,7 @@ func discoverFS(source SourceSet) ([]File, error) {
 		if !includePath(rel, source) {
 			return nil
 		}
-		out = append(out, File{SourceSetID: source.ID, Kind: source.Kind, OriginKind: source.Origin.Kind, Path: rel})
+		out = append(out, File{SourceSetID: source.ID, Kind: source.Kind, Origin: source.Origin, OriginKind: source.Origin.Kind, Path: rel})
 		return nil
 	})
 	return out, err

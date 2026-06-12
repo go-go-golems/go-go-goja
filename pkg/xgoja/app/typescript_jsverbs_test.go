@@ -34,7 +34,7 @@ func TestScanVerbSourceTypeScriptScansAndInvokesBundledVerb(t *testing.T) {
 		Path:       dir,
 		Extensions: []string{".ts"},
 		TypeScript: &TypeScriptSpec{Enabled: true, Bundle: true, Target: "es2015", Format: "cjs", Platform: "neutral"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("scanVerbSource() error = %v", err)
 	}
@@ -86,7 +86,7 @@ func TestScanVerbSourceTypeScriptProviderFSBundlesHelperImport(t *testing.T) {
 		Source:     "sites",
 		Extensions: []string{".ts"},
 		TypeScript: &TypeScriptSpec{Enabled: true, Bundle: true, Target: "es2015", Format: "cjs", Platform: "neutral"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("scanVerbSource() error = %v", err)
 	}
