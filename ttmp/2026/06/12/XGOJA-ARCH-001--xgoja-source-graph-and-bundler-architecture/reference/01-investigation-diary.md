@@ -1802,7 +1802,7 @@ The bridge maps providers, runtime modules, jsverbs sources, assets, help source
 
 **Inferred user intent:** Keep moving through the v2 hard-cutover tasks with focused, reviewable commits.
 
-**Commit (code):** pending — v2 build bridge staged after this diary update.
+**Commit (code):** 65b4a122b54e5c4df1d2b9cbbfd06cfbda3ecb2d — "xgoja: build v2 specs through planner bridge"
 
 ### What I did
 
