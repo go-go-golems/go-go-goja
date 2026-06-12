@@ -42,13 +42,16 @@ RelatedFiles:
       Note: Diary Step 1 TypeScript bundling evidence
     - Path: pkg/xgoja/app/runtime_spec.go
       Note: Diary Step 1 runtime schema evidence
+    - Path: ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/design/02-xgoja-v2-spec-and-migration-architecture.md
+      Note: Diary Step 3 v2 spec and migration design
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T11:45:00-04:00
+LastUpdated: 2026-06-12T12:05:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -287,3 +290,101 @@ Can you analyze that in context of the new design as well?"
 - Current provider replacement field: `buildspec.PackageSpec.Replace`.
 - Current generated module renderer: `cmd/xgoja/internal/generate/gomod.go`.
 - Proposed first output strategy: render workspace-derived `replace` directives in generated `go.mod`.
+
+
+## Step 3: Add the v2 spec and migration architecture document
+
+I added a second architecture document that assumes backwards compatibility is not a hard requirement if migration documentation and tooling are strong. This changes the architecture materially: instead of keeping the v1 `xgoja.yaml` schema as the long-term internal shape, the design defines a v2 schema that directly matches the proposed provider graph, source graph, workspace resolver, command-surface model, artifact model, and build/runtime planner.
+
+The document treats v1 as legacy input that should be converted at the CLI boundary. The planner should be v2-native. That keeps future internals simpler and makes the configuration easier to explain because user-facing concepts and internal concepts use the same vocabulary.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, create a second document, then, with the new architecture with a v2 spec, that will make it much easier, we can migrate the packages that use xgoja when we'll need it"
+
+**Assistant interpretation:** Add a separate design document to the existing architecture ticket that describes a v2 xgoja spec and migration strategy, assuming packages can migrate when they need the new architecture.
+
+**Inferred user intent:** Prefer a clean future architecture and v2 config over preserving the old schema indefinitely, as long as migration tooling/documentation makes adoption manageable.
+
+**Commit (code):** N/A — documentation update only in this step.
+
+### What I did
+
+- Added `design/02-xgoja-v2-spec-and-migration-architecture.md` to `XGOJA-ARCH-001`.
+- Defined the v2 top-level schema:
+  - `schema`
+  - `app`
+  - `go`
+  - `workspace`
+  - `providers`
+  - `runtime.modules`
+  - `sources`
+  - `commands`
+  - `artifacts`
+  - optional `profiles`
+- Added a complete v2 rewrite of the recent TypeScript jsverbs example.
+- Added detailed mappings from v1 fields to v2 fields.
+- Added migration tooling design for `xgoja migrate-spec`.
+- Added decision records for:
+  - making v2 the native planner schema;
+  - using command surfaces;
+  - unifying jsverbs/help/assets under source sets;
+  - providing migration tooling instead of permanent internal compatibility.
+- Added implementation, testing, and documentation plans.
+
+### Why
+
+- The source graph architecture is cleaner if the user-facing spec uses the same concepts as the internal planner.
+- Keeping v1 as the permanent internal shape would require repeated compatibility inference for providers, sources, commands, artifacts, workspace resolution, and TypeScript compilation policy.
+- A migration tool gives downstream packages a controlled path without forcing every new architecture feature to carry v1-specific semantics.
+
+### What worked
+
+- The v2 spec maps directly to the architecture from the first document:
+  - `providers` maps to provider graph inputs;
+  - `sources` maps to source graph inputs;
+  - `commands` maps to command surfaces;
+  - `workspace` maps to Go module resolution;
+  - `artifacts` maps to build outputs.
+- The TypeScript jsverbs example becomes clearer because runtime module aliases can be used as automatic compiler externals instead of duplicating `external: [express]` under TypeScript config.
+
+### What didn't work
+
+- No command failed in this step.
+- This remains design-only; no v2 parser or migration command exists yet.
+
+### What I learned
+
+- Dropping strict backwards compatibility changes the architecture from an adapter-heavy design into a cleaner native planner design.
+- The migration boundary should be CLI/spec loading, not planner internals.
+- The v2 schema makes command dependencies explicit, which should simplify validation and future plan/debug output.
+
+### What was tricky to build
+
+- The v2 shape needed to be explicit without becoming too verbose for small examples. The design chooses clarity over minimal YAML because xgoja is now coordinating Go providers, source compilation, generated artifacts, and workspace resolution.
+- Profiles are useful but should not block v2. The design reserves `profiles` as optional future structure rather than requiring it in the first implementation.
+
+### What warrants a second pair of eyes
+
+- Review whether `sources` should include help/assets immediately or whether v2 should keep dedicated `help` and `assets` sections for readability.
+- Review whether `artifacts` should replace `target` fully in v2 or whether a shorthand binary target should exist for simple specs.
+- Review whether `xgoja migrate-spec` should preserve comments through a YAML AST library or prioritize clean generated output.
+
+### What should be done in the future
+
+- Implement `cmd/xgoja/internal/specv2` DTOs and validation.
+- Implement v1-to-v2 migration with golden tests.
+- Add `xgoja migrate-spec` before building too much planner logic.
+- Migrate `examples/xgoja/15-typescript-jsverbs/xgoja.yaml` as the first substantial example.
+
+### Code review instructions
+
+- Start with `design/02-xgoja-v2-spec-and-migration-architecture.md`.
+- Compare the v2 TypeScript jsverbs example to `examples/xgoja/15-typescript-jsverbs/xgoja.yaml`.
+- Review the migration mapping table and the decision records.
+
+### Technical details
+
+- Proposed new package: `cmd/xgoja/internal/specv2`.
+- Proposed migration command: `xgoja migrate-spec`.
+- Proposed compatibility stance: v1 is migratable legacy input; v2 is the native planner schema.

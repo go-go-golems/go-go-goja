@@ -24,3 +24,12 @@ Updated architecture design v2 with Go workspace resolution for generated builds
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/gomod.go — Current generated module rendering target
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/design/01-xgoja-source-graph-and-bundler-architecture.md — Architecture v2 workspace section
 
+
+## 2026-06-12
+
+Added second architecture document for xgoja v2 spec and migration tooling, treating v1 as migratable legacy input and v2 as the native planner schema.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/design/02-xgoja-v2-spec-and-migration-architecture.md — V2 spec and migration architecture
+
