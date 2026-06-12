@@ -15,6 +15,7 @@ var (
 	gojaFunctionCallIdent                = protogen.GoIdent{GoName: "FunctionCall", GoImportPath: "github.com/dop251/goja"}
 	gojaObjectIdent                      = protogen.GoIdent{GoName: "Object", GoImportPath: "github.com/dop251/goja"}
 	gojaRuntimeIdent                     = protogen.GoIdent{GoName: "Runtime", GoImportPath: "github.com/dop251/goja"}
+	gojaUndefinedIdent                   = protogen.GoIdent{GoName: "Undefined", GoImportPath: "github.com/dop251/goja"}
 	gojaValueIdent                       = protogen.GoIdent{GoName: "Value", GoImportPath: "github.com/dop251/goja"}
 	modulesNativeModuleIdent             = protogen.GoIdent{GoName: "NativeModule", GoImportPath: "github.com/go-go-golems/go-go-goja/modules"}
 	protoMessageIdent                    = protogen.GoIdent{GoName: "Message", GoImportPath: "google.golang.org/protobuf/proto"}
@@ -147,12 +148,25 @@ func appendMessageDTS(lines *[]string, msg *protogen.Message) {
 	*lines = append(*lines, "export interface "+builderName+" {")
 	for _, field := range msg.Fields {
 		methodName := methodNameForField(field)
+		exportedMethodName := exportName(methodName)
 		tsType := tsTypeForField(field)
 		*lines = append(*lines, "  "+methodName+"(value: "+tsType+"): this;")
-		if field.Desc.HasPresence() {
-			*lines = append(*lines, "  has"+exportName(methodName)+"(): boolean;")
+		if field.Desc.IsList() && !field.Desc.IsMap() {
+			*lines = append(*lines, "  add"+exportedMethodName+"(value: "+tsTypeForKind(field.Desc)+"): this;")
 		}
-		*lines = append(*lines, "  clear"+exportName(methodName)+"(): this;")
+		if field.Desc.IsMap() {
+			*lines = append(*lines, "  put"+exportedMethodName+"(key: "+tsTypeForKind(field.Desc.MapKey())+", value: "+tsTypeForKind(field.Desc.MapValue())+"): this;")
+			*lines = append(*lines, "  delete"+exportedMethodName+"(key: "+tsTypeForKind(field.Desc.MapKey())+"): this;")
+		}
+		if field.Desc.HasPresence() {
+			*lines = append(*lines, "  has"+exportedMethodName+"(): boolean;")
+		}
+		*lines = append(*lines, "  clear"+exportedMethodName+"(): this;")
+	}
+	for _, oneof := range realOneofs(msg) {
+		methodName := exportName(lowerCamel(string(oneof.Desc.Name())))
+		*lines = append(*lines, "  which"+methodName+"(): "+oneofSelectionType(oneof)+" | undefined;")
+		*lines = append(*lines, "  clear"+methodName+"(): this;")
 	}
 	*lines = append(*lines, "  build(): "+name+";")
 	*lines = append(*lines, "  clone(): "+builderName+";")
@@ -433,6 +447,9 @@ func emitMessageAPI(g *protogen.GeneratedFile, msg *protogen.Message) {
 	for _, field := range msg.Fields {
 		emitFieldMethods(g, msg, field)
 	}
+	for _, oneof := range realOneofs(msg) {
+		emitOneofMethods(g, msg, oneof)
+	}
 	g.P("\treturn nil")
 	g.P("}")
 	for _, enum := range msg.Enums {
@@ -458,6 +475,40 @@ func emitFieldMethods(g *protogen.GeneratedFile, msg *protogen.Message, field *p
 	g.P("\t}); err != nil {")
 	g.P("\t\treturn err")
 	g.P("\t}")
+	if field.Desc.IsList() && !field.Desc.IsMap() {
+		addMethodName := "add" + exportedMethodName
+		g.P("\tif err := obj.Set(\"", addMethodName, "\", func(call ", g.QualifiedGoIdent(gojaFunctionCallIdent), ") ", g.QualifiedGoIdent(gojaValueIdent), " {")
+		g.P("\t\tfield := (&", g.QualifiedGoIdent(msg.GoIdent), "{}).ProtoReflect().Descriptor().Fields().ByName(", quoted(fieldName), ")")
+		g.P("\t\tif err := builder.Add(vm, field, call.Argument(0)); err != nil {")
+		g.P("\t\t\tpanic(vm.NewGoError(err))")
+		g.P("\t\t}")
+		g.P("\t\treturn obj")
+		g.P("\t}); err != nil {")
+		g.P("\t\treturn err")
+		g.P("\t}")
+	}
+	if field.Desc.IsMap() {
+		putMethodName := "put" + exportedMethodName
+		deleteMethodName := "delete" + exportedMethodName
+		g.P("\tif err := obj.Set(\"", putMethodName, "\", func(call ", g.QualifiedGoIdent(gojaFunctionCallIdent), ") ", g.QualifiedGoIdent(gojaValueIdent), " {")
+		g.P("\t\tfield := (&", g.QualifiedGoIdent(msg.GoIdent), "{}).ProtoReflect().Descriptor().Fields().ByName(", quoted(fieldName), ")")
+		g.P("\t\tif err := builder.Put(vm, field, call.Argument(0), call.Argument(1)); err != nil {")
+		g.P("\t\t\tpanic(vm.NewGoError(err))")
+		g.P("\t\t}")
+		g.P("\t\treturn obj")
+		g.P("\t}); err != nil {")
+		g.P("\t\treturn err")
+		g.P("\t}")
+		g.P("\tif err := obj.Set(\"", deleteMethodName, "\", func(call ", g.QualifiedGoIdent(gojaFunctionCallIdent), ") ", g.QualifiedGoIdent(gojaValueIdent), " {")
+		g.P("\t\tfield := (&", g.QualifiedGoIdent(msg.GoIdent), "{}).ProtoReflect().Descriptor().Fields().ByName(", quoted(fieldName), ")")
+		g.P("\t\tif err := builder.Delete(vm, field, call.Argument(0)); err != nil {")
+		g.P("\t\t\tpanic(vm.NewGoError(err))")
+		g.P("\t\t}")
+		g.P("\t\treturn obj")
+		g.P("\t}); err != nil {")
+		g.P("\t\treturn err")
+		g.P("\t}")
+	}
 	if field.Desc.HasPresence() {
 		g.P("\tif err := obj.Set(\"", hasMethodName, "\", func() bool {")
 		g.P("\t\tfield := (&", g.QualifiedGoIdent(msg.GoIdent), "{}).ProtoReflect().Descriptor().Fields().ByName(", quoted(fieldName), ")")
@@ -479,6 +530,57 @@ func emitFieldMethods(g *protogen.GeneratedFile, msg *protogen.Message, field *p
 	g.P("\t}); err != nil {")
 	g.P("\t\treturn err")
 	g.P("\t}")
+}
+
+func emitOneofMethods(g *protogen.GeneratedFile, msg *protogen.Message, oneof *protogen.Oneof) {
+	oneofName := string(oneof.Desc.Name())
+	exportedOneofName := exportName(lowerCamel(oneofName))
+	whichMethodName := "which" + exportedOneofName
+	clearMethodName := "clear" + exportedOneofName
+	g.P("\tif err := obj.Set(\"", whichMethodName, "\", func() ", g.QualifiedGoIdent(gojaValueIdent), " {")
+	g.P("\t\toneof := (&", g.QualifiedGoIdent(msg.GoIdent), "{}).ProtoReflect().Descriptor().Oneofs().ByName(", quoted(oneofName), ")")
+	g.P("\t\tselected, err := builder.WhichOneof(oneof)")
+	g.P("\t\tif err != nil {")
+	g.P("\t\t\tpanic(vm.NewGoError(err))")
+	g.P("\t\t}")
+	g.P("\t\tif selected == nil {")
+	g.P("\t\t\treturn ", g.QualifiedGoIdent(gojaUndefinedIdent), "()")
+	g.P("\t\t}")
+	g.P("\t\treturn vm.ToValue(selected.JSONName())")
+	g.P("\t}); err != nil {")
+	g.P("\t\treturn err")
+	g.P("\t}")
+	g.P("\tif err := obj.Set(\"", clearMethodName, "\", func() ", g.QualifiedGoIdent(gojaValueIdent), " {")
+	g.P("\t\toneof := (&", g.QualifiedGoIdent(msg.GoIdent), "{}).ProtoReflect().Descriptor().Oneofs().ByName(", quoted(oneofName), ")")
+	g.P("\t\tif err := builder.ClearOneof(oneof); err != nil {")
+	g.P("\t\t\tpanic(vm.NewGoError(err))")
+	g.P("\t\t}")
+	g.P("\t\treturn obj")
+	g.P("\t}); err != nil {")
+	g.P("\t\treturn err")
+	g.P("\t}")
+}
+
+func realOneofs(msg *protogen.Message) []*protogen.Oneof {
+	out := make([]*protogen.Oneof, 0, len(msg.Oneofs))
+	for _, oneof := range msg.Oneofs {
+		if oneof.Desc.IsSynthetic() {
+			continue
+		}
+		out = append(out, oneof)
+	}
+	return out
+}
+
+func oneofSelectionType(oneof *protogen.Oneof) string {
+	values := make([]string, 0, len(oneof.Fields))
+	for _, field := range oneof.Fields {
+		values = append(values, quoted(field.Desc.JSONName()))
+	}
+	if len(values) == 0 {
+		return "string"
+	}
+	return strings.Join(values, " | ")
 }
 
 func methodNameForField(field *protogen.Field) string {

@@ -184,6 +184,7 @@ func TestGeneratedTypeScriptModuleRenders(t *testing.T) {
 		"export interface ProtoMessage",
 		"export interface ModuleManifestBuilder",
 		"moduleName(value: string): this;",
+		"addCapabilities(value: string): this;",
 		"export const ExportKind",
 		"export type ExportKindValue",
 	} {
@@ -250,6 +251,13 @@ func TestGeneratedModuleManifestBuilderRuntime(t *testing.T) {
 	if _, err := versionFn(builder, vm.ToValue("v1")); err != nil {
 		t.Fatalf("version call: %v", err)
 	}
+	addCapabilitiesFn, ok := goja.AssertFunction(builder.Get("addCapabilities"))
+	if !ok {
+		t.Fatalf("addCapabilities is not callable")
+	}
+	if _, err := addCapabilitiesFn(builder, vm.ToValue("tools")); err != nil {
+		t.Fatalf("addCapabilities call: %v", err)
+	}
 	buildFn, ok := goja.AssertFunction(builder.Get("build"))
 	if !ok {
 		t.Fatalf("build is not callable")
@@ -266,8 +274,8 @@ func TestGeneratedModuleManifestBuilderRuntime(t *testing.T) {
 	if !ok {
 		t.Fatalf("built message type = %T", msg)
 	}
-	if manifest.GetModuleName() != "demo" || manifest.GetVersion() != "v1" {
-		t.Fatalf("unexpected manifest: module_name=%q version=%q", manifest.GetModuleName(), manifest.GetVersion())
+	if manifest.GetModuleName() != "demo" || manifest.GetVersion() != "v1" || len(manifest.GetCapabilities()) != 1 || manifest.GetCapabilities()[0] != "tools" {
+		t.Fatalf("unexpected manifest: module_name=%q version=%q capabilities=%v", manifest.GetModuleName(), manifest.GetVersion(), manifest.GetCapabilities())
 	}
 	isFn, ok := goja.AssertFunction(ns.Get("is"))
 	if !ok {
