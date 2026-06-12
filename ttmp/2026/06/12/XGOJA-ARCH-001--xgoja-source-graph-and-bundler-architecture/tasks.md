@@ -136,7 +136,7 @@
   - versioned requirement.
 - [x] Wire workspace-derived replacements into generated `go.mod` rendering.
 - [x] Apply the same module plan to `xgoja build` and `xgoja gen-dts` sidecars.
-- [ ] Add doctor/plan diagnostics showing module path, local dir, version, and resolution source.
+- [x] Add doctor/plan diagnostics showing module path, local dir, version, and resolution source.
 - [ ] Add tests for workspace auto, workspace off, explicit file, replace precedence, missing version/local module errors, and sidecar rendering.
 
 ### Phase 5: Build the v2 provider graph without changing provider runtime APIs by default

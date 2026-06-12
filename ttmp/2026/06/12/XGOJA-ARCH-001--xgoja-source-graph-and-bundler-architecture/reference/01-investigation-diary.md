@@ -14,6 +14,8 @@ Owners: []
 RelatedFiles:
     - Path: cmd/xgoja/cmd_build.go
       Note: Build passes workspace plan to generator for Step 17
+    - Path: cmd/xgoja/cmd_doctor.go
+      Note: Module resolution diagnostics for Step 18
     - Path: cmd/xgoja/cmd_gen_dts.go
       Note: gen-dts sidecar passes workspace plan for Step 17
     - Path: cmd/xgoja/internal/buildspec/build_spec.go
@@ -79,10 +81,11 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T18:05:00-04:00
+LastUpdated: 2026-06-12T18:15:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -1617,3 +1620,78 @@ This makes the earlier workspace resolver useful in the current v1-era build pat
 - Workspace resolution remains `ModeAuto` for the legacy build-spec command path.
 - Explicit `--xgoja-replace` remains separate and still controls the go-go-goja runtime module replacement.
 - `generate.Options.GoModules` is optional, preserving existing lower-level render tests and callers.
+
+
+## Step 18: Add doctor module-resolution diagnostics
+
+I added module-resolution rows to `xgoja doctor`. After normal build spec validation succeeds, doctor now derives the same workspace Go module plan used by build/gen-dts and emits one row per planned module.
+
+This gives users visibility into which modules are versioned, explicitly replaced, CLI-replaced, or resolved from `go.work` before a generated build is attempted.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 15)
+
+**Assistant interpretation:** Continue through the next workspace/planner integration task after generated `go.mod` rendering.
+
+**Inferred user intent:** Keep implementing the v2 hard-cutover support tasks without stopping for replanning.
+
+**Commit (code):** pending — doctor diagnostics staged after this diary update.
+
+### What I did
+
+- Updated `cmd/xgoja/cmd_doctor.go` to retain the loaded build spec.
+- Called `goModulePlanForBuildSpec` after schema validation succeeds.
+- Emitted `module-resolution` rows with:
+  - `module_path`;
+  - `version`;
+  - `local_dir`;
+  - `resolution_kind`;
+  - `resolution_source`;
+  - `required_by`.
+- Checked task ID 50.
+
+### Why
+
+- Workspace-derived replacements are now used by generated builds, so doctor needs to make those decisions visible.
+- This is an incremental bridge toward v2 planner diagnostics.
+
+### What worked
+
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./cmd/xgoja/internal/workspace -count=1` passed.
+- Existing doctor command wiring still passes.
+
+### What didn't work
+
+- Doctor still loads the legacy build spec path, not the native v2 `plan.Compile` path.
+- Module-resolution rows are only emitted when the build spec itself loads successfully.
+
+### What I learned
+
+- Doctor already emits generic check rows, so adding planner rows is straightforward and preserves JSON/table output compatibility.
+- The planner row shape should be reusable when native v2 doctor output is wired.
+
+### What was tricky to build
+
+- The doctor command must continue returning the original validation error after emitting validation rows. Module planning is therefore only safe after `LoadFile` succeeds.
+- Errors from workspace planning are emitted as a `module-resolution` error row before being returned.
+
+### What warrants a second pair of eyes
+
+- Review whether `required_by` should remain a comma-separated string or become repeated rows in structured output.
+- Review whether doctor should include the discovered `go.work` file path as a separate row.
+
+### What should be done in the future
+
+- Switch doctor to native v2 loading and `plan.Compile`.
+- Add more explicit workspace file diagnostics.
+
+### Code review instructions
+
+- Review `cmd/xgoja/cmd_doctor.go` for row shape and error behavior.
+- Validate with `go test ./cmd/xgoja -run TestDoctor -count=1` or the broader command test above.
+
+### Technical details
+
+- The new rows use `check=module-resolution` and `status=ok|error`.
+- Existing validation rows are unchanged.

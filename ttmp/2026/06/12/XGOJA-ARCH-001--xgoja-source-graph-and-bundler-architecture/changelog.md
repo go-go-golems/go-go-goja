@@ -201,3 +201,12 @@ Wired workspace Go module plans into generated go.mod rendering and into build/g
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/gomod.go — RenderGoMod consumes workspace.GoModulePlan for require/replace output
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/workspace_plan.go — Buildspec-to-workspace requirement planning for commands
 
+
+## 2026-06-12
+
+Added xgoja doctor module-resolution rows showing module path, version, local dir, resolution kind/source, and required-by context.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/cmd_doctor.go — Doctor emits workspace module resolution diagnostics
+
