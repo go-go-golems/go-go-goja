@@ -16,6 +16,7 @@ RelatedFiles:
       Note: |-
         Build passes workspace plan to generator for Step 17
         Build v2 planner dispatch for Step 20
+        Build now rejects v1 via v2-only load path
     - Path: cmd/xgoja/cmd_doctor.go
       Note: |-
         Module resolution diagnostics for Step 18
@@ -24,6 +25,11 @@ RelatedFiles:
       Note: |-
         gen-dts sidecar passes workspace plan for Step 17
         V2 gen-dts planner bridge for Step 21
+        gen-dts now uses v2 dts artifact output defaults
+    - Path: cmd/xgoja/cmd_generate.go
+      Note: Generate now loads native v2 specs through planner bridge
+    - Path: cmd/xgoja/cmd_list_modules.go
+      Note: list-modules now uses v2 loader
     - Path: cmd/xgoja/doc/17-xgoja-v2-reference.md
       Note: |-
         Native xgoja/v2 reference doc added in commit 12ca66e
@@ -72,6 +78,8 @@ RelatedFiles:
       Note: Example README updated to explain v2 source/runtime module model in commit f47d196
     - Path: examples/xgoja/15-typescript-jsverbs/xgoja.yaml
       Note: Native v2 TypeScript jsverbs example migrated in commit f47d196
+    - Path: examples/xgoja/README.md
+      Note: Examples index updated for all-v2 specs
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
       Note: Step 1 build-time xgoja schema evidence.
     - Path: go-go-goja/cmd/xgoja/internal/generate/generate.go
@@ -123,6 +131,7 @@ LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -2221,3 +2230,116 @@ This step also updates migration behavior. When a v1 jsverb or help source has `
 - V2 binary/runtime-style artifacts use `sources` to request embedded jsverb/help source sets.
 - V2 `embedded-assets` artifacts use `sources` to request embedded asset source sets.
 - The bridge still relies on existing generator behavior for collision-free `xgoja_embed/...` roots and runtime spec path rewriting.
+
+
+## Step 25: Hard-cut normal commands and examples to v2
+
+I performed the user-facing hard cutover for normal xgoja command workflows. All repository `examples/xgoja/*/xgoja.yaml` files now declare `schema: xgoja/v2`, and normal operational commands load through the v2 planner path rather than accepting legacy buildspec input.
+
+This is still intentionally compatible with migration: `xgoja migrate-spec` remains the place where v1 is parsed. Normal commands now use v2 loading or return a migration diagnostic. The generator still uses the existing generator DTO internally through the bridge, but v1 is no longer a normal command input format.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, do he full internal v2 support. don't stop until you are done, i count on you, i'm going to do groceries"
+
+**Assistant interpretation:** Continue past the minimum hard cutover and finish the practical v2 support set: migrate examples, make normal commands v2-only, cover generated package and artifact defaults, and validate thoroughly.
+
+**Inferred user intent:** Leave the repository in a state where v2 is the normal user-facing xgoja format and v1 exists only as migration input.
+
+**Commit (code):** aa8ffa6c4e633f5720aedb72e3af4874ee0f5a40 — "xgoja: cut normal commands over to v2 specs"
+
+**Commit (code):** aa0436b41b3f80bcfef94e43344e919366ac9571 — "xgoja: remove unreachable v1 command branches"
+
+### What I did
+
+- Migrated remaining `examples/xgoja/*/xgoja.yaml` files to native `schema: xgoja/v2`.
+- Hand-migrated examples with external sibling checkouts:
+  - `09-provider-shipped-help-docs` with the loupedeck provider replacement.
+  - `12-geppetto-host-services` with geppetto provider replacements and embedded local jsverbs.
+- Updated the generated runtime package example and regenerated its checked-in runtime package output.
+- Updated `xgoja build`, `xgoja generate`, `xgoja gen-dts`, and `xgoja list-modules` to load through the v2 planner bridge.
+- Updated `xgoja doctor` so non-v2 files return the migration diagnostic instead of falling back to legacy buildspec validation.
+- Removed unreachable v1 validation branches from `build` and `gen-dts` after the v2-only loader became authoritative.
+- Added `gen-dts` support for v2 `type: dts` artifact defaults: `--out` can now be omitted when the v2 artifact provides `output`, and `strict: true` on the artifact enables strict generation.
+- Updated root command tests to use v2 fixtures for build/generate/list-modules/gen-dts flows.
+- Added a unit test for legacy spec rejection through `loadBuildSpecOrV2Plan`.
+- Updated `examples/xgoja/README.md` to describe native v2 examples and v2 source-set filtering.
+- Checked tasks 85, 88, 89, 90, 91, 94, 95, 96, 97, 99, 100, 101, and the umbrella tasks 112–116.
+
+### Why
+
+- The repository had v2 command support, but v1 remained an accepted normal command input. That meant the cutover was not real from a user perspective.
+- Examples are the strongest regression surface for this tool because they exercise generated builds, provider modules, command sets, embedded jsverbs, runtime filesystem jsverbs, embedded assets, generated runtime packages, TypeScript declarations, and HTTP hot reload.
+- `gen-dts` needed to consume v2 artifact intent rather than requiring users to repeat declaration output on the CLI.
+
+### What worked
+
+- Every `examples/xgoja/*/xgoja.yaml` file now starts with `schema: xgoja/v2`.
+- `go run ./cmd/xgoja doctor -f <example>/xgoja.yaml` succeeded for every example spec.
+- The bulk Makefile smoke loop passed for the Makefile-backed examples:
+  - `01-core-provider`
+  - `02-host-provider`
+  - `03-single-runtime-modules`
+  - `04-module-sections`
+  - `05-command-provider`
+  - `06-runtime-filesystem`
+  - `07-embedded-jsverbs`
+  - `08-provider-shipped-jsverbs`
+  - `10-embedded-assets-fs`
+  - `13-http-serve-jsverbs`
+  - `14-generated-runtime-package`
+  - `15-typescript-jsverbs`
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/specv2 ./cmd/xgoja/internal/generate ./cmd/xgoja/doc -count=1` passed.
+- The pre-commit hook passed for both commits, including lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- No validation command failed after the implementation was adjusted.
+- A direct negative root command test for legacy spec rejection was not added because previous negative Cobra/Glazed root command tests can print `Error:` and fail the test process before ordinary assertions. I added a lower-level `loadBuildSpecOrV2Plan` unit test instead.
+- `09-provider-shipped-help-docs` and `12-geppetto-host-services` still depend on sibling checkouts for full generated build execution; doctor passes with the v2 specs, but they remain environment-dependent smoke cases.
+
+### What I learned
+
+- The v2 bridge is sufficient for user-facing hard cutover because normal commands no longer accept v1, even though the generator still consumes a converted DTO internally.
+- The generated runtime package example is an important test because it exercises `xgoja generate`, not only `xgoja build`.
+- Artifact defaults improve CLI ergonomics immediately: declaration output belongs in the spec, not only in `--out`.
+
+### What was tricky to build
+
+- The root tests used v1 helper fixtures heavily. Those fixtures needed to become v2 specs without losing coverage for package generation, source-fragment generation, template generation, binary build, list-modules, and gen-dts.
+- `runtime-package` is the v2 artifact spelling, while the legacy generator target kind is `package`. The bridge has to map `runtime-package` to `target.kind: package` for current generator compatibility.
+- Examples with external provider replacements cannot be migrated mechanically with the CLI in this checkout because the old v1 loader validates replacement paths. I hand-migrated those specs to preserve the intended provider imports and replacements.
+
+### What warrants a second pair of eyes
+
+- Review the all-v2 example specs for readability and whether they should omit fields that are defaults, such as `register: Register` or `workspace.mode: auto`.
+- Review whether `xgoja generate` should be documented explicitly as v2-only alongside build/doctor/gen-dts.
+- Review whether remaining v1-heavy historical docs should be renamed as legacy/migration material or rewritten to v2.
+
+### What should be done in the future
+
+- Replace the v2-to-buildspec bridge with direct generator consumption of `plan.Plan` as an internal cleanup.
+- Add provider manifests/catalog work in a separate ticket for better static doctor validation of provider-shipped sources without synthetic registries.
+- Decide the long-term retention window for v1 parsing in `migrate-spec`.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/v2_bridge.go` and the command files:
+  - `cmd/xgoja/cmd_build.go`
+  - `cmd/xgoja/cmd_generate.go`
+  - `cmd/xgoja/cmd_gen_dts.go`
+  - `cmd/xgoja/cmd_doctor.go`
+  - `cmd/xgoja/cmd_list_modules.go`
+- Review migrated examples under `examples/xgoja/*/xgoja.yaml`.
+- Review `cmd/xgoja/root_test.go` for v2 command fixture coverage.
+- Validate with:
+  - `go test ./cmd/xgoja ./cmd/xgoja/internal/specv2 ./cmd/xgoja/internal/generate ./cmd/xgoja/doc -count=1`
+  - `for f in examples/xgoja/*/xgoja.yaml; do go run ./cmd/xgoja doctor -f "$f"; done`
+  - the Makefile smoke loop for the examples listed above.
+
+### Technical details
+
+- `loadBuildSpecOrV2Plan` now returns a migration diagnostic for non-v2 inputs.
+- `xgoja migrate-spec` remains the code path that loads v1 through `buildspec` and converts to `specv2`.
+- `gen-dts` calls `applyV2DTSArtifactDefaults` after successful v2 planning.
+- `targetFromV2Artifacts` maps `runtime-package` artifacts to legacy generator `target.kind: package` during the bridge period.

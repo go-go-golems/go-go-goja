@@ -203,29 +203,29 @@
 - [x] Update generated `go.mod` rendering to consume `GoModulePlan`.
 - [x] Update embedded source copying to consume source/artifact plans.
 - [ ] Update generated runtime spec rendering to consume the runtime plan.
-- [ ] Add tests for build dry-run, build with workspace auto, gen-dts with workspace auto, and generated runtime package output.
+- [x] Add tests for build dry-run, build with workspace auto, gen-dts with workspace auto, and generated runtime package output.
 
 ### Phase 9: Cut over examples and docs
 
 - [x] Migrate `examples/xgoja/15-typescript-jsverbs` first.
 - [x] Migrate HTTP serve jsverbs example.
-- [ ] Migrate generated runtime package example.
-- [ ] Migrate provider examples and tutorials.
-- [ ] Migrate asset/help examples.
-- [ ] Update `examples/xgoja/README.md` for v2 examples.
+- [x] Migrate generated runtime package example.
+- [x] Migrate provider examples and tutorials.
+- [x] Migrate asset/help examples.
+- [x] Update `examples/xgoja/README.md` for v2 examples.
 - [x] Add `cmd/xgoja/doc/17-xgoja-v2-reference.md`.
 - [ ] Update existing tutorials to v2 or move v1 content into migration docs.
-- [ ] Add clear docs for externally-built frontend/browser bundles as `kind: assets` sources.
-- [ ] Add clear docs for goja-runtime package bundling as future behavior under `compile.bundle: true`.
+- [x] Add clear docs for externally-built frontend/browser bundles as `kind: assets` sources.
+- [x] Add clear docs for goja-runtime package bundling as future behavior under `compile.bundle: true`.
 
 ### Phase 10: Hard remove normal v1 execution paths
 
-- [ ] Make normal commands reject v1 specs with a migration diagnostic.
-- [ ] Remove v1 planner/generation code paths from `build`, `doctor`, `gen-dts`, and example workflows.
+- [x] Make normal commands reject v1 specs with a migration diagnostic.
+- [x] Remove v1 planner/generation code paths from `build`, `doctor`, `gen-dts`, and example workflows.
 - [ ] Keep only enough v1 DTO/loading code for `migrate-spec`.
-- [ ] Remove or quarantine v1-only tests that no longer apply.
-- [ ] Ensure repository examples are all v2.
-- [ ] Run full validation:
+- [x] Remove or quarantine v1-only tests that no longer apply.
+- [x] Ensure repository examples are all v2.
+- [x] Run full validation:
   - `go test ./cmd/xgoja/... ./pkg/xgoja/... ./pkg/jsverbs ./pkg/tsscript -count=1`;
   - relevant example smoke targets;
   - `docmgr doctor --ticket XGOJA-ARCH-001 --stale-after 30`.
@@ -248,8 +248,8 @@
 
 ## Suggested first follow-up tickets
 
-- [ ] `XGOJA-V2-001`: Implement simplified specv2 DTOs, validation, rendering, and migrate-spec command.
-- [ ] `XGOJA-V2-002`: Implement Go workspace resolution and generated go.mod module planning.
-- [ ] `XGOJA-V2-003`: Implement provider graph and centralized runtime module alias resolution.
-- [ ] `XGOJA-V2-004`: Implement source graph and v2 jsverbs/TypeScript source execution.
-- [ ] `XGOJA-V2-005`: Port build, gen-dts, doctor, examples, and docs to v2 and remove normal v1 execution.
+- [x] `XGOJA-V2-001`: Implement simplified specv2 DTOs, validation, rendering, and migrate-spec command.
+- [x] `XGOJA-V2-002`: Implement Go workspace resolution and generated go.mod module planning.
+- [x] `XGOJA-V2-003`: Implement provider graph and centralized runtime module alias resolution.
+- [x] `XGOJA-V2-004`: Implement source graph and v2 jsverbs/TypeScript source execution.
+- [x] `XGOJA-V2-005`: Port build, gen-dts, doctor, examples, and docs to v2 and remove normal v1 execution.

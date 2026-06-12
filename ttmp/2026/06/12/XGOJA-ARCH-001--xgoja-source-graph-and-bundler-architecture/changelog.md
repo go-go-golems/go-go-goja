@@ -272,3 +272,13 @@ Step 24: preserved embedded jsverb/help/assets semantics in v2 artifact bridge a
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/migrate_v1.go — Embed migration mapping
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/v2_bridge.go — V2 artifact source dependency bridge
 
+
+## 2026-06-12
+
+Step 25: hard-cut normal xgoja commands and examples to native v2; gen-dts now defaults from dts artifact; generate/list-modules also use v2 bridge (commits aa8ffa6, aa0436b)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/v2_bridge.go — Normal command v2 loading and migration diagnostic
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/examples/xgoja/README.md — Example index updated for v2
+
