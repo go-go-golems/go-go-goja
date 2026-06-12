@@ -91,14 +91,13 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	buildSpec, compiledPlan, isV2, err := loadBuildSpecOrV2Plan(settings.File)
+	compiledPlan, err := loadV2Plan(settings.File)
 	if err != nil {
 		return err
 	}
-	if isV2 {
-		_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
-		applyV2DTSArtifactDefaults(&settings, compiledPlan)
-	}
+	buildSpec := generate.BuildSpecFromPlan(compiledPlan)
+	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
+	applyV2DTSArtifactDefaults(&settings, compiledPlan)
 
 	workDir := strings.TrimSpace(settings.WorkDir)
 	cleanup := func() {}
@@ -114,13 +113,7 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	defer cleanup()
 
-	goModules, err := goModulePlanForBuildSpec(buildSpec)
-	if err != nil {
-		return err
-	}
-	if compiledPlan != nil {
-		goModules = compiledPlan.GoModules
-	}
+	goModules := compiledPlan.GoModules
 	if strings.TrimSpace(settings.Output) == "" {
 		return fmt.Errorf("--out is required unless the v2 spec has a dts artifact with output")
 	}

@@ -6,17 +6,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/plan"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/specv2"
 )
 
-func TestLoadBuildSpecOrV2PlanRejectsLegacySpec(t *testing.T) {
+func TestLoadV2PlanRejectsLegacySpec(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "xgoja.yaml")
 	if err := os.WriteFile(specPath, []byte("name: legacy\n"), 0o644); err != nil {
 		t.Fatalf("write legacy spec: %v", err)
 	}
-	_, _, _, err := loadBuildSpecOrV2Plan(specPath)
+	_, err := loadV2Plan(specPath)
 	if err == nil || !strings.Contains(err.Error(), "xgoja migrate-spec") {
 		t.Fatalf("expected migration diagnostic, got %v", err)
 	}
@@ -37,7 +38,7 @@ func TestBuildSpecFromV2PlanMarksArtifactSourcesEmbedded(t *testing.T) {
 		},
 	}}
 
-	buildSpec := buildSpecFromV2Plan(compiled)
+	buildSpec := generate.BuildSpecFromPlan(compiled)
 	if len(buildSpec.JSVerbs) != 1 || !buildSpec.JSVerbs[0].Embed {
 		t.Fatalf("expected v2 binary source dependency to embed jsverbs, got %#v", buildSpec.JSVerbs)
 	}

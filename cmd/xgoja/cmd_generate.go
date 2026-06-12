@@ -85,13 +85,12 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	buildSpec, _, isV2, err := loadBuildSpecOrV2Plan(settings.File)
+	compiledPlan, err := loadV2Plan(settings.File)
 	if err != nil {
 		return err
 	}
-	if isV2 {
-		_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
-	}
+	buildSpec := generate.BuildSpecFromPlan(compiledPlan)
+	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
 	kind := strings.TrimSpace(buildSpec.Target.Kind)
 	if kind == "" {
 		kind = "xgoja"
