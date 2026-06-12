@@ -98,3 +98,12 @@ Added protoc-gen-goja-builder skeleton with option parsing and a golden test tha
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Golden test harness that creates a CodeGeneratorRequest and verifies generated Go output
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden — First generated Go companion file golden output
 
+
+## 2026-06-12
+
+Added the Phase 4 compile test that writes generated companion output into a temporary Go module and runs go test ./... (commit 43a13e4).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Compile-style generated companion file validation
+

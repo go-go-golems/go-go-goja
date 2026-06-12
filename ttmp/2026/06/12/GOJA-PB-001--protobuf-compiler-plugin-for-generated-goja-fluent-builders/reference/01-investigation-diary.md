@@ -19,7 +19,9 @@ RelatedFiles:
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/main.go
       Note: Phase 4 protoc plugin entry point (commit b3deaf4)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/main_test.go
-      Note: Phase 4 golden CodeGeneratorRequest harness (commit b3deaf4)
+      Note: |-
+        Phase 4 golden CodeGeneratorRequest harness (commit b3deaf4)
+        Phase 4 compile fixture test for generated companion output (commit 43a13e4)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden
       Note: Golden first generated Go companion file (commit b3deaf4)
     - Path: go-go-goja/modules/common.go
@@ -54,6 +56,7 @@ LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Continuation context for GOJA-PB-001 implementation and review.
 WhenToUse: Read before implementing protoc-gen-goja-builder or revising the builder generator design.
 ---
+
 
 
 
@@ -785,4 +788,92 @@ Task update command:
 
 ```bash
 docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 26,27,28,29,31,32
+```
+
+## Step 7: Add the Phase 4 generated-file compile test
+
+I closed the remaining Phase 4 test gap by adding a compile-style test for generated companion output. The test uses the existing synthetic `CodeGeneratorRequest`, writes the generated `fixture/v1/fixture_goja.pb.go` file into a temporary Go module, and runs `go test ./...` inside that module.
+
+This keeps Phase 4 honest: the golden test proves stable output, and the compile test proves that the generated skeleton is valid Go code in an isolated package.
+
+### Prompt Context
+
+**User prompt (verbatim):** "no need to open the browser at each time. Continue"
+
+**Assistant interpretation:** Continue implementation without repeatedly opening the rendered task page in the browser.
+
+**Inferred user intent:** The user wants uninterrupted coding progress and prefers less UI/browser ceremony.
+
+**Commit (code):** `43a13e469e9aca589f12d7e9fa5cd3e644018ab7` — "Add compile test for generated goja builder file"
+
+### What I did
+
+- Added `TestGeneratedCompanionFileCompiles` to `cmd/protoc-gen-goja-builder/main_test.go`.
+- The test:
+  - creates a synthetic protogen plugin request;
+  - runs `generator.Generate`;
+  - writes `go.mod` and the generated companion file into `t.TempDir()`;
+  - runs `go test ./...` in that temporary module.
+- Ran `gofmt` and `go test ./cmd/protoc-gen-goja-builder -count=1`.
+- Checked task 30.
+
+### Why
+
+- The previous Phase 4 test compared golden output, but did not prove the generated file could compile.
+- The first compile test is intentionally minimal because the skeleton output has no dependency on generated `protoc-gen-go` message types yet.
+
+### What worked
+
+- Focused validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	0.029s
+```
+
+- The pre-commit hook also passed full repository validation, including:
+
+```text
+ok  	github.com/go-go-golems/go-goja/cmd/protoc-gen-goja-builder	0.032s
+summary: (done in 4.76 seconds)
+✔️ lint (3.93 seconds)
+✔️ test (4.75 seconds)
+```
+
+### What didn't work
+
+- No failures occurred in this step.
+- The hook still emits noisy Dagger output from repository-wide `go generate ./...`; this is expected.
+
+### What I learned
+
+- A compile test can be useful before generated builder methods exist, but it will need to become stricter once generated code depends on `protoc-gen-go` message structs and `pkg/protogoja`.
+
+### What was tricky to build
+
+- The main constraint was keeping the compile test isolated. The test writes a small temporary module rather than adding generated fixture files to the repository tree.
+
+### What warrants a second pair of eyes
+
+- Review whether future compile tests should use an actual `.proto` fixture plus `protoc-gen-go`, or continue to construct descriptor requests in Go.
+
+### What should be done in the future
+
+- Once builder methods are emitted, upgrade the compile test so the temporary package includes minimal protobuf Go message output or uses an in-repo generated fixture package.
+
+### Code review instructions
+
+- Review `TestGeneratedCompanionFileCompiles` in `cmd/protoc-gen-goja-builder/main_test.go`.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+go test ./cmd/protoc-gen-goja-builder -count=1
+```
+
+### Technical details
+
+Task update command:
+
+```bash
+docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 30
 ```

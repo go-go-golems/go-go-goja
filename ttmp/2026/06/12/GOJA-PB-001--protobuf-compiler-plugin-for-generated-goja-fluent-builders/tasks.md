@@ -43,7 +43,7 @@
 - [x] Parse plugin options: `module_name`, `paths`, `emit_dts`, `emit_provider`, `register_global`, `builder_suffix`, and `message_ref_name`
 - [x] Generate one companion Go file per proto file with stable headers and imports
 - [x] Add golden test harness for plugin output
-- [ ] Add compile test for a tiny generated fixture package
+- [x] Add compile test for a tiny generated fixture package
 - [x] Run `go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1`
 - [x] Commit Phase 4 plugin skeleton
 
