@@ -158,7 +158,8 @@ The JavaScript route only declares the plan. The embedding Go application provid
 
 ```go
 host := gojahttp.NewHost(gojahttp.HostOptions{
-    Dev: true,
+    Dev:             true,
+    RejectRawRoutes: true,
     Auth: gojahttp.AuthOptions{
         Authenticator: myAuthenticator,
         Resources:     myResourceResolver,
@@ -166,6 +167,8 @@ host := gojahttp.NewHost(gojahttp.HostOptions{
     },
 })
 ```
+
+`RejectRawRoutes` is a production hardening option. It rejects any matched route that was registered without a `RoutePlan`, which keeps lower-level `Host.Register` callers from bypassing the planned auth framework.
 
 The host interfaces are deliberately small:
 
@@ -197,6 +200,7 @@ Planned routes fail closed. Missing services are host configuration errors; miss
 | Authorizer denies | 403 | Actor exists but lacks permission. |
 | Resource resolver returns `ErrNotFound` | 404 | Resource was not found or should not be disclosed. |
 | JavaScript handler throws after auth succeeds | 500 | Handler failed after the security envelope passed. |
+| Raw route matched while `RejectRawRoutes` is true | 500 | Host rejected an unplanned route before handler execution. |
 
 In development mode, 500-class errors include more detail. In production mode, responses stay generic.
 
@@ -210,6 +214,7 @@ In development mode, 500-class errors include more detail. In production mode, r
 | `.resource(...) expects value returned by express.resource(type)` | A plain JavaScript object was passed to `.resource(...)`. | Use `express.resource("project").idFromParam("projectId")`. |
 | `references missing route parameter` | A resource builder references a param that is not in the path. | Match the parameter name exactly, for example `/projects/:projectId` with `.idFromParam("projectId")`. |
 | Authenticated route returns 500 | The host is missing `Authenticator`, `Authorizer`, or required resource services. | Configure `gojahttp.HostOptions.Auth` in the embedding Go application. |
+| Raw route returns 500 with `raw routes disabled` | The host enabled `RejectRawRoutes` and matched a route registered through low-level `Host.Register`. | Register the route through planned Express builders or `Host.RegisterPlanned`. |
 | Handler cannot find query or session fields | Planned handlers receive `ctx`, not raw `req`. | Use `ctx.request.query` or `ctx.request.session`. |
 
 ## See Also

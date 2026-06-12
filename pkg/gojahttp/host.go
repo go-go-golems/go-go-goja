@@ -12,10 +12,11 @@ import (
 )
 
 type HostOptions struct {
-	Dev      bool
-	Renderer Renderer
-	Sessions SessionOptions
-	Auth     AuthOptions
+	Dev             bool
+	Renderer        Renderer
+	Sessions        SessionOptions
+	Auth            AuthOptions
+	RejectRawRoutes bool
 }
 
 type StaticMount struct {
@@ -25,17 +26,18 @@ type StaticMount struct {
 }
 
 type Host struct {
-	registry *Registry
-	dev      bool
-	renderer Renderer
-	owner    runtimeowner.RuntimeOwner
-	sessions *SessionManager
-	auth     AuthOptions
-	static   []StaticMount
+	registry        *Registry
+	dev             bool
+	renderer        Renderer
+	owner           runtimeowner.RuntimeOwner
+	sessions        *SessionManager
+	auth            AuthOptions
+	rejectRawRoutes bool
+	static          []StaticMount
 }
 
 func NewHost(opts HostOptions) *Host {
-	return &Host{registry: NewRegistry(), dev: opts.Dev, renderer: opts.Renderer, sessions: NewSessionManager(opts.Sessions), auth: opts.Auth}
+	return &Host{registry: NewRegistry(), dev: opts.Dev, renderer: opts.Renderer, sessions: NewSessionManager(opts.Sessions), auth: opts.Auth, rejectRawRoutes: opts.RejectRawRoutes}
 }
 
 func (h *Host) SetRuntime(owner runtimeowner.RuntimeOwner) { h.owner = owner }
@@ -126,6 +128,10 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if route.Plan == nil && h.rejectRawRoutes {
+		h.writeRawRouteRejected(w, route)
+		return
+	}
 	session, err := h.sessions.Session(w, r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -163,6 +169,14 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 	}
+}
+
+func (h *Host) writeRawRouteRejected(w http.ResponseWriter, route Route) {
+	message := "raw routes disabled"
+	if h.dev {
+		message = fmt.Sprintf("raw route %s %s rejected: register a planned route with .public() or auth", route.Method, route.Pattern)
+	}
+	http.Error(w, message, http.StatusInternalServerError)
 }
 
 func (h *Host) finishHandlerResult(vm *goja.Runtime, res *Response, result goja.Value) error {

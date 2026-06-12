@@ -175,6 +175,7 @@ Host applications configure planned auth through `gojahttp.HostOptions.Auth`:
 
 ```go
 host := gojahttp.NewHost(gojahttp.HostOptions{
+    RejectRawRoutes: true,
     Auth: gojahttp.AuthOptions{
         Authenticator: myAuthenticator,
         Resources:     myResourceResolver,
@@ -183,7 +184,7 @@ host := gojahttp.NewHost(gojahttp.HostOptions{
 })
 ```
 
-Missing auth services fail closed for authenticated planned routes. Missing credentials return 401, denied authorization returns 403, and resource lookup failures can return 404 via `gojahttp.ErrNotFound`.
+Missing auth services fail closed for authenticated planned routes. Missing credentials return 401, denied authorization returns 403, and resource lookup failures can return 404 via `gojahttp.ErrNotFound`. `RejectRawRoutes` rejects any matched low-level route that lacks a `RoutePlan`; enable it for production hosts that should only serve planned routes.
 
 ## Request object
 
@@ -231,6 +232,7 @@ res.end()
 | `.handle is not a function` | The route has not declared `.public()` or completed `.auth(...).allow(...)`. | Add the missing route-plan stage before `.handle(...)`. |
 | Authenticated route returns 500 | The Go host is missing auth services. | Configure `gojahttp.HostOptions.Auth` with an authenticator and authorizer. |
 | Handler cannot read `req.query` or `req.session` | Planned handlers receive `ctx`, not raw `req`. | Use `ctx.request.query` or `ctx.request.session`. |
+| Raw route returns `raw routes disabled` | `HostOptions.RejectRawRoutes` is enabled and a low-level route without a plan matched. | Register the route through the planned Express API or `Host.RegisterPlanned`. |
 
 ## See Also
 

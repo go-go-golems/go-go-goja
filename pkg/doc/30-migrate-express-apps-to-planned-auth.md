@@ -139,7 +139,8 @@ Public planned routes work without auth services. Protected planned routes fail 
 
 ```go
 host := gojahttp.NewHost(gojahttp.HostOptions{
-    Dev: true,
+    Dev:             true,
+    RejectRawRoutes: true,
     Auth: gojahttp.AuthOptions{
         Authenticator: myAuthenticator,
         Resources:     myResourceResolver,
@@ -148,7 +149,7 @@ host := gojahttp.NewHost(gojahttp.HostOptions{
 })
 ```
 
-For an initial test, use small in-memory implementations. The important contract is that `Authenticator` returns an `Actor`, `ResourceResolver` returns a `ResourceRef`, and `Authorizer` returns an `AuthorizationDecision` for the declared action.
+For an initial test, use small in-memory implementations. The important contract is that `Authenticator` returns an `Actor`, `ResourceResolver` returns a `ResourceRef`, and `Authorizer` returns an `AuthorizationDecision` for the declared action. `RejectRawRoutes` is optional during migration but useful once the route inventory is clean because it rejects any matched low-level route that lacks a `RoutePlan`.
 
 ## Step 7 — Run migration checks
 
@@ -224,6 +225,7 @@ app.route("REPORT", "/reports/:id")
 | Route returns 500 after migration | The route is protected but the Go host lacks auth services. | Configure `gojahttp.HostOptions.Auth`. |
 | `ctx.actor` is null | The route is public or authentication did not run. | Use `.auth(express.user().required())` for routes that need an actor. |
 | `ctx.resource("project")` returns null | The route did not declare that resource name. | Add `.resource(express.resource("project")...)` before `.allow(...)`. |
+| `raw routes disabled` | `RejectRawRoutes` is enabled and the host matched a route registered outside the planned route path. | Convert the route to Express planned builders or `Host.RegisterPlanned`. |
 | Parameter validation fails | The resource builder references a missing path parameter. | Make `.idFromParam(...)` and `.tenantFromParam(...)` match the route pattern exactly. |
 
 ## See Also

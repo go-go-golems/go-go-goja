@@ -56,6 +56,41 @@ func plannedTestRuntime(t *testing.T, host *gojahttp.Host, script string) goja.C
 	return fn
 }
 
+func TestRejectRawRoutesBlocksUnplannedRoute(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, RejectRawRoutes: true})
+	handler := plannedTestRuntime(t, host, `(function(_req, res) { res.send("should not run"); })`)
+	host.Register("GET", "/raw", handler)
+
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/raw", nil))
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "raw route GET /raw rejected") {
+		t.Fatalf("body=%s", rr.Body.String())
+	}
+	if strings.Contains(rr.Body.String(), "should not run") {
+		t.Fatalf("handler ran: %s", rr.Body.String())
+	}
+}
+
+func TestRejectRawRoutesStillAllowsPlannedRoute(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, RejectRawRoutes: true})
+	handler := plannedTestRuntime(t, host, `(function(_ctx, res) { res.json({ ok: true }); })`)
+	if err := host.RegisterPlanned(gojahttp.RoutePlan{Method: "GET", Pattern: "/planned", Security: gojahttp.SecuritySpec{Mode: gojahttp.SecurityModePublic}}, handler); err != nil {
+		t.Fatalf("RegisterPlanned: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/planned", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"ok":true`) {
+		t.Fatalf("body=%s", rr.Body.String())
+	}
+}
+
 func TestPlannedPublicRouteDispatchesSecureContext(t *testing.T) {
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
 	handler := plannedTestRuntime(t, host, `(function(ctx, res) { res.type("text/plain").send("hello " + ctx.params.name); })`)

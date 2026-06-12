@@ -15,8 +15,12 @@ type Route struct {
 }
 
 type RouteDescriptor struct {
-	Method  string `json:"method"`
-	Pattern string `json:"pattern"`
+	Method       string       `json:"method"`
+	Pattern      string       `json:"pattern"`
+	Planned      bool         `json:"planned"`
+	SecurityMode SecurityMode `json:"securityMode,omitempty"`
+	Action       string       `json:"action,omitempty"`
+	Name         string       `json:"name,omitempty"`
 }
 
 type Registry struct {
@@ -48,7 +52,14 @@ func (r *Registry) Routes() []RouteDescriptor {
 	defer r.mu.RUnlock()
 	out := make([]RouteDescriptor, 0, len(r.routes))
 	for _, route := range r.routes {
-		out = append(out, RouteDescriptor{Method: route.Method, Pattern: route.Pattern})
+		descriptor := RouteDescriptor{Method: route.Method, Pattern: route.Pattern}
+		if route.Plan != nil {
+			descriptor.Planned = true
+			descriptor.SecurityMode = route.Plan.Security.Mode
+			descriptor.Action = route.Plan.Action
+			descriptor.Name = route.Plan.Name
+		}
+		out = append(out, descriptor)
 	}
 	return out
 }

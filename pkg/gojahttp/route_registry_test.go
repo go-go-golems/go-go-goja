@@ -56,3 +56,31 @@ func TestHostRoutesDelegatesToRegistry(t *testing.T) {
 		t.Fatalf("Routes = %#v", routes)
 	}
 }
+
+func TestRegistryRoutesIncludesPlannedMetadata(t *testing.T) {
+	r := NewRegistry()
+	r.AddPlanned(RoutePlan{
+		Name:     "health",
+		Method:   "get",
+		Pattern:  "healthz",
+		Security: SecuritySpec{Mode: SecurityModePublic},
+		Action:   "",
+	}, nil)
+	r.AddPlanned(RoutePlan{
+		Method:   "post",
+		Pattern:  "/projects",
+		Security: SecuritySpec{Mode: SecurityModeUser},
+		Action:   "project.create",
+	}, nil)
+
+	routes := r.Routes()
+	if len(routes) != 2 {
+		t.Fatalf("Routes len = %d", len(routes))
+	}
+	if routes[0] != (RouteDescriptor{Method: "GET", Pattern: "/healthz", Planned: true, SecurityMode: SecurityModePublic, Name: "health"}) {
+		t.Fatalf("first route = %#v", routes[0])
+	}
+	if routes[1] != (RouteDescriptor{Method: "POST", Pattern: "/projects", Planned: true, SecurityMode: SecurityModeUser, Action: "project.create"}) {
+		t.Fatalf("second route = %#v", routes[1])
+	}
+}
