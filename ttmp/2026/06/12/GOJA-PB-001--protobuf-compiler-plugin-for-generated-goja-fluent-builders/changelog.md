@@ -118,3 +118,12 @@ Generated initial Phase 5 Goja protobuf APIs: per-message namespace functions, b
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Golden and compile tests for generated builder API output
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden — Expanded golden output with generated namespace and builder functions
 
+
+## 2026-06-12
+
+Added runtime Goja validation for generated protobuf builders, proving generated fluent calls build a concrete proto.Message recoverable through protogoja.MessageFromValue (commit db84885).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Runtime generated builder test written into the temporary compile fixture
+

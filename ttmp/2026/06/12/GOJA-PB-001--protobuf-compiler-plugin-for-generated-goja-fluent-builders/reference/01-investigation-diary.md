@@ -25,6 +25,7 @@ RelatedFiles:
         Phase 4 golden CodeGeneratorRequest harness (commit b3deaf4)
         Phase 4 compile fixture test for generated companion output (commit 43a13e4)
         Updated golden/compile harness for real generated builder code (commit 2100678)
+        Runtime generated builder test that exercises Goja calls and MessageFromValue extraction (commit db84885)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden
       Note: |-
         Golden first generated Go companion file (commit b3deaf4)
@@ -61,6 +62,7 @@ LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Continuation context for GOJA-PB-001 implementation and review.
 WhenToUse: Read before implementing protoc-gen-goja-builder or revising the builder generator design.
 ---
+
 
 
 
@@ -1005,4 +1007,106 @@ Task update command:
 
 ```bash
 docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 33,34,36
+```
+
+## Step 9: Validate generated builders through Goja runtime calls
+
+I added a runtime test for generated builder output. The compile fixture now writes an additional temporary Go test file next to copied `jsmodule.pb.go` and generated `jsmodule_goja.pb.go`, then runs `go test -mod=mod .` inside that temporary package. The test constructs a generated namespace, calls `builder()`, invokes generated fluent field setters through Goja function values, calls `build()`, and extracts the concrete `*ModuleManifest` through `protogoja.MessageFromValue`.
+
+This proves the first generated builder API is not only syntactically valid Go. It also works as a Goja-facing API and preserves the intended direct protobuf extraction path.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 7)
+
+**Assistant interpretation:** Continue beyond generated code compilation into executable generated builder validation.
+
+**Inferred user intent:** The user wants steady progress toward usable generated protobuf builders, with commits and diary notes after each meaningful increment.
+
+**Commit (code):** `db848858e8486bd2f21e700274e261b4746a214c` — "Test generated goja protobuf builders at runtime"
+
+### What I did
+
+- Extended `TestGeneratedCompanionFileCompiles` in `cmd/protoc-gen-goja-builder/main_test.go` to write `generated_runtime_test.go` into the temporary package.
+- The generated temporary test:
+  - creates a `goja.Runtime`;
+  - calls `NewModuleManifestGojaNamespace(vm)`;
+  - obtains and calls the generated `builder()` function;
+  - calls generated fluent setters `moduleName("demo")` and `version("v1")`;
+  - calls generated `build()`;
+  - extracts the built protobuf message with `protogoja.MessageFromValue`;
+  - checks the concrete `*ModuleManifest` fields;
+  - verifies the generated namespace `is(value)` predicate recognizes the built value.
+- Ran:
+
+```bash
+go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+- Checked tasks 38 and 39.
+
+### Why
+
+- Compile tests alone do not prove generated Goja functions behave correctly when invoked through Goja.
+- This test validates the central design contract: generated builders produce `ProtoMessage` values that consuming modules can extract without JSON/protojson conversion.
+
+### What worked
+
+- Focused validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	0.456s
+ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	0.005s
+```
+
+- The pre-commit hook passed full repository lint/generate/test validation:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	0.501s
+summary: (done in 4.53 seconds)
+✔️ lint (3.53 seconds)
+✔️ test (4.52 seconds)
+```
+
+### What didn't work
+
+- No new failures occurred in this step.
+
+### What I learned
+
+- Testing generated output through a temporary package gives a good middle ground: no generated fixture files need to be committed, but the generated code is compiled and executed against real protobuf Go types.
+- The runtime test confirmed that returning Goja builder objects and calling their methods through `goja.AssertFunction` exercises the same boundary JavaScript code will use.
+
+### What was tricky to build
+
+- The temporary test has to live in the generated package (`package contract`) so it can call the generated functions directly alongside the copied protobuf Go types.
+- The temporary module needs a `replace` directive back to the current checkout so generated code imports the local `pkg/protogoja` package under test.
+
+### What warrants a second pair of eyes
+
+- Review whether the generated runtime fixture should also test builder `clone()`, `clear<Field>()`, repeated fields, message fields, and enum fields before Phase 5 is considered complete.
+- Review whether temporary generated tests should be split into a named fixture helper package as the test surface grows.
+
+### What should be done in the future
+
+- Add enum exports.
+- Add schema/prototype tokens.
+- Add generated runtime tests for repeated fields, message fields, and builder-ref composition.
+
+### Code review instructions
+
+- Review `generatedRuntimeTestSource()` in `cmd/protoc-gen-goja-builder/main_test.go`.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+### Technical details
+
+Task update command:
+
+```bash
+docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 38,39
 ```

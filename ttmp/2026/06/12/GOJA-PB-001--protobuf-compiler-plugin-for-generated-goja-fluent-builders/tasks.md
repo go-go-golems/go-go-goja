@@ -54,8 +54,8 @@
 - [ ] Generate enum exports and enum setter conversion support
 - [x] Generate nested message support and stable names for nested builders
 - [ ] Generate schema/prototype tokens consumable by other Goja modules
-- [ ] Add runtime Goja tests requiring a generated fixture module and building concrete proto messages
-- [ ] Run generated fixture tests and `go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1`
+- [x] Add runtime Goja tests requiring a generated fixture module and building concrete proto messages
+- [x] Run generated fixture tests and `go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1`
 - [ ] Commit Phase 5 generated fluent builders
 
 ## Phase 6 — Generated TypeScript declarations and xgoja DTS integration
