@@ -357,3 +357,12 @@ Step 32: pruned stale buildspec-era xgoja tutorials from bundled help and left v
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md — Deleted stale buildspec-era tutorial
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/08-playbook-adding-xgoja-support.md — Deleted stale buildspec-era playbook
 
+
+## 2026-06-12
+
+Step 33: updated xgoja build output hint to show the actual go build -buildvcs=false command (commit 4c5c95c)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/cmd_build.go — Build hint now matches buildexec.GoBuild VCS stamping behavior
+

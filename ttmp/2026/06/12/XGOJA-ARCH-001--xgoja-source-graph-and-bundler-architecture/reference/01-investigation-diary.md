@@ -2942,3 +2942,62 @@ The old tutorials were not merely stale snippets; several were long-form pages w
 
 - `cmd/xgoja/doc/doc.go` embeds `*.md`, so deleting stale markdown files removes them from bundled help automatically.
 - Remaining top-level xgoja docs are intentionally compact: overview, user guide, legacy pointer, migration/API notes, v2 migration, and v2 reference.
+
+
+## Step 33: Show the buildvcs flag in the build hint
+
+I updated the informational `xgoja build` message so it matches the actual generated build command. The implementation already builds generated workspaces with `go build -buildvcs=false`; the printed hint now says the same thing.
+
+This removes a small source of confusion when users inspect a kept work directory and manually rerun the generated build.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead. Are we ready to PR after that?"
+
+**Assistant interpretation:** Apply the build hint cleanup and assess whether the accumulated branch is ready for pull request review.
+
+**Inferred user intent:** Make the last polish change, then get a readiness/risk summary before opening a PR.
+
+**Commit (code):** 4c5c95c0a5712d2f2ef6a31d9173422a6ab6c03f — "xgoja: show buildvcs flag in build hint"
+
+### What I did
+
+- Updated `cmd/xgoja/cmd_build.go` so the generated workspace hint prints `go build -buildvcs=false .`.
+
+### Why
+
+- `buildexec.GoBuild` already uses `-buildvcs=false`; the user-facing hint should not suggest a different command.
+
+### What worked
+
+- `go test ./cmd/xgoja -count=1` passed before committing.
+- Full pre-commit passed for the commit, including lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The VCS stamping mitigation is narrow and explicit: it is not a global `GOFLAGS`; it is applied only to the generated binary build command.
+
+### What was tricky to build
+
+- N/A
+
+### What warrants a second pair of eyes
+
+- Review whether `go run .` used by DTS sidecars should also disable VCS stamping. It has not failed in validation, and `go run` does not produce the final generated binary artifact, so I left it unchanged.
+
+### What should be done in the future
+
+- N/A
+
+### Code review instructions
+
+- Review `cmd/xgoja/internal/buildexec/buildexec.go` for the actual `-buildvcs=false` flag.
+- Review `cmd/xgoja/cmd_build.go` for the matching hint.
+
+### Technical details
+
+- The actual command is assembled as `[]string{"build", "-buildvcs=false", "-o", output, "."}` in `buildexec.GoBuild`.
