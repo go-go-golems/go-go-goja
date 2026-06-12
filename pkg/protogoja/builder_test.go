@@ -7,6 +7,10 @@ import (
 	contract "github.com/go-go-golems/go-go-goja/pkg/hashiplugin/contract"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/dynamicpb"
 )
 
 func TestBuilderRefSetBuildCloneAndClear(t *testing.T) {
@@ -91,6 +95,44 @@ func TestBuilderRefAcceptsBuilderRefsForMessageFields(t *testing.T) {
 	require.ErrorContains(t, err, "expected hashiplugin.contract.v1.ExportSpec ProtoMessage or builder")
 }
 
+func TestBuilderRefMapHelpersObjectMapPutDeleteAndClear(t *testing.T) {
+	vm := goja.New()
+	builder, field := newDynamicMapBuilder(t)
+
+	_, err := vm.RunString(`globalThis.objectInput = { alpha: 1, beta: "2" }`)
+	require.NoError(t, err)
+	require.NoError(t, builder.Set(vm, field, vm.Get("objectInput")))
+	require.Equal(t, map[string]int64{"alpha": 1, "beta": 2}, dynamicStringInt64Map(t, builder.Build(), field))
+
+	_, err = vm.RunString(`globalThis.mapInput = new Map([["gamma", 3], ["delta", "4"]])`)
+	require.NoError(t, err)
+	require.NoError(t, builder.Set(vm, field, vm.Get("mapInput")))
+	require.Equal(t, map[string]int64{"gamma": 3, "delta": 4}, dynamicStringInt64Map(t, builder.Build(), field))
+
+	require.NoError(t, builder.Put(vm, field, vm.ToValue("epsilon"), vm.ToValue(5)))
+	require.Equal(t, map[string]int64{"gamma": 3, "delta": 4, "epsilon": 5}, dynamicStringInt64Map(t, builder.Build(), field))
+
+	require.NoError(t, builder.Delete(vm, field, vm.ToValue("gamma")))
+	require.NoError(t, builder.Delete(vm, field, vm.ToValue("missing")))
+	require.Equal(t, map[string]int64{"delta": 4, "epsilon": 5}, dynamicStringInt64Map(t, builder.Build(), field))
+
+	require.NoError(t, builder.Clear(field))
+	require.Empty(t, dynamicStringInt64Map(t, builder.Build(), field))
+}
+
+func TestBuilderRefMapSetFailureDoesNotClearExistingEntries(t *testing.T) {
+	vm := goja.New()
+	builder, field := newDynamicMapBuilder(t)
+
+	require.NoError(t, builder.Put(vm, field, vm.ToValue("existing"), vm.ToValue(7)))
+	_, err := vm.RunString(`globalThis.invalidMap = new Map([["bad", {}]])`)
+	require.NoError(t, err)
+
+	err = builder.Set(vm, field, vm.Get("invalidMap"))
+	require.ErrorContains(t, err, "expected integer")
+	require.Equal(t, map[string]int64{"existing": 7}, dynamicStringInt64Map(t, builder.Build(), field))
+}
+
 func TestBuilderRefEnumSetters(t *testing.T) {
 	vm := goja.New()
 	builder, err := NewBuilder(&contract.ExportSpec{})
@@ -147,4 +189,72 @@ func TestNewBuilderRejectsNilAndBuildClone(t *testing.T) {
 	require.True(t, proto.Equal(first, second))
 	first.(*contract.ModuleManifest).ModuleName = "changed"
 	require.Equal(t, "demo", second.(*contract.ModuleManifest).GetModuleName())
+}
+
+func newDynamicMapBuilder(t *testing.T) (*BuilderRef, protoreflect.FieldDescriptor) {
+	t.Helper()
+	labelOptional := descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL
+	labelRepeated := descriptorpb.FieldDescriptorProto_LABEL_REPEATED
+	typeMessage := descriptorpb.FieldDescriptorProto_TYPE_MESSAGE
+	typeString := descriptorpb.FieldDescriptorProto_TYPE_STRING
+	typeInt64 := descriptorpb.FieldDescriptorProto_TYPE_INT64
+
+	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
+		Syntax:  proto.String("proto3"),
+		Name:    proto.String("protogoja_map_test.proto"),
+		Package: proto.String("protogoja.test"),
+		MessageType: []*descriptorpb.DescriptorProto{
+			{
+				Name: proto.String("MapMessage"),
+				Field: []*descriptorpb.FieldDescriptorProto{
+					{
+						Name:     proto.String("labels"),
+						JsonName: proto.String("labels"),
+						Number:   proto.Int32(1),
+						Label:    &labelRepeated,
+						Type:     &typeMessage,
+						TypeName: proto.String(".protogoja.test.MapMessage.LabelsEntry"),
+					},
+				},
+				NestedType: []*descriptorpb.DescriptorProto{
+					{
+						Name: proto.String("LabelsEntry"),
+						Field: []*descriptorpb.FieldDescriptorProto{
+							{
+								Name:     proto.String("key"),
+								JsonName: proto.String("key"),
+								Number:   proto.Int32(1),
+								Label:    &labelOptional,
+								Type:     &typeString,
+							},
+							{
+								Name:     proto.String("value"),
+								JsonName: proto.String("value"),
+								Number:   proto.Int32(2),
+								Label:    &labelOptional,
+								Type:     &typeInt64,
+							},
+						},
+						Options: &descriptorpb.MessageOptions{MapEntry: proto.Bool(true)},
+					},
+				},
+			},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	messageDesc := file.Messages().ByName("MapMessage")
+	builder, err := NewBuilder(dynamicpb.NewMessage(messageDesc))
+	require.NoError(t, err)
+	return builder, messageDesc.Fields().ByName("labels")
+}
+
+func dynamicStringInt64Map(t *testing.T, msg proto.Message, field protoreflect.FieldDescriptor) map[string]int64 {
+	t.Helper()
+	out := map[string]int64{}
+	msg.ProtoReflect().Get(field).Map().Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
+		out[key.String()] = value.Int()
+		return true
+	})
+	return out
 }

@@ -94,6 +94,23 @@ func (b *BuilderRef) Put(vm *goja.Runtime, field protoreflect.FieldDescriptor, k
 	return nil
 }
 
+// Delete removes one entry from a map field. Deleting a missing key is a no-op,
+// matching protobuf map Clear(key) semantics.
+func (b *BuilderRef) Delete(vm *goja.Runtime, field protoreflect.FieldDescriptor, key goja.Value) error {
+	if err := b.validateField(field); err != nil {
+		return err
+	}
+	if !field.IsMap() {
+		return fmt.Errorf("protogoja: %s is not a map field", field.FullName())
+	}
+	mapKey, err := mapKeyForField(vm, field.MapKey(), key)
+	if err != nil {
+		return err
+	}
+	b.msg.ProtoReflect().Mutable(field).Map().Clear(mapKey)
+	return nil
+}
+
 // Clear clears field from the builder message.
 func (b *BuilderRef) Clear(field protoreflect.FieldDescriptor) error {
 	if err := b.validateField(field); err != nil {
@@ -196,30 +213,99 @@ func (b *BuilderRef) setList(vm *goja.Runtime, field protoreflect.FieldDescripto
 }
 
 func (b *BuilderRef) setMap(vm *goja.Runtime, field protoreflect.FieldDescriptor, value goja.Value) error {
-	if vm == nil {
-		return fmt.Errorf("protogoja: nil runtime")
+	entries, err := mapEntries(vm, field, value)
+	if err != nil {
+		return err
 	}
-	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
-		return fmt.Errorf("protogoja: %s expects an object", field.FullName())
-	}
-	obj := value.ToObject(vm)
 	pbMap := b.msg.ProtoReflect().Mutable(field).Map()
 	pbMap.Range(func(key protoreflect.MapKey, _ protoreflect.Value) bool {
 		pbMap.Clear(key)
 		return true
 	})
+	for _, entry := range entries {
+		pbMap.Set(entry.key, entry.value)
+	}
+	return nil
+}
+
+type mapEntry struct {
+	key   protoreflect.MapKey
+	value protoreflect.Value
+}
+
+func mapEntries(vm *goja.Runtime, field protoreflect.FieldDescriptor, value goja.Value) ([]mapEntry, error) {
+	if vm == nil {
+		return nil, fmt.Errorf("protogoja: nil runtime")
+	}
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return nil, fmt.Errorf("protogoja: %s expects an object or Map", field.FullName())
+	}
+	if entries, ok, err := jsMapEntries(vm, field, value); ok || err != nil {
+		return entries, err
+	}
+	return objectMapEntries(vm, field, value)
+}
+
+func objectMapEntries(vm *goja.Runtime, field protoreflect.FieldDescriptor, value goja.Value) ([]mapEntry, error) {
+	obj := value.ToObject(vm)
+	out := make([]mapEntry, 0, len(obj.Keys()))
 	for _, rawKey := range obj.Keys() {
 		key, err := mapKeyForField(vm, field.MapKey(), vm.ToValue(rawKey))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		converted, err := valueForField(vm, field.MapValue(), obj.Get(rawKey))
 		if err != nil {
-			return err
+			return nil, err
 		}
-		pbMap.Set(key, converted)
+		out = append(out, mapEntry{key: key, value: converted})
 	}
-	return nil
+	return out, nil
+}
+
+func jsMapEntries(vm *goja.Runtime, field protoreflect.FieldDescriptor, value goja.Value) ([]mapEntry, bool, error) {
+	obj := value.ToObject(vm)
+	entriesFn, ok := goja.AssertFunction(obj.Get("entries"))
+	if !ok || goja.IsUndefined(obj.Get("size")) {
+		return nil, false, nil
+	}
+	iterator, err := entriesFn(obj)
+	if err != nil {
+		return nil, true, fmt.Errorf("protogoja: %s read Map entries: %w", field.FullName(), err)
+	}
+	arrayCtor := vm.Get("Array").ToObject(vm)
+	fromFn, ok := goja.AssertFunction(arrayCtor.Get("from"))
+	if !ok {
+		return nil, true, fmt.Errorf("protogoja: Array.from is not available")
+	}
+	pairsValue, err := fromFn(arrayCtor, iterator)
+	if err != nil {
+		return nil, true, fmt.Errorf("protogoja: %s materialize Map entries: %w", field.FullName(), err)
+	}
+	pairs, err := arrayElements(vm, field.FullName(), pairsValue)
+	if err != nil {
+		return nil, true, err
+	}
+	out := make([]mapEntry, 0, len(pairs))
+	for i, pairValue := range pairs {
+		pair, err := arrayElements(vm, field.FullName(), pairValue)
+		if err != nil {
+			return nil, true, fmt.Errorf("protogoja: %s Map entry %d: %w", field.FullName(), i, err)
+		}
+		if len(pair) != 2 {
+			return nil, true, fmt.Errorf("protogoja: %s Map entry %d expected [key, value], got length %d", field.FullName(), i, len(pair))
+		}
+		key, err := mapKeyForField(vm, field.MapKey(), pair[0])
+		if err != nil {
+			return nil, true, err
+		}
+		converted, err := valueForField(vm, field.MapValue(), pair[1])
+		if err != nil {
+			return nil, true, err
+		}
+		out = append(out, mapEntry{key: key, value: converted})
+	}
+	return out, true, nil
 }
 
 func arrayElements(vm *goja.Runtime, name protoreflect.FullName, value goja.Value) ([]goja.Value, error) {
