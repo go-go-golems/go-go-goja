@@ -133,6 +133,38 @@ func TestBuilderRefMapSetFailureDoesNotClearExistingEntries(t *testing.T) {
 	require.Equal(t, map[string]int64{"existing": 7}, dynamicStringInt64Map(t, builder.Build(), field))
 }
 
+func TestBuilderRefOneofHelpersWhichAndClear(t *testing.T) {
+	vm := goja.New()
+	builder, oneof, textField, countField := newDynamicOneofBuilder(t)
+
+	selected, err := builder.WhichOneof(oneof)
+	require.NoError(t, err)
+	require.Nil(t, selected)
+
+	require.NoError(t, builder.Set(vm, textField, vm.ToValue("hello")))
+	selected, err = builder.WhichOneof(oneof)
+	require.NoError(t, err)
+	require.Equal(t, textField.FullName(), selected.FullName())
+
+	require.NoError(t, builder.Set(vm, countField, vm.ToValue(42)))
+	selected, err = builder.WhichOneof(oneof)
+	require.NoError(t, err)
+	require.Equal(t, countField.FullName(), selected.FullName())
+	require.False(t, builder.Build().ProtoReflect().Has(textField))
+	require.True(t, builder.Build().ProtoReflect().Has(countField))
+
+	require.NoError(t, builder.ClearOneof(oneof))
+	selected, err = builder.WhichOneof(oneof)
+	require.NoError(t, err)
+	require.Nil(t, selected)
+	require.False(t, builder.Build().ProtoReflect().Has(countField))
+
+	otherBuilder, err := NewBuilder(&contract.ModuleManifest{})
+	require.NoError(t, err)
+	_, err = otherBuilder.WhichOneof(oneof)
+	require.ErrorContains(t, err, "does not belong")
+}
+
 func TestBuilderRefEnumSetters(t *testing.T) {
 	vm := goja.New()
 	builder, err := NewBuilder(&contract.ExportSpec{})
@@ -257,4 +289,52 @@ func dynamicStringInt64Map(t *testing.T, msg proto.Message, field protoreflect.F
 		return true
 	})
 	return out
+}
+
+func newDynamicOneofBuilder(t *testing.T) (*BuilderRef, protoreflect.OneofDescriptor, protoreflect.FieldDescriptor, protoreflect.FieldDescriptor) {
+	t.Helper()
+	labelOptional := descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL
+	typeString := descriptorpb.FieldDescriptorProto_TYPE_STRING
+	typeInt32 := descriptorpb.FieldDescriptorProto_TYPE_INT32
+
+	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
+		Syntax:  proto.String("proto3"),
+		Name:    proto.String("protogoja_oneof_test.proto"),
+		Package: proto.String("protogoja.test"),
+		MessageType: []*descriptorpb.DescriptorProto{
+			{
+				Name: proto.String("OneofMessage"),
+				OneofDecl: []*descriptorpb.OneofDescriptorProto{
+					{Name: proto.String("choice")},
+				},
+				Field: []*descriptorpb.FieldDescriptorProto{
+					{
+						Name:       proto.String("text"),
+						JsonName:   proto.String("text"),
+						Number:     proto.Int32(1),
+						Label:      &labelOptional,
+						Type:       &typeString,
+						OneofIndex: proto.Int32(0),
+					},
+					{
+						Name:       proto.String("count"),
+						JsonName:   proto.String("count"),
+						Number:     proto.Int32(2),
+						Label:      &labelOptional,
+						Type:       &typeInt32,
+						OneofIndex: proto.Int32(0),
+					},
+				},
+			},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	messageDesc := file.Messages().ByName("OneofMessage")
+	builder, err := NewBuilder(dynamicpb.NewMessage(messageDesc))
+	require.NoError(t, err)
+	return builder,
+		messageDesc.Oneofs().ByName("choice"),
+		messageDesc.Fields().ByName("text"),
+		messageDesc.Fields().ByName("count")
 }

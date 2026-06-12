@@ -120,6 +120,28 @@ func (b *BuilderRef) Clear(field protoreflect.FieldDescriptor) error {
 	return nil
 }
 
+// ClearOneof clears whichever field is currently selected for oneof. Clearing an
+// unset oneof is a no-op.
+func (b *BuilderRef) ClearOneof(oneof protoreflect.OneofDescriptor) error {
+	if err := b.validateOneof(oneof); err != nil {
+		return err
+	}
+	selected := b.msg.ProtoReflect().WhichOneof(oneof)
+	if selected != nil {
+		b.msg.ProtoReflect().Clear(selected)
+	}
+	return nil
+}
+
+// WhichOneof returns the currently selected field for oneof, or nil when no
+// field in the oneof is set.
+func (b *BuilderRef) WhichOneof(oneof protoreflect.OneofDescriptor) (protoreflect.FieldDescriptor, error) {
+	if err := b.validateOneof(oneof); err != nil {
+		return nil, err
+	}
+	return b.msg.ProtoReflect().WhichOneof(oneof), nil
+}
+
 // Build returns a clone of the current builder state.
 func (b *BuilderRef) Build() proto.Message {
 	if b == nil || b.msg == nil {
@@ -191,6 +213,20 @@ func (b *BuilderRef) validateField(field protoreflect.FieldDescriptor) error {
 	}
 	if field.ContainingMessage().FullName() != b.desc.FullName() {
 		return fmt.Errorf("protogoja: field %s does not belong to %s", field.FullName(), b.desc.FullName())
+	}
+	return nil
+}
+
+func (b *BuilderRef) validateOneof(oneof protoreflect.OneofDescriptor) error {
+	if b == nil || b.msg == nil || b.desc == nil {
+		return fmt.Errorf("protogoja: nil builder")
+	}
+	if oneof == nil {
+		return fmt.Errorf("protogoja: nil oneof descriptor")
+	}
+	parent, ok := oneof.Parent().(protoreflect.MessageDescriptor)
+	if !ok || parent.FullName() != b.desc.FullName() {
+		return fmt.Errorf("protogoja: oneof %s does not belong to %s", oneof.FullName(), b.desc.FullName())
 	}
 	return nil
 }
