@@ -16,6 +16,7 @@ RelatedFiles:
       Note: |-
         Phase 4 companion Go file generator (commit b3deaf4)
         Phase 5 generated namespace and builder APIs (commit 2100678)
+        Phase 5 enum export generation (commit 5495137)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/options.go
       Note: Phase 4 plugin option parsing (commit b3deaf4)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/main.go
@@ -26,10 +27,12 @@ RelatedFiles:
         Phase 4 compile fixture test for generated companion output (commit 43a13e4)
         Updated golden/compile harness for real generated builder code (commit 2100678)
         Runtime generated builder test that exercises Goja calls and MessageFromValue extraction (commit db84885)
+        Generated enum runtime validation (commit 5495137)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden
       Note: |-
         Golden first generated Go companion file (commit b3deaf4)
         Phase 5 golden generated builder output (commit 2100678)
+        Generated enum golden output (commit 5495137)
     - Path: go-go-goja/modules/common.go
       Note: |-
         Native module shape studied for generated module design
@@ -62,6 +65,7 @@ LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Continuation context for GOJA-PB-001 implementation and review.
 WhenToUse: Read before implementing protoc-gen-goja-builder or revising the builder generator design.
 ---
+
 
 
 
@@ -1109,4 +1113,104 @@ Task update command:
 
 ```bash
 docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 38,39
+```
+
+## Step 10: Generate enum exports and validate enum setters
+
+I added generated Goja enum export objects. For each protobuf enum, the generator now emits `New<Enum>GojaEnum(vm)`, returning an object with a `typeName` property and one numeric property per enum value name. Generated builder setters already delegate enum conversion to `pkg/protogoja`, so this step validates that generated enum values can be passed directly into generated enum field setters.
+
+This closes task 35 for the current Phase 5 scope. The enum export shape is intentionally simple: string-named constants with numeric values. Richer TypeScript enum declarations will come in the Phase 6 DTS work.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue from the previous Phase 5 checkpoint, focusing on the remaining Phase 5 gaps.
+
+**Inferred user intent:** The user wants sustained implementation progress through enum exports and schema/prototype token generation, with commits and diary updates.
+
+**Commit (code):** `54951375cecca612330e92f3c5b4f8395d1a72a4` — "Generate goja protobuf enum exports"
+
+### What I did
+
+- Added `emitEnumAPI` to `cmd/protoc-gen-goja-builder/internal/generator/generator.go`.
+- Generated top-level and nested enum export functions.
+- Extended the synthetic golden fixture with `ExampleKind` so golden output includes enum exports.
+- Extended the generated temporary runtime test to:
+  - call `NewExportKindGojaEnum(vm)`;
+  - create a generated `ExportSpec` builder;
+  - call `kind(enumObj.Get("EXPORT_KIND_FUNCTION"))`;
+  - build the message;
+  - verify the resulting `*ExportSpec` has `ExportKind_EXPORT_KIND_FUNCTION`.
+- Regenerated the golden file with `UPDATE_GOLDEN=1`.
+- Ran:
+
+```bash
+UPDATE_GOLDEN=1 go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+### Why
+
+- Generated JavaScript modules need exported enum values so authors do not have to hand-type numeric enum constants.
+- The existing runtime enum conversion already accepts numbers and enum names; generated enum objects exercise the numeric path through a real generated setter.
+
+### What worked
+
+- Focused validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-goja/cmd/protoc-gen-goja-builder	0.790s
+ok  	github.com/go-go-golems/go-goja/pkg/protogoja	0.010s
+```
+
+- The pre-commit hook passed lint and full repository validation:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	0.659s
+summary: (done in 5.69 seconds)
+✔️ lint (4.56 seconds)
+✔️ test (5.68 seconds)
+```
+
+### What didn't work
+
+- No new failures occurred in this step.
+
+### What I learned
+
+- The simplest enum export is enough for setter integration: a Goja object with named numeric properties works with existing `BuilderRef.Set` enum conversion.
+- The compile/runtime fixture remains useful because it uses the real `ExportKind` enum from the hashiplugin contract package.
+
+### What was tricky to build
+
+- The generator has to recurse through nested messages and emit nested enums at the correct point to avoid missing nested enum declarations.
+- The runtime test needed to verify generated enum values through the generated builder path rather than only checking object properties.
+
+### What warrants a second pair of eyes
+
+- Review whether enum export objects should include reverse maps or helper methods in addition to numeric constants.
+- Review whether enum object properties should be read-only/non-enumerable or ordinary enumerable properties. They are ordinary properties for now.
+
+### What should be done in the future
+
+- Generate TypeScript declarations for enum export objects in Phase 6.
+- Add collision handling for enum names that overlap with future helper methods.
+
+### Code review instructions
+
+- Review `emitEnumAPI` in `cmd/protoc-gen-goja-builder/internal/generator/generator.go`.
+- Review `TestGeneratedExportSpecEnumSetterRuntime` inside `generatedRuntimeTestSource()` in `cmd/protoc-gen-goja-builder/main_test.go`.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+### Technical details
+
+Task update command:
+
+```bash
+docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 35
 ```

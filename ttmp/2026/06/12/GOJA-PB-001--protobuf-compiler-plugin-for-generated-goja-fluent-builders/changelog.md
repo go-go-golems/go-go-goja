@@ -127,3 +127,14 @@ Added runtime Goja validation for generated protobuf builders, proving generated
 
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Runtime generated builder test written into the temporary compile fixture
 
+
+## 2026-06-12
+
+Generated Goja enum export objects and validated enum setter conversion through generated runtime tests (commit 5495137).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Generates New<Enum>GojaEnum objects with enum value properties
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Runtime test passes generated enum values into generated enum field setters
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden — Golden enum export output
+
