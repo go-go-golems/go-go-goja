@@ -53,7 +53,7 @@
 - [x] Generate builder prototypes with fluent field methods and clear/build/clone helpers
 - [x] Generate enum exports and enum setter conversion support
 - [x] Generate nested message support and stable names for nested builders
-- [ ] Generate schema/prototype tokens consumable by other Goja modules
+- [x] Generate schema/prototype tokens consumable by other Goja modules
 - [x] Add runtime Goja tests requiring a generated fixture module and building concrete proto messages
 - [x] Run generated fixture tests and `go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1`
 - [ ] Commit Phase 5 generated fluent builders

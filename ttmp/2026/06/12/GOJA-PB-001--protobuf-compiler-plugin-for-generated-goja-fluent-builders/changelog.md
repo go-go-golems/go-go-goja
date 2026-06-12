@@ -138,3 +138,15 @@ Generated Goja enum export objects and validated enum setter conversion through 
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Runtime test passes generated enum values into generated enum field setters
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden — Golden enum export output
 
+
+## 2026-06-12
+
+Added generated message prototype tokens: protogoja namespace prototype refs, generated namespace attachment, and runtime extraction validation (commit bcaf348).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Generated namespace prototype attachment
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Generated runtime test extracts prototype tokens
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/prototype.go — Runtime MessagePrototypeRef and hidden namespace token attachment
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/prototype_test.go — Prototype token extraction and clone tests
+
