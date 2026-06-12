@@ -62,14 +62,14 @@ Goal: provide an opinionated browser login/logout flow using Keycloak as IdP and
 
 Goal: provide app-owned user, tenant, membership, resource, and action contracts without embedding a full policy engine.
 
-- [ ] Create `pkg/gojahttp/auth/appauth` package.
-- [ ] Define user, tenant, membership, resource, and action model types.
-- [ ] Define `UserStore`, `MembershipStore`, and `ResourceStore` interfaces.
-- [ ] Implement resource resolver helpers that map `gojahttp.ResourceRequest` into app resource lookups.
-- [ ] Implement explicit Go authorizer helpers with deny-by-default behavior.
-- [ ] Add action constants for common example actions.
-- [ ] Add negative authorization tests for cross-user, cross-tenant, missing membership, unknown action, missing resource, and backend error cases.
-- [ ] Document when to graduate from explicit Go checks to Casbin/OpenFGA/OPA/Keycloak Authorization Services.
+- [x] Create `pkg/gojahttp/auth/appauth` package.
+- [x] Define user, tenant, membership, resource, and action model types.
+- [x] Define `UserStore`, `MembershipStore`, and `ResourceStore` interfaces.
+- [x] Implement resource resolver helpers that map `gojahttp.ResourceRequest` into app resource lookups.
+- [x] Implement explicit Go authorizer helpers with deny-by-default behavior.
+- [x] Add action constants for common example actions.
+- [x] Add negative authorization tests for cross-user, cross-tenant, missing membership, unknown action, missing resource, and backend error cases.
+- [x] Document when to graduate from explicit Go checks to Casbin/OpenFGA/OPA/Keycloak Authorization Services.
 
 ## Phase 5 — Audit and capabilities
 
