@@ -47,7 +47,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T13:35:00-04:00
+LastUpdated: 2026-06-12T14:05:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
@@ -657,3 +657,96 @@ The package is intentionally small and follows the simplified design: users desc
 - Validation currently uses the existing `buildspec.Report` and `buildspec.ValidationError` types to avoid inventing a second reporting model.
 - Source origins currently support disk dirs, provider source references, and future workspace source references.
 - Runtime module aliases are already validated centrally and will become automatic TypeScript bundler externals in later provider/source graph work.
+
+
+## Step 7: Add v1-to-v2 migration conversion
+
+I implemented the first migration layer from the old `buildspec.BuildSpec` DTO into the new `specv2.Config` DTO. This keeps the hard-cutover path intact: v1 can be parsed for conversion, but new planning work can target v2.
+
+The migration intentionally drops low-level TypeScript compiler profile fields from normal v2 output. Runtime module aliases listed as TypeScript externals are converted into warnings because v2 will derive those automatically from `runtime.modules`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Continue implementing the v2 hard-cutover backlog in focused task groups with tests, commits, and diary updates.
+
+**Inferred user intent:** Build a working migration path before cutting normal xgoja commands over to v2.
+
+**Commit (code):** pending — migration implementation staged after this diary update.
+
+### What I did
+
+- Added `cmd/xgoja/internal/specv2/migrate_v1.go`.
+- Added migration result/warning types:
+  - `MigrationResult`;
+  - `MigrationWarning`.
+- Implemented v1-to-v2 mappings for:
+  - `packages[]` → `providers[]`;
+  - `modules[]` → `runtime.modules[]`;
+  - builtin command toggles → `commands[]` command surfaces;
+  - `commandProviders[]` → `provider.command-set` command surfaces;
+  - `jsverbs[]` → `sources[]` with `kind: jsverbs`;
+  - TypeScript settings → `language: typescript` and `compile` intent;
+  - `help.sources[]` → `sources[]` with `kind: help`;
+  - `assets[]` → `sources[]` with `kind: assets` and `embedded-assets` artifacts;
+  - `target` → binary/runtime-package/adapter/cobra/source/template artifacts;
+  - `packages[].replace` → provider module replacement plus a workspace warning.
+- Added `migrate_v1_test.go` with coverage for:
+  - TypeScript jsverbs migration;
+  - runtime module alias external warnings;
+  - provider command set migration;
+  - assets and runtime package artifacts;
+  - replacement warning behavior.
+- Checked task IDs 22–33 in `tasks.md`.
+
+### Why
+
+- `xgoja migrate-spec` should be a thin CLI wrapper around tested conversion logic, not the place where migration semantics live.
+- The converter establishes the target v2 shape for later planner work.
+- Explicit warnings preserve important migration context without carrying old low-level fields into v2.
+
+### What worked
+
+- `go test ./cmd/xgoja/internal/specv2 -count=1` passed.
+- Runtime module aliases such as `express` are detected from v1 `modules[]` and warned as automatically derived v2 externals.
+- Embedded assets now produce both an asset source and an `embedded-assets` artifact.
+
+### What didn't work
+
+- No command failed in this step.
+- The migration tests are representative but not yet full golden fixtures for every v1 example listed in the inventory; task 34 remains open.
+
+### What I learned
+
+- Most provider APIs do not need to change for migration. The old `Package`, `Module`, `CommandProvider`, `JSVerbSource`, `HelpSource`, and `AssetSource` shapes map cleanly into v2 provider/runtime/source/command/artifact buckets.
+- TypeScript is the main semantic cleanup: target/format/platform become internal compiler-profile decisions, while `bundle` and `checkCommand` remain useful intent fields.
+
+### What was tricky to build
+
+- The v1 `commandProviders[]` shape does not explicitly declare source dependencies, but existing HTTP serve patterns generally operate on jsverb source sets. For now the migration attaches all migrated jsverb source IDs to provider command sets. This should be reviewed when provider graph planning is implemented.
+- Asset embedding required creating both a source and an artifact so that v2 separates input files from generated output behavior.
+
+### What warrants a second pair of eyes
+
+- Review whether provider command sets should automatically receive all jsverb source IDs during migration or only when specific command providers are known to need them.
+- Review whether `packages[].replace` should be rendered as `provider.module.replace` or only emitted as a migration warning recommending `workspace.mode: auto`.
+- Review whether TypeScript `define` belongs in v2 `compile` or should also be treated as an advanced compiler detail.
+
+### What should be done in the future
+
+- Add full golden migration fixtures for all representative v1 specs.
+- Add the `xgoja migrate-spec` CLI command.
+- Wire `--check`, `--in-place`, and backup behavior around `MigrateV1` and `Render`.
+
+### Code review instructions
+
+- Start with `MigrateV1` in `cmd/xgoja/internal/specv2/migrate_v1.go`.
+- Review each helper against the mapping table in the v2 design document.
+- Validate with `go test ./cmd/xgoja/internal/specv2 -count=1`.
+
+### Technical details
+
+- Migration currently returns warnings but does not print them; CLI printing belongs in `xgoja migrate-spec`.
+- v1 schema loading still belongs to `buildspec`; v2 conversion imports `buildspec` but `buildspec` does not import `specv2`, avoiding a package cycle.
+- `ApplyDefaults` runs at the end of migration to fill provider register defaults, Go defaults, workspace mode, and artifact output defaults.

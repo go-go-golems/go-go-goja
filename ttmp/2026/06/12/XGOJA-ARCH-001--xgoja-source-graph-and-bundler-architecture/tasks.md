@@ -69,32 +69,32 @@
 
 ### Phase 2: Build v1-to-v2 migration tooling
 
-- [ ] Add `cmd/xgoja/internal/specv2/migrate_v1.go` that converts `buildspec.BuildSpec` to `specv2.Config`.
-- [ ] Implement v1 `packages[]` → v2 `providers[]`.
-- [ ] Implement v1 `modules[]` → v2 `runtime.modules[]`.
-- [ ] Implement v1 builtin `commands` → v2 command surfaces:
+- [x] Add `cmd/xgoja/internal/specv2/migrate_v1.go` that converts `buildspec.BuildSpec` to `specv2.Config`.
+- [x] Implement v1 `packages[]` → v2 `providers[]`.
+- [x] Implement v1 `modules[]` → v2 `runtime.modules[]`.
+- [x] Implement v1 builtin `commands` → v2 command surfaces:
   - `eval` → `type: builtin.eval` if still kept;
   - `run` → `type: builtin.run`;
   - `repl` → `type: builtin.repl` if still kept;
   - `jsverbs` → `type: builtin.jsverbs` with migrated source references.
-- [ ] Implement v1 `commandProviders[]` → v2 `commands[]` with `type: provider.command-set`.
-- [ ] Implement v1 `jsverbs[]` → v2 `sources[]` with `kind: jsverbs`.
-- [ ] Implement v1 TypeScript settings migration:
+- [x] Implement v1 `commandProviders[]` → v2 `commands[]` with `type: provider.command-set`.
+- [x] Implement v1 `jsverbs[]` → v2 `sources[]` with `kind: jsverbs`.
+- [x] Implement v1 TypeScript settings migration:
   - `typescript.enabled` → `language: typescript`;
   - `typescript.bundle` → `compile.bundle`;
   - `typescript.checkCommand` → `compile.check.command`;
   - remove runtime-module aliases from `typescript.external` where they can be derived;
   - preserve non-runtime externals only if an explicit future field is added, otherwise warn.
-- [ ] Implement v1 `help.sources[]` → v2 `sources[]` with `kind: help`.
-- [ ] Implement v1 `assets[]` → v2 `sources[]` with `kind: assets` plus `artifacts[]` entries when embedded.
-- [ ] Implement v1 `target` → v2 `artifacts[]`:
+- [x] Implement v1 `help.sources[]` → v2 `sources[]` with `kind: help`.
+- [x] Implement v1 `assets[]` → v2 `sources[]` with `kind: assets` plus `artifacts[]` entries when embedded.
+- [x] Implement v1 `target` → v2 `artifacts[]`:
   - binary;
   - runtime package;
   - adapter/cobra targets if still supported.
-- [ ] Implement v1 local replacements migration:
+- [x] Implement v1 local replacements migration:
   - `packages[].replace` becomes a provider module local override or a migration warning recommending `workspace.mode: auto`;
   - `--xgoja-replace` remains a CLI concern and is represented in migration docs, not v2 spec output by default.
-- [ ] Add migration warnings with file paths and v1 field references.
+- [x] Add migration warnings with file paths and v1 field references.
 - [ ] Add golden migration tests for all Phase 0 fixtures.
 
 ### Phase 3: Add `xgoja migrate-spec`

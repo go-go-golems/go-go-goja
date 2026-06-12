@@ -62,3 +62,13 @@ Implemented initial specv2 package with DTOs, defaults, strict loading, validati
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/specv2_test.go — Initial v2 schema test coverage
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/types.go — Initial v2 config DTOs
 
+
+## 2026-06-12
+
+Added v1-to-v2 migration conversion for providers, runtime modules, command surfaces, jsverbs, TypeScript compile intent, help/assets, target artifacts, replacements, and migration warnings.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/migrate_v1.go — V1-to-v2 conversion implementation
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/migrate_v1_test.go — Migration coverage for TypeScript jsverbs
+
