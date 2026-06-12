@@ -75,3 +75,13 @@ Phase 2 slice committed: BuilderRef lifecycle and initial scalar/enum/repeated/m
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Committed BuilderRef runtime helper slice
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Committed BuilderRef tests
 
+
+## 2026-06-12
+
+Implemented builder-ref message-field conversion so generated builder objects can be accepted wherever ProtoMessage refs are accepted.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Defines hidden BuilderRef attachment/extraction and message-field conversion from builder refs
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Tests generated-style builder refs as message-field inputs
+
