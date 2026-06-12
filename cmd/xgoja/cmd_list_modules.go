@@ -9,7 +9,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 )
 
 type listModulesCommand struct {
@@ -52,7 +51,7 @@ func (c *listModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *va
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	buildSpec, _, err := buildspec.LoadFile(settings.File)
+	buildSpec, _, _, err := loadBuildSpecOrV2Plan(settings.File)
 	if err != nil {
 		return err
 	}

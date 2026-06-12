@@ -1,27 +1,46 @@
+schema: xgoja/v2
 name: geppetto-host-services
-appName: geppetto-host-services
-target:
-  kind: xgoja
-  output: dist/geppetto-host-services
-packages:
-- id: geppetto
-  import: github.com/go-go-golems/geppetto/pkg/js/modules/geppetto/provider
-  replace: ../../../../geppetto
-- id: geppetto-host-services-example
-  import: github.com/go-go-golems/geppetto/pkg/js/modules/geppetto/provider/hostservicesexample
-  replace: ../../../../geppetto
+app:
+  name: geppetto-host-services
+go:
+  module: xgoja.generated/geppetto-host-services
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
+  - id: geppetto
+    import: github.com/go-go-golems/geppetto/pkg/js/modules/geppetto/provider
+    register: Register
+    module:
+      replace: ../../../../geppetto
+  - id: geppetto-host-services-example
+    import: github.com/go-go-golems/geppetto/pkg/js/modules/geppetto/provider/hostservicesexample
+    register: Register
+    module:
+      replace: ../../../../geppetto
+runtime:
+  modules:
+    - provider: geppetto
+      name: geppetto
+      as: geppetto
+    - provider: geppetto-host-services-example
+      name: host-services
+      as: geppetto-host-services
+sources:
+  - id: local
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    language: javascript
 commands:
-  jsverbs:
-    enabled: true
+  - id: verbs
+    type: builtin.jsverbs
     name: verbs
-jsverbs:
-- id: local
-  path: ./verbs
-  embed: true
-modules:
-- package: geppetto
-  name: geppetto
-  as: geppetto
-- package: geppetto-host-services-example
-  name: host-services
-  as: geppetto-host-services
+    sources:
+      - local
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/geppetto-host-services
+    sources:
+      - local

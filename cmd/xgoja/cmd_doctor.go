@@ -13,7 +13,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/plan"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/specv2"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
@@ -62,57 +61,7 @@ func (c *doctorCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.
 	if handled, err := c.runV2Doctor(ctx, settings.File, gp); handled {
 		return err
 	}
-	buildSpec, report, err := buildspec.LoadFile(settings.File)
-	if report == nil {
-		return err
-	}
-	for _, check := range report.Checks {
-		if addErr := gp.AddRow(ctx, types.NewRow(
-			types.MRP("check", check.Name),
-			types.MRP("status", string(check.Status)),
-			types.MRP("path", check.Path),
-			types.MRP("file", settings.File),
-			types.MRP("message", check.Message),
-		)); addErr != nil {
-			return addErr
-		}
-	}
-	if err != nil || buildSpec == nil {
-		return err
-	}
-	modulePlan, planErr := goModulePlanForBuildSpec(buildSpec)
-	if planErr != nil {
-		if addErr := gp.AddRow(ctx, types.NewRow(
-			types.MRP("check", "module-resolution"),
-			types.MRP("status", "error"),
-			types.MRP("path", "workspace"),
-			types.MRP("file", settings.File),
-			types.MRP("message", planErr.Error()),
-		)); addErr != nil {
-			return addErr
-		}
-		return planErr
-	}
-	if modulePlan != nil {
-		for _, module := range modulePlan.Modules {
-			if addErr := gp.AddRow(ctx, types.NewRow(
-				types.MRP("check", "module-resolution"),
-				types.MRP("status", "ok"),
-				types.MRP("path", module.ModulePath),
-				types.MRP("file", settings.File),
-				types.MRP("message", string(module.ResolutionSource)),
-				types.MRP("module_path", module.ModulePath),
-				types.MRP("version", module.Version),
-				types.MRP("local_dir", module.LocalDir),
-				types.MRP("resolution_kind", string(module.ResolutionKind)),
-				types.MRP("resolution_source", string(module.ResolutionSource)),
-				types.MRP("required_by", strings.Join(module.RequiredBy, ",")),
-			)); addErr != nil {
-				return addErr
-			}
-		}
-	}
-	return nil
+	return v1SpecRejectedError(settings.File)
 }
 
 func (c *doctorCommand) runV2Doctor(ctx context.Context, file string, gp middlewares.Processor) (bool, error) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -19,8 +20,7 @@ func loadBuildSpecOrV2Plan(file string) (*buildspec.BuildSpec, *plan.Plan, bool,
 		return nil, nil, false, err
 	}
 	if kind != specv2.SchemaKindV2 {
-		buildSpec, _, err := buildspec.LoadFile(file)
-		return buildSpec, nil, false, err
+		return nil, nil, false, v1SpecRejectedError(file)
 	}
 	cfg, err := specv2.LoadFile(file)
 	if err != nil {
@@ -31,6 +31,10 @@ func loadBuildSpecOrV2Plan(file string) (*buildspec.BuildSpec, *plan.Plan, bool,
 		return nil, nil, true, err
 	}
 	return buildSpecFromV2Plan(compiled), compiled, true, nil
+}
+
+func v1SpecRejectedError(file string) error {
+	return fmt.Errorf("%s appears to be a legacy xgoja spec; run xgoja migrate-spec -f %s --out xgoja.v2.yaml", file, file)
 }
 
 func buildSpecFromV2Plan(compiled *plan.Plan) *buildspec.BuildSpec {
@@ -85,6 +89,9 @@ func targetFromV2Artifacts(artifacts []specv2.ArtifactSpec) buildspec.TargetSpec
 	for _, artifact := range artifacts {
 		if artifact.Type == "binary" {
 			return buildspec.TargetSpec{Kind: "xgoja", Output: artifact.Output}
+		}
+		if artifact.Type == "runtime-package" {
+			return buildspec.TargetSpec{Kind: "package", Output: artifact.Output, Package: artifact.Package, Import: artifact.Import, Root: artifact.Root, Template: artifact.Template}
 		}
 		if artifact.Type != "" {
 			return buildspec.TargetSpec{Kind: artifact.Type, Output: artifact.Output, Package: artifact.Package, Import: artifact.Import, Root: artifact.Root, Template: artifact.Template}

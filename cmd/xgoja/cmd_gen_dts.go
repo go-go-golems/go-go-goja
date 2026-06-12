@@ -16,6 +16,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildexec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/plan"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/workspace"
 )
 
@@ -62,8 +63,7 @@ Examples:
 					fields.WithShortFlag("f"),
 					fields.WithHelp("Path to the xgoja build specification")),
 				fields.New("out", fields.TypeString,
-					fields.WithRequired(true),
-					fields.WithHelp("Output path for generated .d.ts file")),
+					fields.WithHelp("Output path for generated .d.ts file; v2 defaults to the first dts artifact output")),
 				fields.New("check", fields.TypeBool,
 					fields.WithDefault(false),
 					fields.WithHelp("Check mode: fail if generated output differs from --out")),
@@ -97,6 +97,7 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	if isV2 {
 		_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
+		applyV2DTSArtifactDefaults(&settings, compiledPlan)
 	} else {
 		_, report, err := buildspec.LoadFile(settings.File)
 		if report != nil {
@@ -128,6 +129,9 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	if compiledPlan != nil {
 		goModules = compiledPlan.GoModules
 	}
+	if strings.TrimSpace(settings.Output) == "" {
+		return fmt.Errorf("--out is required unless the v2 spec has a dts artifact with output")
+	}
 	if err := writeDTSSidecar(workDir, buildSpec, settings, goModules); err != nil {
 		return err
 	}
@@ -143,6 +147,24 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 		return err
 	}
 	return writeOrCheckDTS(settings.Output, result.Stdout, settings.Check)
+}
+
+func applyV2DTSArtifactDefaults(settings *genDTSSettings, compiledPlan *plan.Plan) {
+	if settings == nil || compiledPlan == nil {
+		return
+	}
+	for _, artifact := range compiledPlan.Artifacts {
+		if artifact.Spec.Type != "dts" {
+			continue
+		}
+		if strings.TrimSpace(settings.Output) == "" {
+			settings.Output = artifact.Spec.Output
+		}
+		if artifact.Spec.Strict {
+			settings.Strict = true
+		}
+		return
+	}
 }
 
 func writeDTSSidecar(dir string, buildSpec *buildspec.BuildSpec, settings genDTSSettings, goModules *workspace.Plan) error {

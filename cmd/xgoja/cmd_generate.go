@@ -11,7 +11,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate"
 )
 
@@ -86,12 +85,12 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	buildSpec, report, err := buildspec.LoadFile(settings.File)
-	if report != nil {
-		_, _ = fmt.Fprintf(c.out, "validated %d check(s) for %s\n", len(report.Checks), settings.File)
-	}
+	buildSpec, _, isV2, err := loadBuildSpecOrV2Plan(settings.File)
 	if err != nil {
 		return err
+	}
+	if isV2 {
+		_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
 	}
 	kind := strings.TrimSpace(buildSpec.Target.Kind)
 	if kind == "" {

@@ -417,12 +417,12 @@ func TestGenDTSCommandLoadsV2Spec(t *testing.T) {
 		t.Fatalf("new root command: %v", err)
 	}
 	specPath := writeTypedCoreV2Spec(t)
-	outputPath := filepath.Join(t.TempDir(), "xgoja-modules.d.ts")
+	outputPath := filepath.Join(filepath.Dir(specPath), "xgoja-modules.d.ts")
 	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatalf("repo root: %v", err)
 	}
-	root.SetArgs([]string{"gen-dts", "-f", specPath, "--out", outputPath, "--strict", "--xgoja-replace", repoRoot})
+	root.SetArgs([]string{"gen-dts", "-f", specPath, "--xgoja-replace", repoRoot})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute v2 gen-dts: %v\n%s", err, out.String())
 	}
@@ -478,71 +478,17 @@ func TestListModulesCommandWired(t *testing.T) {
 
 func writePackageSpec(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	specPath := filepath.Join(dir, "xgoja.yaml")
-	if err := os.WriteFile(specPath, []byte(`
-name: fixture-package
-target:
-  kind: package
-  output: internal/xgojaruntime
-  package: xgojaruntime
-packages:
-  - id: fixture
-    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
-modules:
-  - package: fixture
-    name: hello
-    as: hello
-`), 0o644); err != nil {
-		t.Fatalf("write package spec: %v", err)
-	}
-	return specPath
+	return writeV2ArtifactSpec(t, "fixture-package", "runtime-package", "internal/xgojaruntime", "xgojaruntime", "")
 }
 
 func writePackageSpecWithoutPackageName(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	specPath := filepath.Join(dir, "xgoja.yaml")
-	if err := os.WriteFile(specPath, []byte(`
-name: fixture-package
-
-target:
-  kind: package
-  output: internal/xgoja-runtime
-packages:
-  - id: fixture
-    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
-modules:
-  - package: fixture
-    name: hello
-    as: hello
-`), 0o644); err != nil {
-		t.Fatalf("write package spec without package name: %v", err)
-	}
-	return specPath
+	return writeV2ArtifactSpec(t, "fixture-package", "runtime-package", "internal/xgoja-runtime", "", "")
 }
 
 func writeSourceSpec(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	specPath := filepath.Join(dir, "xgoja.yaml")
-	if err := os.WriteFile(specPath, []byte(`
-name: fixture-source
-target:
-  kind: source
-  output: internal/xgojaruntime
-  package: xgojaruntime
-packages:
-  - id: fixture
-    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
-modules:
-  - package: fixture
-    name: hello
-    as: hello
-`), 0o644); err != nil {
-		t.Fatalf("write source spec: %v", err)
-	}
-	return specPath
+	return writeV2ArtifactSpec(t, "fixture-source", "source", "internal/xgojaruntime", "xgojaruntime", "")
 }
 
 func writeTemplateSpec(t *testing.T) string {
@@ -558,19 +504,28 @@ const ProviderCount = {{ len .ProviderImports }}
 	}
 	specPath := filepath.Join(dir, "xgoja.yaml")
 	if err := os.WriteFile(specPath, []byte(`
+schema: xgoja/v2
 name: fixture-template
-target:
-  kind: template
-  output: internal/xgojaruntime/custom.gen.go
-  package: customruntime
-  template: runtime.go.tmpl
-packages:
+go:
+  module: xgoja.generated/fixture-template
+  version: "1.26"
+workspace:
+  mode: off
+providers:
   - id: fixture
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
-modules:
-  - package: fixture
-    name: hello
-    as: hello
+    register: Register
+runtime:
+  modules:
+    - provider: fixture
+      name: hello
+      as: hello
+artifacts:
+  - id: template
+    type: template
+    output: internal/xgojaruntime/custom.gen.go
+    package: customruntime
+    template: runtime.go.tmpl
 `), 0o644); err != nil {
 		t.Fatalf("write template spec: %v", err)
 	}
@@ -579,30 +534,14 @@ modules:
 
 func writeBuildableSpec(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	specPath := filepath.Join(dir, "xgoja.yaml")
-	if err := os.WriteFile(specPath, []byte(`
-name: fixture
-packages:
-  - id: fixture
-    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
-modules:
-  - package: fixture
-    name: hello
-    as: hello
-commands:
-  repl:
-    enabled: true
-`), 0o644); err != nil {
-		t.Fatalf("write build spec: %v", err)
-	}
-	return specPath
+	return writeV2ArtifactSpec(t, "fixture", "binary", "dist/fixture", "", "")
 }
 
 func writeTypedCoreV2Spec(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "xgoja.yaml")
+	dtsPath := filepath.ToSlash(filepath.Join(dir, "xgoja-modules.d.ts"))
 	if err := os.WriteFile(specPath, []byte(`
 schema: xgoja/v2
 name: typed-core
@@ -627,7 +566,7 @@ commands:
 artifacts:
   - id: declarations
     type: dts
-    output: xgoja-modules.d.ts
+    output: `+dtsPath+`
     strict: true
 `), 0o644); err != nil {
 		t.Fatalf("write typed core v2 spec: %v", err)
@@ -637,22 +576,49 @@ artifacts:
 
 func writeTypedCoreSpec(t *testing.T) string {
 	t.Helper()
+	return writeTypedCoreV2Spec(t)
+}
+
+func writeV2ArtifactSpec(t *testing.T, name, artifactType, output, packageName, template string) string {
+	t.Helper()
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "xgoja.yaml")
-	if err := os.WriteFile(specPath, []byte(`
-name: typed-core
-packages:
-  - id: go-go-goja-core
-    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
-modules:
-  - package: go-go-goja-core
-    name: path
-    as: path:typed
+	packageLine := ""
+	if packageName != "" {
+		packageLine = "    package: " + packageName + "\n"
+	}
+	templateLine := ""
+	if template != "" {
+		templateLine = "    template: " + template + "\n"
+	}
+	content := `
+schema: xgoja/v2
+name: ` + name + `
+go:
+  module: xgoja.generated/` + name + `
+  version: "1.26"
+workspace:
+  mode: off
+providers:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+    register: Register
+runtime:
+  modules:
+    - provider: fixture
+      name: hello
+      as: hello
 commands:
-  eval:
-    enabled: true
-`), 0o644); err != nil {
-		t.Fatalf("write typed core spec: %v", err)
+  - id: repl
+    type: builtin.repl
+    name: repl
+artifacts:
+  - id: artifact
+    type: ` + artifactType + `
+    output: ` + output + `
+` + packageLine + templateLine
+	if err := os.WriteFile(specPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write v2 artifact spec: %v", err)
 	}
 	return specPath
 }
@@ -708,31 +674,7 @@ artifacts:
 
 func writeValidSpec(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	verbsDir := filepath.Join(dir, "verbs")
-	if err := os.Mkdir(verbsDir, 0o755); err != nil {
-		t.Fatalf("mkdir verbs: %v", err)
-	}
-	specPath := filepath.Join(dir, "xgoja.yaml")
-	if err := os.WriteFile(specPath, []byte(`
-name: fixture
-packages:
-  - id: core
-    import: github.com/go-go-golems/go-go-goja/xgoja
-modules:
-  - package: core
-    name: fs
-commands:
-  repl:
-    enabled: true
-jsverbs:
-  - id: local
-    path: ./verbs
-    embed: true
-`), 0o644); err != nil {
-		t.Fatalf("write build spec: %v", err)
-	}
-	return specPath
+	return writeV2Spec(t)
 }
 
 func writeFile(t *testing.T, name string, contents string) string {
