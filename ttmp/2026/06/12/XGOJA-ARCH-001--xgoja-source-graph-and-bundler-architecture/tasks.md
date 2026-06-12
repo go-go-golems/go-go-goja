@@ -202,7 +202,7 @@
 - [x] Update `xgoja gen-dts` to use v2 provider graph and declaration artifact plan.
 - [x] Update generated `go.mod` rendering to consume `GoModulePlan`.
 - [x] Update embedded source copying to consume source/artifact plans.
-- [ ] Update generated runtime spec rendering to consume the runtime plan.
+- [x] Update generated runtime spec rendering to consume the runtime plan.
 - [x] Add tests for build dry-run, build with workspace auto, gen-dts with workspace auto, and generated runtime package output.
 
 ### Phase 9: Cut over examples and docs
@@ -222,7 +222,7 @@
 
 - [x] Make normal commands reject v1 specs with a migration diagnostic.
 - [x] Remove v1 planner/generation code paths from `build`, `doctor`, `gen-dts`, and example workflows.
-- [ ] Keep only enough v1 DTO/loading code for `migrate-spec`.
+- [x] Keep only enough v1 DTO/loading code for `migrate-spec`.
 - [x] Remove or quarantine v1-only tests that no longer apply.
 - [x] Ensure repository examples are all v2.
 - [x] Run full validation:

@@ -46,6 +46,8 @@ RelatedFiles:
       Note: |-
         Diary Step 2 workspace resolution evidence and integration target
         RenderGoMod consumes workspace plans for Step 17
+    - Path: cmd/xgoja/internal/generate/plan.go
+      Note: Generator-local v2 plan adaptation and plan entrypoints
     - Path: cmd/xgoja/internal/plan/plan.go
       Note: |-
         Initial v2 Plan compiler for Step 16
@@ -66,6 +68,7 @@ RelatedFiles:
       Note: |-
         V2 build bridge for Step 20
         V2 artifact source dependencies now set legacy embed flags for bridge generation
+        Slim v2 plan loader after moving generation adaptation
     - Path: cmd/xgoja/workspace_plan.go
       Note: Legacy buildspec-to-workspace planner bridge for Step 17
     - Path: examples/xgoja/13-http-serve-jsverbs/README.md
@@ -131,6 +134,7 @@ LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -2343,3 +2347,93 @@ This is still intentionally compatible with migration: `xgoja migrate-spec` rema
 - `xgoja migrate-spec` remains the code path that loads v1 through `buildspec` and converts to `specv2`.
 - `gen-dts` calls `applyV2DTSArtifactDefaults` after successful v2 planning.
 - `targetFromV2Artifacts` maps `runtime-package` artifacts to legacy generator `target.kind: package` during the bridge period.
+
+
+## Step 26: Move plan adaptation into the generator
+
+I removed the large command-local v2-to-buildspec bridge and moved the remaining plan-to-rendering adaptation into `cmd/xgoja/internal/generate`. Normal commands now load a native v2 `plan.Plan`, then call generator package entrypoints that accept the plan directly.
+
+The generator still reuses its established rendering internals, but the compatibility adapter is now generator-local instead of living in command dispatch. That means command packages no longer own v2 source/provider/artifact conversion logic, and the old workspace-plan helper used only by legacy buildspec command paths has been removed.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do it."
+
+**Assistant interpretation:** Continue the internal v2 cleanup by replacing command-level bridge consumption with plan-backed generator entrypoints.
+
+**Inferred user intent:** Finish the hard cutover cleanup so normal commands operate on the v2 planner output rather than maintaining a legacy command-level generation path.
+
+**Commit (code):** 023ffb3f0bc2d04b216c08572d9f91c212045a5d — "xgoja: move plan adaptation into generator"
+
+**Commit (code):** 6fbbf125b93af383f79093df0e0c4c24da8d1110 — "xgoja: expose plan-based generator entrypoints"
+
+### What I did
+
+- Added `cmd/xgoja/internal/generate/plan.go`.
+- Moved v2 `plan.Plan` to generator model adaptation into the generator package as `BuildSpecFromPlan`.
+- Added plan-backed generator entrypoints:
+  - `WriteAllPlan`
+  - `WritePackagePlan`
+  - `WriteSourceFragmentsPlan`
+  - `WriteCustomTemplatePlan`
+  - `TemplateDataJSONFromPlan`
+- Slimmed `cmd/xgoja/v2_bridge.go` down to v2 schema detection, `specv2.LoadFile`, `plan.Compile`, and legacy-spec rejection.
+- Updated `build` and `generate` commands to call plan-backed generator entrypoints.
+- Updated `gen-dts` and `list-modules` to load `plan.Plan` and use generator-local adaptation only where the existing declaration/listing internals still need the generator model.
+- Removed `cmd/xgoja/workspace_plan.go`, which became unused after normal command paths stopped deriving module plans from legacy buildspecs.
+- Checked task IDs 84 and 98.
+
+### Why
+
+- After the hard cutover, command dispatch should not be the place where v2 provider/source/artifact semantics are converted into rendering details.
+- Keeping the adaptation inside `generate` makes the remaining bridge an implementation detail of the generator, not a second command-level planning system.
+- Removing the old workspace helper confirms normal commands no longer need legacy buildspec-derived Go module planning.
+
+### What worked
+
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/generate -count=1` passed before committing.
+- The pre-commit hook passed for both commits after removing the unused legacy workspace helper, including lint, `go generate ./...`, and `go test ./...`.
+- `golangci-lint` caught the now-unused `goModulePlanForBuildSpec` and `providerModulePathForWorkspace`, which confirmed the legacy command-side module planning path was gone.
+
+### What didn't work
+
+- The first commit attempt failed lint because `cmd/xgoja/workspace_plan.go` became unused:
+  - `cmd/xgoja/workspace_plan.go:11:6: func goModulePlanForBuildSpec is unused (unused)`
+  - `cmd/xgoja/workspace_plan.go:48:6: func providerModulePathForWorkspace is unused (unused)`
+- I fixed this by deleting `cmd/xgoja/workspace_plan.go`; v2 `Plan.GoModules` is now the module plan source for normal commands.
+
+### What I learned
+
+- The command-level bridge had become mostly policy glue after the hard cutover. Once all commands load v2 plans, generator adaptation belongs beside the generator templates and copy/render behavior.
+- Direct `plan.Plan` command consumption can coexist with incremental generator internals. The important boundary is that commands no longer parse or plan v1 and no longer derive legacy module plans.
+
+### What was tricky to build
+
+- The existing generator still has many functions that render from `buildspec.BuildSpec`, so the safest cut was to add plan entrypoints that adapt internally and then delegate to stable render/copy logic.
+- `gen-dts` still needs the generator model for the current sidecar renderer. That is acceptable as a generator concern, but should be reviewed if declaration generation is later moved fully onto provider graph descriptors.
+
+### What warrants a second pair of eyes
+
+- Review whether `BuildSpecFromPlan` should remain exported or become private once all call sites are plan-specific.
+- Review whether future work should rename the generator model away from `buildspec` internally to avoid confusion now that v1 is not a normal command input.
+- Review `gen-dts` to decide whether it should get a plan-native sidecar renderer next.
+
+### What should be done in the future
+
+- Consider a later refactor that replaces generator template data construction with explicit plan-native template data, rather than adapting into `buildspec.BuildSpec` internally.
+- Create the provider manifest/catalog ticket for static provider metadata and richer doctor validation.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/generate/plan.go` to review plan-backed generator entrypoints and adaptation.
+- Then review `cmd/xgoja/v2_bridge.go` to confirm it only loads/compiles v2 plans and rejects v1.
+- Review `cmd/xgoja/cmd_build.go` and `cmd/xgoja/cmd_generate.go` to confirm they call plan-backed generator entrypoints.
+- Validate with:
+  - `go test ./cmd/xgoja ./cmd/xgoja/internal/generate -count=1`
+  - full pre-commit.
+
+### Technical details
+
+- `BuildSpecFromPlan` maps `runtime-package` artifacts to the current generator target kind `package`.
+- Artifact `sources` still drive embedded jsverb/help source copying through generator-local adaptation.
+- `embedded-assets` artifacts still drive asset embedding through generator-local adaptation.

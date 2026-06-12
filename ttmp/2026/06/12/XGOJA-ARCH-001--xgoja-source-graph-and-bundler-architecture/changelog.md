@@ -282,3 +282,13 @@ Step 25: hard-cut normal xgoja commands and examples to native v2; gen-dts now d
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/v2_bridge.go — Normal command v2 loading and migration diagnostic
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/examples/xgoja/README.md — Example index updated for v2
 
+
+## 2026-06-12
+
+Step 26: moved v2 plan-to-generation adaptation into internal/generate and made commands consume plan-based generator entrypoints (commits 023ffb3, 6fbbf12)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/plan.go — Plan-backed generator entrypoints and generator-local adaptation
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/v2_bridge.go — Now only loads/compiles native v2 plans and rejects legacy specs
+
