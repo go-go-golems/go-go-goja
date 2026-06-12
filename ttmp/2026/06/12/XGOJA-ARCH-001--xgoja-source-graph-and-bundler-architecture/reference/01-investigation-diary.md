@@ -1450,7 +1450,7 @@ This is intentionally still a thin composition layer. It does not yet replace `b
 
 **Inferred user intent:** Keep moving through the planned v2 hard-cutover implementation tasks with focused commits.
 
-**Commit (code):** pending — initial v2 plan compiler staged after this diary update.
+**Commit (code):** c612e48e43c8d3a9f2de0e654d508e1f9c28b2eb — "xgoja: add v2 plan compiler"
 
 ### What I did
 
