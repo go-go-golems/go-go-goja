@@ -365,7 +365,29 @@ func TestMigrateSpecCommandPrintsWarnings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new root command: %v", err)
 	}
-	specPath := filepath.Join("..", "..", "examples", "xgoja", "15-typescript-jsverbs", "xgoja.yaml")
+	specPath := writeFile(t, "xgoja.yaml", `name: warnings
+appName: warnings
+packages:
+  - id: http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+modules:
+  - package: http
+    name: express
+commands:
+  jsverbs:
+    enabled: true
+jsverbs:
+  - id: local-sites
+    path: ./verbs
+    typescript:
+      enabled: true
+      bundle: true
+      target: es2015
+      format: cjs
+      platform: neutral
+      external:
+        - express
+`)
 	outputPath := filepath.Join(t.TempDir(), "xgoja.v2.yaml")
 	root.SetArgs([]string{"migrate-spec", "-f", specPath, "--out", outputPath})
 	if err := root.Execute(); err != nil {

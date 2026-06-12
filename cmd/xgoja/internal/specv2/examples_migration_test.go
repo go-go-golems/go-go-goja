@@ -32,6 +32,24 @@ func TestMigrateV1ExamplesToValidV2(t *testing.T) {
 	for _, example := range examples {
 		t.Run(example, func(t *testing.T) {
 			path := filepath.Join("..", "..", "..", "..", "examples", "xgoja", example, "xgoja.yaml")
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read example: %v", err)
+			}
+			kind, _, err := DetectSchema(data)
+			if err != nil {
+				t.Fatalf("detect schema: %v", err)
+			}
+			if kind == SchemaKindV2 {
+				loaded, err := LoadData(data)
+				if err != nil {
+					t.Fatalf("load native v2 example: %v", err)
+				}
+				if loaded.Schema != Schema {
+					t.Fatalf("schema = %q", loaded.Schema)
+				}
+				return
+			}
 			v1, err := loadV1ExampleForMigrationTest(path)
 			if err != nil {
 				t.Fatalf("load v1 example: %v", err)

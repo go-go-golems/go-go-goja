@@ -1,48 +1,56 @@
+schema: xgoja/v2
 name: typescript-jsverbs
-appName: typescript-jsverbs
-
-target:
-  kind: xgoja
-  output: dist/typescript-jsverbs
-
-packages:
+app:
+  name: typescript-jsverbs
+go:
+  module: xgoja.generated/typescript-jsverbs
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
   - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
-
-modules:
-  - package: go-go-goja-http
-    name: express
-
+    register: Register
+runtime:
+  modules:
+    - provider: go-go-goja-http
+      name: express
+sources:
+  - id: local-sites
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    include:
+      - "**/*.ts"
+    exclude:
+      - "**/*.test.ts"
+    extensions:
+      - .ts
+    language: typescript
+    compile:
+      mode: runtime
+      bundle: true
 commands:
-  jsverbs:
-    enabled: true
-    name: verbs
-  eval:
-    enabled: false
-  run:
-    enabled: true
+  - id: run
+    type: builtin.run
     name: run
-  repl:
-    enabled: false
-
-commandProviders:
+  - id: verbs
+    type: builtin.jsverbs
+    name: verbs
+    sources:
+      - local-sites
   - id: http-serve
-    package: go-go-goja-http
+    type: provider.command-set
     name: serve
     mount: serve
-
-jsverbs:
-  - id: local-sites
-    path: ./verbs
-    embed: false
-    extensions: [".ts"]
-    include: ["**/*.ts"]
-    exclude: ["**/*.test.ts"]
-    typescript:
-      enabled: true
-      bundle: true
-      target: es2015
-      format: cjs
-      platform: neutral
-      external:
-        - express
+    provider: go-go-goja-http
+    sources:
+      - local-sites
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/typescript-jsverbs
+  - id: declarations
+    type: dts
+    output: js/types/xgoja-modules.d.ts
+    strict: true

@@ -4,27 +4,42 @@ This example builds a generated xgoja binary that discovers JavaScript verbs fro
 TypeScript source files. The `sites demo` verb imports a local `message.ts`
 helper, registers Express routes, and can be served with hot reload.
 
-The important pieces are in `xgoja.yaml`:
+The important pieces are in the native `schema: xgoja/v2` spec:
 
 ```yaml
-jsverbs:
+schema: xgoja/v2
+providers:
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+runtime:
+  modules:
+    - provider: go-go-goja-http
+      name: express
+sources:
   - id: local-sites
-    path: ./verbs
-    embed: false
-    extensions: [".ts"]
-    typescript:
-      enabled: true
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    language: typescript
+    compile:
+      mode: runtime
       bundle: true
-      target: es2015
-      format: cjs
-      platform: neutral
-      external:
-        - express
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    sources: [local-sites]
+  - id: http-serve
+    type: provider.command-set
+    provider: go-go-goja-http
+    name: serve
+    mount: serve
+    sources: [local-sites]
 ```
 
-`typescript.bundle: true` tells xgoja to bundle each TypeScript verb entry before
-it is loaded by goja. `external: [express]` preserves `require("express")` so the
-Go-backed xgoja provider module supplies it at runtime.
+`compile.bundle: true` tells xgoja to bundle each TypeScript verb entry before it
+is loaded by goja. The `express` runtime module is selected under
+`runtime.modules`, so xgoja derives the TypeScript external automatically and
+preserves `require("express")` for the Go-backed provider module at runtime.
 
 Run the smoke test:
 
