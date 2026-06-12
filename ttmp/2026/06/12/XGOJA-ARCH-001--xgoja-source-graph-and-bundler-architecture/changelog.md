@@ -302,3 +302,14 @@ Step 27: rendered generator templates and embedded runtime JSON from v2 plans in
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/plan.go — Plan-backed write functions now render templates from plan data
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/templates.go — Plan-native template data and embedded runtime JSON rendering
 
+
+## 2026-06-12
+
+Step 28: removed the v2 generator path's buildspec adapter; build/generate/gen-dts/list now use plan-native target, copy, go.mod, and runtime JSON helpers (commit 8e2ccc2)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/gomod.go — Plan-native go.mod rendering
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/plan.go — Plan-native copy/write helpers with BuildSpecFromPlan removed
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/v2_plan_helpers.go — Command-side v2 artifact target helper
+

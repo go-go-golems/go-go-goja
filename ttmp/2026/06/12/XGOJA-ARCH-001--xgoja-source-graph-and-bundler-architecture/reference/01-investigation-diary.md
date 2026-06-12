@@ -46,6 +46,7 @@ RelatedFiles:
       Note: |-
         Diary Step 2 workspace resolution evidence and integration target
         RenderGoMod consumes workspace plans for Step 17
+        Plan-native go.mod rendering for generated workspaces
     - Path: cmd/xgoja/internal/generate/plan.go
       Note: Generator-local v2 plan adaptation and plan entrypoints
     - Path: cmd/xgoja/internal/generate/templates.go
@@ -71,6 +72,8 @@ RelatedFiles:
         V2 build bridge for Step 20
         V2 artifact source dependencies now set legacy embed flags for bridge generation
         Slim v2 plan loader after moving generation adaptation
+    - Path: cmd/xgoja/v2_plan_helpers.go
+      Note: Normal commands inspect v2 artifact targets without buildspec conversion
     - Path: cmd/xgoja/workspace_plan.go
       Note: Legacy buildspec-to-workspace planner bridge for Step 17
     - Path: examples/xgoja/13-http-serve-jsverbs/README.md
@@ -138,6 +141,7 @@ LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -2532,3 +2536,86 @@ This also regenerated the runtime-package example. Its embedded JSON no longer c
 - `RenderEmbeddedSpecFromPlan` emits an anonymous JSON payload using `app.*` DTOs and includes `help` only when help sources exist.
 - Provider imports are still used for generated Go imports/registration, but only provider IDs are embedded in runtime JSON.
 - `TemplateDataJSONFromPlan` now reflects the same plan-native package template data that custom templates receive.
+
+
+## Step 28: Remove the buildspec adapter from the v2 generator path
+
+I removed the last buildspec conversion from the normal v2 command/generator execution path. Build, generate, gen-dts, and list-modules now inspect `plan.Plan` directly for target selection, module listing, generated `go.mod` rendering, embedded source copying, and template/runtime JSON rendering.
+
+This is not the same as deleting the old v1 buildspec package from the repository: `xgoja migrate-spec` still needs v1 loading/conversion, and some legacy generator test helpers still exercise the old rendering API. The important runtime path no longer calls `BuildSpecFromPlan`; that adapter function was deleted.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, update, i really want to remove any of th elegacy code (I guess everything aroun buildSpec, maybe more?)"
+
+**Assistant interpretation:** Remove the remaining buildspec-shaped compatibility layer from normal v2 build/generate code, while keeping only migration-required v1 code.
+
+**Inferred user intent:** Make the hard cutover real internally too, not just at command boundaries, so v2 commands are not secretly using legacy buildspec DTOs.
+
+**Commit (code):** 8e2ccc2cf2f7ce9d9efff95957c1c608298cd0fe — "xgoja: remove buildspec adapter from v2 generator path"
+
+### What I did
+
+- Deleted the `generate.BuildSpecFromPlan` adapter.
+- Added `generate.RenderGoModPlan` so generated workspaces render `go.mod` from `plan.Plan`.
+- Reworked `WriteAllPlan`, `WritePackagePlan`, and `WriteSourceFragmentsPlan` to copy embedded jsverbs/help/assets from plan-native source/artifact metadata.
+- Added `cmd/xgoja/v2_plan_helpers.go` so commands read target kind/output/package/template from v2 artifacts directly.
+- Updated `xgoja build` to use `plan.Plan` for target checks, output defaults, dry-run counts, Go tags, ldflags, env, and generated module messages.
+- Updated `xgoja generate` to use `plan.Plan` for target kind/output/package/template defaults.
+- Updated `xgoja gen-dts` to use `RenderGoModPlan` and `RenderDTSGenMainPlan`.
+- Updated `xgoja list-modules` to list `Config.Runtime.Modules` directly.
+- Updated the embedded-source test to assert against plan-rendered runtime JSON instead of a buildspec adapter.
+
+### Why
+
+- After Step 27, templates were plan-native, but copying and generated `go.mod` still created an intermediate buildspec DTO.
+- Removing the adapter prevents future behavior from accidentally depending on v1 field semantics.
+- Normal v2 commands should use one composition object: `plan.Plan`.
+
+### What worked
+
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/generate -count=1` passed.
+- `make -C examples/xgoja/14-generated-runtime-package smoke` passed.
+- Full pre-commit passed, including lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- I briefly started removing the older buildspec-oriented generator APIs themselves, but that is a broader test-suite migration because many generator package tests still construct `buildspec.BuildSpec` fixtures directly.
+- I stopped that partial edit and restored it before committing. The committed change is focused on removing buildspec conversion from the normal v2 execution path.
+
+### What I learned
+
+- The v2 runtime path no longer needs a buildspec-shaped intermediate at all. The remaining production buildspec package is now primarily migration-related plus old generator APIs that are not called by normal commands.
+- The next cleanup should be an explicit legacy API deletion pass, not mixed into command-path cleanup.
+
+### What was tricky to build
+
+- Embedded copy roots must stay byte-for-byte aligned with the roots that `RenderEmbeddedSpecFromPlan` emits into runtime JSON.
+- Generated `go.mod` still has to merge explicit provider/go import versions with the workspace module plan and local replacements in deterministic order.
+
+### What warrants a second pair of eyes
+
+- Review `RenderGoModPlan` for parity with previous generated `go.mod` behavior.
+- Review plan-native copy helpers to confirm provider/workspace-backed embedded sources are intentionally excluded unless they have disk source roots.
+- Review whether old generator buildspec APIs should be deleted next or quarantined behind test-only/migration-only packages first.
+
+### What should be done in the future
+
+- Delete or quarantine legacy buildspec-oriented generator APIs and migrate their tests to v2 fixtures.
+- Keep `cmd/xgoja/internal/buildspec` only for `xgoja migrate-spec`, then consider moving it under a migration-specific package name.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/generate/plan.go` and verify no `BuildSpecFromPlan` remains.
+- Review `cmd/xgoja/internal/generate/gomod.go` for `RenderGoModPlan`.
+- Review `cmd/xgoja/cmd_build.go`, `cmd/xgoja/cmd_generate.go`, `cmd/xgoja/cmd_gen_dts.go`, and `cmd/xgoja/cmd_list_modules.go` for plan-native command behavior.
+- Validate with:
+  - `go test ./cmd/xgoja ./cmd/xgoja/internal/generate -count=1`
+  - `make -C examples/xgoja/14-generated-runtime-package smoke`
+  - full pre-commit.
+
+### Technical details
+
+- `RenderGoModPlan` still honors `Options.GoModules`, `XGojaModuleVersion`, and `XGojaReplace`.
+- The old `BuildSpecFromPlan` symbol is gone; `rg "BuildSpecFromPlan" cmd/xgoja` returns no production references.
+- V1 loading remains in `cmd/xgoja/internal/buildspec` and `cmd/xgoja/internal/specv2/migrate_v1.go` for `xgoja migrate-spec`.
