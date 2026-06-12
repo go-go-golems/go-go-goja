@@ -13,11 +13,19 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: /home/manuel/code/wesen/go-go-golems/go-go-parc/Projects/2026/06/12/ARTICLE - go-go-goja Express Auth - Go Backed Fluent Route Plans.md
+    - Path: ../../../../../../../../../../code/wesen/go-go-golems/go-go-parc/Projects/2026/06/12/ARTICLE - go-go-goja Express Auth - Go Backed Fluent Route Plans.md
       Note: Wrapped-up Obsidian project report before opening this follow-up ticket.
-    - Path: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/design-doc/01-host-side-user-auth-system-implementation-plan.md
+    - Path: examples/xgoja/16-express-auth-host/README.md
+      Note: Updated dev auth cookie/CSRF/login/logout usage docs (commit 38871dc)
+    - Path: examples/xgoja/16-express-auth-host/cmd/host/main.go
+      Note: Runnable host example refactored to use devauth and login/logout smoke flow (commit 38871dc)
+    - Path: pkg/gojahttp/auth/devauth/devauth.go
+      Note: Dev/demo auth kit implementation for planned routes (commit 38871dc)
+    - Path: pkg/gojahttp/auth/devauth/devauth_test.go
+      Note: Unit coverage for dev auth login/session/CSRF/resource/authz/audit behavior (commit 38871dc)
+    - Path: ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/design-doc/01-host-side-user-auth-system-implementation-plan.md
       Note: Primary design plan for production and dev/demo host auth packages.
-    - Path: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/sources/01-keycloak-oidc-session-authz-host-notes.md
+    - Path: ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/sources/01-keycloak-oidc-session-authz-host-notes.md
       Note: Imported /tmp/auth2.md source material.
 ExternalSources:
     - ../sources/01-keycloak-oidc-session-authz-host-notes.md
@@ -26,6 +34,7 @@ LastUpdated: 2026-06-12T17:00:00-04:00
 WhatFor: Use this to resume or review the host-side auth system planning ticket.
 WhenToUse: Read before implementing dev/demo auth, session auth, Keycloak/OIDC, app authorization, audit, or capabilities.
 ---
+
 
 # Diary
 
@@ -124,4 +133,145 @@ Only then continue with the new ticket."
 - Proposed production foundation:
   ```text
   Keycloak OIDC Authorization Code + PKCE -> app user normalization -> server-side session -> gojahttp Authenticator/CSRFProtector -> ResourceResolver -> Authorizer -> AuditSink
+  ```
+
+
+## Step 2: Implement dev/demo auth kit and refactor runnable example
+
+I implemented the first concrete host-auth slice: a reusable `devauth` package that provides in-memory users, sessions, CSRF, resources, authorization, audit capture, and login/logout/session handlers. The existing runnable Express auth host example now uses this package instead of carrying one-off fake services inline.
+
+This keeps the example runnable with no external dependencies while moving it closer to the production architecture. Planned routes are still enforced through the same `gojahttp.AuthOptions` interfaces that a Keycloak/session-backed host will implement later.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** After planning the phases, begin implementing them sequentially, committing at sensible boundaries and recording detailed diary notes.
+
+**Inferred user intent:** Turn the host-auth plan into working code while preserving an implementation trail that makes review and continuation straightforward.
+
+**Commit (code):** 38871dc906b8e151b7b986a35ed728ae2ef50c7c — "Add dev auth kit for planned routes"
+
+### What I did
+- Rewrote `tasks.md` into detailed phases and task lists covering:
+  - planning,
+  - dev/demo auth,
+  - shared session auth,
+  - Keycloak/OIDC,
+  - app auth domain,
+  - audit/capabilities,
+  - examples/docs/handoff.
+- Added `pkg/gojahttp/auth/devauth` with:
+  - `DefaultSeed()` for `demo@example.test` / `demo-password`, user `u1`, tenant `o1`, project `p1`, and an editor role,
+  - in-memory sessions with CSPRNG session IDs and CSRF tokens,
+  - `AuthOptions()` returning implementations for `Authenticator`, `ResourceResolver`, `Authorizer`, `CSRFProtector`, and `AuditSink`,
+  - `POST /auth/dev/login`, `POST /auth/dev/logout`, and `GET /auth/dev/session` handlers,
+  - in-memory audit capture plus optional logging.
+- Added `pkg/gojahttp/auth/devauth/devauth_test.go` covering:
+  - login success/failure,
+  - session-cookie authentication,
+  - CSRF success/failure,
+  - resource resolution,
+  - authorization allow/deny,
+  - logout invalidation,
+  - session handler and audit capture.
+- Refactored `examples/xgoja/16-express-auth-host/cmd/host/main.go` to use `devauth.New(...).AuthOptions()`.
+- Extended the example smoke flow to cover:
+  - public health route,
+  - `/me` before login -> 401,
+  - bad login -> 401,
+  - good login -> cookie + CSRF token,
+  - `/auth/dev/session` -> 200,
+  - `/me` after login -> 200,
+  - unsafe project update without CSRF -> 403,
+  - unsafe project update with CSRF -> 200,
+  - missing project -> 404,
+  - logout -> 204,
+  - `/me` after logout -> 401.
+- Updated `examples/xgoja/16-express-auth-host/README.md` with login/logout/cookie/CSRF curl usage.
+- Added generated `pkg/gojahttp/auth/devauth/logcopter.go` after `go generate ./...` created it.
+
+### Why
+- The inline fake services in the example were useful proof, but they were not reusable. The new `devauth` package gives tests and examples a shared no-external-service host implementation.
+- The dev/demo package lets future docs teach the same layering as production: Go host owns auth services; JavaScript declares planned route policy.
+- Moving from bearer-token demo auth to session-cookie auth makes the example closer to the intended browser/BFF model from `/tmp/auth2.md`.
+
+### What worked
+- Package and example validation passed:
+  ```bash
+  go test ./pkg/gojahttp/auth/devauth ./examples/xgoja/16-express-auth-host/cmd/host -count=1
+  ```
+- Targeted validation passed:
+  ```bash
+  go test ./pkg/gojahttp/auth/devauth ./examples/xgoja/16-express-auth-host/cmd/host ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1
+  ```
+- Example smoke validation passed:
+  ```bash
+  make -C examples/xgoja/16-express-auth-host smoke
+  ```
+- The final commit pre-hook passed lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+- The first commit attempt failed because `go generate ./...` generated `pkg/gojahttp/auth/devauth/logcopter.go`, which defines a package-level variable named `log`. The new `devauth.go` file imported the standard library logger as `log`, causing a package-level name collision:
+  ```text
+  pkg/gojahttp/auth/devauth/logcopter.go:7:5: log already declared through import of package log ("log")
+      pkg/gojahttp/auth/devauth/devauth.go:15:2: other declaration of log
+  ```
+- I fixed this by aliasing the standard library import to `stdlog` and updating the logger types/calls.
+- I then added the generated `logcopter.go` file to the commit.
+
+### What I learned
+- New packages in this repository can get generated `logcopter.go` files during the pre-commit `go generate ./...` step. Avoid importing the standard `log` package under the default name in those packages if a generated `log` symbol will exist.
+- The current `gojahttp` interfaces were sufficient for a practical session-cookie demo. No changes to the planned-route enforcement boundary were needed.
+- A `devauth` package is a good proving ground for the later `sessionauth` API because it immediately exposes which session-cookie and CSRF operations should become reusable.
+
+### What was tricky to build
+- The main tricky part was preserving the example's simplicity while making it realistic enough to teach session-cookie auth. The smoke test now needs cookie persistence and a CSRF token extracted from login, so it uses a `cookiejar` and explicit login response decoding.
+- Another subtlety was logout: because logout is a Go-native endpoint rather than a planned JavaScript route, it has to perform its own CSRF check. That mirrors production host endpoints, where login/callback/logout may live outside Express planned routes but still need security checks.
+- The generated logcopter naming collision was also non-obvious because targeted `go test` passed before `go generate ./...` created the generated file during the pre-commit hook.
+
+### What warrants a second pair of eyes
+- Review whether `devauth.Config` has the right public surface before more examples depend on it.
+- Review whether `devauth` should eventually be rewritten on top of `sessionauth` after Phase 2, or whether it should remain fully self-contained.
+- Review whether logout should return 204 for missing sessions, as implemented, or 401 for stricter demos.
+- Review whether dev passwords should remain plaintext in memory or be represented as explicitly named demo-only secrets to avoid accidental production copy/paste.
+
+### What should be done in the future
+- Start Phase 2 by extracting reusable session-cookie and CSRF mechanics into `pkg/gojahttp/auth/sessionauth`.
+- Consider reusing `sessionauth` inside `devauth` after the shared package exists.
+- Add docs/help pages once the session and Keycloak package boundaries are clearer.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/devauth/devauth.go` for the new package API and interface implementations.
+- Review `pkg/gojahttp/auth/devauth/devauth_test.go` for behavior coverage.
+- Review `examples/xgoja/16-express-auth-host/cmd/host/main.go` to see how a host wires `devauth` into `gojahttp.NewHost` and serves login/logout endpoints beside planned routes.
+- Review `examples/xgoja/16-express-auth-host/README.md` for user-facing instructions.
+- Validate with:
+  ```bash
+  go test ./pkg/gojahttp/auth/devauth ./examples/xgoja/16-express-auth-host/cmd/host ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1
+  make -C examples/xgoja/16-express-auth-host smoke
+  ```
+
+### Technical details
+- Basic host wiring:
+  ```go
+  kit := devauth.New(devauth.Config{})
+  host := gojahttp.NewHost(gojahttp.HostOptions{
+      Dev:             true,
+      RejectRawRoutes: true,
+      Auth:            kit.AuthOptions(),
+  })
+  ```
+- Login/logout mux wiring:
+  ```go
+  mux := http.NewServeMux()
+  mux.Handle("POST /auth/dev/login", kit.LoginHandler())
+  mux.Handle("POST /auth/dev/logout", kit.LogoutHandler())
+  mux.Handle("GET /auth/dev/session", kit.SessionHandler())
+  mux.Handle("/", host)
+  ```
+- Smoke credential:
+  ```text
+  username: demo@example.test
+  password: demo-password
   ```

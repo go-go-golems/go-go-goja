@@ -6,8 +6,8 @@
 - [x] Write production host auth implementation plan.
 - [x] Define dev/demo host auth implementation plan.
 - [x] Define package boundaries between Express core, `gojahttp` interfaces, and optional host auth kits.
-- [ ] Keep the investigation diary current after each implementation slice.
-- [ ] Keep the changelog and related-file links current after each implementation slice.
+- [x] Keep the investigation diary current after each implementation slice.
+- [x] Keep the changelog and related-file links current after each implementation slice.
 
 ## Phase 1 — Dev/demo auth kit
 
