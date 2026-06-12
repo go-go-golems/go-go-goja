@@ -97,5 +97,5 @@ Goal: make the host auth system discoverable and runnable for both dev/demo and 
 - [ ] Add Glazed help pages for host auth setup and dev/demo auth usage.
 - [ ] Add release/migration notes explaining that user stores remain host-owned.
 - [ ] Validate `docmgr doctor --ticket XGOJA-HOST-AUTH --stale-after 30`.
-- [ ] Validate package tests and example smokes.
+- [x] Validate package tests and example smokes.
 - [ ] Optionally upload the final ticket docs to reMarkable.
