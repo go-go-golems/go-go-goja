@@ -46,6 +46,9 @@ func NewExampleGojaNamespace(vm *goja.Runtime) (*goja.Object, error) {
 		return nil, errors.New("protogoja: nil runtime")
 	}
 	obj := vm.NewObject()
+	if err := protogoja.AttachMessagePrototype(vm, obj, &Example{}); err != nil {
+		return nil, err
+	}
 	if err := obj.Set("typeName", "fixture.v1.Example"); err != nil {
 		return nil, err
 	}
@@ -182,6 +185,9 @@ func NewExample_NestedGojaNamespace(vm *goja.Runtime) (*goja.Object, error) {
 		return nil, errors.New("protogoja: nil runtime")
 	}
 	obj := vm.NewObject()
+	if err := protogoja.AttachMessagePrototype(vm, obj, &Example_Nested{}); err != nil {
+		return nil, err
+	}
 	if err := obj.Set("typeName", "fixture.v1.Example.Nested"); err != nil {
 		return nil, err
 	}

@@ -131,6 +131,16 @@ func TestGeneratedModuleManifestBuilderRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("namespace: %v", err)
 	}
+	prototype, ok := protogoja.MessagePrototypeFromValue(ns)
+	if !ok {
+		t.Fatalf("namespace has no message prototype")
+	}
+	if string(prototype.TypeName()) != "hashiplugin.contract.v1.ModuleManifest" {
+		t.Fatalf("prototype type = %s", prototype.TypeName())
+	}
+	if _, ok := prototype.NewMessage().(*ModuleManifest); !ok {
+		t.Fatalf("prototype created wrong message type")
+	}
 	builderFn, ok := goja.AssertFunction(ns.Get("builder"))
 	if !ok {
 		t.Fatalf("builder is not callable")

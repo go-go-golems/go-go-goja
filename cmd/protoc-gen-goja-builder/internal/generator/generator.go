@@ -10,17 +10,18 @@ import (
 )
 
 var (
-	errorsNewIdent                 = protogen.GoIdent{GoName: "New", GoImportPath: "errors"}
-	gojaFunctionCallIdent          = protogen.GoIdent{GoName: "FunctionCall", GoImportPath: "github.com/dop251/goja"}
-	gojaObjectIdent                = protogen.GoIdent{GoName: "Object", GoImportPath: "github.com/dop251/goja"}
-	gojaRuntimeIdent               = protogen.GoIdent{GoName: "Runtime", GoImportPath: "github.com/dop251/goja"}
-	gojaValueIdent                 = protogen.GoIdent{GoName: "Value", GoImportPath: "github.com/dop251/goja"}
-	protogojaAttachBuilderRefIdent = protogen.GoIdent{GoName: "AttachBuilderRef", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
-	protogojaBuilderRefIdent       = protogen.GoIdent{GoName: "BuilderRef", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
-	protogojaIsMessageValueOfIdent = protogen.GoIdent{GoName: "IsMessageValueOf", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
-	protogojaMessageFromValueIdent = protogen.GoIdent{GoName: "MessageFromValue", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
-	protogojaNewBuilderIdent       = protogen.GoIdent{GoName: "NewBuilder", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
-	protogojaToValueIdent          = protogen.GoIdent{GoName: "ToValue", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	errorsNewIdent                       = protogen.GoIdent{GoName: "New", GoImportPath: "errors"}
+	gojaFunctionCallIdent                = protogen.GoIdent{GoName: "FunctionCall", GoImportPath: "github.com/dop251/goja"}
+	gojaObjectIdent                      = protogen.GoIdent{GoName: "Object", GoImportPath: "github.com/dop251/goja"}
+	gojaRuntimeIdent                     = protogen.GoIdent{GoName: "Runtime", GoImportPath: "github.com/dop251/goja"}
+	gojaValueIdent                       = protogen.GoIdent{GoName: "Value", GoImportPath: "github.com/dop251/goja"}
+	protogojaAttachBuilderRefIdent       = protogen.GoIdent{GoName: "AttachBuilderRef", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	protogojaAttachMessagePrototypeIdent = protogen.GoIdent{GoName: "AttachMessagePrototype", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	protogojaBuilderRefIdent             = protogen.GoIdent{GoName: "BuilderRef", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	protogojaIsMessageValueOfIdent       = protogen.GoIdent{GoName: "IsMessageValueOf", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	protogojaMessageFromValueIdent       = protogen.GoIdent{GoName: "MessageFromValue", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	protogojaNewBuilderIdent             = protogen.GoIdent{GoName: "NewBuilder", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	protogojaToValueIdent                = protogen.GoIdent{GoName: "ToValue", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
 )
 
 // Generate emits one Goja protobuf-builder companion Go file for every proto
@@ -113,6 +114,9 @@ func emitMessageAPI(g *protogen.GeneratedFile, msg *protogen.Message) {
 	g.P("\t\treturn nil, ", g.QualifiedGoIdent(errorsNewIdent), "(\"protogoja: nil runtime\")")
 	g.P("\t}")
 	g.P("\tobj := vm.NewObject()")
+	g.P("\tif err := ", g.QualifiedGoIdent(protogojaAttachMessagePrototypeIdent), "(vm, obj, &", g.QualifiedGoIdent(msg.GoIdent), "{}); err != nil {")
+	g.P("\t\treturn nil, err")
+	g.P("\t}")
 	g.P("\tif err := obj.Set(\"typeName\", ", quoted(string(msg.Desc.FullName())), "); err != nil {")
 	g.P("\t\treturn nil, err")
 	g.P("\t}")
