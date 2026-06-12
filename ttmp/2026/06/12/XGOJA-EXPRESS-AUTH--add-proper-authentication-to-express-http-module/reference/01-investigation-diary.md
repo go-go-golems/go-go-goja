@@ -13,6 +13,12 @@ Owners: []
 RelatedFiles:
     - Path: examples/xgoja/15-express-planned-auth/scripts/server.js
       Note: Example route authoring migrated to planned verb helpers (commit 4492723)
+    - Path: examples/xgoja/16-express-auth-host/README.md
+      Note: Instructions and smoke/curl usage for the runnable auth host example (commit f852a21)
+    - Path: examples/xgoja/16-express-auth-host/cmd/host/main.go
+      Note: Runnable Go host wiring demo auth/resource/authorization/CSRF/audit services (commit f852a21)
+    - Path: examples/xgoja/16-express-auth-host/scripts/server.js
+      Note: JavaScript planned auth route declarations for the runnable host example (commit f852a21)
     - Path: modules/express/auth_builders.go
       Note: Fluent .csrf() and .audit(event) builder methods (commit 61c858d)
     - Path: modules/express/auth_builders_integration_test.go
@@ -57,6 +63,7 @@ LastUpdated: 2026-06-12T16:26:00-04:00
 WhatFor: Use this to resume or review the ticket research and design work.
 WhenToUse: Read before continuing implementation work for XGOJA-EXPRESS-AUTH.
 ---
+
 
 
 
@@ -1600,4 +1607,131 @@ The implementation keeps the same architecture as authentication and authorizati
           Audit:         myAuditSink,
       },
   })
+  ```
+
+
+## Step 16: Add runnable Express auth host example
+
+I added a standalone runnable example that demonstrates the planned auth route system from the Go host side rather than only from JavaScript route authoring. The example shows how an application owns authentication, resource resolution, authorization, CSRF verification, audit recording, and strict raw-route rejection while JavaScript declares route intent through the fluent Express builder.
+
+This turns the auth work into something a developer can run locally: `make smoke` starts an in-process server, exercises public and protected routes, verifies denied paths, and prints the number of emitted audit events.
+
+### Prompt Context
+
+**User prompt (verbatim):** "proceed with adding examples and ignore the previous `buildvcs` topic."
+
+**Assistant interpretation:** Stop working on the generated-build VCS stamping issue for now and add runnable examples for the Express auth functionality.
+
+**Inferred user intent:** Provide practical, executable evidence that the planned auth framework can be wired by a Go application host and used from JavaScript routes.
+
+**Commit (code):** f852a21a221cbe37c868cdb8480b3879c634ed3e — "Add runnable Express auth host example"
+
+### What I did
+- Added `examples/xgoja/16-express-auth-host/scripts/server.js` with:
+  - public `GET /healthz` route with `.public().audit(...)`,
+  - authenticated `GET /me` route with `.auth(...).allow(...).audit(...)`,
+  - protected `PATCH /orgs/:orgId/projects/:projectId` route with auth, resource extraction, CSRF, authorization, audit, and handler access to `ctx.resource("project")`.
+- Added `examples/xgoja/16-express-auth-host/cmd/host/main.go` with a demo Go host that wires:
+  - `gojahttp.Authenticator`,
+  - `gojahttp.ResourceResolver`,
+  - `gojahttp.Authorizer`,
+  - `gojahttp.CSRFProtector`,
+  - `gojahttp.AuditSink`,
+  - `RejectRawRoutes: true`.
+- Added `--smoke` mode that starts an in-process `httptest.Server` and validates success/denial cases.
+- Added `--listen` mode for manual curl testing.
+- Added `examples/xgoja/16-express-auth-host/Makefile` with `smoke` and `serve` targets.
+- Added `examples/xgoja/16-express-auth-host/README.md` with route/API explanation and curl commands.
+- Updated `examples/xgoja/README.md` to include examples 15 and 16 in the learning path and smoke loop.
+- Linked the runnable example from:
+  - `pkg/doc/18-express-module.md`,
+  - `pkg/doc/29-express-auth-user-guide.md`,
+  - `pkg/doc/30-migrate-express-apps-to-planned-auth.md`.
+- Marked docmgr task 58 complete.
+
+### Why
+- The earlier `15-express-planned-auth` example documents route authoring but is not standalone because it depends on host-provided auth services.
+- A runnable Go host example demonstrates the intended layering: JavaScript declares route policy and Go owns security-sensitive decisions and storage.
+- Smoke coverage gives future maintainers a quick way to verify that auth, CSRF, resource resolution, authorization, audit, and strict raw route rejection still compose correctly.
+
+### What worked
+- The example smoke target passed:
+  - `make -C examples/xgoja/16-express-auth-host smoke`
+- Targeted package tests passed:
+  - `go test ./examples/xgoja/16-express-auth-host/cmd/host ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1`
+- Full suite passed with the known VCS-stamping workaround:
+  - `GOFLAGS=-buildvcs=false go test ./... -count=1`
+- The commit pre-hook passed lint, `go generate ./...`, and `go test ./...` after the errcheck fix.
+
+### What didn't work
+- The first commit attempt failed during the pre-commit lint hook because `json.Encoder.Encode` returned an unchecked error:
+  ```text
+  examples/xgoja/16-express-auth-host/cmd/host/main.go:197:35: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+      json.NewEncoder(os.Stdout).Encode(map[string]any{"auditEvents": services.auditCount(), "status": "PASS"})
+  ```
+- I fixed it by checking and returning the encode error from `runSmoke`:
+  ```go
+  if err := json.NewEncoder(os.Stdout).Encode(map[string]any{"auditEvents": services.auditCount(), "status": "PASS"}); err != nil {
+      return err
+  }
+  ```
+
+### What I learned
+- The auth APIs are usable from a standalone host without adding any built-in user store to `modules/express` or `pkg/gojahttp`.
+- Strict raw-route rejection works naturally for this style of application because all JavaScript routes use planned builders.
+- The audit sink is helpful during smoke tests because it visibly confirms the allowed, denied, completed, and failed/404 paths around handler execution.
+
+### What was tricky to build
+- The main tricky part was keeping the example realistic without turning it into an application framework. The host needed enough fake services to demonstrate the interface contracts, but not so much database/session code that the example obscures the planned-route API.
+- Another sharp edge was response ordering in smoke output: audit events are logged through the standard logger while smoke assertions print to stdout, so the terminal can interleave lines even when the requests run sequentially.
+- The example also has to load JavaScript through Goja manually. Registering `express.NewRegistrar(host)` into the runtime is the important line for readers because that is where the JavaScript `require("express")` module becomes bound to the Go-owned host.
+
+### What warrants a second pair of eyes
+- Review whether the demo authorization policy is clear enough: `user.self.read` and `project.update` are intentionally narrow, but the simplified fake actor/resource data may need comments if this example becomes onboarding material.
+- Review whether `examples/xgoja/README.md` should run example 16 in the default smoke loop, since it uses `go run` and in-process HTTP but no external services.
+- Review whether the manual `--listen` mode should default to a different port or support environment-variable configuration.
+
+### What should be done in the future
+- Add a reusable optional auth helper package only after real host applications reveal repeated authenticator/session patterns.
+- Add `.body(...)` schema validation in a later ticket/session.
+- Return to the generated build VCS-stamping issue when example work is complete.
+
+### Code review instructions
+- Start with `examples/xgoja/16-express-auth-host/scripts/server.js` to see the JavaScript route declarations.
+- Then review `examples/xgoja/16-express-auth-host/cmd/host/main.go`, especially `buildHost`, `loadRoutes`, `runSmoke`, and the demo auth service methods.
+- Check documentation in `examples/xgoja/16-express-auth-host/README.md` and the cross-links in `pkg/doc/18-express-module.md`, `pkg/doc/29-express-auth-user-guide.md`, and `pkg/doc/30-migrate-express-apps-to-planned-auth.md`.
+- Validate with:
+  - `make -C examples/xgoja/16-express-auth-host smoke`
+  - `go test ./examples/xgoja/16-express-auth-host/cmd/host ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1`
+  - `GOFLAGS=-buildvcs=false go test ./... -count=1`
+
+### Technical details
+- Host setup pattern:
+  ```go
+  host := gojahttp.NewHost(gojahttp.HostOptions{
+      RejectRawRoutes: true,
+      Auth: gojahttp.AuthOptions{
+          Authenticator: services,
+          Resources:     services,
+          Authorizer:    services,
+          CSRF:          services,
+          Audit:         services,
+      },
+  })
+  ```
+- Runtime/module binding pattern:
+  ```go
+  registry := modules.NewRegistry()
+  registry.Register(express.NewRegistrar(host))
+  engine := gojaeng.NewEngine(gojaeng.WithRegistry(registry))
+  _, err := engine.RunString(string(scriptBytes))
+  ```
+- Smoke route matrix:
+  ```text
+  GET   /healthz                         -> 200 public
+  GET   /me                              -> 401 without bearer token
+  GET   /me                              -> 200 with Authorization: Bearer demo-user
+  PATCH /orgs/o1/projects/p1             -> 403 without X-CSRF-Token
+  PATCH /orgs/o1/projects/p1             -> 200 with bearer token and CSRF token
+  PATCH /orgs/o1/projects/missing        -> 404 with bearer token and CSRF token
   ```

@@ -187,3 +187,13 @@ Implemented planned route CSRF and audit hooks with Go host interfaces, builder 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/planned_dispatch_test.go — Regression coverage
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Diary records Step 15
 
+
+## 2026-06-12
+
+Add runnable Express auth host example with smoke coverage (commit f852a21)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/16-express-auth-host/cmd/host/main.go — Go-owned host services for runnable planned auth smoke example
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/16-express-auth-host/scripts/server.js — Planned auth route declarations used by smoke example
+

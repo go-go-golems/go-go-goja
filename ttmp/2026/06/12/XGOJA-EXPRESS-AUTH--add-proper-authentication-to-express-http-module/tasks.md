@@ -80,3 +80,4 @@
 - [x] Update tests, examples, and docs for planned verb helper migration
 - [x] Add dedicated Express auth user guide help entry
 - [x] Add Express planned auth migration tutorial help entry
+- [x] Add runnable Express auth host example with smoke coverage
