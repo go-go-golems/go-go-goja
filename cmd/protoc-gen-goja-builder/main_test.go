@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator"
@@ -45,6 +47,35 @@ func TestGeneratorProducesFirstCompanionGoFile(t *testing.T) {
 	golden, err := os.ReadFile("testdata/fixture_goja.pb.go.golden")
 	require.NoError(t, err)
 	require.Equal(t, string(golden), resp.File[0].GetContent())
+}
+
+func TestGeneratedCompanionFileCompiles(t *testing.T) {
+	req := &pluginpb.CodeGeneratorRequest{
+		FileToGenerate: []string{"fixture/v1/fixture.proto"},
+		Parameter:      proto.String("paths=source_relative,module_name=fixture.custom"),
+		ProtoFile: []*descriptorpb.FileDescriptorProto{
+			fixtureFileDescriptor(),
+		},
+	}
+	plugin, err := protogen.Options{ParamFunc: func(_, _ string) error { return nil }}.New(req)
+	require.NoError(t, err)
+	opts, err := generator.ParseParameter(req.GetParameter())
+	require.NoError(t, err)
+	require.NoError(t, generator.Generate(plugin, opts))
+	resp := plugin.Response()
+	require.Empty(t, resp.GetError())
+	require.Len(t, resp.File, 1)
+
+	tmp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "go.mod"), []byte("module example.com/fixture\n\ngo 1.26\n"), 0o644))
+	outPath := filepath.Join(tmp, resp.File[0].GetName())
+	require.NoError(t, os.MkdirAll(filepath.Dir(outPath), 0o755))
+	require.NoError(t, os.WriteFile(outPath, []byte(resp.File[0].GetContent()), 0o644))
+
+	cmd := exec.Command("go", "test", "./...")
+	cmd.Dir = tmp
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
 }
 
 func TestParseParameterRejectsUnknownOption(t *testing.T) {
