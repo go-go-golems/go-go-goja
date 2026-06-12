@@ -48,6 +48,8 @@ RelatedFiles:
         RenderGoMod consumes workspace plans for Step 17
     - Path: cmd/xgoja/internal/generate/plan.go
       Note: Generator-local v2 plan adaptation and plan entrypoints
+    - Path: cmd/xgoja/internal/generate/templates.go
+      Note: Plan-native template data and embedded runtime JSON rendering
     - Path: cmd/xgoja/internal/plan/plan.go
       Note: |-
         Initial v2 Plan compiler for Step 16
@@ -77,6 +79,8 @@ RelatedFiles:
       Note: |-
         HTTP serve jsverbs example migrated to v2 in commit acbb5f9
         HTTP serve example binary artifact now embeds the jsverb source set
+    - Path: examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go
+      Note: Regenerated runtime package now embeds runtime-only plan-derived JSON
     - Path: examples/xgoja/15-typescript-jsverbs/README.md
       Note: Example README updated to explain v2 source/runtime module model in commit f47d196
     - Path: examples/xgoja/15-typescript-jsverbs/xgoja.yaml
@@ -134,6 +138,7 @@ LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -2437,3 +2442,93 @@ The generator still reuses its established rendering internals, but the compatib
 - `BuildSpecFromPlan` maps `runtime-package` artifacts to the current generator target kind `package`.
 - Artifact `sources` still drive embedded jsverb/help source copying through generator-local adaptation.
 - `embedded-assets` artifacts still drive asset embedding through generator-local adaptation.
+
+
+## Step 27: Render template data directly from v2 plans
+
+I moved the generator template-data path onto native v2 `plan.Plan` inputs. The generator still uses a temporary buildspec-shaped model for copy and `go.mod` plumbing, but generated Go templates, custom template data, DTS sidecar templates, and embedded runtime JSON now come from plan-native template-data constructors.
+
+This also regenerated the runtime-package example. Its embedded JSON no longer carries build-only fields such as provider import paths or provider register functions; it now matches the runtime-only shape consumed by `app.RuntimeSpec`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "update the template thing too."
+
+**Assistant interpretation:** Finish the next cleanup step by making template rendering/template-data generation plan-native instead of routing through `BuildSpecFromPlan`.
+
+**Inferred user intent:** Reduce the remaining legacy DTO dependency in generated output so the public generator artifacts reflect the v2 planner/runtime boundary.
+
+**Commit (code):** 38b1f109af0e2e58a95df35ff67f4a15fc2376a2 — "xgoja: render templates from v2 plans"
+
+### What I did
+
+- Added plan-native template-data constructors in `cmd/xgoja/internal/generate/templates.go`.
+- Added `RenderEmbeddedSpecFromPlan` to emit the runtime JSON directly from `plan.Plan` into `app.RuntimeSpec`-compatible JSON.
+- Added plan-native render functions in `cmd/xgoja/internal/generate/main.go`:
+  - `RenderMainPlan`
+  - `RenderPackagePlan`
+  - `RenderSourceFragmentsPlan`
+  - `RenderDTSGenMainPlan`
+  - `RenderCustomTemplatePlan`
+- Updated plan-backed write functions in `cmd/xgoja/internal/generate/plan.go` to use the plan-native render functions.
+- Updated `TemplateDataJSONFromPlan` to marshal `packageTemplateDataFromPlan` directly.
+- Updated DTS sidecar generation to render `main.go` from `RenderDTSGenMainPlan`.
+- Regenerated `examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go`.
+
+### Why
+
+- The previous cleanup made commands plan-first, but template rendering still immediately adapted plan data into the older generator model.
+- Template rendering is where the generated runtime contract is materialized, so it should be driven by the v2 runtime plan rather than by buildspec compatibility fields.
+- Runtime JSON should not preserve build-only fields such as provider import paths, register functions, artifact package names, or replacement metadata.
+
+### What worked
+
+- `go test ./cmd/xgoja/internal/generate ./cmd/xgoja -count=1` passed.
+- `go test ./cmd/xgoja -run TestGenerateCommandPrintsTemplateData -count=1` passed.
+- `make -C examples/xgoja/14-generated-runtime-package smoke` passed and printed `hello package host`.
+- Full pre-commit passed after the lint fix: lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- The first commit attempt failed lint because I used capitalized error strings:
+  - `cmd/xgoja/internal/generate/plan.go:20:10: ST1005: error strings should not be capitalized`
+  - `cmd/xgoja/internal/generate/plan.go:53:10: ST1005: error strings should not be capitalized`
+  - `cmd/xgoja/internal/generate/plan.go:84:10: ST1005: error strings should not be capitalized`
+- I fixed those by changing `Plan is nil` to `plan is nil` and reran the commit hook successfully.
+
+### What I learned
+
+- The app runtime spec is already the right runtime boundary: generated binaries only need provider IDs, runtime modules, command surfaces, source runtime paths, and embedded asset/help/jsverb metadata.
+- Plan-native template rendering makes checked-in generated output clearer because build-time import/register data no longer appears inside `EmbeddedSpecJSON`.
+
+### What was tricky to build
+
+- Embedded source roots must remain deterministic and match the copy step. I reused the existing source-ID sanitization pattern and kept the same `xgoja_embed/jsverbs`, `xgoja_embed/help`, and `xgoja_embed/assets` root conventions.
+- The copy path still uses the generator adapter because copy helpers are buildspec-shaped. The template output is plan-native now, but a future cleanup can move embed copy metadata onto a small plan-native DTO.
+
+### What warrants a second pair of eyes
+
+- Review `RenderEmbeddedSpecFromPlan` for parity with the runtime fields expected by `pkg/xgoja/app.RuntimeSpec`.
+- Review target kind/output mapping for less common artifact kinds (`adapter`, `cobra`, `template`, `source`).
+- Review whether the plan-native embedded root generation should be shared with copy helpers to remove the last chance of drift.
+
+### What should be done in the future
+
+- Replace the remaining buildspec-shaped copy/`go.mod` helper usage with a small generator-local plan DTO.
+- Add focused tests that compare plan-native embedded JSON against decoded `app.RuntimeSpec` for embedded jsverbs/help/assets and provider command sets.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/generate/templates.go`, especially `RenderEmbeddedSpecFromPlan` and the `*FromPlan` template-data functions.
+- Then review `cmd/xgoja/internal/generate/plan.go` to confirm plan-backed writes call plan renderers.
+- Inspect `examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go` to see the runtime-only embedded JSON shape.
+- Validate with:
+  - `go test ./cmd/xgoja/internal/generate ./cmd/xgoja -count=1`
+  - `make -C examples/xgoja/14-generated-runtime-package smoke`
+  - full pre-commit.
+
+### Technical details
+
+- `RenderEmbeddedSpecFromPlan` emits an anonymous JSON payload using `app.*` DTOs and includes `help` only when help sources exist.
+- Provider imports are still used for generated Go imports/registration, but only provider IDs are embedded in runtime JSON.
+- `TemplateDataJSONFromPlan` now reflects the same plan-native package template data that custom templates receive.

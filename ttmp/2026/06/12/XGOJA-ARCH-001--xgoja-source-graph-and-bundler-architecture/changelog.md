@@ -292,3 +292,13 @@ Step 26: moved v2 plan-to-generation adaptation into internal/generate and made 
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/plan.go — Plan-backed generator entrypoints and generator-local adaptation
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/v2_bridge.go — Now only loads/compiles native v2 plans and rejects legacy specs
 
+
+## 2026-06-12
+
+Step 27: rendered generator templates and embedded runtime JSON from v2 plans instead of the generator buildspec adapter (commit 38b1f10)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/plan.go — Plan-backed write functions now render templates from plan data
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/templates.go — Plan-native template data and embedded runtime JSON rendering
+
