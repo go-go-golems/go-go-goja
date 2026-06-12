@@ -8,6 +8,26 @@ import (
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/specv2"
 )
 
+func WriteAllPlan(dir string, compiled *plan.Plan, opts Options) error {
+	return WriteAll(dir, BuildSpecFromPlan(compiled), opts)
+}
+
+func WritePackagePlan(dir string, compiled *plan.Plan, opts PackageOptions) error {
+	return WritePackage(dir, BuildSpecFromPlan(compiled), opts)
+}
+
+func WriteSourceFragmentsPlan(dir string, compiled *plan.Plan, opts PackageOptions) error {
+	return WriteSourceFragments(dir, BuildSpecFromPlan(compiled), opts)
+}
+
+func WriteCustomTemplatePlan(outputFile string, compiled *plan.Plan, opts TemplateOptions) error {
+	return WriteCustomTemplate(outputFile, BuildSpecFromPlan(compiled), opts)
+}
+
+func TemplateDataJSONFromPlan(compiled *plan.Plan, packageName string) (string, error) {
+	return TemplateDataJSON(BuildSpecFromPlan(compiled), packageName)
+}
+
 // BuildSpecFromPlan adapts the v2 planner output to the current generator's
 // rendering model. It is intentionally contained in the generator package so
 // CLI commands consume plan.Plan directly and legacy buildspec loading remains

@@ -128,7 +128,7 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 		}
 	}
 	if settings.TemplateData {
-		data, err := generate.TemplateDataJSON(buildSpec, dataPackageName)
+		data, err := generate.TemplateDataJSONFromPlan(compiledPlan, dataPackageName)
 		if err != nil {
 			return err
 		}
@@ -151,11 +151,11 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	switch kind {
 	case "package":
-		err = generate.WritePackage(output, buildSpec, generate.PackageOptions{PackageName: packageName})
+		err = generate.WritePackagePlan(output, compiledPlan, generate.PackageOptions{PackageName: packageName})
 	case "source":
-		err = generate.WriteSourceFragments(output, buildSpec, generate.PackageOptions{PackageName: packageName})
+		err = generate.WriteSourceFragmentsPlan(output, compiledPlan, generate.PackageOptions{PackageName: packageName})
 	case "template":
-		err = generate.WriteCustomTemplate(output, buildSpec, generate.TemplateOptions{PackageName: packageName, TemplatePath: templatePath})
+		err = generate.WriteCustomTemplatePlan(output, compiledPlan, generate.TemplateOptions{PackageName: packageName, TemplatePath: templatePath})
 	}
 	if err != nil {
 		return err
