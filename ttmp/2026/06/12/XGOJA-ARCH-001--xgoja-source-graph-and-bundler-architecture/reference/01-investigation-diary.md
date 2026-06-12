@@ -47,7 +47,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T12:35:00-04:00
+LastUpdated: 2026-06-12T13:05:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
@@ -478,3 +478,89 @@ This removes the need for broad bundler configuration in the v2 spec. The simpli
 - `compile.bundle: true` remains the extension point for future goja-runtime package bundling.
 - Runtime module aliases should be derived from `runtime.modules` and externalized automatically during bundling.
 - Browser/frontend bundles are represented as `sources.kind: assets` after external build tooling produces their output directory.
+
+
+## Step 5: Expand the hard-cutover task list for v2 implementation
+
+I rewrote the ticket task list into a detailed implementation checklist for a hard cutover to the simplified v2 xgoja architecture. The task list assumes v1 is not kept as a normal execution path. Instead, v1 remains readable for migration tooling, and the planner/runtime implementation becomes v2-native.
+
+The list also records the current provider API position: do not change provider runtime APIs by default. The v2 provider graph should wrap the existing provider registry first, then audit whether any provider API changes are truly required.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, we'll do that later. Let's csreate a detailed list of tasks for doing the hard cutover to the new v2 xgoja, not keeping any backwards compatibility, but providing tooling to convert an old yaml (I don't think we need to change providers and other APIs? maybe we do?) to the ticket."
+
+**Assistant interpretation:** Update the architecture ticket with a detailed task breakdown for implementing the v2 hard cutover, including migration tooling and an explicit provider API audit.
+
+**Inferred user intent:** Turn the v2 architecture into an actionable implementation backlog, while keeping the cutover clean and avoiding unnecessary provider API churn.
+
+**Commit (code):** N/A — ticket task update only in this step.
+
+### What I did
+
+- Rewrote `tasks.md` with phase-based implementation tasks:
+  - Phase 0: freeze v1 semantics as migration input only;
+  - Phase 1: define simplified v2 DTOs and validator;
+  - Phase 2: build v1-to-v2 migration tooling;
+  - Phase 3: add `xgoja migrate-spec`;
+  - Phase 4: implement Go workspace resolution;
+  - Phase 5: build v2 provider graph without changing provider APIs by default;
+  - Phase 6: build v2 source graph;
+  - Phase 7: port TypeScript/jsverbs execution;
+  - Phase 8: replace build/generate/gen-dts command paths with v2 planner;
+  - Phase 9: cut over examples and docs;
+  - Phase 10: hard remove normal v1 execution paths;
+  - Phase 11: defer provider manifests/catalog to a follow-up ticket.
+- Added explicit open implementation questions.
+- Added suggested follow-up tickets:
+  - `XGOJA-V2-001` through `XGOJA-V2-005`.
+- Included a provider API audit step and a recommendation to keep existing provider APIs initially.
+
+### Why
+
+- The architecture docs are detailed but not a concrete implementation backlog by themselves.
+- A hard cutover needs exact sequencing so we do not accidentally build a compatibility layer that becomes permanent.
+- Provider APIs are already reasonably shaped around runtime behavior. The first v2 implementation should wrap them in a provider graph before deciding whether changes are necessary.
+
+### What worked
+
+- The v2 cutover can be expressed as a sequence that starts with migration tooling, then workspace/provider/source graph planning, then command cutover.
+- The provider API question can be handled as an audit task rather than a prerequisite rewrite.
+
+### What didn't work
+
+- No command failed in this step.
+- This remains a planning update; no v2 code has been implemented yet.
+
+### What I learned
+
+- The main cutover risk is not provider API shape. It is accidentally keeping v1 as a parallel execution path. The tasks now explicitly constrain v1 to migration tooling after cutover.
+- The first implementation ticket should be `specv2` plus `migrate-spec`; planner work should target v2 from the start.
+
+### What was tricky to build
+
+- The task list had to separate hard-cutover MVP work from desirable but non-critical follow-ups such as provider manifests and provider catalog search.
+- The list also had to keep `XGOJA-TS-002` visible because embedded/provider TypeScript source origin metadata is still a real code review issue and overlaps with the source graph phase.
+
+### What warrants a second pair of eyes
+
+- Review whether Phase 4 workspace resolution should happen before Phase 5 provider graph, or whether both should be implemented in one ticket.
+- Review whether `compile.mode: build-time` belongs in the v2 MVP or should be deferred.
+- Review whether provider API changes are truly unnecessary for the first v2 provider graph.
+
+### What should be done in the future
+
+- Create `XGOJA-V2-001` for specv2 DTOs and migration tooling.
+- Use the task list as the source of truth for follow-up ticket slicing.
+
+### Code review instructions
+
+- Start with `tasks.md` in the architecture ticket.
+- Compare the phase order against `design/02-xgoja-v2-spec-and-migration-architecture.md`.
+- Verify that no task requires permanent v1 compatibility in planner/runtime code.
+
+### Technical details
+
+- Proposed first implementation ticket: `XGOJA-V2-001`.
+- Provider API stance: keep existing runtime APIs initially, add a provider API audit during provider graph implementation.
+- v1 stance: normal commands reject v1 after cutover; only `migrate-spec` keeps v1 parsing.

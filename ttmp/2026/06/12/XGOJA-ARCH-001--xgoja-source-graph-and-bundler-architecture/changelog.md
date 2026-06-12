@@ -42,3 +42,13 @@ Simplified the v2 spec design around goja-executed source only: removed broad bu
 
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/design/02-xgoja-v2-spec-and-migration-architecture.md — Simplified v2 spec design
 
+
+## 2026-06-12
+
+Expanded tasks into a phase-by-phase hard-cutover plan for v2 xgoja, including migration tooling, workspace resolution, provider graph, source graph, command cutover, docs/examples, and v1 removal.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/reference/01-investigation-diary.md — Diary Step 5 task planning entry
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/tasks.md — Detailed v2 hard-cutover task list
+
