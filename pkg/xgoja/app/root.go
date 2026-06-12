@@ -277,7 +277,7 @@ func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *Runtime
 	}
 	commands := []cmds.Command{}
 	for _, source := range runtimeSpec.JSVerbs {
-		registry, err := scanVerbSource(providers, embeddedJSVerbs, source, sourceGraphRuntimeAliases(providers, moduleAliases(selectedModules)))
+		registry, err := scanVerbSource(providers, embeddedJSVerbs, source, sourceGraphRuntimeAliases(moduleAliases(selectedModules)))
 		if err != nil {
 			return nil, err
 		}
@@ -377,11 +377,15 @@ func sourceGraphSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVer
 	return &set, nil
 }
 
-func sourceGraphRuntimeAliases(providers *providerapi.ProviderRegistry, selectedAliases []string) []string {
-	aliases := append([]string(nil), selectedAliases...)
+func sourceGraphRuntimeAliases(selectedAliases []string) []string {
+	return appendUniqueStrings(nil, selectedAliases...)
+}
+
+func allProviderRuntimeAliases(providers *providerapi.ProviderRegistry) []string {
 	if providers == nil {
-		return aliases
+		return nil
 	}
+	aliases := []string{}
 	for _, pkg := range providers.Packages() {
 		for name, module := range pkg.Modules {
 			aliases = append(aliases, name)
@@ -398,7 +402,11 @@ func sourceGraphExtensions(source JSVerbSourceSpec) []string {
 		return append([]string(nil), source.Extensions...)
 	}
 	options := jsverbs.DefaultScanOptions()
-	return append([]string(nil), options.Extensions...)
+	extensions := append([]string(nil), options.Extensions...)
+	if source.TypeScript != nil {
+		extensions = appendUniqueStrings(extensions, ".ts", ".tsx", ".mts", ".cts")
+	}
+	return extensions
 }
 
 func jsverbSourceFilesFromGraph(graph *sourcegraph.Graph, sourceSetID string) ([]jsverbs.SourceFile, error) {

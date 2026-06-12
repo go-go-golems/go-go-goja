@@ -62,6 +62,58 @@ func TestScanVerbSourceTypeScriptScansAndInvokesBundledVerb(t *testing.T) {
 	}
 }
 
+func TestScanVerbSourceTypeScriptUsesTypeScriptExtensionsByDefault(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "sites.ts"), []byte(`
+		__package__({ name: "sites" })
+		__verb__("demo", { name: "demo", output: "text" })
+		function demo(): string { return "hello default ts extensions" }
+	`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, JSVerbSourceSpec{
+		ID:         "local",
+		Path:       dir,
+		TypeScript: &TypeScriptSpec{Enabled: true, Bundle: true, Target: "es2015", Format: "cjs", Platform: "neutral"},
+	}, nil)
+	if err != nil {
+		t.Fatalf("scanVerbSource() error = %v", err)
+	}
+	if _, ok := registry.Verb("sites demo"); !ok {
+		t.Fatalf("expected sites demo verb without explicit extensions, got %#v", registry.Verbs())
+	}
+}
+
+func TestSourceGraphRuntimeAliasesUseOnlySelectedRuntimeAliases(t *testing.T) {
+	providers := providerapi.NewProviderRegistry()
+	if err := providers.Package("fixture", providerapi.Module{Name: "secret", DefaultAs: "secret", NewModuleFactory: noopAppModuleFactory}); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+
+	selected := sourceGraphRuntimeAliases([]string{"allowed"})
+	if !containsString(selected, "allowed") {
+		t.Fatalf("selected runtime aliases = %#v, want allowed", selected)
+	}
+	if containsString(selected, "secret") {
+		t.Fatalf("selected runtime aliases leaked unselected provider module: %#v", selected)
+	}
+
+	all := allProviderRuntimeAliases(providers)
+	if !containsString(all, "secret") {
+		t.Fatalf("all provider runtime aliases = %#v, want secret", all)
+	}
+}
+
+func containsString(values []string, value string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
+}
+
 func TestScanVerbSourceTypeScriptProviderFSBundlesHelperImport(t *testing.T) {
 	providers := providerapi.NewProviderRegistry()
 	if err := providers.Package("fixture", providerapi.VerbSource{
