@@ -72,13 +72,16 @@ app.get(pattern)
 
 app.post(pattern)
   .auth(express.user().required())
+  .csrf()
   .allow(action)
+  .audit(event)
   .handle(handler)
 
 app.patch(pattern)
   .auth(express.user().required())
   .resource(express.resource(type).idFromParam(paramName))
   .allow(action)
+  .audit(event)
   .handle(handler)
 
 app.route(method, pattern)
@@ -154,6 +157,8 @@ The builder is intentionally strict:
 - `.handle(...)` is not available until a route calls `.public()` or `.auth(...).allow(...)`.
 - `.auth(...)` only accepts a Go-backed value returned by `express.user()`.
 - `.resource(...)` only accepts a Go-backed value returned by `express.resource(type)`.
+- `.csrf()` requires a host `CSRFProtector` on unsafe methods and rejects bad tokens before the handler runs.
+- `.audit(event)` emits host-owned audit events for allowed, denied, completed, and failed planned requests.
 - Referencing a missing path parameter, such as `.idFromParam("id")` on `/projects/:projectId`, fails at route registration time.
 
 Planned handlers receive `(ctx, res)`:
@@ -180,11 +185,13 @@ host := gojahttp.NewHost(gojahttp.HostOptions{
         Authenticator: myAuthenticator,
         Resources:     myResourceResolver,
         Authorizer:    myAuthorizer,
+        CSRF:          myCSRFProtector,
+        Audit:         myAuditSink,
     },
 })
 ```
 
-Missing auth services fail closed for authenticated planned routes. Missing credentials return 401, denied authorization returns 403, and resource lookup failures can return 404 via `gojahttp.ErrNotFound`. `RejectRawRoutes` rejects any matched low-level route that lacks a `RoutePlan`; enable it for production hosts that should only serve planned routes.
+Missing auth services fail closed for authenticated planned routes. Missing CSRF services fail closed for unsafe routes that declare `.csrf()`. Missing credentials return 401, denied authorization and CSRF failures return 403, and resource lookup failures can return 404 via `gojahttp.ErrNotFound`. `RejectRawRoutes` rejects any matched low-level route that lacks a `RoutePlan`; enable it for production hosts that should only serve planned routes.
 
 ## Request object
 
@@ -231,6 +238,7 @@ res.end()
 | `app.get(pattern, handler) was removed` | The route uses the old raw handler overload. | Use `app.get(pattern).public().handle(handler)` or an auth-aware chain. |
 | `.handle is not a function` | The route has not declared `.public()` or completed `.auth(...).allow(...)`. | Add the missing route-plan stage before `.handle(...)`. |
 | Authenticated route returns 500 | The Go host is missing auth services. | Configure `gojahttp.HostOptions.Auth` with an authenticator and authorizer. |
+| `.csrf()` route returns 500 | The route declares CSRF but the host has no `CSRFProtector`. | Configure `Auth.CSRF` or remove `.csrf()` from the route. |
 | Handler cannot read `req.query` or `req.session` | Planned handlers receive `ctx`, not raw `req`. | Use `ctx.request.query` or `ctx.request.session`. |
 | Raw route returns `raw routes disabled` | `HostOptions.RejectRawRoutes` is enabled and a low-level route without a plan matched. | Register the route through the planned Express API or `Host.RegisterPlanned`. |
 

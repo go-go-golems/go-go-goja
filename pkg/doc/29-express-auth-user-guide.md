@@ -125,6 +125,41 @@ app.patch("/orgs/:orgId/projects/:projectId")
 
 `idFromParam("projectId")` means the host reads `ctx.params.projectId` and passes the resolved string as `ResourceRequest.ID`. `tenantFromParam("orgId")` passes `ResourceRequest.TenantID`. If either parameter is missing from the route pattern, registration fails before the server starts serving that route.
 
+## CSRF protection
+
+CSRF protection is declared on the route plan and enforced by the Go host. Use `.csrf()` on unsafe browser/session routes that accept state-changing requests. The host `CSRFProtector` receives the HTTP request, planned request DTO, session, actor when present, and route plan before the JavaScript handler runs.
+
+```javascript
+app.post("/contact")
+  .public()
+  .csrf()
+  .audit("contact.submitted")
+  .handle((ctx, res) => {
+    res.json({ received: true })
+  })
+```
+
+For unsafe methods such as `POST`, `PUT`, `PATCH`, and `DELETE`, a route with `.csrf()` fails closed when the host has no `Auth.CSRF` service or when the verifier returns an error. CSRF failures return 403 and the JavaScript handler is not invoked. Safe methods such as `GET` do not call the verifier even if the route plan carries a CSRF flag.
+
+## Audit events
+
+Audit is also declared on the route plan. Use `.audit(event)` to ask the host to record structured security events around a planned request. The event name is application-owned and should describe the domain operation, such as `project.updated` or `contact.submitted`.
+
+```javascript
+app.patch("/orgs/:orgId/projects/:projectId")
+  .auth(express.user().required())
+  .resource(express.resource("project").idFromParam("projectId").tenantFromParam("orgId"))
+  .allow("project.update")
+  .csrf()
+  .audit("project.updated")
+  .handle((ctx, res) => {
+    const project = ctx.resource("project")
+    res.json({ updated: project.id })
+  })
+```
+
+The host `AuditSink` receives events for `allowed`, `denied`, `completed`, and `failed` outcomes. Audit events include the route event name, route name, method, pattern, action, actor, first resource, all resolved resources, status code when known, and failure reason when present. Audit sink errors are best-effort in the MVP: they are ignored so an unavailable audit backend does not turn an otherwise successful request into a 500.
+
 ## Planned context
 
 Planned handlers receive a context object instead of the old raw `req` object. The context exposes security state directly and keeps the original request DTO under `ctx.request`.
@@ -164,6 +199,8 @@ host := gojahttp.NewHost(gojahttp.HostOptions{
         Authenticator: myAuthenticator,
         Resources:     myResourceResolver,
         Authorizer:    myAuthorizer,
+        CSRF:          myCSRFProtector,
+        Audit:         myAuditSink,
     },
 })
 ```
@@ -186,7 +223,7 @@ type Authorizer interface {
 }
 ```
 
-`Authenticator` converts a request, session, bearer token, cookie, or upstream identity into an `Actor`. `ResourceResolver` converts declared resource IDs into `ResourceRef` values. `Authorizer` decides whether the actor may perform the declared action.
+`Authenticator` converts a request, session, bearer token, cookie, or upstream identity into an `Actor`. `ResourceResolver` converts declared resource IDs into `ResourceRef` values. `Authorizer` decides whether the actor may perform the declared action. `CSRFProtector` verifies route-declared CSRF protection on unsafe methods. `AuditSink` records route-declared security events.
 
 ## Error behavior
 
@@ -201,6 +238,8 @@ Planned routes fail closed. Missing services are host configuration errors; miss
 | Resource resolver returns `ErrNotFound` | 404 | Resource was not found or should not be disclosed. |
 | JavaScript handler throws after auth succeeds | 500 | Handler failed after the security envelope passed. |
 | Raw route matched while `RejectRawRoutes` is true | 500 | Host rejected an unplanned route before handler execution. |
+| `.csrf()` verifier fails | 403 | CSRF failure blocks handler execution. |
+| `.audit(...)` sink fails | request status unchanged | Audit is best-effort in the MVP. |
 
 In development mode, 500-class errors include more detail. In production mode, responses stay generic.
 
@@ -215,6 +254,8 @@ In development mode, 500-class errors include more detail. In production mode, r
 | `references missing route parameter` | A resource builder references a param that is not in the path. | Match the parameter name exactly, for example `/projects/:projectId` with `.idFromParam("projectId")`. |
 | Authenticated route returns 500 | The host is missing `Authenticator`, `Authorizer`, or required resource services. | Configure `gojahttp.HostOptions.Auth` in the embedding Go application. |
 | Raw route returns 500 with `raw routes disabled` | The host enabled `RejectRawRoutes` and matched a route registered through low-level `Host.Register`. | Register the route through planned Express builders or `Host.RegisterPlanned`. |
+| `.csrf()` route returns 500 | The route uses `.csrf()` on an unsafe method but the host has no `Auth.CSRF` service. | Configure `CSRFProtector` in `gojahttp.HostOptions.Auth`. |
+| Audit events are missing | The route does not call `.audit(event)` or the host has no `Auth.Audit` sink. | Add `.audit("domain.event")` and configure an `AuditSink`. |
 | Handler cannot find query or session fields | Planned handlers receive `ctx`, not raw `req`. | Use `ctx.request.query` or `ctx.request.session`. |
 
 ## See Also

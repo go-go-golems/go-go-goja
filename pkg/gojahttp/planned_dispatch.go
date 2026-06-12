@@ -21,9 +21,11 @@ func (h *Host) servePlannedRoute(w http.ResponseWriter, r *http.Request, route R
 	res := NewResponse(w, h.renderer)
 	envelope, status, err := h.buildSecureEnvelope(r.Context(), r, req, route.Plan)
 	if err != nil {
+		h.recordAudit(r.Context(), r, req, route.Plan, envelope, "denied", status, err)
 		h.writePlannedError(w, res, status, err)
 		return
 	}
+	h.recordAudit(r.Context(), r, req, route.Plan, envelope, "allowed", 0, nil)
 	ret, err := h.owner.Call(r.Context(), "http-planned-handler", func(ctx context.Context, vm *goja.Runtime) (any, error) {
 		result, err := route.Handler(goja.Undefined(), envelope.JSObject(vm), res.JSObject(vm))
 		if err != nil {
@@ -39,13 +41,18 @@ func (h *Host) servePlannedRoute(w http.ResponseWriter, r *http.Request, route R
 			err = h.awaitAndFinishPromise(r.Context(), res, promise)
 		}
 	}
-	if err != nil && !res.Sent() {
-		if h.dev {
-			http.Error(w, fmt.Sprintf("JavaScript handler error: %v", err), http.StatusInternalServerError)
-		} else {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+	if err != nil {
+		h.recordAudit(r.Context(), r, req, route.Plan, envelope, "failed", http.StatusInternalServerError, err)
+		if !res.Sent() {
+			if h.dev {
+				http.Error(w, fmt.Sprintf("JavaScript handler error: %v", err), http.StatusInternalServerError)
+			} else {
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+			}
 		}
+		return
 	}
+	h.recordAudit(r.Context(), r, req, route.Plan, envelope, "completed", res.Status(), nil)
 }
 
 func (h *Host) buildSecureEnvelope(ctx context.Context, httpReq *http.Request, req *RequestDTO, plan *RoutePlan) (*secureEnvelope, int, error) {
@@ -59,43 +66,52 @@ func (h *Host) buildSecureEnvelope(ctx context.Context, httpReq *http.Request, r
 		// No actor required.
 	case SecurityModeUser:
 		if h.auth.Authenticator == nil {
-			return nil, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires authenticator", plan.Method, plan.Pattern)
+			return envelope, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires authenticator", plan.Method, plan.Pattern)
 		}
 		var err error
 		actor, err = h.auth.Authenticator.Authenticate(ctx, httpReq, req.Session, plan.Security)
 		if err != nil {
-			return nil, statusForAuthError(err), err
+			return envelope, statusForAuthError(err), err
 		}
 		if actor == nil {
-			return nil, http.StatusUnauthorized, ErrUnauthenticated
+			return envelope, http.StatusUnauthorized, ErrUnauthenticated
 		}
 		envelope.Actor = actor
 	default:
-		return nil, http.StatusInternalServerError, fmt.Errorf("unsupported planned route security mode %q", plan.Security.Mode)
+		return envelope, http.StatusInternalServerError, fmt.Errorf("unsupported planned route security mode %q", plan.Security.Mode)
+	}
+
+	if plan.CSRF.Required && isUnsafeMethod(plan.Method) {
+		if h.auth.CSRF == nil {
+			return envelope, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires csrf protector", plan.Method, plan.Pattern)
+		}
+		if err := h.auth.CSRF.VerifyCSRF(ctx, CSRFRequest{HTTPRequest: httpReq, Request: req, Session: req.Session, Actor: actor, Plan: *plan}); err != nil {
+			return envelope, statusForAuthError(fmt.Errorf("%w: %v", ErrCSRF, err)), err
+		}
 	}
 
 	if len(plan.Resources) > 0 {
 		if h.auth.Resources == nil {
-			return nil, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires resource resolver", plan.Method, plan.Pattern)
+			return envelope, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires resource resolver", plan.Method, plan.Pattern)
 		}
 		for _, spec := range plan.Resources {
 			id, err := resolveValueSource(req, spec.ID)
 			if err != nil {
-				return nil, http.StatusBadRequest, err
+				return envelope, http.StatusBadRequest, err
 			}
 			tenantID := ""
 			if spec.Tenant != nil {
 				tenantID, err = resolveValueSource(req, *spec.Tenant)
 				if err != nil {
-					return nil, http.StatusBadRequest, err
+					return envelope, http.StatusBadRequest, err
 				}
 			}
 			resource, err := h.auth.Resources.ResolveResource(ctx, ResourceRequest{HTTPRequest: httpReq, Request: req, Actor: actor, Spec: spec, ID: id, TenantID: tenantID})
 			if err != nil {
-				return nil, statusForAuthError(err), err
+				return envelope, statusForAuthError(err), err
 			}
 			if resource == nil {
-				return nil, http.StatusNotFound, ErrNotFound
+				return envelope, http.StatusNotFound, ErrNotFound
 			}
 			if resource.Name == "" {
 				resource.Name = spec.Name
@@ -109,18 +125,18 @@ func (h *Host) buildSecureEnvelope(ctx context.Context, httpReq *http.Request, r
 
 	if plan.Security.Mode != SecurityModePublic && plan.Action != "" {
 		if h.auth.Authorizer == nil {
-			return nil, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires authorizer", plan.Method, plan.Pattern)
+			return envelope, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires authorizer", plan.Method, plan.Pattern)
 		}
 		resource := firstPlannedResource(plan, envelope.Resources)
 		decision, err := h.auth.Authorizer.Authorize(ctx, AuthorizationRequest{HTTPRequest: httpReq, Request: req, Actor: actor, Action: plan.Action, Resource: resource, Resources: envelope.Resources})
 		if err != nil {
-			return nil, statusForAuthError(err), err
+			return envelope, statusForAuthError(err), err
 		}
 		if !decision.Allowed {
 			if decision.Reason != "" {
-				return nil, http.StatusForbidden, fmt.Errorf("%w: %s", ErrForbidden, decision.Reason)
+				return envelope, http.StatusForbidden, fmt.Errorf("%w: %s", ErrForbidden, decision.Reason)
 			}
-			return nil, http.StatusForbidden, ErrForbidden
+			return envelope, http.StatusForbidden, ErrForbidden
 		}
 	}
 	return envelope, 0, nil
@@ -140,6 +156,38 @@ func (h *Host) writePlannedError(w http.ResponseWriter, res *Response, status in
 	http.Error(w, message, status)
 }
 
+func (h *Host) recordAudit(ctx context.Context, httpReq *http.Request, req *RequestDTO, plan *RoutePlan, envelope *secureEnvelope, outcome string, status int, err error) {
+	if h.auth.Audit == nil || plan == nil || plan.Audit.Event == "" {
+		return
+	}
+	var actor *Actor
+	resources := map[string]*ResourceRef{}
+	if envelope != nil {
+		actor = envelope.Actor
+		resources = copyResourceRefs(envelope.Resources)
+	}
+	resource := firstPlannedResource(plan, resources)
+	reason := ""
+	if err != nil {
+		reason = err.Error()
+	}
+	_ = h.auth.Audit.RecordAudit(ctx, AuditEvent{
+		HTTPRequest: httpReq,
+		Request:     req,
+		Event:       plan.Audit.Event,
+		Outcome:     outcome,
+		Reason:      reason,
+		StatusCode:  status,
+		RouteName:   plan.Name,
+		Method:      plan.Method,
+		Pattern:     plan.Pattern,
+		Action:      plan.Action,
+		Actor:       actor,
+		Resource:    resource,
+		Resources:   resources,
+	})
+}
+
 func statusForAuthError(err error) int {
 	switch {
 	case errors.Is(err, ErrUnauthenticated):
@@ -148,6 +196,8 @@ func statusForAuthError(err error) int {
 		return http.StatusForbidden
 	case errors.Is(err, ErrNotFound):
 		return http.StatusNotFound
+	case errors.Is(err, ErrCSRF):
+		return http.StatusForbidden
 	default:
 		return http.StatusInternalServerError
 	}
@@ -203,6 +253,14 @@ func firstPlannedResource(plan *RoutePlan, resources map[string]*ResourceRef) *R
 		return nil
 	}
 	return resources[plan.Resources[0].Name]
+}
+
+func copyResourceRefs(resources map[string]*ResourceRef) map[string]*ResourceRef {
+	out := make(map[string]*ResourceRef, len(resources))
+	for name, resource := range resources {
+		out[name] = resource
+	}
+	return out
 }
 
 func (e *secureEnvelope) JSObject(vm *goja.Runtime) *goja.Object {

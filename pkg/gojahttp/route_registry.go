@@ -21,6 +21,8 @@ type RouteDescriptor struct {
 	SecurityMode SecurityMode `json:"securityMode,omitempty"`
 	Action       string       `json:"action,omitempty"`
 	Name         string       `json:"name,omitempty"`
+	CSRFRequired bool         `json:"csrfRequired,omitempty"`
+	AuditEvent   string       `json:"auditEvent,omitempty"`
 }
 
 type Registry struct {
@@ -58,6 +60,8 @@ func (r *Registry) Routes() []RouteDescriptor {
 			descriptor.SecurityMode = route.Plan.Security.Mode
 			descriptor.Action = route.Plan.Action
 			descriptor.Name = route.Plan.Name
+			descriptor.CSRFRequired = route.Plan.CSRF.Required
+			descriptor.AuditEvent = route.Plan.Audit.Event
 		}
 		out = append(out, descriptor)
 	}

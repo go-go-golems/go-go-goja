@@ -32,6 +32,7 @@ var (
 	ErrUnauthenticated = errors.New("unauthenticated")
 	ErrForbidden       = errors.New("forbidden")
 	ErrNotFound        = errors.New("not found")
+	ErrCSRF            = errors.New("csrf invalid")
 )
 
 // RoutePlan is the Go-owned security contract compiled by the Express fluent
@@ -43,6 +44,8 @@ type RoutePlan struct {
 	Security  SecuritySpec
 	Resources []ResourceSpec
 	Action    string
+	CSRF      CSRFSpec
+	Audit     AuditSpec
 }
 
 // SecuritySpec describes who may enter a planned route.
@@ -70,6 +73,17 @@ type ResourceSpec struct {
 	MustExist bool
 }
 
+// CSRFSpec describes whether a planned route requires host-owned CSRF
+// verification before the JavaScript handler runs.
+type CSRFSpec struct {
+	Required bool
+}
+
+// AuditSpec describes the host-owned audit event emitted for a planned route.
+type AuditSpec struct {
+	Event string
+}
+
 // Actor is the minimal host-owned authenticated principal exposed to planned
 // route handlers.
 type Actor struct {
@@ -93,6 +107,8 @@ type AuthOptions struct {
 	Authenticator Authenticator
 	Resources     ResourceResolver
 	Authorizer    Authorizer
+	CSRF          CSRFProtector
+	Audit         AuditSink
 }
 
 type Authenticator interface {
@@ -105,6 +121,14 @@ type ResourceResolver interface {
 
 type Authorizer interface {
 	Authorize(ctx context.Context, req AuthorizationRequest) (AuthorizationDecision, error)
+}
+
+type CSRFProtector interface {
+	VerifyCSRF(ctx context.Context, req CSRFRequest) error
+}
+
+type AuditSink interface {
+	RecordAudit(ctx context.Context, event AuditEvent) error
 }
 
 type ResourceRequest struct {
@@ -125,6 +149,31 @@ type AuthorizationRequest struct {
 	Resources   map[string]*ResourceRef
 }
 
+type CSRFRequest struct {
+	HTTPRequest *http.Request
+	Request     *RequestDTO
+	Session     *SessionDTO
+	Actor       *Actor
+	Plan        RoutePlan
+}
+
+type AuditEvent struct {
+	HTTPRequest *http.Request           `json:"-"`
+	Request     *RequestDTO             `json:"-"`
+	Event       string                  `json:"event"`
+	Outcome     string                  `json:"outcome"`
+	Reason      string                  `json:"reason,omitempty"`
+	StatusCode  int                     `json:"statusCode,omitempty"`
+	RouteName   string                  `json:"routeName,omitempty"`
+	Method      string                  `json:"method"`
+	Pattern     string                  `json:"pattern"`
+	Action      string                  `json:"action,omitempty"`
+	Actor       *Actor                  `json:"actor,omitempty"`
+	Resource    *ResourceRef            `json:"resource,omitempty"`
+	Resources   map[string]*ResourceRef `json:"resources,omitempty"`
+	Attributes  map[string]any          `json:"attributes,omitempty"`
+}
+
 type AuthorizationDecision struct {
 	Allowed bool
 	Reason  string
@@ -135,6 +184,7 @@ func ValidateRoutePlan(plan RoutePlan) (RoutePlan, error) {
 	plan.Pattern = cleanPath(plan.Pattern)
 	plan.Name = strings.TrimSpace(plan.Name)
 	plan.Action = strings.TrimSpace(plan.Action)
+	plan.Audit.Event = strings.TrimSpace(plan.Audit.Event)
 
 	if plan.Method == "" {
 		return RoutePlan{}, fmt.Errorf("planned route method is required")
@@ -214,4 +264,13 @@ func pathParamSet(pattern string) map[string]struct{} {
 		}
 	}
 	return out
+}
+
+func isUnsafeMethod(method string) bool {
+	switch strings.ToUpper(strings.TrimSpace(method)) {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return false
+	default:
+		return true
+	}
 }

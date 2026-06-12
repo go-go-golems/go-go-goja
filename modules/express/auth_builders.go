@@ -155,6 +155,8 @@ func (b *routeBuilder) needsPolicyObject() goja.Value {
 		b.plan.Resources = append(b.plan.Resources, spec)
 		return obj, nil
 	})
+	b.attachCSRFMethod(obj)
+	b.attachAuditMethod(obj)
 	_ = obj.Set("allow", func(action string) (goja.Value, error) {
 		action = strings.TrimSpace(action)
 		if action == "" {
@@ -168,6 +170,8 @@ func (b *routeBuilder) needsPolicyObject() goja.Value {
 
 func (b *routeBuilder) needsHandlerObject() goja.Value {
 	obj := b.vm.NewObject()
+	b.attachCSRFMethod(obj)
+	b.attachAuditMethod(obj)
 	_ = obj.Set("handle", func(handler goja.Value) error {
 		fn, ok := goja.AssertFunction(handler)
 		if !ok {
@@ -179,6 +183,28 @@ func (b *routeBuilder) needsHandlerObject() goja.Value {
 		return b.registrar.host.RegisterPlanned(b.plan, fn)
 	})
 	return obj
+}
+
+func (b *routeBuilder) attachCSRFMethod(obj *goja.Object) {
+	_ = obj.Set("csrf", func(call goja.FunctionCall) goja.Value {
+		required := true
+		if len(call.Arguments) > 0 && !goja.IsUndefined(call.Argument(0)) && !goja.IsNull(call.Argument(0)) {
+			required = call.Argument(0).ToBoolean()
+		}
+		b.plan.CSRF.Required = required
+		return obj
+	})
+}
+
+func (b *routeBuilder) attachAuditMethod(obj *goja.Object) {
+	_ = obj.Set("audit", func(event string) (goja.Value, error) {
+		event = strings.TrimSpace(event)
+		if event == "" {
+			return nil, fmt.Errorf(".audit(event) requires a non-empty event")
+		}
+		b.plan.Audit.Event = event
+		return obj, nil
+	})
 }
 
 func valueString(value goja.Value) string {

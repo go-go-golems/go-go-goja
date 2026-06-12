@@ -65,6 +65,8 @@ func TestRegistryRoutesIncludesPlannedMetadata(t *testing.T) {
 		Pattern:  "healthz",
 		Security: SecuritySpec{Mode: SecurityModePublic},
 		Action:   "",
+		CSRF:     CSRFSpec{Required: true},
+		Audit:    AuditSpec{Event: "health.checked"},
 	}, nil)
 	r.AddPlanned(RoutePlan{
 		Method:   "post",
@@ -77,7 +79,7 @@ func TestRegistryRoutesIncludesPlannedMetadata(t *testing.T) {
 	if len(routes) != 2 {
 		t.Fatalf("Routes len = %d", len(routes))
 	}
-	if routes[0] != (RouteDescriptor{Method: "GET", Pattern: "/healthz", Planned: true, SecurityMode: SecurityModePublic, Name: "health"}) {
+	if routes[0] != (RouteDescriptor{Method: "GET", Pattern: "/healthz", Planned: true, SecurityMode: SecurityModePublic, Name: "health", CSRFRequired: true, AuditEvent: "health.checked"}) {
 		t.Fatalf("first route = %#v", routes[0])
 	}
 	if routes[1] != (RouteDescriptor{Method: "POST", Pattern: "/projects", Planned: true, SecurityMode: SecurityModeUser, Action: "project.create"}) {

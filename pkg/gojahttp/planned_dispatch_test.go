@@ -31,6 +31,18 @@ func (f authorizerFunc) Authorize(ctx context.Context, req gojahttp.Authorizatio
 	return f(ctx, req)
 }
 
+type csrfFunc func(context.Context, gojahttp.CSRFRequest) error
+
+func (f csrfFunc) VerifyCSRF(ctx context.Context, req gojahttp.CSRFRequest) error {
+	return f(ctx, req)
+}
+
+type auditFunc func(context.Context, gojahttp.AuditEvent) error
+
+func (f auditFunc) RecordAudit(ctx context.Context, event gojahttp.AuditEvent) error {
+	return f(ctx, event)
+}
+
 func plannedTestRuntime(t *testing.T, host *gojahttp.Host, script string) goja.Callable {
 	t.Helper()
 	factory, err := engine.NewRuntimeFactoryBuilder().Build()
@@ -153,6 +165,102 @@ func TestPlannedUserRouteReturns401WhenUnauthenticated(t *testing.T) {
 	}
 	if strings.Contains(rr.Body.String(), "should not run") {
 		t.Fatalf("handler ran: %s", rr.Body.String())
+	}
+}
+
+func TestPlannedRouteVerifiesCSRFBeforeHandler(t *testing.T) {
+	called := false
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		CSRF: csrfFunc(func(_ context.Context, req gojahttp.CSRFRequest) error {
+			called = true
+			if req.Plan.Pattern != "/submit" || req.Session == nil {
+				t.Fatalf("csrf request = %#v", req)
+			}
+			return nil
+		}),
+	}})
+	handler := plannedTestRuntime(t, host, `(function(_ctx, res) { res.json({ ok: true }); })`)
+	if err := host.RegisterPlanned(gojahttp.RoutePlan{Method: "POST", Pattern: "/submit", Security: gojahttp.SecuritySpec{Mode: gojahttp.SecurityModePublic}, CSRF: gojahttp.CSRFSpec{Required: true}}, handler); err != nil {
+		t.Fatalf("RegisterPlanned: %v", err)
+	}
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/submit", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if !called {
+		t.Fatal("expected csrf verifier to be called")
+	}
+}
+
+func TestPlannedRouteCSRFErrorBlocksHandler(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		CSRF: csrfFunc(func(context.Context, gojahttp.CSRFRequest) error {
+			return errors.New("bad token")
+		}),
+	}})
+	handler := plannedTestRuntime(t, host, `(function(_ctx, res) { res.send("should not run"); })`)
+	if err := host.RegisterPlanned(gojahttp.RoutePlan{Method: "POST", Pattern: "/submit", Security: gojahttp.SecuritySpec{Mode: gojahttp.SecurityModePublic}, CSRF: gojahttp.CSRFSpec{Required: true}}, handler); err != nil {
+		t.Fatalf("RegisterPlanned: %v", err)
+	}
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/submit", nil))
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if strings.Contains(rr.Body.String(), "should not run") {
+		t.Fatalf("handler ran: %s", rr.Body.String())
+	}
+}
+
+func TestPlannedRouteAuditsDeniedAndCompleted(t *testing.T) {
+	var events []gojahttp.AuditEvent
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		Audit: auditFunc(func(_ context.Context, event gojahttp.AuditEvent) error {
+			events = append(events, event)
+			return nil
+		}),
+	}})
+	handler := plannedTestRuntime(t, host, `(function(_ctx, res) { res.status(204).end(); })`)
+	if err := host.RegisterPlanned(gojahttp.RoutePlan{Method: "POST", Pattern: "/submit", Security: gojahttp.SecuritySpec{Mode: gojahttp.SecurityModePublic}, Audit: gojahttp.AuditSpec{Event: "submit.created"}}, handler); err != nil {
+		t.Fatalf("RegisterPlanned: %v", err)
+	}
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/submit", nil))
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if len(events) != 2 {
+		t.Fatalf("events = %#v", events)
+	}
+	if events[0].Outcome != "allowed" || events[0].Event != "submit.created" {
+		t.Fatalf("first event = %#v", events[0])
+	}
+	if events[1].Outcome != "completed" || events[1].StatusCode != http.StatusNoContent {
+		t.Fatalf("second event = %#v", events[1])
+	}
+}
+
+func TestPlannedRouteAuditsCSRFDenied(t *testing.T) {
+	var events []gojahttp.AuditEvent
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		CSRF: csrfFunc(func(context.Context, gojahttp.CSRFRequest) error { return errors.New("bad token") }),
+		Audit: auditFunc(func(_ context.Context, event gojahttp.AuditEvent) error {
+			events = append(events, event)
+			return nil
+		}),
+	}})
+	handler := plannedTestRuntime(t, host, `(function(_ctx, res) { res.send("should not run"); })`)
+	if err := host.RegisterPlanned(gojahttp.RoutePlan{Method: "POST", Pattern: "/submit", Security: gojahttp.SecuritySpec{Mode: gojahttp.SecurityModePublic}, CSRF: gojahttp.CSRFSpec{Required: true}, Audit: gojahttp.AuditSpec{Event: "submit.created"}}, handler); err != nil {
+		t.Fatalf("RegisterPlanned: %v", err)
+	}
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/submit", nil))
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if len(events) != 1 || events[0].Outcome != "denied" || events[0].StatusCode != http.StatusForbidden || !strings.Contains(events[0].Reason, "bad token") {
+		t.Fatalf("events = %#v", events)
 	}
 }
 

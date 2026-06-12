@@ -165,6 +165,27 @@ func TestExpressPlannedResourceRouteBuilder(t *testing.T) {
 	}
 }
 
+func TestExpressPlannedBuilderSupportsCSRFAudit(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
+	rt := newExpressAuthRuntime(t, host)
+	runExpressAuthScript(t, rt, `
+		const express = require("express");
+		const app = express.app();
+		app.post("/contact")
+		  .public()
+		  .csrf()
+		  .audit("contact.submitted")
+		  .handle((_ctx, res) => res.json({ ok: true }));
+	`)
+	routes := host.Routes()
+	if len(routes) != 1 {
+		t.Fatalf("routes = %#v", routes)
+	}
+	if !routes[0].Planned || !routes[0].CSRFRequired || routes[0].AuditEvent != "contact.submitted" {
+		t.Fatalf("route descriptor = %#v", routes[0])
+	}
+}
+
 func TestExpressPlannedBuilderRejectsPlainAuthObject(t *testing.T) {
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
 	rt := newExpressAuthRuntime(t, host)

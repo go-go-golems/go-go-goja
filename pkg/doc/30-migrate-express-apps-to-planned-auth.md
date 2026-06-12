@@ -124,7 +124,9 @@ app.patch("/orgs/:orgId/projects/:projectId")
       .tenantFromParam("orgId")
       .mustExist()
   )
+  .csrf()
   .allow("project.update")
+  .audit("project.updated")
   .handle((ctx, res) => {
     const project = ctx.resource("project")
     res.json({ updated: project.id, tenant: project.tenantId })
@@ -133,7 +135,24 @@ app.patch("/orgs/:orgId/projects/:projectId")
 
 The parameter names must match the path exactly. `/projects/:projectId` pairs with `.idFromParam("projectId")`, not `.idFromParam("id")`. Mismatches fail at registration time.
 
-## Step 6 — Wire host auth services for protected routes
+## Step 6 — Add CSRF and audit declarations where needed
+
+Routes that accept unsafe browser requests should declare CSRF protection before `.handle(...)`. Routes that represent security-relevant domain operations should declare an audit event.
+
+```javascript
+app.post("/projects")
+  .auth(express.user().required())
+  .csrf()
+  .allow("project.create")
+  .audit("project.created")
+  .handle((ctx, res) => {
+    res.status(201).json({ actor: ctx.actor.id })
+  })
+```
+
+`.csrf()` is enforced by the host `CSRFProtector` on unsafe methods. `.audit(event)` emits structured audit events through the host `AuditSink` for allowed, denied, completed, and failed outcomes. Do not use JavaScript-side logging as the only audit trail for protected routes; host-owned audit events include actor, action, route, resource, status, and denial reason.
+
+## Step 7 — Wire host auth services for protected routes
 
 Public planned routes work without auth services. Protected planned routes fail closed unless the Go host provides the required services.
 
@@ -145,13 +164,15 @@ host := gojahttp.NewHost(gojahttp.HostOptions{
         Authenticator: myAuthenticator,
         Resources:     myResourceResolver,
         Authorizer:    myAuthorizer,
+        CSRF:          myCSRFProtector,
+        Audit:         myAuditSink,
     },
 })
 ```
 
-For an initial test, use small in-memory implementations. The important contract is that `Authenticator` returns an `Actor`, `ResourceResolver` returns a `ResourceRef`, and `Authorizer` returns an `AuthorizationDecision` for the declared action. `RejectRawRoutes` is optional during migration but useful once the route inventory is clean because it rejects any matched low-level route that lacks a `RoutePlan`.
+For an initial test, use small in-memory implementations. The important contract is that `Authenticator` returns an `Actor`, `ResourceResolver` returns a `ResourceRef`, `Authorizer` returns an `AuthorizationDecision`, `CSRFProtector` verifies declared CSRF protection, and `AuditSink` records declared audit events. `RejectRawRoutes` is optional during migration but useful once the route inventory is clean because it rejects any matched low-level route that lacks a `RoutePlan`.
 
-## Step 7 — Run migration checks
+## Step 8 — Run migration checks
 
 Run the focused package tests after updating code and docs:
 
@@ -200,7 +221,9 @@ app.patch("/orgs/:orgId/projects/:projectId")
       .tenantFromParam("orgId")
       .mustExist()
   )
+  .csrf()
   .allow("project.update")
+  .audit("project.updated")
   .handle((ctx, res) => {
     const project = ctx.resource("project")
     res.json({ updated: project.id, tenant: project.tenantId })
@@ -225,6 +248,8 @@ app.route("REPORT", "/reports/:id")
 | Route returns 500 after migration | The route is protected but the Go host lacks auth services. | Configure `gojahttp.HostOptions.Auth`. |
 | `ctx.actor` is null | The route is public or authentication did not run. | Use `.auth(express.user().required())` for routes that need an actor. |
 | `ctx.resource("project")` returns null | The route did not declare that resource name. | Add `.resource(express.resource("project")...)` before `.allow(...)`. |
+| `.csrf()` route returns 500 | The host has no `Auth.CSRF` service. | Configure a `CSRFProtector` or remove `.csrf()` from routes that do not need it. |
+| Audit events do not appear | The route does not call `.audit(event)` or the host has no `Auth.Audit` sink. | Add `.audit("domain.event")` and configure an `AuditSink`. |
 | `raw routes disabled` | `RejectRawRoutes` is enabled and the host matched a route registered outside the planned route path. | Convert the route to Express planned builders or `Host.RegisterPlanned`. |
 | Parameter validation fails | The resource builder references a missing path parameter. | Make `.idFromParam(...)` and `.tenantFromParam(...)` match the route pattern exactly. |
 

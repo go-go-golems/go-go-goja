@@ -84,7 +84,8 @@ func NewResponse(w http.ResponseWriter, renderer Renderer) *Response {
 	return &Response{w: w, renderer: renderer, status: http.StatusOK, headers: map[string]string{}}
 }
 
-func (r *Response) Sent() bool { r.mu.Lock(); defer r.mu.Unlock(); return r.sent }
+func (r *Response) Sent() bool  { r.mu.Lock(); defer r.mu.Unlock(); return r.sent }
+func (r *Response) Status() int { r.mu.Lock(); defer r.mu.Unlock(); return r.status }
 
 func (r *Response) JSObject(vm *goja.Runtime) *goja.Object {
 	obj := vm.NewObject()
