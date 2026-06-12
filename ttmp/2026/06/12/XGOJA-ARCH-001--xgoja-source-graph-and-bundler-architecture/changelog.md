@@ -324,3 +324,14 @@ Step 29: deleted legacy buildspec-oriented generator APIs and replaced generator
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Generator tests now use v2 plan fixtures
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/main.go — Legacy buildspec render/runtime-spec helpers removed
 
+
+## 2026-06-12
+
+Step 30: renamed legacy buildspec package to migratebuildspec and gave specv2 its own validation report types so v1 schema code is migration-only (commit ecb922f)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/cmd_migrate_spec.go — Only command path that loads migratebuildspec
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/migratebuildspec/build_spec.go — Legacy v1 schema quarantined for migrate-spec
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/report.go — Native v2 validation report types remove dependency on legacy schema package
+

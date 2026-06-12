@@ -55,6 +55,8 @@ RelatedFiles:
       Note: Generator-local v2 plan adaptation and plan entrypoints
     - Path: cmd/xgoja/internal/generate/templates.go
       Note: Plan-native template data and embedded runtime JSON rendering
+    - Path: cmd/xgoja/internal/migratebuildspec/build_spec.go
+      Note: Legacy v1 schema package renamed to migration-only location
     - Path: cmd/xgoja/internal/plan/plan.go
       Note: |-
         Initial v2 Plan compiler for Step 16
@@ -65,6 +67,8 @@ RelatedFiles:
       Note: Migration coverage now accepts native v2 examples during staged example cutover
     - Path: cmd/xgoja/internal/specv2/migrate_v1.go
       Note: V1 embed flags now migrate into v2 artifact source dependencies
+    - Path: cmd/xgoja/internal/specv2/report.go
+      Note: V2 validation report now independent of legacy schema
     - Path: cmd/xgoja/root_test.go
       Note: |-
         V2 doctor smoke test for Step 19
@@ -145,6 +149,7 @@ LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -2703,3 +2708,76 @@ I also replaced the large buildspec-based generator test suite with focused v2 p
 
 - `Options`, `CleanGenerated`, `CleanGeneratedFile`, and low-level copy helpers remain because they are generator utilities used by plan-based code.
 - `cmd/xgoja/internal/buildspec` remains only for migration loading/conversion and its own tests.
+
+
+## Step 30: Quarantine legacy buildspec under migration-only naming
+
+I renamed the legacy v1 schema package from `internal/buildspec` to `internal/migratebuildspec`. This makes the remaining v1 DTO code visually and import-path-wise migration-only instead of a general xgoja build model.
+
+I also removed the last non-migration dependency on that package by giving `specv2` its own validation report types. Normal v2 validation no longer aliases legacy buildspec report/error types.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes, migration only"
+
+**Assistant interpretation:** Move/rename the remaining v1 buildspec code so it is clearly retained only for `xgoja migrate-spec`, and remove non-migration dependencies on it.
+
+**Inferred user intent:** Prevent the legacy schema from looking like a supported internal build model after the v2 cutover.
+
+**Commit (code):** ecb922f64a502acac75f922ec3f039191ac60320 — "xgoja: quarantine legacy buildspec for migration"
+
+### What I did
+
+- Renamed `cmd/xgoja/internal/buildspec` to `cmd/xgoja/internal/migratebuildspec`.
+- Renamed the package declarations to `migratebuildspec`.
+- Updated `xgoja migrate-spec` and v1 migration tests to import `migratebuildspec`.
+- Added `cmd/xgoja/internal/specv2/report.go` with native v2 report/check/validation-error types.
+- Removed `specv2`'s dependency on the legacy v1 schema package.
+
+### Why
+
+- The v1 schema remains useful as an input parser for migration, but its old name made it look like the central build spec model.
+- V2 validation should not reuse v1 report types; even type aliases can keep legacy code in the normal v2 mental model.
+
+### What worked
+
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/migratebuildspec ./cmd/xgoja/internal/specv2 ./cmd/xgoja/internal/generate -count=1` passed.
+- Full pre-commit passed, including lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- The first mechanical replacement over-applied and briefly produced `migratemigratebuildspec` identifiers/import paths. I corrected those before formatting/testing.
+
+### What I learned
+
+- After deleting generator buildspec APIs, the only meaningful v1 schema consumers are migration command/tests and migration conversion code.
+- `specv2` needed its own tiny report type to fully sever validation from the legacy package.
+
+### What was tricky to build
+
+- The package rename had to preserve test coverage for the v1 loader because migration still depends on accepting old specs.
+- The report type split had to preserve the `HasErrors`, `AddOK`, and `AddError` behavior expected by v2 validation and planner code.
+
+### What warrants a second pair of eyes
+
+- Review import boundaries to confirm no normal command/generator path imports `migratebuildspec`.
+- Review error wording in `migratebuildspec/report.go`; it still describes legacy build spec validation, which is appropriate for migration input but should not leak into normal commands.
+
+### What should be done in the future
+
+- Update buildspec-era docs/help pages or explicitly archive them as legacy migration references.
+- Consider moving migration conversion code and `migratebuildspec` under one migration namespace if more v1 cleanup happens.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/migratebuildspec/build_spec.go` to verify the package is explicitly migration-only.
+- Review `cmd/xgoja/internal/specv2/report.go` and `validate.go` to confirm v2 validation is independent.
+- Validate with:
+  - `rg "internal/buildspec|package buildspec" cmd/xgoja -g'*.go'`
+  - `go test ./cmd/xgoja ./cmd/xgoja/internal/migratebuildspec ./cmd/xgoja/internal/specv2 ./cmd/xgoja/internal/generate -count=1`
+  - full pre-commit.
+
+### Technical details
+
+- The package directory rename was committed as a Git rename, preserving file history.
+- `cmd/xgoja/internal/specv2/report.go` now owns `Status`, `Check`, `Report`, and `ValidationError` for v2.
