@@ -1888,7 +1888,7 @@ This keeps the current sidecar execution model: gen-dts still imports real provi
 
 **Inferred user intent:** Keep implementing the hard-cutover checklist without stopping for additional confirmation.
 
-**Commit (code):** pending — v2 gen-dts planner bridge staged after this diary update.
+**Commit (code):** 12ebd15c29fd340b0e53401fe65206a6ddcd0a9d — "xgoja: generate dts from v2 planner bridge"
 
 ### What I did
 
