@@ -323,6 +323,7 @@ artifacts:
   - id: binary
     type: binary
     output: dist/my-tool
+    sources: [local-sites]
 
   - id: declarations
     type: dts
@@ -338,11 +339,16 @@ Common artifact types are:
 
 | Type | Meaning |
 | --- | --- |
-| `binary` | Generated xgoja binary. |
+| `binary` | Generated xgoja binary. When `sources` lists local jsverb/help source sets, those sources are copied into the generated embedded filesystem. |
 | `dts` | TypeScript declaration output for selected runtime modules. |
 | `embedded-assets` | Static assets embedded into the generated host. |
 | `runtime-package` | Generated runtime package output. Current v2 command paths still bridge through the legacy generator. |
 | `adapter`, `cobra`, `source`, `template` | Legacy generator outputs retained during the transition. |
+
+For binary/runtime-package style artifacts, `sources` marks local jsverb and
+help source sets that should be copied into the generated embedded filesystem.
+For assets, use a separate `embedded-assets` artifact with `sources` pointing at
+asset source IDs.
 
 Current limitation: `xgoja gen-dts` still requires `--out`; using the v2 `dts`
 artifact output as the default is planned.
@@ -388,6 +394,7 @@ artifacts:
   - id: binary
     type: binary
     output: dist/typescript-jsverbs
+    sources: [sites]
 ```
 
 A verb in `./verbs/site.ts` can import a local helper and the selected runtime

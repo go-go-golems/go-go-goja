@@ -83,6 +83,7 @@ warning: jsverbs[0].typescript.external: runtime module alias "express" is deriv
 | `jsverbs[].typescript.enabled` | `language: typescript` |
 | `jsverbs[].typescript.bundle` | `compile.bundle` |
 | `jsverbs[].typescript.checkCommand` | `compile.check.command` |
+| `jsverbs[].embed` | source ID listed under the generated artifact's `sources` |
 | `help.sources[]` | `sources[]` with `kind: help` |
 | `assets[]` | `sources[]` with `kind: assets` and `artifacts[]` when embedded |
 | `target` | `artifacts[]` |
@@ -156,7 +157,9 @@ artifacts:
 2. Read all `warning:` lines.
 3. Check provider command-set source dependencies, especially commands that use
    jsverbs.
-4. Check local replacements and prefer `workspace.mode: auto` when a `go.work`
+4. Check embedded jsverb/help sources. In v2, generated artifacts list embedded
+   executable source sets under `artifacts[].sources`.
+5. Check local replacements and prefer `workspace.mode: auto` when a `go.work`
    file already covers the local module.
 5. Run `xgoja doctor -f xgoja.v2.yaml` once the v2 planner is available.
 6. Run the example or application smoke test.

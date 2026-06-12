@@ -38,3 +38,5 @@ artifacts:
   - id: binary
     type: binary
     output: dist/http-serve-jsverbs
+    sources:
+      - local-sites

@@ -64,14 +64,16 @@ func buildSpecFromV2Plan(compiled *plan.Plan) *buildspec.BuildSpec {
 	for _, command := range cfg.Commands {
 		applyV2Command(&out.Commands, &out.CommandProviders, command)
 	}
+	embeddedSources := embeddedSourceIDsFromV2Artifacts(cfg.Artifacts)
+	embeddedAssets := embeddedAssetIDsFromV2Artifacts(cfg.Artifacts)
 	for _, source := range cfg.Sources {
 		switch source.Kind {
 		case specv2.SourceKindJSVerbs:
-			out.JSVerbs = append(out.JSVerbs, jsVerbSourceFromV2(source))
+			out.JSVerbs = append(out.JSVerbs, jsVerbSourceFromV2(source, embeddedSources[source.ID]))
 		case specv2.SourceKindAssets:
-			out.Assets = append(out.Assets, assetSourceFromV2(source))
+			out.Assets = append(out.Assets, assetSourceFromV2(source, embeddedAssets[source.ID]))
 		case specv2.SourceKindHelp:
-			out.Help.Sources = append(out.Help.Sources, helpSourceFromV2(source))
+			out.Help.Sources = append(out.Help.Sources, helpSourceFromV2(source, embeddedSources[source.ID]))
 		case specv2.SourceKindScript:
 			// Script sources are consumed by run/runtime planning, not by the current buildspec bridge.
 		}
@@ -107,8 +109,8 @@ func applyV2Command(commands *buildspec.CommandsSpec, providers *[]buildspec.Com
 	}
 }
 
-func jsVerbSourceFromV2(source specv2.SourceSpec) buildspec.JSVerbSourceSpec {
-	out := buildspec.JSVerbSourceSpec{ID: source.ID, Include: append([]string(nil), source.Include...), Exclude: append([]string(nil), source.Exclude...), Extensions: append([]string(nil), source.Extensions...)}
+func jsVerbSourceFromV2(source specv2.SourceSpec, embed bool) buildspec.JSVerbSourceSpec {
+	out := buildspec.JSVerbSourceSpec{ID: source.ID, Embed: embed, Include: append([]string(nil), source.Include...), Exclude: append([]string(nil), source.Exclude...), Extensions: append([]string(nil), source.Extensions...)}
 	if source.From.Provider != nil {
 		out.Package = source.From.Provider.Provider
 		out.Source = source.From.Provider.Source
@@ -127,17 +129,47 @@ func jsVerbSourceFromV2(source specv2.SourceSpec) buildspec.JSVerbSourceSpec {
 	return out
 }
 
-func assetSourceFromV2(source specv2.SourceSpec) buildspec.AssetSourceSpec {
-	return buildspec.AssetSourceSpec{ID: source.ID, Path: source.From.Dir}
+func assetSourceFromV2(source specv2.SourceSpec, embed bool) buildspec.AssetSourceSpec {
+	return buildspec.AssetSourceSpec{ID: source.ID, Path: source.From.Dir, Embed: embed}
 }
 
-func helpSourceFromV2(source specv2.SourceSpec) buildspec.HelpSourceSpec {
-	out := buildspec.HelpSourceSpec{ID: source.ID}
+func helpSourceFromV2(source specv2.SourceSpec, embed bool) buildspec.HelpSourceSpec {
+	out := buildspec.HelpSourceSpec{ID: source.ID, Embed: embed}
 	if source.From.Provider != nil {
 		out.Package = source.From.Provider.Provider
 		out.Source = source.From.Provider.Source
 	} else {
 		out.Path = source.From.Dir
+	}
+	return out
+}
+
+func embeddedSourceIDsFromV2Artifacts(artifacts []specv2.ArtifactSpec) map[string]bool {
+	out := map[string]bool{}
+	for _, artifact := range artifacts {
+		switch artifact.Type {
+		case "binary", "runtime-package", "source", "template", "adapter", "cobra":
+			for _, sourceID := range artifact.Sources {
+				if strings.TrimSpace(sourceID) != "" {
+					out[sourceID] = true
+				}
+			}
+		}
+	}
+	return out
+}
+
+func embeddedAssetIDsFromV2Artifacts(artifacts []specv2.ArtifactSpec) map[string]bool {
+	out := map[string]bool{}
+	for _, artifact := range artifacts {
+		if artifact.Type != "embedded-assets" {
+			continue
+		}
+		for _, sourceID := range artifact.Sources {
+			if strings.TrimSpace(sourceID) != "" {
+				out[sourceID] = true
+			}
+		}
 	}
 	return out
 }

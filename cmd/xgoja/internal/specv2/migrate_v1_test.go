@@ -99,6 +99,30 @@ func TestMigrateV1TypeScriptJSVerbs(t *testing.T) {
 	}
 }
 
+func TestMigrateV1EmbeddedJSVerbsBecomeArtifactSources(t *testing.T) {
+	v1 := &buildspec.BuildSpec{
+		Name:   "embedded-verbs",
+		Target: buildspec.TargetSpec{Kind: "xgoja", Output: "dist/embedded-verbs"},
+		JSVerbs: []buildspec.JSVerbSourceSpec{{
+			ID:    "local-verbs",
+			Path:  "./verbs",
+			Embed: true,
+		}},
+	}
+
+	result := MigrateV1(v1)
+	if len(result.Config.Artifacts) != 1 {
+		t.Fatalf("artifacts = %#v", result.Config.Artifacts)
+	}
+	artifact := result.Config.Artifacts[0]
+	if artifact.Type != "binary" || len(artifact.Sources) != 1 || artifact.Sources[0] != "local-verbs" {
+		t.Fatalf("embedded jsverb source not attached to binary artifact: %#v", artifact)
+	}
+	if !warningsContain(result.Warnings, "embedded jsverb source is represented as an artifact source dependency") {
+		t.Fatalf("missing embedded source warning: %#v", result.Warnings)
+	}
+}
+
 func TestMigrateV1AssetsAndRuntimePackage(t *testing.T) {
 	v1 := &buildspec.BuildSpec{
 		Name:   "runtime-assets",

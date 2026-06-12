@@ -35,7 +35,16 @@ commands:
     name: serve
     mount: serve
     sources: [local-sites]
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/http-serve-jsverbs
+    sources: [local-sites]
 ```
+
+The binary artifact lists `local-sites` under `sources`, so the generated host
+copies that jsverb source set into its embedded filesystem. The built binary can
+serve the jsverb site without reading `./verbs` from the original checkout.
 
 The site setup verb lives in `verbs/sites.js`:
 

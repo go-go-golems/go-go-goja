@@ -58,7 +58,7 @@ func MigrateV1(buildSpec *buildspec.BuildSpec) MigrationResult {
 	result.Config.Runtime.Modules = migrateRuntimeModules(buildSpec.Modules)
 	result.Config.Sources = migrateSources(buildSpec, &result)
 	result.Config.Commands = migrateCommands(buildSpec)
-	result.Config.Artifacts = migrateArtifacts(buildSpec)
+	result.Config.Artifacts = migrateArtifacts(buildSpec, &result)
 
 	ApplyDefaults(&result.Config)
 	return result
@@ -241,16 +241,17 @@ func jsverbSourceIDs(sources []buildspec.JSVerbSourceSpec) []string {
 	return ids
 }
 
-func migrateArtifacts(buildSpec *buildspec.BuildSpec) []ArtifactSpec {
+func migrateArtifacts(buildSpec *buildspec.BuildSpec, result *MigrationResult) []ArtifactSpec {
 	out := []ArtifactSpec{}
+	embeddedExecutableSources := embeddedExecutableSourceIDs(buildSpec, result)
 	target := buildSpec.Target
 	switch strings.TrimSpace(target.Kind) {
 	case "", "xgoja":
-		out = append(out, ArtifactSpec{ID: "binary", Type: "binary", Output: target.Output})
+		out = append(out, ArtifactSpec{ID: "binary", Type: "binary", Output: target.Output, Sources: embeddedExecutableSources})
 	case "package":
-		out = append(out, ArtifactSpec{ID: "runtime-package", Type: "runtime-package", Output: target.Output, Package: target.Package})
+		out = append(out, ArtifactSpec{ID: "runtime-package", Type: "runtime-package", Output: target.Output, Package: target.Package, Sources: embeddedExecutableSources})
 	case "adapter", "cobra", "source", "template":
-		out = append(out, ArtifactSpec{ID: target.Kind, Type: target.Kind, Output: target.Output, Package: target.Package, Import: target.Import, Root: target.Root, Template: target.Template})
+		out = append(out, ArtifactSpec{ID: target.Kind, Type: target.Kind, Output: target.Output, Package: target.Package, Import: target.Import, Root: target.Root, Template: target.Template, Sources: embeddedExecutableSources})
 	}
 	assetSources := []string{}
 	for i, asset := range buildSpec.Assets {
@@ -260,6 +261,23 @@ func migrateArtifacts(buildSpec *buildspec.BuildSpec) []ArtifactSpec {
 	}
 	if len(assetSources) > 0 {
 		out = append(out, ArtifactSpec{ID: "embedded-assets", Type: "embedded-assets", Sources: assetSources})
+	}
+	return out
+}
+
+func embeddedExecutableSourceIDs(buildSpec *buildspec.BuildSpec, result *MigrationResult) []string {
+	out := []string{}
+	for i, source := range buildSpec.JSVerbs {
+		if source.Embed {
+			out = append(out, firstNonEmpty(source.ID, fmt.Sprintf("jsverbs-%d", i+1)))
+			result.warn(fmt.Sprintf("jsverbs[%d].embed", i), "embedded jsverb source is represented as an artifact source dependency in v2")
+		}
+	}
+	for i, source := range buildSpec.Help.Sources {
+		if source.Embed {
+			out = append(out, firstNonEmpty(source.ID, fmt.Sprintf("help-%d", i+1)))
+			result.warn(fmt.Sprintf("help.sources[%d].embed", i), "embedded help source is represented as an artifact source dependency in v2")
+		}
 	}
 	return out
 }
