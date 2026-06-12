@@ -167,6 +167,15 @@ func (m *Manager) SetCookie(w http.ResponseWriter, sessionID string) {
 // ClearCookie clears the manager's session cookie.
 func (m *Manager) ClearCookie(w http.ResponseWriter) { m.setCookie(w, "", -1) }
 
+// RevokeRequestSession revokes the session referenced by the request cookie.
+func (m *Manager) RevokeRequestSession(ctx context.Context, r *http.Request) error {
+	id, err := m.sessionIDFromRequest(r)
+	if err != nil {
+		return authError(err)
+	}
+	return m.store.Revoke(ctx, id)
+}
+
 // SessionFromRequest loads and validates a session from the request cookie.
 func (m *Manager) SessionFromRequest(ctx context.Context, r *http.Request) (*Session, error) {
 	id, err := m.sessionIDFromRequest(r)

@@ -47,16 +47,16 @@ Goal: extract reusable session-cookie authentication and CSRF mechanics that can
 
 Goal: provide an opinionated browser login/logout flow using Keycloak as IdP and server-side app sessions for planned routes.
 
-- [ ] Create `pkg/gojahttp/auth/keycloakauth` package.
-- [ ] Add configuration for issuer URL, client ID, optional client secret, redirect URL, scopes, and post-login/logout redirects.
-- [ ] Implement OIDC provider discovery and config validation.
-- [ ] Implement login handler with state, nonce, and PKCE verifier storage.
-- [ ] Implement callback handler with state verification, code exchange, ID token verification, nonce verification, and claim extraction.
-- [ ] Define `UserNormalizer` for mapping stable Keycloak `sub` values into app users.
-- [ ] Create/rotate app sessions through `sessionauth` after successful callback.
-- [ ] Implement logout handler that revokes the app session and clears the app cookie even if Keycloak end-session fails.
-- [ ] Add tests with a fake OIDC issuer/JWKS or httptest provider for success, bad state, bad nonce, expired token, wrong audience, and normalization failure.
-- [ ] Document Keycloak realm/client settings, including Authorization Code + PKCE and disabled password grant for browser clients.
+- [x] Create `pkg/gojahttp/auth/keycloakauth` package.
+- [x] Add configuration for issuer URL, client ID, optional client secret, redirect URL, scopes, and post-login/logout redirects.
+- [x] Implement OIDC provider discovery and config validation.
+- [x] Implement login handler with state, nonce, and PKCE verifier storage.
+- [x] Implement callback handler with state verification, code exchange, ID token verification, nonce verification, and claim extraction.
+- [x] Define `UserNormalizer` for mapping stable Keycloak `sub` values into app users.
+- [x] Create/rotate app sessions through `sessionauth` after successful callback.
+- [x] Implement logout handler that revokes the app session and clears the app cookie even if Keycloak end-session fails.
+- [x] Add tests with a fake OIDC issuer/JWKS or httptest provider for success, bad state, bad nonce, expired token, wrong audience, and normalization failure.
+- [x] Document Keycloak realm/client settings, including Authorization Code + PKCE and disabled password grant for browser clients.
 
 ## Phase 4 — App auth domain and explicit authorization
 
