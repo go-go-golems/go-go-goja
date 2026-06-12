@@ -387,6 +387,20 @@ func fixtureFileDescriptor() *descriptorpb.FileDescriptorProto {
 						TypeName: proto.String(".fixture.v1.ExampleKind"),
 						JsonName: proto.String("kind"),
 					},
+					{
+						Name:     proto.String("build"),
+						Number:   proto.Int32(3),
+						Label:    descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+						Type:     descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
+						JsonName: proto.String("build"),
+					},
+					{
+						Name:     proto.String("clone"),
+						Number:   proto.Int32(4),
+						Label:    descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+						Type:     descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
+						JsonName: proto.String("clone"),
+					},
 				},
 				NestedType: []*descriptorpb.DescriptorProto{
 					{

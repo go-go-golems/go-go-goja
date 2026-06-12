@@ -40,10 +40,20 @@ func TestProviderRegistersGeneratedProtobufBuilderModule(t *testing.T) {
 		"export interface TaskBuilder",
 		"addTags(value: string): this;",
 		"putLabels(key: string, value: string): this;",
+		"dueAt(value: Date | string | ProtoMessage<\"google.protobuf.Timestamp\">): this;",
+		"metadata(value: Record<string, unknown> | ProtoMessage<\"google.protobuf.Struct\">): this;",
 		"export const TaskPriority",
 	} {
 		if !strings.Contains(dts, want) {
 			t.Fatalf("generated DTS missing %q in:\n%s", want, dts)
+		}
+	}
+	for _, forbidden := range []string{
+		"dueAt(value: Timestamp): this;",
+		"metadata(value: Struct): this;",
+	} {
+		if strings.Contains(dts, forbidden) {
+			t.Fatalf("generated DTS still contains unresolved imported type %q in:\n%s", forbidden, dts)
 		}
 	}
 

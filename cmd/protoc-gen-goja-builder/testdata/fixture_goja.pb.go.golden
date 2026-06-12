@@ -59,6 +59,10 @@ func GojaBuilderFileFixtureProtoTypeScriptModule(moduleName string) *spec.Module
 			"  clearName(): this;",
 			"  kind(value: ExampleKindValue | keyof typeof ExampleKind): this;",
 			"  clearKind(): this;",
+			"  setBuild(value: string): this;",
+			"  clearSetBuild(): this;",
+			"  setClone(value: string): this;",
+			"  clearSetClone(): this;",
 			"  build(): Example;",
 			"  clone(): ExampleBuilder;",
 			"}",
@@ -297,6 +301,42 @@ func attachExampleGojaBuilderMethods(vm *goja.Runtime, obj *goja.Object, builder
 	}
 	if err := obj.Set("clearKind", func() goja.Value {
 		field := (&Example{}).ProtoReflect().Descriptor().Fields().ByName("kind")
+		if err := builder.Clear(field); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return obj
+	}); err != nil {
+		return err
+	}
+	if err := obj.Set("setBuild", func(call goja.FunctionCall) goja.Value {
+		field := (&Example{}).ProtoReflect().Descriptor().Fields().ByName("build")
+		if err := builder.Set(vm, field, call.Argument(0)); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return obj
+	}); err != nil {
+		return err
+	}
+	if err := obj.Set("clearSetBuild", func() goja.Value {
+		field := (&Example{}).ProtoReflect().Descriptor().Fields().ByName("build")
+		if err := builder.Clear(field); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return obj
+	}); err != nil {
+		return err
+	}
+	if err := obj.Set("setClone", func(call goja.FunctionCall) goja.Value {
+		field := (&Example{}).ProtoReflect().Descriptor().Fields().ByName("clone")
+		if err := builder.Set(vm, field, call.Argument(0)); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return obj
+	}); err != nil {
+		return err
+	}
+	if err := obj.Set("clearSetClone", func() goja.Value {
+		field := (&Example{}).ProtoReflect().Descriptor().Fields().ByName("clone")
 		if err := builder.Clear(field); err != nil {
 			panic(vm.NewGoError(err))
 		}

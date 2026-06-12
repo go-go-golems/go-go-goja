@@ -100,6 +100,7 @@ func generateFile(plugin *protogen.Plugin, file *protogen.File, opts Options) {
 }
 
 func rawDTSLines(file *protogen.File) []string {
+	types := newDTSContext(file)
 	lines := []string{
 		"export interface ProtoMessage<TTypeName extends string = string> {",
 		"  readonly typeName: TTypeName;",
@@ -119,7 +120,7 @@ func rawDTSLines(file *protogen.File) []string {
 		appendEnumDTS(&lines, enum)
 	}
 	for _, msg := range file.Messages {
-		appendMessageDTS(&lines, msg)
+		appendMessageDTS(&lines, msg, types)
 	}
 	return lines
 }
@@ -141,7 +142,7 @@ func appendEnumDTS(lines *[]string, enum *protogen.Enum) {
 	*lines = append(*lines, "export type "+name+"Value = "+strings.Join(values, " | ")+";")
 }
 
-func appendMessageDTS(lines *[]string, msg *protogen.Message) {
+func appendMessageDTS(lines *[]string, msg *protogen.Message, types dtsContext) {
 	if msg.Desc.IsMapEntry() {
 		return
 	}
@@ -152,14 +153,14 @@ func appendMessageDTS(lines *[]string, msg *protogen.Message) {
 	for _, field := range msg.Fields {
 		methodName := methodNameForField(field)
 		exportedMethodName := exportName(methodName)
-		tsType := tsTypeForField(field)
+		tsType := tsTypeForField(field, types)
 		*lines = append(*lines, "  "+methodName+"(value: "+tsType+"): this;")
 		if field.Desc.IsList() && !field.Desc.IsMap() {
-			*lines = append(*lines, "  add"+exportedMethodName+"(value: "+tsTypeForKind(field.Desc)+"): this;")
+			*lines = append(*lines, "  add"+exportedMethodName+"(value: "+tsTypeForKind(field.Desc, types)+"): this;")
 		}
 		if field.Desc.IsMap() {
-			*lines = append(*lines, "  put"+exportedMethodName+"(key: "+tsTypeForKind(field.Desc.MapKey())+", value: "+tsTypeForKind(field.Desc.MapValue())+"): this;")
-			*lines = append(*lines, "  delete"+exportedMethodName+"(key: "+tsTypeForKind(field.Desc.MapKey())+"): this;")
+			*lines = append(*lines, "  put"+exportedMethodName+"(key: "+tsTypeForKind(field.Desc.MapKey(), types)+", value: "+tsTypeForKind(field.Desc.MapValue(), types)+"): this;")
+			*lines = append(*lines, "  delete"+exportedMethodName+"(key: "+tsTypeForKind(field.Desc.MapKey(), types)+"): this;")
 		}
 		if field.Desc.HasPresence() {
 			*lines = append(*lines, "  has"+exportedMethodName+"(): boolean;")
@@ -182,27 +183,49 @@ func appendMessageDTS(lines *[]string, msg *protogen.Message) {
 		if nested.Desc.IsMapEntry() {
 			continue
 		}
-		appendMessageDTS(lines, nested)
+		appendMessageDTS(lines, nested, types)
 	}
 }
 
-func tsTypeForField(field *protogen.Field) string {
-	if field.Desc.IsMap() {
-		return "Record<string, " + tsTypeForKind(field.Desc.MapValue()) + ">"
+type dtsContext struct {
+	messages map[protoreflect.FullName]string
+	enums    map[protoreflect.FullName]string
+}
+
+func newDTSContext(file *protogen.File) dtsContext {
+	ctx := dtsContext{
+		messages: map[protoreflect.FullName]string{},
+		enums:    map[protoreflect.FullName]string{},
 	}
-	typ := tsTypeForKind(field.Desc)
+	for _, msg := range allMessages(file) {
+		ctx.messages[msg.Desc.FullName()] = msg.GoIdent.GoName
+	}
+	for _, enum := range allEnums(file) {
+		ctx.enums[enum.Desc.FullName()] = enum.GoIdent.GoName
+	}
+	return ctx
+}
+
+func tsTypeForField(field *protogen.Field, types dtsContext) string {
+	if field.Desc.IsMap() {
+		return "Record<string, " + tsTypeForKind(field.Desc.MapValue(), types) + ">"
+	}
+	typ := tsTypeForKind(field.Desc, types)
 	if field.Desc.IsList() {
 		return typ + "[]"
 	}
 	return typ
 }
 
-func tsTypeForKind(field protoreflect.FieldDescriptor) string {
+func tsTypeForKind(field protoreflect.FieldDescriptor, types dtsContext) string {
 	switch field.Kind() {
 	case protoreflect.BoolKind:
 		return "boolean"
 	case protoreflect.EnumKind:
-		return string(field.Enum().Name()) + "Value | keyof typeof " + string(field.Enum().Name())
+		if name, ok := types.enums[field.Enum().FullName()]; ok {
+			return name + "Value | keyof typeof " + name
+		}
+		return "number"
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind,
 		protoreflect.Uint32Kind, protoreflect.Fixed32Kind,
 		protoreflect.FloatKind, protoreflect.DoubleKind:
@@ -215,9 +238,43 @@ func tsTypeForKind(field protoreflect.FieldDescriptor) string {
 	case protoreflect.BytesKind:
 		return "Uint8Array | string"
 	case protoreflect.MessageKind, protoreflect.GroupKind:
-		return string(field.Message().Name())
+		return tsTypeForMessage(field.Message(), types)
 	default:
 		return "unknown"
+	}
+}
+
+func tsTypeForMessage(message protoreflect.MessageDescriptor, types dtsContext) string {
+	if name, ok := types.messages[message.FullName()]; ok {
+		return name
+	}
+	switch message.FullName() {
+	case "google.protobuf.Timestamp":
+		return "Date | string | ProtoMessage<\"google.protobuf.Timestamp\">"
+	case "google.protobuf.Duration":
+		return "string | ProtoMessage<\"google.protobuf.Duration\">"
+	case "google.protobuf.Struct":
+		return "Record<string, unknown> | ProtoMessage<\"google.protobuf.Struct\">"
+	case "google.protobuf.Value":
+		return "unknown"
+	case "google.protobuf.ListValue":
+		return "unknown[] | ProtoMessage<\"google.protobuf.ListValue\">"
+	case "google.protobuf.Any":
+		return "ProtoMessage"
+	case "google.protobuf.FieldMask":
+		return "string | string[] | ProtoMessage<\"google.protobuf.FieldMask\">"
+	case "google.protobuf.BoolValue":
+		return "boolean | ProtoMessage<\"google.protobuf.BoolValue\">"
+	case "google.protobuf.StringValue":
+		return "string | ProtoMessage<\"google.protobuf.StringValue\">"
+	case "google.protobuf.BytesValue":
+		return "Uint8Array | string | ProtoMessage<\"google.protobuf.BytesValue\">"
+	case "google.protobuf.DoubleValue", "google.protobuf.FloatValue", "google.protobuf.Int32Value", "google.protobuf.UInt32Value":
+		return "number | ProtoMessage<" + quoted(string(message.FullName())) + ">"
+	case "google.protobuf.Int64Value", "google.protobuf.UInt64Value":
+		return "number | string | ProtoMessage<" + quoted(string(message.FullName())) + ">"
+	default:
+		return "ProtoMessage<" + quoted(string(message.FullName())) + ">"
 	}
 }
 
@@ -606,10 +663,22 @@ func oneofSelectionType(oneof *protogen.Oneof) string {
 
 func methodNameForField(field *protogen.Field) string {
 	jsonName := field.Desc.JSONName()
-	if jsonName != "" {
-		return jsonName
+	if jsonName == "" {
+		jsonName = lowerCamel(string(field.Desc.Name()))
 	}
-	return lowerCamel(string(field.Desc.Name()))
+	if isReservedBuilderMethodName(jsonName) {
+		return "set" + exportName(jsonName)
+	}
+	return jsonName
+}
+
+func isReservedBuilderMethodName(name string) bool {
+	switch name {
+	case "build", "clone":
+		return true
+	default:
+		return false
+	}
 }
 
 func fileIdentifier(path string) string {
