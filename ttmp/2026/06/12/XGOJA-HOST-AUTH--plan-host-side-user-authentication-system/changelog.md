@@ -74,3 +74,13 @@ Phase 6: add Docker Compose Keycloak host example with sessionauth, appauth, aud
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/17-express-keycloak-auth-host/cmd/host/main.go — Keycloak host example
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/17-express-keycloak-auth-host/docker-compose.yml — Local Keycloak service
 
+
+## 2026-06-12
+
+Phase 6: add and run automated Keycloak login/CSRF/planned-route smoke (commit 4f966f3)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/17-express-keycloak-auth-host/scripts/keycloak_smoke.py — Login and route assertions
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/17-express-keycloak-auth-host/scripts/smoke.sh — Smoke lifecycle
+

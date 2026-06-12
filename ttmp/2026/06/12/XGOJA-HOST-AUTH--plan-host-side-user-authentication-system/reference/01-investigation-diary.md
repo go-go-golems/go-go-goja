@@ -19,14 +19,22 @@ RelatedFiles:
       Note: Updated dev auth cookie/CSRF/login/logout usage docs (commit 38871dc)
     - Path: examples/xgoja/16-express-auth-host/cmd/host/main.go
       Note: Runnable host example refactored to use devauth and login/logout smoke flow (commit 38871dc)
+    - Path: examples/xgoja/17-express-keycloak-auth-host/Makefile
+      Note: Smoke target and Keycloak port parameterization (commit 4f966f3)
+    - Path: examples/xgoja/17-express-keycloak-auth-host/README.md
+      Note: Operator documentation for automated smoke (commit 4f966f3)
     - Path: examples/xgoja/17-express-keycloak-auth-host/cmd/host/main.go
       Note: Production-oriented Keycloak/session/appauth/audit host wiring (commit 852780d)
     - Path: examples/xgoja/17-express-keycloak-auth-host/docker-compose.yml
       Note: Docker Compose Keycloak service for local OIDC testing (commit 852780d)
     - Path: examples/xgoja/17-express-keycloak-auth-host/keycloak/realm-goja-demo.json
       Note: Imported demo realm/client/user configuration (commit 852780d)
+    - Path: examples/xgoja/17-express-keycloak-auth-host/scripts/keycloak_smoke.py
+      Note: Standard-library OIDC form login and planned-route assertions (commit 4f966f3)
     - Path: examples/xgoja/17-express-keycloak-auth-host/scripts/server.js
       Note: Planned Express routes protected by the Go host auth stack (commit 852780d)
+    - Path: examples/xgoja/17-express-keycloak-auth-host/scripts/smoke.sh
+      Note: Automated Keycloak smoke lifecycle wrapper (commit 4f966f3)
     - Path: pkg/gojahttp/auth/appauth/appauth.go
       Note: App-owned resource resolver and explicit deny-by-default authorizer helpers (commit 952acb2)
     - Path: pkg/gojahttp/auth/appauth/appauth_test.go
@@ -62,6 +70,7 @@ LastUpdated: 2026-06-12T17:00:00-04:00
 WhatFor: Use this to resume or review the host-side auth system planning ticket.
 WhenToUse: Read before implementing dev/demo auth, session auth, Keycloak/OIDC, app authorization, audit, or capabilities.
 ---
+
 
 
 
@@ -919,4 +928,117 @@ This is intentionally a host skeleton, not a JavaScript auth framework. The Java
 - Demo account:
   ```text
   demo@example.test / demo-password
+  ```
+
+
+## Step 8: Automate the Keycloak login smoke
+
+I turned the Keycloak example from a manual/browser checklist into an automated smoke target. The smoke now starts Docker Compose Keycloak, starts the Go host, drives the Keycloak login form with the demo user, verifies the resulting app session, checks CSRF enforcement, exercises a protected project update route, logs out, and tears the container down.
+
+The smoke deliberately uses Python standard-library HTTP and HTML form parsing instead of a browser driver. That keeps the example self-contained, but it required one local-development workaround for Keycloak's `Secure` login cookies on `http://127.0.0.1`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead."
+
+**Assistant interpretation:** Implement the missing automated Keycloak smoke described in the previous answer.
+
+**Inferred user intent:** Make the production-oriented Keycloak example continuously verifiable instead of only manually testable.
+
+**Commit (code):** 4f966f3eb587ce496e3c59946ab2698d0537cd44 — "Add automated Keycloak auth smoke"
+
+### What I did
+- Added `examples/xgoja/17-express-keycloak-auth-host/scripts/smoke.sh`.
+- Added `examples/xgoja/17-express-keycloak-auth-host/scripts/keycloak_smoke.py`.
+- Added `make -C examples/xgoja/17-express-keycloak-auth-host smoke`.
+- Parameterized the Keycloak host port with `KEYCLOAK_PORT` in the Compose file and Makefile.
+- Updated the example README to describe the automated smoke and its environment variables.
+- Marked the final package/example validation checklist item complete.
+
+### Why
+- The Keycloak example previously validated Compose syntax and host compilation, but did not prove that the full Authorization Code + PKCE login path worked end-to-end.
+- Planned-route auth needs an end-to-end check because failures can occur across several boundaries: Keycloak realm/client settings, OIDC callback handling, app session creation, route auth, CSRF, resource lookup, and app authorization.
+
+### What worked
+- The automated smoke passed:
+  ```bash
+  make -C examples/xgoja/17-express-keycloak-auth-host smoke
+  ```
+- The smoke verified:
+  - public `/healthz` returns 200,
+  - `/me` before login returns 401,
+  - Keycloak login form submits successfully,
+  - login redirects back to the Go host,
+  - `/me` after login returns 200,
+  - `/auth/session` returns the app CSRF token,
+  - protected project update without CSRF returns 403,
+  - protected project update with CSRF returns 200,
+  - missing project returns 404,
+  - logout returns 204,
+  - `/me` after logout returns 401.
+- Package/example validation also passed:
+  ```bash
+  go test ./examples/xgoja/17-express-keycloak-auth-host/cmd/host ./pkg/gojahttp/auth/... -count=1
+  docker compose -f examples/xgoja/17-express-keycloak-auth-host/docker-compose.yml config >/tmp/keycloak-compose-config.txt
+  ```
+
+### What didn't work
+- The first automated login attempt failed:
+  ```text
+  FAIL: keycloak form login: expected HTTP 200, got 400
+  ```
+- Keycloak logged the cause:
+  ```text
+  type="LOGIN_ERROR", realmName="goja-demo", clientId="goja-app", error="cookie_not_found"
+  ```
+- Inspecting the login response showed Keycloak dev mode setting secure cookies on the HTTP localhost login page:
+  ```text
+  Set-Cookie: AUTH_SESSION_ID=...;Path=/realms/goja-demo/;Secure;HttpOnly;SameSite=None
+  Set-Cookie: KC_RESTART=...;Path=/realms/goja-demo/;Secure;HttpOnly;SameSite=None
+  ```
+- Python's `CookieJar` correctly refused to send those `Secure` cookies over `http://127.0.0.1`, so the form POST reached Keycloak without the login-session cookie.
+- The first shell wrapper also left a compiled `go run` child process listening on port 8790 after the parent was killed:
+  ```text
+  listen tcp 127.0.0.1:8790: bind: address already in use
+  ```
+
+### What I learned
+- For this local-only smoke, a standard-library HTTP client is sufficient if the script explicitly mirrors the localhost secure-cookie behavior that browsers often special-case.
+- `go run` is awkward in background smoke wrappers because killing the `go run` parent may leave the compiled child process alive. Building a temporary binary and running that binary directly gives the cleanup trap a reliable PID.
+- The end-to-end smoke is especially useful here because unit tests cannot catch Keycloak realm import details, callback redirects, cookie policy, and route-level CSRF behavior in one place.
+
+### What was tricky to build
+- The tricky piece was Keycloak's `Secure; SameSite=None` cookies on local HTTP. The solution was to keep using `CookieJar` for normal cookie handling but explicitly add the Keycloak cookies to the form POST's `Cookie` header when the target is localhost HTTP.
+- Another tricky cleanup issue was process ownership. I changed the wrapper from `go run ... &` to `go build -o "$HOST_BIN" ...` followed by running the temporary binary directly, so the trap kills the actual server process.
+- The smoke also had to avoid depending on fragile Keycloak theme details. The form parser looks for either the normal `kc-form-login` id or an action containing `/login-actions/authenticate`.
+
+### What warrants a second pair of eyes
+- Review whether the explicit localhost secure-cookie workaround is acceptable for an example smoke. It is intentionally limited to the smoke client and does not change production host behavior.
+- Review whether the Python form parser is robust enough across Keycloak theme/version changes.
+- Review whether the smoke should optionally use a real browser in CI for closer browser-cookie semantics.
+- Review whether the default smoke should always tear Keycloak down with `down -v`, or whether a faster reuse mode should be documented more prominently.
+
+### What should be done in the future
+- Add CI wiring only if Docker-in-Docker or service containers are acceptable for this repository's workflow.
+- Consider adding a browser-driven smoke variant for environments that already have Playwright installed.
+- Keep the Python smoke as the fast dependency-light local default.
+
+### Code review instructions
+- Start with `examples/xgoja/17-express-keycloak-auth-host/scripts/smoke.sh` for lifecycle and cleanup behavior.
+- Review `examples/xgoja/17-express-keycloak-auth-host/scripts/keycloak_smoke.py` for login form parsing, cookie handling, and route assertions.
+- Review the README section for operator-facing instructions.
+- Validate with:
+  ```bash
+  make -C examples/xgoja/17-express-keycloak-auth-host smoke
+  ```
+
+### Technical details
+- Main smoke command:
+  ```bash
+  make -C examples/xgoja/17-express-keycloak-auth-host smoke
+  ```
+- Useful overrides:
+  ```bash
+  KEYCLOAK_PORT=18081 make -C examples/xgoja/17-express-keycloak-auth-host smoke
+  KEEP_KEYCLOAK=1 make -C examples/xgoja/17-express-keycloak-auth-host smoke
   ```
