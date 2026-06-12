@@ -13,20 +13,20 @@
 
 Goal: provide a no-external-service auth kit that implements the existing `gojahttp.AuthOptions` interfaces and can replace the inline fake services in `examples/xgoja/16-express-auth-host`.
 
-- [ ] Create `pkg/gojahttp/auth/devauth` package.
-- [ ] Define dev seed data for users, tenants/roles, projects/resources, and default credentials.
-- [ ] Implement in-memory session creation, lookup, revocation, and CSRF token storage.
-- [ ] Implement `gojahttp.Authenticator` using a dev session cookie.
-- [ ] Implement `gojahttp.CSRFProtector` using a session-bound `X-CSRF-Token` header.
-- [ ] Implement `gojahttp.ResourceResolver` for demo project resources.
-- [ ] Implement `gojahttp.Authorizer` for `user.self.read`, `project.read`, and `project.update` demo actions.
-- [ ] Implement `gojahttp.AuditSink` with in-memory capture and optional logging.
-- [ ] Add `POST /auth/dev/login`, `POST /auth/dev/logout`, and `GET /auth/dev/session` handlers.
-- [ ] Add unit tests for login success/failure, authenticate success/failure, CSRF success/failure, resource resolution, authorization denial, logout, and audit capture.
-- [ ] Refactor `examples/xgoja/16-express-auth-host` to use `devauth` instead of inline fake services.
-- [ ] Extend example smoke coverage to exercise login, cookie-authenticated `/me`, CSRF denial, CSRF success, resource 404, logout, and post-logout 401.
-- [ ] Update the example README with login/logout/cookie/CSRF usage.
-- [ ] Validate with `go test ./pkg/gojahttp/auth/devauth ./examples/xgoja/16-express-auth-host/cmd/host ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1` and `make -C examples/xgoja/16-express-auth-host smoke`.
+- [x] Create `pkg/gojahttp/auth/devauth` package.
+- [x] Define dev seed data for users, tenants/roles, projects/resources, and default credentials.
+- [x] Implement in-memory session creation, lookup, revocation, and CSRF token storage.
+- [x] Implement `gojahttp.Authenticator` using a dev session cookie.
+- [x] Implement `gojahttp.CSRFProtector` using a session-bound `X-CSRF-Token` header.
+- [x] Implement `gojahttp.ResourceResolver` for demo project resources.
+- [x] Implement `gojahttp.Authorizer` for `user.self.read`, `project.read`, and `project.update` demo actions.
+- [x] Implement `gojahttp.AuditSink` with in-memory capture and optional logging.
+- [x] Add `POST /auth/dev/login`, `POST /auth/dev/logout`, and `GET /auth/dev/session` handlers.
+- [x] Add unit tests for login success/failure, authenticate success/failure, CSRF success/failure, resource resolution, authorization denial, logout, and audit capture.
+- [x] Refactor `examples/xgoja/16-express-auth-host` to use `devauth` instead of inline fake services.
+- [x] Extend example smoke coverage to exercise login, cookie-authenticated `/me`, CSRF denial, CSRF success, resource 404, logout, and post-logout 401.
+- [x] Update the example README with login/logout/cookie/CSRF usage.
+- [x] Validate with `go test ./pkg/gojahttp/auth/devauth ./examples/xgoja/16-express-auth-host/cmd/host ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1` and `make -C examples/xgoja/16-express-auth-host smoke`.
 
 ## Phase 2 — Shared session auth package
 
