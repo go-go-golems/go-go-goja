@@ -34,3 +34,13 @@ Expanded GOJA-PB-001 into detailed implementation phases and task checklists, st
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/reference/01-investigation-diary.md — Diary updated with phase-planning step
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/tasks.md — Phase-by-phase implementation checklist
 
+
+## 2026-06-12
+
+Implemented Phase 1 protogoja runtime foundation: hidden ProtoMessage refs, direct MessageFromValue extraction, JS typeName/toJSON/clone/equals methods, and focused tests passing with go test ./pkg/protogoja -count=1.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/ref.go — MessageRef runtime wrapper and extraction helpers
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/ref_test.go — Phase 1 tests for runtime wrapper behavior
+

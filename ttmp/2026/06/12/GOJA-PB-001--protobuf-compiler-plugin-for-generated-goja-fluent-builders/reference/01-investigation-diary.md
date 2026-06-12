@@ -16,6 +16,10 @@ RelatedFiles:
       Note: |-
         Native module shape studied for generated module design
         Native module API studied for generated module shape
+    - Path: go-go-goja/pkg/protogoja/ref.go
+      Note: Phase 1 runtime foundation implementation for hidden ProtoMessage refs
+    - Path: go-go-goja/pkg/protogoja/ref_test.go
+      Note: Phase 1 tests for clone semantics
     - Path: go-go-goja/pkg/tsgen/spec/types.go
       Note: |-
         TypeScript declaration descriptor studied for generated DTS design
@@ -30,6 +34,7 @@ LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Continuation context for GOJA-PB-001 implementation and review.
 WhenToUse: Read before implementing protoc-gen-goja-builder or revising the builder generator design.
 ---
+
 
 
 # Diary
@@ -213,4 +218,106 @@ Updated file:
 
 ```text
 go-go-goja/ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/tasks.md
+```
+
+## Step 3: Implement Phase 1 `pkg/protogoja` message references
+
+I implemented the first runtime foundation slice: Go-backed JavaScript `ProtoMessage` objects that carry a hidden protobuf reference. This gives future generated builders and consuming modules a stable direct path from Goja values to concrete `proto.Message` values without JSON/protojson conversion.
+
+The implementation deliberately clones messages when wrapping and extracting them. That keeps the JavaScript-visible built message stable and prevents callers from accidentally mutating the same Go message instance across API boundaries.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Start working through the new phase/task list, beginning with the first implementation phase.
+
+**Inferred user intent:** The user wants incremental implementation with validation and traceable commits rather than only planning.
+
+**Commit (code):** pending — this step will be committed after the diary/changelog are updated.
+
+### What I did
+
+- Added `pkg/protogoja/ref.go` with:
+  - `MessageRef`.
+  - `NewMessageRef`.
+  - `ToValue`.
+  - `MessageFromValue`.
+  - `MessageRefFromValue`.
+  - `MustMessageFromValue`.
+  - `TypeNameFromValue`.
+  - `IsMessageValueOf`.
+  - JS methods `typeName`, `toJSON()`, `clone()`, and `equals(other)`.
+- Added `pkg/protogoja/ref_test.go` with tests for:
+  - clone-on-wrap and clone-on-extract behavior;
+  - JavaScript method behavior;
+  - hidden reference non-enumerability;
+  - type-name helpers;
+  - equality behavior;
+  - invalid input errors;
+  - `MustMessageFromValue` panic behavior.
+- Ran formatting and tests.
+- Checked off Phase 1 tasks 5 through 9.
+
+### Why
+
+- Every generated builder needs a way to return a concrete protobuf message into JavaScript while allowing Go consumers to recover that message safely.
+- Starting with this small runtime bridge validates the core representation choice before adding builder setters or compiler generation.
+
+### What worked
+
+- The existing `hashiplugin.contract.v1.ModuleManifest` protobuf type was sufficient as a local fixture.
+- `protojson.MarshalOptions{UseProtoNames:false}` produced JS-facing camelCase JSON from `toJSON()`.
+- Hidden properties can be attached with `DefineDataProperty` as non-writable, non-enumerable, and non-configurable.
+- `go test ./pkg/protogoja -count=1` passed.
+
+### What didn't work
+
+- N/A. The first implementation and tests passed on the first run.
+
+### What I learned
+
+- A small wrapper object is enough for the initial built-message API; it does not need to expose generated Go struct fields.
+- Clone-on-boundary semantics are easy to test and should remain part of the contract for generated builders.
+
+### What was tricky to build
+
+- The important sharp edge is avoiding accidental mutability. If `ToValue` stored the original message pointer and `MessageFromValue` returned it directly, Go and JS-adjacent code could mutate supposedly built values. The implementation solves this by cloning on wrap and on extraction.
+- Another subtle point is `toJSON()`: Goja should receive an ordinary JS object, not a JSON string. The implementation marshals with `protojson` and decodes into `any` before calling `vm.ToValue`.
+
+### What warrants a second pair of eyes
+
+- The hidden key name is currently a package-private string. Review whether future generated packages need an exported constant or should only use exported attach/extract helpers.
+- Review whether `equals` should compare type names before `proto.Equal`; `proto.Equal` already returns false for different message descriptors, but an explicit descriptor check might produce clearer future diagnostics.
+
+### What should be done in the future
+
+- Phase 2 should add `BuilderRef` and field conversion helpers that return these `ProtoMessage` wrappers from `Build()`.
+- Generated message namespace objects should carry prototype/schema tokens in addition to built-message refs.
+
+### Code review instructions
+
+- Start with `pkg/protogoja/ref.go` and verify clone semantics in `NewMessageRef`, `MessageRef.Message`, and `MessageFromValue`.
+- Then review `pkg/protogoja/ref_test.go` for the JS-facing contract.
+- Validate with:
+
+```bash
+gofmt -w pkg/protogoja/ref.go pkg/protogoja/ref_test.go
+go test ./pkg/protogoja -count=1
+```
+
+### Technical details
+
+Commands run:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+gofmt -w pkg/protogoja/ref.go pkg/protogoja/ref_test.go
+go test ./pkg/protogoja -count=1
+```
+
+Test result:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	0.004s
 ```

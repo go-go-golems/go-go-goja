@@ -12,30 +12,35 @@ DocType: design-doc
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: ../../../../../../../go-go-goja/modules/common.go
+    - Path: go-go-goja/modules/common.go
       Note: NativeModule and default registry APIs that generated protobuf builder modules should implement or register through
-    - Path: ../../../../../../../go-go-goja/modules/events/events.go
+    - Path: go-go-goja/modules/events/events.go
       Note: Example of a Go-backed JS class/module with handwritten TypeScript RawDTS and hidden Go object behavior
-    - Path: ../../../../../../../go-go-goja/pkg/engine/module_specs.go
+    - Path: go-go-goja/pkg/engine/module_specs.go
       Note: NativeModuleRegistrar and runtime module registration surface for generated loaders
-    - Path: ../../../../../../../go-go-goja/pkg/hashiplugin/contract/internal/cmd/generate/main.go
+    - Path: go-go-goja/pkg/hashiplugin/contract/internal/cmd/generate/main.go
       Note: Existing repo-local protoc generation helper pattern
-    - Path: ../../../../../../../go-go-goja/pkg/hashiplugin/contract/jsmodule.proto
+    - Path: go-go-goja/pkg/hashiplugin/contract/jsmodule.proto
       Note: Existing protobuf schema in go-go-goja useful as fixture candidate
-    - Path: ../../../../../../../go-go-goja/pkg/tsgen/render/dts_renderer.go
+    - Path: go-go-goja/pkg/protogoja/ref.go
+      Note: Initial implementation of the MessageRef/ProtoMessage contract proposed by the design
+    - Path: go-go-goja/pkg/protogoja/ref_test.go
+      Note: Executable validation of the Phase 1 ProtoMessage contract
+    - Path: go-go-goja/pkg/tsgen/render/dts_renderer.go
       Note: Renderer behavior for RawDTS-backed generated declaration modules
-    - Path: ../../../../../../../go-go-goja/pkg/tsgen/spec/types.go
+    - Path: go-go-goja/pkg/tsgen/spec/types.go
       Note: TypeScript declaration model that generated modules can feed into
-    - Path: ../../../../../../../go-go-goja/pkg/xgoja/dtsgen/dtsgen.go
+    - Path: go-go-goja/pkg/xgoja/dtsgen/dtsgen.go
       Note: xgoja provider TypeScript bundling path that builder modules should integrate with
-    - Path: ../../../../../../../sessionstream/examples/chatdemo/proto/sessionstream/examples/chatdemo/v1/chat.proto
+    - Path: sessionstream/examples/chatdemo/proto/sessionstream/examples/chatdemo/v1/chat.proto
       Note: Representative external schema for acceptance tests with command/event-style payloads
 ExternalSources: []
-Summary: "Design for a protoc plugin that generates reusable Goja fluent builders for protobuf messages, with phase-2 generated builders as the first implementation target."
+Summary: Design for a protoc plugin that generates reusable Goja fluent builders for protobuf messages, with phase-2 generated builders as the first implementation target.
 LastUpdated: 2026-06-12T16:15:00-04:00
-WhatFor: "Planning a generic go-go-goja feature that lets any Goja-consuming code construct concrete proto.Message values through generated fluent JavaScript builders instead of JSON/protojson conversion."
-WhenToUse: "Use before implementing protoc-gen-goja-builder, reviewing generated APIs, or integrating generated protobuf builders with sessionstream or other Goja modules."
+WhatFor: Planning a generic go-go-goja feature that lets any Goja-consuming code construct concrete proto.Message values through generated fluent JavaScript builders instead of JSON/protojson conversion.
+WhenToUse: Use before implementing protoc-gen-goja-builder, reviewing generated APIs, or integrating generated protobuf builders with sessionstream or other Goja modules.
 ---
+
 
 # Generated Goja protobuf fluent builders design
 

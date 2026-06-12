@@ -9,11 +9,11 @@
 
 ## Phase 1 — `pkg/protogoja` runtime foundation
 
-- [ ] Add `pkg/protogoja` message reference type with hidden non-enumerable Goja object attachment
-- [ ] Add `MessageFromValue`, `MustMessageFromValue`, and type-name checking helpers for consuming modules
-- [ ] Add JS-facing built-message methods: `typeName`, `toJSON()`, `clone()`, and `equals(other)`
-- [ ] Add focused tests for hidden refs, cloning semantics, JSON output, equality, and non-enumerability
-- [ ] Run `go test ./pkg/protogoja -count=1`
+- [x] Add `pkg/protogoja` message reference type with hidden non-enumerable Goja object attachment
+- [x] Add `MessageFromValue`, `MustMessageFromValue`, and type-name checking helpers for consuming modules
+- [x] Add JS-facing built-message methods: `typeName`, `toJSON()`, `clone()`, and `equals(other)`
+- [x] Add focused tests for hidden refs, cloning semantics, JSON output, equality, and non-enumerability
+- [x] Run `go test ./pkg/protogoja -count=1`
 - [ ] Commit Phase 1 runtime foundation
 
 ## Phase 2 — Builder runtime conversion helpers
