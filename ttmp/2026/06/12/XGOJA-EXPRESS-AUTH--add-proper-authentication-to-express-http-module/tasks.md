@@ -1,0 +1,78 @@
+# Tasks
+
+## Completed research and delivery
+
+- [x] Create ticket workspace and import preliminary auth API source
+- [x] Analyze current Express/gojahttp/xgoja HTTP provider design
+- [x] Write MVP authentication API design and implementation guide
+- [x] Upload ticket documentation bundle to reMarkable
+- [x] Write Express-style middleware and router auth alternative design
+- [x] Upload updated ticket bundle with Express-style middleware design
+
+## Phase 0 — Finalize implementation direction and task breakdown
+
+- [x] Record the selected direction: Go-backed fluent staged route builders as the primary API
+- [x] Update ticket tasks with detailed implementation phases
+- [x] Update diary with the implementation kickoff and rationale
+- [x] Commit the ticket/task planning update
+
+## Phase 1 — RoutePlan model and host auth interfaces
+
+- [ ] Add `pkg/gojahttp` route-plan types: `RoutePlan`, `SecuritySpec`, `ResourceSpec`, `ValueSource`, `Actor`, `ResourceRef`
+- [ ] Add host auth service interfaces: `Authenticator`, `ResourceResolver`, `Authorizer`, optional future placeholders for body/CSRF/audit
+- [ ] Add sentinel auth errors and HTTP status mapping helpers for unauthenticated, forbidden, and not-found cases
+- [ ] Extend `HostOptions` with `Auth AuthOptions`
+- [ ] Extend `Route` with optional `Plan *RoutePlan`
+- [ ] Add `Registry.AddPlanned` and `Host.RegisterPlanned`
+- [ ] Add route-plan validation for method/path/security mode/action/resource parameter references
+- [ ] Add unit tests for planned route registration and validation
+- [ ] Commit Phase 1
+
+## Phase 2 — Planned route dispatch and secure context
+
+- [ ] Add planned-route dispatch branch in `Host.ServeHTTP`
+- [ ] Implement actor authentication before handler invocation
+- [ ] Implement resource resolution from typed value sources such as `idFromParam` and `tenantFromParam`
+- [ ] Implement authorization using host-provided `Authorizer`
+- [ ] Build Go-owned secure JS context with `ctx.actor`, `ctx.request`, `ctx.body`, `ctx.params`, `ctx.resource(name)`, and `ctx.resources`
+- [ ] Preserve existing return-value and promise handling behavior for planned handlers
+- [ ] Add host-level integration tests for public, authenticated, unauthorized, missing resource, and resource success paths
+- [ ] Commit Phase 2
+
+## Phase 3 — Express Go-backed fluent builders
+
+- [ ] Expose `app.route(method, pattern)` as a staged builder
+- [ ] Expose Go-backed `express.user()` auth spec builder
+- [ ] Expose Go-backed `express.resource(type)` resource spec builder
+- [ ] Implement strict runtime type validation so `.auth(...)` and `.resource(...)` reject plain JS objects/maps
+- [ ] Implement staged objects so `.handle(...)` is unavailable until `.public()` or `.auth(...).allow(...)`
+- [ ] Register compiled plans through `Host.RegisterPlanned`
+- [ ] Add aliases only when useful (`idFromParam` primary, `fromParam` compatibility alias; `tenantFromParam` primary, `withinTenantParam` compatibility alias)
+- [ ] Add Express integration tests for public route, auth route, resource route, and invalid spec object errors
+- [ ] Commit Phase 3
+
+## Phase 4 — TypeScript declarations and user docs
+
+- [ ] Update `modules/express/typescript.go` with staged builder, auth spec, resource spec, actor/resource context, and planned handler types
+- [ ] Update `pkg/doc/18-express-module.md` with secure planned route examples and compatibility notes
+- [ ] Add troubleshooting notes for common registration-time errors
+- [ ] Run targeted docs/type generation tests if available
+- [ ] Commit Phase 4
+
+## Phase 5 — Validation, examples, and provider integration
+
+- [ ] Add/adjust xgoja HTTP provider tests to ensure generated runtimes can use planned public routes
+- [ ] Add an example script demonstrating public, self, and resource-bound routes
+- [ ] Run `go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1`
+- [ ] Run broader test subset if targeted tests pass
+- [ ] Update diary with final validation, commands, failures, and review instructions
+- [ ] Update changelog and mark completed implementation tasks
+- [ ] Commit final docs/test updates
+
+## Future / out of MVP
+
+- [ ] Add `.body(...)` with a Go-owned schema registry and validator
+- [ ] Add `.csrf()` for unsafe cookie-authenticated browser routes
+- [ ] Add `.audit(...)` for Go-owned structured audit emission
+- [ ] Add strict host mode to reject legacy raw routes in production
+- [ ] Consider Express-style middleware/router support after the planned-route auth core is stable
