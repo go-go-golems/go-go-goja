@@ -26,7 +26,7 @@
 - [x] Add `Registry.AddPlanned` and `Host.RegisterPlanned`
 - [x] Add route-plan validation for method/path/security mode/action/resource parameter references
 - [x] Add unit tests for planned route registration and validation
-- [ ] Commit Phase 1
+- [x] Commit Phase 1
 
 ## Phase 2 — Planned route dispatch and secure context
 
@@ -37,7 +37,7 @@
 - [x] Build Go-owned secure JS context with `ctx.actor`, `ctx.request`, `ctx.body`, `ctx.params`, `ctx.resource(name)`, and `ctx.resources`
 - [x] Preserve existing return-value and promise handling behavior for planned handlers
 - [x] Add host-level integration tests for public, authenticated, unauthorized, missing resource, and resource success paths
-- [ ] Commit Phase 2
+- [x] Commit Phase 2
 
 ## Phase 3 — Express Go-backed fluent builders
 
@@ -49,7 +49,7 @@
 - [x] Register compiled plans through `Host.RegisterPlanned`
 - [x] Add aliases only when useful (`idFromParam` primary, `fromParam` compatibility alias; `tenantFromParam` primary, `withinTenantParam` compatibility alias)
 - [x] Add Express integration tests for public route, auth route, resource route, and invalid spec object errors
-- [ ] Commit Phase 3
+- [x] Commit Phase 3
 
 ## Phase 4 — TypeScript declarations and user docs
 
@@ -57,7 +57,7 @@
 - [x] Update `pkg/doc/18-express-module.md` with secure planned route examples and compatibility notes
 - [x] Add troubleshooting notes for common registration-time errors
 - [x] Run targeted docs/type generation tests if available
-- [ ] Commit Phase 4
+- [x] Commit Phase 4
 
 ## Phase 5 — Validation, examples, and provider integration
 
