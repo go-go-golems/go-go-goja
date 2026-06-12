@@ -12,185 +12,154 @@ DocType: design
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: cmd/xgoja/internal/buildspec/build_spec.go
-      Note: Current v1 schema to migrate from
-    - Path: cmd/xgoja/internal/generate/gomod.go
-      Note: Generated Go module rendering should consume v2 workspace plan
-    - Path: examples/xgoja/15-typescript-jsverbs/xgoja.yaml
-      Note: Concrete v1 TypeScript jsverbs example used for v2 migration sketch
-    - Path: go-go-goja/cmd/xgoja/doc/02-user-guide.md
-      Note: Existing user-facing v1 docs that need migration documentation.
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
       Note: Current v1 xgoja.yaml schema that should become migratable legacy input.
-    - Path: go-go-goja/cmd/xgoja/internal/generate/gomod.go
-      Note: Current generated go.mod rendering should consume v2 workspace and GoModulePlan data.
-    - Path: go-go-goja/examples/xgoja/15-typescript-jsverbs/xgoja.yaml
-      Note: Recent v1 TypeScript jsverbs example used as a concrete migration target.
+    - Path: go-go-goja/pkg/xgoja/app/runtime_spec.go
+      Note: Current runtime spec that v2 planning should replace or generate from a cleaner model.
+    - Path: go-go-goja/pkg/xgoja/providerapi/module.go
+      Note: Provider modules become first-class provider graph capabilities in v2.
+    - Path: go-go-goja/pkg/xgoja/providerapi/commands.go
+      Note: Command sets and JSVerbSourceSet map to explicit v2 command surfaces and source dependencies.
+    - Path: go-go-goja/pkg/xgoja/providerapi/verbs.go
+      Note: Provider-shipped verb sources become v2 source origins.
     - Path: go-go-goja/pkg/jsverbs/scan.go
       Note: Current jsverb source scanning should migrate behind v2 source graph adapters.
     - Path: go-go-goja/pkg/tsscript/compiler.go
-      Note: Current TypeScript compiler facade should become a compiler backend selected by v2 source compile policy.
-    - Path: go-go-goja/pkg/xgoja/app/runtime_spec.go
-      Note: Current runtime spec that v2 planning should replace or generate from a cleaner model.
-    - Path: go-go-goja/pkg/xgoja/providerapi/commands.go
-      Note: Command sets and JSVerbSourceSet map to explicit v2 command surfaces and source dependencies.
-    - Path: go-go-goja/pkg/xgoja/providerapi/module.go
-      Note: Provider modules become first-class provider graph capabilities in v2.
-    - Path: go-go-goja/pkg/xgoja/providerapi/verbs.go
-      Note: Provider-shipped verb sources become v2 source origins.
-    - Path: pkg/jsverbs/scan.go
-      Note: Current jsverb scanner to migrate behind v2 source graph adapters
-    - Path: pkg/tsscript/compiler.go
-      Note: Compiler backend selected by v2 source compile policy
-    - Path: pkg/xgoja/app/runtime_spec.go
-      Note: Current runtime spec that should be generated from v2 planning
-    - Path: pkg/xgoja/providerapi/commands.go
-      Note: Command sets and JSVerbSourceSet map to v2 command surfaces
-    - Path: pkg/xgoja/providerapi/module.go
-      Note: Provider capabilities represented explicitly in v2 providers/runtime modules
+      Note: Current TypeScript compiler facade should become an internal compiler backend for goja-executed source.
+    - Path: go-go-goja/cmd/xgoja/internal/generate/gomod.go
+      Note: Current generated go.mod rendering should consume v2 workspace and GoModulePlan data.
+    - Path: go-go-goja/cmd/xgoja/doc/02-user-guide.md
+      Note: Existing user-facing v1 docs that need migration documentation.
+    - Path: go-go-goja/examples/xgoja/15-typescript-jsverbs/xgoja.yaml
+      Note: Recent v1 TypeScript jsverbs example used as a concrete migration target.
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
-Summary: A v2 xgoja.yaml architecture that aligns the user-facing spec with source graphs, provider graphs, Go workspace resolution, command surfaces, artifacts, and migration tooling.
-LastUpdated: 2026-06-12T12:05:00-04:00
+Summary: A simplified v2 xgoja.yaml architecture that aligns the user-facing spec with providers, runtime modules, goja-executed sources, command surfaces, artifacts, Go workspace resolution, and migration tooling.
+LastUpdated: 2026-06-12T12:35:00-04:00
 WhatFor: Use when designing the next xgoja config format, migration tooling, and planner implementation without preserving v1 as the long-term internal architecture.
 WhenToUse: Before implementing sourcegraph/provider-graph planning, workspace resolution, command surfaces, build artifacts, or migration tooling for existing xgoja users.
 ---
-
 
 # XGoja v2 spec and migration architecture
 
 ## Executive summary
 
-The first architecture document for `XGOJA-ARCH-001` proposes a source graph, provider graph, import resolver, Go workspace resolver, build plan, and runtime plan. That design can be implemented while preserving the current `xgoja.yaml` shape, but doing so would force the new architecture to infer modern concepts from older names and historical structure. If backwards compatibility is not a hard constraint, the cleaner path is to define a v2 spec that directly names the concepts the planner needs.
+This document defines a simplified v2 `xgoja.yaml` architecture. The key simplification is that xgoja only compiles or bundles source that will execute inside the xgoja/goja runtime. Browser applications, frontend bundles, worker bundles, and other non-goja JavaScript artifacts should be built by their own tooling and then included in xgoja as static assets.
 
-The current v1 spec uses `packages`, `modules`, `jsverbs`, `commandProviders`, `help`, and `assets`. Those names made sense while xgoja was primarily a generator for a runtime with selected provider packages. The system is now more general. It compiles Go-backed JavaScript runtimes from provider packages, runtime modules, source sets, command surfaces, generated declarations, embedded assets, help pages, TypeScript compilation policy, and Go workspace module resolution.
+That constraint removes a large amount of configuration surface. The v2 spec does not need user-facing fields for esbuild engine selection, browser-vs-node bundler platform, output format, JavaScript target, package manager, install policy, polyfills, CSS loaders, SVG loaders, or frontend build caches. xgoja can own the compiler defaults for goja-executed code. Users should describe intent: which providers are available, which Go-backed runtime modules are selected, which source sets are goja-executed, which commands are exposed, which assets are embedded, and how local Go modules are resolved during development.
 
-The v2 spec should therefore expose those concepts directly:
+The v2 spec should therefore expose these concepts directly:
 
-- `providers` describes Go packages that contribute capabilities.
+- `providers` describes Go packages that contribute xgoja capabilities.
+- `workspace` describes local Go workspace resolution for provider development.
 - `runtime.modules` selects Go-backed JavaScript modules by provider and alias.
-- `sources` describes disk, workspace, embedded, provider, and virtual source sets.
-- `commands` describes user-facing command surfaces and their dependencies.
-- `artifacts` describes generated outputs such as binaries, runtime packages, declarations, embedded assets, and help bundles.
-- `workspace` describes Go workspace resolution for local provider development.
-- `profiles` optionally describe development, CI, and release variations.
+- `sources` describes goja-executed source sets and asset/help source sets.
+- `commands` describes user-facing command surfaces and their source/module dependencies.
+- `artifacts` describes generated outputs such as binaries, declaration files, runtime packages, and embedded assets.
 
-The migration strategy should be explicit: v1 becomes legacy input, not the permanent internal model. xgoja should provide `xgoja migrate-spec` to convert v1 files into v2 files, produce warnings for ambiguous cases, and update examples and documentation to v2. Existing packages that use xgoja can migrate when they need new functionality.
+The migration strategy remains the same: v1 is legacy input, v2 is the native planner schema. xgoja should provide `xgoja migrate-spec` to convert existing v1 files into v2 files. Packages that use xgoja can migrate when they need v2 capabilities.
 
-## Why v2 changes the architecture
+## Core design rule
 
-Without a v2 spec, the planner must translate from v1 concepts into new internals every time:
+The central rule is:
 
-```text
-v1 xgoja.yaml
-  packages
-  modules
-  jsverbs
-  commandProviders
-  assets
-  help
-        ↓
-compatibility inference
-        ↓
-provider graph + source graph + build plan + runtime plan
-```
+> If code runs in goja, xgoja may compile or bundle it. If code runs somewhere else, build it outside xgoja and let xgoja embed or serve the output.
 
-That translation will be full of historical edge cases. For example, `jsverbs[].embed` currently determines both source origin and generated output behavior. `packages[].replace` handles local provider development but does not express general workspace resolution. `commandProviders` are separate from builtin commands even though both are command surfaces. `typescript.external` duplicates runtime-module alias information that a provider graph should already know.
+This keeps xgoja opinionated and simple. It also matches the actual runtime boundary. The runtime is goja plus Go-backed CommonJS modules registered by provider packages. xgoja should optimize that path rather than becoming a general frontend bundler.
 
-With v2, the user-facing spec can match the internal graph:
+A Redux-like package can still be supported later if it is bundled into goja-executed source. For example, a TypeScript script that imports `redux` and then runs inside goja is in scope. A React browser application that uses Redux is out of scope for xgoja compilation; it should be built by Vite, esbuild, pnpm, Bun, or another external tool and then embedded as assets.
 
-```text
-v2 xgoja.yaml
-  providers
-  workspace
-  runtime.modules
-  sources
-  commands
-  artifacts
-  profiles
-        ↓
-provider graph + source graph + build plan + runtime plan
-```
+## Why this replaces the broader v2 draft
 
-This reduces translation. It also makes generated plan debugging easier because the plan can point back to fields that already use the same vocabulary.
+An earlier v2 shape included generic bundle fields such as package manager, platform, format, target, and loaders. Those fields are useful for a general JavaScript bundler, but xgoja does not need to be that tool. In practice, the execution engine for xgoja-managed code is stable:
+
+- Runtime code executes in goja.
+- Runtime modules are Go-backed CommonJS modules selected from providers.
+- Source-level TypeScript or ESM import syntax is an authoring convenience compiled before execution.
+- The safe output profile is owned by xgoja.
+- Runtime-module aliases should be externalized automatically.
+
+Users should not configure `engine: esbuild`, `platform: goja-neutral`, `target: es2018`, or `format: cjs` in ordinary specs. Those are implementation defaults for the xgoja runtime profile. If a real need appears later, advanced override fields can be added behind an explicit escape hatch. They should not shape the v2 MVP.
 
 ## Design goals
 
-The v2 spec should satisfy these goals:
+The simplified v2 spec should satisfy these goals:
 
-1. **Align user-facing config with planner concepts.** The spec should name providers, runtime modules, sources, command surfaces, artifacts, and workspace resolution directly.
-2. **Separate source origin from compilation policy.** A source can come from disk, provider `fs.FS`, embedded generated files, or a workspace directory; compilation can happen at runtime, build time, or not at all.
-3. **Separate provider packages from runtime modules.** A Go provider package can contribute many capabilities; selecting a JavaScript module from that package is a runtime decision.
-4. **Make command surfaces explicit.** Builtin commands and provider command sets should be represented by the same top-level `commands` list.
-5. **Make Go workspace resolution explicit.** Local provider development should use `go.work` without repeated manual replacements.
-6. **Support migration over compatibility.** The system should include a migration tool and documentation rather than keeping v1 as the long-term internal shape.
-7. **Keep runtime behavior stable.** v2 should not require replacing goja, runtime owner, provider module factories, or jsverbs command metadata.
+1. **Expose intent, not compiler mechanics.** Users declare source kind, origin, language, compile timing, and bundling intent. xgoja chooses compiler backend, output format, platform, and target for the goja runtime.
+2. **Keep non-goja bundling outside xgoja.** Browser and frontend outputs are external build artifacts. xgoja embeds or serves their output directories as assets.
+3. **Separate provider packages from runtime modules.** A Go provider package can contribute many capabilities. Selecting one JavaScript module from that provider is a runtime decision.
+4. **Make source sets first-class.** jsverbs, scripts, assets, and help all have origins. Only goja-executed source participates in xgoja compilation/bundling.
+5. **Make command surfaces explicit.** Builtin commands and provider command sets use one command model.
+6. **Make Go workspace resolution explicit.** Local provider development should work from `go.work` without repeated manual replacements.
+7. **Support migration over compatibility.** v1 should be migratable legacy input, not the permanent internal shape.
 
 ## Non-goals
 
-- v2 does not introduce npm package management in the first version.
+- v2 does not make xgoja a general browser bundler.
+- v2 does not invoke package managers in the first version.
+- v2 does not install npm packages.
+- v2 does not expose esbuild platform/format/target settings as ordinary fields.
+- v2 does not provide browser or Node polyfills.
 - v2 does not require goja to execute ECMAScript modules directly.
-- v2 does not require every source set to be prebundled at build time.
-- v2 does not make v1 and v2 equally important forever. v1 should be migrated and eventually retired.
-- v2 does not require preserving comments during automated migration. The migration tool should preserve semantics and produce readable output, but exact formatting and comments can be lost.
+- v2 does not keep v1 as an equal long-term config format.
 
 ## Current v1 concepts and their v2 replacements
 
 | v1 field | Current meaning | v2 replacement | Reason |
 | --- | --- | --- | --- |
-| `packages` | Go provider packages imported into generated code. | `providers` | Provider packages contribute many capabilities, not only packages. |
-| `packages[].replace` | Local module replacement for generated `go.mod`. | `workspace` plus `providers[].module` override | Local development should be centralized and discoverable from `go.work`. |
-| `modules` | Runtime module instances selected from providers. | `runtime.modules` | Runtime modules are part of runtime composition, not provider declaration. |
-| `commands.eval/run/repl/jsverbs` | Builtin command enable/name/mount flags. | `commands` entries with `type: builtin.*` | Builtin and provider commands should share one command-surface model. |
-| `commandProviders` | Provider-owned command sets mounted into the root. | `commands` entries with `type: provider.command-set` | Command surfaces can depend on providers, modules, sources, and host services. |
+| `packages` | Go provider packages imported into generated code. | `providers` | Provider packages contribute modules, commands, sources, assets, help, and declarations. |
+| `packages[].replace` | Local Go module replacement. | `workspace` or provider module override | Local development should be centralized and discoverable from `go.work`. |
+| `modules` | Runtime module instances selected from providers. | `runtime.modules` | Runtime module selection belongs to runtime composition. |
+| `commands.eval/run/repl/jsverbs` | Builtin command enable/name/mount flags. | `commands` entries with `type: builtin.*` | Builtin and provider commands are both command surfaces. |
+| `commandProviders` | Provider-owned command sets mounted into the root. | `commands` entries with `type: provider.command-set` | Provider commands can declare dependencies on sources and modules. |
 | `jsverbs` | Source roots for JavaScript verb commands. | `sources` plus `commands[].sources` | Source declaration and command mounting are separate concerns. |
-| `jsverbs[].typescript` | TypeScript compile options for a jsverb source. | `sources[].language` and `sources[].compile` | Language and compile policy should apply to any source purpose. |
-| `jsverbs[].embed` | Copy source into generated embed tree. | `sources[].origin` plus `artifacts[].embed` or `sources[].compile.mode` | Embedding and compilation are artifact decisions. |
-| `help.sources` | Help markdown sources. | `sources` with `purpose: help` or `artifacts` with `type: help` | Help is a source/artifact input. |
-| `assets` | Static asset sources. | `sources` with `purpose: asset` and `artifacts` with `type: asset-bundle` | Assets are source sets with output policy. |
-| `target` | Generated binary/package/adapter output settings. | `artifacts` | Output shape is an artifact decision. |
+| `jsverbs[].typescript` | TypeScript compile options. | `language: typescript` plus `compile` | Language and compile policy should be concise and runtime-profiled. |
+| `jsverbs[].embed` | Copy source into generated embed tree. | `compile.mode` and/or artifact embedding | Embedding and compilation are artifact/planning decisions. |
+| `help.sources` | Help markdown sources. | `sources` with `kind: help` | Help files are source inputs, not runtime JavaScript. |
+| `assets` | Static asset sources. | `sources` with `kind: assets` plus `artifacts` | Assets are external artifacts or static source trees. |
+| `target` | Generated binary/package output settings. | `artifacts` | Output shape is an artifact decision. |
 
-## Proposed v2 top-level shape
+## Proposed simplified v2 shape
 
-A v2 file should declare its version explicitly:
+A v2 spec declares the schema explicitly:
 
 ```yaml
 schema: xgoja/v2
 name: typescript-jsverbs
+```
+
+Application identity is optional but explicit:
+
+```yaml
 app:
   name: typescript-jsverbs
   envPrefix: TYPESCRIPT_JSVERBS
 ```
 
-Then it declares Go module and workspace behavior:
+Generated Go module behavior:
 
 ```yaml
 go:
   module: xgoja.generated/typescript-jsverbs
   version: "1.26"
-  tags: []
-  ldflags: []
-  env: {}
-
-workspace:
-  mode: auto        # off | auto | path
-  file: ../go.work # used when mode: path
-  emit: replace     # replace | go-work
 ```
 
-Then it declares providers:
+Local Go workspace behavior:
+
+```yaml
+workspace:
+  mode: auto # off | auto | path
+```
+
+Provider packages:
 
 ```yaml
 providers:
   - id: http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
-    register: Register
-    module:
-      version: v0.8.8
-      workspace: auto
 ```
 
-Then runtime composition:
+Runtime modules:
 
 ```yaml
 runtime:
@@ -198,55 +167,42 @@ runtime:
     - provider: http
       name: express
       as: express
-      config: {}
 ```
 
-Then source sets:
+Source sets:
 
 ```yaml
 sources:
-  - id: local-sites
-    purpose: jsverbs
+  - id: sites
+    kind: jsverbs
     from:
-      type: dir
-      path: ./verbs
-    include: ["**/*.ts"]
-    exclude: ["**/*.test.ts"]
-    language:
-      typescript:
-        target: es2015
-        format: cjs
-        platform: neutral
+      dir: ./verbs
+    language: typescript
     compile:
       mode: runtime
       bundle: true
-      externals:
-        runtimeModules: auto
-        extra: []
 ```
 
-Then commands:
+Command surfaces:
 
 ```yaml
 commands:
   - id: run
     type: builtin.run
-    name: run
 
   - id: verbs
     type: builtin.jsverbs
-    name: verbs
-    sources: [local-sites]
+    sources: [sites]
 
   - id: serve
     type: provider.command-set
     provider: http
     name: serve
     mount: serve
-    sources: [local-sites]
+    sources: [sites]
 ```
 
-Then artifacts:
+Generated artifacts:
 
 ```yaml
 artifacts:
@@ -257,15 +213,14 @@ artifacts:
   - id: declarations
     type: dts
     output: js/types/xgoja-modules.d.ts
-    modules: runtime
     strict: true
 ```
 
-This layout is longer than v1 for tiny examples, but it is much clearer for real systems. It also gives the planner direct objects to compile.
+This is the normal v2 shape. It has no low-level bundler settings.
 
 ## Complete v2 example: TypeScript jsverbs
 
-This is the v2 version of `examples/xgoja/15-typescript-jsverbs/xgoja.yaml`.
+This is the simplified v2 version of `examples/xgoja/15-typescript-jsverbs/xgoja.yaml`.
 
 ```yaml
 schema: xgoja/v2
@@ -280,15 +235,10 @@ go:
 
 workspace:
   mode: auto
-  emit: replace
 
 providers:
   - id: http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
-    register: Register
-    module:
-      version: v0.8.8
-      workspace: auto
 
 runtime:
   modules:
@@ -297,36 +247,27 @@ runtime:
       as: express
 
 sources:
-  - id: local-sites
-    purpose: jsverbs
+  - id: sites
+    kind: jsverbs
     from:
-      type: dir
-      path: ./verbs
+      dir: ./verbs
     include:
       - "**/*.ts"
     exclude:
       - "**/*.test.ts"
-    language:
-      typescript:
-        target: es2015
-        format: cjs
-        platform: neutral
+    language: typescript
     compile:
       mode: runtime
       bundle: true
-      externals:
-        runtimeModules: auto
 
 commands:
   - id: run
     type: builtin.run
-    name: run
 
   - id: verbs
     type: builtin.jsverbs
-    name: verbs
     sources:
-      - local-sites
+      - sites
 
   - id: serve
     type: provider.command-set
@@ -334,7 +275,7 @@ commands:
     name: serve
     mount: serve
     sources:
-      - local-sites
+      - sites
 
 artifacts:
   - id: binary
@@ -347,7 +288,91 @@ artifacts:
     strict: true
 ```
 
-The major improvement is that `express` does not need to be repeated as `typescript.external`. The planner can derive it from `runtime.modules` because `compile.externals.runtimeModules: auto` tells the source compiler to preserve selected runtime module aliases.
+The planner derives these internal decisions:
+
+- `sites` is a goja-executed jsverb source set.
+- TypeScript is compiled with xgoja's goja runtime compiler profile.
+- `bundle: true` follows local imports.
+- Selected runtime module aliases, including `express`, are preserved as runtime imports.
+- The generated binary imports the `http` provider package.
+- Workspace mode can derive local Go module replacements from `go.work`.
+- Declaration generation uses the selected runtime module aliases.
+
+The user does not repeat `external: [express]`. The provider graph and runtime module plan already know that `express` is a runtime module alias.
+
+## External frontend bundles as assets
+
+If a project has a frontend that uses Redux, React, CSS, SVG loaders, browser polyfills, and a package manager, that build stays outside xgoja. The v2 spec sees only the output directory.
+
+External build:
+
+```bash
+cd web
+pnpm install
+pnpm build
+```
+
+v2 xgoja spec:
+
+```yaml
+sources:
+  - id: web-dist
+    kind: assets
+    from:
+      dir: ./web/dist
+
+artifacts:
+  - id: web-assets
+    type: embedded-assets
+    sources: [web-dist]
+```
+
+A provider command such as HTTP serve can then use the embedded assets through existing asset resolver/provider mechanisms. xgoja does not need to know how `web/dist` was built.
+
+This rule keeps frontend concerns out of xgoja while still allowing xgoja to package the final files into generated binaries.
+
+## Future package bundling for goja-executed code
+
+The simplified v2 spec still allows future package bundling for goja-executed code. The schema does not need package-manager fields now because package resolution can be inferred from source directories when implemented later.
+
+Future example:
+
+```ts
+import { createStore } from "redux"
+import { message } from "./message"
+
+const store = createStore(reducer)
+```
+
+The same v2 source can remain:
+
+```yaml
+sources:
+  - id: state-script
+    kind: script
+    from:
+      dir: ./scripts
+    language: typescript
+    compile:
+      mode: build-time
+      bundle: true
+```
+
+Future resolver behavior:
+
+```text
+./message -> local source dependency
+redux     -> package dependency bundled into goja-executed artifact
+express   -> runtime module alias preserved for goja require()
+```
+
+This can be added later without changing the basic v2 fields. If package-root discovery becomes ambiguous, xgoja can add one optional field at that time:
+
+```yaml
+packageRoot: ./js
+```
+
+Do not add it until the implementation needs it. The current schema can reserve the semantic meaning of `bundle: true`: bundle dependencies for goja-executed source. Initially that means local dependencies; later it can include package dependencies.
 
 ## v2 schema details
 
@@ -357,7 +382,7 @@ The major improvement is that `express` does not need to be repeated as `typescr
 schema: xgoja/v2
 ```
 
-The schema field should be required. It lets xgoja select the correct parser, validator, migration behavior, and documentation links. If omitted, xgoja can treat the file as v1 during the migration period and emit a warning.
+The schema field is required. If omitted during the migration period, xgoja can assume v1 and print a warning.
 
 ### `go`
 
@@ -375,7 +400,7 @@ go:
       version: v1.14.32
 ```
 
-The `go` section describes generated Go module behavior. It replaces v1 `go.module`, `go.version`, `go.tags`, `go.ldflags`, `go.env`, and `go.imports` with mostly the same semantics. The difference is that module resolution is handled through the workspace/module plan instead of scattered replacement fields.
+The `go` section describes generated Go module behavior. It keeps the useful v1 fields but removes the need to scatter replacement information across provider entries when workspace discovery can do it.
 
 ### `workspace`
 
@@ -383,55 +408,32 @@ The `go` section describes generated Go module behavior. It replaces v1 `go.modu
 workspace:
   mode: auto
   file: ../go.work
-  emit: replace
-  include:
-    - github.com/go-go-golems/go-go-goja
-  exclude: []
 ```
 
-`workspace` controls local Go module resolution. It is build-time only. It should not appear in generated runtime specs.
+`workspace` is build-time only. It does not enter generated runtime specs.
 
-Recommended defaults:
+Supported modes:
 
-- `mode: auto` for local commands run from source.
-- `emit: replace` for the first implementation.
-- `include: []` means apply workspace resolution to required modules that are found in the workspace.
-- `exclude: []` means no module is explicitly excluded.
+| Mode | Meaning |
+| --- | --- |
+| `off` | Ignore `go.work`; use explicit versions/replacements only. |
+| `auto` | Search upward from the spec directory for `go.work`. |
+| `path` | Use `workspace.file` exactly. |
 
-Release-oriented CI can use:
-
-```yaml
-workspace:
-  mode: off
-```
-
-or a profile override.
+The first implementation should derive generated `replace` directives from workspace modules. A generated temporary `go.work` mode can be added later if needed.
 
 ### `providers`
 
 ```yaml
 providers:
   - id: http
-    import: github.com/go-go-golems/go-goja-http/pkg/xgoja/provider
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
     register: Register
     module:
-      path: github.com/go-go-golems/go-goja-http
-      version: v0.3.0
-      workspace: auto
+      version: v0.8.8
 ```
 
-`providers` replaces v1 `packages`. The new name is more accurate. A provider can contribute runtime modules, commands, help, assets, and sources. The `module` subsection describes Go module resolution and can override inferred module path or version.
-
-Fields:
-
-| Field | Meaning |
-| --- | --- |
-| `id` | Stable provider ID used by runtime modules and commands. |
-| `import` | Go import path for generated code. |
-| `register` | Provider registry function. Defaults to `Register` if omitted. |
-| `module.path` | Optional Go module path override. If omitted, infer from import path. |
-| `module.version` | Version to require when no local workspace/replace is used. |
-| `module.workspace` | `auto`, `off`, or a future explicit workspace reference. |
+`register` defaults to `Register`. `module.version` is used when no workspace/local replacement applies. The provider module path can be inferred from the import path using the current `providerModulePath` behavior, with an override added only if needed.
 
 ### `runtime.modules`
 
@@ -444,100 +446,76 @@ runtime:
       config: {}
 ```
 
-This replaces v1 `modules`. Runtime modules are selected capabilities from providers. Their aliases become valid imports for JavaScript/TypeScript source bundling.
-
-The provider graph should validate:
-
-- provider exists;
-- module exists in provider registry;
-- aliases are unique;
-- config matches provider schema if validation is available;
-- TypeScript descriptors exist when declaration generation runs in strict mode.
+Runtime module aliases become valid imports for goja-executed source. The source compiler should preserve them automatically when bundling.
 
 ### `sources`
 
-`sources` is the most important v2 addition. It gives the source graph its user-facing input.
+A source set declares origin, kind, language, filters, and compile policy.
 
 ```yaml
 sources:
-  - id: local-sites
-    purpose: jsverbs
+  - id: sites
+    kind: jsverbs
     from:
-      type: dir
-      path: ./verbs
+      dir: ./verbs
     include: ["**/*.ts"]
     exclude: ["**/*.test.ts"]
-    language:
-      typescript:
-        target: es2015
+    language: typescript
     compile:
       mode: runtime
       bundle: true
 ```
 
-Supported source origins:
+Supported `kind` values for the MVP:
+
+| Kind | Meaning | xgoja compiles? |
+| --- | --- | --- |
+| `jsverbs` | goja-executed command source scanned by jsverbs. | Yes, if `language` requires it. |
+| `script` | goja-executed script source. | Yes, if used by an artifact/command. |
+| `assets` | static files to embed or serve. | No. |
+| `help` | markdown help files. | No. |
+
+Supported `from` values for the MVP:
 
 ```yaml
 from:
-  type: dir
-  path: ./verbs
+  dir: ./verbs
 ```
 
 ```yaml
 from:
-  type: provider
-  provider: http
-  source: builtins
+  provider:
+    provider: http
+    source: builtins
 ```
+
+Workspace-dir origins can be added later after Go workspace resolution exists:
 
 ```yaml
 from:
-  type: workspace-dir
-  module: github.com/acme/app
-  path: ./verbs
+  workspace:
+    module: github.com/acme/app
+    path: ./verbs
 ```
-
-```yaml
-from:
-  type: embedded
-  id: local-sites
-```
-
-The first implementation only needs `dir` and `provider`. `embedded` can be an internal planned origin rather than a user-authored input. `workspace-dir` becomes useful once Go workspace resolution can map module paths to directories.
-
-Source purposes:
-
-| Purpose | Meaning |
-| --- | --- |
-| `jsverbs` | Source files scanned for jsverb command metadata and loaded into goja. |
-| `script` | Direct runnable scripts or entrypoints. |
-| `asset` | Static files copied or embedded as assets. |
-| `help` | Markdown help files loaded into the help system. |
-| `declarations` | Type declaration inputs or generated declaration artifacts. |
 
 ### `language`
 
-```yaml
-language:
-  typescript:
-    target: es2015
-    format: cjs
-    platform: neutral
-    tsconfig: ./tsconfig.json
-    sourcemap: none
-    define: {}
-```
-
-`language` describes syntax and compiler options. It does not decide when compilation happens. That belongs to `compile`.
-
-For plain JavaScript:
+Use a string for the common case:
 
 ```yaml
-language:
-  javascript: {}
+language: javascript
+language: typescript
 ```
 
-If omitted, xgoja can infer language from extensions, but explicit language is better for non-trivial source sets.
+If advanced TypeScript type-checking is needed, it belongs under `compile.check`, not a large language block:
+
+```yaml
+compile:
+  check:
+    command: ["tsc", "--noEmit"]
+```
+
+Do not expose TypeScript target/format/platform in the normal schema. xgoja owns those defaults for goja-executed code.
 
 ### `compile`
 
@@ -547,61 +525,40 @@ compile:
   bundle: true
   check:
     command: ["tsc", "--noEmit"]
-  externals:
-    runtimeModules: auto
-    extra:
-      - node:crypto
 ```
 
-`compile` separates policy from language.
+Fields:
 
 | Field | Meaning |
 | --- | --- |
 | `mode` | `runtime`, `build-time`, or `preserve`. |
-| `bundle` | Whether local imports should be bundled. |
-| `check.command` | Optional external type-check command. |
-| `externals.runtimeModules` | `auto` means selected runtime module aliases are preserved. |
-| `externals.extra` | Additional explicit externals. |
+| `bundle` | Whether dependencies should be bundled for goja-executed source. |
+| `check.command` | Optional external validation command. |
 
-This replaces the overloaded v1 `typescript.bundle` and `typescript.external` behavior.
+There is no ordinary `externals` field in the MVP. Runtime module aliases are external automatically. Extra externals can be added later if there is a concrete need.
 
 ### `commands`
 
-Commands become a list of command surfaces.
-
-Builtin run:
+Commands are explicit command surfaces.
 
 ```yaml
 commands:
   - id: run
     type: builtin.run
-    name: run
-```
 
-Builtin jsverbs:
-
-```yaml
-commands:
   - id: verbs
     type: builtin.jsverbs
-    name: verbs
-    sources: [local-sites]
-```
+    sources: [sites]
 
-Provider command set:
-
-```yaml
-commands:
   - id: serve
     type: provider.command-set
     provider: http
     name: serve
     mount: serve
-    sources: [local-sites]
-    config: {}
+    sources: [sites]
 ```
 
-This shape lets command surfaces declare dependencies explicitly. A command can depend on source sets, runtime modules, assets, host services, or provider command factories. The plan can validate these dependencies before generation.
+This replaces separate v1 builtin command toggles and `commandProviders` entries.
 
 ### `artifacts`
 
@@ -621,50 +578,34 @@ artifacts:
   - id: declarations
     type: dts
     output: js/types/xgoja-modules.d.ts
-    modules: runtime
     strict: true
 
-  - id: embedded-assets
-    type: embed
-    sources: [web-assets]
+  - id: web-assets
+    type: embedded-assets
+    sources: [web-dist]
 ```
 
-This replaces v1 `target` for output shape. It also gives the planner a place to represent multiple outputs from one spec.
+Do not add generic `js-bundle` artifact support for browser or node bundles. If xgoja needs a build-time goja script bundle later, it can be represented as a goja-executed `script` source with `compile.mode: build-time` and a binary/runtime artifact that consumes it.
 
 ### `profiles`
 
-Profiles are optional but useful because v2 deliberately separates development and release behavior.
+Profiles are optional and can be deferred. They are useful for workspace and compile mode differences:
 
 ```yaml
 profiles:
   dev:
     workspace:
       mode: auto
-    sources:
-      local-sites:
-        compile:
-          mode: runtime
   release:
     workspace:
       mode: off
-    sources:
-      local-sites:
-        compile:
-          mode: build-time
 ```
 
-A future CLI can select profiles:
-
-```bash
-xgoja build -f xgoja.yaml --profile release
-xgoja serve -f xgoja.yaml --profile dev
-```
-
-Profiles are not required for v2. They should be designed early enough that schema choices do not block them.
+Do not block v2 MVP on profiles.
 
 ## Planner mapping
 
-The planner should load v2 into a `ConfigV2` DTO, validate it, and compile it into graphs and plans.
+The planner should load v2 into a concise DTO:
 
 ```go
 type ConfigV2 struct {
@@ -701,7 +642,7 @@ func CompileV2(cfg ConfigV2, opts CompileOptions) (*Plan, error) {
     graph, err := sourcegraph.Build(sourceSets)
     if err != nil { return nil, err }
 
-    resolver := sourcegraph.NewResolver(graph, providers.RuntimeModuleAliases(), cfg.ExternalPolicy())
+    resolver := sourcegraph.NewResolver(graph, providers.RuntimeModuleAliases())
     if err := resolver.ResolveAll(); err != nil { return nil, err }
 
     commands, err := ResolveCommandSurfaces(cfg.Commands, providers, graph)
@@ -714,15 +655,13 @@ func CompileV2(cfg ConfigV2, opts CompileOptions) (*Plan, error) {
 }
 ```
 
-The key point is that v2 config maps directly to planner inputs. There is no need to infer source sets from `jsverbs`, command surfaces from `commands` plus `commandProviders`, or workspace behavior from scattered replace fields.
+The planner should apply xgoja's compiler profile internally. The spec does not need to carry esbuild settings.
 
 ## Migration tooling
 
-The migration tool is what makes dropping long-term backwards compatibility practical.
+The migration tool makes strict backwards compatibility unnecessary.
 
 ### CLI commands
-
-Recommended commands:
 
 ```bash
 xgoja migrate-spec -f xgoja.yaml --out xgoja.v2.yaml
@@ -730,111 +669,50 @@ xgoja migrate-spec -f xgoja.yaml --in-place --backup
 xgoja migrate-spec -f xgoja.yaml --check
 ```
 
-Options:
-
-| Option | Meaning |
-| --- | --- |
-| `--from v1` | Explicit source schema. Defaults to auto-detect. |
-| `--to v2` | Target schema. Defaults to latest. |
-| `--profile dev` | Emit dev-oriented defaults such as workspace auto and runtime compilation. |
-| `--profile release` | Emit release-oriented defaults such as workspace off and build-time compilation where safe. |
-| `--in-place` | Replace input file. |
-| `--backup` | Write `xgoja.yaml.bak` before in-place migration. |
-| `--check` | Report whether migration would change the file. |
-| `--format` | Reformat migrated YAML without semantic changes. |
-
 ### Migration mapping
-
-Pseudocode:
-
-```go
-func MigrateV1ToV2(v1 buildspec.BuildSpec) (ConfigV2, []MigrationWarning) {
-    v2 := ConfigV2{
-        Schema: "xgoja/v2",
-        Name:   v1.Name,
-        App: AppSpec{Name: firstNonEmpty(v1.AppName, v1.Name), EnvPrefix: v1.EnvPrefix},
-        Go: migrateGo(v1.Go),
-        Providers: migratePackages(v1.Packages),
-        Runtime: RuntimeSpec{Modules: migrateModules(v1.Modules)},
-        Sources: migrateSources(v1.JSVerbs, v1.Help, v1.Assets),
-        Commands: migrateCommands(v1.Commands, v1.CommandProviders, v1.JSVerbs),
-        Artifacts: migrateTargetAndGeneratedOutputs(v1.Target),
-    }
-    return v2, warnings
-}
-```
-
-Mapping details:
 
 ```text
 v1 packages[]           -> v2 providers[]
-v1 packages[].replace   -> v2 providers[].module.replace or workspace override warning
+v1 packages[].replace   -> v2 provider module local override or workspace warning
 v1 modules[]            -> v2 runtime.modules[]
-v1 jsverbs[]            -> v2 sources[purpose=jsverbs][]
+v1 jsverbs[]            -> v2 sources[kind=jsverbs][]
 v1 commands.jsverbs     -> v2 commands[type=builtin.jsverbs]
 v1 commandProviders[]   -> v2 commands[type=provider.command-set][]
-v1 help.sources[]       -> v2 sources[purpose=help][] or artifacts[type=help][]
-v1 assets[]             -> v2 sources[purpose=asset][] and artifacts[type=asset-bundle][]
+v1 help.sources[]       -> v2 sources[kind=help][]
+v1 assets[]             -> v2 sources[kind=assets][] and artifacts[type=embedded-assets][]
 v1 target               -> v2 artifacts[]
 v1 go.imports[]         -> v2 go.imports[]
 ```
 
 ### Migration warnings
 
-The migration tool should warn, not silently guess, when v1 does not map cleanly.
-
-Examples:
+The migration tool should emit practical warnings:
 
 ```text
-warning: jsverbs[local].embed=true migrated to source compile.mode=runtime and artifact embedding; review whether release profile should use build-time compilation
+warning: packages[http].replace migrated as a local provider module override; if this path is in go.work, prefer workspace.mode=auto
 ```
 
 ```text
-warning: packages[http].replace migrated as explicit provider module replacement; consider workspace.mode=auto if this path comes from go.work
+warning: jsverbs[local].typescript.external included runtime module alias "express"; v2 derives runtime module externals automatically
 ```
 
 ```text
-warning: commandProviders[serve].modules is set; v2 command surfaces should express runtime module dependencies explicitly
-```
-
-```text
-warning: target.kind=adapter migrated to artifact type adapter; verify target root function and host attachment behavior
-```
-
-### Refactoring tooling beyond YAML
-
-Some migrations may need source or Makefile updates. Provide optional tooling:
-
-```bash
-xgoja migrate-examples --dir examples/xgoja --write
-xgoja migrate-docs --rewrite-command-examples
-```
-
-The first useful refactoring tool is probably not source rewriting. It is workspace replacement cleanup:
-
-```bash
-xgoja workspace suggest -f xgoja.yaml
-```
-
-Output:
-
-```text
-packages[http].replace points to ../go-go-goja-provider-http
-This module is present in ../go.work as github.com/acme/go-go-goja-provider-http.
-Suggested v2 replacement: remove provider module replace and use workspace.mode=auto.
+warning: jsverbs[local].embed=true migrated to source compile.mode=runtime; review whether release builds should use build-time compilation
 ```
 
 ## Compatibility policy
 
-The project does not need indefinite backwards compatibility. The policy can be:
+The project does not need indefinite backwards compatibility.
 
-1. v1 remains loadable only for `migrate-spec` and perhaps for one transitional release.
-2. v2 becomes the planner's native schema.
-3. Docs and examples move to v2 first.
+Recommended policy:
+
+1. v1 remains loadable for `migrate-spec`.
+2. v2 becomes the native planner schema.
+3. Docs and examples move to v2.
 4. Runtime internals do not carry v1 compatibility branches; v1 is converted to v2 before planning.
 5. After downstream packages migrate, v1 execution support can be removed.
 
-This keeps the architecture clean. Compatibility exists at the CLI boundary through migration tooling, not throughout the planner and runtime implementation.
+Compatibility exists at the spec boundary through migration tooling, not throughout the planner and runtime implementation.
 
 ## Decision records
 
@@ -842,9 +720,27 @@ This keeps the architecture clean. Compatibility exists at the CLI boundary thro
 
 - **Context:** The source graph architecture is cleaner than the v1 spec. Preserving v1 as the native shape would force repeated compatibility inference.
 - **Options considered:** Keep v1 indefinitely; build planner around v1 and add hidden graph concepts; introduce v2 and migrate v1 at the boundary.
-- **Decision:** Define v2 as the native planner schema. Treat v1 as legacy input that is converted by migration tooling.
+- **Decision:** Define v2 as the native planner schema. Treat v1 as legacy input converted by migration tooling.
 - **Rationale:** v2 aligns user-facing configuration with provider graph, source graph, workspace resolution, command surfaces, and artifacts.
 - **Consequences:** Existing users need migration, but migration can be automated and documented. Internals become simpler and easier to extend.
+- **Status:** proposed
+
+### Decision: Keep xgoja bundling scoped to goja-executed source
+
+- **Context:** A broader v2 design could include browser bundling, package managers, loaders, and polyfills.
+- **Options considered:** Make xgoja a general JS bundler; expose esbuild options in v2; keep xgoja focused on goja-executed source and embed external bundle outputs as assets.
+- **Decision:** xgoja compiles/bundles only source that runs in goja. Non-goja bundles are built externally and included as assets.
+- **Rationale:** The execution target is stable and xgoja's value is Go-backed JavaScript runtime composition, not frontend build orchestration.
+- **Consequences:** The v2 schema is much smaller. Future goja-runtime package bundling remains possible under `compile.bundle: true`.
+- **Status:** proposed
+
+### Decision: Hide compiler backend settings in normal config
+
+- **Context:** Fields such as `engine`, `platform`, `target`, and `format` are implementation details for goja-executed source.
+- **Options considered:** Expose all esbuild settings; expose an advanced escape hatch only; hide them entirely in the MVP.
+- **Decision:** Hide them in the MVP. xgoja owns the goja runtime compiler profile.
+- **Rationale:** Users should express intent. Runtime code always targets xgoja/goja, so ordinary specs do not need backend settings.
+- **Consequences:** Fewer knobs. If a real need appears, an explicit advanced section can be added later.
 - **Status:** proposed
 
 ### Decision: Use command surfaces instead of separate builtin/provider command sections
@@ -856,18 +752,9 @@ This keeps the architecture clean. Compatibility exists at the CLI boundary thro
 - **Consequences:** v2 command config is more explicit. Migration from v1 is mechanical.
 - **Status:** proposed
 
-### Decision: Use `sources` for jsverbs, help, assets, and future source kinds
-
-- **Context:** v1 has separate `jsverbs`, `help.sources`, and `assets` sections, each with similar origin/embed/provider concepts.
-- **Options considered:** Keep separate sections; unify all inputs under `sources`; use artifacts only.
-- **Decision:** Use `sources` for source-set declaration and `artifacts` for output policy.
-- **Rationale:** Source origin, include/exclude, language, and compile policy are reusable concepts.
-- **Consequences:** Some simple asset/help examples become more verbose, but graph planning becomes consistent.
-- **Status:** proposed
-
 ### Decision: Provide migration tooling instead of permanent internal compatibility
 
-- **Context:** The user explicitly stated that backwards compatibility is not required if migration documentation and tooling are good.
+- **Context:** Backwards compatibility is not required if migration documentation and tooling are good.
 - **Options considered:** Maintain v1 and v2 forever; remove v1 immediately; provide migration tooling and retire v1 after packages migrate.
 - **Decision:** Provide `xgoja migrate-spec`, migration documentation, and a transitional period. Keep the planner v2-native.
 - **Rationale:** This protects engineering velocity while giving users a safe path.
@@ -876,7 +763,7 @@ This keeps the architecture clean. Compatibility exists at the CLI boundary thro
 
 ## Implementation plan
 
-### Phase 1: Define v2 DTOs and validator
+### Phase 1: Define simplified v2 DTOs and validator
 
 Add a new internal package:
 
@@ -890,76 +777,52 @@ cmd/xgoja/internal/specv2/
   render.go
 ```
 
-Do not replace v1 loading yet. Add tests for parsing, defaulting, validation, and rendering.
+The DTO should not include broad bundler fields. It should include concise `language` and `compile` fields for goja-executed source.
 
 ### Phase 2: Implement v1-to-v2 migration
 
-Implement `MigrateV1ToV2`. It should use current `buildspec.BuildSpec` as input and output `specv2.Config` plus warnings.
-
-Add golden tests:
-
-```text
-testdata/migrate/simple-v1.yaml
-testdata/migrate/simple-v2.golden.yaml
-testdata/migrate/typescript-jsverbs-v1.yaml
-testdata/migrate/typescript-jsverbs-v2.golden.yaml
-```
+Implement `MigrateV1ToV2`. Add golden tests for simple specs and the TypeScript jsverbs example.
 
 ### Phase 3: Add `xgoja migrate-spec`
 
 Add the CLI command with `--out`, `--in-place`, `--backup`, and `--check`.
 
-The command should print warnings and a short next-step message:
-
-```text
-migrated xgoja.yaml -> xgoja.v2.yaml
-warnings: 2
-run: xgoja doctor -f xgoja.v2.yaml
-```
-
 ### Phase 4: Build planner from v2
 
 Implement planner APIs around `specv2.Config`, not v1. During transition, v1 command paths can convert to v2 before calling the planner.
 
-```go
-func CompileV2(cfg specv2.Config, opts CompileOptions) (*plan.Plan, error)
-```
-
 ### Phase 5: Update examples and docs
 
-Migrate the examples that matter first:
+Migrate examples in this order:
 
 1. TypeScript jsverbs example.
 2. HTTP serve jsverbs example.
 3. Generated runtime package example.
 4. Provider examples.
 
-Add migration documentation:
+Add:
 
 ```text
 cmd/xgoja/doc/16-migrating-to-xgoja-v2.md
 cmd/xgoja/doc/17-xgoja-v2-reference.md
 ```
 
-### Phase 6: Switch default docs and generated examples to v2
+### Phase 6: Retire v1 runtime support after migration
 
-Once examples pass, docs should teach v2 as the primary format. v1 docs can remain under migration/reference until removed.
-
-### Phase 7: Retire v1 runtime support
-
-After downstream packages migrate, remove v1 execution support. Keep `migrate-spec` able to read v1 for longer if maintaining the parser is cheap.
+Keep v1 readable by `migrate-spec` if cheap, but do not keep v1 as an internal planner shape.
 
 ## Testing strategy
 
 ### Schema tests
 
 - Parse minimal v2 spec.
-- Parse full TypeScript jsverbs v2 spec.
+- Parse simplified TypeScript jsverbs v2 spec.
 - Reject duplicate provider IDs.
 - Reject duplicate runtime module aliases.
 - Reject command references to missing sources.
 - Reject source references to missing providers.
 - Reject artifact references to missing source IDs.
+- Reject unsupported broad bundler fields in MVP, with clear diagnostics.
 
 ### Migration tests
 
@@ -967,15 +830,16 @@ After downstream packages migrate, remove v1 execution support. Keep `migrate-sp
 - v1 modules become v2 runtime modules.
 - v1 jsverbs become v2 sources and builtin jsverbs command dependencies.
 - v1 command providers become v2 provider command surfaces.
-- v1 TypeScript externals become `compile.externals.extra`, with warning if they duplicate runtime modules.
-- v1 replace paths become provider module local overrides or workspace migration warnings.
+- v1 TypeScript externals that duplicate runtime modules are removed or warned about.
+- v1 assets become v2 asset sources and embedded asset artifacts.
 
 ### Planner tests
 
 - v2 TypeScript jsverbs compile to the same runtime behavior as v1.
-- v2 workspace auto can derive generated replaces from `go.work`.
+- v2 workspace auto derives generated replacements from `go.work`.
 - v2 declaration artifact uses runtime module aliases.
 - v2 command surfaces mount expected Cobra commands.
+- External frontend build outputs are embedded as assets without xgoja attempting to compile them.
 
 ### End-to-end tests
 
@@ -988,22 +852,22 @@ After downstream packages migrate, remove v1 execution support. Keep `migrate-sp
 
 Migration documentation should include:
 
-1. A high-level explanation of why v2 exists.
-2. A field mapping table from v1 to v2.
-3. Before/after examples.
-4. `xgoja migrate-spec` usage.
-5. Workspace migration guidance.
-6. Common warnings and how to resolve them.
-7. Release validation guidance with workspace disabled.
-
-A concise migration page is more important than preserving v1 behavior indefinitely. The documentation should be explicit that v2 is the native architecture going forward.
+1. Why v2 exists.
+2. The core rule: xgoja only compiles goja-executed source.
+3. A field mapping table from v1 to v2.
+4. Before/after examples.
+5. `xgoja migrate-spec` usage.
+6. Workspace migration guidance.
+7. How to embed externally-built frontend assets.
+8. Common warnings and how to resolve them.
+9. Release validation guidance with workspace disabled.
 
 ## Near-term recommendation
 
-Update the main architecture roadmap:
+Update the architecture roadmap:
 
 1. Finish `XGOJA-TS-002` because it fixes a real review issue and teaches the system how to preserve `fs.FS` source origin metadata.
-2. Implement `specv2` DTOs and `migrate-spec` before building too much planner logic.
+2. Implement simplified `specv2` DTOs and `migrate-spec` before building too much planner logic.
 3. Build the source graph and provider graph against v2, not v1.
 4. Migrate examples to v2 as soon as planner coverage is sufficient.
 5. Keep v1 as migration input, not as a permanent internal architecture.

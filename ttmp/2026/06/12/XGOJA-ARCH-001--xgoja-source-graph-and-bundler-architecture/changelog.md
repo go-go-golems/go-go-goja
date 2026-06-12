@@ -33,3 +33,12 @@ Added second architecture document for xgoja v2 spec and migration tooling, trea
 
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/design/02-xgoja-v2-spec-and-migration-architecture.md — V2 spec and migration architecture
 
+
+## 2026-06-12
+
+Simplified the v2 spec design around goja-executed source only: removed broad bundler/package-manager knobs, kept intent-level compile fields, and documented external frontend bundles as assets.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/design/02-xgoja-v2-spec-and-migration-architecture.md — Simplified v2 spec design
+

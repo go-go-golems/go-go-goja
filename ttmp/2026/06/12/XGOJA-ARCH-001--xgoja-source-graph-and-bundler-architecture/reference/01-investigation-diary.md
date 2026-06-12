@@ -47,7 +47,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T12:05:00-04:00
+LastUpdated: 2026-06-12T12:35:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
@@ -388,3 +388,93 @@ The document treats v1 as legacy input that should be converted at the CLI bound
 - Proposed new package: `cmd/xgoja/internal/specv2`.
 - Proposed migration command: `xgoja migrate-spec`.
 - Proposed compatibility stance: v1 is migratable legacy input; v2 is the native planner schema.
+
+
+## Step 4: Simplify the v2 spec around goja-executed source only
+
+I simplified the second architecture document after clarifying the intended scope: xgoja should be opinionated and should only compile or bundle code that runs inside the xgoja/goja runtime. Browser bundles, frontend applications, and other non-goja JavaScript outputs should be built outside xgoja and then embedded or served as assets.
+
+This removes the need for broad bundler configuration in the v2 spec. The simplified design hides esbuild engine/platform/target/format settings as xgoja-owned runtime-profile defaults. Users describe providers, runtime modules, sources, commands, artifacts, workspace behavior, language, and compile intent.
+
+### Prompt Context
+
+**User prompt (verbatim):** "simplify the v2 docs and upload them again."
+
+**Assistant interpretation:** Rewrite the v2 architecture document to reflect the simplified, opinionated scope and upload the new version to reMarkable.
+
+**Inferred user intent:** Keep xgoja's future config focused on its actual runtime responsibilities and avoid carrying unnecessary frontend/general-bundler complexity.
+
+**Commit (code):** N/A — documentation update only in this step.
+
+### What I did
+
+- Rewrote `design/02-xgoja-v2-spec-and-migration-architecture.md` around the rule:
+  - If code runs in goja, xgoja may compile or bundle it.
+  - If code runs somewhere else, build it outside xgoja and embed/serve the output as assets.
+- Removed normal-user v2 config for:
+  - `engine`;
+  - `platform`;
+  - `target`;
+  - `format`;
+  - package manager installation;
+  - browser bundle artifacts;
+  - loaders and polyfills.
+- Kept concise source compile intent:
+  - `language: javascript|typescript`;
+  - `compile.mode: runtime|build-time|preserve`;
+  - `compile.bundle: true|false`;
+  - optional `compile.check.command`.
+- Added explicit guidance that frontend/Redux browser bundles are external build outputs represented as `kind: assets` sources.
+- Preserved future room for package imports such as Redux in goja-executed source under the existing `bundle: true` semantics.
+
+### Why
+
+- The execution engine for xgoja-managed code is always the xgoja/goja runtime, so ordinary specs should not expose low-level compiler backend settings.
+- Non-goja bundles have different concerns—package managers, browser platform, loaders, polyfills, CSS, SVG, DOM assumptions—that do not belong in xgoja's core file format.
+- A smaller spec is easier to implement, validate, document, and migrate to.
+
+### What worked
+
+- The simplified example is much shorter while still covering the TypeScript jsverbs use case.
+- The v2 spec still supports future goja-runtime package bundling by keeping `compile.bundle: true` as an intent-level field.
+- The external asset example cleanly covers browser/frontend build outputs without making xgoja responsible for building them.
+
+### What didn't work
+
+- No command failed in this step.
+- The design remains documentation-only; no v2 parser or migration tooling exists yet.
+
+### What I learned
+
+- The important distinction is not TypeScript vs JavaScript. It is goja-executed source vs non-goja output.
+- xgoja should own a small set of compiler profiles internally rather than making users configure esbuild mechanics.
+- Deferring npm package bundling implementation does not require schema complexity now; `bundle: true` can grow from local imports to package imports later.
+
+### What was tricky to build
+
+- The document needed to preserve future Redux/package-bundling possibilities without adding package-manager fields now. The solution is semantic: define `bundle: true` as bundling dependencies for goja-executed source, initially local dependencies and later package dependencies.
+- The document also needed to explain external frontend assets clearly so future readers do not assume xgoja must build every JavaScript artifact it embeds.
+
+### What warrants a second pair of eyes
+
+- Review whether `sources.kind: assets` plus `artifacts.type: embedded-assets` is the right minimal shape for external build outputs.
+- Review whether `compile.mode: build-time` should be allowed in the MVP or initially limited to runtime TypeScript behavior plus generated artifacts.
+- Review whether `language` should be inferred by default or required for goja-executed source.
+
+### What should be done in the future
+
+- Upload the simplified v2 document to reMarkable.
+- Commit the simplified document after validation.
+- Implement `specv2` DTOs using the simplified schema, not the broader bundler schema.
+
+### Code review instructions
+
+- Start with the `Core design rule` and `Complete v2 example` sections.
+- Verify that low-level esbuild settings are absent from normal v2 examples.
+- Compare the asset section to current asset embedding docs to ensure externally-built frontend bundles are still covered.
+
+### Technical details
+
+- `compile.bundle: true` remains the extension point for future goja-runtime package bundling.
+- Runtime module aliases should be derived from `runtime.modules` and externalized automatically during bundling.
+- Browser/frontend bundles are represented as `sources.kind: assets` after external build tooling produces their output directory.
