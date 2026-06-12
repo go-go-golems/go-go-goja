@@ -23,6 +23,10 @@ RelatedFiles:
       Note: Dev/demo auth kit implementation for planned routes (commit 38871dc)
     - Path: pkg/gojahttp/auth/devauth/devauth_test.go
       Note: Unit coverage for dev auth login/session/CSRF/resource/authz/audit behavior (commit 38871dc)
+    - Path: pkg/gojahttp/auth/sessionauth/sessionauth.go
+      Note: Reusable session-cookie Authenticator and CSRFProtector package (commit d939b95)
+    - Path: pkg/gojahttp/auth/sessionauth/sessionauth_test.go
+      Note: Sessionauth behavior tests for cookies
     - Path: ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/design-doc/01-host-side-user-auth-system-implementation-plan.md
       Note: Primary design plan for production and dev/demo host auth packages.
     - Path: ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/sources/01-keycloak-oidc-session-authz-host-notes.md
@@ -34,6 +38,7 @@ LastUpdated: 2026-06-12T17:00:00-04:00
 WhatFor: Use this to resume or review the host-side auth system planning ticket.
 WhenToUse: Read before implementing dev/demo auth, session auth, Keycloak/OIDC, app authorization, audit, or capabilities.
 ---
+
 
 
 # Diary
@@ -274,4 +279,129 @@ This keeps the example runnable with no external dependencies while moving it cl
   ```text
   username: demo@example.test
   password: demo-password
+  ```
+
+
+## Step 3: Add reusable session-cookie auth package
+
+I implemented the second host-auth phase by adding `sessionauth`, a reusable package for server-side session-cookie authentication and CSRF verification. This package is lower-level than `devauth`: it does not know about demo users, demo projects, or demo authorization, and instead focuses on the common session mechanics needed by both development and production hosts.
+
+The package gives later Keycloak/OIDC work a stable target: after OIDC callback verification and app-user normalization, production code can create an application session, set the session cookie, and let planned routes authenticate through the same `gojahttp.Authenticator` and `gojahttp.CSRFProtector` interfaces.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue implementing the planned phases sequentially after the dev/demo package, with commits and diary updates.
+
+**Inferred user intent:** Build the reusable session foundation before starting the heavier Keycloak/OIDC production package.
+
+**Commit (code):** d939b95e8b3127cc7b5049d343bedbe413411231 — "Add reusable session auth package"
+
+### What I did
+- Added `pkg/gojahttp/auth/sessionauth/sessionauth.go`.
+- Defined reusable session types:
+  - `Session`,
+  - `Store`,
+  - `ActorLoader`,
+  - `ActorLoaderFunc`,
+  - `Manager`.
+- Added secure-by-default cookie behavior:
+  - default secure cookie name `__Host-app`,
+  - default secure cookie flag enabled,
+  - explicit `AllowInsecureHTTP` escape hatch for localhost/dev tests,
+  - insecure default cookie name `goja_app_session` when insecure mode is enabled.
+- Implemented CSPRNG session IDs and CSRF tokens through `RandomToken()`.
+- Implemented session creation with idle and absolute expiry timestamps.
+- Implemented `Manager.Authenticate` as a `gojahttp.Authenticator`.
+- Implemented `Manager.VerifyCSRF` as a `gojahttp.CSRFProtector` using `X-CSRF-Token`.
+- Implemented cookie set/clear helpers.
+- Implemented `MemoryStore` for tests and local development with create/get/touch/rotate/revoke operations.
+- Added `sessionauth_test.go` covering:
+  - authenticate success,
+  - CSRF success,
+  - missing and invalid cookies,
+  - expired sessions,
+  - revoked sessions,
+  - rotated sessions,
+  - CSRF mismatch,
+  - cookie clearing,
+  - custom actor loader projection.
+- Marked Phase 2 tasks complete.
+
+### Why
+- `devauth` proved the example-level flow, but production Keycloak/OIDC needs a reusable session package that is not tied to demo users or resources.
+- Browser-facing production auth should use an opaque app session cookie rather than exposing Keycloak tokens to JavaScript or local storage.
+- CSRF verification should be session-bound and available as a host-side `gojahttp.CSRFProtector` so planned routes can continue declaring `.csrf()` without knowing session internals.
+
+### What worked
+- Session package validation passed:
+  ```bash
+  go test ./pkg/gojahttp/auth/sessionauth -count=1
+  ```
+- Combined host-auth validation passed:
+  ```bash
+  go test ./pkg/gojahttp/auth/sessionauth ./pkg/gojahttp/auth/devauth ./examples/xgoja/16-express-auth-host/cmd/host ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1
+  ```
+- The runnable auth example smoke test still passed:
+  ```bash
+  make -C examples/xgoja/16-express-auth-host smoke
+  ```
+- The commit pre-hook passed lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+- No new command failures occurred during this phase.
+- I did not refactor `devauth` to use `sessionauth` yet. That is intentionally left as a follow-up because Phase 2 first needed a standalone reusable package with tests.
+
+### What I learned
+- A small `Store` interface is enough for the first session abstraction: `Create`, `Get`, `Touch`, `Rotate`, and `Revoke`.
+- `Touch` needs to update both `LastSeenAt` and `IdleExpiresAt`; otherwise an idle timeout would never renew on activity.
+- Keeping actor projection behind `ActorLoader` avoids baking app-user lookup into session storage. Production code can load richer users from a DB; tests can use the default projection from session fields.
+
+### What was tricky to build
+- The main tricky part was designing secure defaults without making tests and localhost examples painful. The compromise is explicit: secure cookies and `__Host-app` are the default, while `AllowInsecureHTTP` opts into an HTTP-friendly cookie name and non-secure cookie flag.
+- Another subtle point was error mapping. `Manager.Authenticate` converts missing/invalid/expired/revoked session conditions into `gojahttp.ErrUnauthenticated` so planned-route dispatch returns 401 rather than leaking session-store details.
+- Session rotation is represented at the store level but not yet wired into a login handler. That gives Keycloak callback code the primitive it needs for session fixation defense.
+
+### What warrants a second pair of eyes
+- Review whether the `Store.Touch(ctx, id, now, idleExpiresAt)` signature is the right abstraction or whether it should accept a richer update struct.
+- Review whether the default absolute timeout of 12 hours and idle timeout of 30 minutes are acceptable defaults for this package.
+- Review whether `DefaultActorForSession` should include `KeycloakSub` in actor claims or keep it out by default.
+- Review whether `MemoryStore.Revoke` should use an injected clock rather than `time.Now()`; current use is acceptable for tests but less deterministic than manager-owned clocks.
+
+### What should be done in the future
+- Consider refactoring `devauth` to use `sessionauth.Manager` internally.
+- Start Phase 3 by implementing `keycloakauth` on top of `sessionauth`.
+- Add persistent store adapters after the package API gets one more review.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/sessionauth/sessionauth.go`, especially `Config`, `Manager`, `SessionFromRequest`, `Authenticate`, and `VerifyCSRF`.
+- Review `MemoryStore` for store semantics and concurrency behavior.
+- Review `pkg/gojahttp/auth/sessionauth/sessionauth_test.go` for the expected behavior matrix.
+- Validate with:
+  ```bash
+  go test ./pkg/gojahttp/auth/sessionauth -count=1
+  go test ./pkg/gojahttp/auth/sessionauth ./pkg/gojahttp/auth/devauth ./examples/xgoja/16-express-auth-host/cmd/host ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1
+  ```
+
+### Technical details
+- Session manager setup for localhost HTTP:
+  ```go
+  manager, err := sessionauth.New(sessionauth.Config{
+      Store:             sessionauth.NewMemoryStore(),
+      AllowInsecureHTTP: true,
+  })
+  ```
+- Production-shaped setup keeps secure defaults:
+  ```go
+  manager, err := sessionauth.New(sessionauth.Config{
+      Store:       postgresSessionStore,
+      ActorLoader: appUserActorLoader,
+  })
+  ```
+- Planned-route integration:
+  ```go
+  host := gojahttp.NewHost(gojahttp.HostOptions{
+      Auth: manager.AuthOptions(),
+  })
   ```

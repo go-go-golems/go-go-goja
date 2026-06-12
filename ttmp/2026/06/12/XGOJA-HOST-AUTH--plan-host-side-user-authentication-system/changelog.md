@@ -24,3 +24,13 @@ Phase 1: add devauth package and refactor runnable Express auth host example (co
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/16-express-auth-host/cmd/host/main.go — Example now uses devauth with login/logout smoke flow
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/devauth/devauth.go — Reusable in-memory dev auth kit
 
+
+## 2026-06-12
+
+Phase 2: add reusable sessionauth package for session-cookie authentication and CSRF (commit d939b95)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/sessionauth/sessionauth.go — Reusable session auth manager and memory store
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/sessionauth/sessionauth_test.go — Sessionauth validation coverage
+
