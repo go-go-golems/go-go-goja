@@ -181,3 +181,13 @@ Generated host integration helpers for protobuf builder modules: require loaders
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Generates host integration helper functions
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Validates generated loader/module/message registration helpers
 
+
+## 2026-06-12
+
+Implemented Phase 2 map builder helpers: object and JavaScript Map replacement input, Put, Delete, Clear semantics, atomic replacement validation, and dynamic-protobuf tests (commit 6411e52).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Added BuilderRef.Delete plus object/Map entry normalization for map fields (commit 6411e52)
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Added dynamic map descriptor tests for object input
+
