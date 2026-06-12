@@ -85,3 +85,16 @@ Implemented builder-ref message-field conversion so generated builder objects ca
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Defines hidden BuilderRef attachment/extraction and message-field conversion from builder refs
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Tests generated-style builder refs as message-field inputs
 
+
+## 2026-06-12
+
+Added protoc-gen-goja-builder skeleton with option parsing and a golden test that generates the first companion Go file for a synthetic protobuf descriptor (commit b3deaf4).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Emits one *_goja.pb.go companion file per generated proto file
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/options.go — Parses Phase 4 plugin options
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main.go — Protoc plugin entry point using protogen
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Golden test harness that creates a CodeGeneratorRequest and verifies generated Go output
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden — First generated Go companion file golden output
+

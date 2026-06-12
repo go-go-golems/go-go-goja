@@ -12,6 +12,16 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go
+      Note: Phase 4 companion Go file generator (commit b3deaf4)
+    - Path: go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/options.go
+      Note: Phase 4 plugin option parsing (commit b3deaf4)
+    - Path: go-go-goja/cmd/protoc-gen-goja-builder/main.go
+      Note: Phase 4 protoc plugin entry point (commit b3deaf4)
+    - Path: go-go-goja/cmd/protoc-gen-goja-builder/main_test.go
+      Note: Phase 4 golden CodeGeneratorRequest harness (commit b3deaf4)
+    - Path: go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden
+      Note: Golden first generated Go companion file (commit b3deaf4)
     - Path: go-go-goja/modules/common.go
       Note: |-
         Native module shape studied for generated module design
@@ -44,6 +54,7 @@ LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Continuation context for GOJA-PB-001 implementation and review.
 WhenToUse: Read before implementing protoc-gen-goja-builder or revising the builder generator design.
 ---
+
 
 
 
@@ -623,4 +634,155 @@ Task and changelog commands:
 ```bash
 docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 13
 docmgr --root go-go-goja/ttmp changelog update --ticket GOJA-PB-001 --entry "Implemented builder-ref message-field conversion so generated builder objects can be accepted wherever ProtoMessage refs are accepted." --file-note "/home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go:Defines hidden BuilderRef attachment/extraction and message-field conversion from builder refs" --file-note "/home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go:Tests generated-style builder refs as message-field inputs"
+```
+
+## Step 6: Add the first protoc-gen-goja-builder skeleton and generated Go output
+
+I added the first `cmd/protoc-gen-goja-builder` implementation slice and proved that it can generate a companion Go file from a protobuf descriptor request. This is intentionally still a skeleton: the generated file exposes module/message metadata only, not fluent builder methods yet. The important milestone is that the repository now has a real `protogen` plugin command, option parsing, and a golden test that exercises the first generated `*_goja.pb.go` output.
+
+This step satisfies the user's instruction to continue until the first Go files are generated. The generated companion output is captured in `cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden` and is produced by the test harness from a synthetic `CodeGeneratorRequest`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** After the task-13 runtime increment, continue into generator work and do not stop at runtime helpers; produce the first generated Go companion file.
+
+**Inferred user intent:** The user wants tangible generator progress, not only runtime API work, and wants commits/diary entries at natural milestones.
+
+**Commit (code):** `b3deaf499e040ae475bd31aff814e1bfc4d4f784` — "Add goja protobuf builder generator skeleton"
+
+### What I did
+
+- Added `cmd/protoc-gen-goja-builder/main.go` with a `protogen.Options` entry point.
+- Added `cmd/protoc-gen-goja-builder/internal/generator/options.go` with parsing for Phase 4 plugin options:
+  - `module_name`
+  - `paths`
+  - `emit_dts`
+  - `emit_provider`
+  - `register_global`
+  - `builder_suffix`
+  - `message_ref_name`
+- Added `cmd/protoc-gen-goja-builder/internal/generator/generator.go` that emits one companion Go file per generated proto file using `file.GeneratedFilenamePrefix + "_goja.pb.go"`.
+- Added `cmd/protoc-gen-goja-builder/main_test.go` with a synthetic `CodeGeneratorRequest` built from `descriptorpb.FileDescriptorProto`.
+- Added `cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden`, the first generated Go companion file output.
+- Ran:
+
+```bash
+gofmt -w cmd/protoc-gen-goja-builder/main.go cmd/protoc-gen-goja-builder/main_test.go cmd/protoc-gen-goja-builder/internal/generator/*.go
+go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+- Checked Phase 4 task IDs 26, 27, 28, 29, 31, and 32.
+- Left task 30 unchecked because the current test is a golden generation test, not a compile test for a generated fixture package.
+
+### Why
+
+- The project needs a real protoc plugin before generated fluent APIs can be iterated on.
+- A golden test makes output stable and reviewable before adding complex builder method generation.
+- Starting with metadata functions keeps the first generated Go output minimal and valid while establishing file naming, package naming, source comments, option parsing, nested message traversal, and request/response plumbing.
+
+### What worked
+
+- `protogen.Options.New` accepted the synthetic descriptor request and produced a generated file named:
+
+```text
+fixture/v1/fixture_goja.pb.go
+```
+
+- The first generated Go output is stable:
+
+```go
+// Code generated by protoc-gen-goja-builder. DO NOT EDIT.
+// source: fixture/v1/fixture.proto
+
+package fixturev1
+
+// GojaBuilderFileFixtureProtoModuleName returns the JavaScript module name for this generated protobuf builder companion file.
+func GojaBuilderFileFixtureProtoModuleName() string {
+	return "fixture.custom"
+}
+
+// GojaBuilderFileFixtureProtoMessageTypes returns the full protobuf message names exported by this generated builder companion file.
+func GojaBuilderFileFixtureProtoMessageTypes() []string {
+	return []string{
+		"fixture.v1.Example",
+		"fixture.v1.Example.Nested",
+	}
+}
+```
+
+- Focused validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	0.003s
+ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	0.004s
+```
+
+- The commit pre-commit hook passed full repository generation/tests/lint. Relevant lines:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	0.005s
+ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	(cached)
+summary: (done in 4.18 seconds)
+✔️ test (3.98 seconds)
+✔️ lint (4.17 seconds)
+```
+
+### What didn't work
+
+- I did not add the Phase 4 compile test yet. The current milestone proves generation and golden stability, but it does not compile a package containing both `protoc-gen-go` output and `protoc-gen-goja-builder` output.
+- The pre-commit hook again produced noisy Dagger output while running `go generate ./...`; the hook completed successfully.
+
+### What I learned
+
+- The first generator seam should be kept small. Establishing request handling, file naming, option parsing, and golden output is enough foundation before emitting fluent builder methods.
+- Synthetic descriptor requests are sufficient for the first golden tests. They avoid depending on an installed `protoc` binary while still exercising `protogen`.
+- The generated output needs file-specific function names to avoid conflicts when several proto files share one Go package.
+
+### What was tricky to build
+
+- The tricky part was option parsing around `protogen`. Protobuf plugins receive a single comma-separated parameter string; `protogen` also interprets some options itself. The implementation currently lets `protogen` initialize the plugin while `generator.ParseParameter` parses the full request parameter for this plugin's behavior.
+- Another subtle issue is avoiding package-level generated symbol collisions. The skeleton derives function names from the proto file path, for example `GojaBuilderFileFixtureProtoMessageTypes`, instead of emitting one generic package-level `MessageTypes` function per file.
+
+### What warrants a second pair of eyes
+
+- Review whether the generated metadata function names are the right long-term API or should become unexported implementation details once `GojaModule` generation exists.
+- Review whether `ParamFunc` should validate custom options earlier instead of accepting all names and deferring validation to `ParseParameter` in the callback.
+- Review the quoted-string helper before it is used for arbitrary user-controlled strings beyond simple module names.
+
+### What should be done in the future
+
+- Add task 30's compile test for a tiny generated fixture package.
+- Extend generated output from metadata to actual message namespace exports and builder constructors.
+- Generate the first real builder methods that call `protogoja.NewBuilder`, `AttachBuilderRef`, field descriptors, and `Build()`/`ToValue()`.
+
+### Code review instructions
+
+- Start with `cmd/protoc-gen-goja-builder/main.go` to review plugin entry point behavior.
+- Then review `internal/generator/options.go` for option defaults and parsing.
+- Then review `internal/generator/generator.go` and the golden fixture together.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+### Technical details
+
+Files added:
+
+```text
+cmd/protoc-gen-goja-builder/main.go
+cmd/protoc-gen-goja-builder/main_test.go
+cmd/protoc-gen-goja-builder/internal/generator/generator.go
+cmd/protoc-gen-goja-builder/internal/generator/options.go
+cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden
+```
+
+Task update command:
+
+```bash
+docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 26,27,28,29,31,32
 ```
