@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/migratebuildspec"
 	"gopkg.in/yaml.v3"
 )
 
@@ -76,12 +76,12 @@ func TestMigrateV1ExamplesToValidV2(t *testing.T) {
 	}
 }
 
-func loadV1ExampleForMigrationTest(path string) (*buildspec.BuildSpec, error) {
+func loadV1ExampleForMigrationTest(path string) (*migratebuildspec.BuildSpec, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	v1 := &buildspec.BuildSpec{}
+	v1 := &migratebuildspec.BuildSpec{}
 	if err := yaml.Unmarshal(data, v1); err != nil {
 		return nil, err
 	}

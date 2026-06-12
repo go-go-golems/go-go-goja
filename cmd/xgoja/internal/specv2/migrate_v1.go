@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/migratebuildspec"
 )
 
 type MigrationWarning struct {
@@ -24,7 +24,7 @@ type MigrationResult struct {
 	Warnings []MigrationWarning
 }
 
-func MigrateV1(buildSpec *buildspec.BuildSpec) MigrationResult {
+func MigrateV1(buildSpec *migratebuildspec.BuildSpec) MigrationResult {
 	if buildSpec == nil {
 		return MigrationResult{Config: Config{Schema: Schema}}
 	}
@@ -64,7 +64,7 @@ func MigrateV1(buildSpec *buildspec.BuildSpec) MigrationResult {
 	return result
 }
 
-func migrateGoImports(imports []buildspec.GoImportSpec) []GoImportSpec {
+func migrateGoImports(imports []migratebuildspec.GoImportSpec) []GoImportSpec {
 	out := make([]GoImportSpec, 0, len(imports))
 	for _, imp := range imports {
 		out = append(out, GoImportSpec{
@@ -77,7 +77,7 @@ func migrateGoImports(imports []buildspec.GoImportSpec) []GoImportSpec {
 	return out
 }
 
-func migratePackages(packages []buildspec.PackageSpec, result *MigrationResult) []ProviderSpec {
+func migratePackages(packages []migratebuildspec.PackageSpec, result *MigrationResult) []ProviderSpec {
 	out := make([]ProviderSpec, 0, len(packages))
 	for i, pkg := range packages {
 		provider := ProviderSpec{
@@ -97,7 +97,7 @@ func migratePackages(packages []buildspec.PackageSpec, result *MigrationResult) 
 	return out
 }
 
-func migrateRuntimeModules(modules []buildspec.ModuleInstanceSpec) []RuntimeModuleSpec {
+func migrateRuntimeModules(modules []migratebuildspec.ModuleInstanceSpec) []RuntimeModuleSpec {
 	out := make([]RuntimeModuleSpec, 0, len(modules))
 	for _, module := range modules {
 		out = append(out, RuntimeModuleSpec{
@@ -110,7 +110,7 @@ func migrateRuntimeModules(modules []buildspec.ModuleInstanceSpec) []RuntimeModu
 	return out
 }
 
-func migrateSources(buildSpec *buildspec.BuildSpec, result *MigrationResult) []SourceSpec {
+func migrateSources(buildSpec *migratebuildspec.BuildSpec, result *MigrationResult) []SourceSpec {
 	out := []SourceSpec{}
 	for i, source := range buildSpec.JSVerbs {
 		id := firstNonEmpty(source.ID, fmt.Sprintf("jsverbs-%d", i+1))
@@ -154,7 +154,7 @@ func migrateSourceFrom(path, provider, source string) SourceFromSpec {
 	return SourceFromSpec{Dir: path}
 }
 
-func migrateTypeScript(ts *buildspec.TypeScriptSpec, modules []buildspec.ModuleInstanceSpec, path string, result *MigrationResult) *CompileSpec {
+func migrateTypeScript(ts *migratebuildspec.TypeScriptSpec, modules []migratebuildspec.ModuleInstanceSpec, path string, result *MigrationResult) *CompileSpec {
 	compile := &CompileSpec{
 		Mode:   "runtime",
 		Bundle: ts.Bundle,
@@ -192,7 +192,7 @@ func migrateTypeScript(ts *buildspec.TypeScriptSpec, modules []buildspec.ModuleI
 	return compile
 }
 
-func migrateCommands(buildSpec *buildspec.BuildSpec) []CommandSurfaceSpec {
+func migrateCommands(buildSpec *migratebuildspec.BuildSpec) []CommandSurfaceSpec {
 	out := []CommandSurfaceSpec{}
 	if buildSpec.Commands.Eval.Enabled {
 		out = append(out, migrateBuiltinCommand("eval", "builtin.eval", buildSpec.Commands.Eval, nil))
@@ -223,7 +223,7 @@ func migrateCommands(buildSpec *buildspec.BuildSpec) []CommandSurfaceSpec {
 	return out
 }
 
-func migrateBuiltinCommand(defaultID, commandType string, command buildspec.CommandSpec, sources []string) CommandSurfaceSpec {
+func migrateBuiltinCommand(defaultID, commandType string, command migratebuildspec.CommandSpec, sources []string) CommandSurfaceSpec {
 	return CommandSurfaceSpec{
 		ID:      firstNonEmpty(command.Name, defaultID),
 		Type:    commandType,
@@ -233,7 +233,7 @@ func migrateBuiltinCommand(defaultID, commandType string, command buildspec.Comm
 	}
 }
 
-func jsverbSourceIDs(sources []buildspec.JSVerbSourceSpec) []string {
+func jsverbSourceIDs(sources []migratebuildspec.JSVerbSourceSpec) []string {
 	ids := make([]string, 0, len(sources))
 	for i, source := range sources {
 		ids = append(ids, firstNonEmpty(source.ID, fmt.Sprintf("jsverbs-%d", i+1)))
@@ -241,7 +241,7 @@ func jsverbSourceIDs(sources []buildspec.JSVerbSourceSpec) []string {
 	return ids
 }
 
-func migrateArtifacts(buildSpec *buildspec.BuildSpec, result *MigrationResult) []ArtifactSpec {
+func migrateArtifacts(buildSpec *migratebuildspec.BuildSpec, result *MigrationResult) []ArtifactSpec {
 	out := []ArtifactSpec{}
 	embeddedExecutableSources := embeddedExecutableSourceIDs(buildSpec, result)
 	target := buildSpec.Target
@@ -265,7 +265,7 @@ func migrateArtifacts(buildSpec *buildspec.BuildSpec, result *MigrationResult) [
 	return out
 }
 
-func embeddedExecutableSourceIDs(buildSpec *buildspec.BuildSpec, result *MigrationResult) []string {
+func embeddedExecutableSourceIDs(buildSpec *migratebuildspec.BuildSpec, result *MigrationResult) []string {
 	out := []string{}
 	for i, source := range buildSpec.JSVerbs {
 		if source.Embed {

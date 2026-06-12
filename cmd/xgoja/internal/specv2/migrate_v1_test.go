@@ -4,44 +4,44 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/migratebuildspec"
 )
 
 func TestMigrateV1TypeScriptJSVerbs(t *testing.T) {
-	v1 := &buildspec.BuildSpec{
+	v1 := &migratebuildspec.BuildSpec{
 		Name:    "typescript-jsverbs",
 		AppName: "typescript-jsverbs",
-		Go: buildspec.GoSpec{
+		Go: migratebuildspec.GoSpec{
 			Version: "1.26",
 			Module:  "xgoja.generated/typescript-jsverbs",
 		},
-		Target: buildspec.TargetSpec{Kind: "xgoja", Output: "dist/typescript-jsverbs"},
-		Packages: []buildspec.PackageSpec{{
+		Target: migratebuildspec.TargetSpec{Kind: "xgoja", Output: "dist/typescript-jsverbs"},
+		Packages: []migratebuildspec.PackageSpec{{
 			ID:       "go-go-goja-http",
 			Import:   "github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http",
 			Register: "Register",
 		}},
-		Modules: []buildspec.ModuleInstanceSpec{{
+		Modules: []migratebuildspec.ModuleInstanceSpec{{
 			Package: "go-go-goja-http",
 			Name:    "express",
 		}},
-		Commands: buildspec.CommandsSpec{
-			Run:     buildspec.CommandSpec{Enabled: true, Name: "run"},
-			JSVerbs: buildspec.CommandSpec{Enabled: true, Name: "verbs"},
+		Commands: migratebuildspec.CommandsSpec{
+			Run:     migratebuildspec.CommandSpec{Enabled: true, Name: "run"},
+			JSVerbs: migratebuildspec.CommandSpec{Enabled: true, Name: "verbs"},
 		},
-		CommandProviders: []buildspec.CommandProviderInstanceSpec{{
+		CommandProviders: []migratebuildspec.CommandProviderInstanceSpec{{
 			ID:      "http-serve",
 			Package: "go-go-goja-http",
 			Name:    "serve",
 			Mount:   "serve",
 		}},
-		JSVerbs: []buildspec.JSVerbSourceSpec{{
+		JSVerbs: []migratebuildspec.JSVerbSourceSpec{{
 			ID:         "local-sites",
 			Path:       "./verbs",
 			Extensions: []string{".ts"},
 			Include:    []string{"**/*.ts"},
 			Exclude:    []string{"**/*.test.ts"},
-			TypeScript: &buildspec.TypeScriptSpec{
+			TypeScript: &migratebuildspec.TypeScriptSpec{
 				Enabled:  true,
 				Bundle:   true,
 				Target:   "es2015",
@@ -100,10 +100,10 @@ func TestMigrateV1TypeScriptJSVerbs(t *testing.T) {
 }
 
 func TestMigrateV1EmbeddedJSVerbsBecomeArtifactSources(t *testing.T) {
-	v1 := &buildspec.BuildSpec{
+	v1 := &migratebuildspec.BuildSpec{
 		Name:   "embedded-verbs",
-		Target: buildspec.TargetSpec{Kind: "xgoja", Output: "dist/embedded-verbs"},
-		JSVerbs: []buildspec.JSVerbSourceSpec{{
+		Target: migratebuildspec.TargetSpec{Kind: "xgoja", Output: "dist/embedded-verbs"},
+		JSVerbs: []migratebuildspec.JSVerbSourceSpec{{
 			ID:    "local-verbs",
 			Path:  "./verbs",
 			Embed: true,
@@ -124,15 +124,15 @@ func TestMigrateV1EmbeddedJSVerbsBecomeArtifactSources(t *testing.T) {
 }
 
 func TestMigrateV1AssetsAndRuntimePackage(t *testing.T) {
-	v1 := &buildspec.BuildSpec{
+	v1 := &migratebuildspec.BuildSpec{
 		Name:   "runtime-assets",
-		Target: buildspec.TargetSpec{Kind: "package", Output: "internal/xgojaruntime", Package: "xgojaruntime"},
-		Packages: []buildspec.PackageSpec{{
+		Target: migratebuildspec.TargetSpec{Kind: "package", Output: "internal/xgojaruntime", Package: "xgojaruntime"},
+		Packages: []migratebuildspec.PackageSpec{{
 			ID:      "host",
 			Import:  "github.com/example/host",
 			Replace: "../host",
 		}},
-		Assets: []buildspec.AssetSourceSpec{{
+		Assets: []migratebuildspec.AssetSourceSpec{{
 			ID:    "app-assets",
 			Path:  "./assets",
 			Embed: true,

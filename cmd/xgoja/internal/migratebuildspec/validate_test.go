@@ -1,4 +1,4 @@
-package buildspec
+package migratebuildspec
 
 import (
 	"os"

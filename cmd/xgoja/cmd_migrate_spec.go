@@ -13,7 +13,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/migratebuildspec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/specv2"
 )
 
@@ -165,11 +165,11 @@ func migrateSpecFileData(path string, data []byte) ([]byte, []specv2.MigrationWa
 		rendered, err := specv2.Render(*cfg)
 		return rendered, nil, err
 	case specv2.SchemaKindV1:
-		buildSpec, _, err := buildspec.LoadFile(path)
+		legacySpec, _, err := migratebuildspec.LoadFile(path)
 		if err != nil {
 			return nil, nil, err
 		}
-		result := specv2.MigrateV1(buildSpec)
+		result := specv2.MigrateV1(legacySpec)
 		rendered, err := specv2.Render(result.Config)
 		return rendered, result.Warnings, err
 	case specv2.SchemaKindUnknown:

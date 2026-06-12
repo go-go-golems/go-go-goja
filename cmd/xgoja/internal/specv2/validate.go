@@ -3,12 +3,7 @@ package specv2
 import (
 	"fmt"
 	"strings"
-
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 )
-
-type ValidationError = buildspec.ValidationError
-type Report = buildspec.Report
 
 func Validate(cfg *Config) *Report {
 	report := &Report{}

@@ -1,11 +1,11 @@
-// Package buildspec defines the build-time xgoja.yaml schema.
+// Package migratebuildspec defines the legacy v1 xgoja.yaml schema used only by xgoja migrate-spec.
 //
 // The types in this file are declarative *Spec DTOs: they describe what the
 // generator should build, import, embed, or expose, but they do not perform
 // runtime work. They are loaded from xgoja.yaml, defaulted, validated, and then
 // converted by cmd/xgoja/internal/generate into the smaller app.RuntimeSpec JSON that
 // the generated binary embeds and reads at runtime.
-package buildspec
+package migratebuildspec
 
 import "fmt"
 
