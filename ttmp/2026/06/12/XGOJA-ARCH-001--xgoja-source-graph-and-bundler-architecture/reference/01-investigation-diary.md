@@ -1636,7 +1636,7 @@ This gives users visibility into which modules are versioned, explicitly replace
 
 **Inferred user intent:** Keep implementing the v2 hard-cutover support tasks without stopping for replanning.
 
-**Commit (code):** pending — doctor diagnostics staged after this diary update.
+**Commit (code):** a9497668c7b7d4ec00205d1f124390e746594d1f — "xgoja: show module plan in doctor"
 
 ### What I did
 
