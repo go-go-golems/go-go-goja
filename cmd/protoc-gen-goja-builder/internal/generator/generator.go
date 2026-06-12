@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"google.golang.org/protobuf/compiler/protogen"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 var (
@@ -22,6 +23,7 @@ var (
 	protogojaMessageFromValueIdent       = protogen.GoIdent{GoName: "MessageFromValue", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
 	protogojaNewBuilderIdent             = protogen.GoIdent{GoName: "NewBuilder", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
 	protogojaToValueIdent                = protogen.GoIdent{GoName: "ToValue", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	tsgenSpecModuleIdent                 = protogen.GoIdent{GoName: "Module", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"}
 )
 
 // Generate emits one Goja protobuf-builder companion Go file for every proto
@@ -68,11 +70,126 @@ func generateFile(plugin *protogen.Plugin, file *protogen.File, opts Options) {
 	}
 	g.P("\t}")
 	g.P("}")
+	g.P()
+	g.P("// GojaBuilderFile", ident, "TypeScriptModule returns the TypeScript declaration descriptor for this generated protobuf builder companion file.")
+	g.P("func GojaBuilderFile", ident, "TypeScriptModule(moduleName string) *", g.QualifiedGoIdent(tsgenSpecModuleIdent), " {")
+	g.P("\tif moduleName == \"\" {")
+	g.P("\t\tmoduleName = GojaBuilderFile", ident, "ModuleName()")
+	g.P("\t}")
+	g.P("\treturn &", g.QualifiedGoIdent(tsgenSpecModuleIdent), "{")
+	g.P("\t\tName: moduleName,")
+	g.P("\t\tRawDTS: []string{")
+	for _, line := range rawDTSLines(file) {
+		g.P("\t\t\t", quoted(line), ",")
+	}
+	g.P("\t\t},")
+	g.P("\t}")
+	g.P("}")
 	for _, enum := range file.Enums {
 		emitEnumAPI(g, enum)
 	}
 	for _, msg := range file.Messages {
 		emitMessageAPI(g, msg)
+	}
+}
+
+func rawDTSLines(file *protogen.File) []string {
+	lines := []string{
+		"export interface ProtoMessage<TTypeName extends string = string> {",
+		"  readonly typeName: TTypeName;",
+		"  toJSON(): unknown;",
+		"  clone(): ProtoMessage<TTypeName>;",
+		"  equals(other: unknown): boolean;",
+		"}",
+		"export interface MessageNamespace<TMessage, TBuilder> {",
+		"  readonly typeName: string;",
+		"  builder(): TBuilder;",
+		"  from(value: TMessage): TMessage;",
+		"  is(value: unknown): value is TMessage;",
+		"  clone(value: TMessage): TMessage;",
+		"}",
+	}
+	for _, enum := range file.Enums {
+		appendEnumDTS(&lines, enum)
+	}
+	for _, msg := range file.Messages {
+		appendMessageDTS(&lines, msg)
+	}
+	return lines
+}
+
+func appendEnumDTS(lines *[]string, enum *protogen.Enum) {
+	name := enum.GoIdent.GoName
+	values := make([]string, 0, len(enum.Values))
+	*lines = append(*lines, "export const "+name+": {")
+	*lines = append(*lines, "  readonly typeName: "+quoted(string(enum.Desc.FullName()))+";")
+	for _, value := range enum.Values {
+		literal := strconv.FormatInt(int64(value.Desc.Number()), 10)
+		values = append(values, literal)
+		*lines = append(*lines, "  readonly "+string(value.Desc.Name())+": "+literal+";")
+	}
+	*lines = append(*lines, "};")
+	if len(values) == 0 {
+		values = append(values, "number")
+	}
+	*lines = append(*lines, "export type "+name+"Value = "+strings.Join(values, " | ")+";")
+}
+
+func appendMessageDTS(lines *[]string, msg *protogen.Message) {
+	name := msg.GoIdent.GoName
+	builderName := name + "Builder"
+	*lines = append(*lines, "export interface "+name+" extends ProtoMessage<"+quoted(string(msg.Desc.FullName()))+"> {}")
+	*lines = append(*lines, "export interface "+builderName+" {")
+	for _, field := range msg.Fields {
+		methodName := methodNameForField(field)
+		tsType := tsTypeForField(field)
+		*lines = append(*lines, "  "+methodName+"(value: "+tsType+"): this;")
+		*lines = append(*lines, "  clear"+exportName(methodName)+"(): this;")
+	}
+	*lines = append(*lines, "  build(): "+name+";")
+	*lines = append(*lines, "  clone(): "+builderName+";")
+	*lines = append(*lines, "}")
+	*lines = append(*lines, "export const "+name+": MessageNamespace<"+name+", "+builderName+">;")
+	for _, enum := range msg.Enums {
+		appendEnumDTS(lines, enum)
+	}
+	for _, nested := range msg.Messages {
+		appendMessageDTS(lines, nested)
+	}
+}
+
+func tsTypeForField(field *protogen.Field) string {
+	if field.Desc.IsMap() {
+		return "Record<string, " + tsTypeForKind(field.Desc.MapValue()) + ">"
+	}
+	typ := tsTypeForKind(field.Desc)
+	if field.Desc.IsList() {
+		return typ + "[]"
+	}
+	return typ
+}
+
+func tsTypeForKind(field protoreflect.FieldDescriptor) string {
+	switch field.Kind() {
+	case protoreflect.BoolKind:
+		return "boolean"
+	case protoreflect.EnumKind:
+		return string(field.Enum().Name()) + "Value | keyof typeof " + string(field.Enum().Name())
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind,
+		protoreflect.Uint32Kind, protoreflect.Fixed32Kind,
+		protoreflect.FloatKind, protoreflect.DoubleKind:
+		return "number"
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind,
+		protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		return "number | string"
+	case protoreflect.StringKind:
+		return "string"
+	case protoreflect.BytesKind:
+		return "Uint8Array | string"
+	case protoreflect.MessageKind, protoreflect.GroupKind:
+		return string(field.Message().Name())
+	default:
+		return "unknown"
 	}
 }
 

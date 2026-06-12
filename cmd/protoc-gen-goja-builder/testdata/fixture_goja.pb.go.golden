@@ -7,6 +7,7 @@ import (
 	errors "errors"
 	goja "github.com/dop251/goja"
 	protogoja "github.com/go-go-golems/go-go-goja/pkg/protogoja"
+	spec "github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 )
 
 // GojaBuilderFileFixtureProtoModuleName returns the JavaScript module name for this generated protobuf builder companion file.
@@ -19,6 +20,55 @@ func GojaBuilderFileFixtureProtoMessageTypes() []string {
 	return []string{
 		"fixture.v1.Example",
 		"fixture.v1.Example.Nested",
+	}
+}
+
+// GojaBuilderFileFixtureProtoTypeScriptModule returns the TypeScript declaration descriptor for this generated protobuf builder companion file.
+func GojaBuilderFileFixtureProtoTypeScriptModule(moduleName string) *spec.Module {
+	if moduleName == "" {
+		moduleName = GojaBuilderFileFixtureProtoModuleName()
+	}
+	return &spec.Module{
+		Name: moduleName,
+		RawDTS: []string{
+			"export interface ProtoMessage<TTypeName extends string = string> {",
+			"  readonly typeName: TTypeName;",
+			"  toJSON(): unknown;",
+			"  clone(): ProtoMessage<TTypeName>;",
+			"  equals(other: unknown): boolean;",
+			"}",
+			"export interface MessageNamespace<TMessage, TBuilder> {",
+			"  readonly typeName: string;",
+			"  builder(): TBuilder;",
+			"  from(value: TMessage): TMessage;",
+			"  is(value: unknown): value is TMessage;",
+			"  clone(value: TMessage): TMessage;",
+			"}",
+			"export const ExampleKind: {",
+			"  readonly typeName: \"fixture.v1.ExampleKind\";",
+			"  readonly EXAMPLE_KIND_UNSPECIFIED: 0;",
+			"  readonly EXAMPLE_KIND_PRIMARY: 1;",
+			"};",
+			"export type ExampleKindValue = 0 | 1;",
+			"export interface Example extends ProtoMessage<\"fixture.v1.Example\"> {}",
+			"export interface ExampleBuilder {",
+			"  name(value: string): this;",
+			"  clearName(): this;",
+			"  kind(value: ExampleKindValue | keyof typeof ExampleKind): this;",
+			"  clearKind(): this;",
+			"  build(): Example;",
+			"  clone(): ExampleBuilder;",
+			"}",
+			"export const Example: MessageNamespace<Example, ExampleBuilder>;",
+			"export interface Example_Nested extends ProtoMessage<\"fixture.v1.Example.Nested\"> {}",
+			"export interface Example_NestedBuilder {",
+			"  enabled(value: boolean): this;",
+			"  clearEnabled(): this;",
+			"  build(): Example_Nested;",
+			"  clone(): Example_NestedBuilder;",
+			"}",
+			"export const Example_Nested: MessageNamespace<Example_Nested, Example_NestedBuilder>;",
+		},
 	}
 }
 

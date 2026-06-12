@@ -121,9 +121,57 @@ func generatedRuntimeTestSource() string {
 import (
 	"testing"
 
+	"strings"
+
 	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/pkg/protogoja"
+	"github.com/go-go-golems/go-go-goja/pkg/tsgen/render"
+	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
+
+func TestGeneratedTypeScriptModuleRenders(t *testing.T) {
+	module := GojaBuilderFileJsmoduleProtoTypeScriptModule("hashiplugin.contract.v1")
+	if module == nil {
+		t.Fatalf("TypeScript module is nil")
+	}
+	out, err := render.Bundle(&spec.Bundle{Modules: []*spec.Module{module}})
+	if err != nil {
+		t.Fatalf("render DTS: %v", err)
+	}
+	for _, want := range []string{
+		"declare module \"hashiplugin.contract.v1\"",
+		"export interface ProtoMessage",
+		"export interface ModuleManifestBuilder",
+		"moduleName(value: string): this;",
+		"export const ExportKind",
+		"export type ExportKindValue",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("rendered DTS missing %q in:\n%s", want, out)
+		}
+	}
+
+	registry := providerapi.NewProviderRegistry()
+	if err := registry.Package("fixture", providerapi.Module{
+		Name:       "hashiplugin.contract.v1",
+		TypeScript: module,
+		NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
+			return nil, nil
+		},
+	}); err != nil {
+		t.Fatalf("register provider module: %v", err)
+	}
+	result, err := dtsgen.RenderModules(registry, []dtsgen.ModuleInstance{{Package: "fixture", Name: "hashiplugin.contract.v1"}}, dtsgen.Options{})
+	if err != nil {
+		t.Fatalf("xgoja dtsgen render: %v", err)
+	}
+	if !strings.Contains(result.DTS, "declare module \"hashiplugin.contract.v1\"") {
+		t.Fatalf("xgoja DTS missing generated module declaration:\n%s", result.DTS)
+	}
+}
 
 func TestGeneratedModuleManifestBuilderRuntime(t *testing.T) {
 	vm := goja.New()
