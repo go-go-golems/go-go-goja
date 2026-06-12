@@ -222,3 +222,18 @@ res.end()
 ```
 
 `res.html(value)` requires a renderer in `gojahttp.HostOptions`. With `modules/uidsl.RenderAny`, route handlers can return or send `ui.dsl` nodes directly.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+| --- | --- | --- |
+| `app.get(pattern, handler) was removed` | The route uses the old raw handler overload. | Use `app.get(pattern).public().handle(handler)` or an auth-aware chain. |
+| `.handle is not a function` | The route has not declared `.public()` or completed `.auth(...).allow(...)`. | Add the missing route-plan stage before `.handle(...)`. |
+| Authenticated route returns 500 | The Go host is missing auth services. | Configure `gojahttp.HostOptions.Auth` with an authenticator and authorizer. |
+| Handler cannot read `req.query` or `req.session` | Planned handlers receive `ctx`, not raw `req`. | Use `ctx.request.query` or `ctx.request.session`. |
+
+## See Also
+
+- [Express Auth User Guide](express-auth-user-guide) — Detailed guide to planned auth routes, host services, context shape, and error behavior.
+- [Migrate Express Apps to Planned Auth Routes](migrate-express-apps-to-planned-auth) — Step-by-step tutorial for converting old `app.get(path, handler)` scripts.
+- `examples/xgoja/15-express-planned-auth/scripts/server.js` — Compact planned auth route example.
