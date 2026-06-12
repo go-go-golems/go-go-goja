@@ -751,3 +751,107 @@ FAIL	github.com/go-go-golems/go-go-goja/pkg/gojahttp	0.006s
 ### Technical details
 
 The planned dispatch branch is intentionally after `NewRequestDTO`, so planned routes reuse body parsing, query normalization, cookies, session IDs, and params from the existing request model.
+
+
+## Step 8: Implement Phase 3 Express Go-backed fluent builders
+
+I implemented the JavaScript-facing fluent route builder on top of the Phase 1 and Phase 2 host foundations. The builder objects are Go-backed through per-runtime object registries: `.auth(...)` only accepts objects returned by `express.user()`, and `.resource(...)` only accepts objects returned by `express.resource(type)`. Plain JavaScript maps are rejected at registration time.
+
+The builder is staged. `app.route(method, pattern)` returns an object with `.public()` and `.auth(...)` but no `.handle(...)`. Public routes transition directly to `.handle(...)`. Authenticated routes transition to a policy stage where `.resource(...)` can be added and `.allow(action)` is required before `.handle(...)` becomes available.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue implementing the selected Go-backed fluent builder API and validate it with Express integration tests.
+
+**Inferred user intent:** Provide the ergonomic JavaScript API while preserving strict runtime validation through Go-owned objects.
+
+**Commit (code):** pending — Phase 3 code is ready to commit after this diary update.
+
+### What I did
+
+- Added `modules/express/auth_builders.go` with:
+  - per-loader `builderStore`,
+  - `express.user()` builder,
+  - `express.resource(type)` builder,
+  - staged route builder objects,
+  - strict `.auth(...)` and `.resource(...)` object identity validation,
+  - `idFromParam`/`tenantFromParam` primary resource binding names,
+  - `fromParam`/`withinTenantParam` compatibility aliases.
+- Updated `modules/express/express.go` to export:
+  - `app()` backed by the builder store,
+  - `user()`,
+  - `resource(type)`,
+  - `app.route(method, pattern)`.
+- Added `modules/express/auth_builders_integration_test.go` covering:
+  - planned public route builder,
+  - planned authenticated route builder,
+  - planned resource route builder,
+  - rejection of plain auth objects,
+  - lack of `.handle(...)` before `.public()`/`.auth(...)`.
+- Ran:
+
+```bash
+gofmt -w modules/express/auth_builders.go modules/express/auth_builders_integration_test.go modules/express/express.go
+go test ./modules/express -count=1
+go test ./pkg/gojahttp ./modules/express -count=1
+```
+
+### Why
+
+- This phase is the core user-facing API selected after the design discussion.
+- Object identity validation avoids parsing user-provided JavaScript objects/maps for security-critical route declarations.
+- Staged objects make invalid registration order fail naturally: methods are unavailable until the route has reached the correct stage.
+
+### What worked
+
+- `go test ./modules/express -count=1` passed.
+- `go test ./pkg/gojahttp ./modules/express -count=1` passed.
+- Plain object auth specs fail during route registration with an error that mentions `express.user()`.
+- Calling `.handle(...)` before declaring `.public()` or `.auth(...)` fails because the method is not present on the stage object.
+
+### What didn't work
+
+- No compile or test failures occurred in this phase.
+
+### What I learned
+
+- A per-loader builder store is enough to make `express.user()`/`express.resource()` objects strict without exposing raw Go pointers or accepting arbitrary maps.
+- The builder layer can stay thin because `Host.RegisterPlanned` and `ValidateRoutePlan` own final validation.
+
+### What was tricky to build
+
+- The main tricky point was preserving a natural JavaScript fluent API while keeping the state Go-owned. The solution stores the mutable spec pointer in Go and returns a JS object whose methods mutate that Go spec and return the same object for chaining.
+- Another subtle point was stage object identity. Each stage returns a different JS object backed by the same `routeBuilder` pointer, so the available methods reflect the route's registration state.
+
+### What warrants a second pair of eyes
+
+- Whether the compatibility aliases `fromParam` and `withinTenantParam` should remain or be removed before the API is documented.
+- Whether the builder store should actively clean up object entries after route registration, or whether per-runtime lifetime is acceptable.
+
+### What should be done in the future
+
+- Phase 4 should update TypeScript declarations and user-facing docs.
+- Later phases should add optional `.body(...)`, `.csrf()`, and `.audit(...)` builder methods.
+
+### Code review instructions
+
+- Start with `modules/express/auth_builders.go` to review staged object construction and strict spec lookup.
+- Then review `auth_builders_integration_test.go` to see the intended JavaScript API.
+- Validate with `go test ./pkg/gojahttp ./modules/express -count=1`.
+
+### Technical details
+
+The primary JavaScript API now works like this:
+
+```js
+app.route("PATCH", "/orgs/:orgId/projects/:projectId")
+  .auth(express.user().required())
+  .resource(express.resource("project").idFromParam("projectId").tenantFromParam("orgId").mustExist())
+  .allow("project.update")
+  .handle((ctx, res) => {
+    const project = ctx.resource("project")
+    res.json({ project: project.id, tenant: project.tenantId })
+  })
+```

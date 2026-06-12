@@ -11,6 +11,10 @@ DocType: design
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: modules/express/auth_builders.go
+      Note: Phase 3 Go-backed staged fluent builder implementation
+    - Path: modules/express/auth_builders_integration_test.go
+      Note: Phase 3 integration tests for strict builder validation and planned routes
     - Path: modules/express/express.go
       Note: Current JavaScript Express app and raw route registration surface reconciled by the MVP builder design
     - Path: modules/express/typescript.go
@@ -42,6 +46,7 @@ LastUpdated: 2026-06-12T14:25:00-04:00
 WhatFor: Use this to implement the MVP auth API for modules/express and pkg/gojahttp without first needing deep context on the HTTP provider.
 WhenToUse: Read before changing Express route registration, gojahttp route dispatch, session handling, or xgoja HTTP provider integration.
 ---
+
 
 
 

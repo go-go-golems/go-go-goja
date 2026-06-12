@@ -41,14 +41,14 @@
 
 ## Phase 3 — Express Go-backed fluent builders
 
-- [ ] Expose `app.route(method, pattern)` as a staged builder
-- [ ] Expose Go-backed `express.user()` auth spec builder
-- [ ] Expose Go-backed `express.resource(type)` resource spec builder
-- [ ] Implement strict runtime type validation so `.auth(...)` and `.resource(...)` reject plain JS objects/maps
-- [ ] Implement staged objects so `.handle(...)` is unavailable until `.public()` or `.auth(...).allow(...)`
-- [ ] Register compiled plans through `Host.RegisterPlanned`
-- [ ] Add aliases only when useful (`idFromParam` primary, `fromParam` compatibility alias; `tenantFromParam` primary, `withinTenantParam` compatibility alias)
-- [ ] Add Express integration tests for public route, auth route, resource route, and invalid spec object errors
+- [x] Expose `app.route(method, pattern)` as a staged builder
+- [x] Expose Go-backed `express.user()` auth spec builder
+- [x] Expose Go-backed `express.resource(type)` resource spec builder
+- [x] Implement strict runtime type validation so `.auth(...)` and `.resource(...)` reject plain JS objects/maps
+- [x] Implement staged objects so `.handle(...)` is unavailable until `.public()` or `.auth(...).allow(...)`
+- [x] Register compiled plans through `Host.RegisterPlanned`
+- [x] Add aliases only when useful (`idFromParam` primary, `fromParam` compatibility alias; `tenantFromParam` primary, `withinTenantParam` compatibility alias)
+- [x] Add Express integration tests for public route, auth route, resource route, and invalid spec object errors
 - [ ] Commit Phase 3
 
 ## Phase 4 — TypeScript declarations and user docs

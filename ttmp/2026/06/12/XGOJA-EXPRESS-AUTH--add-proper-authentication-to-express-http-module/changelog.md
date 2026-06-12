@@ -82,3 +82,15 @@ Phase 2: added planned route dispatch, secure context, auth/resource/authorizati
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/planned_dispatch_test.go — Host-level planned dispatch integration tests
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Recorded Phase 2 implementation and test failure/fix
 
+
+## 2026-06-12
+
+Phase 3: added Express Go-backed fluent route builders with strict auth/resource spec validation and integration tests
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/auth_builders.go — Go-backed staged builder and spec object implementation
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/auth_builders_integration_test.go — Express builder integration tests
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/express.go — Exports user/resource builders and app.route
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Recorded Phase 3 implementation
+

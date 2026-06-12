@@ -99,7 +99,12 @@ func (a runtimebridgeOwnerAdapter) IsClosed() bool                 { return fals
 
 func (r *Registrar) loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
-	_ = exports.Set("app", func() goja.Value { return r.appObject(vm) })
+	builders := newBuilderStore()
+	_ = exports.Set("app", func() goja.Value { return r.appObject(vm, builders) })
+	_ = exports.Set("user", func() goja.Value { return builders.newUserBuilder(vm) })
+	_ = exports.Set("resource", func(resourceType string) (goja.Value, error) {
+		return builders.newResourceBuilder(vm, resourceType)
+	})
 }
 
 type spaOptions struct {
@@ -129,7 +134,7 @@ func spaFromAssetsOptions(vm *goja.Runtime, value goja.Value) spaOptions {
 	return ret
 }
 
-func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
+func (r *Registrar) appObject(vm *goja.Runtime, builders *builderStore) goja.Value {
 	obj := vm.NewObject()
 	for _, method := range []string{"get", "post", "put", "patch", "delete", "all"} {
 		method := method
@@ -145,6 +150,9 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 			return nil
 		})
 	}
+	_ = obj.Set("route", func(method, pattern string) goja.Value {
+		return newRouteBuilder(vm, r, builders, method, pattern)
+	})
 	_ = obj.Set("static", func(prefix, dir string) error {
 		if prefix == "" || dir == "" {
 			return fmt.Errorf("app.static requires prefix and directory")
