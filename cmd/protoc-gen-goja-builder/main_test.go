@@ -55,6 +55,7 @@ func TestGeneratedCompanionFileCompiles(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(pkgDir, "jsmodule.pb.go"), pbGo, 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(pkgDir, filepath.Base(resp.File[0].GetName())), []byte(resp.File[0].GetContent()), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(pkgDir, "generated_runtime_test.go"), []byte(generatedRuntimeTestSource()), 0o644))
 
 	cmd := exec.Command("go", "test", "-mod=mod", ".")
 	cmd.Dir = pkgDir
@@ -112,6 +113,79 @@ func descriptorsForFile(t *testing.T, file protoreflect.FileDescriptor) []*descr
 	}
 	visit(file)
 	return out
+}
+
+func generatedRuntimeTestSource() string {
+	return `package contract
+
+import (
+	"testing"
+
+	"github.com/dop251/goja"
+	"github.com/go-go-golems/go-go-goja/pkg/protogoja"
+)
+
+func TestGeneratedModuleManifestBuilderRuntime(t *testing.T) {
+	vm := goja.New()
+	ns, err := NewModuleManifestGojaNamespace(vm)
+	if err != nil {
+		t.Fatalf("namespace: %v", err)
+	}
+	builderFn, ok := goja.AssertFunction(ns.Get("builder"))
+	if !ok {
+		t.Fatalf("builder is not callable")
+	}
+	builderValue, err := builderFn(goja.Undefined())
+	if err != nil {
+		t.Fatalf("builder call: %v", err)
+	}
+	builder := builderValue.ToObject(vm)
+	moduleNameFn, ok := goja.AssertFunction(builder.Get("moduleName"))
+	if !ok {
+		t.Fatalf("moduleName is not callable")
+	}
+	if _, err := moduleNameFn(builder, vm.ToValue("demo")); err != nil {
+		t.Fatalf("moduleName call: %v", err)
+	}
+	versionFn, ok := goja.AssertFunction(builder.Get("version"))
+	if !ok {
+		t.Fatalf("version is not callable")
+	}
+	if _, err := versionFn(builder, vm.ToValue("v1")); err != nil {
+		t.Fatalf("version call: %v", err)
+	}
+	buildFn, ok := goja.AssertFunction(builder.Get("build"))
+	if !ok {
+		t.Fatalf("build is not callable")
+	}
+	builtValue, err := buildFn(builder)
+	if err != nil {
+		t.Fatalf("build call: %v", err)
+	}
+	msg, ok := protogoja.MessageFromValue(builtValue)
+	if !ok {
+		t.Fatalf("built value is not a ProtoMessage")
+	}
+	manifest, ok := msg.(*ModuleManifest)
+	if !ok {
+		t.Fatalf("built message type = %T", msg)
+	}
+	if manifest.GetModuleName() != "demo" || manifest.GetVersion() != "v1" {
+		t.Fatalf("unexpected manifest: module_name=%q version=%q", manifest.GetModuleName(), manifest.GetVersion())
+	}
+	isFn, ok := goja.AssertFunction(ns.Get("is"))
+	if !ok {
+		t.Fatalf("is is not callable")
+	}
+	isValue, err := isFn(ns, builtValue)
+	if err != nil {
+		t.Fatalf("is call: %v", err)
+	}
+	if !isValue.ToBoolean() {
+		t.Fatalf("namespace did not recognize built message")
+	}
+}
+`
 }
 
 func TestParseParameterRejectsUnknownOption(t *testing.T) {
