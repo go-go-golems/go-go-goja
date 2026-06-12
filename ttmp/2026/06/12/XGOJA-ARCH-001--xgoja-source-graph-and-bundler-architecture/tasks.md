@@ -117,18 +117,18 @@
 
 ### Phase 4: Implement Go workspace resolution for generated builds
 
-- [ ] Create `cmd/xgoja/internal/workspace` or `pkg/xgoja/workspace` depending on whether it is needed outside the CLI.
-- [ ] Implement upward `go.work` discovery from the v2 spec directory.
-- [ ] Parse workspace module directories using `go work edit -json` first.
-- [ ] Read each workspace module's `go.mod` to map module path → local directory.
-- [ ] Define `GoModulePlan`:
+- [x] Create `cmd/xgoja/internal/workspace` or `pkg/xgoja/workspace` depending on whether it is needed outside the CLI.
+- [x] Implement upward `go.work` discovery from the v2 spec directory.
+- [x] Parse workspace module directories using `go work edit -json` first.
+- [x] Read each workspace module's `go.mod` to map module path → local directory.
+- [x] Define `GoModulePlan`:
   - module path;
   - version;
   - local dir;
   - required-by list;
   - resolution kind (`versioned`, `replace`, `workspace`);
   - resolution source (`explicit-replace`, `cli-replace`, `go-work`, `version`).
-- [ ] Implement precedence:
+- [x] Implement precedence:
   - explicit provider local override / migrated replace;
   - `--xgoja-replace` for `github.com/go-go-golems/go-go-goja` during transition if the flag remains;
   - explicit workspace module mapping if added;

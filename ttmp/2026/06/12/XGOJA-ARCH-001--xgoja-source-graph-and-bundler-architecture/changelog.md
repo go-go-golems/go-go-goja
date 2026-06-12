@@ -94,3 +94,13 @@ Added migration coverage for all v1 examples, migrate-spec check/warning tests, 
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/examples_migration_test.go — All example v1 specs migrate to valid v2
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root_test.go — migrate-spec command output/check/in-place/warning tests
 
+
+## 2026-06-12
+
+Added workspace resolution package with go.work discovery/parsing, go.mod module mapping, GoModulePlan, and precedence for explicit replace, CLI replace, go.work, and versioned requirements.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/workspace/workspace.go — Workspace discovery and GoModulePlan resolution
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/workspace/workspace_test.go — Workspace resolution tests
+

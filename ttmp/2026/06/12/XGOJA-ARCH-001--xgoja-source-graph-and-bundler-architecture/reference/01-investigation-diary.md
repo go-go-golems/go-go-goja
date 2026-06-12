@@ -47,7 +47,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T15:05:00-04:00
+LastUpdated: 2026-06-12T15:30:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
@@ -922,3 +922,84 @@ The important behavior is that all discovered v1 example specs can be converted 
 - The all-example test unmarshals v1 YAML directly to avoid replacement path existence checks.
 - It still renders and strict-loads v2 YAML through `specv2.Render` and `specv2.LoadData`.
 - The test guards against output containing `platform:`, `target: es...`, or `format: cjs` from old TypeScript profile fields.
+
+
+## Step 10: Add Go workspace module resolution
+
+I added the first workspace-resolution package for the v2 planner. It discovers `go.work`, asks Go to render workspace JSON, reads each workspace module's `go.mod`, and produces a `GoModulePlan` with resolution source metadata.
+
+This is not wired into generated `go.mod` rendering yet. The goal of this step was to create and test the resolution layer that later build, gen-dts, doctor, and v2 planner code can consume.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 9)
+
+**Assistant interpretation:** Continue through the v2 cutover phases, moving from migration tooling into workspace planning.
+
+**Inferred user intent:** Implement the v2 architecture in practical layers instead of stopping at migration command support.
+
+**Commit (code):** pending — workspace package staged after this diary update.
+
+### What I did
+
+- Added `cmd/xgoja/internal/workspace/workspace.go`.
+- Implemented upward `go.work` discovery from a start directory.
+- Implemented `go work edit -json` parsing.
+- Implemented `go.mod` module path reading for workspace modules.
+- Added `Requirement`, `GoModulePlan`, and `Plan` types.
+- Implemented precedence:
+  - explicit replace;
+  - CLI replace;
+  - detected `go.work` module;
+  - versioned module requirement.
+- Added workspace tests for discovery, parsing, precedence, and workspace-off behavior.
+- Checked task IDs 42–47.
+
+### Why
+
+- v2 provider resolution needs a central view of Go module locations before generated `go.mod`, provider graph, and declaration generation can behave consistently.
+- Local provider development should work from `go.work` without repeated manual `replace` entries.
+
+### What worked
+
+- `go test ./cmd/xgoja/internal/workspace -count=1` passed.
+- The resolver records both resolution kind and resolution source, which is important for later doctor/plan diagnostics.
+
+### What didn't work
+
+- No command failed in this step.
+- Generated `go.mod` rendering is not wired to `GoModulePlan` yet, so tasks 48–50 remain open.
+- Sidecar gen-dts/build integration is not implemented yet.
+
+### What I learned
+
+- `go work edit -json` gives a simple stable representation of workspace `use` directories, but module path lookup still requires reading each `go.mod`.
+- Keeping CLI replacements as an input map makes the resolver usable both during transition and after v2 owns module planning.
+
+### What was tricky to build
+
+- Paths from `go.work` can be relative to the workspace file, while explicit/CLI replacements may be relative to the spec directory. The resolver normalizes both through `absMaybe` with the start/spec directory where appropriate.
+- The resolver must support `workspace.mode: off` without error even if a nearby `go.work` exists.
+
+### What warrants a second pair of eyes
+
+- Review whether the workspace package should stay under `cmd/xgoja/internal` or move to `pkg/xgoja/workspace` if provider tooling outside the CLI will need it.
+- Review whether explicit replace and CLI replace should both be represented as `ResolutionReplace` or have separate kinds.
+
+### What should be done in the future
+
+- Wire `GoModulePlan` into generated `go.mod` rendering.
+- Add doctor/plan diagnostics over `GoModulePlan`.
+- Apply the same plan to build and gen-dts sidecars.
+
+### Code review instructions
+
+- Start with `Resolve` in `cmd/xgoja/internal/workspace/workspace.go`.
+- Review precedence ordering and path normalization.
+- Validate with `go test ./cmd/xgoja/internal/workspace -count=1`.
+
+### Technical details
+
+- Workspace modes implemented: `off`, `auto`, and `path`.
+- Resolution sources implemented: `version`, `explicit-replace`, `cli-replace`, and `go-work`.
+- `FindGoWork` searches upward until filesystem root.
