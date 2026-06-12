@@ -212,3 +212,13 @@ Implemented Phase 2 optional presence helpers: BuilderRef.Has, generated has<Fie
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Added BuilderRef.Has for protobuf presence checks (commit 0205764)
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Added dynamic proto3 optional presence tests (commit 0205764)
 
+
+## 2026-06-12
+
+Completed Phase 2 builder runtime helpers: added field-path-rich repeated/map conversion errors, validated pkg/protogoja and generator runtime tests, and closed the Phase 2 runtime helper milestone (commit f98cdf0; prior Phase 2 commits 6411e52, bc3949c, 0205764).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Added contextual repeated/map error wrappers and completed Phase 2 runtime helpers (commit f98cdf0)
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Added field-path-rich error tests for repeated indexes and map keys (commit f98cdf0)
+
