@@ -148,3 +148,13 @@ Threaded fs.FS source metadata through jsverbs scan/runtime transforms and used 
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/typescript.go — Selects fs-backed TypeScript bundling when source metadata has RootFS
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/typescript_jsverbs_test.go — Provider fs.FS TypeScript jsverbs helper import regression test
 
+
+## 2026-06-12
+
+Step 14: wired fs.FS-backed TypeScript runtime bundling for jsverbs provider/embedded sources (commit 2b9873166f7bf464f181d347f21fbf3a357aec47)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/jsverbs/scan.go — Carries fs.FS roots through ScanFS (commit 2b9873166f7bf464f181d347f21fbf3a357aec47)
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/typescript.go — Uses BundleVirtualEntryFS for fs-backed runtime transforms (commit 2b9873166f7bf464f181d347f21fbf3a357aec47)
+

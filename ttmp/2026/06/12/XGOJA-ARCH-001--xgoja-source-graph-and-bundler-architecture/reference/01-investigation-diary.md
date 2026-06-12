@@ -36,12 +36,22 @@ RelatedFiles:
       Note: Step 1 provider command and jsverb source-set API evidence.
     - Path: go-go-goja/pkg/xgoja/providerapi/module.go
       Note: Step 1 provider module API evidence.
+    - Path: pkg/jsverbs/model.go
+      Note: RootFS metadata added to public jsverbs scan/runtime structs for Step 14
+    - Path: pkg/jsverbs/runtime.go
+      Note: Registry runtime transforms now receive RootFS for Step 14
     - Path: pkg/jsverbs/scan.go
-      Note: Diary Step 1 source scanning evidence
+      Note: |-
+        Diary Step 1 source scanning evidence
+        ScanFS now attaches fs.Sub roots for Step 14
     - Path: pkg/tsscript/compiler.go
       Note: Diary Step 1 TypeScript bundling evidence
     - Path: pkg/xgoja/app/runtime_spec.go
       Note: Diary Step 1 runtime schema evidence
+    - Path: pkg/xgoja/app/typescript.go
+      Note: Runtime TypeScript bundling now uses BundleVirtualEntryFS when possible for Step 14
+    - Path: pkg/xgoja/app/typescript_jsverbs_test.go
+      Note: Provider fs.FS TypeScript helper import regression test for Step 14
     - Path: ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/design/02-xgoja-v2-spec-and-migration-architecture.md
       Note: Diary Step 3 v2 spec and migration design
 ExternalSources:
@@ -51,6 +61,7 @@ LastUpdated: 2026-06-12T16:55:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -1267,7 +1278,7 @@ This fixes the key embedded/provider TypeScript local-import gap without yet rep
 
 **Inferred user intent:** Keep moving through the backlog without waiting for more direction.
 
-**Commit (code):** pending — jsverbs/app TypeScript runtime wiring staged after this diary update.
+**Commit (code):** 2b9873166f7bf464f181d347f21fbf3a357aec47 — "jsverbs: bundle TypeScript sources from fs"
 
 ### What I did
 
