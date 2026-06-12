@@ -22,6 +22,10 @@ RelatedFiles:
       Note: Existing repo-local protoc generation helper pattern
     - Path: go-go-goja/pkg/hashiplugin/contract/jsmodule.proto
       Note: Existing protobuf schema in go-go-goja useful as fixture candidate
+    - Path: go-go-goja/pkg/protogoja/builder.go
+      Note: Initial implementation of the BuilderRef runtime helper proposed by the design
+    - Path: go-go-goja/pkg/protogoja/builder_test.go
+      Note: Executable validation of the first BuilderRef conversion slice
     - Path: go-go-goja/pkg/protogoja/ref.go
       Note: Initial implementation of the MessageRef/ProtoMessage contract proposed by the design
     - Path: go-go-goja/pkg/protogoja/ref_test.go
@@ -40,6 +44,7 @@ LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Planning a generic go-go-goja feature that lets any Goja-consuming code construct concrete proto.Message values through generated fluent JavaScript builders instead of JSON/protojson conversion.
 WhenToUse: Use before implementing protoc-gen-goja-builder, reviewing generated APIs, or integrating generated protobuf builders with sessionstream or other Goja modules.
 ---
+
 
 
 # Generated Goja protobuf fluent builders design

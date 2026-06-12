@@ -55,3 +55,13 @@ Phase 1 committed: protogoja MessageRef runtime foundation with hidden ProtoMess
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/ref.go — Committed Phase 1 runtime wrapper
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/ref_test.go — Committed Phase 1 tests
 
+
+## 2026-06-12
+
+Implemented first Phase 2 BuilderRef slice with Set/Add/Put/Clear/Build/Clone, scalar and enum conversions, repeated field support, ProtoMessage field conversion, and passing protogoja tests.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — BuilderRef runtime helper implementation
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — BuilderRef runtime helper tests
+

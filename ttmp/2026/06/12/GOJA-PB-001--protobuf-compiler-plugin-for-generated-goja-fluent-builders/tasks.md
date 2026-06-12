@@ -18,10 +18,10 @@
 
 ## Phase 2 — Builder runtime conversion helpers
 
-- [ ] Add `BuilderRef` with `Set`, `Add`, `Put`, `Clear`, `Build`, and `Clone`
-- [ ] Implement scalar conversions for string, bool, float/double, int32/uint32, int64/uint64, bytes, and enums
+- [x] Add `BuilderRef` with `Set`, `Add`, `Put`, `Clear`, `Build`, and `Clone`
+- [x] Implement scalar conversions for string, bool, float/double, int32/uint32, int64/uint64, bytes, and enums
 - [ ] Implement message field conversion from generated `ProtoMessage` refs and builder refs
-- [ ] Implement repeated field helpers with replace and append semantics
+- [x] Implement repeated field helpers with replace and append semantics
 - [ ] Implement map field helpers with object/Map input, put, delete, and clear semantics
 - [ ] Implement oneof helpers with clear/which semantics
 - [ ] Implement optional presence helpers with `has<Field>` and `clear<Field>` semantics
