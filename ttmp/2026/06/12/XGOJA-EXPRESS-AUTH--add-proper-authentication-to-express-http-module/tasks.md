@@ -78,3 +78,5 @@
 - [ ] Consider Express-style middleware/router support after the planned-route auth core is stable
 - [x] Hard-cut Express verb helpers over to staged planned route builders
 - [x] Update tests, examples, and docs for planned verb helper migration
+- [x] Add dedicated Express auth user guide help entry
+- [x] Add Express planned auth migration tutorial help entry

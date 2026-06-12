@@ -149,3 +149,15 @@ Implemented hard cutover for Express verb helpers: .get/.post/... now return pla
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/18-express-module.md — Docs migration guidance
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Implementation diary Step 12
 
+
+## 2026-06-12
+
+Added dedicated Glazed help docs for the Express auth framework and migration from raw verb handlers to planned auth routes (commit de09c15).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/18-express-module.md — Reference cross-links and troubleshooting
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/29-express-auth-user-guide.md — Express auth user guide
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/30-migrate-express-apps-to-planned-auth.md — Migration tutorial
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Diary records documentation validation and next step
+

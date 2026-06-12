@@ -20,7 +20,13 @@ RelatedFiles:
     - Path: modules/express/typescript.go
       Note: Verb helper declarations now return RouteNeedsSecurity (commit 4492723)
     - Path: pkg/doc/18-express-module.md
-      Note: User-facing hard-cutover docs and migration notes (commit 4492723)
+      Note: |-
+        User-facing hard-cutover docs and migration notes (commit 4492723)
+        Module reference links to auth guide and migration tutorial (commit de09c15)
+    - Path: pkg/doc/29-express-auth-user-guide.md
+      Note: Dedicated Express auth framework help guide (commit de09c15)
+    - Path: pkg/doc/30-migrate-express-apps-to-planned-auth.md
+      Note: Dedicated migration tutorial help entry (commit de09c15)
     - Path: ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/design/01-mvp-authentication-api-design-and-implementation-guide.md
       Note: Primary design output produced during Step 1
     - Path: ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/sources/01-auth-preliminary-api-ideas.md
@@ -28,10 +34,11 @@ RelatedFiles:
 ExternalSources:
     - ../sources/01-auth-preliminary-api-ideas.md
 Summary: Chronological diary for the Express authentication design investigation.
-LastUpdated: 2026-06-12T15:47:00-04:00
+LastUpdated: 2026-06-12T16:03:00-04:00
 WhatFor: Use this to resume or review the ticket research and design work.
 WhenToUse: Read before continuing implementation work for XGOJA-EXPRESS-AUTH.
 ---
+
 
 
 
@@ -1266,4 +1273,116 @@ The implementation also migrated tests, examples, xgoja HTTP provider fixtures, 
   app.route("REPORT", "/reports/:id")
     .public()
     .handle((ctx, res) => res.json({ id: ctx.params.id }))
+  ```
+
+
+## Step 13: Add Express auth help guides
+
+I added dedicated Glazed help documentation for the planned Express auth framework and for migrating old Express-style scripts to the new auth-aware route API. The module reference now points readers to those deeper guides and includes troubleshooting for the removed raw handler overload.
+
+The next implementation step after this documentation pass is to close the remaining raw-route escape hatch outside the Express module surface. The direct verb helpers now enforce planned routes, but low-level `gojahttp.Host.Register` still exists for internal and non-Express callers; a strict production host mode should decide whether to reject or report those raw registrations.
+
+### Prompt Context
+
+**User prompt (verbatim):** "explain next step. 
+
+Then make sure all the documentation is updated and write a dedicated glazed help entry tutorial on migrating the express apps to the new auth. Make a dedicated auth user guide about the express auth framework as well."
+
+**Assistant interpretation:** Explain the next implementation direction, then update documentation by adding a Glazed help tutorial for migrating Express apps and a separate user guide for the Express auth framework.
+
+**Inferred user intent:** Make the hard-cutover API understandable and discoverable before more auth features are added, especially for users whose existing scripts now need migration.
+
+**Commit (code):** de09c15 — "Docs: add Express auth help guides"
+
+### What I did
+- Read the Glazed help-page authoring guidance and refreshed the Glazed documentation style rules with:
+  - `glaze help how-to-write-good-documentation-pages`
+  - `glaze help writing-help-entries`
+- Added `pkg/doc/29-express-auth-user-guide.md` as a `GeneralTopic` help entry with slug `express-auth-user-guide`.
+- Added `pkg/doc/30-migrate-express-apps-to-planned-auth.md` as a `Tutorial` help entry with slug `migrate-express-apps-to-planned-auth`.
+- Updated `pkg/doc/18-express-module.md` with troubleshooting and See Also links to the new guides.
+- Checked slug uniqueness across `pkg/doc/*.md`.
+- Render-checked both new help pages with:
+  - `go run ./cmd/goja-repl help express-auth-user-guide`
+  - `go run ./cmd/goja-repl help migrate-express-apps-to-planned-auth`
+- Added and checked ticket tasks for the new auth guide and migration tutorial.
+
+### Why
+- The hard cutover intentionally breaks old `app.get(path, handler)` scripts, so users need a direct migration tutorial rather than only an API reference.
+- The planned auth framework has concepts that deserve a dedicated user guide: staged builders, Go-backed specs, planned context, host auth services, resource binding, error behavior, and troubleshooting.
+- Glazed help entries make the docs available inside CLI help, not only as repository Markdown.
+
+### What worked
+- Both new help pages rendered through `goja-repl help`, which confirms the frontmatter and embedded docs are loadable.
+- Slug uniqueness check found no duplicates across `pkg/doc`.
+- Focused validation passed when VCS stamping was disabled:
+  - `GOFLAGS=-buildvcs=false go test ./pkg/docaccess/... ./cmd/xgoja ./modules/express ./pkg/xgoja/providers/http -count=1`
+- The full suite passed on rerun with VCS stamping disabled:
+  - `GOFLAGS=-buildvcs=false go test ./... -count=1`
+
+### What didn't work
+- Running focused validation without `GOFLAGS=-buildvcs=false` failed in `cmd/xgoja` generated build tests. The exact command was:
+  - `go test ./pkg/docaccess/... ./cmd/xgoja ./modules/express ./pkg/xgoja/providers/http -count=1`
+- The exact failure was:
+  ```text
+  Error: go build -o /tmp/TestBuildCommandBuildsBinary1381040288/002/fixture . failed: exit status 1
+  error obtaining VCS status: exit status 128
+      Use -buildvcs=false to disable VCS stamping.
+  FAIL    github.com/go-go-golems/go-go-goja/cmd/xgoja  0.673s
+  ```
+- The first broad `GOFLAGS=-buildvcs=false go test ./... -count=1` run later hit a transient `pkg/replsession` timeout:
+  ```text
+  --- FAIL: TestServiceInteractiveSyncRunawayTimeoutKeepsSessionUsable (0.10s)
+      service_policy_test.go:202: expected ok status after timeout, got "timeout"
+  FAIL
+  FAIL    github.com/go-go-golems/go-go-goja/pkg/replsession  0.321s
+  ```
+- Rerunning the focused package passed:
+  - `GOFLAGS=-buildvcs=false go test ./pkg/replsession -count=1`
+- Rerunning the full suite passed:
+  - `GOFLAGS=-buildvcs=false go test ./... -count=1`
+
+### What I learned
+- The `pkg/doc` help entries are immediately queryable through `goja-repl help <slug>` because `pkg/doc/doc.go` embeds all Markdown files under that package.
+- The migration tutorial benefits from showing the removed pattern as an explicit "before" example; search checks therefore need to distinguish intentional migration docs from stale examples.
+- The docs need to explain both user-facing JavaScript changes and host-facing Go configuration because auth route declarations fail closed without host services.
+
+### What was tricky to build
+- The tricky part was balancing "all docs are updated" with intentional references to removed syntax. The old `app.get(path, handler)` spelling still appears in the migration tutorial, auth guide, and troubleshooting tables because users will search for the exact removed shape and error message. I used repository-wide searches to verify stale examples were gone while retaining those intentional references.
+- Another subtle point was choosing the help entry types. The migration page is a `Tutorial` because it teaches a step-by-step conversion. The auth framework page is a `GeneralTopic` because it explains concepts, runtime behavior, and host integration.
+
+### What warrants a second pair of eyes
+- Review the new help pages for whether they promise `.body(...)`, `.csrf()`, or `.audit(...)` before those builders exist. The current text intentionally describes only implemented MVP behavior and names deferred features only as future work elsewhere.
+- Review the troubleshooting tables for wording; users will likely paste exact errors into search.
+- Review whether these docs should also be linked from xgoja-specific help pages, not only from `pkg/doc/18-express-module.md`.
+
+### What should be done in the future
+- Add strict production host handling for low-level raw `Host.Register` routes.
+- Add a reusable session/user-store authenticator package if applications need a starter auth backend.
+- Continue with `.body(...)`, `.csrf()`, and `.audit(...)` planned-route extensions after the route surface remains stable.
+
+### Code review instructions
+- Start with `pkg/doc/29-express-auth-user-guide.md` to review the conceptual auth framework explanation.
+- Then read `pkg/doc/30-migrate-express-apps-to-planned-auth.md` to review the migration path and before/after examples.
+- Check `pkg/doc/18-express-module.md` for cross-links and concise module-reference troubleshooting.
+- Validate with:
+  - `go run ./cmd/goja-repl help express-auth-user-guide`
+  - `go run ./cmd/goja-repl help migrate-express-apps-to-planned-auth`
+  - `GOFLAGS=-buildvcs=false go test ./pkg/docaccess/... ./cmd/xgoja ./modules/express ./pkg/xgoja/providers/http -count=1`
+  - `GOFLAGS=-buildvcs=false go test ./... -count=1`
+
+### Technical details
+- New help slugs:
+  - `express-auth-user-guide`
+  - `migrate-express-apps-to-planned-auth`
+- Intentional next implementation target:
+  ```go
+  type HostOptions struct {
+      // existing fields...
+      RejectRawRoutes bool // possible follow-up name; exact API still open
+  }
+  ```
+- The migration search used for stale route examples was:
+  ```bash
+  rg -n 'app\.(get|post|put|patch|delete|all)\([^\n)]*,\s*(async\s*)?\(|app\.(get|post|put|patch|delete|all)\([^\n)]*,\s*[_a-zA-Z(]' --glob '!ttmp/**' . -S
   ```
