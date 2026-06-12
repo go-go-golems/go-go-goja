@@ -12,10 +12,16 @@ DocType: design
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/cmd_build.go
+      Note: Generated build sidecar should consume workspace-derived module resolution
+    - Path: cmd/xgoja/cmd_gen_dts.go
+      Note: Generated DTS sidecar should consume the same workspace-derived module resolution
     - Path: cmd/xgoja/internal/buildspec/build_spec.go
       Note: Build-time xgoja schema and source/provider/module declarations
     - Path: cmd/xgoja/internal/generate/generate.go
       Note: Generated output writing and embedded source copying
+    - Path: cmd/xgoja/internal/generate/gomod.go
+      Note: Current generated go.mod require/replace rendering and proposed workspace-derived replacement integration
     - Path: cmd/xgoja/internal/generate/main.go
       Note: Runtime spec rendering and embedded path rewriting
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
@@ -72,11 +78,12 @@ RelatedFiles:
       Note: HTTP provider composition of jsverbs
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
-Summary: Architecture proposal for reframing xgoja as a Go-backed JavaScript bundler/runtime compiler with a source graph, import resolver, build plan, runtime plan, provider bundle model, and staged migration path.
-LastUpdated: 2026-06-12T11:05:00-04:00
+Summary: Architecture proposal for reframing xgoja as a Go-backed JavaScript bundler/runtime compiler with a source graph, import resolver, Go workspace resolver, build plan, runtime plan, provider bundle model, and staged migration path.
+LastUpdated: 2026-06-12T11:45:00-04:00
 WhatFor: Use when deciding whether to refactor xgoja around source graphs and build/runtime plans instead of continuing command-specific scanning and bundling patches.
 WhenToUse: Before adding more source-language support, embedded TypeScript fixes, provider source resolution, asset/help/source compilation, generated binary outputs, or hot reload dependency behavior.
 ---
+
 
 
 # XGoja source graph and bundler architecture
@@ -95,9 +102,10 @@ The recommended next move is not a rewrite. It is a staged refactor:
 
 1. Add a `pkg/xgoja/sourcegraph` package that models source origins, source files, dependencies, and source sets.
 2. Add a resolver that classifies imports as local source files, Go-backed runtime modules, explicit externals, package imports, or errors.
-3. Add a `pkg/xgoja/plan` package that produces a build plan and runtime plan from `BuildSpec`, provider registry metadata, and source graph resolution.
-4. Migrate TypeScript jsverbs and embedded/provider source bundling onto the graph first.
-5. Migrate generated embedding, declaration generation, and hot reload watch inputs onto the plan incrementally.
+3. Add a Go workspace resolver that discovers local provider modules from `go.work` and feeds generated `go.mod` replacements without requiring every `xgoja.yaml` to spell them out.
+4. Add a `pkg/xgoja/plan` package that produces a build plan and runtime plan from `BuildSpec`, provider registry metadata, Go module resolution, and source graph resolution.
+5. Migrate TypeScript jsverbs and embedded/provider source bundling onto the graph first.
+6. Migrate generated embedding, declaration generation, generated Go module rendering, and hot reload watch inputs onto the plan incrementally.
 
 The architectural goal is precise: xgoja should be a Go-backed JavaScript runtime compiler. It should produce generated binaries and runtime packages from a resolved graph of Go providers, JavaScript/TypeScript source, declarations, command metadata, assets, and help files.
 
@@ -114,7 +122,8 @@ A new engineer should use these terms consistently when reading or changing the 
 | Source set | A logical group of source files, such as one jsverb directory, one provider-shipped `fs.FS` source tree, or a generated embedded source root. |
 | Source graph | A resolved representation of source files, origins, import edges, source-set membership, and language/compilation metadata. |
 | Import resolver | The component that classifies an import specifier such as `./helper`, `express`, or `node:fs` as local source, runtime module, explicit external, package dependency, or error. |
-| Build plan | The plan used during generation/build. It decides which Go packages to import, which source sets to copy or precompile, which declarations to emit, and which runtime spec to embed. |
+| Go workspace resolver | The build-time resolver that reads local workspace information, such as `go.work`, maps Go module paths to local directories, and decides which generated `replace` directives or temporary workspace entries are needed. |
+| Build plan | The plan used during generation/build. It decides which Go packages to import, which source sets to copy or precompile, which declarations to emit, which local workspace modules to use, and which runtime spec to embed. |
 | Runtime plan | The plan embedded into, or reconstructed by, a generated binary. It decides which runtime modules are available, which source loaders are used, and how runtime compilation is performed. |
 | Compilation mode | The policy for a source set: compile at build time, compile at runtime, preserve source, or reject unsupported inputs. |
 
@@ -191,7 +200,8 @@ The symptoms are visible:
 3. Generated embedded source copying preserves TypeScript and performs runtime compilation; the system has no explicit compilation-mode decision for production vs development.
 4. Hot reload watches roots/extensions rather than a dependency graph.
 5. Provider packages contribute several kinds of inputs, but there is no resolved provider bundle graph that connects modules, declarations, sources, assets, help, command sets, and host services.
-6. Runtime spec generation rewrites embedded paths, but source identity and dependency relationships are not represented in the runtime spec.
+6. Generated builds require local development replacements to be declared manually through `--xgoja-replace` or `packages[].replace`, even when a repository already has a `go.work` that names the relevant local modules.
+7. Runtime spec generation rewrites embedded paths, but source identity and dependency relationships are not represented in the runtime spec.
 
 The risk is not immediate instability. The current code has working paths. The risk is that every new feature will require another local patch for local directories, `fs.FS` sources, embedded sources, provider sources, TypeScript externals, generated paths, declarations, and hot reload watches.
 
@@ -203,7 +213,8 @@ The risk is not immediate instability. The current code has working paths. The r
 - Introduce a source graph that represents files, source origins, source sets, language, imports, and dependencies.
 - Introduce an import resolver that classifies import specifiers consistently across `run`, jsverbs, embedded sources, provider sources, and future source languages.
 - Introduce a provider bundle graph that represents selected Go provider packages and the runtime capabilities they contribute.
-- Introduce build plans and runtime plans so generation, runtime loading, declaration generation, hot reload, and examples consume the same resolved model.
+- Introduce Go workspace resolution so generated builds and DTS sidecars can use local provider modules from `go.work` without manual `replace` duplication.
+- Introduce build plans and runtime plans so generation, runtime loading, declaration generation, hot reload, Go module rendering, and examples consume the same resolved model.
 - Preserve the current goja runtime factory, provider module API, jsverbs command metadata model, and xgoja user-facing spec as much as possible.
 - Provide a staged migration plan that can be implemented by a new engineer without a full rewrite.
 
@@ -225,7 +236,9 @@ flowchart TD
     Spec[xgoja.yaml BuildSpec] --> Normalize[load/default/validate]
     Providers[ProviderRegistry] --> ProviderGraph[Resolve provider bundle graph]
     Normalize --> SourceDiscovery[Discover source sets]
+    Workspace[go.work / explicit workspace config] --> GoResolver[Resolve Go module workspace]
     ProviderGraph --> SourceDiscovery
+    GoResolver --> ProviderGraph
     SourceDiscovery --> SourceGraph[Build source graph]
     ProviderGraph --> Resolver[Import resolver]
     SourceGraph --> Resolver
@@ -233,6 +246,7 @@ flowchart TD
     PlannedGraph --> BuildPlan[Build plan]
     PlannedGraph --> RuntimePlan[Runtime plan]
     ProviderGraph --> BuildPlan
+    GoResolver --> BuildPlan
     ProviderGraph --> RuntimePlan
 
     BuildPlan --> Generate[Generate Go package/binary]
@@ -259,9 +273,14 @@ pkg/xgoja/sourcegraph/
   language.go       // SourceLanguage, extension mapping
   graph_test.go
 
+pkg/xgoja/workspace/
+  gowork.go         // Parse go.work JSON and read local go.mod module paths
+  resolver.go       // Resolve module paths to versions, replaces, and workspace dirs
+  resolver_test.go
+
 pkg/xgoja/plan/
   provider_graph.go // ResolvedProviderPackage, ResolvedRuntimeModule
-  build_plan.go     // BuildPlan, BuildArtifact, CompilationMode
+  build_plan.go     // BuildPlan, BuildArtifact, CompilationMode, GoModulePlan
   runtime_plan.go   // RuntimePlan, RuntimeSourceSetPlan, RuntimeModulePlan
   compile.go        // Compile BuildSpec + ProviderRegistry into plans
   validate.go       // invariants and diagnostics
@@ -594,6 +613,189 @@ The provider graph should answer these questions:
 
 The graph does not create goja runtimes. It gives the runtime factory and generated code a validated plan.
 
+
+## Go workspace resolution
+
+Go workspace resolution is the Go-module counterpart to the JavaScript/TypeScript import resolver. The source graph answers questions about files such as `import "./helper"`. The Go workspace resolver answers questions about generated Go imports such as `github.com/acme/provider/pkg/xgoja/http` and `github.com/go-go-golems/go-go-goja/pkg/xgoja/app`.
+
+Today local development requires either command-line replacement or explicit YAML replacement. `RenderGoMod` always requires `github.com/go-go-golems/go-go-goja` and then emits `replace github.com/go-go-golems/go-go-goja => <path>` when `generate.Options.XGojaReplace` is set (`cmd/xgoja/internal/generate/gomod.go:14-23`, `cmd/xgoja/internal/generate/gomod.go:59-76`). Provider packages can also carry `packages[].replace`, which is resolved relative to the build spec base directory (`cmd/xgoja/internal/generate/gomod.go:64-66`, `cmd/xgoja/internal/generate/gomod.go:98-104`). This works, but it duplicates information that often already exists in `go.work`.
+
+Workspace support should let xgoja discover local Go modules automatically, then apply them to generated build workspaces and DTS sidecars. A user working in a repository with this workspace:
+
+```go
+// go.work
+go 1.26
+
+use ../go-go-goja
+use ../go-go-goja-provider-http
+```
+
+should not need this in every `xgoja.yaml`:
+
+```yaml
+packages:
+  - id: http
+    import: github.com/acme/go-go-goja-provider-http/pkg/xgoja/http
+    replace: ../go-go-goja-provider-http
+```
+
+The generated build can infer that `github.com/acme/go-go-goja-provider-http` resolves to `../go-go-goja-provider-http` by reading that module's `go.mod` from the workspace directory.
+
+### Workspace resolver responsibilities
+
+The workspace resolver should be build-time only. It should not enter `app.RuntimeSpec`, because generated binaries do not need local source paths after they are built.
+
+Its responsibilities are:
+
+1. Discover a `go.work` file by searching upward from the `xgoja.yaml` directory, unless workspace mode is disabled or an explicit file is configured.
+2. Parse workspace module directories. Prefer `go work edit -json` for fidelity with Go's parser, and fall back to a small parser only if invoking `go` is not acceptable in a specific context.
+3. Read each workspace module's `go.mod` to map module path to local directory.
+4. Resolve all Go module paths needed by the generated build: xgoja itself, provider packages, target imports, and extra Go imports.
+5. Apply explicit replacements before workspace replacements.
+6. Produce a `GoModulePlan` consumed by generated `go.mod` rendering, `xgoja build`, and `xgoja gen-dts` sidecars.
+7. Report workspace decisions in `xgoja doctor` and future `xgoja plan` output.
+
+### Workspace config shape
+
+The first user-facing schema can be small. It belongs under `go:` because it affects generated Go modules, not runtime JavaScript behavior.
+
+```yaml
+go:
+  workspace:
+    mode: auto # off | auto | path
+    file: ../go.work
+    include:
+      - github.com/go-go-golems/go-go-goja
+      - github.com/acme/go-go-goja-provider-http
+    exclude:
+      - github.com/acme/experimental-provider
+```
+
+A shorter shorthand can be supported later:
+
+```yaml
+go:
+  workspace: auto
+```
+
+Recommended modes:
+
+| Mode | Meaning |
+| --- | --- |
+| `off` | Ignore `go.work`; use only explicit versions and replacements. |
+| `auto` | Search upward from the build spec directory for `go.work`. |
+| `path` | Use `go.workspace.file` exactly. |
+
+The first implementation can skip `include`/`exclude` if necessary and simply resolve every needed module that appears in the workspace. The important compatibility rule is precedence: explicit user choices must win over auto-detected workspace choices.
+
+### Go module resolution plan
+
+Add a Go module plan to the build plan:
+
+```go
+type GoModulePlan struct {
+    ModulePath string
+    Version    string
+    LocalDir   string
+    RequiredBy []GoModuleUse
+    Resolution GoModuleResolutionKind
+    Source     GoModuleResolutionSource
+}
+
+type GoModuleResolutionKind string
+
+const (
+    ResolutionVersioned GoModuleResolutionKind = "versioned"
+    ResolutionReplace   GoModuleResolutionKind = "replace"
+    ResolutionWorkspace GoModuleResolutionKind = "workspace"
+)
+
+type GoModuleResolutionSource string
+
+const (
+    SourceExplicitReplace GoModuleResolutionSource = "explicit-replace"
+    SourceCLIReplace      GoModuleResolutionSource = "cli-replace"
+    SourceGoWork          GoModuleResolutionSource = "go-work"
+    SourceVersion         GoModuleResolutionSource = "version"
+)
+```
+
+The module plan is built from the same module path inference used today by `providerModulePath`. For example, `github.com/acme/provider/pkg/xgoja/http` maps to `github.com/acme/provider` before workspace lookup. That inferred module path is then matched against workspace module paths.
+
+Precedence should be explicit:
+
+```text
+packages[].replace / target replace if added later
+--xgoja-replace for github.com/go-go-golems/go-go-goja
+explicit go.workspace module mapping if added later
+detected go.work module
+versioned module requirement
+```
+
+### Render strategy: replace first, temporary go.work later
+
+There are two ways to apply workspace resolution to generated builds.
+
+Option A emits `replace` directives in the generated `go.mod`:
+
+```go
+replace github.com/acme/provider => /home/me/code/provider
+```
+
+Option B writes a temporary `go.work` next to the generated `go.mod`:
+
+```go
+go 1.26
+
+use .
+use /home/me/code/provider
+use /home/me/code/go-go-goja
+```
+
+The first implementation should use Option A. Generated build directories and DTS sidecars already have a temporary `go.mod`, `go mod tidy`, and `go build`/`go run` flow. Emitting derived `replace` directives keeps behavior inspectable with `--keep-work` and avoids a second workspace file format in generated output. A temporary `go.work` emitter can be added later for users who prefer generated workspaces over generated replacements.
+
+### Interaction with the provider graph
+
+Workspace resolution should run before or during provider graph construction. The provider graph should know not only which provider package is selected, but also how its Go module is resolved:
+
+```go
+type ResolvedProviderPackage struct {
+    ID           string
+    ImportPath   string
+    ModulePath   string
+    Version      string
+    LocalDir     string
+    ModuleSource GoModuleResolutionSource
+    // existing provider capability fields omitted
+}
+```
+
+This matters because the provider graph will be used by generation, declaration generation, and diagnostics. If the provider graph already contains module origin information, `RenderGoMod`, `gen-dts`, `doctor`, and future `xgoja plan` output do not need to rediscover it.
+
+### Doctor and plan output
+
+`xgoja doctor` should show workspace resolution clearly:
+
+```text
+package github.com/acme/provider/pkg/xgoja/http
+  module: github.com/acme/provider
+  workspace: /home/me/code/provider
+  resolution: go.work
+  status: ok
+```
+
+If no version, replacement, or workspace entry exists, the diagnostic should be actionable:
+
+```text
+package github.com/acme/provider/pkg/xgoja/http
+  module: github.com/acme/provider
+  status: error
+  message: no version, replace, or workspace module found
+  suggestion: add packages[].version, add packages[].replace, or add the module to go.work
+```
+
+Future `xgoja plan --output json` should include the `GoModulePlan` so generated build failures can be diagnosed without inspecting temporary directories first.
+
 ## Build plan and runtime plan
 
 ### Build plan
@@ -606,6 +808,7 @@ type BuildPlan struct {
     RuntimeSpec      app.RuntimeSpec
     ProviderGraph    ProviderGraph
     SourceGraph      SourceGraph
+    GoModules        []GoModulePlan
     Artifacts        []BuildArtifact
     DTSPlan          DeclarationPlan
     GeneratedImports []GeneratedImport
@@ -776,6 +979,15 @@ The provider case is why prebundling generated embedded source is not enough. Pr
 - **Consequences:** Users must select runtime modules or mark explicit externals. Future npm support can add a new resolution kind.
 - **Status:** proposed
 
+### Decision: Derive generated Go replacements from workspace resolution
+
+- **Context:** Generated xgoja builds and DTS sidecars currently need `--xgoja-replace` or `packages[].replace` even when local modules are already listed in `go.work`.
+- **Options considered:** Keep only manual replacements; generate a temporary `go.work`; derive generated `replace` directives from `go.work`; require users to run xgoja from inside an existing workspace.
+- **Decision:** Add a Go workspace resolver that reads `go.work`, maps module paths to local directories, and initially renders those decisions as generated `replace` directives.
+- **Rationale:** Derived replaces integrate with the current generated `go.mod` workflow, work for temp build directories and DTS sidecars, and remain easy to inspect with `--keep-work`.
+- **Consequences:** Generated temporary modules may contain local paths, but this is already true for explicit `replace` and is acceptable for build sidecars. A later output mode can synthesize temporary `go.work` files if needed.
+- **Status:** proposed
+
 ### Decision: Separate source graph from compilation mode
 
 - **Context:** Source discovery and compilation policy are different concerns. A source file can be TypeScript regardless of whether it compiles at build time or runtime.
@@ -833,9 +1045,21 @@ This phase should produce a useful immediate fix:
 
 This proves that the source graph is not only documentation. It removes a real defect.
 
-### Phase 3: Add provider graph
+### Phase 3: Add Go workspace resolver
 
-Build `ProviderGraph` from `BuildSpec.Packages`, selected modules, and `ProviderRegistry` resolution. Centralize module alias validation and TypeScript descriptor lookup.
+Implement a workspace resolver that can discover `go.work`, parse workspace module directories, read local `go.mod` files, and produce `GoModulePlan` entries for xgoja runtime, provider packages, target imports, and extra Go imports. Wire the resolver into generated `go.mod` rendering by deriving `replace` directives when a required module is found in the workspace.
+
+Focused validation should cover:
+
+- `go.work` auto-discovery from the `xgoja.yaml` directory;
+- explicit workspace file paths;
+- precedence of explicit `packages[].replace` and `--xgoja-replace`;
+- provider import path to module path inference;
+- `xgoja build` and `xgoja gen-dts` sidecars using the same module plan.
+
+### Phase 4: Add provider graph
+
+Build `ProviderGraph` from `BuildSpec.Packages`, selected modules, `GoModulePlan`, and `ProviderRegistry` resolution. Centralize module alias validation and TypeScript descriptor lookup.
 
 Move or wrap declaration-generation preparation so `pkg/xgoja/dtsgen` consumes `ProviderGraph` module plans instead of resolving selected modules independently.
 
@@ -847,7 +1071,7 @@ The goal is to make these operations share one alias truth:
 - selected-modules command output;
 - runtime module registration.
 
-### Phase 4: Add build plan and runtime plan
+### Phase 5: Add build plan and runtime plan
 
 Create planning APIs:
 
@@ -865,7 +1089,7 @@ xgoja graph -f xgoja.yaml --sources --imports
 
 These commands are valuable for debugging and for interns learning the system.
 
-### Phase 5: Migrate jsverbs scanning to source graph
+### Phase 6: Migrate jsverbs scanning to source graph
 
 Add a jsverbs scan entry point that accepts sourcegraph files:
 
@@ -875,7 +1099,7 @@ func ScanGraph(graph *sourcegraph.SourceGraph, setID sourcegraph.SourceSetID, op
 
 This should replace direct `ScanDir`/`ScanFS` calls in xgoja app code. Keep `ScanDir` and `ScanFS` as convenience APIs that build small source graphs internally.
 
-### Phase 6: Migrate hot reload to graph inputs
+### Phase 7: Migrate hot reload to graph inputs
 
 Hot reload should watch source graph dependencies, not only source roots and extension lists.
 
@@ -887,7 +1111,7 @@ Initial graph-based watcher behavior:
 
 Keep the blue/green manager unchanged. Only change the way reload triggers are computed.
 
-### Phase 7: Add optional prebundling for embedded TypeScript
+### Phase 8: Add optional prebundling for embedded TypeScript
 
 Once runtime graph compilation works, add build-time prebundling as an optimization.
 
@@ -969,7 +1193,10 @@ type Compiler struct {
 }
 
 func (c *Compiler) Build(buildSpec *buildspec.BuildSpec) (*BuildPlan, error) {
-    providerGraph, err := ResolveProviderGraph(buildSpec, c.Providers)
+    goModules, err := workspace.ResolveGoModules(buildSpec, workspace.Options{Mode: "auto"})
+    if err != nil { return nil, err }
+
+    providerGraph, err := ResolveProviderGraph(buildSpec, c.Providers, goModules)
     if err != nil { return nil, err }
 
     sourceSets, err := DiscoverBuildSourceSets(buildSpec, providerGraph)
@@ -981,7 +1208,7 @@ func (c *Compiler) Build(buildSpec *buildspec.BuildSpec) (*BuildPlan, error) {
     resolver := NewResolver(graph, providerGraph.RuntimeModulesByAlias(), explicitExternals(buildSpec))
     if _, err := sourcegraph.ResolveImports(graph, resolver); err != nil { return nil, err }
 
-    return assembleBuildPlan(buildSpec, providerGraph, graph)
+    return assembleBuildPlan(buildSpec, providerGraph, goModules, graph)
 }
 ```
 
@@ -1005,6 +1232,7 @@ The adapter can initially convert graph files into `jsverbs.SourceFile` values a
 Add unit tests for:
 
 - source set discovery from disk, embedded, and provider specs;
+- Go workspace discovery, go.mod module path reading, and generated replacement precedence;
 - extension probing for `.ts`, `.tsx`, `.js`, `.json`, and index files;
 - path escape rejection for disk and `fs.FS` origins;
 - runtime module alias resolution;
@@ -1021,7 +1249,8 @@ Add integration tests for:
 - provider TypeScript jsverb with helper import;
 - generated binary with selected Go-backed runtime module and TypeScript source import preserved as runtime module;
 - hot reload triggered by helper file edits;
-- declaration generation using the same provider graph aliases used by bundling.
+- declaration generation using the same provider graph aliases used by bundling;
+- generated build and generated DTS sidecar using local provider modules discovered from `go.work` without manual `packages[].replace`.
 
 ### Golden plan tests
 
@@ -1054,6 +1283,10 @@ The graph should start with the concrete jsverbs/TypeScript problem. Do not mode
 
 The provider graph should not replace registration. It should be a resolved view of selected provider registry entries for one build/runtime plan. Provider registration remains the source of provider capabilities.
 
+### Risk: Workspace auto-detection hides release dependency problems
+
+Workspace auto-detection is a local development convenience. CI and release validation still need a mode that ignores local workspaces. Keep `go.workspace.mode: off` and document a release validation command that uses versioned dependencies only. Doctor should report when a build depends on workspace-local modules so users understand whether they are testing local or released dependency graphs.
+
 ### Risk: Runtime plan serialization becomes unstable
 
 The first version can compute runtime plans in Go without embedding a large new JSON schema. Once the plan stabilizes, embed only the fields needed by generated binaries. Keep compatibility with current `RuntimeSpec` until a migration path is clear.
@@ -1071,8 +1304,9 @@ Clear diagnostics are required. If a user imports `express` without selecting th
 The next three tickets should be ordered like this:
 
 1. `XGOJA-TS-002`: implement fs-backed runtime bundling for embedded/provider TypeScript jsverbs. This fixes the active code review issue and introduces the first source-origin metadata.
-2. `XGOJA-ARCH-002`: introduce `sourcegraph` and migrate jsverb source discovery onto it without changing user-facing behavior.
-3. `XGOJA-ARCH-003`: introduce provider graph and centralized runtime module alias resolution, then use it for jsverb TypeScript externals, `xgoja run`, and declaration generation.
+2. `XGOJA-ARCH-002`: implement Go workspace resolution for generated builds and DTS sidecars so local provider modules can come from `go.work` without manual replaces.
+3. `XGOJA-ARCH-003`: introduce `sourcegraph` and migrate jsverb source discovery onto it without changing user-facing behavior.
+4. `XGOJA-ARCH-004`: introduce provider graph and centralized runtime module alias resolution, then use it for jsverb TypeScript externals, `xgoja run`, declaration generation, and workspace-aware generated `go.mod` rendering.
 
 Do not start with build-time prebundling. It is useful, but it is downstream of source graph and resolver work.
 
@@ -1110,6 +1344,8 @@ After reading those files, read this architecture document again. The architectu
 - `cmd/xgoja/internal/generate/main.go:64-115` — runtime spec rendering and embedded path rewriting.
 - `cmd/xgoja/internal/generate/generate.go:78-107` — generated file writing.
 - `cmd/xgoja/internal/generate/generate.go:204-220` — embedded jsverb source copying.
+- `cmd/xgoja/internal/generate/gomod.go:14-76` — current generated `go.mod` require and replace rendering.
+- `cmd/xgoja/internal/generate/gomod.go:98-104` — current relative replacement path resolution.
 - `pkg/xgoja/dtsgen/dtsgen.go:38-83` — current module alias and TypeScript descriptor validation for declarations.
 - `pkg/xgoja/hotreload/manager.go:62-111` — blue/green reload and smoke-test swap behavior.
 - `pkg/xgoja/providers/http/serve.go:126-203` — HTTP hot reload load path and watcher setup.

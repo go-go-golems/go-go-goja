@@ -14,6 +14,8 @@ Owners: []
 RelatedFiles:
     - Path: cmd/xgoja/internal/buildspec/build_spec.go
       Note: Diary Step 1 build-time schema evidence
+    - Path: cmd/xgoja/internal/generate/gomod.go
+      Note: Diary Step 2 workspace resolution evidence and integration target
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
       Note: Step 1 build-time xgoja schema evidence.
     - Path: go-go-goja/cmd/xgoja/internal/generate/generate.go
@@ -43,10 +45,11 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T11:05:00-04:00
+LastUpdated: 2026-06-12T11:45:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 # Diary
@@ -191,3 +194,96 @@ Create  a detailed analysis / design / implementation guide that is for a new in
   - provider graph records what Go packages contribute;
   - build plan records generated artifacts and build-time compilation policy;
   - runtime plan records executable runtime behavior and loader policy.
+
+
+## Step 2: Add Go workspace resolution to the architecture
+
+I updated the architecture design to cover local Go workspace support. This extension treats `go.work` as the Go-module counterpart to the JavaScript/TypeScript source graph: source graph resolution answers where `import "./helper"` comes from, while workspace resolution answers where generated Go imports such as `github.com/acme/provider/pkg/xgoja/http` and `github.com/go-go-golems/go-go-goja/pkg/xgoja/app` come from during generated builds and DTS sidecars.
+
+The design recommends deriving generated `replace` directives from discovered `go.work` modules as the first implementation. That preserves the current temporary generated `go.mod` workflow while eliminating repeated manual `packages[].replace` and `--xgoja-replace` entries during local workspace development.
+
+### Prompt Context
+
+**User prompt (verbatim):** "one thing we want to add as well is the support for workspace, where for example go packages for goja are coming from local workspaces, without having to put manual replaces in the xgoja file, a bit like go.work. 
+
+Can you analyze that in context of the new design as well?"
+
+**Assistant interpretation:** Extend the source graph architecture with a Go workspace/module resolution layer so generated xgoja builds can use local provider modules from `go.work` automatically.
+
+**Inferred user intent:** Avoid duplicating local development replacement paths in every `xgoja.yaml` and make workspace-local Go provider development a first-class planning concern.
+
+**Commit (code):** N/A — documentation update only in this step.
+
+### What I did
+
+- Reviewed current generated Go module rendering:
+  - `cmd/xgoja/internal/generate/gomod.go`
+  - `cmd/xgoja/internal/generate/generate.go`
+  - `cmd/xgoja/internal/buildspec/build_spec.go`
+- Added a `Go workspace resolution` section to the architecture design.
+- Updated the executive summary, terms, problem statement, goals, proposed architecture diagram, package layout, build plan, decision records, implementation phases, tests, risks, recommendations, and references.
+- Added proposed concepts:
+  - `pkg/xgoja/workspace`
+  - `GoModulePlan`
+  - `GoModuleResolutionKind`
+  - `GoModuleResolutionSource`
+  - workspace config under `go.workspace`
+- Recommended first implementation strategy:
+  - discover `go.work`;
+  - map module paths to local directories by reading local `go.mod` files;
+  - apply explicit replacement precedence;
+  - render derived `replace` directives in generated `go.mod` first;
+  - defer temporary generated `go.work` output to a later option.
+
+### Why
+
+- The new architecture should model Go provider module origins, not only JavaScript/TypeScript source origins.
+- xgoja generated builds and `gen-dts` sidecars currently need manual local replacements even when `go.work` already knows the local modules.
+- Workspace resolution belongs in the build/provider graph layer because generated binaries do not need local workspace paths at runtime.
+
+### What worked
+
+- The current `RenderGoMod` implementation has a clear place where workspace-derived replacements can be added.
+- The existing `providerModulePath` helper already performs the necessary import-path-to-module-path inference for provider packages.
+- The architecture could add workspace support without changing the source graph thesis: xgoja now has both a Go provider graph and a JS/TS source graph.
+
+### What didn't work
+
+- No command failed in this step.
+- The current code has no workspace resolver yet; this remains a design update.
+
+### What I learned
+
+- Workspace support should not be stored in `app.RuntimeSpec`. It is a generated-build concern, not runtime behavior.
+- Emitting derived `replace` directives is a better first implementation than synthesizing temporary `go.work` files because it fits the existing generated module workflow and remains easy to inspect with `--keep-work`.
+- Release validation still needs a workspace-off mode so local workspace convenience does not hide missing released versions.
+
+### What was tricky to build
+
+- The precedence rules matter. Explicit `packages[].replace` and `--xgoja-replace` must remain stronger than auto-detected workspace entries. Otherwise a user could not override a stale or undesired workspace mapping.
+- The design needed to keep Go workspace resolution separate from the JS/TS import resolver while showing how they meet at provider module aliases.
+
+### What warrants a second pair of eyes
+
+- Review whether the first schema should be `go.workspace: auto` shorthand only or the fuller `go.workspace.mode/file/include/exclude` object.
+- Review whether derived generated `replace` directives are sufficient for temporary builds or whether a generated `go.work` mode should be implemented at the same time.
+- Review how `GOWORK=off` validation should be documented for release workflows.
+
+### What should be done in the future
+
+- Create an implementation ticket for Go workspace resolution, likely `XGOJA-ARCH-002`.
+- Add doctor output showing module path, workspace path, resolution source, and status.
+- Add plan output that includes `GoModulePlan` entries.
+
+### Code review instructions
+
+- Start with the new `Go workspace resolution` section in the design doc.
+- Compare it to current generated module rendering in `cmd/xgoja/internal/generate/gomod.go`.
+- Verify that workspace support is represented as build-time/provider-graph input, not runtime spec input.
+
+### Technical details
+
+- Current xgoja replacement option: `generate.Options.XGojaReplace`.
+- Current provider replacement field: `buildspec.PackageSpec.Replace`.
+- Current generated module renderer: `cmd/xgoja/internal/generate/gomod.go`.
+- Proposed first output strategy: render workspace-derived `replace` directives in generated `go.mod`.
