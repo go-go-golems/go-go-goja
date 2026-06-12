@@ -161,3 +161,16 @@ Added dedicated Glazed help docs for the Express auth framework and migration fr
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/30-migrate-express-apps-to-planned-auth.md — Migration tutorial
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Diary records documentation validation and next step
 
+
+## 2026-06-12
+
+Added HostOptions.RejectRawRoutes strict mode plus planned route descriptor metadata, with docs/tests (commit 4f42a55).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/29-express-auth-user-guide.md — User guide strict-mode documentation
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/host.go — Strict raw-route runtime enforcement
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/planned_dispatch_test.go — Strict-mode coverage
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/route_registry.go — Route diagnostics metadata
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Diary records Step 14
+

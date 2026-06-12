@@ -24,9 +24,19 @@ RelatedFiles:
         User-facing hard-cutover docs and migration notes (commit 4492723)
         Module reference links to auth guide and migration tutorial (commit de09c15)
     - Path: pkg/doc/29-express-auth-user-guide.md
-      Note: Dedicated Express auth framework help guide (commit de09c15)
+      Note: |-
+        Dedicated Express auth framework help guide (commit de09c15)
+        RejectRawRoutes documented in auth guide (commit 4f42a55)
     - Path: pkg/doc/30-migrate-express-apps-to-planned-auth.md
       Note: Dedicated migration tutorial help entry (commit de09c15)
+    - Path: pkg/gojahttp/host.go
+      Note: Strict raw-route rejection option and dispatch-time enforcement (commit 4f42a55)
+    - Path: pkg/gojahttp/planned_dispatch_test.go
+      Note: Strict raw-route rejection tests (commit 4f42a55)
+    - Path: pkg/gojahttp/route_registry.go
+      Note: Route descriptors now expose planned/security metadata (commit 4f42a55)
+    - Path: pkg/gojahttp/route_registry_test.go
+      Note: Route descriptor metadata tests (commit 4f42a55)
     - Path: ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/design/01-mvp-authentication-api-design-and-implementation-guide.md
       Note: Primary design output produced during Step 1
     - Path: ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/sources/01-auth-preliminary-api-ideas.md
@@ -34,10 +44,11 @@ RelatedFiles:
 ExternalSources:
     - ../sources/01-auth-preliminary-api-ideas.md
 Summary: Chronological diary for the Express authentication design investigation.
-LastUpdated: 2026-06-12T16:03:00-04:00
+LastUpdated: 2026-06-12T16:11:00-04:00
 WhatFor: Use this to resume or review the ticket research and design work.
 WhenToUse: Read before continuing implementation work for XGOJA-EXPRESS-AUTH.
 ---
+
 
 
 
@@ -1385,4 +1396,92 @@ Then make sure all the documentation is updated and write a dedicated glazed hel
 - The migration search used for stale route examples was:
   ```bash
   rg -n 'app\.(get|post|put|patch|delete|all)\([^\n)]*,\s*(async\s*)?\(|app\.(get|post|put|patch|delete|all)\([^\n)]*,\s*[_a-zA-Z(]' --glob '!ttmp/**' . -S
+  ```
+
+
+## Step 14: Add strict raw-route rejection option
+
+I implemented the next hardening step after the Express verb-helper cutover: `gojahttp.HostOptions.RejectRawRoutes`. When enabled, a matched route without a `RoutePlan` is rejected before session creation, request DTO construction, or JavaScript handler execution. Planned routes and static mounts continue to work.
+
+This closes the remaining normal runtime bypass around the planned auth framework for hosts that opt into strict mode. The low-level `Host.Register` method still exists for internal or compatibility callers, but production hosts can now refuse to serve those unplanned routes.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 12)
+
+**Assistant interpretation:** Continue with the previously described next step: implement strict host handling for remaining low-level raw routes.
+
+**Inferred user intent:** Finish the production hardening path so the auth-aware route framework cannot be bypassed by raw route registrations in strict hosts.
+
+**Commit (code):** 4f42a55 — "Add strict raw route rejection option"
+
+### What I did
+- Added `RejectRawRoutes bool` to `gojahttp.HostOptions` and a corresponding `Host` field.
+- Updated `Host.ServeHTTP` to reject matched routes with `route.Plan == nil` when strict mode is enabled.
+- Added a dev-mode diagnostic message that names the rejected method and pattern; production mode returns a generic `raw routes disabled` response.
+- Extended `RouteDescriptor` with `Planned`, `SecurityMode`, `Action`, and `Name` so route diagnostics can distinguish raw routes from planned public/authenticated routes.
+- Added tests that strict mode rejects raw `Host.Register` routes and still serves planned public routes.
+- Updated Express auth docs and migration docs to mention `RejectRawRoutes`.
+- Marked task 52 complete.
+
+### Why
+- Hard-cutting `.get/.post/...` removed the raw route path from the Express module surface, but low-level callers could still register raw routes through `Host.Register`.
+- A host-level strict option makes the boundary enforceable at runtime for production deployments.
+- Route descriptors now expose enough metadata for audits and diagnostics to find remaining raw routes before enabling strict mode.
+
+### What worked
+- Targeted tests passed:
+  - `go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1`
+- Full suite passed with VCS stamping disabled:
+  - `GOFLAGS=-buildvcs=false go test ./... -count=1`
+- Help pages rendered with the new `RejectRawRoutes` guidance:
+  - `go run ./cmd/goja-repl help express-auth-user-guide`
+  - `go run ./cmd/goja-repl help migrate-express-apps-to-planned-auth`
+- The commit pre-hook passed lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+- N/A. This implementation/validation pass did not hit new failures.
+
+### What I learned
+- Rejecting raw routes at request time is a low-disruption strict mode because it does not change `Host.Register`'s existing void signature or break internal tests that still intentionally use raw registration.
+- Rejecting before session creation avoids issuing cookies or doing request body work for a route the host will refuse to serve.
+- Exposing planned metadata in route descriptors gives a safer migration path: hosts can inspect `Routes()` before enabling `RejectRawRoutes`.
+
+### What was tricky to build
+- The main tradeoff was whether to reject raw routes at registration time or dispatch time. Registration-time rejection would require changing `Host.Register` to return an error or panic, which would be a larger API break. Dispatch-time rejection preserves compatibility while still giving strict hosts a fail-closed serving behavior.
+- The second subtlety was static mounts. They are not route registry entries and should not be treated as raw route bypasses; `ServeHTTP` still checks static mounts before registry matching, so static serving remains unchanged.
+
+### What warrants a second pair of eyes
+- Review whether `RejectRawRoutes` should eventually become the default for generated HTTP binaries or production configs.
+- Review whether the generic production response should remain HTTP 500 or become a more explicit deployment-policy status.
+- Review whether `RouteDescriptor` should expose resource names as well as action/security mode for audits.
+
+### What should be done in the future
+- Add `.body(...)` with a Go-owned schema registry and validator.
+- Add `.csrf()` for unsafe cookie-authenticated browser routes.
+- Add `.audit(...)` for structured Go-owned audit emission.
+
+### Code review instructions
+- Start with `pkg/gojahttp/host.go`, especially `HostOptions`, `NewHost`, and the raw-route rejection branch in `ServeHTTP`.
+- Review `pkg/gojahttp/route_registry.go` for the expanded route descriptor fields.
+- Review `pkg/gojahttp/planned_dispatch_test.go` and `pkg/gojahttp/route_registry_test.go` for strict-mode and descriptor coverage.
+- Validate with:
+  - `go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1`
+  - `GOFLAGS=-buildvcs=false go test ./... -count=1`
+
+### Technical details
+- Strict host setup:
+  ```go
+  host := gojahttp.NewHost(gojahttp.HostOptions{
+      RejectRawRoutes: true,
+      Auth: gojahttp.AuthOptions{
+          Authenticator: myAuthenticator,
+          Resources:     myResourceResolver,
+          Authorizer:    myAuthorizer,
+      },
+  })
+  ```
+- Rejected dev-mode response body includes:
+  ```text
+  raw route GET /raw rejected: register a planned route with .public() or auth
   ```
