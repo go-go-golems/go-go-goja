@@ -14,7 +14,7 @@
 - [x] Add JS-facing built-message methods: `typeName`, `toJSON()`, `clone()`, and `equals(other)`
 - [x] Add focused tests for hidden refs, cloning semantics, JSON output, equality, and non-enumerability
 - [x] Run `go test ./pkg/protogoja -count=1`
-- [ ] Commit Phase 1 runtime foundation
+- [x] Commit Phase 1 runtime foundation
 
 ## Phase 2 — Builder runtime conversion helpers
 
