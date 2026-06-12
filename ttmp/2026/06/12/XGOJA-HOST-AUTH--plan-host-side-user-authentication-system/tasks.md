@@ -75,16 +75,16 @@ Goal: provide app-owned user, tenant, membership, resource, and action contracts
 
 Goal: add reusable helpers for persistent audit records and narrow capability-token workflows.
 
-- [ ] Create `pkg/gojahttp/auth/audit` package.
-- [ ] Map `gojahttp.AuditEvent` into a normalized record shape.
-- [ ] Implement memory/log audit sinks.
-- [ ] Define an adapter interface for SQL/persistent audit sinks without forcing a DB library.
-- [ ] Add audit redaction tests ensuring tokens/session IDs/capability secrets are not logged.
-- [ ] Create `pkg/gojahttp/auth/capability` package.
-- [ ] Define capability token model with purpose, subject/resource, claims, expiry, single-use, revocation, and hashed token storage.
-- [ ] Implement issue, redeem, revoke, and atomic single-use semantics.
-- [ ] Add tests for expiry, wrong purpose, revocation, double redemption, token hashing, and audit hooks.
-- [ ] Implement one concrete example flow, preferably organization invite acceptance.
+- [x] Create `pkg/gojahttp/auth/audit` package.
+- [x] Map `gojahttp.AuditEvent` into a normalized record shape.
+- [x] Implement memory/log audit sinks.
+- [x] Define an adapter interface for SQL/persistent audit sinks without forcing a DB library.
+- [x] Add audit redaction tests ensuring tokens/session IDs/capability secrets are not logged.
+- [x] Create `pkg/gojahttp/auth/capability` package.
+- [x] Define capability token model with purpose, subject/resource, claims, expiry, single-use, revocation, and hashed token storage.
+- [x] Implement issue, redeem, revoke, and atomic single-use semantics.
+- [x] Add tests for expiry, wrong purpose, revocation, double redemption, token hashing, and audit hooks.
+- [x] Implement one concrete example flow, preferably organization invite acceptance.
 
 ## Phase 6 — Production example, docs, and handoff
 
