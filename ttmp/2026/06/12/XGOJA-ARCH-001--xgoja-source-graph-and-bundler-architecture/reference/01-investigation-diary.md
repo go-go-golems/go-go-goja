@@ -1718,7 +1718,7 @@ Because the standalone xgoja CLI cannot dynamically import arbitrary provider pa
 
 **Inferred user intent:** Keep implementing the v2 migration/cutover tasks without stopping for confirmation.
 
-**Commit (code):** pending — v2 doctor planner wiring staged after this diary update.
+**Commit (code):** 309d8e92c29ebff3435b46996a96023d01330013 — "xgoja: route v2 specs through doctor planner"
 
 ### What I did
 
