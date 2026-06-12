@@ -5,10 +5,18 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/dop251/goja"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const hiddenBuilderRefKey = "__go_go_goja_proto_builder_ref"
@@ -453,12 +461,12 @@ func valueForField(vm *goja.Runtime, field protoreflect.FieldDescriptor, value g
 		}
 		return protoreflect.ValueOfBytes(bytes), nil
 	case protoreflect.MessageKind, protoreflect.GroupKind:
-		msg, ok := messageForMessageField(value)
-		if !ok {
-			return protoreflect.Value{}, expectedFieldError(field, string(field.Message().FullName())+" ProtoMessage or builder", value)
+		msg, ok, err := messageForMessageField(vm, field, value)
+		if err != nil {
+			return protoreflect.Value{}, err
 		}
-		if msg.ProtoReflect().Descriptor().FullName() != field.Message().FullName() {
-			return protoreflect.Value{}, fmt.Errorf("protogoja: %s expected %s ProtoMessage or builder, got %s", field.FullName(), field.Message().FullName(), msg.ProtoReflect().Descriptor().FullName())
+		if !ok {
+			return protoreflect.Value{}, expectedFieldError(field, messageFieldExpectation(field), value)
 		}
 		return protoreflect.ValueOfMessage(msg.ProtoReflect()), nil
 	default:
@@ -466,16 +474,266 @@ func valueForField(vm *goja.Runtime, field protoreflect.FieldDescriptor, value g
 	}
 }
 
-func messageForMessageField(value goja.Value) (proto.Message, bool) {
+func messageFieldExpectation(field protoreflect.FieldDescriptor) string {
+	name := string(field.Message().FullName())
+	switch field.Message().FullName() {
+	case "google.protobuf.Struct":
+		return name + " ProtoMessage, builder, or plain object"
+	case "google.protobuf.Value":
+		return name + " ProtoMessage, builder, or JSON value"
+	case "google.protobuf.ListValue":
+		return name + " ProtoMessage, builder, or array"
+	case "google.protobuf.Timestamp":
+		return name + " ProtoMessage, builder, RFC3339 string, or Date"
+	case "google.protobuf.Duration":
+		return name + " ProtoMessage, builder, or duration string"
+	case "google.protobuf.Any":
+		return name + " ProtoMessage, builder, or message to wrap"
+	case "google.protobuf.FieldMask":
+		return name + " ProtoMessage, builder, comma-separated string, or string array"
+	default:
+		if isWrapperType(field.Message().FullName()) {
+			return name + " ProtoMessage, builder, or wrapped scalar"
+		}
+		return name + " ProtoMessage or builder"
+	}
+}
+
+func messageForMessageField(vm *goja.Runtime, field protoreflect.FieldDescriptor, value goja.Value) (proto.Message, bool, error) {
 	if msg, ok := MessageFromValue(value); ok {
-		return msg, true
+		return messageForDescriptor(field, msg)
 	}
-	builder, ok := BuilderRefFromValue(value)
+	if builder, ok := BuilderRefFromValue(value); ok {
+		msg := builder.Build()
+		if msg == nil {
+			return nil, false, nil
+		}
+		return messageForDescriptor(field, msg)
+	}
+	msg, ok, err := wellKnownMessageForField(vm, field, value)
+	if err != nil || ok {
+		return msg, ok, err
+	}
+	return nil, false, nil
+}
+
+func messageForDescriptor(field protoreflect.FieldDescriptor, msg proto.Message) (proto.Message, bool, error) {
+	if msg.ProtoReflect().Descriptor().FullName() == field.Message().FullName() {
+		return msg, true, nil
+	}
+	if field.Message().FullName() == "google.protobuf.Any" {
+		wrapped, err := anypb.New(msg)
+		if err != nil {
+			return nil, false, fmt.Errorf("protogoja: %s wrap Any: %w", field.FullName(), err)
+		}
+		return wrapped, true, nil
+	}
+	return nil, false, fmt.Errorf("protogoja: %s expected %s ProtoMessage or builder, got %s", field.FullName(), field.Message().FullName(), msg.ProtoReflect().Descriptor().FullName())
+}
+
+func wellKnownMessageForField(vm *goja.Runtime, field protoreflect.FieldDescriptor, value goja.Value) (proto.Message, bool, error) {
+	switch field.Message().FullName() {
+	case "google.protobuf.Timestamp":
+		msg, err := timestampFromValue(field, value)
+		return msg, true, err
+	case "google.protobuf.Duration":
+		msg, err := durationFromValue(field, value)
+		return msg, true, err
+	case "google.protobuf.Struct":
+		msg, err := structFromValue(field, value)
+		return msg, true, err
+	case "google.protobuf.Value":
+		msg, err := structpb.NewValue(value.Export())
+		if err != nil {
+			return nil, true, fmt.Errorf("protogoja: %s convert Value: %w", field.FullName(), err)
+		}
+		return msg, true, nil
+	case "google.protobuf.ListValue":
+		msg, err := listValueFromValue(vm, field, value)
+		return msg, true, err
+	case "google.protobuf.FieldMask":
+		msg, err := fieldMaskFromValue(vm, field, value)
+		return msg, true, err
+	default:
+		if isWrapperType(field.Message().FullName()) {
+			msg, err := wrapperFromValue(field, value)
+			return msg, true, err
+		}
+		return nil, false, nil
+	}
+}
+
+func timestampFromValue(field protoreflect.FieldDescriptor, value goja.Value) (*timestamppb.Timestamp, error) {
+	switch v := value.Export().(type) {
+	case time.Time:
+		return timestamppb.New(v), nil
+	case string:
+		parsed, err := time.Parse(time.RFC3339Nano, v)
+		if err != nil {
+			return nil, fmt.Errorf("protogoja: %s parse timestamp %q: %w", field.FullName(), v, err)
+		}
+		return timestamppb.New(parsed), nil
+	default:
+		return nil, expectedFieldError(field, "RFC3339 timestamp string or Date", value)
+	}
+}
+
+func durationFromValue(field protoreflect.FieldDescriptor, value goja.Value) (*durationpb.Duration, error) {
+	v, ok := value.Export().(string)
 	if !ok {
-		return nil, false
+		return nil, expectedFieldError(field, "duration string", value)
 	}
-	msg := builder.Build()
-	return msg, msg != nil
+	parsed, err := time.ParseDuration(v)
+	if err != nil {
+		return nil, fmt.Errorf("protogoja: %s parse duration %q: %w", field.FullName(), v, err)
+	}
+	return durationpb.New(parsed), nil
+}
+
+func structFromValue(field protoreflect.FieldDescriptor, value goja.Value) (*structpb.Struct, error) {
+	raw, ok := value.Export().(map[string]interface{})
+	if !ok {
+		return nil, expectedFieldError(field, "plain object", value)
+	}
+	msg, err := structpb.NewStruct(raw)
+	if err != nil {
+		return nil, fmt.Errorf("protogoja: %s convert Struct: %w", field.FullName(), err)
+	}
+	return msg, nil
+}
+
+func listValueFromValue(vm *goja.Runtime, field protoreflect.FieldDescriptor, value goja.Value) (*structpb.ListValue, error) {
+	items, err := arrayElements(vm, field.FullName(), value)
+	if err != nil {
+		return nil, err
+	}
+	out := &structpb.ListValue{Values: make([]*structpb.Value, 0, len(items))}
+	for i, item := range items {
+		converted, err := structpb.NewValue(item.Export())
+		if err != nil {
+			return nil, fmt.Errorf("protogoja: %s[%d]: convert Value: %w", field.FullName(), i, err)
+		}
+		out.Values = append(out.Values, converted)
+	}
+	return out, nil
+}
+
+func fieldMaskFromValue(vm *goja.Runtime, field protoreflect.FieldDescriptor, value goja.Value) (*fieldmaskpb.FieldMask, error) {
+	if v, ok := value.Export().(string); ok {
+		return &fieldmaskpb.FieldMask{Paths: splitFieldMask(v)}, nil
+	}
+	items, err := arrayElements(vm, field.FullName(), value)
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, 0, len(items))
+	for i, item := range items {
+		path, ok := item.Export().(string)
+		if !ok {
+			return nil, fmt.Errorf("protogoja: %s[%d]: expected string, got %T", field.FullName(), i, item.Export())
+		}
+		paths = append(paths, path)
+	}
+	return &fieldmaskpb.FieldMask{Paths: paths}, nil
+}
+
+func splitFieldMask(value string) []string {
+	if value == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+func isWrapperType(name protoreflect.FullName) bool {
+	switch name {
+	case "google.protobuf.BoolValue",
+		"google.protobuf.Int32Value",
+		"google.protobuf.Int64Value",
+		"google.protobuf.UInt32Value",
+		"google.protobuf.UInt64Value",
+		"google.protobuf.FloatValue",
+		"google.protobuf.DoubleValue",
+		"google.protobuf.StringValue",
+		"google.protobuf.BytesValue":
+		return true
+	default:
+		return false
+	}
+}
+
+func wrapperFromValue(field protoreflect.FieldDescriptor, value goja.Value) (proto.Message, error) {
+	switch field.Message().FullName() {
+	case "google.protobuf.BoolValue":
+		v, ok := value.Export().(bool)
+		if !ok {
+			return nil, expectedFieldError(field, "boolean", value)
+		}
+		return wrapperspb.Bool(v), nil
+	case "google.protobuf.Int32Value":
+		v, err := int64ForField(field, value)
+		if err != nil {
+			return nil, err
+		}
+		if v < math.MinInt32 || v > math.MaxInt32 {
+			return nil, fmt.Errorf("protogoja: %s value %d outside int32 range", field.FullName(), v)
+		}
+		return wrapperspb.Int32(int32(v)), nil
+	case "google.protobuf.Int64Value":
+		v, err := int64ForField(field, value)
+		if err != nil {
+			return nil, err
+		}
+		return wrapperspb.Int64(v), nil
+	case "google.protobuf.UInt32Value":
+		v, err := uint64ForField(field, value)
+		if err != nil {
+			return nil, err
+		}
+		if v > math.MaxUint32 {
+			return nil, fmt.Errorf("protogoja: %s value %d outside uint32 range", field.FullName(), v)
+		}
+		return wrapperspb.UInt32(uint32(v)), nil
+	case "google.protobuf.UInt64Value":
+		v, err := uint64ForField(field, value)
+		if err != nil {
+			return nil, err
+		}
+		return wrapperspb.UInt64(v), nil
+	case "google.protobuf.FloatValue":
+		v, err := float64ForField(field, value)
+		if err != nil {
+			return nil, err
+		}
+		return wrapperspb.Float(float32(v)), nil
+	case "google.protobuf.DoubleValue":
+		v, err := float64ForField(field, value)
+		if err != nil {
+			return nil, err
+		}
+		return wrapperspb.Double(v), nil
+	case "google.protobuf.StringValue":
+		v, ok := value.Export().(string)
+		if !ok {
+			return nil, expectedFieldError(field, "string", value)
+		}
+		return wrapperspb.String(v), nil
+	case "google.protobuf.BytesValue":
+		bytes, err := bytesForField(field, value)
+		if err != nil {
+			return nil, err
+		}
+		return wrapperspb.Bytes(bytes), nil
+	default:
+		return nil, fmt.Errorf("protogoja: %s unsupported wrapper type %s", field.FullName(), field.Message().FullName())
+	}
 }
 
 func mapKeyForField(vm *goja.Runtime, field protoreflect.FieldDescriptor, value goja.Value) (protoreflect.MapKey, error) {

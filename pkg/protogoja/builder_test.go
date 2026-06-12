@@ -9,8 +9,15 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestBuilderRefSetBuildCloneAndClear(t *testing.T) {
@@ -132,6 +139,52 @@ func TestBuilderRefMapSetFailureDoesNotClearExistingEntries(t *testing.T) {
 	require.ErrorContains(t, err, `labels["bad"]`)
 	require.ErrorContains(t, err, "expected integer")
 	require.Equal(t, map[string]int64{"existing": 7}, dynamicStringInt64Map(t, builder.Build(), field))
+}
+
+func TestBuilderRefWellKnownTypeConversions(t *testing.T) {
+	vm := goja.New()
+	builder, fields := newDynamicWKTBuilder(t)
+
+	require.NoError(t, builder.Set(vm, fields["timestamp"], vm.ToValue("2026-06-12T16:00:00Z")))
+	require.NoError(t, builder.Set(vm, fields["duration"], vm.ToValue("1h2m3s")))
+	_, err := vm.RunString(`
+		globalThis.timestampDate = new Date("2026-06-12T16:00:00Z");
+		globalThis.structInput = { enabled: true, count: 3, nested: { name: "demo" } };
+		globalThis.valueInput = { labels: ["a", "b"] };
+		globalThis.listInput = [1, "two", false];
+	`)
+	require.NoError(t, err)
+	require.NoError(t, builder.Set(vm, fields["timestamp"], vm.Get("timestampDate")))
+	require.NoError(t, err)
+	require.NoError(t, builder.Set(vm, fields["struct"], vm.Get("structInput")))
+	require.NoError(t, builder.Set(vm, fields["value"], vm.Get("valueInput")))
+	require.NoError(t, builder.Set(vm, fields["list"], vm.Get("listInput")))
+	require.NoError(t, builder.Set(vm, fields["string_wrapper"], vm.ToValue("wrapped")))
+	require.NoError(t, builder.Set(vm, fields["field_mask"], vm.ToValue("module_name,version")))
+
+	manifestValue, err := ToValue(vm, &contract.ModuleManifest{ModuleName: "wrapped-any"})
+	require.NoError(t, err)
+	require.NoError(t, builder.Set(vm, fields["any"], manifestValue))
+
+	built := builder.Build().ProtoReflect()
+	timestamp := knownField(t, built, fields["timestamp"], &timestamppb.Timestamp{})
+	duration := knownField(t, built, fields["duration"], &durationpb.Duration{})
+	stringWrapper := knownField(t, built, fields["string_wrapper"], &wrapperspb.StringValue{})
+	fieldMask := knownField(t, built, fields["field_mask"], &fieldmaskpb.FieldMask{})
+	structValue := knownField(t, built, fields["struct"], &structpb.Struct{})
+	listValue := knownField(t, built, fields["list"], &structpb.ListValue{})
+	value := knownField(t, built, fields["value"], &structpb.Value{})
+	anyValue := knownField(t, built, fields["any"], &anypb.Any{})
+
+	require.Equal(t, "2026-06-12T16:00:00Z", timestamp.AsTime().UTC().Format("2006-01-02T15:04:05Z"))
+	require.Equal(t, int64(3723), duration.GetSeconds())
+	require.Equal(t, int32(0), duration.GetNanos())
+	require.Equal(t, "wrapped", stringWrapper.GetValue())
+	require.Equal(t, []string{"module_name", "version"}, fieldMask.GetPaths())
+	require.Equal(t, true, structValue.Fields["enabled"].GetBoolValue())
+	require.Len(t, listValue.Values, 3)
+	require.Contains(t, value.GetStructValue().Fields, "labels")
+	require.Equal(t, "type.googleapis.com/hashiplugin.contract.v1.ModuleManifest", anyValue.GetTypeUrl())
 }
 
 func TestBuilderRefFieldPathRichErrors(t *testing.T) {
@@ -370,6 +423,71 @@ func dynamicStringInt64Map(t *testing.T, msg proto.Message, field protoreflect.F
 		return true
 	})
 	return out
+}
+
+func knownField[M proto.Message](t *testing.T, msg protoreflect.Message, field protoreflect.FieldDescriptor, target M) M {
+	t.Helper()
+	encoded, err := proto.Marshal(msg.Get(field).Message().Interface())
+	require.NoError(t, err)
+	require.NoError(t, proto.Unmarshal(encoded, target))
+	return target
+}
+
+func newDynamicWKTBuilder(t *testing.T) (*BuilderRef, map[string]protoreflect.FieldDescriptor) {
+	t.Helper()
+	labelOptional := descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL
+	typeMessage := descriptorpb.FieldDescriptorProto_TYPE_MESSAGE
+	fields := []*descriptorpb.FieldDescriptorProto{
+		wktField("timestamp", 1, ".google.protobuf.Timestamp", &labelOptional, &typeMessage),
+		wktField("duration", 2, ".google.protobuf.Duration", &labelOptional, &typeMessage),
+		wktField("any", 3, ".google.protobuf.Any", &labelOptional, &typeMessage),
+		wktField("struct", 4, ".google.protobuf.Struct", &labelOptional, &typeMessage),
+		wktField("value", 5, ".google.protobuf.Value", &labelOptional, &typeMessage),
+		wktField("list", 6, ".google.protobuf.ListValue", &labelOptional, &typeMessage),
+		wktField("string_wrapper", 7, ".google.protobuf.StringValue", &labelOptional, &typeMessage),
+		wktField("field_mask", 8, ".google.protobuf.FieldMask", &labelOptional, &typeMessage),
+	}
+	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
+		Syntax:  proto.String("proto3"),
+		Name:    proto.String("protogoja_wkt_test.proto"),
+		Package: proto.String("protogoja.test"),
+		Dependency: []string{
+			"google/protobuf/any.proto",
+			"google/protobuf/duration.proto",
+			"google/protobuf/field_mask.proto",
+			"google/protobuf/struct.proto",
+			"google/protobuf/timestamp.proto",
+			"google/protobuf/wrappers.proto",
+		},
+		MessageType: []*descriptorpb.DescriptorProto{
+			{
+				Name:  proto.String("WKTMessage"),
+				Field: fields,
+			},
+		},
+	}, protoregistry.GlobalFiles)
+	require.NoError(t, err)
+
+	messageDesc := file.Messages().ByName("WKTMessage")
+	builder, err := NewBuilder(dynamicpb.NewMessage(messageDesc))
+	require.NoError(t, err)
+	out := map[string]protoreflect.FieldDescriptor{}
+	for i := 0; i < messageDesc.Fields().Len(); i++ {
+		field := messageDesc.Fields().Get(i)
+		out[string(field.Name())] = field
+	}
+	return builder, out
+}
+
+func wktField(name string, number int32, typeName string, label *descriptorpb.FieldDescriptorProto_Label, fieldType *descriptorpb.FieldDescriptorProto_Type) *descriptorpb.FieldDescriptorProto {
+	return &descriptorpb.FieldDescriptorProto{
+		Name:     proto.String(name),
+		JsonName: proto.String(name),
+		Number:   proto.Int32(number),
+		Label:    label,
+		Type:     fieldType,
+		TypeName: proto.String(typeName),
+	}
 }
 
 func newDynamicOptionalBuilder(t *testing.T) (*BuilderRef, protoreflect.FieldDescriptor, protoreflect.FieldDescriptor) {
