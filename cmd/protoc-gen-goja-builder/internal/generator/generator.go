@@ -16,6 +16,8 @@ var (
 	gojaObjectIdent                      = protogen.GoIdent{GoName: "Object", GoImportPath: "github.com/dop251/goja"}
 	gojaRuntimeIdent                     = protogen.GoIdent{GoName: "Runtime", GoImportPath: "github.com/dop251/goja"}
 	gojaValueIdent                       = protogen.GoIdent{GoName: "Value", GoImportPath: "github.com/dop251/goja"}
+	modulesNativeModuleIdent             = protogen.GoIdent{GoName: "NativeModule", GoImportPath: "github.com/go-go-golems/go-go-goja/modules"}
+	protoMessageIdent                    = protogen.GoIdent{GoName: "Message", GoImportPath: "google.golang.org/protobuf/proto"}
 	protogojaAttachBuilderRefIdent       = protogen.GoIdent{GoName: "AttachBuilderRef", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
 	protogojaAttachMessagePrototypeIdent = protogen.GoIdent{GoName: "AttachMessagePrototype", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
 	protogojaBuilderRefIdent             = protogen.GoIdent{GoName: "BuilderRef", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
@@ -23,6 +25,8 @@ var (
 	protogojaMessageFromValueIdent       = protogen.GoIdent{GoName: "MessageFromValue", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
 	protogojaNewBuilderIdent             = protogen.GoIdent{GoName: "NewBuilder", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
 	protogojaToValueIdent                = protogen.GoIdent{GoName: "ToValue", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	requireModuleLoaderIdent             = protogen.GoIdent{GoName: "ModuleLoader", GoImportPath: "github.com/dop251/goja_nodejs/require"}
+	requireRegistryIdent                 = protogen.GoIdent{GoName: "Registry", GoImportPath: "github.com/dop251/goja_nodejs/require"}
 	tsgenSpecModuleIdent                 = protogen.GoIdent{GoName: "Module", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"}
 )
 
@@ -85,6 +89,7 @@ func generateFile(plugin *protogen.Plugin, file *protogen.File, opts Options) {
 	g.P("\t\t},")
 	g.P("\t}")
 	g.P("}")
+	emitHostIntegration(g, file, ident)
 	for _, enum := range file.Enums {
 		emitEnumAPI(g, enum)
 	}
@@ -198,6 +203,103 @@ func emitMessageName(g *protogen.GeneratedFile, msg *protogen.Message) {
 	for _, nested := range msg.Messages {
 		emitMessageName(g, nested)
 	}
+}
+
+func emitHostIntegration(g *protogen.GeneratedFile, file *protogen.File, ident string) {
+	moduleStructName := "gojaBuilderFile" + ident + "Module"
+	g.P()
+	g.P("// NewGojaBuilderFile", ident, "Loader returns a CommonJS module loader for this generated protobuf builder companion file.")
+	g.P("func NewGojaBuilderFile", ident, "Loader(moduleName string) ", g.QualifiedGoIdent(requireModuleLoaderIdent), " {")
+	g.P("\treturn func(vm *", g.QualifiedGoIdent(gojaRuntimeIdent), ", moduleObj *", g.QualifiedGoIdent(gojaObjectIdent), ") {")
+	g.P("\t\texports := moduleObj.Get(\"exports\").ToObject(vm)")
+	for _, enum := range allEnums(file) {
+		name := enum.GoIdent.GoName
+		g.P("\t\t", lowerFirst(name), ", err := New", name, "GojaEnum(vm)")
+		g.P("\t\tif err != nil {")
+		g.P("\t\t\tpanic(vm.NewGoError(err))")
+		g.P("\t\t}")
+		g.P("\t\tif err := exports.Set(", quoted(name), ", ", lowerFirst(name), "); err != nil {")
+		g.P("\t\t\tpanic(vm.NewGoError(err))")
+		g.P("\t\t}")
+	}
+	for _, msg := range allMessages(file) {
+		name := msg.GoIdent.GoName
+		g.P("\t\t", lowerFirst(name), ", err := New", name, "GojaNamespace(vm)")
+		g.P("\t\tif err != nil {")
+		g.P("\t\t\tpanic(vm.NewGoError(err))")
+		g.P("\t\t}")
+		g.P("\t\tif err := exports.Set(", quoted(name), ", ", lowerFirst(name), "); err != nil {")
+		g.P("\t\t\tpanic(vm.NewGoError(err))")
+		g.P("\t\t}")
+	}
+	g.P("\t}")
+	g.P("}")
+	g.P()
+	g.P("// RegisterGojaBuilderFile", ident, "Module registers this generated protobuf builder module in a goja require registry.")
+	g.P("func RegisterGojaBuilderFile", ident, "Module(reg *", g.QualifiedGoIdent(requireRegistryIdent), ", moduleName string) error {")
+	g.P("\tif reg == nil {")
+	g.P("\t\treturn ", g.QualifiedGoIdent(errorsNewIdent), "(\"protogoja: nil require registry\")")
+	g.P("\t}")
+	g.P("\tif moduleName == \"\" {")
+	g.P("\t\tmoduleName = GojaBuilderFile", ident, "ModuleName()")
+	g.P("\t}")
+	g.P("\treg.RegisterNativeModule(moduleName, NewGojaBuilderFile", ident, "Loader(moduleName))")
+	g.P("\treturn nil")
+	g.P("}")
+	g.P()
+	g.P("// GojaBuilderFile", ident, "Module returns a modules.NativeModule wrapper for this generated protobuf builder module.")
+	g.P("func GojaBuilderFile", ident, "Module(moduleName string) ", g.QualifiedGoIdent(modulesNativeModuleIdent), " {")
+	g.P("\tif moduleName == \"\" {")
+	g.P("\t\tmoduleName = GojaBuilderFile", ident, "ModuleName()")
+	g.P("\t}")
+	g.P("\treturn &", moduleStructName, "{name: moduleName}")
+	g.P("}")
+	g.P()
+	g.P("type ", moduleStructName, " struct { name string }")
+	g.P("func (m *", moduleStructName, ") Name() string { return m.name }")
+	g.P("func (m *", moduleStructName, ") Doc() string { return \"Generated protobuf Goja builder module for ", file.Desc.Package(), "\" }")
+	g.P("func (m *", moduleStructName, ") Loader(vm *", g.QualifiedGoIdent(gojaRuntimeIdent), ", moduleObj *", g.QualifiedGoIdent(gojaObjectIdent), ") { NewGojaBuilderFile", ident, "Loader(m.name)(vm, moduleObj) }")
+	g.P("func (m *", moduleStructName, ") TypeScriptModule() *", g.QualifiedGoIdent(tsgenSpecModuleIdent), " { return GojaBuilderFile", ident, "TypeScriptModule(m.name) }")
+	g.P()
+	g.P("// RegisterGojaBuilderFile", ident, "MessageTypes calls register for every message type exported by this generated builder companion file.")
+	g.P("func RegisterGojaBuilderFile", ident, "MessageTypes(register func(string, ", g.QualifiedGoIdent(protoMessageIdent), ") error) error {")
+	g.P("\tif register == nil {")
+	g.P("\t\treturn ", g.QualifiedGoIdent(errorsNewIdent), "(\"protogoja: nil message type register function\")")
+	g.P("\t}")
+	for _, msg := range allMessages(file) {
+		g.P("\tif err := register(", quoted(string(msg.Desc.FullName())), ", &", g.QualifiedGoIdent(msg.GoIdent), "{}); err != nil {")
+		g.P("\t\treturn err")
+		g.P("\t}")
+	}
+	g.P("\treturn nil")
+	g.P("}")
+}
+
+func allMessages(file *protogen.File) []*protogen.Message {
+	var out []*protogen.Message
+	var visit func(messages []*protogen.Message)
+	visit = func(messages []*protogen.Message) {
+		for _, msg := range messages {
+			out = append(out, msg)
+			visit(msg.Messages)
+		}
+	}
+	visit(file.Messages)
+	return out
+}
+
+func allEnums(file *protogen.File) []*protogen.Enum {
+	var out []*protogen.Enum
+	out = append(out, file.Enums...)
+	var visit func(messages []*protogen.Message)
+	visit = func(messages []*protogen.Message) {
+		for _, msg := range messages {
+			out = append(out, msg.Enums...)
+			visit(msg.Messages)
+		}
+	}
+	visit(file.Messages)
+	return out
 }
 
 func emitEnumAPI(g *protogen.GeneratedFile, enum *protogen.Enum) {
@@ -389,6 +491,15 @@ func fileIdentifier(path string) string {
 		return "Proto"
 	}
 	return b.String()
+}
+
+func lowerFirst(s string) string {
+	if s == "" {
+		return "value"
+	}
+	runes := []rune(s)
+	runes[0] = unicode.ToLower(runes[0])
+	return string(runes)
 }
 
 func exportName(s string) string {

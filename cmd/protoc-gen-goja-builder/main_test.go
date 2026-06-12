@@ -125,12 +125,50 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
+	"google.golang.org/protobuf/proto"
 	"github.com/go-go-golems/go-go-goja/pkg/protogoja"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/render"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
+
+func TestGeneratedHostIntegrationHelpers(t *testing.T) {
+	vm := goja.New()
+	moduleObj := vm.NewObject()
+	exports := vm.NewObject()
+	if err := moduleObj.Set("exports", exports); err != nil {
+		t.Fatalf("set exports: %v", err)
+	}
+	loader := NewGojaBuilderFileJsmoduleProtoLoader("")
+	loader(vm, moduleObj)
+	if exports.Get("ModuleManifest") == nil || goja.IsUndefined(exports.Get("ModuleManifest")) {
+		t.Fatalf("loader did not export ModuleManifest")
+	}
+	if exports.Get("ExportKind") == nil || goja.IsUndefined(exports.Get("ExportKind")) {
+		t.Fatalf("loader did not export ExportKind")
+	}
+
+	mod := GojaBuilderFileJsmoduleProtoModule("")
+	if mod.Name() != "hashiplugin.contract.v1" {
+		t.Fatalf("module name = %q", mod.Name())
+	}
+	type tsDeclarer interface { TypeScriptModule() *spec.Module }
+	if _, ok := mod.(tsDeclarer); !ok {
+		t.Fatalf("generated module does not expose TypeScriptModule")
+	}
+
+	seen := map[string]proto.Message{}
+	if err := RegisterGojaBuilderFileJsmoduleProtoMessageTypes(func(name string, msg proto.Message) error {
+		seen[name] = msg
+		return nil
+	}); err != nil {
+		t.Fatalf("register message types: %v", err)
+	}
+	if _, ok := seen["hashiplugin.contract.v1.ModuleManifest"].(*ModuleManifest); !ok {
+		t.Fatalf("ModuleManifest type not registered: %T", seen["hashiplugin.contract.v1.ModuleManifest"])
+	}
+}
 
 func TestGeneratedTypeScriptModuleRenders(t *testing.T) {
 	module := GojaBuilderFileJsmoduleProtoTypeScriptModule("hashiplugin.contract.v1")

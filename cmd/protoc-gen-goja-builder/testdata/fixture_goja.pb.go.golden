@@ -6,8 +6,11 @@ package fixturev1
 import (
 	errors "errors"
 	goja "github.com/dop251/goja"
+	require "github.com/dop251/goja_nodejs/require"
+	modules "github.com/go-go-golems/go-go-goja/modules"
 	protogoja "github.com/go-go-golems/go-go-goja/pkg/protogoja"
 	spec "github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
+	proto "google.golang.org/protobuf/proto"
 )
 
 // GojaBuilderFileFixtureProtoModuleName returns the JavaScript module name for this generated protobuf builder companion file.
@@ -70,6 +73,81 @@ func GojaBuilderFileFixtureProtoTypeScriptModule(moduleName string) *spec.Module
 			"export const Example_Nested: MessageNamespace<Example_Nested, Example_NestedBuilder>;",
 		},
 	}
+}
+
+// NewGojaBuilderFileFixtureProtoLoader returns a CommonJS module loader for this generated protobuf builder companion file.
+func NewGojaBuilderFileFixtureProtoLoader(moduleName string) require.ModuleLoader {
+	return func(vm *goja.Runtime, moduleObj *goja.Object) {
+		exports := moduleObj.Get("exports").ToObject(vm)
+		exampleKind, err := NewExampleKindGojaEnum(vm)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		if err := exports.Set("ExampleKind", exampleKind); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		example, err := NewExampleGojaNamespace(vm)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		if err := exports.Set("Example", example); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		example_Nested, err := NewExample_NestedGojaNamespace(vm)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		if err := exports.Set("Example_Nested", example_Nested); err != nil {
+			panic(vm.NewGoError(err))
+		}
+	}
+}
+
+// RegisterGojaBuilderFileFixtureProtoModule registers this generated protobuf builder module in a goja require registry.
+func RegisterGojaBuilderFileFixtureProtoModule(reg *require.Registry, moduleName string) error {
+	if reg == nil {
+		return errors.New("protogoja: nil require registry")
+	}
+	if moduleName == "" {
+		moduleName = GojaBuilderFileFixtureProtoModuleName()
+	}
+	reg.RegisterNativeModule(moduleName, NewGojaBuilderFileFixtureProtoLoader(moduleName))
+	return nil
+}
+
+// GojaBuilderFileFixtureProtoModule returns a modules.NativeModule wrapper for this generated protobuf builder module.
+func GojaBuilderFileFixtureProtoModule(moduleName string) modules.NativeModule {
+	if moduleName == "" {
+		moduleName = GojaBuilderFileFixtureProtoModuleName()
+	}
+	return &gojaBuilderFileFixtureProtoModule{name: moduleName}
+}
+
+type gojaBuilderFileFixtureProtoModule struct{ name string }
+
+func (m *gojaBuilderFileFixtureProtoModule) Name() string { return m.name }
+func (m *gojaBuilderFileFixtureProtoModule) Doc() string {
+	return "Generated protobuf Goja builder module for fixture.v1"
+}
+func (m *gojaBuilderFileFixtureProtoModule) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+	NewGojaBuilderFileFixtureProtoLoader(m.name)(vm, moduleObj)
+}
+func (m *gojaBuilderFileFixtureProtoModule) TypeScriptModule() *spec.Module {
+	return GojaBuilderFileFixtureProtoTypeScriptModule(m.name)
+}
+
+// RegisterGojaBuilderFileFixtureProtoMessageTypes calls register for every message type exported by this generated builder companion file.
+func RegisterGojaBuilderFileFixtureProtoMessageTypes(register func(string, proto.Message) error) error {
+	if register == nil {
+		return errors.New("protogoja: nil message type register function")
+	}
+	if err := register("fixture.v1.Example", &Example{}); err != nil {
+		return err
+	}
+	if err := register("fixture.v1.Example.Nested", &Example_Nested{}); err != nil {
+		return err
+	}
+	return nil
 }
 
 // NewExampleKindGojaEnum returns the JavaScript enum export object for fixture.v1.ExampleKind.
