@@ -1,0 +1,24 @@
+name: protobuf-builder-provider
+
+target:
+  kind: xgoja
+  output: dist/protobuf-builder-provider
+
+packages:
+- id: protobuf-builder-example
+  import: github.com/go-go-golems/go-go-goja/examples/xgoja/15-protobuf-builder-provider/provider
+
+modules:
+- package: protobuf-builder-example
+  name: examples.xgoja.protobuf.v1
+  as: examples.xgoja.protobuf.v1
+
+commands:
+  eval:
+    enabled: true
+  run:
+    enabled: true
+  repl:
+    enabled: false
+  jsverbs:
+    enabled: false
