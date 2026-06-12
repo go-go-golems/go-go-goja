@@ -155,7 +155,7 @@ func writeDTSSidecar(dir string, compiledPlan *plan.Plan, settings genDTSSetting
 		return fmt.Errorf("create dts sidecar directory %s: %w", dir, err)
 	}
 	files := map[string]string{
-		"go.mod":  generate.RenderGoMod(generate.BuildSpecFromPlan(compiledPlan), generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace, GoModules: goModules}),
+		"go.mod":  generate.RenderGoModPlan(compiledPlan, generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace, GoModules: goModules}),
 		"main.go": generate.RenderDTSGenMainPlan(compiledPlan, settings.Strict),
 	}
 	for name, content := range files {

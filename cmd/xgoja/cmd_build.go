@@ -87,14 +87,14 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	buildSpec := generate.BuildSpecFromPlan(compiledPlan)
+	target := targetFromPlan(compiledPlan)
 	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
-	if kind := strings.TrimSpace(buildSpec.Target.Kind); kind == "package" || kind == "source" || kind == "template" {
+	if kind := strings.TrimSpace(target.Kind); kind == "package" || kind == "source" || kind == "template" {
 		return fmt.Errorf("target.kind %s is source generation only; use xgoja generate -f %s", kind, settings.File)
 	}
 	output := settings.Output
 	if output == "" {
-		output = buildSpec.Target.Output
+		output = target.Output
 	}
 	workDir := settings.WorkDir
 	cleanup := func() {}
@@ -115,14 +115,14 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 		return err
 	}
 	_, _ = fmt.Fprintf(c.out, "generated build workspace: %s\n", workDir)
-	_, _ = fmt.Fprintf(c.out, "generated module: %s\n", buildSpec.Go.Module)
+	_, _ = fmt.Fprintf(c.out, "generated module: %s\n", compiledPlan.Config.Go.Module)
 	_, _ = fmt.Fprintf(c.out, "xgoja builds from the generated module root: cd %s && go mod tidy && go build .\n", workDir)
 	if settings.WorkDir == "" && !settings.KeepWork {
 		_, _ = fmt.Fprintln(c.out, "use --keep-work to inspect generated go.mod/main.go after the build")
 	}
 	_, _ = fmt.Fprintln(c.out, "release note: if you check this generated host into a repository as a nested Go module, configure GoReleaser with dir: <generated-module-dir> and main: .")
 	if settings.DryRun {
-		_, err = fmt.Fprintf(c.out, "xgoja dry run ok: name=%s target=%s output=%s modules=%d packages=%d\n", buildSpec.Name, buildSpec.Target.Kind, output, len(buildSpec.Modules), len(buildSpec.Packages))
+		_, err = fmt.Fprintf(c.out, "xgoja dry run ok: name=%s target=%s output=%s modules=%d packages=%d\n", compiledPlan.Config.Name, target.Kind, output, len(compiledPlan.Config.Runtime.Modules), len(compiledPlan.Config.Providers))
 		return err
 	}
 
@@ -136,7 +136,7 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
-	if _, err := buildexec.GoBuild(ctx, workDir, outputPath, buildSpec.Go.Tags, buildSpec.Go.LDFlags, buildSpec.Go.Env); err != nil {
+	if _, err := buildexec.GoBuild(ctx, workDir, outputPath, compiledPlan.Config.Go.Tags, compiledPlan.Config.Go.LDFlags, compiledPlan.Config.Go.Env); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(c.out, "xgoja build ok: %s\n", outputPath)

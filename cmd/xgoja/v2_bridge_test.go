@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/plan"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/specv2"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 )
 
 func TestLoadV2PlanRejectsLegacySpec(t *testing.T) {
@@ -23,7 +25,7 @@ func TestLoadV2PlanRejectsLegacySpec(t *testing.T) {
 	}
 }
 
-func TestBuildSpecFromV2PlanMarksArtifactSourcesEmbedded(t *testing.T) {
+func TestV2PlanEmbeddedRuntimeSpecMarksArtifactSourcesEmbedded(t *testing.T) {
 	compiled := &plan.Plan{Config: specv2.Config{
 		Schema: specv2.Schema,
 		Name:   "embedded",
@@ -38,14 +40,17 @@ func TestBuildSpecFromV2PlanMarksArtifactSourcesEmbedded(t *testing.T) {
 		},
 	}}
 
-	buildSpec := generate.BuildSpecFromPlan(compiled)
-	if len(buildSpec.JSVerbs) != 1 || !buildSpec.JSVerbs[0].Embed {
-		t.Fatalf("expected v2 binary source dependency to embed jsverbs, got %#v", buildSpec.JSVerbs)
+	runtimeSpec := app.RuntimeSpec{}
+	if err := json.Unmarshal([]byte(generate.RenderEmbeddedSpecFromPlan(compiled)), &runtimeSpec); err != nil {
+		t.Fatalf("decode runtime spec: %v", err)
 	}
-	if len(buildSpec.Help.Sources) != 1 || !buildSpec.Help.Sources[0].Embed {
-		t.Fatalf("expected v2 binary source dependency to embed help, got %#v", buildSpec.Help.Sources)
+	if len(runtimeSpec.JSVerbs) != 1 || !runtimeSpec.JSVerbs[0].Embed || runtimeSpec.JSVerbs[0].Path != "xgoja_embed/jsverbs/verbs" {
+		t.Fatalf("expected v2 binary source dependency to embed jsverbs, got %#v", runtimeSpec.JSVerbs)
 	}
-	if len(buildSpec.Assets) != 1 || !buildSpec.Assets[0].Embed {
-		t.Fatalf("expected v2 embedded-assets artifact to embed assets, got %#v", buildSpec.Assets)
+	if len(runtimeSpec.Help.Sources) != 1 || !runtimeSpec.Help.Sources[0].Embed || runtimeSpec.Help.Sources[0].Path != "xgoja_embed/help/docs" {
+		t.Fatalf("expected v2 binary source dependency to embed help, got %#v", runtimeSpec.Help.Sources)
+	}
+	if len(runtimeSpec.Assets) != 1 || !runtimeSpec.Assets[0].Embed || runtimeSpec.Assets[0].Path != "xgoja_embed/assets/web" {
+		t.Fatalf("expected v2 embedded-assets artifact to embed assets, got %#v", runtimeSpec.Assets)
 	}
 }

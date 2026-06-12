@@ -89,9 +89,9 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	buildSpec := generate.BuildSpecFromPlan(compiledPlan)
+	target := targetFromPlan(compiledPlan)
 	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
-	kind := strings.TrimSpace(buildSpec.Target.Kind)
+	kind := strings.TrimSpace(target.Kind)
 	if kind == "" {
 		kind = "xgoja"
 	}
@@ -100,24 +100,24 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	output := strings.TrimSpace(settings.Output)
 	if output == "" {
-		output = buildSpec.Target.Output
+		output = target.Output
 	}
 	if output == "" {
 		return fmt.Errorf("generate output directory is required")
 	}
 	packageName := strings.TrimSpace(settings.Package)
 	if packageName == "" {
-		packageName = strings.TrimSpace(buildSpec.Target.Package)
+		packageName = strings.TrimSpace(target.Package)
 	}
 	templatePath := strings.TrimSpace(settings.Template)
 	if templatePath == "" {
-		templatePath = strings.TrimSpace(buildSpec.Target.Template)
+		templatePath = strings.TrimSpace(target.Template)
 	}
 	if kind == "template" && templatePath == "" {
 		return fmt.Errorf("custom template path is required for target.kind template")
 	}
 	if templatePath != "" && !filepath.IsAbs(templatePath) {
-		templatePath = filepath.Join(buildSpec.BaseDir, templatePath)
+		templatePath = filepath.Join(compiledPlan.Config.BaseDir, templatePath)
 	}
 	dataPackageName := packageName
 	if dataPackageName == "" {
@@ -136,7 +136,7 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 		return err
 	}
 	if settings.DryRun {
-		_, err = fmt.Fprintf(c.out, "xgoja generate dry run ok: name=%s target=%s output=%s package=%s template=%s clean=%v modules=%d packages=%d\n", buildSpec.Name, kind, output, dataPackageName, templatePath, settings.Clean, len(buildSpec.Modules), len(buildSpec.Packages))
+		_, err = fmt.Fprintf(c.out, "xgoja generate dry run ok: name=%s target=%s output=%s package=%s template=%s clean=%v modules=%d packages=%d\n", compiledPlan.Config.Name, kind, output, dataPackageName, templatePath, settings.Clean, len(compiledPlan.Config.Runtime.Modules), len(compiledPlan.Config.Providers))
 		return err
 	}
 	if settings.Clean {
