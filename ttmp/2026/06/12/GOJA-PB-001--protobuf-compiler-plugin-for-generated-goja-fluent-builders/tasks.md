@@ -69,7 +69,7 @@
 
 ## Phase 7 — Host integration helpers and examples
 
-- [ ] Generate or provide `NewGojaLoader`, `RegisterGojaModule`, `GojaModule`, and `RegisterMessageTypes` helpers
+- [x] Generate or provide `NewGojaLoader`, `RegisterGojaModule`, `GojaModule`, and `RegisterMessageTypes` helpers
 - [ ] Add examples for raw `require.Registry`, `engine.NativeModuleRegistrar`, and optional xgoja provider integration
 - [ ] Add a consuming-module demonstration showing `protogoja.MessageFromValue` avoids JSON/protojson conversion
 - [ ] Add docs for protoc, Buf, and `go:generate` workflows

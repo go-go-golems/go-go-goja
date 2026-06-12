@@ -19,6 +19,7 @@ RelatedFiles:
         Phase 5 enum export generation (commit 5495137)
         Generated namespace prototype token attachment (commit bcaf348)
         Phase 6 TypeScript RawDTS generation (commit 611dfc7)
+        Phase 7 host integration helper generation (commit 0342d57)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/options.go
       Note: Phase 4 plugin option parsing (commit b3deaf4)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/main.go
@@ -32,6 +33,7 @@ RelatedFiles:
         Generated enum runtime validation (commit 5495137)
         Generated prototype token validation in compile/runtime fixture (commit bcaf348)
         Phase 6 tsgen/render and xgoja/dtsgen tests (commit 611dfc7)
+        Phase 7 host integration tests (commit 0342d57)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden
       Note: |-
         Golden first generated Go companion file (commit b3deaf4)
@@ -74,6 +76,7 @@ LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Continuation context for GOJA-PB-001 implementation and review.
 WhenToUse: Read before implementing protoc-gen-goja-builder or revising the builder generator design.
 ---
+
 
 
 
@@ -1547,4 +1550,108 @@ Task update command:
 
 ```bash
 docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 41,43,44,45
+```
+
+## Step 14: Generate host integration helpers
+
+I started Phase 7 by generating file-scoped host integration helpers for protobuf builder modules. The generated companion now provides a CommonJS loader, a require-registry registration helper, a `modules.NativeModule` wrapper that also exposes TypeScript descriptors, and a message-type registration callback for host schema registries.
+
+The helper names include the proto-file identifier to avoid symbol collisions when a Go package contains multiple generated companion files. This differs slightly from the short design names, but it is safer for multi-file packages.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 13)
+
+**Assistant interpretation:** Continue implementation after the initial TypeScript declaration slice.
+
+**Inferred user intent:** The user wants the generated builders to become host-consumable modules, not only generated helper functions.
+
+**Commit (code):** `0342d57851f19e1fbe0dcb6060c79542e5eff303` — "Generate host integration helpers for goja protobuf builders"
+
+### What I did
+
+- Generated `NewGojaBuilderFile<ProtoFile>Loader(moduleName string) require.ModuleLoader`.
+- Generated `RegisterGojaBuilderFile<ProtoFile>Module(reg, moduleName)`.
+- Generated `GojaBuilderFile<ProtoFile>Module(moduleName) modules.NativeModule`.
+- Generated a module wrapper with:
+  - `Name()`;
+  - `Doc()`;
+  - `Loader(vm, moduleObj)`;
+  - `TypeScriptModule()`.
+- Generated `RegisterGojaBuilderFile<ProtoFile>MessageTypes(register func(string, proto.Message) error)`.
+- Extended the generated temporary runtime test to verify:
+  - the loader exports message namespaces and enum exports;
+  - the generated module reports the expected name;
+  - the generated module exposes a TypeScript descriptor method;
+  - message type registration yields a concrete `*ModuleManifest` prototype.
+- Ran focused validation:
+
+```bash
+UPDATE_GOLDEN=1 go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+### Why
+
+- Host integration helpers are required so generated protobuf builders can be installed into raw `require.Registry`, default module registries, and xgoja/module-selection flows.
+- Message-type registration is the bridge for consuming modules such as schema registries: they can accept generated message type metadata without forcing users to build a dummy message.
+
+### What worked
+
+- Focused validation passed before commit:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	3.605s
+ok  	github.com/go-go-golems/go-goja/pkg/protogoja	0.013s
+```
+
+- The pre-commit hook passed full repository validation:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	2.370s
+summary: (done in 9.08 seconds)
+✔️ lint (6.38 seconds)
+✔️ test (9.06 seconds)
+```
+
+### What didn't work
+
+- No code failures occurred in this step.
+
+### What I learned
+
+- Generated host helpers should be file-scoped for collision safety. The shorter design names can still be wrapped later by package-level aggregation helpers if needed.
+- The existing `modules.NativeModule` interface is sufficient for generated modules, and the optional `TypeScriptModule()` method gives existing DTS tooling a descriptor path.
+
+### What was tricky to build
+
+- Loader generation has to export both message namespace objects and enum objects. The test now catches missing exports for representative values.
+- The generated module wrapper needs to satisfy `modules.NativeModule` without introducing a dependency cycle. It imports the top-level `modules` package and `tsgen/spec`, while the loader imports only Goja/require/protogoja runtime pieces.
+
+### What warrants a second pair of eyes
+
+- Review file-scoped helper names before documenting them as the long-term public API.
+- Review whether package-level aggregation helpers should be generated later for multi-file proto packages.
+
+### What should be done in the future
+
+- Add examples for raw `require.Registry`, engine module registrar, and xgoja provider integration.
+- Add a consuming-module demonstration that uses `MessagePrototypeFromValue` and `MessageFromValue`.
+
+### Code review instructions
+
+- Review `emitHostIntegration` in `cmd/protoc-gen-goja-builder/internal/generator/generator.go`.
+- Review `TestGeneratedHostIntegrationHelpers` inside `generatedRuntimeTestSource()` in `cmd/protoc-gen-goja-builder/main_test.go`.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+### Technical details
+
+Task update command:
+
+```bash
+docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 47
 ```

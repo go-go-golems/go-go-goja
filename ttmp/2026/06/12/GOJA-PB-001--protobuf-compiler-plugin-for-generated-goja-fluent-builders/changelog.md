@@ -171,3 +171,13 @@ Generated TypeScript RawDTS descriptors for protobuf builder modules, validated 
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Validates generated RawDTS through tsgen/render and xgoja/dtsgen
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/design-doc/01-generated-goja-protobuf-fluent-builders-design.md — Documents generated TypeScript declaration examples
 
+
+## 2026-06-12
+
+Generated host integration helpers for protobuf builder modules: require loaders, native module wrappers, TypeScript-capable modules, registry registration, and message-type registration callbacks (commit 0342d57).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Generates host integration helper functions
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Validates generated loader/module/message registration helpers
+
