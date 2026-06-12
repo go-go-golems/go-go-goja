@@ -19,10 +19,26 @@ RelatedFiles:
       Note: Updated dev auth cookie/CSRF/login/logout usage docs (commit 38871dc)
     - Path: examples/xgoja/16-express-auth-host/cmd/host/main.go
       Note: Runnable host example refactored to use devauth and login/logout smoke flow (commit 38871dc)
+    - Path: examples/xgoja/17-express-keycloak-auth-host/cmd/host/main.go
+      Note: Production-oriented Keycloak/session/appauth/audit host wiring (commit 852780d)
+    - Path: examples/xgoja/17-express-keycloak-auth-host/docker-compose.yml
+      Note: Docker Compose Keycloak service for local OIDC testing (commit 852780d)
+    - Path: examples/xgoja/17-express-keycloak-auth-host/keycloak/realm-goja-demo.json
+      Note: Imported demo realm/client/user configuration (commit 852780d)
+    - Path: examples/xgoja/17-express-keycloak-auth-host/scripts/server.js
+      Note: Planned Express routes protected by the Go host auth stack (commit 852780d)
     - Path: pkg/gojahttp/auth/appauth/appauth.go
       Note: App-owned resource resolver and explicit deny-by-default authorizer helpers (commit 952acb2)
     - Path: pkg/gojahttp/auth/appauth/appauth_test.go
       Note: Negative authorization and store behavior coverage (commit 952acb2)
+    - Path: pkg/gojahttp/auth/audit/audit.go
+      Note: Audit record normalization
+    - Path: pkg/gojahttp/auth/audit/audit_test.go
+      Note: Audit normalization and secret-redaction tests (commit 4141b8a)
+    - Path: pkg/gojahttp/auth/capability/capability.go
+      Note: Capability issue/redeem/revoke service with hashed token storage (commit 4141b8a)
+    - Path: pkg/gojahttp/auth/capability/invite.go
+      Note: Concrete organization invite capability helper flow (commit 4141b8a)
     - Path: pkg/gojahttp/auth/devauth/devauth.go
       Note: Dev/demo auth kit implementation for planned routes (commit 38871dc)
     - Path: pkg/gojahttp/auth/devauth/devauth_test.go
@@ -46,6 +62,8 @@ LastUpdated: 2026-06-12T17:00:00-04:00
 WhatFor: Use this to resume or review the host-side auth system planning ticket.
 WhenToUse: Read before implementing dev/demo auth, session auth, Keycloak/OIDC, app authorization, audit, or capabilities.
 ---
+
+
 
 
 
@@ -658,4 +676,247 @@ This package gives host applications and examples a concrete starting point for 
           Authorizer:    appauth.Authorizer{Memberships: store},
       },
   })
+  ```
+
+
+## Step 6: Add audit and capability helper packages
+
+I implemented Phase 5 by adding two reusable security-support packages: `audit` for normalized planned-route audit records, and `capability` for narrow hashed bearer-token delegation flows. These packages are still host-side infrastructure; they do not change the Express JavaScript API.
+
+The audit package gives planned routes and auth helpers a storage-friendly record shape with redaction. The capability package covers one-time or scoped flows such as organization invite acceptance while ensuring raw tokens are returned once, stored only as hashes, and never placed into audit attributes.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue implementing the remaining planned phases after Phase 3 and Phase 4.
+
+**Inferred user intent:** Keep moving through the host-auth task list, with commits and diary updates.
+
+**Commit (code):** 4141b8a2cb9109ada057652c97cb5cdc840f471a — "Add audit and capability auth helpers"
+
+### What I did
+- Added `pkg/gojahttp/auth/audit` with:
+  - normalized `Record` type,
+  - `Normalizer`,
+  - `Store` interface,
+  - `Sink` adapter for persistent stores,
+  - `MemorySink`,
+  - `LogSink`,
+  - recursive attribute redaction.
+- Added audit tests covering:
+  - actor/resource/route/request metadata normalization,
+  - request ID, user agent, and IP hash mapping,
+  - recursive redaction of token/session/cookie/authorization/capability-looking attributes,
+  - memory sink,
+  - store sink,
+  - log sink redaction.
+- Added `pkg/gojahttp/auth/capability` with:
+  - `Capability`,
+  - `IssueSpec`,
+  - `IssueResult`,
+  - `Store`,
+  - `Service`,
+  - `MemoryStore`,
+  - token hashing,
+  - issue/redeem/revoke operations,
+  - audit hooks.
+- Added concrete organization invite helpers:
+  - `IssueOrgInvite`,
+  - `AcceptOrgInvite`,
+  - `PurposeOrgInviteAccept`,
+  - `AcceptedOrgInvite`.
+- Added capability tests covering:
+  - issue and redeem,
+  - single-use double redemption denial,
+  - wrong purpose,
+  - not found token,
+  - expiry,
+  - revocation,
+  - hashed storage,
+  - audit hook behavior,
+  - org invite acceptance flow.
+- Added README files for both packages.
+- Marked Phase 5 tasks complete.
+- Added generated logcopter files in follow-up commit `61c101e` — "Add generated audit capability loggers".
+
+### Why
+- Planned routes can emit audit events today, but production hosts need a reusable path from runtime events to storage records without leaking secrets.
+- Capability tokens are a recurring auth-adjacent need for invites, email verification, password reset, API tokens, and one-time links.
+- These helpers keep capability issuance/redeeming in Go, where expiry, revocation, single-use semantics, hashing, and audit can be enforced consistently.
+
+### What worked
+- Targeted package tests passed:
+  ```bash
+  go test ./pkg/gojahttp/auth/audit ./pkg/gojahttp/auth/capability -count=1
+  ```
+- Broader auth package tests passed:
+  ```bash
+  go test ./pkg/gojahttp/auth/audit ./pkg/gojahttp/auth/capability ./pkg/gojahttp/auth/appauth ./pkg/gojahttp/auth/keycloakauth ./pkg/gojahttp/auth/sessionauth ./pkg/gojahttp/auth/devauth -count=1
+  ```
+- The commit pre-hook passed lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+- No implementation command failed in this phase.
+- As with the earlier auth packages, `go generate ./...` produced generated `logcopter.go` files after the main code commit, so I added them in a small follow-up commit.
+
+### What I learned
+- Audit redaction should operate on keys rather than values. A value like a random token cannot be reliably recognized after the fact, but keys such as `accessToken`, `sessionID`, `authorization`, or `capability` are strong signals.
+- Capability services should return raw tokens only in the issue result. Stored and redeemed capability objects should redact `TokenHash` from the public result where possible.
+- A concrete helper like `IssueOrgInvite` makes the generic capability service easier to understand and test without committing to a broad JavaScript capability API yet.
+
+### What was tricky to build
+- The main tricky part was balancing generic capability primitives with a concrete example. I added a generic `Service` plus one small org-invite helper so the package is usable without pretending to be a full capability algebra.
+- Another subtle point is atomic single-use redemption. The `Store.Redeem` interface performs purpose/expiry/revocation/used checks and marks single-use tokens as used under the store lock in `MemoryStore`. A SQL store should preserve that atomicity with a transaction or conditional update.
+- Audit events for denied capability redemption cannot include the stored capability when the token is invalid, so denied audit events include the requested purpose but no raw token.
+
+### What warrants a second pair of eyes
+- Review whether audit redaction keys are broad enough without hiding too much useful context.
+- Review whether `capability.Store.Redeem` has the right signature for SQL implementations.
+- Review whether `Capability.TokenHash` should ever be returned from `ByID`, or whether stores should always expose a redacted view through separate methods.
+- Review whether audit event names should be package constants.
+
+### What should be done in the future
+- Add persistent SQL examples/adapters if a concrete database layer is chosen.
+- Wire `audit.Sink` and `capability.Service` into the planned Docker Compose Keycloak example.
+- Continue to Phase 6 with the requested Docker Compose Keycloak example and smoke testing.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/audit/audit.go` and `pkg/gojahttp/auth/audit/audit_test.go` for audit normalization/redaction behavior.
+- Then review `pkg/gojahttp/auth/capability/capability.go`, `invite.go`, and `capability_test.go` for issue/redeem/revoke semantics.
+- Validate with:
+  ```bash
+  go test ./pkg/gojahttp/auth/audit ./pkg/gojahttp/auth/capability -count=1
+  ```
+
+### Technical details
+- Audit sink wiring:
+  ```go
+  host := gojahttp.NewHost(gojahttp.HostOptions{
+      Auth: gojahttp.AuthOptions{
+          Audit: audit.Sink{Store: sqlAuditStore},
+      },
+  })
+  ```
+- Organization invite capability flow:
+  ```go
+  issued, err := svc.IssueOrgInvite(ctx, capability.OrgInviteSpec{
+      OrgID: "o1",
+      Email: "new@example.test",
+      Role:  "viewer",
+      TTL:   7 * 24 * time.Hour,
+  })
+
+  accepted, err := svc.AcceptOrgInvite(ctx, issued.Token)
+  ```
+
+
+## Step 7: Add Docker Compose Keycloak host example
+
+I implemented the production-oriented example phase by adding a new `17-express-keycloak-auth-host` example. It shows how the host-side auth packages fit together around planned Express routes: Keycloak authenticates with OIDC Authorization Code + PKCE, `sessionauth` issues the app cookie and CSRF token, `appauth` owns resource/tenant authorization, and `audit` records route outcomes.
+
+This is intentionally a host skeleton, not a JavaScript auth framework. The JavaScript file still only declares planned routes and policy intent; all identity, session, resource, authorization, and audit decisions stay in Go.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Continue from the helper packages into the production-oriented Keycloak example requested earlier.
+
+**Inferred user intent:** Produce a runnable reference for the production auth stack, using Docker Compose Keycloak as requested.
+
+**Commit (code):** 852780dc5d6dd0d7d55ce0f27a5667a3b5abce55 — "Add Keycloak auth host example"
+
+### What I did
+- Added `examples/xgoja/17-express-keycloak-auth-host`.
+- Added a Docker Compose Keycloak service importing a `goja-demo` realm.
+- Added a realm export with:
+  - public OIDC client `goja-app`,
+  - Authorization Code flow enabled,
+  - PKCE S256 requirement,
+  - demo user `demo@example.test` / `demo-password`,
+  - redirect URI `http://127.0.0.1:8790/auth/callback`.
+- Added a Go host that wires:
+  - `keycloakauth` login/callback/logout handlers,
+  - `sessionauth` session cookies and CSRF verification,
+  - `appauth` in-memory app resources and authorization,
+  - `audit.LogSink`,
+  - strict planned-route enforcement.
+- Added a planned Express route script with:
+  - public `/healthz`,
+  - authenticated `/me`,
+  - CSRF-protected project update route.
+- Added README instructions and Makefile targets for Keycloak lifecycle and serving the host.
+- Updated `examples/xgoja/README.md` and completed the relevant Phase 6 task checklist items.
+
+### Why
+- The earlier `16-express-auth-host` example demonstrates local dev/demo auth without external services.
+- This new example demonstrates the intended production shape: Keycloak handles identity, the Go host creates opaque app sessions, and the application remains responsible for authorization.
+- Docker Compose makes the example reproducible without requiring a pre-existing Keycloak installation.
+
+### What worked
+- The example host package compiled:
+  ```bash
+  go test ./examples/xgoja/17-express-keycloak-auth-host/cmd/host -count=1
+  ```
+- Docker Compose syntax validated:
+  ```bash
+  docker compose -f examples/xgoja/17-express-keycloak-auth-host/docker-compose.yml config >/tmp/keycloak-compose-config.txt
+  ```
+- The full auth helper package set passed:
+  ```bash
+  go test ./examples/xgoja/17-express-keycloak-auth-host/cmd/host ./pkg/gojahttp/auth/... -count=1
+  ```
+- The dev auth example smoke still passed:
+  ```bash
+  make -C examples/xgoja/16-express-auth-host smoke
+  ```
+- The commit pre-hook also ran lint, `go generate ./...`, and `go test ./...` successfully.
+
+### What didn't work
+- I did not run a full browser/form-login smoke against the Docker Compose Keycloak container in this step. The compose file is syntax-validated and the host compiles, but a complete automated login smoke still needs to be added.
+
+### What I learned
+- The production example reinforces the desired boundary: JavaScript route code names route-level requirements, but does not parse or own tokens, sessions, users, tenants, or resource permissions.
+- `keycloakauth.UserNormalizer` is the right seam for mapping OIDC subject/email claims into app-owned users, memberships, and session claims.
+- The example needs a tiny `/auth/session` host endpoint because CSRF tokens belong to the app session, not to Keycloak or Express route declarations.
+
+### What was tricky to build
+- The main tricky point was keeping the example realistic without turning it into a production deployment. I left persistent stores and TLS out, but documented them explicitly as production requirements.
+- The host has to mount auth endpoints before delegating to the `gojahttp.Host`, while still letting the host serve planned Express routes for all other paths.
+- The Keycloak client must be public and configured for standard flow + PKCE, not password grants, to match the desired production direction.
+
+### What warrants a second pair of eyes
+- Verify the imported Keycloak realm attributes for PKCE are correct for the pinned Keycloak image.
+- Review whether the Docker Compose healthcheck is portable enough across developer environments.
+- Review whether `appStore.AddMembership` inside the normalizer should be idempotent in a stricter way if the example is later backed by SQL.
+- Review cookie/security settings before anyone copies the example into production; the example uses `AllowInsecureHTTP` for local development.
+
+### What should be done in the future
+- Add a true automated Keycloak smoke that starts Compose, completes browser/form login, verifies `/me`, fetches CSRF from `/auth/session`, and updates a project route.
+- Add Glazed help pages for `devauth`, `sessionauth`, `keycloakauth`, `appauth`, `audit`, and `capability` package boundaries.
+- Consider a persistent-store variant once the repository has an agreed database layer for sessions/audit/users.
+
+### Code review instructions
+- Start with `examples/xgoja/17-express-keycloak-auth-host/README.md` for intended flow and operator commands.
+- Review `cmd/host/main.go` for package wiring and separation of Keycloak identity from app authorization.
+- Review `scripts/server.js` to confirm JavaScript only declares planned route requirements.
+- Validate with:
+  ```bash
+  docker compose -f examples/xgoja/17-express-keycloak-auth-host/docker-compose.yml config
+  go test ./examples/xgoja/17-express-keycloak-auth-host/cmd/host -count=1
+  ```
+
+### Technical details
+- Start Keycloak:
+  ```bash
+  make -C examples/xgoja/17-express-keycloak-auth-host keycloak-up
+  ```
+- Run host:
+  ```bash
+  make -C examples/xgoja/17-express-keycloak-auth-host serve
+  ```
+- Demo account:
+  ```text
+  demo@example.test / demo-password
   ```

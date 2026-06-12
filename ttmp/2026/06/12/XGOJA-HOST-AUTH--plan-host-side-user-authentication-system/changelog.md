@@ -54,3 +54,23 @@ Phase 4: add appauth domain helpers and negative authorization tests (commit 952
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/appauth/appauth.go — App-owned authorization helper package
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/appauth/appauth_test.go — Negative authz tests
 
+
+## 2026-06-12
+
+Phase 5: add audit normalization/sinks and capability token helpers (commit 4141b8a; generated loggers 61c101e)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/audit/audit.go — Audit helpers
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/capability/capability.go — Capability helpers
+
+
+## 2026-06-12
+
+Phase 6: add Docker Compose Keycloak host example with sessionauth, appauth, audit, and planned Express routes (commit 852780d)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/17-express-keycloak-auth-host/cmd/host/main.go — Keycloak host example
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/17-express-keycloak-auth-host/docker-compose.yml — Local Keycloak service
+
