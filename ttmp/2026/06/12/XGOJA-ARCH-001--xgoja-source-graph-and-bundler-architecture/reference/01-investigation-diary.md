@@ -47,7 +47,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T13:05:00-04:00
+LastUpdated: 2026-06-12T13:35:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
@@ -564,3 +564,96 @@ The list also records the current provider API position: do not change provider 
 - Proposed first implementation ticket: `XGOJA-V2-001`.
 - Provider API stance: keep existing runtime APIs initially, add a provider API audit during provider graph implementation.
 - v1 stance: normal commands reject v1 after cutover; only `migrate-spec` keeps v1 parsing.
+
+
+## Step 6: Implement the initial specv2 schema package
+
+I started the hard cutover by implementing the native v2 schema package rather than touching existing command execution paths first. This gives later migration and planner work a stable target shape while keeping v1 constrained to migration input.
+
+The package is intentionally small and follows the simplified design: users describe providers, runtime modules, sources, commands, artifacts, workspace mode, language, and compile intent. Normal v2 loading uses strict YAML fields so broad bundler settings such as `platform` under `compile` are rejected instead of silently accepted.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Implement the project task by task, committing at appropriate intervals, keeping a frequent diary as you work."
+
+**Assistant interpretation:** Begin implementing the v2 hard-cutover backlog one task group at a time, committing focused increments and updating the docmgr diary frequently.
+
+**Inferred user intent:** Move from architecture planning to actual implementation while keeping changes reviewable and preserving a continuation-friendly audit trail.
+
+**Commit (code):** pending — initial specv2 implementation staged after this diary update.
+
+### What I did
+
+- Added `cmd/xgoja/internal/specv2`.
+- Implemented v2 DTOs in `types.go`:
+  - `Config`, `AppSpec`, `GoSpec`, `WorkspaceSpec`, `ProviderSpec`, `RuntimeSpec`, `SourceSpec`, `CommandSurfaceSpec`, `ArtifactSpec`.
+- Implemented defaults in `defaults.go`:
+  - schema defaults to `xgoja/v2` for rendering/in-memory construction;
+  - provider register defaults to `Register`;
+  - Go version defaults to `1.26`;
+  - generated module defaults to `xgoja.generated/<name>`;
+  - workspace defaults to `auto`;
+  - TypeScript goja-executed sources default to runtime compile mode.
+- Implemented strict v2 loading and schema detection in `load.go`.
+- Added the v1 diagnostic in v2 loading:
+  - `xgoja.yaml appears to be v1; run xgoja migrate-spec -f xgoja.yaml --out xgoja.v2.yaml`.
+- Implemented structural validation in `validate.go`.
+- Implemented stable YAML rendering in `render.go`.
+- Added schema/default/strict-field/validation/render tests in `specv2_test.go`.
+- Added `sources/local/02-v1-spec-inventory.md` with the v1 example inventory and migration fixture grouping.
+- Checked completed task IDs 9, 11, 13, and 14–21 in `tasks.md`.
+
+### Why
+
+- A hard cutover needs a native v2 schema before migration or planner code can be implemented cleanly.
+- Strict field loading enforces the simplified design and prevents low-level bundler knobs from creeping back into normal v2 config.
+- The v1 inventory makes the upcoming migration fixtures concrete instead of speculative.
+
+### What worked
+
+- `go test ./cmd/xgoja/internal/specv2 -count=1` passed.
+- The strict YAML decoder rejects unsupported fields such as `compile.platform`.
+- The v1 schema detector handles missing `schema` as v1 input and returns a migration-focused diagnostic.
+
+### What didn't work
+
+- The first commit attempt failed during the lefthook lint stage because the `exhaustive` linter required explicit `SourceKindAssets` and `SourceKindHelp` cases in `defaults.go`:
+  - `cmd/xgoja/internal/specv2/defaults.go:68:3: missing cases in switch of type specv2.SourceKind: specv2.SourceKindAssets, specv2.SourceKindHelp (exhaustive)`
+  - `cmd/xgoja/internal/specv2/defaults.go:78:2: missing cases in switch of type specv2.SourceKind: specv2.SourceKindAssets, specv2.SourceKindHelp (exhaustive)`
+- I fixed this by adding explicit asset/help cases to the compile-mode and compile-policy switches.
+- Normal xgoja commands do not use `specv2.LoadFile` yet, so the v1 diagnostic is implemented in the new package but not wired into `xgoja build`/`doctor`/`gen-dts`.
+
+### What I learned
+
+- The v2 DTO can stay small even while preserving enough artifact types to migrate current v1 targets.
+- Provider API changes are not needed for the schema package; provider behavior can be resolved later by a provider graph over existing provider APIs.
+
+### What was tricky to build
+
+- The schema needs to default in-memory/rendered configs while still treating existing schema-less files as v1 when loading from YAML. The solution is to keep `ApplyDefaults` permissive for programmatic config construction, but make `LoadData` call `DetectSchema` before decoding.
+- The package needs to reject broad bundler fields without building a custom unknown-field walker. Using `yaml.Decoder.KnownFields(true)` provides that guardrail for the first implementation.
+
+### What warrants a second pair of eyes
+
+- Review whether `workspace.mode` should really default to `auto` or whether release safety argues for `off`.
+- Review whether `ConfigFileSpec` belongs under `app.configFile` in v2 or should be represented differently before migration tooling locks it in.
+- Review whether artifact types `adapter`, `cobra`, `source`, and `template` should stay in v2 MVP or be converted to a smaller artifact subset.
+
+### What should be done in the future
+
+- Implement `migrate_v1.go` to map `buildspec.BuildSpec` into `specv2.Config`.
+- Add golden v1 migration fixtures based on the inventory note.
+- Add the `xgoja migrate-spec` command after migration conversion is tested.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/specv2/types.go` to verify the schema surface.
+- Then review `load.go` for schema detection and strict field handling.
+- Review `validate.go` for reference checks between providers, runtime modules, sources, commands, and artifacts.
+- Validate with `go test ./cmd/xgoja/internal/specv2 -count=1`.
+
+### Technical details
+
+- Validation currently uses the existing `buildspec.Report` and `buildspec.ValidationError` types to avoid inventing a second reporting model.
+- Source origins currently support disk dirs, provider source references, and future workspace source references.
+- Runtime module aliases are already validated centrally and will become automatic TypeScript bundler externals in later provider/source graph work.

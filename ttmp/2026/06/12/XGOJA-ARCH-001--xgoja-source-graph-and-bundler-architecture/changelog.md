@@ -52,3 +52,13 @@ Expanded tasks into a phase-by-phase hard-cutover plan for v2 xgoja, including m
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/reference/01-investigation-diary.md — Diary Step 5 task planning entry
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/tasks.md — Detailed v2 hard-cutover task list
 
+
+## 2026-06-12
+
+Implemented initial specv2 package with DTOs, defaults, strict loading, validation, rendering, tests, v1 migration diagnostic, and v1 spec inventory.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/specv2_test.go — Initial v2 schema test coverage
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/types.go — Initial v2 config DTOs
+

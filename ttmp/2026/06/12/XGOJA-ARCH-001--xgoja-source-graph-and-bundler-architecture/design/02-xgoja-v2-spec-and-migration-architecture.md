@@ -12,26 +12,38 @@ DocType: design
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/internal/specv2/load.go
+      Note: V2 schema loading and v1 diagnostic
+    - Path: cmd/xgoja/internal/specv2/render.go
+      Note: Stable v2 YAML rendering
+    - Path: cmd/xgoja/internal/specv2/specv2_test.go
+      Note: Schema
+    - Path: cmd/xgoja/internal/specv2/types.go
+      Note: Initial simplified v2 DTOs
+    - Path: cmd/xgoja/internal/specv2/validate.go
+      Note: V2 structural validation
+    - Path: go-go-goja/cmd/xgoja/doc/02-user-guide.md
+      Note: Existing user-facing v1 docs that need migration documentation.
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
       Note: Current v1 xgoja.yaml schema that should become migratable legacy input.
-    - Path: go-go-goja/pkg/xgoja/app/runtime_spec.go
-      Note: Current runtime spec that v2 planning should replace or generate from a cleaner model.
-    - Path: go-go-goja/pkg/xgoja/providerapi/module.go
-      Note: Provider modules become first-class provider graph capabilities in v2.
-    - Path: go-go-goja/pkg/xgoja/providerapi/commands.go
-      Note: Command sets and JSVerbSourceSet map to explicit v2 command surfaces and source dependencies.
-    - Path: go-go-goja/pkg/xgoja/providerapi/verbs.go
-      Note: Provider-shipped verb sources become v2 source origins.
+    - Path: go-go-goja/cmd/xgoja/internal/generate/gomod.go
+      Note: Current generated go.mod rendering should consume v2 workspace and GoModulePlan data.
+    - Path: go-go-goja/examples/xgoja/15-typescript-jsverbs/xgoja.yaml
+      Note: Recent v1 TypeScript jsverbs example used as a concrete migration target.
     - Path: go-go-goja/pkg/jsverbs/scan.go
       Note: Current jsverb source scanning should migrate behind v2 source graph adapters.
     - Path: go-go-goja/pkg/tsscript/compiler.go
       Note: Current TypeScript compiler facade should become an internal compiler backend for goja-executed source.
-    - Path: go-go-goja/cmd/xgoja/internal/generate/gomod.go
-      Note: Current generated go.mod rendering should consume v2 workspace and GoModulePlan data.
-    - Path: go-go-goja/cmd/xgoja/doc/02-user-guide.md
-      Note: Existing user-facing v1 docs that need migration documentation.
-    - Path: go-go-goja/examples/xgoja/15-typescript-jsverbs/xgoja.yaml
-      Note: Recent v1 TypeScript jsverbs example used as a concrete migration target.
+    - Path: go-go-goja/pkg/xgoja/app/runtime_spec.go
+      Note: Current runtime spec that v2 planning should replace or generate from a cleaner model.
+    - Path: go-go-goja/pkg/xgoja/providerapi/commands.go
+      Note: Command sets and JSVerbSourceSet map to explicit v2 command surfaces and source dependencies.
+    - Path: go-go-goja/pkg/xgoja/providerapi/module.go
+      Note: Provider modules become first-class provider graph capabilities in v2.
+    - Path: go-go-goja/pkg/xgoja/providerapi/verbs.go
+      Note: Provider-shipped verb sources become v2 source origins.
+    - Path: ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/sources/local/02-v1-spec-inventory.md
+      Note: V1 spec inventory for migration fixture planning
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: A simplified v2 xgoja.yaml architecture that aligns the user-facing spec with providers, runtime modules, goja-executed sources, command surfaces, artifacts, Go workspace resolution, and migration tooling.
@@ -39,6 +51,7 @@ LastUpdated: 2026-06-12T12:35:00-04:00
 WhatFor: Use when designing the next xgoja config format, migration tooling, and planner implementation without preserving v1 as the long-term internal architecture.
 WhenToUse: Before implementing sourcegraph/provider-graph planning, workspace resolution, command surfaces, build artifacts, or migration tooling for existing xgoja users.
 ---
+
 
 # XGoja v2 spec and migration architecture
 

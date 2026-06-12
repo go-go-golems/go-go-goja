@@ -15,7 +15,7 @@
 
 ### Phase 0: Freeze v1 semantics as migration input only
 
-- [ ] Inventory every v1 `xgoja.yaml` example and test fixture under `examples/xgoja`, `cmd/xgoja`, and `pkg/xgoja`.
+- [x] Inventory every v1 `xgoja.yaml` example and test fixture under `examples/xgoja`, `cmd/xgoja`, and `pkg/xgoja`.
 - [ ] Add golden v1 input fixtures for representative specs:
   - minimal generated binary;
   - provider module selection;
@@ -25,14 +25,14 @@
   - embedded jsverbs/help/assets;
   - generated runtime package;
   - target adapter/cobra if still needed.
-- [ ] Decide the exact hard-cutover rule: v1 specs are accepted only by `xgoja migrate-spec`, not by `xgoja build`, `xgoja doctor`, or `xgoja gen-dts` after cutover.
+- [x] Decide the exact hard-cutover rule: v1 specs are accepted only by `xgoja migrate-spec`, not by `xgoja build`, `xgoja doctor`, or `xgoja gen-dts` after cutover.
 - [ ] Add a clear diagnostic for v1 specs passed to normal commands: `xgoja.yaml appears to be v1; run xgoja migrate-spec -f xgoja.yaml --out xgoja.v2.yaml`.
-- [ ] Confirm whether any downstream packages require temporary dual support; if not, keep the implementation v2-native with no compatibility branch in planner/runtime code.
+- [x] Confirm whether any downstream packages require temporary dual support; if not, keep the implementation v2-native with no compatibility branch in planner/runtime code.
 
 ### Phase 1: Define the simplified v2 schema package
 
-- [ ] Create `cmd/xgoja/internal/specv2`.
-- [ ] Add `types.go` with v2 DTOs:
+- [x] Create `cmd/xgoja/internal/specv2`.
+- [x] Add `types.go` with v2 DTOs:
   - `Config`;
   - `AppSpec`;
   - `GoSpec`;
@@ -45,15 +45,15 @@
   - `CommandSurfaceSpec`;
   - `ArtifactSpec`;
   - optional `ProfileSpec` placeholder if needed.
-- [ ] Keep the v2 DTO intentionally small: no ordinary `engine`, `platform`, `target`, `format`, browser bundle, package manager, loader, or polyfill fields.
-- [ ] Add `load.go` for YAML loading and schema detection.
-- [ ] Add `defaults.go` for v2 defaults:
+- [x] Keep the v2 DTO intentionally small: no ordinary `engine`, `platform`, `target`, `format`, browser bundle, package manager, loader, or polyfill fields.
+- [x] Add `load.go` for YAML loading and schema detection.
+- [x] Add `defaults.go` for v2 defaults:
   - `schema: xgoja/v2` required in rendered output;
   - provider `register` defaults to `Register`;
   - source `language` inferred only if omitted and safe;
   - source `compile.mode` defaults by source kind;
   - workspace defaults to `auto` or `off` as decided before implementation.
-- [ ] Add `validate.go` for structural validation:
+- [x] Add `validate.go` for structural validation:
   - unique provider IDs;
   - unique source IDs;
   - unique command IDs;
@@ -64,8 +64,8 @@
   - provider command names are non-empty;
   - artifact source references exist;
   - no unsupported broad bundler fields are accepted silently.
-- [ ] Add `render.go` to write stable, formatted v2 YAML for migration output and tests.
-- [ ] Add schema unit tests and golden render tests.
+- [x] Add `render.go` to write stable, formatted v2 YAML for migration output and tests.
+- [x] Add schema unit tests and golden render tests.
 
 ### Phase 2: Build v1-to-v2 migration tooling
 
