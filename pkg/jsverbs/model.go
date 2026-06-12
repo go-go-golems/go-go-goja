@@ -2,6 +2,7 @@ package jsverbs
 
 import (
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -64,6 +65,7 @@ type RuntimeTransformInput struct {
 	Source         []byte
 	OriginalSource []byte
 	ResolveDir     string
+	RootFS         fs.FS
 	Language       string
 	Prelude        string
 	Overlay        string
@@ -91,6 +93,7 @@ type SourceFile struct {
 	Path           string
 	AbsPath        string
 	ResolveDir     string
+	RootFS         fs.FS
 	Source         []byte
 	OriginalSource []byte
 	Language       string
@@ -119,6 +122,7 @@ type FileSpec struct {
 	OriginalSource []byte
 	SourceLanguage string
 	ResolveDir     string
+	RootFS         fs.FS
 	Package        PackageSpec
 	Functions      []*FunctionSpec
 	functionByName map[string]*FunctionSpec

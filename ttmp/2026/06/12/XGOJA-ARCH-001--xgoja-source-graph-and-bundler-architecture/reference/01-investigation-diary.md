@@ -47,7 +47,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T16:35:00-04:00
+LastUpdated: 2026-06-12T16:55:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
@@ -1251,3 +1251,79 @@ This does not yet replace all jsverbs runtime paths, but it provides the missing
 - Plugin namespace: `xgoja-fs`.
 - Entry resolve dir is derived from `Source.Path`, not `Source.ResolveDir`.
 - Extension probing covers `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`, and `.json`.
+
+
+## Step 14: Wire fs.FS source metadata into TypeScript jsverbs runtime bundling
+
+I connected the fs-backed TypeScript bundler to the current jsverbs runtime path. `ScanFS` now carries an `fs.FS` root into file specs, and runtime transforms receive that root so bundled TypeScript sources can resolve local helper imports from embedded/provider filesystems.
+
+This fixes the key embedded/provider TypeScript local-import gap without yet replacing all scan paths with sourcegraph adapters. The current jsverbs APIs remain available, and the metadata is now sufficient for provider-shipped TypeScript jsverbs with helper imports.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead."
+
+**Assistant interpretation:** Continue implementing the remaining cutover phases, starting with wiring the newly-added fs.FS TypeScript bundler into existing runtime behavior.
+
+**Inferred user intent:** Keep moving through the backlog without waiting for more direction.
+
+**Commit (code):** pending — jsverbs/app TypeScript runtime wiring staged after this diary update.
+
+### What I did
+
+- Added `RootFS fs.FS` metadata to `jsverbs.SourceFile`, `FileSpec`, and `RuntimeTransformInput`.
+- Updated `ScanFS` to create an `fs.Sub` root and attach it to each discovered source input.
+- Updated source transform propagation to preserve `RootFS`.
+- Updated runtime transform invocation to pass `RootFS`.
+- Updated `applyTypeScriptScanOptions` to call `tsscript.BundleVirtualEntryFS` when `RuntimeTransformInput.RootFS` is present.
+- Added a provider `fs.FS` TypeScript jsverbs regression test with `sites.ts` importing `./helper`.
+- Checked task IDs 74, 76, and 77.
+
+### Why
+
+- Embedded/provider jsverbs are scanned from `fs.FS`, so esbuild cannot rely on disk `ResolveDir` for local imports.
+- The runtime transform is the point where the original TypeScript plus jsverbs overlay is compiled for execution, so it needs source-origin metadata.
+
+### What worked
+
+- `go test ./pkg/jsverbs ./pkg/xgoja/app ./pkg/tsscript -count=1` passed.
+- Provider-shipped TypeScript jsverbs can now bundle helper imports from `fstest.MapFS` and invoke successfully.
+- Overlay-before-bundling behavior remains intact because the runtime transform builds `Prelude + OriginalSource + Overlay` before invoking the bundler.
+
+### What didn't work
+
+- I have not yet replaced normal xgoja jsverbs scanning with sourcegraph-backed adapters, so task 72 remains open.
+- The implementation fixes fs-backed bundling in the existing ScanFS path rather than fully switching to v2 sourcegraph execution.
+
+### What I learned
+
+- The least disruptive way to fix embedded/provider TypeScript imports is to preserve `fs.FS` metadata through existing jsverbs DTOs.
+- Sourcegraph remains useful for v2 planning, but current runtime behavior can be improved before the full planner cutover.
+
+### What was tricky to build
+
+- `ScanFS` receives a filesystem and a root path. The runtime bundler needs paths relative to a filesystem root, so `ScanFS` now builds `fs.Sub(fsys, root)` and stores source paths relative to that sub-root.
+- Disk sources must keep using `BundleVirtualEntry` because their `ResolveDir` is meaningful and may include disk tsconfig behavior.
+
+### What warrants a second pair of eyes
+
+- Review whether `RootFS` on public jsverbs structs is acceptable API surface, or whether it should be wrapped in a more explicit source-origin type.
+- Review whether `ScanSources` callers should be allowed to provide `RootFS` directly; this is now possible through `SourceFile.RootFS`.
+
+### What should be done in the future
+
+- Implement graph-backed scan adapters for v2.
+- Wire sourcegraph into hot reload/source planning.
+- Add embedded generated-binary regression tests when v2 build planning is wired.
+
+### Code review instructions
+
+- Start with `pkg/jsverbs/model.go` and `pkg/jsverbs/scan.go` to see how `RootFS` is carried.
+- Then review `pkg/xgoja/app/typescript.go` for the bundler selection.
+- Validate with `go test ./pkg/jsverbs ./pkg/xgoja/app ./pkg/tsscript -count=1`.
+
+### Technical details
+
+- `ScanFS` creates `rootFS := fs.Sub(fsys, root)` for non-dot roots.
+- `BundleVirtualEntryFS` receives `input.RelPath`, so imports are resolved relative to source-set-root paths.
+- Runtime aliases still come from TypeScript `External` fields in current v1 runtime specs; v2 provider graph will derive these automatically later.

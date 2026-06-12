@@ -96,6 +96,15 @@ func ScanFS(fsys fs.FS, root string, opts ...ScanOptions) (*Registry, error) {
 		root = "."
 	}
 
+	rootFS := fsys
+	if root != "." {
+		var err error
+		rootFS, err = fs.Sub(fsys, root)
+		if err != nil {
+			return nil, fmt.Errorf("open fs root %s: %w", root, err)
+		}
+	}
+
 	inputs := []sourceInput{}
 	err := fs.WalkDir(fsys, root, func(filePath string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -130,6 +139,7 @@ func ScanFS(fsys fs.FS, root string, opts ...ScanOptions) (*Registry, error) {
 		inputs = append(inputs, sourceInput{
 			RelPath:    relPathSlash,
 			ModulePath: modulePathFromRelative(relPath),
+			RootFS:     rootFS,
 			Source:     source,
 		})
 		return nil
@@ -165,6 +175,7 @@ func ScanSources(files []SourceFile, opts ...ScanOptions) (*Registry, error) {
 			RelPath:        strings.TrimPrefix(modulePath, "/"),
 			ModulePath:     modulePath,
 			ResolveDir:     file.ResolveDir,
+			RootFS:         file.RootFS,
 			Source:         append([]byte(nil), file.Source...),
 			OriginalSource: append([]byte(nil), file.OriginalSource...),
 			SourceLanguage: file.Language,
@@ -179,6 +190,7 @@ type sourceInput struct {
 	RelPath        string
 	ModulePath     string
 	ResolveDir     string
+	RootFS         fs.FS
 	Source         []byte
 	OriginalSource []byte
 	SourceLanguage string
@@ -317,6 +329,7 @@ func transformSourceInput(input sourceInput, options ScanOptions) (sourceInput, 
 		Path:           path,
 		AbsPath:        input.AbsPath,
 		ResolveDir:     input.ResolveDir,
+		RootFS:         input.RootFS,
 		Source:         append([]byte(nil), input.Source...),
 		OriginalSource: append([]byte(nil), input.OriginalSource...),
 		Language:       input.SourceLanguage,
@@ -332,6 +345,9 @@ func transformSourceInput(input sourceInput, options ScanOptions) (sourceInput, 
 	input.SourceLanguage = transformed.Language
 	if transformed.ResolveDir != "" {
 		input.ResolveDir = transformed.ResolveDir
+	}
+	if transformed.RootFS != nil {
+		input.RootFS = transformed.RootFS
 	}
 	return input, nil
 }
@@ -358,6 +374,7 @@ func scanInput(input sourceInput, options ScanOptions, registry *Registry) (*Fil
 		OriginalSource: append([]byte(nil), input.OriginalSource...),
 		SourceLanguage: input.SourceLanguage,
 		ResolveDir:     input.ResolveDir,
+		RootFS:         input.RootFS,
 		Functions:      []*FunctionSpec{},
 		functionByName: map[string]*FunctionSpec{},
 		SectionOrder:   []string{},

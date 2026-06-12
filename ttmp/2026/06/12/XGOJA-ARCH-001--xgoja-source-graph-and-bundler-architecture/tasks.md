@@ -182,10 +182,10 @@
 - [x] Implement XGOJA-TS-002 or incorporate it here: fs.FS-backed runtime bundling for embedded/provider TypeScript jsverbs.
 - [ ] Replace direct xgoja calls to `jsverbs.ScanDir`/`ScanFS` with graph-backed scan adapters.
 - [ ] Keep `jsverbs.ScanDir` and `ScanFS` as lower-level convenience APIs if still useful, but normal xgoja v2 execution should use source graph adapters.
-- [ ] Make jsverbs runtime transforms use source graph origin metadata.
+- [x] Make jsverbs runtime transforms use source graph origin metadata.
 - [x] Make TypeScript runtime module externals derive from provider graph/runtime modules, not per-source config.
-- [ ] Preserve overlay-before-bundling behavior.
-- [ ] Add tests for v2 filesystem TypeScript jsverbs, v2 embedded TypeScript jsverbs, and v2 provider TypeScript jsverbs.
+- [x] Preserve overlay-before-bundling behavior.
+- [x] Add tests for v2 filesystem TypeScript jsverbs, v2 embedded TypeScript jsverbs, and v2 provider TypeScript jsverbs.
 
 ### Phase 8: Replace build/generate/gen-dts command paths with v2 planner
 

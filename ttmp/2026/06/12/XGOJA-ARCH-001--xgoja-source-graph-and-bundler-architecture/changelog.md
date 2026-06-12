@@ -135,3 +135,16 @@ Added fs.FS-backed TypeScript bundling helper for embedded/provider source graph
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/tsscript/fs_bundle.go — fs.FS-backed virtual entry bundler
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/tsscript/fs_bundle_test.go — fs.FS bundling tests
 
+
+## 2026-06-12
+
+Threaded fs.FS source metadata through jsverbs scan/runtime transforms and used fs-backed TypeScript bundling for provider/embedded bundled jsverbs, preserving overlay-before-bundling behavior.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/jsverbs/model.go — Adds RootFS source metadata to scan/runtime DTOs
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/jsverbs/runtime.go — Passes RootFS to runtime transforms
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/jsverbs/scan.go — Carries fs.FS roots from ScanFS through registry file specs
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/typescript.go — Selects fs-backed TypeScript bundling when source metadata has RootFS
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/typescript_jsverbs_test.go — Provider fs.FS TypeScript jsverbs helper import regression test
+

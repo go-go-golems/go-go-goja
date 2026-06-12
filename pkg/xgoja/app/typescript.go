@@ -55,7 +55,13 @@ func applyTypeScriptScanOptions(source JSVerbSourceSpec, options *jsverbs.ScanOp
 			Contents:   sourceWithOverlay,
 		}
 		if source.TypeScript.Bundle {
-			artifact, err := tsscript.BundleVirtualEntry(compileSource, tsOptions)
+			var artifact *tsscript.Artifact
+			var err error
+			if input.RootFS != nil {
+				artifact, err = tsscript.BundleVirtualEntryFS(input.RootFS, compileSource, tsOptions)
+			} else {
+				artifact, err = tsscript.BundleVirtualEntry(compileSource, tsOptions)
+			}
 			if err != nil {
 				return nil, fmt.Errorf("bundle TypeScript jsverb %s: %w", input.RelPath, err)
 			}

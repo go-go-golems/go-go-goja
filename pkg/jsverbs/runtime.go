@@ -178,6 +178,7 @@ func (r *Registry) sourceLoader(modulePath string) ([]byte, error) {
 			Source:         source,
 			OriginalSource: original,
 			ResolveDir:     file.ResolveDir,
+			RootFS:         file.RootFS,
 			Language:       file.SourceLanguage,
 			Prelude:        prelude,
 			Overlay:        overlay,
