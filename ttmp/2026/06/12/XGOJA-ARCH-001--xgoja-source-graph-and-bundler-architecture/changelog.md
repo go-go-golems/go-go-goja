@@ -210,3 +210,14 @@ Added xgoja doctor module-resolution rows showing module path, version, local di
 
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/cmd_doctor.go — Doctor emits workspace module resolution diagnostics
 
+
+## 2026-06-12
+
+Updated xgoja doctor to detect xgoja/v2 specs, load specv2, compile through the v2 planner with a synthetic provider registry, and emit plan/source/module diagnostics.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/cmd_doctor.go — Doctor v2 detection and planner diagnostics
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/empty_fs.go — Empty fs.FS used for synthetic provider source planning
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root_test.go — V2 doctor command smoke test
+

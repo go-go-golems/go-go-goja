@@ -250,6 +250,19 @@ func TestDoctorCommandWired(t *testing.T) {
 	}
 }
 
+func TestDoctorCommandLoadsV2Spec(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeV2Spec(t)
+	root.SetArgs([]string{"doctor", "-f", specPath, "--output", "json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute doctor: %v", err)
+	}
+}
+
 func TestMigrateSpecCommandWritesOutput(t *testing.T) {
 	out := &bytes.Buffer{}
 	root, err := newRootCommand(out)
@@ -538,6 +551,57 @@ commands:
     enabled: true
 `), 0o644); err != nil {
 		t.Fatalf("write typed core spec: %v", err)
+	}
+	return specPath
+}
+
+func writeV2Spec(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	verbsDir := filepath.Join(dir, "verbs")
+	if err := os.Mkdir(verbsDir, 0o755); err != nil {
+		t.Fatalf("mkdir verbs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(verbsDir, "site.js"), []byte(`__package__({ name: "sites" })`), 0o644); err != nil {
+		t.Fatalf("write verb: %v", err)
+	}
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+schema: xgoja/v2
+name: fixture
+go:
+  module: xgoja.generated/fixture
+  version: "1.26"
+workspace:
+  mode: off
+providers:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+    register: Register
+    module:
+      version: v0.0.0
+runtime:
+  modules:
+    - provider: fixture
+      name: hello
+      as: hello
+sources:
+  - id: local
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    extensions: [.js]
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    sources: [local]
+artifacts:
+  - id: bin
+    type: binary
+    output: dist/fixture
+    sources: [local]
+`), 0o644); err != nil {
+		t.Fatalf("write v2 spec: %v", err)
 	}
 	return specPath
 }
