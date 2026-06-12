@@ -346,3 +346,14 @@ Step 31: archived buildspec-era help behind v2 docs and updated user guide/refer
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/06-buildspec-reference.md — Legacy buildspec page reduced to migration pointer
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/17-xgoja-v2-reference.md — Transition limits updated to plan-native command state
 
+
+## 2026-06-12
+
+Step 32: pruned stale buildspec-era xgoja tutorials from bundled help and left v2 guide/reference plus migration docs (commit 3708332)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/01-overview.md — See-also links now point to v2 guide/reference/examples
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md — Deleted stale buildspec-era tutorial
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/08-playbook-adding-xgoja-support.md — Deleted stale buildspec-era playbook
+

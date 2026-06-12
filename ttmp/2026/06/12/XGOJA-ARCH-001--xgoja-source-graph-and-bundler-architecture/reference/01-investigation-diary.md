@@ -30,10 +30,16 @@ RelatedFiles:
       Note: Generate now loads native v2 specs through planner bridge
     - Path: cmd/xgoja/cmd_list_modules.go
       Note: list-modules now uses v2 loader
+    - Path: cmd/xgoja/doc/01-overview.md
+      Note: Updated links after pruning stale tutorials
     - Path: cmd/xgoja/doc/02-user-guide.md
       Note: Native v2 user guide replaces buildspec-era reference
+    - Path: cmd/xgoja/doc/03-tutorial-using-xgoja-yaml.md
+      Note: Deleted stale buildspec-era tutorial
     - Path: cmd/xgoja/doc/06-buildspec-reference.md
       Note: Compatibility pointer for old buildspec help links
+    - Path: cmd/xgoja/doc/08-playbook-adding-xgoja-support.md
+      Note: Deleted stale buildspec-era playbook
     - Path: cmd/xgoja/doc/17-xgoja-v2-reference.md
       Note: |-
         Native xgoja/v2 reference doc added in commit 12ca66e
@@ -154,6 +160,7 @@ LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -2860,3 +2867,78 @@ This keeps the docs aligned with the code boundary: normal commands use v2 plans
 
 - `buildspec-reference` keeps `ShowPerDefault: false` so it is retained for compatibility but not emphasized as a primary help topic.
 - The v2 reference now states that `doctor`, `build`, `generate`, `gen-dts`, and `list-modules` consume `plan.Plan` directly.
+
+
+## Step 32: Prune stale buildspec-era tutorials
+
+I removed the bundled xgoja tutorials that still taught the legacy buildspec shape or duplicated outdated transitional behavior. The help set now keeps the v2 user guide, the v2 reference, the v1-to-v2 migration guide, and provider/runtime migration notes that are still useful.
+
+The old tutorials were not merely stale snippets; several were long-form pages with v1 YAML shapes, old command-provider terminology, or transition-era generator caveats. Deleting them is safer than leaving them discoverable as if they were current guidance.
+
+### Prompt Context
+
+**User prompt (verbatim):** "which tutorials? feel free to kill stuff that is not really relevant anymore"
+
+**Assistant interpretation:** Identify stale tutorial/help pages and remove the ones that are no longer relevant after the v2 cutover.
+
+**Inferred user intent:** Keep bundled help concise and accurate, avoiding old buildspec-era instructions that could mislead users.
+
+**Commit (code):** 37083325ca3cae6a459cda25cc95db930f42be91 — "docs: prune stale xgoja tutorials"
+
+### What I did
+
+- Deleted stale v1/buildspec-era help pages:
+  - `03-tutorial-using-xgoja-yaml.md`
+  - `04-tutorial-providing-package-and-modules.md`
+  - `05-tutorial-providing-commands.md`
+  - `08-playbook-adding-xgoja-support.md`
+  - `09-tutorial-static-assets-http-server.md`
+  - `12-tutorial-http-serve-jsverbs.md`
+  - `13-tutorial-generated-runtime-package.md`
+  - `14-tutorial-typescript-declarations.md`
+  - `15-tutorial-typescript-jsverbs.md`
+- Updated overview and migration doc see-also links to point at current v2 guide/reference/examples instead of removed tutorial slugs.
+
+### Why
+
+- The deleted pages were mostly long-form v1-era tutorials and transitional generator notes.
+- The current source of truth is now `user-guide`, `xgoja-v2-reference`, `migrating-to-xgoja-v2`, and runnable examples under `examples/xgoja`.
+
+### What worked
+
+- `go test ./cmd/xgoja/doc ./cmd/xgoja -count=1` passed after link/test updates.
+- The commit was docs-only, so pre-commit skipped lint/test as expected.
+
+### What didn't work
+
+- Before updating root test expectations in the prior step, bundled help tests expected old tutorial strings. This pruning step did not introduce new test failures after see-also links were updated.
+
+### What I learned
+
+- The docs had two classes of material: durable architecture/API migration notes and old end-user tutorials. The latter were more harmful than useful after the hard cutover.
+- Keeping the compatibility `buildspec-reference` pointer is enough for old help links; there is no need to keep full v1 tutorials discoverable.
+
+### What was tricky to build
+
+- Some stale tutorials contained useful concepts, but their examples were v1-shaped. Rewriting all of them would be a separate documentation project; for now, removing them prevents incorrect guidance.
+
+### What warrants a second pair of eyes
+
+- Review whether any deleted tutorial contained provider-authoring details that should be reintroduced later as a v2-first provider guide.
+- Review the remaining help index from `xgoja help` to ensure the pruned set feels complete enough.
+
+### What should be done in the future
+
+- Add fresh v2-first tutorials only where examples are not enough.
+- Candidate new docs: provider authoring with v2 specs, runtime-package generation with v2 artifacts, and HTTP/TypeScript jsverbs from current examples.
+
+### Code review instructions
+
+- Review the deleted file list in commit `3708332`.
+- Check `cmd/xgoja/doc/01-overview.md`, `07-migrating-runtime-context-api.md`, and `10-migrating-xgoja-provider-engine-api.md` for updated see-also links.
+- Validate with `go test ./cmd/xgoja/doc ./cmd/xgoja -count=1`.
+
+### Technical details
+
+- `cmd/xgoja/doc/doc.go` embeds `*.md`, so deleting stale markdown files removes them from bundled help automatically.
+- Remaining top-level xgoja docs are intentionally compact: overview, user guide, legacy pointer, migration/API notes, v2 migration, and v2 reference.
