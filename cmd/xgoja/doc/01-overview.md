@@ -101,7 +101,6 @@ Do not use `xgoja` as a dynamic Go plugin loader. The reliable extension boundar
 ## See also
 
 - `xgoja-v2-reference` for the YAML reference.
-- `tutorial` for an end-to-end build flow.
-- `tutorial-static-assets-http-server` for embedding and serving bundled static web assets.
-- `tutorial-http-serve-jsverbs` for serving Express routes registered by generated JavaScript verbs.
-- `tutorial-generated-runtime-package` for generating an importable Go package that creates xgoja runtimes inside an existing application.
+- `user-guide` for the current native v2 workflow.
+- `migrating-to-xgoja-v2` for converting legacy specs.
+- `examples/xgoja` in the repository for runnable v2 projects.

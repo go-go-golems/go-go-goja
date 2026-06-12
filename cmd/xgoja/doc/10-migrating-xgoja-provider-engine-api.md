@@ -168,6 +168,5 @@ If workspace mode passes but `GOWORK=off` fails, inspect the relevant `go.mod`. 
 ## See also
 
 - `xgoja help migrating-runtime-context-api`
-- `xgoja help tutorial-providing-package-and-modules`
-- `xgoja help tutorial-providing-commands`
 - `xgoja help xgoja-v2-reference`
+- `xgoja help user-guide`
