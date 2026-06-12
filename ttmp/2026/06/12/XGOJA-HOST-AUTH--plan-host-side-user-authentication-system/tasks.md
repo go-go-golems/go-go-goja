@@ -32,16 +32,16 @@ Goal: provide a no-external-service auth kit that implements the existing `gojah
 
 Goal: extract reusable session-cookie authentication and CSRF mechanics that can be used by both dev/demo and production Keycloak-backed hosts.
 
-- [ ] Create `pkg/gojahttp/auth/sessionauth` package.
-- [ ] Define `Session`, `Store`, and `UserLoader`/actor projection interfaces.
-- [ ] Implement secure cookie helpers with safe defaults and explicit development-mode escape hatches.
-- [ ] Implement CSPRNG session ID and CSRF token generation.
-- [ ] Implement idle timeout, absolute timeout, revocation, and session rotation semantics.
-- [ ] Implement a memory store for tests and demos.
-- [ ] Implement `gojahttp.Authenticator` backed by the session store.
-- [ ] Implement `gojahttp.CSRFProtector` backed by the session store.
-- [ ] Add tests for missing cookie, invalid cookie, expired session, revoked session, rotated session, actor projection, CSRF mismatch, CSRF success, and cookie clearing.
-- [ ] Decide whether `sessionauth` wraps `alexedwards/scs` directly or remains adapter-first.
+- [x] Create `pkg/gojahttp/auth/sessionauth` package.
+- [x] Define `Session`, `Store`, and `UserLoader`/actor projection interfaces.
+- [x] Implement secure cookie helpers with safe defaults and explicit development-mode escape hatches.
+- [x] Implement CSPRNG session ID and CSRF token generation.
+- [x] Implement idle timeout, absolute timeout, revocation, and session rotation semantics.
+- [x] Implement a memory store for tests and demos.
+- [x] Implement `gojahttp.Authenticator` backed by the session store.
+- [x] Implement `gojahttp.CSRFProtector` backed by the session store.
+- [x] Add tests for missing cookie, invalid cookie, expired session, revoked session, rotated session, actor projection, CSRF mismatch, CSRF success, and cookie clearing.
+- [x] Decide whether `sessionauth` wraps `alexedwards/scs` directly or remains adapter-first.
 
 ## Phase 3 — Production Keycloak/OIDC package
 
