@@ -207,7 +207,7 @@
 
 ### Phase 9: Cut over examples and docs
 
-- [ ] Migrate `examples/xgoja/15-typescript-jsverbs` first.
+- [x] Migrate `examples/xgoja/15-typescript-jsverbs` first.
 - [ ] Migrate HTTP serve jsverbs example.
 - [ ] Migrate generated runtime package example.
 - [ ] Migrate provider examples and tutorials.

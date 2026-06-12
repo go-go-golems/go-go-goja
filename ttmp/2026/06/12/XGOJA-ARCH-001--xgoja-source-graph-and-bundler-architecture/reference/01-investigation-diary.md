@@ -42,15 +42,22 @@ RelatedFiles:
         Provider import module-root normalization for Step 21
     - Path: cmd/xgoja/internal/plan/plan_test.go
       Note: Planner regression tests for Step 16
+    - Path: cmd/xgoja/internal/specv2/examples_migration_test.go
+      Note: Migration coverage now accepts native v2 examples during staged example cutover
     - Path: cmd/xgoja/root_test.go
       Note: |-
         V2 doctor smoke test for Step 19
         V2 build dry-run test for Step 20
         V2 gen-dts smoke test for Step 21
+        migrate-spec warning test decoupled from example fixture now migrated to v2
     - Path: cmd/xgoja/v2_bridge.go
       Note: V2 build bridge for Step 20
     - Path: cmd/xgoja/workspace_plan.go
       Note: Legacy buildspec-to-workspace planner bridge for Step 17
+    - Path: examples/xgoja/15-typescript-jsverbs/README.md
+      Note: Example README updated to explain v2 source/runtime module model in commit f47d196
+    - Path: examples/xgoja/15-typescript-jsverbs/xgoja.yaml
+      Note: Native v2 TypeScript jsverbs example migrated in commit f47d196
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
       Note: Step 1 build-time xgoja schema evidence.
     - Path: go-go-goja/cmd/xgoja/internal/generate/generate.go
@@ -102,6 +109,7 @@ LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -1944,3 +1952,91 @@ This keeps the current sidecar execution model: gen-dts still imports real provi
 
 - V2 gen-dts still requires `--out` for now.
 - The generated sidecar uses the converted buildspec plus `compiledPlan.GoModules`.
+
+
+## Step 22: Migrate the TypeScript jsverbs example to native v2
+
+I migrated `examples/xgoja/15-typescript-jsverbs/xgoja.yaml` from the legacy buildspec shape to native `schema: xgoja/v2`. This is the first repository example moved onto the new planner-facing schema, so it also required small test updates that keep migration coverage useful while examples are converted one by one.
+
+The example now declares the HTTP provider under `providers`, selects the `express` runtime module under `runtime.modules`, declares the TypeScript jsverb source set under `sources`, and exposes `run`, `verbs`, and `serve` as v2 command surfaces. The README now explains that runtime module aliases are derived from runtime module selection rather than repeated as TypeScript externals.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 15)
+
+**Assistant interpretation:** Continue the v2 hard-cutover by starting the repository example migration phase.
+
+**Inferred user intent:** Move beyond command support and prove that real examples can run as native `xgoja/v2` specs.
+
+**Commit (code):** f47d1967576ce01713ef99994b72ffb47d759f1f — "xgoja: migrate TypeScript jsverbs example to v2"
+
+### What I did
+
+- Rewrote `examples/xgoja/15-typescript-jsverbs/xgoja.yaml` as a native `schema: xgoja/v2` spec.
+- Added a `type: dts` artifact for the example's generated declaration file.
+- Updated `examples/xgoja/15-typescript-jsverbs/README.md` to explain the v2 provider/runtime/source/command model.
+- Updated `cmd/xgoja/internal/specv2/examples_migration_test.go` so staged example migration coverage accepts already-native v2 examples and still migrates remaining v1 examples.
+- Updated `cmd/xgoja/root_test.go` so the migrate-spec warning test uses an inline v1 fixture instead of depending on the TypeScript example remaining v1.
+- Checked task 86 in the ticket.
+
+### Why
+
+- The v2 command paths are now implemented for doctor, build, and gen-dts, so examples need to move from migration-only coverage into native v2 usage.
+- The TypeScript jsverbs example is the best first migration target because it exercises TypeScript bundling, runtime module alias derivation, provider command sets, generated builds, generated declarations, direct run, and HTTP hot reload.
+- Tests should not rely on a specific example staying v1 once example migration starts.
+
+### What worked
+
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/plan ./cmd/xgoja/internal/specv2 ./pkg/xgoja/sourcegraph ./pkg/xgoja/app ./pkg/jsverbs ./pkg/tsscript -count=1` passed.
+- `make -C examples/xgoja/15-typescript-jsverbs doctor types build run-smoke` passed.
+- `make -C examples/xgoja/15-typescript-jsverbs serve-smoke` passed.
+- The pre-commit hook passed, including lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- The first focused test run failed because `TestMigrateV1ExamplesToValidV2` still assumed every example `xgoja.yaml` was v1:
+  - `cmd/xgoja/internal/specv2/examples_migration_test.go:37: load v1 example: yaml: unmarshal errors:`
+  - `line 34: cannot unmarshal !!seq into buildspec.CommandsSpec`
+- I fixed this by reading each example file first, calling `DetectSchema`, strict-loading native v2 examples, and only running `MigrateV1` for remaining v1 examples.
+- `TestMigrateSpecCommandPrintsWarnings` also failed after the example migration because it used the TypeScript example as its warning-producing v1 fixture:
+  - `expected warning output, got "wrote migrated xgoja/v2 spec ..."`
+- I fixed this by replacing the example dependency with an inline v1 fixture that still contains TypeScript target/format/platform/external fields.
+
+### What I learned
+
+- Once examples begin moving to v2, migration tests need to distinguish two responsibilities: remaining v1 examples should still migrate, and already-migrated v2 examples should strict-load successfully.
+- The TypeScript example validates the current bridge well: v2 planning can drive doctor, gen-dts, build, direct run, and HTTP serve smoke without converting the generator to direct `plan.Plan` consumption yet.
+
+### What was tricky to build
+
+- The migration coverage test had to remain useful during a mixed v1/v2 repository state. A hard-coded v1-only example inventory would make every migrated example look like a regression.
+- The migrate-spec warning test needed to preserve the warning behavior independently from repository example state. An inline v1 fixture is more stable because it describes the specific warning inputs the test cares about.
+
+### What warrants a second pair of eyes
+
+- Review the v2 example spec for whether the declaration artifact should be used by `gen-dts` automatically once `--out` defaults are implemented.
+- Review whether `workspace.mode: auto` is appropriate in checked-in examples or whether examples should use a more explicit mode for reproducibility.
+- Review whether README snippets should show the full spec or only the conceptual sections, since partial snippets can omit artifact behavior.
+
+### What should be done in the future
+
+- Migrate the HTTP serve jsverbs example next.
+- Add v2 reference documentation covering the provider/runtime/source/command/artifact fields used by this example.
+- Use v2 `type: dts` artifact output as the default for `gen-dts` so the example Makefile can omit `--out` later.
+
+### Code review instructions
+
+- Start with `examples/xgoja/15-typescript-jsverbs/xgoja.yaml` to review the v2 spec mapping.
+- Read `examples/xgoja/15-typescript-jsverbs/README.md` to confirm the user-facing explanation matches current behavior.
+- Review `cmd/xgoja/internal/specv2/examples_migration_test.go` and `cmd/xgoja/root_test.go` to confirm tests no longer depend on this example being v1.
+- Validate with:
+  - `go test ./cmd/xgoja ./cmd/xgoja/internal/plan ./cmd/xgoja/internal/specv2 ./pkg/xgoja/sourcegraph ./pkg/xgoja/app ./pkg/jsverbs ./pkg/tsscript -count=1`
+  - `make -C examples/xgoja/15-typescript-jsverbs doctor types build run-smoke`
+  - `make -C examples/xgoja/15-typescript-jsverbs serve-smoke`
+
+### Technical details
+
+- The v2 example selects `go-go-goja-http` as a provider and selects `express` as a runtime module.
+- The TypeScript source set uses `kind: jsverbs`, `language: typescript`, and `compile.bundle: true`.
+- The provider command surface uses `type: provider.command-set`, `provider: go-go-goja-http`, `name: serve`, `mount: serve`, and `sources: [local-sites]`.
+- The focused validation command and the full pre-commit hook both passed after the test fixture adjustments.

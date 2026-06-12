@@ -243,3 +243,12 @@ Updated xgoja gen-dts to load v2 specs through the planner bridge and use planne
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/plan/plan.go — Provider import paths are normalized to module roots for Go module planning
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root_test.go — V2 gen-dts command smoke test
 
+
+## 2026-06-12
+
+Step 22: migrated examples/xgoja/15-typescript-jsverbs to native xgoja/v2 and validated doctor/gen-dts/build/run/serve smoke (commit f47d196)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/examples/xgoja/15-typescript-jsverbs/xgoja.yaml — First repository example migrated to v2
+
