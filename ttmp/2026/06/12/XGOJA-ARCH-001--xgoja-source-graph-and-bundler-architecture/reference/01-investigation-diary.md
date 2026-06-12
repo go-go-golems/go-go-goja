@@ -47,7 +47,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T15:50:00-04:00
+LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
@@ -1081,3 +1081,91 @@ This implements the current provider API decision: wrap the existing registry fi
 - The graph stores selected provider packages by ID and preserves selection order.
 - Runtime aliases are stored in a map and exposed as sorted strings for deterministic source compiler externals.
 - Command set IDs default to `<provider>.<name>` when not specified.
+
+
+## Step 12: Add source graph discovery and import resolution
+
+I added the first source graph package for v2 source orchestration. It discovers disk and `fs.FS` source sets, preserves origin metadata, filters files, and resolves local/runtime imports for goja-executed sources.
+
+This is still a graph/planning layer, not yet wired into jsverbs runtime execution. It provides the metadata and import classification needed for the upcoming TypeScript `fs.FS` bundling work and v2 planner integration.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 9)
+
+**Assistant interpretation:** Continue through the hard-cutover implementation by adding source graph primitives after workspace and provider graph layers.
+
+**Inferred user intent:** Build the v2 source orchestration pieces needed before replacing direct jsverbs scan/runtime paths.
+
+**Commit (code):** pending — source graph staged after this diary update.
+
+### What I did
+
+- Added `pkg/xgoja/sourcegraph/graph.go`.
+- Implemented source kinds:
+  - `jsverbs`;
+  - `script`;
+  - `assets`;
+  - `help`.
+- Implemented source origins:
+  - disk directory;
+  - provider `fs.FS`;
+  - embedded `fs.FS`.
+- Implemented include/exclude/extension filtering.
+- Preserved origin metadata on discovered files.
+- Implemented basic import parsing for `import ... from` and `require(...)`.
+- Implemented local import resolution with extension and index probing.
+- Implemented runtime module alias classification.
+- Implemented unknown bare import and path escape diagnostics.
+- Added tests for disk discovery, provider `fs.FS` discovery, local/runtime import resolution, unknown bare imports, and path escapes.
+- Checked task IDs 62–70.
+
+### Why
+
+- v2 needs one central source inventory for jsverbs scanning, TypeScript runtime bundling, hot reload watches, provider-shipped sources, help docs, and assets.
+- The embedded/provider TypeScript bug requires source origin metadata to survive until bundling.
+
+### What worked
+
+- `go test ./pkg/xgoja/sourcegraph -count=1` passed.
+- Runtime aliases from provider graph can be passed into source graph and classified as runtime imports.
+- Provider `fs.FS` source discovery keeps source origin kind and logical source-relative paths.
+
+### What didn't work
+
+- No command failed in this step.
+- The import parser is intentionally lightweight and not a full JavaScript parser; it is sufficient for planner diagnostics but later bundling should still rely on esbuild resolution.
+- Source graph is not yet used by jsverbs runtime or hot reload paths.
+
+### What I learned
+
+- Source graph should use source-set-relative logical paths as stable keys. Absolute paths are disk-origin metadata, not graph identity.
+- Unknown bare import diagnostics can be implemented before package bundling exists, while runtime aliases stay allowed.
+
+### What was tricky to build
+
+- Local import resolution has to probe TypeScript and JavaScript extensions plus index files while preventing `../` escapes from the source root.
+- `fs.FS` roots need path trimming so provider-shipped files under `verbs/site.ts` appear as `site.ts` inside that source set.
+
+### What warrants a second pair of eyes
+
+- Review whether the lightweight regex import parser is acceptable for planner diagnostics, or whether sourcegraph should immediately use tree-sitter/esbuild parsing.
+- Review whether source graph belongs in `pkg/xgoja/sourcegraph` as a reusable package or should become an internal planner detail.
+
+### What should be done in the future
+
+- Implement fs.FS-backed TypeScript bundling using source graph origin metadata.
+- Replace normal xgoja jsverbs scanning with graph-backed adapters.
+- Feed source graph files into hot reload watch planning.
+
+### Code review instructions
+
+- Start with `Build` and `resolveLocal` in `pkg/xgoja/sourcegraph/graph.go`.
+- Review path escape handling and extension probing.
+- Validate with `go test ./pkg/xgoja/sourcegraph -count=1`.
+
+### Technical details
+
+- File identity is `<sourceSetID> + NUL + <relative path>`.
+- Runtime module aliases are passed via `Options.RuntimeModuleAliases`.
+- Asset/help source kinds are discovered but import resolution skips non-executable source kinds.

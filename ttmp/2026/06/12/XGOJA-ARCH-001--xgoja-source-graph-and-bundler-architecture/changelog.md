@@ -115,3 +115,13 @@ Added providergraph package over existing providerapi with selected provider/mod
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/providergraph/graph_test.go — Provider graph validation tests
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/sources/local/03-provider-api-audit.md — Provider API audit conclusion
 
+
+## 2026-06-12
+
+Added sourcegraph package with disk/fs source origins, source kinds, include/exclude discovery, origin metadata, local import resolution, runtime alias classification, and unknown bare import diagnostics.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/sourcegraph/graph.go — Source graph implementation
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/sourcegraph/graph_test.go — Source graph discovery and import-resolution tests
+

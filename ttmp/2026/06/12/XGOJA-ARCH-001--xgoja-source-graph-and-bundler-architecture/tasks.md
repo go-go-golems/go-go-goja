@@ -159,23 +159,23 @@
 
 ### Phase 6: Build the v2 source graph
 
-- [ ] Create `pkg/xgoja/sourcegraph` or `pkg/xgoja/internal/sourcegraph` depending on intended API stability.
-- [ ] Implement source origins:
+- [x] Create `pkg/xgoja/sourcegraph` or `pkg/xgoja/internal/sourcegraph` depending on intended API stability.
+- [x] Implement source origins:
   - disk directory;
   - provider `fs.FS`;
   - embedded `fs.FS` internal origin;
   - future workspace directory origin.
-- [ ] Implement source kinds:
+- [x] Implement source kinds:
   - `jsverbs`;
   - `script`;
   - `assets`;
   - `help`.
-- [ ] Implement include/exclude filtering for source graph discovery.
-- [ ] Preserve origin metadata needed by TypeScript runtime bundling and hot reload.
-- [ ] Implement local import resolution with extension probing for goja-executed JS/TS sources.
-- [ ] Implement runtime module alias classification as automatic externals.
-- [ ] Reject unknown bare imports by default with actionable diagnostics.
-- [ ] Add tests for disk source sets, provider `fs.FS` source sets, embedded source sets, path escape rejection, helper import resolution, runtime module alias resolution, and unknown bare import diagnostics.
+- [x] Implement include/exclude filtering for source graph discovery.
+- [x] Preserve origin metadata needed by TypeScript runtime bundling and hot reload.
+- [x] Implement local import resolution with extension probing for goja-executed JS/TS sources.
+- [x] Implement runtime module alias classification as automatic externals.
+- [x] Reject unknown bare imports by default with actionable diagnostics.
+- [x] Add tests for disk source sets, provider `fs.FS` source sets, embedded source sets, path escape rejection, helper import resolution, runtime module alias resolution, and unknown bare import diagnostics.
 
 ### Phase 7: Port TypeScript/jsverbs execution to v2 graph/plans
 
