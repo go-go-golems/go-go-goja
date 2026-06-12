@@ -15,7 +15,7 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-The `express` module exposes a small Express-style route registration API for Goja-hosted applications. It is intentionally **Express-style**, not full Express-compatible: it supports route handlers and static mounts, but not middleware stacks, routers, `next()`, template engines, or npm Express plugins.
+The `express` module exposes a small Express-style route registration API for Goja-hosted applications. It is intentionally **Express-style**, not full Express-compatible: it supports route handlers, static mounts, and Go-owned planned auth routes, but not middleware stacks, routers, `next()`, template engines, or npm Express plugins.
 
 ## Go setup
 
@@ -70,6 +70,16 @@ app.delete(pattern, handler)
 app.all(pattern, handler)
 app.static(prefix, directory)
 app.staticFromAssetsModule(prefix, assetsModule, root)
+
+app.route(method, pattern)
+  .public()
+  .handle(handler)
+
+app.route(method, pattern)
+  .auth(express.user().required())
+  .resource(express.resource(type).idFromParam(paramName))
+  .allow(action)
+  .handle(handler)
 ```
 
 `app.static(prefix, directory)` serves a real host filesystem directory.
@@ -85,6 +95,86 @@ app.staticFromAssetsModule("/static", assets, "/app/public");
 ```
 
 Route patterns support exact paths, `:params`, and `*` wildcards.
+
+## Planned auth routes
+
+For routes that need authentication or authorization, prefer `app.route(method, pattern)` over raw `app.get(pattern, handler)`. Planned routes use staged Go-backed builder objects: JavaScript gets a fluent API, but the security-critical route plan is compiled and validated by Go at registration time.
+
+A public planned route must explicitly call `.public()` before `.handle(...)`:
+
+```javascript
+const express = require("express");
+const app = express.app();
+
+app.route("GET", "/healthz")
+  .public()
+  .handle((_ctx, res) => res.json({ ok: true }));
+```
+
+An authenticated route declares its auth mode and permission action before the handler is registered:
+
+```javascript
+app.route("GET", "/me")
+  .auth(express.user().required())
+  .allow("user.self.read")
+  .handle((ctx, res) => {
+    res.json({ id: ctx.actor.id });
+  });
+```
+
+A resource-bound route declares where the resource identity is extracted from the HTTP adapter layer. `idFromParam("projectId")` means “read the resource id from `:projectId`”, not “perform authorization in JavaScript”. The host's Go `ResourceResolver` and `Authorizer` still own resource loading and access control.
+
+```javascript
+app.route("PATCH", "/orgs/:orgId/projects/:projectId")
+  .auth(express.user().required())
+  .resource(
+    express.resource("project")
+      .idFromParam("projectId")
+      .tenantFromParam("orgId")
+      .mustExist()
+  )
+  .allow("project.update")
+  .handle((ctx, res) => {
+    const project = ctx.resource("project");
+    res.json({ project: project.id, tenant: project.tenantId });
+  });
+```
+
+The builder is intentionally strict:
+
+- `.handle(...)` is not available until a route calls `.public()` or `.auth(...).allow(...)`.
+- `.auth(...)` only accepts a Go-backed value returned by `express.user()`.
+- `.resource(...)` only accepts a Go-backed value returned by `express.resource(type)`.
+- Referencing a missing path parameter, such as `.idFromParam("id")` on `/projects/:projectId`, fails at route registration time.
+
+Planned handlers receive `(ctx, res)` instead of `(req, res)`:
+
+```ts
+type PlannedContext = {
+  request: Request;
+  actor: { id: string; kind: string; tenantIds?: string[]; claims?: Record<string, unknown> } | null;
+  body: unknown;
+  params: Record<string, string>;
+  resources: Record<string, ResourceRef>;
+  resource(name: string): ResourceRef | null;
+  action: string;
+  routeName: string;
+};
+```
+
+Host applications configure planned auth through `gojahttp.HostOptions.Auth`:
+
+```go
+host := gojahttp.NewHost(gojahttp.HostOptions{
+    Auth: gojahttp.AuthOptions{
+        Authenticator: myAuthenticator,
+        Resources:     myResourceResolver,
+        Authorizer:    myAuthorizer,
+    },
+})
+```
+
+Missing auth services fail closed for authenticated planned routes. Missing credentials return 401, denied authorization returns 403, and resource lookup failures can return 404 via `gojahttp.ErrNotFound`.
 
 ## Request object
 

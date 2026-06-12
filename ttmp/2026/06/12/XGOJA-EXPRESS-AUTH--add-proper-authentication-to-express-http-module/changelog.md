@@ -94,3 +94,14 @@ Phase 3: added Express Go-backed fluent route builders with strict auth/resource
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/express.go — Exports user/resource builders and app.route
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Recorded Phase 3 implementation
 
+
+## 2026-06-12
+
+Phase 4: documented planned auth builders in TypeScript declarations and Express module docs
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/typescript.go — Updated generated TypeScript declarations for planned route builders and context
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/18-express-module.md — Documented planned auth route usage and host auth setup
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Recorded Phase 4 docs/types update
+

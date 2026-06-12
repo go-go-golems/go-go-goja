@@ -855,3 +855,94 @@ app.route("PATCH", "/orgs/:orgId/projects/:projectId")
     res.json({ project: project.id, tenant: project.tenantId })
   })
 ```
+
+
+## Step 9: Update TypeScript declarations and Express module docs
+
+I documented the new planned auth route API in both the TypeScript declaration generator and the user-facing Express module help page. The documentation now explains that raw `app.get` routes remain available, while auth-sensitive routes should use the staged `app.route(...).auth(...).allow(...).handle(...)` path.
+
+The docs also clarify the resource binding distinction discussed during design: `idFromParam` and `tenantFromParam` are HTTP adapter bindings, while actual resource lookup and authorization remain Go-owned host services.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue implementation by documenting the new API after the builder code compiles and tests pass.
+
+**Inferred user intent:** Make the implemented API discoverable to JavaScript authors and generated TypeScript consumers.
+
+**Commit (code):** pending — Phase 4 docs/types are ready to commit after this diary update.
+
+### What I did
+
+- Updated `modules/express/typescript.go` with declarations for:
+  - `express.user()`
+  - `express.resource(type)`
+  - `App.route(method, pattern)`
+  - staged builder interfaces
+  - `PlannedHandler`
+  - `PlannedContext`
+  - `Actor`
+  - `ResourceRef`
+- Updated `pkg/doc/18-express-module.md` with:
+  - planned route API examples,
+  - public route example,
+  - authenticated route example,
+  - resource-bound route example,
+  - strict builder validation notes,
+  - host `gojahttp.HostOptions.Auth` setup snippet,
+  - HTTP status behavior for missing credentials/denials/not found resources.
+- Ran:
+
+```bash
+go test ./modules/express ./pkg/gojahttp ./pkg/xgoja/dtsgen -count=1
+```
+
+### Why
+
+- The Go-backed builder API is only useful if generated TypeScript and docs describe the staged method order and strict object requirements.
+- The docs need to set expectations that `express.resource(...).idFromParam(...)` is extraction/binding, not JavaScript-owned authorization.
+
+### What worked
+
+- Targeted tests passed for `modules/express`, `pkg/gojahttp`, and `pkg/xgoja/dtsgen`.
+- The existing docs section could be extended without rewriting the whole page.
+
+### What didn't work
+
+- No test failures occurred in this phase.
+
+### What I learned
+
+- The existing `TypeScriptModule` RawDTS block is the right place to document staged builder types because generated consumers will see the same method availability constraints that runtime staged objects enforce.
+
+### What was tricky to build
+
+- The TypeScript builder aliases are structurally typed, so `UserAuthSpec = UserAuthBuilder` cannot enforce Go object identity at compile time. Runtime still enforces object identity. The declaration's purpose is editor guidance and method ordering, not complete security.
+
+### What warrants a second pair of eyes
+
+- Whether TypeScript should expose the compatibility aliases `fromParam` and `withinTenantParam`, or only document the clearer `idFromParam` and `tenantFromParam` names.
+- Whether `PlannedContext.actor` should be typed nullable for public routes, as it is now, or split into public/authenticated planned contexts later.
+
+### What should be done in the future
+
+- Phase 5 should add provider/example coverage and final validation.
+
+### Code review instructions
+
+- Review `modules/express/typescript.go` to make sure declarations match the actual Go-backed builder API.
+- Review `pkg/doc/18-express-module.md` as the main user-facing explanation.
+- Validate with `go test ./modules/express ./pkg/gojahttp ./pkg/xgoja/dtsgen -count=1`.
+
+### Technical details
+
+The docs now recommend:
+
+```js
+app.route("PATCH", "/orgs/:orgId/projects/:projectId")
+  .auth(express.user().required())
+  .resource(express.resource("project").idFromParam("projectId").tenantFromParam("orgId").mustExist())
+  .allow("project.update")
+  .handle((ctx, res) => { /* ... */ })
+```

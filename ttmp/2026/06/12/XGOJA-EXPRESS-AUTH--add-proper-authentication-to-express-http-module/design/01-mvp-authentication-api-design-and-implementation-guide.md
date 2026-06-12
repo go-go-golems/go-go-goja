@@ -19,6 +19,8 @@ RelatedFiles:
       Note: Current JavaScript Express app and raw route registration surface reconciled by the MVP builder design
     - Path: modules/express/typescript.go
       Note: Declaration source that must be expanded for staged secure route builders
+    - Path: pkg/doc/18-express-module.md
+      Note: Phase 4 user-facing documentation for planned auth routes
     - Path: pkg/gojahttp/auth_plan.go
       Note: Phase 1 implementation of typed RoutePlan/auth/resource model from the design
     - Path: pkg/gojahttp/auth_plan_test.go
@@ -46,6 +48,7 @@ LastUpdated: 2026-06-12T14:25:00-04:00
 WhatFor: Use this to implement the MVP auth API for modules/express and pkg/gojahttp without first needing deep context on the HTTP provider.
 WhenToUse: Read before changing Express route registration, gojahttp route dispatch, session handling, or xgoja HTTP provider integration.
 ---
+
 
 
 

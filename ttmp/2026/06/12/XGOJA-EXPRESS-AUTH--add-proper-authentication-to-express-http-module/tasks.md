@@ -53,10 +53,10 @@
 
 ## Phase 4 — TypeScript declarations and user docs
 
-- [ ] Update `modules/express/typescript.go` with staged builder, auth spec, resource spec, actor/resource context, and planned handler types
-- [ ] Update `pkg/doc/18-express-module.md` with secure planned route examples and compatibility notes
-- [ ] Add troubleshooting notes for common registration-time errors
-- [ ] Run targeted docs/type generation tests if available
+- [x] Update `modules/express/typescript.go` with staged builder, auth spec, resource spec, actor/resource context, and planned handler types
+- [x] Update `pkg/doc/18-express-module.md` with secure planned route examples and compatibility notes
+- [x] Add troubleshooting notes for common registration-time errors
+- [x] Run targeted docs/type generation tests if available
 - [ ] Commit Phase 4
 
 ## Phase 5 — Validation, examples, and provider integration
