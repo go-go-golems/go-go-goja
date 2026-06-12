@@ -129,8 +129,51 @@ func TestBuilderRefMapSetFailureDoesNotClearExistingEntries(t *testing.T) {
 	require.NoError(t, err)
 
 	err = builder.Set(vm, field, vm.Get("invalidMap"))
+	require.ErrorContains(t, err, `labels["bad"]`)
 	require.ErrorContains(t, err, "expected integer")
 	require.Equal(t, map[string]int64{"existing": 7}, dynamicStringInt64Map(t, builder.Build(), field))
+}
+
+func TestBuilderRefFieldPathRichErrors(t *testing.T) {
+	vm := goja.New()
+	tests := []struct {
+		name     string
+		run      func() error
+		contains []string
+	}{
+		{
+			name: "repeated index",
+			run: func() error {
+				builder, err := NewBuilder(&contract.ModuleManifest{})
+				require.NoError(t, err)
+				field := builder.Descriptor().Fields().ByName("capabilities")
+				_, err = vm.RunString(`globalThis.invalidRepeated = ["ok", 123]`)
+				require.NoError(t, err)
+				return builder.Set(vm, field, vm.Get("invalidRepeated"))
+			},
+			contains: []string{"capabilities[1]", "expected string"},
+		},
+		{
+			name: "map key",
+			run: func() error {
+				builder, field := newDynamicMapBuilder(t)
+				_, err := vm.RunString(`globalThis.invalidObjectMap = { bad: {} }`)
+				require.NoError(t, err)
+				return builder.Set(vm, field, vm.Get("invalidObjectMap"))
+			},
+			contains: []string{`labels["bad"]`, "expected integer"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.run()
+			require.Error(t, err)
+			for _, expected := range tt.contains {
+				require.ErrorContains(t, err, expected)
+			}
+		})
+	}
 }
 
 func TestBuilderRefOptionalPresenceHelpersHasAndClear(t *testing.T) {

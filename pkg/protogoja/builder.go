@@ -68,7 +68,7 @@ func (b *BuilderRef) Add(vm *goja.Runtime, field protoreflect.FieldDescriptor, v
 	}
 	converted, err := valueForField(vm, field, value)
 	if err != nil {
-		return err
+		return fmt.Errorf("protogoja: %s[]: %w", field.FullName(), err)
 	}
 	b.msg.ProtoReflect().Mutable(field).List().Append(converted)
 	return nil
@@ -88,7 +88,7 @@ func (b *BuilderRef) Put(vm *goja.Runtime, field protoreflect.FieldDescriptor, k
 	}
 	mapValue, err := valueForField(vm, field.MapValue(), value)
 	if err != nil {
-		return err
+		return fmt.Errorf("protogoja: %s[%s]: %w", field.FullName(), mapKeyDisplay(key), err)
 	}
 	b.msg.ProtoReflect().Mutable(field).Map().Set(mapKey, mapValue)
 	return nil
@@ -249,10 +249,10 @@ func (b *BuilderRef) setList(vm *goja.Runtime, field protoreflect.FieldDescripto
 	}
 	list := b.msg.ProtoReflect().Mutable(field).List()
 	list.Truncate(0)
-	for _, item := range items {
+	for i, item := range items {
 		converted, err := valueForField(vm, field, item)
 		if err != nil {
-			return err
+			return fmt.Errorf("protogoja: %s[%d]: %w", field.FullName(), i, err)
 		}
 		list.Append(converted)
 	}
@@ -299,11 +299,11 @@ func objectMapEntries(vm *goja.Runtime, field protoreflect.FieldDescriptor, valu
 	for _, rawKey := range obj.Keys() {
 		key, err := mapKeyForField(vm, field.MapKey(), vm.ToValue(rawKey))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("protogoja: %s key %q: %w", field.FullName(), rawKey, err)
 		}
 		converted, err := valueForField(vm, field.MapValue(), obj.Get(rawKey))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("protogoja: %s[%q]: %w", field.FullName(), rawKey, err)
 		}
 		out = append(out, mapEntry{key: key, value: converted})
 	}
@@ -344,11 +344,11 @@ func jsMapEntries(vm *goja.Runtime, field protoreflect.FieldDescriptor, value go
 		}
 		key, err := mapKeyForField(vm, field.MapKey(), pair[0])
 		if err != nil {
-			return nil, true, err
+			return nil, true, fmt.Errorf("protogoja: %s Map entry %d key: %w", field.FullName(), i, err)
 		}
 		converted, err := valueForField(vm, field.MapValue(), pair[1])
 		if err != nil {
-			return nil, true, err
+			return nil, true, fmt.Errorf("protogoja: %s[%s]: %w", field.FullName(), mapKeyDisplay(pair[0]), err)
 		}
 		out = append(out, mapEntry{key: key, value: converted})
 	}
@@ -484,6 +484,16 @@ func mapKeyForField(vm *goja.Runtime, field protoreflect.FieldDescriptor, value 
 		return protoreflect.MapKey{}, err
 	}
 	return converted.MapKey(), nil
+}
+
+func mapKeyDisplay(value goja.Value) string {
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return "<nil>"
+	}
+	if s, ok := value.Export().(string); ok {
+		return strconv.Quote(s)
+	}
+	return fmt.Sprint(value.Export())
 }
 
 func enumNumberForField(field protoreflect.FieldDescriptor, value goja.Value) (protoreflect.EnumNumber, error) {
