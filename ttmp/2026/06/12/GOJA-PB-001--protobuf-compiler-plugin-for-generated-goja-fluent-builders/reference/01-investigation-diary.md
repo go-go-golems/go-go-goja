@@ -21,6 +21,7 @@ RelatedFiles:
         Phase 6 TypeScript RawDTS generation (commit 611dfc7)
         Phase 7 host integration helper generation (commit 0342d57)
         Generated has<Field>() methods and DTS entries for presence fields (commit 0205764)
+        Generated repeated add
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/options.go
       Note: Phase 4 plugin option parsing (commit b3deaf4)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/main.go
@@ -35,6 +36,7 @@ RelatedFiles:
         Generated prototype token validation in compile/runtime fixture (commit bcaf348)
         Phase 6 tsgen/render and xgoja/dtsgen tests (commit 611dfc7)
         Phase 7 host integration tests (commit 0342d57)
+        Runtime and DTS validation for generated repeated add helper (commit 7ef08bd)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden
       Note: |-
         Golden first generated Go companion file (commit b3deaf4)
@@ -87,6 +89,7 @@ LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Continuation context for GOJA-PB-001 implementation and review.
 WhenToUse: Read before implementing protoc-gen-goja-builder or revising the builder generator design.
 ---
+
 
 
 
@@ -2274,4 +2277,118 @@ Task update command:
 
 ```bash
 docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 21,22,23,24,25
+```
+
+## Step 20: Generate collection and oneof helper methods
+
+This step returned to the open Phase 6 TypeScript/API surface and completed the helper declarations that had been waiting on runtime support. Generated builders now expose repeated-field append helpers, map put/delete helpers, and oneof which/clear helpers. The TypeScript declarations mirror those methods so the generated DTS surface matches the generated JavaScript runtime surface.
+
+The existing hashiplugin compile/runtime fixture does not contain map or oneof fields, but it does contain repeated fields. The runtime test now calls `addCapabilities("tools")` on a generated `ModuleManifest` builder and verifies that the built protobuf message contains the appended value. The generator code for maps and oneofs is descriptor-driven and compiles through the same generated companion-file harness.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 17)
+
+**Assistant interpretation:** Continue autonomously after Phase 3, closing the remaining Phase 6 generated API/DTS gap now that oneof runtime helpers exist.
+
+**Inferred user intent:** Keep the ticket moving toward a complete first generated-builder system rather than stopping after runtime-only support.
+
+**Commit (code):** `7ef08bdb7582a690f477c49e08916b0bbc6b6c38` — "Generate collection and oneof builder helpers"
+
+### What I did
+
+- Generated repeated-field `add<Field>(value): this` methods that call `BuilderRef.Add`.
+- Generated map-field `put<Field>(key, value): this` methods that call `BuilderRef.Put`.
+- Generated map-field `delete<Field>(key): this` methods that call `BuilderRef.Delete`.
+- Generated oneof `which<Oneof>(): string | undefined` methods that call `BuilderRef.WhichOneof` and return the selected JSON field name.
+- Generated oneof `clear<Oneof>(): this` methods that call `BuilderRef.ClearOneof`.
+- Skipped synthetic oneofs so proto3 optional implementation details do not become public oneof APIs.
+- Added matching TypeScript declarations for repeated, map, and oneof helpers.
+- Extended generated runtime tests to call `addCapabilities("tools")` and validate the built message.
+- Ran validation:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+gofmt -w cmd/protoc-gen-goja-builder/internal/generator/generator.go cmd/protoc-gen-goja-builder/main_test.go
+UPDATE_GOLDEN=1 go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+go test ./pkg/tsgen/... ./pkg/xgoja/dtsgen ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+- Committed the code slice. The pre-commit hook also ran linting, `go generate ./...`, and `go test ./...`.
+- Checked ticket tasks 42 and 46.
+
+### Why
+
+- Task 42 required the generated DTS surface to include oneofs, repeated helpers, and map helpers.
+- Runtime oneof/map/repeated helpers were already available after Phase 2, so generated code could now safely expose them.
+- Keeping generated APIs and TypeScript declarations in sync avoids a mismatch where methods exist at runtime but not in editor/agent-visible type information.
+
+### What worked
+
+- Focused generator/runtime validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	1.818s
+ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	0.010s
+```
+
+- DTS validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/tsgen/render	0.010s
+ok  	github.com/go-go-golems/go-go-goja/pkg/tsgen/validate	0.003s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen	0.016s
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	2.059s
+ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	0.010s
+```
+
+- The pre-commit hook passed full repository validation:
+
+```text
+summary: (done in 7.48 seconds)
+✔️ lint (5.12 seconds)
+✔️ test (7.44 seconds)
+```
+
+### What didn't work
+
+- No implementation failure occurred in this step.
+
+### What I learned
+
+- `protogen.Oneof.Desc.IsSynthetic()` is the right boundary for hiding proto3 optional backing oneofs from generated public APIs.
+- The generated oneof helper can return JSON field names rather than Go/proto field names, keeping the JavaScript API consistently JSON-name based.
+
+### What was tricky to build
+
+- Map and oneof coverage is descriptor-driven, but the current permanent fixture lacks map and real oneof fields. The generated code compiles through the harness, but future fixture coverage should include those shapes for direct runtime assertions.
+- The generated oneof `which` method returns a `goja.Value` so it can return `goja.Undefined()` for unset state and a string value for selected state.
+
+### What warrants a second pair of eyes
+
+- Review whether `which<Oneof>()` should return `undefined` or `null` for unset state. `undefined` is natural for JavaScript, but public API docs should make this explicit.
+- Review map key TypeScript types; current map-setter types still use `Record<string, T>` for replacement, while `put<Field>` uses the protobuf map key kind.
+
+### What should be done in the future
+
+- Add a generator fixture with map and real oneof fields to validate generated `put/delete/which/clear` methods end-to-end.
+- Document collection and oneof helper methods in the generated-module examples.
+
+### Code review instructions
+
+- Start with `cmd/protoc-gen-goja-builder/internal/generator/generator.go`, specifically `appendMessageDTS`, `emitFieldMethods`, `emitOneofMethods`, `realOneofs`, and `oneofSelectionType`.
+- Then review `cmd/protoc-gen-goja-builder/main_test.go`, specifically the runtime `addCapabilities` assertion and DTS expected string.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+go test ./pkg/tsgen/... ./pkg/xgoja/dtsgen ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+### Technical details
+
+Task update command:
+
+```bash
+docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 42,46
 ```

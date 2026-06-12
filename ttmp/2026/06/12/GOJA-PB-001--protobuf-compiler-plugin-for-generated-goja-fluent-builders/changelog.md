@@ -232,3 +232,13 @@ Completed Phase 3 well-known type support: Timestamp RFC3339/Date, Duration stri
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Added WKT conversion support and plain-object restrictions (commit b65868b)
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Added dynamic WKT descriptor tests for Timestamp Date/RFC3339
 
+
+## 2026-06-12
+
+Completed Phase 6 DTS/API surface: generated repeated add<Field>(), map put/delete<Field>(), oneof which/clear helpers, matching TypeScript declarations, runtime validation for addCapabilities, and Phase 6 commit (commit 7ef08bd).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Generated repeated
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Validated generated repeated add<Field>() runtime and DTS output (commit 7ef08bd)
+

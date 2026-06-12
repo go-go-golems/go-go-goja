@@ -61,11 +61,11 @@
 ## Phase 6 — Generated TypeScript declarations and xgoja DTS integration
 
 - [x] Generate `TypeScriptModule(moduleName string) *spec.Module` with RawDTS
-- [ ] Emit interfaces for `ProtoMessage`, message types, builder types, enums, oneofs, repeated helpers, and map helpers
+- [x] Emit interfaces for `ProtoMessage`, message types, builder types, enums, oneofs, repeated helpers, and map helpers
 - [x] Add tests through `pkg/tsgen/render` and `pkg/xgoja/dtsgen`
 - [x] Document TypeScript examples for generated modules
 - [x] Run `go test ./pkg/tsgen/... ./pkg/xgoja/dtsgen ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1`
-- [ ] Commit Phase 6 DTS integration
+- [x] Commit Phase 6 DTS integration
 
 ## Phase 7 — Host integration helpers and examples
 
