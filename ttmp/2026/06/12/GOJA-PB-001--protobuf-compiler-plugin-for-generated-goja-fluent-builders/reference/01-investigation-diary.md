@@ -13,7 +13,9 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go
-      Note: Phase 4 companion Go file generator (commit b3deaf4)
+      Note: |-
+        Phase 4 companion Go file generator (commit b3deaf4)
+        Phase 5 generated namespace and builder APIs (commit 2100678)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/options.go
       Note: Phase 4 plugin option parsing (commit b3deaf4)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/main.go
@@ -22,8 +24,11 @@ RelatedFiles:
       Note: |-
         Phase 4 golden CodeGeneratorRequest harness (commit b3deaf4)
         Phase 4 compile fixture test for generated companion output (commit 43a13e4)
+        Updated golden/compile harness for real generated builder code (commit 2100678)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden
-      Note: Golden first generated Go companion file (commit b3deaf4)
+      Note: |-
+        Golden first generated Go companion file (commit b3deaf4)
+        Phase 5 golden generated builder output (commit 2100678)
     - Path: go-go-goja/modules/common.go
       Note: |-
         Native module shape studied for generated module design
@@ -56,6 +61,7 @@ LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Continuation context for GOJA-PB-001 implementation and review.
 WhenToUse: Read before implementing protoc-gen-goja-builder or revising the builder generator design.
 ---
+
 
 
 
@@ -876,4 +882,127 @@ Task update command:
 
 ```bash
 docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 30
+```
+
+## Step 8: Generate initial Goja namespace and builder APIs
+
+I moved the plugin from metadata-only output into the first real Phase 5 generated API surface. Generated companion files now include per-message namespace constructors and builder constructors. The namespace exposes `typeName`, `builder()`, `from(value)`, `is(value)`, and `clone(value)`. The builder exposes fluent field setter methods, `clear<Field>()`, `build()`, and builder `clone()`.
+
+This is still not the full Phase 5. Enum exports, schema/prototype tokens, and runtime `require()` integration tests remain pending. The generated output is now substantial enough to prove the intended architecture: generated code provides ergonomic Goja objects, while all mutation and conversion flow through `pkg/protogoja` helpers.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 7)
+
+**Assistant interpretation:** Continue implementation after Phase 4, without reopening the browser, and advance into generated builder code.
+
+**Inferred user intent:** The user wants implementation momentum beyond the first generated file, while preserving focused commits and frequent documentation.
+
+**Commit (code):** `2100678afb495fd49b12cfb337b12e689d475975` — "Generate initial goja protobuf builder APIs"
+
+### What I did
+
+- Expanded `cmd/protoc-gen-goja-builder/internal/generator/generator.go` to emit:
+  - `New<Message>GojaNamespace(vm)` functions;
+  - namespace properties/methods: `typeName`, `builder`, `from`, `is`, and `clone`;
+  - `New<Message>GojaBuilder(vm)` functions;
+  - hidden builder ref attachment through `protogoja.AttachBuilderRef`;
+  - builder methods `build` and `clone`;
+  - one fluent setter per field based on protobuf JSON field names;
+  - one `clear<Field>` method per field;
+  - nested message namespace and builder functions.
+- Updated the golden output to include generated imports and the expanded API.
+- Updated the compile test so it uses the real `pkg/hashiplugin/contract` protobuf descriptor and copies `jsmodule.pb.go` into a temporary package before compiling generated companion output.
+- Ran focused validation:
+
+```bash
+go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+- Checked tasks 33, 34, and 36.
+
+### Why
+
+- The skeleton needed to prove more than file creation. It needed to prove that generated code can call runtime helpers and produce usable Goja-facing builder objects.
+- Using the real hashiplugin contract package in the compile test catches the important class of errors where generated code references message Go identifiers incorrectly.
+- Nested message support is easier to establish early because it affects naming and recursion throughout later enum/schema/DTS work.
+
+### What worked
+
+- Focused validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	0.394s
+ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	0.008s
+```
+
+- The pre-commit hook passed lint and full repository test/generate validation:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	0.348s
+summary: (done in 5.47 seconds)
+✔️ lint (4.88 seconds)
+✔️ test (5.46 seconds)
+```
+
+### What didn't work
+
+- The first test run failed after expanding generated output because the old golden file still expected metadata-only output. I added an explicit `UPDATE_GOLDEN=1` path in the test and regenerated the fixture golden.
+- The compile test also failed when it still used the synthetic descriptor-only fixture:
+
+```text
+fixture/v1/fixture_goja.pb.go:8:2: no required module provides package github.com/dop251/goja
+fixture/v1/fixture_goja.pb.go:9:2: no required module provides package github.com/go-go-golems/go-go-goja/pkg/protogoja
+```
+
+- After switching to a temporary module with a `replace github.com/go-go-golems/go-go-goja => <repo-root>`, `go test` initially wanted to update the temporary module's `go.mod`:
+
+```text
+go: updates to go.mod needed; to update it:
+	go mod tidy
+```
+
+  I fixed that by invoking `go test -mod=mod .` inside the temporary package.
+
+### What I learned
+
+- The compile fixture needs real `protoc-gen-go` output as soon as generated builder code references concrete Go message types.
+- Golden tests and compile tests now serve different roles: the synthetic fixture keeps output easy to read, while the real contract descriptor catches integration errors with actual generated message identifiers.
+
+### What was tricky to build
+
+- Generated code must avoid collisions across nested messages and multiple proto files. This slice uses Go message identifiers such as `Example_Nested` for generated function names and file-derived names for file metadata functions.
+- The generated builder clone method has to attach a fresh hidden `BuilderRef` and reattach all methods to the clone object. Otherwise cloned builders would expose no fluent API.
+- The generated field setters deliberately call `builder.Set(vm, field, call.Argument(0))` instead of performing direct assignments. That keeps conversion behavior centralized in `pkg/protogoja`.
+
+### What warrants a second pair of eyes
+
+- Review exported generated function names such as `NewExample_NestedGojaNamespace`; they compile, but the public naming style may need refinement.
+- Review whether namespace `from(value)` should later accept plain objects for explicit well-known types only, or remain a strict ProtoMessage clone/coercion helper.
+- Review builder method name collision handling. This first slice uses JSON names directly and does not yet handle fields named `build`, `clone`, or `clearX`.
+
+### What should be done in the future
+
+- Generate enum exports and complete enum-facing API behavior.
+- Add schema/prototype tokens consumable by other Goja modules.
+- Add runtime Goja tests that instantiate generated builders and verify `protogoja.MessageFromValue` extraction from built values.
+
+### Code review instructions
+
+- Start with `emitMessageAPI` and `emitFieldMethods` in `cmd/protoc-gen-goja-builder/internal/generator/generator.go`.
+- Review the expanded golden output in `cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden` to understand the generated API shape.
+- Review `TestGeneratedCompanionFileCompiles` to see how real protobuf Go output is paired with generated companion output.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+### Technical details
+
+Task update command:
+
+```bash
+docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 33,34,36
 ```

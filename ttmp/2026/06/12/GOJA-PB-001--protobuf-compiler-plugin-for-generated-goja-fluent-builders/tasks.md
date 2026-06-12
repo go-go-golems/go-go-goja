@@ -49,10 +49,10 @@
 
 ## Phase 5 — Generated fluent builders, enums, and message exports
 
-- [ ] Generate per-message namespace exports with `typeName`, `builder()`, `from()`, `is()`, and `clone()`
-- [ ] Generate builder prototypes with fluent field methods and clear/build/clone helpers
+- [x] Generate per-message namespace exports with `typeName`, `builder()`, `from()`, `is()`, and `clone()`
+- [x] Generate builder prototypes with fluent field methods and clear/build/clone helpers
 - [ ] Generate enum exports and enum setter conversion support
-- [ ] Generate nested message support and stable names for nested builders
+- [x] Generate nested message support and stable names for nested builders
 - [ ] Generate schema/prototype tokens consumable by other Goja modules
 - [ ] Add runtime Goja tests requiring a generated fixture module and building concrete proto messages
 - [ ] Run generated fixture tests and `go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1`

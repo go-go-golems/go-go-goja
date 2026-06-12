@@ -107,3 +107,14 @@ Added the Phase 4 compile test that writes generated companion output into a tem
 
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Compile-style generated companion file validation
 
+
+## 2026-06-12
+
+Generated initial Phase 5 Goja protobuf APIs: per-message namespace functions, builder constructors, fluent field setters, clear/build/clone helpers, and nested message support (commit 2100678).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Generates initial Goja namespace and builder APIs
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Golden and compile tests for generated builder API output
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden — Expanded golden output with generated namespace and builder functions
+
