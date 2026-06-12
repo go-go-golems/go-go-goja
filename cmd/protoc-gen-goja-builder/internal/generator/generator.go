@@ -142,6 +142,9 @@ func appendEnumDTS(lines *[]string, enum *protogen.Enum) {
 }
 
 func appendMessageDTS(lines *[]string, msg *protogen.Message) {
+	if msg.Desc.IsMapEntry() {
+		return
+	}
 	name := msg.GoIdent.GoName
 	builderName := name + "Builder"
 	*lines = append(*lines, "export interface "+name+" extends ProtoMessage<"+quoted(string(msg.Desc.FullName()))+"> {}")
@@ -176,6 +179,9 @@ func appendMessageDTS(lines *[]string, msg *protogen.Message) {
 		appendEnumDTS(lines, enum)
 	}
 	for _, nested := range msg.Messages {
+		if nested.Desc.IsMapEntry() {
+			continue
+		}
 		appendMessageDTS(lines, nested)
 	}
 }
@@ -216,8 +222,14 @@ func tsTypeForKind(field protoreflect.FieldDescriptor) string {
 }
 
 func emitMessageName(g *protogen.GeneratedFile, msg *protogen.Message) {
+	if msg.Desc.IsMapEntry() {
+		return
+	}
 	g.P("\t\t", quoted(string(msg.Desc.FullName())), ",")
 	for _, nested := range msg.Messages {
+		if nested.Desc.IsMapEntry() {
+			continue
+		}
 		emitMessageName(g, nested)
 	}
 }
@@ -297,6 +309,9 @@ func allMessages(file *protogen.File) []*protogen.Message {
 	var visit func(messages []*protogen.Message)
 	visit = func(messages []*protogen.Message) {
 		for _, msg := range messages {
+			if msg.Desc.IsMapEntry() {
+				continue
+			}
 			out = append(out, msg)
 			visit(msg.Messages)
 		}
@@ -341,6 +356,9 @@ func emitEnumAPI(g *protogen.GeneratedFile, enum *protogen.Enum) {
 }
 
 func emitMessageAPI(g *protogen.GeneratedFile, msg *protogen.Message) {
+	if msg.Desc.IsMapEntry() {
+		return
+	}
 	name := msg.GoIdent.GoName
 	typeExpr := "&" + g.QualifiedGoIdent(msg.GoIdent) + "{}"
 	g.P()
@@ -456,6 +474,9 @@ func emitMessageAPI(g *protogen.GeneratedFile, msg *protogen.Message) {
 		emitEnumAPI(g, enum)
 	}
 	for _, nested := range msg.Messages {
+		if nested.Desc.IsMapEntry() {
+			continue
+		}
 		emitMessageAPI(g, nested)
 	}
 }
