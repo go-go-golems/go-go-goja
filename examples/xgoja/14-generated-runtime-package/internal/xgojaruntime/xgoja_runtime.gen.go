@@ -23,14 +23,11 @@ const EmbeddedSpecJSON = `{
   "appName": "generated-runtime-package",
   "target": {
     "kind": "package",
-    "output": "internal/xgojaruntime",
-    "package": "xgojaruntime"
+    "output": "internal/xgojaruntime"
   },
   "packages": [
     {
-      "id": "fixture",
-      "import": "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider",
-      "register": "Register"
+      "id": "fixture"
     }
   ],
   "modules": [

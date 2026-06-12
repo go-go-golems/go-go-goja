@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/plan"
 )
 
 func RenderMain(buildSpec *buildspec.BuildSpec) string {
@@ -16,8 +17,24 @@ func RenderMain(buildSpec *buildspec.BuildSpec) string {
 	return rendered
 }
 
+func RenderMainPlan(compiled *plan.Plan) string {
+	rendered, err := renderMainTemplate(mainTemplateDataFromPlan(compiled))
+	if err != nil {
+		panic(err)
+	}
+	return rendered
+}
+
 func RenderPackage(buildSpec *buildspec.BuildSpec, packageName string) string {
 	rendered, err := renderPackageTemplate(packageTemplateDataFromSpec(buildSpec, packageName))
+	if err != nil {
+		panic(err)
+	}
+	return rendered
+}
+
+func RenderPackagePlan(compiled *plan.Plan, packageName string) string {
+	rendered, err := renderPackageTemplate(packageTemplateDataFromPlan(compiled, packageName))
 	if err != nil {
 		panic(err)
 	}
@@ -45,6 +62,27 @@ func RenderSourceFragments(buildSpec *buildspec.BuildSpec, packageName string) m
 	return out
 }
 
+func RenderSourceFragmentsPlan(compiled *plan.Plan, packageName string) map[string]string {
+	data := packageTemplateDataFromPlan(compiled, packageName)
+	fragments := map[string]func(packageTemplateData) (string, error){
+		"spec.gen.go":      renderSpecFragmentTemplate,
+		"providers.gen.go": renderProvidersFragmentTemplate,
+		"bundle.gen.go":    renderBundleFragmentTemplate,
+	}
+	if data.HasEmbedded {
+		fragments["embed.gen.go"] = renderEmbedFragmentTemplate
+	}
+	out := make(map[string]string, len(fragments))
+	for name, render := range fragments {
+		rendered, err := render(data)
+		if err != nil {
+			panic(err)
+		}
+		out[name] = rendered
+	}
+	return out
+}
+
 func RenderDTSGenMain(buildSpec *buildspec.BuildSpec, strict bool) string {
 	rendered, err := renderDTSGenMainTemplate(dtsGenTemplateDataFromSpec(buildSpec, strict))
 	if err != nil {
@@ -53,8 +91,24 @@ func RenderDTSGenMain(buildSpec *buildspec.BuildSpec, strict bool) string {
 	return rendered
 }
 
+func RenderDTSGenMainPlan(compiled *plan.Plan, strict bool) string {
+	rendered, err := renderDTSGenMainTemplate(dtsGenTemplateDataFromPlan(compiled, strict))
+	if err != nil {
+		panic(err)
+	}
+	return rendered
+}
+
 func RenderCustomTemplate(buildSpec *buildspec.BuildSpec, packageName string, templatePath string) string {
 	rendered, err := loadCustomTemplate(templatePath, packageTemplateDataFromSpec(buildSpec, packageName))
+	if err != nil {
+		panic(err)
+	}
+	return rendered
+}
+
+func RenderCustomTemplatePlan(compiled *plan.Plan, packageName string, templatePath string) string {
+	rendered, err := loadCustomTemplate(templatePath, packageTemplateDataFromPlan(compiled, packageName))
 	if err != nil {
 		panic(err)
 	}
