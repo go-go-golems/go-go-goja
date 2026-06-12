@@ -201,3 +201,14 @@ Implemented Phase 2 oneof runtime helpers: BuilderRef.WhichOneof, BuilderRef.Cle
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Added oneof validation plus WhichOneof and ClearOneof helpers (commit bc3949c)
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Added dynamic oneof descriptor tests for unset
 
+
+## 2026-06-12
+
+Implemented Phase 2 optional presence helpers: BuilderRef.Has, generated has<Field>() methods for fields with explicit presence, TypeScript declarations, and dynamic proto3 optional tests (commit 0205764).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Generated has<Field>() methods and DTS entries for fields with explicit presence (commit 0205764)
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Added BuilderRef.Has for protobuf presence checks (commit 0205764)
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Added dynamic proto3 optional presence tests (commit 0205764)
+

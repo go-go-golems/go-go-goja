@@ -24,7 +24,7 @@
 - [x] Implement repeated field helpers with replace and append semantics
 - [x] Implement map field helpers with object/Map input, put, delete, and clear semantics
 - [x] Implement oneof helpers with clear/which semantics
-- [ ] Implement optional presence helpers with `has<Field>` and `clear<Field>` semantics
+- [x] Implement optional presence helpers with `has<Field>` and `clear<Field>` semantics
 - [ ] Add field-path-rich error messages and table-driven tests for all supported field kinds
 - [ ] Run `go test ./pkg/protogoja -count=1`
 - [ ] Commit Phase 2 builder runtime helpers
