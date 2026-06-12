@@ -13,6 +13,8 @@ Owners: []
 RelatedFiles:
     - Path: examples/xgoja/15-express-planned-auth/scripts/server.js
       Note: Example route authoring migrated to planned verb helpers (commit 4492723)
+    - Path: modules/express/auth_builders.go
+      Note: Fluent .csrf() and .audit(event) builder methods (commit 61c858d)
     - Path: modules/express/auth_builders_integration_test.go
       Note: Coverage for planned verb helpers and legacy overload rejection (commit 4492723)
     - Path: modules/express/express.go
@@ -27,12 +29,19 @@ RelatedFiles:
       Note: |-
         Dedicated Express auth framework help guide (commit de09c15)
         RejectRawRoutes documented in auth guide (commit 4f42a55)
+        User documentation for CSRF and audit hooks (commit 61c858d)
     - Path: pkg/doc/30-migrate-express-apps-to-planned-auth.md
       Note: Dedicated migration tutorial help entry (commit de09c15)
+    - Path: pkg/gojahttp/auth_plan.go
+      Note: CSRF/audit plan fields and host interfaces (commit 61c858d)
     - Path: pkg/gojahttp/host.go
       Note: Strict raw-route rejection option and dispatch-time enforcement (commit 4f42a55)
+    - Path: pkg/gojahttp/planned_dispatch.go
+      Note: CSRF enforcement and audit emission in planned dispatch (commit 61c858d)
     - Path: pkg/gojahttp/planned_dispatch_test.go
-      Note: Strict raw-route rejection tests (commit 4f42a55)
+      Note: |-
+        Strict raw-route rejection tests (commit 4f42a55)
+        CSRF and audit dispatch coverage (commit 61c858d)
     - Path: pkg/gojahttp/route_registry.go
       Note: Route descriptors now expose planned/security metadata (commit 4f42a55)
     - Path: pkg/gojahttp/route_registry_test.go
@@ -44,10 +53,11 @@ RelatedFiles:
 ExternalSources:
     - ../sources/01-auth-preliminary-api-ideas.md
 Summary: Chronological diary for the Express authentication design investigation.
-LastUpdated: 2026-06-12T16:11:00-04:00
+LastUpdated: 2026-06-12T16:26:00-04:00
 WhatFor: Use this to resume or review the ticket research and design work.
 WhenToUse: Read before continuing implementation work for XGOJA-EXPRESS-AUTH.
 ---
+
 
 
 
@@ -1484,4 +1494,110 @@ This closes the remaining normal runtime bypass around the planned auth framewor
 - Rejected dev-mode response body includes:
   ```text
   raw route GET /raw rejected: register a planned route with .public() or auth
+  ```
+
+
+## Step 15: Implement planned route CSRF and audit hooks
+
+I implemented the deferred CSRF and audit route-plan extensions. JavaScript can now declare `.csrf()` and `.audit(event)` on planned routes, while Go owns verification and audit emission through host-provided interfaces.
+
+The implementation keeps the same architecture as authentication and authorization: JavaScript declares intent through Go-backed builder methods, the route plan stores the declaration, and `gojahttp.Host` enforces or emits before and around JavaScript handler execution.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, implement both."
+
+**Assistant interpretation:** Implement both CSRF and audit support as planned-route extensions, following the design previously explained.
+
+**Inferred user intent:** Complete the core auth hardening features so planned routes can defend unsafe browser/session requests and produce host-owned audit events.
+
+**Commit (code):** 61c858d — "Add planned route CSRF and audit hooks"
+
+### What I did
+- Added `CSRFSpec` and `AuditSpec` to `gojahttp.RoutePlan`.
+- Added host interfaces:
+  - `CSRFProtector.VerifyCSRF(ctx, CSRFRequest) error`
+  - `AuditSink.RecordAudit(ctx, AuditEvent) error`
+- Added `CSRF` and `Audit` to `gojahttp.AuthOptions`.
+- Added `ErrCSRF` and mapped it to HTTP 403.
+- Added `.csrf(required?: boolean)` and `.audit(event)` builder methods on policy and handler stages.
+- Updated TypeScript declarations for `csrf()` and `audit()`.
+- Implemented CSRF verification in `buildSecureEnvelope` after authentication and before resource resolution, only for unsafe methods.
+- Implemented best-effort audit events for `allowed`, `denied`, `completed`, and `failed` outcomes.
+- Preserved partial secure envelopes on denied paths so audit events can include actor/resource data when those were resolved before the denial.
+- Added `Response.Status()` so completed audit events can report the final response status.
+- Extended route descriptors with `CSRFRequired` and `AuditEvent`.
+- Added tests for CSRF success, CSRF denial, audit completed/denied outcomes, builder support, and route descriptor metadata.
+- Updated docs and examples with CSRF/audit guidance.
+- Marked tasks 50 and 51 complete.
+
+### Why
+- CSRF is required for unsafe browser/session-authenticated routes because authentication alone does not prove that the request was intentionally initiated by the user.
+- Audit must be host-owned so security records include Go-verified actor/resource/action/decision state rather than relying on JavaScript handler logging.
+- Both features belong in `RoutePlan` so they are visible to validation, route diagnostics, and host enforcement.
+
+### What worked
+- Targeted tests passed:
+  - `go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1`
+- Full suite passed with VCS stamping disabled:
+  - `GOFLAGS=-buildvcs=false go test ./... -count=1`
+- Help pages rendered with the new CSRF/audit documentation:
+  - `go run ./cmd/goja-repl help express-auth-user-guide`
+  - `go run ./cmd/goja-repl help migrate-express-apps-to-planned-auth`
+- The commit pre-hook passed lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+- N/A. This pass did not hit new test or compile failures.
+
+### What I learned
+- Adding CSRF and audit as route-plan fields kept the builder, TypeScript declarations, dispatch code, route diagnostics, and documentation aligned.
+- Audit denied paths need partial envelope data. Returning the partially built envelope from `buildSecureEnvelope` lets denied audit events include actor/resource data when available without allowing the handler to run.
+- CSRF can be explicit in the plan but method-aware at dispatch: `.csrf()` on safe methods does not call the verifier, while unsafe methods fail closed if verification is unavailable or fails.
+
+### What was tricky to build
+- The main tricky part was audit timing. The host needs to emit denied events when envelope construction fails, but failures can happen after authentication or after resource resolution. Returning partial envelopes on error gives the audit sink the best available security context while still keeping the request fail-closed.
+- The second tricky part was response status capture. The existing `Response` object tracked status internally but did not expose it, so I added `Status()` for completed audit events.
+- The third tricky part was keeping audit best-effort. `RecordAudit` errors are intentionally ignored for the MVP so audit backend outages do not change successful business responses. This is a policy choice that may warrant a strict-audit option later.
+
+### What warrants a second pair of eyes
+- Review whether audit should remain best-effort or support strict mode for compliance-sensitive applications.
+- Review whether CSRF should reject `.csrf()` on safe methods at registration time instead of treating it as a no-op during dispatch.
+- Review the `AuditEvent` shape for missing fields such as request ID, IP address, or user agent; those can be derived from `HTTPRequest`/`Request`, but explicit fields may help sinks.
+
+### What should be done in the future
+- Add `.body(...)` with a Go-owned schema registry and validator.
+- Consider reusable CSRF helper implementations for common session-token or double-submit-cookie strategies.
+- Consider a strict audit option if some deployments require audit sink success before returning 2xx.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth_plan.go` for the new plan fields and host interfaces.
+- Review `pkg/gojahttp/planned_dispatch.go` for CSRF ordering and audit emission points.
+- Review `modules/express/auth_builders.go` and `modules/express/typescript.go` for the JavaScript-facing API.
+- Review tests in `pkg/gojahttp/planned_dispatch_test.go` and `modules/express/auth_builders_integration_test.go`.
+- Validate with:
+  - `go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1`
+  - `GOFLAGS=-buildvcs=false go test ./... -count=1`
+
+### Technical details
+- JavaScript route shape:
+  ```js
+  app.patch("/orgs/:orgId/projects/:projectId")
+    .auth(express.user().required())
+    .resource(express.resource("project").idFromParam("projectId").tenantFromParam("orgId"))
+    .csrf()
+    .allow("project.update")
+    .audit("project.updated")
+    .handle((ctx, res) => res.json({ updated: ctx.resource("project").id }))
+  ```
+- Host configuration shape:
+  ```go
+  host := gojahttp.NewHost(gojahttp.HostOptions{
+      Auth: gojahttp.AuthOptions{
+          Authenticator: myAuthenticator,
+          Resources:     myResourceResolver,
+          Authorizer:    myAuthorizer,
+          CSRF:          myCSRFProtector,
+          Audit:         myAuditSink,
+      },
+  })
   ```

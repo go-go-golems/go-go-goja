@@ -72,8 +72,8 @@
 ## Future / out of MVP
 
 - [ ] Add `.body(...)` with a Go-owned schema registry and validator
-- [ ] Add `.csrf()` for unsafe cookie-authenticated browser routes
-- [ ] Add `.audit(...)` for Go-owned structured audit emission
+- [x] Add `.csrf()` for unsafe cookie-authenticated browser routes
+- [x] Add `.audit(...)` for Go-owned structured audit emission
 - [x] Add strict host mode to reject legacy raw routes in production
 - [ ] Consider Express-style middleware/router support after the planned-route auth core is stable
 - [x] Hard-cut Express verb helpers over to staged planned route builders
