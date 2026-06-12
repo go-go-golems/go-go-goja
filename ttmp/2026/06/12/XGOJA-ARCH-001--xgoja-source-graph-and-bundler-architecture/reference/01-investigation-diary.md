@@ -1,0 +1,193 @@
+---
+Title: Investigation diary
+Ticket: XGOJA-ARCH-001
+Status: active
+Topics:
+    - goja
+    - xgoja
+    - typescript
+    - tooling
+    - developer-experience
+DocType: reference
+Intent: long-term
+Owners: []
+RelatedFiles:
+    - Path: cmd/xgoja/internal/buildspec/build_spec.go
+      Note: Diary Step 1 build-time schema evidence
+    - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
+      Note: Step 1 build-time xgoja schema evidence.
+    - Path: go-go-goja/cmd/xgoja/internal/generate/generate.go
+      Note: Step 1 generated output and embedded copy evidence.
+    - Path: go-go-goja/cmd/xgoja/internal/generate/main.go
+      Note: Step 1 generated runtime spec and embedded path rewrite evidence.
+    - Path: go-go-goja/pkg/jsverbs/runtime.go
+      Note: Step 1 current jsverbs require loader and invocation behavior evidence.
+    - Path: go-go-goja/pkg/jsverbs/scan.go
+      Note: Step 1 current ScanDir/ScanFS behavior evidence.
+    - Path: go-go-goja/pkg/tsscript/compiler.go
+      Note: Step 1 current esbuild facade evidence.
+    - Path: go-go-goja/pkg/xgoja/app/runtime_spec.go
+      Note: Step 1 runtime spec evidence.
+    - Path: go-go-goja/pkg/xgoja/app/typescript.go
+      Note: Step 1 TypeScript transform adapter evidence.
+    - Path: go-go-goja/pkg/xgoja/providerapi/commands.go
+      Note: Step 1 provider command and jsverb source-set API evidence.
+    - Path: go-go-goja/pkg/xgoja/providerapi/module.go
+      Note: Step 1 provider module API evidence.
+    - Path: pkg/jsverbs/scan.go
+      Note: Diary Step 1 source scanning evidence
+    - Path: pkg/tsscript/compiler.go
+      Note: Diary Step 1 TypeScript bundling evidence
+    - Path: pkg/xgoja/app/runtime_spec.go
+      Note: Diary Step 1 runtime schema evidence
+ExternalSources:
+    - local:01-architecture-reassessment-prompt.md
+Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
+LastUpdated: 2026-06-12T11:05:00-04:00
+WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
+WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
+---
+
+
+# Diary
+
+## Goal
+
+This diary records the architecture reassessment for xgoja after the TypeScript support and embedded TypeScript runtime bundling work exposed repeated source-resolution, provider-resolution, bundling, generation, and hot reload concerns.
+
+## Step 1: Create the architecture ticket and write the source graph/bundler RFC
+
+I created `XGOJA-ARCH-001` to step back from individual TypeScript fixes and define a larger architecture for xgoja. The resulting design treats xgoja as a Go-backed JavaScript runtime compiler: it resolves Go provider packages, Go-backed runtime modules, JavaScript/TypeScript source files, jsverb metadata, help, assets, declarations, generated outputs, and hot reload inputs into explicit source graphs and plans.
+
+The design intentionally avoids a full rewrite. It preserves the goja runtime factory, provider module API, jsverbs command model, and generated runtime DTO, then introduces a planning layer that can be migrated into the current codebase incrementally.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, write that architecture docuemnt, in great depth and detail.
+
+Create  a detailed analysis / design / implementation guide that is for a new intern, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file references. It should be very clear and technical. Store in the ticket and the nupload to remarkable."
+
+**Assistant interpretation:** Create a new docmgr architecture ticket and write a detailed intern-oriented design/RFC explaining how xgoja should evolve into a source-graph and bundler-style compiler for Go-backed JavaScript runtimes, then upload the deliverable to reMarkable.
+
+**Inferred user intent:** Pause feature-by-feature work long enough to define the fundamental architecture xgoja should grow toward before more TypeScript, embedded source, provider, and hot reload features are added.
+
+**Commit (code):** N/A — documentation and architecture design only; no production code changed in this step.
+
+### What I did
+
+- Created ticket `XGOJA-ARCH-001` with:
+  - `docmgr ticket create-ticket --ticket XGOJA-ARCH-001 --title "XGoja source graph and bundler architecture" --topics goja,xgoja,typescript,tooling,developer-experience`
+- Created the primary design document:
+  - `ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/design/01-xgoja-source-graph-and-bundler-architecture.md`
+- Created this diary:
+  - `ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/reference/01-investigation-diary.md`
+- Captured the triggering prompt in:
+  - `ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/sources/local/01-architecture-reassessment-prompt.md`
+- Reviewed the current implementation and prior ticket designs, including:
+  - `XGOJA-TS-001` TypeScript support design;
+  - `XGOJA-TS-002` embedded/provider TypeScript runtime bundling design;
+  - buildspec/runtime spec files;
+  - provider API files;
+  - engine runtime factory;
+  - jsverbs scan/runtime files;
+  - tsscript compiler facade;
+  - xgoja TypeScript adapter;
+  - xgoja run command;
+  - generated output code;
+  - declaration generation;
+  - hot reload manager and HTTP provider integration.
+- Wrote a detailed architecture document covering:
+  - current-state architecture with file evidence;
+  - problem statement and goals;
+  - source graph design;
+  - import resolver design;
+  - provider bundle graph;
+  - build plan and runtime plan;
+  - compilation modes;
+  - data-flow diagrams;
+  - decision records;
+  - staged migration plan;
+  - API sketches;
+  - testing strategy;
+  - risks and near-term recommendations.
+
+### Why
+
+- The same unresolved source-resolution problem has appeared across TypeScript, embedded sources, provider sources, declarations, and hot reload.
+- xgoja is now more than a generator; it is becoming a compiler pipeline for Go-backed JavaScript runtimes.
+- A source graph and plan layer can reduce future local patches by making source origins, imports, runtime module aliases, and compilation modes explicit.
+
+### What worked
+
+- The current code already has good boundaries that the architecture can preserve:
+  - build-time schema and runtime schema are separated;
+  - provider modules are registered through a clear provider API;
+  - runtime construction is centralized in `pkg/engine/factory.go`;
+  - jsverbs scanning and invocation are isolated in `pkg/jsverbs`;
+  - TypeScript compilation is isolated in `pkg/tsscript`;
+  - hot reload has a blue/green manager with smoke-test support.
+- The architecture could therefore recommend a planning layer rather than a runtime rewrite.
+
+### What didn't work
+
+- No command failed while creating this ticket or writing the design.
+- The investigation confirmed architecture gaps already documented in prior work:
+  - source origin is not first-class;
+  - import resolution is scattered;
+  - runtime-module externalization differs across `xgoja run` and jsverbs;
+  - embedded source compilation policy is implicit;
+  - hot reload watches roots/extensions rather than graph dependencies.
+
+### What I learned
+
+- The correct architectural framing is not "xgoja should become a JavaScript bundler" in the usual npm-only sense. It should become a Go-backed JavaScript runtime compiler.
+- Provider packages are bundle inputs. They provide Go implementations of JavaScript modules, TypeScript descriptors, command sets, jsverb source trees, help, assets, and host services.
+- The first practical migration should be jsverbs and embedded/provider TypeScript bundling because that path has a concrete review issue and exercises source origin, import resolution, runtime module aliases, and hot reload.
+
+### What was tricky to build
+
+- The design needed to separate source discovery from compilation mode. A source graph should answer what files exist and how they import each other. A build/runtime plan should answer whether those files are compiled at build time, compiled at runtime, preserved, copied, embedded, or rejected.
+- The design also needed to avoid overreach. It proposes sourcegraph/provider-graph/plan packages, but it explicitly preserves the current runtime factory, provider registry, jsverbs command model, and generated runtime spec during migration.
+
+### What warrants a second pair of eyes
+
+- Review whether `sourcegraph`, `plan`, and `compile` are the right package boundaries or whether `plan` should initially live under `cmd/xgoja/internal` until stable.
+- Review the decision that unknown bare imports should fail by default rather than be externalized by default.
+- Review whether runtime plan data should eventually be serialized into generated JSON or kept as Go-only derived structures for longer.
+- Review whether build-time prebundling should be a near-term ticket or remain behind runtime `fs.FS` bundling and provider-graph work.
+
+### What should be done in the future
+
+- Implement `XGOJA-TS-002` first to solve the immediate code review issue.
+- Create `XGOJA-ARCH-002` for the first `sourcegraph` package and jsverb source discovery migration.
+- Create `XGOJA-ARCH-003` for provider graph and centralized runtime module alias resolution.
+- Add debug commands such as `xgoja plan` and `xgoja graph` after the planning layer exists.
+
+### Code review instructions
+
+- Start with the design document:
+  - `ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/design/01-xgoja-source-graph-and-bundler-architecture.md`
+- Then inspect the current evidence files in this order:
+  - `cmd/xgoja/internal/buildspec/build_spec.go`
+  - `pkg/xgoja/app/runtime_spec.go`
+  - `pkg/xgoja/providerapi/module.go`
+  - `pkg/xgoja/providerapi/commands.go`
+  - `pkg/jsverbs/scan.go`
+  - `pkg/jsverbs/runtime.go`
+  - `pkg/tsscript/compiler.go`
+  - `pkg/xgoja/app/typescript.go`
+  - `cmd/xgoja/internal/generate/main.go`
+  - `cmd/xgoja/internal/generate/generate.go`
+- Validate ticket hygiene with:
+  - `docmgr doctor --ticket XGOJA-ARCH-001 --stale-after 30`
+
+### Technical details
+
+- Proposed core package: `pkg/xgoja/sourcegraph`.
+- Proposed planning package: `pkg/xgoja/plan`.
+- Proposed migration order: jsverbs/sourcegraph first, provider graph second, build/runtime plan third, graph-based hot reload fourth, optional embedded prebundling fifth.
+- Primary conceptual split:
+  - source graph records what exists and imports what;
+  - provider graph records what Go packages contribute;
+  - build plan records generated artifacts and build-time compilation policy;
+  - runtime plan records executable runtime behavior and loader policy.
