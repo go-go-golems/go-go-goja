@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/specv2"
 )
 
 func TestRootHelp(t *testing.T) {
@@ -298,6 +300,53 @@ func TestMigrateSpecCommandInPlaceBackup(t *testing.T) {
 	}
 }
 
+func TestMigrateSpecCommandCheckAlreadyV2(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	rendered, err := specv2.Render(specv2.Config{
+		Name: "already-v2",
+		Providers: []specv2.ProviderSpec{{
+			ID:     "core",
+			Import: "github.com/example/core",
+		}},
+		Artifacts: []specv2.ArtifactSpec{{
+			ID:   "binary",
+			Type: "binary",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("render v2 spec: %v", err)
+	}
+	specPath := writeFile(t, "xgoja.v2.yaml", string(rendered)+"\n")
+	root.SetArgs([]string{"migrate-spec", "-f", specPath, "--check"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute migrate-spec check: %v", err)
+	}
+	if !strings.Contains(out.String(), "already in rendered xgoja/v2 form") {
+		t.Fatalf("expected check output, got %q", out.String())
+	}
+}
+
+func TestMigrateSpecCommandPrintsWarnings(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := filepath.Join("..", "..", "examples", "xgoja", "15-typescript-jsverbs", "xgoja.yaml")
+	outputPath := filepath.Join(t.TempDir(), "xgoja.v2.yaml")
+	root.SetArgs([]string{"migrate-spec", "-f", specPath, "--out", outputPath})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute migrate-spec warnings: %v", err)
+	}
+	if !strings.Contains(out.String(), "warning:") || !strings.Contains(out.String(), "runtime module alias") {
+		t.Fatalf("expected warning output, got %q", out.String())
+	}
+}
+
 func TestInspectCommandReadsCurrentBinary(t *testing.T) {
 	out := &bytes.Buffer{}
 	root, err := newRootCommand(out)
@@ -520,4 +569,14 @@ jsverbs:
 		t.Fatalf("write build spec: %v", err)
 	}
 	return specPath
+}
+
+func writeFile(t *testing.T, name string, contents string) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
+	return path
 }

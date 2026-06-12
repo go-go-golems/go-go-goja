@@ -83,3 +83,14 @@ Added xgoja migrate-spec command with v1-to-v2 output, in-place migration, backu
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root.go — Wires migrate-spec into xgoja root
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root_test.go — Root command migration output and in-place backup tests
 
+
+## 2026-06-12
+
+Added migration coverage for all v1 examples, migrate-spec check/warning tests, and the xgoja/v2 migration help page.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/16-migrating-to-xgoja-v2.md — User migration guide
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/examples_migration_test.go — All example v1 specs migrate to valid v2
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root_test.go — migrate-spec command output/check/in-place/warning tests
+

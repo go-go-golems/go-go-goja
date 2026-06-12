@@ -95,7 +95,7 @@
   - `packages[].replace` becomes a provider module local override or a migration warning recommending `workspace.mode: auto`;
   - `--xgoja-replace` remains a CLI concern and is represented in migration docs, not v2 spec output by default.
 - [x] Add migration warnings with file paths and v1 field references.
-- [ ] Add golden migration tests for all Phase 0 fixtures.
+- [x] Add golden migration tests for all Phase 0 fixtures.
 
 ### Phase 3: Add `xgoja migrate-spec`
 
@@ -112,8 +112,8 @@
 - [x] Print migration warnings in a stable, grep-friendly format.
 - [x] In `--check` mode, return non-zero if migration would change the file.
 - [x] In `--in-place --backup` mode, write `xgoja.yaml.bak` before overwriting.
-- [ ] Add tests for normal output, check mode, in-place mode, backup mode, and warning output.
-- [ ] Add a migration doc page under `cmd/xgoja/doc`, e.g. `16-migrating-to-xgoja-v2.md`.
+- [x] Add tests for normal output, check mode, in-place mode, backup mode, and warning output.
+- [x] Add a migration doc page under `cmd/xgoja/doc`, e.g. `16-migrating-to-xgoja-v2.md`.
 
 ### Phase 4: Implement Go workspace resolution for generated builds
 

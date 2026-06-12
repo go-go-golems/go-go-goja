@@ -47,7 +47,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T14:30:00-04:00
+LastUpdated: 2026-06-12T15:05:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
@@ -841,3 +841,84 @@ The command supports writing to a separate file, overwriting in place, creating 
 - v1 files are loaded through `buildspec.LoadFile`, so current v1 validation still runs during migration.
 - Already-v2 files are loaded through `specv2.LoadData` and rendered back through `specv2.Render`.
 - The command writes a trailing newline after rendered YAML for file output and stdout output.
+
+
+## Step 9: Fill migration coverage and user documentation
+
+I completed the migration-tooling cleanup tasks before moving into workspace/provider/source graph implementation. This step makes the current migration command less of a prototype by validating every repository example and documenting how users should convert v1 specs.
+
+The important behavior is that all discovered v1 example specs can be converted into v2 YAML that passes the strict v2 loader. The tests also verify that low-level TypeScript compiler-profile fields do not leak back into rendered v2 output.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead. work through all phases, i don't have time to waste"
+
+**Assistant interpretation:** Continue implementing the cutover tasks without stopping after each small increment; keep committing coherent slices and only report after meaningful progress.
+
+**Inferred user intent:** Accelerate the v2 cutover implementation while preserving quality, tests, and diary updates.
+
+**Commit (code):** pending — migration coverage/docs staged after this diary update.
+
+### What I did
+
+- Added `cmd/xgoja/internal/specv2/examples_migration_test.go`.
+- Covered all current `examples/xgoja/*/xgoja.yaml` files in the migration test.
+- Added root command tests for:
+  - migrate-spec output;
+  - in-place migration;
+  - backup writing;
+  - already-v2 check mode;
+  - migration warning output.
+- Added `cmd/xgoja/doc/16-migrating-to-xgoja-v2.md`.
+- Checked task IDs 34, 40, and 41 in `tasks.md`.
+
+### Why
+
+- The hard cutover relies on migration tooling. Every current example should migrate before normal v1 command paths are removed.
+- Users need a concise help page before they see v1 rejection diagnostics in normal commands.
+
+### What worked
+
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/specv2 -count=1` passed.
+- All example specs migrate into strict-loadable v2 YAML.
+- Warning output is covered by the TypeScript jsverbs example.
+
+### What didn't work
+
+- The first all-example test used `buildspec.LoadFile`, which failed on examples whose local `replace` paths point outside this checkout:
+  - `09-provider-shipped-help-docs`: `packages[0].replace: .../loupedeck: stat .../loupedeck: no such file or directory`
+  - `12-geppetto-host-services`: `packages[0].replace: .../geppetto: stat .../geppetto: no such file or directory`
+- I changed the migration coverage test to unmarshal v1 YAML directly into `buildspec.BuildSpec` and set `BaseDir`, so migration coverage does not depend on external sibling checkouts existing.
+- The first already-v2 `--check` test wrote hand-authored v2 YAML that was semantically valid but not byte-for-byte equal to `specv2.Render`, so check mode correctly reported it was not rendered form. I fixed the test by generating its input with `specv2.Render`.
+
+### What I learned
+
+- Migration fixtures should not depend on v1 validation requiring local replacement paths to exist; migration is allowed to preserve/report replacement paths even if the target checkout is missing.
+- `--check` is currently a rendered-byte check, not semantic equivalence. Tests must account for that.
+
+### What was tricky to build
+
+- The all-example migration test needed to validate v2 output strictly without requiring v1 example dependencies to exist locally.
+- The root check-mode test needed exactly rendered v2 input because the command intentionally compares trimmed bytes.
+
+### What warrants a second pair of eyes
+
+- Review whether `--check` should remain byte-for-byte rendered form or switch to semantic equivalence plus optional formatting checks.
+- Review whether all-example migration should eventually use checked-in golden output files for easier diff review.
+
+### What should be done in the future
+
+- Move into Go workspace resolution.
+- Later, after v2 planner/generator exists, migrate examples in-place and remove v1 example workflows.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/specv2/examples_migration_test.go`.
+- Review `cmd/xgoja/doc/16-migrating-to-xgoja-v2.md` for user-facing accuracy.
+- Validate with `go test ./cmd/xgoja ./cmd/xgoja/internal/specv2 -count=1`.
+
+### Technical details
+
+- The all-example test unmarshals v1 YAML directly to avoid replacement path existence checks.
+- It still renders and strict-loads v2 YAML through `specv2.Render` and `specv2.LoadData`.
+- The test guards against output containing `platform:`, `target: es...`, or `format: cjs` from old TypeScript profile fields.
