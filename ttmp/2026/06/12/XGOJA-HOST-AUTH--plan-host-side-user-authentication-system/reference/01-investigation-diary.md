@@ -35,6 +35,10 @@ RelatedFiles:
       Note: Planned Express routes protected by the Go host auth stack (commit 852780d)
     - Path: examples/xgoja/17-express-keycloak-auth-host/scripts/smoke.sh
       Note: Automated Keycloak smoke lifecycle wrapper (commit 4f966f3)
+    - Path: pkg/doc/29-express-auth-user-guide.md
+      Note: Main planned auth guide with consolidated host package table (commit 06e36da)
+    - Path: pkg/doc/31-express-auth-examples.md
+      Note: Consolidated dev-auth and Keycloak examples/smoke help page (commit 06e36da)
     - Path: pkg/gojahttp/auth/appauth/appauth.go
       Note: App-owned resource resolver and explicit deny-by-default authorizer helpers (commit 952acb2)
     - Path: pkg/gojahttp/auth/appauth/appauth_test.go
@@ -70,6 +74,7 @@ LastUpdated: 2026-06-12T17:00:00-04:00
 WhatFor: Use this to resume or review the host-side auth system planning ticket.
 WhenToUse: Read before implementing dev/demo auth, session auth, Keycloak/OIDC, app authorization, audit, or capabilities.
 ---
+
 
 
 
@@ -1041,4 +1046,93 @@ The smoke deliberately uses Python standard-library HTTP and HTML form parsing i
   ```bash
   KEYCLOAK_PORT=18081 make -C examples/xgoja/17-express-keycloak-auth-host smoke
   KEEP_KEYCLOAK=1 make -C examples/xgoja/17-express-keycloak-auth-host smoke
+  ```
+
+
+## Step 9: Consolidate Glazed auth help pages
+
+I added the requested Glazed help documentation, then stopped and consolidated it when the initial split proved too fragmented for a normal developer. The final shape keeps the main route/auth guide as the conceptual entry point and adds one examples guide that covers both the no-service dev auth smoke and the Docker Compose Keycloak smoke.
+
+This keeps the CLI help discoverable without turning every internal auth package into a separate top-level page. Package details now live in a compact table inside the main user guide, while the examples page answers the operational question: which example should I run, and what does the smoke prove?
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, go ahead"
+
+**Assistant interpretation:** Proceed with the proposed consolidation: fold package overview content into the main auth guide, add one examples page, and avoid many fragmented package-specific help pages.
+
+**Inferred user intent:** Make the Glazed help useful to a normal developer who wants to understand and run Express auth, not to maintainers browsing every internal package.
+
+**Commit (code):** 06e36da66fed6704e96c65e57543b689d8e66254 — "Docs: consolidate Express auth help pages"
+
+### What I did
+- Updated `pkg/doc/29-express-auth-user-guide.md` with a compact host-auth package choices section covering:
+  - `devauth`,
+  - `sessionauth`,
+  - `keycloakauth`,
+  - `appauth`,
+  - `audit`,
+  - `capability`.
+- Added one consolidated examples help page:
+  - `pkg/doc/31-express-auth-examples.md`, slug `express-auth-examples`.
+- Removed the over-fragmented draft pages for separate host-auth package and individual example docs before committing.
+- Marked the Glazed help-page task complete.
+
+### Why
+- A normal developer needs a small set of entry points:
+  - the general Express module reference,
+  - the planned auth user guide,
+  - the migration tutorial,
+  - the examples/smoke guide.
+- Separate top-level pages for every helper package would make discovery noisier and force readers to understand internal package boundaries before they know which workflow they need.
+
+### What worked
+- The consolidated help pages render through the CLI:
+  ```bash
+  go run ./cmd/goja-repl help express-auth-user-guide
+  go run ./cmd/goja-repl help express-auth-examples
+  go run ./cmd/goja-repl help migrate-express-apps-to-planned-auth
+  ```
+- Pre-commit correctly skipped Go lint/test for doc-only staged changes.
+
+### What didn't work
+- My first pass created three separate draft help pages:
+  - `31-gojahttp-host-auth-packages.md`,
+  - `32-express-dev-auth-host-example.md`,
+  - `33-express-keycloak-auth-host-example.md`.
+- The user called out that this was too many pages. I removed those drafts and replaced them with one consolidated examples page plus a package table in the main guide.
+
+### What I learned
+- For Glazed help, discoverability is not the same as maximizing page count. A few task-oriented pages are better than many package-oriented pages.
+- Internal package READMEs can remain detailed source-level references, while CLI help should answer normal workflow questions first.
+
+### What was tricky to build
+- The main tradeoff was where to place package-boundary detail. Putting all package details in a standalone help page made sense for maintainers, but not for normal route authors or host integrators.
+- The chosen solution keeps the package map in the main auth guide because developers need it while wiring `HostOptions.Auth`, then points them to one examples page for runnable validation.
+
+### What warrants a second pair of eyes
+- Review whether `express-auth-examples` should be top-level or only linked from `express-auth-user-guide`.
+- Review whether the package table in the main guide is concise enough without hiding important production warnings.
+- Review whether `express-module` should link to `express-auth-examples` directly.
+
+### What should be done in the future
+- Add a short link from `pkg/doc/18-express-module.md` to `express-auth-examples` if the module reference should surface runnable auth examples.
+- Consider a dedicated production deployment guide only after persistent stores and deployment choices are implemented.
+
+### Code review instructions
+- Start with `pkg/doc/29-express-auth-user-guide.md` and review the new host package table.
+- Then review `pkg/doc/31-express-auth-examples.md` for the developer-facing examples flow.
+- Validate with:
+  ```bash
+  go run ./cmd/goja-repl help express-auth-user-guide
+  go run ./cmd/goja-repl help express-auth-examples
+  ```
+
+### Technical details
+- Final Glazed help set for Express auth:
+  ```text
+  express-module
+  express-auth-user-guide
+  migrate-express-apps-to-planned-auth
+  express-auth-examples
   ```

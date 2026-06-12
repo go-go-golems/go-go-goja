@@ -84,3 +84,13 @@ Phase 6: add and run automated Keycloak login/CSRF/planned-route smoke (commit 4
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/17-express-keycloak-auth-host/scripts/keycloak_smoke.py — Login and route assertions
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/17-express-keycloak-auth-host/scripts/smoke.sh — Smoke lifecycle
 
+
+## 2026-06-12
+
+Consolidate Glazed help into main auth guide plus examples/smoke page (commit 06e36da)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/29-express-auth-user-guide.md — Host package overview
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/31-express-auth-examples.md — Examples help page
+
