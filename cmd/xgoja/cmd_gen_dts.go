@@ -16,6 +16,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildexec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/workspace"
 )
 
 type genDTSCommand struct {
@@ -112,7 +113,11 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	defer cleanup()
 
-	if err := writeDTSSidecar(workDir, buildSpec, settings); err != nil {
+	goModules, err := goModulePlanForBuildSpec(buildSpec)
+	if err != nil {
+		return err
+	}
+	if err := writeDTSSidecar(workDir, buildSpec, settings, goModules); err != nil {
 		return err
 	}
 	_, _ = fmt.Fprintf(c.out, "generated dts sidecar workspace: %s\n", workDir)
@@ -129,12 +134,12 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	return writeOrCheckDTS(settings.Output, result.Stdout, settings.Check)
 }
 
-func writeDTSSidecar(dir string, buildSpec *buildspec.BuildSpec, settings genDTSSettings) error {
+func writeDTSSidecar(dir string, buildSpec *buildspec.BuildSpec, settings genDTSSettings, goModules *workspace.Plan) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create dts sidecar directory %s: %w", dir, err)
 	}
 	files := map[string]string{
-		"go.mod":  generate.RenderGoMod(buildSpec, generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace}),
+		"go.mod":  generate.RenderGoMod(buildSpec, generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace, GoModules: goModules}),
 		"main.go": generate.RenderDTSGenMain(buildSpec, settings.Strict),
 	}
 	for name, content := range files {

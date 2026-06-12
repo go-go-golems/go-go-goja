@@ -189,3 +189,15 @@ Added initial v2 plan compiler that combines specv2 validation, Go module planni
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/plan/plan.go — Initial v2 Plan type and compiler
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/plan/plan_test.go — Planner coverage for runtime aliases
 
+
+## 2026-06-12
+
+Wired workspace Go module plans into generated go.mod rendering and into build/gen-dts sidecar generation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/cmd_build.go — Build passes GoModulePlan to generated workspace writer
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/cmd_gen_dts.go — gen-dts sidecar go.mod uses GoModulePlan
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/gomod.go — RenderGoMod consumes workspace.GoModulePlan for require/replace output
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/workspace_plan.go — Buildspec-to-workspace requirement planning for commands
+

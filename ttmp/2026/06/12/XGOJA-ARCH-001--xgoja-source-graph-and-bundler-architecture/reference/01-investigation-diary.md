@@ -12,14 +12,26 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/cmd_build.go
+      Note: Build passes workspace plan to generator for Step 17
+    - Path: cmd/xgoja/cmd_gen_dts.go
+      Note: gen-dts sidecar passes workspace plan for Step 17
     - Path: cmd/xgoja/internal/buildspec/build_spec.go
       Note: Diary Step 1 build-time schema evidence
+    - Path: cmd/xgoja/internal/generate/generate.go
+      Note: generate.Options carries GoModulePlan for Step 17
+    - Path: cmd/xgoja/internal/generate/generate_test.go
+      Note: Workspace go.mod rendering regression for Step 17
     - Path: cmd/xgoja/internal/generate/gomod.go
-      Note: Diary Step 2 workspace resolution evidence and integration target
+      Note: |-
+        Diary Step 2 workspace resolution evidence and integration target
+        RenderGoMod consumes workspace plans for Step 17
     - Path: cmd/xgoja/internal/plan/plan.go
       Note: Initial v2 Plan compiler for Step 16
     - Path: cmd/xgoja/internal/plan/plan_test.go
       Note: Planner regression tests for Step 16
+    - Path: cmd/xgoja/workspace_plan.go
+      Note: Legacy buildspec-to-workspace planner bridge for Step 17
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
       Note: Step 1 build-time xgoja schema evidence.
     - Path: go-go-goja/cmd/xgoja/internal/generate/generate.go
@@ -67,10 +79,11 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T17:45:00-04:00
+LastUpdated: 2026-06-12T18:05:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -1522,3 +1535,85 @@ This is intentionally still a thin composition layer. It does not yet replace `b
 - Provider module requirements use `provider.Import`, `provider.module.version`, and `provider.module.replace`.
 - Explicit `go.imports[]` entries are also converted into workspace requirements.
 - `source.from.workspace` requires a locally resolved module entry; otherwise the planner returns an unresolved workspace module error.
+
+
+## Step 17: Wire Go module plans into generated go.mod and sidecars
+
+I connected the workspace module resolver to the generated `go.mod` path. Generated build workspaces and `gen-dts` sidecars now derive a Go module plan from the build spec and pass that plan into `RenderGoMod`, which can emit both versioned requirements and local `replace` directives from workspace resolution.
+
+This makes the earlier workspace resolver useful in the current v1-era build path while also preparing the v2 planner output for generated module rendering. The behavior remains incremental: existing explicit package replaces still work, and workspace-derived replacements are added when a matching module is resolved locally.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 15)
+
+**Assistant interpretation:** Continue implementing the next v2 cutover task, focusing on generated Go module rendering.
+
+**Inferred user intent:** Progress through the remaining hard-cutover implementation plan in focused, committed steps.
+
+**Commit (code):** pending — generated go.mod workspace-plan wiring staged after this diary update.
+
+### What I did
+
+- Added `GoModules *workspace.Plan` to `generate.Options`.
+- Updated `RenderGoMod` to consume planned Go modules:
+  - versioned modules add `require module version`;
+  - local modules without a version add `require module v0.0.0`;
+  - local modules add `replace module => localDir`.
+- Added a `RenderGoMod` regression test for workspace-derived `require` and `replace` output.
+- Added `cmd/xgoja/workspace_plan.go` to derive a workspace plan from the current build spec:
+  - target module imports;
+  - provider package imports;
+  - extra Go imports.
+- Wired `xgoja build` to pass the derived plan to `generate.WriteAll`.
+- Wired `xgoja gen-dts` to pass the same plan to sidecar `go.mod` rendering.
+- Checked task IDs 48, 49, and 82.
+
+### Why
+
+- The workspace resolver was implemented but not yet connected to the generated build artifacts that need `replace` directives.
+- Local development should not require hand-written package replaces when `go.work` already identifies local module checkouts.
+- `build` and `gen-dts` need consistent module resolution because both produce temporary Go modules.
+
+### What worked
+
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./cmd/xgoja/internal/workspace -count=1` passed.
+- Existing generated-program tests continue to pass with the new workspace planning hook.
+- Explicit replaces remain supported; planned local dirs are merged into the replace set.
+
+### What didn't work
+
+- The current command wiring derives a plan from the legacy build spec rather than the new v2 `plan.Plan`; the full v2 command cutover is still pending.
+- There is no doctor output yet showing module path, local dir, version, and resolution source.
+
+### What I learned
+
+- The generated `go.mod` renderer is the right low-level join point: both build and gen-dts already route through it.
+- Local replacements need a synthetic version when the spec does not provide one, so local-only modules use `v0.0.0` in generated requirements.
+
+### What was tricky to build
+
+- The legacy build spec stores provider imports as package paths, but Go module planning operates on module paths. The command-level helper mirrors the module-root inference used by `RenderGoMod` so both explicit and workspace-derived entries target the same module path.
+- `gen-dts` writes a sidecar module independently from `build`, so the workspace plan needed to be threaded through that path too.
+
+### What warrants a second pair of eyes
+
+- Review the `v0.0.0` fallback for local workspace modules without an explicit version.
+- Review whether workspace auto-resolution should be visible in dry-run output before the hard cutover.
+
+### What should be done in the future
+
+- Add doctor/plan diagnostics for module path, local dir, version, and resolution source.
+- Switch build/gen-dts to the native v2 planner once v2 spec loading is wired into commands.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/generate/gomod.go` to review planned module rendering.
+- Then review `cmd/xgoja/workspace_plan.go`, `cmd/xgoja/cmd_build.go`, and `cmd/xgoja/cmd_gen_dts.go`.
+- Validate with `go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./cmd/xgoja/internal/workspace -count=1`.
+
+### Technical details
+
+- Workspace resolution remains `ModeAuto` for the legacy build-spec command path.
+- Explicit `--xgoja-replace` remains separate and still controls the go-go-goja runtime module replacement.
+- `generate.Options.GoModules` is optional, preserving existing lower-level render tests and callers.

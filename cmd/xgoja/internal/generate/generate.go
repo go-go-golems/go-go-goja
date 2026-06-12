@@ -10,11 +10,13 @@ import (
 	"strings"
 
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/workspace"
 )
 
 type Options struct {
 	XGojaModuleVersion string
 	XGojaReplace       string
+	GoModules          *workspace.Plan
 }
 
 type PackageOptions struct {

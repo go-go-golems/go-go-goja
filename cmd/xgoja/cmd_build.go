@@ -112,7 +112,11 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	defer cleanup()
 
-	if err := generate.WriteAll(workDir, buildSpec, generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace}); err != nil {
+	goModules, err := goModulePlanForBuildSpec(buildSpec)
+	if err != nil {
+		return err
+	}
+	if err := generate.WriteAll(workDir, buildSpec, generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace, GoModules: goModules}); err != nil {
 		return err
 	}
 	_, _ = fmt.Fprintf(c.out, "generated build workspace: %s\n", workDir)

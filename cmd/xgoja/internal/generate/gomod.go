@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/workspace"
 )
 
 const xgojaRuntimeModule = "github.com/go-go-golems/go-go-goja"
@@ -45,6 +46,15 @@ func RenderGoMod(buildSpec *buildspec.BuildSpec, opts Options) string {
 			requires[modulePath] = version
 		}
 	}
+	for _, module := range plannedGoModules(opts.GoModules) {
+		version := strings.TrimSpace(module.Version)
+		if version == "" && strings.TrimSpace(module.LocalDir) != "" {
+			version = "v0.0.0"
+		}
+		if version != "" {
+			requires[module.ModulePath] = version
+		}
+	}
 	keys := make([]string, 0, len(requires))
 	for k := range requires {
 		keys = append(keys, k)
@@ -65,6 +75,11 @@ func RenderGoMod(buildSpec *buildspec.BuildSpec, opts Options) string {
 			replaces[providerModulePath(pkg.Import)] = resolveReplacePath(buildSpec.BaseDir, pkg.Replace)
 		}
 	}
+	for _, module := range plannedGoModules(opts.GoModules) {
+		if strings.TrimSpace(module.LocalDir) != "" {
+			replaces[module.ModulePath] = module.LocalDir
+		}
+	}
 	if len(replaces) > 0 {
 		keys = keys[:0]
 		for k := range replaces {
@@ -77,6 +92,13 @@ func RenderGoMod(buildSpec *buildspec.BuildSpec, opts Options) string {
 		}
 	}
 	return b.String()
+}
+
+func plannedGoModules(plan *workspace.Plan) []workspace.GoModulePlan {
+	if plan == nil {
+		return nil
+	}
+	return append([]workspace.GoModulePlan(nil), plan.Modules...)
 }
 
 func providerModulePath(importPath string) string {

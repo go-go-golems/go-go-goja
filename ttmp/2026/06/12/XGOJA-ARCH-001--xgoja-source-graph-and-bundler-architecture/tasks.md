@@ -134,8 +134,8 @@
   - explicit workspace module mapping if added;
   - detected `go.work` module;
   - versioned requirement.
-- [ ] Wire workspace-derived replacements into generated `go.mod` rendering.
-- [ ] Apply the same module plan to `xgoja build` and `xgoja gen-dts` sidecars.
+- [x] Wire workspace-derived replacements into generated `go.mod` rendering.
+- [x] Apply the same module plan to `xgoja build` and `xgoja gen-dts` sidecars.
 - [ ] Add doctor/plan diagnostics showing module path, local dir, version, and resolution source.
 - [ ] Add tests for workspace auto, workspace off, explicit file, replace precedence, missing version/local module errors, and sidecar rendering.
 
@@ -200,7 +200,7 @@
 - [ ] Update `xgoja doctor` to load v2 and validate through the planner.
 - [ ] Update `xgoja build` to generate from v2 artifact plan.
 - [ ] Update `xgoja gen-dts` to use v2 provider graph and declaration artifact plan.
-- [ ] Update generated `go.mod` rendering to consume `GoModulePlan`.
+- [x] Update generated `go.mod` rendering to consume `GoModulePlan`.
 - [ ] Update embedded source copying to consume source/artifact plans.
 - [ ] Update generated runtime spec rendering to consume the runtime plan.
 - [ ] Add tests for build dry-run, build with workspace auto, gen-dts with workspace auto, and generated runtime package output.

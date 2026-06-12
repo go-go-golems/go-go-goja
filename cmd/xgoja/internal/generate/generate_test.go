@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/workspace"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 )
 
@@ -110,6 +111,29 @@ func TestRenderGoModUsesModuleRootsForSubpackageImports(t *testing.T) {
 	} {
 		if strings.Contains(got, notWant) {
 			t.Fatalf("go.mod should use module roots, but contained %q:\n%s", notWant, got)
+		}
+	}
+}
+
+func TestRenderGoModUsesWorkspaceModulePlan(t *testing.T) {
+	buildSpec := fixtureSpec()
+	buildSpec.Packages = []buildspec.PackageSpec{
+		{ID: "provider", Import: "github.com/acme/widgets/pkg/xgoja/testprovider", Register: "Register"},
+	}
+	got := RenderGoMod(buildSpec, Options{
+		XGojaModuleVersion: "v0.1.0",
+		GoModules: &workspace.Plan{Modules: []workspace.GoModulePlan{
+			{ModulePath: "github.com/acme/widgets", LocalDir: "/workspace/widgets", ResolutionKind: workspace.ResolutionWorkspace, ResolutionSource: workspace.SourceGoWork},
+			{ModulePath: "example.com/versioned", Version: "v1.2.3", ResolutionKind: workspace.ResolutionVersioned, ResolutionSource: workspace.SourceVersion},
+		}},
+	})
+	for _, want := range []string{
+		"github.com/acme/widgets v0.0.0",
+		"example.com/versioned v1.2.3",
+		"replace github.com/acme/widgets => /workspace/widgets",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected go.mod to contain %q, got:\n%s", want, got)
 		}
 	}
 }
