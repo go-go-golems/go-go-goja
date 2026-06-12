@@ -19,7 +19,7 @@ func TestRootHelp(t *testing.T) {
 		t.Fatalf("execute help: %v", err)
 	}
 	rendered := out.String()
-	for _, want := range []string{"xgoja", "build", "generate", "gen-dts", "doctor", "inspect", "list-modules"} {
+	for _, want := range []string{"xgoja", "build", "generate", "gen-dts", "doctor", "inspect", "list-modules", "migrate-spec"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("expected help to contain %q, got %q", want, rendered)
 		}
@@ -245,6 +245,56 @@ func TestDoctorCommandWired(t *testing.T) {
 	root.SetArgs([]string{"doctor", "-f", specPath, "--output", "json"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute doctor: %v", err)
+	}
+}
+
+func TestMigrateSpecCommandWritesOutput(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeValidSpec(t)
+	outputPath := filepath.Join(t.TempDir(), "xgoja.v2.yaml")
+	root.SetArgs([]string{"migrate-spec", "-f", specPath, "--out", outputPath})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute migrate-spec: %v", err)
+	}
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read migrated spec: %v", err)
+	}
+	text := string(data)
+	for _, want := range []string{"schema: xgoja/v2", "providers:", "runtime:", "artifacts:"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("expected migrated spec to contain %q, got:\n%s", want, text)
+		}
+	}
+	if !strings.Contains(out.String(), "wrote migrated xgoja/v2 spec") {
+		t.Fatalf("expected migrate output, got %q", out.String())
+	}
+}
+
+func TestMigrateSpecCommandInPlaceBackup(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeValidSpec(t)
+	root.SetArgs([]string{"migrate-spec", "-f", specPath, "--in-place", "--backup"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute migrate-spec in-place: %v", err)
+	}
+	if _, err := os.Stat(specPath + ".bak"); err != nil {
+		t.Fatalf("expected backup: %v", err)
+	}
+	data, err := os.ReadFile(specPath)
+	if err != nil {
+		t.Fatalf("read in-place spec: %v", err)
+	}
+	if !strings.Contains(string(data), "schema: xgoja/v2") {
+		t.Fatalf("expected v2 schema after in-place migration, got:\n%s", data)
 	}
 }
 

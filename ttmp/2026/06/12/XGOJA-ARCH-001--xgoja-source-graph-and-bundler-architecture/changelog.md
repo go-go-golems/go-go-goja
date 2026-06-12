@@ -72,3 +72,14 @@ Added v1-to-v2 migration conversion for providers, runtime modules, command surf
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/migrate_v1.go — V1-to-v2 conversion implementation
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/migrate_v1_test.go — Migration coverage for TypeScript jsverbs
 
+
+## 2026-06-12
+
+Added xgoja migrate-spec command with v1-to-v2 output, in-place migration, backups, check mode, warning output, and root command coverage.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/cmd_migrate_spec.go — migrate-spec CLI implementation
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root.go — Wires migrate-spec into xgoja root
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root_test.go — Root command migration output and in-place backup tests
+

@@ -99,8 +99,8 @@
 
 ### Phase 3: Add `xgoja migrate-spec`
 
-- [ ] Add a new Cobra/Glazed command `migrate-spec`.
-- [ ] Support flags:
+- [x] Add a new Cobra/Glazed command `migrate-spec`.
+- [x] Support flags:
   - `-f, --file`;
   - `--out`;
   - `--in-place`;
@@ -109,9 +109,9 @@
   - `--from v1`;
   - `--to v2`;
   - `--profile dev|release` only if profiles are included.
-- [ ] Print migration warnings in a stable, grep-friendly format.
-- [ ] In `--check` mode, return non-zero if migration would change the file.
-- [ ] In `--in-place --backup` mode, write `xgoja.yaml.bak` before overwriting.
+- [x] Print migration warnings in a stable, grep-friendly format.
+- [x] In `--check` mode, return non-zero if migration would change the file.
+- [x] In `--in-place --backup` mode, write `xgoja.yaml.bak` before overwriting.
 - [ ] Add tests for normal output, check mode, in-place mode, backup mode, and warning output.
 - [ ] Add a migration doc page under `cmd/xgoja/doc`, e.g. `16-migrating-to-xgoja-v2.md`.
 

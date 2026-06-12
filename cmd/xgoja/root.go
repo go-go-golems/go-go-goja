@@ -42,6 +42,7 @@ buildspec validation and code generation are added in follow-up phases.`,
 		newDoctorCommand(),
 		newInspectCommand(),
 		newListModulesCommand(),
+		newMigrateSpecCommand(out),
 	}
 	for _, command := range commands {
 		cobraCommand, err := cli.BuildCobraCommand(command,
