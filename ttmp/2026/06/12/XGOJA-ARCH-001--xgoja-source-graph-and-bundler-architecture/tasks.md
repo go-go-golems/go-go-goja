@@ -179,11 +179,11 @@
 
 ### Phase 7: Port TypeScript/jsverbs execution to v2 graph/plans
 
-- [ ] Implement XGOJA-TS-002 or incorporate it here: fs.FS-backed runtime bundling for embedded/provider TypeScript jsverbs.
+- [x] Implement XGOJA-TS-002 or incorporate it here: fs.FS-backed runtime bundling for embedded/provider TypeScript jsverbs.
 - [ ] Replace direct xgoja calls to `jsverbs.ScanDir`/`ScanFS` with graph-backed scan adapters.
 - [ ] Keep `jsverbs.ScanDir` and `ScanFS` as lower-level convenience APIs if still useful, but normal xgoja v2 execution should use source graph adapters.
 - [ ] Make jsverbs runtime transforms use source graph origin metadata.
-- [ ] Make TypeScript runtime module externals derive from provider graph/runtime modules, not per-source config.
+- [x] Make TypeScript runtime module externals derive from provider graph/runtime modules, not per-source config.
 - [ ] Preserve overlay-before-bundling behavior.
 - [ ] Add tests for v2 filesystem TypeScript jsverbs, v2 embedded TypeScript jsverbs, and v2 provider TypeScript jsverbs.
 

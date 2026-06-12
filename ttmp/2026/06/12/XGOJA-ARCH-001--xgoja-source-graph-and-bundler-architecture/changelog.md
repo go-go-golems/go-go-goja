@@ -125,3 +125,13 @@ Added sourcegraph package with disk/fs source origins, source kinds, include/exc
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/sourcegraph/graph.go — Source graph implementation
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/sourcegraph/graph_test.go — Source graph discovery and import-resolution tests
 
+
+## 2026-06-12
+
+Added fs.FS-backed TypeScript bundling helper for embedded/provider source graphs, resolving relative imports without disk ResolveDir and preserving runtime module aliases as externals.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/tsscript/fs_bundle.go — fs.FS-backed virtual entry bundler
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/tsscript/fs_bundle_test.go — fs.FS bundling tests
+

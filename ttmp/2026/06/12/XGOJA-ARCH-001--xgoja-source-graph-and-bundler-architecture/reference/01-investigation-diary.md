@@ -47,7 +47,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T16:15:00-04:00
+LastUpdated: 2026-06-12T16:35:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
@@ -1169,3 +1169,85 @@ This is still a graph/planning layer, not yet wired into jsverbs runtime executi
 - File identity is `<sourceSetID> + NUL + <relative path>`.
 - Runtime module aliases are passed via `Options.RuntimeModuleAliases`.
 - Asset/help source kinds are discovered but import resolution skips non-executable source kinds.
+
+
+## Step 13: Add fs.FS-backed TypeScript bundling
+
+I implemented the core fix direction for embedded/provider TypeScript sources: `tsscript` can now bundle a virtual entry while resolving relative imports from an `fs.FS` instead of from an on-disk `ResolveDir`.
+
+This does not yet replace all jsverbs runtime paths, but it provides the missing compiler primitive needed by the v2 source graph and by `XGOJA-TS-002`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 9)
+
+**Assistant interpretation:** Continue through the source graph / TypeScript integration phase by implementing the fs.FS bundling primitive.
+
+**Inferred user intent:** Fix the embedded/provider TypeScript local-import gap as part of the v2 hard cutover rather than leaving it as design-only work.
+
+**Commit (code):** pending — fs.FS bundling helper staged after this diary update.
+
+### What I did
+
+- Added `pkg/tsscript/fs_bundle.go`.
+- Implemented `BundleVirtualEntryFS(root fs.FS, src Source, opts Options)`.
+- Added an esbuild plugin that:
+  - resolves relative imports against logical source paths inside `fs.FS`;
+  - probes TypeScript/JavaScript extensions and index files;
+  - loads matched files with the correct esbuild loader;
+  - preserves configured externals such as runtime module aliases.
+- Added tests for:
+  - relative TypeScript helper imports from `fs.FS`;
+  - runtime alias externalization;
+  - missing relative import diagnostics.
+- Checked task IDs 71 and 75.
+
+### Why
+
+- The earlier TypeScript implementation used `BundleVirtualEntry` with `ResolveDir`, which works for disk sources but fails for embedded/provider sources where local helper imports live inside `fs.FS`.
+- v2 source graph keeps origin metadata, but the compiler also needs an fs-backed resolver to use that metadata.
+
+### What worked
+
+- `go test ./pkg/tsscript -count=1` passed.
+- The fs-backed bundler can bundle `verbs/site.ts` importing `./helper` from an in-memory `fstest.MapFS`.
+- External runtime aliases remain as `require("express")` calls.
+
+### What didn't work
+
+- No command failed in this step.
+- The helper is not yet wired into `pkg/jsverbs` or `pkg/xgoja/app` runtime paths.
+- Overlay-before-bundling behavior is still handled by existing callers and needs explicit graph-backed integration.
+
+### What I learned
+
+- esbuild's plugin API is sufficient for resolving embedded/provider local imports without writing files to disk.
+- Logical source paths should be slash-separated and source-root-relative for stable fs-backed bundling.
+
+### What was tricky to build
+
+- Stdin sources do not have a normal on-disk resolve directory. The solution is to give esbuild a virtual resolve dir based on the logical entry path and intercept relative imports with an `xgoja-fs` namespace.
+- The plugin has to set `ResolveDir` on loaded files so nested relative imports resolve from the imported file's logical directory.
+
+### What warrants a second pair of eyes
+
+- Review whether `cleanVirtualPath` and path probing should reject `..` more aggressively before `fs.Stat`.
+- Review whether esbuild plugin errors are sufficiently actionable for users.
+
+### What should be done in the future
+
+- Thread source graph origin metadata into jsverbs scan/runtime execution.
+- Use `BundleVirtualEntryFS` for embedded/provider TypeScript jsverbs.
+- Add end-to-end tests that scan and execute provider/embedded TypeScript jsverbs with helper imports.
+
+### Code review instructions
+
+- Start with `BundleVirtualEntryFS` in `pkg/tsscript/fs_bundle.go`.
+- Review `fsResolverPlugin` and `resolveFSPath`.
+- Validate with `go test ./pkg/tsscript -count=1`.
+
+### Technical details
+
+- Plugin namespace: `xgoja-fs`.
+- Entry resolve dir is derived from `Source.Path`, not `Source.ResolveDir`.
+- Extension probing covers `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`, and `.json`.
