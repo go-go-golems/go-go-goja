@@ -136,3 +136,16 @@ Updated MVP design to keep .get/.post/... names but hard-cut them over to explic
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/design/01-mvp-authentication-api-design-and-implementation-guide.md — Primary design updated for verb-helper hard cutover
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Diary records the hard-cutover decision update
 
+
+## 2026-06-12
+
+Implemented hard cutover for Express verb helpers: .get/.post/... now return planned builders, old handler overloads reject with migration guidance, tests/examples/docs migrated (commit 4492723).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/auth_builders_integration_test.go — Regression coverage
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/express.go — Runtime API cutover
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/typescript.go — TypeScript API cutover
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/18-express-module.md — Docs migration guidance
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md — Implementation diary Step 12
+

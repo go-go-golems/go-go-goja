@@ -11,6 +11,16 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/xgoja/15-express-planned-auth/scripts/server.js
+      Note: Example route authoring migrated to planned verb helpers (commit 4492723)
+    - Path: modules/express/auth_builders_integration_test.go
+      Note: Coverage for planned verb helpers and legacy overload rejection (commit 4492723)
+    - Path: modules/express/express.go
+      Note: Hard-cut verb helpers to staged planned builders (commit 4492723)
+    - Path: modules/express/typescript.go
+      Note: Verb helper declarations now return RouteNeedsSecurity (commit 4492723)
+    - Path: pkg/doc/18-express-module.md
+      Note: User-facing hard-cutover docs and migration notes (commit 4492723)
     - Path: ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/design/01-mvp-authentication-api-design-and-implementation-guide.md
       Note: Primary design output produced during Step 1
     - Path: ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/sources/01-auth-preliminary-api-ideas.md
@@ -18,10 +28,11 @@ RelatedFiles:
 ExternalSources:
     - ../sources/01-auth-preliminary-api-ideas.md
 Summary: Chronological diary for the Express authentication design investigation.
-LastUpdated: 2026-06-12T15:31:00-04:00
+LastUpdated: 2026-06-12T15:47:00-04:00
 WhatFor: Use this to resume or review the ticket research and design work.
 WhenToUse: Read before continuing implementation work for XGOJA-EXPRESS-AUTH.
 ---
+
 
 
 # Diary
@@ -1146,4 +1157,113 @@ This is an intentional breaking change. The design now treats breakage of old `a
     .auth(express.user().required())
     .allow("project.create")
     .handle((ctx, res) => res.json({ actor: ctx.actor.id }))
+  ```
+
+
+## Step 12: Implement hard cutover of Express verb helpers
+
+I implemented the hard cutover described in the updated design. The direct Express-style verb helpers now return staged planned-route builders instead of registering raw `(req, res)` handlers, so normal route authoring keeps the familiar `.get/.post/.patch/...` names while requiring every endpoint to declare `.public()` or an authenticated policy chain before `.handle(...)`.
+
+The implementation also migrated tests, examples, xgoja HTTP provider fixtures, generated-runtime test scripts, and user-facing docs to the planned handler context. Public endpoints now use `app.get(path).public().handle(...)`, protected examples use `.auth(...).allow(...)`, and old two-argument verb calls fail with a clear migration error.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead."
+
+**Assistant interpretation:** Implement the just-approved hard cutover where `.get/.post/...` remain but become planned route builders that require explicit public/auth declarations.
+
+**Inferred user intent:** Move from design decision to code so the safer auth-aware verb-helper API is enforced by the Express module and reflected across tests/docs/examples.
+
+**Commit (code):** 4492723 — "Hard cut Express verb helpers to planned routes"
+
+### What I did
+- Changed `modules/express/express.go` so `app.get`, `app.post`, `app.put`, `app.patch`, `app.delete`, and `app.all` return `newRouteBuilder(...)` instead of calling `Host.Register` directly.
+- Added a runtime TypeError for the removed `app.get(pattern, handler)` overload with migration guidance to use `.public().handle(...)` or `.auth(...).allow(...).handle(...)`.
+- Updated `modules/express/typescript.go` so verb helpers return `RouteNeedsSecurity` and removed the old raw `Handler` declaration.
+- Updated Express integration tests to use planned public routes and `ctx`, `ctx.body`, or `ctx.request` instead of raw `req`.
+- Added builder tests for verb-helper planned routes, generic `app.route(method, pattern)` preservation, and legacy overload rejection.
+- Migrated provider tests, generated-runtime test fixtures, session integration tests, examples, and xgoja tutorial docs to the hard-cutover API.
+- Updated `pkg/doc/18-express-module.md` to document planned verb helpers and migration from `app.get(pattern, handler)`.
+
+### Why
+- Keeping raw direct handlers on the normal Express surface would preserve a fail-open path where route authors can forget to declare security intent.
+- The hard cutover keeps the ergonomic Express-style verb names while making public exposure and authentication policy explicit.
+- Updating examples and generated test fixtures immediately prevents new code from copying the old raw route pattern.
+
+### What worked
+- Targeted tests passed:
+  - `go test ./modules/express ./pkg/gojahttp ./pkg/xgoja/providers/http -count=1`
+- The broad suite passed with VCS stamping disabled:
+  - `GOFLAGS=-buildvcs=false go test ./... -count=1`
+- The commit pre-hook passed lint and tests, including:
+  - `golangci-lint run -v`
+  - `go generate ./...`
+  - `go test ./...`
+- The old overload is now covered by `TestExpressVerbHelperRejectsLegacyHandlerOverload`.
+
+### What didn't work
+- My first `gofmt`/targeted-test command failed because `modules/express/typescript.go` was accidentally corrupted during an edit. The exact command was:
+  - `gofmt -w modules/express/express.go modules/express/typescript.go modules/express/express_integration_test.go modules/express/auth_builders_integration_test.go pkg/xgoja/providers/http/http_test.go pkg/xgoja/providers/http/serve_test.go pkg/gojahttp/session_integration_test.go cmd/xgoja/internal/generate/generate_test.go && go test ./modules/express ./pkg/gojahttp ./pkg/xgoja/providers/http -count=1`
+- The exact compiler/parser errors were:
+  ```text
+  modules/express/typescript.go:63:84: missing ',' in composite literal
+  modules/express/typescript.go:63:102: illegal character U+003F '?'
+  modules/express/typescript.go:63:107: illegal rune literal
+  modules/express/typescript.go:63:284: illegal rune literal
+  modules/express/typescript.go:63:385: illegal character U+003F '?'
+  modules/express/typescript.go:63:496: illegal character U+003F '?'
+  modules/express/typescript.go:63:511: illegal rune literal
+  modules/express/typescript.go:63:630: illegal rune literal
+  modules/express/typescript.go:63:860: illegal character U+23CE '⏎'
+  modules/express/typescript.go:63:877: rune literal not terminated
+  modules/express/typescript.go:103:3: expected '}', found 'EOF'
+  ```
+- I fixed this by rewriting `modules/express/typescript.go` cleanly and rerunning formatting/tests.
+
+### What I learned
+- The current planned handler context was already compatible with most raw examples after mechanical migration: `req.params` becomes `ctx.params`, `req.body` becomes `ctx.body`, and less common request details such as query/session move under `ctx.request`.
+- Provider and generated-runtime tests embed route snippets in several places, so a route API cutover needs repository-wide string fixture migration, not only module tests.
+- Goja `func(call goja.FunctionCall) goja.Value` is the right shape for verb helpers that need to inspect argument count and reject the old two-argument overload explicitly.
+
+### What was tricky to build
+- The main implementation sharp edge was preserving a useful migration error while changing the Go-exposed function signature. A normal Go function signature like `func(pattern string) goja.Value` would ignore or awkwardly coerce extra arguments; using `goja.FunctionCall` lets the helper detect `app.get(pattern, handler)` and throw a TypeError with exact replacement shapes.
+- The second tricky part was updating tests that previously assumed raw `(req, res)` semantics. Planned handlers receive `(ctx, res)`, and only `ctx.params` and `ctx.body` are top-level convenience fields. Query strings and sessions remain on `ctx.request`, so examples that used `req.query` or `req.session` needed deliberate migration.
+- The third tricky part was preventing stale documentation from teaching the bypass. I searched for old direct-handler patterns and migrated examples, tutorials, provider fixtures, and generated-runtime tests, leaving only the intentional rejection test and migration note.
+
+### What warrants a second pair of eyes
+- Review `modules/express/express.go` to confirm the removed overload cannot accidentally register raw routes through the direct verb helpers.
+- Review the migration error string to decide whether it should mention the specific route pattern or stay generic.
+- Review docs/examples for any remaining implication that public routes can omit `.public()`.
+- Review whether low-level `Host.Register` should gain production-mode restrictions in a follow-up, since this step only removes the raw path from the Express module surface.
+
+### What should be done in the future
+- Consider adding an explicit production host option that rejects any non-planned route registered outside the Express module.
+- Update any downstream application scripts that still use `app.get(path, handler)`.
+- Continue with deferred planned-route extensions: `.body(...)`, `.csrf()`, and `.audit(...)`.
+
+### Code review instructions
+- Start with `modules/express/express.go`, especially `Registrar.appObject`, to verify the verb helper behavior and legacy overload error.
+- Then read `modules/express/auth_builders_integration_test.go` for the expected API behavior.
+- Review `modules/express/typescript.go` and `pkg/doc/18-express-module.md` to confirm TypeScript/docs match runtime behavior.
+- Validate with:
+  - `go test ./modules/express ./pkg/gojahttp ./pkg/xgoja/providers/http -count=1`
+  - `GOFLAGS=-buildvcs=false go test ./... -count=1`
+
+### Technical details
+- New public route shape:
+  ```js
+  app.get("/healthz")
+    .public()
+    .handle((_ctx, res) => res.json({ ok: true }))
+  ```
+- Removed overload behavior:
+  ```js
+  app.get("/bad", handler)
+  // TypeError: app.get(pattern, handler) was removed; use app.get(pattern).public().handle(handler) or app.get(pattern).auth(...).allow(...).handle(handler)
+  ```
+- Generic method escape hatch remains:
+  ```js
+  app.route("REPORT", "/reports/:id")
+    .public()
+    .handle((ctx, res) => res.json({ id: ctx.params.id }))
   ```

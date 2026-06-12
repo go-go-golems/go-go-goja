@@ -76,3 +76,5 @@
 - [ ] Add `.audit(...)` for Go-owned structured audit emission
 - [ ] Add strict host mode to reject legacy raw routes in production
 - [ ] Consider Express-style middleware/router support after the planned-route auth core is stable
+- [x] Hard-cut Express verb helpers over to staged planned route builders
+- [x] Update tests, examples, and docs for planned verb helper migration
