@@ -14,7 +14,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildexec"
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate"
 )
 
@@ -90,14 +89,6 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	if isV2 {
 		_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
-	} else {
-		_, report, err := buildspec.LoadFile(settings.File)
-		if report != nil {
-			_, _ = fmt.Fprintf(c.out, "validated %d check(s) for %s\n", len(report.Checks), settings.File)
-		}
-		if err != nil {
-			return err
-		}
 	}
 	if kind := strings.TrimSpace(buildSpec.Target.Kind); kind == "package" || kind == "source" || kind == "template" {
 		return fmt.Errorf("target.kind %s is source generation only; use xgoja generate -f %s", kind, settings.File)

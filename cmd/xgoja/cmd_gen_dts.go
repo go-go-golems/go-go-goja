@@ -98,14 +98,6 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	if isV2 {
 		_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
 		applyV2DTSArtifactDefaults(&settings, compiledPlan)
-	} else {
-		_, report, err := buildspec.LoadFile(settings.File)
-		if report != nil {
-			_, _ = fmt.Fprintf(c.out, "validated %d check(s) for %s\n", len(report.Checks), settings.File)
-		}
-		if err != nil {
-			return err
-		}
 	}
 
 	workDir := strings.TrimSpace(settings.WorkDir)
