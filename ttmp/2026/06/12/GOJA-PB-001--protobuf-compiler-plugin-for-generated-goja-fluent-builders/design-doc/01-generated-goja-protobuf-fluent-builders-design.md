@@ -1114,3 +1114,78 @@ No JSON/protojson conversion should be used on that path.
 Build the full reusable feature in `go-go-goja`, not in `sessionstream`. The first public version should be a generated fluent builder system backed by a small runtime helper package. Use protoreflect internally for correctness, emit rich TypeScript declarations through existing RawDTS support, and provide a stable `protogoja.MessageFromValue` unwrapping contract so any Goja-consuming module can accept generated protobuf values.
 
 For `sessionstream`, this later becomes an optimization and ergonomics layer: schema bindings can accept generated message type tokens, command/event submissions can accept built message refs, and JSON/protojson becomes a fallback rather than the primary path.
+
+## Phase 6 generated TypeScript declaration examples
+
+The first generated DTS slice exposes the runtime objects produced by Phase 5 through `spec.Module{RawDTS: ...}`. The generator emits a file-local function such as:
+
+```go
+func GojaBuilderFileJsmoduleProtoTypeScriptModule(moduleName string) *spec.Module
+```
+
+Hosts can pass the returned descriptor through `pkg/tsgen/render` directly, or register it on an xgoja provider module so `pkg/xgoja/dtsgen` can bundle it with other selected runtime modules.
+
+A generated module declaration has this shape:
+
+```ts
+declare module "hashiplugin.contract.v1" {
+  export interface ProtoMessage<TTypeName extends string = string> {
+    readonly typeName: TTypeName;
+    toJSON(): unknown;
+    clone(): ProtoMessage<TTypeName>;
+    equals(other: unknown): boolean;
+  }
+
+  export interface ModuleManifest
+    extends ProtoMessage<"hashiplugin.contract.v1.ModuleManifest"> {}
+
+  export interface ModuleManifestBuilder {
+    moduleName(value: string): this;
+    clearModuleName(): this;
+    version(value: string): this;
+    clearVersion(): this;
+    exports(value: ExportSpec[]): this;
+    clearExports(): this;
+    capabilities(value: string[]): this;
+    clearCapabilities(): this;
+    doc(value: string): this;
+    clearDoc(): this;
+    build(): ModuleManifest;
+    clone(): ModuleManifestBuilder;
+  }
+
+  export const ModuleManifest: MessageNamespace<
+    ModuleManifest,
+    ModuleManifestBuilder
+  >;
+
+  export const ExportKind: {
+    readonly typeName: "hashiplugin.contract.v1.ExportKind";
+    readonly EXPORT_KIND_UNSPECIFIED: 0;
+    readonly EXPORT_KIND_FUNCTION: 1;
+    readonly EXPORT_KIND_OBJECT: 2;
+  };
+
+  export type ExportKindValue = 0 | 1 | 2;
+}
+```
+
+A JavaScript author then gets a typed fluent construction path:
+
+```ts
+import { ModuleManifest, ExportKind, ExportSpec } from "hashiplugin.contract.v1";
+
+const exportSpec = ExportSpec.builder()
+  .name("run")
+  .kind(ExportKind.EXPORT_KIND_FUNCTION)
+  .build();
+
+const manifest = ModuleManifest.builder()
+  .moduleName("demo")
+  .version("v1")
+  .exports([exportSpec])
+  .capabilities(["tools"])
+  .build();
+```
+
+The generated declarations deliberately model the currently implemented runtime surface. They include `ProtoMessage`, message namespace objects, message interfaces, builder interfaces, enum export objects, enum value unions, repeated fields as arrays, and maps as `Record<string, T>`. Oneof-specific declarations are still deferred until oneof runtime helpers are implemented.

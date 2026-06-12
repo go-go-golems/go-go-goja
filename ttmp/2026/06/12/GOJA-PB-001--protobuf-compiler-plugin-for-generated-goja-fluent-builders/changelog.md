@@ -160,3 +160,14 @@ Closed Phase 5 generated fluent builders: namespace exports, builder methods, en
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Phase 5 generated fluent builder implementation
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/prototype.go — Phase 5 prototype token runtime support
 
+
+## 2026-06-12
+
+Generated TypeScript RawDTS descriptors for protobuf builder modules, validated through tsgen/render and xgoja/dtsgen, and documented usage examples (commit 611dfc7).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Generates TypeScriptModule with RawDTS
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Validates generated RawDTS through tsgen/render and xgoja/dtsgen
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/design-doc/01-generated-goja-protobuf-fluent-builders-design.md — Documents generated TypeScript declaration examples
+

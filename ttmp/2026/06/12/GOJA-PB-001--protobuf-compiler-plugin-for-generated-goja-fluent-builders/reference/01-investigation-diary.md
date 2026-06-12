@@ -18,6 +18,7 @@ RelatedFiles:
         Phase 5 generated namespace and builder APIs (commit 2100678)
         Phase 5 enum export generation (commit 5495137)
         Generated namespace prototype token attachment (commit bcaf348)
+        Phase 6 TypeScript RawDTS generation (commit 611dfc7)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/options.go
       Note: Phase 4 plugin option parsing (commit b3deaf4)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/main.go
@@ -30,6 +31,7 @@ RelatedFiles:
         Runtime generated builder test that exercises Goja calls and MessageFromValue extraction (commit db84885)
         Generated enum runtime validation (commit 5495137)
         Generated prototype token validation in compile/runtime fixture (commit bcaf348)
+        Phase 6 tsgen/render and xgoja/dtsgen tests (commit 611dfc7)
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/testdata/fixture_goja.pb.go.golden
       Note: |-
         Golden first generated Go companion file (commit b3deaf4)
@@ -65,12 +67,14 @@ RelatedFiles:
       Note: |-
         Primary generated Goja protobuf fluent builders design document
         Primary design document produced by this investigation
+        Phase 6 TypeScript examples
 ExternalSources: []
 Summary: Chronological notes for designing a reusable go-go-goja protobuf fluent builder generator.
 LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Continuation context for GOJA-PB-001 implementation and review.
 WhenToUse: Read before implementing protoc-gen-goja-builder or revising the builder generator design.
 ---
+
 
 
 
@@ -1426,4 +1430,121 @@ Task update command:
 
 ```bash
 docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 40
+```
+
+## Step 13: Generate TypeScript RawDTS descriptors
+
+I started Phase 6 by generating TypeScript descriptors for the generated protobuf builder modules. The generator now emits a file-local `GojaBuilderFile<ProtoFile>TypeScriptModule(moduleName string) *spec.Module` function with `RawDTS` that models the generated runtime API: `ProtoMessage`, message namespace objects, message interfaces, builder interfaces, enum export objects, enum value unions, repeated fields as arrays, and maps as `Record<string, T>`.
+
+This step validates the descriptors through both `pkg/tsgen/render` and `pkg/xgoja/dtsgen`. I intentionally did not check task 42 yet because that task explicitly includes oneof declarations, and oneof runtime helpers are not implemented in Phase 2 yet. The generated declarations now cover the runtime surface that exists; oneof-specific DTS should be added when runtime oneof helpers are real.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue from the completed Phase 5 checkpoint into Phase 6 TypeScript generation.
+
+**Inferred user intent:** The user wants the generated Goja builder work to become editor/type-system consumable, not only runtime-valid.
+
+**Commit (code):** `611dfc76bff1579a5874ceee04eb80ad67a489d2` — "Generate TypeScript declarations for goja protobuf builders"
+
+### What I did
+
+- Added generation of `GojaBuilderFile<ProtoFile>TypeScriptModule(moduleName string) *spec.Module`.
+- Added RawDTS generation for:
+  - `ProtoMessage<TTypeName>`;
+  - `MessageNamespace<TMessage, TBuilder>`;
+  - message interfaces;
+  - builder interfaces;
+  - enum export objects;
+  - enum value union types;
+  - repeated fields as arrays;
+  - map fields as `Record<string, T>`;
+  - 64-bit integer fields as `number | string`.
+- Updated the golden generated fixture output.
+- Extended the temporary generated runtime test to:
+  - render generated descriptors through `pkg/tsgen/render`;
+  - register the generated descriptor in a `providerapi.ProviderRegistry`;
+  - render the selected module through `pkg/xgoja/dtsgen`.
+- Added a TypeScript examples section to the design document.
+- Ran:
+
+```bash
+UPDATE_GOLDEN=1 go test ./pkg/tsgen/... ./pkg/xgoja/dtsgen ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+- Checked tasks 41, 43, 44, and 45.
+
+### Why
+
+- The generated fluent builder API needs TypeScript declarations because field names, enum values, builder methods, and built message types are part of the public authoring experience.
+- `RawDTS` is the right representation because the builder/module surface is richer than the structured `spec.Function` model.
+- Validating through both `tsgen/render` and `xgoja/dtsgen` proves the descriptor works in direct rendering and provider-module bundling paths.
+
+### What worked
+
+- Focused Phase 6 validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/tsgen/render	0.006s
+ok  	github.com/go-go-golems/go-goja/pkg/tsgen/validate	0.014s
+ok  	github.com/go-go-golems/go-goja/pkg/xgoja/dtsgen	0.012s
+ok  	github.com/go-go-golems/go-goja/cmd/protoc-gen-goja-builder	2.525s
+ok  	github.com/go-go-golems/go-goja/pkg/protogoja	0.007s
+```
+
+- The pre-commit hook passed full repository validation:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	1.913s
+summary: (done in 7.47 seconds)
+✔️ lint (4.58 seconds)
+✔️ test (7.46 seconds)
+```
+
+### What didn't work
+
+- No code failure occurred in this step.
+- I left task 42 open because it asks for oneof declarations, and oneof runtime helpers are still unchecked in Phase 2.
+
+### What I learned
+
+- The generated DTS path can reuse the same temporary generated package test that already validates generated runtime behavior.
+- Rendering through `xgoja/dtsgen` requires a provider registry entry with a non-nil module factory, even when the test only cares about the TypeScript descriptor.
+
+### What was tricky to build
+
+- The tricky boundary is matching declarations to actual runtime behavior. I avoided declaring oneof helpers that do not exist yet.
+- Field type mapping has to be conservative: 64-bit integer fields are `number | string`, bytes fields are `Uint8Array | string`, repeated fields become arrays, and map fields become records.
+
+### What warrants a second pair of eyes
+
+- Review nested message and nested enum TypeScript names before they become stable API.
+- Review enum setter input declarations: generated builders currently accept `EnumValue | keyof typeof Enum`, matching runtime support for numbers and enum-name strings.
+- Review map key typing. The current DTS maps all protobuf maps to `Record<string, T>`, which matches JavaScript object keys but loses numeric-key specificity.
+
+### What should be done in the future
+
+- Complete task 42 after oneof runtime helpers exist.
+- Add oneof-specific builder declarations once runtime behavior is implemented.
+- Consider adding generated DTS golden files separate from generated Go golden output if declarations become large.
+
+### Code review instructions
+
+- Start with `rawDTSLines`, `appendMessageDTS`, `appendEnumDTS`, and `tsTypeForField` in `cmd/protoc-gen-goja-builder/internal/generator/generator.go`.
+- Review `TestGeneratedTypeScriptModuleRenders` in the temporary generated test source inside `cmd/protoc-gen-goja-builder/main_test.go`.
+- Review the design-doc TypeScript examples section.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+go test ./pkg/tsgen/... ./pkg/xgoja/dtsgen ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+```
+
+### Technical details
+
+Task update command:
+
+```bash
+docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 41,43,44,45
 ```
