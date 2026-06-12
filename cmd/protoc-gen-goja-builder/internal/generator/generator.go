@@ -2,10 +2,25 @@ package generator
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 	"unicode"
 
 	"google.golang.org/protobuf/compiler/protogen"
+)
+
+var (
+	errorsNewIdent                 = protogen.GoIdent{GoName: "New", GoImportPath: "errors"}
+	gojaFunctionCallIdent          = protogen.GoIdent{GoName: "FunctionCall", GoImportPath: "github.com/dop251/goja"}
+	gojaObjectIdent                = protogen.GoIdent{GoName: "Object", GoImportPath: "github.com/dop251/goja"}
+	gojaRuntimeIdent               = protogen.GoIdent{GoName: "Runtime", GoImportPath: "github.com/dop251/goja"}
+	gojaValueIdent                 = protogen.GoIdent{GoName: "Value", GoImportPath: "github.com/dop251/goja"}
+	protogojaAttachBuilderRefIdent = protogen.GoIdent{GoName: "AttachBuilderRef", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	protogojaBuilderRefIdent       = protogen.GoIdent{GoName: "BuilderRef", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	protogojaIsMessageValueOfIdent = protogen.GoIdent{GoName: "IsMessageValueOf", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	protogojaMessageFromValueIdent = protogen.GoIdent{GoName: "MessageFromValue", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	protogojaNewBuilderIdent       = protogen.GoIdent{GoName: "NewBuilder", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
+	protogojaToValueIdent          = protogen.GoIdent{GoName: "ToValue", GoImportPath: "github.com/go-go-golems/go-go-goja/pkg/protogoja"}
 )
 
 // Generate emits one Goja protobuf-builder companion Go file for every proto
@@ -52,6 +67,9 @@ func generateFile(plugin *protogen.Plugin, file *protogen.File, opts Options) {
 	}
 	g.P("\t}")
 	g.P("}")
+	for _, msg := range file.Messages {
+		emitMessageAPI(g, msg)
+	}
 }
 
 func emitMessageName(g *protogen.GeneratedFile, msg *protogen.Message) {
@@ -59,6 +77,149 @@ func emitMessageName(g *protogen.GeneratedFile, msg *protogen.Message) {
 	for _, nested := range msg.Messages {
 		emitMessageName(g, nested)
 	}
+}
+
+func emitMessageAPI(g *protogen.GeneratedFile, msg *protogen.Message) {
+	name := msg.GoIdent.GoName
+	typeExpr := "&" + g.QualifiedGoIdent(msg.GoIdent) + "{}"
+	g.P()
+	g.P("// New", name, "GojaNamespace returns the JavaScript namespace object for ", msg.Desc.FullName(), ".")
+	g.P("func New", name, "GojaNamespace(vm *", g.QualifiedGoIdent(gojaRuntimeIdent), ") (*", g.QualifiedGoIdent(gojaObjectIdent), ", error) {")
+	g.P("\tif vm == nil {")
+	g.P("\t\treturn nil, ", g.QualifiedGoIdent(errorsNewIdent), "(\"protogoja: nil runtime\")")
+	g.P("\t}")
+	g.P("\tobj := vm.NewObject()")
+	g.P("\tif err := obj.Set(\"typeName\", ", quoted(string(msg.Desc.FullName())), "); err != nil {")
+	g.P("\t\treturn nil, err")
+	g.P("\t}")
+	g.P("\tif err := obj.Set(\"builder\", func() ", g.QualifiedGoIdent(gojaValueIdent), " {")
+	g.P("\t\tbuilder, err := New", name, "GojaBuilder(vm)")
+	g.P("\t\tif err != nil {")
+	g.P("\t\t\tpanic(vm.NewGoError(err))")
+	g.P("\t\t}")
+	g.P("\t\treturn builder")
+	g.P("\t}); err != nil {")
+	g.P("\t\treturn nil, err")
+	g.P("\t}")
+	g.P("\tif err := obj.Set(\"from\", func(value ", g.QualifiedGoIdent(gojaValueIdent), ") ", g.QualifiedGoIdent(gojaValueIdent), " {")
+	g.P("\t\tmsg, ok := ", g.QualifiedGoIdent(protogojaMessageFromValueIdent), "(value)")
+	g.P("\t\tif !ok || msg.ProtoReflect().Descriptor().FullName() != (", typeExpr, ").ProtoReflect().Descriptor().FullName() {")
+	g.P("\t\t\tpanic(vm.NewTypeError(\"value is not a ", msg.Desc.FullName(), " ProtoMessage\"))")
+	g.P("\t\t}")
+	g.P("\t\tout, err := ", g.QualifiedGoIdent(protogojaToValueIdent), "(vm, msg)")
+	g.P("\t\tif err != nil {")
+	g.P("\t\t\tpanic(vm.NewGoError(err))")
+	g.P("\t\t}")
+	g.P("\t\treturn out")
+	g.P("\t}); err != nil {")
+	g.P("\t\treturn nil, err")
+	g.P("\t}")
+	g.P("\tif err := obj.Set(\"is\", func(value ", g.QualifiedGoIdent(gojaValueIdent), ") bool {")
+	g.P("\t\treturn ", g.QualifiedGoIdent(protogojaIsMessageValueOfIdent), "(value, (", typeExpr, ").ProtoReflect().Descriptor().FullName())")
+	g.P("\t}); err != nil {")
+	g.P("\t\treturn nil, err")
+	g.P("\t}")
+	g.P("\tif err := obj.Set(\"clone\", func(value ", g.QualifiedGoIdent(gojaValueIdent), ") ", g.QualifiedGoIdent(gojaValueIdent), " {")
+	g.P("\t\tmsg, ok := ", g.QualifiedGoIdent(protogojaMessageFromValueIdent), "(value)")
+	g.P("\t\tif !ok || msg.ProtoReflect().Descriptor().FullName() != (", typeExpr, ").ProtoReflect().Descriptor().FullName() {")
+	g.P("\t\t\tpanic(vm.NewTypeError(\"value is not a ", msg.Desc.FullName(), " ProtoMessage\"))")
+	g.P("\t\t}")
+	g.P("\t\tout, err := ", g.QualifiedGoIdent(protogojaToValueIdent), "(vm, msg)")
+	g.P("\t\tif err != nil {")
+	g.P("\t\t\tpanic(vm.NewGoError(err))")
+	g.P("\t\t}")
+	g.P("\t\treturn out")
+	g.P("\t}); err != nil {")
+	g.P("\t\treturn nil, err")
+	g.P("\t}")
+	g.P("\treturn obj, nil")
+	g.P("}")
+	g.P()
+	g.P("// New", name, "GojaBuilder returns a JavaScript fluent builder object for ", msg.Desc.FullName(), ".")
+	g.P("func New", name, "GojaBuilder(vm *", g.QualifiedGoIdent(gojaRuntimeIdent), ") (*", g.QualifiedGoIdent(gojaObjectIdent), ", error) {")
+	g.P("\tif vm == nil {")
+	g.P("\t\treturn nil, ", g.QualifiedGoIdent(errorsNewIdent), "(\"protogoja: nil runtime\")")
+	g.P("\t}")
+	g.P("\tbuilder, err := ", g.QualifiedGoIdent(protogojaNewBuilderIdent), "(&", g.QualifiedGoIdent(msg.GoIdent), "{})")
+	g.P("\tif err != nil {")
+	g.P("\t\treturn nil, err")
+	g.P("\t}")
+	g.P("\tobj := vm.NewObject()")
+	g.P("\tif err := ", g.QualifiedGoIdent(protogojaAttachBuilderRefIdent), "(vm, obj, builder); err != nil {")
+	g.P("\t\treturn nil, err")
+	g.P("\t}")
+	g.P("\tif err := attach", name, "GojaBuilderMethods(vm, obj, builder); err != nil {")
+	g.P("\t\treturn nil, err")
+	g.P("\t}")
+	g.P("\treturn obj, nil")
+	g.P("}")
+	g.P()
+	g.P("func attach", name, "GojaBuilderMethods(vm *", g.QualifiedGoIdent(gojaRuntimeIdent), ", obj *", g.QualifiedGoIdent(gojaObjectIdent), ", builder *", g.QualifiedGoIdent(protogojaBuilderRefIdent), ") error {")
+	g.P("\tif err := obj.Set(\"build\", func() ", g.QualifiedGoIdent(gojaValueIdent), " {")
+	g.P("\t\tout, err := ", g.QualifiedGoIdent(protogojaToValueIdent), "(vm, builder.Build())")
+	g.P("\t\tif err != nil {")
+	g.P("\t\t\tpanic(vm.NewGoError(err))")
+	g.P("\t\t}")
+	g.P("\t\treturn out")
+	g.P("\t}); err != nil {")
+	g.P("\t\treturn err")
+	g.P("\t}")
+	g.P("\tif err := obj.Set(\"clone\", func() ", g.QualifiedGoIdent(gojaValueIdent), " {")
+	g.P("\t\tcloned, err := builder.Clone()")
+	g.P("\t\tif err != nil {")
+	g.P("\t\t\tpanic(vm.NewGoError(err))")
+	g.P("\t\t}")
+	g.P("\t\tcloneObj := vm.NewObject()")
+	g.P("\t\tif err := ", g.QualifiedGoIdent(protogojaAttachBuilderRefIdent), "(vm, cloneObj, cloned); err != nil {")
+	g.P("\t\t\tpanic(vm.NewGoError(err))")
+	g.P("\t\t}")
+	g.P("\t\tif err := attach", name, "GojaBuilderMethods(vm, cloneObj, cloned); err != nil {")
+	g.P("\t\t\tpanic(vm.NewGoError(err))")
+	g.P("\t\t}")
+	g.P("\t\treturn cloneObj")
+	g.P("\t}); err != nil {")
+	g.P("\t\treturn err")
+	g.P("\t}")
+	for _, field := range msg.Fields {
+		emitFieldMethods(g, msg, field)
+	}
+	g.P("\treturn nil")
+	g.P("}")
+	for _, nested := range msg.Messages {
+		emitMessageAPI(g, nested)
+	}
+}
+
+func emitFieldMethods(g *protogen.GeneratedFile, msg *protogen.Message, field *protogen.Field) {
+	fieldName := string(field.Desc.Name())
+	methodName := methodNameForField(field)
+	clearMethodName := "clear" + exportName(methodName)
+	g.P("\tif err := obj.Set(\"", methodName, "\", func(call ", g.QualifiedGoIdent(gojaFunctionCallIdent), ") ", g.QualifiedGoIdent(gojaValueIdent), " {")
+	g.P("\t\tfield := (&", g.QualifiedGoIdent(msg.GoIdent), "{}).ProtoReflect().Descriptor().Fields().ByName(", quoted(fieldName), ")")
+	g.P("\t\tif err := builder.Set(vm, field, call.Argument(0)); err != nil {")
+	g.P("\t\t\tpanic(vm.NewGoError(err))")
+	g.P("\t\t}")
+	g.P("\t\treturn obj")
+	g.P("\t}); err != nil {")
+	g.P("\t\treturn err")
+	g.P("\t}")
+	g.P("\tif err := obj.Set(\"", clearMethodName, "\", func() ", g.QualifiedGoIdent(gojaValueIdent), " {")
+	g.P("\t\tfield := (&", g.QualifiedGoIdent(msg.GoIdent), "{}).ProtoReflect().Descriptor().Fields().ByName(", quoted(fieldName), ")")
+	g.P("\t\tif err := builder.Clear(field); err != nil {")
+	g.P("\t\t\tpanic(vm.NewGoError(err))")
+	g.P("\t\t}")
+	g.P("\t\treturn obj")
+	g.P("\t}); err != nil {")
+	g.P("\t\treturn err")
+	g.P("\t}")
+}
+
+func methodNameForField(field *protogen.Field) string {
+	jsonName := field.Desc.JSONName()
+	if jsonName != "" {
+		return jsonName
+	}
+	return lowerCamel(string(field.Desc.Name()))
 }
 
 func fileIdentifier(path string) string {
@@ -82,6 +243,29 @@ func fileIdentifier(path string) string {
 	return b.String()
 }
 
+func exportName(s string) string {
+	if s == "" {
+		return "Field"
+	}
+	runes := []rune(s)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
+}
+
+func lowerCamel(s string) string {
+	parts := strings.FieldsFunc(s, func(r rune) bool { return r == '_' || r == '-' || r == '.' })
+	if len(parts) == 0 {
+		return "field"
+	}
+	for i := range parts {
+		parts[i] = strings.ToLower(parts[i])
+		if i > 0 {
+			parts[i] = exportName(parts[i])
+		}
+	}
+	return strings.Join(parts, "")
+}
+
 func quoted(s string) string {
-	return "\"" + strings.ReplaceAll(s, "\"", "\\\"") + "\""
+	return strconv.Quote(s)
 }

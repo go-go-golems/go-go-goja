@@ -3,6 +3,12 @@
 
 package fixturev1
 
+import (
+	errors "errors"
+	goja "github.com/dop251/goja"
+	protogoja "github.com/go-go-golems/go-go-goja/pkg/protogoja"
+)
+
 // GojaBuilderFileFixtureProtoModuleName returns the JavaScript module name for this generated protobuf builder companion file.
 func GojaBuilderFileFixtureProtoModuleName() string {
 	return "fixture.custom"
@@ -14,4 +20,240 @@ func GojaBuilderFileFixtureProtoMessageTypes() []string {
 		"fixture.v1.Example",
 		"fixture.v1.Example.Nested",
 	}
+}
+
+// NewExampleGojaNamespace returns the JavaScript namespace object for fixture.v1.Example.
+func NewExampleGojaNamespace(vm *goja.Runtime) (*goja.Object, error) {
+	if vm == nil {
+		return nil, errors.New("protogoja: nil runtime")
+	}
+	obj := vm.NewObject()
+	if err := obj.Set("typeName", "fixture.v1.Example"); err != nil {
+		return nil, err
+	}
+	if err := obj.Set("builder", func() goja.Value {
+		builder, err := NewExampleGojaBuilder(vm)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return builder
+	}); err != nil {
+		return nil, err
+	}
+	if err := obj.Set("from", func(value goja.Value) goja.Value {
+		msg, ok := protogoja.MessageFromValue(value)
+		if !ok || msg.ProtoReflect().Descriptor().FullName() != (&Example{}).ProtoReflect().Descriptor().FullName() {
+			panic(vm.NewTypeError("value is not a fixture.v1.Example ProtoMessage"))
+		}
+		out, err := protogoja.ToValue(vm, msg)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return out
+	}); err != nil {
+		return nil, err
+	}
+	if err := obj.Set("is", func(value goja.Value) bool {
+		return protogoja.IsMessageValueOf(value, (&Example{}).ProtoReflect().Descriptor().FullName())
+	}); err != nil {
+		return nil, err
+	}
+	if err := obj.Set("clone", func(value goja.Value) goja.Value {
+		msg, ok := protogoja.MessageFromValue(value)
+		if !ok || msg.ProtoReflect().Descriptor().FullName() != (&Example{}).ProtoReflect().Descriptor().FullName() {
+			panic(vm.NewTypeError("value is not a fixture.v1.Example ProtoMessage"))
+		}
+		out, err := protogoja.ToValue(vm, msg)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return out
+	}); err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
+// NewExampleGojaBuilder returns a JavaScript fluent builder object for fixture.v1.Example.
+func NewExampleGojaBuilder(vm *goja.Runtime) (*goja.Object, error) {
+	if vm == nil {
+		return nil, errors.New("protogoja: nil runtime")
+	}
+	builder, err := protogoja.NewBuilder(&Example{})
+	if err != nil {
+		return nil, err
+	}
+	obj := vm.NewObject()
+	if err := protogoja.AttachBuilderRef(vm, obj, builder); err != nil {
+		return nil, err
+	}
+	if err := attachExampleGojaBuilderMethods(vm, obj, builder); err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
+func attachExampleGojaBuilderMethods(vm *goja.Runtime, obj *goja.Object, builder *protogoja.BuilderRef) error {
+	if err := obj.Set("build", func() goja.Value {
+		out, err := protogoja.ToValue(vm, builder.Build())
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return out
+	}); err != nil {
+		return err
+	}
+	if err := obj.Set("clone", func() goja.Value {
+		cloned, err := builder.Clone()
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		cloneObj := vm.NewObject()
+		if err := protogoja.AttachBuilderRef(vm, cloneObj, cloned); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		if err := attachExampleGojaBuilderMethods(vm, cloneObj, cloned); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return cloneObj
+	}); err != nil {
+		return err
+	}
+	if err := obj.Set("name", func(call goja.FunctionCall) goja.Value {
+		field := (&Example{}).ProtoReflect().Descriptor().Fields().ByName("name")
+		if err := builder.Set(vm, field, call.Argument(0)); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return obj
+	}); err != nil {
+		return err
+	}
+	if err := obj.Set("clearName", func() goja.Value {
+		field := (&Example{}).ProtoReflect().Descriptor().Fields().ByName("name")
+		if err := builder.Clear(field); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return obj
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// NewExample_NestedGojaNamespace returns the JavaScript namespace object for fixture.v1.Example.Nested.
+func NewExample_NestedGojaNamespace(vm *goja.Runtime) (*goja.Object, error) {
+	if vm == nil {
+		return nil, errors.New("protogoja: nil runtime")
+	}
+	obj := vm.NewObject()
+	if err := obj.Set("typeName", "fixture.v1.Example.Nested"); err != nil {
+		return nil, err
+	}
+	if err := obj.Set("builder", func() goja.Value {
+		builder, err := NewExample_NestedGojaBuilder(vm)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return builder
+	}); err != nil {
+		return nil, err
+	}
+	if err := obj.Set("from", func(value goja.Value) goja.Value {
+		msg, ok := protogoja.MessageFromValue(value)
+		if !ok || msg.ProtoReflect().Descriptor().FullName() != (&Example_Nested{}).ProtoReflect().Descriptor().FullName() {
+			panic(vm.NewTypeError("value is not a fixture.v1.Example.Nested ProtoMessage"))
+		}
+		out, err := protogoja.ToValue(vm, msg)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return out
+	}); err != nil {
+		return nil, err
+	}
+	if err := obj.Set("is", func(value goja.Value) bool {
+		return protogoja.IsMessageValueOf(value, (&Example_Nested{}).ProtoReflect().Descriptor().FullName())
+	}); err != nil {
+		return nil, err
+	}
+	if err := obj.Set("clone", func(value goja.Value) goja.Value {
+		msg, ok := protogoja.MessageFromValue(value)
+		if !ok || msg.ProtoReflect().Descriptor().FullName() != (&Example_Nested{}).ProtoReflect().Descriptor().FullName() {
+			panic(vm.NewTypeError("value is not a fixture.v1.Example.Nested ProtoMessage"))
+		}
+		out, err := protogoja.ToValue(vm, msg)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return out
+	}); err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
+// NewExample_NestedGojaBuilder returns a JavaScript fluent builder object for fixture.v1.Example.Nested.
+func NewExample_NestedGojaBuilder(vm *goja.Runtime) (*goja.Object, error) {
+	if vm == nil {
+		return nil, errors.New("protogoja: nil runtime")
+	}
+	builder, err := protogoja.NewBuilder(&Example_Nested{})
+	if err != nil {
+		return nil, err
+	}
+	obj := vm.NewObject()
+	if err := protogoja.AttachBuilderRef(vm, obj, builder); err != nil {
+		return nil, err
+	}
+	if err := attachExample_NestedGojaBuilderMethods(vm, obj, builder); err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
+func attachExample_NestedGojaBuilderMethods(vm *goja.Runtime, obj *goja.Object, builder *protogoja.BuilderRef) error {
+	if err := obj.Set("build", func() goja.Value {
+		out, err := protogoja.ToValue(vm, builder.Build())
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return out
+	}); err != nil {
+		return err
+	}
+	if err := obj.Set("clone", func() goja.Value {
+		cloned, err := builder.Clone()
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		cloneObj := vm.NewObject()
+		if err := protogoja.AttachBuilderRef(vm, cloneObj, cloned); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		if err := attachExample_NestedGojaBuilderMethods(vm, cloneObj, cloned); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return cloneObj
+	}); err != nil {
+		return err
+	}
+	if err := obj.Set("enabled", func(call goja.FunctionCall) goja.Value {
+		field := (&Example_Nested{}).ProtoReflect().Descriptor().Fields().ByName("enabled")
+		if err := builder.Set(vm, field, call.Argument(0)); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return obj
+	}); err != nil {
+		return err
+	}
+	if err := obj.Set("clearEnabled", func() goja.Value {
+		field := (&Example_Nested{}).ProtoReflect().Descriptor().Fields().ByName("enabled")
+		if err := builder.Clear(field); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return obj
+	}); err != nil {
+		return err
+	}
+	return nil
 }
