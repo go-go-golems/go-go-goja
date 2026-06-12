@@ -65,3 +65,13 @@ Implemented first Phase 2 BuilderRef slice with Set/Add/Put/Clear/Build/Clone, s
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — BuilderRef runtime helper implementation
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — BuilderRef runtime helper tests
 
+
+## 2026-06-12
+
+Phase 2 slice committed: BuilderRef lifecycle and initial scalar/enum/repeated/message conversions (commit 05f5bd484bf028c27429c6f108ec944d45413d95).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Committed BuilderRef runtime helper slice
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Committed BuilderRef tests
+

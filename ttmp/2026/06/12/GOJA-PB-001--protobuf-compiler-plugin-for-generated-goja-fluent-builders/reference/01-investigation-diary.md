@@ -365,7 +365,7 @@ This is not the whole Phase 2. Map support is partially present through `Set` an
 
 **Inferred user intent:** The user wants implementation to advance incrementally while the diary records what worked and what failed.
 
-**Commit (code):** pending — this BuilderRef slice will be committed after diary/changelog updates.
+**Commit (code):** `05f5bd484bf028c27429c6f108ec944d45413d95` — "Add protogoja builder refs"
 
 ### What I did
 
@@ -417,6 +417,15 @@ FAIL	github.com/go-go-golems/go-go-goja/pkg/protogoja [build failed]
 ```
 
 - I fixed it by iterating with `pbMap.Range` and calling `pbMap.Clear(key)` for each existing key before applying replacement map entries.
+- The first commit attempt then failed lint because `fieldByName` in `builder_test.go` was unused:
+
+```text
+pkg/protogoja/builder_test.go:118:6: func fieldByName is unused (unused)
+func fieldByName(t *testing.T, msg proto.Message, name protoreflect.Name) protoreflect.FieldDescriptor {
+     ^
+```
+
+  I removed the helper and the now-unused `protoreflect` import, reran the focused tests, and retried the commit.
 
 ### What I learned
 
@@ -469,8 +478,22 @@ pkg/protogoja/builder.go:159:2: not enough arguments in call to pbMap.Clear
 	want (protoreflect.MapKey)
 ```
 
-Final test result:
+Final focused test result:
 
 ```text
-ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	0.004s
+ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	0.005s
+```
+
+Commit retry validation included the pre-commit hook output summary:
+
+```text
+✔️ lint (2.26 seconds)
+✔️ test (3.23 seconds)
+[task/goja-sessionstream 05f5bd4] Add protogoja builder refs
+```
+
+Commit hash:
+
+```text
+05f5bd484bf028c27429c6f108ec944d45413d95
 ```
