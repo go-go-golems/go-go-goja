@@ -20,6 +20,8 @@ Each example directory has its own `README.md`, `Makefile`, and `xgoja.yaml`. St
 12. `12-geppetto-host-services/` — generated Geppetto jsverbs use profile flags, a SQLite turn store, contributed Go tools, contributed Go middleware, and a JSONL event sink.
 13. `13-http-serve-jsverbs/` — the HTTP provider contributes a `serve` command that keeps a jsverb-registered Express site alive.
 14. `14-generated-runtime-package/` — `xgoja generate` writes an importable runtime package that a host application uses directly.
+15. `15-express-planned-auth/` — JavaScript route-authoring sketch for planned public/auth/resource routes.
+16. `16-express-auth-host/` — runnable Go-owned host that wires authenticator, resource resolver, authorizer, CSRF, audit, and strict raw-route rejection for planned Express auth routes.
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 
@@ -66,7 +68,8 @@ for dir in \
   09-provider-shipped-help-docs \
   10-embedded-assets-fs \
   13-http-serve-jsverbs \
-  14-generated-runtime-package; do
+  14-generated-runtime-package \
+  16-express-auth-host; do
   make -C examples/xgoja/$dir smoke
 done
 ```
