@@ -34,3 +34,23 @@ Phase 2: add reusable sessionauth package for session-cookie authentication and 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/sessionauth/sessionauth.go — Reusable session auth manager and memory store
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/sessionauth/sessionauth_test.go — Sessionauth validation coverage
 
+
+## 2026-06-12
+
+Phase 3: add Keycloak/OIDC auth handlers with fake issuer tests (commit f297487)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/keycloakauth/keycloakauth.go — OIDC login/callback/logout handlers
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/keycloakauth/keycloakauth_test.go — OIDC verification tests
+
+
+## 2026-06-12
+
+Phase 4: add appauth domain helpers and negative authorization tests (commit 952acb2)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/appauth/appauth.go — App-owned authorization helper package
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/appauth/appauth_test.go — Negative authz tests
+

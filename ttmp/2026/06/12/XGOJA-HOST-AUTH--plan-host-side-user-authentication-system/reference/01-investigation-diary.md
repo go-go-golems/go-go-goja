@@ -19,10 +19,18 @@ RelatedFiles:
       Note: Updated dev auth cookie/CSRF/login/logout usage docs (commit 38871dc)
     - Path: examples/xgoja/16-express-auth-host/cmd/host/main.go
       Note: Runnable host example refactored to use devauth and login/logout smoke flow (commit 38871dc)
+    - Path: pkg/gojahttp/auth/appauth/appauth.go
+      Note: App-owned resource resolver and explicit deny-by-default authorizer helpers (commit 952acb2)
+    - Path: pkg/gojahttp/auth/appauth/appauth_test.go
+      Note: Negative authorization and store behavior coverage (commit 952acb2)
     - Path: pkg/gojahttp/auth/devauth/devauth.go
       Note: Dev/demo auth kit implementation for planned routes (commit 38871dc)
     - Path: pkg/gojahttp/auth/devauth/devauth_test.go
       Note: Unit coverage for dev auth login/session/CSRF/resource/authz/audit behavior (commit 38871dc)
+    - Path: pkg/gojahttp/auth/keycloakauth/keycloakauth.go
+      Note: Keycloak/OIDC Authorization Code + PKCE handlers backed by sessionauth (commit f297487)
+    - Path: pkg/gojahttp/auth/keycloakauth/keycloakauth_test.go
+      Note: Fake OIDC issuer/JWKS coverage for success and negative callback cases (commit f297487)
     - Path: pkg/gojahttp/auth/sessionauth/sessionauth.go
       Note: Reusable session-cookie Authenticator and CSRFProtector package (commit d939b95)
     - Path: pkg/gojahttp/auth/sessionauth/sessionauth_test.go
@@ -38,6 +46,7 @@ LastUpdated: 2026-06-12T17:00:00-04:00
 WhatFor: Use this to resume or review the host-side auth system planning ticket.
 WhenToUse: Read before implementing dev/demo auth, session auth, Keycloak/OIDC, app authorization, audit, or capabilities.
 ---
+
 
 
 
@@ -403,5 +412,250 @@ The package gives later Keycloak/OIDC work a stable target: after OIDC callback 
   ```go
   host := gojahttp.NewHost(gojahttp.HostOptions{
       Auth: manager.AuthOptions(),
+  })
+  ```
+
+
+## Step 4: Add Keycloak/OIDC auth handlers
+
+I implemented the production-oriented OIDC adapter package for Phase 3. The package is named `keycloakauth` because Keycloak is the intended IdP, but the implementation uses standard OIDC discovery, OAuth2 Authorization Code Flow, PKCE, ID-token verification, nonce checks, and a host-provided user normalizer.
+
+The package deliberately creates an application session through `sessionauth` after OIDC verification. That keeps Keycloak tokens on the server side and lets planned routes continue authenticating with an opaque app session cookie.
+
+### Prompt Context
+
+**User prompt (verbatim):** "phase 3, phase 4"
+
+**Assistant interpretation:** Continue sequential implementation with Phase 3 (Keycloak/OIDC host auth package) and Phase 4 (app auth domain helpers).
+
+**Inferred user intent:** Move beyond demo/session foundations into the production IdP adapter and app-owned authorization layer.
+
+**Commit (code):** f297487eec0b0faed15c01f321d0f8155526f756 — "Add Keycloak OIDC auth handlers"
+
+### What I did
+- Added `pkg/gojahttp/auth/keycloakauth` with:
+  - `Config`,
+  - `Handlers`,
+  - `OIDCClaims`,
+  - `UserSession`,
+  - `UserNormalizer`,
+  - `TransactionStore`,
+  - `MemoryTransactionStore`.
+- Implemented `New(ctx, Config)` with OIDC provider discovery via `coreos/go-oidc` and OAuth2 config setup.
+- Implemented `GET /auth/login` handler:
+  - generates state,
+  - generates nonce,
+  - generates PKCE verifier,
+  - stores a login transaction,
+  - redirects to the provider authorization endpoint with S256 PKCE challenge and nonce.
+- Implemented `GET /auth/callback` handler:
+  - rejects callback errors,
+  - validates state,
+  - exchanges code with the PKCE verifier,
+  - verifies `id_token`,
+  - checks nonce,
+  - extracts claims,
+  - calls `UserNormalizer`,
+  - creates an app session through `sessionauth.Manager`,
+  - sets the app session cookie,
+  - redirects to the original safe return URL.
+- Implemented logout handler:
+  - revokes the app session if present,
+  - clears the session cookie,
+  - returns 204 for POST or redirects for GET.
+- Added `pkg/gojahttp/auth/keycloakauth/README.md` documenting recommended Keycloak client settings:
+  - Authorization Code Flow,
+  - PKCE S256,
+  - disabled password grant for browser clients,
+  - disabled implicit flow,
+  - app session cookie rather than browser-visible IdP tokens.
+- Added a fake OIDC issuer/JWKS/token test provider covering:
+  - successful login/callback/session creation,
+  - bad state,
+  - bad nonce,
+  - expired ID token,
+  - wrong audience,
+  - user normalization failure,
+  - logout session revocation.
+- Added `sessionauth.Manager.RevokeRequestSession` so logout handlers can revoke the request session without knowing cookie internals.
+- Added `go-oidc` and `oauth2` dependencies.
+- Marked Phase 3 tasks complete.
+
+### Why
+- The production stack needs Keycloak/OIDC login but planned routes should not process raw OIDC tokens directly.
+- OIDC callback handling is host/application infrastructure, not JavaScript route logic.
+- A normalizer keeps the Keycloak `sub` to app-user mapping app-owned and stable, instead of treating email as identity.
+
+### What worked
+- Targeted tests passed:
+  ```bash
+  go test ./pkg/gojahttp/auth/keycloakauth ./pkg/gojahttp/auth/sessionauth -count=1
+  ```
+- Broader auth package tests passed during commit pre-hook.
+- The commit pre-hook passed lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+- No command failures occurred in this phase.
+- `go generate ./...` later produced a generated `logcopter.go` file for `keycloakauth`; I committed generated auth package loggers in a small follow-up commit `3c8dc11`.
+
+### What I learned
+- A fake OIDC provider with an RSA key, discovery endpoint, JWKS endpoint, auth endpoint, and token endpoint is enough to test the end-to-end login/callback flow without Docker or a live Keycloak.
+- The package should keep its transaction storage pluggable. The memory transaction store is fine for tests and single-process demos, but production multi-instance hosts need shared storage.
+- `return_to` must be constrained to local absolute paths; the login handler rejects empty/external-style values by falling back to `AfterLoginURL`.
+
+### What was tricky to build
+- The trickiest part was testing OIDC verification without introducing a live Keycloak dependency. The fake provider signs real RS256 JWTs and exposes JWKS so `go-oidc` verifies issuer, audience, expiry, and signature normally.
+- Another subtle point was nonce verification. `go-oidc` verifies the token, but the application still has to compare the ID token nonce against the login transaction nonce.
+- The handler must avoid returning Keycloak tokens to the browser. The package only uses the token response server-side and creates a separate app session.
+
+### What warrants a second pair of eyes
+- Review whether `MemoryTransactionStore` should accept an injected clock for deterministic expiry tests.
+- Review whether logout should eventually redirect to Keycloak's end-session endpoint in addition to local app-session revocation.
+- Review whether the normalizer should receive OAuth2 token metadata or only verified ID-token claims.
+
+### What should be done in the future
+- Add the Phase 6 Docker Compose Keycloak example/smoke as requested by the user.
+- Add a production persistent transaction store if multiple host instances need to serve callbacks.
+- Consider storing server-side access/refresh tokens only through an explicit, encrypted token-store interface if upstream API calls require them.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/keycloakauth/keycloakauth.go`, especially `handleLogin`, `handleCallback`, and `handleLogout`.
+- Review `pkg/gojahttp/auth/keycloakauth/keycloakauth_test.go` for the fake OIDC issuer and negative verification cases.
+- Review `pkg/gojahttp/auth/keycloakauth/README.md` for Keycloak client setup assumptions.
+- Validate with:
+  ```bash
+  go test ./pkg/gojahttp/auth/keycloakauth ./pkg/gojahttp/auth/sessionauth -count=1
+  ```
+
+### Technical details
+- Keycloak handler setup:
+  ```go
+  handlers, err := keycloakauth.New(ctx, keycloakauth.Config{
+      IssuerURL:      "https://keycloak.example/realms/app",
+      ClientID:       "goja-app",
+      RedirectURL:    "https://app.example/auth/callback",
+      SessionManager: sessions,
+      UserNormalizer: normalizer,
+  })
+  ```
+- Host routes:
+  ```go
+  mux.Handle("GET /auth/login", handlers.LoginHandler())
+  mux.Handle("GET /auth/callback", handlers.CallbackHandler())
+  mux.Handle("POST /auth/logout", handlers.LogoutHandler())
+  ```
+
+
+## Step 5: Add app-owned authorization domain helpers
+
+I implemented Phase 4 by adding `appauth`, a small app-owned authorization helper package. It defines minimal user, tenant, membership, resource, and action contracts plus a deny-by-default authorizer that is intentionally boring Go code rather than a policy engine.
+
+This package gives host applications and examples a concrete starting point for object/tenant authorization while keeping the design rule intact: Keycloak authenticates identity, and the Go application authorizes actions on specific resources.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 4)
+
+**Assistant interpretation:** Continue with Phase 4 after implementing the Keycloak/OIDC adapter.
+
+**Inferred user intent:** Add the app-owned domain layer needed for resource resolution and authorization behind planned routes.
+
+**Commit (code):** 952acb277dfdafcdcd5eb0986d16e1b559135e48 — "Add app auth domain helpers"
+
+### What I did
+- Added `pkg/gojahttp/auth/appauth` with:
+  - `User`,
+  - `Tenant`,
+  - `Membership`,
+  - `Resource`,
+  - `UserStore`,
+  - `MembershipStore`,
+  - `ResourceStore`,
+  - `Resolver`,
+  - `Authorizer`,
+  - `MemoryStore`.
+- Added action constants:
+  - `user.self.read`,
+  - `user.self.update`,
+  - `project.read`,
+  - `project.update`,
+  - `org.member.invite`.
+- Implemented `Resolver` as a `gojahttp.ResourceResolver` that maps `gojahttp.ResourceRequest` into app resource lookup and tenant-bound `ResourceRef` projection.
+- Implemented `Authorizer` as a `gojahttp.Authorizer` with deny-by-default behavior:
+  - unknown action denies,
+  - missing actor denies,
+  - missing resource denies where required,
+  - tenant membership required for `project.read`,
+  - admin/editor required for `project.update`,
+  - admin required for `org.member.invite`,
+  - self-resource match required for `user.self.update`.
+- Added `MemoryStore` for tests/examples with user lookup, Keycloak-sub lookup, OIDC upsert, memberships, role checks, and resource lookup.
+- Added tests for:
+  - resource resolution success,
+  - tenant mismatch and missing resource denial,
+  - allowed actions,
+  - cross-user denial,
+  - cross-tenant denial,
+  - missing membership/unknown action/missing resource denial,
+  - backend error propagation,
+  - user lookup and OIDC upsert.
+- Added `pkg/gojahttp/auth/appauth/README.md` documenting when to use explicit Go checks and when to graduate to a policy engine.
+- Marked Phase 4 tasks complete.
+
+### Why
+- The OIDC package can authenticate a user, but it should not decide whether that user can update a project or invite a member.
+- App-owned authorization must account for tenant membership, object ownership, resource type, and action, not just broad Keycloak roles.
+- Starting with explicit Go checks and negative tests keeps the first production path auditable.
+
+### What worked
+- Package tests passed:
+  ```bash
+  go test ./pkg/gojahttp/auth/appauth ./pkg/gojahttp/auth/keycloakauth ./pkg/gojahttp/auth/sessionauth ./pkg/gojahttp/auth/devauth -count=1
+  ```
+- The commit pre-hook passed lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+- No command failures occurred in this phase.
+- `go generate ./...` produced generated `logcopter.go` files for `appauth` and `keycloakauth`; I committed them in follow-up commit `3c8dc11`.
+
+### What I learned
+- The `gojahttp.ResourceRequest` shape is sufficient for an app-owned resolver because it already carries resource type, resolved ID, tenant ID, actor, and request context.
+- A useful default authorizer can stay very small if it is explicit about action names and resource types.
+- Negative authorization tests are the most important tests in this layer; they prove guessed IDs and tenant mismatches do not accidentally pass.
+
+### What was tricky to build
+- The main tricky part was avoiding the temptation to design a full generic policy engine. `appauth` is deliberately a starter package and should remain easy to replace with application-specific policy code.
+- Another subtlety was organization invites. An org resource may use its own ID as the tenant boundary, so the authorizer treats `ResourceRef{Type:"org", ID:"o1"}` as tenant `o1` when `TenantID` is empty.
+
+### What warrants a second pair of eyes
+- Review whether the built-in action constants are too example-specific for `appauth`, or whether they are useful enough as common defaults.
+- Review whether `MemoryStore.UpsertFromOIDC` should generate IDs as `user:<sub>` or leave ID assignment entirely to application code.
+- Review whether backend errors should be returned as errors, denied decisions, or both; the current implementation returns both a denied decision and the backend error.
+
+### What should be done in the future
+- Wire `appauth` into a production-oriented Keycloak example with Docker Compose Keycloak smoke testing.
+- Add persistent store adapters only after the interface shape has been reviewed.
+- Keep documenting when to move from explicit Go checks to Casbin/OpenFGA/OPA/Cedar.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/appauth/appauth.go`, especially `Resolver.ResolveResource` and `Authorizer.Authorize`.
+- Review `pkg/gojahttp/auth/appauth/appauth_test.go` for negative authorization coverage.
+- Review `pkg/gojahttp/auth/appauth/README.md` for package positioning.
+- Validate with:
+  ```bash
+  go test ./pkg/gojahttp/auth/appauth ./pkg/gojahttp/auth/keycloakauth ./pkg/gojahttp/auth/sessionauth ./pkg/gojahttp/auth/devauth -count=1
+  ```
+
+### Technical details
+- Host wiring sketch:
+  ```go
+  store := appauth.NewMemoryStore()
+  host := gojahttp.NewHost(gojahttp.HostOptions{
+      Auth: gojahttp.AuthOptions{
+          Authenticator: sessions,
+          CSRF:          sessions,
+          Resources:     appauth.Resolver{Store: store},
+          Authorizer:    appauth.Authorizer{Memberships: store},
+      },
   })
   ```
