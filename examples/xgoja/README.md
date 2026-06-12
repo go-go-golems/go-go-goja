@@ -21,7 +21,8 @@ Each example directory has its own `README.md`, `Makefile`, and `xgoja.yaml`. St
 13. `13-http-serve-jsverbs/` — the HTTP provider contributes a `serve` command that keeps a jsverb-registered Express site alive.
 14. `14-generated-runtime-package/` — `xgoja generate` writes an importable runtime package that a host application uses directly.
 15. `15-express-planned-auth/` — JavaScript route-authoring sketch for planned public/auth/resource routes.
-16. `16-express-auth-host/` — runnable Go-owned host that wires authenticator, resource resolver, authorizer, CSRF, audit, and strict raw-route rejection for planned Express auth routes.
+16. `16-express-auth-host/` — runnable Go-owned dev-auth host that wires login/logout, session cookies, CSRF, resources, authorization, audit, and strict raw-route rejection for planned Express auth routes.
+17. `17-express-keycloak-auth-host/` — production-oriented Keycloak/OIDC host skeleton with Docker Compose Keycloak realm, app sessions, app-owned authorization, and planned Express routes.
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 
