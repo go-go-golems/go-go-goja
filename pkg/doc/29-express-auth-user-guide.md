@@ -225,6 +225,21 @@ type Authorizer interface {
 
 `Authenticator` converts a request, session, bearer token, cookie, or upstream identity into an `Actor`. `ResourceResolver` converts declared resource IDs into `ResourceRef` values. `Authorizer` decides whether the actor may perform the declared action. `CSRFProtector` verifies route-declared CSRF protection on unsafe methods. `AuditSink` records route-declared security events.
 
+## Host auth package choices
+
+The optional packages under `pkg/gojahttp/auth/...` provide reusable Go-side implementations for common host concerns. They are helpers, not a JavaScript auth framework: Express still only records route intent, and the host remains responsible for identity, sessions, resources, authorization, CSRF, and audit.
+
+| Package | Use it for | Production note |
+| --- | --- | --- |
+| `devauth` | Local/demo users, login/logout/session endpoints, in-memory resources, authorization, CSRF, and audit. | Demo-only; use it for examples and tests, not production auth. |
+| `sessionauth` | Opaque server-side app session cookies and CSRF token verification. | Replace `MemoryStore` with durable storage for multi-instance deployments. |
+| `keycloakauth` | Keycloak/OIDC Authorization Code + PKCE login, callback, and logout handlers. | Keep IdP tokens server-side; planned routes use the app session cookie. |
+| `appauth` | Small app-owned users, tenants, memberships, resources, and deny-by-default authorization helpers. | A starter shape; replace with domain services or a policy engine when needed. |
+| `audit` | Normalize route audit events into redacted records for logs or stores. | Persist records if they matter for compliance or incident review. |
+| `capability` | Hashed, expiring bearer-token flows such as org invites, email verification, password reset, or one-time downloads. | Store only hashes and make single-use redemption atomic. |
+
+For development, start with `devauth` or the `examples/xgoja/16-express-auth-host` smoke. For production-shaped browser login, combine `keycloakauth`, `sessionauth`, `appauth`, and `audit` as shown in `examples/xgoja/17-express-keycloak-auth-host`.
+
 ## Error behavior
 
 Planned routes fail closed. Missing services are host configuration errors; missing or invalid credentials are request errors.
@@ -262,5 +277,5 @@ In development mode, 500-class errors include more detail. In production mode, r
 
 - [Express-style HTTP Module](express-module) — The full module reference, including static mounts and response helpers.
 - [Migrate Express Apps to Planned Auth Routes](migrate-express-apps-to-planned-auth) — Step-by-step migration tutorial for old `app.get(path, handler)` scripts.
+- [Express Auth Examples](express-auth-examples) — Dev-auth and Keycloak smoke-test guide for full host wiring.
 - `examples/xgoja/15-express-planned-auth/scripts/server.js` — Compact route-authoring example for public, current-user, and resource-bound routes.
-- `examples/xgoja/16-express-auth-host` — Runnable Go-owned host with authenticator, resource resolver, authorizer, CSRF, audit, and strict raw-route rejection.

@@ -94,7 +94,7 @@ Goal: make the host auth system discoverable and runnable for both dev/demo and 
 - [x] Add a production-oriented Keycloak host skeleton example, likely `examples/xgoja/17-express-keycloak-auth-host`.
 - [x] Add a Docker Compose Keycloak setup for the production-oriented example and smoke testing.
 - [x] Add docs explaining the boundary between Express planned routes, `gojahttp`, `devauth`, `sessionauth`, and `keycloakauth`.
-- [ ] Add Glazed help pages for host auth setup and dev/demo auth usage.
+- [x] Add Glazed help pages for host auth setup and dev/demo auth usage.
 - [ ] Add release/migration notes explaining that user stores remain host-owned.
 - [ ] Validate `docmgr doctor --ticket XGOJA-HOST-AUTH --stale-after 30`.
 - [x] Validate package tests and example smokes.
