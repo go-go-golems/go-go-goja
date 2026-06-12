@@ -56,6 +56,41 @@ func TestBuilderRefRepeatedAndMessageFields(t *testing.T) {
 	require.Equal(t, contract.ExportKind_EXPORT_KIND_FUNCTION, built.GetExports()[0].GetKind())
 }
 
+func TestBuilderRefAcceptsBuilderRefsForMessageFields(t *testing.T) {
+	vm := goja.New()
+	parent, err := NewBuilder(&contract.ModuleManifest{})
+	require.NoError(t, err)
+	parentDesc := parent.Descriptor()
+
+	child, err := NewBuilder(&contract.ExportSpec{})
+	require.NoError(t, err)
+	childDesc := child.Descriptor()
+	require.NoError(t, child.Set(vm, childDesc.Fields().ByName("name"), vm.ToValue("run")))
+	require.NoError(t, child.Set(vm, childDesc.Fields().ByName("kind"), vm.ToValue("EXPORT_KIND_FUNCTION")))
+
+	builderObject := vm.NewObject()
+	require.NoError(t, AttachBuilderRef(vm, builderObject, child))
+	require.Empty(t, builderObject.Keys())
+
+	require.NoError(t, parent.Add(vm, parentDesc.Fields().ByName("exports"), builderObject))
+
+	// Mutating the child builder after conversion must not mutate the value that
+	// was appended to the parent builder.
+	require.NoError(t, child.Set(vm, childDesc.Fields().ByName("name"), vm.ToValue("mutated")))
+
+	built := parent.Build().(*contract.ModuleManifest)
+	require.Len(t, built.GetExports(), 1)
+	require.Equal(t, "run", built.GetExports()[0].GetName())
+	require.Equal(t, contract.ExportKind_EXPORT_KIND_FUNCTION, built.GetExports()[0].GetKind())
+
+	wrongChild, err := NewBuilder(&contract.InvokeRequest{ExportName: "bad"})
+	require.NoError(t, err)
+	wrongObject := vm.NewObject()
+	require.NoError(t, AttachBuilderRef(vm, wrongObject, wrongChild))
+	err = parent.Add(vm, parentDesc.Fields().ByName("exports"), wrongObject)
+	require.ErrorContains(t, err, "expected hashiplugin.contract.v1.ExportSpec ProtoMessage or builder")
+}
+
 func TestBuilderRefEnumSetters(t *testing.T) {
 	vm := goja.New()
 	builder, err := NewBuilder(&contract.ExportSpec{})

@@ -11,6 +11,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+const hiddenBuilderRefKey = "__go_go_goja_proto_builder_ref"
+
 // BuilderRef owns mutable protobuf message state while generated fluent builder
 // methods set fields. Build returns a clone so callers receive stable
 // ProtoMessage values rather than mutable builder internals.
@@ -115,6 +117,52 @@ func (b *BuilderRef) Clone() (*BuilderRef, error) {
 		return nil, fmt.Errorf("protogoja: nil builder")
 	}
 	return NewBuilder(b.msg)
+}
+
+// AttachBuilderRef attaches a hidden, non-enumerable builder reference to obj.
+// Generated fluent-builder modules use this to associate JavaScript builder
+// objects with their Go-owned mutable protobuf state.
+func AttachBuilderRef(vm *goja.Runtime, obj *goja.Object, ref *BuilderRef) error {
+	if vm == nil {
+		return fmt.Errorf("protogoja: nil runtime")
+	}
+	if obj == nil {
+		return fmt.Errorf("protogoja: nil object")
+	}
+	if ref == nil || ref.msg == nil || ref.desc == nil {
+		return fmt.Errorf("protogoja: nil builder reference")
+	}
+	value := vm.ToValue(ref)
+	if err := obj.Set(hiddenBuilderRefKey, value); err != nil {
+		return fmt.Errorf("protogoja: attach hidden builder ref: %w", err)
+	}
+	return obj.DefineDataProperty(
+		hiddenBuilderRefKey,
+		value,
+		goja.FLAG_FALSE, // writable
+		goja.FLAG_FALSE, // enumerable
+		goja.FLAG_FALSE, // configurable
+	)
+}
+
+// BuilderRefFromValue extracts the hidden builder reference from a JavaScript
+// builder object created by generated protobuf builder modules. The returned
+// reference is mutable and should only be used by trusted generated module code
+// or runtime conversion helpers.
+func BuilderRefFromValue(value goja.Value) (*BuilderRef, bool) {
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return nil, false
+	}
+	obj, ok := value.(*goja.Object)
+	if !ok || obj == nil {
+		return nil, false
+	}
+	raw := obj.Get(hiddenBuilderRefKey)
+	if raw == nil || goja.IsUndefined(raw) || goja.IsNull(raw) {
+		return nil, false
+	}
+	ref, ok := raw.Export().(*BuilderRef)
+	return ref, ok && ref != nil && ref.msg != nil && ref.desc != nil
 }
 
 func (b *BuilderRef) validateField(field protoreflect.FieldDescriptor) error {
@@ -272,17 +320,29 @@ func valueForField(vm *goja.Runtime, field protoreflect.FieldDescriptor, value g
 		}
 		return protoreflect.ValueOfBytes(bytes), nil
 	case protoreflect.MessageKind, protoreflect.GroupKind:
-		msg, ok := MessageFromValue(value)
+		msg, ok := messageForMessageField(value)
 		if !ok {
-			return protoreflect.Value{}, expectedFieldError(field, string(field.Message().FullName())+" ProtoMessage", value)
+			return protoreflect.Value{}, expectedFieldError(field, string(field.Message().FullName())+" ProtoMessage or builder", value)
 		}
 		if msg.ProtoReflect().Descriptor().FullName() != field.Message().FullName() {
-			return protoreflect.Value{}, fmt.Errorf("protogoja: %s expected %s ProtoMessage, got %s", field.FullName(), field.Message().FullName(), msg.ProtoReflect().Descriptor().FullName())
+			return protoreflect.Value{}, fmt.Errorf("protogoja: %s expected %s ProtoMessage or builder, got %s", field.FullName(), field.Message().FullName(), msg.ProtoReflect().Descriptor().FullName())
 		}
 		return protoreflect.ValueOfMessage(msg.ProtoReflect()), nil
 	default:
 		return protoreflect.Value{}, fmt.Errorf("protogoja: %s unsupported field kind %s", field.FullName(), field.Kind())
 	}
+}
+
+func messageForMessageField(value goja.Value) (proto.Message, bool) {
+	if msg, ok := MessageFromValue(value); ok {
+		return msg, true
+	}
+	builder, ok := BuilderRefFromValue(value)
+	if !ok {
+		return nil, false
+	}
+	msg := builder.Build()
+	return msg, msg != nil
 }
 
 func mapKeyForField(vm *goja.Runtime, field protoreflect.FieldDescriptor, value goja.Value) (protoreflect.MapKey, error) {
