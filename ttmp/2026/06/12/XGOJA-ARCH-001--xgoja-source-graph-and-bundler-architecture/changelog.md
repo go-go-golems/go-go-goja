@@ -179,3 +179,13 @@ Fixed graph-backed scan compatibility by classifying all registered provider mod
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/jsverb_sources.go — command-provider JSVerbSourceSet scans use provider-wide aliases
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/app/root.go — sourceGraphRuntimeAliases includes provider module names/default aliases
 
+
+## 2026-06-12
+
+Added initial v2 plan compiler that combines specv2 validation, Go module planning, provider graph, source graph, command plans, artifact plans, and runtime aliases.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/plan/plan.go — Initial v2 Plan type and compiler
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/plan/plan_test.go — Planner coverage for runtime aliases
+

@@ -16,6 +16,10 @@ RelatedFiles:
       Note: Diary Step 1 build-time schema evidence
     - Path: cmd/xgoja/internal/generate/gomod.go
       Note: Diary Step 2 workspace resolution evidence and integration target
+    - Path: cmd/xgoja/internal/plan/plan.go
+      Note: Initial v2 Plan compiler for Step 16
+    - Path: cmd/xgoja/internal/plan/plan_test.go
+      Note: Planner regression tests for Step 16
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
       Note: Step 1 build-time xgoja schema evidence.
     - Path: go-go-goja/cmd/xgoja/internal/generate/generate.go
@@ -63,10 +67,11 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T17:20:00-04:00
+LastUpdated: 2026-06-12T17:45:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -1429,3 +1434,91 @@ This moves the active xgoja execution path closer to the v2 planner model. Sourc
 
 - Runtime aliases are passed into `sourcegraph.Build(..., sourcegraph.Options{RuntimeModuleAliases: runtimeAliases})` and into TypeScript externals.
 - `jsverbs.ScanDir` and `ScanFS` remain lower-level helpers; xgoja app command mounting now uses graph discovery plus `ScanSources`.
+
+
+## Step 16: Add the initial v2 Plan compiler
+
+I added `cmd/xgoja/internal/plan`, the first concrete v2 planning package. It validates a strict `specv2.Config`, resolves Go module requirements through the workspace resolver, builds the provider graph, builds the source graph, resolves source imports, and exposes command/artifact plan slices for later build/doctor/gen-dts cutover work.
+
+This is intentionally still a thin composition layer. It does not yet replace `build`, `doctor`, or `gen-dts`, but it gives those commands one shared place to consume provider, workspace, source, command, artifact, and runtime alias decisions.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 15)
+
+**Assistant interpretation:** Continue implementing the next v2 cutover task after graph-backed jsverbs scanning.
+
+**Inferred user intent:** Keep moving through the planned v2 hard-cutover implementation tasks with focused commits.
+
+**Commit (code):** pending — initial v2 plan compiler staged after this diary update.
+
+### What I did
+
+- Created `cmd/xgoja/internal/plan/plan.go`.
+- Defined `Plan` with:
+  - `Config specv2.Config`;
+  - `GoModules *workspace.Plan`;
+  - `ProviderGraph *providergraph.Graph`;
+  - `SourceGraph *sourcegraph.Graph`;
+  - `Commands []CommandPlan`;
+  - `Artifacts []ArtifactPlan`;
+  - `RuntimeAliases []string`.
+- Implemented `Compile(Options)` to compose:
+  - specv2 validation;
+  - provider graph building;
+  - Go module requirement planning from providers and explicit Go imports;
+  - source graph building from disk/provider/workspace sources;
+  - import resolution using provider graph runtime aliases;
+  - command and artifact plan wrappers.
+- Added tests for a valid disk jsverbs plan with a runtime alias and provider module requirement.
+- Added a negative test for unknown bare import diagnostics.
+- Checked task ID 78.
+
+### Why
+
+- The cutover needs a single planner output before `doctor`, `build`, and `gen-dts` can stop independently interpreting v1/v2-like fragments.
+- Existing primitives (`specv2`, `workspace`, `providergraph`, `sourcegraph`) needed a composition boundary.
+
+### What worked
+
+- `go test ./cmd/xgoja/internal/plan ./cmd/xgoja/internal/specv2 ./cmd/xgoja/internal/workspace ./pkg/xgoja/providergraph ./pkg/xgoja/sourcegraph -count=1` passed.
+- The planner correctly exposes runtime aliases, source files, provider module requirements, commands, and artifacts in one object.
+- Unknown bare imports fail during planning.
+
+### What didn't work
+
+- The planner currently returns a generic validation error instead of preserving the full specv2 report; this should be improved before wiring `doctor`.
+- Provider source handling currently resolves provider verb sources for provider-backed sources; help/assets provider sources will need a broader source resolver before asset/help plans are fully wired.
+
+### What I learned
+
+- The existing graph packages compose cleanly, but the planner needs to own small conversion functions between specv2 DTOs and graph DTOs.
+- Workspace-backed sources can be represented as disk sourcegraph origins once their module path resolves to a local directory.
+
+### What was tricky to build
+
+- The planner must support three source origins: disk dirs, provider sources, and workspace module paths. The workspace path case depends on a Go module plan entry that has a local directory; versioned-only modules cannot provide local source files.
+- Import resolution must read sourcegraph files from either disk paths or provider FS roots, so the planner needs a small file reader matching sourcegraph origin semantics.
+
+### What warrants a second pair of eyes
+
+- Review whether `cmd/xgoja/internal/plan` is the right package boundary, or whether some plan types should move to `pkg/xgoja` once generated runtime packages need them.
+- Review the validation error surface before `doctor` is wired, because `doctor` should print actionable check rows rather than a generic error.
+
+### What should be done in the future
+
+- Wire `xgoja doctor` to call `plan.Compile` and render plan diagnostics.
+- Wire generated `go.mod` rendering to `Plan.GoModules`.
+- Expand provider source resolution for help/assets if v2 uses provider-backed non-jsverb sources.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/plan/plan.go`, especially `Compile`, `buildProviderGraph`, `buildGoModulePlan`, and `buildSourceGraph`.
+- Review `cmd/xgoja/internal/plan/plan_test.go` for expected planner behavior.
+- Validate with `go test ./cmd/xgoja/internal/plan -count=1` and the broader graph/workspace test command above.
+
+### Technical details
+
+- Provider module requirements use `provider.Import`, `provider.module.version`, and `provider.module.replace`.
+- Explicit `go.imports[]` entries are also converted into workspace requirements.
+- `source.from.workspace` requires a locally resolved module entry; otherwise the planner returns an unresolved workspace module error.

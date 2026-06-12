@@ -189,7 +189,7 @@
 
 ### Phase 8: Replace build/generate/gen-dts command paths with v2 planner
 
-- [ ] Create a v2 `Plan` type that includes:
+- [x] Create a v2 `Plan` type that includes:
   - `GoModulePlan`;
   - provider graph;
   - source graph;
