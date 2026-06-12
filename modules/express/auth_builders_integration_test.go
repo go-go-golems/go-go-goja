@@ -63,7 +63,7 @@ func TestExpressPlannedPublicRouteBuilder(t *testing.T) {
 	runExpressAuthScript(t, rt, `
 		const express = require("express");
 		const app = express.app();
-		app.route("GET", "/planned/:name")
+		app.get("/planned/:name")
 		  .public()
 		  .handle((ctx, res) => res.type("text/plain").send("hello " + ctx.params.name));
 	`)
@@ -74,6 +74,26 @@ func TestExpressPlannedPublicRouteBuilder(t *testing.T) {
 	}
 	if strings.TrimSpace(rr.Body.String()) != "hello goja" {
 		t.Fatalf("body=%q", rr.Body.String())
+	}
+}
+
+func TestExpressGenericRouteBuilderStillWorks(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Renderer: uidsl.RenderAny})
+	rt := newExpressAuthRuntime(t, host)
+	runExpressAuthScript(t, rt, `
+		const express = require("express");
+		const app = express.app();
+		app.route("GET", "/generic/:name")
+		  .public()
+		  .handle((ctx, res) => res.json({ hello: ctx.params.name }));
+	`)
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/generic/goja", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"hello":"goja"`) {
+		t.Fatalf("body=%s", rr.Body.String())
 	}
 }
 
@@ -90,7 +110,7 @@ func TestExpressPlannedAuthRouteBuilder(t *testing.T) {
 	runExpressAuthScript(t, rt, `
 		const express = require("express");
 		const app = express.app();
-		app.route("GET", "/me")
+		app.get("/me")
 		  .auth(express.user().required())
 		  .allow("user.self.read")
 		  .handle((ctx, res) => res.json({ actor: ctx.actor.id, action: ctx.action }));
@@ -123,7 +143,7 @@ func TestExpressPlannedResourceRouteBuilder(t *testing.T) {
 	runExpressAuthScript(t, rt, `
 		const express = require("express");
 		const app = express.app();
-		app.route("PATCH", "/orgs/:orgId/projects/:projectId")
+		app.patch("/orgs/:orgId/projects/:projectId")
 		  .auth(express.user().required())
 		  .resource(express.resource("project").idFromParam("projectId").tenantFromParam("orgId").mustExist())
 		  .allow("project.update")
@@ -152,7 +172,7 @@ func TestExpressPlannedBuilderRejectsPlainAuthObject(t *testing.T) {
 		_, err := vm.RunString(`
 			const express = require("express");
 			const app = express.app();
-			app.route("GET", "/bad")
+			app.get("/bad")
 			  .auth({ required: true })
 			  .allow("bad.read")
 			  .handle(() => "bad");
@@ -167,6 +187,25 @@ func TestExpressPlannedBuilderRejectsPlainAuthObject(t *testing.T) {
 	}
 }
 
+func TestExpressVerbHelperRejectsLegacyHandlerOverload(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
+	rt := newExpressAuthRuntime(t, host)
+	_, err := rt.Owner.Call(context.Background(), "load-test", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, err := vm.RunString(`
+			const express = require("express");
+			const app = express.app();
+			app.get("/bad", (_req, res) => res.json({ ok: true }));
+		`)
+		return nil, err
+	})
+	if err == nil {
+		t.Fatal("expected legacy handler overload to be rejected")
+	}
+	if !strings.Contains(err.Error(), "public().handle") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestExpressPlannedBuilderRequiresSecurityBeforeHandle(t *testing.T) {
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
 	rt := newExpressAuthRuntime(t, host)
@@ -174,7 +213,7 @@ func TestExpressPlannedBuilderRequiresSecurityBeforeHandle(t *testing.T) {
 		_, err := vm.RunString(`
 			const express = require("express");
 			const app = express.app();
-			app.route("GET", "/bad").handle(() => "bad");
+			app.get("/bad").handle(() => "bad");
 		`)
 		return nil, err
 	})

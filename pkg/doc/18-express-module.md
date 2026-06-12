@@ -45,42 +45,51 @@ const ui = require("ui.dsl");
 
 const app = express.app();
 
-app.get("/hello/:name", (req, res) => {
-  return ui.page(
-    { title: "Hello" },
-    ui.h1("Hello " + req.params.name)
-  );
-});
+app.get("/hello/:name")
+  .public()
+  .handle((ctx, res) => {
+    return ui.page(
+      { title: "Hello" },
+      ui.h1("Hello " + ctx.params.name)
+    );
+  });
 
-app.post("/api/echo", (req, res) => {
-  res.status(201).json({ body: req.body });
-});
+app.post("/api/echo")
+  .public()
+  .handle((ctx, res) => {
+    res.status(201).json({ body: ctx.body });
+  });
 ```
 
-Handlers may call `res.*` explicitly. If a handler returns a string, the host sends it as text/HTML depending on content. If a handler returns any other non-null value, the host calls `res.html(value)` and uses the configured renderer.
+Handlers may call `res.*` explicitly. If a handler returns a string, the host sends it as text/HTML depending on content. If a handler returns any other non-null value, the host calls `res.html(value)` and uses the configured renderer. Planned handlers receive `(ctx, res)`; the original request DTO is available as `ctx.request`.
 
 ## App API
 
 ```javascript
-app.get(pattern, handler)
-app.post(pattern, handler)
-app.put(pattern, handler)
-app.patch(pattern, handler)
-app.delete(pattern, handler)
-app.all(pattern, handler)
-app.static(prefix, directory)
-app.staticFromAssetsModule(prefix, assetsModule, root)
+app.get(pattern)
+  .public()
+  .handle(handler)
+
+app.post(pattern)
+  .auth(express.user().required())
+  .allow(action)
+  .handle(handler)
+
+app.patch(pattern)
+  .auth(express.user().required())
+  .resource(express.resource(type).idFromParam(paramName))
+  .allow(action)
+  .handle(handler)
 
 app.route(method, pattern)
   .public()
   .handle(handler)
 
-app.route(method, pattern)
-  .auth(express.user().required())
-  .resource(express.resource(type).idFromParam(paramName))
-  .allow(action)
-  .handle(handler)
+app.static(prefix, directory)
+app.staticFromAssetsModule(prefix, assetsModule, root)
 ```
+
+`app.get`, `app.post`, `app.put`, `app.patch`, `app.delete`, and `app.all` are planned-route builders. They intentionally do **not** support the old `app.get(pattern, handler)` overload. Existing scripts must migrate public endpoints to `app.get(pattern).public().handle(handler)` and protected endpoints to an auth-aware chain.
 
 `app.static(prefix, directory)` serves a real host filesystem directory.
 
@@ -98,7 +107,7 @@ Route patterns support exact paths, `:params`, and `*` wildcards.
 
 ## Planned auth routes
 
-For routes that need authentication or authorization, prefer `app.route(method, pattern)` over raw `app.get(pattern, handler)`. Planned routes use staged Go-backed builder objects: JavaScript gets a fluent API, but the security-critical route plan is compiled and validated by Go at registration time.
+All verb helpers now use planned routes. Planned routes use staged Go-backed builder objects: JavaScript gets a fluent API, but the security-critical route plan is compiled and validated by Go at registration time. `app.route(method, pattern)` remains available for dynamic or uncommon HTTP methods; prefer `app.get(pattern)`, `app.post(pattern)`, and the other verb helpers for normal routes.
 
 A public planned route must explicitly call `.public()` before `.handle(...)`:
 
@@ -106,7 +115,7 @@ A public planned route must explicitly call `.public()` before `.handle(...)`:
 const express = require("express");
 const app = express.app();
 
-app.route("GET", "/healthz")
+app.get("/healthz")
   .public()
   .handle((_ctx, res) => res.json({ ok: true }));
 ```
@@ -114,7 +123,7 @@ app.route("GET", "/healthz")
 An authenticated route declares its auth mode and permission action before the handler is registered:
 
 ```javascript
-app.route("GET", "/me")
+app.get("/me")
   .auth(express.user().required())
   .allow("user.self.read")
   .handle((ctx, res) => {
@@ -125,7 +134,7 @@ app.route("GET", "/me")
 A resource-bound route declares where the resource identity is extracted from the HTTP adapter layer. `idFromParam("projectId")` means “read the resource id from `:projectId`”, not “perform authorization in JavaScript”. The host's Go `ResourceResolver` and `Authorizer` still own resource loading and access control.
 
 ```javascript
-app.route("PATCH", "/orgs/:orgId/projects/:projectId")
+app.patch("/orgs/:orgId/projects/:projectId")
   .auth(express.user().required())
   .resource(
     express.resource("project")
@@ -147,7 +156,7 @@ The builder is intentionally strict:
 - `.resource(...)` only accepts a Go-backed value returned by `express.resource(type)`.
 - Referencing a missing path parameter, such as `.idFromParam("id")` on `/projects/:projectId`, fails at route registration time.
 
-Planned handlers receive `(ctx, res)` instead of `(req, res)`:
+Planned handlers receive `(ctx, res)`:
 
 ```ts
 type PlannedContext = {
@@ -178,7 +187,7 @@ Missing auth services fail closed for authenticated planned routes. Missing cred
 
 ## Request object
 
-Handlers receive a plain JavaScript request object:
+Planned handlers can inspect the original request DTO through `ctx.request`:
 
 ```ts
 type Request = {

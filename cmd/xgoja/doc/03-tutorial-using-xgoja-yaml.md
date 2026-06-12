@@ -333,7 +333,7 @@ const assets = require("fs:assets")
 
 const app = express.app()
 app.staticFromAssetsModule("/static", assets, "/app/public")
-app.get("/", (_req, res) => res.redirect("/static/"))
+app.get("/").public().handle((_ctx, res) => res.redirect("/static/"))
 ```
 
 Run it with `--keep-alive` so the generated runtime stays alive after registering routes:

@@ -2,13 +2,13 @@ const express = require("express")
 
 const app = express.app()
 
-// Public planned routes still declare that they are public before registering a handler.
-app.route("GET", "/healthz")
+// Public routes still declare that they are public before registering a handler.
+app.get("/healthz")
   .public()
   .handle((_ctx, res) => res.json({ ok: true }))
 
 // Current-user routes authenticate an actor and declare an authorization action.
-app.route("GET", "/me")
+app.get("/me")
   .auth(express.user().required())
   .allow("user.self.read")
   .handle((ctx, res) => {
@@ -18,7 +18,7 @@ app.route("GET", "/me")
 // Resource routes bind HTTP adapter values to a Go-owned resource request.
 // The host ResourceResolver receives projectId and orgId as typed inputs; the
 // JavaScript handler does not perform resource lookup or access control itself.
-app.route("PATCH", "/orgs/:orgId/projects/:projectId")
+app.patch("/orgs/:orgId/projects/:projectId")
   .auth(express.user().required())
   .resource(
     express.resource("project")

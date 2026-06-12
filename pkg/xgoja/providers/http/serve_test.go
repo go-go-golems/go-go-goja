@@ -91,7 +91,7 @@ __verb__("start", { name: "start", short: "Serve site", output: "text" });
 	}
 	if err := os.WriteFile(filepath.Join(dir, "server.js"), []byte(`
 function register(app) {
-  app.get("/healthz", (_req, res) => res.json({ ok: true, source: "helper" }));
+  app.get("/healthz").public().handle((_ctx, res) => res.json({ ok: true, source: "helper" }));
 }
 function helperThatMustNotBecomeACommand() {
   return "helper";
@@ -281,7 +281,7 @@ __verb__("demo", { name: "demo", short: "Serve demo", output: "text" });
 function demo() {
   const express = require("express");
   const app = express.app();
-  app.get("/healthz", (_req, res) => res.json({ ok: true, version: %d }));
+  app.get("/healthz").public().handle((_ctx, res) => res.json({ ok: true, version: %d }));
 }
 `, version)
 	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {

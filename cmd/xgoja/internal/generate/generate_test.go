@@ -731,7 +731,7 @@ __verb__("demo", { name: "demo", output: "text", short: "Serve demo" })
 function demo() {
   const express = require("express")
   const app = express.app()
-  app.get("/healthz", (_req, res) => res.json({ ok: true, source: "jsverb" }))
+  app.get("/healthz").public().handle((_ctx, res) => res.json({ ok: true, source: "jsverb" }))
 }
 `), 0o644); err != nil {
 		t.Fatalf("write verb: %v", err)
@@ -879,7 +879,7 @@ __verb__("demo", { name: "demo", output: "text", short: "Serve demo" })
 function demo() {
   const express = require("express")
   const app = express.app()
-  app.get("/healthz", (_req, res) => res.json({ ok: true, version: %d }))
+  app.get("/healthz").public().handle((_ctx, res) => res.json({ ok: true, version: %d }))
 }
 `, version)
 	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {

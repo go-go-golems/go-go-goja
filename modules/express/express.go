@@ -138,16 +138,16 @@ func (r *Registrar) appObject(vm *goja.Runtime, builders *builderStore) goja.Val
 	obj := vm.NewObject()
 	for _, method := range []string{"get", "post", "put", "patch", "delete", "all"} {
 		method := method
-		_ = obj.Set(method, func(pattern string, handler goja.Value) error {
-			fn, ok := goja.AssertFunction(handler)
-			if !ok {
-				return fmt.Errorf("app.%s(%q) requires a function handler", method, pattern)
+		upperMethod := strings.ToUpper(method)
+		_ = obj.Set(method, func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 || goja.IsUndefined(call.Argument(0)) || goja.IsNull(call.Argument(0)) {
+				panic(vm.NewTypeError("app.%s(pattern) requires a route pattern", method))
 			}
-			if err := r.start(vm); err != nil {
-				return err
+			pattern := call.Argument(0).String()
+			if len(call.Arguments) > 1 && !goja.IsUndefined(call.Argument(1)) && !goja.IsNull(call.Argument(1)) {
+				panic(vm.NewTypeError("app.%s(pattern, handler) was removed; use app.%s(pattern).public().handle(handler) or app.%s(pattern).auth(...).allow(...).handle(handler)", method, method, method))
 			}
-			r.host.Register(strings.ToUpper(method), pattern, fn)
-			return nil
+			return newRouteBuilder(vm, r, builders, upperMethod, pattern)
 		})
 	}
 	_ = obj.Set("route", func(method, pattern string) goja.Value {

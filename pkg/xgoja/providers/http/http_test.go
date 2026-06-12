@@ -132,7 +132,7 @@ func TestExpressProviderRegistersIntoExternalHost(t *testing.T) {
 	defer func() { _ = rt.Close(context.Background()) }()
 
 	_, err = rt.Owner.Call(context.Background(), "register external route", func(_ context.Context, vm *goja.Runtime) (any, error) {
-		_, runErr := vm.RunString(`require("express").app().get("/hello/:name", (req, res) => res.json({ hello: req.params.name }))`)
+		_, runErr := vm.RunString(`require("express").app().get("/hello/:name").public().handle((ctx, res) => res.json({ hello: ctx.params.name }))`)
 		return nil, runErr
 	})
 	if err != nil {
@@ -175,7 +175,7 @@ func TestExpressProviderRegistersPlannedPublicRouteIntoExternalHost(t *testing.T
 		_, runErr := vm.RunString(`
 			const express = require("express");
 			const app = express.app();
-			app.route("GET", "/planned/:name")
+			app.get("/planned/:name")
 			  .public()
 			  .handle((ctx, res) => res.json({ hello: ctx.params.name }));
 		`)
@@ -228,7 +228,7 @@ func TestExpressExternalHostDoesNotBindConfiguredHTTPPort(t *testing.T) {
 	}
 
 	_, err = rt.Owner.Call(context.Background(), "register external route", func(_ context.Context, vm *goja.Runtime) (any, error) {
-		_, runErr := vm.RunString(`require("express").app().get("/external", (_req, res) => res.json({ ok: true }))`)
+		_, runErr := vm.RunString(`require("express").app().get("/external").public().handle((_ctx, res) => res.json({ ok: true }))`)
 		return nil, runErr
 	})
 	if err != nil {
@@ -274,7 +274,7 @@ func TestExpressRequireDoesNotBindHTTPPort(t *testing.T) {
 	}
 
 	_, err = rt.Owner.Call(context.Background(), "register route", func(_ context.Context, vm *goja.Runtime) (any, error) {
-		_, runErr := vm.RunString(`require("express").app().get("/healthz", (_req, res) => res.json({ ok: true }))`)
+		_, runErr := vm.RunString(`require("express").app().get("/healthz").public().handle((_ctx, res) => res.json({ ok: true }))`)
 		return nil, runErr
 	})
 	if err == nil {

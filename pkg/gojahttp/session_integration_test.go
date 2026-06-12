@@ -39,7 +39,7 @@ func TestSessionCookieIssuedAndReused(t *testing.T) {
 		_, err := vm.RunString(`
 			const express = require("express");
 			const app = express.app();
-			app.get("/session", (req, res) => res.json({ id: req.session.id, isNew: req.session.isNew }));
+			app.get("/session").public().handle((ctx, res) => res.json({ id: ctx.request.session.id, isNew: ctx.request.session.isNew }));
 		`)
 		return nil, err
 	})
