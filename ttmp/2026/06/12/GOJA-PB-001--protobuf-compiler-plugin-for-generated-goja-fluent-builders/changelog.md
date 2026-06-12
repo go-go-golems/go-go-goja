@@ -191,3 +191,13 @@ Implemented Phase 2 map builder helpers: object and JavaScript Map replacement i
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Added BuilderRef.Delete plus object/Map entry normalization for map fields (commit 6411e52)
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Added dynamic map descriptor tests for object input
 
+
+## 2026-06-12
+
+Implemented Phase 2 oneof runtime helpers: BuilderRef.WhichOneof, BuilderRef.ClearOneof, descriptor validation, and dynamic-protobuf tests for selection switching and clearing (commit bc3949c).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder.go — Added oneof validation plus WhichOneof and ClearOneof helpers (commit bc3949c)
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/protogoja/builder_test.go — Added dynamic oneof descriptor tests for unset
+
