@@ -216,6 +216,22 @@ func TestGenerateCommandWritesCustomTemplate(t *testing.T) {
 	}
 }
 
+func TestBuildCommandLoadsV2SpecDryRun(t *testing.T) {
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeV2Spec(t)
+	root.SetArgs([]string{"build", "-f", specPath, "--dry-run", "--keep-work"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute v2 build dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "validated xgoja/v2 plan") {
+		t.Fatalf("expected v2 validation output, got %q", out.String())
+	}
+}
+
 func TestBuildCommandBuildsBinary(t *testing.T) {
 	out := &bytes.Buffer{}
 	root, err := newRootCommand(out)

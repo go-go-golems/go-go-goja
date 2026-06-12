@@ -221,3 +221,14 @@ Updated xgoja doctor to detect xgoja/v2 specs, load specv2, compile through the 
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/empty_fs.go — Empty fs.FS used for synthetic provider source planning
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root_test.go — V2 doctor command smoke test
 
+
+## 2026-06-12
+
+Updated xgoja build to load v2 specs through the v2 planner and convert the artifact/runtime/source plan into the existing generator build spec bridge.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/cmd_build.go — Build command detects v2 specs and uses planner output
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/root_test.go — V2 build dry-run smoke test
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/v2_bridge.go — V2 plan to buildspec bridge for generated builds
+

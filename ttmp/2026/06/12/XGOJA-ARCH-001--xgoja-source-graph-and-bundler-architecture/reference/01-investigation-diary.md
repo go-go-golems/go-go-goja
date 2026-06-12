@@ -13,7 +13,9 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: cmd/xgoja/cmd_build.go
-      Note: Build passes workspace plan to generator for Step 17
+      Note: |-
+        Build passes workspace plan to generator for Step 17
+        Build v2 planner dispatch for Step 20
     - Path: cmd/xgoja/cmd_doctor.go
       Note: |-
         Module resolution diagnostics for Step 18
@@ -37,7 +39,11 @@ RelatedFiles:
     - Path: cmd/xgoja/internal/plan/plan_test.go
       Note: Planner regression tests for Step 16
     - Path: cmd/xgoja/root_test.go
-      Note: V2 doctor smoke test for Step 19
+      Note: |-
+        V2 doctor smoke test for Step 19
+        V2 build dry-run test for Step 20
+    - Path: cmd/xgoja/v2_bridge.go
+      Note: V2 build bridge for Step 20
     - Path: cmd/xgoja/workspace_plan.go
       Note: Legacy buildspec-to-workspace planner bridge for Step 17
     - Path: go-go-goja/cmd/xgoja/internal/buildspec/build_spec.go
@@ -87,10 +93,11 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T18:35:00-04:00
+LastUpdated: 2026-06-12T18:55:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -1779,3 +1786,83 @@ Because the standalone xgoja CLI cannot dynamically import arbitrary provider pa
 - V1 doctor behavior remains the fallback path.
 - V2 doctor returns spec/plan errors after adding an error row when possible.
 - Source rows report `source_files` from the planner source graph.
+
+
+## Step 20: Let build consume v2 artifact plans through a generator bridge
+
+I updated `xgoja build` so it can load `schema: xgoja/v2` files, compile them through the v2 planner, and convert the resulting config/plan into the existing generator `buildspec` shape. This is a bridge step: the generator still renders from the established buildspec/runtime spec types, but the command entrypoint now accepts and plans native v2 input.
+
+The bridge maps providers, runtime modules, jsverbs sources, assets, help sources, builtin commands, provider command sets, Go imports, and the first binary artifact into the existing generator model. That lets v2 build dry-runs exercise the real planner without requiring a complete generator rewrite in one commit.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 19)
+
+**Assistant interpretation:** Continue from v2 doctor wiring into the next command cutover task, `xgoja build`.
+
+**Inferred user intent:** Keep moving through the v2 hard-cutover tasks with focused, reviewable commits.
+
+**Commit (code):** pending — v2 build bridge staged after this diary update.
+
+### What I did
+
+- Added `cmd/xgoja/v2_bridge.go` with:
+  - `loadBuildSpecOrV2Plan`;
+  - `buildSpecFromV2Plan`;
+  - source/command/artifact conversion helpers.
+- Updated `cmd/xgoja/cmd_build.go` to:
+  - detect v2 specs;
+  - call the v2 planner;
+  - use the compiled Go module plan when rendering generated `go.mod`.
+- Added a v2 build dry-run smoke test.
+- Checked task ID 80.
+
+### Why
+
+- `build` is the command that must eventually reject v1 and run from native v2 plans.
+- Reusing the existing generator keeps this step small while moving the command boundary to v2.
+
+### What worked
+
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/plan ./cmd/xgoja/internal/specv2 ./cmd/xgoja/internal/generate -count=1` passed.
+- V2 build dry-run now reports `validated xgoja/v2 plan` and completes through generated workspace rendering.
+
+### What didn't work
+
+- The first commit attempt failed in the pre-commit lint phase with exhaustive switch coverage:
+  - `cmd/xgoja/v2_bridge.go:68:3: missing cases in switch of type specv2.SourceKind: specv2.SourceKindScript (exhaustive)`
+- I fixed it by adding an explicit `SourceKindScript` case documenting that script sources are not currently represented in the buildspec bridge.
+- This is not yet a pure v2 generator; it converts the v2 plan into legacy generator DTOs.
+- The first binary artifact is used as the target bridge; multiple v2 artifacts still need explicit generator orchestration.
+
+### What I learned
+
+- The existing generator model can represent the MVP v2 concepts well enough for a staged cutover.
+- The conversion layer is also useful documentation for which v2 fields have current runtime behavior and which remain future-facing.
+
+### What was tricky to build
+
+- V2 has a list of command surfaces, while v1/buildspec has fixed builtin command fields plus a command-provider list. The bridge has to split those representations carefully.
+- V2 artifacts are list-based; current buildspec target rendering is singular, so the bridge chooses the first binary artifact for now.
+
+### What warrants a second pair of eyes
+
+- Review the artifact selection rule before supporting multi-artifact builds.
+- Review the TypeScript compile mapping; v2 intentionally exposes fewer knobs than the old runtime TypeScript spec.
+
+### What should be done in the future
+
+- Wire gen-dts to v2 provider/declaration plans.
+- Move generator internals toward consuming `plan.Plan` directly instead of the bridge.
+- Add end-to-end v2 build tests that compile and run generated binaries.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/v2_bridge.go` to review mapping behavior.
+- Then review `cmd/xgoja/cmd_build.go` for command dispatch.
+- Validate with `go test ./cmd/xgoja -run TestBuildCommandLoadsV2SpecDryRun -count=1`.
+
+### Technical details
+
+- V2 build still uses the synthetic provider registry for planning; generated build output imports real provider packages from the converted buildspec.
+- The bridge passes `compiledPlan.GoModules` into generated go.mod rendering.

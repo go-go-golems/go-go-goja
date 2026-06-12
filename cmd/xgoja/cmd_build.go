@@ -84,12 +84,20 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	buildSpec, report, err := buildspec.LoadFile(settings.File)
-	if report != nil {
-		_, _ = fmt.Fprintf(c.out, "validated %d check(s) for %s\n", len(report.Checks), settings.File)
-	}
+	buildSpec, compiledPlan, isV2, err := loadBuildSpecOrV2Plan(settings.File)
 	if err != nil {
 		return err
+	}
+	if isV2 {
+		_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
+	} else {
+		_, report, err := buildspec.LoadFile(settings.File)
+		if report != nil {
+			_, _ = fmt.Fprintf(c.out, "validated %d check(s) for %s\n", len(report.Checks), settings.File)
+		}
+		if err != nil {
+			return err
+		}
 	}
 	if kind := strings.TrimSpace(buildSpec.Target.Kind); kind == "package" || kind == "source" || kind == "template" {
 		return fmt.Errorf("target.kind %s is source generation only; use xgoja generate -f %s", kind, settings.File)
@@ -115,6 +123,9 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	goModules, err := goModulePlanForBuildSpec(buildSpec)
 	if err != nil {
 		return err
+	}
+	if compiledPlan != nil {
+		goModules = compiledPlan.GoModules
 	}
 	if err := generate.WriteAll(workDir, buildSpec, generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace, GoModules: goModules}); err != nil {
 		return err
