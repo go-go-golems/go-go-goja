@@ -1,29 +1,40 @@
+schema: xgoja/v2
 name: http-serve-jsverbs
-target:
-  kind: xgoja
-  output: dist/http-serve-jsverbs
-packages:
+app:
+  name: http-serve-jsverbs
+go:
+  module: xgoja.generated/http-serve-jsverbs
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
   - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
-modules:
-  - package: go-go-goja-http
-    name: express
+    register: Register
+runtime:
+  modules:
+    - provider: go-go-goja-http
+      name: express
+sources:
+  - id: local-sites
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    language: javascript
 commands:
-  jsverbs:
-    enabled: true
+  - id: verbs
+    type: builtin.jsverbs
     name: verbs
-  eval:
-    enabled: false
-  run:
-    enabled: false
-  repl:
-    enabled: false
-commandProviders:
+    sources:
+      - local-sites
   - id: http-serve
-    package: go-go-goja-http
+    type: provider.command-set
     name: serve
     mount: serve
-jsverbs:
-  - id: local-sites
-    path: ./verbs
-    embed: true
+    provider: go-go-goja-http
+    sources:
+      - local-sites
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/http-serve-jsverbs
