@@ -39,5 +39,12 @@
     "workerDirectory": [
       "public"
     ]
+  },
+  "pnpm": {
+    "overrides": {
+      "uuid": "11.1.1",
+      "postcss": "8.5.15",
+      "ws": "8.20.1"
+    }
   }
 }
