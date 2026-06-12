@@ -141,21 +141,21 @@
 
 ### Phase 5: Build the v2 provider graph without changing provider runtime APIs by default
 
-- [ ] Create provider graph types around existing `providerapi.ProviderRegistry`.
-- [ ] Keep existing provider Go APIs initially:
+- [x] Create provider graph types around existing `providerapi.ProviderRegistry`.
+- [x] Keep existing provider Go APIs initially:
   - `providerapi.Module`;
   - `providerapi.CommandSetProvider`;
   - `providerapi.VerbSource`;
   - `providerapi.HelpSource`;
   - asset provider APIs.
-- [ ] Add a provider API audit task: verify whether v2 requires any provider API changes, especially around static descriptors, command dependencies, source descriptions, and future provider manifests.
-- [ ] Prefer not to change provider APIs in the hard cutover unless a concrete planner requirement demands it.
-- [ ] Resolve v2 `providers[]` against the provider registry.
-- [ ] Resolve v2 `runtime.modules[]` against provider modules.
-- [ ] Validate duplicate runtime module aliases centrally.
-- [ ] Expose runtime module aliases to the source compiler as automatic externals.
-- [ ] Reuse provider graph for declaration generation instead of re-resolving modules independently.
-- [ ] Add tests for missing provider, missing module, duplicate alias, missing TypeScript descriptor in strict declaration mode, and selected command set validation.
+- [x] Add a provider API audit task: verify whether v2 requires any provider API changes, especially around static descriptors, command dependencies, source descriptions, and future provider manifests.
+- [x] Prefer not to change provider APIs in the hard cutover unless a concrete planner requirement demands it.
+- [x] Resolve v2 `providers[]` against the provider registry.
+- [x] Resolve v2 `runtime.modules[]` against provider modules.
+- [x] Validate duplicate runtime module aliases centrally.
+- [x] Expose runtime module aliases to the source compiler as automatic externals.
+- [x] Reuse provider graph for declaration generation instead of re-resolving modules independently.
+- [x] Add tests for missing provider, missing module, duplicate alias, missing TypeScript descriptor in strict declaration mode, and selected command set validation.
 
 ### Phase 6: Build the v2 source graph
 

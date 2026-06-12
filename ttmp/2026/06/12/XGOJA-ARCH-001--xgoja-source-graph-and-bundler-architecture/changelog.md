@@ -104,3 +104,14 @@ Added workspace resolution package with go.work discovery/parsing, go.mod module
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/workspace/workspace.go — Workspace discovery and GoModulePlan resolution
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/workspace/workspace_test.go — Workspace resolution tests
 
+
+## 2026-06-12
+
+Added providergraph package over existing providerapi with selected provider/module/command validation, alias tracking, TypeScript descriptor extraction, and provider API audit note.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/providergraph/graph.go — Provider graph implementation
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/pkg/xgoja/providergraph/graph_test.go — Provider graph validation tests
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/ttmp/2026/06/12/XGOJA-ARCH-001--xgoja-source-graph-and-bundler-architecture/sources/local/03-provider-api-audit.md — Provider API audit conclusion
+

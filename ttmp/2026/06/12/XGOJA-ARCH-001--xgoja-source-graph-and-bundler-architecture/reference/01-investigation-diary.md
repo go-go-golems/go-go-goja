@@ -47,7 +47,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-architecture-reassessment-prompt.md
 Summary: Chronological diary for the xgoja source graph and bundler architecture reassessment.
-LastUpdated: 2026-06-12T15:30:00-04:00
+LastUpdated: 2026-06-12T15:50:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
@@ -1003,3 +1003,81 @@ This is not wired into generated `go.mod` rendering yet. The goal of this step w
 - Workspace modes implemented: `off`, `auto`, and `path`.
 - Resolution sources implemented: `version`, `explicit-replace`, `cli-replace`, and `go-work`.
 - `FindGoWork` searches upward until filesystem root.
+
+
+## Step 11: Add provider graph over existing provider APIs
+
+I added the first provider graph layer without changing provider runtime APIs. The graph validates selected providers, runtime modules, aliases, and command sets against the existing `providerapi.ProviderRegistry`.
+
+This implements the current provider API decision: wrap the existing registry first, then defer static provider manifests and richer provider metadata to a later ticket.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 9)
+
+**Assistant interpretation:** Continue through the v2 hard-cutover phases by implementing the provider graph and provider API audit tasks.
+
+**Inferred user intent:** Keep moving quickly while avoiding unnecessary provider API rewrites.
+
+**Commit (code):** pending — provider graph staged after this diary update.
+
+### What I did
+
+- Added `pkg/xgoja/providergraph/graph.go`.
+- Implemented provider selection validation over `providerapi.ProviderRegistry`.
+- Implemented runtime module resolution and duplicate alias validation.
+- Implemented command set resolution.
+- Implemented runtime module alias listing and lookup for future compiler externals.
+- Implemented TypeScript descriptor extraction with strict-mode errors for missing descriptors.
+- Added provider graph tests for successful resolution, missing provider/module, duplicate alias, and strict TypeScript descriptor failure.
+- Added `sources/local/03-provider-api-audit.md`.
+- Checked task IDs 52–61.
+
+### Why
+
+- v2 planning needs provider/runtime-module resolution as a first-class graph rather than repeated ad-hoc lookups in build, gen-dts, command setup, and source compilation.
+- Existing provider APIs already carry enough runtime metadata for the hard cutover MVP.
+
+### What worked
+
+- `go test ./pkg/xgoja/providergraph -count=1` passed.
+- Runtime module aliases are centralized and sorted for deterministic compiler/external use.
+- Strict TypeScript descriptor validation can be reused by declaration generation later.
+
+### What didn't work
+
+- No command failed in this step.
+- The graph is not wired into `xgoja gen-dts` or v2 planner yet.
+
+### What I learned
+
+- The existing `providerapi.ProviderRegistry.Packages()` clone API is enough to build a stable selected-provider graph.
+- Provider manifests remain valuable for static scanning/search later, but not required for the hard cutover runtime planner.
+
+### What was tricky to build
+
+- The provider graph needs to distinguish selected providers from all registered providers. A module can exist in the registry but still be invalid if its provider was not selected by the v2 spec.
+- Alias defaulting must consider explicit `as`, module `DefaultAs`, and module name in that order.
+
+### What warrants a second pair of eyes
+
+- Review whether `TypeScriptModules(strict bool)` should return aliased module declaration names in a future step rather than raw provider descriptors.
+- Review whether provider graph should live in `pkg/xgoja/providergraph` as public-ish API or under an internal planner package.
+
+### What should be done in the future
+
+- Wire provider graph into v2 plan construction.
+- Reuse provider graph for declaration generation.
+- Add static provider manifest/catalog work in a separate ticket after hard cutover MVP.
+
+### Code review instructions
+
+- Start with `Build` in `pkg/xgoja/providergraph/graph.go`.
+- Review selection validation before alias handling.
+- Validate with `go test ./pkg/xgoja/providergraph -count=1`.
+
+### Technical details
+
+- The graph stores selected provider packages by ID and preserves selection order.
+- Runtime aliases are stored in a map and exposed as sorted strings for deterministic source compiler externals.
+- Command set IDs default to `<provider>.<name>` when not specified.
