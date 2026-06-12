@@ -29,8 +29,7 @@ func newListModulesCommand() *listModulesCommand {
 	return &listModulesCommand{CommandDescription: cmds.NewCommandDescription("list-modules",
 		cmds.WithShort("List modules selected by an xgoja build spec"),
 		cmds.WithLong(`
-List modules shows the require() modules selected by an xgoja build spec. Phase
-1 wires the command; static build spec parsing is implemented in the buildspec task.
+List modules shows the require() modules selected by a native xgoja/v2 spec.
 
 Examples:
   xgoja list-modules -f xgoja.yaml

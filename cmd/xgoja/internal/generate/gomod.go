@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/plan"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/workspace"
 )
@@ -71,68 +70,6 @@ func RenderGoModPlan(compiled *plan.Plan, opts Options) string {
 	for _, provider := range cfg.Providers {
 		if strings.TrimSpace(provider.Module.Replace) != "" {
 			replaces[providerModulePath(provider.Import)] = resolveReplacePath(cfg.BaseDir, provider.Module.Replace)
-		}
-	}
-	for _, module := range plannedGoModules(opts.GoModules) {
-		if strings.TrimSpace(module.LocalDir) != "" {
-			replaces[module.ModulePath] = module.LocalDir
-		}
-	}
-	writeGoModReplaces(&b, replaces)
-	return b.String()
-}
-
-func RenderGoMod(buildSpec *buildspec.BuildSpec, opts Options) string {
-	defaults := defaultOptions()
-	if opts.XGojaModuleVersion == "" {
-		opts.XGojaModuleVersion = defaults.XGojaModuleVersion
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "module %s\n\n", buildSpec.Go.Module)
-	fmt.Fprintf(&b, "go %s\n\n", buildSpec.Go.Version)
-
-	requires := map[string]string{xgojaRuntimeModule: opts.XGojaModuleVersion}
-	if (buildSpec.Target.Kind == "adapter" || buildSpec.Target.Kind == "cobra") && strings.TrimSpace(buildSpec.Target.Version) != "" {
-		requires[providerModulePath(buildSpec.Target.Import)] = buildSpec.Target.Version
-	}
-	for _, pkg := range buildSpec.Packages {
-		version := strings.TrimSpace(pkg.Version)
-		if version == "" {
-			continue
-		}
-		requires[providerModulePath(pkg.Import)] = version
-	}
-	for _, imp := range buildSpec.Go.Imports {
-		version := strings.TrimSpace(imp.Version)
-		if version == "" {
-			continue
-		}
-		modulePath := strings.TrimSpace(imp.Module)
-		if modulePath == "" {
-			modulePath = providerModulePath(imp.Import)
-		}
-		if modulePath != "" {
-			requires[modulePath] = version
-		}
-	}
-	for _, module := range plannedGoModules(opts.GoModules) {
-		version := strings.TrimSpace(module.Version)
-		if version == "" && strings.TrimSpace(module.LocalDir) != "" {
-			version = "v0.0.0"
-		}
-		if version != "" {
-			requires[module.ModulePath] = version
-		}
-	}
-	writeGoModRequires(&b, requires)
-
-	replaces := map[string]string{}
-	if strings.TrimSpace(opts.XGojaReplace) != "" {
-		replaces[xgojaRuntimeModule] = opts.XGojaReplace
-	}
-	for _, pkg := range buildSpec.Packages {
-		if strings.TrimSpace(pkg.Replace) != "" {
-			replaces[providerModulePath(pkg.Import)] = resolveReplacePath(buildSpec.BaseDir, pkg.Replace)
 		}
 	}
 	for _, module := range plannedGoModules(opts.GoModules) {

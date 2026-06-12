@@ -1,7 +1,6 @@
 package generate
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -9,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/workspace"
 )
 
@@ -26,17 +24,6 @@ type PackageOptions struct {
 type TemplateOptions struct {
 	PackageName  string
 	TemplatePath string
-}
-
-func TemplateDataJSON(buildSpec *buildspec.BuildSpec, packageName string) (string, error) {
-	if buildSpec == nil {
-		return "", fmt.Errorf("BuildSpec is nil")
-	}
-	data, err := json.MarshalIndent(packageTemplateDataFromSpec(buildSpec, packageName), "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(data) + "\n", nil
 }
 
 func CleanGenerated(dir string) error {
@@ -77,123 +64,6 @@ func defaultOptions() Options {
 	return Options{XGojaModuleVersion: "v0.0.0"}
 }
 
-func WriteAll(dir string, buildSpec *buildspec.BuildSpec, opts Options) error {
-	if dir == "" {
-		return fmt.Errorf("generate directory is required")
-	}
-	if buildSpec == nil {
-		return fmt.Errorf("BuildSpec is nil")
-	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("create generate directory %s: %w", dir, err)
-	}
-	if err := copyEmbeddedJSVerbs(dir, buildSpec); err != nil {
-		return err
-	}
-	if err := copyEmbeddedHelpSources(dir, buildSpec); err != nil {
-		return err
-	}
-	if err := copyEmbeddedAssets(dir, buildSpec); err != nil {
-		return err
-	}
-	files := map[string]string{
-		"go.mod":         RenderGoMod(buildSpec, opts),
-		"main.go":        RenderMain(buildSpec),
-		"xgoja.gen.json": RenderEmbeddedSpec(buildSpec),
-	}
-	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
-			return fmt.Errorf("write generated %s: %w", name, err)
-		}
-	}
-	return nil
-}
-
-func WritePackage(dir string, buildSpec *buildspec.BuildSpec, opts PackageOptions) error {
-	if dir == "" {
-		return fmt.Errorf("generate directory is required")
-	}
-	if buildSpec == nil {
-		return fmt.Errorf("BuildSpec is nil")
-	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("create generate directory %s: %w", dir, err)
-	}
-	if err := copyEmbeddedJSVerbs(dir, buildSpec); err != nil {
-		return err
-	}
-	if err := copyEmbeddedHelpSources(dir, buildSpec); err != nil {
-		return err
-	}
-	if err := copyEmbeddedAssets(dir, buildSpec); err != nil {
-		return err
-	}
-	packageName := strings.TrimSpace(opts.PackageName)
-	if packageName == "" {
-		packageName = InferPackageNameFromDir(dir)
-	}
-	content := RenderPackage(buildSpec, packageName)
-	if err := os.WriteFile(filepath.Join(dir, "xgoja_runtime.gen.go"), []byte(content), 0o644); err != nil {
-		return fmt.Errorf("write generated package: %w", err)
-	}
-	return nil
-}
-
-func WriteSourceFragments(dir string, buildSpec *buildspec.BuildSpec, opts PackageOptions) error {
-	if dir == "" {
-		return fmt.Errorf("generate directory is required")
-	}
-	if buildSpec == nil {
-		return fmt.Errorf("BuildSpec is nil")
-	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("create generate directory %s: %w", dir, err)
-	}
-	if err := copyEmbeddedJSVerbs(dir, buildSpec); err != nil {
-		return err
-	}
-	if err := copyEmbeddedHelpSources(dir, buildSpec); err != nil {
-		return err
-	}
-	if err := copyEmbeddedAssets(dir, buildSpec); err != nil {
-		return err
-	}
-	packageName := strings.TrimSpace(opts.PackageName)
-	if packageName == "" {
-		packageName = InferPackageNameFromDir(dir)
-	}
-	for name, content := range RenderSourceFragments(buildSpec, packageName) {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
-			return fmt.Errorf("write generated source fragment %s: %w", name, err)
-		}
-	}
-	return nil
-}
-
-func WriteCustomTemplate(outputFile string, buildSpec *buildspec.BuildSpec, opts TemplateOptions) error {
-	if strings.TrimSpace(outputFile) == "" {
-		return fmt.Errorf("custom template output file is required")
-	}
-	if buildSpec == nil {
-		return fmt.Errorf("BuildSpec is nil")
-	}
-	if err := os.MkdirAll(filepath.Dir(outputFile), 0o755); err != nil {
-		return fmt.Errorf("create custom template output directory: %w", err)
-	}
-	packageName := strings.TrimSpace(opts.PackageName)
-	if packageName == "" {
-		packageName = InferPackageNameFromDir(filepath.Dir(outputFile))
-	}
-	content, err := loadCustomTemplate(opts.TemplatePath, packageTemplateDataFromSpec(buildSpec, packageName))
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(outputFile, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("write custom template output %s: %w", outputFile, err)
-	}
-	return nil
-}
-
 func InferPackageNameFromDir(dir string) string {
 	base := filepath.Base(filepath.Clean(dir))
 	name := sanitizeIdentifier(base)
@@ -201,63 +71,6 @@ func InferPackageNameFromDir(dir string) string {
 		return "xgojaruntime"
 	}
 	return name
-}
-
-func copyEmbeddedJSVerbs(dir string, buildSpec *buildspec.BuildSpec) error {
-	roots := embeddedJSVerbRoots(buildSpec)
-	for i, source := range buildSpec.JSVerbs {
-		root := roots[i]
-		if root == "" {
-			continue
-		}
-		src, err := resolveSourcePath(buildSpec.BaseDir, source.Path)
-		if err != nil {
-			return fmt.Errorf("resolve embedded jsverb source %s: %w", source.ID, err)
-		}
-		dst := filepath.Join(dir, filepath.FromSlash(root))
-		if err := copyDir(dst, src); err != nil {
-			return fmt.Errorf("copy embedded jsverb source %s: %w", source.ID, err)
-		}
-	}
-	return nil
-}
-
-func copyEmbeddedHelpSources(dir string, buildSpec *buildspec.BuildSpec) error {
-	roots := embeddedHelpRoots(buildSpec)
-	for i, source := range buildSpec.Help.Sources {
-		root := roots[i]
-		if root == "" {
-			continue
-		}
-		src, err := resolveSourcePath(buildSpec.BaseDir, source.Path)
-		if err != nil {
-			return fmt.Errorf("resolve embedded help source %s: %w", source.ID, err)
-		}
-		dst := filepath.Join(dir, filepath.FromSlash(root))
-		if err := copyDir(dst, src); err != nil {
-			return fmt.Errorf("copy embedded help source %s: %w", source.ID, err)
-		}
-	}
-	return nil
-}
-
-func copyEmbeddedAssets(dir string, buildSpec *buildspec.BuildSpec) error {
-	roots := embeddedAssetRoots(buildSpec)
-	for i, source := range buildSpec.Assets {
-		root := roots[i]
-		if root == "" {
-			continue
-		}
-		src, err := resolveSourcePath(buildSpec.BaseDir, source.Path)
-		if err != nil {
-			return fmt.Errorf("resolve embedded asset source %s: %w", source.ID, err)
-		}
-		dst := filepath.Join(dir, filepath.FromSlash(root))
-		if err := copyDirWithOptions(dst, src, copyDirOptions{skipNodeModules: true}); err != nil {
-			return fmt.Errorf("copy embedded asset source %s: %w", source.ID, err)
-		}
-	}
-	return nil
 }
 
 func resolveSourcePath(baseDir, rawPath string) (string, error) {

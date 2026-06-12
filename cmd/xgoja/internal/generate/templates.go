@@ -11,7 +11,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/plan"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/specv2"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
@@ -237,124 +236,13 @@ func packageTemplateDataFromPlan(compiled *plan.Plan, packageName string) packag
 	}
 }
 
-func mainTemplateDataFromSpec(buildSpec *buildspec.BuildSpec) mainTemplateData {
-	hasEmbeddedJSVerb := hasEmbeddedJSVerbSources(buildSpec)
-	hasEmbeddedHelp := hasEmbeddedHelpSources(buildSpec)
-	hasEmbeddedAssets := hasEmbeddedAssetSources(buildSpec)
-	hasEmbedded := hasEmbeddedJSVerb || hasEmbeddedHelp || hasEmbeddedAssets
-
-	rootFn := strings.TrimSpace(buildSpec.Target.Root)
-	if rootFn == "" {
-		rootFn = "NewRootCommand"
-	}
-
-	data := mainTemplateData{
-		SpecJSON:          escapeRawString(RenderEmbeddedSpec(buildSpec)),
-		HasEmbedded:       hasEmbedded,
-		HasEmbeddedJSVerb: hasEmbeddedJSVerb,
-		HasEmbeddedHelp:   hasEmbeddedHelp,
-		HasEmbeddedAssets: hasEmbeddedAssets,
-		NeedsContext:      buildSpec.Target.Kind == "adapter",
-		HasTargetImport:   buildSpec.Target.Kind == "adapter" || buildSpec.Target.Kind == "cobra",
-		TargetKind:        buildSpec.Target.Kind,
-		TargetImport:      buildSpec.Target.Import,
-		TargetRoot:        rootFn,
-		ProviderImports:   providerImportsFromSpec(buildSpec),
-		ExtraImports:      extraImportsFromSpec(buildSpec),
-	}
-	embeddedJSVerbArg := "nil"
-	if hasEmbeddedJSVerb {
-		embeddedJSVerbArg = "embeddedJSVerbs"
-	}
-	embeddedHelpArg := "nil"
-	if hasEmbeddedHelp {
-		embeddedHelpArg = "embeddedHelp"
-	}
-	embeddedAssetsArg := "nil"
-	if hasEmbeddedAssets {
-		embeddedAssetsArg = "embeddedAssets"
-	}
-	if hasEmbedded {
-		data.HostConstruction = fmt.Sprintf("host := app.NewHostWithOptions(registry, buildSpec, app.HostOptions{EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
-		data.RootConstruction = fmt.Sprintf("root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON, EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
-	} else {
-		data.HostConstruction = "host := app.NewHost(registry, buildSpec)"
-		data.RootConstruction = "root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})"
-	}
-	return data
-}
-
-func dtsGenTemplateDataFromSpec(buildSpec *buildspec.BuildSpec, strict bool) dtsGenTemplateData {
-	return dtsGenTemplateData{
-		SpecJSON:        escapeRawString(RenderEmbeddedSpec(buildSpec)),
-		ProviderImports: providerImportsFromSpec(buildSpec),
-		ExtraImports:    extraImportsFromSpec(buildSpec),
-		Strict:          strict,
-	}
-}
-
-func packageTemplateDataFromSpec(buildSpec *buildspec.BuildSpec, packageName string) packageTemplateData {
-	hasEmbeddedJSVerb := hasEmbeddedJSVerbSources(buildSpec)
-	hasEmbeddedHelp := hasEmbeddedHelpSources(buildSpec)
-	hasEmbeddedAssets := hasEmbeddedAssetSources(buildSpec)
-	return packageTemplateData{
-		PackageName:       packageName,
-		SpecJSON:          escapeRawString(RenderEmbeddedSpec(buildSpec)),
-		HasEmbedded:       hasEmbeddedJSVerb || hasEmbeddedHelp || hasEmbeddedAssets,
-		HasEmbeddedJSVerb: hasEmbeddedJSVerb,
-		HasEmbeddedHelp:   hasEmbeddedHelp,
-		HasEmbeddedAssets: hasEmbeddedAssets,
-		ProviderImports:   providerImportsFromSpec(buildSpec),
-		ExtraImports:      extraImportsFromSpec(buildSpec),
-	}
-}
-
-func extraImportsFromSpec(buildSpec *buildspec.BuildSpec) []extraImport {
-	if buildSpec == nil {
-		return nil
-	}
-	seen := map[string]struct{}{}
-	ret := make([]extraImport, 0, len(buildSpec.Go.Imports))
-	for _, imp := range buildSpec.Go.Imports {
-		importPath := strings.TrimSpace(imp.Import)
-		if importPath == "" {
-			continue
-		}
-		alias := strings.TrimSpace(imp.Alias)
-		key := alias + "\x00" + importPath
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		aliasPrefix := ""
-		if alias != "" {
-			aliasPrefix = alias + " "
-		}
-		ret = append(ret, extraImport{Alias: alias, AliasPrefix: aliasPrefix, Import: importPath})
-	}
-	return ret
-}
-
-func providerImportsFromSpec(buildSpec *buildspec.BuildSpec) []providerImport {
-	aliases := importAliases(buildSpec.Packages)
-	providers := make([]providerImport, 0, len(buildSpec.Packages))
-	for _, pkg := range buildSpec.Packages {
-		providers = append(providers, providerImport{
-			Alias:    aliases[pkg.ID],
-			Import:   pkg.Import,
-			Register: pkg.Register,
-		})
-	}
-	return providers
-}
-
 func providerImportsFromPlan(compiled *plan.Plan) []providerImport {
 	if compiled == nil {
 		return nil
 	}
-	packages := make([]buildspec.PackageSpec, 0, len(compiled.Config.Providers))
+	packages := make([]importAliasSeed, 0, len(compiled.Config.Providers))
 	for _, provider := range compiled.Config.Providers {
-		packages = append(packages, buildspec.PackageSpec{ID: provider.ID, Import: provider.Import, Register: provider.Register})
+		packages = append(packages, importAliasSeed{ID: provider.ID, Import: provider.Import})
 	}
 	aliases := importAliases(packages)
 	providers := make([]providerImport, 0, len(compiled.Config.Providers))

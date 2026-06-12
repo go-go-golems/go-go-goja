@@ -34,10 +34,9 @@ func newDoctorCommand() *doctorCommand {
 		panic(err)
 	}
 	return &doctorCommand{CommandDescription: cmds.NewCommandDescription("doctor",
-		cmds.WithShort("Validate an xgoja build spec and report problems"),
+		cmds.WithShort("Validate an xgoja/v2 spec and report problems"),
 		cmds.WithLong(`
-Doctor validates the xgoja specification before a full build. Phase 1 emits the
-wired command shape; schema validation is added in the buildspec task.
+Doctor validates the native xgoja/v2 specification before a full build.
 
 Examples:
   xgoja doctor -f xgoja.yaml
@@ -47,7 +46,7 @@ Examples:
 			fields.New("file", fields.TypeString,
 				fields.WithDefault("xgoja.yaml"),
 				fields.WithShortFlag("f"),
-				fields.WithHelp("Path to the xgoja build specification")),
+				fields.WithHelp("Path to the xgoja/v2 specification")),
 		),
 		cmds.WithSections(sections...),
 	)}
