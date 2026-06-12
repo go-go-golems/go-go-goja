@@ -185,6 +185,60 @@ func TestGeneratedModuleManifestBuilderRuntime(t *testing.T) {
 		t.Fatalf("namespace did not recognize built message")
 	}
 }
+
+func TestGeneratedExportSpecEnumSetterRuntime(t *testing.T) {
+	vm := goja.New()
+	enumObj, err := NewExportKindGojaEnum(vm)
+	if err != nil {
+		t.Fatalf("enum: %v", err)
+	}
+	ns, err := NewExportSpecGojaNamespace(vm)
+	if err != nil {
+		t.Fatalf("namespace: %v", err)
+	}
+	builderFn, ok := goja.AssertFunction(ns.Get("builder"))
+	if !ok {
+		t.Fatalf("builder is not callable")
+	}
+	builderValue, err := builderFn(goja.Undefined())
+	if err != nil {
+		t.Fatalf("builder call: %v", err)
+	}
+	builder := builderValue.ToObject(vm)
+	nameFn, ok := goja.AssertFunction(builder.Get("name"))
+	if !ok {
+		t.Fatalf("name is not callable")
+	}
+	if _, err := nameFn(builder, vm.ToValue("run")); err != nil {
+		t.Fatalf("name call: %v", err)
+	}
+	kindFn, ok := goja.AssertFunction(builder.Get("kind"))
+	if !ok {
+		t.Fatalf("kind is not callable")
+	}
+	if _, err := kindFn(builder, enumObj.Get("EXPORT_KIND_FUNCTION")); err != nil {
+		t.Fatalf("kind call: %v", err)
+	}
+	buildFn, ok := goja.AssertFunction(builder.Get("build"))
+	if !ok {
+		t.Fatalf("build is not callable")
+	}
+	builtValue, err := buildFn(builder)
+	if err != nil {
+		t.Fatalf("build call: %v", err)
+	}
+	msg, ok := protogoja.MessageFromValue(builtValue)
+	if !ok {
+		t.Fatalf("built value is not a ProtoMessage")
+	}
+	exportSpec, ok := msg.(*ExportSpec)
+	if !ok {
+		t.Fatalf("built message type = %T", msg)
+	}
+	if exportSpec.GetName() != "run" || exportSpec.GetKind() != ExportKind_EXPORT_KIND_FUNCTION {
+		t.Fatalf("unexpected export spec: name=%q kind=%v", exportSpec.GetName(), exportSpec.GetKind())
+	}
+}
 `
 }
 
@@ -201,6 +255,15 @@ func fixtureFileDescriptor() *descriptorpb.FileDescriptorProto {
 		Options: &descriptorpb.FileOptions{
 			GoPackage: proto.String("example.com/fixture/v1;fixturev1"),
 		},
+		EnumType: []*descriptorpb.EnumDescriptorProto{
+			{
+				Name: proto.String("ExampleKind"),
+				Value: []*descriptorpb.EnumValueDescriptorProto{
+					{Name: proto.String("EXAMPLE_KIND_UNSPECIFIED"), Number: proto.Int32(0)},
+					{Name: proto.String("EXAMPLE_KIND_PRIMARY"), Number: proto.Int32(1)},
+				},
+			},
+		},
 		MessageType: []*descriptorpb.DescriptorProto{
 			{
 				Name: proto.String("Example"),
@@ -211,6 +274,14 @@ func fixtureFileDescriptor() *descriptorpb.FileDescriptorProto {
 						Label:    descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
 						Type:     descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
 						JsonName: proto.String("name"),
+					},
+					{
+						Name:     proto.String("kind"),
+						Number:   proto.Int32(2),
+						Label:    descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+						Type:     descriptorpb.FieldDescriptorProto_TYPE_ENUM.Enum(),
+						TypeName: proto.String(".fixture.v1.ExampleKind"),
+						JsonName: proto.String("kind"),
 					},
 				},
 				NestedType: []*descriptorpb.DescriptorProto{

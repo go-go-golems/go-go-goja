@@ -67,6 +67,9 @@ func generateFile(plugin *protogen.Plugin, file *protogen.File, opts Options) {
 	}
 	g.P("\t}")
 	g.P("}")
+	for _, enum := range file.Enums {
+		emitEnumAPI(g, enum)
+	}
 	for _, msg := range file.Messages {
 		emitMessageAPI(g, msg)
 	}
@@ -77,6 +80,27 @@ func emitMessageName(g *protogen.GeneratedFile, msg *protogen.Message) {
 	for _, nested := range msg.Messages {
 		emitMessageName(g, nested)
 	}
+}
+
+func emitEnumAPI(g *protogen.GeneratedFile, enum *protogen.Enum) {
+	name := enum.GoIdent.GoName
+	g.P()
+	g.P("// New", name, "GojaEnum returns the JavaScript enum export object for ", enum.Desc.FullName(), ".")
+	g.P("func New", name, "GojaEnum(vm *", g.QualifiedGoIdent(gojaRuntimeIdent), ") (*", g.QualifiedGoIdent(gojaObjectIdent), ", error) {")
+	g.P("\tif vm == nil {")
+	g.P("\t\treturn nil, ", g.QualifiedGoIdent(errorsNewIdent), "(\"protogoja: nil runtime\")")
+	g.P("\t}")
+	g.P("\tobj := vm.NewObject()")
+	g.P("\tif err := obj.Set(\"typeName\", ", quoted(string(enum.Desc.FullName())), "); err != nil {")
+	g.P("\t\treturn nil, err")
+	g.P("\t}")
+	for _, value := range enum.Values {
+		g.P("\tif err := obj.Set(", quoted(string(value.Desc.Name())), ", ", int32(value.Desc.Number()), "); err != nil {")
+		g.P("\t\treturn nil, err")
+		g.P("\t}")
+	}
+	g.P("\treturn obj, nil")
+	g.P("}")
 }
 
 func emitMessageAPI(g *protogen.GeneratedFile, msg *protogen.Message) {
@@ -185,6 +209,9 @@ func emitMessageAPI(g *protogen.GeneratedFile, msg *protogen.Message) {
 	}
 	g.P("\treturn nil")
 	g.P("}")
+	for _, enum := range msg.Enums {
+		emitEnumAPI(g, enum)
+	}
 	for _, nested := range msg.Messages {
 		emitMessageAPI(g, nested)
 	}
