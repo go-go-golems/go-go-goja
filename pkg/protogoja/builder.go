@@ -111,6 +111,17 @@ func (b *BuilderRef) Delete(vm *goja.Runtime, field protoreflect.FieldDescriptor
 	return nil
 }
 
+// Has reports whether field is present on the builder message. For explicit
+// presence fields, including proto2 scalars, proto3 optional scalars, messages,
+// and oneof alternatives, this reports protobuf presence. For implicit proto3
+// scalar fields, protobuf reflection reports presence when the value is non-zero.
+func (b *BuilderRef) Has(field protoreflect.FieldDescriptor) (bool, error) {
+	if err := b.validateField(field); err != nil {
+		return false, err
+	}
+	return b.msg.ProtoReflect().Has(field), nil
+}
+
 // Clear clears field from the builder message.
 func (b *BuilderRef) Clear(field protoreflect.FieldDescriptor) error {
 	if err := b.validateField(field); err != nil {

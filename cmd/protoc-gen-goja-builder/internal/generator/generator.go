@@ -149,6 +149,9 @@ func appendMessageDTS(lines *[]string, msg *protogen.Message) {
 		methodName := methodNameForField(field)
 		tsType := tsTypeForField(field)
 		*lines = append(*lines, "  "+methodName+"(value: "+tsType+"): this;")
+		if field.Desc.HasPresence() {
+			*lines = append(*lines, "  has"+exportName(methodName)+"(): boolean;")
+		}
 		*lines = append(*lines, "  clear"+exportName(methodName)+"(): this;")
 	}
 	*lines = append(*lines, "  build(): "+name+";")
@@ -443,7 +446,9 @@ func emitMessageAPI(g *protogen.GeneratedFile, msg *protogen.Message) {
 func emitFieldMethods(g *protogen.GeneratedFile, msg *protogen.Message, field *protogen.Field) {
 	fieldName := string(field.Desc.Name())
 	methodName := methodNameForField(field)
-	clearMethodName := "clear" + exportName(methodName)
+	exportedMethodName := exportName(methodName)
+	clearMethodName := "clear" + exportedMethodName
+	hasMethodName := "has" + exportedMethodName
 	g.P("\tif err := obj.Set(\"", methodName, "\", func(call ", g.QualifiedGoIdent(gojaFunctionCallIdent), ") ", g.QualifiedGoIdent(gojaValueIdent), " {")
 	g.P("\t\tfield := (&", g.QualifiedGoIdent(msg.GoIdent), "{}).ProtoReflect().Descriptor().Fields().ByName(", quoted(fieldName), ")")
 	g.P("\t\tif err := builder.Set(vm, field, call.Argument(0)); err != nil {")
@@ -453,6 +458,18 @@ func emitFieldMethods(g *protogen.GeneratedFile, msg *protogen.Message, field *p
 	g.P("\t}); err != nil {")
 	g.P("\t\treturn err")
 	g.P("\t}")
+	if field.Desc.HasPresence() {
+		g.P("\tif err := obj.Set(\"", hasMethodName, "\", func() bool {")
+		g.P("\t\tfield := (&", g.QualifiedGoIdent(msg.GoIdent), "{}).ProtoReflect().Descriptor().Fields().ByName(", quoted(fieldName), ")")
+		g.P("\t\thas, err := builder.Has(field)")
+		g.P("\t\tif err != nil {")
+		g.P("\t\t\tpanic(vm.NewGoError(err))")
+		g.P("\t\t}")
+		g.P("\t\treturn has")
+		g.P("\t}); err != nil {")
+		g.P("\t\treturn err")
+		g.P("\t}")
+	}
 	g.P("\tif err := obj.Set(\"", clearMethodName, "\", func() ", g.QualifiedGoIdent(gojaValueIdent), " {")
 	g.P("\t\tfield := (&", g.QualifiedGoIdent(msg.GoIdent), "{}).ProtoReflect().Descriptor().Fields().ByName(", quoted(fieldName), ")")
 	g.P("\t\tif err := builder.Clear(field); err != nil {")

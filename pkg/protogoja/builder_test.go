@@ -133,6 +133,44 @@ func TestBuilderRefMapSetFailureDoesNotClearExistingEntries(t *testing.T) {
 	require.Equal(t, map[string]int64{"existing": 7}, dynamicStringInt64Map(t, builder.Build(), field))
 }
 
+func TestBuilderRefOptionalPresenceHelpersHasAndClear(t *testing.T) {
+	vm := goja.New()
+	builder, optionalField, implicitField := newDynamicOptionalBuilder(t)
+
+	has, err := builder.Has(optionalField)
+	require.NoError(t, err)
+	require.False(t, has)
+
+	// Explicit presence is independent of the scalar zero value.
+	require.NoError(t, builder.Set(vm, optionalField, vm.ToValue("")))
+	has, err = builder.Has(optionalField)
+	require.NoError(t, err)
+	require.True(t, has)
+	require.True(t, builder.Build().ProtoReflect().Has(optionalField))
+
+	require.NoError(t, builder.Clear(optionalField))
+	has, err = builder.Has(optionalField)
+	require.NoError(t, err)
+	require.False(t, has)
+	require.False(t, builder.Build().ProtoReflect().Has(optionalField))
+
+	// Implicit proto3 scalar fields still follow protobuf reflection semantics:
+	// zero values are not present, non-zero values are present.
+	require.NoError(t, builder.Set(vm, implicitField, vm.ToValue("")))
+	has, err = builder.Has(implicitField)
+	require.NoError(t, err)
+	require.False(t, has)
+	require.NoError(t, builder.Set(vm, implicitField, vm.ToValue("value")))
+	has, err = builder.Has(implicitField)
+	require.NoError(t, err)
+	require.True(t, has)
+
+	otherBuilder, err := NewBuilder(&contract.ModuleManifest{})
+	require.NoError(t, err)
+	_, err = otherBuilder.Has(optionalField)
+	require.ErrorContains(t, err, "does not belong")
+}
+
 func TestBuilderRefOneofHelpersWhichAndClear(t *testing.T) {
 	vm := goja.New()
 	builder, oneof, textField, countField := newDynamicOneofBuilder(t)
@@ -289,6 +327,52 @@ func dynamicStringInt64Map(t *testing.T, msg proto.Message, field protoreflect.F
 		return true
 	})
 	return out
+}
+
+func newDynamicOptionalBuilder(t *testing.T) (*BuilderRef, protoreflect.FieldDescriptor, protoreflect.FieldDescriptor) {
+	t.Helper()
+	labelOptional := descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL
+	typeString := descriptorpb.FieldDescriptorProto_TYPE_STRING
+
+	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
+		Syntax:  proto.String("proto3"),
+		Name:    proto.String("protogoja_optional_test.proto"),
+		Package: proto.String("protogoja.test"),
+		MessageType: []*descriptorpb.DescriptorProto{
+			{
+				Name: proto.String("OptionalMessage"),
+				OneofDecl: []*descriptorpb.OneofDescriptorProto{
+					{Name: proto.String("_optional_name")},
+				},
+				Field: []*descriptorpb.FieldDescriptorProto{
+					{
+						Name:           proto.String("optional_name"),
+						JsonName:       proto.String("optionalName"),
+						Number:         proto.Int32(1),
+						Label:          &labelOptional,
+						Type:           &typeString,
+						OneofIndex:     proto.Int32(0),
+						Proto3Optional: proto.Bool(true),
+					},
+					{
+						Name:     proto.String("implicit_name"),
+						JsonName: proto.String("implicitName"),
+						Number:   proto.Int32(2),
+						Label:    &labelOptional,
+						Type:     &typeString,
+					},
+				},
+			},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	messageDesc := file.Messages().ByName("OptionalMessage")
+	builder, err := NewBuilder(dynamicpb.NewMessage(messageDesc))
+	require.NoError(t, err)
+	return builder,
+		messageDesc.Fields().ByName("optional_name"),
+		messageDesc.Fields().ByName("implicit_name")
 }
 
 func newDynamicOneofBuilder(t *testing.T) (*BuilderRef, protoreflect.OneofDescriptor, protoreflect.FieldDescriptor, protoreflect.FieldDescriptor) {
