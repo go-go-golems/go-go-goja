@@ -1551,7 +1551,7 @@ This makes the earlier workspace resolver useful in the current v1-era build pat
 
 **Inferred user intent:** Progress through the remaining hard-cutover implementation plan in focused, committed steps.
 
-**Commit (code):** pending — generated go.mod workspace-plan wiring staged after this diary update.
+**Commit (code):** 5b4bfd1429fca081642afe0364e9fd0fef232e93 — "xgoja: render generated go.mod from workspace plan"
 
 ### What I did
 
