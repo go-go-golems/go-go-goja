@@ -94,3 +94,13 @@ Consolidate Glazed help into main auth guide plus examples/smoke page (commit 06
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/29-express-auth-user-guide.md — Host package overview
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/31-express-auth-examples.md — Examples help page
 
+
+## 2026-06-12
+
+PR review fix: enforce .mfaFresh route requirements in sessionauth.Manager (commit b99f25f)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/sessionauth/sessionauth.go — MFA freshness enforcement
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/sessionauth/sessionauth_test.go — MFA freshness tests
+

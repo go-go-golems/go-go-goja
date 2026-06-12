@@ -36,7 +36,9 @@ RelatedFiles:
     - Path: examples/xgoja/17-express-keycloak-auth-host/scripts/smoke.sh
       Note: Automated Keycloak smoke lifecycle wrapper (commit 4f966f3)
     - Path: pkg/doc/29-express-auth-user-guide.md
-      Note: Main planned auth guide with consolidated host package table (commit 06e36da)
+      Note: |-
+        Main planned auth guide with consolidated host package table (commit 06e36da)
+        Documents .mfaFresh and sessionauth enforcement (commit b99f25f)
     - Path: pkg/doc/31-express-auth-examples.md
       Note: Consolidated dev-auth and Keycloak examples/smoke help page (commit 06e36da)
     - Path: pkg/gojahttp/auth/appauth/appauth.go
@@ -60,9 +62,13 @@ RelatedFiles:
     - Path: pkg/gojahttp/auth/keycloakauth/keycloakauth_test.go
       Note: Fake OIDC issuer/JWKS coverage for success and negative callback cases (commit f297487)
     - Path: pkg/gojahttp/auth/sessionauth/sessionauth.go
-      Note: Reusable session-cookie Authenticator and CSRFProtector package (commit d939b95)
+      Note: |-
+        Reusable session-cookie Authenticator and CSRFProtector package (commit d939b95)
+        Enforces SecuritySpec.MFAFreshWithin against Session.MFAAt (commit b99f25f)
     - Path: pkg/gojahttp/auth/sessionauth/sessionauth_test.go
-      Note: Sessionauth behavior tests for cookies
+      Note: |-
+        Sessionauth behavior tests for cookies
+        Regression tests for missing
     - Path: ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/design-doc/01-host-side-user-auth-system-implementation-plan.md
       Note: Primary design plan for production and dev/demo host auth packages.
     - Path: ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/sources/01-keycloak-oidc-session-authz-host-notes.md
@@ -74,6 +80,7 @@ LastUpdated: 2026-06-12T17:00:00-04:00
 WhatFor: Use this to resume or review the host-side auth system planning ticket.
 WhenToUse: Read before implementing dev/demo auth, session auth, Keycloak/OIDC, app authorization, audit, or capabilities.
 ---
+
 
 
 
@@ -1136,3 +1143,83 @@ This keeps the CLI help discoverable without turning every internal auth package
   migrate-express-apps-to-planned-auth
   express-auth-examples
   ```
+
+
+## Step 10: Enforce session MFA freshness from route security specs
+
+A PR review caught that `sessionauth.Manager.Authenticate` accepted any otherwise-valid app session even when the planned route requested fresh MFA with `express.user().mfaFresh(...)`. I fixed the authenticator to consume `SecuritySpec.MFAFreshWithin` and reject sessions that either lack `Session.MFAAt` or have an MFA timestamp outside the required freshness window.
+
+This closes an important enforcement gap: the JavaScript builder was correctly carrying MFA intent into the route plan, but the reusable session authenticator was not honoring that intent at runtime.
+
+### Prompt Context
+
+**User prompt (verbatim):** "https://github.com/go-go-golems/go-go-goja/pull/74\n\n\n\nWhen a route is declared with express.user().mfaFresh(...), the duration is carried in SecuritySpec.MFAFreshWithin, but this authenticator discards the spec and accepts any otherwise-valid session without checking Session.MFAAt. In any host that uses sessionauth.Manager for routes requiring fresh MFA, stale or non-MFA sessions will still be allowed through; reject nil/stale MFAAt before returning the actor.\n\nAddress the code review\n\nsessionasuth.go:198"
+
+**Assistant interpretation:** Fix the PR review finding in `sessionauth.Manager.Authenticate` so route-level MFA freshness is enforced for session-backed authentication.
+
+**Inferred user intent:** Close a security review issue before merging PR #74.
+
+**Commit (code):** b99f25f9410b32af94b42ed961fce199d473da2c — "Enforce MFA freshness in session auth"
+
+### What I did
+- Changed `sessionauth.Manager.Authenticate` to accept and use the `gojahttp.SecuritySpec` argument.
+- Added `validateMFAFreshness` to reject missing or stale `Session.MFAAt` when `SecuritySpec.MFAFreshWithin > 0`.
+- Added `ErrMFARequired` and mapped it to `gojahttp.ErrUnauthenticated` through `authError`.
+- Added `WithMFAAt` for tests and session creation helpers.
+- Added `TestAuthenticateRequiresFreshMFA` covering:
+  - missing MFA timestamp,
+  - stale MFA timestamp,
+  - fresh MFA timestamp.
+- Updated `express-auth-user-guide` to document `.mfaFresh(...)` and `sessionauth.Manager` enforcement.
+
+### Why
+- Route declarations must fail closed when they ask for stronger authentication than a normal session.
+- Without this check, hosts using `sessionauth.Manager` could accidentally allow stale/non-MFA sessions onto sensitive routes.
+
+### What worked
+- Targeted tests passed:
+  ```bash
+  go test ./pkg/gojahttp/auth/sessionauth ./pkg/gojahttp ./modules/express -count=1
+  ```
+- The updated Glazed help page rendered and includes the MFA freshness documentation:
+  ```bash
+  go run ./cmd/goja-repl help express-auth-user-guide
+  ```
+- Pre-commit lint, `go generate ./...`, and `go test ./...` passed.
+
+### What didn't work
+- No command failed while implementing this fix.
+
+### What I learned
+- The staged builder and route plan already preserved MFA freshness correctly; the bug was isolated to the reusable session authenticator ignoring the spec argument.
+- Returning `gojahttp.ErrUnauthenticated` is the right route-envelope behavior for a session that does not meet the route's authentication freshness requirement.
+
+### What was tricky to build
+- The subtle part is treating MFA freshness as authentication state, not authorization policy. The authorizer should not need to know whether MFA was recent; the authenticator should only return an actor once the route's required auth conditions are satisfied.
+- The check must happen before actor projection and before the session idle timeout is touched, so stale/non-MFA sessions do not look active for a route they failed to enter.
+
+### What warrants a second pair of eyes
+- Confirm that missing/stale MFA should produce 401 via `ErrUnauthenticated`, not 403.
+- Review whether future clock-skew handling is needed for MFA timestamps slightly in the future.
+
+### What should be done in the future
+- Add host-level MFA challenge examples if the library grows concrete MFA initiation/verification handlers.
+- Consider adding structured audit reasons for MFA-freshness denial if operators need to distinguish missing MFA from missing session.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/sessionauth/sessionauth.go`, especially `Authenticate` and `validateMFAFreshness`.
+- Review `pkg/gojahttp/auth/sessionauth/sessionauth_test.go` for the missing/stale/fresh MFA cases.
+- Validate with:
+  ```bash
+  go test ./pkg/gojahttp/auth/sessionauth -count=1
+  ```
+
+### Technical details
+- A route such as:
+  ```javascript
+  app.post("/billing/payment-methods")
+    .auth(express.user().required().mfaFresh("10m"))
+    .allow("billing.payment_method.update")
+    .handle(handler)
+  ```
+  now requires `Session.MFAAt` to be present and within ten minutes of the authenticator's current clock.
