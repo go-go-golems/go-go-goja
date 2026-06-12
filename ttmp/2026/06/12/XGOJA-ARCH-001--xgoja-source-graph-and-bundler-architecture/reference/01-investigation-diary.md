@@ -39,9 +39,13 @@ RelatedFiles:
     - Path: cmd/xgoja/internal/buildspec/build_spec.go
       Note: Diary Step 1 build-time schema evidence
     - Path: cmd/xgoja/internal/generate/generate.go
-      Note: generate.Options carries GoModulePlan for Step 17
+      Note: |-
+        generate.Options carries GoModulePlan for Step 17
+        Legacy buildspec generator APIs removed
     - Path: cmd/xgoja/internal/generate/generate_test.go
-      Note: Workspace go.mod rendering regression for Step 17
+      Note: |-
+        Workspace go.mod rendering regression for Step 17
+        Plan-native generator tests replacing buildspec fixtures
     - Path: cmd/xgoja/internal/generate/gomod.go
       Note: |-
         Diary Step 2 workspace resolution evidence and integration target
@@ -141,6 +145,7 @@ LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -2619,3 +2624,82 @@ This is not the same as deleting the old v1 buildspec package from the repositor
 - `RenderGoModPlan` still honors `Options.GoModules`, `XGojaModuleVersion`, and `XGojaReplace`.
 - The old `BuildSpecFromPlan` symbol is gone; `rg "BuildSpecFromPlan" cmd/xgoja` returns no production references.
 - V1 loading remains in `cmd/xgoja/internal/buildspec` and `cmd/xgoja/internal/specv2/migrate_v1.go` for `xgoja migrate-spec`.
+
+
+## Step 29: Delete legacy buildspec generator APIs
+
+I deleted the remaining buildspec-oriented APIs from `cmd/xgoja/internal/generate`. The generator package no longer exports old functions such as `WriteAll`, `RenderMain`, `RenderGoMod`, `RenderEmbeddedSpec`, or `TemplateDataJSON`; its production surface is now the v2 plan-based API.
+
+I also replaced the large buildspec-based generator test suite with focused v2 plan fixtures. The old migration DTO package remains because `xgoja migrate-spec` still needs to parse v1 specs, but normal generation code and generator tests no longer import it.
+
+### Prompt Context
+
+**User prompt (verbatim):** "delete"
+
+**Assistant interpretation:** Delete the legacy buildspec-oriented generator API layer rather than merely bypassing it from normal command paths.
+
+**Inferred user intent:** Make the v2 cutover structurally obvious by removing obsolete generator APIs and tests that could invite future use of buildspec-shaped generation.
+
+**Commit (code):** 9a916959f73f6bcc07b1b240fae593f9eed1778e — "xgoja: delete legacy generator buildspec APIs"
+
+### What I did
+
+- Removed legacy buildspec-based generator functions from `cmd/xgoja/internal/generate/generate.go`.
+- Removed legacy buildspec-based render/runtime-spec helpers from `cmd/xgoja/internal/generate/main.go` and `templates.go`.
+- Removed legacy `RenderGoMod` from `cmd/xgoja/internal/generate/gomod.go`; `RenderGoModPlan` is now the generator path.
+- Replaced the old buildspec-heavy `generate_test.go` with focused `plan.Plan` fixture tests for:
+  - generated `go.mod` rendering,
+  - workspace module replacements,
+  - embedded runtime JSON shape,
+  - embedded source copying,
+  - template-data JSON.
+- Updated stale command/root copy that still described staged buildspec-era behavior.
+
+### Why
+
+- Keeping unused legacy generator APIs made the cutover ambiguous: even if commands no longer called them, future code could accidentally reintroduce buildspec-shaped generation.
+- Removing these APIs makes v2 plans the only generator-facing production model.
+
+### What worked
+
+- `rg "buildspec|BuildSpec" cmd/xgoja/internal/generate -g'*.go'` now returns no matches.
+- `go test ./cmd/xgoja/internal/generate ./cmd/xgoja ./cmd/xgoja/internal/specv2 -count=1` passed before commit.
+- Full pre-commit passed, including lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- The original generator test file had many buildspec fixtures and generated-binary smoke tests. I did not mechanically migrate every individual old test; instead I replaced it with a smaller plan-native suite plus the existing command/example smoke coverage.
+
+### What I learned
+
+- The only remaining `buildspec` references under `cmd/xgoja` are now migration-oriented (`cmd_migrate_spec`, `internal/specv2/migrate_v1.go`, migration tests) plus the legacy schema package itself.
+- Generator package production code is now cleanly separated from v1 parsing.
+
+### What was tricky to build
+
+- The test rewrite had to preserve coverage for subtle behavior that was previously hidden in broad generated-binary tests: deterministic `go.mod`, embedded roots, runtime-only JSON, and asset `node_modules` skipping.
+- I kept the change focused on generator APIs; deleting the v1 schema package itself would break `xgoja migrate-spec`, which is still an explicit retention requirement.
+
+### What warrants a second pair of eyes
+
+- Review whether the reduced generator test suite has enough coverage for generated binary behavior, given that many old buildspec fixture tests were removed.
+- Review whether remaining docs/help pages should be renamed from buildspec-era terminology to v2 spec terminology in a separate docs cleanup.
+
+### What should be done in the future
+
+- Move `cmd/xgoja/internal/buildspec` under a migration-specific path/name so it is obvious that it only supports `xgoja migrate-spec`.
+- Update or archive buildspec-era help pages and tutorials.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/generate/generate.go`, `main.go`, `templates.go`, and `gomod.go`; verify no production buildspec APIs remain.
+- Review `cmd/xgoja/internal/generate/generate_test.go` for the new plan-native coverage.
+- Validate with:
+  - `rg "buildspec|BuildSpec" cmd/xgoja/internal/generate -g'*.go'`
+  - `go test ./cmd/xgoja/internal/generate ./cmd/xgoja ./cmd/xgoja/internal/specv2 -count=1`
+  - full pre-commit.
+
+### Technical details
+
+- `Options`, `CleanGenerated`, `CleanGeneratedFile`, and low-level copy helpers remain because they are generator utilities used by plan-based code.
+- `cmd/xgoja/internal/buildspec` remains only for migration loading/conversion and its own tests.

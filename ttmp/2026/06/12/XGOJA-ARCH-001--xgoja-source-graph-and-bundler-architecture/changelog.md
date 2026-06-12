@@ -313,3 +313,14 @@ Step 28: removed the v2 generator path's buildspec adapter; build/generate/gen-d
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/plan.go — Plan-native copy/write helpers with BuildSpecFromPlan removed
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/v2_plan_helpers.go — Command-side v2 artifact target helper
 
+
+## 2026-06-12
+
+Step 29: deleted legacy buildspec-oriented generator APIs and replaced generator tests with v2 plan fixtures (commit 9a91695)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/generate.go — Legacy buildspec write/template APIs removed
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Generator tests now use v2 plan fixtures
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/generate/main.go — Legacy buildspec render/runtime-spec helpers removed
+
