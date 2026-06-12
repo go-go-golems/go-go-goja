@@ -12,6 +12,10 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: and go
+      Note: generate examples (commit 7978c2f)
+    - Path: go-go-goja/cmd/protoc-gen-goja-builder/README.md
+      Note: Phase 7 raw require
     - Path: go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go
       Note: |-
         Phase 4 companion Go file generator (commit b3deaf4)
@@ -89,6 +93,7 @@ LastUpdated: 2026-06-12T16:15:00-04:00
 WhatFor: Continuation context for GOJA-PB-001 implementation and review.
 WhenToUse: Read before implementing protoc-gen-goja-builder or revising the builder generator design.
 ---
+
 
 
 
@@ -2391,4 +2396,199 @@ Task update command:
 
 ```bash
 docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 42,46
+```
+
+## Step 21: Document integration workflows and run full tests
+
+This step completed the Phase 7 integration-example/documentation slice. The generated host integration helpers already existed, but the ticket still needed examples showing how to wire them into raw `require.Registry`, engine runtime factories, xgoja providers, consuming native modules, and normal protobuf generation workflows. The new `cmd/protoc-gen-goja-builder/README.md` is the operator-facing bridge from generated code to real host integration.
+
+The same step also ran a full repository `go test ./... -count=1` after the recent runtime/generator changes. This validates that the protobuf builder work still composes with the larger `go-go-goja` repository, including xgoja, hashiplugin, jsdoc, modules, and older ticket scripts.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 17)
+
+**Assistant interpretation:** Continue autonomously through remaining ticket work, including docs and validation, without waiting for another continue prompt.
+
+**Inferred user intent:** Drive the ticket toward final completion with implementation, examples, tests, and documentation all kept current.
+
+**Commit (code/docs):** `7978c2f7f0f9c4c50cf02947516653f1c699f596` — "Document goja protobuf builder integration workflows"
+
+### What I did
+
+- Added `cmd/protoc-gen-goja-builder/README.md`.
+- Documented generated helper functions and the generated JavaScript builder surface.
+- Added raw `require.Registry` integration example.
+- Added `engine.NativeModuleRegistrar` integration example using `engine.NewRuntimeFactoryBuilder().WithModules(...)`.
+- Added xgoja provider registration example using `providerapi.ProviderRegistry` and generated TypeScript descriptors.
+- Added a consuming-module demonstration using `protogoja.MessageFromValue` to avoid JSON/protojson conversion.
+- Added prototype-token consumption example using `protogoja.MessagePrototypeFromValue`.
+- Added `protoc`, Buf, and `go:generate` workflows.
+- Documented runtime input rules for ordinary messages, WKT JSON-shaped values, timestamps, durations, wrappers, field masks, and 64-bit integer safety.
+- Ran validation:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+go test ./cmd/protoc-gen-goja-builder ./pkg/protogoja -count=1
+go test ./... -count=1
+```
+
+- Checked ticket tasks 48, 49, 50, 51, 52, and 53.
+
+### Why
+
+- Generated helpers are only useful if host authors can see how to install them in the supported runtime/module systems.
+- The consuming-module example is the core architectural payoff: Go modules can receive generated protobuf objects and recover concrete messages directly, avoiding JSON/protojson conversion.
+- Full repository validation is important because this generator touches shared module, DTS, and runtime conventions.
+
+### What worked
+
+- Focused validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	4.038s
+ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	0.020s
+```
+
+- Full repository validation passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/cmd/protoc-gen-goja-builder	8.309s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	31.732s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	71.938s
+ok  	github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host	25.197s
+ok  	github.com/go-go-golems/go-go-goja/pkg/protogoja	0.038s
+```
+
+### What didn't work
+
+- No validation failure occurred in this step.
+- The README examples are documentation snippets, not standalone compiled examples. They use real APIs checked by repository search and existing tests, but a future example package would provide stronger compile-time coverage.
+
+### What I learned
+
+- The existing engine module API maps cleanly to generated loaders via `engine.NativeModuleRegistrar`.
+- The provider API can carry generated DTS directly through the generated `TypeScriptModule` helper, which keeps xgoja editor/agent type information aligned with generated runtime modules.
+
+### What was tricky to build
+
+- The README needed to cover several host styles without over-promising package-level generated helpers. The generated helpers are file-scoped by design, so examples use the concrete file-scoped helper names.
+- The consuming-module example had to emphasize the no-JSON path while still showing type validation and error handling.
+
+### What warrants a second pair of eyes
+
+- Review README snippets for preferred package naming and whether final public helper names should remain file-scoped or be wrapped by package-level aggregators.
+- Review whether the provider registration example should include host-service setup for a more realistic xgoja deployment.
+
+### What should be done in the future
+
+- Add a small compiled example package that imports a generated companion file and registers it in raw require, engine, and provider paths.
+- Add a generated fixture with WKT, map, and oneof fields to exercise every documented helper at generated-runtime level.
+
+### Code review instructions
+
+- Review `cmd/protoc-gen-goja-builder/README.md` for integration accuracy and API naming.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+go test ./... -count=1
+```
+
+### Technical details
+
+Task update command:
+
+```bash
+docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 48,49,50,51,52,53
+```
+
+## Step 22: Upload implementation bundle and close ticket docs
+
+This step packaged the final implementation documentation and uploaded it to reMarkable. The bundle includes the design document, full investigation diary, task list, changelog, and the new `protoc-gen-goja-builder` README with integration workflows.
+
+The ticket is now fully validated from the repository side: focused tests passed, full `go test ./... -count=1` passed, `docmgr doctor` passed, and the updated documentation bundle is available on reMarkable.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 17)
+
+**Assistant interpretation:** Finish the ticket as far as possible, including final documentation delivery.
+
+**Inferred user intent:** Leave the project in a reviewed, committed, and handoff-ready state.
+
+**Commit (docs):** this final docs commit — "Diary: close protobuf builder ticket"
+
+### What I did
+
+- Uploaded an updated implementation bundle to reMarkable:
+
+```bash
+remarquee upload bundle \
+  ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/design-doc/01-generated-goja-protobuf-fluent-builders-design.md \
+  ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/reference/01-investigation-diary.md \
+  ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/tasks.md \
+  ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/changelog.md \
+  cmd/protoc-gen-goja-builder/README.md \
+  --name "GOJA PB 001 Implementation Bundle" \
+  --remote-dir "/ai/2026/06/12/GOJA-PB-001" \
+  --toc-depth 2 \
+  --non-interactive 2>&1
+```
+
+- Recorded the successful upload:
+
+```text
+OK: uploaded GOJA PB 001 Implementation Bundle.pdf -> /ai/2026/06/12/GOJA-PB-001
+```
+
+- Checked task 56.
+
+### Why
+
+- The ticket explicitly included a reMarkable bundle upload task.
+- The user asked to continue autonomously and do as much machine-executable work as possible, so final documentation delivery was in scope.
+
+### What worked
+
+- The upload succeeded in one command without manual auth recovery.
+- The uploaded bundle path is `/ai/2026/06/12/GOJA-PB-001`.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The compact upload workflow is sufficient for final ticket delivery; no separate status or cloud listing was needed after the successful `OK: uploaded` response.
+
+### What was tricky to build
+
+- N/A
+
+### What warrants a second pair of eyes
+
+- Review the final README and design bundle for public API wording before publishing externally.
+
+### What should be done in the future
+
+- Add compiled examples for map/oneof/WKT generated fixtures if the generator becomes a public package.
+
+### Code review instructions
+
+- Start with the final commit list in git history and the uploaded bundle contents.
+- Validate with:
+
+```bash
+cd /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja
+go test ./... -count=1
+docmgr --root ttmp doctor --ticket GOJA-PB-001 --stale-after 30
+```
+
+### Technical details
+
+Task update command:
+
+```bash
+docmgr --root go-go-goja/ttmp task check --ticket GOJA-PB-001 --id 56
 ```

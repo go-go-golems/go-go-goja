@@ -242,3 +242,37 @@ Completed Phase 6 DTS/API surface: generated repeated add<Field>(), map put/dele
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/internal/generator/generator.go — Generated repeated
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/main_test.go — Validated generated repeated add<Field>() runtime and DTS output (commit 7ef08bd)
 
+
+## 2026-06-12
+
+Completed Phase 7 examples and docs: added protoc-gen-goja-builder README with raw require.Registry, engine.NativeModuleRegistrar, xgoja provider, consuming-module MessageFromValue, protoc, Buf, and go:generate workflows; full go test ./... -count=1 passed (commit 7978c2f).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/README.md — Phase 7 integration examples
+
+
+## 2026-06-12
+
+Validated ticket documentation after Phase 7 examples and full repository tests; docmgr doctor passed cleanly and final diary/changelog entries were updated.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/changelog.md — Final Phase 7 and validation changelog entries
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/reference/01-investigation-diary.md — Final Phase 7 and validation diary entries
+
+
+## 2026-06-12
+
+Uploaded updated GOJA-PB-001 implementation bundle to reMarkable at /ai/2026/06/12/GOJA-PB-001 as 'GOJA PB 001 Implementation Bundle.pdf'.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/protoc-gen-goja-builder/README.md — Included in uploaded implementation bundle
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/12/GOJA-PB-001--protobuf-compiler-plugin-for-generated-goja-fluent-builders/reference/01-investigation-diary.md — Included in uploaded implementation bundle
+
+
+## 2026-06-12
+
+Ticket closed
+

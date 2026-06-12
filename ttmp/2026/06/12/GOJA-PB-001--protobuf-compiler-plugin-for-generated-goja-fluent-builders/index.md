@@ -1,7 +1,7 @@
 ---
 Title: Protobuf compiler plugin for generated Goja fluent builders
 Ticket: GOJA-PB-001
-Status: active
+Status: complete
 Topics:
     - goja
     - protobuf
@@ -14,10 +14,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-12T15:19:28.4027137-04:00
+LastUpdated: 2026-06-12T17:02:22.918486268-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Protobuf compiler plugin for generated Goja fluent builders
 

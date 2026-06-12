@@ -70,16 +70,16 @@
 ## Phase 7 — Host integration helpers and examples
 
 - [x] Generate or provide `NewGojaLoader`, `RegisterGojaModule`, `GojaModule`, and `RegisterMessageTypes` helpers
-- [ ] Add examples for raw `require.Registry`, `engine.NativeModuleRegistrar`, and optional xgoja provider integration
-- [ ] Add a consuming-module demonstration showing `protogoja.MessageFromValue` avoids JSON/protojson conversion
-- [ ] Add docs for protoc, Buf, and `go:generate` workflows
-- [ ] Run relevant package tests and `go test ./... -count=1` if feasible
-- [ ] Commit Phase 7 integration helpers and examples
+- [x] Add examples for raw `require.Registry`, `engine.NativeModuleRegistrar`, and optional xgoja provider integration
+- [x] Add a consuming-module demonstration showing `protogoja.MessageFromValue` avoids JSON/protojson conversion
+- [x] Add docs for protoc, Buf, and `go:generate` workflows
+- [x] Run relevant package tests and `go test ./... -count=1` if feasible
+- [x] Commit Phase 7 integration helpers and examples
 
 ## Phase 8 — Final validation and delivery
 
-- [ ] Run full `go test ./... -count=1` from `go-go-goja`
-- [ ] Run `docmgr --root go-go-goja/ttmp doctor --ticket GOJA-PB-001 --stale-after 30`
-- [ ] Update diary and changelog with final commands, failures, fixes, and commit hashes
-- [ ] Upload updated GOJA-PB-001 implementation bundle to reMarkable
-- [ ] Commit final docs update
+- [x] Run full `go test ./... -count=1` from `go-go-goja`
+- [x] Run `docmgr --root go-go-goja/ttmp doctor --ticket GOJA-PB-001 --stale-after 30`
+- [x] Update diary and changelog with final commands, failures, fixes, and commit hashes
+- [x] Upload updated GOJA-PB-001 implementation bundle to reMarkable
+- [x] Commit final docs update
