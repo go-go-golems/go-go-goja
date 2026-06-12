@@ -32,8 +32,8 @@ func TestSortedEnvAndCommandString(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("sortedEnv = %#v, want %#v", got, want)
 	}
-	cmd := commandString(env, "go", []string{"build", "."})
-	if !strings.HasPrefix(cmd, "A=b CGO_LDFLAGS=-L/usr/local/lib -lfaiss go build .") {
+	cmd := commandString(env, "go", []string{"build", "-buildvcs=false", "."})
+	if !strings.HasPrefix(cmd, "A=b CGO_LDFLAGS=-L/usr/local/lib -lfaiss go build -buildvcs=false .") {
 		t.Fatalf("commandString = %q", cmd)
 	}
 }

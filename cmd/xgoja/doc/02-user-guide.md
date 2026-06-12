@@ -218,7 +218,7 @@ export function health() {
 }
 ```
 
-See `examples/xgoja/15-typescript-jsverbs` for a runnable example.
+See `examples/xgoja/16-typescript-jsverbs` for a runnable example.
 
 ## Migration
 

@@ -44,18 +44,18 @@ preserves `require("express")` for the Go-backed provider module at runtime.
 Run the smoke test:
 
 ```bash
-make -C examples/xgoja/15-typescript-jsverbs smoke
+make -C examples/xgoja/16-typescript-jsverbs smoke
 ```
 
 Manual run:
 
 ```bash
-make -C examples/xgoja/15-typescript-jsverbs build
-./examples/xgoja/15-typescript-jsverbs/dist/typescript-jsverbs \
+make -C examples/xgoja/16-typescript-jsverbs build
+./examples/xgoja/16-typescript-jsverbs/dist/typescript-jsverbs \
   serve sites demo \
   --http-listen 127.0.0.1:18789 \
   --hot-reload \
-  --hot-reload-watch-root examples/xgoja/15-typescript-jsverbs/verbs \
+  --hot-reload-watch-root examples/xgoja/16-typescript-jsverbs/verbs \
   --hot-reload-smoke-path /healthz
 ```
 
@@ -68,7 +68,7 @@ Open:
 Generate editor declarations for selected xgoja modules:
 
 ```bash
-xgoja gen-dts -f examples/xgoja/15-typescript-jsverbs/xgoja.yaml \
-  --out examples/xgoja/15-typescript-jsverbs/js/types/xgoja-modules.d.ts \
+xgoja gen-dts -f examples/xgoja/16-typescript-jsverbs/xgoja.yaml \
+  --out examples/xgoja/16-typescript-jsverbs/js/types/xgoja-modules.d.ts \
   --strict
 ```

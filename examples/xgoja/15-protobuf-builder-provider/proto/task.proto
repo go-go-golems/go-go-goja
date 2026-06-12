@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package examples.xgoja.protobuf.v1;
+
+option go_package = "github.com/go-go-golems/go-go-goja/examples/xgoja/15-protobuf-builder-provider/proto;taskpb";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+enum TaskPriority {
+  TASK_PRIORITY_UNSPECIFIED = 0;
+  TASK_PRIORITY_LOW = 1;
+  TASK_PRIORITY_HIGH = 2;
+}
+
+message Task {
+  string id = 1;
+  string title = 2;
+  repeated string tags = 3;
+  map<string, string> labels = 4;
+  TaskPriority priority = 5;
+  google.protobuf.Timestamp due_at = 6;
+  google.protobuf.Struct metadata = 7;
+}
+
+message TaskEnvelope {
+  Task task = 1;
+  string source = 2;
+}

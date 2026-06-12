@@ -26,7 +26,8 @@ func TestMigrateV1ExamplesToValidV2(t *testing.T) {
 		"12-geppetto-host-services",
 		"13-http-serve-jsverbs",
 		"14-generated-runtime-package",
-		"15-typescript-jsverbs",
+		"15-protobuf-builder-provider",
+		"16-typescript-jsverbs",
 	}
 
 	for _, example := range examples {
