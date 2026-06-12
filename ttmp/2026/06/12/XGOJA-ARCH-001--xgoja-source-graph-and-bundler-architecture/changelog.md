@@ -252,3 +252,13 @@ Step 22: migrated examples/xgoja/15-typescript-jsverbs to native xgoja/v2 and va
 
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/examples/xgoja/15-typescript-jsverbs/xgoja.yaml — First repository example migrated to v2
 
+
+## 2026-06-12
+
+Step 23: added xgoja/v2 reference doc and migrated HTTP serve jsverbs example to native v2 (commits 12ca66e, acbb5f9)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/17-xgoja-v2-reference.md — New v2 reference
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/examples/xgoja/13-http-serve-jsverbs/xgoja.yaml — Native v2 HTTP serve jsverbs example
+

@@ -24,6 +24,8 @@ RelatedFiles:
       Note: |-
         gen-dts sidecar passes workspace plan for Step 17
         V2 gen-dts planner bridge for Step 21
+    - Path: cmd/xgoja/doc/17-xgoja-v2-reference.md
+      Note: Native xgoja/v2 reference doc added in commit 12ca66e
     - Path: cmd/xgoja/empty_fs.go
       Note: Synthetic provider source filesystem for Step 19
     - Path: cmd/xgoja/internal/buildspec/build_spec.go
@@ -54,6 +56,10 @@ RelatedFiles:
       Note: V2 build bridge for Step 20
     - Path: cmd/xgoja/workspace_plan.go
       Note: Legacy buildspec-to-workspace planner bridge for Step 17
+    - Path: examples/xgoja/13-http-serve-jsverbs/README.md
+      Note: HTTP serve jsverbs README updated for v2 provider/runtime/source command model
+    - Path: examples/xgoja/13-http-serve-jsverbs/xgoja.yaml
+      Note: HTTP serve jsverbs example migrated to v2 in commit acbb5f9
     - Path: examples/xgoja/15-typescript-jsverbs/README.md
       Note: Example README updated to explain v2 source/runtime module model in commit f47d196
     - Path: examples/xgoja/15-typescript-jsverbs/xgoja.yaml
@@ -109,6 +115,7 @@ LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -2040,3 +2047,84 @@ The example now declares the HTTP provider under `providers`, selects the `expre
 - The TypeScript source set uses `kind: jsverbs`, `language: typescript`, and `compile.bundle: true`.
 - The provider command surface uses `type: provider.command-set`, `provider: go-go-goja-http`, `name: serve`, `mount: serve`, and `sources: [local-sites]`.
 - The focused validation command and the full pre-commit hook both passed after the test fixture adjustments.
+
+
+## Step 23: Add the v2 reference and migrate HTTP serve jsverbs
+
+I added the first dedicated `xgoja/v2` reference page under the xgoja embedded help docs, then migrated the HTTP serve jsverbs example to native v2. This pairs user-facing schema documentation with another real example that exercises provider command sets and runtime module alias planning.
+
+The HTTP serve example now uses the same v2 shape as the TypeScript example: provider selection lives in `providers`, the Go-backed `express` module lives in `runtime.modules`, the verb directory is a `sources` entry, and both the builtin `verbs` command and provider-backed `serve` command reference that source set explicitly.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add v2 reference doc. then migrate the verbs."
+
+**Assistant interpretation:** Add a user-facing native v2 configuration reference, then continue the example migration by moving the HTTP serve jsverbs example to v2.
+
+**Inferred user intent:** Make v2 understandable from CLI help/docs and start replacing v1 jsverbs examples with native planner-backed specs.
+
+**Commit (code):** 12ca66e561cf593e17924d07dc573cc59f80afac — "docs: add xgoja v2 reference"
+
+**Commit (code):** acbb5f9b5c008e43f1b2f1308cc6eab2798914c4 — "xgoja: migrate HTTP serve jsverbs example to v2"
+
+### What I did
+
+- Added `cmd/xgoja/doc/17-xgoja-v2-reference.md`.
+- Documented the v2 top-level fields, application identity, Go module settings, workspace resolution, providers, runtime modules, source kinds/origins, TypeScript compile intent, command surfaces, artifacts, transition limits, and migration policy.
+- Rewrote `examples/xgoja/13-http-serve-jsverbs/xgoja.yaml` as a native `schema: xgoja/v2` spec.
+- Updated `examples/xgoja/13-http-serve-jsverbs/README.md` with a v2 snippet and explanation of provider/runtime/source/command relationships.
+- Checked task IDs 87 and 92.
+
+### Why
+
+- Users need a reference for writing v2 specs directly, not only a migration tutorial from v1.
+- The HTTP serve jsverbs example is the next important jsverbs migration target because it validates provider command-set mounting over a source set.
+- Moving examples to v2 reduces reliance on legacy buildspec examples before normal v1 execution paths are removed.
+
+### What worked
+
+- `go test ./cmd/xgoja/doc -count=1` passed for the new embedded doc package.
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/specv2 ./cmd/xgoja/doc -count=1` passed after migrating the HTTP example.
+- `make -C examples/xgoja/13-http-serve-jsverbs smoke` passed; this ran v2 doctor, v2 build through the planner bridge, and the HTTP serve smoke test.
+- Pre-commit hooks for both commits completed; the doc-only and markdown/example commits skipped Go lint/test because no matching Go files were staged.
+
+### What didn't work
+
+- No command failed in this step.
+- One behavior remains intentionally transitional: the HTTP serve example's old v1 `embed: true` source-copying behavior is not represented directly in the v2 source entry yet. The migrated example runs through the current v2 build bridge with a disk source set. Task 83 remains the place to make embedded source copying consume source/artifact plans directly.
+
+### What I learned
+
+- The v2 reference needs to be explicit about transition limits because users can now write valid v2 specs that still route through a bridge for build/gen-dts.
+- The provider command-set model reads more clearly in v2 than v1 because the `serve` command explicitly names the provider, command-set name, mount, and source dependencies in one command entry.
+
+### What was tricky to build
+
+- The v2 reference has to describe implemented behavior without overselling planned behavior. For example, it documents `type: dts` artifacts but also states that `gen-dts` still requires `--out` for now.
+- The HTTP serve example previously had `embed: true`, but the v2 schema intentionally moved embedding into source/artifact planning. Since direct plan-backed embedded source copying is not implemented yet, the migration keeps the example focused on the planner-backed source set and command path that are already validated.
+
+### What warrants a second pair of eyes
+
+- Review the v2 reference for any fields that are documented more strongly than current implementation supports.
+- Review whether the HTTP serve example should regain embedded source behavior as soon as task 83 is implemented.
+- Review whether `workspace.mode: auto` should remain in all migrated examples or be omitted when defaults suffice.
+
+### What should be done in the future
+
+- Implement task 83 so embedded source copying consumes source/artifact plans directly.
+- Migrate the generated runtime package example next.
+- Update `examples/xgoja/README.md` after more examples are v2.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/doc/17-xgoja-v2-reference.md` and check that documented fields match `cmd/xgoja/internal/specv2/types.go` and current command behavior.
+- Then review `examples/xgoja/13-http-serve-jsverbs/xgoja.yaml` and `README.md` for the v2 example migration.
+- Validate with:
+  - `go test ./cmd/xgoja ./cmd/xgoja/internal/specv2 ./cmd/xgoja/doc -count=1`
+  - `make -C examples/xgoja/13-http-serve-jsverbs smoke`
+
+### Technical details
+
+- The new reference doc is automatically embedded by `cmd/xgoja/doc/doc.go` because it embeds `*.md`.
+- The HTTP example's v2 source set uses `kind: jsverbs`, `from.dir: ./verbs`, and `language: javascript`.
+- The provider command surface uses `type: provider.command-set`, `provider: go-go-goja-http`, `name: serve`, `mount: serve`, and `sources: [local-sites]`.

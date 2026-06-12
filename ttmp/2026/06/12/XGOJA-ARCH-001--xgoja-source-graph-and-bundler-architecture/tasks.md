@@ -208,12 +208,12 @@
 ### Phase 9: Cut over examples and docs
 
 - [x] Migrate `examples/xgoja/15-typescript-jsverbs` first.
-- [ ] Migrate HTTP serve jsverbs example.
+- [x] Migrate HTTP serve jsverbs example.
 - [ ] Migrate generated runtime package example.
 - [ ] Migrate provider examples and tutorials.
 - [ ] Migrate asset/help examples.
 - [ ] Update `examples/xgoja/README.md` for v2 examples.
-- [ ] Add `cmd/xgoja/doc/17-xgoja-v2-reference.md`.
+- [x] Add `cmd/xgoja/doc/17-xgoja-v2-reference.md`.
 - [ ] Update existing tutorials to v2 or move v1 content into migration docs.
 - [ ] Add clear docs for externally-built frontend/browser bundles as `kind: assets` sources.
 - [ ] Add clear docs for goja-runtime package bundling as future behavior under `compile.bundle: true`.
