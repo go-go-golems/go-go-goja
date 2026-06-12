@@ -103,6 +103,16 @@ app.get("/me")
 
 The action string is application-owned. `go-go-goja` does not interpret `user.self.read` by itself. It passes the string to the host-provided `Authorizer`, together with the actor and any resolved resources.
 
+Routes that need a recent MFA challenge can add `.mfaFresh(duration)` to the user spec. The duration is passed to the host authenticator as `SecuritySpec.MFAFreshWithin`; `sessionauth.Manager` enforces it against `Session.MFAAt` and rejects sessions with no MFA timestamp or a stale MFA timestamp.
+
+```javascript
+app.post("/billing/payment-methods")
+  .auth(express.user().required().mfaFresh("10m"))
+  .csrf()
+  .allow("billing.payment_method.update")
+  .handle((ctx, res) => res.json({ actor: ctx.actor.id }))
+```
+
 ## Resource-bound routes
 
 A resource-bound route declares how HTTP adapter values become typed inputs to the host resource resolver. The JavaScript route does not load the database row and does not decide whether the actor owns it. It only declares where the identifier and tenant boundary are located in the request.

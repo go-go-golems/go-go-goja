@@ -30,6 +30,7 @@ var (
 	ErrInvalidCookie = errors.New("invalid session cookie")
 	ErrExpired       = errors.New("session expired")
 	ErrRevoked       = errors.New("session revoked")
+	ErrMFARequired   = errors.New("fresh mfa required")
 	ErrNoActor       = errors.New("session actor missing")
 )
 
@@ -196,9 +197,12 @@ func (m *Manager) SessionFromRequest(ctx context.Context, r *http.Request) (*Ses
 }
 
 // Authenticate implements gojahttp.Authenticator.
-func (m *Manager) Authenticate(ctx context.Context, req *http.Request, _ *gojahttp.SessionDTO, _ gojahttp.SecuritySpec) (*gojahttp.Actor, error) {
+func (m *Manager) Authenticate(ctx context.Context, req *http.Request, _ *gojahttp.SessionDTO, spec gojahttp.SecuritySpec) (*gojahttp.Actor, error) {
 	session, err := m.SessionFromRequest(ctx, req)
 	if err != nil {
+		return nil, authError(err)
+	}
+	if err := validateMFAFreshness(session, spec, m.now()); err != nil {
 		return nil, authError(err)
 	}
 	actor, err := m.actorLoader.ActorForSession(ctx, session)
@@ -266,9 +270,22 @@ func validateSession(session *Session, now time.Time) error {
 	return nil
 }
 
+func validateMFAFreshness(session *Session, spec gojahttp.SecuritySpec, now time.Time) error {
+	if spec.MFAFreshWithin <= 0 {
+		return nil
+	}
+	if session.MFAAt == nil {
+		return ErrMFARequired
+	}
+	if now.Sub(*session.MFAAt) > spec.MFAFreshWithin {
+		return ErrMFARequired
+	}
+	return nil
+}
+
 func authError(err error) error {
 	switch {
-	case errors.Is(err, ErrMissingCookie), errors.Is(err, ErrInvalidCookie), errors.Is(err, ErrExpired), errors.Is(err, ErrRevoked):
+	case errors.Is(err, ErrMissingCookie), errors.Is(err, ErrInvalidCookie), errors.Is(err, ErrExpired), errors.Is(err, ErrRevoked), errors.Is(err, ErrMFARequired):
 		return gojahttp.ErrUnauthenticated
 	default:
 		return err
@@ -311,6 +328,10 @@ func WithClaims(claims map[string]any) SessionOption {
 			session.Claims[key] = value
 		}
 	}
+}
+
+func WithMFAAt(mfaAt time.Time) SessionOption {
+	return func(session *Session) { session.MFAAt = &mfaAt }
 }
 
 // RandomToken returns an unguessable URL-safe token.

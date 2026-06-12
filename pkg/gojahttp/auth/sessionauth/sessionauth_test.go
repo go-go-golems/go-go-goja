@@ -66,6 +66,46 @@ func TestAuthenticateFailures(t *testing.T) {
 	}
 }
 
+func TestAuthenticateRequiresFreshMFA(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
+	manager, err := New(Config{Store: NewMemoryStore(), AllowInsecureHTTP: true, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatalf("new manager: %v", err)
+	}
+	spec := gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser, MFAFreshWithin: 10 * time.Minute}
+
+	withoutMFA, err := manager.NewSession(ctx, "u1")
+	if err != nil {
+		t.Fatalf("new session without mfa: %v", err)
+	}
+	_, err = manager.Authenticate(ctx, requestWithCookie(manager.cookieName, withoutMFA.ID), nil, spec)
+	if !errors.Is(err, gojahttp.ErrUnauthenticated) {
+		t.Fatalf("missing mfa err=%v", err)
+	}
+
+	staleMFA, err := manager.NewSession(ctx, "u2", WithMFAAt(now.Add(-11*time.Minute)))
+	if err != nil {
+		t.Fatalf("new session with stale mfa: %v", err)
+	}
+	_, err = manager.Authenticate(ctx, requestWithCookie(manager.cookieName, staleMFA.ID), nil, spec)
+	if !errors.Is(err, gojahttp.ErrUnauthenticated) {
+		t.Fatalf("stale mfa err=%v", err)
+	}
+
+	freshMFA, err := manager.NewSession(ctx, "u3", WithMFAAt(now.Add(-9*time.Minute)))
+	if err != nil {
+		t.Fatalf("new session with fresh mfa: %v", err)
+	}
+	actor, err := manager.Authenticate(ctx, requestWithCookie(manager.cookieName, freshMFA.ID), nil, spec)
+	if err != nil {
+		t.Fatalf("fresh mfa authenticate: %v", err)
+	}
+	if actor.ID != "u3" {
+		t.Fatalf("unexpected actor: %#v", actor)
+	}
+}
+
 func TestExpiredRevokedAndRotatedSessions(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
