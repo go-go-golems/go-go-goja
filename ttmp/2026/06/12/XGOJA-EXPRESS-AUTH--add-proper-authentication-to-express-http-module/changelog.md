@@ -197,3 +197,12 @@ Add runnable Express auth host example with smoke coverage (commit f852a21)
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/16-express-auth-host/cmd/host/main.go — Go-owned host services for runnable planned auth smoke example
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/16-express-auth-host/scripts/server.js — Planned auth route declarations used by smoke example
 
+
+## 2026-06-12
+
+Import auth2 Keycloak/OIDC host-side authentication notes for future robust host implementation
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/sources/02-keycloak-oidc-session-authz-host-implementation-notes.md — Imported /tmp/auth2.md as host-side Keycloak/OIDC/session/authz source material
+
