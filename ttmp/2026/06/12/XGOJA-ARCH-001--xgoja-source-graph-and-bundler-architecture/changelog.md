@@ -262,3 +262,13 @@ Step 23: added xgoja/v2 reference doc and migrated HTTP serve jsverbs example to
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/doc/17-xgoja-v2-reference.md — New v2 reference
 - /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/examples/xgoja/13-http-serve-jsverbs/xgoja.yaml — Native v2 HTTP serve jsverbs example
 
+
+## 2026-06-12
+
+Step 24: preserved embedded jsverb/help/assets semantics in v2 artifact bridge and migration, and updated HTTP serve example to embed local-sites (commit 82ea9e1)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/internal/specv2/migrate_v1.go — Embed migration mapping
+- /home/manuel/workspaces/2026-06-10/goja-xgoja-ts-support/go-go-goja/cmd/xgoja/v2_bridge.go — V2 artifact source dependency bridge
+

@@ -25,7 +25,9 @@ RelatedFiles:
         gen-dts sidecar passes workspace plan for Step 17
         V2 gen-dts planner bridge for Step 21
     - Path: cmd/xgoja/doc/17-xgoja-v2-reference.md
-      Note: Native xgoja/v2 reference doc added in commit 12ca66e
+      Note: |-
+        Native xgoja/v2 reference doc added in commit 12ca66e
+        Reference documents artifact source dependencies for embedded jsverb/help sources
     - Path: cmd/xgoja/empty_fs.go
       Note: Synthetic provider source filesystem for Step 19
     - Path: cmd/xgoja/internal/buildspec/build_spec.go
@@ -46,6 +48,8 @@ RelatedFiles:
       Note: Planner regression tests for Step 16
     - Path: cmd/xgoja/internal/specv2/examples_migration_test.go
       Note: Migration coverage now accepts native v2 examples during staged example cutover
+    - Path: cmd/xgoja/internal/specv2/migrate_v1.go
+      Note: V1 embed flags now migrate into v2 artifact source dependencies
     - Path: cmd/xgoja/root_test.go
       Note: |-
         V2 doctor smoke test for Step 19
@@ -53,13 +57,17 @@ RelatedFiles:
         V2 gen-dts smoke test for Step 21
         migrate-spec warning test decoupled from example fixture now migrated to v2
     - Path: cmd/xgoja/v2_bridge.go
-      Note: V2 build bridge for Step 20
+      Note: |-
+        V2 build bridge for Step 20
+        V2 artifact source dependencies now set legacy embed flags for bridge generation
     - Path: cmd/xgoja/workspace_plan.go
       Note: Legacy buildspec-to-workspace planner bridge for Step 17
     - Path: examples/xgoja/13-http-serve-jsverbs/README.md
       Note: HTTP serve jsverbs README updated for v2 provider/runtime/source command model
     - Path: examples/xgoja/13-http-serve-jsverbs/xgoja.yaml
-      Note: HTTP serve jsverbs example migrated to v2 in commit acbb5f9
+      Note: |-
+        HTTP serve jsverbs example migrated to v2 in commit acbb5f9
+        HTTP serve example binary artifact now embeds the jsverb source set
     - Path: examples/xgoja/15-typescript-jsverbs/README.md
       Note: Example README updated to explain v2 source/runtime module model in commit f47d196
     - Path: examples/xgoja/15-typescript-jsverbs/xgoja.yaml
@@ -115,6 +123,7 @@ LastUpdated: 2026-06-12T19:10:00-04:00
 WhatFor: Use to understand why the architecture ticket exists and how the source-graph/bundler design was produced.
 WhenToUse: Read before implementing or reviewing the xgoja source graph, provider graph, build plan, runtime plan, or resolver architecture.
 ---
+
 
 
 
@@ -2128,3 +2137,87 @@ The HTTP serve example now uses the same v2 shape as the TypeScript example: pro
 - The new reference doc is automatically embedded by `cmd/xgoja/doc/doc.go` because it embeds `*.md`.
 - The HTTP example's v2 source set uses `kind: jsverbs`, `from.dir: ./verbs`, and `language: javascript`.
 - The provider command surface uses `type: provider.command-set`, `provider: go-go-goja-http`, `name: serve`, `mount: serve`, and `sources: [local-sites]`.
+
+
+## Step 24: Preserve embedded source copying through v2 artifacts
+
+I closed the gap between v1 `embed: true` source behavior and the current v2 bridge. V2 binary/runtime-style artifacts can now list local jsverb and help source IDs under `artifacts[].sources`; the bridge converts those source dependencies into the legacy generator embed flags, which means generated hosts copy the sources into `xgoja_embed` and embed them in the binary.
+
+This step also updates migration behavior. When a v1 jsverb or help source has `embed: true`, `migrate-spec` now attaches that source ID to the generated v2 artifact and emits a warning that embedding is represented as an artifact source dependency in v2.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahaed."
+
+**Assistant interpretation:** Implement the next recommended step: restore v1 embedded source copying semantics in v2 before migrating more examples.
+
+**Inferred user intent:** Avoid silently losing self-contained binary behavior during v2 example migration.
+
+**Commit (code):** 82ea9e10e2f46e741c83e77aa5d17d9280212e57 — "xgoja: preserve embedded sources in v2 artifacts"
+
+### What I did
+
+- Updated `cmd/xgoja/v2_bridge.go` so v2 artifact source dependencies mark jsverb/help sources as embedded in the legacy buildspec bridge.
+- Updated `cmd/xgoja/v2_bridge.go` so `embedded-assets` artifacts mark asset sources as embedded in the bridge.
+- Added `cmd/xgoja/v2_bridge_test.go` to assert that v2 artifact source dependencies become buildspec embed flags for jsverbs, help, and assets.
+- Updated `cmd/xgoja/internal/specv2/migrate_v1.go` so v1 `jsverbs[].embed` and `help.sources[].embed` migrate to `artifacts[].sources`.
+- Added migration test coverage for embedded jsverb source migration.
+- Updated `cmd/xgoja/doc/16-migrating-to-xgoja-v2.md` and `cmd/xgoja/doc/17-xgoja-v2-reference.md` to document the v2 embedding representation.
+- Updated `examples/xgoja/13-http-serve-jsverbs/xgoja.yaml` so its binary artifact lists `sources: [local-sites]`.
+- Updated the HTTP serve README to explain that the binary embeds the local jsverb source set.
+- Checked task 83.
+
+### Why
+
+- V1 supported self-contained generated binaries for local jsverb/help sources through `embed: true`.
+- The first v2 migration of the HTTP serve example had omitted that behavior because v2 moved embedding into artifact planning.
+- A migrated example should not quietly regress from embedded sources to source files read from the original checkout.
+
+### What worked
+
+- `go test ./cmd/xgoja ./cmd/xgoja/internal/specv2 ./cmd/xgoja/internal/generate ./cmd/xgoja/doc -count=1` passed.
+- `make -C examples/xgoja/13-http-serve-jsverbs smoke` passed.
+- I manually verified self-contained behavior by renaming `examples/xgoja/13-http-serve-jsverbs/verbs` out of the way, running the already-built v2 binary, and successfully hitting `/healthz` and `/` from the embedded jsverb source.
+- The pre-commit hook passed, including lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- No validation command failed in this step.
+- The implementation still routes through the v2-to-buildspec bridge. This preserves behavior now, but task 84/direct runtime spec rendering still needs to remove the bridge as the long-term implementation path.
+
+### What I learned
+
+- `artifacts[].sources` is a practical v2 representation for executable source sets that should be embedded into binary/runtime-package style artifacts.
+- Assets should remain separate under `type: embedded-assets` because asset embedding is an artifact in its own right and can be consumed independently from executable jsverb/help source embedding.
+
+### What was tricky to build
+
+- The bridge must classify source dependencies differently by artifact type. Binary/runtime-package/source/template/adapter/cobra artifacts can imply embedded executable sources, while `embedded-assets` implies embedded asset sources.
+- Migration needs to preserve old behavior while still warning users that the v2 representation is different. The warning is useful because it points reviewers to the generated artifact source dependency.
+
+### What warrants a second pair of eyes
+
+- Review whether `artifacts[].sources` should be limited to artifact types that actually support embedded executable sources, or whether validation should enforce this more strictly.
+- Review whether help sources should use the same artifact-source embedding model as jsverbs long-term.
+- Review whether `embedded-assets` should remain separate or eventually become a general asset artifact with an `embed` mode.
+
+### What should be done in the future
+
+- Implement task 84 so generated runtime spec rendering consumes the runtime plan directly rather than depending on the buildspec bridge.
+- Consider adding doctor rows that show which source IDs are embedded by which artifacts.
+- Migrate the generated runtime package example next.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/v2_bridge.go`, especially `embeddedSourceIDsFromV2Artifacts`, `embeddedAssetIDsFromV2Artifacts`, and the source conversion helpers.
+- Review `cmd/xgoja/internal/specv2/migrate_v1.go` for the v1 `embed: true` migration mapping.
+- Review `examples/xgoja/13-http-serve-jsverbs/xgoja.yaml` to confirm the binary artifact lists `local-sites`.
+- Validate with:
+  - `go test ./cmd/xgoja ./cmd/xgoja/internal/specv2 ./cmd/xgoja/internal/generate ./cmd/xgoja/doc -count=1`
+  - `make -C examples/xgoja/13-http-serve-jsverbs smoke`
+
+### Technical details
+
+- V2 binary/runtime-style artifacts use `sources` to request embedded jsverb/help source sets.
+- V2 `embedded-assets` artifacts use `sources` to request embedded asset source sets.
+- The bridge still relies on existing generator behavior for collision-free `xgoja_embed/...` roots and runtime spec path rewriting.

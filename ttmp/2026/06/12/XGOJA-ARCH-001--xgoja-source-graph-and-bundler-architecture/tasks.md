@@ -201,7 +201,7 @@
 - [x] Update `xgoja build` to generate from v2 artifact plan.
 - [x] Update `xgoja gen-dts` to use v2 provider graph and declaration artifact plan.
 - [x] Update generated `go.mod` rendering to consume `GoModulePlan`.
-- [ ] Update embedded source copying to consume source/artifact plans.
+- [x] Update embedded source copying to consume source/artifact plans.
 - [ ] Update generated runtime spec rendering to consume the runtime plan.
 - [ ] Add tests for build dry-run, build with workspace auto, gen-dts with workspace auto, and generated runtime package output.
 
