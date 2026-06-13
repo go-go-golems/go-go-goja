@@ -132,6 +132,29 @@ func (s *MemorySink) Snapshot() []Record {
 	return out
 }
 
+// MemoryStore stores normalized audit records in memory for tests and demos.
+type MemoryStore struct {
+	mu      sync.Mutex
+	Records []Record
+}
+
+func (s *MemoryStore) InsertAuditRecord(_ context.Context, record Record) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Records = append(s.Records, cloneRecord(record))
+	return nil
+}
+
+func (s *MemoryStore) Snapshot() []Record {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]Record, len(s.Records))
+	for i, record := range s.Records {
+		out[i] = cloneRecord(record)
+	}
+	return out
+}
+
 // LogSink logs normalized audit records as JSON for development.
 type LogSink struct {
 	Logger     *stdlog.Logger
@@ -225,4 +248,42 @@ func firstHeader(r *http.Request, names ...string) string {
 		}
 	}
 	return ""
+}
+
+func cloneRecord(record Record) Record {
+	out := record
+	out.Attributes = cloneAnyMap(record.Attributes)
+	return out
+}
+
+func cloneAnyMap(in map[string]any) map[string]any {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for key, value := range in {
+		out[key] = cloneAny(value)
+	}
+	return out
+}
+
+func cloneAny(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		return cloneAnyMap(v)
+	case map[string]string:
+		out := make(map[string]string, len(v))
+		for key, value := range v {
+			out[key] = value
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			out[i] = cloneAny(item)
+		}
+		return out
+	default:
+		return value
+	}
 }

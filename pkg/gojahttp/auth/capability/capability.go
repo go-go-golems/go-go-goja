@@ -266,6 +266,14 @@ func cloneCapability(in Capability) Capability {
 	out := in
 	out.TokenHash = append([]byte(nil), in.TokenHash...)
 	out.Claims = cloneStringMap(in.Claims)
+	if in.UsedAt != nil {
+		usedAt := *in.UsedAt
+		out.UsedAt = &usedAt
+	}
+	if in.RevokedAt != nil {
+		revokedAt := *in.RevokedAt
+		out.RevokedAt = &revokedAt
+	}
 	return out
 }
 

@@ -416,6 +416,14 @@ func (s *MemoryStore) Revoke(_ context.Context, id string) error {
 func cloneSession(session Session) Session {
 	out := session
 	out.TenantIDs = append([]string(nil), session.TenantIDs...)
+	if session.MFAAt != nil {
+		mfaAt := *session.MFAAt
+		out.MFAAt = &mfaAt
+	}
+	if session.RevokedAt != nil {
+		revokedAt := *session.RevokedAt
+		out.RevokedAt = &revokedAt
+	}
 	if session.Claims != nil {
 		out.Claims = map[string]any{}
 		for key, value := range session.Claims {

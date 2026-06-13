@@ -195,6 +195,7 @@ func NewMemoryStore() *MemoryStore {
 func (s *MemoryStore) AddUser(user User) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	user = cloneUser(user)
 	s.users[user.ID] = user
 	if user.KeycloakSub != "" {
 		s.usersBySub[user.KeycloakSub] = user.ID
@@ -204,12 +205,13 @@ func (s *MemoryStore) AddUser(user User) {
 func (s *MemoryStore) AddMembership(membership Membership) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.memberships = append(s.memberships, membership)
+	s.memberships = append(s.memberships, cloneMembership(membership))
 }
 
 func (s *MemoryStore) AddResource(resource Resource) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	resource = cloneResource(resource)
 	s.resources[resourceKey(resource.Type, resource.ID)] = resource
 }
 
@@ -220,6 +222,7 @@ func (s *MemoryStore) ByID(_ context.Context, id string) (*User, error) {
 	if !ok || user.DisabledAt != nil {
 		return nil, gojahttp.ErrNotFound
 	}
+	user = cloneUser(user)
 	return &user, nil
 }
 
@@ -241,6 +244,7 @@ func (s *MemoryStore) UpsertFromOIDC(_ context.Context, sub, email string, email
 		user.Email = email
 		user.EmailVerified = emailVerified
 		s.users[id] = user
+		user = cloneUser(user)
 		return &user, nil
 	}
 	id := "user:" + sub
@@ -256,7 +260,7 @@ func (s *MemoryStore) MembershipsForUser(_ context.Context, userID string) ([]Me
 	out := []Membership{}
 	for _, membership := range s.memberships {
 		if membership.UserID == userID && membership.RevokedAt == nil {
-			out = append(out, membership)
+			out = append(out, cloneMembership(membership))
 		}
 	}
 	return out, nil
@@ -300,11 +304,35 @@ func (s *MemoryStore) GetResource(_ context.Context, typ, id string) (*Resource,
 	if !ok {
 		return nil, gojahttp.ErrNotFound
 	}
-	resource.Claims = cloneClaims(resource.Claims)
+	resource = cloneResource(resource)
 	return &resource, nil
 }
 
 func resourceKey(typ, id string) string { return typ + ":" + id }
+
+func cloneUser(in User) User {
+	out := in
+	if in.DisabledAt != nil {
+		disabledAt := *in.DisabledAt
+		out.DisabledAt = &disabledAt
+	}
+	return out
+}
+
+func cloneMembership(in Membership) Membership {
+	out := in
+	if in.RevokedAt != nil {
+		revokedAt := *in.RevokedAt
+		out.RevokedAt = &revokedAt
+	}
+	return out
+}
+
+func cloneResource(in Resource) Resource {
+	out := in
+	out.Claims = cloneClaims(in.Claims)
+	return out
+}
 
 func cloneClaims(in map[string]any) map[string]any {
 	if in == nil {
