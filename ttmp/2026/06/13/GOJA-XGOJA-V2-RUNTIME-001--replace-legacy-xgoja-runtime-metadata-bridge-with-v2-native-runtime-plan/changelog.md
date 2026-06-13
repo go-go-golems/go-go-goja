@@ -190,3 +190,12 @@ Uploaded final RuntimePlan cutover bundle to reMarkable at /ai/2026/06/13/GOJA-X
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001--replace-legacy-xgoja-runtime-metadata-bridge-with-v2-native-runtime-plan/design-doc/01-xgoja-v2-native-runtime-plan-design-and-implementation-guide.md — Included in final upload
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001--replace-legacy-xgoja-runtime-metadata-bridge-with-v2-native-runtime-plan/reference/01-investigation-diary.md — Included in final upload via sanitized temporary copy
 
+
+## 2026-06-13
+
+Updated generated TypeScript declaration fixture for examples/xgoja/16-typescript-jsverbs after final smoke; express declarations now include mount/mountHandler APIs from the current provider.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/examples/xgoja/16-typescript-jsverbs/js/types/xgoja-modules.d.ts — Regenerated declaration fixture during task 55 smoke validation
+
