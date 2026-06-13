@@ -22,6 +22,8 @@ RelatedFiles:
       Note: Step 4 generated main decodes RuntimePlan (commit 617b977)
     - Path: cmd/xgoja/root_test.go
       Note: Step 3 generated-binary regression and temporary fixture helper (commit 556ed5c)
+    - Path: examples/xgoja/13-http-serve-jsverbs/Makefile
+      Note: Step 7 runnable HTTP serve smoke target validated (commit 08f1264)
     - Path: examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go
       Note: Step 4 checked-in runtime package fixture updated for RuntimePlan (commit 617b977)
     - Path: pkg/xgoja/app/assets.go
@@ -50,12 +52,17 @@ RelatedFiles:
       Note: Step 5 CommandSetContext carries SourceRegistry (commit 8bcc367)
     - Path: pkg/xgoja/providerapi/sources.go
       Note: Step 5 provider-facing SourceRegistry API (commit 8bcc367)
+    - Path: pkg/xgoja/providers/http/serve.go
+      Note: Step 7 HTTP serve SourceRegistry and hot reload scoped source cleanup (commit 08f1264)
+    - Path: pkg/xgoja/providers/http/serve_test.go
+      Note: Step 7 HTTP serve SourceRegistry test contexts (commit 08f1264)
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -845,4 +852,118 @@ Source consumers now request source descriptors by kind from the host registry:
 sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindJSVerbs)
 sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindHelp)
 sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindAssets)
+```
+
+## Step 7: Port HTTP serve to the command SourceRegistry
+
+I completed the next hard-cutover cleanup slice by removing HTTP serve's direct dependence on the transitional `ctx.JSVerbs` command adapter. The provider command-set now requires `CommandSetContext.Sources`, derives its JS verb source set from that source registry, and uses that same scoped source set for command discovery, hot reload rescans, default watch roots, and TypeScript watch extension detection.
+
+This also validated the surrounding cleanup tasks: the generator no longer has active v2-to-legacy conversion helper paths, provider/runtime initialization continues to run through the final module descriptor path, the `examples/xgoja/13-http-serve-jsverbs` smoke target builds and serves a generated binary with `provider.command-set sources`, and the existing `app.mount`/mountable-handler package tests still pass.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Implement cleanup tasks:
+- Phase 2 Task 18: remove old generator helper remnants, especially v2-to-legacy conversion helpers.
+- Phase 5 Task 35: update providerutil/runtime initializer paths for final `RuntimeModulePlan` model.
+- Phase 6 Tasks 36–39: update HTTP serve to use `ctx.Sources` directly, scope hot reload rescans/watches to command sources, repair smoke tests for `examples/xgoja/13-http-serve-jsverbs`, and validate `app.mount` docs/examples."
+
+**Assistant interpretation:** Finish the remaining generator/providerutil/HTTP serve cleanup slice by eliminating HTTP serve's transitional source adapter usage, validating scoped hot reload and example smoke behavior, and checking mountable HTTP composition still works.
+
+**Inferred user intent:** Continue the hard cutover so active runtime/provider code depends on v2-native `RuntimePlan` and `SourceRegistry` concepts rather than legacy or adapter-era structures.
+
+**Commit (code):** 08f1264 — "Port HTTP serve to SourceRegistry context"
+
+### What I did
+
+- Added `serveCommandJSVerbSources` in `pkg/xgoja/providers/http/serve.go` to require `ctx.Sources` and derive JS verb sources via `ctx.Sources.JSVerbs()`.
+- Updated HTTP serve command discovery to scan the derived command-scoped source set instead of `ctx.JSVerbs`.
+- Updated hot reload to rescan, select default watch roots, and detect TypeScript support from the same scoped source set.
+- Updated `pkg/xgoja/providers/http/serve_test.go` to provide a fake `SourceRegistry` instead of direct `JSVerbs` fields for HTTP serve setup.
+- Checked tasks 18, 35, 36, 37, 38, and 39 in docmgr and updated the ticket changelog.
+
+### Why
+
+- HTTP serve is a provider command-set, so its visible verbs and hot reload watch set must be scoped by `commands[].sources` in the v2 runtime plan.
+- Direct `ctx.JSVerbs` access was the last adapter-era path in this provider and made it easier to accidentally rescan unselected source roots.
+- The hard cutover requires runtime/provider code to express source intent through `SourceRegistry`, not legacy top-level JS verb metadata.
+
+### What worked
+
+- Focused validation passed:
+
+```bash
+go test ./pkg/xgoja/providers/http ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi ./pkg/xgoja/providers/http ./pkg/gojahttp ./modules/express -count=1
+```
+
+- The runnable HTTP serve example passed:
+
+```bash
+cd examples/xgoja/13-http-serve-jsverbs && make smoke
+```
+
+- Mountable HTTP handler and Express mount behavior remained green:
+
+```bash
+go test ./pkg/gojahttp ./modules/express -count=1
+```
+
+- The pre-commit hook passed lint, `go generate ./...`, and `go test ./...` before commit `08f1264` landed.
+
+### What didn't work
+
+N/A. This cleanup slice was straightforward after the `SourceRegistry` abstraction existed.
+
+### What I learned
+
+- The HTTP serve provider only needs one source-entry point: `ctx.Sources.JSVerbs()`. Keeping all scans and watch root derivation behind that method makes command scoping explicit.
+- The existing `examples/xgoja/13-http-serve-jsverbs` smoke target already covered the important generated-binary behavior: `serve sites demo --http-listen ...` with `provider.command-set sources`.
+- The app.mount validation did not require new code because the relevant `pkg/gojahttp` and `modules/express` tests still cover the mount ABI and Express composition behavior.
+
+### What was tricky to build
+
+- The provider API still carries `ctx.JSVerbs` as a temporary adapter for other consumers, so the cleanup had to be deliberate: HTTP serve tests now construct `Sources` to prevent accidental regression back to direct adapter use.
+- Hot reload has multiple source-dependent paths: rescan, default watch roots, and TypeScript extension detection. All three needed to use the same scoped source set or command-scoped reload would still be leaky.
+- Task 35 was mostly validation-oriented in this slice because runtime initialization already receives selected module descriptors from the final RuntimePlan-derived command context; the relevant check was that HTTP serve still initializes runtimes correctly after removing direct JS verb adapter access.
+
+### What warrants a second pair of eyes
+
+- Review whether `serveCommandJSVerbSources` should allow an empty source registry for edge cases, or whether failing fast is the right provider command-set contract.
+- Confirm that the fake test SourceRegistry mirrors the production `JSVerbs()` behavior closely enough for future provider tests.
+- Re-check hot reload behavior once the transitional `ctx.JSVerbs` field is removed entirely from `CommandSetContext`.
+
+### What should be done in the future
+
+- Continue Phase 7 generated runtime-package cleanup.
+- Remove remaining transitional compatibility fields/decode paths from `RuntimePlan`.
+- Remove `CommandSetContext.JSVerbs` once all providers and tests use `ctx.Sources`.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/providers/http/serve.go`, especially `serveCommandJSVerbSources`, `newServeCommandSet`, and `serveVerbHotReload`.
+- Then review `pkg/xgoja/providers/http/serve_test.go` for the test registry shape and the updated command contexts.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi ./pkg/xgoja/providers/http ./pkg/gojahttp ./modules/express -count=1
+cd examples/xgoja/13-http-serve-jsverbs && make smoke
+```
+
+### Technical details
+
+HTTP serve now follows this dependency path:
+
+```go
+func serveCommandJSVerbSources(ctx providerapi.CommandSetContext) (providerapi.JSVerbSourceSet, error) {
+    jsverbSources := ctx.Sources.JSVerbs()
+    return jsverbSources, nil
+}
+```
+
+Hot reload uses that same scoped set for every source-derived operation:
+
+```go
+resolveServeHotReloadVerb(jsverbSources, registry, verb, verbPath)
+defaultServeHotReloadWatchRoots(jsverbSources)
+sourceSetHasTypeScript(jsverbSources)
 ```
