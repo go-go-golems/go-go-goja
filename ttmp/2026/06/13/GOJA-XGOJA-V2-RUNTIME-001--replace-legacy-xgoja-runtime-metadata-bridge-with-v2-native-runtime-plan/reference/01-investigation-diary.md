@@ -1,10 +1,32 @@
 ---
 Title: Investigation diary
-DocType: reference
 Ticket: GOJA-XGOJA-V2-RUNTIME-001
 Status: active
-Topics: [xgoja, architecture, code-generation]
+Topics:
+    - xgoja
+    - architecture
+    - code-generation
+DocType: reference
+Intent: ""
+Owners: []
+RelatedFiles:
+    - Path: cmd/xgoja/internal/generate/templates.go
+      Note: Step 3 preserves command sources during current generator bridge (commit 556ed5c)
+    - Path: cmd/xgoja/root_test.go
+      Note: Step 3 generated-binary regression and temporary fixture helper (commit 556ed5c)
+    - Path: pkg/xgoja/app/command_providers.go
+      Note: Step 3 passes filtered source set to provider command contexts (commit 556ed5c)
+    - Path: pkg/xgoja/app/jsverb_sources.go
+      Note: Step 3 command-scoped JS verb source filtering (commit 556ed5c)
+    - Path: pkg/xgoja/app/runtime_spec.go
+      Note: Step 3 interim source IDs on command-provider metadata (commit 556ed5c)
+ExternalSources: []
+Summary: ""
+LastUpdated: 0001-01-01T00:00:00Z
+WhatFor: ""
+WhenToUse: ""
 ---
+
 
 # Diary
 
@@ -293,3 +315,137 @@ The generated metadata currently becomes:
 ```
 
 The missing `sources: ["site-a"]` on the command provider is the data-loss boundary.
+
+## Step 3: Add command-scoped HTTP serve regression coverage and interim source propagation
+
+I turned the ticket reproduction into an active end-to-end regression: a generated xgoja binary now builds with two jsverb sources, mounts the HTTP `serve` provider command with `sources: [site-a]`, and proves the generated CLI exposes only the selected site while still carrying the HTTP serve flags. This gives us a behavior-level guard for the user-visible failure mode before the larger RuntimePlan hard cutover begins.
+
+I also made the smallest runtime-path change needed for that regression to pass: v2 command `sources` are preserved into the current generated command-provider metadata, and provider command contexts receive a filtered JS verb source set. This is deliberately an interim stop on the way to the no-legacy RuntimePlan shape; it fixes the immediate source-loss bug without changing the final hard-cutover requirement.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the xgoja v2 runtime cutover implementation from task 9, adding regression coverage and committing at an appropriate interval.
+
+**Inferred user intent:** Keep advancing the ticket task list one step at a time while preserving a detailed implementation diary and focused commits.
+
+**Commit (code):** 556ed5cb31b55bab893e2e7641a2a7442e3ef2da — "Fix xgoja command-scoped jsverb sources"
+
+### What I did
+
+- Added `TestBuildCommandProviderServeUsesCommandScopedSources` in `cmd/xgoja/root_test.go`.
+- The test builds a generated binary from a temporary xgoja/v2 spec with two jsverb sources and one HTTP `provider.command-set` scoped to `site-a`.
+- The test asserts `scoped-serve serve sitea start --help --long-help` includes `Start A`, `--http-listen`, and `--hot-reload`.
+- The test asserts `scoped-serve serve --help` does not expose `siteb` / `Start B`.
+- Added `Sources []string` to `app.CommandProviderInstanceSpec`.
+- Updated `cmd/xgoja/internal/generate/templates.go` so `applyPlanRuntimeCommand` preserves `command.Sources` for provider command sets.
+- Added `newScopedJSVerbSourceSet` and used it from `Host.newCommandSet` so command providers see only their selected JS verb sources when sources are declared.
+- Marked ticket task 9 complete and updated the ticket changelog.
+
+### Why
+
+- The reproduction script proved metadata data loss, but it did not prove the generated end-user CLI behavior.
+- HTTP `serve` is the real blocked use case for the sessionstream chatbot demo, so the regression needs to verify both jsverb command visibility and HTTP serve flag propagation.
+- The test intentionally uses two sources so global source scanning cannot hide source-scope bugs.
+
+### What worked
+
+- The first version of the test failed before the fix because `site-b` was visible through the HTTP serve command even though the v2 command declared `sources: [site-a]`.
+- After preserving command source IDs and filtering the JS verb source set, the targeted regression passed.
+- The broader focused validation passed:
+
+```text
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	14.645s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.104s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.659s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.478s
+```
+
+- The pre-commit hook also ran lint, generation, and `go test ./...` successfully before creating commit `556ed5c`.
+
+### What didn't work
+
+The initial test used provider ID `http`, but the HTTP provider registers itself under package ID `go-go-goja-http`. That produced an error stub instead of real serve subcommands:
+
+```text
+Error: unknown command provider http.serve
+unknown command provider http.serve
+```
+
+After switching the v2 spec provider ID, runtime module provider, and command provider to `go-go-goja-http`, the generated serve commands appeared.
+
+The next version checked short help for `--http-listen`, but Glazed hides detailed flags behind long help. The failure was:
+
+```text
+expected scoped serve help to contain "--http-listen", got:
+# start - Start A
+...
+Use scoped-serve serve sitea start --help --long-help for information about all flags.
+```
+
+I changed the assertion to call `--help --long-help` for the leaf command.
+
+A final test-shape issue was that asking Cobra/Glazed for `serve siteb start --help` returned parent `serve` help rather than a hard error. I changed the negative assertion to inspect `serve --help` and ensure the unselected source is absent from the command tree.
+
+### What I learned
+
+- Provider IDs in xgoja specs must match the provider package ID registered by the provider, not an arbitrary local alias, in the current runtime path.
+- Glazed command help exposes detailed provider-added flags only in long-help output.
+- Behavioral CLI tests are useful but must avoid relying on Cobra's exact unknown-argument error behavior; command-tree visibility is a more stable assertion.
+
+### What was tricky to build
+
+- The runtime bug had two layers: generated metadata dropped `commands[].sources`, and the app runtime gave provider command sets a global JS verb source set. Fixing only one layer was insufficient.
+- The regression needed to prove HTTP serve flag propagation too. That required checking the leaf command's long help, because short help intentionally hides most flags.
+- This fix is intentionally temporary with respect to representation: it extends the legacy bridge enough to preserve source scoping now, but the final ticket still requires replacing `RuntimeSpec`/`CommandProviderInstanceSpec` with the v2-native `RuntimePlan` rather than keeping this shape.
+
+### What warrants a second pair of eyes
+
+- The interim fallback behavior for command providers with no `sources` remains “all JS verb sources”. That preserves current behavior, but the RuntimePlan design should decide whether provider commands should require explicit source selection or keep all-by-kind as a documented default.
+- The test currently verifies command-tree absence via `serve --help`; reviewers should confirm this is the most robust user-visible assertion for Glazed/Cobra command mounting.
+- The generated metadata still uses legacy fields (`commandProviders`, top-level `jsverbs`, `packages`). This is expected for this step only and must be removed in later hard-cutover tasks.
+
+### What should be done in the future
+
+- Task 10 should add a generated metadata guard that fails while legacy top-level runtime fields remain.
+- The upcoming RuntimePlan implementation should replace this interim `Sources` field on `CommandProviderInstanceSpec` with a v2-native command/source representation.
+- Provider command context should eventually carry command identity and a unified source registry, not just the legacy `JSVerbSourceSet` adapter.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/root_test.go`, especially `TestBuildCommandProviderServeUsesCommandScopedSources` and `writeHTTPServeScopedSourcesSpec`.
+- Then review `cmd/xgoja/internal/generate/templates.go` at `applyPlanRuntimeCommand` to confirm v2 command sources are preserved.
+- Then review `pkg/xgoja/app/command_providers.go` and `pkg/xgoja/app/jsverb_sources.go` to confirm provider command contexts receive filtered sources.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1
+```
+
+### Technical details
+
+The regression's core v2 command shape is:
+
+```yaml
+commands:
+  - id: serve
+    type: provider.command-set
+    provider: go-go-goja-http
+    name: serve
+    mount: serve
+    sources: [site-a]
+```
+
+The generated binary must expose:
+
+```text
+scoped-serve serve sitea start --help --long-help
+```
+
+and must not expose `siteb` through:
+
+```text
+scoped-serve serve --help
+```

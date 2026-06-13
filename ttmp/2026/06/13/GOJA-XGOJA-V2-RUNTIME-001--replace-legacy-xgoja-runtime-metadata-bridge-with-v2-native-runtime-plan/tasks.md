@@ -11,7 +11,7 @@
 - [x] Validate docs and upload bundle to reMarkable
 - [x] Phase 0: Create a dedicated implementation branch for the xgoja v2 runtime hard cutover and record the baseline commit/test state
 - [x] Phase 0: Reproduce the provider.command-set sources bug with a minimal xgoja/v2 fixture that uses sources: [sites]
-- [ ] Phase 0: Add a failing test proving generated serve commands expose jsverb subcommands and HTTP serve flags when command sources are declared
+- [x] Phase 0: Add a failing test proving generated serve commands expose jsverb subcommands and HTTP serve flags when command sources are declared
 - [ ] Phase 0: Add a generated-runtime metadata assertion that v2 output must not contain legacy commandProviders/packages/jsverbs top-level fields
 - [ ] Phase 0: Inventory all active references to RuntimeSpec, PackageSpec, CommandsSpec, CommandProviderInstanceSpec, JSVerbSourceSpec, HelpSourceSpec, AssetSourceSpec, and xgoja.gen.json
 - [ ] Phase 1: Design and implement app.RuntimePlan with v2-native AppPlan, RuntimeSection, RuntimeModulePlan, SourcePlan, CommandPlan, and ConfigFilePlan types
