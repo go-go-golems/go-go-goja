@@ -246,5 +246,5 @@ res.end()
 
 - [Express Auth User Guide](express-auth-user-guide) — Detailed guide to planned auth routes, host services, context shape, and error behavior.
 - [Migrate Express Apps to Planned Auth Routes](migrate-express-apps-to-planned-auth) — Step-by-step tutorial for converting old `app.get(path, handler)` scripts.
-- `examples/xgoja/15-express-planned-auth/scripts/server.js` — Compact planned auth route example.
-- `examples/xgoja/16-express-auth-host` — Runnable Go host example for auth, resources, CSRF, audit, and strict mode.
+- `examples/xgoja/17-express-planned-auth/scripts/server.js` — Compact planned auth route example.
+- `examples/xgoja/18-express-auth-host` — Runnable Go host example for auth, resources, CSRF, audit, and strict mode.

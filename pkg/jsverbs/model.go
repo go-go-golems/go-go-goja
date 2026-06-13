@@ -2,6 +2,7 @@ package jsverbs
 
 import (
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -54,11 +55,31 @@ func (e *ScanError) Error() string {
 	return strings.Join(parts, "; ")
 }
 
+type SourceTransform func(SourceFile) (SourceFile, error)
+
+type RuntimeTransformInput struct {
+	Path           string
+	AbsPath        string
+	RelPath        string
+	ModulePath     string
+	Source         []byte
+	OriginalSource []byte
+	ResolveDir     string
+	RootFS         fs.FS
+	Language       string
+	Prelude        string
+	Overlay        string
+}
+
+type RuntimeTransform func(RuntimeTransformInput) ([]byte, error)
+
 type ScanOptions struct {
 	Extensions             []string
 	FailOnErrorDiagnostics bool
 	Include                []string
 	Exclude                []string
+	SourceTransform        SourceTransform
+	RuntimeTransform       RuntimeTransform
 }
 
 func DefaultScanOptions() ScanOptions {
@@ -69,8 +90,13 @@ func DefaultScanOptions() ScanOptions {
 }
 
 type SourceFile struct {
-	Path   string
-	Source []byte
+	Path           string
+	AbsPath        string
+	ResolveDir     string
+	RootFS         fs.FS
+	Source         []byte
+	OriginalSource []byte
+	Language       string
 }
 
 type Registry struct {
@@ -93,6 +119,10 @@ type FileSpec struct {
 	RelPath        string
 	ModulePath     string
 	Source         []byte
+	OriginalSource []byte
+	SourceLanguage string
+	ResolveDir     string
+	RootFS         fs.FS
 	Package        PackageSpec
 	Functions      []*FunctionSpec
 	functionByName map[string]*FunctionSpec

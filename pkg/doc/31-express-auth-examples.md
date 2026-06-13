@@ -28,15 +28,15 @@ Use the Keycloak example when you need to validate the production boundary: Keyc
 
 | Example | Directory | Best for | External services |
 | --- | --- | --- | --- |
-| Dev auth host | `examples/xgoja/16-express-auth-host` | Local route-authoring, demos, fast smoke tests. | None. |
-| Keycloak auth host | `examples/xgoja/17-express-keycloak-auth-host` | Production-shaped OIDC/session/authz smoke. | Docker Compose Keycloak. |
+| Dev auth host | `examples/xgoja/18-express-auth-host` | Local route-authoring, demos, fast smoke tests. | None. |
+| Keycloak auth host | `examples/xgoja/19-express-keycloak-auth-host` | Production-shaped OIDC/session/authz smoke. | Docker Compose Keycloak. |
 
 ## Dev-auth smoke
 
 The dev-auth smoke starts the Go host in smoke mode and exits after exercising public routes, login, authenticated routes, CSRF denial, CSRF success, missing resources, audit events, logout, and post-logout denial.
 
 ```bash
-make -C examples/xgoja/16-express-auth-host smoke
+make -C examples/xgoja/18-express-auth-host smoke
 ```
 
 A successful run prints status lines like this:
@@ -73,7 +73,7 @@ host := gojahttp.NewHost(gojahttp.HostOptions{
 The Keycloak smoke starts Docker Compose Keycloak, waits for the OIDC discovery document, builds and starts the Go host, drives the Keycloak login form with the demo account, verifies planned routes with the resulting app session, and tears Keycloak down again.
 
 ```bash
-make -C examples/xgoja/17-express-keycloak-auth-host smoke
+make -C examples/xgoja/19-express-keycloak-auth-host smoke
 ```
 
 A successful run includes the login and CSRF assertions:
@@ -101,13 +101,13 @@ password: demo-password
 If port `18080` is busy, move Keycloak to another host port. The Makefile derives the issuer URL from `KEYCLOAK_PORT`.
 
 ```bash
-KEYCLOAK_PORT=18081 make -C examples/xgoja/17-express-keycloak-auth-host smoke
+KEYCLOAK_PORT=18081 make -C examples/xgoja/19-express-keycloak-auth-host smoke
 ```
 
 If you want to inspect Keycloak after a failed run, keep the container running.
 
 ```bash
-KEEP_KEYCLOAK=1 make -C examples/xgoja/17-express-keycloak-auth-host smoke
+KEEP_KEYCLOAK=1 make -C examples/xgoja/19-express-keycloak-auth-host smoke
 ```
 
 ## What both examples prove
@@ -147,7 +147,7 @@ That workaround is limited to the smoke client. It does not change the Go host o
 | Dev-auth smoke returns 401 after login | The session cookie was not preserved between requests. | Use the provided smoke target or a `curl` cookie jar with `-c` and `-b`. |
 | Project update returns 403 | The planned route declares `.csrf()` and the request lacks the app session CSRF token. | Fetch the session endpoint and send `X-CSRF-Token`. |
 | Project update returns 404 | The route's tenant/resource parameters do not match seeded data. | Use `/orgs/o1/projects/p1` in the examples or update the seeded store. |
-| Keycloak smoke times out waiting for discovery | Docker is still pulling/starting Keycloak or the container failed. | Run `docker compose -f examples/xgoja/17-express-keycloak-auth-host/docker-compose.yml logs keycloak`. |
+| Keycloak smoke times out waiting for discovery | Docker is still pulling/starting Keycloak or the container failed. | Run `docker compose -f examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml logs keycloak`. |
 | `address already in use` | A previous host or Keycloak process is still using the default port. | Stop the old process, use `KEYCLOAK_PORT=18081`, or override the host `LISTEN` address. |
 | Keycloak callback fails | Issuer, redirect URI, or client settings no longer match the imported realm. | Use the default Makefile values or update the realm redirect URI and host flags together. |
 
@@ -156,4 +156,4 @@ That workaround is limited to the smoke client. It does not change the Go host o
 - `express-auth-user-guide` — Main planned-auth route authoring and host-wiring guide.
 - `migrate-express-apps-to-planned-auth` — Migration tutorial for old raw handlers.
 - `express-module` — General Express-style HTTP module reference.
-- Source: `examples/xgoja/16-express-auth-host` and `examples/xgoja/17-express-keycloak-auth-host`.
+- Source: `examples/xgoja/18-express-auth-host` and `examples/xgoja/19-express-keycloak-auth-host`.

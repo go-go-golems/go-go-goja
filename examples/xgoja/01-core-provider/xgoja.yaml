@@ -1,24 +1,38 @@
+schema: xgoja/v2
 name: core-provider
-target:
-  kind: xgoja
-  output: dist/core-provider
-packages:
-- id: go-go-goja-core
-  import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
+app:
+    name: core-provider
+go:
+    module: xgoja.generated/core-provider
+    version: "1.26"
+workspace:
+    mode: auto
+providers:
+    - id: go-go-goja-core
+      import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
+      register: Register
+runtime:
+    modules:
+        - provider: go-go-goja-core
+          name: path
+          as: path
+        - provider: go-go-goja-core
+          name: yaml
+          as: yaml
+        - provider: go-go-goja-core
+          name: crypto
+          as: crypto
 commands:
-  repl:
-    enabled: true
-  eval:
-    enabled: true
-  run:
-    enabled: true
-modules:
-- package: go-go-goja-core
-  name: path
-  as: path
-- package: go-go-goja-core
-  name: yaml
-  as: yaml
-- package: go-go-goja-core
-  name: crypto
-  as: crypto
+    - id: eval
+      type: builtin.eval
+      name: eval
+    - id: run
+      type: builtin.run
+      name: run
+    - id: repl
+      type: builtin.repl
+      name: repl
+artifacts:
+    - id: binary
+      type: binary
+      output: dist/core-provider

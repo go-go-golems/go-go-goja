@@ -1,1174 +1,152 @@
 package generate
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
-	"io"
-	"net"
-	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/plan"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/specv2"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/workspace"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 )
 
-func TestRenderGoModDeterministic(t *testing.T) {
-	buildSpec := fixtureSpec()
-	got := RenderGoMod(buildSpec, Options{XGojaModuleVersion: "v0.1.0", XGojaReplace: "../go-go-goja"})
+func TestRenderGoModPlanDeterministic(t *testing.T) {
+	compiled := fixturePlan(t)
+	compiled.Config.Providers = append(compiled.Config.Providers, specv2.ProviderSpec{
+		ID: "web", Import: "github.com/go-go-golems/web-stuff/xgoja", Register: "Register", Module: specv2.ProviderModuleSpec{Version: "v0.3.0", Replace: "../web-stuff"},
+	})
+	compiled.Config.Go.Imports = []specv2.GoImportSpec{{Import: "github.com/lib/pq", Alias: "_", Version: "v1.10.9"}}
+	got := RenderGoModPlan(compiled, Options{XGojaModuleVersion: "v0.1.0", XGojaReplace: "../go-go-goja"})
 	for _, want := range []string{
 		"module xgoja.generated/fixture",
-		"go 1.26",
 		"github.com/go-go-golems/go-go-goja v0.1.0",
 		"github.com/go-go-golems/web-stuff v0.3.0",
+		"github.com/lib/pq v1.10.9",
 		"replace github.com/go-go-golems/go-go-goja => ../go-go-goja",
 		"replace github.com/go-go-golems/web-stuff => ../web-stuff",
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("expected go.mod to contain %q, got:\n%s", want, got)
+			t.Fatalf("go.mod missing %q:\n%s", want, got)
 		}
 	}
 }
 
-func TestRenderGoModIncludesVersionedExtraImports(t *testing.T) {
-	buildSpec := fixtureSpec()
-	buildSpec.Go.Imports = []buildspec.GoImportSpec{
-		{Import: "github.com/lib/pq", Alias: "_", Version: "v1.10.9"},
-		{Import: "example.com/acme/hooks/register", Alias: "hooks", Module: "example.com/acme/hooks", Version: "v0.2.0"},
-		{Import: "example.com/unversioned", Alias: "_"},
+func TestRenderGoModPlanUsesWorkspaceModulePlan(t *testing.T) {
+	compiled := fixturePlan(t)
+	compiled.GoModules = &workspace.Plan{Modules: []workspace.GoModulePlan{{ModulePath: "github.com/example/local", Version: "", LocalDir: "/tmp/local"}}}
+	got := RenderGoModPlan(compiled, Options{XGojaModuleVersion: "v0.1.0", GoModules: compiled.GoModules})
+	if !strings.Contains(got, "github.com/example/local v0.0.0") {
+		t.Fatalf("expected local module require:\n%s", got)
 	}
-
-	got := RenderGoMod(buildSpec, Options{XGojaModuleVersion: "v0.1.0"})
-	for _, want := range []string{
-		"github.com/lib/pq v1.10.9",
-		"example.com/acme/hooks v0.2.0",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected go.mod to contain %q, got:\n%s", want, got)
-		}
-	}
-	if strings.Contains(got, "example.com/unversioned") {
-		t.Fatalf("unversioned extra import should not be required explicitly, got:\n%s", got)
+	if !strings.Contains(got, "replace github.com/example/local => /tmp/local") {
+		t.Fatalf("expected local module replace:\n%s", got)
 	}
 }
 
-func TestRenderGoModResolvesRelativePackageReplaceFromSpecBaseDir(t *testing.T) {
-	buildSpec := fixtureSpec()
-	buildSpec.BaseDir = filepath.Join(string(filepath.Separator), "tmp", "example")
-	got := RenderGoMod(buildSpec, Options{XGojaModuleVersion: "v0.1.0"})
-	want := "replace github.com/go-go-golems/web-stuff => /tmp/web-stuff"
-	if !strings.Contains(got, want) {
-		t.Fatalf("expected go.mod to contain %q, got:\n%s", want, got)
+func TestRenderEmbeddedSpecFromPlanUsesRuntimeShapeAndEmbeddedRoots(t *testing.T) {
+	compiled := fixturePlan(t)
+	compiled.Config.Sources = []specv2.SourceSpec{
+		{ID: "verbs", Kind: specv2.SourceKindJSVerbs, From: specv2.SourceFromSpec{Dir: "verbs"}, Language: "typescript", Compile: &specv2.CompileSpec{Bundle: true}},
+		{ID: "docs", Kind: specv2.SourceKindHelp, From: specv2.SourceFromSpec{Dir: "docs/help"}},
+		{ID: "assets", Kind: specv2.SourceKindAssets, From: specv2.SourceFromSpec{Dir: "assets"}},
+	}
+	compiled.Config.Artifacts = []specv2.ArtifactSpec{
+		{ID: "binary", Type: "binary", Output: "dist/fixture", Sources: []string{"verbs", "docs"}},
+		{ID: "assets", Type: "embedded-assets", Sources: []string{"assets"}},
+	}
+	var runtimeSpec app.RuntimeSpec
+	if err := json.Unmarshal([]byte(RenderEmbeddedSpecFromPlan(compiled)), &runtimeSpec); err != nil {
+		t.Fatalf("decode embedded runtime spec: %v", err)
+	}
+	if len(runtimeSpec.Packages) != 1 || runtimeSpec.Packages[0].ID != "fixture" {
+		t.Fatalf("expected runtime provider ids only, got %#v", runtimeSpec.Packages)
+	}
+	if runtimeSpec.JSVerbs[0].Path != "xgoja_embed/jsverbs/verbs" || !runtimeSpec.JSVerbs[0].Embed {
+		t.Fatalf("unexpected jsverb runtime source: %#v", runtimeSpec.JSVerbs[0])
+	}
+	if runtimeSpec.Help.Sources[0].Path != "xgoja_embed/help/docs" || !runtimeSpec.Help.Sources[0].Embed {
+		t.Fatalf("unexpected help runtime source: %#v", runtimeSpec.Help.Sources[0])
+	}
+	if runtimeSpec.Assets[0].Path != "xgoja_embed/assets/assets" || !runtimeSpec.Assets[0].Embed {
+		t.Fatalf("unexpected asset runtime source: %#v", runtimeSpec.Assets[0])
 	}
 }
 
-func TestRenderGoModUsesModuleRootsForSubpackageImports(t *testing.T) {
-	buildSpec := &buildspec.BuildSpec{
-		Name: "subpackage-fixture",
-		Go: buildspec.GoSpec{
-			Version: "1.26",
-			Module:  "example.com/generated/subpackage-fixture",
-		},
-		Target: buildspec.TargetSpec{
-			Kind:    "cobra",
-			Import:  "github.com/acme/cobra-host/cmd/app/root",
-			Version: "v0.8.0",
-			Root:    "NewRootCommand",
-			Output:  "dist/subpackage-fixture",
-		},
-		Packages: []buildspec.PackageSpec{
-			{ID: "provider", Import: "github.com/acme/widgets/pkg/xgoja/testprovider", Version: "v1.2.3", Register: "Register", Replace: "../widgets"},
-			{ID: "provider2", Import: "github.com/acme/other/pkg/xgoja", Version: "v2.0.0", Register: "Register", Replace: "../other"},
-		},
-		Modules:  []buildspec.ModuleInstanceSpec{{Package: "provider", Name: "hello", As: "hello"}},
-		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Name: "eval"}},
-	}
-	got := RenderGoMod(buildSpec, Options{XGojaModuleVersion: "v0.1.0"})
-	for _, want := range []string{
-		"github.com/acme/cobra-host v0.8.0",
-		"github.com/acme/widgets v1.2.3",
-		"github.com/acme/other v2.0.0",
-		"replace github.com/acme/widgets => ../widgets",
-		"replace github.com/acme/other => ../other",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected go.mod to contain %q, got:\n%s", want, got)
-		}
-	}
-	for _, notWant := range []string{
-		"github.com/acme/cobra-host/cmd/app/root v0.8.0",
-		"github.com/acme/widgets/pkg/xgoja/testprovider v1.2.3",
-		"github.com/acme/other/pkg/xgoja v2.0.0",
-		"replace github.com/acme/widgets/pkg/xgoja/testprovider => ../widgets",
-		"replace github.com/acme/other/pkg/xgoja => ../other",
-	} {
-		if strings.Contains(got, notWant) {
-			t.Fatalf("go.mod should use module roots, but contained %q:\n%s", notWant, got)
-		}
-	}
-}
+func TestWriteAllPlanCopiesEmbeddedSources(t *testing.T) {
+	base := t.TempDir()
+	mustWrite(t, filepath.Join(base, "verbs", "hello.js"), "export const x = 1;\n")
+	mustWrite(t, filepath.Join(base, "docs", "help", "index.md"), "# Help\n")
+	mustWrite(t, filepath.Join(base, "assets", "app.css"), "body{}\n")
+	mustWrite(t, filepath.Join(base, "assets", "node_modules", "skip.js"), "skip\n")
 
-func TestRenderMainIncludesExtraImports(t *testing.T) {
-	buildSpec := fixtureSpec()
-	buildSpec.Go.Imports = []buildspec.GoImportSpec{
-		{Import: "github.com/lib/pq", Alias: "_"},
-		{Import: "example.com/acme/hooks", Alias: "hooks"},
+	compiled := fixturePlan(t)
+	compiled.Config.BaseDir = base
+	compiled.Config.Sources = []specv2.SourceSpec{
+		{ID: "verbs", Kind: specv2.SourceKindJSVerbs, From: specv2.SourceFromSpec{Dir: "verbs"}},
+		{ID: "docs", Kind: specv2.SourceKindHelp, From: specv2.SourceFromSpec{Dir: "docs/help"}},
+		{ID: "assets", Kind: specv2.SourceKindAssets, From: specv2.SourceFromSpec{Dir: "assets"}},
 	}
-	got := RenderMain(buildSpec)
-	for _, want := range []string{
-		`_ "github.com/lib/pq"`,
-		`hooks "example.com/acme/hooks"`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
-		}
+	compiled.Config.Artifacts = []specv2.ArtifactSpec{
+		{ID: "binary", Type: "binary", Output: "dist/fixture", Sources: []string{"verbs", "docs"}},
+		{ID: "assets", Type: "embedded-assets", Sources: []string{"assets"}},
 	}
-}
-
-func TestRenderMainRegistersProviders(t *testing.T) {
-	got := RenderMain(fixtureSpec())
-	for _, want := range []string{
-		"// Code generated by xgoja; DO NOT EDIT.",
-		"providerapi.NewProviderRegistry()",
-		"core.Register(registry)",
-		"web.Register(registry)",
-		"const embeddedSpecJSON = `",
-		"app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
-		}
-	}
-}
-
-func TestRenderPackageIncludesExtraImports(t *testing.T) {
-	buildSpec := buildableSpec("package", "", "")
-	buildSpec.Target.Package = "xgojaruntime"
-	buildSpec.Go.Imports = []buildspec.GoImportSpec{{Import: "github.com/lib/pq", Alias: "_"}}
-	got := RenderPackage(buildSpec, "xgojaruntime")
-	if !strings.Contains(got, `_ "github.com/lib/pq"`) {
-		t.Fatalf("expected runtime package to contain blank import, got:\n%s", got)
-	}
-}
-
-func TestRenderPackageExposesRuntimeBundleAPI(t *testing.T) {
-	buildSpec := buildableSpec("package", "", "")
-	buildSpec.Target.Package = "xgojaruntime"
-	got := RenderPackage(buildSpec, "xgojaruntime")
-	for _, want := range []string{
-		"// Code generated by xgoja; DO NOT EDIT.",
-		"package xgojaruntime",
-		"const EmbeddedSpecJSON = `",
-		"func RegisterProviders(registry *providerapi.ProviderRegistry) error",
-		"func DecodeSpec() (*app.RuntimeSpec, error)",
-		"func NewBundle(opts Options) (*Bundle, error)",
-		"ConfigureServices func(*app.HostServices)",
-		"ConfigureServices: opts.ConfigureServices",
-		"func (b *Bundle) NewRuntime(ctx context.Context, opts ...require.Option) (*engine.Runtime, error)",
-		"func (b *Bundle) AttachDefaultCommands(root *cobra.Command)",
-		"fixture.Register(registry)",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected runtime package to contain %q, got:\n%s", want, got)
-		}
-	}
-	for _, notWant := range []string{"func main()", "os.Exit"} {
-		if strings.Contains(got, notWant) {
-			t.Fatalf("runtime package should not contain %q:\n%s", notWant, got)
-		}
-	}
-}
-
-func TestWritePackageWritesPackageWithoutModuleMain(t *testing.T) {
-	dir := t.TempDir()
-	buildSpec := buildableSpec("package", "", "")
-	if err := WritePackage(dir, buildSpec, PackageOptions{PackageName: "xgojaruntime"}); err != nil {
-		t.Fatalf("write package: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "xgoja_runtime.gen.go")); err != nil {
-		t.Fatalf("expected generated package file: %v", err)
-	}
-	for _, name := range []string{"go.mod", "main.go", "xgoja.gen.json"} {
-		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
-			t.Fatalf("package generation should not write %s", name)
-		} else if !os.IsNotExist(err) {
-			t.Fatalf("stat %s: %v", name, err)
-		}
-	}
-}
-
-func TestGeneratedPackageTargetBuildsAndCreatesRuntime(t *testing.T) {
-	runGeneratedPackageHostSmoke(t, func(pkgDir string, buildSpec *buildspec.BuildSpec) error {
-		return WritePackage(pkgDir, buildSpec, PackageOptions{PackageName: "xgojaruntime"})
-	})
-}
-
-func runGeneratedPackageHostSmoke(t *testing.T, writePackage func(pkgDir string, buildSpec *buildspec.BuildSpec) error) {
-	t.Helper()
-	repoRoot, err := filepath.Abs("../../../..")
-	if err != nil {
-		t.Fatalf("repo root: %v", err)
-	}
-	dir := t.TempDir()
-	pkgDir := filepath.Join(dir, "internal", "xgojaruntime")
-	buildSpec := buildableSpec("package", "", "")
-	buildSpec.Target.Output = pkgDir
-	buildSpec.Target.Package = "xgojaruntime"
-	if err := writePackage(pkgDir, buildSpec); err != nil {
-		t.Fatalf("write generated package: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(`module example.com/host
-
-go 1.26
-
-require github.com/go-go-golems/go-go-goja v0.0.0
-
-replace github.com/go-go-golems/go-go-goja => `+filepath.ToSlash(repoRoot)+`
-`), 0o644); err != nil {
-		t.Fatalf("write host go.mod: %v", err)
-	}
-	cmdDir := filepath.Join(dir, "cmd", "host")
-	if err := os.MkdirAll(cmdDir, 0o755); err != nil {
-		t.Fatalf("mkdir host cmd: %v", err)
-	}
-	mainSource := `package main
-
-import (
-	"context"
-	"fmt"
-
-	"github.com/dop251/goja"
-	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
-	"example.com/host/internal/xgojaruntime"
-)
-
-func main() {
-	bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{ConfigureServices: func(services *app.HostServices) {
-		if err := services.SetHostService("host-smoke", "configured"); err != nil { panic(err) }
-	}})
-	if err != nil { panic(err) }
-	rt, err := bundle.NewRuntime(context.Background())
-	if err != nil { panic(err) }
-	defer func() { _ = rt.Close(context.Background()) }()
-	ret, err := rt.Owner.Call(context.Background(), "host-smoke", func(_ context.Context, vm *goja.Runtime) (any, error) {
-		return vm.RunString(` + "`" + `require("hello").greet("intern")` + "`" + `)
-	})
-	if err != nil { panic(err) }
-	fmt.Println(ret)
-}
-`
-	if err := os.WriteFile(filepath.Join(cmdDir, "main.go"), []byte(mainSource), 0o644); err != nil {
-		t.Fatalf("write host main: %v", err)
-	}
-	cmd := exec.Command("go", "mod", "tidy")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("go mod tidy: %v\n%s", err, out)
-	}
-	cmd = exec.Command("go", "run", "./cmd/host")
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go run host: %v\n%s", err, out)
-	}
-	if strings.TrimSpace(string(out)) != "hello intern" {
-		t.Fatalf("unexpected host output: %q", out)
-	}
-}
-
-func TestRenderSourceFragmentsSplitsRuntimePackageAPI(t *testing.T) {
-	buildSpec := buildableSpec("source", "", "")
-	buildSpec.Go.Imports = []buildspec.GoImportSpec{{Import: "github.com/lib/pq", Alias: "_"}}
-	fragments := RenderSourceFragments(buildSpec, "xgojaruntime")
-	for _, name := range []string{"spec.gen.go", "providers.gen.go", "bundle.gen.go"} {
-		if fragments[name] == "" {
-			t.Fatalf("missing source fragment %s in %#v", name, fragments)
-		}
-	}
-	if strings.Contains(fragments["spec.gen.go"], "RegisterProviders") {
-		t.Fatalf("spec fragment should not contain provider registration:\n%s", fragments["spec.gen.go"])
-	}
-	if !strings.Contains(fragments["providers.gen.go"], "func RegisterProviders") {
-		t.Fatalf("providers fragment should contain RegisterProviders:\n%s", fragments["providers.gen.go"])
-	}
-	if !strings.Contains(fragments["providers.gen.go"], `_ "github.com/lib/pq"`) {
-		t.Fatalf("providers fragment should contain extra blank import:\n%s", fragments["providers.gen.go"])
-	}
-	for _, want := range []string{"func NewBundle", "ConfigureServices func(*app.HostServices)", "ConfigureServices: opts.ConfigureServices"} {
-		if !strings.Contains(fragments["bundle.gen.go"], want) {
-			t.Fatalf("bundle fragment should contain %q:\n%s", want, fragments["bundle.gen.go"])
-		}
-	}
-}
-
-func TestWriteSourceFragmentsBuildsAndCreatesRuntime(t *testing.T) {
-	runGeneratedPackageHostSmoke(t, func(pkgDir string, buildSpec *buildspec.BuildSpec) error {
-		return WriteSourceFragments(pkgDir, buildSpec, PackageOptions{PackageName: "xgojaruntime"})
-	})
-}
-
-func TestWriteCustomTemplateRendersCallerTemplate(t *testing.T) {
-	dir := t.TempDir()
-	templatePath := filepath.Join(dir, "runtime.go.tmpl")
-	if err := os.WriteFile(templatePath, []byte(`// Code generated by custom xgoja template; DO NOT EDIT.
-package {{ .PackageName }}
-
-const ProviderCount = {{ len .ProviderImports }}
-const ExtraImportCount = {{ len .ExtraImports }}
-const RuntimeSpec = {{ quote .SpecJSON }}
-`), 0o644); err != nil {
-		t.Fatalf("write template: %v", err)
-	}
-	out := filepath.Join(dir, "custom.gen.go")
-	buildSpec := buildableSpec("template", "", "")
-	buildSpec.Go.Imports = []buildspec.GoImportSpec{{Import: "github.com/lib/pq", Alias: "_"}}
-	if err := WriteCustomTemplate(out, buildSpec, TemplateOptions{PackageName: "customruntime", TemplatePath: templatePath}); err != nil {
-		t.Fatalf("write custom template: %v", err)
-	}
-	data, err := os.ReadFile(out)
-	if err != nil {
-		t.Fatalf("read custom output: %v", err)
-	}
-	got := string(data)
-	for _, want := range []string{"package customruntime", "const ProviderCount = 1", "const ExtraImportCount = 1", "const RuntimeSpec = "} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected custom output to contain %q, got:\n%s", want, got)
-		}
-	}
-}
-
-func TestRenderEmbeddedSpecStableShape(t *testing.T) {
-	got := RenderEmbeddedSpec(fixtureSpec())
-	for _, want := range []string{
-		`"name": "fixture"`,
-		`"kind": "xgoja"`,
-		`"package": "web"`,
-		`"as": "fetch"`,
-		`"modules": [`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, got)
-		}
-	}
-}
-
-func TestRenderEmbeddedSpecIncludesRuntimeAppSettings(t *testing.T) {
-	buildSpec := fixtureSpec()
-	buildSpec.AppName = "my-app"
-	buildSpec.EnvPrefix = "MY_APP"
-	buildSpec.ConfigFile = &buildspec.ConfigFileSpec{Enabled: true, Layers: []string{"cwd", "explicit"}, FileName: "config.yaml"}
-
-	var embedded app.RuntimeSpec
-	if err := json.Unmarshal([]byte(RenderEmbeddedSpec(buildSpec)), &embedded); err != nil {
-		t.Fatalf("unmarshal embedded runtime spec: %v", err)
-	}
-	if embedded.AppName != "my-app" {
-		t.Fatalf("appName = %q", embedded.AppName)
-	}
-	if embedded.EnvPrefix != "MY_APP" {
-		t.Fatalf("envPrefix = %q", embedded.EnvPrefix)
-	}
-	if embedded.ConfigFile == nil || !embedded.ConfigFile.Enabled {
-		t.Fatalf("embedded config missing or disabled: %#v", embedded.ConfigFile)
-	}
-	if got, want := strings.Join(embedded.ConfigFile.Layers, ","), "cwd,explicit"; got != want {
-		t.Fatalf("config layers = %q, want %q", got, want)
-	}
-	if embedded.ConfigFile.FileName != "config.yaml" {
-		t.Fatalf("config fileName = %q", embedded.ConfigFile.FileName)
-	}
-}
-
-func TestRenderMainIncludesEmbeddedVerbFS(t *testing.T) {
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
-	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true, Include: []string{"site.js"}, Exclude: []string{"assets/**"}, Extensions: []string{".js", ".mjs"}}}
-	got := RenderMain(buildSpec)
-	for _, want := range []string{
-		`"embed"`,
-		`//go:embed xgoja_embed/jsverbs/*`,
-		`var embeddedJSVerbs embed.FS`,
-		`EmbeddedJSVerbs: embeddedJSVerbs`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
-		}
-	}
-	embeddedSpec := RenderEmbeddedSpec(buildSpec)
-	for _, want := range []string{
-		`"path": "xgoja_embed/jsverbs/local"`,
-		`"include": [`,
-		`"site.js"`,
-		`"exclude": [`,
-		`"assets/**"`,
-		`"extensions": [`,
-		`".mjs"`,
-	} {
-		if !strings.Contains(embeddedSpec, want) {
-			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, embeddedSpec)
-		}
-	}
-}
-
-func TestRenderMainIncludesEmbeddedHelpFS(t *testing.T) {
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local-docs", Path: "docs/help", Embed: true}}
-	got := RenderMain(buildSpec)
-	for _, want := range []string{
-		`"embed"`,
-		`//go:embed xgoja_embed/help/*`,
-		`var embeddedHelp embed.FS`,
-		`EmbeddedHelp: embeddedHelp`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
-		}
-	}
-	for _, notWant := range []string{
-		`var embeddedJSVerbs embed.FS`,
-		`EmbeddedJSVerbs: embeddedJSVerbs`,
-	} {
-		if strings.Contains(got, notWant) {
-			t.Fatalf("main.go should not contain %q for help-only embed:\n%s", notWant, got)
-		}
-	}
-	embeddedSpec := RenderEmbeddedSpec(buildSpec)
-	if !strings.Contains(embeddedSpec, `"path": "xgoja_embed/help/local_docs"`) {
-		t.Fatalf("expected embedded runtime spec to rewrite local help path, got:\n%s", embeddedSpec)
-	}
-}
-
-func TestRenderMainIncludesEmbeddedVerbAndHelpFS(t *testing.T) {
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
-	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local-verbs", Path: "verbs", Embed: true}}
-	buildSpec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local-docs", Path: "docs/help", Embed: true}}
-	got := RenderMain(buildSpec)
-	for _, want := range []string{
-		`var embeddedJSVerbs embed.FS`,
-		`var embeddedHelp embed.FS`,
-		`EmbeddedJSVerbs: embeddedJSVerbs`,
-		`EmbeddedHelp: embeddedHelp`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
-		}
-	}
-}
-
-func TestRenderMainIncludesEmbeddedAssetFS(t *testing.T) {
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Assets = []buildspec.AssetSourceSpec{{ID: "app-assets", Path: "assets", Embed: true}}
-	got := RenderMain(buildSpec)
-	for _, want := range []string{
-		`"embed"`,
-		`//go:embed all:xgoja_embed/assets/*`,
-		`var embeddedAssets embed.FS`,
-		`EmbeddedAssets: embeddedAssets`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected main.go to contain %q, got:\n%s", want, got)
-		}
-	}
-	for _, notWant := range []string{
-		`var embeddedJSVerbs embed.FS`,
-		`var embeddedHelp embed.FS`,
-	} {
-		if strings.Contains(got, notWant) {
-			t.Fatalf("main.go should not contain %q for asset-only embed:\n%s", notWant, got)
-		}
-	}
-	embeddedSpec := RenderEmbeddedSpec(buildSpec)
-	if !strings.Contains(embeddedSpec, `"path": "xgoja_embed/assets/app_assets"`) {
-		t.Fatalf("expected embedded runtime spec to rewrite local asset path, got:\n%s", embeddedSpec)
-	}
-}
-
-func TestRenderEmbeddedSpecAvoidsEmbeddedVerbRootCollisions(t *testing.T) {
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
-	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{
-		{ID: "local-dev", Path: "verbs-a", Embed: true},
-		{ID: "local_dev", Path: "verbs-b", Embed: true},
-	}
-	got := RenderEmbeddedSpec(buildSpec)
-	for _, want := range []string{
-		`"path": "xgoja_embed/jsverbs/local_dev"`,
-		`"path": "xgoja_embed/jsverbs/local_dev_2"`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, got)
-		}
-	}
-}
-
-func TestRenderEmbeddedSpecAvoidsEmbeddedHelpRootCollisions(t *testing.T) {
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Help.Sources = []buildspec.HelpSourceSpec{
-		{ID: "local-docs", Path: "docs-a", Embed: true},
-		{ID: "local_docs", Path: "docs-b", Embed: true},
-	}
-	got := RenderEmbeddedSpec(buildSpec)
-	for _, want := range []string{
-		`"path": "xgoja_embed/help/local_docs"`,
-		`"path": "xgoja_embed/help/local_docs_2"`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, got)
-		}
-	}
-}
-
-func TestRenderEmbeddedSpecAvoidsEmbeddedAssetRootCollisions(t *testing.T) {
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Assets = []buildspec.AssetSourceSpec{
-		{ID: "app-assets", Path: "assets-a", Embed: true},
-		{ID: "app_assets", Path: "assets-b", Embed: true},
-	}
-	got := RenderEmbeddedSpec(buildSpec)
-	for _, want := range []string{
-		`"path": "xgoja_embed/assets/app_assets"`,
-		`"path": "xgoja_embed/assets/app_assets_2"`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected embedded runtime spec to contain %q, got:\n%s", want, got)
-		}
-	}
-}
-
-func TestWriteAllCopiesEmbeddedVerbSourcesToCollisionFreeRoots(t *testing.T) {
-	baseDir := t.TempDir()
-	for _, dir := range []string{"verbs-a", "verbs-b"} {
-		verbsDir := filepath.Join(baseDir, dir)
-		if err := os.MkdirAll(verbsDir, 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", dir, err)
-		}
-		if err := os.WriteFile(filepath.Join(verbsDir, "tools.js"), []byte(`__package__({ name: "tools" })`), 0o644); err != nil {
-			t.Fatalf("write %s verb: %v", dir, err)
-		}
-	}
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.BaseDir = baseDir
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
-	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{
-		{ID: "local-dev", Path: "verbs-a", Embed: true},
-		{ID: "local_dev", Path: "verbs-b", Embed: true},
-	}
-	dir := t.TempDir()
-	if err := WriteAll(dir, buildSpec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
-		t.Fatalf("write all: %v", err)
+	out := t.TempDir()
+	if err := WriteAllPlan(out, compiled, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
+		t.Fatalf("WriteAllPlan: %v", err)
 	}
 	for _, path := range []string{
-		filepath.Join(dir, "xgoja_embed", "jsverbs", "local_dev", "tools.js"),
-		filepath.Join(dir, "xgoja_embed", "jsverbs", "local_dev_2", "tools.js"),
+		"xgoja_embed/jsverbs/verbs/hello.js",
+		"xgoja_embed/help/docs/index.md",
+		"xgoja_embed/assets/assets/app.css",
+		"go.mod",
+		"main.go",
+		"xgoja.gen.json",
 	} {
-		if _, err := os.Stat(path); err != nil {
-			t.Fatalf("expected collision-free embedded verb copy %s: %v", path, err)
+		if _, err := os.Stat(filepath.Join(out, filepath.FromSlash(path))); err != nil {
+			t.Fatalf("expected generated %s: %v", path, err)
 		}
 	}
-}
-
-func TestWriteAllCopiesEmbeddedAssetsToCollisionFreeRoots(t *testing.T) {
-	baseDir := t.TempDir()
-	for _, dir := range []string{"assets-a", "assets-b"} {
-		assetDir := filepath.Join(baseDir, dir, "config")
-		if err := os.MkdirAll(assetDir, 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", dir, err)
-		}
-		if err := os.WriteFile(filepath.Join(assetDir, "default.json"), []byte(`{"ok":true}`), 0o644); err != nil {
-			t.Fatalf("write %s asset: %v", dir, err)
-		}
-	}
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.BaseDir = baseDir
-	buildSpec.Assets = []buildspec.AssetSourceSpec{
-		{ID: "app-assets", Path: "assets-a", Embed: true},
-		{ID: "app_assets", Path: "assets-b", Embed: true},
-	}
-	dir := t.TempDir()
-	if err := WriteAll(dir, buildSpec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
-		t.Fatalf("write all: %v", err)
-	}
-	for _, path := range []string{
-		filepath.Join(dir, "xgoja_embed", "assets", "app_assets", "config", "default.json"),
-		filepath.Join(dir, "xgoja_embed", "assets", "app_assets_2", "config", "default.json"),
-	} {
-		if _, err := os.Stat(path); err != nil {
-			t.Fatalf("expected collision-free embedded asset copy %s: %v", path, err)
-		}
+	if _, err := os.Stat(filepath.Join(out, "xgoja_embed", "assets", "assets", "node_modules", "skip.js")); !os.IsNotExist(err) {
+		t.Fatalf("expected node_modules asset to be skipped, got err=%v", err)
 	}
 }
 
-func TestWriteAllCopiesEmbeddedHelpSourcesToCollisionFreeRoots(t *testing.T) {
-	baseDir := t.TempDir()
-	for _, dir := range []string{"docs-a", "docs-b"} {
-		helpDir := filepath.Join(baseDir, dir, "topics")
-		if err := os.MkdirAll(helpDir, 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", dir, err)
-		}
-		if err := os.WriteFile(filepath.Join(helpDir, "01-intro.md"), []byte("---\nTitle: Intro\nSlug: intro\n---\n"), 0o644); err != nil {
-			t.Fatalf("write %s help: %v", dir, err)
-		}
-	}
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.BaseDir = baseDir
-	buildSpec.Help.Sources = []buildspec.HelpSourceSpec{
-		{ID: "local-docs", Path: "docs-a", Embed: true},
-		{ID: "local_docs", Path: "docs-b", Embed: true},
-	}
-	dir := t.TempDir()
-	if err := WriteAll(dir, buildSpec, Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
-		t.Fatalf("write all: %v", err)
-	}
-	for _, path := range []string{
-		filepath.Join(dir, "xgoja_embed", "help", "local_docs", "topics", "01-intro.md"),
-		filepath.Join(dir, "xgoja_embed", "help", "local_docs_2", "topics", "01-intro.md"),
-	} {
-		if _, err := os.Stat(path); err != nil {
-			t.Fatalf("expected collision-free embedded help copy %s: %v", path, err)
-		}
-	}
-}
-
-func TestWriteAll(t *testing.T) {
-	dir := t.TempDir()
-	if err := WriteAll(dir, fixtureSpec(), Options{XGojaModuleVersion: "v0.1.0"}); err != nil {
-		t.Fatalf("write all: %v", err)
-	}
-	for _, name := range []string{"go.mod", "main.go", "xgoja.gen.json"} {
-		path := filepath.Join(dir, name)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("read generated %s: %v", name, err)
-		}
-		if len(data) == 0 {
-			t.Fatalf("generated %s is empty", name)
-		}
-	}
-}
-
-func TestGeneratedProgramRunsFixtureProvider(t *testing.T) {
-	runGeneratedEval(t, buildableSpec("xgoja", "", ""))
-}
-
-func TestGeneratedProgramUsesConfiguredReplCommandName(t *testing.T) {
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Commands.Eval.Name = "runjs"
-	_, out := runGeneratedCommandWithOutput(t, buildSpec, "runjs", `require("hello").greet("intern")`)
-	if strings.TrimSpace(string(out)) != "hello intern" {
-		t.Fatalf("configured eval output = %q", out)
-	}
-}
-
-func TestGeneratedProgramRunsProviderVerbSource(t *testing.T) {
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
-	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "provider", Package: "fixture", Source: "verbs"}}
-	runGeneratedCommand(t, buildSpec, "verbs", "tools", "provider-greet", "--name", "intern")
-}
-
-func TestGeneratedProgramRunsProviderVerbWithOwnerBindings(t *testing.T) {
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.Modules = []buildspec.ModuleInstanceSpec{
-		{Package: "fixture", Name: "hello", As: "hello"},
-		{Package: "fixture", Name: "owner-check", As: "owner-check"},
-	}
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
-	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "provider", Package: "fixture", Source: "verbs"}}
-	_, out := runGeneratedCommandWithOutput(t, buildSpec, "verbs", "tools", "owner-ping")
-	if strings.TrimSpace(string(out)) != "pong" {
-		t.Fatalf("owner-ping output = %q", out)
-	}
-}
-
-func TestGeneratedProgramRunsEmbeddedVerbSource(t *testing.T) {
-	baseDir := t.TempDir()
-	verbsDir := filepath.Join(baseDir, "verbs")
-	if err := os.MkdirAll(verbsDir, 0o755); err != nil {
-		t.Fatalf("mkdir verbs: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(verbsDir, "tools.js"), []byte(`
-__package__({ name: "tools" })
-__verb__("embeddedGreet", {
-  name: "embedded-greet",
-  output: "text",
-  fields: {
-    name: { type: "string", required: true }
-  }
-})
-function embeddedGreet(name) {
-  const hello = require("hello")
-  return hello.greet(name)
-}
-`), 0o644); err != nil {
-		t.Fatalf("write verb: %v", err)
-	}
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.BaseDir = baseDir
-	buildSpec.Commands.JSVerbs = buildspec.CommandSpec{Enabled: true, Name: "verbs"}
-	buildSpec.JSVerbs = []buildspec.JSVerbSourceSpec{{ID: "local", Path: "verbs", Embed: true}}
-	dir := runGeneratedCommand(t, buildSpec, "verbs", "tools", "embedded-greet", "--name", "intern")
-	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "jsverbs", "local", "tools.js")); err != nil {
-		t.Fatalf("embedded verb was not copied: %v", err)
-	}
-}
-
-func TestGeneratedProgramServesHTTPVerb(t *testing.T) {
-	baseDir := t.TempDir()
-	verbsDir := filepath.Join(baseDir, "verbs")
-	if err := os.MkdirAll(verbsDir, 0o755); err != nil {
-		t.Fatalf("mkdir verbs: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(verbsDir, "sites.js"), []byte(`
-__package__({ name: "sites" })
-__verb__("demo", { name: "demo", output: "text", short: "Serve demo" })
-function demo() {
-  const express = require("express")
-  const app = express.app()
-  app.get("/healthz").public().handle((_ctx, res) => res.json({ ok: true, source: "jsverb" }))
-}
-`), 0o644); err != nil {
-		t.Fatalf("write verb: %v", err)
-	}
-	buildSpec := &buildspec.BuildSpec{
-		Name:    "http-serve-verb",
-		Go:      buildspec.GoSpec{Version: "1.26", Module: "example.com/generated/http-serve-verb"},
-		Target:  buildspec.TargetSpec{Kind: "xgoja", Output: "dist/http-serve-verb"},
-		BaseDir: baseDir,
-		Packages: []buildspec.PackageSpec{{
-			ID:       "go-go-goja-http",
-			Import:   "github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http",
-			Register: "Register",
-		}},
-		Modules: []buildspec.ModuleInstanceSpec{{Package: "go-go-goja-http", Name: "express", As: "express"}},
-		Commands: buildspec.CommandsSpec{
-			JSVerbs: buildspec.CommandSpec{Enabled: true, Name: "verbs"},
-		},
-		CommandProviders: []buildspec.CommandProviderInstanceSpec{{
-			ID:      "http-serve",
-			Package: "go-go-goja-http",
-			Name:    "serve",
-			Mount:   "serve",
-		}},
-		JSVerbs: []buildspec.JSVerbSourceSpec{{ID: "local", Path: verbsDir}},
-	}
-	addr := freeTCPAddr(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	cmd, dir := startGeneratedCommand(t, ctx, buildSpec, "serve", "sites", "demo", "--http-listen", addr)
-	url := "http://" + addr + "/healthz"
-	var body string
-	for i := 0; i < 80; i++ {
-		resp, err := http.Get(url)
-		if err == nil {
-			data, readErr := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-			if readErr == nil && resp.StatusCode == http.StatusOK {
-				body = string(data)
-				break
-			}
-		}
-		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-			t.Fatalf("generated serve command exited early")
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	if !strings.Contains(body, `"ok":true`) || !strings.Contains(body, `"source":"jsverb"`) {
-		t.Fatalf("unexpected health response from %s in %s: %q", url, dir, body)
-	}
-	cancel()
-	_ = cmd.Wait()
-}
-
-func TestGeneratedProgramServesHTTPVerbWithHotReload(t *testing.T) {
-	baseDir := t.TempDir()
-	verbsDir := filepath.Join(baseDir, "verbs")
-	if err := os.MkdirAll(verbsDir, 0o755); err != nil {
-		t.Fatalf("mkdir verbs: %v", err)
-	}
-	verbPath := filepath.Join(verbsDir, "sites.js")
-	writeGeneratedHotReloadServeVerb(t, verbPath, 1)
-	buildSpec := generatedHTTPServeVerbSpec(baseDir, verbsDir)
-	addr := freeTCPAddr(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	cmd, dir := startGeneratedCommand(t, ctx, buildSpec,
-		"serve", "sites", "demo",
-		"--http-listen", addr,
-		"--hot-reload",
-		"--hot-reload-watch-root", verbsDir,
-		"--hot-reload-poll", "50ms",
-		"--hot-reload-debounce", "50ms",
-		"--hot-reload-smoke-path", "/healthz",
-	)
-	_ = dir
-	healthURL := "http://" + addr + "/healthz"
-	if body := waitGeneratedHTTPBody(t, cmd, healthURL); !strings.Contains(body, `"version":1`) {
-		t.Fatalf("initial health response = %s", body)
-	}
-	statusURL := "http://" + addr + "/__xgoja/status"
-	status := waitGeneratedHTTPStatus(t, cmd, statusURL, func(status map[string]any) bool {
-		return status["ready"] == true && status["activeVersion"].(float64) >= 1
-	})
-	if status["lastError"] != nil && status["lastError"] != "" {
-		t.Fatalf("unexpected initial status error: %#v", status)
-	}
-
-	time.Sleep(100 * time.Millisecond)
-	writeGeneratedHotReloadServeVerb(t, verbPath, 2)
-	status = waitGeneratedHTTPStatus(t, cmd, statusURL, func(status map[string]any) bool {
-		return status["ready"] == true && status["activeVersion"].(float64) >= 2
-	})
-	activeVersion := status["activeVersion"].(float64)
-	if body := waitGeneratedHTTPBody(t, cmd, healthURL); !strings.Contains(body, `"version":2`) {
-		t.Fatalf("reloaded health response = %s", body)
-	}
-
-	time.Sleep(100 * time.Millisecond)
-	if err := os.WriteFile(verbPath, []byte(`__package__({ name: "sites" }); function demo( {`), 0o644); err != nil {
-		t.Fatalf("write broken verb: %v", err)
-	}
-	status = waitGeneratedHTTPStatus(t, cmd, statusURL, func(status map[string]any) bool {
-		lastError, _ := status["lastError"].(string)
-		return status["activeVersion"].(float64) == activeVersion && lastError != ""
-	})
-	if body := waitGeneratedHTTPBody(t, cmd, healthURL); !strings.Contains(body, `"version":2`) {
-		t.Fatalf("last-known-good health response = %s status=%#v", body, status)
-	}
-
-	cancel()
-	_ = cmd.Wait()
-}
-
-func generatedHTTPServeVerbSpec(baseDir, verbsDir string) *buildspec.BuildSpec {
-	return &buildspec.BuildSpec{
-		Name:    "http-serve-verb",
-		Go:      buildspec.GoSpec{Version: "1.26", Module: "example.com/generated/http-serve-verb"},
-		Target:  buildspec.TargetSpec{Kind: "xgoja", Output: "dist/http-serve-verb"},
-		BaseDir: baseDir,
-		Packages: []buildspec.PackageSpec{{
-			ID:       "go-go-goja-http",
-			Import:   "github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http",
-			Register: "Register",
-		}},
-		Modules: []buildspec.ModuleInstanceSpec{{Package: "go-go-goja-http", Name: "express", As: "express"}},
-		Commands: buildspec.CommandsSpec{
-			JSVerbs: buildspec.CommandSpec{Enabled: true, Name: "verbs"},
-		},
-		CommandProviders: []buildspec.CommandProviderInstanceSpec{{
-			ID:      "http-serve",
-			Package: "go-go-goja-http",
-			Name:    "serve",
-			Mount:   "serve",
-		}},
-		JSVerbs: []buildspec.JSVerbSourceSpec{{ID: "local", Path: verbsDir}},
-	}
-}
-
-func writeGeneratedHotReloadServeVerb(t *testing.T, path string, version int) {
-	t.Helper()
-	source := fmt.Sprintf(`
-__package__({ name: "sites" })
-__verb__("demo", { name: "demo", output: "text", short: "Serve demo" })
-function demo() {
-  const express = require("express")
-  const app = express.app()
-  app.get("/healthz").public().handle((_ctx, res) => res.json({ ok: true, version: %d }))
-}
-`, version)
-	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
-		t.Fatalf("write verb: %v", err)
-	}
-}
-
-func waitGeneratedHTTPBody(t *testing.T, cmd *exec.Cmd, url string) string {
-	t.Helper()
-	var body string
-	for i := 0; i < 100; i++ {
-		resp, err := http.Get(url)
-		if err == nil {
-			data, readErr := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-			if readErr == nil && resp.StatusCode == http.StatusOK {
-				body = string(data)
-				break
-			}
-		}
-		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-			t.Fatalf("generated serve command exited early")
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	if body == "" {
-		t.Fatalf("timed out waiting for %s", url)
-	}
-	return body
-}
-
-func waitGeneratedHTTPStatus(t *testing.T, cmd *exec.Cmd, url string, accept func(map[string]any) bool) map[string]any {
-	t.Helper()
-	for i := 0; i < 100; i++ {
-		resp, err := http.Get(url)
-		if err == nil {
-			data, readErr := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-			if readErr == nil && resp.StatusCode == http.StatusOK {
-				status := map[string]any{}
-				if err := json.Unmarshal(data, &status); err == nil && accept(status) {
-					return status
-				}
-			}
-		}
-		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-			t.Fatalf("generated serve command exited early")
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	t.Fatalf("timed out waiting for status from %s", url)
-	return nil
-}
-
-func TestGeneratedProgramReadsEmbeddedAssetsThroughFSAliases(t *testing.T) {
-	baseDir := t.TempDir()
-	assetDir := filepath.Join(baseDir, "assets", "config")
-	wellKnownDir := filepath.Join(baseDir, "assets", ".well-known")
-	if err := os.MkdirAll(assetDir, 0o755); err != nil {
-		t.Fatalf("mkdir assets: %v", err)
-	}
-	if err := os.MkdirAll(wellKnownDir, 0o755); err != nil {
-		t.Fatalf("mkdir well-known assets: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(assetDir, "default.json"), []byte(`{"ok":true}`), 0o644); err != nil {
-		t.Fatalf("write asset: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(wellKnownDir, "security.txt"), []byte(`Contact: mailto:security@example.com`), 0o644); err != nil {
-		t.Fatalf("write dot asset: %v", err)
-	}
-	outPath := filepath.ToSlash(filepath.Join(baseDir, "out.json"))
-	buildSpec := &buildspec.BuildSpec{
-		Name:    "embedded-assets",
-		Go:      buildspec.GoSpec{Version: "1.26", Module: "example.com/generated/embedded-assets"},
-		Target:  buildspec.TargetSpec{Kind: "xgoja", Output: "dist/embedded-assets"},
-		BaseDir: baseDir,
-		Packages: []buildspec.PackageSpec{{
-			ID:       "go-go-goja-host",
-			Import:   "github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host",
-			Register: "Register",
-		}},
-		Assets: []buildspec.AssetSourceSpec{{ID: "app-assets", Path: "assets", Embed: true}},
-		Modules: []buildspec.ModuleInstanceSpec{
-			{
-				Package: "go-go-goja-host",
-				Name:    "fs",
-				As:      "fs:assets",
-				Config: map[string]any{
-					"embedded": map[string]any{
-						"allow":  true,
-						"mounts": []any{map[string]any{"asset": "app-assets", "mount": "/app"}},
-					},
-				},
-			},
-			{Package: "go-go-goja-host", Name: "fs", As: "fs:host", Config: map[string]any{"allow": true}},
-		},
-		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Name: "eval"}},
-	}
-	js := `
-		const assets = require("fs:assets");
-		const host = require("fs:host");
-		let plain = "";
-		try { require("fs"); } catch (e) { plain = "missing"; }
-		const text = assets.readFileSync("/app/config/default.json", "utf8");
-		const wellKnown = assets.readFileSync("/app/.well-known/security.txt", "utf8");
-		host.writeFileSync(` + strconv.Quote(outPath) + `, text, "utf8");
-		JSON.stringify({ text, wellKnown, plain, wrote: host.existsSync(` + strconv.Quote(outPath) + `) });
-	`
-	dir, out := runGeneratedCommandWithOutput(t, buildSpec, "eval", js)
-	state := string(out)
-	for _, want := range []string{`"text":"{\"ok\":true}"`, `"wellKnown":"Contact: mailto:security@example.com"`, `"plain":"missing"`, `"wrote":true`} {
-		if !strings.Contains(state, want) {
-			t.Fatalf("embedded asset eval output missing %s: %s", want, state)
-		}
-	}
-	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "assets", "app_assets", "config", "default.json")); err != nil {
-		t.Fatalf("embedded asset was not copied: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "assets", "app_assets", ".well-known", "security.txt")); err != nil {
-		t.Fatalf("embedded dot-directory asset was not copied: %v", err)
-	}
-	written, err := os.ReadFile(outPath)
+func TestTemplateDataJSONFromPlan(t *testing.T) {
+	got, err := TemplateDataJSONFromPlan(fixturePlan(t), "xgojaruntime")
 	if err != nil {
-		t.Fatalf("read host output: %v", err)
+		t.Fatalf("TemplateDataJSONFromPlan: %v", err)
 	}
-	if string(written) != `{"ok":true}` {
-		t.Fatalf("host output = %q", written)
-	}
-}
-
-func TestGeneratedProgramLoadsEmbeddedHelpSource(t *testing.T) {
-	baseDir := t.TempDir()
-	helpDir := filepath.Join(baseDir, "docs", "help", "topics")
-	if err := os.MkdirAll(helpDir, 0o755); err != nil {
-		t.Fatalf("mkdir help: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(helpDir, "01-local.md"), []byte(`---
-Title: Local API
-Slug: local-api
-Short: Local docs.
-IsTopLevel: true
-IsTemplate: false
-ShowPerDefault: true
-SectionType: GeneralTopic
----
-
-Local body.
-`), 0o644); err != nil {
-		t.Fatalf("write help: %v", err)
-	}
-	buildSpec := buildableSpec("xgoja", "", "")
-	buildSpec.BaseDir = baseDir
-	buildSpec.Help.Sources = []buildspec.HelpSourceSpec{{ID: "local", Path: "docs/help", Embed: true}}
-	dir, out := runGeneratedCommandWithOutput(t, buildSpec, "help", "local-api")
-	if !strings.Contains(string(out), "Local API") || !strings.Contains(string(out), "Local body") {
-		t.Fatalf("expected generated help output, got %q", out)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "xgoja_embed", "help", "local", "topics", "01-local.md")); err != nil {
-		t.Fatalf("embedded help was not copied: %v", err)
+	for _, want := range []string{"\"PackageName\": \"xgojaruntime\"", "\"ProviderImports\""} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("template data missing %q:\n%s", want, got)
+		}
 	}
 }
 
-func TestGeneratedCobraTargetAttachesCommands(t *testing.T) {
-	buildSpec := buildableSpec("cobra", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testcobra", "NewRootCommand")
-	runGeneratedEval(t, buildSpec)
-	runGeneratedFixtureCommand(t, buildSpec, "testcobra fixture")
-}
-
-func TestGeneratedAdapterTargetUsesAdapterBuild(t *testing.T) {
-	buildSpec := buildableSpec("adapter", "github.com/go-go-golems/go-go-goja/pkg/xgoja/testadapter", "")
-	runGeneratedEval(t, buildSpec)
-	runGeneratedFixtureCommand(t, buildSpec, "testadapter fixture")
-}
-
-func runGeneratedEval(t *testing.T, buildSpec *buildspec.BuildSpec) {
+func fixturePlan(t *testing.T) *plan.Plan {
 	t.Helper()
-	dir, out := runGeneratedCommandWithOutput(t, buildSpec, "eval", `require("hello").greet("intern")`)
-	_ = dir
-	if strings.TrimSpace(string(out)) != "hello intern" {
-		t.Fatalf("generated output = %q", out)
-	}
-}
-
-func runGeneratedFixtureCommand(t *testing.T, buildSpec *buildspec.BuildSpec, want string) {
-	t.Helper()
-	_, out := runGeneratedCommandWithOutput(t, buildSpec, "fixture")
-	if strings.TrimSpace(string(out)) != want {
-		t.Fatalf("generated fixture output = %q, want %q", out, want)
-	}
-}
-
-func runGeneratedCommand(t *testing.T, buildSpec *buildspec.BuildSpec, args ...string) string {
-	t.Helper()
-	dir, _ := runGeneratedCommandWithOutput(t, buildSpec, args...)
-	return dir
-}
-
-func startGeneratedCommand(t *testing.T, ctx context.Context, buildSpec *buildspec.BuildSpec, args ...string) (*exec.Cmd, string) {
-	t.Helper()
-	repoRoot, err := filepath.Abs("../../../..")
-	if err != nil {
-		t.Fatalf("repo root: %v", err)
-	}
-	dir := t.TempDir()
-	if err := WriteAll(dir, buildSpec, Options{XGojaModuleVersion: "v0.0.0", XGojaReplace: repoRoot}); err != nil {
-		t.Fatalf("write generated program: %v", err)
-	}
-	cmd := exec.Command("go", "mod", "tidy")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("go mod tidy: %v\n%s", err, out)
-	}
-	binPath := filepath.Join(dir, "generated-test")
-	cmd = exec.Command("go", "build", "-o", binPath, ".")
-	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("go build generated program: %v\n%s", err, out)
-	}
-	cmd = exec.CommandContext(ctx, binPath, args...)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("start generated command: %v", err)
-	}
-	return cmd, dir
-}
-
-func freeTCPAddr(t *testing.T) string {
-	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen free tcp addr: %v", err)
-	}
-	defer func() { _ = listener.Close() }()
-	return listener.Addr().String()
-}
-
-func runGeneratedCommandWithOutput(t *testing.T, buildSpec *buildspec.BuildSpec, args ...string) (string, []byte) {
-	t.Helper()
-	repoRoot, err := filepath.Abs("../../../..")
-	if err != nil {
-		t.Fatalf("repo root: %v", err)
-	}
-	dir := t.TempDir()
-	if err := WriteAll(dir, buildSpec, Options{XGojaModuleVersion: "v0.0.0", XGojaReplace: repoRoot}); err != nil {
-		t.Fatalf("write generated program: %v", err)
-	}
-	cmd := exec.Command("go", "mod", "tidy")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("go mod tidy: %v\n%s", err, out)
-	}
-	cmd = exec.Command("go", append([]string{"run", "."}, args...)...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go run generated program: %v\n%s", err, out)
-	}
-	return dir, out
-}
-
-func buildableSpec(kind, targetImport, root string) *buildspec.BuildSpec {
-	return &buildspec.BuildSpec{
+	return &plan.Plan{Config: specv2.Config{
+		Schema: specv2.Schema,
 		Name:   "fixture",
-		Go:     buildspec.GoSpec{Version: "1.26", Module: "xgoja.generated/fixture"},
-		Target: buildspec.TargetSpec{Kind: kind, Import: targetImport, Root: root, Output: "dist/fixture"},
-		Packages: []buildspec.PackageSpec{
-			{ID: "fixture", Import: "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider", Register: "Register"},
-		},
-		Modules:  []buildspec.ModuleInstanceSpec{{Package: "fixture", Name: "hello", As: "hello"}},
-		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Name: "eval"}},
-	}
+		Go:     specv2.GoSpec{Version: "1.26", Module: "xgoja.generated/fixture"},
+		Providers: []specv2.ProviderSpec{{
+			ID: "fixture", Import: "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider", Register: "Register",
+		}},
+		Runtime:   specv2.RuntimeSpec{Modules: []specv2.RuntimeModuleSpec{{Provider: "fixture", Name: "hello", As: "hello"}}},
+		Commands:  []specv2.CommandSurfaceSpec{{ID: "eval", Type: "builtin.eval", Name: "eval"}},
+		Artifacts: []specv2.ArtifactSpec{{ID: "binary", Type: "binary", Output: "dist/fixture"}},
+	}}
 }
 
-func fixtureSpec() *buildspec.BuildSpec {
-	return &buildspec.BuildSpec{
-		Name: "fixture",
-		Go: buildspec.GoSpec{
-			Version: "1.26",
-			Module:  "xgoja.generated/fixture",
-		},
-		Target: buildspec.TargetSpec{Kind: "xgoja", Output: "dist/fixture"},
-		Packages: []buildspec.PackageSpec{
-			{ID: "core", Import: "github.com/go-go-golems/go-go-goja/xgoja", Register: "Register"},
-			{ID: "web", Import: "github.com/go-go-golems/web-stuff/xgoja", Version: "v0.3.0", Register: "Register", Replace: "../web-stuff"},
-		},
-		Modules:  []buildspec.ModuleInstanceSpec{{Package: "web", Name: "fetch", As: "fetch"}},
-		Commands: buildspec.CommandsSpec{Eval: buildspec.CommandSpec{Enabled: true, Name: "eval"}},
+func mustWrite(t *testing.T, path string, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
 	}
 }

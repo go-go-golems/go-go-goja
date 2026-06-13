@@ -257,5 +257,5 @@ app.route("REPORT", "/reports/:id")
 
 - [Express Auth User Guide](express-auth-user-guide) — Conceptual guide to planned auth routes and host services.
 - [Express-style HTTP Module](express-module) — General module reference for static mounts, route patterns, response helpers, and planned routes.
-- `examples/xgoja/15-express-planned-auth/scripts/server.js` — Compact planned auth route example.
-- `examples/xgoja/16-express-auth-host` — Runnable host smoke test for authenticated planned routes, CSRF, audit, and strict raw-route rejection.
+- `examples/xgoja/17-express-planned-auth/scripts/server.js` — Compact planned auth route example.
+- `examples/xgoja/18-express-auth-host` — Runnable host smoke test for authenticated planned routes, CSRF, audit, and strict raw-route rejection.

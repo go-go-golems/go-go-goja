@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -151,14 +152,22 @@ func (r *Response) HTML(vm *goja.Runtime, v goja.Value) error {
 }
 
 func (r *Response) JSON(vm *goja.Runtime, v goja.Value) error {
+	payload, err := json.Marshal(v.Export())
+	if err != nil {
+		return err
+	}
+	payload = append(payload, '\n')
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.sent {
 		return nil
 	}
-	r.w.Header().Set("Content-Type", "application/json")
+	r.headers["Content-Type"] = "application/json"
+	r.headers["Content-Length"] = strconv.Itoa(len(payload))
 	r.applyLocked()
-	return json.NewEncoder(r.w).Encode(v.Export())
+	_, err = r.w.Write(payload)
+	return err
 }
 
 func (r *Response) writeString(s string) error {
@@ -170,13 +179,15 @@ func (r *Response) writeString(s string) error {
 	if r.headers["Content-Type"] == "" {
 		trim := strings.TrimSpace(s)
 		if strings.HasPrefix(trim, "<") {
-			r.w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			r.headers["Content-Type"] = "text/html; charset=utf-8"
 		} else {
-			r.w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			r.headers["Content-Type"] = "text/plain; charset=utf-8"
 		}
 	}
+	payload := []byte(s)
+	r.headers["Content-Length"] = strconv.Itoa(len(payload))
 	r.applyLocked()
-	_, err := r.w.Write([]byte(s))
+	_, err := r.w.Write(payload)
 	return err
 }
 

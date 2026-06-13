@@ -411,13 +411,40 @@ func waitForServeTestStatusWhere(t *testing.T, url string, done <-chan error, ac
 	return hotreload.Status{}
 }
 
+func TestAppendTypeScriptWatchExtensions(t *testing.T) {
+	got := appendTypeScriptWatchExtensions([]string{".js", ".ts"})
+	want := []string{".js", ".ts", ".tsx", ".mts", ".cts"}
+	if len(got) != len(want) {
+		t.Fatalf("extensions = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("extensions = %#v, want %#v", got, want)
+		}
+	}
+}
+
+func TestSourceSetHasTypeScript(t *testing.T) {
+	if sourceSetHasTypeScript(fakeJSVerbSourceSet{}) {
+		t.Fatalf("empty fake source set unexpectedly has TypeScript")
+	}
+	if !sourceSetHasTypeScript(fakeJSVerbSourceSet{typescript: true}) {
+		t.Fatalf("TypeScript-enabled fake source set was not detected")
+	}
+}
+
 type fakeJSVerbSourceSet struct {
 	path       string
 	registries []*jsverbs.Registry
+	typescript bool
 }
 
 func (s fakeJSVerbSourceSet) ListJSVerbSources() []providerapi.JSVerbSourceDescriptor {
-	return []providerapi.JSVerbSourceDescriptor{{ID: "fake", Path: s.path}}
+	descriptor := providerapi.JSVerbSourceDescriptor{ID: "fake", Path: s.path}
+	if s.typescript {
+		descriptor.TypeScript = &providerapi.TypeScriptDescriptor{Enabled: true}
+	}
+	return []providerapi.JSVerbSourceDescriptor{descriptor}
 }
 
 func (s fakeJSVerbSourceSet) ScanJSVerbSource(id string) (*jsverbs.Registry, error) {

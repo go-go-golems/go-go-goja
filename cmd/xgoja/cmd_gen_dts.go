@@ -14,8 +14,9 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildexec"
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/plan"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/workspace"
 )
 
 type genDTSCommand struct {
@@ -61,8 +62,7 @@ Examples:
 					fields.WithShortFlag("f"),
 					fields.WithHelp("Path to the xgoja build specification")),
 				fields.New("out", fields.TypeString,
-					fields.WithRequired(true),
-					fields.WithHelp("Output path for generated .d.ts file")),
+					fields.WithHelp("Output path for generated .d.ts file; v2 defaults to the first dts artifact output")),
 				fields.New("check", fields.TypeBool,
 					fields.WithDefault(false),
 					fields.WithHelp("Check mode: fail if generated output differs from --out")),
@@ -90,13 +90,12 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	buildSpec, report, err := buildspec.LoadFile(settings.File)
-	if report != nil {
-		_, _ = fmt.Fprintf(c.out, "validated %d check(s) for %s\n", len(report.Checks), settings.File)
-	}
+	compiledPlan, err := loadV2Plan(settings.File)
 	if err != nil {
 		return err
 	}
+	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
+	applyV2DTSArtifactDefaults(&settings, compiledPlan)
 
 	workDir := strings.TrimSpace(settings.WorkDir)
 	cleanup := func() {}
@@ -112,7 +111,11 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	defer cleanup()
 
-	if err := writeDTSSidecar(workDir, buildSpec, settings); err != nil {
+	goModules := compiledPlan.GoModules
+	if strings.TrimSpace(settings.Output) == "" {
+		return fmt.Errorf("--out is required unless the v2 spec has a dts artifact with output")
+	}
+	if err := writeDTSSidecar(workDir, compiledPlan, settings, goModules); err != nil {
 		return err
 	}
 	_, _ = fmt.Fprintf(c.out, "generated dts sidecar workspace: %s\n", workDir)
@@ -122,20 +125,38 @@ func (c *genDTSCommand) Run(ctx context.Context, vals *values.Values) error {
 	if _, err := buildexec.GoModTidy(ctx, workDir); err != nil {
 		return err
 	}
-	result, err := buildexec.GoRun(ctx, workDir, buildSpec.Go.Env)
+	result, err := buildexec.GoRun(ctx, workDir, compiledPlan.Config.Go.Env)
 	if err != nil {
 		return err
 	}
 	return writeOrCheckDTS(settings.Output, result.Stdout, settings.Check)
 }
 
-func writeDTSSidecar(dir string, buildSpec *buildspec.BuildSpec, settings genDTSSettings) error {
+func applyV2DTSArtifactDefaults(settings *genDTSSettings, compiledPlan *plan.Plan) {
+	if settings == nil || compiledPlan == nil {
+		return
+	}
+	for _, artifact := range compiledPlan.Artifacts {
+		if artifact.Spec.Type != "dts" {
+			continue
+		}
+		if strings.TrimSpace(settings.Output) == "" {
+			settings.Output = artifact.Spec.Output
+		}
+		if artifact.Spec.Strict {
+			settings.Strict = true
+		}
+		return
+	}
+}
+
+func writeDTSSidecar(dir string, compiledPlan *plan.Plan, settings genDTSSettings, goModules *workspace.Plan) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create dts sidecar directory %s: %w", dir, err)
 	}
 	files := map[string]string{
-		"go.mod":  generate.RenderGoMod(buildSpec, generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace}),
-		"main.go": generate.RenderDTSGenMain(buildSpec, settings.Strict),
+		"go.mod":  generate.RenderGoModPlan(compiledPlan, generate.Options{XGojaModuleVersion: settings.XGojaVersion, XGojaReplace: settings.XGojaReplace, GoModules: goModules}),
+		"main.go": generate.RenderDTSGenMainPlan(compiledPlan, settings.Strict),
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {

@@ -248,7 +248,7 @@ The optional packages under `pkg/gojahttp/auth/...` provide reusable Go-side imp
 | `audit` | Normalize route audit events into redacted records for logs or stores. | Persist records if they matter for compliance or incident review. |
 | `capability` | Hashed, expiring bearer-token flows such as org invites, email verification, password reset, or one-time downloads. | Store only hashes and make single-use redemption atomic. |
 
-For development, start with `devauth` or the `examples/xgoja/16-express-auth-host` smoke. For production-shaped browser login, combine `keycloakauth`, `sessionauth`, `appauth`, and `audit` as shown in `examples/xgoja/17-express-keycloak-auth-host`.
+For development, start with `devauth` or the `examples/xgoja/18-express-auth-host` smoke. For production-shaped browser login, combine `keycloakauth`, `sessionauth`, `appauth`, and `audit` as shown in `examples/xgoja/19-express-keycloak-auth-host`.
 
 ## Error behavior
 
@@ -288,4 +288,4 @@ In development mode, 500-class errors include more detail. In production mode, r
 - [Express-style HTTP Module](express-module) — The full module reference, including static mounts and response helpers.
 - [Migrate Express Apps to Planned Auth Routes](migrate-express-apps-to-planned-auth) — Step-by-step migration tutorial for old `app.get(path, handler)` scripts.
 - [Express Auth Examples](express-auth-examples) — Dev-auth and Keycloak smoke-test guide for full host wiring.
-- `examples/xgoja/15-express-planned-auth/scripts/server.js` — Compact route-authoring example for public, current-user, and resource-bound routes.
+- `examples/xgoja/17-express-planned-auth/scripts/server.js` — Compact route-authoring example for public, current-user, and resource-bound routes.

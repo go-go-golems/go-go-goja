@@ -104,6 +104,14 @@ func staticMountExcluded(excludePrefixes []string, requestPath string) bool {
 }
 
 func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
+	requestID := ensureRequestID(w, r)
+	logger := requestLogger(r, requestID)
+	logger.Info().Str("event", "http_request_started").Msg("http request started")
+	loggingWriter, wrappedWriter := newAccessLogResponseWriter(w)
+	defer logRequestDone(logger, loggingWriter, started)
+	w = wrappedWriter
+
 	for _, mount := range h.static {
 		if staticMountMatches(mount.Prefix, r.URL.Path) {
 			if staticMountExcluded(mount.ExcludePrefixes, r.URL.Path) {
@@ -161,6 +169,9 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if promise, ok := ret.(*goja.Promise); ok {
 			err = h.awaitAndFinishPromise(r.Context(), res, promise)
 		}
+	}
+	if err != nil {
+		logger.Error().Err(err).Str("event", "http_handler_error").Msg("http handler error")
 	}
 	if err != nil && !res.Sent() {
 		if h.dev {

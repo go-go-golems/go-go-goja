@@ -1,30 +1,43 @@
+schema: xgoja/v2
 name: host-provider
-target:
-  kind: xgoja
-  output: dist/host-provider
-packages:
-- id: go-go-goja-host
-  import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+app:
+    name: host-provider
+go:
+    module: xgoja.generated/host-provider
+    version: "1.26"
+workspace:
+    mode: auto
+providers:
+    - id: go-go-goja-host
+      import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+      register: Register
+runtime:
+    modules:
+        - provider: go-go-goja-host
+          name: fs
+          as: fs
+          config:
+            allow: true
+        - provider: go-go-goja-host
+          name: exec
+          as: exec
+          config:
+            allow: true
+            allowedCommands:
+                - echo
+        - provider: go-go-goja-host
+          name: database
+          as: database
+          config:
+            allowConfigure: true
 commands:
-  eval:
-    enabled: true
-  run:
-    enabled: true
-modules:
-- package: go-go-goja-host
-  name: fs
-  as: fs
-  config:
-    allow: true
-- package: go-go-goja-host
-  name: exec
-  as: exec
-  config:
-    allow: true
-    allowedCommands:
-    - echo
-- package: go-go-goja-host
-  name: database
-  as: database
-  config:
-    allowConfigure: true
+    - id: eval
+      type: builtin.eval
+      name: eval
+    - id: run
+      type: builtin.run
+      name: run
+artifacts:
+    - id: binary
+      type: binary
+      output: dist/host-provider

@@ -38,7 +38,37 @@ func (s *jsVerbSourceSet) ListJSVerbSources() []providerapi.JSVerbSourceDescript
 			Include:    append([]string(nil), source.Include...),
 			Exclude:    append([]string(nil), source.Exclude...),
 			Extensions: append([]string(nil), source.Extensions...),
+			TypeScript: providerTypeScriptDescriptor(source.TypeScript),
 		})
+	}
+	return out
+}
+
+func providerTypeScriptDescriptor(spec *TypeScriptSpec) *providerapi.TypeScriptDescriptor {
+	if spec == nil {
+		return nil
+	}
+	return &providerapi.TypeScriptDescriptor{
+		Enabled:      spec.Enabled,
+		Bundle:       spec.Bundle,
+		Target:       spec.Target,
+		Format:       spec.Format,
+		Platform:     spec.Platform,
+		Tsconfig:     spec.Tsconfig,
+		Sourcemap:    spec.Sourcemap,
+		External:     append([]string(nil), spec.External...),
+		Define:       cloneStringMap(spec.Define),
+		CheckCommand: append([]string(nil), spec.CheckCommand...),
+	}
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
 	}
 	return out
 }
@@ -55,7 +85,7 @@ func (s *jsVerbSourceSet) ScanJSVerbSource(id string) (*jsverbs.Registry, error)
 		if source.ID != id {
 			continue
 		}
-		return scanVerbSource(s.providers, s.embeddedJSVerbs, source)
+		return scanVerbSource(s.providers, s.embeddedJSVerbs, source, allProviderRuntimeAliases(s.providers))
 	}
 	return nil, fmt.Errorf("unknown jsverb source %q", id)
 }
@@ -66,7 +96,7 @@ func (s *jsVerbSourceSet) ScanAllJSVerbSources() ([]*jsverbs.Registry, error) {
 	}
 	registries := make([]*jsverbs.Registry, 0, len(s.sources))
 	for _, source := range s.sources {
-		registry, err := scanVerbSource(s.providers, s.embeddedJSVerbs, source)
+		registry, err := scanVerbSource(s.providers, s.embeddedJSVerbs, source, allProviderRuntimeAliases(s.providers))
 		if err != nil {
 			return nil, err
 		}
