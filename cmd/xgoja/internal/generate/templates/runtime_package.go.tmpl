@@ -26,7 +26,7 @@ import (
 {{- end }}
 )
 
-const EmbeddedSpecJSON = `{{ .SpecJSON }}`
+const EmbeddedRuntimePlanJSON = `{{ .SpecJSON }}`
 
 {{- if .HasEmbeddedJSVerb }}
 //go:embed xgoja_embed/jsverbs/*
@@ -65,9 +65,9 @@ func RegisterProviders(registry *providerapi.ProviderRegistry) error {
 	return nil
 }
 
-func DecodeSpec() (*app.RuntimePlan, error) {
+func DecodeRuntimePlan() (*app.RuntimePlan, error) {
 	runtimePlan := &app.RuntimePlan{}
-	if err := json.Unmarshal([]byte(EmbeddedSpecJSON), runtimePlan); err != nil {
+	if err := json.Unmarshal([]byte(EmbeddedRuntimePlanJSON), runtimePlan); err != nil {
 		return nil, err
 	}
 	return runtimePlan, nil
@@ -78,7 +78,7 @@ func NewBundle(opts Options) (*Bundle, error) {
 	if err := RegisterProviders(registry); err != nil {
 		return nil, err
 	}
-	runtimePlan, err := DecodeSpec()
+	runtimePlan, err := DecodeRuntimePlan()
 	if err != nil {
 		return nil, err
 	}

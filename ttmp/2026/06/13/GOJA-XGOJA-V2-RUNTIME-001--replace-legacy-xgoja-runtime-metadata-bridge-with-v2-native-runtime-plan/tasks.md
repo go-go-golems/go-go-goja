@@ -42,9 +42,9 @@
 - [x] Phase 6: Update HTTP serve hot-reload to re-scan and watch only command-scoped jsverb sources
 - [x] Phase 6: Add/repair smoke tests for examples/xgoja/13-http-serve-jsverbs using provider.command-set sources and --http-listen
 - [x] Phase 6: Validate app.mount documentation examples still work with the updated HTTP provider runtime setup
-- [ ] Phase 7: Port generated runtime-package artifacts to RuntimePlan and remove legacy RuntimeSpec from generated package internals
-- [ ] Phase 7: Update examples/xgoja/14-generated-runtime-package and its host code/tests for the v2-native runtime plan
-- [ ] Phase 7: Ensure runtime-package public APIs such as NewBundle/NewRuntime remain ergonomic while internals no longer load legacy metadata
+- [x] Phase 7: Port generated runtime-package artifacts to RuntimePlan and remove legacy RuntimeSpec from generated package internals
+- [x] Phase 7: Update examples/xgoja/14-generated-runtime-package and its host code/tests for the v2-native runtime plan
+- [x] Phase 7: Ensure runtime-package public APIs such as NewBundle/NewRuntime remain ergonomic while internals no longer load legacy metadata
 - [ ] Phase 8: Update xgoja user guide to describe the v2-native runtime plan and command-scoped sources
 - [ ] Phase 8: Update xgoja v2 reference to make providers/runtime.modules/sources/commands/artifacts the authoritative runtime concepts
 - [ ] Phase 8: Update migrating-to-xgoja-v2 guide to document the hard runtime cutover and remove legacy bridge language

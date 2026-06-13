@@ -33,7 +33,7 @@ func NewBundle(opts Options) (*Bundle, error) {
 	if err := RegisterProviders(registry); err != nil {
 		return nil, err
 	}
-	runtimePlan, err := DecodeSpec()
+	runtimePlan, err := DecodeRuntimePlan()
 	if err != nil {
 		return nil, err
 	}

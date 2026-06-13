@@ -115,3 +115,16 @@ Completed generator-remnant and HTTP serve cleanup: verified no old generator co
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/providers/http/serve.go — HTTP serve now consumes command-scoped SourceRegistry JS verb adapter and hot reload rescans/watches that scoped set
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/providers/http/serve_test.go — HTTP serve tests now provide SourceRegistry contexts
 
+
+## 2026-06-13
+
+Completed Phase 7 runtime-package cleanup: generated runtime package/source-fragment APIs now expose EmbeddedRuntimePlanJSON and DecodeRuntimePlan, the checked-in runtime-package example embeds v2 RuntimePlan JSON, and smoke validation passes while NewBundle/NewRuntime stay stable.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Regression guards generated runtime package against legacy API names
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate/templates/bundle_fragment.go.tmpl — Bundle fragment decodes RuntimePlan
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate/templates/runtime_package.go.tmpl — Runtime package template exposes RuntimePlan JSON/API
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate/templates/spec_fragment.go.tmpl — Source fragment template exposes RuntimePlan JSON/API
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/examples/xgoja/14-generated-runtime-package — Checked-in runtime-package example regenerated and documented
+

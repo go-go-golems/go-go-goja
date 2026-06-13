@@ -117,6 +117,21 @@ func TestWriteAllPlanCopiesEmbeddedSources(t *testing.T) {
 	}
 }
 
+func TestRenderPackagePlanUsesRuntimePlanAPI(t *testing.T) {
+	got := RenderPackagePlan(fixturePlan(t), "xgojaruntime")
+	for _, want := range []string{"EmbeddedRuntimePlanJSON", "DecodeRuntimePlan() (*app.RuntimePlan, error)", "RuntimePlan *app.RuntimePlan", "NewBundle", "NewRuntime"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated runtime package missing %q:\n%s", want, got)
+		}
+	}
+	for _, legacy := range []string{"EmbeddedSpecJSON", "DecodeSpec", "RuntimeSpec"} {
+		if strings.Contains(got, legacy) {
+			t.Fatalf("generated runtime package contains legacy %q:\n%s", legacy, got)
+		}
+	}
+	assertNoLegacyRuntimeKeys(t, RenderEmbeddedSpecFromPlan(fixturePlan(t)))
+}
+
 func TestTemplateDataJSONFromPlan(t *testing.T) {
 	got, err := TemplateDataJSONFromPlan(fixturePlan(t), "xgojaruntime")
 	if err != nil {
