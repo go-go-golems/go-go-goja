@@ -3,7 +3,7 @@ Title: Investigation diary
 DocType: reference
 Ticket: GOJA-XGOJA-V2-RUNTIME-001
 Status: active
-Topics: [xgoja, architecture, codegen]
+Topics: [xgoja, architecture, code-generation]
 ---
 
 # Diary

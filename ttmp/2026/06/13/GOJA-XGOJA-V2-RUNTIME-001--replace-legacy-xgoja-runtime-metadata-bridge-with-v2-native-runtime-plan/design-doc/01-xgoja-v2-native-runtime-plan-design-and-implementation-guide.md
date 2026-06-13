@@ -5,7 +5,7 @@ Status: active
 Topics:
     - xgoja
     - architecture
-    - codegen
+    - code-generation
 DocType: design-doc
 Intent: ""
 Owners: []
