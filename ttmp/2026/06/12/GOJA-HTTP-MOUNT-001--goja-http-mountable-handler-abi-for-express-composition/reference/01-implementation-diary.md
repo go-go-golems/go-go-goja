@@ -223,3 +223,99 @@ const app = express.app();
 app.mount("/ws", wsServer);
 app.mountHandler("/api", apiHandler, { stripPrefix: true });
 ```
+
+## Step 3: Validate mountable handler implementation and close implementation tasks
+
+I ran the targeted and broad validation suites after the implementation commit. The focused HTTP/Express/xgoja provider tests passed, the xgoja package compatibility tests passed, and the full `go test ./...` suite passed. The pre-commit hook for the implementation commit also ran `go generate ./...`, full tests, `golangci-lint`, and glazed lint successfully.
+
+I also fixed docmgr vocabulary hygiene for the new ticket topics so `docmgr doctor` passes cleanly.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Complete validation and ticket bookkeeping for the mountable handler ABI work.
+
+**Inferred user intent:** Ensure the implementation is tested, documented, committed, and resumable/reviewable.
+
+**Commit (code):** `f7965d47206728bac5a2d6fd639a005c15e11fb6` — "Add mountable HTTP handlers to Express"
+
+### What I did
+
+- Ran targeted package validation.
+- Ran xgoja/express/gojahttp compatibility validation.
+- Ran full repository validation.
+- Added missing docmgr vocabulary entries for `http`, `express`, and `xgoja`.
+- Re-ran `docmgr doctor` successfully.
+- Marked the validation task complete.
+
+### Why
+
+- The new API sits in a shared HTTP substrate and affects Express route composition, so broad validation is important.
+- xgoja HTTP provider tests need to keep passing because `app.mount` is intended to work under the existing `serve` command-set flow.
+
+### What worked
+
+Validation passed:
+
+```bash
+go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1
+go test ./pkg/xgoja/... ./modules/express ./pkg/gojahttp -count=1
+go test ./... -count=1
+docmgr --root go-go-goja/ttmp doctor --ticket GOJA-HTTP-MOUNT-001 --stale-after 30
+```
+
+The commit hook also passed before commit `f7965d4`:
+
+```text
+go generate ./...
+go test ./...
+golangci-lint run -v
+GOWORK=off go vet -vettool=/tmp/glazed-lint ...
+```
+
+### What didn't work
+
+- `docmgr doctor` initially warned about unknown topics `express`, `http`, and `xgoja`. I added those vocabulary entries and reran doctor successfully.
+
+### What I learned
+
+- The existing test suite covers enough xgoja HTTP provider behavior to give confidence that `app.mount` did not disturb `serve`.
+- The pre-commit hook is heavy but useful here because it exercised generation and lint paths beyond the focused tests.
+
+### What was tricky to build
+
+- The only validation wrinkle was docmgr vocabulary location. The current docmgr configuration resolves vocabulary from the workspace-level/sessionstream ttmp path even when operating on `go-go-goja/ttmp`, so the vocabulary additions landed there.
+
+### What warrants a second pair of eyes
+
+- Whether to keep the vocabulary layout as-is or normalize docmgr roots later.
+- Whether a follow-up should move mount-order semantics into a more general router before more Go-backed mount types accumulate.
+
+### What should be done in the future
+
+- Update sessionstream to attach `gojahttp` handler refs to `ss.webSocket.server(hub)`.
+- Add a runnable smoke app that mounts the sessionstream WebSocket server through `app.mount("/ws", ...)`.
+
+### Code review instructions
+
+- Review commit `f7965d4`.
+- Re-run:
+
+```bash
+go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/providers/http -count=1
+```
+
+### Technical details
+
+The implementation is now available to downstream modules as:
+
+```go
+gojahttp.AttachHTTPHandler(vm, obj, handler)
+```
+
+and to JavaScript apps as:
+
+```javascript
+app.mount("/ws", handlerObject)
+```

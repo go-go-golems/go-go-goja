@@ -10,4 +10,4 @@
 - [x] Add express app.mount/app.mountHandler JavaScript API that accepts Go http.Handler-backed objects and registers them on the host
 - [x] Add unit/integration tests for hidden handler refs, express mounting, prefix behavior, route ordering, :param routes, and wildcard routes
 - [x] Update TypeScript declarations and documentation for mountable handlers and route pattern semantics
-- [ ] Run targeted and full validation for gojahttp, express, xgoja HTTP provider, and go-go-goja
+- [x] Run targeted and full validation for gojahttp, express, xgoja HTTP provider, and go-go-goja
