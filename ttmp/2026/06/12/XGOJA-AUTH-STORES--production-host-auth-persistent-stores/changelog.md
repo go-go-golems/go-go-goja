@@ -59,3 +59,13 @@ Phase 3: add SQL-backed audit store with redaction tests and operational query e
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/audit/sqlstore/sqlstore.go — SQL audit store implementation
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/audit/sqlstore/sqlstore_test.go — SQL audit store tests
 
+
+## 2026-06-12
+
+Extend Keycloak/Postgres smoke to persist and verify planned-route audit records (commit c962de2)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go — Audit SQL store wiring
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/scripts/smoke.sh — Audit persistence smoke assertion
+

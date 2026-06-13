@@ -14,15 +14,23 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: examples/xgoja/19-express-keycloak-auth-host/Makefile
-      Note: Adds Postgres/session DSN variables to smoke and serve targets (commit e53d063)
+      Note: |-
+        Adds Postgres/session DSN variables to smoke and serve targets (commit e53d063)
+        Adds AUDIT_DB_DSN defaulting to session DB DSN (commit c962de2)
     - Path: examples/xgoja/19-express-keycloak-auth-host/README.md
-      Note: Documents Postgres-backed Keycloak smoke (commit e53d063)
+      Note: |-
+        Documents Postgres-backed Keycloak smoke (commit e53d063)
+        Documents persistent audit smoke behavior (commit c962de2)
     - Path: examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go
-      Note: Wires optional Postgres-backed sessionauth/sqlstore into example host (commit e53d063)
+      Note: |-
+        Wires optional Postgres-backed sessionauth/sqlstore into example host (commit e53d063)
+        Wires optional Postgres-backed audit/sqlstore into Keycloak host (commit c962de2)
     - Path: examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml
       Note: Adds Postgres to Keycloak smoke stack for SQL session testing (commit e53d063)
     - Path: examples/xgoja/19-express-keycloak-auth-host/scripts/smoke.sh
-      Note: Starts/waits for Postgres and passes session DSN to host (commit e53d063)
+      Note: |-
+        Starts/waits for Postgres and passes session DSN to host (commit e53d063)
+        Verifies persisted audit rows and hardens host readiness (commit c962de2)
     - Path: pkg/gojahttp/auth/appauth/appauth.go
       Note: Clones appauth memory store inputs/outputs for contract parity (commit 22eb7d6)
     - Path: pkg/gojahttp/auth/audit/audit.go
@@ -55,10 +63,11 @@ RelatedFiles:
       Note: Contract and full-projection tests for SQL session store (commit 304f833)
 ExternalSources: []
 Summary: Chronological diary for production auth persistent store planning.
-LastUpdated: 2026-06-12T21:10:00-04:00
+LastUpdated: 2026-06-12T21:15:00-04:00
 WhatFor: Use when resuming work on SQL/Postgres-backed stores for sessions, audit, capabilities, and app auth domain data.
 WhenToUse: Before implementing or reviewing persistent auth store work.
 ---
+
 
 
 
@@ -563,4 +572,140 @@ The package follows the same pattern as the SQL session store: a small `database
 - Denied outcome query helper:
   ```go
   denied, err := store.QueryByOutcome(ctx, "denied", 100)
+  ```
+
+
+## Step 6: Persist Keycloak smoke audit records
+
+This step wired the new `audit/sqlstore` package into the Keycloak/Postgres smoke. The example host can now use Postgres for app sessions and audit records at the same time, which gives the smoke a more production-shaped host-owned auth stack without changing the JavaScript planned routes.
+
+The smoke now asserts that planned-route audit events were actually written to Postgres. This caught a stale-host problem during the first run, so the smoke was hardened to fail if the just-started host process exits before the health endpoint becomes ready.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue from the SQL audit store by wiring it into the realistic Keycloak/Postgres example and smoke.
+
+**Inferred user intent:** Keep expanding the persistent-store validation path beyond package tests, using the existing Keycloak smoke as an end-to-end proof.
+
+**Commit (code):** `c962de2` — "Persist Keycloak smoke audit records"
+
+### What I did
+- Added `--audit-db-dsn` / `AUDIT_DB_DSN` to the Keycloak host example.
+- Added `newAuditSink`, which uses:
+  - `audit.LogSink{}` when no DSN is configured,
+  - `audit.Sink{Store: audit/sqlstore.Store}` when a Postgres DSN is configured.
+- Reused the same Docker Compose Postgres service for app sessions and audit records.
+- Updated the Makefile so `AUDIT_DB_DSN` defaults to `SESSION_DB_DSN`.
+- Updated the smoke script to pass `--audit-db-dsn` and then query `auth_audit_records` through `psql`.
+- Updated the README to describe persistent app sessions plus persistent audit records.
+- Hardened the smoke's host readiness loop so it checks that the launched host process is still alive before accepting `/healthz` as ready.
+
+### Why
+- Package tests prove `audit/sqlstore` behavior, but production confidence needs an end-to-end route path that emits planned-route audit events and stores them in Postgres.
+- The Keycloak example already covers login, session creation, CSRF, resource authorization, and logout. Adding persisted audit rows makes it a better production-shaped auth smoke.
+- The host process liveness check prevents false positives when another process is already listening on the configured port.
+
+### What worked
+- After killing the stale host and hardening readiness, the smoke passed:
+  ```bash
+  make -C examples/xgoja/19-express-keycloak-auth-host smoke
+  ```
+- Key output:
+  ```text
+  ok postgres ready
+  ok keycloak discovery http://127.0.0.1:18080/realms/goja-demo/.well-known/openid-configuration
+  ok host health http://127.0.0.1:8790/healthz
+  ok public health                200
+  ok me before login              401
+  ok login page                   200
+  ok keycloak form login          200
+  ok login redirected to host     http://127.0.0.1:8790/
+  ok me after login               200
+  ok session after login          200
+  ok project missing csrf         403
+  ok project update               200
+  ok project missing              404
+  ok logout                       204
+  ok me after logout              401
+  {"status": "PASS", "actorId": "user:a64b1273-ec75-4ff9-94d2-fe5d172df3bf", "csrfChecked": true}
+  ok persisted audit records 12
+  ```
+- Targeted Go validation also passed:
+  ```bash
+  go test ./examples/xgoja/19-express-keycloak-auth-host/cmd/host ./pkg/gojahttp/auth/audit/sqlstore ./pkg/gojahttp/auth/sessionauth/sqlstore -count=1
+  ```
+- Pre-commit for `c962de2` passed lint and `go test ./...`.
+
+### What didn't work
+- The first smoke attempt failed because an older host process was still listening on `127.0.0.1:8790`. The newly launched host exited immediately with a bind error, but the smoke's generic health check talked to the stale host and continued until the audit count check failed.
+- Failed command:
+  ```bash
+  make -C examples/xgoja/19-express-keycloak-auth-host smoke
+  ```
+- Exact failure excerpts:
+  ```text
+  expected persisted audit records, got count=0
+  --- host log (/tmp/goja-keycloak-host.LUFHjM.log) ---
+  2026/06/12 21:11:04 using Postgres-backed app sessions
+  2026/06/12 21:11:04 using Postgres-backed audit records
+  2026/06/12 21:11:04 serving Keycloak auth example on http://127.0.0.1:8790
+  2026/06/12 21:11:04 Keycloak issuer: http://127.0.0.1:18080/realms/goja-demo
+  2026/06/12 21:11:04 listen tcp 127.0.0.1:8790: bind: address already in use
+  ```
+- Diagnosis command:
+  ```bash
+  lsof -iTCP:8790 -sTCP:LISTEN -n -P
+  ```
+- It showed:
+  ```text
+  COMMAND     PID   USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+  host    3074504 manuel    7u  IPv4 62987036      0t0  TCP 127.0.0.1:8790 (LISTEN)
+  ```
+- Fix:
+  ```bash
+  kill 3074504 || true
+  ```
+- Then I changed the smoke script to use `wait_for_host_url`, which checks `kill -0 "$HOST_PID"` before accepting the health endpoint as ready.
+
+### What I learned
+- End-to-end smokes should verify the process they launched, not only that a URL is reachable. Otherwise stale local servers can mask startup failures.
+- The planned-route audit path produces enough records in the existing smoke to assert durable writes without adding artificial audit endpoints.
+- Reusing the same Postgres database for sessions and audit is sufficient for this example; production deployments may still choose separate schemas or databases.
+
+### What was tricky to build
+- The main tricky edge was stale-process detection. The symptom looked like an audit persistence failure (`count=0`), but the host log showed the real problem was a port bind failure and the smoke talking to an older process.
+- The second subtle point was keeping the fallback behavior useful: no audit DSN still logs audit records, while the smoke and `serve` target default to Postgres audit persistence through `AUDIT_DB_DSN`.
+
+### What warrants a second pair of eyes
+- Whether `AUDIT_DB_DSN` should default to `SESSION_DB_DSN` in the example, or whether examples should make separate store boundaries explicit.
+- Whether the smoke should assert specific audit outcomes/counts rather than only a lower-bound count for known event names.
+- Whether the host should fail closed if audit store setup fails, as it does now, or degrade to logging in local examples.
+
+### What should be done in the future
+- Add `capability/sqlstore` next; it is the highest-risk remaining store because of atomic single-use redemption.
+- Later, wire appauth and capability stores into the Keycloak/Postgres smoke before checking task 25.
+- Add a dedicated port-conflict preflight or randomized listen port support if local stale hosts remain common.
+
+### Code review instructions
+- Review `examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go`, especially `newAuditSink`.
+- Review `examples/xgoja/19-express-keycloak-auth-host/scripts/smoke.sh`, especially `wait_for_host_url` and the `auth_audit_records` query.
+- Validate with:
+  ```bash
+  go test ./examples/xgoja/19-express-keycloak-auth-host/cmd/host ./pkg/gojahttp/auth/audit/sqlstore ./pkg/gojahttp/auth/sessionauth/sqlstore -count=1
+  make -C examples/xgoja/19-express-keycloak-auth-host smoke
+  ```
+
+### Technical details
+- Audit count assertion:
+  ```bash
+  SELECT count(*)
+  FROM auth_audit_records
+  WHERE event IN ('health.checked', 'user.self.read', 'project.updated')
+  ```
+- Host audit wiring:
+  ```go
+  store, err := auditSQLStore.New(auditSQLStore.Config{DB: db, Dialect: auditSQLStore.DialectPostgres})
+  sink := audit.Sink{Store: store}
   ```
