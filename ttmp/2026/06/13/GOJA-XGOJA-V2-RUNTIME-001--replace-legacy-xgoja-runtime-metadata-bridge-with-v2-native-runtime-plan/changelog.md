@@ -151,3 +151,13 @@ Removed active xgoja runtime legacy compatibility: RuntimePlan no longer carries
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/runtime_plan_test.go — RuntimePlan rejects removed top-level legacy keys
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/providerapi/commands.go — CommandSetContext now exposes Sources without JSVerbs adapter field
 
+
+## 2026-06-13
+
+Validated runtime legacy removal with pre-commit lint, go generate ./..., and go test ./... on commit 207bead; focused xgoja/internal and pkg/xgoja test suites also pass.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate — Validated RuntimePlan-named generated outputs (commit 207bead)
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/runtime_plan.go — Validated RuntimePlan-only runtime DTO (commit 207bead)
+

@@ -12,6 +12,8 @@ Owners: []
 RelatedFiles:
     - Path: cmd/xgoja/doc
       Note: Step 8 xgoja RuntimePlan/source-registry docs (commit 5f414bd)
+    - Path: cmd/xgoja/internal/generate
+      Note: Step 9 runtime-plan generated naming and xgoja.runtime.json (commit 207bead)
     - Path: cmd/xgoja/internal/generate/generate_test.go
       Note: |-
         Step 4 metadata guard against legacy top-level generated keys (commit 617b977)
@@ -51,6 +53,10 @@ RelatedFiles:
       Note: Step 3 command-scoped JS verb source filtering (commit 556ed5c)
     - Path: pkg/xgoja/app/root.go
       Note: Step 6 JS verb scanning via SourceRegistry (commit f09788a)
+    - Path: pkg/xgoja/app/root_test.go
+      Note: Step 9 active app tests converted to RuntimePlan JSON (commit 207bead)
+    - Path: pkg/xgoja/app/runtime_plan.go
+      Note: Step 9 RuntimePlan-only DTO and removed-key rejection (commit 207bead)
     - Path: pkg/xgoja/app/runtime_spec.go
       Note: |-
         Step 3 interim source IDs on command-provider metadata (commit 556ed5c)
@@ -58,7 +64,9 @@ RelatedFiles:
     - Path: pkg/xgoja/app/source_registry.go
       Note: Step 5 runtime SourceRegistry implementation (commit 8bcc367)
     - Path: pkg/xgoja/providerapi/commands.go
-      Note: Step 5 CommandSetContext carries SourceRegistry (commit 8bcc367)
+      Note: |-
+        Step 5 CommandSetContext carries SourceRegistry (commit 8bcc367)
+        Step 9 SourceRegistry-only provider command context (commit 207bead)
     - Path: pkg/xgoja/providerapi/sources.go
       Note: Step 5 provider-facing SourceRegistry API (commit 8bcc367)
     - Path: pkg/xgoja/providers/http/serve.go
@@ -71,6 +79,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1101,4 +1110,113 @@ The preferred host entry point remains:
 ```go
 bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{})
 rt, err := bundle.NewRuntime(ctx)
+```
+
+## Step 9: Remove active runtime legacy compatibility
+
+I removed the remaining active compatibility layer from the xgoja runtime DTO and provider command context. The app runtime now has `runtime_plan.go` instead of `runtime_spec.go`, decodes only v2-native `RuntimePlan` shape, rejects removed top-level keys, and no longer carries hidden compatibility buckets such as legacy modules, command providers, jsverbs, assets, or legacy command objects.
+
+I also removed the `ctx.JSVerbs` transition adapter from `providerapi.CommandSetContext`, renamed generated metadata/API symbols from generic spec naming to runtime-plan naming, renamed the generated metadata file from `xgoja.gen.json` to `xgoja.runtime.json`, and converted active app tests to v2 `RuntimePlan` JSON. The remaining legacy names are now confined to migration code/docs or explicit guard tests.
+
+### Prompt Context
+
+**User prompt (verbatim):** "remove"
+
+**Assistant interpretation:** Remove the remaining active legacy runtime compatibility paths after confirming Phases 7/8 were not enough to make the runtime fully legacy-free.
+
+**Inferred user intent:** Complete the hard cutover so normal xgoja runtime/generator/provider code uses RuntimePlan only and fails if legacy generated metadata appears.
+
+**Commit (code):** 207bead — "Remove xgoja runtime legacy compatibility"
+
+### What I did
+
+- Replaced `pkg/xgoja/app/runtime_spec.go` with `pkg/xgoja/app/runtime_plan.go`.
+- Removed compatibility fields and conversion paths from `RuntimePlan`.
+- Added runtime-plan decode rejection for removed top-level keys: `appName`, `envPrefix`, `configFile`, `packages`, `modules`, `commandProviders`, `jsverbs`, `help`, and `assets`.
+- Removed `CommandSetContext.JSVerbs`; provider command sets must use `ctx.Sources`.
+- Renamed generated output internals from spec naming to runtime-plan naming:
+  - `SpecJSON` -> `RuntimePlanJSON`
+  - `embeddedSpecJSON` -> `embeddedRuntimePlanJSON`
+  - `decodeSpec` -> `decodeRuntimePlan`
+  - `spec.gen.go` -> `runtime_plan.gen.go`
+  - `xgoja.gen.json` -> `xgoja.runtime.json`
+- Converted active app/runtime tests from old generated metadata shape to v2 RuntimePlan JSON.
+- Marked tasks 52, 53, and 54 complete.
+
+### Why
+
+- The hard cutover required no active dual-shape runtime path and no legacy DTO names in normal runtime/generator/provider code.
+- Rejecting removed keys is safer than silently ignoring or translating legacy metadata.
+- Removing `ctx.JSVerbs` prevents new provider code from depending on the transition adapter instead of `SourceRegistry`.
+
+### What worked
+
+- Focused validation passed:
+
+```bash
+go test ./cmd/xgoja/internal/... ./cmd/xgoja ./pkg/xgoja/... -count=1
+go test ./cmd/xgoja/internal/generate ./cmd/xgoja ./pkg/xgoja/app ./pkg/xgoja/providerapi ./pkg/xgoja/providers/http ./pkg/xgoja/providers/host ./pkg/gojahttp ./modules/express -count=1
+cd examples/xgoja/14-generated-runtime-package && make smoke
+```
+
+- The pre-commit hook for commit `207bead` passed lint, `go generate ./...`, and `go test ./...`.
+- The active-code grep sweep no longer reports legacy runtime names outside migration docs/guard tests.
+
+### What didn't work
+
+The broad mechanical rename briefly touched migration-only code (`cmd/xgoja/internal/migratebuildspec` and `cmd/xgoja/internal/specv2/migrate_v1.go`) where legacy build-spec terminology is intentional. I reverted those migration files before committing and verified their tests still pass.
+
+### What I learned
+
+- Most remaining legacy behavior was concentrated in `RuntimePlan.UnmarshalJSON` and tests that still supplied old generated metadata JSON.
+- Migration code must remain explicitly historical; the hard cutover should remove active runtime compatibility without erasing the migration command's ability to read old v1 specs.
+- Naming matters for future maintainers: generated files and APIs now say runtime plan instead of generic spec, which makes the cutover easier to reason about.
+
+### What was tricky to build
+
+- Removing compatibility decode paths surfaced many tests that were still exercising the legacy JSON object shape. Those tests had to be converted to `schema: "xgoja/runtime/v2"`, `runtime.modules`, `sources[]`, and `commands[]` instead of relying on conversion.
+- The generated package API had already moved toward RuntimePlan, but generated binary templates still used spec-oriented local names and file names.
+- Some legacy strings are still valid in migration code and explicit guard tests. The removal sweep therefore needs scoped interpretation rather than a blind repository-wide delete.
+
+### What warrants a second pair of eyes
+
+- Review the new decode rejection in `RuntimePlan.UnmarshalJSON` to confirm the removed-key list is complete but not over-broad.
+- Review generated file renames (`runtime_plan.gen.go`, `xgoja.runtime.json`) for downstream tooling assumptions.
+- Review provider command-set API consumers for the removal of `ctx.JSVerbs`; HTTP serve was already migrated, but external providers may need an update.
+
+### What should be done in the future
+
+- Continue final Phase 10 tasks: example smoke sweep, help/docs validation, final diary/changelog, and final reMarkable upload.
+- Keep legacy migration code quarantined under migration packages and docs only.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/app/runtime_plan.go` and `pkg/xgoja/app/runtime_plan_test.go`.
+- Review `pkg/xgoja/providerapi/commands.go` and `pkg/xgoja/app/command_providers.go` for the `SourceRegistry`-only provider command context.
+- Review `cmd/xgoja/internal/generate/templates/main.go.tmpl`, `templates.go`, and `plan.go` for generated runtime-plan naming.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja/internal/... ./cmd/xgoja ./pkg/xgoja/... -count=1
+go test ./... -count=1
+```
+
+### Technical details
+
+RuntimePlan decoding now rejects old metadata instead of translating it:
+
+```go
+for _, key := range []string{"appName", "envPrefix", "configFile", "packages", "modules", "commandProviders", "jsverbs", "help", "assets"} {
+    if _, ok := payload[key]; ok {
+        return fmt.Errorf("runtime plan uses removed legacy key %q", key)
+    }
+}
+```
+
+Provider command sets now use:
+
+```go
+ctx.Sources.JSVerbs()
+ctx.Sources.ListSourcesByKind(...)
+ctx.Sources.SourceByID(...)
 ```
