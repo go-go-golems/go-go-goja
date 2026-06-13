@@ -314,6 +314,18 @@ Supported builtin command types are:
 Provider command sets commonly depend on source sets. For example, the HTTP
 `serve` provider command uses jsverb sources to register Express routes.
 
+Runtime modules and provider command sets are separate provider outputs. A
+runtime module is selected under `runtime.modules` and is imported by JavaScript
+code. A command set is selected under `commands` and contributes CLI commands.
+The HTTP provider demonstrates the distinction: `express` is the runtime module,
+while `serve` is a provider command set that runs a jsverb long enough for the
+registered HTTP routes to serve traffic.
+
+The `mount` field on a command controls where the command appears in the
+generated CLI command tree. It does not mount an HTTP handler. HTTP handler
+mounting happens at runtime through the Express module, for example
+`app.mount("/ws", handlerObject)`, or through provider host-service integration.
+
 ## Artifacts
 
 Artifacts describe generated outputs.
@@ -349,6 +361,11 @@ For binary/runtime-package style artifacts, `sources` marks local jsverb and
 help source sets that should be copied into the generated embedded filesystem.
 For assets, use a separate `embedded-assets` artifact with `sources` pointing at
 asset source IDs.
+
+A `template` artifact is a code-generation output shape. It should not be used
+to model runtime behavior such as HTTP serving, WebSocket mounting, or provider
+module setup. Runtime behavior belongs in provider packages, runtime modules,
+command sets, and host services.
 
 `xgoja gen-dts` uses the first `type: dts` artifact as its default output when `--out` is omitted; `strict: true` on the artifact enables strict declaration checks.
 
@@ -413,6 +430,34 @@ export function demo() {
 
 The local helper import is bundled. The `express` import is externalized because
 it is a selected runtime module alias.
+
+Go-backed modules can also expose mountable HTTP handlers. Express can mount
+those handlers while JavaScript remains the composition layer:
+
+```ts
+import express from "express"
+import sessionstream from "sessionstream"
+
+__package__({ name: "sites" })
+__verb__("site", { name: "site", output: "text" })
+export function site() {
+  const app = express.app()
+  const hub = sessionstream.hub({ schemas })
+
+  app.get("/healthz", (_req, res) => res.send("ok"))
+  app.mount("/ws", sessionstream.webSocket.server(hub))
+}
+```
+
+The mounted object must carry the shared `gojahttp` hidden `http.Handler` ref.
+This is how a Go-backed transport such as a WebSocket server can be mounted
+without reimplementing upgrade handling in JavaScript.
+
+Express route patterns and mounted handlers use different matching semantics:
+
+- `app.get("/users/:id", ...)` captures one segment as `req.params.id`.
+- `app.get("/assets/*", ...)` matches the rest of the path but does not expose a splat capture today.
+- `app.mount("/ws", handler)` uses prefix matching and gives the request to the Go handler.
 
 ## Current limits
 
