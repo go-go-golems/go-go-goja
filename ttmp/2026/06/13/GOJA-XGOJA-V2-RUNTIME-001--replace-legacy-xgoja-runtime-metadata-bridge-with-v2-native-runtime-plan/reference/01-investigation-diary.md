@@ -10,20 +10,29 @@ DocType: reference
 Intent: ""
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/doc
+      Note: Step 8 xgoja RuntimePlan/source-registry docs (commit 5f414bd)
     - Path: cmd/xgoja/internal/generate/generate_test.go
       Note: |-
         Step 4 metadata guard against legacy top-level generated keys (commit 617b977)
         Step 6 workspace.mode:auto replacement regression (commit f09788a)
+        Step 8 generated package legacy-name guard (commit 84a200c)
     - Path: cmd/xgoja/internal/generate/templates.go
       Note: |-
         Step 3 preserves command sources during current generator bridge (commit 556ed5c)
         Step 4 emits v2-native runtime plan JSON (commit 617b977)
     - Path: cmd/xgoja/internal/generate/templates/main.go.tmpl
       Note: Step 4 generated main decodes RuntimePlan (commit 617b977)
+    - Path: cmd/xgoja/internal/generate/templates/runtime_package.go.tmpl
+      Note: Step 8 RuntimePlan runtime-package API (commit 84a200c)
     - Path: cmd/xgoja/root_test.go
       Note: Step 3 generated-binary regression and temporary fixture helper (commit 556ed5c)
+    - Path: examples/xgoja
+      Note: Step 8 affected example README updates (commit 5f414bd)
     - Path: examples/xgoja/13-http-serve-jsverbs/Makefile
       Note: Step 7 runnable HTTP serve smoke target validated (commit 08f1264)
+    - Path: examples/xgoja/14-generated-runtime-package
+      Note: Step 8 regenerated RuntimePlan package example (commit 84a200c)
     - Path: examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go
       Note: Step 4 checked-in runtime package fixture updated for RuntimePlan (commit 617b977)
     - Path: pkg/xgoja/app/assets.go
@@ -62,6 +71,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -966,4 +976,129 @@ Hot reload uses that same scoped set for every source-derived operation:
 resolveServeHotReloadVerb(jsverbSources, registry, verb, verbPath)
 defaultServeHotReloadWatchRoots(jsverbSources)
 sourceSetHasTypeScript(jsverbSources)
+```
+
+## Step 8: Finish runtime-package and documentation cutover
+
+I completed Phases 7 and 8 of the hard cutover. Generated runtime packages and source fragments now expose the embedded metadata as a v2 runtime plan (`EmbeddedRuntimePlanJSON`, `DecodeRuntimePlan`) instead of using the older generic spec names, while the ergonomic host APIs (`NewBundle`, `Bundle.NewRuntime`, `Bundle.NewRuntimeFromSections`, `AttachDefaultCommands`) remain intact.
+
+I also updated the xgoja help docs and affected example READMEs so the public docs match the current runtime model: generated outputs embed `app.RuntimePlan`, commands are one v2 `commands[]` list, provider commands receive command-scoped `SourceRegistry`, HTTP serve scopes hot reload by command sources, and examples prefer `workspace.mode: auto` over hand-maintained local replacements where the workspace can resolve modules.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok do 7 and 8. then no legacy at all?"
+
+**Assistant interpretation:** Complete Phase 7 runtime-package cleanup and Phase 8 documentation updates, then clarify whether that eliminates all remaining legacy runtime code.
+
+**Inferred user intent:** Advance the hard cutover through the last planned runtime-package/docs phases before the final no-legacy sweep.
+
+**Commit (code):** 84a200c — "Port generated runtime package API to RuntimePlan"
+
+**Commit (docs):** 5f414bd — "Docs: update xgoja v2 RuntimePlan guide"
+
+### What I did
+
+- Renamed generated runtime-package/source-fragment metadata symbols from `EmbeddedSpecJSON`/`DecodeSpec` to `EmbeddedRuntimePlanJSON`/`DecodeRuntimePlan`.
+- Updated bundle fragments to call `DecodeRuntimePlan`.
+- Added `TestRenderPackagePlanUsesRuntimePlanAPI` to guard generated runtime packages against `EmbeddedSpecJSON`, `DecodeSpec`, and `RuntimeSpec` names.
+- Regenerated `examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go`; it now embeds `schema: "xgoja/runtime/v2"` with `providers`, `runtime.modules`, `commands`, and `artifacts`.
+- Updated the runtime-package README to document the v2-native API while preserving `NewBundle` and runtime creation APIs as the main host-facing entry points.
+- Updated xgoja overview, user guide, v2 reference, migration guide, provider runtime config docs, protobuf tutorial, and example READMEs for RuntimePlan, command-scoped SourceRegistry, HTTP serve troubleshooting, and workspace-mode guidance.
+- Checked tasks 40-48 and updated the ticket changelog.
+
+### Why
+
+- Phase 7 needed generated package internals to stop looking like generic/legacy runtime specs and instead advertise the RuntimePlan model directly.
+- Phase 8 needed the docs to stop describing older runtime concepts as current behavior and to make command-scoped sources/provider APIs clear for future provider authors.
+- The user asked whether this means no legacy remains; completing docs and runtime-package cleanup makes the remaining legacy much easier to isolate in Phase 10.
+
+### What worked
+
+- Focused tests passed:
+
+```bash
+go test ./cmd/xgoja/internal/generate ./examples/xgoja/14-generated-runtime-package/cmd/host ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1
+```
+
+- Runtime-package smoke passed:
+
+```bash
+cd examples/xgoja/14-generated-runtime-package && make smoke
+```
+
+- Help pages rendered successfully:
+
+```bash
+go run ./cmd/xgoja help overview
+go run ./cmd/xgoja help user-guide
+go run ./cmd/xgoja help xgoja-v2-reference
+go run ./cmd/xgoja help migrating-to-xgoja-v2
+go run ./cmd/xgoja help provider-runtime-config-and-host-services
+go run ./cmd/xgoja help tutorial-protobuf-builder-provider
+```
+
+- The pre-commit hook for commit `84a200c` passed lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+N/A. The runtime-package generation and docs updates applied cleanly.
+
+### What I learned
+
+- The checked-in runtime-package example was still the most visible stale generated output: it decoded a RuntimePlan type, but embedded legacy-shaped JSON and exported legacy-style symbol names.
+- The docs had a mix of current v2 content and older terminology. Updating overview/reference/example snippets together prevents future readers from copying stale `modules`, `jsverbs`, or local-replace patterns.
+- Phases 7 and 8 do not remove every active legacy compatibility path by themselves; they prepare for the Phase 10 removal sweep.
+
+### What was tricky to build
+
+- The generated runtime-package API needed a hard-cutover name change without making host integration awkward. Keeping `NewBundle` and `Bundle.NewRuntime` stable gives host applications a simple path while direct metadata users now see RuntimePlan-specific names.
+- Some docs intentionally mention legacy keys in migration tables. Those references are allowed historical/migration context, but they should not be confused with active runtime API names.
+- Example README snippets had to be updated from old `jsverbs:`/`assets:` examples to v2 `sources[]` plus `artifacts[].sources` without changing the actual examples' behavior.
+
+### What warrants a second pair of eyes
+
+- Review whether removing `DecodeSpec` is acceptable as a generated package API break. It matches the hard-cutover requirement, but downstream generated-package embedders may need a compile-time migration.
+- Review the docs for any remaining stale wording that implies top-level `modules`, `packages`, or `jsverbs` are active v2 fields rather than migration examples.
+- Confirm whether historical docs in older tickets should remain untouched; I intentionally did not rewrite archived `ttmp` documents.
+
+### What should be done in the future
+
+- Phase 9 sessionstream work remains deferred by prior instruction.
+- Phase 10 must remove active compatibility DTO fields/decode paths and add grep/guard coverage for remaining allowed historical references.
+- Final validation and reMarkable upload remain outstanding.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/generate/templates/runtime_package.go.tmpl`, `spec_fragment.go.tmpl`, and `bundle_fragment.go.tmpl` to review generated API changes.
+- Review `examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go` to confirm the embedded JSON shape is RuntimePlan-native.
+- Review `cmd/xgoja/doc/17-xgoja-v2-reference.md`, `cmd/xgoja/doc/11-provider-runtime-config-and-host-services.md`, and `cmd/xgoja/doc/16-migrating-to-xgoja-v2.md` for user-facing semantics.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja/internal/generate ./examples/xgoja/14-generated-runtime-package/cmd/host ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1
+cd examples/xgoja/14-generated-runtime-package && make smoke
+go run ./cmd/xgoja help xgoja-v2-reference >/tmp/xgoja-help-v2-reference.txt
+```
+
+### Technical details
+
+Generated runtime package metadata access now looks like:
+
+```go
+const EmbeddedRuntimePlanJSON = `{ ... }`
+
+func DecodeRuntimePlan() (*app.RuntimePlan, error) {
+    runtimePlan := &app.RuntimePlan{}
+    if err := json.Unmarshal([]byte(EmbeddedRuntimePlanJSON), runtimePlan); err != nil {
+        return nil, err
+    }
+    return runtimePlan, nil
+}
+```
+
+The preferred host entry point remains:
+
+```go
+bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{})
+rt, err := bundle.NewRuntime(ctx)
 ```
