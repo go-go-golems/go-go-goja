@@ -162,3 +162,134 @@ xgoja/v2 YAML
   -> legacy RuntimeSpec { packages, modules, commandProviders, jsverbs }
   -> app.Host legacy command builders
 ```
+
+
+## Step 2: Reproduce provider command-set source loss
+
+I started the implementation work by creating a dedicated branch and then writing a small reproduction script for the first real xgoja v2 runtime bug. The script builds a temporary xgoja/v2 app with two jsverb source sets, attaches only one source set to an HTTP `provider.command-set`, and inspects the generated metadata.
+
+The reproduction proves the architectural gap without introducing a permanently failing test yet: `commands[].sources` is present in the v2 YAML, but the generated legacy `commandProviders` metadata has no source binding, while both jsverb sources remain in a global top-level `jsverbs` list. This is exactly the bridge behavior the cutover must remove.
+
+### Prompt Context
+
+**User prompt (verbatim):** "then work on the tasks one by one, keeping a detailed diary as you work, commit at appropriate intervals."
+
+**Assistant interpretation:** Begin executing the newly-created xgoja v2 hard-cutover ticket task list sequentially, update the diary as work proceeds, and make focused commits.
+
+**Inferred user intent:** Move from design into implementation while preserving reviewable history and continuation context.
+
+**Commit (code):** 64523c433117c1e84f4ef11f59189c0b69af95c1 — "Docs: reproduce xgoja command source loss"
+
+### What I did
+
+- Renamed the local go-go-goja branch from the deleted post-merge `task/goja-sessionstream` branch to `task/xgoja-v2-runtime-cutover`.
+- Marked task 7 complete after recording the dedicated branch baseline.
+- Ran the existing HTTP serve xgoja example smoke test:
+
+```bash
+make -C examples/xgoja/13-http-serve-jsverbs smoke
+```
+
+- Added `scripts/01-reproduce-provider-command-source-loss.sh` under the ticket workspace.
+- The script creates a temporary xgoja/v2 spec with:
+  - two jsverb sources, `site-a` and `site-b`;
+  - one HTTP provider command set with `sources: [site-a]`;
+  - an embedded binary artifact containing both sources.
+- The script builds with a fixed temporary work directory and inspects generated `xgoja.gen.json`.
+- Marked task 8 complete and updated the changelog.
+
+### Why
+
+- Task 8 asks for a concrete reproduction of the provider command-set source bug before changing runtime internals.
+- A script is appropriate at this stage because it captures the current behavior without committing an intentionally failing unit test into the branch before the implementation exists.
+- The reproduction gives future tests exact expected facts to assert after the v2-native runtime plan lands.
+
+### What worked
+
+The existing HTTP serve example still passed:
+
+```bash
+make -C examples/xgoja/13-http-serve-jsverbs smoke
+```
+
+That is important because it shows the current legacy behavior can still work in simple cases by scanning all global jsverb sources.
+
+The reproduction script then succeeded and printed:
+
+```text
+generated command provider metadata: {"id": "serve", "mount": "serve", "name": "serve", "package": "http"}
+generated top-level jsverb sources: [{"embed": true, "id": "site-a", "path": "xgoja_embed/jsverbs/site_a"}, {"embed": true, "id": "site-b", "path": "xgoja_embed/jsverbs/site_b"}]
+OK: reproduced source loss: command sources [site-a] were dropped, while both jsverb sources remain global
+```
+
+### What didn't work
+
+The first version of the reproduction script computed the repository root incorrectly and ascended one directory too far. It failed with:
+
+```text
+go: go.mod file not found in current directory or any parent directory; see 'go help modules'
+```
+
+I fixed the script's `repo_root` calculation from seven parent traversals to six parent traversals from the ticket `scripts/` directory.
+
+### What I learned
+
+- The current HTTP serve example passes because command providers see every runtime jsverb source through the legacy global `RuntimeSpec.JSVerbs` field.
+- The deeper v2 bug is source scoping, not total inability to run HTTP serve.
+- A minimal repro needs at least two source sets. If there is only one source set, global scanning hides the bug.
+
+### What was tricky to build
+
+- The reproduction needed to demonstrate an architectural data-loss bug without relying on fragile CLI help output. Inspecting generated `xgoja.gen.json` is more precise: it shows `commandProviders[0]` lacks `sources` and that both sources are global.
+- The temporary xgoja fixture must use an absolute path for source directories because the generated build runs from a separate work directory.
+
+### What warrants a second pair of eyes
+
+- Whether the reproduction script should remain as a ticket artifact only or be promoted into a permanent regression test once the v2 runtime plan implementation starts.
+- Whether future tests should assert both metadata shape and CLI command visibility. The design likely needs both: metadata guard tests catch legacy reintroduction, while CLI tests prove end-user behavior.
+
+### What should be done in the future
+
+- Task 9 should add active regression tests that initially fail against current runtime behavior and later pass with the v2-native runtime plan.
+- Task 10 should add generated metadata guard assertions that fail if legacy `commandProviders`, `packages`, or top-level `jsverbs` return.
+
+### Code review instructions
+
+- Review `scripts/01-reproduce-provider-command-source-loss.sh`.
+- Run it from `go-go-goja`:
+
+```bash
+ttmp/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001--replace-legacy-xgoja-runtime-metadata-bridge-with-v2-native-runtime-plan/scripts/01-reproduce-provider-command-source-loss.sh
+```
+
+- Confirm it prints that command sources were dropped and both jsverb sources remain global.
+
+### Technical details
+
+The temporary v2 command in the reproduction is:
+
+```yaml
+commands:
+  - id: serve
+    type: provider.command-set
+    provider: http
+    name: serve
+    mount: serve
+    sources: [site-a]
+```
+
+The generated metadata currently becomes:
+
+```json
+{
+  "commandProviders": [
+    { "id": "serve", "package": "http", "name": "serve", "mount": "serve" }
+  ],
+  "jsverbs": [
+    { "id": "site-a" },
+    { "id": "site-b" }
+  ]
+}
+```
+
+The missing `sources: ["site-a"]` on the command provider is the data-loss boundary.
