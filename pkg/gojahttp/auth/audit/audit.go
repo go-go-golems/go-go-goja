@@ -156,6 +156,12 @@ func (s *MemoryStore) Snapshot() []Record {
 }
 
 // LogSink logs normalized audit records as JSON for development.
+//
+// LogSink intentionally drops raw HTTP request metadata before normalization so
+// user-controlled header values such as User-Agent and X-Request-Id are not
+// written to process logs. Persistent stores can still receive the full
+// normalized record through Sink when operators explicitly choose durable audit
+// storage.
 type LogSink struct {
 	Logger     *stdlog.Logger
 	Normalizer Normalizer
@@ -166,6 +172,7 @@ func (s LogSink) RecordAudit(_ context.Context, event gojahttp.AuditEvent) error
 	if logger == nil {
 		logger = stdlog.Default()
 	}
+	event.HTTPRequest = nil
 	data, err := json.Marshal(s.Normalizer.Normalize(event))
 	if err != nil {
 		return err
