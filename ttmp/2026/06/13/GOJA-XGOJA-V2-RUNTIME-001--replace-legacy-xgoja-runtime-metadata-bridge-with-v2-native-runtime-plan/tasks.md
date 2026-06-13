@@ -60,4 +60,4 @@
 - [x] Phase 10: Run all xgoja example smoke tests affected by runtime generation and update any stale fixtures/goldens
 - [x] Phase 10: Run doc/help validation for xgoja docs and verify migration guide/help pages are discoverable through xgoja help
 - [x] Phase 10: Update ticket diary/changelog with implementation commits, validation commands, failures, and follow-up risks
-- [ ] Phase 10: Upload final implementation/reference bundle to reMarkable after docs and tests pass
+- [x] Phase 10: Upload final implementation/reference bundle to reMarkable after docs and tests pass

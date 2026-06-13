@@ -180,3 +180,13 @@ Final diary updated with example smoke/help validation evidence, including the l
 
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001--replace-legacy-xgoja-runtime-metadata-bridge-with-v2-native-runtime-plan/reference/01-investigation-diary.md — Final validation diary entry
 
+
+## 2026-06-13
+
+Uploaded final RuntimePlan cutover bundle to reMarkable at /ai/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001/GOJA XGOJA V2 Runtime Cutover Final.pdf. Used a sanitized temporary diary copy for PDF rendering because pandoc treated literal backslash-n sequences in a verbatim prompt line as TeX control sequences.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001--replace-legacy-xgoja-runtime-metadata-bridge-with-v2-native-runtime-plan/design-doc/01-xgoja-v2-native-runtime-plan-design-and-implementation-guide.md — Included in final upload
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001--replace-legacy-xgoja-runtime-metadata-bridge-with-v2-native-runtime-plan/reference/01-investigation-diary.md — Included in final upload via sanitized temporary copy
+

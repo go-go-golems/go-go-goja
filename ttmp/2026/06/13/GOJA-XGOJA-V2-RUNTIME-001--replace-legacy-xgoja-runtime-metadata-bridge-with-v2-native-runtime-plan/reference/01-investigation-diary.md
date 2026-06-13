@@ -1361,3 +1361,82 @@ In this workspace, the resolved path is missing:
 ```text
 /home/manuel/workspaces/2026-06-12/goja-sessionstream/loupedeck/go.mod
 ```
+
+## Step 11: Upload final reMarkable bundle
+
+I uploaded the final ticket bundle to reMarkable after code, example, help, diary, changelog, and docmgr validation were complete. The bundle includes the design guide, investigation diary, changelog, and task list.
+
+The first upload attempt failed because pandoc interpreted literal `\n` sequences inside a verbatim prompt line as TeX control sequences. I did not change the source diary text; instead, I created a temporary sanitized copy for rendering where literal `\n` sequences were expanded to real line breaks, then uploaded that bundle successfully.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 10)
+
+**Assistant interpretation:** Complete the remaining final delivery work, including reMarkable upload.
+
+**Inferred user intent:** Put the completed RuntimePlan cutover documentation somewhere reviewable on the reMarkable device.
+
+### What I did
+
+- Attempted to upload the design doc, diary, changelog, and tasks as one bundle.
+- Created a temporary sanitized upload directory at `/tmp/goja-xgoja-v2-upload` after the first pandoc failure.
+- Uploaded the final bundle with:
+
+```bash
+remarquee upload bundle /tmp/goja-xgoja-v2-upload/01-design.md /tmp/goja-xgoja-v2-upload/02-diary.md /tmp/goja-xgoja-v2-upload/03-changelog.md /tmp/goja-xgoja-v2-upload/04-tasks.md --name "GOJA XGOJA V2 Runtime Cutover Final" --remote-dir "/ai/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001" --toc-depth 2 --non-interactive
+```
+
+### Why
+
+- The ticket required a final reMarkable handoff after implementation and validation.
+- The source diary should preserve verbatim prompt context, but the rendered PDF needed a TeX-safe copy.
+
+### What worked
+
+The second upload succeeded:
+
+```text
+OK: uploaded GOJA XGOJA V2 Runtime Cutover Final.pdf -> /ai/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001
+```
+
+### What didn't work
+
+The first upload failed with pandoc/LaTeX:
+
+```text
+Error: pandoc failed: Error producing PDF.
+! Undefined control sequence.
+l.3379 ...batim):} “do these: - Phase 2 cleanup \n
+```
+
+The failure was caused by literal `\n` text inside a long verbatim prompt line.
+
+### What I learned
+
+- Verbatim prompt context can be markdown-valid but still problematic for PDF rendering when backslash sequences reach LaTeX in ordinary text.
+- Keeping a temporary upload-specific sanitized copy is safer than mutating the source diary's exact prompt record.
+
+### What was tricky to build
+
+- The diary skill requires exact verbatim prompt text, but reMarkable PDF generation has different escaping constraints. The compromise was to preserve source-of-truth Markdown and render a sanitized copy only for upload.
+
+### What warrants a second pair of eyes
+
+- Review whether future diary entries should wrap long verbatim prompts containing backslash escapes in fenced code blocks for easier PDF rendering.
+
+### What should be done in the future
+
+N/A
+
+### Code review instructions
+
+- Confirm the upload success line above.
+- Review `/ai/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001/GOJA XGOJA V2 Runtime Cutover Final.pdf` on reMarkable if needed.
+
+### Technical details
+
+The uploaded bundle path is:
+
+```text
+/ai/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001/GOJA XGOJA V2 Runtime Cutover Final.pdf
+```
