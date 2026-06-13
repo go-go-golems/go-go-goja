@@ -14,7 +14,8 @@ func TestJSVerbsCommandsIncludeRuntimeModuleSections(t *testing.T) {
 	registry := newJSVerbsSectionRegistry(t)
 	runtimePlan := jsverbsSectionSpec()
 	embedded := jsverbsSectionFS()
-	commands, err := buildVerbCommands(registry, NewRuntimeFactory(registry, runtimePlan), runtimePlan, embedded)
+	sources := NewSourceRegistry(registry, embedded, runtimePlan.allSources())
+	commands, err := buildVerbCommands(sources, NewRuntimeFactory(registry, runtimePlan), runtimePlan)
 	if err != nil {
 		t.Fatalf("build verb commands: %v", err)
 	}

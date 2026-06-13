@@ -88,3 +88,17 @@ Added v2 runtime SourceRegistry and passed command-scoped source registry throug
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/providerapi/commands.go — CommandSetContext now carries v2 SourceRegistry
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/providerapi/sources.go — Provider-facing source registry interfaces and descriptors
 
+
+## 2026-06-13
+
+Completed requested phase 2-4 cleanup: workspace auto replacement guard, SourceRegistry-backed JS verb/help/assets consumers, RuntimePlan host/factory path, and unified command attachment loop.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Workspace module plan replacement regression for workspace.mode:auto behavior
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/assets.go — AssetStore setup now uses SourceRegistry kind=assets
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/framework.go — Help source loading now uses SourceRegistry kind=help
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/host.go — Host owns SourceRegistry and attaches runtime commands through one CommandPlan loop
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/root.go — JS verb command scanning now uses SourceRegistry handles
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/source_registry.go — SourceRegistry descriptor conversion supports help/assets/jsverbs consumers
+

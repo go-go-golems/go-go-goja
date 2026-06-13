@@ -22,18 +22,18 @@
 - [x] Phase 2: Rewrite cmd/xgoja/internal/generate runtime metadata rendering to emit xgoja.v2.runtime.json in v2-native shape
 - [ ] Phase 2: Remove applyPlanRuntimeCommand and the v2-to-legacy runtime source conversion helpers from generator code
 - [x] Phase 2: Update generated main.go templates to load RuntimePlan instead of RuntimeSpec and to embed v2 runtime plan JSON
-- [ ] Phase 2: Ensure generated Go module replacement behavior still uses workspace.mode:auto and plan.GoModules without requiring provider.module.replace in examples
+- [x] Phase 2: Ensure generated Go module replacement behavior still uses workspace.mode:auto and plan.GoModules without requiring provider.module.replace in examples
 - [x] Phase 2: Add golden tests for generated main.go and runtime plan JSON for binary artifacts
 - [x] Phase 3: Implement a unified runtime SourceRegistry that resolves sources by ID and filters by source kind
-- [ ] Phase 3: Port JS verb scanning to use SourceRegistry handles while preserving TypeScript compile/bundle options and runtime module externals
-- [ ] Phase 3: Port help loading to use SourceRegistry kind=help instead of legacy HelpSpec sources
-- [ ] Phase 3: Port asset resolution and AssetStore setup to use SourceRegistry kind=assets instead of legacy AssetSourceSpec
+- [x] Phase 3: Port JS verb scanning to use SourceRegistry handles while preserving TypeScript compile/bundle options and runtime module externals
+- [x] Phase 3: Port help loading to use SourceRegistry kind=help instead of legacy HelpSpec sources
+- [x] Phase 3: Port asset resolution and AssetStore setup to use SourceRegistry kind=assets instead of legacy AssetSourceSpec
 - [x] Phase 3: Add tests for command-scoped source selection, all-sources-by-kind lookup, embedded source roots, provider sources, and workspace sources
-- [ ] Phase 4: Rewrite app.NewRootCommand/NewHost/NewHostWithOptions to accept RuntimePlan and remove active RuntimeSpec dependency
-- [ ] Phase 4: Rewrite runtime factory module setup to read plan.Runtime.Modules and pass RuntimeModulePlan config to provider module factories
-- [ ] Phase 4: Rewrite built-in command attachment as one loop over []CommandPlan for eval, run, repl, jsverbs, and provider.command-set
-- [ ] Phase 4: Preserve CLI mount semantics for command Mount fields and add tests for root vs nested command mounting
-- [ ] Phase 4: Update generated framework/help/logging installation to use RuntimePlan app/config fields
+- [x] Phase 4: Rewrite app.NewRootCommand/NewHost/NewHostWithOptions to accept RuntimePlan and remove active RuntimeSpec dependency
+- [x] Phase 4: Rewrite runtime factory module setup to read plan.Runtime.Modules and pass RuntimeModulePlan config to provider module factories
+- [x] Phase 4: Rewrite built-in command attachment as one loop over []CommandPlan for eval, run, repl, jsverbs, and provider.command-set
+- [x] Phase 4: Preserve CLI mount semantics for command Mount fields and add tests for root vs nested command mounting
+- [x] Phase 4: Update generated framework/help/logging installation to use RuntimePlan app/config fields
 - [x] Phase 5: Change providerapi.CommandSetContext to carry v2 command ID, provider, name, mount, config, selected modules, and command-scoped source registry
 - [x] Phase 5: Provide a JSVerbSourceSet adapter derived from the command-scoped SourceRegistry for providers that consume jsverb sources
 - [x] Phase 5: Update provider command-set tests so command providers receive only the sources declared on their command

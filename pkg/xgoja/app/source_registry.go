@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"strings"
 
+	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
@@ -63,6 +64,18 @@ func (r *SourceRegistry) JSVerbs() providerapi.JSVerbSourceSet {
 	return newJSVerbSourceSet(r.providers, r.embeddedJSVerbs, filterSourcesByKind(r.sources, SourceKindJSVerbs))
 }
 
+func (r *SourceRegistry) scanJSVerbSource(id string, runtimeAliases []string) (*jsverbs.Registry, error) {
+	if r == nil {
+		return nil, nil
+	}
+	for _, source := range r.sources {
+		if source.ID == id && source.Kind == SourceKindJSVerbs {
+			return scanVerbSource(r.providers, r.embeddedJSVerbs, source, runtimeAliases)
+		}
+	}
+	return nil, nil
+}
+
 func (r *SourceRegistry) Scoped(sourceIDs []string) *SourceRegistry {
 	if r == nil {
 		return nil
@@ -96,6 +109,14 @@ func filterSourcesByKind(sources []SourcePlan, kind SourceKind) []SourcePlan {
 	return out
 }
 
+func sourcePlansFromDescriptors(descriptors []providerapi.RuntimeSourceDescriptor) []SourcePlan {
+	out := make([]SourcePlan, 0, len(descriptors))
+	for _, descriptor := range descriptors {
+		out = append(out, SourcePlan{ID: descriptor.ID, Kind: appSourceKind(descriptor.Kind), Path: descriptor.Path, Embed: descriptor.Embed, Provider: descriptor.Provider, Source: descriptor.Source, Include: append([]string(nil), descriptor.Include...), Exclude: append([]string(nil), descriptor.Exclude...), Extensions: append([]string(nil), descriptor.Extensions...), TypeScript: appTypeScriptPlan(descriptor.TypeScript)})
+	}
+	return out
+}
+
 func runtimeSourceDescriptor(source SourcePlan) providerapi.RuntimeSourceDescriptor {
 	return providerapi.RuntimeSourceDescriptor{
 		ID:         source.ID,
@@ -108,6 +129,28 @@ func runtimeSourceDescriptor(source SourcePlan) providerapi.RuntimeSourceDescrip
 		Exclude:    append([]string(nil), source.Exclude...),
 		Extensions: append([]string(nil), source.Extensions...),
 		TypeScript: providerTypeScriptDescriptor(source.TypeScript),
+	}
+}
+
+func appTypeScriptPlan(spec *providerapi.TypeScriptDescriptor) *TypeScriptPlan {
+	if spec == nil {
+		return nil
+	}
+	return &TypeScriptPlan{Enabled: spec.Enabled, Bundle: spec.Bundle, Target: spec.Target, Format: spec.Format, Platform: spec.Platform, Tsconfig: spec.Tsconfig, Sourcemap: spec.Sourcemap, External: append([]string(nil), spec.External...), Define: cloneStringMap(spec.Define), CheckCommand: append([]string(nil), spec.CheckCommand...)}
+}
+
+func appSourceKind(kind providerapi.RuntimeSourceKind) SourceKind {
+	switch kind {
+	case providerapi.RuntimeSourceKindJSVerbs:
+		return SourceKindJSVerbs
+	case providerapi.RuntimeSourceKindScript:
+		return SourceKindScript
+	case providerapi.RuntimeSourceKindAssets:
+		return SourceKindAssets
+	case providerapi.RuntimeSourceKindHelp:
+		return SourceKindHelp
+	default:
+		return SourceKind(kind)
 	}
 }
 

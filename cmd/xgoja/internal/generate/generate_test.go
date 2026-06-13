@@ -36,6 +36,8 @@ func TestRenderGoModPlanDeterministic(t *testing.T) {
 
 func TestRenderGoModPlanUsesWorkspaceModulePlan(t *testing.T) {
 	compiled := fixturePlan(t)
+	compiled.Config.Providers[0].Import = "github.com/example/local/pkg/provider"
+	compiled.Config.Providers[0].Module.Replace = ""
 	compiled.GoModules = &workspace.Plan{Modules: []workspace.GoModulePlan{{ModulePath: "github.com/example/local", Version: "", LocalDir: "/tmp/local"}}}
 	got := RenderGoModPlan(compiled, Options{XGojaModuleVersion: "v0.1.0", GoModules: compiled.GoModules})
 	if !strings.Contains(got, "github.com/example/local v0.0.0") {
@@ -43,6 +45,9 @@ func TestRenderGoModPlanUsesWorkspaceModulePlan(t *testing.T) {
 	}
 	if !strings.Contains(got, "replace github.com/example/local => /tmp/local") {
 		t.Fatalf("expected local module replace:\n%s", got)
+	}
+	if strings.Contains(got, "../") {
+		t.Fatalf("unexpected provider-local replace without provider.module.replace; workspace plan should own local replacements:\n%s", got)
 	}
 }
 

@@ -17,8 +17,9 @@ import (
 const rootFrameworkInstalledAnnotation = "xgoja/root-framework-installed"
 
 type frameworkOptions struct {
-	Providers    *providerapi.ProviderRegistry
-	EmbeddedHelp fs.FS
+	Providers      *providerapi.ProviderRegistry
+	SourceRegistry *SourceRegistry
+	EmbeddedHelp   fs.FS
 }
 
 func installRootFramework(root *cobra.Command, runtimePlan *RuntimePlan, opts frameworkOptions) error {
@@ -59,6 +60,9 @@ func installRootFramework(root *cobra.Command, runtimePlan *RuntimePlan, opts fr
 
 func loadConfiguredHelpSources(helpSystem *help.HelpSystem, runtimePlan *RuntimePlan, opts frameworkOptions) error {
 	helpSources := runtimePlan.sourcesByKind(SourceKindHelp)
+	if opts.SourceRegistry != nil {
+		helpSources = sourcePlansFromDescriptors(opts.SourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindHelp))
+	}
 	if helpSystem == nil || runtimePlan == nil || len(helpSources) == 0 {
 		return nil
 	}

@@ -239,13 +239,13 @@ func (c *selectedModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals
 	return nil
 }
 
-func newVerbsCommand(providers *providerapi.ProviderRegistry, factory *RuntimeFactory, runtimePlan *RuntimePlan, embeddedJSVerbs fs.FS, middlewaresFunc glazedcli.CobraMiddlewaresFunc) *cobra.Command {
+func newVerbsCommand(sourceRegistry *SourceRegistry, factory *RuntimeFactory, runtimePlan *RuntimePlan, middlewaresFunc glazedcli.CobraMiddlewaresFunc) *cobra.Command {
 	jsverbsCommand, _ := runtimePlan.commandByType("builtin.jsverbs")
 	root := &cobra.Command{
 		Use:   commandName(jsverbsCommand, "verbs"),
 		Short: "Run configured JavaScript verb commands",
 	}
-	mounted, err := buildVerbCommands(providers, factory, runtimePlan, embeddedJSVerbs)
+	mounted, err := buildVerbCommands(sourceRegistry, factory, runtimePlan)
 	if err != nil {
 		root.RunE = func(cmd *cobra.Command, args []string) error { return err }
 		return root
@@ -254,7 +254,7 @@ func newVerbsCommand(providers *providerapi.ProviderRegistry, factory *RuntimeFa
 		Use:   "sources",
 		Short: "List configured JavaScript verb sources",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			for _, source := range runtimePlan.sourcesByKind(SourceKindJSVerbs) {
+			for _, source := range sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindJSVerbs) {
 				fmt.Fprintf(cmd.OutOrStdout(), "%s\n", source.ID)
 			}
 			return nil
@@ -272,14 +272,18 @@ func newVerbsCommand(providers *providerapi.ProviderRegistry, factory *RuntimeFa
 	return root
 }
 
-func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *RuntimeFactory, runtimePlan *RuntimePlan, embeddedJSVerbs fs.FS) ([]cmds.Command, error) {
+func buildVerbCommands(sourceRegistry *SourceRegistry, factory *RuntimeFactory, runtimePlan *RuntimePlan) ([]cmds.Command, error) {
 	moduleSections, selectedModules, err := factory.sectionsForRuntime("jsverbs")
 	if err != nil {
 		return nil, err
 	}
 	commands := []cmds.Command{}
-	for _, source := range runtimePlan.sourcesByKind(SourceKindJSVerbs) {
-		registry, err := scanVerbSource(providers, embeddedJSVerbs, source, sourceGraphRuntimeAliases(moduleAliases(selectedModules)))
+	if sourceRegistry == nil {
+		return nil, fmt.Errorf("source registry is required")
+	}
+	jsverbSources := sourceRegistry.JSVerbs()
+	for _, source := range jsverbSources.ListJSVerbSources() {
+		registry, err := sourceRegistry.scanJSVerbSource(source.ID, sourceGraphRuntimeAliases(moduleAliases(selectedModules)))
 		if err != nil {
 			return nil, err
 		}

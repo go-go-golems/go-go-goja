@@ -17,6 +17,7 @@ type Host struct {
 	EmbeddedHelp    fs.FS
 	EmbeddedAssets  fs.FS
 	Services        HostServices
+	SourceRegistry  *SourceRegistry
 	Out             io.Writer
 	MiddlewaresFunc cli.CobraMiddlewaresFunc
 }
@@ -35,7 +36,8 @@ func NewHost(providers *providerapi.ProviderRegistry, runtimePlan *RuntimePlan) 
 }
 
 func NewHostWithOptions(providers *providerapi.ProviderRegistry, runtimePlan *RuntimePlan, opts HostOptions) *Host {
-	services := HostServices{Assets: NewAssetStore(opts.EmbeddedAssets, runtimePlan)}
+	sourceRegistry := NewSourceRegistry(providers, opts.EmbeddedJSVerbs, runtimePlan.allSources())
+	services := HostServices{Assets: NewAssetStoreFromSources(opts.EmbeddedAssets, sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindAssets))}
 	if opts.ConfigureServices != nil {
 		opts.ConfigureServices(&services)
 	}
@@ -51,6 +53,7 @@ func NewHostWithOptions(providers *providerapi.ProviderRegistry, runtimePlan *Ru
 		EmbeddedHelp:    opts.EmbeddedHelp,
 		EmbeddedAssets:  opts.EmbeddedAssets,
 		Services:        services,
+		SourceRegistry:  sourceRegistry,
 		Out:             opts.Out,
 		MiddlewaresFunc: middlewaresFunc,
 	}
@@ -60,25 +63,33 @@ func (h *Host) AttachDefaultCommands(root *cobra.Command) {
 	if root == nil || h == nil || h.RuntimePlan == nil {
 		return
 	}
-	if err := installRootFramework(root, h.RuntimePlan, frameworkOptions{Providers: h.Providers, EmbeddedHelp: h.EmbeddedHelp}); err != nil {
+	if err := installRootFramework(root, h.RuntimePlan, frameworkOptions{Providers: h.Providers, SourceRegistry: h.SourceRegistry, EmbeddedHelp: h.EmbeddedHelp}); err != nil {
 		root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error { return err }
 	}
-	if _, ok := h.RuntimePlan.commandByType("builtin.eval"); ok {
-		h.AttachEval(root)
-	}
-	if _, ok := h.RuntimePlan.commandByType("builtin.run"); ok {
-		h.AttachRun(root)
-	}
-	if _, ok := h.RuntimePlan.commandByType("builtin.repl"); ok {
-		h.AttachRepl(root)
+	for _, command := range h.RuntimePlan.runtimeCommands() {
+		h.AttachCommandPlan(root, command)
 	}
 	h.AttachModules(root)
 	h.AttachSelectedModules(root)
 	h.AttachTypes(root)
-	if _, ok := h.RuntimePlan.commandByType("builtin.jsverbs"); ok {
-		h.AttachVerbs(root)
+}
+
+func (h *Host) AttachCommandPlan(root *cobra.Command, command CommandPlan) {
+	if root == nil || h == nil {
+		return
 	}
-	h.AttachCommandProviders(root)
+	switch command.Type {
+	case "builtin.eval":
+		h.AttachEval(root)
+	case "builtin.run":
+		h.AttachRun(root)
+	case "builtin.repl":
+		h.AttachRepl(root)
+	case "builtin.jsverbs":
+		h.AttachVerbs(root)
+	case "provider.command-set":
+		h.AttachCommandProvider(root, command)
+	}
 }
 
 func (h *Host) AttachEval(root *cobra.Command) {
@@ -154,7 +165,7 @@ func (h *Host) AttachVerbs(root *cobra.Command) {
 	}
 	jsverbsCommand, _ := h.RuntimePlan.commandByType("builtin.jsverbs")
 	if commandMount(jsverbsCommand) == "root" {
-		cmds, err := buildVerbCommands(h.Providers, h.Factory, h.RuntimePlan, h.EmbeddedJSVerbs)
+		cmds, err := buildVerbCommands(h.SourceRegistry, h.Factory, h.RuntimePlan)
 		if err != nil {
 			root.AddCommand(commandErrorStub(commandName(jsverbsCommand, "verbs"), "Run configured JavaScript verb commands", err))
 			return
@@ -168,5 +179,5 @@ func (h *Host) AttachVerbs(root *cobra.Command) {
 		}
 		return
 	}
-	root.AddCommand(newVerbsCommand(h.Providers, h.Factory, h.RuntimePlan, h.EmbeddedJSVerbs, h.MiddlewaresFunc))
+	root.AddCommand(newVerbsCommand(h.SourceRegistry, h.Factory, h.RuntimePlan, h.MiddlewaresFunc))
 }

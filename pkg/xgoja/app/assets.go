@@ -24,14 +24,17 @@ type HostServices struct {
 }
 
 func NewAssetStore(fsys fs.FS, runtimePlan *RuntimePlan) *AssetStore {
+	registry := NewSourceRegistry(nil, nil, runtimePlan.allSources())
+	return NewAssetStoreFromSources(fsys, registry.ListSourcesByKind(providerapi.RuntimeSourceKindAssets))
+}
+
+func NewAssetStoreFromSources(fsys fs.FS, assets []providerapi.RuntimeSourceDescriptor) *AssetStore {
 	store := &AssetStore{
 		fsys:   fsys,
 		assets: map[string]SourcePlan{},
 	}
-	if runtimePlan == nil {
-		return store
-	}
-	for _, asset := range runtimePlan.sourcesByKind(SourceKindAssets) {
+	for _, descriptor := range assets {
+		asset := SourcePlan{ID: descriptor.ID, Kind: SourceKindAssets, Path: descriptor.Path, Embed: descriptor.Embed, Provider: descriptor.Provider, Source: descriptor.Source}
 		id := strings.TrimSpace(asset.ID)
 		if id == "" {
 			continue
