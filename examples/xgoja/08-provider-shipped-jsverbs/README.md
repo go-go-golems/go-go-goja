@@ -13,7 +13,7 @@ make smoke
 The smoke target:
 
 1. validates `xgoja.yaml`,
-2. builds `dist/provider-shipped-jsverbs` with a local `go-go-goja` replace,
+2. builds `dist/provider-shipped-jsverbs` using v2 workspace module resolution,
 3. runs `eval` against the fixture provider module,
 4. runs `run scripts/run.js` through the generated runtime,
 5. runs a provider-shipped verb,
@@ -32,19 +32,29 @@ pong
 The important part of `xgoja.yaml` is:
 
 ```yaml
-jsverbs:
+sources:
   - id: provider-defaults
-    package: fixture
-    source: verbs
+    kind: jsverbs
+    from:
+      provider:
+        provider: fixture
+        source: verbs
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    sources: [provider-defaults]
 ```
 
 Provider sources can also be filtered by paths relative to the provider source root:
 
 ```yaml
-jsverbs:
+sources:
   - id: provider-defaults
-    package: fixture
-    source: verbs
+    kind: jsverbs
+    from:
+      provider:
+        provider: fixture
+        source: verbs
     include:
       - tools.js
       - commands/**/*.js

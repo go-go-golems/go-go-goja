@@ -13,7 +13,7 @@ make smoke
 The smoke target:
 
 1. validates `xgoja.yaml`,
-2. builds `dist/embedded-jsverbs` with a local `go-go-goja` replace,
+2. builds `dist/embedded-jsverbs` using v2 workspace module resolution,
 3. runs `eval` against the fixture provider module,
 4. runs `run scripts/run.js` through the generated runtime,
 5. runs the embedded verb from the generated binary.
@@ -38,19 +38,25 @@ That target copies the generated binary to a temporary directory and runs the ve
 The important part of `xgoja.yaml` is:
 
 ```yaml
-jsverbs:
+sources:
   - id: local
-    path: ./verbs
-    embed: true
+    kind: jsverbs
+    from:
+      dir: ./verbs
+artifacts:
+  - id: binary
+    type: binary
+    sources: [local]
 ```
 
 Embedded sources also support filters. This is useful when the embedded source root is an application directory rather than a dedicated `verbs/` directory:
 
 ```yaml
-jsverbs:
+sources:
   - id: local
-    path: .
-    embed: true
+    kind: jsverbs
+    from:
+      dir: .
     include:
       - site.js
       - jsverbs/**/*.js
@@ -58,6 +64,10 @@ jsverbs:
       - assets/**
       - dist/**
       - webapp/**
+artifacts:
+  - id: binary
+    type: binary
+    sources: [local]
 ```
 
-Filters are preserved in the generated runtime spec and are applied when the embedded filesystem is scanned.
+Filters are preserved in the generated runtime plan and are applied when the embedded filesystem is scanned.

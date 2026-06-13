@@ -128,3 +128,13 @@ Completed Phase 7 runtime-package cleanup: generated runtime package/source-frag
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate/templates/spec_fragment.go.tmpl — Source fragment template exposes RuntimePlan JSON/API
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/examples/xgoja/14-generated-runtime-package — Checked-in runtime-package example regenerated and documented
 
+
+## 2026-06-13
+
+Completed Phase 8 docs: user guide, v2 reference, migration/provider docs, protobuf tutorial, troubleshooting, and affected example READMEs now describe RuntimePlan, command-scoped SourceRegistry, workspace.mode:auto, and generated runtime package APIs.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/doc — Phase 8 xgoja help docs updated for RuntimePlan hard cutover
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/examples/xgoja — Phase 8 example README updates for v2 source/artifact/workspace patterns
+

@@ -36,7 +36,7 @@ Use this page when updating code written against the older xgoja provider API or
 | `providerapi.RuntimeHandle` | `providerapi.RuntimeInitializerHandle` |
 | `RuntimeInitializerHandle.Runtime()` | `RuntimeInitializerHandle.EngineRuntime()` |
 | `CommandSetProvider.New` | `CommandSetProvider.NewCommandSet` |
-| `app.Spec` | `app.RuntimeSpec` |
+| `app.Spec` / `app.RuntimeSpec` | `app.RuntimePlan` |
 
 Removed aliases:
 
@@ -89,13 +89,13 @@ providerapi.Module{
 }
 ```
 
-Decode embedded runtime specs in generated or generated-like binaries:
+Decode embedded runtime plans in generated or generated-like binaries:
 
 ```go
-func decodeSpec() *app.RuntimeSpec {
-    spec := &app.RuntimeSpec{}
-    must(json.Unmarshal([]byte(embeddedSpecJSON), spec))
-    return spec
+func decodeRuntimePlan() *app.RuntimePlan {
+    runtimePlan := &app.RuntimePlan{}
+    must(json.Unmarshal([]byte(embeddedRuntimePlanJSON), runtimePlan))
+    return runtimePlan
 }
 ```
 
@@ -159,7 +159,7 @@ If workspace mode passes but `GOWORK=off` fails, inspect the relevant `go.mod`. 
 | `undefined: providerapi.ProviderRegistry` after migrating source | The module still depends on an older `go-go-goja` release. | Upgrade `github.com/go-go-golems/go-go-goja` in the active `go.mod`; check nested generated command modules too. |
 | `unknown field New in struct literal of type providerapi.Module` | `providerapi.Module.New` was renamed. | Use `NewModuleFactory: func(providerapi.ModuleSetupContext) (require.ModuleLoader, error) { ... }`. |
 | `undefined: providerapi.ModuleContext` | Module setup context was renamed. | Use `providerapi.ModuleSetupContext`. |
-| `undefined: app.Spec` | Generated or generated-like xgoja source still references the old runtime spec DTO. | Use `app.RuntimeSpec`, or regenerate the binary with the current xgoja generator. |
+| `undefined: app.Spec` or `undefined: app.RuntimeSpec` | Generated or generated-like xgoja source still references an old runtime DTO. | Use `app.RuntimePlan`, or regenerate the binary with the current xgoja generator. |
 | `provider.New undefined` | `CommandSetProvider.New` was renamed. | Use `provider.NewCommandSet`. |
 | `handle.Runtime undefined` | Runtime initializer handles now expose the engine runtime explicitly. | Use `handle.EngineRuntime()` and then `.VM` for the raw Goja VM. |
 | `RuntimeCloserRegistry` is missing | Cleanup registration moved onto `engine.Runtime`. | Use `handle.EngineRuntime().AddCloser(...)`. |

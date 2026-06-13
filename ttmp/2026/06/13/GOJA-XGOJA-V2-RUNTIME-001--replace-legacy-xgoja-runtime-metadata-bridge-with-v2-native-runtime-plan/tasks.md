@@ -45,12 +45,12 @@
 - [x] Phase 7: Port generated runtime-package artifacts to RuntimePlan and remove legacy RuntimeSpec from generated package internals
 - [x] Phase 7: Update examples/xgoja/14-generated-runtime-package and its host code/tests for the v2-native runtime plan
 - [x] Phase 7: Ensure runtime-package public APIs such as NewBundle/NewRuntime remain ergonomic while internals no longer load legacy metadata
-- [ ] Phase 8: Update xgoja user guide to describe the v2-native runtime plan and command-scoped sources
-- [ ] Phase 8: Update xgoja v2 reference to make providers/runtime.modules/sources/commands/artifacts the authoritative runtime concepts
-- [ ] Phase 8: Update migrating-to-xgoja-v2 guide to document the hard runtime cutover and remove legacy bridge language
-- [ ] Phase 8: Update provider runtime config and host services docs for the new CommandSetContext/source registry API
-- [ ] Phase 8: Update protobuf builder provider tutorial and all affected xgoja example READMEs/YAML files to remove unnecessary replace entries where workspace.mode:auto works
-- [ ] Phase 8: Add a troubleshooting section for provider.command-set sources, CLI mount vs HTTP mount, and workspace module resolution
+- [x] Phase 8: Update xgoja user guide to describe the v2-native runtime plan and command-scoped sources
+- [x] Phase 8: Update xgoja v2 reference to make providers/runtime.modules/sources/commands/artifacts the authoritative runtime concepts
+- [x] Phase 8: Update migrating-to-xgoja-v2 guide to document the hard runtime cutover and remove legacy bridge language
+- [x] Phase 8: Update provider runtime config and host services docs for the new CommandSetContext/source registry API
+- [x] Phase 8: Update protobuf builder provider tutorial and all affected xgoja example READMEs/YAML files to remove unnecessary replace entries where workspace.mode:auto works
+- [x] Phase 8: Add a troubleshooting section for provider.command-set sources, CLI mount vs HTTP mount, and workspace module resolution
 - [ ] Phase 9: Finish the real sessionstream goja-chatdemo-server xgoja app after provider command sources work end-to-end
 - [ ] Phase 9: Add a smoke test that builds the xgoja chatbot binary, starts HTTP serve, connects a WebSocket client, posts /api/chat, and receives assistant UI events
 - [ ] Phase 9: Decide whether the chatbot server example belongs in sessionstream examples, go-go-goja examples, or both with cross-references

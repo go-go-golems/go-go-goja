@@ -13,7 +13,7 @@ make smoke
 The smoke target:
 
 1. validates `xgoja.yaml`,
-2. builds `dist/runtime-filesystem` with a local `go-go-goja` replace,
+2. builds `dist/runtime-filesystem` using v2 workspace module resolution,
 3. runs `eval` against the fixture provider module,
 4. runs `run scripts/run.js` through the generated runtime,
 5. runs the filesystem verb from `verbs/tools.js`.
@@ -39,19 +39,25 @@ make clean
 The important part of `xgoja.yaml` is:
 
 ```yaml
-jsverbs:
+sources:
   - id: local-dev
-    path: ./verbs
-    embed: false
+    kind: jsverbs
+    from:
+      dir: ./verbs
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    sources: [local-dev]
 ```
 
 If your runtime source root contains generated files or browser bundles, keep the root narrow or add filters:
 
 ```yaml
-jsverbs:
+sources:
   - id: local-dev
-    path: .
-    embed: false
+    kind: jsverbs
+    from:
+      dir: .
     include:
       - verbs/**/*.js
       - site.js
@@ -60,4 +66,4 @@ jsverbs:
       - dist/**
 ```
 
-`include` and `exclude` match slash-separated paths relative to `path`.
+`include` and `exclude` match slash-separated paths relative to the source root.
