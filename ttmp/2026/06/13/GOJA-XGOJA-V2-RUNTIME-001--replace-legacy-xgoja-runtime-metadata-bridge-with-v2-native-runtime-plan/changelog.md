@@ -138,3 +138,16 @@ Completed Phase 8 docs: user guide, v2 reference, migration/provider docs, proto
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/doc — Phase 8 xgoja help docs updated for RuntimePlan hard cutover
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/examples/xgoja — Phase 8 example README updates for v2 source/artifact/workspace patterns
 
+
+## 2026-06-13
+
+Removed active xgoja runtime legacy compatibility: RuntimePlan no longer carries legacy DTO fields or conversion decode paths, runtime-package/generated binary APIs use RuntimePlan naming, provider command contexts no longer expose ctx.JSVerbs, active tests use v2 RuntimePlan JSON, and grep sweep only finds allowed migration/guard references.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate — Generated outputs renamed from spec metadata to runtime-plan metadata
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/root_test.go — Active root tests now use v2 RuntimePlan JSON
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/runtime_plan.go — RuntimePlan hard-cutover DTO with removed-key rejection and no legacy compatibility fields
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/runtime_plan_test.go — RuntimePlan rejects removed top-level legacy keys
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/providerapi/commands.go — CommandSetContext now exposes Sources without JSVerbs adapter field
+

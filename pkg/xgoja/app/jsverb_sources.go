@@ -33,7 +33,7 @@ func (s *jsVerbSourceSet) ListJSVerbSources() []providerapi.JSVerbSourceDescript
 			ID:         source.ID,
 			Path:       source.Path,
 			Embed:      source.Embed,
-			Package:    source.ProviderID(),
+			Provider:   source.ProviderID(),
 			Source:     source.Source,
 			Include:    append([]string(nil), source.Include...),
 			Exclude:    append([]string(nil), source.Exclude...),

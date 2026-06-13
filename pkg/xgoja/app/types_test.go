@@ -79,10 +79,10 @@ func typedTestHost(t *testing.T) *Host {
 	}
 	return NewHost(registry, &RuntimePlan{
 		Name: "typed-test",
-		Modules: []RuntimeModulePlan{{
-			Package: core.PackageID,
-			Name:    "path",
-			As:      "path:runtime",
-		}},
+		Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{
+			Provider: core.PackageID,
+			Name:     "path",
+			As:       "path:runtime",
+		}}},
 	})
 }

@@ -399,7 +399,7 @@ func defaultServeHotReloadWatchRoots(sources providerapi.JSVerbSourceSet) []stri
 	seen := map[string]struct{}{}
 	for _, source := range sources.ListJSVerbSources() {
 		path := strings.TrimSpace(source.Path)
-		if path == "" || source.Embed || source.Package != "" || source.Source != "" {
+		if path == "" || source.Embed || source.Provider != "" || source.Source != "" {
 			continue
 		}
 		if _, ok := seen[path]; ok {

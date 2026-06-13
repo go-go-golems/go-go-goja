@@ -51,7 +51,7 @@ func TestRenderGoModPlanUsesWorkspaceModulePlan(t *testing.T) {
 	}
 }
 
-func TestRenderEmbeddedSpecFromPlanUsesRuntimeShapeAndEmbeddedRoots(t *testing.T) {
+func TestRenderRuntimePlanJSONFromPlanUsesRuntimeShapeAndEmbeddedRoots(t *testing.T) {
 	compiled := fixturePlan(t)
 	compiled.Config.Sources = []specv2.SourceSpec{
 		{ID: "verbs", Kind: specv2.SourceKindJSVerbs, From: specv2.SourceFromSpec{Dir: "verbs"}, Language: "typescript", Compile: &specv2.CompileSpec{Bundle: true}},
@@ -63,8 +63,8 @@ func TestRenderEmbeddedSpecFromPlanUsesRuntimeShapeAndEmbeddedRoots(t *testing.T
 		{ID: "assets", Type: "embedded-assets", Sources: []string{"assets"}},
 	}
 	var runtimePlan app.RuntimePlan
-	if err := json.Unmarshal([]byte(RenderEmbeddedSpecFromPlan(compiled)), &runtimePlan); err != nil {
-		t.Fatalf("decode embedded runtime spec: %v", err)
+	if err := json.Unmarshal([]byte(RenderRuntimePlanJSONFromPlan(compiled)), &runtimePlan); err != nil {
+		t.Fatalf("decode embedded runtime plan: %v", err)
 	}
 	if runtimePlan.Schema != app.RuntimePlanSchema {
 		t.Fatalf("runtime plan schema = %q", runtimePlan.Schema)
@@ -72,7 +72,7 @@ func TestRenderEmbeddedSpecFromPlanUsesRuntimeShapeAndEmbeddedRoots(t *testing.T
 	if len(runtimePlan.Providers) != 1 || runtimePlan.Providers[0].ID != "fixture" {
 		t.Fatalf("expected runtime provider ids only, got %#v", runtimePlan.Providers)
 	}
-	assertNoLegacyRuntimeKeys(t, RenderEmbeddedSpecFromPlan(compiled))
+	assertNoLegacyRuntimeKeys(t, RenderRuntimePlanJSONFromPlan(compiled))
 	assertRuntimeSource(t, runtimePlan, app.SourceKindJSVerbs, "xgoja_embed/jsverbs/verbs", true)
 	assertRuntimeSource(t, runtimePlan, app.SourceKindHelp, "xgoja_embed/help/docs", true)
 	assertRuntimeSource(t, runtimePlan, app.SourceKindAssets, "xgoja_embed/assets/assets", true)
@@ -106,7 +106,7 @@ func TestWriteAllPlanCopiesEmbeddedSources(t *testing.T) {
 		"xgoja_embed/assets/assets/app.css",
 		"go.mod",
 		"main.go",
-		"xgoja.gen.json",
+		"xgoja.runtime.json",
 	} {
 		if _, err := os.Stat(filepath.Join(out, filepath.FromSlash(path))); err != nil {
 			t.Fatalf("expected generated %s: %v", path, err)
@@ -129,7 +129,7 @@ func TestRenderPackagePlanUsesRuntimePlanAPI(t *testing.T) {
 			t.Fatalf("generated runtime package contains legacy %q:\n%s", legacy, got)
 		}
 	}
-	assertNoLegacyRuntimeKeys(t, RenderEmbeddedSpecFromPlan(fixturePlan(t)))
+	assertNoLegacyRuntimeKeys(t, RenderRuntimePlanJSONFromPlan(fixturePlan(t)))
 }
 
 func TestTemplateDataJSONFromPlan(t *testing.T) {

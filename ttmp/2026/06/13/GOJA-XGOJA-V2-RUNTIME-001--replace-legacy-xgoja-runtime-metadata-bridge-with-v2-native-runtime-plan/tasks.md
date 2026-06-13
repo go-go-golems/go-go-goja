@@ -54,8 +54,8 @@
 - [ ] Phase 9: Finish the real sessionstream goja-chatdemo-server xgoja app after provider command sources work end-to-end
 - [ ] Phase 9: Add a smoke test that builds the xgoja chatbot binary, starts HTTP serve, connects a WebSocket client, posts /api/chat, and receives assistant UI events
 - [ ] Phase 9: Decide whether the chatbot server example belongs in sessionstream examples, go-go-goja examples, or both with cross-references
-- [ ] Phase 10: Remove or rename all active legacy runtime DTO names and fail CI if generated v2 output reintroduces commandProviders/packages/jsverbs legacy fields
-- [ ] Phase 10: Run rg-based removal sweep and document any remaining allowed historical references in tests or migration docs
+- [x] Phase 10: Remove or rename all active legacy runtime DTO names and fail CI if generated v2 output reintroduces commandProviders/packages/jsverbs legacy fields
+- [x] Phase 10: Run rg-based removal sweep and document any remaining allowed historical references in tests or migration docs
 - [ ] Phase 10: Run full validation: go test ./cmd/xgoja/... ./pkg/xgoja/... ./pkg/gojahttp ./modules/express -count=1 and go test ./... -count=1
 - [ ] Phase 10: Run all xgoja example smoke tests affected by runtime generation and update any stale fixtures/goldens
 - [ ] Phase 10: Run doc/help validation for xgoja docs and verify migration guide/help pages are discoverable through xgoja help

@@ -20,7 +20,7 @@ import (
 var templateFS embed.FS
 
 type mainTemplateData struct {
-	SpecJSON          string
+	RuntimePlanJSON   string
 	HasEmbedded       bool
 	HasEmbeddedJSVerb bool
 	HasEmbeddedHelp   bool
@@ -38,7 +38,7 @@ type mainTemplateData struct {
 
 type packageTemplateData struct {
 	PackageName       string
-	SpecJSON          string
+	RuntimePlanJSON   string
 	HasEmbedded       bool
 	HasEmbeddedJSVerb bool
 	HasEmbeddedHelp   bool
@@ -48,7 +48,7 @@ type packageTemplateData struct {
 }
 
 type dtsGenTemplateData struct {
-	SpecJSON        string
+	RuntimePlanJSON string
 	ProviderImports []providerImport
 	ExtraImports    []extraImport
 	Strict          bool
@@ -175,7 +175,7 @@ func mainTemplateDataFromPlan(compiled *plan.Plan) mainTemplateData {
 		rootFn = "NewRootCommand"
 	}
 	data := mainTemplateData{
-		SpecJSON:          escapeRawString(RenderEmbeddedSpecFromPlan(compiled)),
+		RuntimePlanJSON:   escapeRawString(RenderRuntimePlanJSONFromPlan(compiled)),
 		HasEmbedded:       hasEmbedded,
 		HasEmbeddedJSVerb: hasEmbeddedJSVerb,
 		HasEmbeddedHelp:   hasEmbeddedHelp,
@@ -201,18 +201,18 @@ func mainTemplateDataFromPlan(compiled *plan.Plan) mainTemplateData {
 		embeddedAssetsArg = "embeddedAssets"
 	}
 	if hasEmbedded {
-		data.HostConstruction = fmt.Sprintf("host := app.NewHostWithOptions(registry, buildSpec, app.HostOptions{EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
-		data.RootConstruction = fmt.Sprintf("root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON, EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
+		data.HostConstruction = fmt.Sprintf("host := app.NewHostWithOptions(registry, runtimePlan, app.HostOptions{EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
+		data.RootConstruction = fmt.Sprintf("root, err := app.NewRootCommand(app.Options{Providers: registry, RuntimePlanJSON: embeddedRuntimePlanJSON, EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
 	} else {
-		data.HostConstruction = "host := app.NewHost(registry, buildSpec)"
-		data.RootConstruction = "root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})"
+		data.HostConstruction = "host := app.NewHost(registry, runtimePlan)"
+		data.RootConstruction = "root, err := app.NewRootCommand(app.Options{Providers: registry, RuntimePlanJSON: embeddedRuntimePlanJSON})"
 	}
 	return data
 }
 
 func dtsGenTemplateDataFromPlan(compiled *plan.Plan, strict bool) dtsGenTemplateData {
 	return dtsGenTemplateData{
-		SpecJSON:        escapeRawString(RenderEmbeddedSpecFromPlan(compiled)),
+		RuntimePlanJSON: escapeRawString(RenderRuntimePlanJSONFromPlan(compiled)),
 		ProviderImports: providerImportsFromPlan(compiled),
 		ExtraImports:    extraImportsFromPlan(compiled),
 		Strict:          strict,
@@ -226,7 +226,7 @@ func packageTemplateDataFromPlan(compiled *plan.Plan, packageName string) packag
 	hasEmbeddedAssets := len(paths.AssetRoots) > 0
 	return packageTemplateData{
 		PackageName:       packageName,
-		SpecJSON:          escapeRawString(RenderEmbeddedSpecFromPlan(compiled)),
+		RuntimePlanJSON:   escapeRawString(RenderRuntimePlanJSONFromPlan(compiled)),
 		HasEmbedded:       hasEmbeddedJSVerb || hasEmbeddedHelp || hasEmbeddedAssets,
 		HasEmbeddedJSVerb: hasEmbeddedJSVerb,
 		HasEmbeddedHelp:   hasEmbeddedHelp,
@@ -339,7 +339,7 @@ func embeddedPlanRoots(sources []specv2.SourceSpec, kind specv2.SourceKind, embe
 	return roots
 }
 
-func RenderEmbeddedSpecFromPlan(compiled *plan.Plan) string {
+func RenderRuntimePlanJSONFromPlan(compiled *plan.Plan) string {
 	if compiled == nil {
 		return "null\n"
 	}

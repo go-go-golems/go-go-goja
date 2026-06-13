@@ -29,12 +29,12 @@ type RuntimeFactoryWithHostServices interface {
 }
 
 // JSVerbSourceDescriptor describes one configured JavaScript verb source in the
-// generated binary's runtime spec.
+// generated binary's runtime plan.
 type JSVerbSourceDescriptor struct {
 	ID         string
 	Path       string
 	Embed      bool
-	Package    string
+	Provider   string
 	Source     string
 	Include    []string
 	Exclude    []string
@@ -79,7 +79,6 @@ type CommandSetContext struct {
 	RuntimeFactory  RuntimeFactory
 	SelectedModules []ModuleDescriptor
 	Sources         SourceRegistry
-	JSVerbs         JSVerbSourceSet
 }
 
 // CommandSetProvider registers a package-owned command factory.

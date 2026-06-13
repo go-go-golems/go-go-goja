@@ -33,7 +33,7 @@ func TestRuntimeFactoryAppliesGlazedConfigBeforeModuleSetup(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	factory := NewRuntimeFactory(registry, &RuntimePlan{Modules: []RuntimeModulePlan{{Package: "fixture", Name: "mod", As: "alias", Config: map[string]any{"message": "static"}}}})
+	factory := NewRuntimeFactory(registry, &RuntimePlan{Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "mod", As: "alias", Config: map[string]any{"message": "static"}}}}})
 	vals := configPatchValues(t, "cli")
 	rt, err := factory.NewRuntimeFromSections(context.Background(), vals)
 	if err != nil {
@@ -68,10 +68,10 @@ func TestRuntimeFactoryKeepsIndependentConfigForRepeatedProvider(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	factory := NewRuntimeFactory(registry, &RuntimePlan{Modules: []RuntimeModulePlan{
-		{Package: "fixture", Name: "mod", As: "one", Config: map[string]any{"message": "static-one"}},
-		{Package: "fixture", Name: "mod", As: "two", Config: map[string]any{"message": "static-two"}},
-	}})
+	factory := NewRuntimeFactory(registry, &RuntimePlan{Runtime: RuntimeSection{Modules: []RuntimeModulePlan{
+		{Provider: "fixture", Name: "mod", As: "one", Config: map[string]any{"message": "static-one"}},
+		{Provider: "fixture", Name: "mod", As: "two", Config: map[string]any{"message": "static-two"}},
+	}}})
 	vals := configPatchValues(t, "cli")
 	rt, err := factory.NewRuntimeFromSections(context.Background(), vals)
 	if err != nil {

@@ -128,7 +128,7 @@ module.exports = { register };
 	if !ok || len(capabilities) != 1 {
 		t.Fatalf("http capabilities = %#v", capabilities)
 	}
-	runtimePlan := &app.RuntimePlan{Modules: []app.RuntimeModulePlan{{Package: PackageID, Name: "express", As: "express"}}}
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "express", As: "express"}}}}
 	factory := app.NewRuntimeFactory(providers, runtimePlan, app.HostServices{})
 	addr := freeServeTestAddr(t)
 	parsedValues := serveHotReloadTestValues(t, addr, map[string]any{})
@@ -180,7 +180,7 @@ func TestServeVerbHotReloadServesStatusAndReloadsChangedSource(t *testing.T) {
 	if err := Register(providers); err != nil {
 		t.Fatalf("register http provider: %v", err)
 	}
-	runtimePlan := &app.RuntimePlan{Modules: []app.RuntimeModulePlan{{Package: PackageID, Name: "express", As: "express"}}}
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "express", As: "express"}}}}
 	factory := app.NewRuntimeFactory(providers, runtimePlan, app.HostServices{})
 	addr := freeServeTestAddr(t)
 	parsedValues := serveHotReloadTestValues(t, addr, map[string]any{
@@ -447,7 +447,7 @@ func (r fakeSourceRegistry) ListSourcesByKind(kind providerapi.RuntimeSourceKind
 	}
 	out := make([]providerapi.RuntimeSourceDescriptor, 0, len(r.jsverbs.ListJSVerbSources()))
 	for _, source := range r.jsverbs.ListJSVerbSources() {
-		out = append(out, providerapi.RuntimeSourceDescriptor{ID: source.ID, Kind: providerapi.RuntimeSourceKindJSVerbs, Path: source.Path, Embed: source.Embed, Provider: source.Package, Source: source.Source, TypeScript: source.TypeScript})
+		out = append(out, providerapi.RuntimeSourceDescriptor{ID: source.ID, Kind: providerapi.RuntimeSourceKindJSVerbs, Path: source.Path, Embed: source.Embed, Provider: source.Provider, Source: source.Source, TypeScript: source.TypeScript})
 	}
 	return out
 }

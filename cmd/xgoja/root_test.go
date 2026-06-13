@@ -74,7 +74,7 @@ func TestBuildCommandWired(t *testing.T) {
 			t.Fatalf("expected build output to contain %q, got %q", want, rendered)
 		}
 	}
-	for _, name := range []string{"go.mod", "main.go", "xgoja.gen.json"} {
+	for _, name := range []string{"go.mod", "main.go", "xgoja.runtime.json"} {
 		if _, err := os.Stat(filepath.Join(workDir, name)); err != nil {
 			t.Fatalf("expected generated %s: %v", name, err)
 		}
@@ -135,7 +135,7 @@ func TestGenerateCommandPrintsTemplateData(t *testing.T) {
 		t.Fatalf("execute generate template-data: %v", err)
 	}
 	rendered := out.String()
-	for _, want := range []string{`"PackageName": "xgoja_runtime"`, `"ProviderImports"`, `"SpecJSON"`} {
+	for _, want := range []string{`"PackageName": "xgoja_runtime"`, `"ProviderImports"`, `"RuntimePlanJSON"`} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("expected template data to contain %s, got %s", want, rendered)
 		}
@@ -174,7 +174,7 @@ func TestGenerateCommandCleanRemovesKnownGeneratedFiles(t *testing.T) {
 	if _, err := os.Stat(keep); err != nil {
 		t.Fatalf("expected non-generated file preserved: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(outputDir, "spec.gen.go")); err != nil {
+	if _, err := os.Stat(filepath.Join(outputDir, "runtime_plan.gen.go")); err != nil {
 		t.Fatalf("expected regenerated source fragment: %v", err)
 	}
 }
@@ -191,7 +191,7 @@ func TestGenerateCommandWritesSourceFragments(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute generate source: %v", err)
 	}
-	for _, name := range []string{"spec.gen.go", "providers.gen.go", "bundle.gen.go"} {
+	for _, name := range []string{"runtime_plan.gen.go", "providers.gen.go", "bundle.gen.go"} {
 		if _, err := os.Stat(filepath.Join(outputDir, name)); err != nil {
 			t.Fatalf("expected source fragment %s: %v", name, err)
 		}

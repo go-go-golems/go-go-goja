@@ -28,7 +28,7 @@ import (
 
 type Options struct {
 	Providers       *providerapi.ProviderRegistry
-	SpecJSON        string
+	RuntimePlanJSON string
 	Out             io.Writer
 	EmbeddedJSVerbs fs.FS
 	EmbeddedHelp    fs.FS
@@ -41,8 +41,8 @@ func NewRootCommand(opts Options) (*cobra.Command, error) {
 		return nil, fmt.Errorf("providers registry is required")
 	}
 	runtimePlan := &RuntimePlan{}
-	if err := json.Unmarshal([]byte(opts.SpecJSON), runtimePlan); err != nil {
-		return nil, fmt.Errorf("decode embedded xgoja runtime spec: %w", err)
+	if err := json.Unmarshal([]byte(opts.RuntimePlanJSON), runtimePlan); err != nil {
+		return nil, fmt.Errorf("decode embedded xgoja runtime plan: %w", err)
 	}
 	host := NewHostWithOptions(opts.Providers, runtimePlan, HostOptions{EmbeddedJSVerbs: opts.EmbeddedJSVerbs, EmbeddedHelp: opts.EmbeddedHelp, EmbeddedAssets: opts.EmbeddedAssets, Out: opts.Out, MiddlewaresFunc: opts.MiddlewaresFunc})
 	root := &cobra.Command{
@@ -215,7 +215,7 @@ func (c *modulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values
 func (c *selectedModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.Values, gp middlewares.Processor) error {
 	_ = vals
 	if c.runtimePlan == nil {
-		return fmt.Errorf("runtime spec is required")
+		return fmt.Errorf("runtime plan is required")
 	}
 	for _, mod := range c.runtimePlan.runtimeModules() {
 		config := "{}"

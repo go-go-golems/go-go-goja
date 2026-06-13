@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func (h *Host) AttachCommandProviders(root *cobra.Command) {
+func (h *Host) AttachProviderCommands(root *cobra.Command) {
 	if root == nil || h == nil || h.RuntimePlan == nil || h.Providers == nil {
 		return
 	}
@@ -85,7 +85,6 @@ func (h *Host) newCommandSet(instance CommandPlan, provider providerapi.CommandS
 		RuntimeFactory:  h.Factory,
 		SelectedModules: selected,
 		Sources:         sourceRegistry,
-		JSVerbs:         sourceRegistry.JSVerbs(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create command set %s.%s: %w", instance.ProviderID(), instance.Name, err)

@@ -13,7 +13,7 @@ import (
 )
 
 // MiddlewaresFromSpec returns the Glazed parser middleware chain for generated
-// xgoja commands. If the runtime spec does not request an environment namespace or
+// xgoja commands. If the runtime plan does not request an environment namespace or
 // config file loading, it preserves the historical default chain: Cobra flags,
 // positional arguments, and field defaults only.
 func MiddlewaresFromSpec(runtimePlan *RuntimePlan) cli.CobraMiddlewaresFunc {
@@ -104,8 +104,8 @@ func buildConfigPlan(config *ConfigFilePlan, appName string, parsed *values.Valu
 }
 
 // EffectiveEnvPrefix returns the explicit envPrefix when present, otherwise a
-// shell-safe prefix derived from appName. The runtime spec name is intentionally not
-// used as an implicit env namespace; existing specs without appName/envPrefix
+// shell-safe prefix derived from appName. The runtime plan name is intentionally not
+// used as an implicit env namespace; existing plans without app.name/app.envPrefix
 // must keep their historical flag/argument/default-only parser behavior.
 func EffectiveEnvPrefix(runtimePlan *RuntimePlan) string {
 	if runtimePlan == nil {

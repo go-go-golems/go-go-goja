@@ -23,16 +23,38 @@ func TestGeneratedRootExposesXGojaDebugPanicStackFlag(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "mod", "as": "mod"}],
-  "commands": {
-    "eval": {"enabled": true, "name": "eval"},
-    "jsverbs": {"enabled": false}
-  }
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "mod",
+        "as": "mod"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    }
+  ]
 }`
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -61,7 +83,7 @@ func TestRuntimeFactoryDebugPanicStackFieldControlsRecoveredPanicStack(t *testin
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	factory := NewRuntimeFactory(registry, &RuntimePlan{Modules: []RuntimeModulePlan{{Package: "panic", Name: "panic", As: "panic"}}})
+	factory := NewRuntimeFactory(registry, &RuntimePlan{Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "panic", Name: "panic", As: "panic"}}}})
 
 	for _, tc := range []struct {
 		name      string

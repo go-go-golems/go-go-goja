@@ -26,9 +26,9 @@ func RenderPackagePlan(compiled *plan.Plan, packageName string) string {
 func RenderSourceFragmentsPlan(compiled *plan.Plan, packageName string) map[string]string {
 	data := packageTemplateDataFromPlan(compiled, packageName)
 	fragments := map[string]func(packageTemplateData) (string, error){
-		"spec.gen.go":      renderSpecFragmentTemplate,
-		"providers.gen.go": renderProvidersFragmentTemplate,
-		"bundle.gen.go":    renderBundleFragmentTemplate,
+		"runtime_plan.gen.go": renderSpecFragmentTemplate,
+		"providers.gen.go":    renderProvidersFragmentTemplate,
+		"bundle.gen.go":       renderBundleFragmentTemplate,
 	}
 	if data.HasEmbedded {
 		fragments["embed.gen.go"] = renderEmbedFragmentTemplate

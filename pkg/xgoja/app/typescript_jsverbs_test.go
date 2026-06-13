@@ -134,7 +134,7 @@ func TestScanVerbSourceTypeScriptProviderFSBundlesHelperImport(t *testing.T) {
 
 	registry, err := scanVerbSource(providers, nil, SourcePlan{
 		ID:         "provider-sites",
-		Package:    "fixture",
+		Provider:   "fixture",
 		Source:     "sites",
 		Extensions: []string{".ts"},
 		TypeScript: &TypeScriptPlan{Enabled: true, Bundle: true, Target: "es2015", Format: "cjs", Platform: "neutral"},

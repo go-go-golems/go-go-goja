@@ -16,7 +16,7 @@ func TestAssetStoreResolveAsset(t *testing.T) {
 	assetFS := fstest.MapFS{
 		"xgoja_embed/assets/app/config.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
 	}
-	store := NewAssetStore(assetFS, &RuntimePlan{Assets: []SourcePlan{{ID: "app", Path: "/xgoja_embed/assets/app", Embed: true}}})
+	store := NewAssetStore(assetFS, &RuntimePlan{Sources: []SourcePlan{{ID: "app", Kind: SourceKindAssets, Path: "/xgoja_embed/assets/app", Embed: true}}})
 
 	fsys, root, ok := store.ResolveAsset("app")
 	if !ok {
@@ -36,7 +36,7 @@ func TestAssetStoreResolveAsset(t *testing.T) {
 
 func TestRuntimeFactoryPassesRuntimeOwnerToModules(t *testing.T) {
 	runtimePlan := &RuntimePlan{
-		Modules: []RuntimeModulePlan{{Package: "fixture", Name: "owner-check", As: "owner-check"}},
+		Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "owner-check", As: "owner-check"}}},
 	}
 	seen := false
 	registry := providerapi.NewProviderRegistry()
@@ -68,8 +68,8 @@ func TestRuntimeFactoryPassesHostServicesToModules(t *testing.T) {
 		"xgoja_embed/assets/app/config.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
 	}
 	runtimePlan := &RuntimePlan{
-		Assets:  []SourcePlan{{ID: "app", Path: "xgoja_embed/assets/app", Embed: true}},
-		Modules: []RuntimeModulePlan{{Package: "fixture", Name: "asset-check", As: "asset-check"}},
+		Sources: []SourcePlan{{ID: "app", Kind: SourceKindAssets, Path: "xgoja_embed/assets/app", Embed: true}},
+		Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "asset-check", As: "asset-check"}}},
 	}
 	seen := false
 	registry := providerapi.NewProviderRegistry()

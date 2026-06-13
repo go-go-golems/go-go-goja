@@ -356,8 +356,6 @@ func newCommandSet(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, 
 
 For HTTP `serve`, this means both the initial verb discovery and hot reload watch roots are limited to the source IDs declared on the `serve` command. If a provider needs help or asset sources, use `ctx.Sources.ListSourcesByKind(...)` or `ctx.Sources.SourceByID(...)` rather than scanning global runtime metadata.
 
-`ctx.JSVerbs` is a transition adapter for older providers. New provider code should use `ctx.Sources` directly.
-
 ## Reading host services during module setup
 
 Provider modules read contributed services from `ModuleSetupContext.Host` by asserting `providerapi.HostServiceLookup`.

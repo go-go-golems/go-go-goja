@@ -119,7 +119,7 @@ func TestExpressProviderRegistersIntoExternalHost(t *testing.T) {
 	if err := Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	runtimePlan := &app.RuntimePlan{Modules: []app.RuntimeModulePlan{{Package: PackageID, Name: "express", As: "express"}}}
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "express", As: "express"}}}}
 	host := app.NewHostWithOptions(registry, runtimePlan, app.HostOptions{ConfigureServices: func(services *app.HostServices) {
 		if err := services.SetHostService(HostServiceKey, ExternalHostService{Host: jsHost, OwnsListen: false}); err != nil {
 			t.Fatalf("SetHostService: %v", err)

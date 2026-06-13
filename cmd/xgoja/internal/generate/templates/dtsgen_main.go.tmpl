@@ -17,7 +17,7 @@ import (
 {{- end }}
 )
 
-const embeddedSpecJSON = `{{ .SpecJSON }}`
+const embeddedRuntimePlanJSON = `{{ .RuntimePlanJSON }}`
 
 func main() {
 	registry := providerapi.NewProviderRegistry()
@@ -25,7 +25,7 @@ func main() {
 	must({{ .Alias }}.{{ .Register }}(registry))
 {{- end }}
 	runtimePlan := &app.RuntimePlan{}
-	must(json.Unmarshal([]byte(embeddedSpecJSON), runtimePlan))
+	must(json.Unmarshal([]byte(embeddedRuntimePlanJSON), runtimePlan))
 	modules := make([]dtsgen.ModuleInstance, 0, len(runtimePlan.Runtime.Modules))
 	for _, mod := range runtimePlan.Runtime.Modules {
 		modules = append(modules, dtsgen.ModuleInstance{Package: mod.Provider, Name: mod.Name, As: mod.As})

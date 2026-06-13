@@ -41,7 +41,7 @@ func TestV2PlanEmbeddedRuntimePlanMarksArtifactSourcesEmbedded(t *testing.T) {
 	}}
 
 	runtimePlan := app.RuntimePlan{}
-	if err := json.Unmarshal([]byte(generate.RenderEmbeddedSpecFromPlan(compiled)), &runtimePlan); err != nil {
+	if err := json.Unmarshal([]byte(generate.RenderRuntimePlanJSONFromPlan(compiled)), &runtimePlan); err != nil {
 		t.Fatalf("decode runtime spec: %v", err)
 	}
 	assertEmbeddedSource(t, runtimePlan, app.SourceKindJSVerbs, "xgoja_embed/jsverbs/verbs")

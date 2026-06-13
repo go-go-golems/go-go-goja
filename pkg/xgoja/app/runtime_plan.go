@@ -8,7 +8,10 @@
 // replace directives, and source BaseDir are intentionally omitted.
 package app
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 const RuntimePlanSchema = "xgoja/runtime/v2"
 
@@ -22,15 +25,6 @@ type RuntimePlan struct {
 	Sources   []SourcePlan   `json:"sources,omitempty"`
 	Commands  []CommandPlan  `json:"commands,omitempty"`
 	Artifacts []ArtifactPlan `json:"artifacts,omitempty"`
-
-	// Deprecated compatibility fields for old in-repository tests while the
-	// runtime implementation is being moved to the v2 plan shape. These fields are
-	// never emitted in generated runtime JSON.
-	Modules          []RuntimeModulePlan `json:"-"`
-	CommandProviders []CommandPlan       `json:"-"`
-	JSVerbs          []SourcePlan        `json:"-"`
-	Assets           []SourcePlan        `json:"-"`
-	LegacyCommands   CommandsSpec        `json:"-"`
 }
 
 type AppPlan struct {
@@ -61,33 +55,13 @@ type RuntimeSection struct {
 // RuntimeModulePlan selects one provider module for the generated xgoja runtime.
 type RuntimeModulePlan struct {
 	Provider string         `json:"provider"`
-	Package  string         `json:"-"`
 	Name     string         `json:"name"`
 	As       string         `json:"as,omitempty"`
 	Config   map[string]any `json:"config,omitempty"`
 }
 
-func (m *RuntimeModulePlan) UnmarshalJSON(data []byte) error {
-	type alias RuntimeModulePlan
-	var raw struct {
-		alias
-		Package string `json:"package,omitempty"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	*m = RuntimeModulePlan(raw.alias)
-	if m.Provider == "" {
-		m.Provider = raw.Package
-	}
-	return nil
-}
-
 func (m RuntimeModulePlan) ProviderID() string {
-	if m.Provider != "" {
-		return m.Provider
-	}
-	return m.Package
+	return m.Provider
 }
 
 func (m RuntimeModulePlan) Alias() string {
@@ -112,7 +86,6 @@ type SourcePlan struct {
 	Path       string          `json:"path,omitempty"`
 	Embed      bool            `json:"embed,omitempty"`
 	Provider   string          `json:"provider,omitempty"`
-	Package    string          `json:"-"`
 	Source     string          `json:"source,omitempty"`
 	Include    []string        `json:"include,omitempty"`
 	Exclude    []string        `json:"exclude,omitempty"`
@@ -120,27 +93,8 @@ type SourcePlan struct {
 	TypeScript *TypeScriptPlan `json:"typescript,omitempty"`
 }
 
-func (s *SourcePlan) UnmarshalJSON(data []byte) error {
-	type alias SourcePlan
-	var raw struct {
-		alias
-		Package string `json:"package,omitempty"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	*s = SourcePlan(raw.alias)
-	if s.Provider == "" {
-		s.Provider = raw.Package
-	}
-	return nil
-}
-
 func (s SourcePlan) ProviderID() string {
-	if s.Provider != "" {
-		return s.Provider
-	}
-	return s.Package
+	return s.Provider
 }
 
 type TypeScriptPlan struct {
@@ -156,55 +110,20 @@ type TypeScriptPlan struct {
 	CheckCommand []string          `json:"checkCommand,omitempty"`
 }
 
-type CommandSpec struct {
-	Enabled bool   `json:"enabled"`
-	Name    string `json:"name,omitempty"`
-	Mount   string `json:"mount,omitempty"`
-}
-
-type CommandsSpec struct {
-	Eval    CommandSpec `json:"eval"`
-	Run     CommandSpec `json:"run"`
-	Repl    CommandSpec `json:"repl"`
-	JSVerbs CommandSpec `json:"jsverbs"`
-}
-
-type CommandProviderInstanceSpec = CommandPlan
-
 type CommandPlan struct {
 	ID       string         `json:"id"`
 	Type     string         `json:"type"`
 	Name     string         `json:"name,omitempty"`
 	Mount    string         `json:"mount,omitempty"`
 	Provider string         `json:"provider,omitempty"`
-	Package  string         `json:"-"`
 	Sources  []string       `json:"sources,omitempty"`
 	Modules  []string       `json:"modules,omitempty"`
 	Config   map[string]any `json:"config,omitempty"`
 	Lazy     bool           `json:"lazy,omitempty"`
 }
 
-func (c *CommandPlan) UnmarshalJSON(data []byte) error {
-	type alias CommandPlan
-	var raw struct {
-		alias
-		Package string `json:"package,omitempty"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	*c = CommandPlan(raw.alias)
-	if c.Provider == "" {
-		c.Provider = raw.Package
-	}
-	return nil
-}
-
 func (c CommandPlan) ProviderID() string {
-	if c.Provider != "" {
-		return c.Provider
-	}
-	return c.Package
+	return c.Provider
 }
 
 type ArtifactPlan struct {
@@ -219,66 +138,21 @@ type ArtifactPlan struct {
 }
 
 func (p *RuntimePlan) UnmarshalJSON(data []byte) error {
-	type runtimePlanAlias RuntimePlan
-	var raw struct {
-		*runtimePlanAlias
-		AppName          string              `json:"appName,omitempty"`
-		EnvPrefix        string              `json:"envPrefix,omitempty"`
-		ConfigFile       *ConfigFilePlan     `json:"configFile,omitempty"`
-		Modules          []RuntimeModulePlan `json:"modules,omitempty"`
-		CommandsRaw      json.RawMessage     `json:"commands,omitempty"`
-		CommandProviders []CommandPlan       `json:"commandProviders,omitempty"`
-		JSVerbs          []SourcePlan        `json:"jsverbs,omitempty"`
-		Help             struct {
-			Sources []SourcePlan `json:"sources,omitempty"`
-		} `json:"help,omitempty"`
-		Assets []SourcePlan `json:"assets,omitempty"`
-	}
-	raw.runtimePlanAlias = (*runtimePlanAlias)(p)
-	if err := json.Unmarshal(data, &raw); err != nil {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(data, &payload); err != nil {
 		return err
 	}
-	if p.App.Name == "" {
-		p.App.Name = raw.AppName
-	}
-	if p.App.EnvPrefix == "" {
-		p.App.EnvPrefix = raw.EnvPrefix
-	}
-	if p.App.ConfigFile == nil {
-		p.App.ConfigFile = raw.ConfigFile
-	}
-	if len(p.Runtime.Modules) == 0 {
-		p.Runtime.Modules = raw.Modules
-	}
-	if len(raw.CommandsRaw) > 0 {
-		var commandList []CommandPlan
-		if err := json.Unmarshal(raw.CommandsRaw, &commandList); err == nil {
-			p.Commands = commandList
-		} else {
-			var commandObject CommandsSpec
-			if err := json.Unmarshal(raw.CommandsRaw, &commandObject); err != nil {
-				return err
-			}
-			for typ, command := range map[string]CommandSpec{"builtin.eval": commandObject.Eval, "builtin.run": commandObject.Run, "builtin.repl": commandObject.Repl, "builtin.jsverbs": commandObject.JSVerbs} {
-				if command.Enabled {
-					p.Commands = append(p.Commands, CommandPlan{Type: typ, Name: command.Name, Mount: command.Mount})
-				}
-			}
+	for _, key := range []string{"appName", "envPrefix", "configFile", "packages", "modules", "commandProviders", "jsverbs", "help", "assets"} {
+		if _, ok := payload[key]; ok {
+			return fmt.Errorf("runtime plan uses removed legacy key %q", key)
 		}
 	}
-	p.Commands = append(p.Commands, raw.CommandProviders...)
-	for i := range raw.JSVerbs {
-		raw.JSVerbs[i].Kind = SourceKindJSVerbs
+	type alias RuntimePlan
+	var decoded alias
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
 	}
-	for i := range raw.Help.Sources {
-		raw.Help.Sources[i].Kind = SourceKindHelp
-	}
-	for i := range raw.Assets {
-		raw.Assets[i].Kind = SourceKindAssets
-	}
-	p.Sources = append(p.Sources, raw.JSVerbs...)
-	p.Sources = append(p.Sources, raw.Help.Sources...)
-	p.Sources = append(p.Sources, raw.Assets...)
+	*p = RuntimePlan(decoded)
 	return nil
 }
 
@@ -296,34 +170,14 @@ func (p *RuntimePlan) runtimeModules() []RuntimeModulePlan {
 	if p == nil {
 		return nil
 	}
-	if len(p.Runtime.Modules) > 0 {
-		return p.Runtime.Modules
-	}
-	return p.Modules
+	return p.Runtime.Modules
 }
 
 func (p *RuntimePlan) runtimeCommands() []CommandPlan {
 	if p == nil {
 		return nil
 	}
-	out := append([]CommandPlan(nil), p.Commands...)
-	for _, command := range p.CommandProviders {
-		if command.Type == "" {
-			command.Type = "provider.command-set"
-		}
-		out = append(out, command)
-	}
-	for typ, command := range map[string]CommandSpec{
-		"builtin.eval":    p.LegacyCommands.Eval,
-		"builtin.run":     p.LegacyCommands.Run,
-		"builtin.repl":    p.LegacyCommands.Repl,
-		"builtin.jsverbs": p.LegacyCommands.JSVerbs,
-	} {
-		if command.Enabled {
-			out = append(out, CommandPlan{Type: typ, Name: command.Name, Mount: command.Mount})
-		}
-	}
-	return out
+	return append([]CommandPlan(nil), p.Commands...)
 }
 
 func (p *RuntimePlan) commandByType(commandType string) (CommandPlan, bool) {
@@ -339,20 +193,7 @@ func (p *RuntimePlan) allSources() []SourcePlan {
 	if p == nil {
 		return nil
 	}
-	out := append([]SourcePlan(nil), p.Sources...)
-	for _, source := range p.JSVerbs {
-		if source.Kind == "" {
-			source.Kind = SourceKindJSVerbs
-		}
-		out = append(out, source)
-	}
-	for _, source := range p.Assets {
-		if source.Kind == "" {
-			source.Kind = SourceKindAssets
-		}
-		out = append(out, source)
-	}
-	return out
+	return append([]SourcePlan(nil), p.Sources...)
 }
 
 func (p *RuntimePlan) sourcesByKind(kind SourceKind) []SourcePlan {

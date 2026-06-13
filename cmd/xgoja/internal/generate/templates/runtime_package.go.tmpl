@@ -26,7 +26,7 @@ import (
 {{- end }}
 )
 
-const EmbeddedRuntimePlanJSON = `{{ .SpecJSON }}`
+const EmbeddedRuntimePlanJSON = `{{ .RuntimePlanJSON }}`
 
 {{- if .HasEmbeddedJSVerb }}
 //go:embed xgoja_embed/jsverbs/*

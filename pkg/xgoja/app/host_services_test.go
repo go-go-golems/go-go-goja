@@ -61,7 +61,7 @@ func TestHostOptionsConfigureServicesVisibleToModuleSetup(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimePlan := &RuntimePlan{Modules: []RuntimeModulePlan{{Package: "fixture", Name: "mod"}}}
+	runtimePlan := &RuntimePlan{Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "mod"}}}}
 	host := NewHostWithOptions(registry, runtimePlan, HostOptions{ConfigureServices: func(services *HostServices) {
 		if err := services.SetHostService("demo", "from-host-options"); err != nil {
 			t.Fatalf("SetHostService: %v", err)
@@ -97,7 +97,7 @@ func TestRuntimeFactoryPerRuntimeHostServicesVisibleToModuleSetup(t *testing.T) 
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimePlan := &RuntimePlan{Modules: []RuntimeModulePlan{{Package: "fixture", Name: "mod"}}}
+	runtimePlan := &RuntimePlan{Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "mod"}}}}
 	factory := NewRuntimeFactory(registry, runtimePlan, HostServices{Services: map[string][]any{"demo": {"base"}}})
 	runtimeServices := HostServices{}
 	if err := runtimeServices.SetHostService("demo", "runtime"); err != nil {
@@ -138,7 +138,7 @@ func TestRuntimeFactoryCollectsHostServiceContributionsBeforeModuleSetup(t *test
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimePlan := &RuntimePlan{Modules: []RuntimeModulePlan{{Package: "fixture", Name: "mod"}}}
+	runtimePlan := &RuntimePlan{Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "mod"}}}}
 	factory := NewRuntimeFactory(registry, runtimePlan, HostServices{})
 	rt, err := factory.NewRuntimeFromSections(context.Background(), values.New())
 	if err != nil {
@@ -168,7 +168,7 @@ func TestHostServiceContributionsDedupeSamePackageCapability(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimePlan := &RuntimePlan{Modules: []RuntimeModulePlan{{Package: "fixture", Name: "first"}, {Package: "fixture", Name: "second"}}}
+	runtimePlan := &RuntimePlan{Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "first"}, {Provider: "fixture", Name: "second"}}}}
 	factory := NewRuntimeFactory(registry, runtimePlan, HostServices{})
 	rt, err := factory.NewRuntimeFromSections(context.Background(), values.New())
 	if err != nil {
@@ -195,7 +195,7 @@ func TestHostServiceContributionClosersRunOnRuntimeClose(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimePlan := &RuntimePlan{Modules: []RuntimeModulePlan{{Package: "fixture", Name: "mod"}}}
+	runtimePlan := &RuntimePlan{Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "mod"}}}}
 	factory := NewRuntimeFactory(registry, runtimePlan, HostServices{})
 	rt, err := factory.NewRuntimeFromSections(context.Background(), values.New())
 	if err != nil {
@@ -227,7 +227,7 @@ func TestHostServiceContributionClosersRunOnRuntimeSetupFailure(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimePlan := &RuntimePlan{Modules: []RuntimeModulePlan{{Package: "fixture", Name: "mod"}}}
+	runtimePlan := &RuntimePlan{Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "mod"}}}}
 	factory := NewRuntimeFactory(registry, runtimePlan, HostServices{})
 	_, err := factory.NewRuntimeFromSections(context.Background(), values.New())
 	if err == nil || !strings.Contains(err.Error(), "setup failed") {
@@ -249,7 +249,7 @@ func TestHostServiceContributionErrorsAreWrapped(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register package: %v", err)
 	}
-	runtimePlan := &RuntimePlan{Modules: []RuntimeModulePlan{{Package: "fixture", Name: "mod"}}}
+	runtimePlan := &RuntimePlan{Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "mod"}}}}
 	factory := NewRuntimeFactory(registry, runtimePlan, HostServices{})
 	_, err := factory.NewRuntimeFromSections(context.Background(), values.New())
 	if err == nil || !strings.Contains(err.Error(), "contribute host services for fixture capability host-service") || !strings.Contains(err.Error(), "boom") {
