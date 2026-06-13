@@ -189,6 +189,9 @@ func serveVerbHotReload(ctx context.Context, commandCtx providerapi.CommandSetCo
 	if len(watchRoots) == 0 {
 		watchRoots = defaultServeHotReloadWatchRoots(commandCtx.JSVerbs)
 	}
+	if sourceSetHasTypeScript(commandCtx.JSVerbs) {
+		hotReloadSettings.WatchExts = appendTypeScriptWatchExtensions(hotReloadSettings.WatchExts)
+	}
 	if len(watchRoots) > 0 {
 		if err := startServeHotReloadWatcher(serveCtx, manager, watchRoots, hotReloadSettings, poll, debounce); err != nil {
 			return nil, err
@@ -342,6 +345,34 @@ func parseServeHotReloadDuration(name, raw string) (time.Duration, error) {
 		return 0, fmt.Errorf("%s must not be negative", name)
 	}
 	return d, nil
+}
+
+func sourceSetHasTypeScript(sources providerapi.JSVerbSourceSet) bool {
+	if sources == nil {
+		return false
+	}
+	for _, source := range sources.ListJSVerbSources() {
+		if source.TypeScript != nil && source.TypeScript.Enabled {
+			return true
+		}
+	}
+	return false
+}
+
+func appendTypeScriptWatchExtensions(exts []string) []string {
+	out := append([]string(nil), exts...)
+	seen := map[string]struct{}{}
+	for _, ext := range out {
+		seen[strings.ToLower(strings.TrimSpace(ext))] = struct{}{}
+	}
+	for _, ext := range []string{".ts", ".tsx", ".mts", ".cts"} {
+		if _, ok := seen[ext]; ok {
+			continue
+		}
+		out = append(out, ext)
+		seen[ext] = struct{}{}
+	}
+	return out
 }
 
 func defaultServeHotReloadWatchRoots(sources providerapi.JSVerbSourceSet) []string {

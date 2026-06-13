@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "CommonJS",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "types": [],
+    "typeRoots": ["./js/types", "./node_modules/@types"],
+    "skipLibCheck": true
+  },
+  "include": ["verbs/**/*.ts", "js/types/**/*.d.ts"]
+}

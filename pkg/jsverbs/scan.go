@@ -71,6 +71,7 @@ func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
 			AbsPath:    filePath,
 			RelPath:    relPathSlash,
 			ModulePath: modulePathFromRelative(relPath),
+			ResolveDir: filepath.Dir(filePath),
 			Source:     source,
 		})
 		return nil
@@ -93,6 +94,15 @@ func ScanFS(fsys fs.FS, root string, opts ...ScanOptions) (*Registry, error) {
 	root = strings.TrimSpace(root)
 	if root == "" {
 		root = "."
+	}
+
+	rootFS := fsys
+	if root != "." {
+		var err error
+		rootFS, err = fs.Sub(fsys, root)
+		if err != nil {
+			return nil, fmt.Errorf("open fs root %s: %w", root, err)
+		}
 	}
 
 	inputs := []sourceInput{}
@@ -129,6 +139,7 @@ func ScanFS(fsys fs.FS, root string, opts ...ScanOptions) (*Registry, error) {
 		inputs = append(inputs, sourceInput{
 			RelPath:    relPathSlash,
 			ModulePath: modulePathFromRelative(relPath),
+			RootFS:     rootFS,
 			Source:     source,
 		})
 		return nil
@@ -160,9 +171,14 @@ func ScanSources(files []SourceFile, opts ...ScanOptions) (*Registry, error) {
 			return nil, err
 		}
 		inputs = append(inputs, sourceInput{
-			RelPath:    strings.TrimPrefix(modulePath, "/"),
-			ModulePath: modulePath,
-			Source:     append([]byte(nil), file.Source...),
+			AbsPath:        file.AbsPath,
+			RelPath:        strings.TrimPrefix(modulePath, "/"),
+			ModulePath:     modulePath,
+			ResolveDir:     file.ResolveDir,
+			RootFS:         file.RootFS,
+			Source:         append([]byte(nil), file.Source...),
+			OriginalSource: append([]byte(nil), file.OriginalSource...),
+			SourceLanguage: file.Language,
 		})
 	}
 
@@ -170,10 +186,14 @@ func ScanSources(files []SourceFile, opts ...ScanOptions) (*Registry, error) {
 }
 
 type sourceInput struct {
-	AbsPath    string
-	RelPath    string
-	ModulePath string
-	Source     []byte
+	AbsPath        string
+	RelPath        string
+	ModulePath     string
+	ResolveDir     string
+	RootFS         fs.FS
+	Source         []byte
+	OriginalSource []byte
+	SourceLanguage string
 }
 
 func scanInputs(rootDir string, inputs []sourceInput, options ScanOptions) (*Registry, error) {
@@ -189,7 +209,11 @@ func scanInputs(rootDir string, inputs []sourceInput, options ScanOptions) (*Reg
 	}
 
 	for _, input := range inputs {
-		file, err := scanInput(input, options, registry)
+		transformed, err := transformSourceInput(input, options)
+		if err != nil {
+			return registry, err
+		}
+		file, err := scanInput(transformed, options, registry)
 		if err != nil {
 			return registry, err
 		}
@@ -290,6 +314,44 @@ func shouldSkipDir(name string) bool {
 	return name == "node_modules" || strings.HasPrefix(name, ".")
 }
 
+func transformSourceInput(input sourceInput, options ScanOptions) (sourceInput, error) {
+	if options.SourceTransform == nil {
+		if len(input.OriginalSource) == 0 {
+			input.OriginalSource = append([]byte(nil), input.Source...)
+		}
+		return input, nil
+	}
+	path := input.RelPath
+	if input.AbsPath != "" {
+		path = input.AbsPath
+	}
+	transformed, err := options.SourceTransform(SourceFile{
+		Path:           path,
+		AbsPath:        input.AbsPath,
+		ResolveDir:     input.ResolveDir,
+		RootFS:         input.RootFS,
+		Source:         append([]byte(nil), input.Source...),
+		OriginalSource: append([]byte(nil), input.OriginalSource...),
+		Language:       input.SourceLanguage,
+	})
+	if err != nil {
+		return input, err
+	}
+	if len(transformed.OriginalSource) == 0 {
+		transformed.OriginalSource = append([]byte(nil), input.Source...)
+	}
+	input.Source = append([]byte(nil), transformed.Source...)
+	input.OriginalSource = append([]byte(nil), transformed.OriginalSource...)
+	input.SourceLanguage = transformed.Language
+	if transformed.ResolveDir != "" {
+		input.ResolveDir = transformed.ResolveDir
+	}
+	if transformed.RootFS != nil {
+		input.RootFS = transformed.RootFS
+	}
+	return input, nil
+}
+
 func scanInput(input sourceInput, options ScanOptions, registry *Registry) (*FileSpec, error) {
 	parser := tree_sitter.NewParser()
 	defer parser.Close()
@@ -309,6 +371,10 @@ func scanInput(input sourceInput, options ScanOptions, registry *Registry) (*Fil
 		RelPath:        filepath.ToSlash(input.RelPath),
 		ModulePath:     input.ModulePath,
 		Source:         append([]byte(nil), input.Source...),
+		OriginalSource: append([]byte(nil), input.OriginalSource...),
+		SourceLanguage: input.SourceLanguage,
+		ResolveDir:     input.ResolveDir,
+		RootFS:         input.RootFS,
 		Functions:      []*FunctionSpec{},
 		functionByName: map[string]*FunctionSpec{},
 		SectionOrder:   []string{},

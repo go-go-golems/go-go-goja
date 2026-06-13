@@ -11,7 +11,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate"
 )
 
@@ -86,14 +85,13 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	buildSpec, report, err := buildspec.LoadFile(settings.File)
-	if report != nil {
-		_, _ = fmt.Fprintf(c.out, "validated %d check(s) for %s\n", len(report.Checks), settings.File)
-	}
+	compiledPlan, err := loadV2Plan(settings.File)
 	if err != nil {
 		return err
 	}
-	kind := strings.TrimSpace(buildSpec.Target.Kind)
+	target := targetFromPlan(compiledPlan)
+	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
+	kind := strings.TrimSpace(target.Kind)
 	if kind == "" {
 		kind = "xgoja"
 	}
@@ -102,24 +100,24 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	output := strings.TrimSpace(settings.Output)
 	if output == "" {
-		output = buildSpec.Target.Output
+		output = target.Output
 	}
 	if output == "" {
 		return fmt.Errorf("generate output directory is required")
 	}
 	packageName := strings.TrimSpace(settings.Package)
 	if packageName == "" {
-		packageName = strings.TrimSpace(buildSpec.Target.Package)
+		packageName = strings.TrimSpace(target.Package)
 	}
 	templatePath := strings.TrimSpace(settings.Template)
 	if templatePath == "" {
-		templatePath = strings.TrimSpace(buildSpec.Target.Template)
+		templatePath = strings.TrimSpace(target.Template)
 	}
 	if kind == "template" && templatePath == "" {
 		return fmt.Errorf("custom template path is required for target.kind template")
 	}
 	if templatePath != "" && !filepath.IsAbs(templatePath) {
-		templatePath = filepath.Join(buildSpec.BaseDir, templatePath)
+		templatePath = filepath.Join(compiledPlan.Config.BaseDir, templatePath)
 	}
 	dataPackageName := packageName
 	if dataPackageName == "" {
@@ -130,7 +128,7 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 		}
 	}
 	if settings.TemplateData {
-		data, err := generate.TemplateDataJSON(buildSpec, dataPackageName)
+		data, err := generate.TemplateDataJSONFromPlan(compiledPlan, dataPackageName)
 		if err != nil {
 			return err
 		}
@@ -138,7 +136,7 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 		return err
 	}
 	if settings.DryRun {
-		_, err = fmt.Fprintf(c.out, "xgoja generate dry run ok: name=%s target=%s output=%s package=%s template=%s clean=%v modules=%d packages=%d\n", buildSpec.Name, kind, output, dataPackageName, templatePath, settings.Clean, len(buildSpec.Modules), len(buildSpec.Packages))
+		_, err = fmt.Fprintf(c.out, "xgoja generate dry run ok: name=%s target=%s output=%s package=%s template=%s clean=%v modules=%d packages=%d\n", compiledPlan.Config.Name, kind, output, dataPackageName, templatePath, settings.Clean, len(compiledPlan.Config.Runtime.Modules), len(compiledPlan.Config.Providers))
 		return err
 	}
 	if settings.Clean {
@@ -153,11 +151,11 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	switch kind {
 	case "package":
-		err = generate.WritePackage(output, buildSpec, generate.PackageOptions{PackageName: packageName})
+		err = generate.WritePackagePlan(output, compiledPlan, generate.PackageOptions{PackageName: packageName})
 	case "source":
-		err = generate.WriteSourceFragments(output, buildSpec, generate.PackageOptions{PackageName: packageName})
+		err = generate.WriteSourceFragmentsPlan(output, compiledPlan, generate.PackageOptions{PackageName: packageName})
 	case "template":
-		err = generate.WriteCustomTemplate(output, buildSpec, generate.TemplateOptions{PackageName: packageName, TemplatePath: templatePath})
+		err = generate.WriteCustomTemplatePlan(output, compiledPlan, generate.TemplateOptions{PackageName: packageName, TemplatePath: templatePath})
 	}
 	if err != nil {
 		return err

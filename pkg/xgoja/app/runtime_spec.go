@@ -87,14 +87,28 @@ type CommandProviderInstanceSpec struct {
 }
 
 type JSVerbSourceSpec struct {
-	ID         string   `json:"id"`
-	Path       string   `json:"path,omitempty"`
-	Embed      bool     `json:"embed"`
-	Package    string   `json:"package,omitempty"`
-	Source     string   `json:"source,omitempty"`
-	Include    []string `json:"include,omitempty"`
-	Exclude    []string `json:"exclude,omitempty"`
-	Extensions []string `json:"extensions,omitempty"`
+	ID         string          `json:"id"`
+	Path       string          `json:"path,omitempty"`
+	Embed      bool            `json:"embed"`
+	Package    string          `json:"package,omitempty"`
+	Source     string          `json:"source,omitempty"`
+	Include    []string        `json:"include,omitempty"`
+	Exclude    []string        `json:"exclude,omitempty"`
+	Extensions []string        `json:"extensions,omitempty"`
+	TypeScript *TypeScriptSpec `json:"typescript,omitempty"`
+}
+
+type TypeScriptSpec struct {
+	Enabled      bool              `json:"enabled"`
+	Bundle       bool              `json:"bundle"`
+	Target       string            `json:"target,omitempty"`
+	Format       string            `json:"format,omitempty"`
+	Platform     string            `json:"platform,omitempty"`
+	Tsconfig     string            `json:"tsconfig,omitempty"`
+	Sourcemap    string            `json:"sourcemap,omitempty"`
+	External     []string          `json:"external,omitempty"`
+	Define       map[string]string `json:"define,omitempty"`
+	CheckCommand []string          `json:"checkCommand,omitempty"`
 }
 
 type HelpSpec struct {

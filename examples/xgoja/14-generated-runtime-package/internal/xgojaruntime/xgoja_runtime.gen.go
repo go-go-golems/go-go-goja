@@ -12,6 +12,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/dtsgen"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	fixture "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider"
 	"github.com/spf13/cobra"
@@ -19,16 +20,14 @@ import (
 
 const EmbeddedSpecJSON = `{
   "name": "generated-runtime-package",
+  "appName": "generated-runtime-package",
   "target": {
     "kind": "package",
-    "output": "internal/xgojaruntime",
-    "package": "xgojaruntime"
+    "output": "internal/xgojaruntime"
   },
   "packages": [
     {
-      "id": "fixture",
-      "import": "github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider",
-      "register": "Register"
+      "id": "fixture"
     }
   ],
   "modules": [
@@ -57,8 +56,9 @@ const EmbeddedSpecJSON = `{
 `
 
 type Options struct {
-	Out             io.Writer
-	MiddlewaresFunc cli.CobraMiddlewaresFunc
+	Out               io.Writer
+	MiddlewaresFunc   cli.CobraMiddlewaresFunc
+	ConfigureServices func(*app.HostServices)
 }
 
 type Bundle struct {
@@ -95,10 +95,29 @@ func NewBundle(opts Options) (*Bundle, error) {
 		return nil, err
 	}
 	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{
-		Out:             opts.Out,
-		MiddlewaresFunc: opts.MiddlewaresFunc,
+		Out:               opts.Out,
+		MiddlewaresFunc:   opts.MiddlewaresFunc,
+		ConfigureServices: opts.ConfigureServices,
 	})
 	return &Bundle{Providers: registry, RuntimeSpec: runtimeSpec, Host: host}, nil
+}
+
+func (b *Bundle) TypeScriptDeclarations() (string, error) {
+	if b == nil || b.Host == nil {
+		return "", fmt.Errorf("xgoja runtime bundle is not initialized")
+	}
+	result, err := b.Host.TypeScriptDeclarations(dtsgen.Options{})
+	if err != nil {
+		return "", err
+	}
+	return result.DTS, nil
+}
+
+func (b *Bundle) WriteTypeScriptDeclarations(w io.Writer) error {
+	if b == nil || b.Host == nil {
+		return fmt.Errorf("xgoja runtime bundle is not initialized")
+	}
+	return b.Host.WriteTypeScriptDeclarations(w, dtsgen.Options{})
 }
 
 func (b *Bundle) NewRuntime(ctx context.Context, opts ...require.Option) (*engine.Runtime, error) {

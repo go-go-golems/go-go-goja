@@ -9,11 +9,13 @@ import (
 	"syscall"
 
 	"github.com/dop251/goja"
+	"github.com/evanw/esbuild/pkg/api"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/tsscript"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
@@ -111,18 +113,66 @@ func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory,
 		}
 	}
 
-	_, err = rt.Owner.Call(ctx, "xgoja.run", func(_ context.Context, vm *goja.Runtime) (any, error) {
-		_ = vm
-		return rt.Require.Require(scriptPath)
-	})
-	if err != nil {
-		return fmt.Errorf("run %s as module: %w", scriptPath, err)
+	if tsscript.IsTypeScriptPath(scriptPath) {
+		if err := runTypeScriptScript(ctx, rt, scriptPath, selectedModules); err != nil {
+			return err
+		}
+	} else {
+		_, err = rt.Owner.Call(ctx, "xgoja.run", func(_ context.Context, vm *goja.Runtime) (any, error) {
+			_ = vm
+			return rt.Require.Require(scriptPath)
+		})
+		if err != nil {
+			return fmt.Errorf("run %s as module: %w", scriptPath, err)
+		}
 	}
 	if keepAlive {
 		fmt.Fprintln(os.Stderr, "xgoja run: runtime is alive; press Ctrl-C to stop")
 		return waitForKeepAlive(ctx)
 	}
 	return nil
+}
+
+func runTypeScriptScript(ctx context.Context, rt *engine.Runtime, scriptPath string, selectedModules []providerapi.ModuleDescriptor) error {
+	artifact, err := tsscript.BundleEntry(scriptPath, tsscript.Options{
+		Target:   api.ES2015,
+		Format:   api.FormatIIFE,
+		Platform: api.PlatformNeutral,
+		External: moduleAliases(selectedModules),
+	})
+	if err != nil {
+		return fmt.Errorf("compile TypeScript %s: %w", scriptPath, err)
+	}
+	_, err = rt.Owner.Call(ctx, "xgoja.run.typescript", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		return vm.RunScript(scriptPath, string(artifact.Code))
+	})
+	if err != nil {
+		return fmt.Errorf("run compiled TypeScript %s: %w", scriptPath, err)
+	}
+	return nil
+}
+
+func moduleAliases(selectedModules []providerapi.ModuleDescriptor) []string {
+	if len(selectedModules) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(selectedModules))
+	seen := map[string]struct{}{}
+	for _, module := range selectedModules {
+		alias := module.As
+		if alias == "" {
+			alias = module.ModuleID
+		}
+		if alias == "" {
+			continue
+		}
+		if _, ok := seen[alias]; ok {
+			continue
+		}
+		seen[alias] = struct{}{}
+		out = append(out, alias)
+	}
+	return out
 }
 
 func waitForKeepAlive(ctx context.Context) error {

@@ -1,24 +1,29 @@
+schema: xgoja/v2
 name: protobuf-builder-provider
-
-target:
-  kind: xgoja
-  output: dist/protobuf-builder-provider
-
-packages:
-- id: protobuf-builder-example
-  import: github.com/go-go-golems/go-go-goja/examples/xgoja/15-protobuf-builder-provider/provider
-
-modules:
-- package: protobuf-builder-example
-  name: examples.xgoja.protobuf.v1
-  as: examples.xgoja.protobuf.v1
-
+app:
+    name: protobuf-builder-provider
+go:
+    module: xgoja.generated/protobuf-builder-provider
+    version: "1.26"
+workspace:
+    mode: auto
+providers:
+    - id: protobuf-builder-example
+      import: github.com/go-go-golems/go-go-goja/examples/xgoja/15-protobuf-builder-provider/provider
+      register: Register
+runtime:
+    modules:
+        - provider: protobuf-builder-example
+          name: examples.xgoja.protobuf.v1
+          as: examples.xgoja.protobuf.v1
 commands:
-  eval:
-    enabled: true
-  run:
-    enabled: true
-  repl:
-    enabled: false
-  jsverbs:
-    enabled: false
+    - id: eval
+      type: builtin.eval
+      name: eval
+    - id: run
+      type: builtin.run
+      name: run
+artifacts:
+    - id: binary
+      type: binary
+      output: dist/protobuf-builder-provider

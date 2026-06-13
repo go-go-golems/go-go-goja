@@ -1,40 +1,54 @@
+schema: xgoja/v2
 name: embedded-assets-fs
-target:
-  kind: xgoja
-  output: dist/embedded-assets-fs
-packages:
-- id: go-go-goja-host
-  import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
-- id: go-go-goja-http
-  import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
-assets:
-- id: app-assets
-  path: ./assets
-  embed: true
-  description: Example configuration assets embedded into the generated binary.
+app:
+    name: embedded-assets-fs
+go:
+    module: xgoja.generated/embedded-assets-fs
+    version: "1.26"
+workspace:
+    mode: auto
+providers:
+    - id: go-go-goja-host
+      import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+      register: Register
+    - id: go-go-goja-http
+      import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+      register: Register
+runtime:
+    modules:
+        - provider: go-go-goja-host
+          name: fs
+          as: fs:assets
+          config:
+            embedded:
+                allow: true
+                mounts:
+                    - asset: app-assets
+                      mount: /app
+        - provider: go-go-goja-host
+          name: fs
+          as: fs:host
+          config:
+            allow: true
+        - provider: go-go-goja-http
+          name: express
+sources:
+    - id: app-assets
+      kind: assets
+      from:
+        dir: ./assets
 commands:
-  eval:
-    enabled: true
-  run:
-    enabled: true
-  jsverbs:
-    enabled: false
-  repl:
-    enabled: false
-modules:
-- package: go-go-goja-host
-  name: fs
-  as: fs:assets
-  config:
-    embedded:
-      allow: true
-      mounts:
-      - asset: app-assets
-        mount: /app
-- package: go-go-goja-host
-  name: fs
-  as: fs:host
-  config:
-    allow: true
-- package: go-go-goja-http
-  name: express
+    - id: eval
+      type: builtin.eval
+      name: eval
+    - id: run
+      type: builtin.run
+      name: run
+artifacts:
+    - id: binary
+      type: binary
+      output: dist/embedded-assets-fs
+    - id: embedded-assets
+      type: embedded-assets
+      sources:
+        - app-assets
