@@ -68,6 +68,7 @@ func (h *Host) newCommandSet(instance CommandPlan, provider providerapi.CommandS
 	if err != nil {
 		return nil, err
 	}
+	sourceRegistry := NewSourceRegistry(h.Providers, h.EmbeddedJSVerbs, h.RuntimePlan.allSources()).Scoped(instance.Sources)
 	set, err := provider.NewCommandSet(providerapi.CommandSetContext{
 		Context:         context.Background(),
 		PackageID:       instance.ProviderID(),
@@ -77,7 +78,8 @@ func (h *Host) newCommandSet(instance CommandPlan, provider providerapi.CommandS
 		Providers:       h.Providers,
 		RuntimeFactory:  h.Factory,
 		SelectedModules: selected,
-		JSVerbs:         newScopedJSVerbSourceSet(h.Providers, h.EmbeddedJSVerbs, h.RuntimePlan.sourcesByKind(SourceKindJSVerbs), instance.Sources),
+		Sources:         sourceRegistry,
+		JSVerbs:         sourceRegistry.JSVerbs(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create command set %s.%s: %w", instance.ProviderID(), instance.Name, err)

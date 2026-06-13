@@ -75,3 +75,16 @@ Started hard cutover: generated runtime metadata now emits xgoja/runtime/v2 Runt
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate/templates/main.go.tmpl — Generated main decodes RuntimePlan
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/runtime_spec.go — Defines v2-native RuntimePlan and runtime app compatibility during transition
 
+
+## 2026-06-13
+
+Added v2 runtime SourceRegistry and passed command-scoped source registry through provider CommandSetContext with JSVerbSourceSet adapter coverage.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/command_providers.go — Builds command-scoped SourceRegistry for provider command sets
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/command_providers_test.go — Regression coverage for command-scoped SourceRegistry and JS verb adapter
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/source_registry.go — Runtime SourceRegistry implementation and scoped source filtering
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/providerapi/commands.go — CommandSetContext now carries v2 SourceRegistry
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/providerapi/sources.go — Provider-facing source registry interfaces and descriptors
+

@@ -23,26 +23,6 @@ func newJSVerbSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs
 	}
 }
 
-func newScopedJSVerbSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, sources []SourcePlan, selectedIDs []string) *jsVerbSourceSet {
-	if len(selectedIDs) == 0 {
-		return newJSVerbSourceSet(providers, embeddedJSVerbs, sources)
-	}
-	wanted := map[string]struct{}{}
-	for _, id := range selectedIDs {
-		id = strings.TrimSpace(id)
-		if id != "" {
-			wanted[id] = struct{}{}
-		}
-	}
-	filtered := make([]SourcePlan, 0, len(sources))
-	for _, source := range sources {
-		if _, ok := wanted[source.ID]; ok {
-			filtered = append(filtered, source)
-		}
-	}
-	return newJSVerbSourceSet(providers, embeddedJSVerbs, filtered)
-}
-
 func (s *jsVerbSourceSet) ListJSVerbSources() []providerapi.JSVerbSourceDescriptor {
 	if s == nil || len(s.sources) == 0 {
 		return nil

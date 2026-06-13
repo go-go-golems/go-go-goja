@@ -78,6 +78,7 @@ type CommandSetContext struct {
 	Providers       *ProviderRegistry
 	RuntimeFactory  RuntimeFactory
 	SelectedModules []ModuleDescriptor
+	Sources         SourceRegistry
 	JSVerbs         JSVerbSourceSet
 }
 

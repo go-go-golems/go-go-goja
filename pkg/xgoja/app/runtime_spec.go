@@ -335,21 +335,35 @@ func (p *RuntimePlan) commandByType(commandType string) (CommandPlan, bool) {
 	return CommandPlan{}, false
 }
 
+func (p *RuntimePlan) allSources() []SourcePlan {
+	if p == nil {
+		return nil
+	}
+	out := append([]SourcePlan(nil), p.Sources...)
+	for _, source := range p.JSVerbs {
+		if source.Kind == "" {
+			source.Kind = SourceKindJSVerbs
+		}
+		out = append(out, source)
+	}
+	for _, source := range p.Assets {
+		if source.Kind == "" {
+			source.Kind = SourceKindAssets
+		}
+		out = append(out, source)
+	}
+	return out
+}
+
 func (p *RuntimePlan) sourcesByKind(kind SourceKind) []SourcePlan {
 	if p == nil {
 		return nil
 	}
 	out := make([]SourcePlan, 0)
-	for _, source := range p.Sources {
+	for _, source := range p.allSources() {
 		if source.Kind == kind {
 			out = append(out, source)
 		}
-	}
-	if kind == SourceKindJSVerbs {
-		out = append(out, p.JSVerbs...)
-	}
-	if kind == SourceKindAssets {
-		out = append(out, p.Assets...)
 	}
 	return out
 }

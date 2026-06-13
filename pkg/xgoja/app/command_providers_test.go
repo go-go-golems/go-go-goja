@@ -163,6 +163,53 @@ function hello() { return "hello"; }
 	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
 }
 
+func TestHostAttachCommandProvidersScopesSourceRegistry(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := registry.Package("fixture",
+		providerapi.CommandSetProvider{
+			Name: "tools",
+			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+				if ctx.Sources == nil {
+					t.Fatal("expected source registry")
+				}
+				if _, ok := ctx.Sources.SourceByID("site-a"); !ok {
+					t.Fatal("expected selected source site-a")
+				}
+				if _, ok := ctx.Sources.SourceByID("site-b"); ok {
+					t.Fatal("did not expect unselected source site-b")
+				}
+				jsverbSources := ctx.Sources.ListSourcesByKind(providerapi.RuntimeSourceKindJSVerbs)
+				if len(jsverbSources) != 1 || jsverbSources[0].ID != "site-a" {
+					t.Fatalf("jsverb sources = %#v", jsverbSources)
+				}
+				if got := ctx.JSVerbs.ListJSVerbSources(); len(got) != 1 || got[0].ID != "site-a" {
+					t.Fatalf("jsverb adapter sources = %#v", got)
+				}
+				return &providerapi.CommandSet{Commands: []cmds.Command{&fixtureBareCommand{
+					CommandDescription: cmds.NewCommandDescription("ping", cmds.WithShort("Ping")),
+					run:                func(context.Context, *values.Values) error { return nil },
+				}}}, nil
+			},
+		},
+	); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	runtimePlan := &RuntimePlan{
+		Sources: []SourcePlan{
+			{ID: "site-a", Kind: SourceKindJSVerbs, Path: "a"},
+			{ID: "site-b", Kind: SourceKindJSVerbs, Path: "b"},
+		},
+		CommandProviders: []CommandPlan{{
+			ID:       "fixture-tools",
+			Provider: "fixture",
+			Name:     "tools",
+			Sources:  []string{"site-a"},
+		}},
+	}
+	root := &cobra.Command{Use: "test"}
+	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
+}
+
 func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 	called := false
 	registry := providerapi.NewProviderRegistry()
