@@ -70,6 +70,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dop251/base64dec v0.0.0-20231022112746-c6c9f9a96217 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
+	github.com/evanw/esbuild v0.25.12 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/go-go-golems/geppetto v0.11.7 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect

@@ -153,6 +153,5 @@ services.PostWithCustomContext(ctx, "op", fn)
 
 ## See also
 
-- `xgoja help tutorial-providing-package-and-modules`
-- `xgoja help tutorial-providing-commands`
-- `xgoja help buildspec-reference`
+- `xgoja help xgoja-v2-reference`
+- `xgoja help user-guide`

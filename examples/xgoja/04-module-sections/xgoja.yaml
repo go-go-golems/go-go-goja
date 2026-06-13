@@ -1,25 +1,45 @@
+schema: xgoja/v2
 name: module-sections
-target:
-  kind: xgoja
-  output: dist/module-sections
-packages:
-- id: fixture
-  import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+app:
+    name: module-sections
+go:
+    module: xgoja.generated/module-sections
+    version: "1.26"
+workspace:
+    mode: auto
+providers:
+    - id: fixture
+      import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+      register: Register
+runtime:
+    modules:
+        - provider: fixture
+          name: hello
+          as: hello
+sources:
+    - id: local
+      kind: jsverbs
+      from:
+        dir: ./verbs
+      language: javascript
 commands:
-  eval:
-    enabled: true
-  run:
-    enabled: true
-  jsverbs:
-    enabled: true
-    name: verbs
-  repl:
-    enabled: true
-jsverbs:
-- id: local
-  path: ./verbs
-  embed: true
-modules:
-- package: fixture
-  name: hello
-  as: hello
+    - id: eval
+      type: builtin.eval
+      name: eval
+    - id: run
+      type: builtin.run
+      name: run
+    - id: repl
+      type: builtin.repl
+      name: repl
+    - id: verbs
+      type: builtin.jsverbs
+      name: verbs
+      sources:
+        - local
+artifacts:
+    - id: binary
+      type: binary
+      output: dist/module-sections
+      sources:
+        - local

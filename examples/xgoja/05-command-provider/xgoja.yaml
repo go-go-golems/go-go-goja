@@ -1,25 +1,28 @@
+schema: xgoja/v2
 name: command-provider
-target:
-  kind: xgoja
-  output: dist/command-provider
-packages:
-- id: fixture
-  import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+app:
+    name: command-provider
+go:
+    module: xgoja.generated/command-provider
+    version: "1.26"
+workspace:
+    mode: auto
+providers:
+    - id: fixture
+      import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+      register: Register
+runtime:
+    modules:
+        - provider: fixture
+          name: hello
+          as: hello
 commands:
-  eval:
-    enabled: false
-  run:
-    enabled: false
-  repl:
-    enabled: false
-  jsverbs:
-    enabled: false
-commandProviders:
-- id: fixture-tools
-  package: fixture
-  name: tools
-  mount: fixture
-modules:
-- package: fixture
-  name: hello
-  as: hello
+    - id: fixture-tools
+      type: provider.command-set
+      name: tools
+      mount: fixture
+      provider: fixture
+artifacts:
+    - id: binary
+      type: binary
+      output: dist/command-provider

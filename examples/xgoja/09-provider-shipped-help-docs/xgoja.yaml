@@ -1,26 +1,34 @@
+schema: xgoja/v2
 name: provider-shipped-help-docs
-target:
-  kind: xgoja
-  output: dist/provider-shipped-help-docs
-packages:
-- id: loupedeck
-  import: github.com/go-go-golems/loupedeck/pkg/xgoja/provider
-  replace: ../../../../loupedeck
-commands:
-  eval:
-    enabled: true
-  run:
-    enabled: false
-  jsverbs:
-    enabled: false
-  repl:
-    enabled: false
-help:
-  sources:
+app:
+  name: provider-shipped-help-docs
+go:
+  module: xgoja.generated/provider-shipped-help-docs
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
+  - id: loupedeck
+    import: github.com/go-go-golems/loupedeck/pkg/xgoja/provider
+    register: Register
+    module:
+      replace: ../../../../loupedeck
+runtime:
+  modules:
+    - provider: loupedeck
+      name: loupedeck/state
+      as: loupedeck/state
+sources:
   - id: loupedeck-runtime-api
-    package: loupedeck
-    source: runtime-api
-modules:
-- package: loupedeck
-  name: loupedeck/state
-  as: loupedeck/state
+    kind: help
+    from:
+      provider:
+        provider: loupedeck
+        source: runtime-api
+commands:
+  - id: eval
+    type: builtin.eval
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/provider-shipped-help-docs

@@ -131,18 +131,26 @@ The important pieces are:
 Once a provider package registers the module, xgoja projects select it like any other provider module.
 
 ```yaml
-modules:
-  - package: protobuf-builder-example
-    name: examples.xgoja.protobuf.v1
+schema: xgoja/v2
+providers:
+  - id: protobuf-builder-example
+    import: github.com/go-go-golems/go-go-goja/examples/xgoja/15-protobuf-builder-provider/provider
+    register: Register
+runtime:
+  modules:
+    - provider: protobuf-builder-example
+      name: examples.xgoja.protobuf.v1
+      as: examples.xgoja.protobuf.v1
 ```
 
-Use an `as:` alias only when JavaScript should import a different name than the generated default:
+Use a different `as:` alias only when JavaScript should import a different name than the generated default:
 
 ```yaml
-modules:
-  - package: protobuf-builder-example
-    name: examples.xgoja.protobuf.v1
-    as: pb:tasks
+runtime:
+  modules:
+    - provider: protobuf-builder-example
+      name: examples.xgoja.protobuf.v1
+      as: pb:tasks
 ```
 
 If you use an alias, scripts should call `require("pb:tasks")`, and generated TypeScript declarations should also use the alias.
