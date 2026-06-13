@@ -81,6 +81,7 @@ type CommandProviderInstanceSpec struct {
 	Package string         `json:"package"`
 	Name    string         `json:"name"`
 	Mount   string         `json:"mount,omitempty"`
+	Sources []string       `json:"sources,omitempty"`
 	Modules []string       `json:"modules,omitempty"`
 	Config  map[string]any `json:"config,omitempty"`
 	Lazy    bool           `json:"lazy,omitempty"`

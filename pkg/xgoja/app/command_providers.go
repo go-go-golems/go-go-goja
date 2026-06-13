@@ -74,7 +74,7 @@ func (h *Host) newCommandSet(instance CommandProviderInstanceSpec, provider prov
 		Providers:       h.Providers,
 		RuntimeFactory:  h.Factory,
 		SelectedModules: selected,
-		JSVerbs:         newJSVerbSourceSet(h.Providers, h.EmbeddedJSVerbs, h.RuntimeSpec.JSVerbs),
+		JSVerbs:         newScopedJSVerbSourceSet(h.Providers, h.EmbeddedJSVerbs, h.RuntimeSpec.JSVerbs, instance.Sources),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create command set %s.%s: %w", instance.Package, instance.Name, err)

@@ -434,7 +434,7 @@ func applyPlanRuntimeCommand(commands *app.CommandsSpec, providers *[]app.Comman
 	case "builtin.jsverbs":
 		commands.JSVerbs = spec
 	case "provider.command-set":
-		*providers = append(*providers, app.CommandProviderInstanceSpec{ID: command.ID, Package: command.Provider, Name: command.Name, Mount: command.Mount, Modules: append([]string(nil), command.Modules...), Config: command.Config, Lazy: command.Lazy})
+		*providers = append(*providers, app.CommandProviderInstanceSpec{ID: command.ID, Package: command.Provider, Name: command.Name, Mount: command.Mount, Sources: append([]string(nil), command.Sources...), Modules: append([]string(nil), command.Modules...), Config: command.Config, Lazy: command.Lazy})
 	}
 }
 
