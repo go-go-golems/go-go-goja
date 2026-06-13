@@ -102,3 +102,16 @@ Completed requested phase 2-4 cleanup: workspace auto replacement guard, SourceR
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/root.go — JS verb command scanning now uses SourceRegistry handles
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/source_registry.go — SourceRegistry descriptor conversion supports help/assets/jsverbs consumers
 
+
+## 2026-06-13
+
+Completed generator-remnant and HTTP serve cleanup: verified no old generator conversion helpers remain, HTTP serve now requires CommandSetContext.Sources, hot reload uses command-scoped sources, and example/app.mount smoke validations pass.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/examples/xgoja/13-http-serve-jsverbs/Makefile — Smoke target validated provider.command-set sources and --http-listen
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/modules/express — app.mount behavior validated with go test ./modules/express
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/gojahttp — mountable handler behavior validated with go test ./pkg/gojahttp
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/providers/http/serve.go — HTTP serve now consumes command-scoped SourceRegistry JS verb adapter and hot reload rescans/watches that scoped set
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/providers/http/serve_test.go — HTTP serve tests now provide SourceRegistry contexts
+

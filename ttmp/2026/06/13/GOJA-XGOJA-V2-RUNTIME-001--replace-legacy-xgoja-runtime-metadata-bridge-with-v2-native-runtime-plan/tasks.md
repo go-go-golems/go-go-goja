@@ -20,7 +20,7 @@
 - [ ] Phase 1: Represent all runtime sources as []SourcePlan with kind/origin metadata instead of separate jsverbs/help/assets buckets
 - [x] Phase 1: Add JSON encode/decode tests for RuntimePlan including command sources, modules, config, lazy, and embedded source origins
 - [x] Phase 2: Rewrite cmd/xgoja/internal/generate runtime metadata rendering to emit xgoja.v2.runtime.json in v2-native shape
-- [ ] Phase 2: Remove applyPlanRuntimeCommand and the v2-to-legacy runtime source conversion helpers from generator code
+- [x] Phase 2: Remove applyPlanRuntimeCommand and the v2-to-legacy runtime source conversion helpers from generator code
 - [x] Phase 2: Update generated main.go templates to load RuntimePlan instead of RuntimeSpec and to embed v2 runtime plan JSON
 - [x] Phase 2: Ensure generated Go module replacement behavior still uses workspace.mode:auto and plan.GoModules without requiring provider.module.replace in examples
 - [x] Phase 2: Add golden tests for generated main.go and runtime plan JSON for binary artifacts
@@ -37,11 +37,11 @@
 - [x] Phase 5: Change providerapi.CommandSetContext to carry v2 command ID, provider, name, mount, config, selected modules, and command-scoped source registry
 - [x] Phase 5: Provide a JSVerbSourceSet adapter derived from the command-scoped SourceRegistry for providers that consume jsverb sources
 - [x] Phase 5: Update provider command-set tests so command providers receive only the sources declared on their command
-- [ ] Phase 5: Update providerutil/runtime initializer paths to work with RuntimeModulePlan descriptors after the cutover
-- [ ] Phase 6: Update pkg/xgoja/providers/http serve command to consume command-scoped jsverb sources and fail clearly when no sources are configured
-- [ ] Phase 6: Update HTTP serve hot-reload to re-scan and watch only command-scoped jsverb sources
-- [ ] Phase 6: Add/repair smoke tests for examples/xgoja/13-http-serve-jsverbs using provider.command-set sources and --http-listen
-- [ ] Phase 6: Validate app.mount documentation examples still work with the updated HTTP provider runtime setup
+- [x] Phase 5: Update providerutil/runtime initializer paths to work with RuntimeModulePlan descriptors after the cutover
+- [x] Phase 6: Update pkg/xgoja/providers/http serve command to consume command-scoped jsverb sources and fail clearly when no sources are configured
+- [x] Phase 6: Update HTTP serve hot-reload to re-scan and watch only command-scoped jsverb sources
+- [x] Phase 6: Add/repair smoke tests for examples/xgoja/13-http-serve-jsverbs using provider.command-set sources and --http-listen
+- [x] Phase 6: Validate app.mount documentation examples still work with the updated HTTP provider runtime setup
 - [ ] Phase 7: Port generated runtime-package artifacts to RuntimePlan and remove legacy RuntimeSpec from generated package internals
 - [ ] Phase 7: Update examples/xgoja/14-generated-runtime-package and its host code/tests for the v2-native runtime plan
 - [ ] Phase 7: Ensure runtime-package public APIs such as NewBundle/NewRuntime remain ergonomic while internals no longer load legacy metadata
