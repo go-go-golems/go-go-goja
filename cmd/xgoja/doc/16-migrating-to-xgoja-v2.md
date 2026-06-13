@@ -126,6 +126,38 @@ Runtime module aliases such as `express` are derived from `runtime.modules` and
 externalized by xgoja automatically. Low-level TypeScript profile fields are not
 migrated because xgoja owns the goja runtime compiler profile.
 
+## Runtime modules, provider command sets, and templates
+
+When migrating HTTP applications, keep three concepts separate.
+
+A runtime module is selected under `runtime.modules` and is visible to scripts
+through `require(...)` or externalized TypeScript imports:
+
+```yaml
+runtime:
+  modules:
+    - provider: http
+      name: express
+      as: express
+```
+
+A provider command set is selected under `commands` and contributes CLI commands:
+
+```yaml
+commands:
+  - id: serve
+    type: provider.command-set
+    provider: http
+    name: serve
+    mount: serve
+    sources: [sites]
+```
+
+A `template` artifact is generated output. It is not a runtime module and it is
+not how HTTP routes or WebSocket handlers are mounted. HTTP serving behavior
+belongs in provider command sets, runtime modules, host services, and JavaScript
+route setup code.
+
 ## External frontend bundles
 
 Build frontend code outside xgoja:
@@ -157,9 +189,14 @@ artifacts:
 2. Read all `warning:` lines.
 3. Check provider command-set source dependencies, especially commands that use
    jsverbs.
-4. Check embedded jsverb/help sources. In v2, generated artifacts list embedded
+4. For HTTP applications, check both sides of the provider configuration:
+   `runtime.modules` should select `express`, while `commands` should select the
+   HTTP provider's `serve` command set.
+5. Check embedded jsverb/help sources. In v2, generated artifacts list embedded
    executable source sets under `artifacts[].sources`.
-5. Check local replacements and prefer `workspace.mode: auto` when a `go.work`
+6. Check that `template` artifacts are only used for generated output, not for
+   runtime HTTP behavior.
+7. Check local replacements and prefer `workspace.mode: auto` when a `go.work`
    file already covers the local module.
-5. Run `xgoja doctor -f xgoja.v2.yaml` once the v2 planner is available.
-6. Run the example or application smoke test.
+8. Run `xgoja doctor -f xgoja.v2.yaml` once the v2 planner is available.
+9. Run the example or application smoke test.

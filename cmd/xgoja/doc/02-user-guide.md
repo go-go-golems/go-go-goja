@@ -170,6 +170,44 @@ commands:
     sources: [verbs]
 ```
 
+A provider command set is different from a runtime module. A runtime module makes a Go-backed CommonJS module available to JavaScript through `require(...)` or an externalized TypeScript import. A provider command set contributes one or more user-facing CLI commands. The HTTP provider commonly contributes both: the `express` runtime module and the `serve` command set.
+
+For an HTTP application, the usual shape is:
+
+```yaml
+providers:
+  - id: http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+
+runtime:
+  modules:
+    - provider: http
+      name: express
+      as: express
+
+sources:
+  - id: sites
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    language: typescript
+    compile:
+      mode: runtime
+      bundle: true
+
+commands:
+  - id: serve
+    type: provider.command-set
+    provider: http
+    name: serve
+    mount: serve
+    sources: [sites]
+```
+
+The JavaScript or TypeScript verb registers routes on `express.app()`. The `serve` command invokes that verb, initializes the runtime, starts or reuses the HTTP host, and keeps the runtime alive until shutdown. In other words, `express` is the module that route code imports; `serve` is the command surface that runs the site.
+
+`template` artifacts are not the mechanism for HTTP serving or handler mounting. Template artifacts are generated output shapes. Runtime HTTP behavior belongs in runtime modules, provider command sets, and host services.
+
 ## Artifacts
 
 A binary artifact declares the default output for `xgoja build`:

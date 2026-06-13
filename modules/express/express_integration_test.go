@@ -303,3 +303,118 @@ func TestHeadFallsBackToGetWithoutBody(t *testing.T) {
 		t.Fatalf("content-type=%s", ct)
 	}
 }
+
+func TestExpressMountGoHTTPHandlerObject(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
+	factory, err := engine.NewRuntimeFactoryBuilder().WithModules(NewRegistrar(host)).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+	host.SetRuntime(rt.Owner)
+	_, err = rt.Owner.Call(context.Background(), "load-mount-test", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		if err := vm.Set("newMountedHandler", func() goja.Value {
+			obj := vm.NewObject()
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte("mounted:" + r.URL.Path))
+			})
+			if err := gojahttp.AttachHTTPHandler(vm, obj, handler); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return obj
+		}); err != nil {
+			return nil, err
+		}
+		_, err := vm.RunString(`
+			const express = require("express");
+			const app = express.app();
+			app.mount("/ws", newMountedHandler());
+		`)
+		return nil, err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/ws/chat", nil))
+	if rr.Body.String() != "mounted:/ws/chat" {
+		t.Fatalf("body=%q", rr.Body.String())
+	}
+}
+
+func TestExpressMountGoHTTPHandlerCanStripPrefixAndExclude(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
+	factory, err := engine.NewRuntimeFactoryBuilder().WithModules(NewRegistrar(host)).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+	host.SetRuntime(rt.Owner)
+	_, err = rt.Owner.Call(context.Background(), "load-mount-options-test", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		if err := vm.Set("newMountedHandler", func(prefix string) goja.Value {
+			obj := vm.NewObject()
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte(prefix + ":" + r.URL.Path))
+			})
+			if err := gojahttp.AttachHTTPHandler(vm, obj, handler); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return obj
+		}); err != nil {
+			return nil, err
+		}
+		_, err := vm.RunString(`
+			const express = require("express");
+			const app = express.app();
+			app.mount("/api", newMountedHandler("root"), { excludePrefixes: ["/api/raw"] });
+			app.mountHandler("/api/raw", newMountedHandler("raw"), { stripPrefix: true });
+		`)
+		return nil, err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/raw/ping", nil))
+	if rr.Body.String() != "raw:/ping" {
+		t.Fatalf("raw body=%q", rr.Body.String())
+	}
+	rr = httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/keep", nil))
+	if rr.Body.String() != "root:/api/keep" {
+		t.Fatalf("root body=%q", rr.Body.String())
+	}
+}
+
+func TestExpressMountRejectsPlainObjects(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
+	factory, err := engine.NewRuntimeFactoryBuilder().WithModules(NewRegistrar(host)).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+	host.SetRuntime(rt.Owner)
+	_, err = rt.Owner.Call(context.Background(), "load-bad-mount-test", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, err := vm.RunString(`
+			const express = require("express");
+			const app = express.app();
+			app.mount("/bad", {});
+		`)
+		return nil, err
+	})
+	if err == nil || !strings.Contains(err.Error(), "requires a Go http.Handler-backed object") {
+		t.Fatalf("expected mount error, got %v", err)
+	}
+}

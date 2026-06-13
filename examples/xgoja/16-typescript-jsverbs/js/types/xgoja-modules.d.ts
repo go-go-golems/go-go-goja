@@ -13,10 +13,14 @@ declare module "express" {
   patch(pattern: string): RouteNeedsSecurity;
   delete(pattern: string): RouteNeedsSecurity;
   all(pattern: string): RouteNeedsSecurity;
+  mount(prefix: string, handler: MountableHandler, options?: MountOptions): void;
+  mountHandler(prefix: string, handler: MountableHandler, options?: MountOptions): void;
   static(prefix: string, directory: string): void;
   staticFromAssetsModule(prefix: string, assetsModule: unknown, root: string): void;
   spaFromAssetsModule(prefix: string, assetsModule: unknown, root: string, options?: { index?: string; excludePrefixes?: string[] }): void;
   }
+  export interface MountableHandler {}
+  export interface MountOptions { stripPrefix?: boolean; excludePrefixes?: string[]; }
   export interface RouteNeedsSecurity {
   name(name: string): RouteNeedsSecurity;
   public(): RouteNeedsHandler;
@@ -48,6 +52,7 @@ declare module "express" {
   }
   export type ResourceSpec = ResourceBuilder;
   export type PlannedHandler = (ctx: PlannedContext, res: Response) => unknown;
+  export type Handler = PlannedHandler;
   export interface PlannedContext {
   request: Request;
   actor: Actor | null;
