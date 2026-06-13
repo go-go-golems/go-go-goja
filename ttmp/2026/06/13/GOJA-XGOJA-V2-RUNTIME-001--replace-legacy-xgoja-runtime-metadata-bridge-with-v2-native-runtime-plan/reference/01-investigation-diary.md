@@ -11,7 +11,9 @@ Intent: ""
 Owners: []
 RelatedFiles:
     - Path: cmd/xgoja/internal/generate/generate_test.go
-      Note: Step 4 metadata guard against legacy top-level generated keys (commit 617b977)
+      Note: |-
+        Step 4 metadata guard against legacy top-level generated keys (commit 617b977)
+        Step 6 workspace.mode:auto replacement regression (commit f09788a)
     - Path: cmd/xgoja/internal/generate/templates.go
       Note: |-
         Step 3 preserves command sources during current generator bridge (commit 556ed5c)
@@ -22,14 +24,22 @@ RelatedFiles:
       Note: Step 3 generated-binary regression and temporary fixture helper (commit 556ed5c)
     - Path: examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go
       Note: Step 4 checked-in runtime package fixture updated for RuntimePlan (commit 617b977)
+    - Path: pkg/xgoja/app/assets.go
+      Note: Step 6 asset setup through SourceRegistry kind=assets (commit f09788a)
     - Path: pkg/xgoja/app/command_providers.go
       Note: |-
         Step 3 passes filtered source set to provider command contexts (commit 556ed5c)
         Step 5 provider command contexts receive scoped source registries (commit 8bcc367)
     - Path: pkg/xgoja/app/command_providers_test.go
       Note: Step 5 scoped source registry regression coverage (commit 8bcc367)
+    - Path: pkg/xgoja/app/framework.go
+      Note: Step 6 help loading through SourceRegistry kind=help (commit f09788a)
+    - Path: pkg/xgoja/app/host.go
+      Note: Step 6 SourceRegistry ownership and CommandPlan dispatch loop (commit f09788a)
     - Path: pkg/xgoja/app/jsverb_sources.go
       Note: Step 3 command-scoped JS verb source filtering (commit 556ed5c)
+    - Path: pkg/xgoja/app/root.go
+      Note: Step 6 JS verb scanning via SourceRegistry (commit f09788a)
     - Path: pkg/xgoja/app/runtime_spec.go
       Note: |-
         Step 3 interim source IDs on command-provider metadata (commit 556ed5c)
@@ -46,6 +56,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -714,4 +725,124 @@ ctx.Sources.SourceByID("site-a") // true
 ctx.Sources.SourceByID("site-b") // false
 ctx.Sources.ListSourcesByKind(providerapi.RuntimeSourceKindJSVerbs) // only site-a
 ctx.JSVerbs.ListJSVerbSources() // only site-a
+```
+
+## Step 6: Finish requested Phase 2–4 RuntimePlan source consumer cleanup
+
+I completed the requested Phase 2 cleanup, Phase 3 source-registry consumer migration, and Phase 4 runtime app cleanup slice. The runtime host now owns a `SourceRegistry`, JS verb command construction scans through that registry, help and asset setup consume registry-filtered source descriptors, and default command attachment goes through a single `CommandPlan` dispatch loop.
+
+I also added a workspace module replacement regression so `workspace.mode:auto` behavior stays tied to the planner's `GoModules` output instead of requiring provider-local `module.replace` entries in specs. This keeps the generated app path aligned with the intended v2 workspace behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do these:  - Phase 2 cleanup                                                                                                                                                 \n     - Task 20: Verify workspace.mode:auto / plan.GoModules still avoids unnecessary provider replace entries.                                                     \n - Phase 3 source registry completion                                                                                                                              \n     - Task 23: Port JS verb scanning to use SourceRegistry handles directly.                                                                                      \n     - Task 24: Port help loading to SourceRegistry kind=help.                                                                                                     \n     - Task 25: Port asset resolution to SourceRegistry kind=assets.                                                                                                \n - Phase 4 runtime app cleanup                                                                                                                                     \n     - Task 27: Confirm NewRootCommand / NewHost are fully RuntimePlan-based and remove old RuntimeSpec dependency.                                                \n     - Task 28: Confirm runtime factory uses RuntimePlan.Runtime.Modules.                                                                                          \n     - Task 29: Rewrite built-in and provider command attachment as one loop over []CommandPlan.                                                                    \n     - Task 30: Preserve/test root vs nested CLI mount semantics.                                                                                                  \n     - Task 31: Confirm framework/help/logging config uses RuntimePlan.App."
+
+**Assistant interpretation:** Implement and validate the next listed cleanup tasks across generation, source consumers, host command attachment, and RuntimePlan app wiring.
+
+**Inferred user intent:** Keep pushing the hard cutover forward in go-go-goja before returning to sessionstream.
+
+**Commit (code):** f09788a — "Finish RuntimePlan source consumer cleanup"
+
+### What I did
+
+- Updated `TestRenderGoModPlanUsesWorkspaceModulePlan` so a provider import under a workspace-local module uses the planner's `GoModules` replacement and does not need a provider `module.replace` entry.
+- Added `Host.SourceRegistry` and build it in `NewHostWithOptions` from `RuntimePlan` sources.
+- Changed JS verb command construction to scan through `SourceRegistry` instead of directly iterating `RuntimePlan` sources.
+- Changed `verbs sources` listing to use `SourceRegistry.ListSourcesByKind(jsverbs)`.
+- Changed help loading to prefer `SourceRegistry.ListSourcesByKind(help)`.
+- Changed asset store setup to use `SourceRegistry.ListSourcesByKind(assets)`.
+- Reworked `AttachDefaultCommands` to iterate `RuntimePlan.runtimeCommands()` and dispatch through `AttachCommandPlan` for built-in and provider commands.
+- Marked tasks 20, 23, 24, 25, 27, 28, 29, 30, and 31 complete.
+
+### Why
+
+- The previous step introduced `SourceRegistry`, but several consumers still read source slices directly from `RuntimePlan`.
+- A hard cutover needs a single runtime plan path: host setup, source lookup, and command attachment should all flow from RuntimePlan concepts.
+- The command dispatch loop makes `[]CommandPlan` the active command representation rather than treating provider commands as a separate attach phase.
+
+### What worked
+
+- Focused validation passed:
+
+```text
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi ./pkg/xgoja/providers/http -count=1
+```
+
+- The pre-commit hook passed lint, `go generate ./...`, and `go test ./...` before commit `f09788a` landed.
+
+### What didn't work
+
+The first build after changing JS verb scanning failed because a local variable named `jsverbs` shadowed the imported `jsverbs` package in `root.go`:
+
+```text
+pkg/xgoja/app/root.go:296:94: jsverbs.Registry is not a type
+pkg/xgoja/app/root.go:296:118: jsverbs.VerbSpec is not a type
+```
+
+I renamed the local variable to `jsverbSources`.
+
+The first asset-store refactor also passed `[]SourcePlan` to a function that expected provider-facing descriptors:
+
+```text
+cannot use runtimePlan.sourcesByKind(SourceKindAssets) (value of type []SourcePlan) as []providerapi.RuntimeSourceDescriptor value in argument to NewAssetStoreFromSources
+```
+
+I changed `NewAssetStore` to construct a `SourceRegistry` and request asset descriptors from it.
+
+### What I learned
+
+- Once `SourceRegistry` exists at `Host`, the runtime consumers become simpler: each subsystem asks for a source kind instead of knowing the RuntimePlan layout.
+- `go test ./...` through the pre-commit hook remains useful because generated fixtures and example packages catch stale template/runtime assumptions.
+- The command loop can coexist with the older explicit `AttachEval`/`AttachRun` methods, but `AttachDefaultCommands` no longer needs separate built-in/provider phases.
+
+### What was tricky to build
+
+- The migration still has transitional compatibility fields in `RuntimePlan`, so source consumers must avoid accidentally depending on them directly. Routing through `SourceRegistry` helps isolate that compatibility normalization.
+- Help and asset sources have different embedded filesystems from JS verbs, so the registry exposes descriptors while the actual embedded FS remains owned by the subsystem (`EmbeddedHelp`, `EmbeddedAssets`).
+- The command dispatch loop had to preserve existing root-mounted JS verb semantics and provider mount semantics while changing attachment order.
+
+### What warrants a second pair of eyes
+
+- The `AttachDefaultCommands` ordering now follows `runtimeCommands()` order for configured commands, then adds utility commands (`modules`, `selected-modules`, `types`). Reviewers should confirm this is acceptable for generated CLIs.
+- Help and asset loading use registry descriptors but still rely on their subsystem-specific embedded FS values. That is intentional, but worth checking for provider-source edge cases.
+- Task 30 is satisfied by existing root/nested JS verb mount tests plus the preserved dispatch behavior; a future cleanup could add a new pure-v2 JSON mount test after compatibility fields are removed.
+
+### What should be done in the future
+
+- Remove the remaining transitional compatibility fields/decode paths from `RuntimePlan`.
+- Update HTTP serve to consume `ctx.Sources` directly instead of the JSVerb adapter.
+- Continue with providerutil/runtime initializer cleanup and docs.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/app/host.go` to review SourceRegistry ownership and the `AttachCommandPlan` loop.
+- Review `pkg/xgoja/app/root.go` for JS verb scanning through SourceRegistry.
+- Review `pkg/xgoja/app/framework.go` and `pkg/xgoja/app/assets.go` for help/assets source kind migration.
+- Review `cmd/xgoja/internal/generate/generate_test.go` for workspace-mode replacement coverage.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi ./pkg/xgoja/providers/http -count=1
+go test ./... -count=1
+```
+
+### Technical details
+
+`AttachDefaultCommands` now follows this pattern:
+
+```go
+for _, command := range h.RuntimePlan.runtimeCommands() {
+    h.AttachCommandPlan(root, command)
+}
+h.AttachModules(root)
+h.AttachSelectedModules(root)
+h.AttachTypes(root)
+```
+
+Source consumers now request source descriptors by kind from the host registry:
+
+```go
+sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindJSVerbs)
+sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindHelp)
+sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindAssets)
 ```
