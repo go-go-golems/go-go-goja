@@ -123,11 +123,11 @@ func (s *Store) Revoke(ctx context.Context, id string) error {
 }
 
 func (s *Store) insert(ctx context.Context, exec sqlExecer, session sessionauth.Session) error {
-	tenantIDs, err := marshalJSON(session.TenantIDs)
+	tenantIDs, err := marshalTenantIDs(session.TenantIDs)
 	if err != nil {
 		return err
 	}
-	claims, err := marshalJSON(session.Claims)
+	claims, err := marshalClaims(session.Claims)
 	if err != nil {
 		return err
 	}
@@ -258,13 +258,24 @@ type sqlQueryer interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-func marshalJSON(value any) ([]byte, error) {
-	if value == nil {
-		value = map[string]any{}
+func marshalTenantIDs(tenantIDs []string) ([]byte, error) {
+	if tenantIDs == nil {
+		tenantIDs = []string{}
 	}
-	data, err := json.Marshal(value)
+	data, err := json.Marshal(tenantIDs)
 	if err != nil {
-		return nil, fmt.Errorf("marshal session json: %w", err)
+		return nil, fmt.Errorf("marshal session tenant ids: %w", err)
+	}
+	return data, nil
+}
+
+func marshalClaims(claims map[string]any) ([]byte, error) {
+	if claims == nil {
+		claims = map[string]any{}
+	}
+	data, err := json.Marshal(claims)
+	if err != nil {
+		return nil, fmt.Errorf("marshal session claims: %w", err)
 	}
 	return data, nil
 }

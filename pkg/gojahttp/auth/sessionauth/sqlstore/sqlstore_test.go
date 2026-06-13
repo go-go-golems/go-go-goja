@@ -19,6 +19,34 @@ func TestSQLiteStoreContract(t *testing.T) {
 	})
 }
 
+func TestSQLiteStorePersistsNilTenantIDsAsEmptyArray(t *testing.T) {
+	store := newSQLiteStore(t)
+	ctx := context.Background()
+	now := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC).Round(0)
+	session := sessionauth.Session{
+		ID:                "no-tenants-session",
+		UserID:            "u1",
+		CSRFToken:         "csrf",
+		CreatedAt:         now,
+		LastSeenAt:        now,
+		IdleExpiresAt:     now.Add(30 * time.Minute),
+		AbsoluteExpiresAt: now.Add(12 * time.Hour),
+	}
+	if err := store.Create(ctx, session); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	got, err := store.Get(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.TenantIDs == nil || len(got.TenantIDs) != 0 {
+		t.Fatalf("expected empty tenant id array, got %#v", got.TenantIDs)
+	}
+	if got.Claims == nil || len(got.Claims) != 0 {
+		t.Fatalf("expected empty claims object, got %#v", got.Claims)
+	}
+}
+
 func TestSQLiteStorePersistsFullSessionProjection(t *testing.T) {
 	store := newSQLiteStore(t)
 	ctx := context.Background()
