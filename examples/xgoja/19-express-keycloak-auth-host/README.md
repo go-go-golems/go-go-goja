@@ -12,15 +12,15 @@ The browser receives an app session cookie. Keycloak tokens stay server-side dur
 
 ## Automated smoke
 
-The smoke starts Docker Compose Keycloak, starts the Go host, drives the Keycloak login form with the demo user, verifies the app session, checks CSRF enforcement, updates a project route, logs out, and tears Keycloak down again:
+The smoke starts Docker Compose Keycloak plus a Postgres database for persistent app sessions, starts the Go host, drives the Keycloak login form with the demo user, verifies the app session, checks CSRF enforcement, updates a project route, logs out, and tears the containers down again:
 
 ```bash
 make -C examples/xgoja/19-express-keycloak-auth-host smoke
 ```
 
-It uses only Python standard-library HTTP/form handling; no browser driver is required. Set `KEEP_KEYCLOAK=1` to leave the Keycloak container running after the smoke, or `KEYCLOAK_PORT=18081` if port `18080` is already in use.
+It uses only Python standard-library HTTP/form handling; no browser driver is required. Set `KEEP_KEYCLOAK=1` to leave the containers running after the smoke, `KEYCLOAK_PORT=18081` if port `18080` is already in use, or `POSTGRES_PORT=15433` if port `15432` is already in use.
 
-## Start Keycloak manually
+## Start Keycloak and Postgres manually
 
 ```bash
 make -C examples/xgoja/19-express-keycloak-auth-host keycloak-up
@@ -30,6 +30,12 @@ Keycloak runs at:
 
 ```text
 http://127.0.0.1:18080
+```
+
+Postgres is exposed for the Go host at:
+
+```text
+postgres://goja:goja@127.0.0.1:15432/goja_auth?sslmode=disable
 ```
 
 Imported realm/client/user:
@@ -74,7 +80,7 @@ curl -i -X PATCH \
   http://127.0.0.1:8790/orgs/o1/projects/p1
 ```
 
-## Stop Keycloak
+## Stop Keycloak and Postgres
 
 ```bash
 make -C examples/xgoja/19-express-keycloak-auth-host keycloak-down
@@ -86,7 +92,7 @@ This is still an example, not a complete production deployment. For production:
 
 - use HTTPS,
 - use secure cookies, not `AllowInsecureHTTP`,
-- use persistent session, transaction, user, membership, resource, and audit stores,
+- keep the Postgres-backed app session store and add persistent transaction, user, membership, resource, and audit stores,
 - review Keycloak realm/client settings,
 - add a shared transaction store for multi-instance callback handling,
 - keep application authorization in app-owned Go code or a chosen policy engine.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"flag"
 	"log"
@@ -9,6 +10,8 @@ import (
 	"os"
 
 	"github.com/dop251/goja"
+	_ "github.com/lib/pq"
+
 	"github.com/go-go-golems/go-go-goja/modules/express"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
@@ -16,6 +19,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth/sqlstore"
 )
 
 func main() {
@@ -24,8 +28,9 @@ func main() {
 	issuer := flag.String("issuer", envOr("KEYCLOAK_ISSUER", "http://127.0.0.1:18080/realms/goja-demo"), "OIDC issuer URL")
 	clientID := flag.String("client-id", envOr("KEYCLOAK_CLIENT_ID", "goja-app"), "OIDC client ID")
 	clientSecret := flag.String("client-secret", os.Getenv("KEYCLOAK_CLIENT_SECRET"), "OIDC client secret, if configured")
+	sessionDBDSN := flag.String("session-db-dsn", os.Getenv("SESSION_DB_DSN"), "Postgres DSN for persistent app sessions; empty uses in-memory sessions")
 	flag.Parse()
-	if err := run(context.Background(), config{Listen: *listen, Script: *script, Issuer: *issuer, ClientID: *clientID, ClientSecret: *clientSecret}); err != nil {
+	if err := run(context.Background(), config{Listen: *listen, Script: *script, Issuer: *issuer, ClientID: *clientID, ClientSecret: *clientSecret, SessionDBDSN: *sessionDBDSN}); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -36,14 +41,16 @@ type config struct {
 	Issuer       string
 	ClientID     string
 	ClientSecret string
+	SessionDBDSN string
 }
 
 func run(ctx context.Context, cfg config) error {
 	appStore := seedAppStore()
-	sessions, err := sessionauth.New(sessionauth.Config{Store: sessionauth.NewMemoryStore(), AllowInsecureHTTP: true})
+	sessions, cleanupSessions, err := newSessionManager(cfg.SessionDBDSN)
 	if err != nil {
 		return err
 	}
+	defer cleanupSessions()
 	keycloakHandlers, err := keycloakauth.New(ctx, keycloakauth.Config{
 		IssuerURL:      cfg.Issuer,
 		ClientID:       cfg.ClientID,
@@ -105,6 +112,38 @@ func run(ctx context.Context, cfg config) error {
 	log.Printf("serving Keycloak auth example on http://%s", cfg.Listen)
 	log.Printf("Keycloak issuer: %s", cfg.Issuer)
 	return http.ListenAndServe(cfg.Listen, mux)
+}
+
+func newSessionManager(sessionDBDSN string) (*sessionauth.Manager, func(), error) {
+	if sessionDBDSN == "" {
+		sessions, err := sessionauth.New(sessionauth.Config{Store: sessionauth.NewMemoryStore(), AllowInsecureHTTP: true})
+		return sessions, func() {}, err
+	}
+	db, err := sql.Open("postgres", sessionDBDSN)
+	if err != nil {
+		return nil, func() {}, err
+	}
+	cleanup := func() { _ = db.Close() }
+	if err := db.Ping(); err != nil {
+		cleanup()
+		return nil, func() {}, err
+	}
+	store, err := sqlstore.New(sqlstore.Config{DB: db, Dialect: sqlstore.DialectPostgres})
+	if err != nil {
+		cleanup()
+		return nil, func() {}, err
+	}
+	if err := store.ApplySchema(context.Background()); err != nil {
+		cleanup()
+		return nil, func() {}, err
+	}
+	sessions, err := sessionauth.New(sessionauth.Config{Store: store, AllowInsecureHTTP: true})
+	if err != nil {
+		cleanup()
+		return nil, func() {}, err
+	}
+	log.Printf("using Postgres-backed app sessions")
+	return sessions, cleanup, nil
 }
 
 func seedAppStore() *appauth.MemoryStore {

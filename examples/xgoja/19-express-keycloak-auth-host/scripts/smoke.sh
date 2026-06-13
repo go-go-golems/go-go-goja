@@ -6,7 +6,9 @@ REPO_ROOT="$(cd "${EXAMPLE_DIR}/../../.." && pwd)"
 LISTEN="${LISTEN:-127.0.0.1:8790}"
 BASE_URL="${BASE_URL:-http://${LISTEN}}"
 KEYCLOAK_PORT="${KEYCLOAK_PORT:-18080}"
+POSTGRES_PORT="${POSTGRES_PORT:-15432}"
 ISSUER="${ISSUER:-http://127.0.0.1:${KEYCLOAK_PORT}/realms/goja-demo}"
+SESSION_DB_DSN="${SESSION_DB_DSN:-postgres://goja:goja@127.0.0.1:${POSTGRES_PORT}/goja_auth?sslmode=disable}"
 SCRIPT="${SCRIPT:-${EXAMPLE_DIR}/scripts/server.js}"
 HOST_LOG="${HOST_LOG:-$(mktemp -t goja-keycloak-host.XXXXXX.log)}"
 HOST_BIN="${HOST_BIN:-$(mktemp -t goja-keycloak-host.XXXXXX)}"
@@ -46,10 +48,24 @@ wait_for_url() {
   return 1
 }
 
+wait_for_postgres() {
+  local attempts="${1:-60}"
+  for _ in $(seq 1 "${attempts}"); do
+    if docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" exec -T postgres pg_isready -U goja -d goja_auth >/dev/null 2>&1; then
+      echo "ok postgres ready"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "timed out waiting for postgres" >&2
+  return 1
+}
+
 if [[ "${SKIP_KEYCLOAK_UP:-0}" != "1" ]]; then
   docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" down -v >/dev/null 2>&1 || true
-  KEYCLOAK_PORT="${KEYCLOAK_PORT}" docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" up -d
+  KEYCLOAK_PORT="${KEYCLOAK_PORT}" POSTGRES_PORT="${POSTGRES_PORT}" docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" up -d
 fi
+wait_for_postgres 60
 wait_for_url "keycloak discovery" "${ISSUER}/.well-known/openid-configuration" 90
 
 (
@@ -59,7 +75,8 @@ wait_for_url "keycloak discovery" "${ISSUER}/.well-known/openid-configuration" 9
 "${HOST_BIN}" \
   --script "${SCRIPT}" \
   --listen "${LISTEN}" \
-  --issuer "${ISSUER}" >"${HOST_LOG}" 2>&1 &
+  --issuer "${ISSUER}" \
+  --session-db-dsn "${SESSION_DB_DSN}" >"${HOST_LOG}" 2>&1 &
 HOST_PID=$!
 
 wait_for_url "host health" "${BASE_URL}/healthz" 60
