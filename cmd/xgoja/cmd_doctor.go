@@ -66,11 +66,14 @@ func (c *doctorCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.
 func (c *doctorCommand) runV2Doctor(ctx context.Context, file string, gp middlewares.Processor) (bool, error) {
 	data, err := os.ReadFile(file)
 	if err != nil {
-		return false, nil
+		return true, err
 	}
 	kind, _, err := specv2.DetectSchema(data)
-	if err != nil || kind != specv2.SchemaKindV2 {
-		return false, err
+	if err != nil {
+		return true, err
+	}
+	if kind != specv2.SchemaKindV2 {
+		return false, nil
 	}
 	cfg, err := specv2.LoadFile(file)
 	if cfg != nil {

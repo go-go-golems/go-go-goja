@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -276,6 +277,37 @@ func TestDoctorCommandLoadsV2Spec(t *testing.T) {
 	root.SetArgs([]string{"doctor", "-f", specPath, "--output", "json"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute doctor: %v", err)
+	}
+}
+
+func TestDoctorCommandReportsReadErrors(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "missing.yaml")
+	handled, err := (&doctorCommand{}).runV2Doctor(context.Background(), specPath, nil)
+	if !handled {
+		t.Fatalf("expected missing file to be handled as a doctor error")
+	}
+	if err == nil {
+		t.Fatalf("expected missing file error")
+	}
+	if strings.Contains(err.Error(), "legacy xgoja spec") {
+		t.Fatalf("expected read error, got legacy migration hint: %v", err)
+	}
+}
+
+func TestDoctorCommandReportsMalformedYAML(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte("schema: [\n"), 0o644); err != nil {
+		t.Fatalf("write malformed spec: %v", err)
+	}
+	handled, err := (&doctorCommand{}).runV2Doctor(context.Background(), specPath, nil)
+	if !handled {
+		t.Fatalf("expected malformed YAML to be handled as a doctor error")
+	}
+	if err == nil {
+		t.Fatalf("expected malformed YAML error")
+	}
+	if strings.Contains(err.Error(), "legacy xgoja spec") {
+		t.Fatalf("expected parse error, got legacy migration hint: %v", err)
 	}
 }
 
