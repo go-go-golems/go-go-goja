@@ -21,12 +21,17 @@ RelatedFiles:
       Note: Defines capability.Store and atomic redemption requirements
     - Path: pkg/gojahttp/auth/sessionauth/sessionauth.go
       Note: Defines sessionauth.Store and session security semantics for persistent store work
+    - Path: pkg/gojahttp/auth/sessionauth/sqlstore/schema.go
+      Note: Session SQL schema referenced by implementation plan
+    - Path: pkg/gojahttp/auth/sessionauth/sqlstore/sqlstore.go
+      Note: First durable store adapter implementing the session persistence phase
 ExternalSources: []
 Summary: Plan persistent production stores for gojahttp sessions, audit records, capability tokens, and app-owned auth domain data.
 LastUpdated: 2026-06-12T20:29:29.994874399-04:00
 WhatFor: Use when implementing production-grade persistence for the host auth packages introduced by the Express planned-auth work.
 WhenToUse: Before replacing in-memory session, audit, capability, user, membership, tenant, or resource stores with durable stores.
 ---
+
 
 
 # Persistent auth store implementation plan

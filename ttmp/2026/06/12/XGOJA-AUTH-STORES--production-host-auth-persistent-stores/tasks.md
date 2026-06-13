@@ -2,17 +2,17 @@
 
 ## Phase 1 — Store contracts
 
-- [ ] Extract reusable contract tests for `sessionauth.Store`.
-- [ ] Extract reusable contract tests for `audit.Store`.
-- [ ] Extract reusable contract tests for `capability.Store`.
-- [ ] Extract reusable contract tests for `appauth` user, membership, and resource stores.
+- [x] Extract reusable contract tests for `sessionauth.Store`.
+- [x] Extract reusable contract tests for `audit.Store`.
+- [x] Extract reusable contract tests for `capability.Store`.
+- [x] Extract reusable contract tests for `appauth` user, membership, and resource stores.
 
 ## Phase 2 — Session persistence
 
-- [ ] Add SQL/Postgres schema for sessions.
-- [ ] Implement `sessionauth` SQL store.
-- [ ] Test create/get/touch/revoke/rotate behavior.
-- [ ] Test idle expiry, absolute expiry, revocation, and MFA timestamp persistence.
+- [x] Add SQL/Postgres schema for sessions.
+- [x] Implement `sessionauth` SQL store.
+- [x] Test create/get/touch/revoke/rotate behavior.
+- [x] Test idle expiry, absolute expiry, revocation, and MFA timestamp persistence.
 - [ ] Document production cookie settings and store requirements.
 
 ## Phase 3 — Audit persistence
