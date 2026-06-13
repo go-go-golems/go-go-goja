@@ -9,8 +9,8 @@
 - [x] Write intern-facing hard-cutover design and implementation guide
 - [x] Relate key files and update changelog
 - [x] Validate docs and upload bundle to reMarkable
-- [ ] Phase 0: Create a dedicated implementation branch for the xgoja v2 runtime hard cutover and record the baseline commit/test state
-- [ ] Phase 0: Reproduce the provider.command-set sources bug with a minimal xgoja/v2 fixture that uses sources: [sites]
+- [x] Phase 0: Create a dedicated implementation branch for the xgoja v2 runtime hard cutover and record the baseline commit/test state
+- [x] Phase 0: Reproduce the provider.command-set sources bug with a minimal xgoja/v2 fixture that uses sources: [sites]
 - [ ] Phase 0: Add a failing test proving generated serve commands expose jsverb subcommands and HTTP serve flags when command sources are declared
 - [ ] Phase 0: Add a generated-runtime metadata assertion that v2 output must not contain legacy commandProviders/packages/jsverbs top-level fields
 - [ ] Phase 0: Inventory all active references to RuntimeSpec, PackageSpec, CommandsSpec, CommandProviderInstanceSpec, JSVerbSourceSpec, HelpSourceSpec, AssetSourceSpec, and xgoja.gen.json

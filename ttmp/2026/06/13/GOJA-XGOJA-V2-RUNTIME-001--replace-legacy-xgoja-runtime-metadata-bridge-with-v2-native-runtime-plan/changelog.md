@@ -32,3 +32,21 @@ Expanded the ticket with a detailed 52-task phased implementation backlog coveri
 
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001--replace-legacy-xgoja-runtime-metadata-bridge-with-v2-native-runtime-plan/tasks.md — Detailed phased implementation backlog
 
+
+## 2026-06-13
+
+Phase 0 task 7: created dedicated local branch task/xgoja-v2-runtime-cutover from merged go-go-goja main plus ticket docs; baseline head is 70e98b3.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001--replace-legacy-xgoja-runtime-metadata-bridge-with-v2-native-runtime-plan/tasks.md — Tracks cutover implementation tasks
+
+
+## 2026-06-13
+
+Phase 0 task 8: added and ran scripts/01-reproduce-provider-command-source-loss.sh, which proves v2 commands[].sources is dropped in generated legacy commandProviders metadata while all jsverb sources remain global.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001--replace-legacy-xgoja-runtime-metadata-bridge-with-v2-native-runtime-plan/scripts/01-reproduce-provider-command-source-loss.sh — Reproduces provider command-set source loss
+
