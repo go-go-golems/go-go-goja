@@ -12,18 +12,18 @@
 - [x] Phase 0: Create a dedicated implementation branch for the xgoja v2 runtime hard cutover and record the baseline commit/test state
 - [x] Phase 0: Reproduce the provider.command-set sources bug with a minimal xgoja/v2 fixture that uses sources: [sites]
 - [x] Phase 0: Add a failing test proving generated serve commands expose jsverb subcommands and HTTP serve flags when command sources are declared
-- [ ] Phase 0: Add a generated-runtime metadata assertion that v2 output must not contain legacy commandProviders/packages/jsverbs top-level fields
+- [x] Phase 0: Add a generated-runtime metadata assertion that v2 output must not contain legacy commandProviders/packages/jsverbs top-level fields
 - [ ] Phase 0: Inventory all active references to RuntimeSpec, PackageSpec, CommandsSpec, CommandProviderInstanceSpec, JSVerbSourceSpec, HelpSourceSpec, AssetSourceSpec, and xgoja.gen.json
-- [ ] Phase 1: Design and implement app.RuntimePlan with v2-native AppPlan, RuntimeSection, RuntimeModulePlan, SourcePlan, CommandPlan, and ConfigFilePlan types
+- [x] Phase 1: Design and implement app.RuntimePlan with v2-native AppPlan, RuntimeSection, RuntimeModulePlan, SourcePlan, CommandPlan, and ConfigFilePlan types
 - [ ] Phase 1: Replace legacy package terminology in runtime types with provider terminology while preserving provider registry lookup semantics
 - [ ] Phase 1: Represent all runtime commands as []CommandPlan instead of CommandsSpec plus CommandProviderInstanceSpec
 - [ ] Phase 1: Represent all runtime sources as []SourcePlan with kind/origin metadata instead of separate jsverbs/help/assets buckets
-- [ ] Phase 1: Add JSON encode/decode tests for RuntimePlan including command sources, modules, config, lazy, and embedded source origins
-- [ ] Phase 2: Rewrite cmd/xgoja/internal/generate runtime metadata rendering to emit xgoja.v2.runtime.json in v2-native shape
+- [x] Phase 1: Add JSON encode/decode tests for RuntimePlan including command sources, modules, config, lazy, and embedded source origins
+- [x] Phase 2: Rewrite cmd/xgoja/internal/generate runtime metadata rendering to emit xgoja.v2.runtime.json in v2-native shape
 - [ ] Phase 2: Remove applyPlanRuntimeCommand and the v2-to-legacy runtime source conversion helpers from generator code
-- [ ] Phase 2: Update generated main.go templates to load RuntimePlan instead of RuntimeSpec and to embed v2 runtime plan JSON
+- [x] Phase 2: Update generated main.go templates to load RuntimePlan instead of RuntimeSpec and to embed v2 runtime plan JSON
 - [ ] Phase 2: Ensure generated Go module replacement behavior still uses workspace.mode:auto and plan.GoModules without requiring provider.module.replace in examples
-- [ ] Phase 2: Add golden tests for generated main.go and runtime plan JSON for binary artifacts
+- [x] Phase 2: Add golden tests for generated main.go and runtime plan JSON for binary artifacts
 - [ ] Phase 3: Implement a unified runtime SourceRegistry that resolves sources by ID and filters by source kind
 - [ ] Phase 3: Port JS verb scanning to use SourceRegistry handles while preserving TypeScript compile/bundle options and runtime module externals
 - [ ] Phase 3: Port help loading to use SourceRegistry kind=help instead of legacy HelpSpec sources

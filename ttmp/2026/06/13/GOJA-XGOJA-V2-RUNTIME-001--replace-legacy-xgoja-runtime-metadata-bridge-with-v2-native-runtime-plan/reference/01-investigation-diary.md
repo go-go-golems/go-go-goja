@@ -10,22 +10,33 @@ DocType: reference
 Intent: ""
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/internal/generate/generate_test.go
+      Note: Step 4 metadata guard against legacy top-level generated keys (commit 617b977)
     - Path: cmd/xgoja/internal/generate/templates.go
-      Note: Step 3 preserves command sources during current generator bridge (commit 556ed5c)
+      Note: |-
+        Step 3 preserves command sources during current generator bridge (commit 556ed5c)
+        Step 4 emits v2-native runtime plan JSON (commit 617b977)
+    - Path: cmd/xgoja/internal/generate/templates/main.go.tmpl
+      Note: Step 4 generated main decodes RuntimePlan (commit 617b977)
     - Path: cmd/xgoja/root_test.go
       Note: Step 3 generated-binary regression and temporary fixture helper (commit 556ed5c)
+    - Path: examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go
+      Note: Step 4 checked-in runtime package fixture updated for RuntimePlan (commit 617b977)
     - Path: pkg/xgoja/app/command_providers.go
       Note: Step 3 passes filtered source set to provider command contexts (commit 556ed5c)
     - Path: pkg/xgoja/app/jsverb_sources.go
       Note: Step 3 command-scoped JS verb source filtering (commit 556ed5c)
     - Path: pkg/xgoja/app/runtime_spec.go
-      Note: Step 3 interim source IDs on command-provider metadata (commit 556ed5c)
+      Note: |-
+        Step 3 interim source IDs on command-provider metadata (commit 556ed5c)
+        Step 4 v2 RuntimePlan DTO and transitional decode path (commit 617b977)
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Diary
@@ -448,4 +459,133 @@ and must not expose `siteb` through:
 
 ```text
 scoped-serve serve --help
+```
+
+## Step 4: Cut generated runtime metadata over to RuntimePlan
+
+I started the hard cutover by moving generated xgoja metadata to a v2-native `RuntimePlan` JSON shape. Generated metadata now emits `schema: "xgoja/runtime/v2"`, `providers`, `runtime.modules`, unified `sources`, and `commands[]`; the generator test now fails if legacy top-level keys such as `packages`, `modules`, `commandProviders`, `jsverbs`, `help`, or `assets` reappear in generated v2 output.
+
+I also moved the generated main/runtime-package templates and the runtime app wiring to decode and consume `app.RuntimePlan`. To keep the repository buildable while migrating older in-repo tests and checked-in generated fixtures, `RuntimePlan` currently has non-emitted compatibility decode paths for old JSON/test literals; these are not produced by the generator and must be removed in the later legacy-removal sweep.
+
+### Prompt Context
+
+**User prompt (verbatim):** "let's do the full cutover. continue. We'll do sessionstream later on, you can break it"
+
+**Assistant interpretation:** Continue with the hard xgoja v2 runtime cutover now, prioritizing go-go-goja and deferring sessionstream compatibility until later.
+
+**Inferred user intent:** Remove the legacy generated runtime metadata bridge even if downstream/sessionstream work has to wait.
+
+**Commit (code):** 617b977 — "Cut over generated xgoja metadata to RuntimePlan"
+
+### What I did
+
+- Replaced generated runtime metadata rendering in `cmd/xgoja/internal/generate/templates.go` with v2-native `app.RuntimePlan` output.
+- Added a generated metadata guard in `cmd/xgoja/internal/generate/generate_test.go` that rejects legacy top-level keys: `packages`, `modules`, `commandProviders`, `jsverbs`, `help`, and `assets`.
+- Added `app.RuntimePlan`, `AppPlan`, `RuntimeSection`, `RuntimeModulePlan`, `SourcePlan`, `CommandPlan`, and `ArtifactPlan` in `pkg/xgoja/app/runtime_spec.go`.
+- Updated generated templates to decode `*app.RuntimePlan`.
+- Updated app runtime wiring, source resolution, command providers, asset/help loading, dts generation, HTTP provider tests, host provider tests, and the generated runtime-package fixture to use RuntimePlan-shaped concepts.
+- Marked tasks 10, 12, 16, 17, 19, and 21 complete.
+
+### Why
+
+- The source-scoping bug was a symptom of generated v2 specs being flattened into a legacy runtime DTO.
+- The hard cutover requires generated output to stop emitting old top-level concepts and preserve v2 concepts directly.
+- Starting at the generated metadata boundary gives every later runtime cleanup task a concrete v2 payload to consume.
+
+### What worked
+
+- The focused validation passed before commit:
+
+```text
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	9.322s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.038s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.177s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.288s
+```
+
+- The pre-commit hook then passed lint, `go generate ./...`, and `go test ./...`.
+- The generated runtime-package example was updated enough to compile against `RuntimePlan`.
+
+### What didn't work
+
+The first commit attempt failed because checked-in generated runtime-package code still referenced removed names:
+
+```text
+examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go:66:19: undefined: app.RuntimeSpec
+examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go:80:25: undefined: app.RuntimeSpec
+examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go:81:22: undefined: app.RuntimeSpec
+```
+
+The full pre-commit test pass then also exposed host provider tests still using the old names:
+
+```text
+pkg/xgoja/providers/host/host_test.go:58:22: undefined: app.RuntimeSpec
+pkg/xgoja/providers/host/host_test.go:59:17: undefined: app.AssetSourceSpec
+pkg/xgoja/providers/host/host_test.go:60:18: undefined: app.ModuleInstanceSpec
+```
+
+I updated those files to use `RuntimePlan`, `SourcePlan`, and `RuntimeModulePlan` and reran the commit hook successfully.
+
+### What I learned
+
+- The generator boundary can now enforce the most important guarantee: v2-generated runtime JSON no longer emits the legacy top-level metadata shape.
+- Some older tests and fixtures still used legacy JSON or struct literals directly. Keeping them buildable required a temporary non-emitted decode/struct compatibility layer inside `RuntimePlan`.
+- The generated DTS sidecar template also needed a RuntimePlan update; otherwise v2 generated binaries worked but generated declaration sidecars were empty.
+
+### What was tricky to build
+
+- Go's default JSON unmarshalling made mixed old/new tests fail in both directions: old `commands` objects could not unmarshal into `[]CommandPlan`, and new `commands[]` arrays could not unmarshal into `CommandsSpec`. I added custom decode logic while keeping generated output strictly v2-shaped.
+- Runtime module provider identity changed from old `package` terminology to v2 `provider`; test literals and generated code needed to preserve provider IDs through module resolution, dts generation, and provider command setup.
+- `go generate ./...` in the pre-commit hook catches checked-in generated examples, so template changes must be reflected in the generated runtime-package fixture before the commit can land.
+
+### What warrants a second pair of eyes
+
+- `pkg/xgoja/app/runtime_spec.go` still contains temporary compatibility fields and decode paths for old in-repo tests/fixtures. These are not emitted in generated JSON, but they must be removed in the later legacy-removal phase.
+- The task checklist now has the generated metadata cutover tasks checked, but follow-up work is still needed to replace compatibility decode paths with purely v2 test fixtures.
+- Reviewers should verify that `assertNoLegacyRuntimeKeys` is strict enough for the generated v2 JSON contract.
+
+### What should be done in the future
+
+- Remove compatibility fields/decode paths from `RuntimePlan` after all tests and historical fixtures are migrated to v2 JSON/literals.
+- Continue with the unified source registry and provider `CommandSetContext` cleanup so command-scoped source handling no longer depends on a JSVerb-only adapter.
+- Run a grep guard in CI for active legacy runtime DTO names after the final removal sweep.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/internal/generate/templates.go` and `cmd/xgoja/internal/generate/generate_test.go` to verify the generated metadata contract.
+- Then review `pkg/xgoja/app/runtime_spec.go` and the app wiring changes in `host.go`, `root.go`, `factory.go`, `command_providers.go`, `framework.go`, and `assets.go`.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1
+go test ./... -count=1
+```
+
+### Technical details
+
+Generated runtime JSON now uses this top-level shape:
+
+```json
+{
+  "schema": "xgoja/runtime/v2",
+  "name": "fixture",
+  "app": { "name": "fixture" },
+  "target": { "kind": "xgoja", "output": "dist/fixture" },
+  "providers": [{ "id": "fixture" }],
+  "runtime": { "modules": [{ "provider": "fixture", "name": "hello", "as": "hello" }] },
+  "sources": [{ "id": "verbs", "kind": "jsverbs", "path": "xgoja_embed/jsverbs/verbs", "embed": true }],
+  "commands": [{ "id": "eval", "type": "builtin.eval", "name": "eval" }]
+}
+```
+
+The generator test rejects these old top-level keys in v2 output:
+
+```text
+packages
+modules
+commandProviders
+jsverbs
+help
+assets
 ```

@@ -63,3 +63,15 @@ Phase 0: added and passed an xgoja build regression proving provider.command-set
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/jsverb_sources.go — Filters JS verb sources by command source IDs
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/runtime_spec.go — Adds source IDs to command provider runtime metadata for the regression fix
 
+
+## 2026-06-13
+
+Started hard cutover: generated runtime metadata now emits xgoja/runtime/v2 RuntimePlan shape, tests assert no legacy packages/modules/commandProviders/jsverbs/help/assets top-level keys, and generated app/templates decode RuntimePlan.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Asserts v2 runtime JSON shape and absence of legacy top-level keys
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate/templates.go — Emits v2 runtime plan JSON instead of legacy generated metadata
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate/templates/main.go.tmpl — Generated main decodes RuntimePlan
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/runtime_spec.go — Defines v2-native RuntimePlan and runtime app compatibility during transition
+
