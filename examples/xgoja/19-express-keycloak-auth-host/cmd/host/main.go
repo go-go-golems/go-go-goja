@@ -17,9 +17,10 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
+	auditSQLStore "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
-	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth/sqlstore"
+	sessionSQLStore "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth/sqlstore"
 )
 
 func main() {
@@ -29,8 +30,9 @@ func main() {
 	clientID := flag.String("client-id", envOr("KEYCLOAK_CLIENT_ID", "goja-app"), "OIDC client ID")
 	clientSecret := flag.String("client-secret", os.Getenv("KEYCLOAK_CLIENT_SECRET"), "OIDC client secret, if configured")
 	sessionDBDSN := flag.String("session-db-dsn", os.Getenv("SESSION_DB_DSN"), "Postgres DSN for persistent app sessions; empty uses in-memory sessions")
+	auditDBDSN := flag.String("audit-db-dsn", os.Getenv("AUDIT_DB_DSN"), "Postgres DSN for persistent audit records; empty logs audit records")
 	flag.Parse()
-	if err := run(context.Background(), config{Listen: *listen, Script: *script, Issuer: *issuer, ClientID: *clientID, ClientSecret: *clientSecret, SessionDBDSN: *sessionDBDSN}); err != nil {
+	if err := run(context.Background(), config{Listen: *listen, Script: *script, Issuer: *issuer, ClientID: *clientID, ClientSecret: *clientSecret, SessionDBDSN: *sessionDBDSN, AuditDBDSN: *auditDBDSN}); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -42,6 +44,7 @@ type config struct {
 	ClientID     string
 	ClientSecret string
 	SessionDBDSN string
+	AuditDBDSN   string
 }
 
 func run(ctx context.Context, cfg config) error {
@@ -51,6 +54,11 @@ func run(ctx context.Context, cfg config) error {
 		return err
 	}
 	defer cleanupSessions()
+	auditSink, cleanupAudit, err := newAuditSink(cfg.AuditDBDSN)
+	if err != nil {
+		return err
+	}
+	defer cleanupAudit()
 	keycloakHandlers, err := keycloakauth.New(ctx, keycloakauth.Config{
 		IssuerURL:      cfg.Issuer,
 		ClientID:       cfg.ClientID,
@@ -71,7 +79,6 @@ func run(ctx context.Context, cfg config) error {
 	if err != nil {
 		return err
 	}
-	auditSink := audit.LogSink{}
 	host := gojahttp.NewHost(gojahttp.HostOptions{
 		Dev:             true,
 		RejectRawRoutes: true,
@@ -128,7 +135,7 @@ func newSessionManager(sessionDBDSN string) (*sessionauth.Manager, func(), error
 		cleanup()
 		return nil, func() {}, err
 	}
-	store, err := sqlstore.New(sqlstore.Config{DB: db, Dialect: sqlstore.DialectPostgres})
+	store, err := sessionSQLStore.New(sessionSQLStore.Config{DB: db, Dialect: sessionSQLStore.DialectPostgres})
 	if err != nil {
 		cleanup()
 		return nil, func() {}, err
@@ -144,6 +151,32 @@ func newSessionManager(sessionDBDSN string) (*sessionauth.Manager, func(), error
 	}
 	log.Printf("using Postgres-backed app sessions")
 	return sessions, cleanup, nil
+}
+
+func newAuditSink(auditDBDSN string) (gojahttp.AuditSink, func(), error) {
+	if auditDBDSN == "" {
+		return audit.LogSink{}, func() {}, nil
+	}
+	db, err := sql.Open("postgres", auditDBDSN)
+	if err != nil {
+		return nil, func() {}, err
+	}
+	cleanup := func() { _ = db.Close() }
+	if err := db.Ping(); err != nil {
+		cleanup()
+		return nil, func() {}, err
+	}
+	store, err := auditSQLStore.New(auditSQLStore.Config{DB: db, Dialect: auditSQLStore.DialectPostgres})
+	if err != nil {
+		cleanup()
+		return nil, func() {}, err
+	}
+	if err := store.ApplySchema(context.Background()); err != nil {
+		cleanup()
+		return nil, func() {}, err
+	}
+	log.Printf("using Postgres-backed audit records")
+	return audit.Sink{Store: store}, cleanup, nil
 }
 
 func seedAppStore() *appauth.MemoryStore {

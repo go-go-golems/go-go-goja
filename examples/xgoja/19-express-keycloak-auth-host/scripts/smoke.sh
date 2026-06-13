@@ -9,6 +9,7 @@ KEYCLOAK_PORT="${KEYCLOAK_PORT:-18080}"
 POSTGRES_PORT="${POSTGRES_PORT:-15432}"
 ISSUER="${ISSUER:-http://127.0.0.1:${KEYCLOAK_PORT}/realms/goja-demo}"
 SESSION_DB_DSN="${SESSION_DB_DSN:-postgres://goja:goja@127.0.0.1:${POSTGRES_PORT}/goja_auth?sslmode=disable}"
+AUDIT_DB_DSN="${AUDIT_DB_DSN:-${SESSION_DB_DSN}}"
 SCRIPT="${SCRIPT:-${EXAMPLE_DIR}/scripts/server.js}"
 HOST_LOG="${HOST_LOG:-$(mktemp -t goja-keycloak-host.XXXXXX.log)}"
 HOST_BIN="${HOST_BIN:-$(mktemp -t goja-keycloak-host.XXXXXX)}"
@@ -48,6 +49,25 @@ wait_for_url() {
   return 1
 }
 
+wait_for_host_url() {
+  local label="$1"
+  local url="$2"
+  local attempts="${3:-60}"
+  for _ in $(seq 1 "${attempts}"); do
+    if ! kill -0 "${HOST_PID}" >/dev/null 2>&1; then
+      echo "host exited before ${label} became ready" >&2
+      return 1
+    fi
+    if curl -fsS "${url}" >/dev/null 2>&1; then
+      echo "ok ${label} ${url}"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "timed out waiting for ${label}: ${url}" >&2
+  return 1
+}
+
 wait_for_postgres() {
   local attempts="${1:-60}"
   for _ in $(seq 1 "${attempts}"); do
@@ -76,8 +96,17 @@ wait_for_url "keycloak discovery" "${ISSUER}/.well-known/openid-configuration" 9
   --script "${SCRIPT}" \
   --listen "${LISTEN}" \
   --issuer "${ISSUER}" \
-  --session-db-dsn "${SESSION_DB_DSN}" >"${HOST_LOG}" 2>&1 &
+  --session-db-dsn "${SESSION_DB_DSN}" \
+  --audit-db-dsn "${AUDIT_DB_DSN}" >"${HOST_LOG}" 2>&1 &
 HOST_PID=$!
 
-wait_for_url "host health" "${BASE_URL}/healthz" 60
+wait_for_host_url "host health" "${BASE_URL}/healthz" 60
 python3 "${EXAMPLE_DIR}/scripts/keycloak_smoke.py" --base-url "${BASE_URL}"
+
+audit_count="$(docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" exec -T postgres psql -U goja -d goja_auth -tAc "SELECT count(*) FROM auth_audit_records WHERE event IN ('health.checked', 'user.self.read', 'project.updated')")"
+audit_count="${audit_count//[[:space:]]/}"
+if [[ -z "${audit_count}" || "${audit_count}" -lt 5 ]]; then
+  echo "expected persisted audit records, got count=${audit_count:-<empty>}" >&2
+  exit 1
+fi
+echo "ok persisted audit records ${audit_count}"

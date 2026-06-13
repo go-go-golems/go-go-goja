@@ -12,7 +12,7 @@ The browser receives an app session cookie. Keycloak tokens stay server-side dur
 
 ## Automated smoke
 
-The smoke starts Docker Compose Keycloak plus a Postgres database for persistent app sessions, starts the Go host, drives the Keycloak login form with the demo user, verifies the app session, checks CSRF enforcement, updates a project route, logs out, and tears the containers down again:
+The smoke starts Docker Compose Keycloak plus a Postgres database for persistent app sessions and audit records, starts the Go host, drives the Keycloak login form with the demo user, verifies the app session, checks CSRF enforcement, updates a project route, verifies persisted audit rows, logs out, and tears the containers down again:
 
 ```bash
 make -C examples/xgoja/19-express-keycloak-auth-host smoke
@@ -32,7 +32,7 @@ Keycloak runs at:
 http://127.0.0.1:18080
 ```
 
-Postgres is exposed for the Go host at:
+Postgres is exposed for the Go host's app sessions and audit records at:
 
 ```text
 postgres://goja:goja@127.0.0.1:15432/goja_auth?sslmode=disable
@@ -92,7 +92,7 @@ This is still an example, not a complete production deployment. For production:
 
 - use HTTPS,
 - use secure cookies, not `AllowInsecureHTTP`,
-- keep the Postgres-backed app session store and add persistent transaction, user, membership, resource, and audit stores,
+- keep the Postgres-backed app session and audit stores and add persistent transaction, user, membership, resource, and capability stores,
 - review Keycloak realm/client settings,
 - add a shared transaction store for multi-instance callback handling,
 - keep application authorization in app-owned Go code or a chosen policy engine.

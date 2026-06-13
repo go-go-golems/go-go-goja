@@ -7,6 +7,7 @@ KEYCLOAK_PORT ?= 18080
 POSTGRES_PORT ?= 15432
 ISSUER ?= http://127.0.0.1:$(KEYCLOAK_PORT)/realms/goja-demo
 SESSION_DB_DSN ?= postgres://goja:goja@127.0.0.1:$(POSTGRES_PORT)/goja_auth?sslmode=disable
+AUDIT_DB_DSN ?= $(SESSION_DB_DSN)
 
 .PHONY: keycloak-up keycloak-down serve test smoke
 
@@ -25,10 +26,10 @@ keycloak-down:
 	docker compose -f $(EXAMPLE_DIR)/docker-compose.yml down -v
 
 serve:
-	cd $(REPO_ROOT) && GOWORK=off go run $(HOST) --script $(SCRIPT) --listen $(LISTEN) --issuer $(ISSUER) --session-db-dsn '$(SESSION_DB_DSN)'
+	cd $(REPO_ROOT) && GOWORK=off go run $(HOST) --script $(SCRIPT) --listen $(LISTEN) --issuer $(ISSUER) --session-db-dsn '$(SESSION_DB_DSN)' --audit-db-dsn '$(AUDIT_DB_DSN)'
 
 test:
 	cd $(REPO_ROOT) && GOWORK=off go test ./examples/xgoja/19-express-keycloak-auth-host/cmd/host -count=1
 
 smoke:
-	KEYCLOAK_PORT=$(KEYCLOAK_PORT) POSTGRES_PORT=$(POSTGRES_PORT) ISSUER=$(ISSUER) LISTEN=$(LISTEN) SESSION_DB_DSN='$(SESSION_DB_DSN)' $(EXAMPLE_DIR)/scripts/smoke.sh
+	KEYCLOAK_PORT=$(KEYCLOAK_PORT) POSTGRES_PORT=$(POSTGRES_PORT) ISSUER=$(ISSUER) LISTEN=$(LISTEN) SESSION_DB_DSN='$(SESSION_DB_DSN)' AUDIT_DB_DSN='$(AUDIT_DB_DSN)' $(EXAMPLE_DIR)/scripts/smoke.sh
