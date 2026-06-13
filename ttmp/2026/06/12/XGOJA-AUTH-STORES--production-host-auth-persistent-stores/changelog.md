@@ -37,3 +37,14 @@ Phase 2: add SQL-backed sessionauth store with SQLite tests and Postgres schema 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/sessionauth/sqlstore/sqlstore.go — SQL session store implementation
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/sessionauth/sqlstore/sqlstore_test.go — SQL session store tests
 
+
+## 2026-06-12
+
+Wire Keycloak example smoke to Postgres-backed sessionauth/sqlstore for end-to-end validation (commit e53d063)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go — SQL session store wiring
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml — Postgres service for smoke
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/scripts/smoke.sh — Postgres-backed smoke orchestration
+

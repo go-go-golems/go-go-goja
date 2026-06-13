@@ -40,7 +40,7 @@
 
 ## Phase 6 — Example integration and docs
 
-- [ ] Add Docker Compose Postgres wiring for the production auth example or a new store-focused example.
+- [x] Add Docker Compose Postgres wiring for the production auth example or a new store-focused example.
 - [ ] Wire Keycloak + Postgres + sessionauth + appauth + audit + capability in a smoke target.
 - [ ] Add a deployment guide covering migrations, cookie security, backups, and operational queries.
 - [ ] Validate with package tests and example smokes.

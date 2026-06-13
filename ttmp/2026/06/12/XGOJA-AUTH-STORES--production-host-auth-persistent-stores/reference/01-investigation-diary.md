@@ -13,6 +13,16 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/xgoja/19-express-keycloak-auth-host/Makefile
+      Note: Adds Postgres/session DSN variables to smoke and serve targets (commit e53d063)
+    - Path: examples/xgoja/19-express-keycloak-auth-host/README.md
+      Note: Documents Postgres-backed Keycloak smoke (commit e53d063)
+    - Path: examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go
+      Note: Wires optional Postgres-backed sessionauth/sqlstore into example host (commit e53d063)
+    - Path: examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml
+      Note: Adds Postgres to Keycloak smoke stack for SQL session testing (commit e53d063)
+    - Path: examples/xgoja/19-express-keycloak-auth-host/scripts/smoke.sh
+      Note: Starts/waits for Postgres and passes session DSN to host (commit e53d063)
     - Path: pkg/gojahttp/auth/appauth/appauth.go
       Note: Clones appauth memory store inputs/outputs for contract parity (commit 22eb7d6)
     - Path: pkg/gojahttp/auth/audit/audit.go
@@ -37,10 +47,11 @@ RelatedFiles:
       Note: Contract and full-projection tests for SQL session store (commit 304f833)
 ExternalSources: []
 Summary: Chronological diary for production auth persistent store planning.
-LastUpdated: 2026-06-12T20:50:00-04:00
+LastUpdated: 2026-06-12T21:05:00-04:00
 WhatFor: Use when resuming work on SQL/Postgres-backed stores for sessions, audit, capabilities, and app auth domain data.
 WhenToUse: Before implementing or reviewing persistent auth store work.
 ---
+
 
 
 
@@ -335,4 +346,115 @@ The implementation includes SQLite-backed tests for fast local verification and 
   if err := sessions.ApplySchema(ctx); err != nil {
       return err
   }
+  ```
+
+
+## Step 4: Wire the Keycloak smoke to Postgres-backed sessions
+
+This step made the Keycloak host example exercise the new SQL session store against a real Postgres container. The example already had a production-shaped Keycloak flow; adding Postgres to the same Docker Compose stack gives us an end-to-end smoke that proves Keycloak login, opaque app-session creation, CSRF, authorization, logout, and session revocation with durable app sessions rather than only `sessionauth.MemoryStore`.
+
+The Postgres service is intentionally for the Go host's app sessions, not for replacing Keycloak's own dev database. That keeps the smoke focused on the new `sessionauth/sqlstore` implementation while preserving the fast Keycloak realm import path.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add postgres to the keycloak docker-compose as well. that way you can test it!"
+
+**Assistant interpretation:** Extend the Keycloak example compose stack with Postgres and wire the example host/smoke to use the SQL session store so the new persistent session implementation is exercised end-to-end.
+
+**Inferred user intent:** Turn the SQL session store from a unit-tested adapter into something validated by the existing realistic Keycloak smoke.
+
+**Commit (code):** `e53d063` — "Wire Keycloak smoke to Postgres sessions"
+
+### What I did
+- Added a `postgres` service to `examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml`.
+- Exposed Postgres on `${POSTGRES_PORT:-15432}` with database/user/password `goja_auth` / `goja` / `goja`.
+- Added a persistent compose volume `postgres-data`.
+- Added `github.com/lib/pq` so the example host can open Postgres through `database/sql`.
+- Added `--session-db-dsn` / `SESSION_DB_DSN` to the Keycloak host.
+- Wired the host to use `sessionauth/sqlstore` when a DSN is provided and fall back to `sessionauth.MemoryStore` when it is not.
+- Updated the example Makefile and smoke script so `make smoke` starts Keycloak + Postgres and passes the Postgres DSN to the host.
+- Updated the example README to document Postgres and the new smoke behavior.
+- Checked task 24 in `XGOJA-AUTH-STORES`.
+
+### Why
+- The SQL session store needs a real Postgres validation path, not only SQLite-backed contract tests.
+- The Keycloak smoke is the best end-to-end path because it creates sessions through the actual OIDC callback and then uses those sessions for planned routes, CSRF, and logout.
+- Keeping the DSN optional preserves the manual in-memory demo path while making the automated smoke persistent by default.
+
+### What worked
+- The Keycloak smoke passed with Postgres-backed app sessions:
+  ```bash
+  make -C examples/xgoja/19-express-keycloak-auth-host smoke
+  ```
+- Key smoke output:
+  ```text
+  ok postgres ready
+  ok keycloak discovery http://127.0.0.1:18080/realms/goja-demo/.well-known/openid-configuration
+  ok host health http://127.0.0.1:8790/healthz
+  ok public health                200
+  ok me before login              401
+  ok login page                   200
+  ok keycloak form login          200
+  ok login redirected to host     http://127.0.0.1:8790/
+  ok me after login               200
+  ok session after login          200
+  ok project missing csrf         403
+  ok project update               200
+  ok project missing              404
+  ok logout                       204
+  ok me after logout              401
+  {"status": "PASS", "actorId": "user:57448654-7e66-43f3-9313-71c369c73b06", "csrfChecked": true}
+  ```
+- Package-level validation passed before commit:
+  ```bash
+  go test ./examples/xgoja/19-express-keycloak-auth-host/cmd/host ./pkg/gojahttp/auth/sessionauth/sqlstore -count=1
+  ```
+- Pre-commit also passed lint and `go test ./...` for `e53d063`.
+
+### What didn't work
+- N/A. The first smoke after adding Postgres passed.
+
+### What I learned
+- The existing Keycloak smoke was easy to extend because the host already centralizes session construction.
+- `sessionauth/sqlstore.ApplySchema` is useful for examples and smokes because it avoids adding migration tooling before the store package layout is settled.
+- This smoke now gives us practical coverage for Postgres JSONB inserts/reads in `auth_sessions`, which the unit tests could not prove with SQLite alone.
+
+### What was tricky to build
+- The main boundary was deciding what the Postgres service owns. I kept Keycloak in dev/import mode and used Postgres for the Go host's app sessions, because the goal was validating the new auth store rather than productionizing Keycloak's own database.
+- Another subtlety was preserving manual usability: `--session-db-dsn` is optional, so developers can still run the host with in-memory sessions if they do not want Postgres.
+- The smoke needed an explicit Postgres readiness loop via `docker compose exec -T postgres pg_isready` before starting the host, otherwise the host could fail on `db.Ping()` during startup.
+
+### What warrants a second pair of eyes
+- Whether the example should use Postgres for Keycloak's internal database too, or whether keeping Keycloak `start-dev` is preferable for smoke speed.
+- Whether `ApplySchema` in the example is acceptable until a formal migration mechanism exists.
+- Whether `SESSION_DB_DSN` should be documented as the default for `serve` or only for `smoke`.
+
+### What should be done in the future
+- Add a targeted Postgres integration test for `sessionauth/sqlstore` that can run independently of the Keycloak smoke.
+- Continue with `audit/sqlstore` and then extend the same compose stack to persist audit records.
+- Later, wire appauth and capability SQL stores so task 25 can be completed honestly.
+
+### Code review instructions
+- Start with `examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml` to see the new Postgres service.
+- Review `cmd/host/main.go`, especially `newSessionManager`, to verify fallback and SQL setup behavior.
+- Review `scripts/smoke.sh` to confirm it waits for Postgres and passes `--session-db-dsn`.
+- Validate with:
+  ```bash
+  go test ./examples/xgoja/19-express-keycloak-auth-host/cmd/host ./pkg/gojahttp/auth/sessionauth/sqlstore -count=1
+  make -C examples/xgoja/19-express-keycloak-auth-host smoke
+  ```
+
+### Technical details
+- Default smoke DSN:
+  ```text
+  postgres://goja:goja@127.0.0.1:15432/goja_auth?sslmode=disable
+  ```
+- Host switch:
+  ```go
+  if sessionDBDSN == "" {
+      return sessionauth.New(sessionauth.Config{Store: sessionauth.NewMemoryStore(), AllowInsecureHTTP: true})
+  }
+  store, _ := sqlstore.New(sqlstore.Config{DB: db, Dialect: sqlstore.DialectPostgres})
+  _ = store.ApplySchema(ctx)
+  return sessionauth.New(sessionauth.Config{Store: store, AllowInsecureHTTP: true})
   ```
