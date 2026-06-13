@@ -37,6 +37,38 @@ func TestApplyMountToCommandsDoesNotMutateProviderDescriptions(t *testing.T) {
 	}
 }
 
+func TestHostAttachCommandProvidersPassesHostServices(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := registry.Package("fixture",
+		providerapi.CommandSetProvider{
+			Name: "tools",
+			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+				lookup, ok := ctx.Host.(providerapi.HostServiceLookup)
+				if !ok || lookup == nil {
+					t.Fatalf("expected host service lookup, got %T", ctx.Host)
+				}
+				value, ok := lookup.HostService("fixture")
+				if !ok || value != "from-host" {
+					t.Fatalf("host service fixture = %#v ok=%v", value, ok)
+				}
+				return &providerapi.CommandSet{Commands: []cmds.Command{&fixtureBareCommand{
+					CommandDescription: cmds.NewCommandDescription("ping", cmds.WithShort("Ping")),
+					run:                func(context.Context, *values.Values) error { return nil },
+				}}}, nil
+			},
+		},
+	); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	runtimeSpec := &RuntimeSpec{CommandProviders: []CommandProviderInstanceSpec{{ID: "fixture-tools", Package: "fixture", Name: "tools"}}}
+	root := &cobra.Command{Use: "test"}
+	NewHostWithOptions(registry, runtimeSpec, HostOptions{ConfigureServices: func(services *HostServices) {
+		if err := services.SetHostService("fixture", "from-host"); err != nil {
+			t.Fatalf("set host service: %v", err)
+		}
+	}}).AttachDefaultCommands(root)
+}
+
 func TestHostAttachCommandProvidersPassesSelectedModules(t *testing.T) {
 	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
