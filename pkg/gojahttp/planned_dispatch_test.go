@@ -193,6 +193,41 @@ func TestPlannedRouteVerifiesCSRFBeforeHandler(t *testing.T) {
 	}
 }
 
+func TestPlannedRouteCSRFUsesIncomingMethodForAllRoutes(t *testing.T) {
+	calls := 0
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		CSRF: csrfFunc(func(_ context.Context, req gojahttp.CSRFRequest) error {
+			calls++
+			if req.HTTPRequest.Method != http.MethodPost {
+				t.Fatalf("csrf checked safe method %s", req.HTTPRequest.Method)
+			}
+			return nil
+		}),
+	}})
+	handler := plannedTestRuntime(t, host, `(function(ctx, res) { res.type("text/plain").send(ctx.request.method); })`)
+	if err := host.RegisterPlanned(gojahttp.RoutePlan{Method: "ALL", Pattern: "/submit", Security: gojahttp.SecuritySpec{Mode: gojahttp.SecurityModePublic}, CSRF: gojahttp.CSRFSpec{Required: true}}, handler); err != nil {
+		t.Fatalf("RegisterPlanned: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/submit", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if calls != 0 {
+		t.Fatalf("expected GET to skip csrf verifier, got %d calls", calls)
+	}
+
+	rr = httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/submit", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("POST status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if calls != 1 {
+		t.Fatalf("expected POST to call csrf verifier once, got %d calls", calls)
+	}
+}
+
 func TestPlannedRouteCSRFErrorBlocksHandler(t *testing.T) {
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
 		CSRF: csrfFunc(func(context.Context, gojahttp.CSRFRequest) error {

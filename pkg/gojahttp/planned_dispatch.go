@@ -81,7 +81,7 @@ func (h *Host) buildSecureEnvelope(ctx context.Context, httpReq *http.Request, r
 		return envelope, http.StatusInternalServerError, fmt.Errorf("unsupported planned route security mode %q", plan.Security.Mode)
 	}
 
-	if plan.CSRF.Required && isUnsafeMethod(plan.Method) {
+	if plan.CSRF.Required && isUnsafeMethod(httpReq.Method) {
 		if h.auth.CSRF == nil {
 			return envelope, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires csrf protector", plan.Method, plan.Pattern)
 		}
