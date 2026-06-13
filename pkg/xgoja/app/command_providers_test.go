@@ -67,8 +67,8 @@ func TestHostAttachCommandProvidersPassesSelectedModules(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{
-		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}},
+	runtimePlan := &RuntimePlan{
+		Modules: []RuntimeModulePlan{{Package: "fixture", Name: "mod"}},
 		CommandProviders: []CommandProviderInstanceSpec{{
 			ID:      "fixture-tools",
 			Package: "fixture",
@@ -77,7 +77,7 @@ func TestHostAttachCommandProvidersPassesSelectedModules(t *testing.T) {
 		}},
 	}
 	root := &cobra.Command{Use: "test"}
-	NewHost(registry, runtimeSpec).AttachDefaultCommands(root)
+	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
 	root.SetArgs([]string{"fixture", "ping"})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute command provider command: %v", err)
@@ -101,7 +101,7 @@ module.exports = { helper };
 		t.Fatalf("write helper module: %v", err)
 	}
 
-	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, JSVerbSourceSpec{ID: "local", Path: dir}, nil)
+	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, SourcePlan{ID: "local", Path: dir}, nil)
 	if err != nil {
 		t.Fatalf("scan source: %v", err)
 	}
@@ -151,8 +151,8 @@ function hello() { return "hello"; }
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{
-		JSVerbs: []JSVerbSourceSpec{{ID: "local", Path: dir}},
+	runtimePlan := &RuntimePlan{
+		JSVerbs: []SourcePlan{{ID: "local", Path: dir}},
 		CommandProviders: []CommandProviderInstanceSpec{{
 			ID:      "fixture-tools",
 			Package: "fixture",
@@ -160,7 +160,7 @@ function hello() { return "hello"; }
 		}},
 	}
 	root := &cobra.Command{Use: "test"}
-	NewHost(registry, runtimeSpec).AttachDefaultCommands(root)
+	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
 }
 
 func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
@@ -204,8 +204,8 @@ func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{
-		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}},
+	runtimePlan := &RuntimePlan{
+		Modules: []RuntimeModulePlan{{Package: "fixture", Name: "mod"}},
 		CommandProviders: []CommandProviderInstanceSpec{{
 			ID:      "fixture-tools",
 			Package: "fixture",
@@ -214,7 +214,7 @@ func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 		}},
 	}
 	root := &cobra.Command{Use: "test"}
-	NewHost(registry, runtimeSpec).AttachDefaultCommands(root)
+	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
 	root.SetArgs([]string{"fixture", "ping", "--message", "hello"})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute command provider command: %v", err)

@@ -17,17 +17,20 @@ import (
 )
 
 func (h *Host) AttachCommandProviders(root *cobra.Command) {
-	if root == nil || h == nil || h.RuntimeSpec == nil || h.Providers == nil {
+	if root == nil || h == nil || h.RuntimePlan == nil || h.Providers == nil {
 		return
 	}
-	for _, instance := range h.RuntimeSpec.CommandProviders {
-		provider, ok := h.Providers.ResolveCommandSetProvider(instance.Package, instance.Name)
+	for _, instance := range h.RuntimePlan.runtimeCommands() {
+		if instance.Type != "provider.command-set" {
+			continue
+		}
+		provider, ok := h.Providers.ResolveCommandSetProvider(instance.ProviderID(), instance.Name)
 		mount := strings.TrimSpace(instance.Mount)
 		if mount == "" {
 			mount = provider.DefaultMount
 		}
 		if !ok {
-			root.AddCommand(commandErrorStub(commandProviderUse(instance, mount), "Attach custom xgoja command provider", fmt.Errorf("unknown command provider %s.%s", instance.Package, instance.Name)))
+			root.AddCommand(commandErrorStub(commandProviderUse(instance, mount), "Attach custom xgoja command provider", fmt.Errorf("unknown command provider %s.%s", instance.ProviderID(), instance.Name)))
 			continue
 		}
 		set, err := h.newCommandSet(instance, provider, mount)
@@ -56,7 +59,7 @@ func (h *Host) AttachCommandProviders(root *cobra.Command) {
 	}
 }
 
-func (h *Host) newCommandSet(instance CommandProviderInstanceSpec, provider providerapi.CommandSetProvider, mount string) (*providerapi.CommandSet, error) {
+func (h *Host) newCommandSet(instance CommandPlan, provider providerapi.CommandSetProvider, mount string) (*providerapi.CommandSet, error) {
 	config, err := json.Marshal(instance.Config)
 	if err != nil {
 		return nil, fmt.Errorf("marshal command provider config %s: %w", instance.ID, err)
@@ -67,25 +70,25 @@ func (h *Host) newCommandSet(instance CommandProviderInstanceSpec, provider prov
 	}
 	set, err := provider.NewCommandSet(providerapi.CommandSetContext{
 		Context:         context.Background(),
-		PackageID:       instance.Package,
+		PackageID:       instance.ProviderID(),
 		Name:            instance.Name,
 		Mount:           mount,
 		Config:          config,
 		Providers:       h.Providers,
 		RuntimeFactory:  h.Factory,
 		SelectedModules: selected,
-		JSVerbs:         newScopedJSVerbSourceSet(h.Providers, h.EmbeddedJSVerbs, h.RuntimeSpec.JSVerbs, instance.Sources),
+		JSVerbs:         newScopedJSVerbSourceSet(h.Providers, h.EmbeddedJSVerbs, h.RuntimePlan.sourcesByKind(SourceKindJSVerbs), instance.Sources),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create command set %s.%s: %w", instance.Package, instance.Name, err)
+		return nil, fmt.Errorf("create command set %s.%s: %w", instance.ProviderID(), instance.Name, err)
 	}
 	if set == nil {
-		return nil, fmt.Errorf("command provider %s.%s returned nil command set", instance.Package, instance.Name)
+		return nil, fmt.Errorf("command provider %s.%s returned nil command set", instance.ProviderID(), instance.Name)
 	}
 	return set, nil
 }
 
-func (h *Host) selectedModulesForCommandProvider(instance CommandProviderInstanceSpec) ([]providerapi.ModuleDescriptor, error) {
+func (h *Host) selectedModulesForCommandProvider(instance CommandPlan) ([]providerapi.ModuleDescriptor, error) {
 	descriptors, err := h.Factory.selectedModuleDescriptors()
 	if err != nil {
 		return nil, err
@@ -187,7 +190,7 @@ func (c mountedGlazeCommand) RunIntoGlazeProcessor(ctx context.Context, vals *va
 	return c.command.(cmds.GlazeCommand).RunIntoGlazeProcessor(ctx, vals, gp)
 }
 
-func commandProviderUse(instance CommandProviderInstanceSpec, mount string) string {
+func commandProviderUse(instance CommandPlan, mount string) string {
 	if strings.TrimSpace(mount) != "" {
 		return strings.TrimSpace(mount)
 	}

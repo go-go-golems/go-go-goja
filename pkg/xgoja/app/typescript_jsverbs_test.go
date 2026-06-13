@@ -29,11 +29,11 @@ func TestScanVerbSourceTypeScriptScansAndInvokesBundledVerb(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, JSVerbSourceSpec{
+	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, SourcePlan{
 		ID:         "local",
 		Path:       dir,
 		Extensions: []string{".ts"},
-		TypeScript: &TypeScriptSpec{Enabled: true, Bundle: true, Target: "es2015", Format: "cjs", Platform: "neutral"},
+		TypeScript: &TypeScriptPlan{Enabled: true, Bundle: true, Target: "es2015", Format: "cjs", Platform: "neutral"},
 	}, nil)
 	if err != nil {
 		t.Fatalf("scanVerbSource() error = %v", err)
@@ -72,10 +72,10 @@ func TestScanVerbSourceTypeScriptUsesTypeScriptExtensionsByDefault(t *testing.T)
 		t.Fatal(err)
 	}
 
-	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, JSVerbSourceSpec{
+	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, SourcePlan{
 		ID:         "local",
 		Path:       dir,
-		TypeScript: &TypeScriptSpec{Enabled: true, Bundle: true, Target: "es2015", Format: "cjs", Platform: "neutral"},
+		TypeScript: &TypeScriptPlan{Enabled: true, Bundle: true, Target: "es2015", Format: "cjs", Platform: "neutral"},
 	}, nil)
 	if err != nil {
 		t.Fatalf("scanVerbSource() error = %v", err)
@@ -132,12 +132,12 @@ func TestScanVerbSourceTypeScriptProviderFSBundlesHelperImport(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 
-	registry, err := scanVerbSource(providers, nil, JSVerbSourceSpec{
+	registry, err := scanVerbSource(providers, nil, SourcePlan{
 		ID:         "provider-sites",
 		Package:    "fixture",
 		Source:     "sites",
 		Extensions: []string{".ts"},
-		TypeScript: &TypeScriptSpec{Enabled: true, Bundle: true, Target: "es2015", Format: "cjs", Platform: "neutral"},
+		TypeScript: &TypeScriptPlan{Enabled: true, Bundle: true, Target: "es2015", Format: "cjs", Platform: "neutral"},
 	}, nil)
 	if err != nil {
 		t.Fatalf("scanVerbSource() error = %v", err)

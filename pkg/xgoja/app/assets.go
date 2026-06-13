@@ -15,7 +15,7 @@ var _ providerapi.HostServiceLookup = HostServices{}
 
 type AssetStore struct {
 	fsys   fs.FS
-	assets map[string]AssetSourceSpec
+	assets map[string]SourcePlan
 }
 
 type HostServices struct {
@@ -23,15 +23,15 @@ type HostServices struct {
 	Services map[string][]any
 }
 
-func NewAssetStore(fsys fs.FS, runtimeSpec *RuntimeSpec) *AssetStore {
+func NewAssetStore(fsys fs.FS, runtimePlan *RuntimePlan) *AssetStore {
 	store := &AssetStore{
 		fsys:   fsys,
-		assets: map[string]AssetSourceSpec{},
+		assets: map[string]SourcePlan{},
 	}
-	if runtimeSpec == nil {
+	if runtimePlan == nil {
 		return store
 	}
-	for _, asset := range runtimeSpec.Assets {
+	for _, asset := range runtimePlan.sourcesByKind(SourceKindAssets) {
 		id := strings.TrimSpace(asset.ID)
 		if id == "" {
 			continue

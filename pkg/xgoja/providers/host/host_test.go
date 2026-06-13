@@ -55,9 +55,9 @@ func TestFSHostAndEmbeddedAliases(t *testing.T) {
 	assetFS := fstest.MapFS{
 		"xgoja_embed/assets/app/config/default.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
 	}
-	runtimeSpec := &app.RuntimeSpec{
-		Assets: []app.AssetSourceSpec{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
-		Modules: []app.ModuleInstanceSpec{
+	runtimePlan := &app.RuntimePlan{
+		Assets: []app.SourcePlan{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
+		Modules: []app.RuntimeModulePlan{
 			{
 				Package: PackageID,
 				Name:    "fs",
@@ -77,7 +77,7 @@ func TestFSHostAndEmbeddedAliases(t *testing.T) {
 			},
 		},
 	}
-	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{EmbeddedAssets: assetFS})
+	host := app.NewHostWithOptions(registry, runtimePlan, app.HostOptions{EmbeddedAssets: assetFS})
 	rt, err := host.Factory.NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
@@ -118,9 +118,9 @@ func TestFSRootEmbeddedMount(t *testing.T) {
 	assetFS := fstest.MapFS{
 		"xgoja_embed/assets/app/config/default.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
 	}
-	runtimeSpec := &app.RuntimeSpec{
-		Assets: []app.AssetSourceSpec{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
-		Modules: []app.ModuleInstanceSpec{{
+	runtimePlan := &app.RuntimePlan{
+		Assets: []app.SourcePlan{{ID: "app-assets", Path: "xgoja_embed/assets/app", Embed: true}},
+		Modules: []app.RuntimeModulePlan{{
 			Package: PackageID,
 			Name:    "fs",
 			As:      "fs:assets",
@@ -132,7 +132,7 @@ func TestFSRootEmbeddedMount(t *testing.T) {
 			},
 		}},
 	}
-	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{EmbeddedAssets: assetFS})
+	host := app.NewHostWithOptions(registry, runtimePlan, app.HostOptions{EmbeddedAssets: assetFS})
 	rt, err := host.Factory.NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
@@ -179,8 +179,8 @@ func TestDatabasePreconfiguredFromProviderConfig(t *testing.T) {
 		t.Fatalf("register host provider: %v", err)
 	}
 	dbPath := filepath.ToSlash(filepath.Join(t.TempDir(), "site.db"))
-	runtimeSpec := &app.RuntimeSpec{
-		Modules: []app.ModuleInstanceSpec{{
+	runtimePlan := &app.RuntimePlan{
+		Modules: []app.RuntimeModulePlan{{
 			Package: PackageID,
 			Name:    "db",
 			As:      "db",
@@ -190,7 +190,7 @@ func TestDatabasePreconfiguredFromProviderConfig(t *testing.T) {
 			},
 		}},
 	}
-	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{})
+	host := app.NewHostWithOptions(registry, runtimePlan, app.HostOptions{})
 	rt, err := host.Factory.NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
@@ -250,15 +250,15 @@ func TestDatabaseAllowConfigureModeStillWorks(t *testing.T) {
 		t.Fatalf("register host provider: %v", err)
 	}
 	dbPath := filepath.ToSlash(filepath.Join(t.TempDir(), "configured-by-js.db"))
-	runtimeSpec := &app.RuntimeSpec{
-		Modules: []app.ModuleInstanceSpec{{
+	runtimePlan := &app.RuntimePlan{
+		Modules: []app.RuntimeModulePlan{{
 			Package: PackageID,
 			Name:    "db",
 			As:      "db",
 			Config:  map[string]any{"allowConfigure": true},
 		}},
 	}
-	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{})
+	host := app.NewHostWithOptions(registry, runtimePlan, app.HostOptions{})
 	rt, err := host.Factory.NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)

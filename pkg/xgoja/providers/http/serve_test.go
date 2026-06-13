@@ -128,8 +128,8 @@ module.exports = { register };
 	if !ok || len(capabilities) != 1 {
 		t.Fatalf("http capabilities = %#v", capabilities)
 	}
-	runtimeSpec := &app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{{Package: PackageID, Name: "express", As: "express"}}}
-	factory := app.NewRuntimeFactory(providers, runtimeSpec, app.HostServices{})
+	runtimePlan := &app.RuntimePlan{Modules: []app.RuntimeModulePlan{{Package: PackageID, Name: "express", As: "express"}}}
+	factory := app.NewRuntimeFactory(providers, runtimePlan, app.HostServices{})
 	addr := freeServeTestAddr(t)
 	parsedValues := serveHotReloadTestValues(t, addr, map[string]any{})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -180,8 +180,8 @@ func TestServeVerbHotReloadServesStatusAndReloadsChangedSource(t *testing.T) {
 	if err := Register(providers); err != nil {
 		t.Fatalf("register http provider: %v", err)
 	}
-	runtimeSpec := &app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{{Package: PackageID, Name: "express", As: "express"}}}
-	factory := app.NewRuntimeFactory(providers, runtimeSpec, app.HostServices{})
+	runtimePlan := &app.RuntimePlan{Modules: []app.RuntimeModulePlan{{Package: PackageID, Name: "express", As: "express"}}}
+	factory := app.NewRuntimeFactory(providers, runtimePlan, app.HostServices{})
 	addr := freeServeTestAddr(t)
 	parsedValues := serveHotReloadTestValues(t, addr, map[string]any{
 		"hot-reload":             true,

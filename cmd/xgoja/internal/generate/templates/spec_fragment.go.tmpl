@@ -9,10 +9,10 @@ import (
 
 const EmbeddedSpecJSON = `{{ .SpecJSON }}`
 
-func DecodeSpec() (*app.RuntimeSpec, error) {
-	runtimeSpec := &app.RuntimeSpec{}
-	if err := json.Unmarshal([]byte(EmbeddedSpecJSON), runtimeSpec); err != nil {
+func DecodeSpec() (*app.RuntimePlan, error) {
+	runtimePlan := &app.RuntimePlan{}
+	if err := json.Unmarshal([]byte(EmbeddedSpecJSON), runtimePlan); err != nil {
 		return nil, err
 	}
-	return runtimeSpec, nil
+	return runtimePlan, nil
 }

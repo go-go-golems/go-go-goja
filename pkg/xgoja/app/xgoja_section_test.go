@@ -61,7 +61,7 @@ func TestRuntimeFactoryDebugPanicStackFieldControlsRecoveredPanicStack(t *testin
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	factory := NewRuntimeFactory(registry, &RuntimeSpec{Modules: []ModuleInstanceSpec{{Package: "panic", Name: "panic", As: "panic"}}})
+	factory := NewRuntimeFactory(registry, &RuntimePlan{Modules: []RuntimeModulePlan{{Package: "panic", Name: "panic", As: "panic"}}})
 
 	for _, tc := range []struct {
 		name      string

@@ -375,11 +375,11 @@ func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{}
-	if err := json.Unmarshal([]byte(fixtureSpecJSON), runtimeSpec); err != nil {
+	runtimePlan := &RuntimePlan{}
+	if err := json.Unmarshal([]byte(fixtureSpecJSON), runtimePlan); err != nil {
 		t.Fatalf("parse runtime spec: %v", err)
 	}
-	rt, err := NewRuntimeFactory(registry, runtimeSpec).NewRuntime(context.Background())
+	rt, err := NewRuntimeFactory(registry, runtimePlan).NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}

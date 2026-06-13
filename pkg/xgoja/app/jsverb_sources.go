@@ -12,18 +12,18 @@ import (
 type jsVerbSourceSet struct {
 	providers       *providerapi.ProviderRegistry
 	embeddedJSVerbs fs.FS
-	sources         []JSVerbSourceSpec
+	sources         []SourcePlan
 }
 
-func newJSVerbSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, sources []JSVerbSourceSpec) *jsVerbSourceSet {
+func newJSVerbSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, sources []SourcePlan) *jsVerbSourceSet {
 	return &jsVerbSourceSet{
 		providers:       providers,
 		embeddedJSVerbs: embeddedJSVerbs,
-		sources:         append([]JSVerbSourceSpec(nil), sources...),
+		sources:         append([]SourcePlan(nil), sources...),
 	}
 }
 
-func newScopedJSVerbSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, sources []JSVerbSourceSpec, selectedIDs []string) *jsVerbSourceSet {
+func newScopedJSVerbSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, sources []SourcePlan, selectedIDs []string) *jsVerbSourceSet {
 	if len(selectedIDs) == 0 {
 		return newJSVerbSourceSet(providers, embeddedJSVerbs, sources)
 	}
@@ -34,7 +34,7 @@ func newScopedJSVerbSourceSet(providers *providerapi.ProviderRegistry, embeddedJ
 			wanted[id] = struct{}{}
 		}
 	}
-	filtered := make([]JSVerbSourceSpec, 0, len(sources))
+	filtered := make([]SourcePlan, 0, len(sources))
 	for _, source := range sources {
 		if _, ok := wanted[source.ID]; ok {
 			filtered = append(filtered, source)
@@ -53,7 +53,7 @@ func (s *jsVerbSourceSet) ListJSVerbSources() []providerapi.JSVerbSourceDescript
 			ID:         source.ID,
 			Path:       source.Path,
 			Embed:      source.Embed,
-			Package:    source.Package,
+			Package:    source.ProviderID(),
 			Source:     source.Source,
 			Include:    append([]string(nil), source.Include...),
 			Exclude:    append([]string(nil), source.Exclude...),
@@ -64,7 +64,7 @@ func (s *jsVerbSourceSet) ListJSVerbSources() []providerapi.JSVerbSourceDescript
 	return out
 }
 
-func providerTypeScriptDescriptor(spec *TypeScriptSpec) *providerapi.TypeScriptDescriptor {
+func providerTypeScriptDescriptor(spec *TypeScriptPlan) *providerapi.TypeScriptDescriptor {
 	if spec == nil {
 		return nil
 	}

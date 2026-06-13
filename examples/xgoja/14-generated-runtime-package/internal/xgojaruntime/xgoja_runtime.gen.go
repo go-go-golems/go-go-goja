@@ -63,7 +63,7 @@ type Options struct {
 
 type Bundle struct {
 	Providers   *providerapi.ProviderRegistry
-	RuntimeSpec *app.RuntimeSpec
+	RuntimePlan *app.RuntimePlan
 	Host        *app.Host
 }
 
@@ -77,12 +77,12 @@ func RegisterProviders(registry *providerapi.ProviderRegistry) error {
 	return nil
 }
 
-func DecodeSpec() (*app.RuntimeSpec, error) {
-	runtimeSpec := &app.RuntimeSpec{}
-	if err := json.Unmarshal([]byte(EmbeddedSpecJSON), runtimeSpec); err != nil {
+func DecodeSpec() (*app.RuntimePlan, error) {
+	runtimePlan := &app.RuntimePlan{}
+	if err := json.Unmarshal([]byte(EmbeddedSpecJSON), runtimePlan); err != nil {
 		return nil, err
 	}
-	return runtimeSpec, nil
+	return runtimePlan, nil
 }
 
 func NewBundle(opts Options) (*Bundle, error) {
@@ -90,16 +90,16 @@ func NewBundle(opts Options) (*Bundle, error) {
 	if err := RegisterProviders(registry); err != nil {
 		return nil, err
 	}
-	runtimeSpec, err := DecodeSpec()
+	runtimePlan, err := DecodeSpec()
 	if err != nil {
 		return nil, err
 	}
-	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{
+	host := app.NewHostWithOptions(registry, runtimePlan, app.HostOptions{
 		Out:               opts.Out,
 		MiddlewaresFunc:   opts.MiddlewaresFunc,
 		ConfigureServices: opts.ConfigureServices,
 	})
-	return &Bundle{Providers: registry, RuntimeSpec: runtimeSpec, Host: host}, nil
+	return &Bundle{Providers: registry, RuntimePlan: runtimePlan, Host: host}, nil
 }
 
 func (b *Bundle) TypeScriptDeclarations() (string, error) {

@@ -77,9 +77,9 @@ func typedTestHost(t *testing.T) *Host {
 	if err := core.Register(registry); err != nil {
 		t.Fatalf("register core provider: %v", err)
 	}
-	return NewHost(registry, &RuntimeSpec{
+	return NewHost(registry, &RuntimePlan{
 		Name: "typed-test",
-		Modules: []ModuleInstanceSpec{{
+		Modules: []RuntimeModulePlan{{
 			Package: core.PackageID,
 			Name:    "path",
 			As:      "path:runtime",
