@@ -23,19 +23,30 @@ RelatedFiles:
     - Path: examples/xgoja/14-generated-runtime-package/internal/xgojaruntime/xgoja_runtime.gen.go
       Note: Step 4 checked-in runtime package fixture updated for RuntimePlan (commit 617b977)
     - Path: pkg/xgoja/app/command_providers.go
-      Note: Step 3 passes filtered source set to provider command contexts (commit 556ed5c)
+      Note: |-
+        Step 3 passes filtered source set to provider command contexts (commit 556ed5c)
+        Step 5 provider command contexts receive scoped source registries (commit 8bcc367)
+    - Path: pkg/xgoja/app/command_providers_test.go
+      Note: Step 5 scoped source registry regression coverage (commit 8bcc367)
     - Path: pkg/xgoja/app/jsverb_sources.go
       Note: Step 3 command-scoped JS verb source filtering (commit 556ed5c)
     - Path: pkg/xgoja/app/runtime_spec.go
       Note: |-
         Step 3 interim source IDs on command-provider metadata (commit 556ed5c)
         Step 4 v2 RuntimePlan DTO and transitional decode path (commit 617b977)
+    - Path: pkg/xgoja/app/source_registry.go
+      Note: Step 5 runtime SourceRegistry implementation (commit 8bcc367)
+    - Path: pkg/xgoja/providerapi/commands.go
+      Note: Step 5 CommandSetContext carries SourceRegistry (commit 8bcc367)
+    - Path: pkg/xgoja/providerapi/sources.go
+      Note: Step 5 provider-facing SourceRegistry API (commit 8bcc367)
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -588,4 +599,119 @@ commandProviders
 jsverbs
 help
 assets
+```
+
+## Step 5: Add v2 runtime SourceRegistry for provider command sets
+
+I added the provider-facing runtime source registry layer so command providers no longer need to reason only in terms of the legacy JSVerb-specific adapter. Provider command contexts now receive a `SourceRegistry` that can list all command-scoped sources, filter by source kind, look up sources by ID, and expose a JS verb adapter for providers such as HTTP serve that still consume JS verb registries.
+
+This step keeps HTTP serve working while moving the provider API toward the v2 model: commands own source selection, the runtime builds a command-scoped registry, and JS verbs become one adapter on top of the generic source registry rather than the only source API.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue advancing all xgoja v2 cutover phases, with sessionstream deferred until the go-go-goja runtime path is ready.
+
+**Inferred user intent:** Keep removing the legacy runtime bridge and move provider/source APIs toward the v2-native design.
+
+**Commit (code):** 8bcc367 — "Add xgoja runtime SourceRegistry"
+
+### What I did
+
+- Added `pkg/xgoja/providerapi/sources.go` with:
+  - `RuntimeSourceKind`
+  - `RuntimeSourceDescriptor`
+  - `SourceRegistry`
+- Added `pkg/xgoja/app/source_registry.go` with runtime source listing, kind filtering, ID lookup, command scoping, and `JSVerbs()` adapter support.
+- Extended `providerapi.CommandSetContext` with `Sources providerapi.SourceRegistry`.
+- Updated `Host.newCommandSet` to construct a command-scoped `SourceRegistry` from `CommandPlan.Sources`.
+- Kept `ctx.JSVerbs` populated from the scoped registry so existing providers continue working while the API migrates.
+- Added test coverage proving provider command sets receive only selected sources through both `ctx.Sources` and the JS verb adapter.
+- Marked tasks 22, 26, 32, 33, and 34 complete.
+
+### Why
+
+- The v2 runtime plan represents all sources uniformly. Provider commands should receive that uniform view instead of only a global JS verb set.
+- HTTP serve still needs a `JSVerbSourceSet` today, so the registry supplies an adapter while the provider implementation migrates in later phases.
+- Command-scoped source filtering is now centralized in one runtime source registry instead of being hand-built per provider context.
+
+### What worked
+
+- Focused tests passed:
+
+```text
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi ./pkg/xgoja/providers/http -count=1
+```
+
+- The pre-commit hook passed lint, `go generate ./...`, and `go test ./...` before commit `8bcc367` was created.
+
+### What didn't work
+
+The first commit attempt failed lint because the old helper became unused after `SourceRegistry.Scoped` replaced it:
+
+```text
+pkg/xgoja/app/jsverb_sources.go:26:6: func newScopedJSVerbSourceSet is unused (unused)
+```
+
+I removed that helper and reran the commit hook successfully.
+
+A focused test also initially failed because compatibility-only `RuntimePlan.JSVerbs`/`Assets` fields did not have `Kind` set when converted to the unified source view. I adjusted `RuntimePlan.allSources()` to tag those compatibility sources as `jsverbs` or `assets` before filtering.
+
+### What I learned
+
+- The generic source registry can coexist with the JSVerb adapter cleanly: `SourceRegistry.JSVerbs()` returns a provider-compatible `JSVerbSourceSet` built from the same scoped source list.
+- Compatibility fields are still a liability because they require normalization logic. Removing those fields remains important for the final cleanup.
+- Centralizing command source filtering makes provider command tests simpler and avoids duplicating filtering behavior across HTTP serve and future providers.
+
+### What was tricky to build
+
+- The registry had to serve both the new provider-neutral API and the old JSVerb scanning API without widening the old API further.
+- The source kind information is guaranteed in generated v2 output, but not in old test literals. That mismatch surfaced in tests and required transitional normalization.
+- `CommandSetContext` now contains both `Sources` and `JSVerbs`; reviewers should treat `JSVerbs` as an adapter for current providers, not the long-term primary API.
+
+### What warrants a second pair of eyes
+
+- Whether `SourceRegistry.JSVerbs()` should return nil or an empty adapter when no JS verb sources exist. Current behavior returns an adapter over an empty source list.
+- Whether provider-facing `RuntimeSourceDescriptor` should expose more origin metadata before docs are finalized.
+- The temporary compatibility path in `RuntimePlan.allSources()` should be removed once old tests are migrated.
+
+### What should be done in the future
+
+- Update HTTP serve to consume `ctx.Sources` directly and only use `ctx.JSVerbs` as a compatibility adapter during transition.
+- Remove compatibility `RuntimePlan` fields and decode paths.
+- Update provider docs to describe `CommandSetContext.Sources` as the primary source API.
+
+### Code review instructions
+
+- Review `pkg/xgoja/providerapi/sources.go` for the provider-facing API.
+- Review `pkg/xgoja/app/source_registry.go` for scoping and descriptor conversion.
+- Review `pkg/xgoja/app/command_providers.go` to see where each provider command receives a scoped registry.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi ./pkg/xgoja/providers/http -count=1
+go test ./... -count=1
+```
+
+### Technical details
+
+A provider command scoped like this:
+
+```yaml
+commands:
+  - id: serve
+    type: provider.command-set
+    provider: go-go-goja-http
+    name: serve
+    sources: [site-a]
+```
+
+now receives a `CommandSetContext` where:
+
+```go
+ctx.Sources.SourceByID("site-a") // true
+ctx.Sources.SourceByID("site-b") // false
+ctx.Sources.ListSourcesByKind(providerapi.RuntimeSourceKindJSVerbs) // only site-a
+ctx.JSVerbs.ListJSVerbSources() // only site-a
 ```
