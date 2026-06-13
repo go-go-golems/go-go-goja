@@ -286,6 +286,42 @@ bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{
 
 With `OwnsListen: false`, Express route/static registration populates `jsHost` but the HTTP provider does not bind a TCP listener. The outer Go application remains responsible for mounting `jsHost` on its mux and starting `net/http.Server`.
 
+### HTTP host sharing and mountable handlers
+
+The HTTP provider owns the `gojahttp.Host` used by the `express` runtime module unless a host application injects an external host service. Other provider modules should not depend on the Express provider directly when they need to expose Go HTTP behavior. Instead, they should expose JavaScript objects that carry the shared `gojahttp` mountable-handler ABI.
+
+A producer module attaches a Go handler to a JavaScript object:
+
+```go
+obj := vm.NewObject()
+if err := gojahttp.AttachHTTPHandler(vm, obj, handler); err != nil {
+    return nil, err
+}
+```
+
+JavaScript can then compose that object with Express:
+
+```js
+const express = require("express")
+const app = express.app()
+
+app.mount("/ws", wsServer)
+```
+
+This pattern keeps ownership clear. The producer module owns the Go `http.Handler`; the HTTP provider owns or receives the `gojahttp.Host`; JavaScript decides where the handler is mounted. Use host services when a Go embedding application needs to provide the host itself. Use the mountable-handler ABI when a JavaScript application needs to connect a Go-backed handler object to that host.
+
+`app.mount()` deliberately performs prefix matching only. Do not make provider modules depend on JavaScript route parameters for Go-owned transports. If the mounted handler needs parameters or wildcards, route inside the Go handler by inspecting `r.URL.Path` or by using a Go router such as `http.ServeMux`:
+
+```go
+mux := http.NewServeMux()
+mux.HandleFunc("GET /ws/rooms/{roomID}", func(w http.ResponseWriter, r *http.Request) {
+    roomID := r.PathValue("roomID")
+    serveRoomSocket(w, r, roomID)
+})
+```
+
+This is especially important for WebSocket servers, where the Go handler normally owns upgrade behavior, origin checks, subprotocol negotiation, and transport-specific routing.
+
 ## Reading host services during module setup
 
 Provider modules read contributed services from `ModuleSetupContext.Host` by asserting `providerapi.HostServiceLookup`.
