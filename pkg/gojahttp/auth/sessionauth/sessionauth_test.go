@@ -106,6 +106,26 @@ func TestAuthenticateRequiresFreshMFA(t *testing.T) {
 	}
 }
 
+func TestMemoryStoreRotateValidatesNextBeforeDeletingOld(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	now := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
+	old := Session{ID: "old-session", UserID: "u1", CSRFToken: "csrf", CreatedAt: now}
+	if err := store.Create(ctx, old); err != nil {
+		t.Fatalf("create old: %v", err)
+	}
+	if err := store.Rotate(ctx, old.ID, Session{UserID: "u2"}); err == nil {
+		t.Fatalf("expected invalid next session error")
+	}
+	got, err := store.Get(ctx, old.ID)
+	if err != nil {
+		t.Fatalf("old session should remain after failed rotate: %v", err)
+	}
+	if got.UserID != "u1" {
+		t.Fatalf("unexpected old session after failed rotate: %#v", got)
+	}
+}
+
 func TestExpiredRevokedAndRotatedSessions(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)

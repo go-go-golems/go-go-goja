@@ -390,12 +390,12 @@ func (s *MemoryStore) Touch(_ context.Context, id string, now time.Time, idleExp
 }
 
 func (s *MemoryStore) Rotate(_ context.Context, oldID string, next Session) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.sessions, oldID)
 	if next.ID == "" {
 		return fmt.Errorf("next session id is required")
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sessions, oldID)
 	s.sessions[next.ID] = cloneSession(next)
 	return nil
 }

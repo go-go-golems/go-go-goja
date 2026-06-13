@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 )
@@ -76,6 +77,22 @@ func TestAuthorizerDeniesNegativeCases(t *testing.T) {
 		if decision.Allowed || decision.Reason == "" {
 			t.Fatalf("expected denial with reason for %#v, got %#v", req, decision)
 		}
+	}
+}
+
+func TestUpsertFromOIDCRejectsDisabledExistingUser(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	disabledAt := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
+	store.AddUser(User{ID: "u-disabled", KeycloakSub: "kc-disabled", Email: "old@example.test", DisabledAt: &disabledAt})
+
+	_, err := store.UpsertFromOIDC(ctx, "kc-disabled", "new@example.test", true)
+	if !errors.Is(err, gojahttp.ErrNotFound) {
+		t.Fatalf("expected disabled user upsert to be rejected, got %v", err)
+	}
+	_, err = store.ByKeycloakSub(ctx, "kc-disabled")
+	if !errors.Is(err, gojahttp.ErrNotFound) {
+		t.Fatalf("disabled user should remain hidden, got %v", err)
 	}
 }
 

@@ -241,6 +241,9 @@ func (s *MemoryStore) UpsertFromOIDC(_ context.Context, sub, email string, email
 	defer s.mu.Unlock()
 	if id, ok := s.usersBySub[sub]; ok {
 		user := s.users[id]
+		if user.DisabledAt != nil {
+			return nil, gojahttp.ErrNotFound
+		}
 		user.Email = email
 		user.EmailVerified = emailVerified
 		s.users[id] = user
