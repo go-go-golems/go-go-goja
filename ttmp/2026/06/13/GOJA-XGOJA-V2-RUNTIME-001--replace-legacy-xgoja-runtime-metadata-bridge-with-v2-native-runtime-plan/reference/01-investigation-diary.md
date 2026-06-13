@@ -1220,3 +1220,144 @@ ctx.Sources.JSVerbs()
 ctx.Sources.ListSourcesByKind(...)
 ctx.Sources.SourceByID(...)
 ```
+
+## Step 10: Final example and help validation
+
+I ran the final validation sweep for affected xgoja examples and documentation/help pages after the RuntimePlan hard cutover. The core generated-runtime examples passed, including runtime-package generation, HTTP serve jsverbs, TypeScript jsverbs, embedded assets, embedded/filesystem/provider jsverbs, command providers, and protobuf builder provider checks.
+
+One example smoke target did not pass: `examples/xgoja/09-provider-shipped-help-docs`. Its failure was environmental rather than caused by the RuntimePlan work: the example points at a sibling `../loupedeck` replacement, but `/home/manuel/workspaces/2026-06-12/goja-sessionstream/loupedeck/go.mod` is absent in this workspace. The example's `doctor` and `list-modules` steps still validated the xgoja/v2 plan shape before `go mod tidy` failed on the missing local module.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Continue with the remaining Phase 10 final validation, diary/changelog, and reMarkable handoff work.
+
+**Inferred user intent:** Finish the cutover ticket bookkeeping and delivery after active legacy removal.
+
+### What I did
+
+- Ran the example smoke sweep for:
+  - `01-core-provider`
+  - `02-host-provider`
+  - `03-single-runtime-modules`
+  - `04-module-sections`
+  - `05-command-provider`
+  - `06-runtime-filesystem`
+  - `07-embedded-jsverbs`
+  - `08-provider-shipped-jsverbs`
+  - `09-provider-shipped-help-docs`
+  - `10-embedded-assets-fs`
+  - `13-http-serve-jsverbs`
+  - `14-generated-runtime-package`
+  - `15-protobuf-builder-provider`
+  - `16-typescript-jsverbs`
+- Ran xgoja help rendering for key docs:
+  - `overview`
+  - `user-guide`
+  - `xgoja-v2-reference`
+  - `migrating-to-xgoja-v2`
+  - `provider-runtime-config-and-host-services`
+  - `tutorial-protobuf-builder-provider`
+  - `buildspec-reference`
+- Verified top-level help discovers the main v2 pages.
+- Marked tasks 55 and 56 complete and updated the changelog.
+
+### Why
+
+- Phase 10 requires validating generated outputs and docs after removing the compatibility layer.
+- Example smoke tests catch stale generated JSON shape, generated file naming, source scoping, and runtime package API assumptions.
+- Help rendering catches malformed frontmatter or Markdown that would break user-facing xgoja documentation.
+
+### What worked
+
+These example smoke targets passed:
+
+```text
+01-core-provider PASS
+02-host-provider PASS
+03-single-runtime-modules PASS
+04-module-sections PASS
+05-command-provider PASS
+06-runtime-filesystem PASS
+07-embedded-jsverbs PASS
+08-provider-shipped-jsverbs PASS
+10-embedded-assets-fs PASS
+13-http-serve-jsverbs PASS
+14-generated-runtime-package PASS
+15-protobuf-builder-provider PASS
+16-typescript-jsverbs PASS
+```
+
+Help validation passed:
+
+```bash
+go run ./cmd/xgoja help overview
+go run ./cmd/xgoja help user-guide
+go run ./cmd/xgoja help xgoja-v2-reference
+go run ./cmd/xgoja help migrating-to-xgoja-v2
+go run ./cmd/xgoja help provider-runtime-config-and-host-services
+go run ./cmd/xgoja help tutorial-protobuf-builder-provider
+go run ./cmd/xgoja help buildspec-reference
+go run ./cmd/xgoja help | rg -n "user-guide|xgoja-v2-reference|migrating-to-xgoja-v2"
+```
+
+### What didn't work
+
+`examples/xgoja/09-provider-shipped-help-docs` failed during generated build `go mod tidy`:
+
+```text
+Error: go mod tidy failed: exit status 1
+go: github.com/go-go-golems/loupedeck@v0.0.0 (replaced by /home/manuel/workspaces/2026-06-12/goja-sessionstream/loupedeck): reading /home/manuel/workspaces/2026-06-12/goja-sessionstream/loupedeck/go.mod: open /home/manuel/workspaces/2026-06-12/goja-sessionstream/loupedeck/go.mod: no such file or directory
+```
+
+This is an external checkout/precondition problem: the sibling `loupedeck` directory is not present in this workspace. The failure occurred after `doctor` and `list-modules` succeeded.
+
+### What I learned
+
+- The RuntimePlan cutover did not break the normal generated examples that rely on local go-go-goja providers.
+- The remaining example-suite fragility is from examples that depend on sibling repositories not present in the workspace.
+- Help pages still render after the terminology and API updates.
+
+### What was tricky to build
+
+- The example sweep had to distinguish RuntimePlan failures from missing external-module failures. The 09 example still validates planning but cannot build without the external loupedeck checkout.
+- Some examples intentionally do not perform the same depth of build validation; for example, the protobuf builder provider smoke target currently runs tests, doctor, and list-modules rather than building the generated binary.
+
+### What warrants a second pair of eyes
+
+- Decide whether `09-provider-shipped-help-docs` should be changed to skip gracefully when the sibling loupedeck checkout is absent, or whether the repository should document that precondition more explicitly.
+- Decide whether `15-protobuf-builder-provider` smoke should include the `build` target now that runtime generation has stabilized.
+
+### What should be done in the future
+
+- Upload the final implementation/reference bundle to reMarkable.
+- Optionally revisit the loupedeck-dependent example to make bulk smoke loops more self-contained.
+
+### Code review instructions
+
+- Review `ttmp/.../changelog.md` and this diary entry for validation evidence.
+- Re-run the smoke status loop if needed:
+
+```bash
+for dir in 01-core-provider 02-host-provider 03-single-runtime-modules 04-module-sections 05-command-provider 06-runtime-filesystem 07-embedded-jsverbs 08-provider-shipped-jsverbs 09-provider-shipped-help-docs 10-embedded-assets-fs 13-http-serve-jsverbs 14-generated-runtime-package 15-protobuf-builder-provider 16-typescript-jsverbs; do
+  make -C examples/xgoja/$dir smoke
+ done
+```
+
+### Technical details
+
+The failing 09 example points at:
+
+```yaml
+providers:
+  - id: loupedeck
+    module:
+      replace: ../../../../loupedeck
+```
+
+In this workspace, the resolved path is missing:
+
+```text
+/home/manuel/workspaces/2026-06-12/goja-sessionstream/loupedeck/go.mod
+```

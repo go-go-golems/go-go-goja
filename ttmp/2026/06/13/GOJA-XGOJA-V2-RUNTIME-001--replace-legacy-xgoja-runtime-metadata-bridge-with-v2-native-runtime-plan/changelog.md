@@ -161,3 +161,22 @@ Validated runtime legacy removal with pre-commit lint, go generate ./..., and go
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/internal/generate — Validated RuntimePlan-named generated outputs (commit 207bead)
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/runtime_plan.go — Validated RuntimePlan-only runtime DTO (commit 207bead)
 
+
+## 2026-06-13
+
+Ran final xgoja example smoke sweep and help validation: examples 01-08, 10, 13-16 passed; example 09 failed for missing sibling loupedeck checkout/go.mod rather than RuntimePlan code; help pages overview/user-guide/v2-reference/migration/provider/protobuf/buildspec render and top-level help discovers key v2 pages.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/cmd/xgoja/doc — Help pages rendered and discoverability checked
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/examples/xgoja — Example smoke sweep results for Phase 10 validation
+
+
+## 2026-06-13
+
+Final diary updated with example smoke/help validation evidence, including the loupedeck-dependent example precondition failure.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001--replace-legacy-xgoja-runtime-metadata-bridge-with-v2-native-runtime-plan/reference/01-investigation-diary.md — Final validation diary entry
+

@@ -57,7 +57,7 @@
 - [x] Phase 10: Remove or rename all active legacy runtime DTO names and fail CI if generated v2 output reintroduces commandProviders/packages/jsverbs legacy fields
 - [x] Phase 10: Run rg-based removal sweep and document any remaining allowed historical references in tests or migration docs
 - [x] Phase 10: Run full validation: go test ./cmd/xgoja/... ./pkg/xgoja/... ./pkg/gojahttp ./modules/express -count=1 and go test ./... -count=1
-- [ ] Phase 10: Run all xgoja example smoke tests affected by runtime generation and update any stale fixtures/goldens
-- [ ] Phase 10: Run doc/help validation for xgoja docs and verify migration guide/help pages are discoverable through xgoja help
-- [ ] Phase 10: Update ticket diary/changelog with implementation commits, validation commands, failures, and follow-up risks
+- [x] Phase 10: Run all xgoja example smoke tests affected by runtime generation and update any stale fixtures/goldens
+- [x] Phase 10: Run doc/help validation for xgoja docs and verify migration guide/help pages are discoverable through xgoja help
+- [x] Phase 10: Update ticket diary/changelog with implementation commits, validation commands, failures, and follow-up risks
 - [ ] Phase 10: Upload final implementation/reference bundle to reMarkable after docs and tests pass
