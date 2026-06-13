@@ -17,11 +17,11 @@
 
 ## Phase 3 — Audit persistence
 
-- [ ] Add SQL/Postgres schema for audit records.
-- [ ] Implement `audit.Store` SQL adapter.
-- [ ] Test normalized field persistence.
-- [ ] Test recursive redaction before insert.
-- [ ] Add query examples for denied/failed route outcomes.
+- [x] Add SQL/Postgres schema for audit records.
+- [x] Implement `audit.Store` SQL adapter.
+- [x] Test normalized field persistence.
+- [x] Test recursive redaction before insert.
+- [x] Add query examples for denied/failed route outcomes.
 
 ## Phase 4 — Capability persistence
 

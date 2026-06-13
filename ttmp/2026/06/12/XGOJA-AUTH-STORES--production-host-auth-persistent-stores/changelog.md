@@ -48,3 +48,14 @@ Wire Keycloak example smoke to Postgres-backed sessionauth/sqlstore for end-to-e
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml — Postgres service for smoke
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/scripts/smoke.sh — Postgres-backed smoke orchestration
 
+
+## 2026-06-12
+
+Phase 3: add SQL-backed audit store with redaction tests and operational query examples (commit 8821692)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/audit/sqlstore/schema.go — SQL audit schema
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/audit/sqlstore/sqlstore.go — SQL audit store implementation
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/audit/sqlstore/sqlstore_test.go — SQL audit store tests
+

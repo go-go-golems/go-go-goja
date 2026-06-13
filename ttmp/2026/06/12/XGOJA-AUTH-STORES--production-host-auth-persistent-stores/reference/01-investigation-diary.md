@@ -27,6 +27,14 @@ RelatedFiles:
       Note: Clones appauth memory store inputs/outputs for contract parity (commit 22eb7d6)
     - Path: pkg/gojahttp/auth/audit/audit.go
       Note: Adds audit.MemoryStore and record clone isolation (commit 22eb7d6)
+    - Path: pkg/gojahttp/auth/audit/sqlstore/README.md
+      Note: Operational SQL query examples for audit records (commit 8821692)
+    - Path: pkg/gojahttp/auth/audit/sqlstore/schema.go
+      Note: SQLite/Postgres audit schema DDL (commit 8821692)
+    - Path: pkg/gojahttp/auth/audit/sqlstore/sqlstore.go
+      Note: SQL-backed audit.Store implementation (commit 8821692)
+    - Path: pkg/gojahttp/auth/audit/sqlstore/sqlstore_test.go
+      Note: Contract
     - Path: pkg/gojahttp/auth/capability/capability.go
       Note: Clones capability used/revoked timestamps for store isolation (commit 22eb7d6)
     - Path: pkg/gojahttp/auth/internal/appauthtest/store_contract.go
@@ -47,10 +55,11 @@ RelatedFiles:
       Note: Contract and full-projection tests for SQL session store (commit 304f833)
 ExternalSources: []
 Summary: Chronological diary for production auth persistent store planning.
-LastUpdated: 2026-06-12T21:05:00-04:00
+LastUpdated: 2026-06-12T21:10:00-04:00
 WhatFor: Use when resuming work on SQL/Postgres-backed stores for sessions, audit, capabilities, and app auth domain data.
 WhenToUse: Before implementing or reviewing persistent auth store work.
 ---
+
 
 
 
@@ -457,4 +466,101 @@ The Postgres service is intentionally for the Go host's app sessions, not for re
   store, _ := sqlstore.New(sqlstore.Config{DB: db, Dialect: sqlstore.DialectPostgres})
   _ = store.ApplySchema(ctx)
   return sessionauth.New(sessionauth.Config{Store: store, AllowInsecureHTTP: true})
+  ```
+
+
+## Step 5: Add the SQL-backed audit store
+
+This step implemented the second durable auth store adapter: `audit/sqlstore`. The store persists normalized, redacted audit records behind the existing `audit.Store` interface, so planned-route audit sinks can move from console logs or memory to queryable SQL without changing Express route declarations.
+
+The package follows the same pattern as the SQL session store: a small `database/sql` subpackage, dialect-specific DDL for SQLite and Postgres, contract tests using the reusable audit store harness, and additional tests for redaction and operational queries.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue implementing `XGOJA-AUTH-STORES` from the previous checkpoint, using the next incomplete store phase.
+
+**Inferred user intent:** Keep making concrete progress through the persistent auth store plan without stopping after the session store.
+
+**Commit (code):** `8821692` — "Add SQL audit store"
+
+### What I did
+- Added package `pkg/gojahttp/auth/audit/sqlstore`.
+- Added `sqlstore.Store`, implementing `audit.Store` with `database/sql`.
+- Added SQLite and Postgres DDL in `schema.go`.
+- Added `ApplySchema(ctx)` for tests/examples/simple migrations.
+- Added `Snapshot(ctx)` for tests and examples.
+- Added `QueryByOutcome(ctx, outcome, limit)` as a small executable query helper for denied/failed operational checks.
+- Added README query examples for denied/failed outcomes, tenant denials, and resource write history.
+- Added tests that cover:
+  - reusable `audittest.RunStoreContract`,
+  - normalized field persistence,
+  - recursive redaction before insert when using `audit.Sink`,
+  - `QueryByOutcome` ordering and limits,
+  - Postgres placeholder/schema shape.
+- Checked tasks 10-14 in `XGOJA-AUTH-STORES`.
+
+### Why
+- Persistent audit records are required for production auth operations: incident review, denied-route investigation, CSRF failures, and capability/session lifecycle events.
+- Audit storage should remain behind `audit.Store`; route dispatch and Express route plans should only emit `gojahttp.AuditEvent` values through the host-owned sink.
+- Redaction needs to be proven before records hit durable storage, because audit tables are long-lived and often broadly queryable by operators.
+
+### What worked
+- The audit SQL store passed its package tests:
+  ```bash
+  go test ./pkg/gojahttp/auth/audit/... -count=1
+  ```
+- The full auth package test set passed:
+  ```bash
+  go test ./pkg/gojahttp/auth/... -count=1
+  ```
+- The pre-commit hook for `8821692` passed lint and `go test ./...`.
+
+### What didn't work
+- N/A. The implementation and tests passed on the first package-level run.
+
+### What I learned
+- The insert-only `audit.Store` interface is sufficient for production writes, but tests and examples need a read path. `Snapshot(ctx)` and `QueryByOutcome` live on the concrete SQL store without widening the production `audit.Store` interface.
+- Redaction belongs in `audit.Sink`/`Normalizer`, not the SQL store. The SQL test validates the intended path by recording through `audit.Sink` and then verifying the stored JSON contains `[REDACTED]` but not raw secrets.
+- Operational query examples are valuable documentation because audit consumers will often query the table directly rather than through Go APIs.
+
+### What was tricky to build
+- The main design nuance was avoiding a too-large query API. I added only `Snapshot` for tests/examples and `QueryByOutcome` for executable denied/failed examples; production applications can still build their own reports from the table.
+- Another subtle point was preserving the separation between normalization/redaction and persistence. The SQL store intentionally stores what it receives; the host should wire `audit.Sink{Store: store}` so normalization is always applied before insert.
+
+### What warrants a second pair of eyes
+- Whether `attributes_json` should be renamed to `attributes` before stabilizing the schema.
+- Whether `QueryByOutcome` belongs in the package API or should remain documented SQL only.
+- Whether audit insert failures should remain best-effort in route dispatch once this store is wired into the Keycloak smoke.
+- Whether additional indexes are needed for high-cardinality fields such as `request_id` or `action`.
+
+### What should be done in the future
+- Wire `audit/sqlstore` into the Keycloak/Postgres smoke so route audit events are persisted end-to-end.
+- Add retention/partitioning guidance in production deployment docs.
+- Continue with `capability/sqlstore`, where atomic single-use redemption is the critical behavior.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/audit/sqlstore/sqlstore.go` for insert/query behavior.
+- Review `pkg/gojahttp/auth/audit/sqlstore/schema.go` for table/index choices.
+- Review `pkg/gojahttp/auth/audit/sqlstore/sqlstore_test.go` for redaction and query coverage.
+- Review `pkg/gojahttp/auth/audit/sqlstore/README.md` for operator query examples.
+- Validate with:
+  ```bash
+  go test ./pkg/gojahttp/auth/audit/... -count=1
+  go test ./pkg/gojahttp/auth/... -count=1
+  ```
+
+### Technical details
+- Basic wiring:
+  ```go
+  store, err := sqlstore.New(sqlstore.Config{DB: db, Dialect: sqlstore.DialectPostgres})
+  sink := audit.Sink{Store: store}
+  host := gojahttp.NewHost(gojahttp.HostOptions{
+      Auth: gojahttp.AuthOptions{Audit: sink},
+  })
+  ```
+- Denied outcome query helper:
+  ```go
+  denied, err := store.QueryByOutcome(ctx, "denied", 100)
   ```

@@ -17,6 +17,10 @@ RelatedFiles:
       Note: Defines app-owned user
     - Path: pkg/gojahttp/auth/audit/audit.go
       Note: Defines audit.Store and normalized redacted audit records
+    - Path: pkg/gojahttp/auth/audit/sqlstore/schema.go
+      Note: Audit SQL schema referenced by implementation plan
+    - Path: pkg/gojahttp/auth/audit/sqlstore/sqlstore.go
+      Note: Durable audit store adapter implementing the audit persistence phase
     - Path: pkg/gojahttp/auth/capability/capability.go
       Note: Defines capability.Store and atomic redemption requirements
     - Path: pkg/gojahttp/auth/sessionauth/sessionauth.go
@@ -31,6 +35,7 @@ LastUpdated: 2026-06-12T20:29:29.994874399-04:00
 WhatFor: Use when implementing production-grade persistence for the host auth packages introduced by the Express planned-auth work.
 WhenToUse: Before replacing in-memory session, audit, capability, user, membership, tenant, or resource stores with durable stores.
 ---
+
 
 
 
