@@ -1,17 +1,27 @@
+schema: xgoja/v2
 name: generated-runtime-package
-target:
-  kind: package
-  output: internal/xgojaruntime
-  package: xgojaruntime
-packages:
-  - id: fixture
-    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
-    register: Register
-modules:
-  - package: fixture
-    name: hello
-    as: hello
+app:
+    name: generated-runtime-package
+go:
+    module: xgoja.generated/generated-runtime-package
+    version: "1.26"
+workspace:
+    mode: auto
+providers:
+    - id: fixture
+      import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+      register: Register
+runtime:
+    modules:
+        - provider: fixture
+          name: hello
+          as: hello
 commands:
-  eval:
-    enabled: true
-    name: eval
+    - id: eval
+      type: builtin.eval
+      name: eval
+artifacts:
+    - id: runtime-package
+      type: runtime-package
+      output: internal/xgojaruntime
+      package: xgojaruntime

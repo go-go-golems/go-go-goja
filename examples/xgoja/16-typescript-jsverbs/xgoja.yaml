@@ -1,0 +1,56 @@
+schema: xgoja/v2
+name: typescript-jsverbs
+app:
+  name: typescript-jsverbs
+go:
+  module: xgoja.generated/typescript-jsverbs
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+    register: Register
+runtime:
+  modules:
+    - provider: go-go-goja-http
+      name: express
+sources:
+  - id: local-sites
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    include:
+      - "**/*.ts"
+    exclude:
+      - "**/*.test.ts"
+    extensions:
+      - .ts
+    language: typescript
+    compile:
+      mode: runtime
+      bundle: true
+commands:
+  - id: run
+    type: builtin.run
+    name: run
+  - id: verbs
+    type: builtin.jsverbs
+    name: verbs
+    sources:
+      - local-sites
+  - id: http-serve
+    type: provider.command-set
+    name: serve
+    mount: serve
+    provider: go-go-goja-http
+    sources:
+      - local-sites
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/typescript-jsverbs
+  - id: declarations
+    type: dts
+    output: js/types/xgoja-modules.d.ts
+    strict: true

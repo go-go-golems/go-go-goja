@@ -9,7 +9,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
 )
 
 type listModulesCommand struct {
@@ -30,8 +29,7 @@ func newListModulesCommand() *listModulesCommand {
 	return &listModulesCommand{CommandDescription: cmds.NewCommandDescription("list-modules",
 		cmds.WithShort("List modules selected by an xgoja build spec"),
 		cmds.WithLong(`
-List modules shows the require() modules selected by an xgoja build spec. Phase
-1 wires the command; static build spec parsing is implemented in the buildspec task.
+List modules shows the require() modules selected by a native xgoja/v2 spec.
 
 Examples:
   xgoja list-modules -f xgoja.yaml
@@ -52,14 +50,14 @@ func (c *listModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *va
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
 	}
-	buildSpec, _, err := buildspec.LoadFile(settings.File)
+	compiledPlan, err := loadV2Plan(settings.File)
 	if err != nil {
 		return err
 	}
-	for _, mod := range buildSpec.Modules {
+	for _, mod := range compiledPlan.Config.Runtime.Modules {
 		if addErr := gp.AddRow(ctx, types.NewRow(
 			types.MRP("file", settings.File),
-			types.MRP("package", mod.Package),
+			types.MRP("package", mod.Provider),
 			types.MRP("module", mod.Name),
 			types.MRP("alias", mod.Alias()),
 		)); addErr != nil {

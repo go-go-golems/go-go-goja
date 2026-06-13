@@ -133,7 +133,7 @@ module.exports = { helper };
 		t.Fatalf("write helper module: %v", err)
 	}
 
-	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, JSVerbSourceSpec{ID: "local", Path: dir})
+	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, JSVerbSourceSpec{ID: "local", Path: dir}, nil)
 	if err != nil {
 		t.Fatalf("scan source: %v", err)
 	}

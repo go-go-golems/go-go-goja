@@ -1,4 +1,4 @@
-.PHONY: docker-lint lint lintmax golangci-lint-install gosec govulncheck test test-inspector fuzz fuzz-seeds build goreleaser tag-major tag-minor tag-patch release bump-glazed install-modules glazed-lint-build glazed-lint
+.PHONY: docker-lint lint lintmax golangci-lint-install gosec govulncheck install-generate-tools test test-inspector fuzz fuzz-seeds build goreleaser tag-major tag-minor tag-patch release bump-glazed install-modules glazed-lint-build glazed-lint
 
 all: build
 
@@ -45,7 +45,11 @@ govulncheck:
 	go install golang.org/x/vuln/cmd/govulncheck@latest
 	govulncheck ./...
 
-test:
+install-generate-tools:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+	go install ./cmd/protoc-gen-goja-builder
+
+test: install-generate-tools
 	go generate ./...
 	go test ./...
 
@@ -69,7 +73,7 @@ test-inspector:
 	GOWORK=off go test ./cmd/inspector/... -count=1
 	GOWORK=off go build ./cmd/inspector
 
-build:
+build: install-generate-tools
 	go generate ./...
 	go build ./...
 

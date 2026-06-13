@@ -162,10 +162,32 @@ func (r *Registry) sourceLoader(modulePath string) ([]byte, error) {
 	if file == nil {
 		return nil, require.ModuleFileDoesNotExistError
 	}
-	return []byte(r.injectOverlay(modulePath, file, string(file.Source))), nil
+	prelude := overlayPrelude()
+	overlay := r.overlay(modulePath, file)
+	if r.options.RuntimeTransform != nil {
+		source := append([]byte(nil), file.Source...)
+		original := append([]byte(nil), file.OriginalSource...)
+		if len(original) == 0 {
+			original = append([]byte(nil), source...)
+		}
+		return r.options.RuntimeTransform(RuntimeTransformInput{
+			Path:           file.RelPath,
+			AbsPath:        file.AbsPath,
+			RelPath:        file.RelPath,
+			ModulePath:     file.ModulePath,
+			Source:         source,
+			OriginalSource: original,
+			ResolveDir:     file.ResolveDir,
+			RootFS:         file.RootFS,
+			Language:       file.SourceLanguage,
+			Prelude:        prelude,
+			Overlay:        overlay,
+		})
+	}
+	return []byte(injectPrelude(string(file.Source), overlayPrelude()) + r.overlay(modulePath, file)), nil
 }
 
-func (r *Registry) injectOverlay(moduleKey string, file *FileSpec, source string) string {
+func (r *Registry) overlay(moduleKey string, file *FileSpec) string {
 	functionNames := []string{}
 	if file != nil {
 		for _, fn := range file.Functions {
@@ -193,7 +215,11 @@ func (r *Registry) injectOverlay(moduleKey string, file *FileSpec, source string
 	}
 	suffix.WriteString("};\n")
 
-	prelude := strings.Join([]string{
+	return suffix.String()
+}
+
+func overlayPrelude() string {
+	return strings.Join([]string{
 		`globalThis.__glazedVerbRegistry = globalThis.__glazedVerbRegistry || {};`,
 		`globalThis.__package__ = globalThis.__package__ || function() {};`,
 		`globalThis.__section__ = globalThis.__section__ || function() {};`,
@@ -201,8 +227,6 @@ func (r *Registry) injectOverlay(moduleKey string, file *FileSpec, source string
 		`globalThis.doc = globalThis.doc || function() { return ""; };`,
 		"",
 	}, "\n")
-
-	return injectPrelude(source, prelude) + suffix.String()
 }
 
 func injectPrelude(source, prelude string) string {

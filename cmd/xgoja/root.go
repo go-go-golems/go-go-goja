@@ -21,8 +21,8 @@ func newRootCommand(out io.Writer) (*cobra.Command, error) {
 		Long: `xgoja builds custom goja-powered binaries by generating a Go program
 that imports selected module provider packages and compiling it with the normal Go toolchain.
 
-The first implementation is intentionally staged. The CLI shape is available first;
-buildspec validation and code generation are added in follow-up phases.`,
+Native xgoja/v2 specs are compiled into provider, workspace, source, command,
+and artifact plans before code generation.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return logging.InitLoggerFromCobra(cmd)
 		},
@@ -42,6 +42,7 @@ buildspec validation and code generation are added in follow-up phases.`,
 		newDoctorCommand(),
 		newInspectCommand(),
 		newListModulesCommand(),
+		newMigrateSpecCommand(out),
 	}
 	for _, command := range commands {
 		cobraCommand, err := cli.BuildCobraCommand(command,

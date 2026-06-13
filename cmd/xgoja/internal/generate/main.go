@@ -1,31 +1,30 @@
 package generate
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
-	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/buildspec"
+	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/plan"
 )
 
-func RenderMain(buildSpec *buildspec.BuildSpec) string {
-	rendered, err := renderMainTemplate(mainTemplateDataFromSpec(buildSpec))
+func RenderMainPlan(compiled *plan.Plan) string {
+	rendered, err := renderMainTemplate(mainTemplateDataFromPlan(compiled))
 	if err != nil {
 		panic(err)
 	}
 	return rendered
 }
 
-func RenderPackage(buildSpec *buildspec.BuildSpec, packageName string) string {
-	rendered, err := renderPackageTemplate(packageTemplateDataFromSpec(buildSpec, packageName))
+func RenderPackagePlan(compiled *plan.Plan, packageName string) string {
+	rendered, err := renderPackageTemplate(packageTemplateDataFromPlan(compiled, packageName))
 	if err != nil {
 		panic(err)
 	}
 	return rendered
 }
 
-func RenderSourceFragments(buildSpec *buildspec.BuildSpec, packageName string) map[string]string {
-	data := packageTemplateDataFromSpec(buildSpec, packageName)
+func RenderSourceFragmentsPlan(compiled *plan.Plan, packageName string) map[string]string {
+	data := packageTemplateDataFromPlan(compiled, packageName)
 	fragments := map[string]func(packageTemplateData) (string, error){
 		"spec.gen.go":      renderSpecFragmentTemplate,
 		"providers.gen.go": renderProvidersFragmentTemplate,
@@ -45,215 +44,28 @@ func RenderSourceFragments(buildSpec *buildspec.BuildSpec, packageName string) m
 	return out
 }
 
-func RenderDTSGenMain(buildSpec *buildspec.BuildSpec, strict bool) string {
-	rendered, err := renderDTSGenMainTemplate(dtsGenTemplateDataFromSpec(buildSpec, strict))
+func RenderDTSGenMainPlan(compiled *plan.Plan, strict bool) string {
+	rendered, err := renderDTSGenMainTemplate(dtsGenTemplateDataFromPlan(compiled, strict))
 	if err != nil {
 		panic(err)
 	}
 	return rendered
 }
 
-func RenderCustomTemplate(buildSpec *buildspec.BuildSpec, packageName string, templatePath string) string {
-	rendered, err := loadCustomTemplate(templatePath, packageTemplateDataFromSpec(buildSpec, packageName))
+func RenderCustomTemplatePlan(compiled *plan.Plan, packageName string, templatePath string) string {
+	rendered, err := loadCustomTemplate(templatePath, packageTemplateDataFromPlan(compiled, packageName))
 	if err != nil {
 		panic(err)
 	}
 	return rendered
 }
 
-func RenderEmbeddedSpec(buildSpec *buildspec.BuildSpec) string {
-	buildSpec = runtimeSpec(buildSpec)
-	var helpSpec *buildspec.HelpSpec
-	if len(buildSpec.Help.Sources) > 0 {
-		helpSpec = &buildSpec.Help
-	}
-	payload := struct {
-		Name             string                                  `json:"name"`
-		AppName          string                                  `json:"appName,omitempty"`
-		EnvPrefix        string                                  `json:"envPrefix,omitempty"`
-		ConfigFile       *buildspec.ConfigFileSpec               `json:"configFile,omitempty"`
-		Target           buildspec.TargetSpec                    `json:"target"`
-		Packages         []buildspec.PackageSpec                 `json:"packages"`
-		Modules          []buildspec.ModuleInstanceSpec          `json:"modules"`
-		Commands         buildspec.CommandsSpec                  `json:"commands"`
-		CommandProviders []buildspec.CommandProviderInstanceSpec `json:"commandProviders,omitempty"`
-		JSVerbs          []buildspec.JSVerbSourceSpec            `json:"jsverbs,omitempty"`
-		Help             *buildspec.HelpSpec                     `json:"help,omitempty"`
-		Assets           []buildspec.AssetSourceSpec             `json:"assets,omitempty"`
-	}{
-		Name:             buildSpec.Name,
-		AppName:          buildSpec.AppName,
-		EnvPrefix:        buildSpec.EnvPrefix,
-		ConfigFile:       buildSpec.ConfigFile,
-		Target:           buildSpec.Target,
-		Packages:         buildSpec.Packages,
-		Modules:          buildSpec.Modules,
-		Commands:         buildSpec.Commands,
-		CommandProviders: buildSpec.CommandProviders,
-		JSVerbs:          buildSpec.JSVerbs,
-		Help:             helpSpec,
-		Assets:           buildSpec.Assets,
-	}
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	return string(data) + "\n"
+type importAliasSeed struct {
+	ID     string
+	Import string
 }
 
-func runtimeSpec(buildSpec *buildspec.BuildSpec) *buildspec.BuildSpec {
-	if buildSpec == nil {
-		return nil
-	}
-	clone := *buildSpec
-	if len(buildSpec.JSVerbs) > 0 {
-		clone.JSVerbs = append([]buildspec.JSVerbSourceSpec(nil), buildSpec.JSVerbs...)
-		roots := embeddedJSVerbRoots(buildSpec)
-		for i := range clone.JSVerbs {
-			if root := roots[i]; root != "" {
-				clone.JSVerbs[i].Path = root
-			}
-		}
-	}
-	if len(buildSpec.Help.Sources) > 0 {
-		clone.Help.Sources = append([]buildspec.HelpSourceSpec(nil), buildSpec.Help.Sources...)
-		roots := embeddedHelpRoots(buildSpec)
-		for i := range clone.Help.Sources {
-			if root := roots[i]; root != "" {
-				clone.Help.Sources[i].Path = root
-			}
-		}
-	}
-	if len(buildSpec.Assets) > 0 {
-		clone.Assets = append([]buildspec.AssetSourceSpec(nil), buildSpec.Assets...)
-		roots := embeddedAssetRoots(buildSpec)
-		for i := range clone.Assets {
-			if root := roots[i]; root != "" {
-				clone.Assets[i].Path = root
-			}
-		}
-	}
-	return &clone
-}
-
-func hasEmbeddedJSVerbSources(buildSpec *buildspec.BuildSpec) bool {
-	if buildSpec == nil {
-		return false
-	}
-	for _, source := range buildSpec.JSVerbs {
-		if source.Embed && source.Path != "" && source.Package == "" && source.Source == "" {
-			return true
-		}
-	}
-	return false
-}
-
-func hasEmbeddedHelpSources(buildSpec *buildspec.BuildSpec) bool {
-	if buildSpec == nil {
-		return false
-	}
-	for _, source := range buildSpec.Help.Sources {
-		if source.Embed && source.Path != "" && source.Package == "" && source.Source == "" {
-			return true
-		}
-	}
-	return false
-}
-
-func hasEmbeddedAssetSources(buildSpec *buildspec.BuildSpec) bool {
-	if buildSpec == nil {
-		return false
-	}
-	for _, source := range buildSpec.Assets {
-		if source.Embed && source.Path != "" {
-			return true
-		}
-	}
-	return false
-}
-
-func embeddedJSVerbRoots(buildSpec *buildspec.BuildSpec) map[int]string {
-	roots := map[int]string{}
-	if buildSpec == nil {
-		return roots
-	}
-	used := map[string]struct{}{}
-	for i, source := range buildSpec.JSVerbs {
-		if !source.Embed || strings.TrimSpace(source.Path) == "" || strings.TrimSpace(source.Package) != "" || strings.TrimSpace(source.Source) != "" {
-			continue
-		}
-		base := sanitizeIdentifier(source.ID)
-		if base == "" {
-			base = "source"
-		}
-		name := base
-		for suffix := 2; ; suffix++ {
-			if _, ok := used[name]; !ok {
-				break
-			}
-			name = fmt.Sprintf("%s_%d", base, suffix)
-		}
-		used[name] = struct{}{}
-		roots[i] = "xgoja_embed/jsverbs/" + name
-	}
-	return roots
-}
-
-func embeddedHelpRoots(buildSpec *buildspec.BuildSpec) map[int]string {
-	roots := map[int]string{}
-	if buildSpec == nil {
-		return roots
-	}
-	used := map[string]struct{}{}
-	for i, source := range buildSpec.Help.Sources {
-		if !source.Embed || strings.TrimSpace(source.Path) == "" || strings.TrimSpace(source.Package) != "" || strings.TrimSpace(source.Source) != "" {
-			continue
-		}
-		base := sanitizeIdentifier(source.ID)
-		if base == "" {
-			base = "source"
-		}
-		name := base
-		for suffix := 2; ; suffix++ {
-			if _, ok := used[name]; !ok {
-				break
-			}
-			name = fmt.Sprintf("%s_%d", base, suffix)
-		}
-		used[name] = struct{}{}
-		roots[i] = "xgoja_embed/help/" + name
-	}
-	return roots
-}
-
-func embeddedAssetRoots(buildSpec *buildspec.BuildSpec) map[int]string {
-	roots := map[int]string{}
-	if buildSpec == nil {
-		return roots
-	}
-	used := map[string]struct{}{}
-	for i, source := range buildSpec.Assets {
-		if !source.Embed || strings.TrimSpace(source.Path) == "" {
-			continue
-		}
-		base := sanitizeIdentifier(source.ID)
-		if base == "" {
-			base = "source"
-		}
-		name := base
-		for suffix := 2; ; suffix++ {
-			if _, ok := used[name]; !ok {
-				break
-			}
-			name = fmt.Sprintf("%s_%d", base, suffix)
-		}
-		used[name] = struct{}{}
-		roots[i] = "xgoja_embed/assets/" + name
-	}
-	return roots
-}
-
-func importAliases(packages []buildspec.PackageSpec) map[string]string {
+func importAliases(packages []importAliasSeed) map[string]string {
 	aliases := map[string]string{}
 	used := map[string]struct{}{}
 	for _, pkg := range packages {

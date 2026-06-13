@@ -15,7 +15,7 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-The `express` module exposes a small Express-style route registration API for Goja-hosted applications. It is intentionally **Express-style**, not full Express-compatible: it supports route handlers and static mounts, but not middleware stacks, routers, `next()`, template engines, or npm Express plugins.
+The `express` module exposes a small Express-style route registration API for Goja-hosted applications. It is intentionally **Express-style**, not full Express-compatible: it supports route handlers, Go-backed handler mounts, and static mounts, but not middleware stacks, routers, `next()`, template engines, or npm Express plugins.
 
 ## Go setup
 
@@ -68,11 +68,35 @@ app.put(pattern, handler)
 app.patch(pattern, handler)
 app.delete(pattern, handler)
 app.all(pattern, handler)
+app.mount(prefix, mountableHandler, options?)
+app.mountHandler(prefix, mountableHandler, options?)
 app.static(prefix, directory)
 app.staticFromAssetsModule(prefix, assetsModule, root)
 ```
 
-`app.static(prefix, directory)` serves a real host filesystem directory.
+`app.mount(prefix, mountableHandler, options?)` mounts a Go `http.Handler` that another native module exposed as a mountable JavaScript object. This is useful for Go-owned transports such as WebSocket servers. The mounted handler uses prefix matching and preserves the original request path by default.
+
+```javascript
+const express = require("express");
+const app = express.app();
+
+// wsServer is a JavaScript object carrying a hidden Go http.Handler ref.
+app.mount("/ws", wsServer);
+
+// Use stripPrefix when the mounted handler expects paths relative to the mount.
+app.mountHandler("/api", apiHandler, { stripPrefix: true });
+```
+
+Mount options:
+
+```ts
+type MountOptions = {
+  stripPrefix?: boolean;
+  excludePrefixes?: string[];
+};
+```
+
+`app.static(prefix, directory)` serves a real host filesystem directory. Static helpers preserve their historical behavior and strip the mount prefix before the file server sees the request.
 
 `app.staticFromAssetsModule(prefix, assetsModule, root)` serves files directly from a read-only embedded fs module, for example:
 
@@ -84,7 +108,57 @@ const app = express.app();
 app.staticFromAssetsModule("/static", assets, "/app/public");
 ```
 
-Route patterns support exact paths, `:params`, and `*` wildcards.
+Route patterns support exact paths, `:params`, and `*` wildcards. Parameter segments capture one path segment into `req.params`; for example `/hello/:name` exposes `req.params.name`. A `*` segment matches the remainder of the path, but currently does not expose a captured splat value. Handler mounts use prefix matching rather than route-pattern matching.
+
+### Go-side routing for mounted handlers
+
+`app.mount()` is intentionally a prefix handoff to a Go `http.Handler`, not a second JavaScript route-pattern system for Go-owned transports. Use a stable mount prefix in JavaScript and let the mounted Go handler interpret the remaining path.
+
+```javascript
+const express = require("express");
+const app = express.app();
+
+// Matches /ws and /ws/... . The Go handler receives the original path by default.
+app.mount("/ws", sessionstream.webSocket.server(hub));
+```
+
+The mounted handler can route by inspecting `r.URL.Path`:
+
+```go
+func websocketHandler(w http.ResponseWriter, r *http.Request) {
+    switch {
+    case r.URL.Path == "/ws":
+        serveDefaultSocket(w, r)
+    case strings.HasPrefix(r.URL.Path, "/ws/rooms/"):
+        roomID := strings.TrimPrefix(r.URL.Path, "/ws/rooms/")
+        serveRoomSocket(w, r, roomID)
+    default:
+        http.NotFound(w, r)
+    }
+}
+```
+
+Or it can use its own Go router, including the Go standard library `http.ServeMux` path-value patterns:
+
+```go
+mux := http.NewServeMux()
+
+mux.HandleFunc("GET /ws", func(w http.ResponseWriter, r *http.Request) {
+    serveDefaultSocket(w, r)
+})
+
+mux.HandleFunc("GET /ws/rooms/{roomID}", func(w http.ResponseWriter, r *http.Request) {
+    roomID := r.PathValue("roomID")
+    serveRoomSocket(w, r, roomID)
+})
+
+mux.HandleFunc("GET /ws/assets/{path...}", func(w http.ResponseWriter, r *http.Request) {
+    assetPath := r.PathValue("path")
+    serveAssetSocket(w, r, assetPath)
+})
+```
+
+Use `{ stripPrefix: true }` only when the mounted Go handler expects paths relative to the mount point. Leave it unset for handlers that route on their full public path.
 
 ## Request object
 

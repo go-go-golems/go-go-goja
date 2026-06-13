@@ -39,6 +39,22 @@ type JSVerbSourceDescriptor struct {
 	Include    []string
 	Exclude    []string
 	Extensions []string
+	TypeScript *TypeScriptDescriptor
+}
+
+// TypeScriptDescriptor describes optional TypeScript compilation settings for a
+// JavaScript verb source.
+type TypeScriptDescriptor struct {
+	Enabled      bool
+	Bundle       bool
+	Target       string
+	Format       string
+	Platform     string
+	Tsconfig     string
+	Sourcemap    string
+	External     []string
+	Define       map[string]string
+	CheckCommand []string
 }
 
 // JSVerbSourceSet lets command providers discover and scan the JavaScript verb

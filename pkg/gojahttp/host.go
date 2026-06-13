@@ -23,6 +23,14 @@ type StaticMount struct {
 	ExcludePrefixes []string
 }
 
+// MountOptions configures a Go http.Handler mounted into Host prefix dispatch.
+// Generic handler mounts preserve the request path by default. Static asset
+// helpers opt into StripPrefix to preserve their historical behavior.
+type MountOptions struct {
+	StripPrefix     bool
+	ExcludePrefixes []string
+}
+
 type Host struct {
 	registry *Registry
 	dev      bool
@@ -55,15 +63,32 @@ func (h *Host) RegisterStaticHandler(prefix string, handler http.Handler) {
 }
 
 func (h *Host) RegisterStaticHandlerWithOptions(prefix string, handler http.Handler, excludePrefixes []string) {
+	h.RegisterHandlerWithOptions(prefix, handler, MountOptions{StripPrefix: true, ExcludePrefixes: excludePrefixes})
+}
+
+// RegisterHandler mounts handler under prefix using prefix matching while
+// preserving the original request path.
+func (h *Host) RegisterHandler(prefix string, handler http.Handler) {
+	h.RegisterHandlerWithOptions(prefix, handler, MountOptions{})
+}
+
+// RegisterHandlerWithOptions mounts handler under prefix using prefix matching.
+// When StripPrefix is true, the mounted handler sees the path with prefix
+// removed. ExcludePrefixes skip this mount and allow later mounts/routes to try.
+func (h *Host) RegisterHandlerWithOptions(prefix string, handler http.Handler, opts MountOptions) {
 	prefix = cleanPath(prefix)
-	excludes := make([]string, 0, len(excludePrefixes))
-	for _, exclude := range excludePrefixes {
+	excludes := make([]string, 0, len(opts.ExcludePrefixes))
+	for _, exclude := range opts.ExcludePrefixes {
 		exclude = cleanPath(exclude)
 		if exclude != "" {
 			excludes = append(excludes, exclude)
 		}
 	}
-	h.static = append(h.static, StaticMount{Prefix: prefix, Handler: stripMountPrefix(prefix, handler), ExcludePrefixes: excludes})
+	mounted := handler
+	if opts.StripPrefix {
+		mounted = stripMountPrefix(prefix, handler)
+	}
+	h.static = append(h.static, StaticMount{Prefix: prefix, Handler: mounted, ExcludePrefixes: excludes})
 }
 
 func stripMountPrefix(prefix string, handler http.Handler) http.Handler {
