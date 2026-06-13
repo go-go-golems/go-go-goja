@@ -5,7 +5,7 @@
 The package is intentionally storage-agnostic:
 
 - `MemorySink` stores records in memory for tests and demos.
-- `LogSink` writes JSON records to a logger for development, omitting raw request-header-derived metadata.
+- `LogSink` writes minimal JSON records to a logger for development, omitting request-header-derived metadata, IP information, arbitrary attributes, and free-form error reasons.
 - `Sink` writes normalized records to any `Store` implementation.
 
 `Normalizer` maps the runtime event into a storage-friendly `Record` with actor, resource, route, request, and outcome fields.

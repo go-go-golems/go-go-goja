@@ -13,6 +13,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"os"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/modules/express"
@@ -62,7 +63,15 @@ func run(ctx context.Context, listen, script string, smoke bool) error {
 	log.Printf("serving auth demo on http://%s", listen)
 	log.Printf("login: curl -i -X POST -H 'Content-Type: application/json' -d '{\"username\":\"%s\",\"password\":\"%s\"}' http://%s/auth/dev/login", devauth.DefaultUsername, devauth.DefaultPassword, listen)
 	log.Printf("then call protected routes with the returned cookie and X-CSRF-Token")
-	return http.ListenAndServe(listen, mux)
+	server := &http.Server{
+		Addr:              listen,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	return server.ListenAndServe()
 }
 
 func buildMux(host http.Handler, kit *devauth.Kit) http.Handler {

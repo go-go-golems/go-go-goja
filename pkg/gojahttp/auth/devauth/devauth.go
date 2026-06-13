@@ -395,7 +395,7 @@ func (k *Kit) actorHasAnyTenantRole(userID, tenantID string, roles ...string) bo
 }
 
 func (k *Kit) setSessionCookie(w http.ResponseWriter, value string, maxAge int) {
-	http.SetCookie(w, &http.Cookie{ // #nosec G104 -- development-only cookie helper.
+	http.SetCookie(w, &http.Cookie{ // #nosec G104 G124 -- development-only cookie helper; Secure is configurable for localhost demos.
 		Name:     k.cookieName,
 		Value:    value,
 		Path:     "/",

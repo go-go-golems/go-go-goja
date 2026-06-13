@@ -86,10 +86,7 @@ func (s *Store) Get(ctx context.Context, id string) (*sessionauth.Session, error
 }
 
 func (s *Store) Touch(ctx context.Context, id string, now time.Time, idleExpiresAt time.Time) error {
-	res, err := s.db.ExecContext(ctx,
-		`UPDATE auth_sessions SET last_seen_at = `+s.bind(1)+`, idle_expires_at = `+s.bind(2)+` WHERE id = `+s.bind(3),
-		now, idleExpiresAt, id,
-	)
+	res, err := s.db.ExecContext(ctx, s.touchQuery(), now, idleExpiresAt, id)
 	if err != nil {
 		return fmt.Errorf("touch session: %w", err)
 	}
@@ -105,7 +102,7 @@ func (s *Store) Rotate(ctx context.Context, oldID string, next sessionauth.Sessi
 		return fmt.Errorf("begin rotate session: %w", err)
 	}
 	defer rollback(tx)
-	if _, err := tx.ExecContext(ctx, `DELETE FROM auth_sessions WHERE id = `+s.bind(1), oldID); err != nil {
+	if _, err := tx.ExecContext(ctx, s.deleteQuery(), oldID); err != nil {
 		return fmt.Errorf("delete old session: %w", err)
 	}
 	if err := s.insert(ctx, tx, next); err != nil {
@@ -118,7 +115,7 @@ func (s *Store) Rotate(ctx context.Context, oldID string, next sessionauth.Sessi
 }
 
 func (s *Store) Revoke(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE auth_sessions SET revoked_at = `+s.bind(1)+` WHERE id = `+s.bind(2), s.now(), id)
+	_, err := s.db.ExecContext(ctx, s.revokeQuery(), s.now(), id)
 	if err != nil {
 		return fmt.Errorf("revoke session: %w", err)
 	}
@@ -134,9 +131,7 @@ func (s *Store) insert(ctx context.Context, exec sqlExecer, session sessionauth.
 	if err != nil {
 		return err
 	}
-	_, err = exec.ExecContext(ctx, `INSERT INTO auth_sessions (`+
-		`id, user_id, keycloak_sub, email, email_verified, tenant_ids_json, csrf_token, mfa_at, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at, claims_json`+
-		`) VALUES (`+s.bindList(14)+`)`,
+	_, err = exec.ExecContext(ctx, s.insertQuery(),
 		session.ID,
 		session.UserID,
 		nullString(session.KeycloakSub),
@@ -159,9 +154,7 @@ func (s *Store) insert(ctx context.Context, exec sqlExecer, session sessionauth.
 }
 
 func (s *Store) scan(ctx context.Context, queryer sqlQueryer, id string) (*sessionauth.Session, error) {
-	row := queryer.QueryRowContext(ctx, `SELECT `+
-		`id, user_id, keycloak_sub, email, email_verified, tenant_ids_json, csrf_token, mfa_at, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at, claims_json `+
-		`FROM auth_sessions WHERE id = `+s.bind(1), id)
+	row := queryer.QueryRowContext(ctx, s.getQuery(), id)
 	var session sessionauth.Session
 	var keycloakSub sql.NullString
 	var email sql.NullString
@@ -207,19 +200,54 @@ func (s *Store) scan(ctx context.Context, queryer sqlQueryer, id string) (*sessi
 	return &session, nil
 }
 
-func (s *Store) bindList(count int) string {
-	parts := make([]string, count)
-	for i := range count {
-		parts[i] = s.bind(i + 1)
+const sessionColumns = `id, user_id, keycloak_sub, email, email_verified, tenant_ids_json, csrf_token, mfa_at, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at, claims_json`
+
+const (
+	insertSQLite   = `INSERT INTO auth_sessions (` + sessionColumns + `) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	insertPostgres = `INSERT INTO auth_sessions (` + sessionColumns + `) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+	getSQLite      = `SELECT ` + sessionColumns + ` FROM auth_sessions WHERE id = ?`
+	getPostgres    = `SELECT ` + sessionColumns + ` FROM auth_sessions WHERE id = $1`
+	touchSQLite    = `UPDATE auth_sessions SET last_seen_at = ?, idle_expires_at = ? WHERE id = ?`
+	touchPostgres  = `UPDATE auth_sessions SET last_seen_at = $1, idle_expires_at = $2 WHERE id = $3`
+	deleteSQLite   = `DELETE FROM auth_sessions WHERE id = ?`
+	deletePostgres = `DELETE FROM auth_sessions WHERE id = $1`
+	revokeSQLite   = `UPDATE auth_sessions SET revoked_at = ? WHERE id = ?`
+	revokePostgres = `UPDATE auth_sessions SET revoked_at = $1 WHERE id = $2`
+)
+
+func (s *Store) insertQuery() string {
+	if s.dialect == DialectPostgres {
+		return insertPostgres
 	}
-	return strings.Join(parts, ", ")
+	return insertSQLite
 }
 
-func (s *Store) bind(n int) string {
+func (s *Store) getQuery() string {
 	if s.dialect == DialectPostgres {
-		return fmt.Sprintf("$%d", n)
+		return getPostgres
 	}
-	return "?"
+	return getSQLite
+}
+
+func (s *Store) touchQuery() string {
+	if s.dialect == DialectPostgres {
+		return touchPostgres
+	}
+	return touchSQLite
+}
+
+func (s *Store) deleteQuery() string {
+	if s.dialect == DialectPostgres {
+		return deletePostgres
+	}
+	return deleteSQLite
+}
+
+func (s *Store) revokeQuery() string {
+	if s.dialect == DialectPostgres {
+		return revokePostgres
+	}
+	return revokeSQLite
 }
 
 type sqlExecer interface {

@@ -80,22 +80,22 @@ func TestMemorySinkAndStoreSink(t *testing.T) {
 	}
 }
 
-func TestLogSinkRedactsAndDropsHeaderMetadata(t *testing.T) {
+func TestLogSinkOmitsSensitiveRequestMetadata(t *testing.T) {
 	var buf bytes.Buffer
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("X-Request-Id", "sensitive-request-id")
 	req.Header.Set("User-Agent", "sensitive-user-agent")
 	sink := LogSink{Logger: stdlog.New(&buf, "", 0)}
-	if err := sink.RecordAudit(context.Background(), gojahttp.AuditEvent{HTTPRequest: req, Event: "cap", Outcome: "issued", Attributes: map[string]any{"rawToken": "secret"}}); err != nil {
+	if err := sink.RecordAudit(context.Background(), gojahttp.AuditEvent{HTTPRequest: req, Event: "cap", Outcome: "issued", Reason: "sensitive-reason", Attributes: map[string]any{"rawToken": "secret"}}); err != nil {
 		t.Fatalf("log sink: %v", err)
 	}
 	output := buf.String()
-	for _, forbidden := range []string{"secret", "sensitive-request-id", "sensitive-user-agent"} {
+	for _, forbidden := range []string{"secret", "sensitive-request-id", "sensitive-user-agent", "sensitive-reason"} {
 		if strings.Contains(output, forbidden) {
 			t.Fatalf("log output leaked %q: %s", forbidden, output)
 		}
 	}
-	if !strings.Contains(output, "[REDACTED]") {
+	if !strings.Contains(output, `"event":"cap"`) || !strings.Contains(output, `"outcome":"issued"`) {
 		t.Fatalf("unexpected log output: %s", output)
 	}
 }

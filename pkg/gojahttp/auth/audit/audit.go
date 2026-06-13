@@ -155,13 +155,11 @@ func (s *MemoryStore) Snapshot() []Record {
 	return out
 }
 
-// LogSink logs normalized audit records as JSON for development.
+// LogSink logs a minimal audit event summary as JSON for development.
 //
-// LogSink intentionally drops raw HTTP request metadata before normalization so
-// user-controlled header values such as User-Agent and X-Request-Id are not
-// written to process logs. Persistent stores can still receive the full
-// normalized record through Sink when operators explicitly choose durable audit
-// storage.
+// It intentionally omits request-header-derived metadata, IP information,
+// arbitrary attributes, and free-form error reasons. Use Sink with a durable
+// Store when operators explicitly choose full normalized audit storage.
 type LogSink struct {
 	Logger     *stdlog.Logger
 	Normalizer Normalizer
@@ -172,13 +170,39 @@ func (s LogSink) RecordAudit(_ context.Context, event gojahttp.AuditEvent) error
 	if logger == nil {
 		logger = stdlog.Default()
 	}
-	event.HTTPRequest = nil
-	data, err := json.Marshal(s.Normalizer.Normalize(event))
+	data, err := json.Marshal(s.logRecord(event))
 	if err != nil {
 		return err
 	}
 	logger.Print(string(data))
 	return nil
+}
+
+func (s LogSink) logRecord(event gojahttp.AuditEvent) Record {
+	now := time.Now
+	if s.Normalizer.Now != nil {
+		now = s.Normalizer.Now
+	}
+	record := Record{
+		Event:      event.Event,
+		Outcome:    event.Outcome,
+		StatusCode: event.StatusCode,
+		RouteName:  event.RouteName,
+		Method:     event.Method,
+		Pattern:    event.Pattern,
+		Action:     event.Action,
+		CreatedAt:  now(),
+	}
+	if event.Actor != nil {
+		record.ActorID = event.Actor.ID
+		record.ActorKind = event.Actor.Kind
+	}
+	if event.Resource != nil {
+		record.ResourceType = event.Resource.Type
+		record.ResourceID = event.Resource.ID
+		record.TenantID = event.Resource.TenantID
+	}
+	return record
 }
 
 // RedactMap returns a copy with secret-looking keys replaced by "[REDACTED]".

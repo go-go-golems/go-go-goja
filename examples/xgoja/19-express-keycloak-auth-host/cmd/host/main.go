@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/dop251/goja"
 	_ "github.com/lib/pq"
@@ -118,7 +119,15 @@ func run(ctx context.Context, cfg config) error {
 	mux.Handle("/", indexPage(host))
 	log.Printf("serving Keycloak auth example on http://%s", cfg.Listen)
 	log.Printf("Keycloak issuer: %s", cfg.Issuer)
-	return http.ListenAndServe(cfg.Listen, mux)
+	server := &http.Server{
+		Addr:              cfg.Listen,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	return server.ListenAndServe()
 }
 
 func newSessionManager(sessionDBDSN string) (*sessionauth.Manager, func(), error) {

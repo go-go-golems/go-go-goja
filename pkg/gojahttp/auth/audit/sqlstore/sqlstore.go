@@ -72,9 +72,7 @@ func (s *Store) InsertAuditRecord(ctx context.Context, record audit.Record) erro
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO auth_audit_records (`+
-		`event, outcome, reason, status_code, route_name, method, pattern, action, actor_id, actor_kind, tenant_id, resource_type, resource_id, request_id, ip_hash, user_agent, attributes_json, created_at`+
-		`) VALUES (`+s.bindList(18)+`)`,
+	_, err = s.db.ExecContext(ctx, s.insertQuery(),
 		record.Event,
 		record.Outcome,
 		nullString(record.Reason),
@@ -104,9 +102,7 @@ func (s *Store) InsertAuditRecord(ctx context.Context, record audit.Record) erro
 // tests and examples; production callers should query their database directly
 // or add app-specific query APIs.
 func (s *Store) Snapshot(ctx context.Context) ([]audit.Record, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+
-		`event, outcome, reason, status_code, route_name, method, pattern, action, actor_id, actor_kind, tenant_id, resource_type, resource_id, request_id, ip_hash, user_agent, attributes_json, created_at `+
-		`FROM auth_audit_records ORDER BY id ASC`)
+	rows, err := s.db.QueryContext(ctx, snapshotQuery)
 	if err != nil {
 		return nil, fmt.Errorf("query audit records: %w", err)
 	}
@@ -132,9 +128,7 @@ func (s *Store) QueryByOutcome(ctx context.Context, outcome string, limit int) (
 	if limit <= 0 {
 		limit = 100
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT `+
-		`event, outcome, reason, status_code, route_name, method, pattern, action, actor_id, actor_kind, tenant_id, resource_type, resource_id, request_id, ip_hash, user_agent, attributes_json, created_at `+
-		`FROM auth_audit_records WHERE outcome = `+s.bind(1)+` ORDER BY created_at DESC, id DESC LIMIT `+s.bind(2), outcome, limit)
+	rows, err := s.db.QueryContext(ctx, s.queryByOutcomeQuery(), outcome, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query audit records by outcome: %w", err)
 	}
@@ -210,19 +204,28 @@ func scanRecord(rows *sql.Rows) (audit.Record, error) {
 	return record, nil
 }
 
-func (s *Store) bindList(count int) string {
-	parts := make([]string, count)
-	for i := range count {
-		parts[i] = s.bind(i + 1)
+const auditColumns = `event, outcome, reason, status_code, route_name, method, pattern, action, actor_id, actor_kind, tenant_id, resource_type, resource_id, request_id, ip_hash, user_agent, attributes_json, created_at`
+
+const (
+	insertSQLite           = `INSERT INTO auth_audit_records (` + auditColumns + `) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	insertPostgres         = `INSERT INTO auth_audit_records (` + auditColumns + `) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
+	snapshotQuery          = `SELECT ` + auditColumns + ` FROM auth_audit_records ORDER BY id ASC`
+	queryByOutcomeSQLite   = `SELECT ` + auditColumns + ` FROM auth_audit_records WHERE outcome = ? ORDER BY created_at DESC, id DESC LIMIT ?`
+	queryByOutcomePostgres = `SELECT ` + auditColumns + ` FROM auth_audit_records WHERE outcome = $1 ORDER BY created_at DESC, id DESC LIMIT $2`
+)
+
+func (s *Store) insertQuery() string {
+	if s.dialect == DialectPostgres {
+		return insertPostgres
 	}
-	return strings.Join(parts, ", ")
+	return insertSQLite
 }
 
-func (s *Store) bind(n int) string {
+func (s *Store) queryByOutcomeQuery() string {
 	if s.dialect == DialectPostgres {
-		return fmt.Sprintf("$%d", n)
+		return queryByOutcomePostgres
 	}
-	return "?"
+	return queryByOutcomeSQLite
 }
 
 func marshalAttributes(attrs map[string]any) ([]byte, error) {

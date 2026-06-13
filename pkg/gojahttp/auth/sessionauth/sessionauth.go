@@ -246,7 +246,7 @@ func (m *Manager) sessionIDFromRequest(r *http.Request) (string, error) {
 }
 
 func (m *Manager) setCookie(w http.ResponseWriter, value string, maxAge int) {
-	http.SetCookie(w, &http.Cookie{ // #nosec G104 -- cookie write cannot report an error.
+	http.SetCookie(w, &http.Cookie{ // #nosec G104 G124 -- cookie write cannot report an error; Secure is enabled unless AllowInsecureHTTP is explicitly configured for localhost demos.
 		Name:     m.cookieName,
 		Value:    value,
 		Path:     m.path,

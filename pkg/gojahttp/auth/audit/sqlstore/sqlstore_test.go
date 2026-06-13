@@ -109,8 +109,8 @@ func TestPostgresSchemaAndPlaceholders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new store: %v", err)
 	}
-	if got := store.bindList(3); got != "$1, $2, $3" {
-		t.Fatalf("unexpected postgres placeholders: %s", got)
+	if got := store.queryByOutcomeQuery(); !strings.Contains(got, "$1") || !strings.Contains(got, "$2") {
+		t.Fatalf("unexpected postgres query by outcome: %s", got)
 	}
 	if !strings.Contains(store.Schema(), "JSONB") || !strings.Contains(store.Schema(), "TIMESTAMPTZ") || !strings.Contains(store.Schema(), "BIGSERIAL") {
 		t.Fatalf("postgres schema missing expected types: %s", store.Schema())
