@@ -310,6 +310,18 @@ app.mount("/ws", wsServer)
 
 This pattern keeps ownership clear. The producer module owns the Go `http.Handler`; the HTTP provider owns or receives the `gojahttp.Host`; JavaScript decides where the handler is mounted. Use host services when a Go embedding application needs to provide the host itself. Use the mountable-handler ABI when a JavaScript application needs to connect a Go-backed handler object to that host.
 
+`app.mount()` deliberately performs prefix matching only. Do not make provider modules depend on JavaScript route parameters for Go-owned transports. If the mounted handler needs parameters or wildcards, route inside the Go handler by inspecting `r.URL.Path` or by using a Go router such as `http.ServeMux`:
+
+```go
+mux := http.NewServeMux()
+mux.HandleFunc("GET /ws/rooms/{roomID}", func(w http.ResponseWriter, r *http.Request) {
+    roomID := r.PathValue("roomID")
+    serveRoomSocket(w, r, roomID)
+})
+```
+
+This is especially important for WebSocket servers, where the Go handler normally owns upgrade behavior, origin checks, subprotocol negotiation, and transport-specific routing.
+
 ## Reading host services during module setup
 
 Provider modules read contributed services from `ModuleSetupContext.Host` by asserting `providerapi.HostServiceLookup`.

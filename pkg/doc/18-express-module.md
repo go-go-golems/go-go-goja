@@ -110,6 +110,56 @@ app.staticFromAssetsModule("/static", assets, "/app/public");
 
 Route patterns support exact paths, `:params`, and `*` wildcards. Parameter segments capture one path segment into `req.params`; for example `/hello/:name` exposes `req.params.name`. A `*` segment matches the remainder of the path, but currently does not expose a captured splat value. Handler mounts use prefix matching rather than route-pattern matching.
 
+### Go-side routing for mounted handlers
+
+`app.mount()` is intentionally a prefix handoff to a Go `http.Handler`, not a second JavaScript route-pattern system for Go-owned transports. Use a stable mount prefix in JavaScript and let the mounted Go handler interpret the remaining path.
+
+```javascript
+const express = require("express");
+const app = express.app();
+
+// Matches /ws and /ws/... . The Go handler receives the original path by default.
+app.mount("/ws", sessionstream.webSocket.server(hub));
+```
+
+The mounted handler can route by inspecting `r.URL.Path`:
+
+```go
+func websocketHandler(w http.ResponseWriter, r *http.Request) {
+    switch {
+    case r.URL.Path == "/ws":
+        serveDefaultSocket(w, r)
+    case strings.HasPrefix(r.URL.Path, "/ws/rooms/"):
+        roomID := strings.TrimPrefix(r.URL.Path, "/ws/rooms/")
+        serveRoomSocket(w, r, roomID)
+    default:
+        http.NotFound(w, r)
+    }
+}
+```
+
+Or it can use its own Go router, including the Go standard library `http.ServeMux` path-value patterns:
+
+```go
+mux := http.NewServeMux()
+
+mux.HandleFunc("GET /ws", func(w http.ResponseWriter, r *http.Request) {
+    serveDefaultSocket(w, r)
+})
+
+mux.HandleFunc("GET /ws/rooms/{roomID}", func(w http.ResponseWriter, r *http.Request) {
+    roomID := r.PathValue("roomID")
+    serveRoomSocket(w, r, roomID)
+})
+
+mux.HandleFunc("GET /ws/assets/{path...}", func(w http.ResponseWriter, r *http.Request) {
+    assetPath := r.PathValue("path")
+    serveAssetSocket(w, r, assetPath)
+})
+```
+
+Use `{ stripPrefix: true }` only when the mounted Go handler expects paths relative to the mount point. Leave it unset for handlers that route on their full public path.
+
 ## Request object
 
 Handlers receive a plain JavaScript request object:

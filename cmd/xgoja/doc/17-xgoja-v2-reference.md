@@ -459,6 +459,18 @@ Express route patterns and mounted handlers use different matching semantics:
 - `app.get("/assets/*", ...)` matches the rest of the path but does not expose a splat capture today.
 - `app.mount("/ws", handler)` uses prefix matching and gives the request to the Go handler.
 
+`app.mount()` is intentionally not a JavaScript parameter/wildcard router. Mount Go-backed transports at a stable prefix and let the Go handler do any detailed matching by reading `r.URL.Path` or by delegating to its own router. For example, a mounted WebSocket handler can use the Go standard library mux and path values:
+
+```go
+mux := http.NewServeMux()
+mux.HandleFunc("GET /ws/rooms/{roomID}", func(w http.ResponseWriter, r *http.Request) {
+    roomID := r.PathValue("roomID")
+    serveRoomSocket(w, r, roomID)
+})
+```
+
+This keeps JavaScript responsible for composition and keeps Go responsible for Go-owned HTTP routing and WebSocket upgrade behavior.
+
 ## Current limits
 
 The normal command path is v2-plan-native: `doctor`, `build`, `generate`, `gen-dts`, and `list-modules` load `schema: xgoja/v2` and consume `plan.Plan` directly.
