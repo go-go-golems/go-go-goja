@@ -107,6 +107,11 @@ type spaOptions struct {
 	ExcludePrefixes []string
 }
 
+type mountOptions struct {
+	StripPrefix     bool
+	ExcludePrefixes []string
+}
+
 func spaFromAssetsOptions(vm *goja.Runtime, value goja.Value) spaOptions {
 	ret := spaOptions{Index: "index.html", ExcludePrefixes: []string{"/api"}}
 	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
@@ -129,8 +134,47 @@ func spaFromAssetsOptions(vm *goja.Runtime, value goja.Value) spaOptions {
 	return ret
 }
 
+func mountOptionsFromValue(vm *goja.Runtime, value goja.Value) mountOptions {
+	ret := mountOptions{}
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return ret
+	}
+	obj := value.ToObject(vm)
+	if strip := obj.Get("stripPrefix"); strip != nil && !goja.IsUndefined(strip) && !goja.IsNull(strip) {
+		ret.StripPrefix = strip.ToBoolean()
+	}
+	if excludes := obj.Get("excludePrefixes"); excludes != nil && !goja.IsUndefined(excludes) && !goja.IsNull(excludes) {
+		ret.ExcludePrefixes = nil
+		if arr, ok := excludes.Export().([]any); ok {
+			for _, exclude := range arr {
+				if s, ok := exclude.(string); ok && s != "" {
+					ret.ExcludePrefixes = append(ret.ExcludePrefixes, s)
+				}
+			}
+		}
+	}
+	return ret
+}
+
 func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 	obj := vm.NewObject()
+	mount := func(prefix string, handlerValue goja.Value, options goja.Value) error {
+		if prefix == "" {
+			return fmt.Errorf("app.mount requires prefix")
+		}
+		if err := r.start(vm); err != nil {
+			return err
+		}
+		handler, ok := gojahttp.HTTPHandlerFromValue(handlerValue)
+		if !ok {
+			return fmt.Errorf("app.mount(%q) requires a Go http.Handler-backed object", prefix)
+		}
+		opts := mountOptionsFromValue(vm, options)
+		r.host.RegisterHandlerWithOptions(prefix, handler, gojahttp.MountOptions{StripPrefix: opts.StripPrefix, ExcludePrefixes: opts.ExcludePrefixes})
+		return nil
+	}
+	_ = obj.Set("mount", mount)
+	_ = obj.Set("mountHandler", mount)
 	for _, method := range []string{"get", "post", "put", "patch", "delete", "all"} {
 		method := method
 		_ = obj.Set(method, func(pattern string, handler goja.Value) error {
