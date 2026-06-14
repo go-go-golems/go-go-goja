@@ -38,6 +38,8 @@ Unknown actions deny. Missing actors deny. Missing resources deny. Missing tenan
 
 ## Wiring sketch
 
+For tests and tiny demos, use the in-memory store:
+
 ```go
 store := appauth.NewMemoryStore()
 store.AddUser(appauth.User{ID: "u1", KeycloakSub: "..."})
@@ -53,5 +55,17 @@ host := gojahttp.NewHost(gojahttp.HostOptions{
     },
 })
 ```
+
+For durable application auth state, use `appauth/sqlstore` behind the same interfaces:
+
+```go
+store, err := sqlstore.New(sqlstore.Config{DB: db, Dialect: sqlstore.DialectPostgres})
+err = store.ApplySchema(ctx) // examples/tests; production can run the DDL through migrations
+
+user, err := store.UpsertFromOIDC(ctx, claims.Subject, claims.Email, claims.EmailVerified)
+err = store.AddMembership(ctx, appauth.Membership{UserID: user.ID, TenantID: "o1", Role: "admin"})
+```
+
+The SQL store persists app users, Keycloak subject mappings, tenants, memberships, roles, and generic resources. It keeps the disabled-user rule from the memory store: an existing disabled Keycloak subject returns `gojahttp.ErrNotFound` and is not updated by OIDC login.
 
 This is a starting point, not a product policy. Real applications should usually wrap or replace `Authorizer` with their own explicit action switch and negative authorization tests.

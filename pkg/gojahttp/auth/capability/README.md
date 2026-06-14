@@ -19,7 +19,7 @@ Rules enforced by `Service.Issue`:
 - only the hash is stored,
 - raw token is not included in audit attributes.
 
-The package includes an in-memory store for tests/demos and a concrete org-invite helper:
+The package includes an in-memory store for tests/demos, `capability/sqlstore` for durable SQLite/Postgres-backed token hashes, and a concrete org-invite helper:
 
 ```go
 issued, err := svc.IssueOrgInvite(ctx, capability.OrgInviteSpec{
@@ -36,4 +36,12 @@ accepted, err := svc.AcceptOrgInvite(ctx, issued.Token)
 // accepted.OrgID, accepted.Email, accepted.Role can now create the membership.
 ```
 
-Production stores should make `Redeem` atomic so single-use capabilities cannot be redeemed twice under concurrent requests.
+Production hosts can wire the SQL store like this:
+
+```go
+store, err := sqlstore.New(sqlstore.Config{DB: db, Dialect: sqlstore.DialectPostgres})
+err = store.ApplySchema(ctx) // examples/tests; production can run the DDL through migrations
+svc := capability.Service{Store: store, Audit: auditSink}
+```
+
+Production stores should make `Redeem` atomic so single-use capabilities cannot be redeemed twice under concurrent requests. `capability/sqlstore` enforces this with transaction-scoped validation and a conditional `used_at IS NULL` update.
