@@ -42,3 +42,8 @@ Updated next-phase plan to account for CommandSetContext.Host host-service acces
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/14/XGOJA-HTTP-AUTH-CONFIG--design-xgoja-http-auth-provider-configuration/design-doc/01-http-auth-provider-configuration-analysis-and-implementation-guide.md — CommandSetContext.Host next-phase design note
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/14/XGOJA-HTTP-AUTH-CONFIG--design-xgoja-http-auth-provider-configuration/tasks.md — Backlog task updated for command-context host services
 
+
+## 2026-06-14
+
+Closed first-slice HTTP provider config ticket; transferred generated-host auth.session/auth.stores backlog to XGOJA-GENERATED-HOST-AUTH-CONFIG
+

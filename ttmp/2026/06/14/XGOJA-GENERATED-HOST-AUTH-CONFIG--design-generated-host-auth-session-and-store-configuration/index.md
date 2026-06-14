@@ -1,10 +1,9 @@
 ---
-Title: Design xgoja HTTP auth provider configuration
-Ticket: XGOJA-HTTP-AUTH-CONFIG
-Status: complete
+Title: Design generated host auth session and store configuration
+Ticket: XGOJA-GENERATED-HOST-AUTH-CONFIG
+Status: active
 Topics:
     - xgoja
-    - http
     - auth
     - config
 DocType: index
@@ -13,13 +12,12 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-14T18:26:07.448239162-04:00
+LastUpdated: 2026-06-14T18:19:41.150262597-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
 
-
-# Design xgoja HTTP auth provider configuration
+# Design generated host auth session and store configuration
 
 ## Overview
 
@@ -37,7 +35,6 @@ Current status: **active**
 ## Topics
 
 - xgoja
-- http
 - auth
 - config
 

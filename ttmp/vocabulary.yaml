@@ -158,3 +158,5 @@ intent:
 status:
     - slug: active
       description: Active ticket or document
+    - slug: complete
+      description: Ticket or document work that has been completed and closed
