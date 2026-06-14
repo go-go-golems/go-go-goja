@@ -148,6 +148,17 @@ def main() -> int:
     status, body, _ = request(opener, urllib.parse.urljoin(base_url, "/healthz"))
     require_status("public health", status, 200, body)
 
+    status, body, _ = request(opener, urllib.parse.urljoin(base_url, "/async-return?name=keycloak"))
+    require_status("async return", status, 200, body)
+    if b"async return keycloak" not in body:
+        raise RuntimeError(f"async return produced unexpected payload: {body!r}")
+
+    status, body, _ = request(opener, urllib.parse.urljoin(base_url, "/async-send?name=keycloak"))
+    require_status("async send", status, 200, body)
+    async_send = parse_json("async send", body)
+    if async_send.get("mode") != "send" or async_send.get("name") != "keycloak":
+        raise RuntimeError(f"async send produced unexpected payload: {async_send!r}")
+
     status, body, _ = request(opener, urllib.parse.urljoin(base_url, "/me"))
     require_status("me before login", status, 401, body)
 

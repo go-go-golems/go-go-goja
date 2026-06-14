@@ -1,10 +1,27 @@
 const express = require("express")
+const timer = require("timer")
 const app = express.app()
 
 app.get("/healthz")
   .public()
   .audit("health.checked")
   .handle((_ctx, res) => res.json({ ok: true, example: "keycloak-auth-host" }))
+
+app.get("/async-return")
+  .public()
+  .audit("async.returned")
+  .handle(async (ctx, _res) => {
+    await timer.sleep(5)
+    return `async return ${ctx.request.query.name || "anonymous"}`
+  })
+
+app.get("/async-send")
+  .public()
+  .audit("async.sent")
+  .handle(async (ctx, res) => {
+    await timer.sleep(5)
+    res.json({ ok: true, mode: "send", name: ctx.request.query.name || "anonymous" })
+  })
 
 app.get("/me")
   .auth(express.user().required())

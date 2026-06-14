@@ -37,6 +37,28 @@ app.patch("/orgs/:orgId/projects/:projectId")
   .handle((ctx, res) => res.json({ updated: ctx.resource("project").id }))
 ```
 
+Handlers can also be `async`. The host waits for returned promises before rendering a returned value or completing a response sent inside the handler:
+
+```js
+const timer = require("timer")
+
+app.get("/async-return")
+  .public()
+  .handle(async (ctx, _res) => {
+    await timer.sleep(5)
+    return `async return ${ctx.request.query.name}`
+  })
+
+app.get("/async-send")
+  .public()
+  .handle(async (ctx, res) => {
+    await timer.sleep(5)
+    res.json({ ok: true, name: ctx.request.query.name })
+  })
+```
+
+Returned strings are sent directly; structured payloads should use `res.json(...)` unless the host has an HTML/UI renderer configured. Rejected promises become handler errors. The example host exposes the `timer` module only so the demo has a deterministic Promise source.
+
 Run the smoke test:
 
 ```bash
@@ -50,6 +72,7 @@ The smoke test starts an in-process HTTP server and checks:
 - bad login returns 401,
 - good login returns a session cookie and CSRF token,
 - `/me` after login returns actor data,
+- public async handlers await promises and return/send JSON,
 - project update without CSRF returns 403,
 - project update with session cookie and CSRF token returns 200,
 - missing project returns 404,
@@ -67,6 +90,8 @@ Then try:
 ```bash
 # Public route.
 curl -i http://127.0.0.1:18789/healthz
+curl -i 'http://127.0.0.1:18789/async-return?name=manual'
+curl -i 'http://127.0.0.1:18789/async-send?name=manual'
 
 # Login. Save the session cookie and copy csrfToken from the response.
 curl -i -c /tmp/goja-dev-auth.cookie \

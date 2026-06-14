@@ -110,7 +110,10 @@ func run(ctx context.Context, cfg config) error {
 			Audit:         auditSink,
 		},
 	})
-	factory, err := engine.NewRuntimeFactoryBuilder().WithModules(express.NewRegistrar(host)).Build()
+	factory, err := engine.NewRuntimeFactoryBuilder().
+		UseModuleMiddleware(engine.MiddlewareOnly("timer")).
+		WithModules(express.NewRegistrar(host)).
+		Build()
 	if err != nil {
 		return err
 	}

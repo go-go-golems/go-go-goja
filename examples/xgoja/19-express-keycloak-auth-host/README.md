@@ -22,6 +22,28 @@ make -C examples/xgoja/19-express-keycloak-auth-host smoke
 
 It uses only Python standard-library HTTP/form handling; no browser driver is required. Set `KEEP_KEYCLOAK=1` to leave the containers running after the smoke, `KEYCLOAK_PORT=18081` if port `18080` is already in use, or `POSTGRES_PORT=15433` if port `15432` is already in use.
 
+The JavaScript route script also includes public async planned routes. They use the host-provided `timer` module to prove the request waits for promises:
+
+```js
+const timer = require("timer")
+
+app.get("/async-return")
+  .public()
+  .handle(async (ctx, _res) => {
+    await timer.sleep(5)
+    return `async return ${ctx.request.query.name}`
+  })
+
+app.get("/async-send")
+  .public()
+  .handle(async (ctx, res) => {
+    await timer.sleep(5)
+    res.json({ ok: true, mode: "send", name: ctx.request.query.name })
+  })
+```
+
+The host awaits returned promises for planned routes. Fulfilled string return values are sent directly, `res.json(...)` can be called after `await` for structured data, and rejected promises become handler errors.
+
 ## Start Keycloak and Postgres manually
 
 ```bash
@@ -64,6 +86,8 @@ http://127.0.0.1:8790/
 Click **Login with Keycloak**, sign in with the demo credentials, then try:
 
 ```bash
+curl -i 'http://127.0.0.1:8790/async-return?name=manual'
+curl -i 'http://127.0.0.1:8790/async-send?name=manual'
 curl -i -b /tmp/goja-keycloak.cookie http://127.0.0.1:8790/me
 ```
 

@@ -62,7 +62,7 @@ app.get("/async-return")
   .audit("async.returned")
   .handle(async (ctx, res) => {
     await timer.sleep(5)
-    return { ok: true, mode: "return", name: ctx.request.query.name || "anonymous" }
+    return `async return ${ctx.request.query.name || "anonymous"}`
   })
 
 app.get("/async-send")
@@ -97,7 +97,7 @@ This keeps the demo least-privilege: it exposes Express plus the one extra modul
 
 Extend existing smokes to request:
 
-- `GET /async-return?name=demo`, expecting `"mode":"return"` and `"name":"demo"`.
+- `GET /async-return?name=demo`, expecting `async return demo`.
 - `GET /async-send?name=demo`, expecting `"mode":"send"` and `"name":"demo"`.
 
 For the Keycloak smoke, the routes can be public so the checks can run before or after login without adding browser automation complexity. The goal is Promise awaiting, not auth policy.
@@ -107,8 +107,8 @@ For the Keycloak smoke, the routes can be public so the checks can run before or
 Update READMEs to call out that:
 
 - handlers may be `async`,
-- returned promise fulfillment values are rendered like synchronous returns,
-- handlers may also call `res.json(...)` after `await`,
+- returned string promise fulfillment values are sent like synchronous string returns,
+- handlers may call `res.json(...)` after `await` for structured payloads,
 - rejected promises become handler errors.
 
 ## Design Decisions

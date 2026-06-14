@@ -36,7 +36,10 @@ func main() {
 func run(ctx context.Context, listen, script string, smoke bool) error {
 	kit := devauth.New(devauth.Config{})
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, RejectRawRoutes: true, Auth: kit.AuthOptions()})
-	factory, err := engine.NewRuntimeFactoryBuilder().WithModules(express.NewRegistrar(host)).Build()
+	factory, err := engine.NewRuntimeFactoryBuilder().
+		UseModuleMiddleware(engine.MiddlewareOnly("timer")).
+		WithModules(express.NewRegistrar(host)).
+		Build()
 	if err != nil {
 		return err
 	}
@@ -107,6 +110,8 @@ func runSmoke(handler http.Handler, kit *devauth.Kit) error {
 		return err
 	}
 	checks := []smokeCheck{
+		{name: "async return", method: http.MethodGet, path: "/async-return?name=dev", wantStatus: http.StatusOK, wantBody: `async return dev`},
+		{name: "async send", method: http.MethodGet, path: "/async-send?name=dev", wantStatus: http.StatusOK, wantBody: `"mode":"send"`},
 		{name: "session after login", method: http.MethodGet, path: "/auth/dev/session", wantStatus: http.StatusOK, wantBody: `"id":"u1"`},
 		{name: "me after login", method: http.MethodGet, path: "/me", wantStatus: http.StatusOK, wantBody: `"id":"u1"`},
 		{name: "project missing csrf", method: http.MethodPatch, path: "/orgs/o1/projects/p1", wantStatus: http.StatusForbidden},
