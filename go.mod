@@ -133,6 +133,7 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/tiendc/go-deepcopy v1.7.1 // indirect
 	github.com/tj/go-naturaldate v1.3.0 // indirect
+	github.com/tree-sitter/tree-sitter-typescript v0.23.2 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.30 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect

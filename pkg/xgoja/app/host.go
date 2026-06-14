@@ -36,7 +36,7 @@ func NewHost(providers *providerapi.ProviderRegistry, runtimePlan *RuntimePlan) 
 }
 
 func NewHostWithOptions(providers *providerapi.ProviderRegistry, runtimePlan *RuntimePlan, opts HostOptions) *Host {
-	sourceRegistry := NewSourceRegistry(providers, opts.EmbeddedJSVerbs, runtimePlan.allSources())
+	sourceRegistry := NewSourceRegistryWithRuntimeAliases(providers, opts.EmbeddedJSVerbs, runtimePlan.allSources(), runtimePlanModuleAliases(runtimePlan.runtimeModules()))
 	services := HostServices{Assets: NewAssetStoreFromSources(opts.EmbeddedAssets, sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindAssets))}
 	if opts.ConfigureServices != nil {
 		opts.ConfigureServices(&services)

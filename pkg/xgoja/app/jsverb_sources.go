@@ -13,13 +13,15 @@ type jsVerbSourceSet struct {
 	providers       *providerapi.ProviderRegistry
 	embeddedJSVerbs fs.FS
 	sources         []SourcePlan
+	runtimeAliases  []string
 }
 
-func newJSVerbSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, sources []SourcePlan) *jsVerbSourceSet {
+func newJSVerbSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, sources []SourcePlan, runtimeAliases []string) *jsVerbSourceSet {
 	return &jsVerbSourceSet{
 		providers:       providers,
 		embeddedJSVerbs: embeddedJSVerbs,
 		sources:         append([]SourcePlan(nil), sources...),
+		runtimeAliases:  appendUniqueStrings(nil, runtimeAliases...),
 	}
 }
 
@@ -85,7 +87,7 @@ func (s *jsVerbSourceSet) ScanJSVerbSource(id string) (*jsverbs.Registry, error)
 		if source.ID != id {
 			continue
 		}
-		return scanVerbSource(s.providers, s.embeddedJSVerbs, source, allProviderRuntimeAliases(s.providers))
+		return scanVerbSource(s.providers, s.embeddedJSVerbs, source, sourceGraphRuntimeAliases(s.runtimeAliases))
 	}
 	return nil, fmt.Errorf("unknown jsverb source %q", id)
 }
@@ -96,7 +98,7 @@ func (s *jsVerbSourceSet) ScanAllJSVerbSources() ([]*jsverbs.Registry, error) {
 	}
 	registries := make([]*jsverbs.Registry, 0, len(s.sources))
 	for _, source := range s.sources {
-		registry, err := scanVerbSource(s.providers, s.embeddedJSVerbs, source, allProviderRuntimeAliases(s.providers))
+		registry, err := scanVerbSource(s.providers, s.embeddedJSVerbs, source, sourceGraphRuntimeAliases(s.runtimeAliases))
 		if err != nil {
 			return nil, err
 		}

@@ -17,7 +17,7 @@ func TestJSVerbSourceSetListIncludesTypeScriptDescriptor(t *testing.T) {
 			Define:       map[string]string{"process.env.NODE_ENV": "\"test\""},
 			CheckCommand: []string{"tsc", "--noEmit"},
 		},
-	}})
+	}}, nil)
 
 	sources := set.ListJSVerbSources()
 	if len(sources) != 1 {

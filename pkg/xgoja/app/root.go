@@ -386,6 +386,19 @@ func sourceGraphRuntimeAliases(selectedAliases []string) []string {
 	return appendUniqueStrings(nil, selectedAliases...)
 }
 
+func runtimePlanModuleAliases(modules []RuntimeModulePlan) []string {
+	aliases := []string{}
+	for _, module := range modules {
+		if module.Name != "" {
+			aliases = append(aliases, module.Name)
+		}
+		if module.As != "" {
+			aliases = append(aliases, module.As)
+		}
+	}
+	return appendUniqueStrings(nil, aliases...)
+}
+
 func allProviderRuntimeAliases(providers *providerapi.ProviderRegistry) []string {
 	if providers == nil {
 		return nil
