@@ -793,6 +793,12 @@ Rejected for now. The existing implementation intentionally uses small subpackag
 3. Prefer using `go-go-goja-http.host` for route registration and keeping `hostauth.ServicesKey` for future modules/tools.
 4. Add tests that modules see the concrete services when passed.
 
+### Phase 6 implementation note
+
+Implemented provider consumption keeps Express host selection explicit: the HTTP `serve` command builds a command-level `hostauth.Services` bundle when `hostauth.ServiceFactoryKey` is present, creates an xgoja-owned `gojahttp.Host` with both HTTP settings and `AuthOptions`, and passes that host through `go-go-goja-http.host`. The Express loader does not synthesize a host from `hostauth.ServicesKey`; it continues to use the external HTTP host seam. `hostauth.ServicesKey` is passed alongside the host for future runtime modules/tools that need concrete auth services.
+
+Hot reload reuses one command-level auth service bundle across candidate runtimes while still creating one candidate HTTP host per reload. This keeps DB-backed stores/session managers stable across reloads and avoids closing shared DB handles when a retired candidate runtime closes. Existing custom `go-go-goja-http.host` services still win over hostauth-generated hosts in the non-hot-reload path.
+
 ### Phase 7: generated runtime-package example
 
 1. Add an example using generated runtime-package + manual `ConfigureServices` injection.
@@ -839,7 +845,11 @@ Rejected for now. The existing implementation intentionally uses small subpackag
 - HTTP provider serve command without auth factory preserves current behavior.
 - HTTP provider serve command with auth factory builds an external host.
 - Express planned route registration uses the supplied host.
+- HTTP provider validates malformed `hostauth.ServiceFactoryKey` payloads during serve command construction.
+- HTTP provider config such as `dev-errors` and `reject-raw-routes` is preserved when auth options are merged into host options.
+- Existing custom `go-go-goja-http.host` services win over hostauth-generated hosts in the non-hot-reload path.
 - Hot reload candidate runtime still receives external host overlays.
+- Hot reload candidate hosts receive command-level auth options from the shared auth service bundle.
 - Runtime-package `ConfigureServices` exposes auth factory to command providers.
 
 ### Store tests

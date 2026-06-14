@@ -32,16 +32,25 @@ RelatedFiles:
       Note: Step 3 store builder implementation (commit cc32556)
     - Path: pkg/xgoja/hostauth/stores_test.go
       Note: Step 3 store builder validation coverage (commit cc32556)
+    - Path: pkg/xgoja/providers/http/serve.go
+      Note: |-
+        Step 5 HTTP serve integration for hostauth service factories (commit addd553)
+        HTTP serve integration for hostauth service factories (commit addd553)
+    - Path: pkg/xgoja/providers/http/serve_test.go
+      Note: |-
+        Step 5 HTTP serve and hot reload hostauth integration tests (commit addd553)
+        HTTP serve and hot reload hostauth integration tests (commit addd553)
     - Path: ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/design-doc/01-generated-host-auth-session-and-store-configuration-design.md
       Note: Design created in diary step 1
     - Path: ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/tasks.md
       Note: Task backlog created in diary step 1
 ExternalSources: []
 Summary: Chronological diary for generated-host auth session/store configuration design and implementation.
-LastUpdated: 2026-06-14T22:35:00-04:00
+LastUpdated: 2026-06-14T19:57:00-04:00
 WhatFor: Use this to understand what changed during XGOJA-GENERATED-HOST-AUTH-CONFIG and how to continue implementation.
 WhenToUse: Read before resuming generated-host auth config implementation, reviewing design decisions, or updating tasks/changelog.
 ---
+
 
 
 
@@ -488,3 +497,132 @@ Current service factory behavior:
 - OIDC mode still returns `ErrOIDCNotImplemented` from config resolution.
 - `BuilderOptions.LookupEnv` overrides env lookup for tests; otherwise `os.LookupEnv` is used.
 - `values.Values` is reserved for future command/config overlays and is intentionally unused in this slice.
+
+## Step 5: Wire hostauth into HTTP serve and hot reload
+
+This step connected the lazy `hostauth.ServiceFactoryKey` seam to the HTTP provider `serve` command. The provider now detects malformed auth factory host-service payloads during command construction, builds concrete auth services at command execution time after Glazed values are available, and passes an auth-enabled `gojahttp.Host` to Express through the existing `go-go-goja-http.host` service.
+
+The hot reload path now follows the same model with one command-level auth service bundle shared across candidate runtimes and one per-candidate HTTP host. That keeps DB-backed stores and session managers stable across reloads while preserving the existing candidate-host isolation and runtime close lifecycle.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue implementation by wiring the completed hostauth service factory into the HTTP provider and hot reload paths.
+
+**Inferred user intent:** Make generated-host auth services usable by Express `serve` commands without changing JavaScript route declarations or moving authorization policy into YAML.
+
+**Commit (code):** addd553 — "Wire hostauth into HTTP serve"
+
+### What I did
+
+- Updated `pkg/xgoja/providers/http/serve.go` to import and consume `pkg/xgoja/hostauth`.
+- Taught `newServeCommandSet` to validate `hostauth.ServiceFactoryKey` if present in `CommandSetContext.Host`.
+- Added `buildServeAuthServices`, `hostOptionsWithAuth`, and `serveRuntimeServices` helpers.
+- In the normal serve path:
+  - preserved the previous runtime creation path when no auth factory is present,
+  - built auth services lazily when a factory is present,
+  - created a `gojahttp.Host` with HTTP settings plus `Services.AuthOptions`,
+  - passed that host as `go-go-goja-http.host`,
+  - passed concrete auth services as `hostauth.ServicesKey`.
+- In the hot reload path:
+  - built one command-level auth service bundle,
+  - attached auth options to `hotreload.Options.HostOptions`,
+  - passed each candidate host plus the shared auth services into candidate runtime overlays.
+- Preserved existing custom `go-go-goja-http.host` behavior in the non-hot-reload path by not overlaying a generated host when a base external host is already present.
+- Added tests in `pkg/xgoja/providers/http/serve_test.go` for:
+  - malformed auth factory host-service payloads,
+  - protected planned routes returning 401 through the generated auth-enabled host,
+  - external custom HTTP hosts winning over generated auth hosts,
+  - HTTP host option preservation while merging auth options,
+  - hot reload candidate hosts receiving auth options from the service factory.
+- Checked off tasks 66 through 82 and validation tasks 99, 100, and 102.
+
+### Why
+
+- The HTTP provider should not know store constructors or session manager internals; it should consume `Services.AuthOptions` from the provider-neutral `hostauth` package.
+- Auth service construction must happen after command values are parsed, not during command provider construction.
+- `go-go-goja-http.host` remains the single route-registration seam for Express. `hostauth.ServicesKey` is exposed for future runtime modules/tools, not as a second implicit host creation path.
+
+### What worked
+
+- Focused validation passed:
+  - `go test ./pkg/xgoja/hostauth ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1`
+- The commit hook passed:
+  - `golangci-lint run -v`
+  - glazed lint via `go vet -vettool=/tmp/glazed-lint ...`
+  - `go generate ./...`
+  - `go test ./...`
+- Existing no-auth serve behavior remained covered by the existing serve tests.
+- The new protected route test proved Express planned auth routes use the generated auth-enabled host and return `401 Unauthorized` without a session cookie.
+
+### What didn't work
+
+- The first version of the protected-route test chained `.auth(...).handle(...)` directly. That failed because the staged fluent API requires an authorization step before `.handle(...)` on auth routes:
+
+```text
+--- FAIL: TestServeVerbUsesHostAuthServiceFactory (0.05s)
+    serve_test.go:223: serve exited early: TypeError: Object has no member 'handle' at start (/site.js:13:12(23))
+```
+
+The fix was to use the intended staged form:
+
+```javascript
+app.get("/me")
+  .auth(express.user().required())
+  .allow("user.self.read")
+  .handle((ctx, res) => res.json({ actor: ctx.actor.id }));
+```
+
+The next assertion initially expected the body to contain `unauthenticated`, but the HTTP response body is the standard text `Unauthorized`; the test now asserts the `401` status rather than a brittle response body string.
+
+I also tried to check off a range of docmgr tasks in one command, but `docmgr task check` expects comma-separated integer ids rather than ranges:
+
+```text
+$ docmgr task check --ticket XGOJA-GENERATED-HOST-AUTH-CONFIG --id 66-82,99,100,102
+Error: invalid argument "66-82,99,100,102" for "--id" flag: strconv.Atoi: parsing "66-82": invalid syntax
+```
+
+The fix was to pass every task id explicitly as `66,67,68,...,82,99,100,102`.
+
+### What I learned
+
+- The provider should validate the lazy factory payload early, but still defer actual service building until command execution.
+- The Express loader should continue to be host-driven: it consumes `go-go-goja-http.host`, not `hostauth.ServicesKey`. That avoids two possible places where an HTTP host could be synthesized.
+- Hot reload works best with shared auth services and per-candidate HTTP hosts. Rebuilding DB-backed auth stores per candidate would be wasteful and could create lifecycle bugs when old runtimes retire.
+
+### What was tricky to build
+
+- The main edge was host-service layering. `NewRuntimeFromSectionsWithHostServices` layers base host services and per-runtime overlays; if both layers contain `go-go-goja-http.host`, singleton lookup sees multiple values and fails. The non-hot-reload path now checks for an existing external host and only overlays a generated host when none exists.
+- Another edge was close ordering. Auth services are command-level resources, while runtimes and hot reload snapshots are shorter-lived. The code defers auth service closure outside runtime closure so command-level DB handles remain available until the server or hot reload manager shuts down.
+- The hot reload path needed auth options on `hotreload.Options.HostOptions`, because candidate hosts are created inside the hot reload manager before the load callback runs.
+
+### What warrants a second pair of eyes
+
+- Whether the non-hot-reload custom-host precedence rule should also be formalized for hot reload or whether custom external hosts plus hot reload should be rejected explicitly.
+- Whether `hostauth.ServicesKey` needs an immediate consumer test outside the HTTP provider, or whether passing it into runtime overlays is enough for this slice.
+- Whether auth service closure should be aggregated with runtime close errors instead of being best-effort in the current `defer` calls.
+
+### What should be done in the future
+
+- Add the generated runtime-package example that injects `hostauth.ServiceFactoryKey` through `ConfigureServices`.
+- Document the HTTP provider service-factory flow in xgoja docs.
+- Keep task 65 open until explicit service-factory closer failure-path coverage is added.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/providers/http/serve.go` and review `serveVerb`, `serveVerbHotReload`, `buildServeAuthServices`, and `serveRuntimeServices`.
+- Then review `pkg/xgoja/providers/http/serve_test.go`, especially `TestServeVerbUsesHostAuthServiceFactory`, `TestServeVerbPreservesExternalHostWithHostAuthFactory`, and `TestServeVerbHotReloadUsesHostAuthServiceFactory`.
+- Validate with:
+  - `go test ./pkg/xgoja/hostauth ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1`
+  - `go test ./...`
+
+### Technical details
+
+Current HTTP provider auth behavior:
+
+- No `hostauth.ServiceFactoryKey`: existing serve behavior remains unchanged.
+- Factory present with `auth.mode=none`: the provider creates a host with HTTP settings but no auth options.
+- Factory present with `auth.mode=dev`: the provider creates a host with session manager, CSRF, audit, appauth resolver/authorizer, and store-backed services.
+- Existing external `go-go-goja-http.host` in the base host services wins in the non-hot-reload path.
+- Hot reload shares one auth service bundle across candidates and passes candidate-specific hosts through `go-go-goja-http.host` overlays.

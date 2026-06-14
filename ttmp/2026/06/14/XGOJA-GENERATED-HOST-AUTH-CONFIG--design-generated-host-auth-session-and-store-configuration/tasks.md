@@ -93,26 +93,26 @@
 
 ### I. HTTP provider integration
 
-- [ ] Task 66: Update `pkg/xgoja/providers/http` to optionally import and consume `pkg/xgoja/hostauth`.
-- [ ] Task 67: Teach `newServeCommandSet` to discover `hostauth.ServiceFactoryKey` from `CommandSetContext.Host`.
-- [ ] Task 68: Preserve existing serve behavior exactly when no hostauth factory is present.
-- [ ] Task 69: At serve command execution, build auth services after Glazed values are parsed.
-- [ ] Task 70: Construct a `gojahttp.Host` from HTTP settings plus `hostauth.Services.AuthOptions`.
-- [ ] Task 71: Pass the constructed host through `go-go-goja-http.host` as `httpprovider.ExternalHostService`.
-- [ ] Task 72: Pass concrete auth services through `hostauth.ServicesKey` for future module/tool consumers.
-- [ ] Task 73: Decide whether the Express loader should ever create a host from `hostauth.ServicesKey` if no external HTTP host is present.
-- [ ] Task 74: Add tests for malformed auth host service payloads.
-- [ ] Task 75: Add tests that HTTP provider config (`dev-errors`, `reject-raw-routes`) still applies when hostauth creates the host.
-- [ ] Task 76: Add tests that external custom `go-go-goja-http.host` still wins over hostauth-generated hosts.
+- [x] Task 66: Update `pkg/xgoja/providers/http` to optionally import and consume `pkg/xgoja/hostauth`.
+- [x] Task 67: Teach `newServeCommandSet` to discover `hostauth.ServiceFactoryKey` from `CommandSetContext.Host`.
+- [x] Task 68: Preserve existing serve behavior exactly when no hostauth factory is present.
+- [x] Task 69: At serve command execution, build auth services after Glazed values are parsed.
+- [x] Task 70: Construct a `gojahttp.Host` from HTTP settings plus `hostauth.Services.AuthOptions`.
+- [x] Task 71: Pass the constructed host through `go-go-goja-http.host` as `httpprovider.ExternalHostService`.
+- [x] Task 72: Pass concrete auth services through `hostauth.ServicesKey` for future module/tool consumers.
+- [x] Task 73: Decide whether the Express loader should ever create a host from `hostauth.ServicesKey` if no external HTTP host is present.
+- [x] Task 74: Add tests for malformed auth host service payloads.
+- [x] Task 75: Add tests that HTTP provider config (`dev-errors`, `reject-raw-routes`) still applies when hostauth creates the host.
+- [x] Task 76: Add tests that external custom `go-go-goja-http.host` still wins over hostauth-generated hosts.
 
 ### J. Hot reload integration
 
-- [ ] Task 77: Review `serveVerbHotReload` lifecycle with auth service factories.
-- [ ] Task 78: Decide whether hot reload reuses one auth service bundle across candidate runtimes or rebuilds per candidate.
-- [ ] Task 79: Prefer sharing DB-backed auth services across candidates while creating per-candidate HTTP hosts.
-- [ ] Task 80: Ensure candidate runtime overlays include `go-go-goja-http.host` and any needed auth services.
-- [ ] Task 81: Ensure candidate runtime close does not close shared command-level DB handles prematurely.
-- [ ] Task 82: Add hot reload tests for auth service lifecycle if feasible.
+- [x] Task 77: Review `serveVerbHotReload` lifecycle with auth service factories.
+- [x] Task 78: Decide whether hot reload reuses one auth service bundle across candidate runtimes or rebuilds per candidate.
+- [x] Task 79: Prefer sharing DB-backed auth services across candidates while creating per-candidate HTTP hosts.
+- [x] Task 80: Ensure candidate runtime overlays include `go-go-goja-http.host` and any needed auth services.
+- [x] Task 81: Ensure candidate runtime close does not close shared command-level DB handles prematurely.
+- [x] Task 82: Add hot reload tests for auth service lifecycle if feasible.
 
 ### K. Generated host / runtime-package integration
 
@@ -138,13 +138,13 @@
 
 ### M. Validation and release hygiene
 
-- [ ] Task 99: Run focused tests for `pkg/xgoja/hostauth`, `pkg/xgoja/providers/http`, and `pkg/xgoja/app`.
-- [ ] Task 100: Run focused tests for all auth store packages.
+- [x] Task 99: Run focused tests for `pkg/xgoja/hostauth`, `pkg/xgoja/providers/http`, and `pkg/xgoja/app`.
+- [x] Task 100: Run focused tests for all auth store packages.
 - [ ] Task 101: Run affected xgoja example smokes.
-- [ ] Task 102: Run `go test ./... -count=1` before final push.
+- [x] Task 102: Run `go test ./... -count=1` before final push.
 - [ ] Task 103: Run targeted security scanner if SQL/cookie/http server code changes.
-- [ ] Task 104: Run `docmgr doctor --ticket XGOJA-GENERATED-HOST-AUTH-CONFIG --stale-after 30`.
-- [ ] Task 105: Update changelog and diary after each implementation slice.
+- [x] Task 104: Run `docmgr doctor --ticket XGOJA-GENERATED-HOST-AUTH-CONFIG --stale-after 30`.
+- [x] Task 105: Update changelog and diary after each implementation slice.
 - [ ] Task 106: Commit in focused slices and push to `task/goja-express-auth`.
 
 ### N. Explicitly deferred follow-ups

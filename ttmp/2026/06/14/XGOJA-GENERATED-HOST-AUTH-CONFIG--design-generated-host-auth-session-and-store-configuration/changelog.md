@@ -62,3 +62,13 @@ Step 4: added hostauth session manager builder, auth-options wiring, and lazy se
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder_test.go — Service factory tests (commit 5276bfb)
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/services.go — Services.Close lifecycle helper (commit 5276bfb)
 
+
+## 2026-06-14
+
+Step 5: wired hostauth service factories into HTTP serve and hot reload paths, preserving no-auth and external-host behavior (commit addd553)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/serve.go — HTTP serve integration for hostauth service factories
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/serve_test.go — HTTP serve and hot reload hostauth integration tests
+
