@@ -310,7 +310,9 @@ The shared transaction store is needed when `/auth/login` and `/auth/callback` c
 
 ### Phase 5: Generated Go host template integration
 
-Advanced apps should graduate to generated or custom Go hosts. The template should generate the explicit Go wiring that production apps need:
+Advanced apps should graduate to generated or custom Go hosts. Recent xgoja support for `CommandSetContext.Host` makes this phase more practical: command providers can now see the same host-service bag that modules receive through `ModuleSetupContext.Host`. That means an auth-aware command provider can inspect or consume prebuilt host services when constructing commands, not just when constructing CommonJS modules.
+
+The template should generate the explicit Go wiring that production apps need:
 
 ```go
 host := gojahttp.NewHost(gojahttp.HostOptions{
@@ -327,6 +329,31 @@ host := gojahttp.NewHost(gojahttp.HostOptions{
 ```
 
 The template can load config, create stores, run migrations or refuse `apply-schema` in production, configure OIDC handlers, and expose app-specific authorization seams. This avoids stuffing all production behavior into the generic `express` module.
+
+### How CommandSetContext host services change the next phase
+
+Host services in `CommandSetContext` help because HTTP/auth work is command-shaped as well as module-shaped. A production generated host usually needs command-owned endpoints and lifecycle wiring in addition to `require("express")`:
+
+- `serve` commands need access to a preconfigured `gojahttp.Host`.
+- OIDC login/callback/logout handlers are Go HTTP handlers mounted beside JavaScript routes.
+- Session, audit, appauth, and capability stores need closers and shared ownership.
+- Hot reload needs to create candidate runtimes with the same external host-service shape.
+- Future auth command sets may expose setup/check/migrate/smoke commands that need the same configured stores.
+
+Before `CommandSetContext.Host`, command providers could create runtimes with host services, but the command factory itself could not easily inspect the generated host service bag while building its commands. With this support, a cleaner next-phase design is possible:
+
+1. A generated host/template or auth provider contributes typed host services, for example:
+   - `go-go-goja-http.host` with an external `gojahttp.Host`,
+   - `go-go-goja-auth.sessions` with a `*sessionauth.Manager`,
+   - `go-go-goja-auth.audit` with an audit sink/store,
+   - appauth/capability stores where configured.
+2. The HTTP provider command set reads `CommandSetContext.Host` and decides whether to:
+   - serve with an externally supplied host,
+   - mount Go-owned auth endpoints,
+   - or fall back to the current xgoja-owned host behavior.
+3. Runtime creation still uses `NewRuntimeFromSectionsWithHostServices(...)` when per-runtime overlays are required, such as hot reload candidate hosts.
+
+This reduces pressure to put production auth configuration into the `express` module. The module can stay a route registration API, while command providers and generated host templates compose the host services around it.
 
 ## Design Decisions
 
