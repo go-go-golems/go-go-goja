@@ -12,12 +12,17 @@ type SourceRegistry struct {
 	providers       *providerapi.ProviderRegistry
 	embeddedJSVerbs fs.FS
 	sources         []SourcePlan
+	runtimeAliases  []string
 }
 
 var _ providerapi.SourceRegistry = (*SourceRegistry)(nil)
 
 func NewSourceRegistry(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, sources []SourcePlan) *SourceRegistry {
-	return &SourceRegistry{providers: providers, embeddedJSVerbs: embeddedJSVerbs, sources: append([]SourcePlan(nil), sources...)}
+	return NewSourceRegistryWithRuntimeAliases(providers, embeddedJSVerbs, sources, nil)
+}
+
+func NewSourceRegistryWithRuntimeAliases(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, sources []SourcePlan, runtimeAliases []string) *SourceRegistry {
+	return &SourceRegistry{providers: providers, embeddedJSVerbs: embeddedJSVerbs, sources: append([]SourcePlan(nil), sources...), runtimeAliases: appendUniqueStrings(nil, runtimeAliases...)}
 }
 
 func (r *SourceRegistry) ListSources() []providerapi.RuntimeSourceDescriptor {
@@ -61,7 +66,7 @@ func (r *SourceRegistry) JSVerbs() providerapi.JSVerbSourceSet {
 	if r == nil {
 		return nil
 	}
-	return newJSVerbSourceSet(r.providers, r.embeddedJSVerbs, filterSourcesByKind(r.sources, SourceKindJSVerbs))
+	return newJSVerbSourceSet(r.providers, r.embeddedJSVerbs, filterSourcesByKind(r.sources, SourceKindJSVerbs), r.runtimeAliases)
 }
 
 func (r *SourceRegistry) scanJSVerbSource(id string, runtimeAliases []string) (*jsverbs.Registry, error) {
@@ -93,7 +98,16 @@ func (r *SourceRegistry) Scoped(sourceIDs []string) *SourceRegistry {
 			filtered = append(filtered, source)
 		}
 	}
-	return NewSourceRegistry(r.providers, r.embeddedJSVerbs, filtered)
+	return NewSourceRegistryWithRuntimeAliases(r.providers, r.embeddedJSVerbs, filtered, r.runtimeAliases)
+}
+
+func (r *SourceRegistry) ScopedWithRuntimeAliases(sourceIDs []string, runtimeAliases []string) *SourceRegistry {
+	scoped := r.Scoped(sourceIDs)
+	if scoped == nil {
+		return nil
+	}
+	scoped.runtimeAliases = appendUniqueStrings(nil, runtimeAliases...)
+	return scoped
 }
 
 func filterSourcesByKind(sources []SourcePlan, kind SourceKind) []SourcePlan {

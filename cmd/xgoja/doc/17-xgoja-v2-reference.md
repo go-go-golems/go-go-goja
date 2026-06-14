@@ -262,6 +262,27 @@ from:
 
 Workspace origins require the module to resolve to a local directory.
 
+### Static import graph validation
+
+Executable source sets (`jsverbs` and `script`) are parsed during planning so xgoja can validate local helper imports and runtime module aliases before generating a binary. The source graph accepts standard JavaScript, ESM, TypeScript, and TSX static imports, including:
+
+```js
+const assets = require("fs:assets")
+import express from "express"
+import "./setup"
+export { helper } from "./helper"
+await import("./dynamic")
+```
+
+Bare specifiers must match a selected `runtime.modules[].name` or `runtime.modules[].as` alias. Aliases may contain punctuation such as `fs:assets`; use the literal alias in source code rather than hiding it behind string concatenation.
+
+Non-literal dynamic imports are rejected because generated xgoja apps require a closed static source graph:
+
+```js
+// Avoid: sourcegraph cannot validate this dependency statically.
+require(["fs", "assets"].join(":"))
+```
+
 ### TypeScript compile intent
 
 ```yaml

@@ -131,6 +131,10 @@ topics:
       description: Developer experience improvements, ergonomics, and usability
     - slug: typescript
       description: TypeScript type definitions, d.ts generation, and type safety for JS modules
+    - slug: sourcegraph
+      description: xgoja source graph and import resolution planning
+    - slug: runtime
+      description: runtime behavior and execution model
 docTypes:
     - slug: index
       description: Index document for a ticket

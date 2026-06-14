@@ -1,0 +1,87 @@
+schema: xgoja/v2
+name: sourcegraph-runtime-aliases
+app:
+  name: sourcegraph-runtime-aliases
+go:
+  module: xgoja.generated/sourcegraph-runtime-aliases
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+    register: Register
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+    register: Register
+runtime:
+  modules:
+    - provider: go-go-goja-host
+      name: fs
+      as: fs:assets
+      config:
+        embedded:
+          allow: true
+          mounts:
+            - asset: web-assets
+              mount: /app
+    - provider: go-go-goja-host
+      name: fs
+      as: fs:host
+      config:
+        allow: true
+    - provider: go-go-goja-http
+      name: express
+sources:
+  - id: js-site
+    kind: jsverbs
+    from:
+      dir: ./verbs-js
+    language: javascript
+  - id: ts-tools
+    kind: jsverbs
+    from:
+      dir: ./verbs-ts
+    include:
+      - "**/*.ts"
+    exclude:
+      - "**/*.test.ts"
+    extensions:
+      - .ts
+    language: typescript
+    compile:
+      mode: runtime
+      bundle: true
+  - id: web-assets
+    kind: assets
+    from:
+      dir: ./assets
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    name: verbs
+    sources:
+      - js-site
+      - ts-tools
+  - id: http-serve
+    type: provider.command-set
+    name: serve
+    mount: serve
+    provider: go-go-goja-http
+    sources:
+      - js-site
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/sourcegraph-runtime-aliases
+    sources:
+      - js-site
+      - ts-tools
+  - id: embedded-assets
+    type: embedded-assets
+    sources:
+      - web-assets
+  - id: declarations
+    type: dts
+    output: js/types/xgoja-modules.d.ts
+    strict: true
