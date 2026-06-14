@@ -11,6 +11,12 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go
+      Note: Capability SQL demo wiring and invite endpoints
+    - Path: examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py
+      Note: Invite issue/accept smoke flow
+    - Path: examples/xgoja/19-express-keycloak-auth-host/scripts/smoke.sh
+      Note: Persisted capability row assertion
     - Path: pkg/gojahttp/auth/capability/sqlstore/schema.go
       Note: SQLite/Postgres auth_capabilities schema
     - Path: pkg/gojahttp/auth/capability/sqlstore/sqlstore.go
@@ -23,6 +29,7 @@ LastUpdated: 2026-06-14T09:54:26.271101021-04:00
 WhatFor: Use this to resume or review the capability SQL store work.
 WhenToUse: Read before continuing XGOJA-CAPABILITY-SQLSTORE.
 ---
+
 
 
 # Diary
@@ -184,3 +191,76 @@ The most important behavior is single-use redemption. The store loads the capabi
   UPDATE auth_capabilities SET used_at = ? WHERE id = ? AND used_at IS NULL
   ```
 - Postgres uses the same logic with `$1` / `$2` placeholders.
+
+## Step 3: Wire capability/sqlstore into the Keycloak demo
+
+I updated the production-shaped Keycloak example so the demo host can persist capability tokens in Postgres alongside sessions, audit records, and appauth state. The demo now exposes a small org-invite flow: an authenticated admin issues a single-use invite capability and a public endpoint redeems it exactly once.
+
+This makes capability persistence visible in the end-to-end smoke instead of only in unit tests. The smoke verifies successful invite issue, successful invite accept, failed token reuse, and a persisted `auth_capabilities` row with `used_at` set.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Update the full demo so capability SQL persistence is exercised end-to-end, then record validation and review notes.
+
+**Inferred user intent:** Provide a runnable proof that the new persistent capability store works in the production-shaped Keycloak flow.
+
+**Commit (code):** pending — demo/docs integration in progress.
+
+### What I did
+- Added `--capability-db-dsn` / `CAPABILITY_DB_DSN` support to the Keycloak host.
+- Added `newCapabilityService` to use `capability/sqlstore` with Postgres when configured, falling back to `capability.NewMemoryStore()` otherwise.
+- Added `POST /orgs/o1/invites` to issue a CSRF-protected, admin-authorized org invite capability.
+- Added `POST /org-invites/accept` to redeem invite tokens and reject reuse.
+- Updated `scripts/keycloak_smoke.py` to issue and accept an invite and verify reuse returns 409.
+- Updated `scripts/smoke.sh` to pass the capability DSN and assert persisted used capability rows.
+- Updated the example README with capability persistence notes.
+
+### Why
+- SQL store contract tests prove adapter correctness, but the user asked for docs and demo updates too.
+- The invite flow is the smallest concrete capability-token use case already present in the package API.
+- Persisting and checking `used_at` in Postgres demonstrates that raw token redemption changes durable state.
+
+### What worked
+- Targeted tests passed:
+  ```bash
+  go test ./examples/xgoja/19-express-keycloak-auth-host/cmd/host ./pkg/gojahttp/auth/appauth/... ./pkg/gojahttp/auth/capability/... -count=1
+  ```
+- The full Keycloak smoke passed:
+  ```text
+  ok invite issue                 200
+  ok invite accept                200
+  ok invite accept reused         409
+  ok persisted capability records 1
+  ```
+
+### What didn't work
+- No demo smoke failures occurred after the handlers and smoke assertions were added.
+
+### What I learned
+- Capability flows can stay entirely host-owned; JavaScript route plans do not need to know token storage details.
+- The existing `IssueOrgInvite` / `AcceptOrgInvite` helpers are sufficient for a concise end-to-end demo.
+
+### What was tricky to build
+- The tricky part was keeping the invite flow small while still security-shaped. The issue endpoint verifies an app session, enforces CSRF, and checks `appauth.ActionOrgInvite` before issuing the token.
+- The accept endpoint is intentionally public because invite links are bearer capabilities; its safety comes from token entropy, expiry, single-use state, and hash-only persistence.
+
+### What warrants a second pair of eyes
+- Review whether the demo should keep invite issue/accept as Go host endpoints or move route declarations into JavaScript once `.body(...)` exists.
+- Review whether 409 is the right status for used/expired/revoked capability tokens.
+
+### What should be done in the future
+- Add production docs for operational cleanup of expired capability rows.
+
+### Code review instructions
+- Review `examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go`, especially `newCapabilityService`, `issueInviteHandler`, and `acceptInviteHandler`.
+- Review `examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py` for the invite flow.
+- Validate with `make -C examples/xgoja/19-express-keycloak-auth-host smoke`.
+
+### Technical details
+- Smoke SQL assertion:
+  ```sql
+  SELECT count(*) FROM auth_capabilities
+  WHERE purpose = 'org.invite.accept' AND used_at IS NOT NULL;
+  ```

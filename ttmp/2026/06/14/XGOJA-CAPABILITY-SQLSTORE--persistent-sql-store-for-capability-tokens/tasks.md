@@ -20,8 +20,8 @@
 
 ## Phase 2 — Demo and docs integration
 
-- [ ] Wire Keycloak demo to create/use capability SQL store when SQL DSN is configured
-- [ ] Add demo invite issue/accept routes or smoke-only flow using persisted capabilities
-- [ ] Update Keycloak demo README with capability persistence notes
-- [ ] Run Keycloak smoke and targeted package tests
-- [ ] Update diary/changelog and commit demo/docs integration
+- [x] Wire Keycloak demo to create/use capability SQL store when SQL DSN is configured
+- [x] Add demo invite issue/accept routes or smoke-only flow using persisted capabilities
+- [x] Update Keycloak demo README with capability persistence notes
+- [x] Run Keycloak smoke and targeted package tests
+- [x] Update diary/changelog and commit demo/docs integration

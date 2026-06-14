@@ -22,9 +22,9 @@
 
 ## Phase 2 — Demo and docs integration
 
-- [ ] Replace Keycloak demo in-memory appauth store with SQL-backed appauth store when DSN is configured
-- [ ] Seed demo users/memberships/resources into SQL
-- [ ] Update Keycloak smoke to verify SQL appauth rows or behavior
-- [ ] Update Keycloak demo README with appauth persistence notes
-- [ ] Run Keycloak smoke and targeted package tests
-- [ ] Update diary/changelog and commit demo/docs integration
+- [x] Replace Keycloak demo in-memory appauth store with SQL-backed appauth store when DSN is configured
+- [x] Seed demo users/memberships/resources into SQL
+- [x] Update Keycloak smoke to verify SQL appauth rows or behavior
+- [x] Update Keycloak demo README with appauth persistence notes
+- [x] Run Keycloak smoke and targeted package tests
+- [x] Update diary/changelog and commit demo/docs integration

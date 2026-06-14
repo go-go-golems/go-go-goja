@@ -180,13 +180,49 @@ def main() -> int:
     status, body, _ = request(opener, missing_url, method="PATCH", headers={"X-CSRF-Token": csrf})
     require_status("project missing", status, 404, body)
 
+    invite_body = json.dumps({"email": "invitee@example.test", "role": "viewer"}).encode("utf-8")
+    status, body, _ = request(
+        opener,
+        urllib.parse.urljoin(base_url, "/orgs/o1/invites"),
+        method="POST",
+        data=invite_body,
+        headers={"Content-Type": "application/json", "X-CSRF-Token": csrf},
+    )
+    require_status("invite issue", status, 200, body)
+    invite = parse_json("invite issue", body)
+    token = invite.get("token")
+    if not token:
+        raise RuntimeError(f"invite issue did not include token: {invite!r}")
+
+    accept_body = json.dumps({"token": token}).encode("utf-8")
+    status, body, _ = request(
+        opener,
+        urllib.parse.urljoin(base_url, "/org-invites/accept"),
+        method="POST",
+        data=accept_body,
+        headers={"Content-Type": "application/json"},
+    )
+    require_status("invite accept", status, 200, body)
+    accepted = parse_json("invite accept", body)
+    if accepted.get("OrgID") != "o1" or accepted.get("Email") != "invitee@example.test":
+        raise RuntimeError(f"invite accept returned unexpected payload: {accepted!r}")
+
+    status, body, _ = request(
+        opener,
+        urllib.parse.urljoin(base_url, "/org-invites/accept"),
+        method="POST",
+        data=accept_body,
+        headers={"Content-Type": "application/json"},
+    )
+    require_status("invite accept reused", status, 409, body)
+
     status, body, _ = request(opener, urllib.parse.urljoin(base_url, "/auth/logout"), method="POST")
     require_status("logout", status, 204, body)
 
     status, body, _ = request(opener, urllib.parse.urljoin(base_url, "/me"))
     require_status("me after logout", status, 401, body)
 
-    print(json.dumps({"status": "PASS", "actorId": me.get("id"), "csrfChecked": True}))
+    print(json.dumps({"status": "PASS", "actorId": me.get("id"), "csrfChecked": True, "inviteChecked": True}))
     return 0
 
 

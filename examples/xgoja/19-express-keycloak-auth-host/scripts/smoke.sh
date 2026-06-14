@@ -10,6 +10,8 @@ POSTGRES_PORT="${POSTGRES_PORT:-15432}"
 ISSUER="${ISSUER:-http://127.0.0.1:${KEYCLOAK_PORT}/realms/goja-demo}"
 SESSION_DB_DSN="${SESSION_DB_DSN:-postgres://goja:goja@127.0.0.1:${POSTGRES_PORT}/goja_auth?sslmode=disable}"
 AUDIT_DB_DSN="${AUDIT_DB_DSN:-${SESSION_DB_DSN}}"
+APPAUTH_DB_DSN="${APPAUTH_DB_DSN:-${SESSION_DB_DSN}}"
+CAPABILITY_DB_DSN="${CAPABILITY_DB_DSN:-${SESSION_DB_DSN}}"
 SCRIPT="${SCRIPT:-${EXAMPLE_DIR}/scripts/server.js}"
 HOST_LOG="${HOST_LOG:-$(mktemp -t goja-keycloak-host.XXXXXX.log)}"
 HOST_BIN="${HOST_BIN:-$(mktemp -t goja-keycloak-host.XXXXXX)}"
@@ -97,7 +99,9 @@ wait_for_url "keycloak discovery" "${ISSUER}/.well-known/openid-configuration" 9
   --listen "${LISTEN}" \
   --issuer "${ISSUER}" \
   --session-db-dsn "${SESSION_DB_DSN}" \
-  --audit-db-dsn "${AUDIT_DB_DSN}" >"${HOST_LOG}" 2>&1 &
+  --audit-db-dsn "${AUDIT_DB_DSN}" \
+  --app-db-dsn "${APPAUTH_DB_DSN}" \
+  --capability-db-dsn "${CAPABILITY_DB_DSN}" >"${HOST_LOG}" 2>&1 &
 HOST_PID=$!
 
 wait_for_host_url "host health" "${BASE_URL}/healthz" 60
@@ -110,3 +114,19 @@ if [[ -z "${audit_count}" || "${audit_count}" -lt 5 ]]; then
   exit 1
 fi
 echo "ok persisted audit records ${audit_count}"
+
+appauth_count="$(docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" exec -T postgres psql -U goja -d goja_auth -tAc "SELECT count(*) FROM auth_app_users WHERE keycloak_sub IS NOT NULL; SELECT count(*) FROM auth_app_resources WHERE type = 'project' AND id = 'p1';")"
+appauth_count="${appauth_count//$'\n'/ }"
+if [[ "${appauth_count}" != *"1 1"* ]]; then
+  echo "expected persisted appauth user/resource rows, got ${appauth_count:-<empty>}" >&2
+  exit 1
+fi
+echo "ok persisted appauth rows ${appauth_count}"
+
+capability_count="$(docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" exec -T postgres psql -U goja -d goja_auth -tAc "SELECT count(*) FROM auth_capabilities WHERE purpose = 'org.invite.accept' AND used_at IS NOT NULL")"
+capability_count="${capability_count//[[:space:]]/}"
+if [[ -z "${capability_count}" || "${capability_count}" -lt 1 ]]; then
+  echo "expected persisted used capability, got count=${capability_count:-<empty>}" >&2
+  exit 1
+fi
+echo "ok persisted capability records ${capability_count}"
