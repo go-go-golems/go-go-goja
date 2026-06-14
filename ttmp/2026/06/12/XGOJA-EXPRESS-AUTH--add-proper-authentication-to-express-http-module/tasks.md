@@ -78,7 +78,7 @@
 - [x] Validate `pkg/xgoja/providers/http` tests after the RuntimeSpec removal
 - [x] Re-run xgoja TypeScript HTTP smoke against the v2 spec after the merge commit lands
 - [x] Re-run Express auth host and Keycloak auth host smokes after the v2 merge commit lands
-- [ ] Update PR handoff with the v2 migration commit and validation results
+- [x] Update PR handoff with the v2 migration commit and validation results
 
 ## Future / out of MVP
 
