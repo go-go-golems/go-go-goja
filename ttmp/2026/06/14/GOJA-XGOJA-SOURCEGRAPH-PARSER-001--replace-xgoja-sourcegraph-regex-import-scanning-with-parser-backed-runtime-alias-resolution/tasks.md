@@ -43,7 +43,7 @@
 
 ### 5. Documentation, validation, and handoff
 
-- [ ] Update xgoja docs if parser behavior or dynamic import diagnostics become user-visible.
+- [x] Update xgoja docs if parser behavior or dynamic import diagnostics become user-visible.
 - [x] Update the ticket design doc with final implementation decisions.
 - [x] Keep the investigation diary updated after each implementation step.
 - [x] Relate modified code/example files to the ticket design doc.

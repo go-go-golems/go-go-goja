@@ -409,3 +409,78 @@ ttmp/2026/06/14/GOJA-XGOJA-SOURCEGRAPH-PARSER-001--replace-xgoja-sourcegraph-reg
 ```
 
 I fixed this by adding `//go:build ignore` to each standalone Go experiment script. They remain runnable with `go run path/to/script.go`, but they are excluded from package builds and broad `go test ./...`.
+
+## Step 4: Document static sourcegraph import rules
+
+I added a user-facing note to the xgoja v2 reference explaining the now-visible static import graph behavior. The docs now say that executable source sets are parsed during planning, runtime module aliases may be imported literally even when they contain punctuation such as `fs:assets`, and non-literal dynamic imports are rejected because generated xgoja apps require a closed static graph.
+
+This closes the documentation follow-up from the implementation tasks: the dynamic import diagnostic is user-visible, so the reference should explain how to write source that the planner can validate.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue executing the task plan and complete user-facing docs for sourcegraph behavior that became visible after parser-backed import validation.
+
+**Inferred user intent:** Finish the ticket work rather than leaving behavioral changes undocumented.
+
+### What I did
+
+- Updated `cmd/xgoja/doc/17-xgoja-v2-reference.md` with a `Static import graph validation` section.
+- Documented accepted static forms:
+  - `require("fs:assets")`
+  - ESM imports
+  - side-effect imports
+  - export-from imports
+  - literal dynamic imports
+- Documented that bare specifiers must match selected `runtime.modules[].name` or `runtime.modules[].as` aliases.
+- Documented that non-literal dynamic imports such as `require(["fs", "assets"].join(":"))` should be avoided.
+- Rendered the help page successfully:
+
+```bash
+go run ./cmd/xgoja help xgoja-v2-reference >/tmp/xgoja-v2-reference-help.txt
+```
+
+- Re-ran docmgr doctor for the parser ticket successfully.
+
+### Why
+
+- The parser-backed sourcegraph change makes dynamic import handling visible to users.
+- Users should know that literal colon aliases are supported and preferred, so they do not keep using dynamic require workarounds.
+
+### What worked
+
+The help page rendered without errors, and the ticket doctor stayed clean.
+
+### What didn't work
+
+N/A
+
+### What I learned
+
+- The v2 reference already had a natural `Sources` section for this explanation, so the documentation update stayed small.
+
+### What was tricky to build
+
+- The wording needed to distinguish literal dynamic imports (`await import("./dynamic")`, which sourcegraph can validate) from non-literal dynamic imports (`require(expr)`, which sourcegraph cannot validate statically).
+
+### What warrants a second pair of eyes
+
+- Confirm whether the dynamic import policy should be documented as a hard generated-app requirement or softened if a future runtime script mode permits dynamic imports.
+
+### What should be done in the future
+
+N/A
+
+### Code review instructions
+
+- Review `cmd/xgoja/doc/17-xgoja-v2-reference.md`, section `Static import graph validation`.
+- Validate with:
+
+```bash
+go run ./cmd/xgoja help xgoja-v2-reference >/tmp/xgoja-v2-reference-help.txt
+```
+
+### Technical details
+
+The documented invariant is: sourcegraph must see every local or runtime dependency as a literal import specifier so it can classify it as local, runtime alias, or unknown before generation.
