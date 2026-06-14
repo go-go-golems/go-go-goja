@@ -10,13 +10,20 @@ Topics:
 DocType: reference
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: pkg/gojahttp/auth/capability/sqlstore/schema.go
+      Note: SQLite/Postgres auth_capabilities schema
+    - Path: pkg/gojahttp/auth/capability/sqlstore/sqlstore.go
+      Note: SQL capability store implementation and atomic redemption
+    - Path: pkg/gojahttp/auth/capability/sqlstore/sqlstore_test.go
+      Note: SQLite contract tests for SQL store
 ExternalSources: []
-Summary: "Chronological diary for the capability SQL store implementation."
+Summary: Chronological diary for the capability SQL store implementation.
 LastUpdated: 2026-06-14T09:54:26.271101021-04:00
-WhatFor: "Use this to resume or review the capability SQL store work."
-WhenToUse: "Read before continuing XGOJA-CAPABILITY-SQLSTORE."
+WhatFor: Use this to resume or review the capability SQL store work.
+WhenToUse: Read before continuing XGOJA-CAPABILITY-SQLSTORE.
 ---
+
 
 # Diary
 
@@ -92,3 +99,88 @@ The design also calls out atomic single-use redemption as the correctness-critic
   ```bash
   go test ./pkg/gojahttp/auth/capability/... -count=1
   ```
+
+## Step 2: Implement capability/sqlstore
+
+I implemented the durable `database/sql` adapter for capability tokens. The package follows the existing SQL store shape: explicit dialect selection, separate SQLite/Postgres schema constants, `ApplySchema(ctx)` for examples and tests, and SQLite contract coverage through the reusable capability store contract.
+
+The most important behavior is single-use redemption. The store loads the capability by token hash inside a transaction, validates purpose/expiry/revocation/used state, and then marks `used_at` with a conditional update that only succeeds while `used_at IS NULL`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Implement the first persistent auth store task-by-task and keep validation/diary state current.
+
+**Inferred user intent:** Make capability tokens production-shaped by persisting token hashes and enforcing single-use redemption safely.
+
+**Commit (code):** pending — capability SQL store implementation in progress.
+
+### What I did
+- Added `pkg/gojahttp/auth/capability/sqlstore/schema.go` with SQLite and Postgres DDL for `auth_capabilities`.
+- Added `pkg/gojahttp/auth/capability/sqlstore/sqlstore.go` implementing `capability.Store`.
+- Added `pkg/gojahttp/auth/capability/sqlstore/sqlstore_test.go` using `capabilitytest.RunStoreContract` against SQLite.
+- Added generated-style `logcopter.go` stub for the new package.
+- Ran:
+  ```bash
+  go test ./pkg/gojahttp/auth/capability/... -count=1
+  ```
+
+### Why
+- Capability tokens need persistence for invite, reset, verification, and narrow delegation flows.
+- The existing memory store semantics are correct but process-local.
+- The contract test gives a stable definition of production behavior for any future store implementation.
+
+### What worked
+- The final targeted test run passed:
+  ```text
+  ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability	0.004s
+  ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability/sqlstore	0.007s
+  ```
+- The implementation stores only `token_hash` and never stores raw tokens.
+- The contract test's concurrent single-use case passed after fixing SQLite connection handling.
+
+### What didn't work
+- The first SQL store contract run failed during the concurrent redemption test:
+  ```text
+  --- FAIL: TestSQLiteStoreContract (0.00s)
+      --- FAIL: TestSQLiteStoreContract/single_use_redemption_is_atomic (0.00s)
+          store_contract.go:148: unexpected concurrent redeem err=scan capability: no such table: auth_capabilities
+  FAIL
+  FAIL	github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability/sqlstore	0.010s
+  ```
+- Cause: SQLite `:memory:` databases are per connection, and concurrent test goroutines opened separate connections that did not share the schema.
+- Fix: set `db.SetMaxOpenConns(1)` in the SQLite contract harness so all goroutines use the same in-memory database connection.
+
+### What I learned
+- The existing contract test is strong enough to catch both clone isolation and concurrency hazards.
+- For in-memory SQLite tests in Go, connection pool behavior matters as much as SQL logic.
+- The same conditional-update redemption design maps cleanly to both SQLite and Postgres using dialect-specific placeholder constants.
+
+### What was tricky to build
+- The race-safe redemption path needed to distinguish domain failures from SQL errors. Purpose mismatch, expiry, revocation, and used state return `capability` package errors; SQL scan/transaction failures are wrapped with operation context.
+- The store's `ByID` intentionally returns the stored hash because it is an administrative store API, while the service layer redacts hashes before returning issued/redeemed capabilities to application callers.
+
+### What warrants a second pair of eyes
+- Review the transaction isolation assumptions for Postgres concurrent single-use redemption.
+- Review whether `token_hash BYTEA/BLOB UNIQUE` is preferred over a hex string for operational debugging and indexing.
+- Review whether revocation should be idempotent or continue returning `ErrNotFound` for missing IDs; the implementation follows the current memory-store contract.
+
+### What should be done in the future
+- Wire this store into the Keycloak demo and smoke so persisted capability rows are exercised outside unit tests.
+- Add operational cleanup examples for expired/revoked capabilities if needed.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/capability/sqlstore/schema.go` for table shape.
+- Then review `pkg/gojahttp/auth/capability/sqlstore/sqlstore.go`, especially `Redeem`.
+- Validate with:
+  ```bash
+  go test ./pkg/gojahttp/auth/capability/... -count=1
+  ```
+
+### Technical details
+- Atomic single-use update query shape:
+  ```sql
+  UPDATE auth_capabilities SET used_at = ? WHERE id = ? AND used_at IS NULL
+  ```
+- Postgres uses the same logic with `$1` / `$2` placeholders.

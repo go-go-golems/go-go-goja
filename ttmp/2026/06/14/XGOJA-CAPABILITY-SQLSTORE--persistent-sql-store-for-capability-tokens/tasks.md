@@ -5,18 +5,18 @@
 - [x] Create docmgr ticket workspace
 - [x] Add design document for SQL capability store
 - [x] Add initial diary entry and relate files
-- [ ] Commit ticket setup/design
+- [x] Commit ticket setup/design
 
 ## Phase 1 — SQL store implementation
 
-- [ ] Add `pkg/gojahttp/auth/capability/sqlstore` package
-- [ ] Add SQLite/Postgres schemas for `auth_capabilities`
-- [ ] Implement `New`, `Schema`, `ApplySchema`, `Create`, `ByID`, `Redeem`, and `Revoke`
-- [ ] Implement transaction/conditional-update based atomic single-use redemption
-- [ ] Add SQLite contract tests via `capabilitytest.RunStoreContract`
-- [ ] Add generated logcopter stub if required by lint
-- [ ] Run `go test ./pkg/gojahttp/auth/capability/... -count=1`
-- [ ] Commit capability SQL store
+- [x] Add `pkg/gojahttp/auth/capability/sqlstore` package
+- [x] Add SQLite/Postgres schemas for `auth_capabilities`
+- [x] Implement `New`, `Schema`, `ApplySchema`, `Create`, `ByID`, `Redeem`, and `Revoke`
+- [x] Implement transaction/conditional-update based atomic single-use redemption
+- [x] Add SQLite contract tests via `capabilitytest.RunStoreContract`
+- [x] Add generated logcopter stub if required by lint
+- [x] Run `go test ./pkg/gojahttp/auth/capability/... -count=1`
+- [x] Commit capability SQL store
 
 ## Phase 2 — Demo and docs integration
 
