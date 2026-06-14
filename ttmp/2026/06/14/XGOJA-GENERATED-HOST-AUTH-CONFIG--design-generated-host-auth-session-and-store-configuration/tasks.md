@@ -12,47 +12,47 @@
 
 ### B. Package boundary and naming
 
-- [ ] Task 6: Decide final package name for provider-neutral auth host helpers: prefer `pkg/xgoja/hostauth` unless dependency review finds a better location.
-- [ ] Task 7: Create the package skeleton with `doc.go`, `config.go`, `services.go`, `lookup.go`, and initial tests.
-- [ ] Task 8: Define stable host service keys for concrete services and lazy service factories.
-- [ ] Task 9: Add lookup helpers that validate `providerapi.HostServiceLookup` payload types and return clear errors.
-- [ ] Task 10: Add tests for missing service keys, wrong payload types, nil service factories, and duplicate/multi-value behavior.
+- [x] Task 6: Decide final package name for provider-neutral auth host helpers: prefer `pkg/xgoja/hostauth` unless dependency review finds a better location.
+- [x] Task 7: Create the package skeleton with `doc.go`, `config.go`, `services.go`, `lookup.go`, and initial tests.
+- [x] Task 8: Define stable host service keys for concrete services and lazy service factories.
+- [x] Task 9: Add lookup helpers that validate `providerapi.HostServiceLookup` payload types and return clear errors.
+- [x] Task 10: Add tests for missing service keys, wrong payload types, nil service factories, and duplicate/multi-value behavior.
 
 ### C. Auth config model
 
-- [ ] Task 11: Define `hostauth.Config` with `mode`, `session`, and `stores` sections.
-- [ ] Task 12: Define `hostauth.SessionConfig` with cookie and timeout subfields.
-- [ ] Task 13: Define `hostauth.CookieConfig` with `allow-insecure-http`, `name`, `same-site`, and `path`.
-- [ ] Task 14: Define `hostauth.StoresConfig` with `default`, `session`, `audit`, `appauth`, and `capability` blocks.
-- [ ] Task 15: Define `hostauth.StoreConfig` with `driver`, `dsn`, `dsn-env`, and `apply-schema`.
-- [ ] Task 16: Define resolved config types that remove ambiguity after defaulting and inheritance.
-- [ ] Task 17: Add config path metadata or error helpers so parse failures point to fields such as `auth.session.cookie.same-site`.
+- [x] Task 11: Define `hostauth.Config` with `mode`, `session`, and `stores` sections.
+- [x] Task 12: Define `hostauth.SessionConfig` with cookie and timeout subfields.
+- [x] Task 13: Define `hostauth.CookieConfig` with `allow-insecure-http`, `name`, `same-site`, and `path`.
+- [x] Task 14: Define `hostauth.StoresConfig` with `default`, `session`, `audit`, `appauth`, and `capability` blocks.
+- [x] Task 15: Define `hostauth.StoreConfig` with `driver`, `dsn`, `dsn-env`, and `apply-schema`.
+- [x] Task 16: Define resolved config types that remove ambiguity after defaulting and inheritance.
+- [x] Task 17: Add config path metadata or error helpers so parse failures point to fields such as `auth.session.cookie.same-site`.
 
 ### D. Config parsing and defaults
 
-- [ ] Task 18: Implement mode parsing for `none`, `dev`, and reserved `oidc`.
-- [ ] Task 19: Make `auth.mode=oidc` return a clear not-yet-implemented error in this ticket.
-- [ ] Task 20: Implement duration parsing for `idle-timeout` and `absolute-timeout` using Go duration syntax.
-- [ ] Task 21: Decide whether empty durations materialize defaults in resolved config or delegate defaulting to `sessionauth.New`.
-- [ ] Task 22: Implement `SameSite` parsing for `lax`, `strict`, `none`, and `default`.
-- [ ] Task 23: Make generated-host config default `same-site` to `lax` unless explicitly set otherwise.
-- [ ] Task 24: Default empty cookie path to `/`.
-- [ ] Task 25: Preserve empty cookie name as “use `sessionauth` secure default”.
-- [ ] Task 26: Keep `allow-insecure-http=false` as the default and require explicit opt-in for dev/local HTTP.
-- [ ] Task 27: Add unit tests for all session/cookie defaults.
-- [ ] Task 28: Add unit tests for invalid modes, durations, same-site values, empty paths, and unsafe cookie combinations.
+- [x] Task 18: Implement mode parsing for `none`, `dev`, and reserved `oidc`.
+- [x] Task 19: Make `auth.mode=oidc` return a clear not-yet-implemented error in this ticket.
+- [x] Task 20: Implement duration parsing for `idle-timeout` and `absolute-timeout` using Go duration syntax.
+- [x] Task 21: Decide whether empty durations materialize defaults in resolved config or delegate defaulting to `sessionauth.New`.
+- [x] Task 22: Implement `SameSite` parsing for `lax`, `strict`, `none`, and `default`.
+- [x] Task 23: Make generated-host config default `same-site` to `lax` unless explicitly set otherwise.
+- [x] Task 24: Default empty cookie path to `/`.
+- [x] Task 25: Preserve empty cookie name as “use `sessionauth` secure default”.
+- [x] Task 26: Keep `allow-insecure-http=false` as the default and require explicit opt-in for dev/local HTTP.
+- [x] Task 27: Add unit tests for all session/cookie defaults.
+- [x] Task 28: Add unit tests for invalid modes, durations, same-site values, empty paths, and unsafe cookie combinations.
 
 ### E. Store inheritance and DSN resolution
 
-- [ ] Task 29: Implement field-level inheritance from `auth.stores.default` into each store-specific block.
-- [ ] Task 30: Decide final semantics for empty store-specific blocks: inherit all fields from default.
-- [ ] Task 31: Decide final semantics for explicit `driver: memory`: ignore inherited DSN fields or reject conflicting DSNs.
-- [ ] Task 32: Implement DSN resolution from `dsn-env` with injectable `LookupEnv` for tests.
-- [ ] Task 33: Reject configs that set both `dsn` and `dsn-env` unless a documented precedence is chosen.
-- [ ] Task 34: Reject `postgres` and `sqlite` stores with no resolved DSN.
-- [ ] Task 35: Permit `memory` stores with no DSN.
-- [ ] Task 36: Add table-driven tests for default inheritance, partial overrides, DSN env lookup, missing env vars, and driver errors.
-- [ ] Task 37: Document that production DSNs should use env/config refs and should not be committed in example YAML.
+- [x] Task 29: Implement field-level inheritance from `auth.stores.default` into each store-specific block.
+- [x] Task 30: Decide final semantics for empty store-specific blocks: inherit all fields from default.
+- [x] Task 31: Decide final semantics for explicit `driver: memory`: ignore inherited DSN fields or reject conflicting DSNs.
+- [x] Task 32: Implement DSN resolution from `dsn-env` with injectable `LookupEnv` for tests.
+- [x] Task 33: Reject configs that set both `dsn` and `dsn-env` unless a documented precedence is chosen.
+- [x] Task 34: Reject `postgres` and `sqlite` stores with no resolved DSN.
+- [x] Task 35: Permit `memory` stores with no DSN.
+- [x] Task 36: Add table-driven tests for default inheritance, partial overrides, DSN env lookup, missing env vars, and driver errors.
+- [x] Task 37: Document that production DSNs should use env/config refs and should not be committed in example YAML.
 
 ### F. Store builders
 

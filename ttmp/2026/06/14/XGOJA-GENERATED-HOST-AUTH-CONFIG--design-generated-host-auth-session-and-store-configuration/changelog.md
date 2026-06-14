@@ -15,3 +15,29 @@ Created generated-host auth config ticket, wrote detailed design, transferred ba
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/reference/01-implementation-diary.md — Initial design handoff diary
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/tasks.md — Detailed phased task backlog
 
+
+## 2026-06-14
+
+Implemented initial hostauth package skeleton, config resolver, host-service lookup helpers, and unit tests
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/config.go — Config and resolved config types
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/lookup.go — Host service lookup helpers
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/lookup_test.go — Lookup tests
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/resolve.go — Config resolution
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/resolve_test.go — Resolver tests
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/services.go — Service keys and service payload contracts
+
+
+## 2026-06-14
+
+Step 2: added hostauth config skeleton and resolver (commit 2dee4df)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/config.go — Config and resolved config types (commit 2dee4df)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/logcopter.go — Generated package logcopter file (commit 2dee4df)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/lookup.go — Host service lookup helpers (commit 2dee4df)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/resolve.go — Config resolution and store inheritance (commit 2dee4df)
+
