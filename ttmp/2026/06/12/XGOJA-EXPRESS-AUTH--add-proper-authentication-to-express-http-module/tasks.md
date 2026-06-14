@@ -76,8 +76,8 @@
 - [x] Replace remaining HTTP provider test references to removed `app.RuntimeSpec` / `app.ModuleInstanceSpec` with `app.RuntimePlan` / `app.RuntimeModulePlan`
 - [x] Verify the HTTP provider uses command-scoped v2 `SourceRegistry` for `serve` command-set jsverb discovery
 - [x] Validate `pkg/xgoja/providers/http` tests after the RuntimeSpec removal
-- [ ] Re-run xgoja TypeScript HTTP smoke against the v2 spec after the merge commit lands
-- [ ] Re-run Express auth host and Keycloak auth host smokes after the v2 merge commit lands
+- [x] Re-run xgoja TypeScript HTTP smoke against the v2 spec after the merge commit lands
+- [x] Re-run Express auth host and Keycloak auth host smokes after the v2 merge commit lands
 - [ ] Update PR handoff with the v2 migration commit and validation results
 
 ## Future / out of MVP

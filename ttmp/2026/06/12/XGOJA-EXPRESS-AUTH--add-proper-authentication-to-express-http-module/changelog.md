@@ -206,3 +206,13 @@ Import auth2 Keycloak/OIDC host-side authentication notes for future robust host
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/sources/02-keycloak-oidc-session-authz-host-implementation-notes.md — Imported /tmp/auth2.md as host-side Keycloak/OIDC/session/authz source material
 
+
+## 2026-06-14
+
+Ported HTTP provider coverage through xgoja/v2 RuntimePlan cutover and validated TypeScript/auth smokes (commit 2f34020)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/16-typescript-jsverbs/xgoja.yaml — Confirmed v2 HTTP generated example shape and smoke
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/http_test.go — Replaced removed RuntimeSpec fixture with RuntimePlan
+

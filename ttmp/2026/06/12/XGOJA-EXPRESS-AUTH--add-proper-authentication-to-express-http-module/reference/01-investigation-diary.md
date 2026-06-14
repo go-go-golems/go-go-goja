@@ -11,6 +11,8 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/doc/16-migrating-to-xgoja-v2.md
+      Note: Migration guidance used for xgoja/v2 HTTP assessment
     - Path: examples/xgoja/15-express-planned-auth/scripts/server.js
       Note: Example route authoring migrated to planned verb helpers (commit 4492723)
     - Path: examples/xgoja/16-express-auth-host/README.md
@@ -19,6 +21,8 @@ RelatedFiles:
       Note: Runnable Go host wiring demo auth/resource/authorization/CSRF/audit services (commit f852a21)
     - Path: examples/xgoja/16-express-auth-host/scripts/server.js
       Note: JavaScript planned auth route declarations for the runnable host example (commit f852a21)
+    - Path: examples/xgoja/16-typescript-jsverbs/xgoja.yaml
+      Note: Generated v2 HTTP example smoke validation
     - Path: modules/express/auth_builders.go
       Note: Fluent .csrf() and .audit(event) builder methods (commit 61c858d)
     - Path: modules/express/auth_builders_integration_test.go
@@ -52,6 +56,10 @@ RelatedFiles:
       Note: Route descriptors now expose planned/security metadata (commit 4f42a55)
     - Path: pkg/gojahttp/route_registry_test.go
       Note: Route descriptor metadata tests (commit 4f42a55)
+    - Path: pkg/xgoja/providers/http/http_test.go
+      Note: RuntimePlan fixture fix for planned Express route external-host test
+    - Path: pkg/xgoja/providers/http/serve.go
+      Note: HTTP serve command-scoped SourceRegistry behavior assessed for v2
     - Path: ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/design/01-mvp-authentication-api-design-and-implementation-guide.md
       Note: Primary design output produced during Step 1
     - Path: ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/sources/01-auth-preliminary-api-ideas.md
@@ -63,6 +71,7 @@ LastUpdated: 2026-06-12T16:26:00-04:00
 WhatFor: Use this to resume or review the ticket research and design work.
 WhenToUse: Read before continuing implementation work for XGOJA-EXPRESS-AUTH.
 ---
+
 
 
 
@@ -1734,4 +1743,141 @@ This turns the auth work into something a developer can run locally: `make smoke
   PATCH /orgs/o1/projects/p1             -> 403 without X-CSRF-Token
   PATCH /orgs/o1/projects/p1             -> 200 with bearer token and CSRF token
   PATCH /orgs/o1/projects/missing        -> 404 with bearer token and CSRF token
+  ```
+
+## Step 17: Port the HTTP provider tests through the xgoja/v2 RuntimePlan cutover
+
+I resumed the Express auth branch after the xgoja/v2 RuntimePlan cutover from PR #76 had been merged into the working tree. The migration removes the old `app.RuntimeSpec` / `app.ModuleInstanceSpec` DTOs, so the HTTP provider had to be checked for stale runtime metadata usage before the branch could build again.
+
+The code impact was intentionally small: the HTTP provider implementation was already using the v2 command-scoped source registry shape, but one Express external-host test still constructed a removed `RuntimeSpec`. I updated that test to build an `app.RuntimePlan` with `RuntimeSection.Modules`, confirmed the HTTP provider package locally, then concluded the merge and ran the v2 TypeScript HTTP and Express auth smokes.
+
+### Prompt Context
+
+**User prompt (verbatim):** "I just merged a new version of goja for full xgoja v2 port from https://github.com/go-go-golems/go-go-goja/pull/76 with update migration docs and all. We need to port the http part to it, now that we have removed RuntimeSpec. Look at @go-go-goja/cmd/xgoja/doc/16-migrating-to-xgoja-v2.md for example, and make your assessment, then add tasks to your ticket to complete the v2 migration and w ork on them, committing at appropriateintervals, keeping a detailed diary"
+
+**Assistant interpretation:** Review the new xgoja/v2 migration documentation, assess what changed for the HTTP provider and Express auth examples, add ticket tasks for the remaining v2 migration work, implement the necessary code/test changes, validate them, commit at appropriate points, and record the process in the ticket diary.
+
+**Inferred user intent:** Keep the Express auth PR aligned with the new xgoja/v2 runtime-plan architecture so it no longer depends on removed RuntimeSpec APIs and remains mergeable after PR #76.
+
+**Commit (code):** 2f34020925df681a9948d38d6818521a34e2effb — "Merge xgoja v2 runtime cutover"
+
+### What I did
+- Read `cmd/xgoja/doc/16-migrating-to-xgoja-v2.md`, focusing on the HTTP migration rules:
+  - runtime modules live under `runtime.modules`,
+  - provider command sets live under `commands`,
+  - HTTP `serve` commands must list command-scoped `sources`,
+  - generated runtime metadata is now `app.RuntimePlan` JSON with schema `xgoja/runtime/v2`.
+- Confirmed the working tree was still in a merge state against PR #76 / `origin/main` and attempted to conclude the merge.
+- Fixed the stale HTTP provider test reference in `pkg/xgoja/providers/http/http_test.go`:
+  - replaced `app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{...}}`,
+  - with `app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{...}}}`.
+- Added `Phase 6 — xgoja/v2 runtime-plan HTTP migration` tasks to `ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/tasks.md`.
+- Removed an untracked generated merge artifact, `examples/xgoja/16-typescript-jsverbs/js/types/xgoja-modules.d.ts.orig`, after the merge commit succeeded.
+- Ran targeted and broader validation:
+  - `go test ./pkg/xgoja/providers/http -count=1`
+  - pre-commit hook: `golangci-lint`, Glazed vet, `go generate ./...`, and `go test ./...`
+  - `make -C examples/xgoja/16-typescript-jsverbs smoke`
+  - `make -C examples/xgoja/18-express-auth-host smoke`
+  - `make -C examples/xgoja/19-express-keycloak-auth-host smoke`
+
+### Why
+- The xgoja/v2 cutover deliberately removed the legacy runtime spec bridge, so any HTTP-provider test or example still constructing `RuntimeSpec` would fail immediately at type-check time.
+- The HTTP provider is the bridge between generated xgoja applications and `require("express")`; keeping its tests aligned with `RuntimePlan` proves that Express route registration still works through v2 module selection.
+- The TypeScript jsverbs example is the most relevant generated HTTP example because it uses `runtime.modules` for `express`, a provider command-set for `serve`, command-scoped jsverb `sources`, and generated declarations.
+
+### What worked
+- The only code change required for the immediate RuntimeSpec removal was in `pkg/xgoja/providers/http/http_test.go`.
+- Targeted HTTP provider tests passed:
+  ```text
+  ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.342s
+  ```
+- The merge commit hook passed lint, generation, and the full Go test suite after the HTTP test fix.
+- The v2 TypeScript HTTP smoke passed through `doctor`, `gen-dts`, `build`, `run-smoke`, and `serve-smoke`:
+  ```bash
+  make -C examples/xgoja/16-typescript-jsverbs smoke
+  ```
+- The development auth host smoke passed:
+  ```bash
+  make -C examples/xgoja/18-express-auth-host smoke
+  ```
+- The Keycloak/Postgres host smoke passed and confirmed persisted audit records:
+  ```bash
+  make -C examples/xgoja/19-express-keycloak-auth-host smoke
+  # ...
+  ok persisted audit records 12
+  ```
+
+### What didn't work
+- The first attempt to conclude the merge failed in the pre-commit lint/typecheck hook because one HTTP provider test still referenced removed symbols:
+  ```text
+  pkg/xgoja/providers/http/http_test.go:162:22: undefined: app.RuntimeSpec
+  pkg/xgoja/providers/http/http_test.go:162:49: undefined: app.ModuleInstanceSpec
+  ```
+- The same stale symbols then caused the full test phase of that failed commit attempt to fail:
+  ```text
+  FAIL	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http [build failed]
+  ```
+- I fixed this by changing the test fixture to construct an `app.RuntimePlan` with a `RuntimeModulePlan` for the HTTP provider's `express` module.
+
+### What I learned
+- PR #76 already ported the main HTTP provider implementation to v2 concepts: `newServeCommandSet` receives a command-scoped `providerapi.SourceRegistry`, and `serveCommandJSVerbSources` fails closed when no command-scoped jsverb sources are configured.
+- The remaining stale RuntimeSpec usage was test-only, not provider runtime code.
+- The v2 TypeScript example already follows the migration document's HTTP guidance: `runtime.modules` selects `express`, while the `http-serve` provider command set lists `sources: [local-sites]` explicitly.
+
+### What was tricky to build
+- The tricky part was that the repository was in the middle of a merge, so the first commit attempt had to run against the complete staged PR #76 merge rather than a small isolated diff. That made it important to treat the hook failure as a migration signal instead of bypassing hooks.
+- Another subtlety is that xgoja/v2 has two related but separate runtime concepts for HTTP applications: `runtime.modules` makes `require("express")` available to scripts, while provider `commands` and their `sources` decide which jsverb entrypoints the HTTP `serve` command exposes. The HTTP provider test only needed the runtime module side because it creates a runtime directly and registers a route into an external host.
+- The `.d.ts.orig` file appeared as an untracked merge artifact after the merge commit. It was not part of the v2 source contract and was removed rather than committed.
+
+### What warrants a second pair of eyes
+- Review `pkg/xgoja/providers/http/serve.go` to confirm the fail-closed behavior for missing command-scoped sources is the desired production behavior for all generated HTTP applications.
+- Review whether the HTTP provider should add an explicit regression test for a v2 command-set without `sources`, beyond the existing command-source tests added by PR #76.
+- Review the generated TypeScript declarations after PR #76 to ensure the planned Express auth staged builder types remain visible and unchanged for generated v2 applications.
+
+### What should be done in the future
+- Update PR #74 with the v2 merge/fix commit and the smoke results after pushing.
+- Keep `app.RuntimePlan` as the only generated-runtime metadata shape in new HTTP tests and examples.
+- If another HTTP generated example is added, make its `serve` command declare explicit `sources` instead of relying on global jsverb discovery.
+
+### Code review instructions
+- Start with `cmd/xgoja/doc/16-migrating-to-xgoja-v2.md` to understand the v2 HTTP migration contract.
+- Review `pkg/xgoja/providers/http/http_test.go`, especially `TestExpressProviderRegistersPlannedPublicRouteIntoExternalHost`, to see the direct `RuntimePlan` fixture.
+- Review `pkg/xgoja/providers/http/serve.go`, especially `serveCommandJSVerbSources` and `newServeCommandSet`, to confirm provider command sets consume command-scoped sources.
+- Review `examples/xgoja/16-typescript-jsverbs/xgoja.yaml` for the generated v2 HTTP example shape.
+- Validate with:
+  ```bash
+  go test ./pkg/xgoja/providers/http -count=1
+  make -C examples/xgoja/16-typescript-jsverbs smoke
+  make -C examples/xgoja/18-express-auth-host smoke
+  make -C examples/xgoja/19-express-keycloak-auth-host smoke
+  ```
+
+### Technical details
+- Old test fixture shape:
+  ```go
+  runtimeSpec := &app.RuntimeSpec{
+      Modules: []app.ModuleInstanceSpec{{Package: PackageID, Name: "express", As: "express"}},
+  }
+  ```
+- New v2 test fixture shape:
+  ```go
+  runtimePlan := &app.RuntimePlan{
+      Runtime: app.RuntimeSection{
+          Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "express", As: "express"}},
+      },
+  }
+  ```
+- HTTP v2 configuration shape confirmed by the TypeScript example:
+  ```yaml
+  runtime:
+    modules:
+      - provider: go-go-goja-http
+        name: express
+  commands:
+    - id: http-serve
+      type: provider.command-set
+      provider: go-go-goja-http
+      name: serve
+      mount: serve
+      sources: [local-sites]
   ```
