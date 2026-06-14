@@ -9,12 +9,14 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
+
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerutil"
 )
 
 func TestRegister(t *testing.T) {
@@ -83,7 +85,7 @@ func TestCapabilityEnablesHTTPByDefaultWhenValuesArePresent(t *testing.T) {
 	entry := capability.entry(vm)
 	entry.mu.Lock()
 	defer entry.mu.Unlock()
-	if !entry.settings.Enabled || entry.settings.Listen != "127.0.0.1:8787" {
+	if !entry.settings.Enabled || entry.settings.Listen != "127.0.0.1:8787" || !entry.settings.RejectRawRoutes {
 		t.Fatalf("settings = %#v", entry.settings)
 	}
 }
@@ -103,12 +105,116 @@ func TestCapabilityAllowsExplicitHTTPDisable(t *testing.T) {
 	}
 }
 
+func TestCapabilityParsesStaticXGojaHTTPConfig(t *testing.T) {
+	capability := newHTTPCapability()
+	section, err := capability.XGojaConfigSection(providerapi.SectionRequest{}, providerapi.ModuleDescriptor{})
+	if err != nil {
+		t.Fatalf("xgoja config section: %v", err)
+	}
+	sectionValues, err := providerutil.ParseXGojaConfigMap(section, map[string]any{
+		"enabled":           false,
+		"listen":            "127.0.0.1:9999",
+		"dev-errors":        true,
+		"reject-raw-routes": false,
+	})
+	if err != nil {
+		t.Fatalf("parse xgoja config: %v", err)
+	}
+	raw, err := providerutil.SectionValuesToRawJSON(sectionValues)
+	if err != nil {
+		t.Fatalf("raw json: %v", err)
+	}
+	cfg, err := decodeSettingsConfig(raw)
+	if err != nil {
+		t.Fatalf("decode config: %v", err)
+	}
+	if cfg.Enabled || cfg.Listen != "127.0.0.1:9999" || !cfg.DevErrors || cfg.RejectRawRoutes {
+		t.Fatalf("config = %#v", cfg)
+	}
+}
+
+func TestCapabilityMapsExplicitGlazedHTTPConfig(t *testing.T) {
+	capability := newHTTPCapability()
+	section, err := capability.XGojaConfigSection(providerapi.SectionRequest{}, providerapi.ModuleDescriptor{})
+	if err != nil {
+		t.Fatalf("xgoja config section: %v", err)
+	}
+	vals := httpValues(t, map[string]any{
+		"listen":            "127.0.0.1:9998",
+		"dev-errors":        true,
+		"reject-raw-routes": false,
+	})
+	sectionValues, err := capability.XGojaConfigFromGlazed(context.Background(), providerapi.XGojaConfigRequest{ConfigSection: section, GlazedValues: vals})
+	if err != nil {
+		t.Fatalf("map glazed config: %v", err)
+	}
+	raw, err := providerutil.SectionValuesToRawJSON(sectionValues)
+	if err != nil {
+		t.Fatalf("raw json: %v", err)
+	}
+	cfg, err := decodeSettingsConfig(raw)
+	if err != nil {
+		t.Fatalf("decode config: %v", err)
+	}
+	if !cfg.Enabled || cfg.Listen != "127.0.0.1:9998" || !cfg.DevErrors || cfg.RejectRawRoutes {
+		t.Fatalf("config = %#v", cfg)
+	}
+}
+
+func TestConfiguredInternalHostUsesDevErrorsAndRejectsRawRoutes(t *testing.T) {
+	capability := newHTTPCapability()
+	loader, err := capability.newExpressLoader(nil, settings{Enabled: false, Listen: "127.0.0.1:9997", DevErrors: true, RejectRawRoutes: true})
+	if err != nil {
+		t.Fatalf("new express loader: %v", err)
+	}
+	factory, err := engine.NewRuntimeFactoryBuilder().WithModules(engine.NativeModuleRegistrar{ModuleName: "express", Loader: loader}).Build()
+	if err != nil {
+		t.Fatalf("build runtime factory: %v", err)
+	}
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	_, err = rt.Owner.Call(context.Background(), "register configured host routes", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, runErr := vm.RunString(`
+			const app = require("express").app();
+			app.get("/boom").public().handle(() => { throw new Error("configured boom") });
+		`)
+		return nil, runErr
+	})
+	if err != nil {
+		t.Fatalf("register route: %v", err)
+	}
+	entry := capability.entry(rt.VM)
+	entry.mu.Lock()
+	jsHost := entry.host
+	entry.mu.Unlock()
+	if jsHost == nil {
+		t.Fatal("expected configured internal host")
+	}
+	jsHost.Register("GET", "/raw", func(goja.Value, ...goja.Value) (goja.Value, error) { return goja.Undefined(), nil })
+
+	rr := httptest.NewRecorder()
+	jsHost.ServeHTTP(rr, httptest.NewRequest(stdhttp.MethodGet, "/boom", nil))
+	if rr.Code != stdhttp.StatusInternalServerError || !strings.Contains(rr.Body.String(), "configured boom") {
+		t.Fatalf("dev error status=%d body=%s", rr.Code, rr.Body.String())
+	}
+
+	rr = httptest.NewRecorder()
+	jsHost.ServeHTTP(rr, httptest.NewRequest(stdhttp.MethodGet, "/raw", nil))
+	if rr.Code != stdhttp.StatusInternalServerError || !strings.Contains(rr.Body.String(), "raw route GET /raw rejected") {
+		t.Fatalf("raw rejection status=%d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
 func TestExternalHostServiceValidation(t *testing.T) {
 	capability := newHTTPCapability()
-	if _, err := capability.newExpressLoader(app.HostServices{Services: map[string][]any{HostServiceKey: {"bad"}}}); err == nil || !strings.Contains(err.Error(), "must be ExternalHostService") {
+	if _, err := capability.newExpressLoader(app.HostServices{Services: map[string][]any{HostServiceKey: {"bad"}}}, defaultSettings(true)); err == nil || !strings.Contains(err.Error(), "must be ExternalHostService") {
 		t.Fatalf("expected wrong type error, got %v", err)
 	}
-	if _, err := capability.newExpressLoader(app.HostServices{Services: map[string][]any{HostServiceKey: {ExternalHostService{}}}}); err == nil || !strings.Contains(err.Error(), "nil Host") {
+	if _, err := capability.newExpressLoader(app.HostServices{Services: map[string][]any{HostServiceKey: {ExternalHostService{}}}}, defaultSettings(true)); err == nil || !strings.Contains(err.Error(), "nil Host") {
 		t.Fatalf("expected nil host error, got %v", err)
 	}
 }
@@ -208,7 +314,7 @@ func TestExpressExternalHostDoesNotBindConfiguredHTTPPort(t *testing.T) {
 	if err := services.SetHostService(HostServiceKey, ExternalHostService{Host: jsHost, OwnsListen: false}); err != nil {
 		t.Fatalf("SetHostService: %v", err)
 	}
-	loader, err := capability.newExpressLoader(services)
+	loader, err := capability.newExpressLoader(services, defaultSettings(true))
 	if err != nil {
 		t.Fatalf("new express loader: %v", err)
 	}
