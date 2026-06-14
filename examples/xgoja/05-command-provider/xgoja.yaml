@@ -16,6 +16,11 @@ runtime:
         - provider: fixture
           name: hello
           as: hello
+sources:
+    - id: fixture-assets
+      kind: assets
+      from:
+        dir: ./assets
 commands:
     - id: fixture-tools
       type: provider.command-set
@@ -26,3 +31,6 @@ artifacts:
     - id: binary
       type: binary
       output: dist/command-provider
+    - id: fixture-assets
+      type: embedded-assets
+      sources: [fixture-assets]
