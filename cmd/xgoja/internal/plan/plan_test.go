@@ -62,6 +62,45 @@ func TestCompileBuildsProviderSourceAndWorkspacePlans(t *testing.T) {
 	}
 }
 
+func TestCompileAllowsColonRuntimeAliasImports(t *testing.T) {
+	dir := t.TempDir()
+	verbsDir := filepath.Join(dir, "verbs")
+	if err := os.MkdirAll(verbsDir, 0o755); err != nil {
+		t.Fatalf("mkdir verbs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(verbsDir, "site.js"), []byte(`const assets = require("fs:assets")`), 0o644); err != nil {
+		t.Fatalf("write site: %v", err)
+	}
+	p, err := Compile(Options{Config: specv2.Config{
+		Schema:    specv2.Schema,
+		Name:      "fixture",
+		BaseDir:   dir,
+		Go:        specv2.GoSpec{Module: "example.com/fixture", Version: "1.26"},
+		Workspace: specv2.WorkspaceSpec{Mode: string(workspace.ModeOff)},
+		Providers: []specv2.ProviderSpec{{
+			ID:       "fixture",
+			Import:   "example.com/fixture/provider",
+			Register: "Register",
+			Module:   specv2.ProviderModuleSpec{Version: "v1.2.3"},
+		}},
+		Runtime: specv2.RuntimeSpec{Modules: []specv2.RuntimeModuleSpec{{Provider: "fixture", Name: "hello", As: "fs:assets"}}},
+		Sources: []specv2.SourceSpec{{
+			ID:         "verbs",
+			Kind:       specv2.SourceKindJSVerbs,
+			From:       specv2.SourceFromSpec{Dir: "verbs"},
+			Extensions: []string{".js"},
+		}},
+		Commands:  []specv2.CommandSurfaceSpec{{ID: "verbs", Type: "builtin.jsverbs", Sources: []string{"verbs"}}},
+		Artifacts: []specv2.ArtifactSpec{{ID: "bin", Type: "binary", Output: "dist/fixture", Sources: []string{"verbs"}}},
+	}, Providers: providerRegistry(t), StartDir: dir})
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	if got := p.RuntimeAliases; len(got) != 1 || got[0] != "fs:assets" {
+		t.Fatalf("runtime aliases = %#v, want fs:assets", got)
+	}
+}
+
 func TestCompileRejectsUnknownBareImport(t *testing.T) {
 	dir := t.TempDir()
 	verbsDir := filepath.Join(dir, "verbs")

@@ -74,7 +74,7 @@ func (h *Host) newCommandSet(instance CommandPlan, provider providerapi.CommandS
 	if err != nil {
 		return nil, err
 	}
-	sourceRegistry := h.SourceRegistry.Scoped(instance.Sources)
+	sourceRegistry := h.SourceRegistry.ScopedWithRuntimeAliases(instance.Sources, moduleAliases(selected))
 	set, err := provider.NewCommandSet(providerapi.CommandSetContext{
 		Context:         context.Background(),
 		PackageID:       instance.ProviderID(),
