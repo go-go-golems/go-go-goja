@@ -99,7 +99,12 @@ func (a runtimebridgeOwnerAdapter) IsClosed() bool                 { return fals
 
 func (r *Registrar) loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
-	_ = exports.Set("app", func() goja.Value { return r.appObject(vm) })
+	builders := newBuilderStore()
+	_ = exports.Set("app", func() goja.Value { return r.appObject(vm, builders) })
+	_ = exports.Set("user", func() goja.Value { return builders.newUserBuilder(vm) })
+	_ = exports.Set("resource", func(resourceType string) (goja.Value, error) {
+		return builders.newResourceBuilder(vm, resourceType)
+	})
 }
 
 type spaOptions struct {
@@ -156,7 +161,7 @@ func mountOptionsFromValue(vm *goja.Runtime, value goja.Value) mountOptions {
 	return ret
 }
 
-func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
+func (r *Registrar) appObject(vm *goja.Runtime, builders *builderStore) goja.Value {
 	obj := vm.NewObject()
 	mount := func(prefix string, handlerValue goja.Value, options goja.Value) error {
 		if prefix == "" {
@@ -177,18 +182,21 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 	_ = obj.Set("mountHandler", mount)
 	for _, method := range []string{"get", "post", "put", "patch", "delete", "all"} {
 		method := method
-		_ = obj.Set(method, func(pattern string, handler goja.Value) error {
-			fn, ok := goja.AssertFunction(handler)
-			if !ok {
-				return fmt.Errorf("app.%s(%q) requires a function handler", method, pattern)
+		upperMethod := strings.ToUpper(method)
+		_ = obj.Set(method, func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 || goja.IsUndefined(call.Argument(0)) || goja.IsNull(call.Argument(0)) {
+				panic(vm.NewTypeError("app.%s(pattern) requires a route pattern", method))
 			}
-			if err := r.start(vm); err != nil {
-				return err
+			pattern := call.Argument(0).String()
+			if len(call.Arguments) > 1 && !goja.IsUndefined(call.Argument(1)) && !goja.IsNull(call.Argument(1)) {
+				panic(vm.NewTypeError("app.%s(pattern, handler) was removed; use app.%s(pattern).public().handle(handler) or app.%s(pattern).auth(...).allow(...).handle(handler)", method, method, method))
 			}
-			r.host.Register(strings.ToUpper(method), pattern, fn)
-			return nil
+			return newRouteBuilder(vm, r, builders, upperMethod, pattern)
 		})
 	}
+	_ = obj.Set("route", func(method, pattern string) goja.Value {
+		return newRouteBuilder(vm, r, builders, method, pattern)
+	})
 	_ = obj.Set("static", func(prefix, dir string) error {
 		if prefix == "" || dir == "" {
 			return fmt.Errorf("app.static requires prefix and directory")

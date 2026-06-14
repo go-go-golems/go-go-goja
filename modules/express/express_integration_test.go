@@ -32,7 +32,7 @@ func TestExpressRouteReturnsHTMLNode(t *testing.T) {
 			const express = require("express");
 			const ui = require("ui.dsl");
 			const app = express.app();
-			app.get("/hello/:name", (req, res) => ui.h1("Hello " + req.params.name));
+			app.get("/hello/:name").public().handle((ctx, res) => ui.h1("Hello " + ctx.params.name));
 		`)
 		return nil, err
 	})
@@ -128,7 +128,7 @@ func TestExpressSPAFromAssetsModuleFallsBackAndExcludesAPI(t *testing.T) {
 			const assets = require("fs:assets");
 			const app = express.app();
 			app.spaFromAssetsModule("/", assets, "/app/public");
-			app.get("/api/hello", (_req, res) => res.json({ ok: true }));
+			app.get("/api/hello").public().handle((_ctx, res) => res.json({ ok: true }));
 		`)
 		return nil, err
 	})
@@ -171,7 +171,7 @@ func TestExpressPostJSONEcho(t *testing.T) {
 		_, err := vm.RunString(`
 			const express = require("express");
 			const app = express.app();
-			app.post("/echo", (req, res) => res.status(201).json({ title: req.body.title }));
+			app.post("/echo").public().handle((ctx, res) => res.status(201).json({ title: ctx.body.title }));
 		`)
 		return nil, err
 	})
@@ -208,9 +208,9 @@ func TestExpressRouteAwaitsReturnedPromise(t *testing.T) {
 			const ui = require("ui.dsl");
 			const timer = require("timer");
 			const app = express.app();
-			app.get("/async-return", async (req, res) => {
+			app.get("/async-return").public().handle(async (ctx, res) => {
 			  await timer.sleep(5);
-			  return ui.h1("async " + req.query.name);
+			  return ui.h1("async " + ctx.request.query.name);
 			});
 		`)
 		return nil, err
@@ -248,9 +248,9 @@ func TestExpressRouteAwaitsPromiseThatSendsResponse(t *testing.T) {
 			const express = require("express");
 			const timer = require("timer");
 			const app = express.app();
-			app.get("/async-send", async (req, res) => {
+			app.get("/async-send").public().handle(async (ctx, res) => {
 			  await timer.sleep(5);
-			  res.json({ ok: true, name: req.query.name });
+			  res.json({ ok: true, name: ctx.request.query.name });
 			});
 		`)
 		return nil, err
@@ -284,7 +284,7 @@ func TestHeadFallsBackToGetWithoutBody(t *testing.T) {
 		_, err := vm.RunString(`
 			const express = require("express");
 			const app = express.app();
-			app.get("/hello", (req, res) => res.type("text/plain").send("hello body"));
+			app.get("/hello").public().handle((_ctx, res) => res.type("text/plain").send("hello body"));
 		`)
 		return nil, err
 	})

@@ -15,6 +15,9 @@ runtime:
   modules:
     - provider: go-go-goja-http
       name: express
+      config:
+        reject-raw-routes: true
+        dev-errors: false
 sources:
   - id: local-sites
     kind: jsverbs

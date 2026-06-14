@@ -193,11 +193,22 @@ runtime:
       name: express
       as: express
       config:
-        debug: true
+        listen: 127.0.0.1:8787
+        dev-errors: false
+        reject-raw-routes: true
 ```
 
 Runtime modules are Go-backed CommonJS modules. JavaScript or TypeScript source
-imports them with `require("express")` or an equivalent compiled import.
+imports them with `require("express")` or an equivalent compiled import. Provider-specific `config` maps are parsed by that provider; unknown fields are rejected when the provider exposes an xgoja config section.
+
+For `go-go-goja-http` / `express`, the first supported static config fields are:
+
+| Field | Meaning |
+| --- | --- |
+| `enabled` | Start the xgoja-owned HTTP server when Express registers routes. |
+| `listen` | Listen address for the xgoja-owned HTTP server. |
+| `dev-errors` | Return development JavaScript handler error details from the internal `gojahttp` host. Keep `false` for production. |
+| `reject-raw-routes` | Reject matched raw/unplanned routes; planned `.public()`/`.auth()` routes and static mounts still work. |
 
 The planner derives runtime module aliases from `runtime.modules`. TypeScript
 source sets do not need to repeat those aliases under a separate `external`

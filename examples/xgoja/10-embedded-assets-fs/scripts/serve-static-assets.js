@@ -3,8 +3,8 @@ const assets = require("fs:assets")
 
 const app = express.app()
 app.staticFromAssetsModule("/static", assets, "/app/public")
-app.get("/", (_req, res) => res.redirect("/static/"))
-app.get("/api/config", (_req, res) => {
+app.get("/").public().handle((_ctx, res) => res.redirect("/static/"))
+app.get("/api/config").public().handle((_ctx, res) => {
   const config = JSON.parse(assets.readFileSync("/app/config/default.json", "utf8"))
   res.json({ ok: true, config })
 })

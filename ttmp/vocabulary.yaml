@@ -131,10 +131,20 @@ topics:
       description: Developer experience improvements, ergonomics, and usability
     - slug: typescript
       description: TypeScript type definitions, d.ts generation, and type safety for JS modules
+    - slug: keycloak
+      description: Keycloak identity provider integration and configuration
+    - slug: oidc
+      description: OpenID Connect authentication flows and token verification
     - slug: sourcegraph
       description: xgoja source graph and import resolution planning
     - slug: runtime
       description: runtime behavior and execution model
+    - slug: express
+      description: Express-compatible HTTP routing examples and module work
+    - slug: examples
+      description: Runnable examples, demos, and smoke-testable sample applications
+    - slug: auth
+      description: Authentication and authorization implementation and documentation
 docTypes:
     - slug: index
       description: Index document for a ticket

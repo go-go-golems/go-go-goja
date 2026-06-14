@@ -11,11 +11,18 @@ type Route struct {
 	Method  string
 	Pattern string
 	Handler goja.Callable
+	Plan    *RoutePlan
 }
 
 type RouteDescriptor struct {
-	Method  string `json:"method"`
-	Pattern string `json:"pattern"`
+	Method       string       `json:"method"`
+	Pattern      string       `json:"pattern"`
+	Planned      bool         `json:"planned"`
+	SecurityMode SecurityMode `json:"securityMode,omitempty"`
+	Action       string       `json:"action,omitempty"`
+	Name         string       `json:"name,omitempty"`
+	CSRFRequired bool         `json:"csrfRequired,omitempty"`
+	AuditEvent   string       `json:"auditEvent,omitempty"`
 }
 
 type Registry struct {
@@ -31,6 +38,14 @@ func (r *Registry) Add(method, pattern string, handler goja.Callable) {
 	r.routes = append(r.routes, Route{Method: strings.ToUpper(method), Pattern: cleanPath(pattern), Handler: handler})
 }
 
+func (r *Registry) AddPlanned(plan RoutePlan, handler goja.Callable) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	plan.Method = strings.ToUpper(plan.Method)
+	plan.Pattern = cleanPath(plan.Pattern)
+	r.routes = append(r.routes, Route{Method: plan.Method, Pattern: plan.Pattern, Handler: handler, Plan: &plan})
+}
+
 func (r *Registry) Routes() []RouteDescriptor {
 	if r == nil {
 		return nil
@@ -39,7 +54,16 @@ func (r *Registry) Routes() []RouteDescriptor {
 	defer r.mu.RUnlock()
 	out := make([]RouteDescriptor, 0, len(r.routes))
 	for _, route := range r.routes {
-		out = append(out, RouteDescriptor{Method: route.Method, Pattern: route.Pattern})
+		descriptor := RouteDescriptor{Method: route.Method, Pattern: route.Pattern}
+		if route.Plan != nil {
+			descriptor.Planned = true
+			descriptor.SecurityMode = route.Plan.Security.Mode
+			descriptor.Action = route.Plan.Action
+			descriptor.Name = route.Plan.Name
+			descriptor.CSRFRequired = route.Plan.CSRF.Required
+			descriptor.AuditEvent = route.Plan.Audit.Event
+		}
+		out = append(out, descriptor)
 	}
 	return out
 }

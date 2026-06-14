@@ -57,6 +57,21 @@ module setup
 
 The important rule is timing: `NewRuntimeFromSections` receives parsed Glazed values and applies provider mappings before module setup. If a value must affect the shape or behavior of `require("my-module")`, it must be mapped before `NewModuleFactory` returns the loader.
 
+For example, the HTTP provider maps the public `http` section into the `express` module's xgoja config so static `xgoja.yaml` values and command-line overrides share one setup path:
+
+```yaml
+runtime:
+  modules:
+    - provider: go-go-goja-http
+      name: express
+      config:
+        listen: 127.0.0.1:8787
+        dev-errors: false
+        reject-raw-routes: true
+```
+
+This config controls host infrastructure. JavaScript still declares route intent with `.public()`, `.auth(...)`, `.csrf()`, and `.allow(...)`; it should not configure cookies, OIDC clients, SQL stores, or application authorization policy.
+
 ## Public Glazed sections
 
 Implement `providerapi.GlazedConfigSectionCapability` when a provider wants to expose user-facing command/config/env values.

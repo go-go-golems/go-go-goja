@@ -2,7 +2,7 @@
 
 These examples are both runnable smoke tests and a numbered learning path for generated xgoja binaries.
 
-Each example directory has its own `README.md`, `Makefile`, and native `schema: xgoja/v2` `xgoja.yaml`. Start with the first provider example and continue down the list; later examples assume the module-set and provider vocabulary from earlier examples.
+Each example directory has its own `README.md`, `Makefile`, and native `schema: xgoja/v2` `xgoja.yaml` when it is an xgoja build fixture. Start with the first provider example and continue down the list; later examples assume the module-set and provider vocabulary from earlier examples.
 
 ## Learning path
 
@@ -22,6 +22,10 @@ Each example directory has its own `README.md`, `Makefile`, and native `schema: 
 14. `14-generated-runtime-package/` — `xgoja generate` writes an importable runtime package that a host application uses directly.
 15. `15-protobuf-builder-provider/` — a provider exposes a generated protobuf builder module, generated from a local `.proto`, and tests JavaScript-to-Go protobuf extraction without JSON/protojson conversion.
 16. `16-typescript-jsverbs/` — TypeScript-authored jsverbs use esbuild-backed compilation, `xgoja run` TypeScript entry support, generated declarations, and HTTP hot reload.
+17. Reserved; the old route-authoring-only Express sketch was removed because the runnable examples below cover the same API.
+18. `18-express-auth-host/` — runnable Go-owned dev-auth host that wires login/logout, session cookies, CSRF, resources, authorization, audit, and strict raw-route rejection for planned Express auth routes.
+19. `19-express-keycloak-auth-host/` — production-oriented Keycloak/OIDC host skeleton with Docker Compose Keycloak realm, app sessions, app-owned authorization, and planned Express routes.
+20. `20-express-hello-world/` — tiny no-auth Express host with public planned routes only.
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 
@@ -72,11 +76,13 @@ for dir in \
   13-http-serve-jsverbs \
   14-generated-runtime-package \
   15-protobuf-builder-provider \
-  16-typescript-jsverbs; do
+  16-typescript-jsverbs \
+  18-express-auth-host \
+  20-express-hello-world; do
   make -C examples/xgoja/$dir smoke
 done
 ```
 
-`11-config-env/` and `12-geppetto-host-services/` are intentionally omitted from the bulk loop. `11-config-env/` is a command/config fixture rather than a Makefile-based smoke, and `12-geppetto-host-services/` depends on a sibling checkout of `geppetto` plus optional live profile credentials for the full inference smoke.
+`11-config-env/` and `12-geppetto-host-services/` are intentionally omitted from the bulk loop. `11-config-env/` is a command/config fixture rather than a Makefile-based smoke, and `12-geppetto-host-services/` depends on a sibling checkout of `geppetto` plus optional live profile credentials for the full inference smoke. `19-express-keycloak-auth-host/` has its own Docker Compose Keycloak smoke.
 
 The examples are v2-first. Their specs generally use `workspace.mode: auto`, so generated build workspaces derive local module replacements from the repository `go.work` plan. Some Makefiles still run the xgoja CLI itself with `GOWORK=off` to isolate the CLI process, but generated module replacement should come from workspace planning or an explicit example-specific provider replacement rather than legacy runtime metadata.
