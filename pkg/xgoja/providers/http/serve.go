@@ -21,8 +21,10 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/hotreload"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerutil"
@@ -59,6 +61,9 @@ func newServeCommandSet(ctx providerapi.CommandSetContext) (*providerapi.Command
 	}
 	if ctx.RuntimeFactory == nil {
 		return nil, fmt.Errorf("http serve command requires runtime factory")
+	}
+	if _, _, err := hostauth.LookupServiceFactory(ctx.Host); err != nil {
+		return nil, err
 	}
 
 	sections, err := providerutil.CollectGlazedConfigSections(ctx.SelectedModules, providerapi.SectionRequest{
@@ -116,9 +121,43 @@ func serveVerb(ctx context.Context, commandCtx providerapi.CommandSetContext, re
 	if hotReloadSettings.Enabled {
 		return serveVerbHotReload(ctx, commandCtx, registry, verb, parsedValues, hotReloadSettings)
 	}
-	rt, err := commandCtx.RuntimeFactory.NewRuntimeFromSections(ctx, parsedValues, require.WithLoader(registry.RequireLoader()))
+	authServices, hasAuthFactory, err := buildServeAuthServices(ctx, commandCtx, parsedValues)
 	if err != nil {
 		return nil, err
+	}
+	if hasAuthFactory {
+		defer func() { _ = authServices.Close(context.Background()) }()
+	}
+
+	var rt *engine.Runtime
+	if hasAuthFactory {
+		factory, ok := commandCtx.RuntimeFactory.(providerapi.RuntimeFactoryWithHostServices)
+		if !ok || factory == nil {
+			return nil, fmt.Errorf("http serve with hostauth requires runtime factory with per-runtime host services")
+		}
+		httpSettings, err := decodeHTTPServeSettings(parsedValues)
+		if err != nil {
+			return nil, err
+		}
+		includeGeneratedHost := true
+		if externalHost, err := externalHostService(commandCtx.Host); err != nil {
+			return nil, err
+		} else if externalHost.Host != nil {
+			includeGeneratedHost = false
+		}
+		runtimeServices, err := serveRuntimeServices(gojahttp.NewHost(hostOptionsWithAuth(httpSettings, authServices)), authServices, true, includeGeneratedHost)
+		if err != nil {
+			return nil, err
+		}
+		rt, err = factory.NewRuntimeFromSectionsWithHostServices(ctx, parsedValues, runtimeServices, require.WithLoader(registry.RequireLoader()))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		rt, err = commandCtx.RuntimeFactory.NewRuntimeFromSections(ctx, parsedValues, require.WithLoader(registry.RequireLoader()))
+		if err != nil {
+			return nil, err
+		}
 	}
 	defer func() { _ = rt.Close(context.Background()) }()
 
@@ -144,6 +183,13 @@ func serveVerbHotReload(ctx context.Context, commandCtx providerapi.CommandSetCo
 	if err != nil {
 		return nil, err
 	}
+	authServices, hasAuthFactory, err := buildServeAuthServices(ctx, commandCtx, parsedValues)
+	if err != nil {
+		return nil, err
+	}
+	if hasAuthFactory {
+		defer func() { _ = authServices.Close(context.Background()) }()
+	}
 	if !httpSettings.Enabled {
 		return nil, fmt.Errorf("http serve hot reload requires http.enabled=true")
 	}
@@ -166,14 +212,15 @@ func serveVerbHotReload(ctx context.Context, commandCtx providerapi.CommandSetCo
 	}
 	verbPath := verb.FullPath()
 	manager, err := hotreload.NewManager(hotreload.Options{
-		CloseGrace: closeGrace,
+		HostOptions: hostOptionsWithAuth(httpSettings, authServices),
+		CloseGrace:  closeGrace,
 		Load: func(ctx context.Context, candidate hotreload.Candidate) (hotreload.Runtime, error) {
 			activeRegistry, activeVerb, err := resolveServeHotReloadVerb(jsverbSources, registry, verb, verbPath)
 			if err != nil {
 				return nil, err
 			}
-			services := app.HostServices{}
-			if err := services.SetHostService(HostServiceKey, ExternalHostService{Host: candidate.Host, OwnsListen: false}); err != nil {
+			services, err := serveRuntimeServices(candidate.Host, authServices, false, true)
+			if err != nil {
 				return nil, err
 			}
 			rt, err := factory.NewRuntimeFromSectionsWithHostServices(ctx, parsedValues, services, require.WithLoader(activeRegistry.RequireLoader()))
@@ -346,6 +393,47 @@ func decodeHTTPServeSettings(vals *values.Values) (settings, error) {
 		}
 	}
 	return normalizeSettings(cfg), nil
+}
+
+func buildServeAuthServices(ctx context.Context, commandCtx providerapi.CommandSetContext, parsedValues *values.Values) (*hostauth.Services, bool, error) {
+	factory, ok, err := hostauth.LookupServiceFactory(commandCtx.Host)
+	if err != nil {
+		return nil, false, err
+	}
+	if !ok {
+		return nil, false, nil
+	}
+	services, err := factory.BuildHostAuthServices(ctx, parsedValues)
+	if err != nil {
+		return nil, false, err
+	}
+	if services == nil {
+		return nil, false, fmt.Errorf("hostauth service factory returned nil services")
+	}
+	return services, true, nil
+}
+
+func hostOptionsWithAuth(cfg settings, authServices *hostauth.Services) gojahttp.HostOptions {
+	opts := hostOptions(cfg)
+	if authServices != nil {
+		opts.Auth = authServices.AuthOptions
+	}
+	return opts
+}
+
+func serveRuntimeServices(host *gojahttp.Host, authServices *hostauth.Services, ownsListen bool, includeHost bool) (app.HostServices, error) {
+	services := app.HostServices{}
+	if includeHost {
+		if err := services.SetHostService(HostServiceKey, ExternalHostService{Host: host, OwnsListen: ownsListen}); err != nil {
+			return app.HostServices{}, err
+		}
+	}
+	if authServices != nil {
+		if err := services.SetHostService(hostauth.ServicesKey, authServices); err != nil {
+			return app.HostServices{}, err
+		}
+	}
+	return services, nil
 }
 
 func parseServeHotReloadDuration(name, raw string) (time.Duration, error) {

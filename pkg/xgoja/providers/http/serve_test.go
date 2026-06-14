@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	stdhttp "net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,8 +19,10 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/hotreload"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
@@ -73,6 +76,23 @@ func TestNewServeCommandSetBuildsVerbCommandsWithHTTPSection(t *testing.T) {
 		if _, ok := hotReloadSection.GetDefinitions().Get(name); !ok {
 			t.Fatalf("missing hot reload field %q", name)
 		}
+	}
+}
+
+func TestNewServeCommandSetRejectsMalformedHostAuthServiceFactory(t *testing.T) {
+	registry := scanServeTestRegistry(t)
+	hostServices := app.HostServices{}
+	if err := hostServices.SetHostService(hostauth.ServiceFactoryKey, "not a factory"); err != nil {
+		t.Fatalf("SetHostService: %v", err)
+	}
+	_, err := newServeCommandSet(providerapi.CommandSetContext{
+		Name:           "serve",
+		Host:           hostServices,
+		RuntimeFactory: fakeRuntimeFactory{},
+		Sources:        fakeSourceRegistry{jsverbs: fakeJSVerbSourceSet{registries: []*jsverbs.Registry{registry}}},
+	})
+	if err == nil || !strings.Contains(err.Error(), hostauth.ServiceFactoryKey) {
+		t.Fatalf("new serve command set error = %v, want malformed hostauth factory", err)
 	}
 }
 
@@ -163,6 +183,163 @@ module.exports = { register };
 	}
 }
 
+func TestServeVerbUsesHostAuthServiceFactory(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "site.js"), []byte(`
+__package__({ name: "site" });
+function start() {
+  const express = require("express");
+  const app = express.app();
+  app.get("/me")
+    .auth(express.user().required())
+    .allow("user.self.read")
+    .handle((ctx, res) => res.json({ actor: ctx.actor.id }));
+}
+__verb__("start", { name: "start", short: "Serve protected site", output: "text" });
+`), 0o644); err != nil {
+		t.Fatalf("write site.js: %v", err)
+	}
+	registry, err := jsverbs.ScanDir(dir)
+	if err != nil {
+		t.Fatalf("scan dir: %v", err)
+	}
+	providers := providerapi.NewProviderRegistry()
+	if err := Register(providers); err != nil {
+		t.Fatalf("register http provider: %v", err)
+	}
+	capabilities, ok := providers.ResolvePackageCapabilities(PackageID)
+	if !ok || len(capabilities) != 1 {
+		t.Fatalf("http capabilities = %#v", capabilities)
+	}
+	hostServices := app.HostServices{}
+	if err := hostServices.SetHostService(hostauth.ServiceFactoryKey, hostauth.NewServiceFactory(hostauth.BuilderOptions{Config: hostauth.Config{
+		Mode:    hostauth.ModeDev,
+		Session: hostauth.SessionConfig{Cookie: hostauth.CookieConfig{AllowInsecureHTTP: true}},
+	}})); err != nil {
+		t.Fatalf("SetHostService: %v", err)
+	}
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "express", As: "express"}}}}
+	factory := app.NewRuntimeFactory(providers, runtimePlan, hostServices)
+	addr := freeServeTestAddr(t)
+	parsedValues := serveHotReloadTestValues(t, addr, map[string]any{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		verb, _ := registry.Verb("site start")
+		_, err := serveVerb(ctx, providerapi.CommandSetContext{
+			Host:           hostServices,
+			RuntimeFactory: factory,
+			SelectedModules: []providerapi.ModuleDescriptor{{
+				PackageID:           PackageID,
+				ModuleID:            "express",
+				As:                  "express",
+				PackageCapabilities: capabilities,
+			}},
+		}, registry, verb, parsedValues)
+		done <- err
+	}()
+
+	_ = waitForServeTestStatusBody(t, "http://"+addr+"/me", done, stdhttp.StatusUnauthorized)
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil && !strings.Contains(err.Error(), "context canceled") {
+			t.Fatalf("serve returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("serve did not stop after cancel")
+	}
+}
+
+func TestServeVerbPreservesExternalHostWithHostAuthFactory(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "site.js"), []byte(`
+__package__({ name: "site" });
+function start() {
+  const express = require("express");
+  const app = express.app();
+  app.get("/external-auth")
+    .public()
+    .handle((_ctx, res) => res.type("text/plain").send("external host"));
+}
+__verb__("start", { name: "start", short: "Serve external host", output: "text" });
+`), 0o644); err != nil {
+		t.Fatalf("write site.js: %v", err)
+	}
+	registry, err := jsverbs.ScanDir(dir)
+	if err != nil {
+		t.Fatalf("scan dir: %v", err)
+	}
+	providers := providerapi.NewProviderRegistry()
+	if err := Register(providers); err != nil {
+		t.Fatalf("register http provider: %v", err)
+	}
+	capabilities, ok := providers.ResolvePackageCapabilities(PackageID)
+	if !ok || len(capabilities) != 1 {
+		t.Fatalf("http capabilities = %#v", capabilities)
+	}
+	jsHost := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
+	hostServices := app.HostServices{}
+	if err := hostServices.SetHostService(HostServiceKey, ExternalHostService{Host: jsHost, OwnsListen: false}); err != nil {
+		t.Fatalf("SetHostService external host: %v", err)
+	}
+	if err := hostServices.SetHostService(hostauth.ServiceFactoryKey, hostauth.NewServiceFactory(hostauth.BuilderOptions{Config: hostauth.Config{
+		Mode:    hostauth.ModeDev,
+		Session: hostauth.SessionConfig{Cookie: hostauth.CookieConfig{AllowInsecureHTTP: true}},
+	}})); err != nil {
+		t.Fatalf("SetHostService auth factory: %v", err)
+	}
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "express", As: "express"}}}}
+	factory := app.NewRuntimeFactory(providers, runtimePlan, hostServices)
+	parsedValues := serveHotReloadTestValues(t, freeServeTestAddr(t), map[string]any{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		verb, _ := registry.Verb("site start")
+		_, err := serveVerb(ctx, providerapi.CommandSetContext{
+			Host:           hostServices,
+			RuntimeFactory: factory,
+			SelectedModules: []providerapi.ModuleDescriptor{{
+				PackageID:           PackageID,
+				ModuleID:            "express",
+				As:                  "express",
+				PackageCapabilities: capabilities,
+			}},
+		}, registry, verb, parsedValues)
+		done <- err
+	}()
+
+	body := waitForServeTestHostBody(t, jsHost, "/external-auth", done, stdhttp.StatusOK)
+	if body != "external host" {
+		t.Fatalf("external host body = %q", body)
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil && !strings.Contains(err.Error(), "context canceled") {
+			t.Fatalf("serve returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("serve did not stop after cancel")
+	}
+}
+
+func TestHostOptionsWithAuthPreservesHTTPSettings(t *testing.T) {
+	opts := hostOptionsWithAuth(settings{DevErrors: true, RejectRawRoutes: false}, &hostauth.Services{})
+	if !opts.Dev {
+		t.Fatalf("Dev = false, want true")
+	}
+	if opts.RejectRawRoutes {
+		t.Fatalf("RejectRawRoutes = true, want false")
+	}
+	opts = hostOptionsWithAuth(settings{RejectRawRoutes: true}, &hostauth.Services{})
+	if !opts.RejectRawRoutes {
+		t.Fatalf("RejectRawRoutes = false, want true")
+	}
+}
+
 func TestServeVerbHotReloadServesStatusAndReloadsChangedSource(t *testing.T) {
 	dir := t.TempDir()
 	verbPath := filepath.Join(dir, "sites.js")
@@ -233,6 +410,76 @@ func TestServeVerbHotReloadServesStatusAndReloadsChangedSource(t *testing.T) {
 	if body := waitForServeTestBody(t, healthURL, done); !strings.Contains(body, `"version":2`) {
 		t.Fatalf("last-known-good health body = %s", body)
 	}
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil && !strings.Contains(err.Error(), "context canceled") {
+			t.Fatalf("serve returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("serve did not stop after cancel")
+	}
+}
+
+func TestServeVerbHotReloadUsesHostAuthServiceFactory(t *testing.T) {
+	dir := t.TempDir()
+	verbPath := filepath.Join(dir, "sites.js")
+	if err := os.WriteFile(verbPath, []byte(`
+__package__({ name: "sites" });
+__verb__("demo", { name: "demo", short: "Serve demo", output: "text" });
+function demo() {
+  const express = require("express");
+  const app = express.app();
+  app.get("/me")
+    .auth(express.user().required())
+    .allow("user.self.read")
+    .handle((ctx, res) => res.json({ actor: ctx.actor.id }));
+}
+`), 0o644); err != nil {
+		t.Fatalf("write serve verb: %v", err)
+	}
+	registry, err := jsverbs.ScanDir(dir)
+	if err != nil {
+		t.Fatalf("scan dir: %v", err)
+	}
+	verb, ok := registry.Verb("sites demo")
+	if !ok {
+		t.Fatalf("missing serve verb")
+	}
+
+	providers := providerapi.NewProviderRegistry()
+	if err := Register(providers); err != nil {
+		t.Fatalf("register http provider: %v", err)
+	}
+	hostServices := app.HostServices{}
+	if err := hostServices.SetHostService(hostauth.ServiceFactoryKey, hostauth.NewServiceFactory(hostauth.BuilderOptions{Config: hostauth.Config{
+		Mode:    hostauth.ModeDev,
+		Session: hostauth.SessionConfig{Cookie: hostauth.CookieConfig{AllowInsecureHTTP: true}},
+	}})); err != nil {
+		t.Fatalf("SetHostService auth factory: %v", err)
+	}
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "express", As: "express"}}}}
+	factory := app.NewRuntimeFactory(providers, runtimePlan, hostServices)
+	addr := freeServeTestAddr(t)
+	parsedValues := serveHotReloadTestValues(t, addr, map[string]any{
+		"hot-reload":            true,
+		"hot-reload-watch-root": []string{dir},
+		"hot-reload-poll":       "20ms",
+		"hot-reload-debounce":   "20ms",
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := serveVerb(ctx, providerapi.CommandSetContext{
+			Host:           hostServices,
+			RuntimeFactory: factory,
+			Sources:        fakeSourceRegistry{jsverbs: fakeJSVerbSourceSet{path: dir}},
+		}, registry, verb, parsedValues)
+		done <- err
+	}()
+
+	_ = waitForServeTestStatusBody(t, "http://"+addr+"/me", done, stdhttp.StatusUnauthorized)
 	cancel()
 	select {
 	case err := <-done:
@@ -368,6 +615,49 @@ func waitForServeTestBody(t *testing.T, url string, done <-chan error) string {
 		time.Sleep(50 * time.Millisecond)
 	}
 	t.Fatalf("timed out waiting for %s", url)
+	return ""
+}
+
+func waitForServeTestStatusBody(t *testing.T, url string, done <-chan error, statusCode int) string {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case err := <-done:
+			t.Fatalf("serve exited early: %v", err)
+		default:
+		}
+		resp, err := stdhttp.Get(url)
+		if err == nil {
+			data, readErr := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if readErr == nil && resp.StatusCode == statusCode {
+				return string(data)
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %s status %d", url, statusCode)
+	return ""
+}
+
+func waitForServeTestHostBody(t *testing.T, host stdhttp.Handler, path string, done <-chan error, statusCode int) string {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case err := <-done:
+			t.Fatalf("serve exited early: %v", err)
+		default:
+		}
+		recorder := httptest.NewRecorder()
+		host.ServeHTTP(recorder, httptest.NewRequest(stdhttp.MethodGet, path, nil))
+		if recorder.Code == statusCode {
+			return recorder.Body.String()
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for host path %s status %d", path, statusCode)
 	return ""
 }
 
