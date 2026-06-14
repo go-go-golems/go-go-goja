@@ -48,13 +48,19 @@ RelatedFiles:
     - Path: pkg/xgoja/app/framework.go
       Note: Step 6 help loading through SourceRegistry kind=help (commit f09788a)
     - Path: pkg/xgoja/app/host.go
-      Note: Step 6 SourceRegistry ownership and CommandPlan dispatch loop (commit f09788a)
+      Note: |-
+        Step 6 SourceRegistry ownership and CommandPlan dispatch loop (commit f09788a)
+        Step 12 builtin jsverb commands use command-scoped source registries (commit bf81e9f)
     - Path: pkg/xgoja/app/jsverb_sources.go
       Note: Step 3 command-scoped JS verb source filtering (commit 556ed5c)
     - Path: pkg/xgoja/app/root.go
-      Note: Step 6 JS verb scanning via SourceRegistry (commit f09788a)
+      Note: |-
+        Step 6 JS verb scanning via SourceRegistry (commit f09788a)
+        Step 12 jsverb command construction receives the selected CommandPlan (commit bf81e9f)
     - Path: pkg/xgoja/app/root_test.go
-      Note: Step 9 active app tests converted to RuntimePlan JSON (commit 207bead)
+      Note: |-
+        Step 9 active app tests converted to RuntimePlan JSON (commit 207bead)
+        Step 12 builtin jsverb source isolation regressions (commit bf81e9f)
     - Path: pkg/xgoja/app/runtime_plan.go
       Note: Step 9 RuntimePlan-only DTO and removed-key rejection (commit 207bead)
     - Path: pkg/xgoja/app/runtime_spec.go
@@ -62,7 +68,11 @@ RelatedFiles:
         Step 3 interim source IDs on command-provider metadata (commit 556ed5c)
         Step 4 v2 RuntimePlan DTO and transitional decode path (commit 617b977)
     - Path: pkg/xgoja/app/source_registry.go
-      Note: Step 5 runtime SourceRegistry implementation (commit 8bcc367)
+      Note: |-
+        Step 5 runtime SourceRegistry implementation (commit 8bcc367)
+        Step 12 empty command source scopes stay empty (commit bf81e9f)
+    - Path: pkg/xgoja/app/source_registry_test.go
+      Note: Step 12 empty and explicit SourceRegistry scoping regressions (commit bf81e9f)
     - Path: pkg/xgoja/providerapi/commands.go
       Note: |-
         Step 5 CommandSetContext carries SourceRegistry (commit 8bcc367)
@@ -79,6 +89,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1439,4 +1450,97 @@ The uploaded bundle path is:
 
 ```text
 /ai/2026/06/13/GOJA-XGOJA-V2-RUNTIME-001/GOJA XGOJA V2 Runtime Cutover Final.pdf
+```
+
+## Step 12: Address PR review source-scope isolation comments
+
+I addressed the PR #76 review comments about source scope isolation. The changes make an empty command source scope stay empty, and make `builtin.jsverbs` use the current `CommandPlan` when constructing verb commands instead of re-reading the first jsverbs command and using the host-wide source registry.
+
+The implementation closes two command isolation gaps: provider command sets with omitted `sources` no longer see every runtime source, and built-in jsverb commands that declare `sources: [...]` no longer expose unrelated jsverb source roots under either nested or root-mounted command layouts.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Address the code review comments in https://github.com/go-go-golems/go-go-goja/pull/76"
+
+**Assistant interpretation:** Fetch the PR review comments, fix the reported command-source scoping bugs, validate the fix, commit it, and leave explanatory PR review comments.
+
+**Inferred user intent:** Make PR #76 review-ready by addressing the concrete isolation concerns raised by automated code review.
+
+**Commit (code):** bf81e9f — "Fix xgoja command source scoping"
+
+### What I did
+
+- Fetched PR #76 review comments with `gh pr view` and `gh api repos/go-go-golems/go-go-goja/pulls/76/comments`.
+- Removed the `SourceRegistry.Scoped(nil)` fallback that previously returned every runtime source.
+- Routed `builtin.jsverbs` attachment through the current `CommandPlan` so `commands[].sources` is honored for both normal `verbs ...` mounting and `mount: root` mounting.
+- Updated `newVerbsCommand` to receive the already-selected jsverbs `CommandPlan` instead of looking up the first jsverbs command again.
+- Added regression tests for:
+  - empty scoped source registries staying empty;
+  - provider command sets receiving an empty registry when `sources` is omitted;
+  - `builtin.jsverbs` exposing only selected source IDs for both nested and root-mounted commands.
+
+### Why
+
+- PR review correctly identified that an omitted source list should not implicitly grant access to every runtime source.
+- The v2 command contract says source visibility is command-scoped and explicit. Commands that should see multiple sources must list those source IDs.
+
+### What worked
+
+- The scoping fix is small because `SourceRegistry.Scoped` already centralizes command source filtering.
+- Passing the current `CommandPlan` into jsverb command construction lets both root-mounted and nested jsverb commands share the same filtered registry.
+- Validation passed:
+
+```bash
+go test ./pkg/xgoja/app -count=1
+go test ./cmd/xgoja ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./pkg/xgoja/providerapi ./pkg/xgoja/providers/http -count=1
+go test ./cmd/xgoja/internal/... ./cmd/xgoja ./pkg/xgoja/... -count=1
+```
+
+The pre-commit hook also passed lint, `go generate ./...`, and `go test ./...` during commit `bf81e9f`.
+
+### What didn't work
+
+- The first version of the builtin jsverb regression tried to assert hidden commands by executing an invalid command and expecting an error. Cobra printed `unknown command "admin"`, but `ExecuteContext` returned nil in one test layout, so the assertion was not reliable.
+- I changed the test to inspect the Cobra command tree directly with `cobraCommandPathExists`, then still execute the selected public command as a positive runtime check.
+
+### What I learned
+
+- Command isolation needs two separate protections: source registry scoping itself, and ensuring every command builder receives the scoped registry for the current `CommandPlan`.
+- Cobra command tree inspection is a better negative assertion than relying on execution errors for hidden command paths.
+
+### What was tricky to build
+
+- `AttachVerbs` historically re-fetched the first `builtin.jsverbs` command from the runtime plan. That erased the current command instance passed through `AttachCommandPlan`, including its `sources` list. The fix was to keep `AttachVerbs` as the public fallback helper but introduce an internal `attachVerbCommandPlan` path that receives the exact command plan being attached.
+- `SourceRegistry.Scoped` previously treated `len(sourceIDs) == 0` as global access. That was convenient for legacy behavior but contradicted explicit command isolation. Removing that branch changed the default from ambient access to no access.
+
+### What warrants a second pair of eyes
+
+- Confirm that any command intentionally needing all sources now explicitly lists them in generated RuntimePlan output or input `xgoja.yaml`.
+- Review the new negative command-tree test helper to ensure it matches how Glazed/Cobra mounts generated verb commands.
+
+### What should be done in the future
+
+- If a future feature wants an explicit all-sources behavior, add a named syntax for it instead of overloading an omitted `sources` list.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/app/source_registry.go` and `pkg/xgoja/app/host.go`.
+- Review regression coverage in `pkg/xgoja/app/source_registry_test.go`, `pkg/xgoja/app/command_providers_test.go`, and `pkg/xgoja/app/root_test.go`.
+- Re-run:
+
+```bash
+go test ./cmd/xgoja/internal/... ./cmd/xgoja ./pkg/xgoja/... -count=1
+```
+
+### Technical details
+
+The PR comments addressed were:
+
+- `pkg/xgoja/app/source_registry.go`: keep empty command source scopes empty.
+- `pkg/xgoja/app/host.go`: scope builtin jsverb commands to their source list.
+
+Follow-up prompt handled after implementation:
+
+```text
+put review comments when done to explain what you did
 ```

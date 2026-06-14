@@ -199,3 +199,14 @@ Updated generated TypeScript declaration fixture for examples/xgoja/16-typescrip
 
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/examples/xgoja/16-typescript-jsverbs/js/types/xgoja-modules.d.ts — Regenerated declaration fixture during task 55 smoke validation
 
+
+## 2026-06-14
+
+Addressed PR #76 source-scope review comments: empty command source scopes now remain empty, and builtin jsverb commands use command-scoped registries for nested and root-mounted command layouts (commit bf81e9f).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/host.go — Builtin jsverb command attachment uses the current CommandPlan sources
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/root_test.go — Regression for nested and root-mounted builtin jsverb source isolation
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/source_registry.go — Empty scoped registries no longer fall back to all sources
+
