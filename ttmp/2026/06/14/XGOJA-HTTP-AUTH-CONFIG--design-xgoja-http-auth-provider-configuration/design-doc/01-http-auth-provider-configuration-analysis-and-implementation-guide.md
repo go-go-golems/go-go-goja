@@ -6,7 +6,7 @@ Topics:
     - xgoja
     - http
     - auth
-    - configuration
+    - config
 DocType: design-doc
 Intent: long-term
 Owners: []

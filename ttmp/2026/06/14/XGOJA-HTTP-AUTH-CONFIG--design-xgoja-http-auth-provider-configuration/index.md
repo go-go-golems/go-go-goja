@@ -6,7 +6,7 @@ Topics:
     - xgoja
     - http
     - auth
-    - configuration
+    - config
 DocType: index
 Intent: long-term
 Owners: []
@@ -38,7 +38,7 @@ Current status: **active**
 - xgoja
 - http
 - auth
-- configuration
+- config
 
 ## Tasks
 
