@@ -41,3 +41,13 @@ Step 2: added hostauth config skeleton and resolver (commit 2dee4df)
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/lookup.go — Host service lookup helpers (commit 2dee4df)
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/resolve.go — Config resolution and store inheritance (commit 2dee4df)
 
+
+## 2026-06-14
+
+Step 3: added hostauth store builders for memory, SQLite, and Postgres-backed auth stores (commit cc32556)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/stores.go — Store builder implementation (commit cc32556)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/stores_test.go — Store builder tests (commit cc32556)
+

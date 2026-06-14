@@ -30,6 +30,10 @@ RelatedFiles:
       Note: Resolver tests for defaults
     - Path: pkg/xgoja/hostauth/services.go
       Note: Hostauth service keys and typed service payloads
+    - Path: pkg/xgoja/hostauth/stores.go
+      Note: StoreBundle and memory/SQLite/Postgres auth store builders
+    - Path: pkg/xgoja/hostauth/stores_test.go
+      Note: Store builder tests for memory
     - Path: pkg/xgoja/providerapi/capabilities.go
       Note: HostServiceContributionCapability explains runtime/module host service contribution timing
     - Path: pkg/xgoja/providerapi/commands.go
@@ -46,6 +50,7 @@ LastUpdated: 2026-06-14T22:30:00-04:00
 WhatFor: Use this when implementing generated-host auth.session/auth.stores configuration and deciding how host services flow into xgoja commands and runtime modules.
 WhenToUse: Read before adding session cookie config, store builders, host auth service keys, HTTP provider auth consumption, or generated-host templates.
 ---
+
 
 
 

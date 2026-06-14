@@ -56,17 +56,17 @@
 
 ### F. Store builders
 
-- [ ] Task 38: Define a `StoreBundle` struct for session, audit, appauth, capability, and closers.
-- [ ] Task 39: Implement memory store builders for session, audit, appauth, and capability.
-- [ ] Task 40: Implement SQLite store builders using `sessionauth/sqlstore`, `audit/sqlstore`, `appauth/sqlstore`, and `capability/sqlstore`.
-- [ ] Task 41: Implement Postgres store builders using the same SQL store packages and Postgres dialects.
-- [ ] Task 42: Decide whether separate DB handles are opened per store or shared when resolved DSNs/dialects match.
-- [ ] Task 43: If sharing DB handles, implement deterministic ownership and one closer per shared handle.
-- [ ] Task 44: Implement `apply-schema` dispatch per store.
-- [ ] Task 45: Add cleanup on partial construction failure.
-- [ ] Task 46: Add tests that `apply-schema=false` does not create tables.
-- [ ] Task 47: Add SQLite integration tests that built stores pass existing store contract helpers where practical.
-- [ ] Task 48: Add constructor-level Postgres tests that validate dialect/DSN behavior without requiring a live server.
+- [x] Task 38: Define a `StoreBundle` struct for session, audit, appauth, capability, and closers.
+- [x] Task 39: Implement memory store builders for session, audit, appauth, and capability.
+- [x] Task 40: Implement SQLite store builders using `sessionauth/sqlstore`, `audit/sqlstore`, `appauth/sqlstore`, and `capability/sqlstore`.
+- [x] Task 41: Implement Postgres store builders using the same SQL store packages and Postgres dialects.
+- [x] Task 42: Decide whether separate DB handles are opened per store or shared when resolved DSNs/dialects match.
+- [x] Task 43: If sharing DB handles, implement deterministic ownership and one closer per shared handle.
+- [x] Task 44: Implement `apply-schema` dispatch per store.
+- [x] Task 45: Add cleanup on partial construction failure.
+- [x] Task 46: Add tests that `apply-schema=false` does not create tables.
+- [x] Task 47: Add SQLite integration tests that built stores pass existing store contract helpers where practical.
+- [x] Task 48: Add constructor-level Postgres tests that validate dialect/DSN behavior without requiring a live server.
 - [ ] Task 49: Add optional containerized Postgres smoke coverage if it can be kept fast and non-flaky.
 
 ### G. Session manager and auth options builder
