@@ -49,3 +49,11 @@ type Services struct {
 
 	Closers []func(context.Context) error
 }
+
+// Close closes resources owned by the services bundle.
+func (s *Services) Close(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	return closeAll(ctx, s.Closers)
+}

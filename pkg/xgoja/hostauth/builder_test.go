@@ -1,0 +1,160 @@
+package hostauth
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
+)
+
+func TestBuildSessionManagerMapsResolvedConfig(t *testing.T) {
+	now := time.Date(2026, 6, 14, 13, 0, 0, 0, time.UTC)
+	manager, err := BuildSessionManager(ResolvedSessionConfig{
+		Cookie: ResolvedCookieConfig{
+			AllowInsecureHTTP: true,
+			Name:              "test_session",
+			SameSite:          http.SameSiteStrictMode,
+			Path:              "/app",
+		},
+		IdleTimeout:     10 * time.Minute,
+		AbsoluteTimeout: time.Hour,
+	}, sessionauth.NewMemoryStore(), nil, func() time.Time { return now })
+	if err != nil {
+		t.Fatalf("BuildSessionManager: %v", err)
+	}
+
+	session, err := manager.NewSession(context.Background(), "user-1")
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+	if got := session.IdleExpiresAt.Sub(now); got != 10*time.Minute {
+		t.Fatalf("idle timeout = %s", got)
+	}
+	if got := session.AbsoluteExpiresAt.Sub(now); got != time.Hour {
+		t.Fatalf("absolute timeout = %s", got)
+	}
+
+	recorder := httptest.NewRecorder()
+	manager.SetCookie(recorder, session.ID)
+	cookies := recorder.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("cookies = %#v", cookies)
+	}
+	cookie := cookies[0]
+	if cookie.Name != "test_session" || cookie.Path != "/app" || cookie.SameSite != http.SameSiteStrictMode || cookie.Secure {
+		t.Fatalf("cookie = %#v", cookie)
+	}
+}
+
+func TestBuildAuthOptionsWiresSessionAuditResourcesAndAuthorizer(t *testing.T) {
+	stores, err := BuildStores(context.Background(), mustResolveStores(t, Config{}))
+	if err != nil {
+		t.Fatalf("BuildStores: %v", err)
+	}
+	manager, err := BuildSessionManager(ResolvedSessionConfig{}, stores.Session, nil, nil)
+	if err != nil {
+		t.Fatalf("BuildSessionManager: %v", err)
+	}
+	options := BuildAuthOptions(manager, stores, nil)
+	if options.Authenticator == nil || options.CSRF == nil || options.Resources == nil || options.Authorizer == nil {
+		t.Fatalf("auth options missing fields: %#v", options)
+	}
+	if options.Audit != nil {
+		t.Fatalf("audit should be nil when no sink is provided")
+	}
+}
+
+func TestServiceFactoryModeNoneBuildsNoAuthOptions(t *testing.T) {
+	services, err := NewServiceFactory(BuilderOptions{Config: Config{Mode: ModeNone}}).BuildHostAuthServices(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BuildHostAuthServices: %v", err)
+	}
+	if services.Config.Mode != ModeNone {
+		t.Fatalf("mode = %q", services.Config.Mode)
+	}
+	if services.AuthOptions != (gojahttp.AuthOptions{}) || services.SessionManager != nil || len(services.Closers) != 0 {
+		t.Fatalf("services = %#v", services)
+	}
+}
+
+func TestServiceFactoryDevBuildsUsableAuthServices(t *testing.T) {
+	now := time.Date(2026, 6, 14, 14, 0, 0, 0, time.UTC)
+	services, err := NewServiceFactory(BuilderOptions{
+		Config: Config{
+			Mode:    ModeDev,
+			Session: SessionConfig{Cookie: CookieConfig{AllowInsecureHTTP: true}},
+		},
+		Now: func() time.Time { return now },
+	}).BuildHostAuthServices(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BuildHostAuthServices: %v", err)
+	}
+	defer func() {
+		if err := services.Close(context.Background()); err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	}()
+	if services.AuthOptions.Authenticator == nil || services.AuthOptions.CSRF == nil || services.AuthOptions.Audit == nil || services.AuthOptions.Resources == nil || services.AuthOptions.Authorizer == nil {
+		t.Fatalf("auth options missing fields: %#v", services.AuthOptions)
+	}
+	if services.SessionManager == nil || services.SessionStore == nil || services.AuditStore == nil || services.Capability == nil {
+		t.Fatalf("services missing stores/managers: %#v", services)
+	}
+
+	session, err := services.SessionManager.NewSession(context.Background(), "user-1", sessionauth.WithEmail("demo@example.test", true))
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+	recorder := httptest.NewRecorder()
+	services.SessionManager.SetCookie(recorder, session.ID)
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	for _, cookie := range recorder.Result().Cookies() {
+		request.AddCookie(cookie)
+	}
+	actor, err := services.AuthOptions.Authenticator.Authenticate(context.Background(), request, nil, gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser, Required: true})
+	if err != nil {
+		t.Fatalf("Authenticate: %v", err)
+	}
+	if actor.ID != "user-1" || actor.Claims["email"] != "demo@example.test" {
+		t.Fatalf("actor = %#v", actor)
+	}
+}
+
+func TestServiceFactoryUsesEnvLookupAtBuildTime(t *testing.T) {
+	factory := NewServiceFactory(BuilderOptions{Config: Config{
+		Mode:   ModeDev,
+		Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite", DSNEnv: "HOSTAUTH_TEST_DSN"}},
+	}})
+	_, err := factory.BuildHostAuthServices(context.Background(), nil)
+	if err == nil {
+		t.Fatalf("expected missing env error")
+	}
+
+	applySchema := true
+	factory = NewServiceFactory(BuilderOptions{
+		Config: Config{
+			Mode:   ModeDev,
+			Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite", DSNEnv: "HOSTAUTH_TEST_DSN", ApplySchema: &applySchema}},
+		},
+		LookupEnv: func(key string) (string, bool) {
+			if key == "HOSTAUTH_TEST_DSN" {
+				return "file:hostauth-service-factory-env?mode=memory&cache=shared", true
+			}
+			return "", false
+		},
+	})
+	services, err := factory.BuildHostAuthServices(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BuildHostAuthServices: %v", err)
+	}
+	if len(services.Closers) != 1 {
+		t.Fatalf("closers = %d, want shared sqlite closer", len(services.Closers))
+	}
+	if err := services.Close(context.Background()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+}
