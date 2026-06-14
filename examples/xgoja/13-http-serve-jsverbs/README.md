@@ -19,6 +19,9 @@ runtime:
   modules:
     - provider: go-go-goja-http
       name: express
+      config:
+        reject-raw-routes: true
+        dev-errors: false
 sources:
   - id: local-sites
     kind: jsverbs
@@ -41,6 +44,8 @@ artifacts:
     output: dist/http-serve-jsverbs
     sources: [local-sites]
 ```
+
+The HTTP module config uses production-shaped defaults for a generated public-route server: raw/unplanned matched routes are rejected, and development JavaScript error details are disabled. Command flags such as `--http-listen`, `--http-dev-errors`, and `--http-reject-raw-routes` can override the same provider fields at runtime.
 
 The binary artifact lists `local-sites` under `sources`, so the generated host
 copies that jsverb source set into its embedded filesystem. The built binary can
