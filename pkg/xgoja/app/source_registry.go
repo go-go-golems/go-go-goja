@@ -80,9 +80,6 @@ func (r *SourceRegistry) Scoped(sourceIDs []string) *SourceRegistry {
 	if r == nil {
 		return nil
 	}
-	if len(sourceIDs) == 0 {
-		return NewSourceRegistry(r.providers, r.embeddedJSVerbs, r.sources)
-	}
 	wanted := map[string]struct{}{}
 	for _, id := range sourceIDs {
 		id = strings.TrimSpace(id)

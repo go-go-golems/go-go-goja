@@ -15,6 +15,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider"
+	"github.com/spf13/cobra"
 )
 
 const fixtureRuntimePlanJSON = `{
@@ -890,6 +891,74 @@ function greet(name) {
 	// The Glazed writer command currently writes through the framework output path
 	// rather than this root's bytes.Buffer. Successful execution proves the
 	// mounted command scanned, built, created an xgoja runtime, and invoked JS.
+}
+
+func TestGeneratedRootScopesBuiltinJSVerbCommandSources(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		mount      string
+		publicArgs []string
+		adminArgs  []string
+	}{
+		{name: "nested", publicArgs: []string{"verbs", "public", "start"}, adminArgs: []string{"verbs", "admin", "secret"}},
+		{name: "root", mount: "root", publicArgs: []string{"public", "start"}, adminArgs: []string{"admin", "secret"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			embedded := fstest.MapFS{
+				"xgoja_embed/jsverbs/public/public.js": &fstest.MapFile{Data: []byte(`
+__package__({ name: "public" })
+__verb__("start", { name: "start", output: "text" })
+function start() { return "public" }
+`)},
+				"xgoja_embed/jsverbs/admin/admin.js": &fstest.MapFile{Data: []byte(`
+__package__({ name: "admin" })
+__verb__("secret", { name: "secret", output: "text" })
+function secret() { return "admin" }
+`)},
+			}
+			specJSON := fmt.Sprintf(`{
+  "schema": "xgoja/runtime/v2",
+  "name": "fixture",
+  "app": {"name": "fixture"},
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "sources": [
+    {"id": "public", "path": "xgoja_embed/jsverbs/public", "embed": true, "kind": "jsverbs"},
+    {"id": "admin", "path": "xgoja_embed/jsverbs/admin", "embed": true, "kind": "jsverbs"}
+  ],
+  "commands": [
+    {"id": "jsverbs", "type": "builtin.jsverbs", "name": "verbs", "mount": %q, "sources": ["public"]}
+  ]
+}`, tt.mount)
+
+			root, err := NewRootCommand(Options{Providers: providerapi.NewProviderRegistry(), RuntimePlanJSON: specJSON, EmbeddedJSVerbs: embedded, Out: &bytes.Buffer{}})
+			if err != nil {
+				t.Fatalf("new root: %v", err)
+			}
+			if !cobraCommandPathExists(root, tt.publicArgs) {
+				t.Fatalf("expected selected public verb path %v to be mounted", tt.publicArgs)
+			}
+			if cobraCommandPathExists(root, tt.adminArgs) {
+				t.Fatalf("expected unselected admin verb path %v to be hidden", tt.adminArgs)
+			}
+			root.SetArgs(tt.publicArgs)
+			if err := root.ExecuteContext(context.Background()); err != nil {
+				t.Fatalf("execute selected public verb: %v", err)
+			}
+		})
+	}
+}
+
+func cobraCommandPathExists(root interface{ Commands() []*cobra.Command }, path []string) bool {
+	if len(path) == 0 {
+		return true
+	}
+	for _, child := range root.Commands() {
+		if child.Name() != path[0] {
+			continue
+		}
+		return cobraCommandPathExists(child, path[1:])
+	}
+	return false
 }
 
 func captureStdout(t *testing.T, fn func()) string {

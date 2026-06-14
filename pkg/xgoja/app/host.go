@@ -86,7 +86,7 @@ func (h *Host) AttachCommandPlan(root *cobra.Command, command CommandPlan) {
 	case "builtin.repl":
 		h.AttachRepl(root)
 	case "builtin.jsverbs":
-		h.AttachVerbs(root)
+		h.attachVerbCommandPlan(root, command)
 	case "provider.command-set":
 		h.AttachCommandProvider(root, command)
 	}
@@ -164,8 +164,16 @@ func (h *Host) AttachVerbs(root *cobra.Command) {
 		return
 	}
 	jsverbsCommand, _ := h.RuntimePlan.commandByType("builtin.jsverbs")
+	h.attachVerbCommandPlan(root, jsverbsCommand)
+}
+
+func (h *Host) attachVerbCommandPlan(root *cobra.Command, jsverbsCommand CommandPlan) {
+	if root == nil || h == nil || h.RuntimePlan == nil {
+		return
+	}
+	sourceRegistry := h.SourceRegistry.Scoped(jsverbsCommand.Sources)
 	if commandMount(jsverbsCommand) == "root" {
-		cmds, err := buildVerbCommands(h.SourceRegistry, h.Factory, h.RuntimePlan)
+		cmds, err := buildVerbCommands(sourceRegistry, h.Factory, h.RuntimePlan)
 		if err != nil {
 			root.AddCommand(commandErrorStub(commandName(jsverbsCommand, "verbs"), "Run configured JavaScript verb commands", err))
 			return
@@ -179,5 +187,5 @@ func (h *Host) AttachVerbs(root *cobra.Command) {
 		}
 		return
 	}
-	root.AddCommand(newVerbsCommand(h.SourceRegistry, h.Factory, h.RuntimePlan, h.MiddlewaresFunc))
+	root.AddCommand(newVerbsCommand(sourceRegistry, h.Factory, h.RuntimePlan, jsverbsCommand, h.MiddlewaresFunc))
 }

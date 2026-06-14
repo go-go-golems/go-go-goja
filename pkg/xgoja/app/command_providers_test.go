@@ -212,6 +212,46 @@ func TestHostAttachProviderCommandsScopesSourceRegistry(t *testing.T) {
 	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
 }
 
+func TestHostAttachProviderCommandsKeepsEmptySourceScopeEmpty(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := registry.Package("fixture",
+		providerapi.CommandSetProvider{
+			Name: "tools",
+			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+				if ctx.Sources == nil {
+					t.Fatal("expected source registry")
+				}
+				if sources := ctx.Sources.ListSources(); len(sources) != 0 {
+					t.Fatalf("sources = %#v, want empty command scope", sources)
+				}
+				if jsverbSources := ctx.Sources.JSVerbs().ListJSVerbSources(); len(jsverbSources) != 0 {
+					t.Fatalf("jsverb sources = %#v, want empty command scope", jsverbSources)
+				}
+				return &providerapi.CommandSet{Commands: []cmds.Command{&fixtureBareCommand{
+					CommandDescription: cmds.NewCommandDescription("ping", cmds.WithShort("Ping")),
+					run:                func(context.Context, *values.Values) error { return nil },
+				}}}, nil
+			},
+		},
+	); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	runtimePlan := &RuntimePlan{
+		Sources: []SourcePlan{
+			{ID: "site-a", Kind: SourceKindJSVerbs, Path: "a"},
+			{ID: "site-b", Kind: SourceKindJSVerbs, Path: "b"},
+		},
+		Commands: []CommandPlan{{
+			ID:       "fixture-tools",
+			Type:     "provider.command-set",
+			Provider: "fixture",
+			Name:     "tools",
+		}},
+	}
+	root := &cobra.Command{Use: "test"}
+	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
+}
+
 func TestHostAttachProviderCommandsMountsGlazedCommand(t *testing.T) {
 	called := false
 	registry := providerapi.NewProviderRegistry()

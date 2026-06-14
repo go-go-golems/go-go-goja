@@ -239,8 +239,7 @@ func (c *selectedModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals
 	return nil
 }
 
-func newVerbsCommand(sourceRegistry *SourceRegistry, factory *RuntimeFactory, runtimePlan *RuntimePlan, middlewaresFunc glazedcli.CobraMiddlewaresFunc) *cobra.Command {
-	jsverbsCommand, _ := runtimePlan.commandByType("builtin.jsverbs")
+func newVerbsCommand(sourceRegistry *SourceRegistry, factory *RuntimeFactory, runtimePlan *RuntimePlan, jsverbsCommand CommandPlan, middlewaresFunc glazedcli.CobraMiddlewaresFunc) *cobra.Command {
 	root := &cobra.Command{
 		Use:   commandName(jsverbsCommand, "verbs"),
 		Short: "Run configured JavaScript verb commands",
