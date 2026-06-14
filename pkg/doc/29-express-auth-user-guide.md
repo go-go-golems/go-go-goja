@@ -288,4 +288,5 @@ In development mode, 500-class errors include more detail. In production mode, r
 - [Express-style HTTP Module](express-module) — The full module reference, including static mounts and response helpers.
 - [Migrate Express Apps to Planned Auth Routes](migrate-express-apps-to-planned-auth) — Step-by-step migration tutorial for old `app.get(path, handler)` scripts.
 - [Express Auth Examples](express-auth-examples) — Dev-auth and Keycloak smoke-test guide for full host wiring.
-- `examples/xgoja/17-express-planned-auth/scripts/server.js` — Compact route-authoring example for public, current-user, and resource-bound routes.
+- `examples/xgoja/18-express-auth-host` — Runnable dev-auth example for public, current-user, and resource-bound planned routes.
+- `examples/xgoja/20-express-hello-world` — Minimal no-auth public-route host.

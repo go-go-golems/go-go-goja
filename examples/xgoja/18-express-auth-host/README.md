@@ -1,6 +1,6 @@
 # Express auth host example
 
-This example is a runnable Go-owned host for the planned Express auth framework. It complements `examples/xgoja/17-express-planned-auth`, which is only a JavaScript route-authoring sketch.
+This example is a runnable Go-owned host for the planned Express auth framework. For the smallest no-auth public-route host, see `examples/xgoja/20-express-hello-world`.
 
 The host now uses `pkg/gojahttp/auth/devauth`, a no-external-service development auth kit that implements the same `gojahttp.AuthOptions` interfaces a production host would implement.
 
