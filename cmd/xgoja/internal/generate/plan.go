@@ -31,9 +31,9 @@ func WriteAllPlan(dir string, compiled *plan.Plan, opts Options) error {
 		return err
 	}
 	files := map[string]string{
-		"go.mod":         RenderGoModPlan(compiled, opts),
-		"main.go":        RenderMainPlan(compiled),
-		"xgoja.gen.json": RenderEmbeddedSpecFromPlan(compiled),
+		"go.mod":             RenderGoModPlan(compiled, opts),
+		"main.go":            RenderMainPlan(compiled),
+		"xgoja.runtime.json": RenderRuntimePlanJSONFromPlan(compiled),
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {

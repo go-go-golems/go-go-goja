@@ -12,16 +12,20 @@ Generate the package and run the host smoke test:
 make -C examples/xgoja/14-generated-runtime-package smoke
 ```
 
-The generated package exposes:
+The generated package exposes a v2-native runtime-plan API:
 
-- `EmbeddedSpecJSON`
-- `DecodeSpec()`
+- `EmbeddedRuntimePlanJSON`
+- `DecodeRuntimePlan() (*app.RuntimePlan, error)`
 - `RegisterProviders(registry)`
 - `NewBundle(options)`
 - `Options.ConfigureServices func(*app.HostServices)` for host-owned service injection
+- `Bundle.RuntimePlan *app.RuntimePlan`
 - `Bundle.NewRuntime(ctx, ...)`
 - `Bundle.NewRuntimeFromSections(ctx, vals, ...)`
 - `Bundle.AttachDefaultCommands(root)`
+
+`NewBundle` remains the main ergonomic entry point: hosts do not need to decode
+metadata directly unless they want to inspect the generated runtime plan.
 
 The host program in `cmd/host/main.go` imports the generated package and runs:
 

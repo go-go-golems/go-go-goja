@@ -12,9 +12,10 @@ import (
 
 func TestJSVerbsCommandsIncludeRuntimeModuleSections(t *testing.T) {
 	registry := newJSVerbsSectionRegistry(t)
-	runtimeSpec := jsverbsSectionSpec()
+	runtimePlan := jsverbsSectionSpec()
 	embedded := jsverbsSectionFS()
-	commands, err := buildVerbCommands(registry, NewRuntimeFactory(registry, runtimeSpec), runtimeSpec, embedded)
+	sources := NewSourceRegistry(registry, embedded, runtimePlan.allSources())
+	commands, err := buildVerbCommands(sources, NewRuntimeFactory(registry, runtimePlan), runtimePlan)
 	if err != nil {
 		t.Fatalf("build verb commands: %v", err)
 	}
@@ -33,14 +34,49 @@ func TestJSVerbsCommandsIncludeRuntimeModuleSections(t *testing.T) {
 func TestJSVerbsInitializeRuntimeFromModuleSections(t *testing.T) {
 	registry := newJSVerbsSectionRegistry(t)
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "mod", "as": "mod"}],
-  "commands": {"jsverbs": {"enabled": true, "name": "verbs"}},
-  "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "mod",
+        "as": "mod"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "local",
+      "path": "xgoja_embed/jsverbs/local",
+      "embed": true,
+      "kind": "jsverbs"
+    }
+  ],
+  "commands": [
+    {
+      "id": "jsverbs",
+      "type": "builtin.jsverbs",
+      "name": "verbs",
+      "sources": [
+        "local"
+      ]
+    }
+  ]
 }`
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, EmbeddedJSVerbs: jsverbsSectionFS()})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, EmbeddedJSVerbs: jsverbsSectionFS()})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -64,11 +100,11 @@ func newJSVerbsSectionRegistry(t *testing.T) *providerapi.ProviderRegistry {
 	return registry
 }
 
-func jsverbsSectionSpec() *RuntimeSpec {
-	return &RuntimeSpec{
-		Modules:  []ModuleInstanceSpec{{Package: "fixture", Name: "mod", As: "mod"}},
-		Commands: CommandsSpec{JSVerbs: CommandSpec{Enabled: true, Name: "verbs"}},
-		JSVerbs:  []JSVerbSourceSpec{{ID: "local", Path: "xgoja_embed/jsverbs/local", Embed: true}},
+func jsverbsSectionSpec() *RuntimePlan {
+	return &RuntimePlan{
+		Runtime:  RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "mod", As: "mod"}}},
+		Commands: []CommandPlan{{ID: "verbs", Type: "builtin.jsverbs", Name: "verbs"}},
+		Sources:  []SourcePlan{{ID: "local", Kind: SourceKindJSVerbs, Path: "xgoja_embed/jsverbs/local", Embed: true}},
 	}
 }
 

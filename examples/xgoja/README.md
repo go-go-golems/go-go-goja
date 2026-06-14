@@ -83,10 +83,4 @@ done
 
 `11-config-env/` and `12-geppetto-host-services/` are intentionally omitted from the bulk loop. `11-config-env/` is a command/config fixture rather than a Makefile-based smoke, and `12-geppetto-host-services/` depends on a sibling checkout of `geppetto` plus optional live profile credentials for the full inference smoke. `17-express-planned-auth/` is a route-authoring sketch, and `19-express-keycloak-auth-host/` has its own Docker Compose Keycloak smoke.
 
-The Makefiles use:
-
-```bash
-GOWORK=off go run ./cmd/xgoja ... --xgoja-replace <repo-root>
-```
-
-`GOWORK=off` avoids the local workspace `goja` override while this repository's workspace dependency mismatch is unresolved. `--xgoja-replace` makes generated binaries use this checkout of `go-go-goja` instead of a released module version.
+The examples are v2-first. Their specs generally use `workspace.mode: auto`, so generated build workspaces derive local module replacements from the repository `go.work` plan. Some Makefiles still run the xgoja CLI itself with `GOWORK=off` to isolate the CLI process, but generated module replacement should come from workspace planning or an explicit example-specific provider replacement rather than legacy runtime metadata.

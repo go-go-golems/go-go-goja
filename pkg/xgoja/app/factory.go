@@ -16,19 +16,19 @@ type JSRuntime = engine.Runtime
 
 type RuntimeFactory struct {
 	providers   *providerapi.ProviderRegistry
-	runtimeSpec *RuntimeSpec
+	runtimePlan *RuntimePlan
 	services    providerapi.HostServices
 }
 
 type providerRuntimeModuleRegistrar struct {
-	instance ModuleInstanceSpec
+	instance RuntimeModulePlan
 	module   providerapi.Module
 	config   json.RawMessage
 	services providerapi.HostServices
 }
 
 func (s providerRuntimeModuleRegistrar) ID() string {
-	return fmt.Sprintf("xgoja:%s.%s:%s", s.instance.Package, s.instance.Name, s.instance.Alias())
+	return fmt.Sprintf("xgoja:%s.%s:%s", s.instance.ProviderID(), s.instance.Name, s.instance.Alias())
 }
 
 func (s providerRuntimeModuleRegistrar) RegisterRuntimeModule(ctx *engine.RuntimeModuleRegistrationContext, reg *require.Registry) error {
@@ -40,7 +40,7 @@ func (s providerRuntimeModuleRegistrar) RegisterRuntimeModule(ctx *engine.Runtim
 		var err error
 		config, err = json.Marshal(s.instance.Config)
 		if err != nil {
-			return fmt.Errorf("marshal config for %s.%s: %w", s.instance.Package, s.instance.Name, err)
+			return fmt.Errorf("marshal config for %s.%s: %w", s.instance.ProviderID(), s.instance.Name, err)
 		}
 	}
 	loader, err := s.module.NewModuleFactory(providerapi.ModuleSetupContext{
@@ -53,18 +53,18 @@ func (s providerRuntimeModuleRegistrar) RegisterRuntimeModule(ctx *engine.Runtim
 		AddCloser:    ctx.AddCloser,
 	})
 	if err != nil {
-		return fmt.Errorf("create module %s.%s: %w", s.instance.Package, s.instance.Name, err)
+		return fmt.Errorf("create module %s.%s: %w", s.instance.ProviderID(), s.instance.Name, err)
 	}
 	reg.RegisterNativeModule(s.instance.Alias(), loader)
 	return nil
 }
 
-func NewRuntimeFactory(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec, services ...providerapi.HostServices) *RuntimeFactory {
+func NewRuntimeFactory(providers *providerapi.ProviderRegistry, runtimePlan *RuntimePlan, services ...providerapi.HostServices) *RuntimeFactory {
 	var hostServices providerapi.HostServices
 	if len(services) > 0 {
 		hostServices = services[0]
 	}
-	return &RuntimeFactory{providers: providers, runtimeSpec: runtimeSpec, services: hostServices}
+	return &RuntimeFactory{providers: providers, runtimePlan: runtimePlan, services: hostServices}
 }
 
 func (f *RuntimeFactory) NewRuntime(ctx context.Context, opts ...require.Option) (*JSRuntime, error) {
@@ -76,7 +76,7 @@ func (f *RuntimeFactory) NewRuntimeFromSections(ctx context.Context, vals *value
 }
 
 func (f *RuntimeFactory) NewRuntimeFromSectionsWithHostServices(ctx context.Context, vals *values.Values, hostServices providerapi.HostServices, opts ...require.Option) (*JSRuntime, error) {
-	if f == nil || f.providers == nil || f.runtimeSpec == nil {
+	if f == nil || f.providers == nil || f.runtimePlan == nil {
 		return nil, fmt.Errorf("xgoja runtime factory is not initialized")
 	}
 	descriptors, err := f.selectedModuleDescriptors()
@@ -97,15 +97,15 @@ func (f *RuntimeFactory) NewRuntimeFromSectionsWithHostServices(ctx context.Cont
 	for _, descriptor := range descriptors {
 		descriptorsByInstance[moduleDescriptorKey(descriptor.PackageID, descriptor.ModuleID, descriptor.As)] = descriptor
 	}
-	modules := make([]engine.RuntimeModuleRegistrar, 0, len(f.runtimeSpec.Modules))
-	for _, instance := range f.runtimeSpec.Modules {
-		module, ok := f.providers.ResolveModule(instance.Package, instance.Name)
+	modules := make([]engine.RuntimeModuleRegistrar, 0, len(f.runtimePlan.runtimeModules()))
+	for _, instance := range f.runtimePlan.runtimeModules() {
+		module, ok := f.providers.ResolveModule(instance.ProviderID(), instance.Name)
 		if !ok {
-			return nil, fmt.Errorf("runtime references unknown provider module %s.%s", instance.Package, instance.Name)
+			return nil, fmt.Errorf("runtime references unknown provider module %s.%s", instance.ProviderID(), instance.Name)
 		}
-		descriptor := descriptorsByInstance[moduleDescriptorKey(instance.Package, instance.Name, instance.Alias())]
+		descriptor := descriptorsByInstance[moduleDescriptorKey(instance.ProviderID(), instance.Name, instance.Alias())]
 		if descriptor.Module.Name == "" {
-			descriptor = providerapi.ModuleDescriptor{PackageID: instance.Package, ModuleID: instance.Name, As: instance.Alias(), Module: module}
+			descriptor = providerapi.ModuleDescriptor{PackageID: instance.ProviderID(), ModuleID: instance.Name, As: instance.Alias(), Module: module}
 		}
 		config, err := f.configForModuleInstance(ctx, instance, descriptor, vals)
 		if err != nil {
@@ -181,10 +181,10 @@ func (f *RuntimeFactory) hostServicesForRuntime(ctx context.Context, vals *value
 	return collector.servicesForRuntime(), nil
 }
 
-func (f *RuntimeFactory) configForModuleInstance(ctx context.Context, instance ModuleInstanceSpec, descriptor providerapi.ModuleDescriptor, vals *values.Values) (json.RawMessage, error) {
+func (f *RuntimeFactory) configForModuleInstance(ctx context.Context, instance RuntimeModulePlan, descriptor providerapi.ModuleDescriptor, vals *values.Values) (json.RawMessage, error) {
 	config, err := json.Marshal(instance.Config)
 	if err != nil {
-		return nil, fmt.Errorf("marshal config for %s.%s: %w", instance.Package, instance.Name, err)
+		return nil, fmt.Errorf("marshal config for %s.%s: %w", instance.ProviderID(), instance.Name, err)
 	}
 	for _, capability := range descriptor.PackageCapabilities {
 		xgojaConfig, ok := capability.(providerapi.XGojaConfigSectionCapability)
@@ -194,11 +194,11 @@ func (f *RuntimeFactory) configForModuleInstance(ctx context.Context, instance M
 		sectionRequest := providerapi.SectionRequest{PackageID: descriptor.PackageID, ModuleID: descriptor.ModuleID}
 		section, err := xgojaConfig.XGojaConfigSection(sectionRequest, descriptor)
 		if err != nil {
-			return nil, fmt.Errorf("xgoja config section for %s.%s capability %s: %w", instance.Package, instance.Name, capability.CapabilityID(), err)
+			return nil, fmt.Errorf("xgoja config section for %s.%s capability %s: %w", instance.ProviderID(), instance.Name, capability.CapabilityID(), err)
 		}
 		staticValues, err := providerutil.ParseXGojaConfigMap(section, instance.Config)
 		if err != nil {
-			return nil, fmt.Errorf("parse xgoja config for %s.%s capability %s: %w", instance.Package, instance.Name, capability.CapabilityID(), err)
+			return nil, fmt.Errorf("parse xgoja config for %s.%s capability %s: %w", instance.ProviderID(), instance.Name, capability.CapabilityID(), err)
 		}
 		overrideValues, err := xgojaConfig.XGojaConfigFromGlazed(ctx, providerapi.XGojaConfigRequest{
 			SectionRequest: sectionRequest,
@@ -208,15 +208,15 @@ func (f *RuntimeFactory) configForModuleInstance(ctx context.Context, instance M
 			GlazedValues:   vals,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("map glazed config for %s.%s capability %s: %w", instance.Package, instance.Name, capability.CapabilityID(), err)
+			return nil, fmt.Errorf("map glazed config for %s.%s capability %s: %w", instance.ProviderID(), instance.Name, capability.CapabilityID(), err)
 		}
 		mergedValues, err := providerutil.MergeSectionValues(section, staticValues, overrideValues)
 		if err != nil {
-			return nil, fmt.Errorf("merge xgoja config for %s.%s capability %s: %w", instance.Package, instance.Name, capability.CapabilityID(), err)
+			return nil, fmt.Errorf("merge xgoja config for %s.%s capability %s: %w", instance.ProviderID(), instance.Name, capability.CapabilityID(), err)
 		}
 		config, err = providerutil.SectionValuesToRawJSON(mergedValues)
 		if err != nil {
-			return nil, fmt.Errorf("encode xgoja config for %s.%s capability %s: %w", instance.Package, instance.Name, capability.CapabilityID(), err)
+			return nil, fmt.Errorf("encode xgoja config for %s.%s capability %s: %w", instance.ProviderID(), instance.Name, capability.CapabilityID(), err)
 		}
 	}
 	return config, nil

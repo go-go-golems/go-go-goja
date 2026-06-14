@@ -22,7 +22,7 @@ func TestRunScriptFileWithInitializersRunsTypeScriptEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	factory := NewRuntimeFactory(providerapi.NewProviderRegistry(), &RuntimeSpec{})
+	factory := NewRuntimeFactory(providerapi.NewProviderRegistry(), &RuntimePlan{})
 	if err := runScriptFileWithInitializers(context.Background(), factory, entry, nil, nil, false); err != nil {
 		t.Fatalf("runScriptFileWithInitializers() error = %v", err)
 	}

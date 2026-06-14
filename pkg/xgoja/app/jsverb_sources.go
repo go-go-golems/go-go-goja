@@ -12,14 +12,14 @@ import (
 type jsVerbSourceSet struct {
 	providers       *providerapi.ProviderRegistry
 	embeddedJSVerbs fs.FS
-	sources         []JSVerbSourceSpec
+	sources         []SourcePlan
 }
 
-func newJSVerbSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, sources []JSVerbSourceSpec) *jsVerbSourceSet {
+func newJSVerbSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, sources []SourcePlan) *jsVerbSourceSet {
 	return &jsVerbSourceSet{
 		providers:       providers,
 		embeddedJSVerbs: embeddedJSVerbs,
-		sources:         append([]JSVerbSourceSpec(nil), sources...),
+		sources:         append([]SourcePlan(nil), sources...),
 	}
 }
 
@@ -33,7 +33,7 @@ func (s *jsVerbSourceSet) ListJSVerbSources() []providerapi.JSVerbSourceDescript
 			ID:         source.ID,
 			Path:       source.Path,
 			Embed:      source.Embed,
-			Package:    source.Package,
+			Provider:   source.ProviderID(),
 			Source:     source.Source,
 			Include:    append([]string(nil), source.Include...),
 			Exclude:    append([]string(nil), source.Exclude...),
@@ -44,7 +44,7 @@ func (s *jsVerbSourceSet) ListJSVerbSources() []providerapi.JSVerbSourceDescript
 	return out
 }
 
-func providerTypeScriptDescriptor(spec *TypeScriptSpec) *providerapi.TypeScriptDescriptor {
+func providerTypeScriptDescriptor(spec *TypeScriptPlan) *providerapi.TypeScriptDescriptor {
 	if spec == nil {
 		return nil
 	}

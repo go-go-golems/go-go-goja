@@ -47,7 +47,7 @@ func TestNewServeCommandSetBuildsVerbCommandsWithHTTPSection(t *testing.T) {
 			As:                  "express",
 			PackageCapabilities: []providerapi.PackageCapability{capability},
 		}},
-		JSVerbs: fakeJSVerbSourceSet{registries: []*jsverbs.Registry{registry}},
+		Sources: fakeSourceRegistry{jsverbs: fakeJSVerbSourceSet{registries: []*jsverbs.Registry{registry}}},
 	})
 	if err != nil {
 		t.Fatalf("new serve command set: %v", err)
@@ -111,7 +111,7 @@ module.exports = { register };
 	set, err := newServeCommandSet(providerapi.CommandSetContext{
 		Name:           "serve",
 		RuntimeFactory: fakeRuntimeFactory{},
-		JSVerbs:        fakeJSVerbSourceSet{registries: []*jsverbs.Registry{registry}},
+		Sources:        fakeSourceRegistry{jsverbs: fakeJSVerbSourceSet{registries: []*jsverbs.Registry{registry}}},
 	})
 	if err != nil {
 		t.Fatalf("new serve command set: %v", err)
@@ -128,8 +128,8 @@ module.exports = { register };
 	if !ok || len(capabilities) != 1 {
 		t.Fatalf("http capabilities = %#v", capabilities)
 	}
-	runtimeSpec := &app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{{Package: PackageID, Name: "express", As: "express"}}}
-	factory := app.NewRuntimeFactory(providers, runtimeSpec, app.HostServices{})
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "express", As: "express"}}}}
+	factory := app.NewRuntimeFactory(providers, runtimePlan, app.HostServices{})
 	addr := freeServeTestAddr(t)
 	parsedValues := serveHotReloadTestValues(t, addr, map[string]any{})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -180,8 +180,8 @@ func TestServeVerbHotReloadServesStatusAndReloadsChangedSource(t *testing.T) {
 	if err := Register(providers); err != nil {
 		t.Fatalf("register http provider: %v", err)
 	}
-	runtimeSpec := &app.RuntimeSpec{Modules: []app.ModuleInstanceSpec{{Package: PackageID, Name: "express", As: "express"}}}
-	factory := app.NewRuntimeFactory(providers, runtimeSpec, app.HostServices{})
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "express", As: "express"}}}}
+	factory := app.NewRuntimeFactory(providers, runtimePlan, app.HostServices{})
 	addr := freeServeTestAddr(t)
 	parsedValues := serveHotReloadTestValues(t, addr, map[string]any{
 		"hot-reload":             true,
@@ -197,7 +197,7 @@ func TestServeVerbHotReloadServesStatusAndReloadsChangedSource(t *testing.T) {
 	go func() {
 		_, err := serveVerb(ctx, providerapi.CommandSetContext{
 			RuntimeFactory: factory,
-			JSVerbs:        fakeJSVerbSourceSet{path: dir},
+			Sources:        fakeSourceRegistry{jsverbs: fakeJSVerbSourceSet{path: dir}},
 		}, registry, verb, parsedValues)
 		done <- err
 	}()
@@ -431,6 +431,38 @@ func TestSourceSetHasTypeScript(t *testing.T) {
 	if !sourceSetHasTypeScript(fakeJSVerbSourceSet{typescript: true}) {
 		t.Fatalf("TypeScript-enabled fake source set was not detected")
 	}
+}
+
+type fakeSourceRegistry struct {
+	jsverbs fakeJSVerbSourceSet
+}
+
+func (r fakeSourceRegistry) ListSources() []providerapi.RuntimeSourceDescriptor {
+	return r.ListSourcesByKind(providerapi.RuntimeSourceKindJSVerbs)
+}
+
+func (r fakeSourceRegistry) ListSourcesByKind(kind providerapi.RuntimeSourceKind) []providerapi.RuntimeSourceDescriptor {
+	if kind != providerapi.RuntimeSourceKindJSVerbs {
+		return nil
+	}
+	out := make([]providerapi.RuntimeSourceDescriptor, 0, len(r.jsverbs.ListJSVerbSources()))
+	for _, source := range r.jsverbs.ListJSVerbSources() {
+		out = append(out, providerapi.RuntimeSourceDescriptor{ID: source.ID, Kind: providerapi.RuntimeSourceKindJSVerbs, Path: source.Path, Embed: source.Embed, Provider: source.Provider, Source: source.Source, TypeScript: source.TypeScript})
+	}
+	return out
+}
+
+func (r fakeSourceRegistry) SourceByID(id string) (providerapi.RuntimeSourceDescriptor, bool) {
+	for _, source := range r.ListSources() {
+		if source.ID == id {
+			return source, true
+		}
+	}
+	return providerapi.RuntimeSourceDescriptor{}, false
+}
+
+func (r fakeSourceRegistry) JSVerbs() providerapi.JSVerbSourceSet {
+	return r.jsverbs
 }
 
 type fakeJSVerbSourceSet struct {

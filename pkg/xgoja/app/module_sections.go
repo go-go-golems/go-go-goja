@@ -12,18 +12,18 @@ import (
 )
 
 func (f *RuntimeFactory) selectedModuleDescriptors() ([]providerapi.ModuleDescriptor, error) {
-	if f == nil || f.providers == nil || f.runtimeSpec == nil {
+	if f == nil || f.providers == nil || f.runtimePlan == nil {
 		return nil, fmt.Errorf("xgoja runtime factory is not initialized")
 	}
-	descriptors := make([]providerapi.ModuleDescriptor, 0, len(f.runtimeSpec.Modules))
-	for _, instance := range f.runtimeSpec.Modules {
-		module, ok := f.providers.ResolveModule(instance.Package, instance.Name)
+	descriptors := make([]providerapi.ModuleDescriptor, 0, len(f.runtimePlan.runtimeModules()))
+	for _, instance := range f.runtimePlan.runtimeModules() {
+		module, ok := f.providers.ResolveModule(instance.ProviderID(), instance.Name)
 		if !ok {
-			return nil, fmt.Errorf("runtime references unknown provider module %s.%s", instance.Package, instance.Name)
+			return nil, fmt.Errorf("runtime references unknown provider module %s.%s", instance.ProviderID(), instance.Name)
 		}
-		capabilities, _ := f.providers.ResolvePackageCapabilities(instance.Package)
+		capabilities, _ := f.providers.ResolvePackageCapabilities(instance.ProviderID())
 		descriptors = append(descriptors, providerapi.ModuleDescriptor{
-			PackageID:           instance.Package,
+			PackageID:           instance.ProviderID(),
 			ModuleID:            instance.Name,
 			As:                  instance.Alias(),
 			Module:              module,

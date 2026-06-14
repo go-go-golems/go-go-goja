@@ -24,6 +24,8 @@ The second phase is provider module setup. A selected module receives `providera
 
 Use this page when a provider needs parsed command/config/env values before `Module.NewModuleFactory` runs, or when a provider package needs to contribute Go services such as tool registries, middleware factories, stores, event sinks, clients, caches, or other runtime-owned objects.
 
+Generated hosts are driven by a v2-native `app.RuntimePlan`. Provider-facing command code receives the selected module descriptors and a command-scoped `providerapi.SourceRegistry`; it should not inspect generated JSON directly or assume all application sources are visible.
+
 ## The runtime construction sequence
 
 For generated commands, xgoja constructs a runtime in this order:
@@ -321,6 +323,38 @@ mux.HandleFunc("GET /ws/rooms/{roomID}", func(w http.ResponseWriter, r *http.Req
 ```
 
 This is especially important for WebSocket servers, where the Go handler normally owns upgrade behavior, origin checks, subprotocol negotiation, and transport-specific routing.
+
+## Command-scoped source registry
+
+Provider command sets receive `providerapi.CommandSetContext`. The important v2 fields are:
+
+```go
+type CommandSetContext struct {
+    ID              string
+    Provider        string
+    Name            string
+    Mount           string
+    Config          map[string]any
+    SelectedModules []ModuleDescriptor
+    Sources         SourceRegistry
+    RuntimeFactory  RuntimeFactory
+}
+```
+
+`Sources` is scoped to the command's `commands[].sources` list. A provider command should use it as the source of truth:
+
+```go
+func newCommandSet(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+    jsverbSources := ctx.Sources.JSVerbs()
+    registries, err := jsverbSources.ScanAllJSVerbSources()
+    if err != nil {
+        return nil, err
+    }
+    // Build commands from the scoped registries only.
+}
+```
+
+For HTTP `serve`, this means both the initial verb discovery and hot reload watch roots are limited to the source IDs declared on the `serve` command. If a provider needs help or asset sources, use `ctx.Sources.ListSourcesByKind(...)` or `ctx.Sources.SourceByID(...)` rather than scanning global runtime metadata.
 
 ## Reading host services during module setup
 

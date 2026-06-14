@@ -69,6 +69,17 @@
 - [x] Update changelog and mark completed implementation tasks
 - [x] Commit final docs/test updates
 
+## Phase 6 — xgoja/v2 runtime-plan HTTP migration
+
+- [x] Read `cmd/xgoja/doc/16-migrating-to-xgoja-v2.md` and assess the HTTP-specific migration rules
+- [x] Merge the xgoja/v2 runtime-plan cutover from PR #76 into the Express auth branch
+- [x] Replace remaining HTTP provider test references to removed `app.RuntimeSpec` / `app.ModuleInstanceSpec` with `app.RuntimePlan` / `app.RuntimeModulePlan`
+- [x] Verify the HTTP provider uses command-scoped v2 `SourceRegistry` for `serve` command-set jsverb discovery
+- [x] Validate `pkg/xgoja/providers/http` tests after the RuntimeSpec removal
+- [ ] Re-run xgoja TypeScript HTTP smoke against the v2 spec after the merge commit lands
+- [ ] Re-run Express auth host and Keycloak auth host smokes after the v2 merge commit lands
+- [ ] Update PR handoff with the v2 migration commit and validation results
+
 ## Future / out of MVP
 
 - [ ] Add `.body(...)` with a Go-owned schema registry and validator

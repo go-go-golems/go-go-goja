@@ -16,7 +16,7 @@ func TestAssetStoreResolveAsset(t *testing.T) {
 	assetFS := fstest.MapFS{
 		"xgoja_embed/assets/app/config.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
 	}
-	store := NewAssetStore(assetFS, &RuntimeSpec{Assets: []AssetSourceSpec{{ID: "app", Path: "/xgoja_embed/assets/app", Embed: true}}})
+	store := NewAssetStore(assetFS, &RuntimePlan{Sources: []SourcePlan{{ID: "app", Kind: SourceKindAssets, Path: "/xgoja_embed/assets/app", Embed: true}}})
 
 	fsys, root, ok := store.ResolveAsset("app")
 	if !ok {
@@ -35,8 +35,8 @@ func TestAssetStoreResolveAsset(t *testing.T) {
 }
 
 func TestRuntimeFactoryPassesRuntimeOwnerToModules(t *testing.T) {
-	runtimeSpec := &RuntimeSpec{
-		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "owner-check", As: "owner-check"}},
+	runtimePlan := &RuntimePlan{
+		Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "owner-check", As: "owner-check"}}},
 	}
 	seen := false
 	registry := providerapi.NewProviderRegistry()
@@ -53,7 +53,7 @@ func TestRuntimeFactoryPassesRuntimeOwnerToModules(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 
-	rt, err := NewRuntimeFactory(registry, runtimeSpec).NewRuntime(context.Background())
+	rt, err := NewRuntimeFactory(registry, runtimePlan).NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -67,9 +67,9 @@ func TestRuntimeFactoryPassesHostServicesToModules(t *testing.T) {
 	assetFS := fstest.MapFS{
 		"xgoja_embed/assets/app/config.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
 	}
-	runtimeSpec := &RuntimeSpec{
-		Assets:  []AssetSourceSpec{{ID: "app", Path: "xgoja_embed/assets/app", Embed: true}},
-		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "asset-check", As: "asset-check"}},
+	runtimePlan := &RuntimePlan{
+		Sources: []SourcePlan{{ID: "app", Kind: SourceKindAssets, Path: "xgoja_embed/assets/app", Embed: true}},
+		Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "asset-check", As: "asset-check"}}},
 	}
 	seen := false
 	registry := providerapi.NewProviderRegistry()
@@ -91,7 +91,7 @@ func TestRuntimeFactoryPassesHostServicesToModules(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 
-	host := NewHostWithOptions(registry, runtimeSpec, HostOptions{EmbeddedAssets: assetFS})
+	host := NewHostWithOptions(registry, runtimePlan, HostOptions{EmbeddedAssets: assetFS})
 	rt, err := host.Factory.NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
