@@ -281,6 +281,8 @@ I also fixed the runtime scanning side of the original `fs:assets` issue. Provid
 
 **Inferred user intent:** Move the parser investigation from design into working code while preserving task bookkeeping and review context.
 
+**Commit (code):** bf00208 — "Add parser-backed xgoja sourcegraph imports"
+
 ### What I did
 
 - Rewrote the ticket task list into a detailed implementation plan with completed investigation tasks and implementation phases.

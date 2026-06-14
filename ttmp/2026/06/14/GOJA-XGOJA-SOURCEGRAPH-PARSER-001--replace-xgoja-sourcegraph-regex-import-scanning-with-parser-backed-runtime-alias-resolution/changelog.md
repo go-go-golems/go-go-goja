@@ -24,3 +24,13 @@ Implemented tree-sitter-backed sourcegraph import parsing and RuntimePlan alias 
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/source_registry.go — Carries runtime aliases into jsverb source scans
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/sourcegraph/imports.go — New parser-backed collector
 
+
+## 2026-06-14
+
+Committed parser-backed sourcegraph import parsing, RuntimePlan alias propagation, and broad sourcegraph runtime-alias example (commit bf00208).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/examples/xgoja/17-sourcegraph-runtime-aliases — Smoke example committed in bf00208
+- /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/sourcegraph/imports.go — Parser-backed collector committed in bf00208
+
