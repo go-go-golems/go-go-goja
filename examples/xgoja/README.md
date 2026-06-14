@@ -25,6 +25,7 @@ Each example directory has its own `README.md`, `Makefile`, and native `schema: 
 17. `17-express-planned-auth/` — JavaScript route-authoring sketch for planned public/auth/resource routes.
 18. `18-express-auth-host/` — runnable Go-owned dev-auth host that wires login/logout, session cookies, CSRF, resources, authorization, audit, and strict raw-route rejection for planned Express auth routes.
 19. `19-express-keycloak-auth-host/` — production-oriented Keycloak/OIDC host skeleton with Docker Compose Keycloak realm, app sessions, app-owned authorization, and planned Express routes.
+20. `20-express-hello-world/` — tiny no-auth Express host with public planned routes only.
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 
@@ -76,7 +77,8 @@ for dir in \
   14-generated-runtime-package \
   15-protobuf-builder-provider \
   16-typescript-jsverbs \
-  18-express-auth-host; do
+  18-express-auth-host \
+  20-express-hello-world; do
   make -C examples/xgoja/$dir smoke
 done
 ```
