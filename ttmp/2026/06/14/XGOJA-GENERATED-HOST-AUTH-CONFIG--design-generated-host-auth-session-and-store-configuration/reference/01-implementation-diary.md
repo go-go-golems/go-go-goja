@@ -10,6 +10,10 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: pkg/xgoja/hostauth/builder.go
+      Note: Step 4 service factory implementation (commit 5276bfb)
+    - Path: pkg/xgoja/hostauth/builder_test.go
+      Note: Step 4 service factory validation coverage (commit 5276bfb)
     - Path: pkg/xgoja/hostauth/config.go
       Note: Step 2 config model implementation
     - Path: pkg/xgoja/hostauth/logcopter.go
@@ -22,6 +26,8 @@ RelatedFiles:
       Note: Step 2 resolver implementation and inheritance fix
     - Path: pkg/xgoja/hostauth/resolve_test.go
       Note: Step 2 resolver validation coverage
+    - Path: pkg/xgoja/hostauth/services.go
+      Note: Step 4 services lifecycle helper (commit 5276bfb)
     - Path: pkg/xgoja/hostauth/stores.go
       Note: Step 3 store builder implementation (commit cc32556)
     - Path: pkg/xgoja/hostauth/stores_test.go
@@ -36,6 +42,7 @@ LastUpdated: 2026-06-14T22:35:00-04:00
 WhatFor: Use this to understand what changed during XGOJA-GENERATED-HOST-AUTH-CONFIG and how to continue implementation.
 WhenToUse: Read before resuming generated-host auth config implementation, reviewing design decisions, or updating tasks/changelog.
 ---
+
 
 
 
@@ -386,3 +393,98 @@ Current store builder behavior:
   - dialect-specific SQL store constructors
   - optional per-store `ApplySchema(ctx)`
 - identical SQL `(driver, dsn)` values reuse the same `*sql.DB` and one closer.
+
+## Step 4: Add session manager and lazy service factory
+
+This step connected the resolved generated-host auth config and store bundle to runtime auth services. `hostauth` can now build a `sessionauth.Manager`, assemble `gojahttp.AuthOptions`, and expose a lazy `ServiceFactory` that command providers can discover early but execute later.
+
+The implementation still does not change the HTTP provider. It prepares the object that the HTTP provider will consume next: `Services.AuthOptions`, plus concrete session, audit, appauth, capability stores, and closers.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the next implementation slice after store builders, namely session manager/auth-options construction and the lazy service factory.
+
+**Inferred user intent:** Finish the `hostauth` service construction layer so the subsequent HTTP provider integration can use a single factory to get auth-enabled host options.
+
+**Commit (code):** 5276bfba58b0d836d82eb27c0064212168bceb7c — "Add hostauth service factory"
+
+### What I did
+
+- Added `pkg/xgoja/hostauth/builder.go` with:
+  - `BuilderOptions`,
+  - `Builder`,
+  - `NewServiceFactory`,
+  - `BuildHostAuthServices`,
+  - `BuildSessionManager`,
+  - `BuildAuthOptions`.
+- Updated `pkg/xgoja/hostauth/services.go` with `Services.Close(ctx)`.
+- Added `pkg/xgoja/hostauth/builder_test.go` with coverage for:
+  - resolved session config mapping into `sessionauth.Config`,
+  - cookie name/path/same-site/insecure-local behavior,
+  - auth option wiring for authenticator, CSRF, resources, and authorizer,
+  - `auth.mode=none` producing no auth services,
+  - `auth.mode=dev` producing usable auth services,
+  - env lookup happening at service build time rather than command construction time.
+- Checked off tasks 50 through 64.
+- Left task 65 open because the current tests cover normal shutdown and store-builder failure cleanup indirectly, but do not yet explicitly assert service-factory closer behavior on post-store-build failures.
+
+### Why
+
+- HTTP provider integration should not parse auth config or know individual store packages. It should consume a `ServiceFactory` and receive `Services.AuthOptions`.
+- The factory must be lazy because `CommandSetContext.Host` is available during command construction, while DSNs/config/env-derived values should be resolved at command execution.
+- `BuildAuthOptions` centralizes the host-owned auth wiring so Express remains a route declaration API.
+
+### What worked
+
+- `go test ./pkg/xgoja/hostauth -count=1` passed.
+- `go test ./pkg/xgoja/hostauth ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1` passed.
+- The pre-commit hook passed lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- No code failure occurred in this slice. The first implementation compiled and passed focused tests before commit.
+
+### What I learned
+
+- `auth.mode=none` is best represented by a `Services` value with resolved config only and empty `AuthOptions`; this lets public-only HTTP hosts remain possible without accidentally enabling authentication defaults.
+- For `auth.mode=dev`, the current safe default is the existing `sessionauth.DefaultActorForSession` plus appauth's explicit Go resolver/authorizer. This is still app-owned Go behavior, not a YAML policy DSL.
+- The service factory can ignore `values.Values` for now while keeping the method signature ready for future Glazed/config overlays.
+
+### What was tricky to build
+
+- The main design edge was avoiding eager env/database access when constructing command providers. `NewServiceFactory` stores config and callbacks only; `BuildHostAuthServices` performs resolution and store opening.
+- Another edge was mode semantics. Building stores and auth options for `mode=none` would make a public-only generated host unexpectedly carry auth state. The factory now returns only resolved config for `mode=none`.
+- The current service-factory cleanup path closes stores if session manager construction fails, but there is not yet a natural failing dependency after successful store construction in this package. Task 65 remains open for explicit closer-failure tests when the next layer creates more resources.
+
+### What warrants a second pair of eyes
+
+- Whether `mode=none` should skip store construction even when store config is present. The current implementation does skip stores.
+- Whether appauth's default `Authorizer` should be wired automatically for `mode=dev`, or whether generated-host users should always provide an app-specific authorizer.
+- Whether `BuildAuthOptions` should accept optional resource resolver/authorizer overrides now, or wait until the HTTP provider/generated-host example needs them.
+- Whether `BuilderOptions` should eventually accept parsed config overlays instead of raw `Config` plus env lookup.
+
+### What should be done in the future
+
+- Wire the HTTP provider `serve` command to discover `hostauth.ServiceFactoryKey` from `CommandSetContext.Host`.
+- At command execution, call `BuildHostAuthServices`, create a `gojahttp.Host` with `Services.AuthOptions`, and pass it through `go-go-goja-http.host`.
+- Add explicit closer tests once HTTP provider integration owns both auth service and HTTP host lifecycles.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/hostauth/builder.go` and review `BuildHostAuthServices`, `BuildSessionManager`, and `BuildAuthOptions`.
+- Then review `pkg/xgoja/hostauth/builder_test.go` for session cookie mapping and service factory behavior.
+- Validate with:
+  - `go test ./pkg/xgoja/hostauth -count=1`
+  - `go test ./pkg/xgoja/hostauth ./pkg/xgoja/app ./pkg/xgoja/providers/http -count=1`
+
+### Technical details
+
+Current service factory behavior:
+
+- `mode=none` resolves config and returns no auth options or stores.
+- `mode=dev` resolves config, builds stores, builds a session manager, wires audit, appauth resource resolver, and appauth authorizer.
+- OIDC mode still returns `ErrOIDCNotImplemented` from config resolution.
+- `BuilderOptions.LookupEnv` overrides env lookup for tests; otherwise `os.LookupEnv` is used.
+- `values.Values` is reserved for future command/config overlays and is intentionally unused in this slice.

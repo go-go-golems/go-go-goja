@@ -18,6 +18,10 @@ RelatedFiles:
       Note: RuntimeFactory layers per-runtime host service overlays
     - Path: pkg/xgoja/app/host.go
       Note: HostOptions.ConfigureServices injects generated/custom host services
+    - Path: pkg/xgoja/hostauth/builder.go
+      Note: Session manager
+    - Path: pkg/xgoja/hostauth/builder_test.go
+      Note: Service factory and session/auth option tests
     - Path: pkg/xgoja/hostauth/config.go
       Note: Generated-host auth config and resolved config model
     - Path: pkg/xgoja/hostauth/lookup.go
@@ -29,7 +33,9 @@ RelatedFiles:
     - Path: pkg/xgoja/hostauth/resolve_test.go
       Note: Resolver tests for defaults
     - Path: pkg/xgoja/hostauth/services.go
-      Note: Hostauth service keys and typed service payloads
+      Note: |-
+        Hostauth service keys and typed service payloads
+        Services.Close lifecycle helper
     - Path: pkg/xgoja/hostauth/stores.go
       Note: StoreBundle and memory/SQLite/Postgres auth store builders
     - Path: pkg/xgoja/hostauth/stores_test.go
@@ -50,6 +56,7 @@ LastUpdated: 2026-06-14T22:30:00-04:00
 WhatFor: Use this when implementing generated-host auth.session/auth.stores configuration and deciding how host services flow into xgoja commands and runtime modules.
 WhenToUse: Read before adding session cookie config, store builders, host auth service keys, HTTP provider auth consumption, or generated-host templates.
 ---
+
 
 
 

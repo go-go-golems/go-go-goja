@@ -71,24 +71,24 @@
 
 ### G. Session manager and auth options builder
 
-- [ ] Task 50: Implement `BuildSessionManager` that maps resolved config into `sessionauth.Config`.
-- [ ] Task 51: Ensure `sessionauth.ActorLoader` can be injected by custom/generated hosts.
-- [ ] Task 52: Provide a safe default actor loader only for dev/demo mode if appropriate.
-- [ ] Task 53: Wire `SessionManager` as both `gojahttp.Authenticator` and `gojahttp.CSRFProtector`.
-- [ ] Task 54: Wire audit store through `audit.Sink` and `gojahttp.AuthOptions.Audit`.
-- [ ] Task 55: Decide how default development authorizers/resources are represented, if at all.
-- [ ] Task 56: Keep production authorization app-owned; do not add YAML authorization policy in this ticket.
-- [ ] Task 57: Add tests that session config maps to secure cookie behavior.
-- [ ] Task 58: Add tests that `allow-insecure-http=true` only changes cookie security when explicitly configured.
+- [x] Task 50: Implement `BuildSessionManager` that maps resolved config into `sessionauth.Config`.
+- [x] Task 51: Ensure `sessionauth.ActorLoader` can be injected by custom/generated hosts.
+- [x] Task 52: Provide a safe default actor loader only for dev/demo mode if appropriate.
+- [x] Task 53: Wire `SessionManager` as both `gojahttp.Authenticator` and `gojahttp.CSRFProtector`.
+- [x] Task 54: Wire audit store through `audit.Sink` and `gojahttp.AuthOptions.Audit`.
+- [x] Task 55: Decide how default development authorizers/resources are represented, if at all.
+- [x] Task 56: Keep production authorization app-owned; do not add YAML authorization policy in this ticket.
+- [x] Task 57: Add tests that session config maps to secure cookie behavior.
+- [x] Task 58: Add tests that `allow-insecure-http=true` only changes cookie security when explicitly configured.
 
 ### H. Auth service factory
 
-- [ ] Task 59: Define `ServiceFactory` interface with a build method that accepts context and parsed values.
-- [ ] Task 60: Implement a default service factory that resolves config and builds concrete services at command execution time.
-- [ ] Task 61: Add `Services` struct with resolved config, auth options, stores, session manager, audit sink, and closers.
-- [ ] Task 62: Add service factory lookup helper for `CommandSetContext.Host` consumers.
-- [ ] Task 63: Add concrete services lookup helper for runtime/module consumers.
-- [ ] Task 64: Add tests proving factories are discoverable during command construction but build services later.
+- [x] Task 59: Define `ServiceFactory` interface with a build method that accepts context and parsed values.
+- [x] Task 60: Implement a default service factory that resolves config and builds concrete services at command execution time.
+- [x] Task 61: Add `Services` struct with resolved config, auth options, stores, session manager, audit sink, and closers.
+- [x] Task 62: Add service factory lookup helper for `CommandSetContext.Host` consumers.
+- [x] Task 63: Add concrete services lookup helper for runtime/module consumers.
+- [x] Task 64: Add tests proving factories are discoverable during command construction but build services later.
 - [ ] Task 65: Add tests that closers run on build failures and normal shutdown.
 
 ### I. HTTP provider integration

@@ -51,3 +51,14 @@ Step 3: added hostauth store builders for memory, SQLite, and Postgres-backed au
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/stores.go — Store builder implementation (commit cc32556)
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/stores_test.go — Store builder tests (commit cc32556)
 
+
+## 2026-06-14
+
+Step 4: added hostauth session manager builder, auth-options wiring, and lazy service factory (commit 5276bfb)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder.go — Service factory implementation (commit 5276bfb)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder_test.go — Service factory tests (commit 5276bfb)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/services.go — Services.Close lifecycle helper (commit 5276bfb)
+
