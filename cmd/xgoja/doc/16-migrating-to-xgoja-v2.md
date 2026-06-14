@@ -25,6 +25,11 @@ xgoja/v2 is the native configuration format for the hard cutover. Legacy v1
 files are migration input only. Convert them with `xgoja migrate-spec` before
 using v2-era build, doctor, generation, and declaration workflows.
 
+Generated v2 outputs embed `app.RuntimePlan` JSON with schema
+`xgoja/runtime/v2`. The old generated runtime bridge shape is not part of the
+active runtime contract: providers, runtime modules, unified sources, commands,
+and artifacts are the authoritative concepts.
+
 ## Core rule
 
 xgoja only compiles or bundles code that runs inside goja. Browser applications,
@@ -153,6 +158,11 @@ commands:
     sources: [sites]
 ```
 
+The `sources` list is command-scoped. Provider command code receives a
+`SourceRegistry` limited to those source IDs. If an old application relied on a
+provider command seeing every jsverb source, make that dependency explicit by
+listing the needed source IDs on the command.
+
 A `template` artifact is generated output. It is not a runtime module and it is
 not how HTTP routes or WebSocket handlers are mounted. HTTP serving behavior
 belongs in provider command sets, runtime modules, host services, and JavaScript
@@ -198,5 +208,8 @@ artifacts:
    runtime HTTP behavior.
 7. Check local replacements and prefer `workspace.mode: auto` when a `go.work`
    file already covers the local module.
-8. Run `xgoja doctor -f xgoja.v2.yaml` once the v2 planner is available.
-9. Run the example or application smoke test.
+8. If you generate a runtime package, update host code/docs to use
+   `EmbeddedRuntimePlanJSON` and `DecodeRuntimePlan` for direct metadata access;
+   `NewBundle` and `Bundle.NewRuntime` remain the preferred APIs.
+9. Run `xgoja doctor -f xgoja.v2.yaml` once the v2 planner is available.
+10. Run the example or application smoke test.

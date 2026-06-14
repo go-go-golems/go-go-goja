@@ -25,7 +25,7 @@ func TestLoadV2PlanRejectsLegacySpec(t *testing.T) {
 	}
 }
 
-func TestV2PlanEmbeddedRuntimeSpecMarksArtifactSourcesEmbedded(t *testing.T) {
+func TestV2PlanEmbeddedRuntimePlanMarksArtifactSourcesEmbedded(t *testing.T) {
 	compiled := &plan.Plan{Config: specv2.Config{
 		Schema: specv2.Schema,
 		Name:   "embedded",
@@ -40,17 +40,21 @@ func TestV2PlanEmbeddedRuntimeSpecMarksArtifactSourcesEmbedded(t *testing.T) {
 		},
 	}}
 
-	runtimeSpec := app.RuntimeSpec{}
-	if err := json.Unmarshal([]byte(generate.RenderEmbeddedSpecFromPlan(compiled)), &runtimeSpec); err != nil {
+	runtimePlan := app.RuntimePlan{}
+	if err := json.Unmarshal([]byte(generate.RenderRuntimePlanJSONFromPlan(compiled)), &runtimePlan); err != nil {
 		t.Fatalf("decode runtime spec: %v", err)
 	}
-	if len(runtimeSpec.JSVerbs) != 1 || !runtimeSpec.JSVerbs[0].Embed || runtimeSpec.JSVerbs[0].Path != "xgoja_embed/jsverbs/verbs" {
-		t.Fatalf("expected v2 binary source dependency to embed jsverbs, got %#v", runtimeSpec.JSVerbs)
+	assertEmbeddedSource(t, runtimePlan, app.SourceKindJSVerbs, "xgoja_embed/jsverbs/verbs")
+	assertEmbeddedSource(t, runtimePlan, app.SourceKindHelp, "xgoja_embed/help/docs")
+	assertEmbeddedSource(t, runtimePlan, app.SourceKindAssets, "xgoja_embed/assets/web")
+}
+
+func assertEmbeddedSource(t *testing.T, runtimePlan app.RuntimePlan, kind app.SourceKind, path string) {
+	t.Helper()
+	for _, source := range runtimePlan.Sources {
+		if source.Kind == kind && source.Path == path && source.Embed {
+			return
+		}
 	}
-	if len(runtimeSpec.Help.Sources) != 1 || !runtimeSpec.Help.Sources[0].Embed || runtimeSpec.Help.Sources[0].Path != "xgoja_embed/help/docs" {
-		t.Fatalf("expected v2 binary source dependency to embed help, got %#v", runtimeSpec.Help.Sources)
-	}
-	if len(runtimeSpec.Assets) != 1 || !runtimeSpec.Assets[0].Embed || runtimeSpec.Assets[0].Path != "xgoja_embed/assets/web" {
-		t.Fatalf("expected v2 embedded-assets artifact to embed assets, got %#v", runtimeSpec.Assets)
-	}
+	t.Fatalf("expected embedded source kind=%s path=%s, got %#v", kind, path, runtimePlan.Sources)
 }

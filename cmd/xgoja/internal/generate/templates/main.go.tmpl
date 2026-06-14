@@ -25,7 +25,7 @@ import (
 {{- end }}
 )
 
-const embeddedSpecJSON = `{{ .SpecJSON }}`
+const embeddedRuntimePlanJSON = `{{ .RuntimePlanJSON }}`
 
 {{- if .HasEmbeddedJSVerb }}
 //go:embed xgoja_embed/jsverbs/*
@@ -46,12 +46,12 @@ func main() {
 	must({{ .Alias }}.{{ .Register }}(registry))
 {{- end }}
 {{- if eq .TargetKind "adapter" }}
-	buildSpec := decodeSpec()
+	runtimePlan := decodeRuntimePlan()
 	{{ .HostConstruction }}
 	root, err := target.Build(context.Background(), host)
 	must(err)
 {{- else if eq .TargetKind "cobra" }}
-	buildSpec := decodeSpec()
+	runtimePlan := decodeRuntimePlan()
 	{{ .HostConstruction }}
 	root := target.{{ .TargetRoot }}()
 	host.AttachDefaultCommands(root)
@@ -65,10 +65,10 @@ func main() {
 	}
 }
 
-func decodeSpec() *app.RuntimeSpec {
-	buildSpec := &app.RuntimeSpec{}
-	must(json.Unmarshal([]byte(embeddedSpecJSON), buildSpec))
-	return buildSpec
+func decodeRuntimePlan() *app.RuntimePlan {
+	runtimePlan := &app.RuntimePlan{}
+	must(json.Unmarshal([]byte(embeddedRuntimePlanJSON), runtimePlan))
+	return runtimePlan
 }
 
 func must(err error) {

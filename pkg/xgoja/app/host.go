@@ -11,12 +11,13 @@ import (
 
 type Host struct {
 	Providers       *providerapi.ProviderRegistry
-	RuntimeSpec     *RuntimeSpec
+	RuntimePlan     *RuntimePlan
 	Factory         *RuntimeFactory
 	EmbeddedJSVerbs fs.FS
 	EmbeddedHelp    fs.FS
 	EmbeddedAssets  fs.FS
 	Services        HostServices
+	SourceRegistry  *SourceRegistry
 	Out             io.Writer
 	MiddlewaresFunc cli.CobraMiddlewaresFunc
 }
@@ -30,55 +31,65 @@ type HostOptions struct {
 	ConfigureServices func(*HostServices)
 }
 
-func NewHost(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec) *Host {
-	return NewHostWithOptions(providers, runtimeSpec, HostOptions{})
+func NewHost(providers *providerapi.ProviderRegistry, runtimePlan *RuntimePlan) *Host {
+	return NewHostWithOptions(providers, runtimePlan, HostOptions{})
 }
 
-func NewHostWithOptions(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec, opts HostOptions) *Host {
-	services := HostServices{Assets: NewAssetStore(opts.EmbeddedAssets, runtimeSpec)}
+func NewHostWithOptions(providers *providerapi.ProviderRegistry, runtimePlan *RuntimePlan, opts HostOptions) *Host {
+	sourceRegistry := NewSourceRegistryWithRuntimeAliases(providers, opts.EmbeddedJSVerbs, runtimePlan.allSources(), runtimePlanModuleAliases(runtimePlan.runtimeModules()))
+	services := HostServices{Assets: NewAssetStoreFromSources(opts.EmbeddedAssets, sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindAssets))}
 	if opts.ConfigureServices != nil {
 		opts.ConfigureServices(&services)
 	}
 	middlewaresFunc := opts.MiddlewaresFunc
 	if middlewaresFunc == nil {
-		middlewaresFunc = MiddlewaresFromSpec(runtimeSpec)
+		middlewaresFunc = MiddlewaresFromSpec(runtimePlan)
 	}
 	return &Host{
 		Providers:       providers,
-		RuntimeSpec:     runtimeSpec,
-		Factory:         NewRuntimeFactory(providers, runtimeSpec, services),
+		RuntimePlan:     runtimePlan,
+		Factory:         NewRuntimeFactory(providers, runtimePlan, services),
 		EmbeddedJSVerbs: opts.EmbeddedJSVerbs,
 		EmbeddedHelp:    opts.EmbeddedHelp,
 		EmbeddedAssets:  opts.EmbeddedAssets,
 		Services:        services,
+		SourceRegistry:  sourceRegistry,
 		Out:             opts.Out,
 		MiddlewaresFunc: middlewaresFunc,
 	}
 }
 
 func (h *Host) AttachDefaultCommands(root *cobra.Command) {
-	if root == nil || h == nil || h.RuntimeSpec == nil {
+	if root == nil || h == nil || h.RuntimePlan == nil {
 		return
 	}
-	if err := installRootFramework(root, h.RuntimeSpec, frameworkOptions{Providers: h.Providers, EmbeddedHelp: h.EmbeddedHelp}); err != nil {
+	if err := installRootFramework(root, h.RuntimePlan, frameworkOptions{Providers: h.Providers, SourceRegistry: h.SourceRegistry, EmbeddedHelp: h.EmbeddedHelp}); err != nil {
 		root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error { return err }
 	}
-	if h.RuntimeSpec.Commands.Eval.Enabled {
-		h.AttachEval(root)
-	}
-	if h.RuntimeSpec.Commands.Run.Enabled {
-		h.AttachRun(root)
-	}
-	if h.RuntimeSpec.Commands.Repl.Enabled {
-		h.AttachRepl(root)
+	for _, command := range h.RuntimePlan.runtimeCommands() {
+		h.AttachCommandPlan(root, command)
 	}
 	h.AttachModules(root)
 	h.AttachSelectedModules(root)
 	h.AttachTypes(root)
-	if h.RuntimeSpec.Commands.JSVerbs.Enabled {
-		h.AttachVerbs(root)
+}
+
+func (h *Host) AttachCommandPlan(root *cobra.Command, command CommandPlan) {
+	if root == nil || h == nil {
+		return
 	}
-	h.AttachCommandProviders(root)
+	switch command.Type {
+	case "builtin.eval":
+		h.AttachEval(root)
+	case "builtin.run":
+		h.AttachRun(root)
+	case "builtin.repl":
+		h.AttachRepl(root)
+	case "builtin.jsverbs":
+		h.attachVerbCommandPlan(root, command)
+	case "provider.command-set":
+		h.AttachCommandProvider(root, command)
+	}
 }
 
 func (h *Host) AttachEval(root *cobra.Command) {
@@ -89,9 +100,10 @@ func (h *Host) AttachEval(root *cobra.Command) {
 	if out == nil {
 		out = root.OutOrStdout()
 	}
-	cmd, err := buildGlazedCobraCommand(newEvalCommand(h.Factory, h.RuntimeSpec, out), h.MiddlewaresFunc)
+	cmd, err := buildGlazedCobraCommand(newEvalCommand(h.Factory, h.RuntimePlan, out), h.MiddlewaresFunc)
 	if err != nil {
-		root.AddCommand(commandErrorStub(commandName(h.RuntimeSpec.Commands.Eval, "eval"), "Evaluate JavaScript in a generated xgoja runtime", err))
+		command, _ := h.RuntimePlan.commandByType("builtin.eval")
+		root.AddCommand(commandErrorStub(commandName(command, "eval"), "Evaluate JavaScript in a generated xgoja runtime", err))
 		return
 	}
 	root.AddCommand(cmd)
@@ -101,9 +113,10 @@ func (h *Host) AttachRun(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	cmd, err := buildGlazedCobraCommand(newRunCommand(h.Factory, h.RuntimeSpec), h.MiddlewaresFunc)
+	cmd, err := buildGlazedCobraCommand(newRunCommand(h.Factory, h.RuntimePlan), h.MiddlewaresFunc)
 	if err != nil {
-		root.AddCommand(commandErrorStub(commandName(h.RuntimeSpec.Commands.Run, "run"), "Execute a JavaScript file in a generated xgoja runtime", err))
+		command, _ := h.RuntimePlan.commandByType("builtin.run")
+		root.AddCommand(commandErrorStub(commandName(command, "run"), "Execute a JavaScript file in a generated xgoja runtime", err))
 		return
 	}
 	root.AddCommand(cmd)
@@ -113,9 +126,10 @@ func (h *Host) AttachRepl(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	cmd, err := buildGlazedCobraCommand(newTUICommand(h.Factory, h.RuntimeSpec), h.MiddlewaresFunc)
+	cmd, err := buildGlazedCobraCommand(newTUICommand(h.Factory, h.RuntimePlan), h.MiddlewaresFunc)
 	if err != nil {
-		root.AddCommand(commandErrorStub(commandName(h.RuntimeSpec.Commands.Repl, "repl"), "Run an interactive TUI REPL for a generated xgoja runtime", err))
+		command, _ := h.RuntimePlan.commandByType("builtin.repl")
+		root.AddCommand(commandErrorStub(commandName(command, "repl"), "Run an interactive TUI REPL for a generated xgoja runtime", err))
 		return
 	}
 	root.AddCommand(cmd)
@@ -125,7 +139,7 @@ func (h *Host) AttachModules(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	cmd, err := buildGlazedCobraCommand(newModulesCommand(h.Providers, h.RuntimeSpec), h.MiddlewaresFunc)
+	cmd, err := buildGlazedCobraCommand(newModulesCommand(h.Providers, h.RuntimePlan), h.MiddlewaresFunc)
 	if err != nil {
 		root.AddCommand(commandErrorStub("modules", "List provider modules compiled into this generated binary", err))
 		return
@@ -137,7 +151,7 @@ func (h *Host) AttachSelectedModules(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	cmd, err := buildGlazedCobraCommand(newSelectedModulesCommand(h.RuntimeSpec), h.MiddlewaresFunc)
+	cmd, err := buildGlazedCobraCommand(newSelectedModulesCommand(h.RuntimePlan), h.MiddlewaresFunc)
 	if err != nil {
 		root.AddCommand(commandErrorStub("selected-modules", "List require() modules selected for this generated runtime", err))
 		return
@@ -146,13 +160,22 @@ func (h *Host) AttachSelectedModules(root *cobra.Command) {
 }
 
 func (h *Host) AttachVerbs(root *cobra.Command) {
-	if root == nil || h == nil || h.RuntimeSpec == nil {
+	if root == nil || h == nil || h.RuntimePlan == nil {
 		return
 	}
-	if commandMount(h.RuntimeSpec.Commands.JSVerbs) == "root" {
-		cmds, err := buildVerbCommands(h.Providers, h.Factory, h.RuntimeSpec, h.EmbeddedJSVerbs)
+	jsverbsCommand, _ := h.RuntimePlan.commandByType("builtin.jsverbs")
+	h.attachVerbCommandPlan(root, jsverbsCommand)
+}
+
+func (h *Host) attachVerbCommandPlan(root *cobra.Command, jsverbsCommand CommandPlan) {
+	if root == nil || h == nil || h.RuntimePlan == nil {
+		return
+	}
+	sourceRegistry := h.SourceRegistry.Scoped(jsverbsCommand.Sources)
+	if commandMount(jsverbsCommand) == "root" {
+		cmds, err := buildVerbCommands(sourceRegistry, h.Factory, h.RuntimePlan)
 		if err != nil {
-			root.AddCommand(commandErrorStub(commandName(h.RuntimeSpec.Commands.JSVerbs, "verbs"), "Run configured JavaScript verb commands", err))
+			root.AddCommand(commandErrorStub(commandName(jsverbsCommand, "verbs"), "Run configured JavaScript verb commands", err))
 			return
 		}
 		middlewaresFunc := h.MiddlewaresFunc
@@ -160,9 +183,9 @@ func (h *Host) AttachVerbs(root *cobra.Command) {
 			middlewaresFunc = cli.CobraCommandDefaultMiddlewares
 		}
 		if err := cli.AddCommandsToRootCommand(root, cmds, nil, cli.WithParserConfig(cli.CobraParserConfig{MiddlewaresFunc: middlewaresFunc})); err != nil {
-			root.AddCommand(commandErrorStub(commandName(h.RuntimeSpec.Commands.JSVerbs, "verbs"), "Run configured JavaScript verb commands", err))
+			root.AddCommand(commandErrorStub(commandName(jsverbsCommand, "verbs"), "Run configured JavaScript verb commands", err))
 		}
 		return
 	}
-	root.AddCommand(newVerbsCommand(h.Providers, h.Factory, h.RuntimeSpec, h.EmbeddedJSVerbs, h.MiddlewaresFunc))
+	root.AddCommand(newVerbsCommand(sourceRegistry, h.Factory, h.RuntimePlan, jsverbsCommand, h.MiddlewaresFunc))
 }

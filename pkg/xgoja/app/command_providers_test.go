@@ -37,7 +37,7 @@ func TestApplyMountToCommandsDoesNotMutateProviderDescriptions(t *testing.T) {
 	}
 }
 
-func TestHostAttachCommandProvidersPassesHostServices(t *testing.T) {
+func TestHostAttachProviderCommandsPassesHostServices(t *testing.T) {
 	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
 		providerapi.CommandSetProvider{
@@ -60,16 +60,16 @@ func TestHostAttachCommandProvidersPassesHostServices(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{CommandProviders: []CommandProviderInstanceSpec{{ID: "fixture-tools", Package: "fixture", Name: "tools"}}}
+	runtimePlan := &RuntimePlan{Commands: []CommandPlan{{ID: "fixture-tools", Type: "provider.command-set", Provider: "fixture", Name: "tools"}}}
 	root := &cobra.Command{Use: "test"}
-	NewHostWithOptions(registry, runtimeSpec, HostOptions{ConfigureServices: func(services *HostServices) {
+	NewHostWithOptions(registry, runtimePlan, HostOptions{ConfigureServices: func(services *HostServices) {
 		if err := services.SetHostService("fixture", "from-host"); err != nil {
 			t.Fatalf("set host service: %v", err)
 		}
 	}}).AttachDefaultCommands(root)
 }
 
-func TestHostAttachCommandProvidersPassesSelectedModules(t *testing.T) {
+func TestHostAttachProviderCommandsPassesSelectedModules(t *testing.T) {
 	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
 		providerapi.Module{Name: "mod", NewModuleFactory: noopSectionModule},
@@ -99,17 +99,18 @@ func TestHostAttachCommandProvidersPassesSelectedModules(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{
-		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}},
-		CommandProviders: []CommandProviderInstanceSpec{{
-			ID:      "fixture-tools",
-			Package: "fixture",
-			Name:    "tools",
-			Mount:   "fixture",
+	runtimePlan := &RuntimePlan{
+		Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "mod"}}},
+		Commands: []CommandPlan{{
+			ID:       "fixture-tools",
+			Type:     "provider.command-set",
+			Provider: "fixture",
+			Name:     "tools",
+			Mount:    "fixture",
 		}},
 	}
 	root := &cobra.Command{Use: "test"}
-	NewHost(registry, runtimeSpec).AttachDefaultCommands(root)
+	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
 	root.SetArgs([]string{"fixture", "ping"})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute command provider command: %v", err)
@@ -133,7 +134,7 @@ module.exports = { helper };
 		t.Fatalf("write helper module: %v", err)
 	}
 
-	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, JSVerbSourceSpec{ID: "local", Path: dir}, nil)
+	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, SourcePlan{ID: "local", Path: dir}, nil)
 	if err != nil {
 		t.Fatalf("scan source: %v", err)
 	}
@@ -146,7 +147,7 @@ module.exports = { helper };
 	}
 }
 
-func TestHostAttachCommandProvidersProvidesJSVerbSources(t *testing.T) {
+func TestHostAttachProviderCommandsProvidesSourceRegistryJSVerbs(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "tools.js"), []byte(`
 __package__({ name: "tools" });
@@ -160,14 +161,15 @@ function hello() { return "hello"; }
 		providerapi.CommandSetProvider{
 			Name: "tools",
 			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
-				if ctx.JSVerbs == nil {
-					t.Fatal("expected jsverb source set")
+				if ctx.Sources == nil {
+					t.Fatal("expected source registry")
 				}
-				sources := ctx.JSVerbs.ListJSVerbSources()
+				jsverbs := ctx.Sources.JSVerbs()
+				sources := jsverbs.ListJSVerbSources()
 				if len(sources) != 1 || sources[0].ID != "local" {
 					t.Fatalf("sources = %#v", sources)
 				}
-				registries, err := ctx.JSVerbs.ScanAllJSVerbSources()
+				registries, err := jsverbs.ScanAllJSVerbSources()
 				if err != nil {
 					t.Fatalf("scan all jsverb sources: %v", err)
 				}
@@ -183,19 +185,106 @@ function hello() { return "hello"; }
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{
-		JSVerbs: []JSVerbSourceSpec{{ID: "local", Path: dir}},
-		CommandProviders: []CommandProviderInstanceSpec{{
-			ID:      "fixture-tools",
-			Package: "fixture",
-			Name:    "tools",
+	runtimePlan := &RuntimePlan{
+		Sources: []SourcePlan{{ID: "local", Kind: SourceKindJSVerbs, Path: dir}},
+		Commands: []CommandPlan{{
+			ID:       "fixture-tools",
+			Type:     "provider.command-set",
+			Provider: "fixture",
+			Name:     "tools",
+			Sources:  []string{"local"},
 		}},
 	}
 	root := &cobra.Command{Use: "test"}
-	NewHost(registry, runtimeSpec).AttachDefaultCommands(root)
+	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
 }
 
-func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
+func TestHostAttachProviderCommandsScopesSourceRegistry(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := registry.Package("fixture",
+		providerapi.CommandSetProvider{
+			Name: "tools",
+			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+				if ctx.Sources == nil {
+					t.Fatal("expected source registry")
+				}
+				if _, ok := ctx.Sources.SourceByID("site-a"); !ok {
+					t.Fatal("expected selected source site-a")
+				}
+				if _, ok := ctx.Sources.SourceByID("site-b"); ok {
+					t.Fatal("did not expect unselected source site-b")
+				}
+				jsverbSources := ctx.Sources.ListSourcesByKind(providerapi.RuntimeSourceKindJSVerbs)
+				if len(jsverbSources) != 1 || jsverbSources[0].ID != "site-a" {
+					t.Fatalf("jsverb sources = %#v", jsverbSources)
+				}
+				return &providerapi.CommandSet{Commands: []cmds.Command{&fixtureBareCommand{
+					CommandDescription: cmds.NewCommandDescription("ping", cmds.WithShort("Ping")),
+					run:                func(context.Context, *values.Values) error { return nil },
+				}}}, nil
+			},
+		},
+	); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	runtimePlan := &RuntimePlan{
+		Sources: []SourcePlan{
+			{ID: "site-a", Kind: SourceKindJSVerbs, Path: "a"},
+			{ID: "site-b", Kind: SourceKindJSVerbs, Path: "b"},
+		},
+		Commands: []CommandPlan{{
+			ID:       "fixture-tools",
+			Type:     "provider.command-set",
+			Provider: "fixture",
+			Name:     "tools",
+			Sources:  []string{"site-a"},
+		}},
+	}
+	root := &cobra.Command{Use: "test"}
+	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
+}
+
+func TestHostAttachProviderCommandsKeepsEmptySourceScopeEmpty(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := registry.Package("fixture",
+		providerapi.CommandSetProvider{
+			Name: "tools",
+			NewCommandSet: func(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+				if ctx.Sources == nil {
+					t.Fatal("expected source registry")
+				}
+				if sources := ctx.Sources.ListSources(); len(sources) != 0 {
+					t.Fatalf("sources = %#v, want empty command scope", sources)
+				}
+				if jsverbSources := ctx.Sources.JSVerbs().ListJSVerbSources(); len(jsverbSources) != 0 {
+					t.Fatalf("jsverb sources = %#v, want empty command scope", jsverbSources)
+				}
+				return &providerapi.CommandSet{Commands: []cmds.Command{&fixtureBareCommand{
+					CommandDescription: cmds.NewCommandDescription("ping", cmds.WithShort("Ping")),
+					run:                func(context.Context, *values.Values) error { return nil },
+				}}}, nil
+			},
+		},
+	); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	runtimePlan := &RuntimePlan{
+		Sources: []SourcePlan{
+			{ID: "site-a", Kind: SourceKindJSVerbs, Path: "a"},
+			{ID: "site-b", Kind: SourceKindJSVerbs, Path: "b"},
+		},
+		Commands: []CommandPlan{{
+			ID:       "fixture-tools",
+			Type:     "provider.command-set",
+			Provider: "fixture",
+			Name:     "tools",
+		}},
+	}
+	root := &cobra.Command{Use: "test"}
+	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
+}
+
+func TestHostAttachProviderCommandsMountsGlazedCommand(t *testing.T) {
 	called := false
 	registry := providerapi.NewProviderRegistry()
 	if err := registry.Package("fixture",
@@ -236,17 +325,18 @@ func TestHostAttachCommandProvidersMountsGlazedCommand(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{
-		Modules: []ModuleInstanceSpec{{Package: "fixture", Name: "mod"}},
-		CommandProviders: []CommandProviderInstanceSpec{{
-			ID:      "fixture-tools",
-			Package: "fixture",
-			Name:    "tools",
-			Mount:   "fixture",
+	runtimePlan := &RuntimePlan{
+		Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "mod"}}},
+		Commands: []CommandPlan{{
+			ID:       "fixture-tools",
+			Type:     "provider.command-set",
+			Provider: "fixture",
+			Name:     "tools",
+			Mount:    "fixture",
 		}},
 	}
 	root := &cobra.Command{Use: "test"}
-	NewHost(registry, runtimeSpec).AttachDefaultCommands(root)
+	NewHost(registry, runtimePlan).AttachDefaultCommands(root)
 	root.SetArgs([]string{"fixture", "ping", "--message", "hello"})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute command provider command: %v", err)

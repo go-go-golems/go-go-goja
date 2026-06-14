@@ -12,11 +12,11 @@ import (
 
 const sourceLanguageTypeScript = "typescript"
 
-func applyTypeScriptScanOptions(source JSVerbSourceSpec, options *jsverbs.ScanOptions, runtimeAliases []string) {
+func applyTypeScriptScanOptions(source SourcePlan, options *jsverbs.ScanOptions, runtimeAliases []string) {
 	if options == nil || source.TypeScript == nil || !source.TypeScript.Enabled {
 		return
 	}
-	tsOptions := tsscriptOptionsFromRuntimeSpec(source.TypeScript)
+	tsOptions := tsscriptOptionsFromRuntimePlan(source.TypeScript)
 	tsOptions.External = appendUniqueStrings(tsOptions.External, runtimeAliases...)
 	options.SourceTransform = func(file jsverbs.SourceFile) (jsverbs.SourceFile, error) {
 		if !tsscript.IsTypeScriptPath(file.Path) {
@@ -96,7 +96,7 @@ func appendUniqueStrings(values []string, extra ...string) []string {
 	return out
 }
 
-func tsscriptOptionsFromRuntimeSpec(spec *TypeScriptSpec) tsscript.Options {
+func tsscriptOptionsFromRuntimePlan(spec *TypeScriptPlan) tsscript.Options {
 	if spec == nil {
 		return tsscript.Options{}
 	}

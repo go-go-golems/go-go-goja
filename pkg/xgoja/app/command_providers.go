@@ -16,47 +16,56 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func (h *Host) AttachCommandProviders(root *cobra.Command) {
-	if root == nil || h == nil || h.RuntimeSpec == nil || h.Providers == nil {
+func (h *Host) AttachProviderCommands(root *cobra.Command) {
+	if root == nil || h == nil || h.RuntimePlan == nil || h.Providers == nil {
 		return
 	}
-	for _, instance := range h.RuntimeSpec.CommandProviders {
-		provider, ok := h.Providers.ResolveCommandSetProvider(instance.Package, instance.Name)
-		mount := strings.TrimSpace(instance.Mount)
-		if mount == "" {
-			mount = provider.DefaultMount
-		}
-		if !ok {
-			root.AddCommand(commandErrorStub(commandProviderUse(instance, mount), "Attach custom xgoja command provider", fmt.Errorf("unknown command provider %s.%s", instance.Package, instance.Name)))
-			continue
-		}
-		set, err := h.newCommandSet(instance, provider, mount)
-		if err != nil {
-			root.AddCommand(commandErrorStub(commandProviderUse(instance, mount), "Attach custom xgoja command provider", err))
-			continue
-		}
-		commands := applyMountToCommands(set.Commands, mount)
-		middlewaresFunc := h.MiddlewaresFunc
-		if middlewaresFunc == nil {
-			middlewaresFunc = glazedcli.CobraCommandDefaultMiddlewares
-		}
-		parserConfig := glazedcli.CobraParserConfig{
-			ShortHelpSections: []string{schema.DefaultSlug},
-			MiddlewaresFunc:   middlewaresFunc,
-		}
-		if set.ParserConfig != nil {
-			parserConfig = *set.ParserConfig
-			if parserConfig.MiddlewaresFunc == nil {
-				parserConfig.MiddlewaresFunc = middlewaresFunc
-			}
-		}
-		if err := glazedcli.AddCommandsToRootCommand(root, commands, nil, glazedcli.WithParserConfig(parserConfig)); err != nil {
-			root.AddCommand(commandErrorStub(commandProviderUse(instance, mount), "Attach custom xgoja command provider", err))
+	for _, instance := range h.RuntimePlan.runtimeCommands() {
+		if instance.Type == "provider.command-set" {
+			h.AttachCommandProvider(root, instance)
 		}
 	}
 }
 
-func (h *Host) newCommandSet(instance CommandProviderInstanceSpec, provider providerapi.CommandSetProvider, mount string) (*providerapi.CommandSet, error) {
+func (h *Host) AttachCommandProvider(root *cobra.Command, instance CommandPlan) {
+	if root == nil || h == nil || h.Providers == nil {
+		return
+	}
+	provider, ok := h.Providers.ResolveCommandSetProvider(instance.ProviderID(), instance.Name)
+	mount := strings.TrimSpace(instance.Mount)
+	if mount == "" {
+		mount = provider.DefaultMount
+	}
+	if !ok {
+		root.AddCommand(commandErrorStub(commandProviderUse(instance, mount), "Attach custom xgoja command provider", fmt.Errorf("unknown command provider %s.%s", instance.ProviderID(), instance.Name)))
+		return
+	}
+	set, err := h.newCommandSet(instance, provider, mount)
+	if err != nil {
+		root.AddCommand(commandErrorStub(commandProviderUse(instance, mount), "Attach custom xgoja command provider", err))
+		return
+	}
+	commands := applyMountToCommands(set.Commands, mount)
+	middlewaresFunc := h.MiddlewaresFunc
+	if middlewaresFunc == nil {
+		middlewaresFunc = glazedcli.CobraCommandDefaultMiddlewares
+	}
+	parserConfig := glazedcli.CobraParserConfig{
+		ShortHelpSections: []string{schema.DefaultSlug},
+		MiddlewaresFunc:   middlewaresFunc,
+	}
+	if set.ParserConfig != nil {
+		parserConfig = *set.ParserConfig
+		if parserConfig.MiddlewaresFunc == nil {
+			parserConfig.MiddlewaresFunc = middlewaresFunc
+		}
+	}
+	if err := glazedcli.AddCommandsToRootCommand(root, commands, nil, glazedcli.WithParserConfig(parserConfig)); err != nil {
+		root.AddCommand(commandErrorStub(commandProviderUse(instance, mount), "Attach custom xgoja command provider", err))
+	}
+}
+
+func (h *Host) newCommandSet(instance CommandPlan, provider providerapi.CommandSetProvider, mount string) (*providerapi.CommandSet, error) {
 	config, err := json.Marshal(instance.Config)
 	if err != nil {
 		return nil, fmt.Errorf("marshal command provider config %s: %w", instance.ID, err)
@@ -65,9 +74,10 @@ func (h *Host) newCommandSet(instance CommandProviderInstanceSpec, provider prov
 	if err != nil {
 		return nil, err
 	}
+	sourceRegistry := h.SourceRegistry.ScopedWithRuntimeAliases(instance.Sources, moduleAliases(selected))
 	set, err := provider.NewCommandSet(providerapi.CommandSetContext{
 		Context:         context.Background(),
-		PackageID:       instance.Package,
+		PackageID:       instance.ProviderID(),
 		Name:            instance.Name,
 		Mount:           mount,
 		Config:          config,
@@ -75,18 +85,18 @@ func (h *Host) newCommandSet(instance CommandProviderInstanceSpec, provider prov
 		Providers:       h.Providers,
 		RuntimeFactory:  h.Factory,
 		SelectedModules: selected,
-		JSVerbs:         newJSVerbSourceSet(h.Providers, h.EmbeddedJSVerbs, h.RuntimeSpec.JSVerbs),
+		Sources:         sourceRegistry,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create command set %s.%s: %w", instance.Package, instance.Name, err)
+		return nil, fmt.Errorf("create command set %s.%s: %w", instance.ProviderID(), instance.Name, err)
 	}
 	if set == nil {
-		return nil, fmt.Errorf("command provider %s.%s returned nil command set", instance.Package, instance.Name)
+		return nil, fmt.Errorf("command provider %s.%s returned nil command set", instance.ProviderID(), instance.Name)
 	}
 	return set, nil
 }
 
-func (h *Host) selectedModulesForCommandProvider(instance CommandProviderInstanceSpec) ([]providerapi.ModuleDescriptor, error) {
+func (h *Host) selectedModulesForCommandProvider(instance CommandPlan) ([]providerapi.ModuleDescriptor, error) {
 	descriptors, err := h.Factory.selectedModuleDescriptors()
 	if err != nil {
 		return nil, err
@@ -188,7 +198,7 @@ func (c mountedGlazeCommand) RunIntoGlazeProcessor(ctx context.Context, vals *va
 	return c.command.(cmds.GlazeCommand).RunIntoGlazeProcessor(ctx, vals, gp)
 }
 
-func commandProviderUse(instance CommandProviderInstanceSpec, mount string) string {
+func commandProviderUse(instance CommandPlan, mount string) string {
 	if strings.TrimSpace(mount) != "" {
 		return strings.TrimSpace(mount)
 	}

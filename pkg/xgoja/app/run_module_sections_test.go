@@ -15,7 +15,7 @@ import (
 
 func TestRunCommandIncludesRuntimeModuleSections(t *testing.T) {
 	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runFixtureCapability{}))
-	cmd := newRunCommand(factory, factory.runtimeSpec)
+	cmd := newRunCommand(factory, factory.runtimePlan)
 	section, ok := cmd.Description().Schema.Get("fixture")
 	if !ok {
 		t.Fatal("expected fixture section on run command")
@@ -27,7 +27,7 @@ func TestRunCommandIncludesRuntimeModuleSections(t *testing.T) {
 
 func TestRunCommandInitializesRuntimeFromModuleSections(t *testing.T) {
 	factory := newSectionTestFactory(t, providerapi.WithPackageCapability(runFixtureCapability{}))
-	cmd, err := buildGlazedCobraCommand(newRunCommand(factory, factory.runtimeSpec))
+	cmd, err := buildGlazedCobraCommand(newRunCommand(factory, factory.runtimePlan))
 	if err != nil {
 		t.Fatalf("build cobra command: %v", err)
 	}

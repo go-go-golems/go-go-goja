@@ -132,6 +132,8 @@ Once a provider package registers the module, xgoja projects select it like any 
 
 ```yaml
 schema: xgoja/v2
+workspace:
+  mode: auto
 providers:
   - id: protobuf-builder-example
     import: github.com/go-go-golems/go-go-goja/examples/xgoja/15-protobuf-builder-provider/provider
@@ -154,6 +156,8 @@ runtime:
 ```
 
 If you use an alias, scripts should call `require("pb:tasks")`, and generated TypeScript declarations should also use the alias.
+
+Prefer `workspace.mode: auto` for local provider examples that live in a repository with a `go.work` file. That lets xgoja derive local module replacements from the workspace plan instead of requiring every provider entry to carry a hand-written `module.replace` path.
 
 ## 4. Write JavaScript against the generated API
 

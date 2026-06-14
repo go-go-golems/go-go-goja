@@ -9,8 +9,11 @@ This example demonstrates how a generated xgoja binary can read configuration fr
 ## Build
 
 ```bash
-xgoja build -f xgoja.yaml --xgoja-replace /path/to/go-go-goja
+xgoja doctor -f xgoja.yaml
+xgoja build -f xgoja.yaml
 ```
+
+The spec uses `workspace.mode: auto`, so local module replacements come from the repository workspace when available.
 
 ## Run with config file
 

@@ -17,11 +17,12 @@ import (
 const rootFrameworkInstalledAnnotation = "xgoja/root-framework-installed"
 
 type frameworkOptions struct {
-	Providers    *providerapi.ProviderRegistry
-	EmbeddedHelp fs.FS
+	Providers      *providerapi.ProviderRegistry
+	SourceRegistry *SourceRegistry
+	EmbeddedHelp   fs.FS
 }
 
-func installRootFramework(root *cobra.Command, runtimeSpec *RuntimeSpec, opts frameworkOptions) error {
+func installRootFramework(root *cobra.Command, runtimePlan *RuntimePlan, opts frameworkOptions) error {
 	if root == nil {
 		return fmt.Errorf("root command is nil")
 	}
@@ -32,11 +33,11 @@ func installRootFramework(root *cobra.Command, runtimeSpec *RuntimeSpec, opts fr
 		return nil
 	}
 	appName := "xgoja"
-	if runtimeSpec != nil {
-		if strings.TrimSpace(runtimeSpec.AppName) != "" {
-			appName = strings.TrimSpace(runtimeSpec.AppName)
-		} else if strings.TrimSpace(runtimeSpec.Name) != "" {
-			appName = strings.TrimSpace(runtimeSpec.Name)
+	if runtimePlan != nil {
+		if strings.TrimSpace(runtimePlan.AppName()) != "" {
+			appName = strings.TrimSpace(runtimePlan.AppName())
+		} else if strings.TrimSpace(runtimePlan.Name) != "" {
+			appName = strings.TrimSpace(runtimePlan.Name)
 		}
 	}
 	if err := logging.AddLoggingSectionToRootCommand(root, appName); err != nil {
@@ -49,7 +50,7 @@ func installRootFramework(root *cobra.Command, runtimeSpec *RuntimeSpec, opts fr
 	if err := xgojadoc.AddDocToHelpSystem(helpSystem); err != nil {
 		return fmt.Errorf("load generated xgoja help docs: %w", err)
 	}
-	if err := loadConfiguredHelpSources(helpSystem, runtimeSpec, opts); err != nil {
+	if err := loadConfiguredHelpSources(helpSystem, runtimePlan, opts); err != nil {
 		return err
 	}
 	help_cmd.SetupCobraRootCommand(helpSystem, root)
@@ -57,12 +58,16 @@ func installRootFramework(root *cobra.Command, runtimeSpec *RuntimeSpec, opts fr
 	return nil
 }
 
-func loadConfiguredHelpSources(helpSystem *help.HelpSystem, runtimeSpec *RuntimeSpec, opts frameworkOptions) error {
-	if helpSystem == nil || runtimeSpec == nil || len(runtimeSpec.Help.Sources) == 0 {
+func loadConfiguredHelpSources(helpSystem *help.HelpSystem, runtimePlan *RuntimePlan, opts frameworkOptions) error {
+	helpSources := runtimePlan.sourcesByKind(SourceKindHelp)
+	if opts.SourceRegistry != nil {
+		helpSources = sourcePlansFromDescriptors(opts.SourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindHelp))
+	}
+	if helpSystem == nil || runtimePlan == nil || len(helpSources) == 0 {
 		return nil
 	}
 	seen := map[string]struct{}{}
-	for _, source := range runtimeSpec.Help.Sources {
+	for _, source := range helpSources {
 		id := strings.TrimSpace(source.ID)
 		if id == "" {
 			return fmt.Errorf("help source id is required")
@@ -72,17 +77,17 @@ func loadConfiguredHelpSources(helpSystem *help.HelpSystem, runtimeSpec *Runtime
 		}
 		seen[id] = struct{}{}
 
-		hasProvider := strings.TrimSpace(source.Package) != "" || strings.TrimSpace(source.Source) != ""
+		hasProvider := strings.TrimSpace(source.ProviderID()) != "" || strings.TrimSpace(source.Source) != ""
 		if hasProvider {
 			if opts.Providers == nil {
 				return fmt.Errorf("load help source %s: providers registry is required", id)
 			}
-			providerSource, ok := opts.Providers.ResolveHelpSource(source.Package, source.Source)
+			providerSource, ok := opts.Providers.ResolveHelpSource(source.ProviderID(), source.Source)
 			if !ok {
-				return fmt.Errorf("load help source %s: unknown provider help source %s.%s", id, source.Package, source.Source)
+				return fmt.Errorf("load help source %s: unknown provider help source %s.%s", id, source.ProviderID(), source.Source)
 			}
 			if err := helpSystem.LoadSectionsFromFS(providerSource.FS, providerSource.Root); err != nil {
-				return fmt.Errorf("load provider help source %s (%s.%s): %w", id, source.Package, source.Source, err)
+				return fmt.Errorf("load provider help source %s (%s.%s): %w", id, source.ProviderID(), source.Source, err)
 			}
 			continue
 		}

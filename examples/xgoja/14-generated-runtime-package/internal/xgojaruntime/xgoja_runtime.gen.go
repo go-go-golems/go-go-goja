@@ -18,40 +18,45 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const EmbeddedSpecJSON = `{
+const EmbeddedRuntimePlanJSON = `{
+  "schema": "xgoja/runtime/v2",
   "name": "generated-runtime-package",
-  "appName": "generated-runtime-package",
+  "app": {
+    "name": "generated-runtime-package"
+  },
   "target": {
     "kind": "package",
     "output": "internal/xgojaruntime"
   },
-  "packages": [
+  "providers": [
     {
       "id": "fixture"
     }
   ],
-  "modules": [
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
     {
-      "package": "fixture",
-      "name": "hello",
-      "as": "hello"
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
     }
   ],
-  "commands": {
-    "eval": {
-      "enabled": true,
-      "name": "eval"
-    },
-    "run": {
-      "enabled": false
-    },
-    "repl": {
-      "enabled": false
-    },
-    "jsverbs": {
-      "enabled": false
+  "artifacts": [
+    {
+      "id": "runtime-package",
+      "type": "runtime-package",
+      "output": "internal/xgojaruntime",
+      "package": "xgojaruntime"
     }
-  }
+  ]
 }
 `
 
@@ -63,7 +68,7 @@ type Options struct {
 
 type Bundle struct {
 	Providers   *providerapi.ProviderRegistry
-	RuntimeSpec *app.RuntimeSpec
+	RuntimePlan *app.RuntimePlan
 	Host        *app.Host
 }
 
@@ -77,12 +82,12 @@ func RegisterProviders(registry *providerapi.ProviderRegistry) error {
 	return nil
 }
 
-func DecodeSpec() (*app.RuntimeSpec, error) {
-	runtimeSpec := &app.RuntimeSpec{}
-	if err := json.Unmarshal([]byte(EmbeddedSpecJSON), runtimeSpec); err != nil {
+func DecodeRuntimePlan() (*app.RuntimePlan, error) {
+	runtimePlan := &app.RuntimePlan{}
+	if err := json.Unmarshal([]byte(EmbeddedRuntimePlanJSON), runtimePlan); err != nil {
 		return nil, err
 	}
-	return runtimeSpec, nil
+	return runtimePlan, nil
 }
 
 func NewBundle(opts Options) (*Bundle, error) {
@@ -90,16 +95,16 @@ func NewBundle(opts Options) (*Bundle, error) {
 	if err := RegisterProviders(registry); err != nil {
 		return nil, err
 	}
-	runtimeSpec, err := DecodeSpec()
+	runtimePlan, err := DecodeRuntimePlan()
 	if err != nil {
 		return nil, err
 	}
-	host := app.NewHostWithOptions(registry, runtimeSpec, app.HostOptions{
+	host := app.NewHostWithOptions(registry, runtimePlan, app.HostOptions{
 		Out:               opts.Out,
 		MiddlewaresFunc:   opts.MiddlewaresFunc,
 		ConfigureServices: opts.ConfigureServices,
 	})
-	return &Bundle{Providers: registry, RuntimeSpec: runtimeSpec, Host: host}, nil
+	return &Bundle{Providers: registry, RuntimePlan: runtimePlan, Host: host}, nil
 }
 
 func (b *Bundle) TypeScriptDeclarations() (string, error) {

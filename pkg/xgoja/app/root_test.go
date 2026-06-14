@@ -15,17 +15,37 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider"
+	"github.com/spf13/cobra"
 )
 
-const fixtureSpecJSON = `{
+const fixtureRuntimePlanJSON = `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "eval": {"enabled": true, "name": "eval"},
-    "jsverbs": {"enabled": false}
-  }
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    }
+  ]
 }`
 
 func TestGeneratedRootEvalUsesProviderModule(t *testing.T) {
@@ -34,7 +54,7 @@ func TestGeneratedRootEvalUsesProviderModule(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: fixtureSpecJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: fixtureRuntimePlanJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -53,17 +73,39 @@ func TestGeneratedRootRespectsConfiguredReplCommandName(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "eval": {"enabled": true, "name": "runjs"},
-    "jsverbs": {"enabled": false}
-  }
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "runjs"
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -82,16 +124,31 @@ func TestGeneratedRootRespectsDisabledReplCommand(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "eval": {"enabled": false, "name": "runjs"},
-    "jsverbs": {"enabled": false}
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
   }
 }`
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -108,7 +165,7 @@ func TestGeneratedRootInstallsHelpAndLogging(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: fixtureSpecJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: fixtureRuntimePlanJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -155,15 +212,40 @@ Fixture provider help body.
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
-  "help": {"sources": [{"id": "fixture-docs", "package": "fixture", "source": "docs"}]}
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "fixture-docs",
+      "source": "docs",
+      "kind": "help",
+      "provider": "fixture"
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -200,15 +282,40 @@ Local generated help body.
 `)},
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
-  "help": {"sources": [{"id": "local", "path": "xgoja_embed/help/local", "embed": true}]}
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "local",
+      "path": "xgoja_embed/help/local",
+      "embed": true,
+      "kind": "help"
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out, EmbeddedHelp: embeddedHelp})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out, EmbeddedHelp: embeddedHelp})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -227,14 +334,39 @@ func TestGeneratedRootReportsMissingProviderHelpSource(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {"eval": {"enabled": false}, "jsverbs": {"enabled": false}},
-  "help": {"sources": [{"id": "missing", "package": "fixture", "source": "missing"}]}
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "missing",
+      "source": "missing",
+      "kind": "help",
+      "provider": "fixture"
+    }
+  ]
 }`
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON})
 	if err != nil {
 		t.Fatalf("new root should defer framework errors to execution, got %v", err)
 	}
@@ -251,17 +383,39 @@ func TestGeneratedRootTUIHelp(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "repl": {"enabled": true, "name": "repl"},
-    "jsverbs": {"enabled": false}
-  }
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "repl",
+      "type": "builtin.repl",
+      "name": "repl"
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -296,17 +450,43 @@ if (hello.greet(helper.name) !== "hello intern") {
 		t.Fatalf("write script: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "eval": {"enabled": true, "name": "eval"},
-    "run": {"enabled": true, "name": "run"},
-    "jsverbs": {"enabled": false}
-  }
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    },
+    {
+      "id": "run",
+      "type": "builtin.run",
+      "name": "run"
+    }
+  ]
 }`
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -321,7 +501,7 @@ func TestGeneratedRootModulesCommand(t *testing.T) {
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: fixtureSpecJSON})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: fixtureRuntimePlanJSON})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -344,16 +524,46 @@ func TestGeneratedRootSelectedModulesCommand(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [
-    {"package": "fixture", "name": "hello", "as": "hello"},
-    {"package": "fixture", "name": "hello", "as": "hello:custom", "config": {"message": "hi"}}
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
   ],
-  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": false}}
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      },
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello:custom",
+        "config": {
+          "message": "hi"
+        }
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    }
+  ]
 }`
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -375,11 +585,11 @@ func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
 	if err := testprovider.Register(registry); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	runtimeSpec := &RuntimeSpec{}
-	if err := json.Unmarshal([]byte(fixtureSpecJSON), runtimeSpec); err != nil {
-		t.Fatalf("parse runtime spec: %v", err)
+	runtimePlan := &RuntimePlan{}
+	if err := json.Unmarshal([]byte(fixtureRuntimePlanJSON), runtimePlan); err != nil {
+		t.Fatalf("parse runtime plan: %v", err)
 	}
-	rt, err := NewRuntimeFactory(registry, runtimeSpec).NewRuntime(context.Background())
+	rt, err := NewRuntimeFactory(registry, runtimePlan).NewRuntime(context.Background())
 	if err != nil {
 		t.Fatalf("new runtime: %v", err)
 	}
@@ -391,7 +601,7 @@ func TestRuntimeFactoryDoesNotExposeImplicitEngineModules(t *testing.T) {
 		t.Fatalf("require hello: %v", err)
 	}
 	if _, err := rt.Require.Require("path"); err == nil {
-		t.Fatalf("require path succeeded, want xgoja runtime spec-selected modules only")
+		t.Fatalf("require path succeeded, want xgoja runtime plan-selected modules only")
 	}
 }
 
@@ -401,15 +611,60 @@ func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}, {"package": "fixture", "name": "owner-check", "as": "owner-check"}],
-  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs"}},
-  "jsverbs": [{"id": "provider", "package": "fixture", "source": "verbs"}]
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      },
+      {
+        "provider": "fixture",
+        "name": "owner-check",
+        "as": "owner-check"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "provider",
+      "source": "verbs",
+      "kind": "jsverbs",
+      "provider": "fixture"
+    }
+  ],
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    },
+    {
+      "id": "jsverbs",
+      "type": "builtin.jsverbs",
+      "name": "verbs",
+      "sources": [
+        "provider"
+      ]
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -418,7 +673,7 @@ func TestGeneratedRootMountsProviderJSVerbs(t *testing.T) {
 		t.Fatalf("execute provider verb: %v", err)
 	}
 
-	root, err = NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err = NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root for owner verb: %v", err)
 	}
@@ -450,15 +705,55 @@ function embeddedGreet(name) {
 `)},
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs"}},
-  "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "local",
+      "path": "xgoja_embed/jsverbs/local",
+      "embed": true,
+      "kind": "jsverbs"
+    }
+  ],
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    },
+    {
+      "id": "jsverbs",
+      "type": "builtin.jsverbs",
+      "name": "verbs",
+      "sources": [
+        "local"
+      ]
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out, EmbeddedJSVerbs: embedded})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out, EmbeddedJSVerbs: embedded})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -490,15 +785,56 @@ function embeddedGreet(name) {
 `)},
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs", "mount": "root"}},
-  "jsverbs": [{"id": "local", "path": "xgoja_embed/jsverbs/local", "embed": true}]
+  "app": {
+    "name": "fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "local",
+      "path": "xgoja_embed/jsverbs/local",
+      "embed": true,
+      "kind": "jsverbs"
+    }
+  ],
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    },
+    {
+      "id": "jsverbs",
+      "type": "builtin.jsverbs",
+      "name": "verbs",
+      "mount": "root",
+      "sources": [
+        "local"
+      ]
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out, EmbeddedJSVerbs: embedded})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out, EmbeddedJSVerbs: embedded})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -531,15 +867,20 @@ function greet(name) {
 		t.Fatalf("write verb: %v", err)
 	}
 	specJSON := fmt.Sprintf(`{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
+  "app": {"name": "fixture"},
   "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {"eval": {"enabled": true, "name": "eval"}, "jsverbs": {"enabled": true, "name": "verbs"}},
-  "jsverbs": [{"id": "local", "path": %q, "embed": false}]
+  "providers": [{"id": "fixture"}],
+  "runtime": {"modules": [{"provider": "fixture", "name": "hello", "as": "hello"}]},
+  "sources": [{"id": "local", "kind": "jsverbs", "path": %q, "embed": false}],
+  "commands": [
+    {"id": "eval", "type": "builtin.eval", "name": "eval"},
+    {"id": "jsverbs", "type": "builtin.jsverbs", "name": "verbs", "sources": ["local"]}
+  ]
 }`, verbsDir)
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -550,6 +891,74 @@ function greet(name) {
 	// The Glazed writer command currently writes through the framework output path
 	// rather than this root's bytes.Buffer. Successful execution proves the
 	// mounted command scanned, built, created an xgoja runtime, and invoked JS.
+}
+
+func TestGeneratedRootScopesBuiltinJSVerbCommandSources(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		mount      string
+		publicArgs []string
+		adminArgs  []string
+	}{
+		{name: "nested", publicArgs: []string{"verbs", "public", "start"}, adminArgs: []string{"verbs", "admin", "secret"}},
+		{name: "root", mount: "root", publicArgs: []string{"public", "start"}, adminArgs: []string{"admin", "secret"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			embedded := fstest.MapFS{
+				"xgoja_embed/jsverbs/public/public.js": &fstest.MapFile{Data: []byte(`
+__package__({ name: "public" })
+__verb__("start", { name: "start", output: "text" })
+function start() { return "public" }
+`)},
+				"xgoja_embed/jsverbs/admin/admin.js": &fstest.MapFile{Data: []byte(`
+__package__({ name: "admin" })
+__verb__("secret", { name: "secret", output: "text" })
+function secret() { return "admin" }
+`)},
+			}
+			specJSON := fmt.Sprintf(`{
+  "schema": "xgoja/runtime/v2",
+  "name": "fixture",
+  "app": {"name": "fixture"},
+  "target": {"kind": "xgoja", "output": "dist/fixture"},
+  "sources": [
+    {"id": "public", "path": "xgoja_embed/jsverbs/public", "embed": true, "kind": "jsverbs"},
+    {"id": "admin", "path": "xgoja_embed/jsverbs/admin", "embed": true, "kind": "jsverbs"}
+  ],
+  "commands": [
+    {"id": "jsverbs", "type": "builtin.jsverbs", "name": "verbs", "mount": %q, "sources": ["public"]}
+  ]
+}`, tt.mount)
+
+			root, err := NewRootCommand(Options{Providers: providerapi.NewProviderRegistry(), RuntimePlanJSON: specJSON, EmbeddedJSVerbs: embedded, Out: &bytes.Buffer{}})
+			if err != nil {
+				t.Fatalf("new root: %v", err)
+			}
+			if !cobraCommandPathExists(root, tt.publicArgs) {
+				t.Fatalf("expected selected public verb path %v to be mounted", tt.publicArgs)
+			}
+			if cobraCommandPathExists(root, tt.adminArgs) {
+				t.Fatalf("expected unselected admin verb path %v to be hidden", tt.adminArgs)
+			}
+			root.SetArgs(tt.publicArgs)
+			if err := root.ExecuteContext(context.Background()); err != nil {
+				t.Fatalf("execute selected public verb: %v", err)
+			}
+		})
+	}
+}
+
+func cobraCommandPathExists(root interface{ Commands() []*cobra.Command }, path []string) bool {
+	if len(path) == 0 {
+		return true
+	}
+	for _, child := range root.Commands() {
+		if child.Name() != path[0] {
+			continue
+		}
+		return cobraCommandPathExists(child, path[1:])
+	}
+	return false
 }
 
 func captureStdout(t *testing.T, fn func()) string {

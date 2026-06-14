@@ -27,7 +27,7 @@ import (
 type tuiCommand struct {
 	*cmds.CommandDescription
 	factory     *RuntimeFactory
-	runtimeSpec *RuntimeSpec
+	runtimePlan *RuntimePlan
 	sectionErr  error
 }
 
@@ -37,8 +37,9 @@ type tuiSettings struct {
 	AltScreen bool `glazed:"alt-screen"`
 }
 
-func newTUICommand(factory *RuntimeFactory, runtimeSpec *RuntimeSpec) cmds.Command {
+func newTUICommand(factory *RuntimeFactory, runtimePlan *RuntimePlan) cmds.Command {
 	moduleSections, _, sectionErr := factory.sectionsForRuntime("repl")
+	command, _ := runtimePlan.commandByType("builtin.repl")
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Run an interactive TUI REPL for a generated xgoja runtime"),
 		cmds.WithLong(`
@@ -56,9 +57,9 @@ require().
 		options = append(options, cmds.WithSections(moduleSections...))
 	}
 	return &tuiCommand{
-		CommandDescription: cmds.NewCommandDescription(commandName(runtimeSpec.Commands.Repl, "repl"), options...),
+		CommandDescription: cmds.NewCommandDescription(commandName(command, "repl"), options...),
 		factory:            factory,
-		runtimeSpec:        runtimeSpec,
+		runtimePlan:        runtimePlan,
 		sectionErr:         sectionErr,
 	}
 }
@@ -75,10 +76,10 @@ func (c *tuiCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	return runTUI(ctx, c.factory, c.runtimeSpec, settings.AltScreen, vals, selectedModules)
+	return runTUI(ctx, c.factory, c.runtimePlan, settings.AltScreen, vals, selectedModules)
 }
 
-func runTUI(ctx context.Context, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, altScreen bool, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {
+func runTUI(ctx context.Context, factory *RuntimeFactory, runtimePlan *RuntimePlan, altScreen bool, vals *values.Values, selectedModules []providerapi.ModuleDescriptor) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -95,8 +96,8 @@ func runTUI(ctx context.Context, factory *RuntimeFactory, runtimeSpec *RuntimeSp
 
 	cfg := bobarepl.DefaultConfig()
 	name := "xgoja"
-	if runtimeSpec != nil && strings.TrimSpace(runtimeSpec.Name) != "" {
-		name = strings.TrimSpace(runtimeSpec.Name)
+	if runtimePlan != nil && strings.TrimSpace(runtimePlan.Name) != "" {
+		name = strings.TrimSpace(runtimePlan.Name)
 	}
 	cfg.Title = fmt.Sprintf("%s TUI", name)
 	cfg.Placeholder = "Generated xgoja runtime | Type JavaScript, then use alt+h for help"

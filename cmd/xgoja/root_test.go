@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/specv2"
 )
@@ -72,7 +74,7 @@ func TestBuildCommandWired(t *testing.T) {
 			t.Fatalf("expected build output to contain %q, got %q", want, rendered)
 		}
 	}
-	for _, name := range []string{"go.mod", "main.go", "xgoja.gen.json"} {
+	for _, name := range []string{"go.mod", "main.go", "xgoja.runtime.json"} {
 		if _, err := os.Stat(filepath.Join(workDir, name)); err != nil {
 			t.Fatalf("expected generated %s: %v", name, err)
 		}
@@ -133,7 +135,7 @@ func TestGenerateCommandPrintsTemplateData(t *testing.T) {
 		t.Fatalf("execute generate template-data: %v", err)
 	}
 	rendered := out.String()
-	for _, want := range []string{`"PackageName": "xgoja_runtime"`, `"ProviderImports"`, `"SpecJSON"`} {
+	for _, want := range []string{`"PackageName": "xgoja_runtime"`, `"ProviderImports"`, `"RuntimePlanJSON"`} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("expected template data to contain %s, got %s", want, rendered)
 		}
@@ -172,7 +174,7 @@ func TestGenerateCommandCleanRemovesKnownGeneratedFiles(t *testing.T) {
 	if _, err := os.Stat(keep); err != nil {
 		t.Fatalf("expected non-generated file preserved: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(outputDir, "spec.gen.go")); err != nil {
+	if _, err := os.Stat(filepath.Join(outputDir, "runtime_plan.gen.go")); err != nil {
 		t.Fatalf("expected regenerated source fragment: %v", err)
 	}
 }
@@ -189,7 +191,7 @@ func TestGenerateCommandWritesSourceFragments(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute generate source: %v", err)
 	}
-	for _, name := range []string{"spec.gen.go", "providers.gen.go", "bundle.gen.go"} {
+	for _, name := range []string{"runtime_plan.gen.go", "providers.gen.go", "bundle.gen.go"} {
 		if _, err := os.Stat(filepath.Join(outputDir, name)); err != nil {
 			t.Fatalf("expected source fragment %s: %v", name, err)
 		}
@@ -251,6 +253,39 @@ func TestBuildCommandBuildsBinary(t *testing.T) {
 	}
 	if _, err := os.Stat(outputPath); err != nil {
 		t.Fatalf("expected output binary: %v", err)
+	}
+}
+
+func TestBuildCommandProviderServeUsesCommandScopedSources(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds a generated xgoja binary")
+	}
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	specPath := writeHTTPServeScopedSourcesSpec(t)
+	outputPath := filepath.Join(t.TempDir(), "scoped-serve")
+	repoRoot, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	root.SetArgs([]string{"build", "-f", specPath, "--output", outputPath, "--xgoja-replace", repoRoot})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute build: %v\noutput:\n%s", err, out.String())
+	}
+
+	help := runGeneratedBinary(t, outputPath, "serve", "sitea", "start", "--help", "--long-help")
+	for _, want := range []string{"Start A", "--http-listen", "--hot-reload"} {
+		if !strings.Contains(help, want) {
+			t.Fatalf("expected scoped serve help to contain %q, got:\n%s", want, help)
+		}
+	}
+
+	serveHelp := runGeneratedBinary(t, outputPath, "serve", "--help")
+	if strings.Contains(serveHelp, "siteb") || strings.Contains(serveHelp, "Start B") {
+		t.Fatalf("unexpectedly exposed site-b command outside command sources; output:\n%s", serveHelp)
 	}
 }
 
@@ -569,6 +604,77 @@ func writeBuildableSpec(t *testing.T) string {
 	return writeV2ArtifactSpec(t, "fixture", "binary", "dist/fixture", "", "")
 }
 
+func writeHTTPServeScopedSourcesSpec(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	siteADir := filepath.Join(dir, "site-a")
+	siteBDir := filepath.Join(dir, "site-b")
+	if err := os.MkdirAll(siteADir, 0o755); err != nil {
+		t.Fatalf("mkdir site-a: %v", err)
+	}
+	if err := os.MkdirAll(siteBDir, 0o755); err != nil {
+		t.Fatalf("mkdir site-b: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(siteADir, "a.js"), []byte(`
+__package__({ name: "sitea" });
+__verb__("start", { name: "start", short: "Start A", output: "text" });
+function start() { return "a"; }
+`), 0o644); err != nil {
+		t.Fatalf("write site-a jsverb: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(siteBDir, "b.js"), []byte(`
+__package__({ name: "siteb" });
+__verb__("start", { name: "start", short: "Start B", output: "text" });
+function start() { return "b"; }
+`), 0o644); err != nil {
+		t.Fatalf("write site-b jsverb: %v", err)
+	}
+	specPath := filepath.Join(dir, "xgoja.yaml")
+	if err := os.WriteFile(specPath, []byte(`
+schema: xgoja/v2
+name: scoped-serve
+go:
+  module: xgoja.generated/scoped-serve
+  version: "1.26"
+workspace:
+  mode: off
+providers:
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+runtime:
+  modules:
+    - provider: go-go-goja-http
+      name: express
+      as: express
+sources:
+  - id: site-a
+    kind: jsverbs
+    from:
+      dir: `+filepath.ToSlash(siteADir)+`
+    language: javascript
+  - id: site-b
+    kind: jsverbs
+    from:
+      dir: `+filepath.ToSlash(siteBDir)+`
+    language: javascript
+commands:
+  - id: serve
+    type: provider.command-set
+    provider: go-go-goja-http
+    name: serve
+    mount: serve
+    sources: [site-a]
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/scoped-serve
+    sources: [site-a, site-b]
+`), 0o644); err != nil {
+		t.Fatalf("write scoped serve v2 spec: %v", err)
+	}
+	return specPath
+}
+
 func writeTypedCoreV2Spec(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -653,6 +759,21 @@ artifacts:
 		t.Fatalf("write v2 artifact spec: %v", err)
 	}
 	return specPath
+}
+
+func runGeneratedBinary(t *testing.T, binary string, args ...string) string {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binary, args...)
+	data, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		t.Fatalf("generated binary timed out: %v\noutput:\n%s", ctx.Err(), data)
+	}
+	if err != nil {
+		t.Fatalf("run generated binary %v: %v\noutput:\n%s", args, err, data)
+	}
+	return string(data)
 }
 
 func writeV2Spec(t *testing.T) string {

@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -165,9 +164,16 @@ func (g *Graph) ImportResolutions(file File) []ImportResolution {
 }
 
 func (g *Graph) resolveFileImports(file File, contents string) ([]ImportResolution, error) {
-	imports := parseImports(contents)
+	imports, err := parseImports(file.Path, []byte(contents))
+	if err != nil {
+		return nil, err
+	}
 	out := make([]ImportResolution, 0, len(imports))
-	for _, specifier := range imports {
+	for _, imp := range imports {
+		if imp.Dynamic {
+			return nil, fmt.Errorf("%s contains dynamic non-literal %s import", file.Path, imp.Kind)
+		}
+		specifier := imp.Specifier
 		if strings.HasPrefix(specifier, ".") {
 			target, err := g.resolveLocal(file, specifier)
 			if err != nil {
@@ -311,22 +317,6 @@ func includePath(rel string, source SourceSet) bool {
 		}
 	}
 	return true
-}
-
-var importRE = regexp.MustCompile(`(?m)(?:import\s+(?:[^"']+\s+from\s+)?|require\()\s*["']([^"']+)["']`)
-
-func parseImports(contents string) []string {
-	matches := importRE.FindAllStringSubmatch(contents, -1)
-	out := make([]string, 0, len(matches))
-	seen := map[string]bool{}
-	for _, match := range matches {
-		if len(match) < 2 || seen[match[1]] {
-			continue
-		}
-		seen[match[1]] = true
-		out = append(out, match[1])
-	}
-	return out
 }
 
 func fileKey(file File) string { return file.SourceSetID + "\x00" + file.Path }

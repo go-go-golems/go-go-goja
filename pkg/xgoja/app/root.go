@@ -28,7 +28,7 @@ import (
 
 type Options struct {
 	Providers       *providerapi.ProviderRegistry
-	SpecJSON        string
+	RuntimePlanJSON string
 	Out             io.Writer
 	EmbeddedJSVerbs fs.FS
 	EmbeddedHelp    fs.FS
@@ -40,13 +40,13 @@ func NewRootCommand(opts Options) (*cobra.Command, error) {
 	if opts.Providers == nil {
 		return nil, fmt.Errorf("providers registry is required")
 	}
-	runtimeSpec := &RuntimeSpec{}
-	if err := json.Unmarshal([]byte(opts.SpecJSON), runtimeSpec); err != nil {
-		return nil, fmt.Errorf("decode embedded xgoja runtime spec: %w", err)
+	runtimePlan := &RuntimePlan{}
+	if err := json.Unmarshal([]byte(opts.RuntimePlanJSON), runtimePlan); err != nil {
+		return nil, fmt.Errorf("decode embedded xgoja runtime plan: %w", err)
 	}
-	host := NewHostWithOptions(opts.Providers, runtimeSpec, HostOptions{EmbeddedJSVerbs: opts.EmbeddedJSVerbs, EmbeddedHelp: opts.EmbeddedHelp, EmbeddedAssets: opts.EmbeddedAssets, Out: opts.Out, MiddlewaresFunc: opts.MiddlewaresFunc})
+	host := NewHostWithOptions(opts.Providers, runtimePlan, HostOptions{EmbeddedJSVerbs: opts.EmbeddedJSVerbs, EmbeddedHelp: opts.EmbeddedHelp, EmbeddedAssets: opts.EmbeddedAssets, Out: opts.Out, MiddlewaresFunc: opts.MiddlewaresFunc})
 	root := &cobra.Command{
-		Use:   runtimeSpec.Name,
+		Use:   runtimePlan.Name,
 		Short: "Generated xgoja binary",
 	}
 	if opts.Out != nil {
@@ -69,7 +69,7 @@ type evalSettings struct {
 	Source string `glazed:"source"`
 }
 
-func newEvalCommand(factory *RuntimeFactory, runtimeSpec *RuntimeSpec, out io.Writer) cmds.Command {
+func newEvalCommand(factory *RuntimeFactory, runtimePlan *RuntimePlan, out io.Writer) cmds.Command {
 	moduleSections, _, sectionErr := factory.sectionsForRuntime("eval")
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Evaluate JavaScript in a generated xgoja runtime"),
@@ -90,8 +90,9 @@ before evaluation and runtime initializers run before the JavaScript source.
 	if sectionErr == nil && len(moduleSections) > 0 {
 		options = append(options, cmds.WithSections(moduleSections...))
 	}
+	command, _ := runtimePlan.commandByType("builtin.eval")
 	return &evalCommand{
-		CommandDescription: cmds.NewCommandDescription(commandName(runtimeSpec.Commands.Eval, "eval"), options...),
+		CommandDescription: cmds.NewCommandDescription(commandName(command, "eval"), options...),
 		factory:            factory,
 		out:                out,
 		sectionErr:         sectionErr,
@@ -159,14 +160,14 @@ type modulesCommand struct {
 
 type selectedModulesCommand struct {
 	*cmds.CommandDescription
-	runtimeSpec *RuntimeSpec
+	runtimePlan *RuntimePlan
 }
 
 var _ cmds.GlazeCommand = (*modulesCommand)(nil)
 var _ cmds.GlazeCommand = (*selectedModulesCommand)(nil)
 
-func newModulesCommand(providers *providerapi.ProviderRegistry, runtimeSpec *RuntimeSpec) cmds.Command {
-	_ = runtimeSpec
+func newModulesCommand(providers *providerapi.ProviderRegistry, runtimePlan *RuntimePlan) cmds.Command {
+	_ = runtimePlan
 	return &modulesCommand{
 		CommandDescription: cmds.NewCommandDescription("modules",
 			cmds.WithShort("List provider modules compiled into this generated binary"),
@@ -176,13 +177,13 @@ func newModulesCommand(providers *providerapi.ProviderRegistry, runtimeSpec *Run
 	}
 }
 
-func newSelectedModulesCommand(runtimeSpec *RuntimeSpec) cmds.Command {
+func newSelectedModulesCommand(runtimePlan *RuntimePlan) cmds.Command {
 	return &selectedModulesCommand{
 		CommandDescription: cmds.NewCommandDescription("selected-modules",
 			cmds.WithShort("List require() modules selected for this generated runtime"),
 			cmds.WithLong("List the provider modules selected into this generated xgoja runtime, including the actual CommonJS require() alias and static module config."),
 		),
-		runtimeSpec: runtimeSpec,
+		runtimePlan: runtimePlan,
 	}
 }
 
@@ -213,23 +214,23 @@ func (c *modulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values
 
 func (c *selectedModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.Values, gp middlewares.Processor) error {
 	_ = vals
-	if c.runtimeSpec == nil {
-		return fmt.Errorf("runtime spec is required")
+	if c.runtimePlan == nil {
+		return fmt.Errorf("runtime plan is required")
 	}
-	for _, mod := range c.runtimeSpec.Modules {
+	for _, mod := range c.runtimePlan.runtimeModules() {
 		config := "{}"
 		if len(mod.Config) > 0 {
 			data, err := json.Marshal(mod.Config)
 			if err != nil {
-				return fmt.Errorf("marshal config for %s.%s: %w", mod.Package, mod.Name, err)
+				return fmt.Errorf("marshal config for %s.%s: %w", mod.ProviderID(), mod.Name, err)
 			}
 			config = string(data)
 		}
 		if err := gp.AddRow(ctx, types.NewRow(
-			types.MRP("package", mod.Package),
+			types.MRP("package", mod.ProviderID()),
 			types.MRP("module", mod.Name),
 			types.MRP("alias", mod.Alias()),
-			types.MRP("provider_ref", fmt.Sprintf("%s.%s", mod.Package, mod.Name)),
+			types.MRP("provider_ref", fmt.Sprintf("%s.%s", mod.ProviderID(), mod.Name)),
 			types.MRP("config", config),
 		)); err != nil {
 			return err
@@ -238,12 +239,12 @@ func (c *selectedModulesCommand) RunIntoGlazeProcessor(ctx context.Context, vals
 	return nil
 }
 
-func newVerbsCommand(providers *providerapi.ProviderRegistry, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, embeddedJSVerbs fs.FS, middlewaresFunc glazedcli.CobraMiddlewaresFunc) *cobra.Command {
+func newVerbsCommand(sourceRegistry *SourceRegistry, factory *RuntimeFactory, runtimePlan *RuntimePlan, jsverbsCommand CommandPlan, middlewaresFunc glazedcli.CobraMiddlewaresFunc) *cobra.Command {
 	root := &cobra.Command{
-		Use:   commandName(runtimeSpec.Commands.JSVerbs, "verbs"),
+		Use:   commandName(jsverbsCommand, "verbs"),
 		Short: "Run configured JavaScript verb commands",
 	}
-	mounted, err := buildVerbCommands(providers, factory, runtimeSpec, embeddedJSVerbs)
+	mounted, err := buildVerbCommands(sourceRegistry, factory, runtimePlan)
 	if err != nil {
 		root.RunE = func(cmd *cobra.Command, args []string) error { return err }
 		return root
@@ -252,7 +253,7 @@ func newVerbsCommand(providers *providerapi.ProviderRegistry, factory *RuntimeFa
 		Use:   "sources",
 		Short: "List configured JavaScript verb sources",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			for _, source := range runtimeSpec.JSVerbs {
+			for _, source := range sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindJSVerbs) {
 				fmt.Fprintf(cmd.OutOrStdout(), "%s\n", source.ID)
 			}
 			return nil
@@ -270,14 +271,18 @@ func newVerbsCommand(providers *providerapi.ProviderRegistry, factory *RuntimeFa
 	return root
 }
 
-func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *RuntimeFactory, runtimeSpec *RuntimeSpec, embeddedJSVerbs fs.FS) ([]cmds.Command, error) {
+func buildVerbCommands(sourceRegistry *SourceRegistry, factory *RuntimeFactory, runtimePlan *RuntimePlan) ([]cmds.Command, error) {
 	moduleSections, selectedModules, err := factory.sectionsForRuntime("jsverbs")
 	if err != nil {
 		return nil, err
 	}
 	commands := []cmds.Command{}
-	for _, source := range runtimeSpec.JSVerbs {
-		registry, err := scanVerbSource(providers, embeddedJSVerbs, source, sourceGraphRuntimeAliases(moduleAliases(selectedModules)))
+	if sourceRegistry == nil {
+		return nil, fmt.Errorf("source registry is required")
+	}
+	jsverbSources := sourceRegistry.JSVerbs()
+	for _, source := range jsverbSources.ListJSVerbSources() {
+		registry, err := sourceRegistry.scanJSVerbSource(source.ID, sourceGraphRuntimeAliases(moduleAliases(selectedModules)))
 		if err != nil {
 			return nil, err
 		}
@@ -314,7 +319,7 @@ func buildVerbCommands(providers *providerapi.ProviderRegistry, factory *Runtime
 	return commands, nil
 }
 
-func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, source JSVerbSourceSpec, runtimeAliases []string) (*jsverbs.Registry, error) {
+func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, source SourcePlan, runtimeAliases []string) (*jsverbs.Registry, error) {
 	scanOptions := jsVerbScanOptions(source, runtimeAliases)
 	sourceSet, err := sourceGraphSourceSet(providers, embeddedJSVerbs, source)
 	if err != nil {
@@ -341,7 +346,7 @@ func scanVerbSource(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.
 	return registry, nil
 }
 
-func sourceGraphSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, source JSVerbSourceSpec) (*sourcegraph.SourceSet, error) {
+func sourceGraphSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVerbs fs.FS, source SourcePlan) (*sourcegraph.SourceSet, error) {
 	set := sourcegraph.SourceSet{
 		ID:         source.ID,
 		Kind:       sourcegraph.SourceKindJSVerbs,
@@ -349,18 +354,18 @@ func sourceGraphSourceSet(providers *providerapi.ProviderRegistry, embeddedJSVer
 		Exclude:    append([]string(nil), source.Exclude...),
 		Extensions: sourceGraphExtensions(source),
 	}
-	if source.Package != "" || source.Source != "" {
+	if source.ProviderID() != "" || source.Source != "" {
 		if providers == nil {
 			return nil, fmt.Errorf("scan jsverb source %s: providers registry is required", source.ID)
 		}
-		providerSource, ok := providers.ResolveVerbSource(source.Package, source.Source)
+		providerSource, ok := providers.ResolveVerbSource(source.ProviderID(), source.Source)
 		if !ok {
-			return nil, fmt.Errorf("scan jsverb source %s: unknown provider verb source %s.%s", source.ID, source.Package, source.Source)
+			return nil, fmt.Errorf("scan jsverb source %s: unknown provider verb source %s.%s", source.ID, source.ProviderID(), source.Source)
 		}
 		if providerSource.FS == nil {
-			return nil, fmt.Errorf("scan jsverb source %s: provider verb source %s.%s has no filesystem", source.ID, source.Package, source.Source)
+			return nil, fmt.Errorf("scan jsverb source %s: provider verb source %s.%s has no filesystem", source.ID, source.ProviderID(), source.Source)
 		}
-		set.Origin = sourcegraph.Origin{Kind: sourcegraph.OriginProvider, FS: providerSource.FS, Root: providerSource.Root, Provider: source.Package, Source: source.Source}
+		set.Origin = sourcegraph.Origin{Kind: sourcegraph.OriginProvider, FS: providerSource.FS, Root: providerSource.Root, Provider: source.ProviderID(), Source: source.Source}
 		return &set, nil
 	}
 	if source.Path == "" {
@@ -381,6 +386,19 @@ func sourceGraphRuntimeAliases(selectedAliases []string) []string {
 	return appendUniqueStrings(nil, selectedAliases...)
 }
 
+func runtimePlanModuleAliases(modules []RuntimeModulePlan) []string {
+	aliases := []string{}
+	for _, module := range modules {
+		if module.Name != "" {
+			aliases = append(aliases, module.Name)
+		}
+		if module.As != "" {
+			aliases = append(aliases, module.As)
+		}
+	}
+	return appendUniqueStrings(nil, aliases...)
+}
+
 func allProviderRuntimeAliases(providers *providerapi.ProviderRegistry) []string {
 	if providers == nil {
 		return nil
@@ -397,7 +415,7 @@ func allProviderRuntimeAliases(providers *providerapi.ProviderRegistry) []string
 	return appendUniqueStrings(nil, aliases...)
 }
 
-func sourceGraphExtensions(source JSVerbSourceSpec) []string {
+func sourceGraphExtensions(source SourcePlan) []string {
 	if len(source.Extensions) > 0 {
 		return append([]string(nil), source.Extensions...)
 	}
@@ -461,7 +479,7 @@ func sourceGraphResolveDir(file sourcegraph.File) string {
 	return filepath.Dir(file.AbsPath)
 }
 
-func jsVerbScanOptions(source JSVerbSourceSpec, runtimeAliases []string) jsverbs.ScanOptions {
+func jsVerbScanOptions(source SourcePlan, runtimeAliases []string) jsverbs.ScanOptions {
 	options := jsverbs.DefaultScanOptions()
 	if len(source.Extensions) > 0 {
 		options.Extensions = append([]string(nil), source.Extensions...)
@@ -472,14 +490,14 @@ func jsVerbScanOptions(source JSVerbSourceSpec, runtimeAliases []string) jsverbs
 	return options
 }
 
-func commandName(command CommandSpec, fallback string) string {
+func commandName(command CommandPlan, fallback string) string {
 	if command.Name != "" {
 		return command.Name
 	}
 	return fallback
 }
 
-func commandMount(command CommandSpec) string {
+func commandMount(command CommandPlan) string {
 	switch strings.ToLower(strings.TrimSpace(command.Mount)) {
 	case "root", "/", ".":
 		return "root"

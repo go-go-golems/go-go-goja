@@ -1,0 +1,63 @@
+# Tasks
+
+## TODO
+
+- [x] Add tasks here
+
+- [x] Create ticket and initial xgoja v2 runtime cutover docs
+- [x] Gather evidence from specv2, planner, generator, app runtime, provider API, and HTTP serve provider
+- [x] Write intern-facing hard-cutover design and implementation guide
+- [x] Relate key files and update changelog
+- [x] Validate docs and upload bundle to reMarkable
+- [x] Phase 0: Create a dedicated implementation branch for the xgoja v2 runtime hard cutover and record the baseline commit/test state
+- [x] Phase 0: Reproduce the provider.command-set sources bug with a minimal xgoja/v2 fixture that uses sources: [sites]
+- [x] Phase 0: Add a failing test proving generated serve commands expose jsverb subcommands and HTTP serve flags when command sources are declared
+- [x] Phase 0: Add a generated-runtime metadata assertion that v2 output must not contain legacy commandProviders/packages/jsverbs top-level fields
+- [ ] Phase 0: Inventory all active references to RuntimeSpec, PackageSpec, CommandsSpec, CommandProviderInstanceSpec, JSVerbSourceSpec, HelpSourceSpec, AssetSourceSpec, and xgoja.gen.json
+- [x] Phase 1: Design and implement app.RuntimePlan with v2-native AppPlan, RuntimeSection, RuntimeModulePlan, SourcePlan, CommandPlan, and ConfigFilePlan types
+- [ ] Phase 1: Replace legacy package terminology in runtime types with provider terminology while preserving provider registry lookup semantics
+- [ ] Phase 1: Represent all runtime commands as []CommandPlan instead of CommandsSpec plus CommandProviderInstanceSpec
+- [ ] Phase 1: Represent all runtime sources as []SourcePlan with kind/origin metadata instead of separate jsverbs/help/assets buckets
+- [x] Phase 1: Add JSON encode/decode tests for RuntimePlan including command sources, modules, config, lazy, and embedded source origins
+- [x] Phase 2: Rewrite cmd/xgoja/internal/generate runtime metadata rendering to emit xgoja.v2.runtime.json in v2-native shape
+- [x] Phase 2: Remove applyPlanRuntimeCommand and the v2-to-legacy runtime source conversion helpers from generator code
+- [x] Phase 2: Update generated main.go templates to load RuntimePlan instead of RuntimeSpec and to embed v2 runtime plan JSON
+- [x] Phase 2: Ensure generated Go module replacement behavior still uses workspace.mode:auto and plan.GoModules without requiring provider.module.replace in examples
+- [x] Phase 2: Add golden tests for generated main.go and runtime plan JSON for binary artifacts
+- [x] Phase 3: Implement a unified runtime SourceRegistry that resolves sources by ID and filters by source kind
+- [x] Phase 3: Port JS verb scanning to use SourceRegistry handles while preserving TypeScript compile/bundle options and runtime module externals
+- [x] Phase 3: Port help loading to use SourceRegistry kind=help instead of legacy HelpSpec sources
+- [x] Phase 3: Port asset resolution and AssetStore setup to use SourceRegistry kind=assets instead of legacy AssetSourceSpec
+- [x] Phase 3: Add tests for command-scoped source selection, all-sources-by-kind lookup, embedded source roots, provider sources, and workspace sources
+- [x] Phase 4: Rewrite app.NewRootCommand/NewHost/NewHostWithOptions to accept RuntimePlan and remove active RuntimeSpec dependency
+- [x] Phase 4: Rewrite runtime factory module setup to read plan.Runtime.Modules and pass RuntimeModulePlan config to provider module factories
+- [x] Phase 4: Rewrite built-in command attachment as one loop over []CommandPlan for eval, run, repl, jsverbs, and provider.command-set
+- [x] Phase 4: Preserve CLI mount semantics for command Mount fields and add tests for root vs nested command mounting
+- [x] Phase 4: Update generated framework/help/logging installation to use RuntimePlan app/config fields
+- [x] Phase 5: Change providerapi.CommandSetContext to carry v2 command ID, provider, name, mount, config, selected modules, and command-scoped source registry
+- [x] Phase 5: Provide a JSVerbSourceSet adapter derived from the command-scoped SourceRegistry for providers that consume jsverb sources
+- [x] Phase 5: Update provider command-set tests so command providers receive only the sources declared on their command
+- [x] Phase 5: Update providerutil/runtime initializer paths to work with RuntimeModulePlan descriptors after the cutover
+- [x] Phase 6: Update pkg/xgoja/providers/http serve command to consume command-scoped jsverb sources and fail clearly when no sources are configured
+- [x] Phase 6: Update HTTP serve hot-reload to re-scan and watch only command-scoped jsverb sources
+- [x] Phase 6: Add/repair smoke tests for examples/xgoja/13-http-serve-jsverbs using provider.command-set sources and --http-listen
+- [x] Phase 6: Validate app.mount documentation examples still work with the updated HTTP provider runtime setup
+- [x] Phase 7: Port generated runtime-package artifacts to RuntimePlan and remove legacy RuntimeSpec from generated package internals
+- [x] Phase 7: Update examples/xgoja/14-generated-runtime-package and its host code/tests for the v2-native runtime plan
+- [x] Phase 7: Ensure runtime-package public APIs such as NewBundle/NewRuntime remain ergonomic while internals no longer load legacy metadata
+- [x] Phase 8: Update xgoja user guide to describe the v2-native runtime plan and command-scoped sources
+- [x] Phase 8: Update xgoja v2 reference to make providers/runtime.modules/sources/commands/artifacts the authoritative runtime concepts
+- [x] Phase 8: Update migrating-to-xgoja-v2 guide to document the hard runtime cutover and remove legacy bridge language
+- [x] Phase 8: Update provider runtime config and host services docs for the new CommandSetContext/source registry API
+- [x] Phase 8: Update protobuf builder provider tutorial and all affected xgoja example READMEs/YAML files to remove unnecessary replace entries where workspace.mode:auto works
+- [x] Phase 8: Add a troubleshooting section for provider.command-set sources, CLI mount vs HTTP mount, and workspace module resolution
+- [ ] Phase 9: Finish the real sessionstream goja-chatdemo-server xgoja app after provider command sources work end-to-end
+- [ ] Phase 9: Add a smoke test that builds the xgoja chatbot binary, starts HTTP serve, connects a WebSocket client, posts /api/chat, and receives assistant UI events
+- [ ] Phase 9: Decide whether the chatbot server example belongs in sessionstream examples, go-go-goja examples, or both with cross-references
+- [x] Phase 10: Remove or rename all active legacy runtime DTO names and fail CI if generated v2 output reintroduces commandProviders/packages/jsverbs legacy fields
+- [x] Phase 10: Run rg-based removal sweep and document any remaining allowed historical references in tests or migration docs
+- [x] Phase 10: Run full validation: go test ./cmd/xgoja/... ./pkg/xgoja/... ./pkg/gojahttp ./modules/express -count=1 and go test ./... -count=1
+- [x] Phase 10: Run all xgoja example smoke tests affected by runtime generation and update any stale fixtures/goldens
+- [x] Phase 10: Run doc/help validation for xgoja docs and verify migration guide/help pages are discoverable through xgoja help
+- [x] Phase 10: Update ticket diary/changelog with implementation commits, validation commands, failures, and follow-up risks
+- [x] Phase 10: Upload final implementation/reference bundle to reMarkable after docs and tests pass
