@@ -30,6 +30,8 @@ SectionType: GeneralTopic
 
 `xgoja.yaml` is now a native `schema: xgoja/v2` document. The v2 schema is an intent-level runtime compiler input: it selects Go provider packages, chooses runtime modules, describes source sets, exposes command surfaces, and declares generated artifacts.
 
+Generated binaries and runtime packages embed a v2-native `app.RuntimePlan` with schema `xgoja/runtime/v2`. That runtime plan contains `providers`, `runtime.modules`, unified `sources`, `commands`, and `artifacts`; it does not use the old generated runtime bridge shape.
+
 Legacy v1 specs are accepted only by `xgoja migrate-spec`. Normal commands such as `doctor`, `build`, `generate`, `gen-dts`, and `list-modules` expect `schema: xgoja/v2`.
 
 ## Minimal v2 spec
@@ -170,6 +172,8 @@ commands:
     sources: [verbs]
 ```
 
+`commands[].sources` is command-scoped. Providers receive a `SourceRegistry` containing only the selected source IDs for that command. For example, HTTP `serve` scans and hot-reloads only the jsverb sources listed on its command, not every jsverb source in the generated application.
+
 A provider command set is different from a runtime module. A runtime module makes a Go-backed CommonJS module available to JavaScript through `require(...)` or an externalized TypeScript import. A provider command set contributes one or more user-facing CLI commands. The HTTP provider commonly contributes both: the `express` runtime module and the `serve` command set.
 
 For an HTTP application, the usual shape is:
@@ -220,7 +224,7 @@ artifacts:
     sources: [verbs, docs]
 ```
 
-When a binary/runtime-package/source/template-style artifact lists jsverb or help source IDs in `sources`, xgoja copies those local source sets into the generated embedded filesystem.
+When a binary/runtime-package/source/template-style artifact lists jsverb or help source IDs in `sources`, xgoja copies those local source sets into the generated embedded filesystem and records them as v2 `sources[]` entries in the embedded runtime plan.
 
 Static assets use a separate artifact:
 

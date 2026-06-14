@@ -36,6 +36,8 @@ func TestRenderGoModPlanDeterministic(t *testing.T) {
 
 func TestRenderGoModPlanUsesWorkspaceModulePlan(t *testing.T) {
 	compiled := fixturePlan(t)
+	compiled.Config.Providers[0].Import = "github.com/example/local/pkg/provider"
+	compiled.Config.Providers[0].Module.Replace = ""
 	compiled.GoModules = &workspace.Plan{Modules: []workspace.GoModulePlan{{ModulePath: "github.com/example/local", Version: "", LocalDir: "/tmp/local"}}}
 	got := RenderGoModPlan(compiled, Options{XGojaModuleVersion: "v0.1.0", GoModules: compiled.GoModules})
 	if !strings.Contains(got, "github.com/example/local v0.0.0") {
@@ -44,9 +46,12 @@ func TestRenderGoModPlanUsesWorkspaceModulePlan(t *testing.T) {
 	if !strings.Contains(got, "replace github.com/example/local => /tmp/local") {
 		t.Fatalf("expected local module replace:\n%s", got)
 	}
+	if strings.Contains(got, "../") {
+		t.Fatalf("unexpected provider-local replace without provider.module.replace; workspace plan should own local replacements:\n%s", got)
+	}
 }
 
-func TestRenderEmbeddedSpecFromPlanUsesRuntimeShapeAndEmbeddedRoots(t *testing.T) {
+func TestRenderRuntimePlanJSONFromPlanUsesRuntimeShapeAndEmbeddedRoots(t *testing.T) {
 	compiled := fixturePlan(t)
 	compiled.Config.Sources = []specv2.SourceSpec{
 		{ID: "verbs", Kind: specv2.SourceKindJSVerbs, From: specv2.SourceFromSpec{Dir: "verbs"}, Language: "typescript", Compile: &specv2.CompileSpec{Bundle: true}},
@@ -57,22 +62,20 @@ func TestRenderEmbeddedSpecFromPlanUsesRuntimeShapeAndEmbeddedRoots(t *testing.T
 		{ID: "binary", Type: "binary", Output: "dist/fixture", Sources: []string{"verbs", "docs"}},
 		{ID: "assets", Type: "embedded-assets", Sources: []string{"assets"}},
 	}
-	var runtimeSpec app.RuntimeSpec
-	if err := json.Unmarshal([]byte(RenderEmbeddedSpecFromPlan(compiled)), &runtimeSpec); err != nil {
-		t.Fatalf("decode embedded runtime spec: %v", err)
+	var runtimePlan app.RuntimePlan
+	if err := json.Unmarshal([]byte(RenderRuntimePlanJSONFromPlan(compiled)), &runtimePlan); err != nil {
+		t.Fatalf("decode embedded runtime plan: %v", err)
 	}
-	if len(runtimeSpec.Packages) != 1 || runtimeSpec.Packages[0].ID != "fixture" {
-		t.Fatalf("expected runtime provider ids only, got %#v", runtimeSpec.Packages)
+	if runtimePlan.Schema != app.RuntimePlanSchema {
+		t.Fatalf("runtime plan schema = %q", runtimePlan.Schema)
 	}
-	if runtimeSpec.JSVerbs[0].Path != "xgoja_embed/jsverbs/verbs" || !runtimeSpec.JSVerbs[0].Embed {
-		t.Fatalf("unexpected jsverb runtime source: %#v", runtimeSpec.JSVerbs[0])
+	if len(runtimePlan.Providers) != 1 || runtimePlan.Providers[0].ID != "fixture" {
+		t.Fatalf("expected runtime provider ids only, got %#v", runtimePlan.Providers)
 	}
-	if runtimeSpec.Help.Sources[0].Path != "xgoja_embed/help/docs" || !runtimeSpec.Help.Sources[0].Embed {
-		t.Fatalf("unexpected help runtime source: %#v", runtimeSpec.Help.Sources[0])
-	}
-	if runtimeSpec.Assets[0].Path != "xgoja_embed/assets/assets" || !runtimeSpec.Assets[0].Embed {
-		t.Fatalf("unexpected asset runtime source: %#v", runtimeSpec.Assets[0])
-	}
+	assertNoLegacyRuntimeKeys(t, RenderRuntimePlanJSONFromPlan(compiled))
+	assertRuntimeSource(t, runtimePlan, app.SourceKindJSVerbs, "xgoja_embed/jsverbs/verbs", true)
+	assertRuntimeSource(t, runtimePlan, app.SourceKindHelp, "xgoja_embed/help/docs", true)
+	assertRuntimeSource(t, runtimePlan, app.SourceKindAssets, "xgoja_embed/assets/assets", true)
 }
 
 func TestWriteAllPlanCopiesEmbeddedSources(t *testing.T) {
@@ -103,7 +106,7 @@ func TestWriteAllPlanCopiesEmbeddedSources(t *testing.T) {
 		"xgoja_embed/assets/assets/app.css",
 		"go.mod",
 		"main.go",
-		"xgoja.gen.json",
+		"xgoja.runtime.json",
 	} {
 		if _, err := os.Stat(filepath.Join(out, filepath.FromSlash(path))); err != nil {
 			t.Fatalf("expected generated %s: %v", path, err)
@@ -114,6 +117,21 @@ func TestWriteAllPlanCopiesEmbeddedSources(t *testing.T) {
 	}
 }
 
+func TestRenderPackagePlanUsesRuntimePlanAPI(t *testing.T) {
+	got := RenderPackagePlan(fixturePlan(t), "xgojaruntime")
+	for _, want := range []string{"EmbeddedRuntimePlanJSON", "DecodeRuntimePlan() (*app.RuntimePlan, error)", "RuntimePlan *app.RuntimePlan", "NewBundle", "NewRuntime"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("generated runtime package missing %q:\n%s", want, got)
+		}
+	}
+	for _, legacy := range []string{"EmbeddedSpecJSON", "DecodeSpec", "RuntimeSpec"} {
+		if strings.Contains(got, legacy) {
+			t.Fatalf("generated runtime package contains legacy %q:\n%s", legacy, got)
+		}
+	}
+	assertNoLegacyRuntimeKeys(t, RenderRuntimePlanJSONFromPlan(fixturePlan(t)))
+}
+
 func TestTemplateDataJSONFromPlan(t *testing.T) {
 	got, err := TemplateDataJSONFromPlan(fixturePlan(t), "xgojaruntime")
 	if err != nil {
@@ -122,6 +140,29 @@ func TestTemplateDataJSONFromPlan(t *testing.T) {
 	for _, want := range []string{"\"PackageName\": \"xgojaruntime\"", "\"ProviderImports\""} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("template data missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func assertRuntimeSource(t *testing.T, runtimePlan app.RuntimePlan, kind app.SourceKind, path string, embed bool) {
+	t.Helper()
+	for _, source := range runtimePlan.Sources {
+		if source.Kind == kind && source.Path == path && source.Embed == embed {
+			return
+		}
+	}
+	t.Fatalf("missing runtime source kind=%s path=%s embed=%v in %#v", kind, path, embed, runtimePlan.Sources)
+}
+
+func assertNoLegacyRuntimeKeys(t *testing.T, specJSON string) {
+	t.Helper()
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(specJSON), &payload); err != nil {
+		t.Fatalf("decode runtime payload: %v", err)
+	}
+	for _, key := range []string{"packages", "modules", "commandProviders", "jsverbs", "help", "assets"} {
+		if _, ok := payload[key]; ok {
+			t.Fatalf("runtime payload contains legacy key %q: %s", key, specJSON)
 		}
 	}
 }

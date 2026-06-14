@@ -39,18 +39,39 @@ func TestGeneratedRootReadsModuleSectionFromDerivedEnvPrefix(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "appName": "env-fixture",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "eval": {"enabled": true, "name": "eval"},
-    "jsverbs": {"enabled": false}
-  }
+  "app": {
+    "name": "env-fixture"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -70,18 +91,40 @@ func TestGeneratedRootReadsModuleSectionFromExplicitEnvPrefix(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "envPrefix": "XGOJA_TEST",
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "eval": {"enabled": true, "name": "eval"},
-    "jsverbs": {"enabled": false}
-  }
+  "app": {
+    "name": "fixture",
+    "envPrefix": "XGOJA_TEST"
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -101,7 +144,7 @@ func TestGeneratedRootKeepsDefaultMiddlewaresWithoutAppSettings(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: fixtureSpecJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: fixtureRuntimePlanJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -127,19 +170,46 @@ func TestGeneratedRootReadsConfigFile(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "appName": "config-fixture",
-  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "eval": {"enabled": true, "name": "eval"},
-    "jsverbs": {"enabled": false}
-  }
+  "app": {
+    "name": "config-fixture",
+    "configFile": {
+      "enabled": true,
+      "layers": [
+        "cwd"
+      ],
+      "fileName": "config.yaml"
+    }
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -166,20 +236,47 @@ func TestConfigPrecedenceEnvBeatsConfig(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "appName": "config-fixture",
-  "envPrefix": "CONFIG_FIXTURE",
-  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "eval": {"enabled": true, "name": "eval"},
-    "jsverbs": {"enabled": false}
-  }
+  "app": {
+    "name": "config-fixture",
+    "envPrefix": "CONFIG_FIXTURE",
+    "configFile": {
+      "enabled": true,
+      "layers": [
+        "cwd"
+      ],
+      "fileName": "config.yaml"
+    }
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -206,20 +303,47 @@ func TestConfigPrecedenceFlagBeatsEnv(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "appName": "config-fixture",
-  "envPrefix": "CONFIG_FIXTURE",
-  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "eval": {"enabled": true, "name": "eval"},
-    "jsverbs": {"enabled": false}
-  }
+  "app": {
+    "name": "config-fixture",
+    "envPrefix": "CONFIG_FIXTURE",
+    "configFile": {
+      "enabled": true,
+      "layers": [
+        "cwd"
+      ],
+      "fileName": "config.yaml"
+    }
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -244,19 +368,46 @@ func TestExplicitConfigFileRequiresExplicitLayer(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "appName": "config-fixture",
-  "configFile": {"enabled": true, "layers": ["cwd"], "fileName": "config.yaml"},
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "eval": {"enabled": true, "name": "eval"},
-    "jsverbs": {"enabled": false}
-  }
+  "app": {
+    "name": "config-fixture",
+    "configFile": {
+      "enabled": true,
+      "layers": [
+        "cwd"
+      ],
+      "fileName": "config.yaml"
+    }
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}
@@ -281,18 +432,46 @@ func TestExplicitConfigFileLoadsWithExplicitLayer(t *testing.T) {
 		t.Fatalf("register provider: %v", err)
 	}
 	specJSON := `{
+  "schema": "xgoja/runtime/v2",
   "name": "fixture",
-  "configFile": {"enabled": true, "layers": ["explicit"], "fileName": "config.yaml"},
-  "target": {"kind": "xgoja", "output": "dist/fixture"},
-  "packages": [{"id": "fixture"}],
-  "modules": [{"package": "fixture", "name": "hello", "as": "hello"}],
-  "commands": {
-    "eval": {"enabled": true, "name": "eval"},
-    "jsverbs": {"enabled": false}
-  }
+  "app": {
+    "name": "fixture",
+    "configFile": {
+      "enabled": true,
+      "layers": [
+        "explicit"
+      ],
+      "fileName": "config.yaml"
+    }
+  },
+  "target": {
+    "kind": "xgoja",
+    "output": "dist/fixture"
+  },
+  "providers": [
+    {
+      "id": "fixture"
+    }
+  ],
+  "runtime": {
+    "modules": [
+      {
+        "provider": "fixture",
+        "name": "hello",
+        "as": "hello"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "eval",
+      "type": "builtin.eval",
+      "name": "eval"
+    }
+  ]
 }`
 	out := &bytes.Buffer{}
-	root, err := NewRootCommand(Options{Providers: registry, SpecJSON: specJSON, Out: out})
+	root, err := NewRootCommand(Options{Providers: registry, RuntimePlanJSON: specJSON, Out: out})
 	if err != nil {
 		t.Fatalf("new root: %v", err)
 	}

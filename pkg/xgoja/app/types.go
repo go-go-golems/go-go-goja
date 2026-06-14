@@ -19,16 +19,16 @@ func (h *Host) TypeScriptDeclarations(opts dtsgen.Options) (*dtsgen.Result, erro
 	if h == nil {
 		return nil, fmt.Errorf("xgoja host is nil")
 	}
-	return dtsgen.RenderModules(h.Providers, dtsgenModuleInstances(h.RuntimeSpec), opts)
+	return dtsgen.RenderModules(h.Providers, dtsgenModuleInstances(h.RuntimePlan), opts)
 }
 
-func dtsgenModuleInstances(runtimeSpec *RuntimeSpec) []dtsgen.ModuleInstance {
-	if runtimeSpec == nil || len(runtimeSpec.Modules) == 0 {
+func dtsgenModuleInstances(runtimePlan *RuntimePlan) []dtsgen.ModuleInstance {
+	if runtimePlan == nil || len(runtimePlan.runtimeModules()) == 0 {
 		return nil
 	}
-	out := make([]dtsgen.ModuleInstance, 0, len(runtimeSpec.Modules))
-	for _, mod := range runtimeSpec.Modules {
-		out = append(out, dtsgen.ModuleInstance{Package: mod.Package, Name: mod.Name, As: mod.As})
+	out := make([]dtsgen.ModuleInstance, 0, len(runtimePlan.runtimeModules()))
+	for _, mod := range runtimePlan.runtimeModules() {
+		out = append(out, dtsgen.ModuleInstance{Package: mod.ProviderID(), Name: mod.Name, As: mod.As})
 	}
 	return out
 }

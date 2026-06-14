@@ -3,11 +3,11 @@ package app
 import "testing"
 
 func TestJSVerbSourceSetListIncludesTypeScriptDescriptor(t *testing.T) {
-	set := newJSVerbSourceSet(nil, nil, []JSVerbSourceSpec{{
+	set := newJSVerbSourceSet(nil, nil, []SourcePlan{{
 		ID:         "local",
 		Path:       "verbs",
 		Extensions: []string{".ts"},
-		TypeScript: &TypeScriptSpec{
+		TypeScript: &TypeScriptPlan{
 			Enabled:      true,
 			Bundle:       true,
 			Target:       "es2015",

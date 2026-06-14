@@ -19,7 +19,7 @@ The smoke target:
 
 1. validates `xgoja.yaml`,
 2. lists selected modules,
-3. builds `dist/embedded-assets-fs` with a local `go-go-goja` replace,
+3. builds `dist/embedded-assets-fs` using v2 workspace module resolution,
 4. runs `scripts/read-assets.js`,
 5. verifies that embedded JSON was copied to `out.json` through `fs:host`.
 
@@ -60,29 +60,36 @@ make prove-self-contained
 
 That target copies the generated binary and script to a temporary directory and runs it away from the original `assets/` directory. The script still reads `/app/config/default.json` because the file is embedded into the binary.
 
-## Important buildspec fragment
+## Important xgoja/v2 fragment
 
 ```yaml
-assets:
+sources:
   - id: app-assets
-    path: ./assets
-    embed: true
+    kind: assets
+    from:
+      dir: ./assets
 
-modules:
-  - package: go-go-goja-host
-    name: fs
-    as: fs:assets
-    config:
-      embedded:
+runtime:
+  modules:
+    - provider: go-go-goja-host
+      name: fs
+      as: fs:assets
+      config:
+        embedded:
+          allow: true
+          mounts:
+            - asset: app-assets
+              mount: /app
+    - provider: go-go-goja-host
+      name: fs
+      as: fs:host
+      config:
         allow: true
-        mounts:
-          - asset: app-assets
-            mount: /app
-  - package: go-go-goja-host
-    name: fs
-    as: fs:host
-    config:
-      allow: true
-  - package: go-go-goja-http
-    name: express
+    - provider: go-go-goja-http
+      name: express
+
+artifacts:
+  - id: embedded-assets
+    type: embedded-assets
+    sources: [app-assets]
 ```

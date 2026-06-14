@@ -17,7 +17,7 @@ ShowPerDefault: true
 SectionType: Application
 ---
 
-`xgoja` builds custom goja-powered command-line programs by generating a normal Go program and compiling it with the Go toolchain. The generated program imports selected provider packages, registers their native modules, embeds a normalized runtime specification, and exposes commands such as the configured `eval` command, `run`, rich `repl`, `modules`, and configured JavaScript verbs.
+`xgoja` builds custom goja-powered command-line programs by generating a normal Go program and compiling it with the Go toolchain. The generated program imports selected provider packages, registers their native modules, embeds a v2-native `app.RuntimePlan`, and exposes commands such as `eval`, `run`, rich `repl`, `modules`, configured JavaScript verbs, and provider command sets.
 
 The design is intentionally compile-time oriented. Go-backed native modules are selected before the generated binary is built. JavaScript code can still be loaded at runtime or embedded into the generated binary, but the Go packages that implement native `require()` modules are ordinary Go imports in the generated source.
 
@@ -25,16 +25,16 @@ The design is intentionally compile-time oriented. Go-backed native modules are 
 
 The build has two separate decisions.
 
-1. **Build-time package selection** decides which provider packages are compiled into the binary.
-2. **Module set selection** decides which compiled-in modules are available to one command invocation.
+1. **Build-time provider selection** decides which provider packages are compiled into the binary.
+2. **Runtime plan selection** decides which compiled-in modules, sources, commands, and artifacts are active.
 
-A provider package contributes named modules and optional JavaScript verb sources. A top-level `modules` selects provider modules by package ID and module name, then assigns the `require()` alias used by JavaScript.
+A provider package contributes named modules, optional command sets, and optional source descriptors. `runtime.modules` selects provider modules by provider ID and module name, then assigns the `require()` alias used by JavaScript. `commands[]` selects built-in command surfaces and provider command sets.
 
 ```text
 xgoja.yaml
   -> generated go.mod + main.go
   -> provider Register functions
-  -> embedded runtime spec
+  -> embedded app.RuntimePlan
   -> go build
   -> generated binary
   -> module set
@@ -51,23 +51,26 @@ func Register(registry *providerapi.ProviderRegistry) error {
         providerapi.Module{
             Name:      "hello",
             DefaultAs: "hello",
-            New:       newHelloModule,
+            NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
+                return newHelloModule(ctx)
+            },
         },
     )
 }
 ```
 
-The generated program imports this package and calls the registration function at startup. If the package is not listed in `packages:`, it is not part of the generated binary.
+The generated program imports this package and calls the registration function at startup. If the package is not listed in `providers:`, it is not part of the generated binary.
 
 ## Module selections
 
-A module set lists the modules that should be registered for a command invocation.
+The runtime module list selects the modules that should be registered for runtime-backed command invocations.
 
 ```yaml
-modules:
-  - package: fixture
-    name: hello
-    as: hello
+runtime:
+  modules:
+    - provider: fixture
+      name: hello
+      as: hello
 ```
 
 The `as` field controls the JavaScript module name:
@@ -76,17 +79,17 @@ The `as` field controls the JavaScript module name:
 const hello = require("hello")
 ```
 
-The top-level module list makes the JavaScript capability surface explicit. A provider package can be compiled into the binary without exposing every module it registers; only modules listed in `modules` are registered for generated runtime-backed commands.
+The runtime module list makes the JavaScript capability surface explicit. A provider package can be compiled into the binary without exposing every module it registers; only modules listed in `runtime.modules` are registered for generated runtime-backed commands.
 
 ## Generated commands
 
 A pure xgoja generated binary currently provides these command families:
 
-- the configured `commands.eval.name` command evaluates a JavaScript string in a generated module set.
-- the configured `commands.run.name` command executes a JavaScript file with script-local module resolution.
-- the configured `commands.repl.name` command starts an interactive Bubble Tea REPL for a generated module set.
+- a `commands[]` entry with `type: builtin.eval` evaluates a JavaScript string in the generated runtime.
+- a `commands[]` entry with `type: builtin.run` executes a JavaScript file with script-local module resolution.
+- a `commands[]` entry with `type: builtin.repl` starts an interactive Bubble Tea REPL for the generated runtime.
 - `modules` lists provider modules registered in the binary.
-- the configured `jsverbs` command mounts JavaScript functions as Glazed/Cobra commands when enabled.
+- a `commands[]` entry with `type: builtin.jsverbs` mounts JavaScript functions as Glazed/Cobra commands.
 
 Provider packages can also contribute command families. For example, the HTTP provider can mount `serve` commands that run JavaScript verbs as long-lived Express site setup functions.
 

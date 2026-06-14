@@ -20,7 +20,7 @@ import (
 var templateFS embed.FS
 
 type mainTemplateData struct {
-	SpecJSON          string
+	RuntimePlanJSON   string
 	HasEmbedded       bool
 	HasEmbeddedJSVerb bool
 	HasEmbeddedHelp   bool
@@ -38,7 +38,7 @@ type mainTemplateData struct {
 
 type packageTemplateData struct {
 	PackageName       string
-	SpecJSON          string
+	RuntimePlanJSON   string
 	HasEmbedded       bool
 	HasEmbeddedJSVerb bool
 	HasEmbeddedHelp   bool
@@ -48,7 +48,7 @@ type packageTemplateData struct {
 }
 
 type dtsGenTemplateData struct {
-	SpecJSON        string
+	RuntimePlanJSON string
 	ProviderImports []providerImport
 	ExtraImports    []extraImport
 	Strict          bool
@@ -175,7 +175,7 @@ func mainTemplateDataFromPlan(compiled *plan.Plan) mainTemplateData {
 		rootFn = "NewRootCommand"
 	}
 	data := mainTemplateData{
-		SpecJSON:          escapeRawString(RenderEmbeddedSpecFromPlan(compiled)),
+		RuntimePlanJSON:   escapeRawString(RenderRuntimePlanJSONFromPlan(compiled)),
 		HasEmbedded:       hasEmbedded,
 		HasEmbeddedJSVerb: hasEmbeddedJSVerb,
 		HasEmbeddedHelp:   hasEmbeddedHelp,
@@ -201,18 +201,18 @@ func mainTemplateDataFromPlan(compiled *plan.Plan) mainTemplateData {
 		embeddedAssetsArg = "embeddedAssets"
 	}
 	if hasEmbedded {
-		data.HostConstruction = fmt.Sprintf("host := app.NewHostWithOptions(registry, buildSpec, app.HostOptions{EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
-		data.RootConstruction = fmt.Sprintf("root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON, EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
+		data.HostConstruction = fmt.Sprintf("host := app.NewHostWithOptions(registry, runtimePlan, app.HostOptions{EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
+		data.RootConstruction = fmt.Sprintf("root, err := app.NewRootCommand(app.Options{Providers: registry, RuntimePlanJSON: embeddedRuntimePlanJSON, EmbeddedJSVerbs: %s, EmbeddedHelp: %s, EmbeddedAssets: %s})", embeddedJSVerbArg, embeddedHelpArg, embeddedAssetsArg)
 	} else {
-		data.HostConstruction = "host := app.NewHost(registry, buildSpec)"
-		data.RootConstruction = "root, err := app.NewRootCommand(app.Options{Providers: registry, SpecJSON: embeddedSpecJSON})"
+		data.HostConstruction = "host := app.NewHost(registry, runtimePlan)"
+		data.RootConstruction = "root, err := app.NewRootCommand(app.Options{Providers: registry, RuntimePlanJSON: embeddedRuntimePlanJSON})"
 	}
 	return data
 }
 
 func dtsGenTemplateDataFromPlan(compiled *plan.Plan, strict bool) dtsGenTemplateData {
 	return dtsGenTemplateData{
-		SpecJSON:        escapeRawString(RenderEmbeddedSpecFromPlan(compiled)),
+		RuntimePlanJSON: escapeRawString(RenderRuntimePlanJSONFromPlan(compiled)),
 		ProviderImports: providerImportsFromPlan(compiled),
 		ExtraImports:    extraImportsFromPlan(compiled),
 		Strict:          strict,
@@ -226,7 +226,7 @@ func packageTemplateDataFromPlan(compiled *plan.Plan, packageName string) packag
 	hasEmbeddedAssets := len(paths.AssetRoots) > 0
 	return packageTemplateData{
 		PackageName:       packageName,
-		SpecJSON:          escapeRawString(RenderEmbeddedSpecFromPlan(compiled)),
+		RuntimePlanJSON:   escapeRawString(RenderRuntimePlanJSONFromPlan(compiled)),
 		HasEmbedded:       hasEmbeddedJSVerb || hasEmbeddedHelp || hasEmbeddedAssets,
 		HasEmbeddedJSVerb: hasEmbeddedJSVerb,
 		HasEmbeddedHelp:   hasEmbeddedHelp,
@@ -339,74 +339,42 @@ func embeddedPlanRoots(sources []specv2.SourceSpec, kind specv2.SourceKind, embe
 	return roots
 }
 
-func RenderEmbeddedSpecFromPlan(compiled *plan.Plan) string {
+func RenderRuntimePlanJSONFromPlan(compiled *plan.Plan) string {
 	if compiled == nil {
 		return "null\n"
 	}
 	cfg := compiled.Config
 	paths := embeddedPlanPaths(cfg)
-	var configFile *app.ConfigFileSpec
+	var configFile *app.ConfigFilePlan
 	if cfg.App.ConfigFile != nil {
-		configFile = &app.ConfigFileSpec{Enabled: cfg.App.ConfigFile.Enabled, Layers: append([]string(nil), cfg.App.ConfigFile.Layers...), FileName: cfg.App.ConfigFile.FileName}
+		configFile = &app.ConfigFilePlan{Enabled: cfg.App.ConfigFile.Enabled, Layers: append([]string(nil), cfg.App.ConfigFile.Layers...), FileName: cfg.App.ConfigFile.FileName}
 	}
-	helpSpec := &app.HelpSpec{}
-	runtimeSpec := app.RuntimeSpec{
-		Name:       cfg.Name,
-		AppName:    cfg.App.Name,
-		EnvPrefix:  cfg.App.EnvPrefix,
-		ConfigFile: configFile,
-		Target:     app.TargetSpec{Kind: targetDataFromPlanArtifacts(cfg.Artifacts).Kind, Output: targetOutputFromPlanArtifacts(cfg.Artifacts)},
+	runtimePlan := app.RuntimePlan{
+		Schema: app.RuntimePlanSchema,
+		Name:   cfg.Name,
+		App: app.AppPlan{
+			Name:       cfg.App.Name,
+			EnvPrefix:  cfg.App.EnvPrefix,
+			ConfigFile: configFile,
+		},
+		Target: app.TargetPlan{Kind: targetDataFromPlanArtifacts(cfg.Artifacts).Kind, Output: targetOutputFromPlanArtifacts(cfg.Artifacts)},
 	}
 	for _, provider := range cfg.Providers {
-		runtimeSpec.Packages = append(runtimeSpec.Packages, app.PackageSpec{ID: provider.ID})
+		runtimePlan.Providers = append(runtimePlan.Providers, app.ProviderPlan{ID: provider.ID})
 	}
 	for _, module := range cfg.Runtime.Modules {
-		runtimeSpec.Modules = append(runtimeSpec.Modules, app.ModuleInstanceSpec{Package: module.Provider, Name: module.Name, As: module.As, Config: module.Config})
-	}
-	for _, command := range cfg.Commands {
-		applyPlanRuntimeCommand(&runtimeSpec.Commands, &runtimeSpec.CommandProviders, command)
+		runtimePlan.Runtime.Modules = append(runtimePlan.Runtime.Modules, app.RuntimeModulePlan{Provider: module.Provider, Name: module.Name, As: module.As, Config: module.Config})
 	}
 	for _, source := range cfg.Sources {
-		switch source.Kind {
-		case specv2.SourceKindJSVerbs:
-			runtimeSpec.JSVerbs = append(runtimeSpec.JSVerbs, runtimeJSVerbSourceFromPlan(source, paths.JSVerbRoots[source.ID]))
-		case specv2.SourceKindHelp:
-			helpSpec.Sources = append(helpSpec.Sources, runtimeHelpSourceFromPlan(source, paths.HelpRoots[source.ID]))
-		case specv2.SourceKindAssets:
-			runtimeSpec.Assets = append(runtimeSpec.Assets, runtimeAssetSourceFromPlan(source, paths.AssetRoots[source.ID]))
-		case specv2.SourceKindScript:
-		}
+		runtimePlan.Sources = append(runtimePlan.Sources, runtimeSourceFromPlan(source, paths))
 	}
-	payload := struct {
-		Name             string                            `json:"name"`
-		AppName          string                            `json:"appName,omitempty"`
-		EnvPrefix        string                            `json:"envPrefix,omitempty"`
-		ConfigFile       *app.ConfigFileSpec               `json:"configFile,omitempty"`
-		Target           app.TargetSpec                    `json:"target"`
-		Packages         []app.PackageSpec                 `json:"packages"`
-		Modules          []app.ModuleInstanceSpec          `json:"modules"`
-		Commands         app.CommandsSpec                  `json:"commands"`
-		CommandProviders []app.CommandProviderInstanceSpec `json:"commandProviders,omitempty"`
-		JSVerbs          []app.JSVerbSourceSpec            `json:"jsverbs,omitempty"`
-		Help             *app.HelpSpec                     `json:"help,omitempty"`
-		Assets           []app.AssetSourceSpec             `json:"assets,omitempty"`
-	}{
-		Name:             runtimeSpec.Name,
-		AppName:          runtimeSpec.AppName,
-		EnvPrefix:        runtimeSpec.EnvPrefix,
-		ConfigFile:       runtimeSpec.ConfigFile,
-		Target:           runtimeSpec.Target,
-		Packages:         runtimeSpec.Packages,
-		Modules:          runtimeSpec.Modules,
-		Commands:         runtimeSpec.Commands,
-		CommandProviders: runtimeSpec.CommandProviders,
-		JSVerbs:          runtimeSpec.JSVerbs,
-		Assets:           runtimeSpec.Assets,
+	for _, command := range cfg.Commands {
+		runtimePlan.Commands = append(runtimePlan.Commands, runtimeCommandFromPlan(command))
 	}
-	if len(helpSpec.Sources) > 0 {
-		payload.Help = helpSpec
+	for _, artifact := range cfg.Artifacts {
+		runtimePlan.Artifacts = append(runtimePlan.Artifacts, app.ArtifactPlan{ID: artifact.ID, Type: artifact.Type, Output: artifact.Output, Package: artifact.Package, Import: artifact.Import, Root: artifact.Root, Sources: append([]string(nil), artifact.Sources...), Strict: artifact.Strict})
 	}
-	data, err := json.MarshalIndent(payload, "", "  ")
+	data, err := json.MarshalIndent(runtimePlan, "", "  ")
 	if err != nil {
 		panic(err)
 	}
@@ -422,26 +390,24 @@ func targetOutputFromPlanArtifacts(artifacts []specv2.ArtifactSpec) string {
 	return "dist/xgoja-app"
 }
 
-func applyPlanRuntimeCommand(commands *app.CommandsSpec, providers *[]app.CommandProviderInstanceSpec, command specv2.CommandSurfaceSpec) {
-	spec := app.CommandSpec{Enabled: true, Name: command.Name, Mount: command.Mount}
-	switch command.Type {
-	case "builtin.eval":
-		commands.Eval = spec
-	case "builtin.run":
-		commands.Run = spec
-	case "builtin.repl":
-		commands.Repl = spec
-	case "builtin.jsverbs":
-		commands.JSVerbs = spec
-	case "provider.command-set":
-		*providers = append(*providers, app.CommandProviderInstanceSpec{ID: command.ID, Package: command.Provider, Name: command.Name, Mount: command.Mount, Modules: append([]string(nil), command.Modules...), Config: command.Config, Lazy: command.Lazy})
-	}
+func runtimeCommandFromPlan(command specv2.CommandSurfaceSpec) app.CommandPlan {
+	return app.CommandPlan{ID: command.ID, Type: command.Type, Name: command.Name, Mount: command.Mount, Provider: command.Provider, Sources: append([]string(nil), command.Sources...), Modules: append([]string(nil), command.Modules...), Config: command.Config, Lazy: command.Lazy}
 }
 
-func runtimeJSVerbSourceFromPlan(source specv2.SourceSpec, embeddedRoot string) app.JSVerbSourceSpec {
-	out := app.JSVerbSourceSpec{ID: source.ID, Embed: embeddedRoot != "", Include: append([]string(nil), source.Include...), Exclude: append([]string(nil), source.Exclude...), Extensions: append([]string(nil), source.Extensions...)}
+func runtimeSourceFromPlan(source specv2.SourceSpec, paths planEmbeddedPaths) app.SourcePlan {
+	embeddedRoot := ""
+	switch source.Kind {
+	case specv2.SourceKindJSVerbs:
+		embeddedRoot = paths.JSVerbRoots[source.ID]
+	case specv2.SourceKindHelp:
+		embeddedRoot = paths.HelpRoots[source.ID]
+	case specv2.SourceKindAssets:
+		embeddedRoot = paths.AssetRoots[source.ID]
+	case specv2.SourceKindScript:
+	}
+	out := app.SourcePlan{ID: source.ID, Kind: app.SourceKind(source.Kind), Embed: embeddedRoot != "", Include: append([]string(nil), source.Include...), Exclude: append([]string(nil), source.Exclude...), Extensions: append([]string(nil), source.Extensions...)}
 	if source.From.Provider != nil {
-		out.Package = source.From.Provider.Provider
+		out.Provider = source.From.Provider.Provider
 		out.Source = source.From.Provider.Source
 	} else if embeddedRoot != "" {
 		out.Path = embeddedRoot
@@ -449,7 +415,7 @@ func runtimeJSVerbSourceFromPlan(source specv2.SourceSpec, embeddedRoot string) 
 		out.Path = source.From.Dir
 	}
 	if strings.EqualFold(source.Language, "typescript") || source.Compile != nil {
-		out.TypeScript = &app.TypeScriptSpec{Enabled: strings.EqualFold(source.Language, "typescript"), Bundle: source.Compile != nil && source.Compile.Bundle}
+		out.TypeScript = &app.TypeScriptPlan{Enabled: strings.EqualFold(source.Language, "typescript"), Bundle: source.Compile != nil && source.Compile.Bundle}
 		if source.Compile != nil {
 			out.TypeScript.Define = cloneStringMapFromPlan(source.Compile.Define)
 			if source.Compile.Check != nil {
@@ -458,25 +424,4 @@ func runtimeJSVerbSourceFromPlan(source specv2.SourceSpec, embeddedRoot string) 
 		}
 	}
 	return out
-}
-
-func runtimeHelpSourceFromPlan(source specv2.SourceSpec, embeddedRoot string) app.HelpSourceSpec {
-	out := app.HelpSourceSpec{ID: source.ID, Embed: embeddedRoot != ""}
-	if source.From.Provider != nil {
-		out.Package = source.From.Provider.Provider
-		out.Source = source.From.Provider.Source
-	} else if embeddedRoot != "" {
-		out.Path = embeddedRoot
-	} else {
-		out.Path = source.From.Dir
-	}
-	return out
-}
-
-func runtimeAssetSourceFromPlan(source specv2.SourceSpec, embeddedRoot string) app.AssetSourceSpec {
-	path := source.From.Dir
-	if embeddedRoot != "" {
-		path = embeddedRoot
-	}
-	return app.AssetSourceSpec{ID: source.ID, Path: path, Embed: embeddedRoot != ""}
 }

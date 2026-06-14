@@ -32,7 +32,7 @@ func CleanGenerated(dir string) error {
 	}
 	for _, name := range []string{
 		"xgoja_runtime.gen.go",
-		"spec.gen.go",
+		"runtime_plan.gen.go",
 		"providers.gen.go",
 		"bundle.gen.go",
 		"embed.gen.go",

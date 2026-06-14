@@ -13,12 +13,12 @@ import (
 )
 
 // MiddlewaresFromSpec returns the Glazed parser middleware chain for generated
-// xgoja commands. If the runtime spec does not request an environment namespace or
+// xgoja commands. If the runtime plan does not request an environment namespace or
 // config file loading, it preserves the historical default chain: Cobra flags,
 // positional arguments, and field defaults only.
-func MiddlewaresFromSpec(runtimeSpec *RuntimeSpec) cli.CobraMiddlewaresFunc {
-	envPrefix := EffectiveEnvPrefix(runtimeSpec)
-	hasConfig := runtimeSpec != nil && runtimeSpec.ConfigFile != nil && runtimeSpec.ConfigFile.Enabled
+func MiddlewaresFromSpec(runtimePlan *RuntimePlan) cli.CobraMiddlewaresFunc {
+	envPrefix := EffectiveEnvPrefix(runtimePlan)
+	hasConfig := runtimePlan != nil && runtimePlan.App.ConfigFile != nil && runtimePlan.App.ConfigFile.Enabled
 
 	if envPrefix == "" && !hasConfig {
 		return cli.CobraCommandDefaultMiddlewares
@@ -41,7 +41,7 @@ func MiddlewaresFromSpec(runtimeSpec *RuntimeSpec) cli.CobraMiddlewaresFunc {
 			middlewares = append(middlewares,
 				cmdsources.FromConfigPlanBuilder(
 					func(_ context.Context, _ *values.Values) (*glazedconfig.Plan, error) {
-						return buildConfigPlan(runtimeSpec.ConfigFile, runtimeSpec.AppName, parsedCommandSections)
+						return buildConfigPlan(runtimePlan.App.ConfigFile, runtimePlan.AppName(), parsedCommandSections)
 					},
 					cmdsources.WithParseOptions(fields.WithSource("config")),
 				),
@@ -56,7 +56,7 @@ func MiddlewaresFromSpec(runtimeSpec *RuntimeSpec) cli.CobraMiddlewaresFunc {
 	}
 }
 
-func buildConfigPlan(config *ConfigFileSpec, appName string, parsed *values.Values) (*glazedconfig.Plan, error) {
+func buildConfigPlan(config *ConfigFilePlan, appName string, parsed *values.Values) (*glazedconfig.Plan, error) {
 	explicit := ""
 	if parsed != nil {
 		commandSettings := &cli.CommandSettings{}
@@ -104,17 +104,17 @@ func buildConfigPlan(config *ConfigFileSpec, appName string, parsed *values.Valu
 }
 
 // EffectiveEnvPrefix returns the explicit envPrefix when present, otherwise a
-// shell-safe prefix derived from appName. The runtime spec name is intentionally not
-// used as an implicit env namespace; existing specs without appName/envPrefix
+// shell-safe prefix derived from appName. The runtime plan name is intentionally not
+// used as an implicit env namespace; existing plans without app.name/app.envPrefix
 // must keep their historical flag/argument/default-only parser behavior.
-func EffectiveEnvPrefix(runtimeSpec *RuntimeSpec) string {
-	if runtimeSpec == nil {
+func EffectiveEnvPrefix(runtimePlan *RuntimePlan) string {
+	if runtimePlan == nil {
 		return ""
 	}
-	if prefix := strings.TrimSpace(runtimeSpec.EnvPrefix); prefix != "" {
+	if prefix := strings.TrimSpace(runtimePlan.App.EnvPrefix); prefix != "" {
 		return strings.ToUpper(prefix)
 	}
-	return DefaultEnvPrefix(runtimeSpec.AppName)
+	return DefaultEnvPrefix(runtimePlan.App.Name)
 }
 
 // DefaultEnvPrefix converts an application name into a shell-safe environment

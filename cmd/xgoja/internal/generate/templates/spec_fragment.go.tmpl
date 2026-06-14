@@ -7,12 +7,12 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 )
 
-const EmbeddedSpecJSON = `{{ .SpecJSON }}`
+const EmbeddedRuntimePlanJSON = `{{ .RuntimePlanJSON }}`
 
-func DecodeSpec() (*app.RuntimeSpec, error) {
-	runtimeSpec := &app.RuntimeSpec{}
-	if err := json.Unmarshal([]byte(EmbeddedSpecJSON), runtimeSpec); err != nil {
+func DecodeRuntimePlan() (*app.RuntimePlan, error) {
+	runtimePlan := &app.RuntimePlan{}
+	if err := json.Unmarshal([]byte(EmbeddedRuntimePlanJSON), runtimePlan); err != nil {
 		return nil, err
 	}
-	return runtimeSpec, nil
+	return runtimePlan, nil
 }

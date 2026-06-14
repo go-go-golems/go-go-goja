@@ -41,9 +41,21 @@ type serveHotReloadSettings struct {
 
 const serveHotReloadSectionSlug = "http-serve"
 
-func newServeCommandSet(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
-	if ctx.JSVerbs == nil {
+func serveCommandJSVerbSources(ctx providerapi.CommandSetContext) (providerapi.JSVerbSourceSet, error) {
+	if ctx.Sources == nil {
+		return nil, fmt.Errorf("http serve command requires command-scoped runtime sources")
+	}
+	jsverbSources := ctx.Sources.JSVerbs()
+	if jsverbSources == nil || len(jsverbSources.ListJSVerbSources()) == 0 {
 		return nil, fmt.Errorf("http serve command requires configured jsverb sources")
+	}
+	return jsverbSources, nil
+}
+
+func newServeCommandSet(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+	jsverbSources, err := serveCommandJSVerbSources(ctx)
+	if err != nil {
+		return nil, err
 	}
 	if ctx.RuntimeFactory == nil {
 		return nil, fmt.Errorf("http serve command requires runtime factory")
@@ -61,7 +73,7 @@ func newServeCommandSet(ctx providerapi.CommandSetContext) (*providerapi.Command
 	}
 	sections = append(sections, hotReloadSection)
 
-	registries, err := ctx.JSVerbs.ScanAllJSVerbSources()
+	registries, err := jsverbSources.ScanAllJSVerbSources()
 	if err != nil {
 		return nil, err
 	}
@@ -148,11 +160,15 @@ func serveVerbHotReload(ctx context.Context, commandCtx providerapi.CommandSetCo
 		return nil, err
 	}
 
+	jsverbSources, err := serveCommandJSVerbSources(commandCtx)
+	if err != nil {
+		return nil, err
+	}
 	verbPath := verb.FullPath()
 	manager, err := hotreload.NewManager(hotreload.Options{
 		CloseGrace: closeGrace,
 		Load: func(ctx context.Context, candidate hotreload.Candidate) (hotreload.Runtime, error) {
-			activeRegistry, activeVerb, err := resolveServeHotReloadVerb(commandCtx.JSVerbs, registry, verb, verbPath)
+			activeRegistry, activeVerb, err := resolveServeHotReloadVerb(jsverbSources, registry, verb, verbPath)
 			if err != nil {
 				return nil, err
 			}
@@ -187,9 +203,9 @@ func serveVerbHotReload(ctx context.Context, commandCtx providerapi.CommandSetCo
 	defer stop()
 	watchRoots := hotReloadSettings.WatchRoots
 	if len(watchRoots) == 0 {
-		watchRoots = defaultServeHotReloadWatchRoots(commandCtx.JSVerbs)
+		watchRoots = defaultServeHotReloadWatchRoots(jsverbSources)
 	}
-	if sourceSetHasTypeScript(commandCtx.JSVerbs) {
+	if sourceSetHasTypeScript(jsverbSources) {
 		hotReloadSettings.WatchExts = appendTypeScriptWatchExtensions(hotReloadSettings.WatchExts)
 	}
 	if len(watchRoots) > 0 {
@@ -383,7 +399,7 @@ func defaultServeHotReloadWatchRoots(sources providerapi.JSVerbSourceSet) []stri
 	seen := map[string]struct{}{}
 	for _, source := range sources.ListJSVerbSources() {
 		path := strings.TrimSpace(source.Path)
-		if path == "" || source.Embed || source.Package != "" || source.Source != "" {
+		if path == "" || source.Embed || source.Provider != "" || source.Source != "" {
 			continue
 		}
 		if _, ok := seen[path]; ok {

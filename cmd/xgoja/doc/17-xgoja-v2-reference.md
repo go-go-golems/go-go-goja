@@ -30,6 +30,11 @@ It describes provider packages, selected Go-backed runtime modules,
 goja-executed source sets, command surfaces, generated artifacts, and local Go
 workspace behavior.
 
+The planner renders generated binaries and runtime packages around a v2-native
+`app.RuntimePlan` (`schema: xgoja/runtime/v2`). That runtime plan is the active
+runtime contract: `providers`, `runtime.modules`, unified `sources`, `commands`,
+and `artifacts` are authoritative.
+
 The central rule is simple and strict: xgoja compiles or bundles code that runs
 inside goja. Browser applications, frontend bundles, workers, and other
 non-goja JavaScript outputs should be built by their own tools and included as
@@ -141,7 +146,7 @@ workspace:
 ```
 
 Workspace planning is build-time behavior. It does not enter the generated
-runtime spec.
+runtime plan.
 
 - `auto` searches upward from the spec directory for `go.work` and uses matching
   local modules.
@@ -281,8 +286,7 @@ loaders, or polyfills in v2 source config.
 
 ## Commands
 
-Commands are explicit surfaces. Builtin commands and provider command sets use
-the same list.
+Commands are explicit surfaces. Generated runtimes store built-in commands and provider command sets in the same ordered `commands[]` list.
 
 ```yaml
 commands:
@@ -313,6 +317,11 @@ Supported builtin command types are:
 `provider.command-set` mounts a command set contributed by a selected provider.
 Provider command sets commonly depend on source sets. For example, the HTTP
 `serve` provider command uses jsverb sources to register Express routes.
+
+`commands[].sources` is command-scoped. Provider commands receive a
+`SourceRegistry` containing only the declared source IDs, and should read sources
+through `ctx.Sources`. HTTP `serve` uses that scoped registry for jsverb command
+discovery, hot reload rescans, and default watch roots.
 
 Runtime modules and provider command sets are separate provider outputs. A
 runtime module is selected under `runtime.modules` and is imported by JavaScript
@@ -354,7 +363,7 @@ Common artifact types are:
 | `binary` | Generated xgoja binary. When `sources` lists local jsverb/help source sets, those sources are copied into the generated embedded filesystem. |
 | `dts` | TypeScript declaration output for selected runtime modules. |
 | `embedded-assets` | Static assets embedded into the generated host. |
-| `runtime-package` | Generated runtime package output. |
+| `runtime-package` | Generated runtime package output exposing `EmbeddedRuntimePlanJSON`, `DecodeRuntimePlan`, `NewBundle`, and `Bundle.NewRuntime`. |
 | `adapter`, `cobra`, `source`, `template` | Additional generated output shapes consumed through the v2 plan-backed generator. |
 
 For binary/runtime-package style artifacts, `sources` marks local jsverb and
@@ -471,9 +480,47 @@ mux.HandleFunc("GET /ws/rooms/{roomID}", func(w http.ResponseWriter, r *http.Req
 
 This keeps JavaScript responsible for composition and keeps Go responsible for Go-owned HTTP routing and WebSocket upgrade behavior.
 
+## Troubleshooting
+
+### Provider command does not see a jsverb
+
+Check `commands[].sources`. Provider command sets see only the source IDs listed
+on the command. For HTTP serve, use this shape:
+
+```yaml
+commands:
+  - id: http-serve
+    type: provider.command-set
+    provider: http
+    name: serve
+    mount: serve
+    sources: [local-sites]
+```
+
+Then verify the generated command and flags:
+
+```bash
+xgoja build -f xgoja.yaml --output dist/app
+./dist/app serve sites demo --help --long-help
+./dist/app serve sites demo --http-listen 127.0.0.1:8787
+```
+
+### CLI mount vs HTTP mount
+
+`commands[].mount` controls the CLI tree, for example whether provider commands
+appear under `serve`. It does not mount an HTTP handler. HTTP mounting happens
+inside JavaScript route code with Express APIs such as `app.mount("/ws", handler)`.
+
+### Local provider replacement is stale
+
+Prefer `workspace.mode: auto` when the repository has a `go.work` containing the
+provider module. `xgoja doctor` reports the selected module resolution source so
+you can confirm whether the build uses a workspace module, CLI replacement, or
+versioned dependency.
+
 ## Current limits
 
-The normal command path is v2-plan-native: `doctor`, `build`, `generate`, `gen-dts`, and `list-modules` load `schema: xgoja/v2` and consume `plan.Plan` directly.
+The normal command path is v2-plan-native: `doctor`, `build`, `generate`, `gen-dts`, and `list-modules` load `schema: xgoja/v2`, consume `plan.Plan`, and generate embedded `app.RuntimePlan` metadata directly.
 
 Known limits:
 
@@ -484,8 +531,8 @@ Known limits:
 ## Migration policy
 
 Legacy v1 specs remain supported as migration input for `xgoja migrate-spec`.
-New examples and docs should use `schema: xgoja/v2`. Normal command paths are
-moving toward v2-only behavior.
+New examples and docs should use `schema: xgoja/v2`. Normal command paths use
+the v2 planner and runtime-plan model.
 
 Use:
 
