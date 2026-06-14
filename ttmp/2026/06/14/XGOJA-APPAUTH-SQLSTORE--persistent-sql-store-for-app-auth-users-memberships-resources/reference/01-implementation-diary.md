@@ -10,13 +10,20 @@ Topics:
 DocType: reference
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: pkg/gojahttp/auth/appauth/sqlstore/schema.go
+      Note: SQLite/Postgres appauth schema
+    - Path: pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go
+      Note: SQL appauth store implementation
+    - Path: pkg/gojahttp/auth/appauth/sqlstore/sqlstore_test.go
+      Note: SQLite contract tests for SQL store
 ExternalSources: []
-Summary: "Chronological diary for the appauth SQL store implementation."
+Summary: Chronological diary for the appauth SQL store implementation.
 LastUpdated: 2026-06-14T09:54:26.271101021-04:00
-WhatFor: "Use this to resume or review the appauth SQL store work."
-WhenToUse: "Read before continuing XGOJA-APPAUTH-SQLSTORE."
+WhatFor: Use this to resume or review the appauth SQL store work.
+WhenToUse: Read before continuing XGOJA-APPAUTH-SQLSTORE.
 ---
+
 
 # Diary
 
@@ -91,4 +98,92 @@ The design keeps SQL behind the existing `appauth.UserStore`, `MembershipStore`,
 - Planned validation command:
   ```bash
   go test ./pkg/gojahttp/auth/appauth/... -count=1
+  ```
+
+## Step 2: Implement appauth/sqlstore
+
+I implemented the durable `database/sql` adapter for app-owned authorization state. The new package persists users, Keycloak subject mappings, tenants, memberships, and generic resources while still satisfying the existing `appauth.UserStore`, `MembershipStore`, and `ResourceStore` interfaces.
+
+The implementation mirrors the memory-store behavior that the planned route stack already depends on: disabled users are hidden, OIDC upsert fails closed for disabled users, revoked memberships are filtered out, role checks are explicit, and resource claims are decoded into caller-owned maps.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Implement the appauth persistent store after designing the ticket, validating behavior through the reusable contract.
+
+**Inferred user intent:** Give generic applications a reusable SQL-backed foundation for application authorization around Keycloak/OIDC identity.
+
+**Commit (code):** pending — appauth SQL store implementation in progress.
+
+### What I did
+- Added `pkg/gojahttp/auth/appauth/sqlstore/schema.go` with SQLite and Postgres DDL for:
+  - `auth_app_users`,
+  - `auth_app_tenants`,
+  - `auth_app_memberships`,
+  - `auth_app_resources`.
+- Added `pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go` implementing:
+  - `appauth.UserStore`,
+  - `appauth.MembershipStore`,
+  - `appauth.ResourceStore`,
+  - `AddUser`, `AddTenant`, `AddMembership`, and `AddResource` bootstrap helpers.
+- Added SQLite contract coverage in `pkg/gojahttp/auth/appauth/sqlstore/sqlstore_test.go` using `appauthtest.RunStoreContract`.
+- Added generated-style `logcopter.go` stub for the new package.
+- Ran:
+  ```bash
+  go test ./pkg/gojahttp/auth/appauth/... -count=1
+  ```
+
+### Why
+- The Keycloak demo already persists sessions and audit, but app-owned authorization data was still memory-only.
+- Generic applications need a default durable store for user/tenant/resource authorization data without putting SQL into JavaScript route declarations.
+- Keeping the adapter behind the existing interfaces lets hosts replace it with custom domain stores or policy engines later.
+
+### What worked
+- The final targeted test run passed:
+  ```text
+  ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth	0.005s
+  ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth/sqlstore	0.006s
+  ```
+- The reusable appauth contract covered OIDC upsert, disabled-user hiding, membership filtering, role checks, resource lookup, and resource claim clone isolation.
+- The seeding helpers make the SQL store easy to use in examples and smoke tests.
+
+### What didn't work
+- No test failures occurred during appauth/sqlstore implementation.
+- I reused the SQLite `db.SetMaxOpenConns(1)` harness pattern from the capability SQL store to avoid per-connection in-memory database surprises.
+
+### What I learned
+- The appauth interfaces were already small enough for one SQL store to implement all three runtime roles.
+- OIDC upsert is the most important security-sensitive user-store method because it can otherwise accidentally re-enable disabled Keycloak subjects.
+- Generic resource storage is enough for route authorization demos, but real applications may still choose domain-specific resource tables.
+
+### What was tricky to build
+- The main tricky part was avoiding dynamic query construction while still supporting SQLite and Postgres placeholders. The implementation uses dialect-specific query constants for each operation.
+- Another subtlety is that SQL seeding helpers are not part of the runtime interfaces. They are intentionally concrete `*Store` methods for tests, examples, and simple bootstrap flows.
+
+### What warrants a second pair of eyes
+- Review whether the default schema should include foreign keys or remain loose for host bootstrap flexibility.
+- Review `UpsertFromOIDC` to ensure disabled users cannot be updated or returned.
+- Review whether `auth_app_resources` should remain generic or whether docs should strongly encourage domain-specific resource tables for production apps.
+
+### What should be done in the future
+- Wire this store into the Keycloak demo so appauth users/memberships/resources persist in Postgres.
+- Add smoke assertions for persisted appauth rows.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/appauth/sqlstore/schema.go` for schema shape.
+- Then review `pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go`, especially `UpsertFromOIDC`, membership queries, and resource claims JSON handling.
+- Validate with:
+  ```bash
+  go test ./pkg/gojahttp/auth/appauth/... -count=1
+  ```
+
+### Technical details
+- OIDC disabled-user rule:
+  ```text
+  existing subject + disabled_at != NULL -> gojahttp.ErrNotFound, no update
+  ```
+- Membership queries always include:
+  ```sql
+  revoked_at IS NULL
   ```
