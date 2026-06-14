@@ -330,16 +330,41 @@ Provider command sets receive `providerapi.CommandSetContext`. The important v2 
 
 ```go
 type CommandSetContext struct {
-    ID              string
-    Provider        string
+    Context         context.Context
+    PackageID       string
     Name            string
     Mount           string
-    Config          map[string]any
+    Config          json.RawMessage
+    Host            HostServices
+    Providers       *ProviderRegistry
+    RuntimeFactory  RuntimeFactory
     SelectedModules []ModuleDescriptor
     Sources         SourceRegistry
-    RuntimeFactory  RuntimeFactory
 }
 ```
+
+`Host` is the same generated-host service bag that module setup receives through `ModuleSetupContext.Host`. Provider-owned commands should use it when they need generated-host resources such as embedded assets, host-injected clients, shared HTTP hosts, or other opaque provider-defined services. This keeps provider commands from parsing embedded runtime-plan JSON directly and gives command sets the same asset/service view as runtime modules.
+
+This matters for plain generated binaries, `runtime-package` artifacts, and custom `template` artifacts. In all three cases, the generated host usually owns the embedded asset filesystem and any `ConfigureServices` injections. Passing that host bag into command-set construction means a provider command produced by a template-backed host can resolve the same assets and services as a module loaded by that host. Without it, templates that emit a provider-owned command have to invent a side channel, duplicate asset lookup code, or hard-code generated runtime-plan internals.
+
+For example, a command provider can read an embedded asset during command-set construction:
+
+```go
+func newCommandSet(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, error) {
+    resolver := ctx.Host.AssetResolver()
+    assetFS, root, ok := resolver.ResolveAsset("fixtures")
+    if !ok {
+        return nil, fmt.Errorf("missing fixtures asset source")
+    }
+    data, err := fs.ReadFile(assetFS, path.Join(root, "message.txt"))
+    if err != nil {
+        return nil, err
+    }
+    return commandsUsingEmbeddedMessage(string(data)), nil
+}
+```
+
+The `examples/xgoja/05-command-provider` smoke test includes a concrete `fixture asset` command that reads an embedded asset this way.
 
 `Sources` is scoped to the command's `commands[].sources` list. A provider command should use it as the source of truth:
 

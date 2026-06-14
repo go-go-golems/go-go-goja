@@ -5,6 +5,8 @@ import (
 	"embed"
 	"fmt"
 	"io"
+	"io/fs"
+	"path"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
@@ -123,12 +125,29 @@ func NewFixtureCommandSet(ctx providerapi.CommandSetContext) (*providerapi.Comma
 	if err != nil {
 		return nil, err
 	}
+	assetMessage := readCommandProviderAsset(ctx.Host, "fixture-assets", "message.txt")
 	commands := []cmds.Command{
 		&fixtureBareCommand{CommandDescription: fixtureDescription("bare", "Run a fixture bare command", sections)},
 		&fixtureWriterCommand{CommandDescription: fixtureDescription("write", "Run a fixture writer command", sections)},
 		&fixtureGlazeCommand{CommandDescription: fixtureDescription("rows", "Run a fixture glaze command", sections)},
+		&fixtureAssetCommand{CommandDescription: fixtureDescription("asset", "Read an embedded asset through CommandSetContext.Host", sections), message: assetMessage},
 	}
 	return &providerapi.CommandSet{Commands: commands}, nil
+}
+
+func readCommandProviderAsset(host providerapi.HostServices, id, name string) string {
+	if host == nil || host.AssetResolver() == nil {
+		return "missing asset resolver"
+	}
+	assetFS, root, ok := host.AssetResolver().ResolveAsset(id)
+	if !ok {
+		return "missing asset " + id
+	}
+	data, err := fs.ReadFile(assetFS, path.Join(root, name))
+	if err != nil {
+		return fmt.Sprintf("read asset %s/%s: %v", id, name, err)
+	}
+	return string(data)
 }
 
 func sectionsFromSelectedModules(ctx providerapi.CommandSetContext) ([]schema.Section, error) {
@@ -224,4 +243,16 @@ func (c *fixtureGlazeCommand) RunIntoGlazeProcessor(ctx context.Context, vals *v
 		types.MRP("message", command.Message),
 		types.MRP("fixture", fixture.Value),
 	))
+}
+
+type fixtureAssetCommand struct {
+	*cmds.CommandDescription
+	message string
+}
+
+var _ cmds.WriterCommand = (*fixtureAssetCommand)(nil)
+
+func (c *fixtureAssetCommand) RunIntoWriter(_ context.Context, _ *values.Values, w io.Writer) error {
+	_, err := fmt.Fprint(w, c.message)
+	return err
 }
