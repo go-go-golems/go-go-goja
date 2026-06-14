@@ -145,7 +145,7 @@
 - [ ] Task 103: Run targeted security scanner if SQL/cookie/http server code changes.
 - [x] Task 104: Run `docmgr doctor --ticket XGOJA-GENERATED-HOST-AUTH-CONFIG --stale-after 30`.
 - [x] Task 105: Update changelog and diary after each implementation slice.
-- [ ] Task 106: Commit in focused slices and push to `task/goja-express-auth`.
+- [x] Task 106: Commit in focused slices and push to `task/goja-express-auth`.
 
 ### N. Explicitly deferred follow-ups
 

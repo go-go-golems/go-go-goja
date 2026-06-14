@@ -72,3 +72,12 @@ Step 5: wired hostauth service factories into HTTP serve and hot reload paths, p
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/serve.go — HTTP serve integration for hostauth service factories
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/serve_test.go — HTTP serve and hot reload hostauth integration tests
 
+
+## 2026-06-14
+
+Pushed Step 5 HTTP hostauth integration and diary commits to task/goja-express-auth (commits addd553, 0ff8150)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/serve.go — Pushed implementation commit addd553
+
