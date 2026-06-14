@@ -408,6 +408,14 @@ to model runtime behavior such as HTTP serving, WebSocket mounting, or provider
 module setup. Runtime behavior belongs in provider packages, runtime modules,
 command sets, and host services.
 
+Template-generated hosts still benefit from `CommandSetContext.Host`. If a
+template emits a host that attaches provider command sets, those commands receive
+the same host service bag as modules: embedded asset lookup, `ConfigureServices`
+injections, shared HTTP hosts, and other provider-defined services. Template
+code should therefore construct commands through `app.NewHost` /
+`app.NewHostWithOptions` instead of bypassing xgoja command-set attachment and
+reimplementing asset or service plumbing.
+
 `xgoja gen-dts` uses the first `type: dts` artifact as its default output when `--out` is omitted; `strict: true` on the artifact enables strict declaration checks.
 
 ## TypeScript jsverbs example

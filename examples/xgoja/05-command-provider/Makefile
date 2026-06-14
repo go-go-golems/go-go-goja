@@ -21,6 +21,7 @@ run:
 	$(BIN) fixture bare --message bare-ok --fixture-value shared
 	$(BIN) fixture write --message write-ok --fixture-value shared
 	$(BIN) fixture rows --message rows-ok --fixture-value shared --output json
+	$(BIN) fixture asset --fixture-value shared | grep 'host-service asset'
 
 clean:
 	rm -rf $(CURDIR)/dist

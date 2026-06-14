@@ -81,6 +81,7 @@ func (h *Host) newCommandSet(instance CommandPlan, provider providerapi.CommandS
 		Name:            instance.Name,
 		Mount:           mount,
 		Config:          config,
+		Host:            h.Services,
 		Providers:       h.Providers,
 		RuntimeFactory:  h.Factory,
 		SelectedModules: selected,
