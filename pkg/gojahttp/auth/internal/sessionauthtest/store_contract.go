@@ -108,6 +108,19 @@ func RunStoreContract(t *testing.T, newStore NewStore) {
 		}
 	})
 
+	t.Run("rotate missing old session fails without creating next", func(t *testing.T) {
+		store := newStore(t)
+		now := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
+		next := sessionauth.Session{ID: "session-next", UserID: "u1", CSRFToken: "next-csrf", CreatedAt: now.Add(time.Second)}
+		err := store.Rotate(context.Background(), "session-missing", next)
+		if !errors.Is(err, sessionauth.ErrInvalidCookie) {
+			t.Fatalf("rotate missing err=%v", err)
+		}
+		if _, err := store.Get(context.Background(), "session-next"); err == nil {
+			t.Fatalf("next session should not be created when old session is missing")
+		}
+	})
+
 	t.Run("revoke marks existing sessions revoked and ignores missing", func(t *testing.T) {
 		store := newStore(t)
 		now := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)

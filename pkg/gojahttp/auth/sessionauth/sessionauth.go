@@ -398,6 +398,9 @@ func (s *MemoryStore) Rotate(_ context.Context, oldID string, next Session) erro
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if _, ok := s.sessions[oldID]; !ok {
+		return ErrInvalidCookie
+	}
 	delete(s.sessions, oldID)
 	s.sessions[next.ID] = cloneSession(next)
 	return nil

@@ -102,8 +102,12 @@ func (s *Store) Rotate(ctx context.Context, oldID string, next sessionauth.Sessi
 		return fmt.Errorf("begin rotate session: %w", err)
 	}
 	defer rollback(tx)
-	if _, err := tx.ExecContext(ctx, s.deleteQuery(), oldID); err != nil {
+	res, err := tx.ExecContext(ctx, s.deleteQuery(), oldID)
+	if err != nil {
 		return fmt.Errorf("delete old session: %w", err)
+	}
+	if err := requireAffected(res, sessionauth.ErrInvalidCookie); err != nil {
+		return err
 	}
 	if err := s.insert(ctx, tx, next); err != nil {
 		return err
