@@ -173,6 +173,27 @@ func TestExpiredRevokedAndRotatedSessions(t *testing.T) {
 	}
 }
 
+func TestCSRFFailsClosedWhenStoredTokenIsEmpty(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	manager, err := New(Config{Store: store, AllowInsecureHTTP: true})
+	if err != nil {
+		t.Fatalf("new manager: %v", err)
+	}
+	sessionID := mustToken(t)
+	if err := store.Create(ctx, Session{ID: sessionID, UserID: "u1"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	req := requestWithCookie(manager.cookieName, sessionID)
+	if err := manager.VerifyCSRF(ctx, gojahttp.CSRFRequest{HTTPRequest: req, Actor: &gojahttp.Actor{ID: "u1"}}); err == nil {
+		t.Fatalf("expected empty stored csrf token to fail closed")
+	}
+	req.Header.Set(CSRFHeaderName, " ")
+	if err := manager.VerifyCSRF(ctx, gojahttp.CSRFRequest{HTTPRequest: req, Actor: &gojahttp.Actor{ID: "u1"}}); err == nil {
+		t.Fatalf("expected blank csrf header and blank stored token to fail closed")
+	}
+}
+
 func TestCSRFMismatchAndCookieClearing(t *testing.T) {
 	ctx := context.Background()
 	manager, err := New(Config{Store: NewMemoryStore(), AllowInsecureHTTP: true})

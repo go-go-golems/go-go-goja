@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -228,7 +229,9 @@ func (m *Manager) VerifyCSRF(ctx context.Context, req gojahttp.CSRFRequest) erro
 	if req.Actor != nil && req.Actor.ID != session.UserID {
 		return errors.New("session actor mismatch")
 	}
-	if !constantTimeEqual(req.HTTPRequest.Header.Get(CSRFHeaderName), session.CSRFToken) {
+	headerToken := strings.TrimSpace(req.HTTPRequest.Header.Get(CSRFHeaderName))
+	storedToken := strings.TrimSpace(session.CSRFToken)
+	if headerToken == "" || storedToken == "" || !constantTimeEqual(headerToken, storedToken) {
 		return errors.New("missing or invalid X-CSRF-Token")
 	}
 	return nil
