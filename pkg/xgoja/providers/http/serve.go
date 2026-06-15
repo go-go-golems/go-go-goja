@@ -62,7 +62,8 @@ func newServeCommandSet(ctx providerapi.CommandSetContext) (*providerapi.Command
 	if ctx.RuntimeFactory == nil {
 		return nil, fmt.Errorf("http serve command requires runtime factory")
 	}
-	if _, _, err := hostauth.LookupServiceFactory(ctx.Host); err != nil {
+	authFactory, hasAuthFactory, err := hostauth.LookupServiceFactory(ctx.Host)
+	if err != nil {
 		return nil, err
 	}
 
@@ -71,6 +72,13 @@ func newServeCommandSet(ctx providerapi.CommandSetContext) (*providerapi.Command
 	}, nil)
 	if err != nil {
 		return nil, err
+	}
+	if hasAuthFactory {
+		authSection, err := serveAuthSection(authFactory)
+		if err != nil {
+			return nil, err
+		}
+		sections = append(sections, authSection)
 	}
 	hotReloadSection, err := serveHotReloadSection()
 	if err != nil {
@@ -508,6 +516,14 @@ func normalizeServeHotReloadStatusPath(path string) string {
 		path = "/" + path
 	}
 	return path
+}
+
+func serveAuthSection(factory hostauth.ServiceFactory) (schema.Section, error) {
+	base := hostauth.Config{}
+	if defaultsProvider, ok := factory.(hostauth.ConfigDefaultsProvider); ok {
+		base = defaultsProvider.AuthConfigDefaults()
+	}
+	return hostauth.GlazedConfigSection(base)
 }
 
 func serveHotReloadSection() (schema.Section, error) {

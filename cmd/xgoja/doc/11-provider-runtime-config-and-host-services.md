@@ -398,7 +398,7 @@ bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{
 
 The HTTP `serve` command discovers `hostauth.ServiceFactoryKey` from `CommandSetContext.Host` while constructing provider commands, but it calls the factory later, after Glazed values are parsed. The resulting `hostauth.Services` bundle supplies `gojahttp.AuthOptions`, stores, session manager, and closers. The provider passes an auth-enabled `gojahttp.Host` through the existing `go-go-goja-http.host` service and also exposes the concrete bundle as `hostauth.ServicesKey` for future modules/tools.
 
-See `examples/xgoja/21-generated-host-auth` for a runnable runtime-package host that uses memory stores by default and SQLite stores when `XGOJA_AUTH_STORE=sqlite` plus `XGOJA_AUTH_SQLITE_DSN` are provided.
+See `examples/xgoja/21-generated-host-auth` for a runnable runtime-package host that uses memory stores by default and SQLite stores when Glazed-backed `--auth-default-store-*` command settings are provided.
 
 `Sources` is scoped to the command's `commands[].sources` list. A provider command should use it as the source of truth:
 

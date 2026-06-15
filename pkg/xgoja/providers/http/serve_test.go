@@ -79,6 +79,49 @@ func TestNewServeCommandSetBuildsVerbCommandsWithHTTPSection(t *testing.T) {
 	}
 }
 
+func TestNewServeCommandSetAddsAuthSectionWhenHostAuthFactoryPresent(t *testing.T) {
+	registry := scanServeTestRegistry(t)
+	hostServices := app.HostServices{}
+	if err := hostServices.SetHostService(hostauth.ServiceFactoryKey, hostauth.NewServiceFactory(hostauth.BuilderOptions{Config: hostauth.Config{
+		Mode: hostauth.ModeDev,
+		Stores: hostauth.StoresConfig{Default: hostauth.StoreConfig{
+			Driver: string(hostauth.StoreDriverSQLite),
+			DSN:    "file:auth.db",
+		}},
+	}})); err != nil {
+		t.Fatalf("SetHostService: %v", err)
+	}
+	set, err := newServeCommandSet(providerapi.CommandSetContext{
+		Name:           "serve",
+		Host:           hostServices,
+		RuntimeFactory: fakeRuntimeFactory{},
+		Sources:        fakeSourceRegistry{jsverbs: fakeJSVerbSourceSet{registries: []*jsverbs.Registry{registry}}},
+	})
+	if err != nil {
+		t.Fatalf("new serve command set: %v", err)
+	}
+	if len(set.Commands) != 1 {
+		t.Fatalf("commands = %d, want 1", len(set.Commands))
+	}
+	authSection, ok := set.Commands[0].Description().Schema.Get(hostauth.SectionSlug)
+	if !ok {
+		t.Fatalf("expected auth section on serve command; schema=%#v", set.Commands[0].Description().Schema)
+	}
+	for _, name := range []string{"auth-mode", "auth-session-cookie-allow-insecure-http", "auth-default-store-driver", "auth-default-store-dsn", "auth-session-store-driver", "auth-audit-store-driver", "auth-appauth-store-driver", "auth-capability-store-driver"} {
+		if _, ok := authSection.GetDefinitions().Get(name); !ok {
+			t.Fatalf("missing auth field %q", name)
+		}
+	}
+	mode, ok := authSection.GetDefinitions().Get("auth-mode")
+	if !ok || mode.Default == nil || *mode.Default != string(hostauth.ModeDev) {
+		t.Fatalf("mode default = %#v, want %q", mode.Default, hostauth.ModeDev)
+	}
+	dsn, ok := authSection.GetDefinitions().Get("auth-default-store-dsn")
+	if !ok || dsn.Default == nil || *dsn.Default != "file:auth.db" {
+		t.Fatalf("default-store-dsn default = %#v, want file:auth.db", dsn.Default)
+	}
+}
+
 func TestNewServeCommandSetRejectsMalformedHostAuthServiceFactory(t *testing.T) {
 	registry := scanServeTestRegistry(t)
 	hostServices := app.HostServices{}

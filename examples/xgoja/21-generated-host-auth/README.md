@@ -43,7 +43,7 @@ bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{
     ConfigureServices: func(services *app.HostServices) {
         _ = services.SetHostService(
             hostauth.ServiceFactoryKey,
-            hostauth.NewServiceFactory(hostauth.BuilderOptions{Config: authConfig}),
+            hostauth.NewServiceFactory(hostauth.BuilderOptions{Config: defaultAuthConfig()}),
         )
     },
 })
@@ -71,20 +71,23 @@ go run ./examples/xgoja/21-generated-host-auth/cmd/host \
   serve sites demo --http-listen 127.0.0.1:8787
 ```
 
-To demonstrate persistent stores, set `XGOJA_AUTH_STORE=sqlite` and provide the
-SQLite DSN through the environment. The host applies schema on startup for this
+To demonstrate persistent stores, pass the auth store settings through the
+Glazed-backed `serve` command flags. The host applies schema on startup for this
 example:
 
 ```bash
-XGOJA_AUTH_STORE=sqlite \
-XGOJA_AUTH_SQLITE_DSN=/tmp/xgoja-generated-host-auth.sqlite \
 go run ./examples/xgoja/21-generated-host-auth/cmd/host \
-  serve sites demo --http-listen 127.0.0.1:8787
+  serve sites demo \
+  --http-listen 127.0.0.1:8787 \
+  --auth-default-store-driver sqlite \
+  --auth-default-store-dsn /tmp/xgoja-generated-host-auth.sqlite \
+  --auth-default-store-apply-schema
 ```
 
-The DSN is deliberately supplied by environment variable rather than committed
-YAML. Postgres and OIDC/Keycloak configuration remain follow-up work; this
-example focuses on the generated-host seam and dev/session-store foundation.
+The DSN is deliberately supplied as a Glazed command setting rather than being
+read directly with `os.Getenv` in auth code. Postgres and OIDC/Keycloak
+configuration remain follow-up work; this example focuses on the generated-host
+seam and dev/session-store foundation.
 
 ## Manual checks
 

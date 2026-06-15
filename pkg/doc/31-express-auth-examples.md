@@ -79,16 +79,18 @@ The generated-host smoke regenerates a runtime package, starts the package host'
 make -C examples/xgoja/21-generated-host-auth smoke
 ```
 
-By default the example uses memory stores. To demonstrate persistent local stores, set `XGOJA_AUTH_STORE=sqlite` and provide the DSN through the environment:
+By default the example uses memory stores. To demonstrate persistent local stores, pass the DSN through the Glazed-backed auth flags on the generated `serve` command:
 
 ```bash
-XGOJA_AUTH_STORE=sqlite \
-XGOJA_AUTH_SQLITE_DSN=/tmp/xgoja-generated-host-auth.sqlite \
 go run ./examples/xgoja/21-generated-host-auth/cmd/host \
-  serve sites demo --http-listen 127.0.0.1:8787
+  serve sites demo \
+  --http-listen 127.0.0.1:8787 \
+  --auth-default-store-driver sqlite \
+  --auth-default-store-dsn /tmp/xgoja-generated-host-auth.sqlite \
+  --auth-default-store-apply-schema
 ```
 
-The DSN is intentionally an environment value, not committed YAML. OIDC/Keycloak generated-host config remains deferred; use the Keycloak host example below for the current production-shaped browser login smoke.
+The DSN is intentionally a Glazed command setting, not committed YAML and not read directly by auth code. OIDC/Keycloak generated-host config remains deferred; use the Keycloak host example below for the current production-shaped browser login smoke.
 
 ## Keycloak smoke
 

@@ -411,38 +411,30 @@ session/store/auth services at command execution time. The v2 YAML schema does
 not yet define a top-level `auth:` block, and `auth.mode=oidc` / Keycloak config
 remain deferred follow-up work. See `examples/xgoja/21-generated-host-auth` for
 a runtime-package example that uses memory stores by default and SQLite stores
-from environment-supplied DSNs.
+from Glazed-backed `--auth-*` command settings.
 
-When host applications map their own config into `hostauth.Config`, store
-inheritance is field-level. The following shape is illustrative host config, not
-a supported top-level `xgoja/v2` schema block yet:
+When host applications install `hostauth.ServiceFactoryKey`, the HTTP `serve`
+commands expose an `auth` Glazed section. The CLI surface is flat and prefixed
+with `--auth-`; Glazed can then source the same fields from flags, config, or
+environment according to the generated application's normal middleware setup.
+The nested `hostauth.Config` remains a Go default shape, while command-time
+settings arrive through parsed `*values.Values`:
 
-```yaml
-auth:
-  mode: dev
-  session:
-    cookie:
-      allow-insecure-http: false
-      same-site: lax
-      path: /
-  stores:
-    default:
-      driver: sqlite
-      dsn-env: AUTH_DB_DSN
-      apply-schema: true
-    audit:
-      driver: memory       # override only audit to memory
-    capability:
-      dsn-env: CAP_DB_DSN  # override inherited DSN source only
+```bash
+generated-host-auth serve sites demo \
+  --auth-mode dev \
+  --auth-default-store-driver sqlite \
+  --auth-default-store-dsn /tmp/auth.sqlite \
+  --auth-default-store-apply-schema
 ```
 
-`dsn` and `dsn-env` are mutually exclusive after inheritance, and an explicit
-one clears the other. Keep DSNs and secrets in environment/config references,
-not committed generated YAML. Cookie defaults are secure (`Secure`,
-`HttpOnly`, `SameSite=Lax`, `Path=/`); set `allow-insecure-http: true` only for
-local HTTP development such as smoke tests. Application authorization remains
-app-owned Go (`appauth`, domain services, or a future policy engine), not a YAML
-policy DSL in this phase.
+The auth resolver does not read environment variables directly and no longer
+supports `dsn-env`. Keep DSNs and secrets in the Glazed input layer rather than
+committed generated YAML. Cookie defaults are secure (`Secure`, `HttpOnly`,
+`SameSite=Lax`, `Path=/`); set `--auth-session-cookie-allow-insecure-http` only
+for local HTTP development such as smoke tests. Application authorization
+remains app-owned Go (`appauth`, domain services, or a future policy engine),
+not a YAML policy DSL in this phase.
 
 
 A `template` artifact is a code-generation output shape. It should not be used

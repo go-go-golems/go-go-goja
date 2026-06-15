@@ -43,7 +43,7 @@ sqlite-smoke: generate
 	addr=127.0.0.1:$$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()'); \
 	db=$$(mktemp -u /tmp/xgoja-generated-host-auth.XXXXXX.sqlite); \
 	log=$$(mktemp); \
-	cd $(REPO_ROOT) && XGOJA_AUTH_STORE=sqlite XGOJA_AUTH_SQLITE_DSN=$$db GOWORK=off go run ./examples/xgoja/21-generated-host-auth/cmd/host serve sites demo --http-listen $$addr >$$log 2>&1 & \
+	cd $(REPO_ROOT) && GOWORK=off go run ./examples/xgoja/21-generated-host-auth/cmd/host serve sites demo --http-listen $$addr --auth-default-store-driver sqlite --auth-default-store-dsn $$db --auth-default-store-apply-schema >$$log 2>&1 & \
 	pid=$$!; \
 	trap 'kill $$pid >/dev/null 2>&1 || true; wait $$pid >/dev/null 2>&1 || true; rm -f $$log $$db /tmp/xgoja-generated-host-auth-health.json /tmp/xgoja-generated-host-auth-me.txt' EXIT; \
 	for i in $$(seq 1 80); do \

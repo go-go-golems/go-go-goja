@@ -17,40 +17,40 @@ func TestGlazedConfigSectionDefaultsFromBaseConfig(t *testing.T) {
 			IdleTimeout: "15m", AbsoluteTimeout: "8h",
 		},
 		Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite", DSN: "file:auth.db", ApplySchema: &applySchema}},
-	}, schema.WithPrefix("auth-"))
+	})
 	if err != nil {
 		t.Fatalf("GlazedConfigSection: %v", err)
 	}
 	if section.GetSlug() != SectionSlug {
 		t.Fatalf("slug = %q", section.GetSlug())
 	}
-	assertDefault(t, section, "mode", string(ModeDev))
-	assertDefault(t, section, "session-cookie-allow-insecure-http", true)
-	assertDefault(t, section, "session-cookie-name", "demo_session")
-	assertDefault(t, section, "default-store-driver", "sqlite")
-	assertDefault(t, section, "default-store-dsn", "file:auth.db")
-	assertDefault(t, section, "session-store-apply-schema", false)
+	assertDefault(t, section, "auth-mode", string(ModeDev))
+	assertDefault(t, section, "auth-session-cookie-allow-insecure-http", true)
+	assertDefault(t, section, "auth-session-cookie-name", "demo_session")
+	assertDefault(t, section, "auth-default-store-driver", "sqlite")
+	assertDefault(t, section, "auth-default-store-dsn", "file:auth.db")
+	assertDefault(t, section, "auth-session-store-apply-schema", false)
 }
 
 func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
-	section, err := GlazedConfigSection(Config{}, schema.WithPrefix("auth-"))
+	section, err := GlazedConfigSection(Config{})
 	if err != nil {
 		t.Fatalf("GlazedConfigSection: %v", err)
 	}
 	sectionValues := sectionValuesWithDefaults(t, section, map[string]any{
-		"mode":                               string(ModeDev),
-		"session-cookie-allow-insecure-http": true,
-		"session-cookie-name":                "app_session",
-		"session-cookie-same-site":           "strict",
-		"session-cookie-path":                "/app",
-		"session-idle-timeout":               "15m",
-		"session-absolute-timeout":           "8h",
-		"default-store-driver":               "sqlite",
-		"default-store-dsn":                  "file:auth.db?mode=memory&cache=shared",
-		"default-store-apply-schema":         true,
-		"audit-store-driver":                 "memory",
-		"audit-store-dsn":                    "",
-		"audit-store-apply-schema":           false,
+		"auth-mode": string(ModeDev),
+		"auth-session-cookie-allow-insecure-http": true,
+		"auth-session-cookie-name":                "app_session",
+		"auth-session-cookie-same-site":           "strict",
+		"auth-session-cookie-path":                "/app",
+		"auth-session-idle-timeout":               "15m",
+		"auth-session-absolute-timeout":           "8h",
+		"auth-default-store-driver":               "sqlite",
+		"auth-default-store-dsn":                  "file:auth.db?mode=memory&cache=shared",
+		"auth-default-store-apply-schema":         true,
+		"auth-audit-store-driver":                 "memory",
+		"auth-audit-store-dsn":                    "",
+		"auth-audit-store-apply-schema":           false,
 	})
 	cfg, err := ConfigFromValues(values.New(values.WithSectionValues(SectionSlug, sectionValues)), Config{Mode: ModeNone})
 	if err != nil {
@@ -90,11 +90,11 @@ func TestServiceFactoryUsesParsedGlazedValues(t *testing.T) {
 		t.Fatalf("GlazedConfigSection: %v", err)
 	}
 	sectionValues := sectionValuesWithDefaults(t, section, map[string]any{
-		"mode":                               string(ModeDev),
-		"default-store-driver":               "sqlite",
-		"default-store-dsn":                  "file:hostauth-glazed?mode=memory&cache=shared",
-		"default-store-apply-schema":         true,
-		"session-cookie-allow-insecure-http": true,
+		"auth-mode":                               string(ModeDev),
+		"auth-default-store-driver":               "sqlite",
+		"auth-default-store-dsn":                  "file:hostauth-glazed?mode=memory&cache=shared",
+		"auth-default-store-apply-schema":         true,
+		"auth-session-cookie-allow-insecure-http": true,
 	})
 	services, err := NewServiceFactory(BuilderOptions{Config: Config{Mode: ModeNone}}).BuildHostAuthServices(t.Context(), values.New(values.WithSectionValues(SectionSlug, sectionValues)))
 	if err != nil {
