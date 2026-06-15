@@ -22,6 +22,8 @@ Each example directory has its own `README.md`, `Makefile`, and native `schema: 
 14. `14-generated-runtime-package/` — `xgoja generate` writes an importable runtime package that a host application uses directly.
 15. `15-protobuf-builder-provider/` — a provider exposes a generated protobuf builder module, generated from a local `.proto`, and tests JavaScript-to-Go protobuf extraction without JSON/protojson conversion.
 16. `16-typescript-jsverbs/` — TypeScript-authored jsverbs use esbuild-backed compilation, `xgoja run` TypeScript entry support, generated declarations, and HTTP hot reload.
+17. `17-sourcegraph-runtime-aliases/` — source graph import resolution regression guard combining local `require()` imports with several runtime features in one binary.
+18. `18-go-go-objects-docs/` — the `go-go-objects` durableobjects provider bundles its Glazed help as a provider `HelpSource` (`kind: help`) and exposes it through a `docs` `CommandSetProvider` verb (`durableobjects docs list/show/serve`).
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 
@@ -72,11 +74,13 @@ for dir in \
   13-http-serve-jsverbs \
   14-generated-runtime-package \
   15-protobuf-builder-provider \
-  16-typescript-jsverbs; do
+  16-typescript-jsverbs \
+  17-sourcegraph-runtime-aliases \
+  18-go-go-objects-docs; do
   make -C examples/xgoja/$dir smoke
 done
 ```
 
-`11-config-env/` and `12-geppetto-host-services/` are intentionally omitted from the bulk loop. `11-config-env/` is a command/config fixture rather than a Makefile-based smoke, and `12-geppetto-host-services/` depends on a sibling checkout of `geppetto` plus optional live profile credentials for the full inference smoke.
+`11-config-env/` and `12-geppetto-host-services/` are intentionally omitted from the bulk loop. `11-config-env/` is a command/config fixture rather than a Makefile-based smoke, and `12-geppetto-host-services/` depends on a sibling checkout of `geppetto` plus optional live profile credentials for the full inference smoke. `18-go-go-objects-docs/` requires a sibling checkout of `go-go-objects` (via `module.replace`).
 
 The examples are v2-first. Their specs generally use `workspace.mode: auto`, so generated build workspaces derive local module replacements from the repository `go.work` plan. Some Makefiles still run the xgoja CLI itself with `GOWORK=off` to isolate the CLI process, but generated module replacement should come from workspace planning or an explicit example-specific provider replacement rather than legacy runtime metadata.

@@ -1,0 +1,37 @@
+schema: xgoja/v2
+name: go-go-objects-docs
+app:
+  name: go-go-objects-docs
+go:
+  module: xgoja.generated/go-go-objects-docs
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
+  - id: go-go-objects-durableobjects
+    import: github.com/go-go-golems/go-go-objects/pkg/xgoja/providers/durableobjects
+    register: Register
+    module:
+      replace: ../../../../go-go-objects
+runtime:
+  modules:
+    - provider: go-go-objects-durableobjects
+      name: durableobjects
+      as: durableobjects
+sources:
+  - id: go-go-objects-help
+    kind: help
+    from:
+      provider:
+        provider: go-go-objects-durableobjects
+        source: go-go-objects
+commands:
+  - id: go-go-objects-docs
+    type: provider.command-set
+    provider: go-go-objects-durableobjects
+    name: docs
+    mount: durableobjects
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/go-go-objects-docs
