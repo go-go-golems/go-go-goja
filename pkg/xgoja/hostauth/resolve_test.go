@@ -46,6 +46,16 @@ func TestResolveConfigDefaultsToNoAuthMemoryStoresAndSecureCookie(t *testing.T) 
 	}
 }
 
+func TestResolveConfigModeNoneIgnoresStoreDSNRequirements(t *testing.T) {
+	resolved, err := ResolveConfig(Config{Mode: ModeNone, Stores: StoresConfig{Default: StoreConfig{Driver: "postgres"}}}, ResolveOptions{})
+	if err != nil {
+		t.Fatalf("ResolveConfig: %v", err)
+	}
+	if resolved.Mode != ModeNone || resolved.Stores.Session.Driver != StoreDriverMemory {
+		t.Fatalf("resolved = %#v", resolved)
+	}
+}
+
 func TestResolveConfigParsesSessionFields(t *testing.T) {
 	resolved, err := ResolveConfig(Config{
 		Mode: ModeDev,
@@ -75,19 +85,14 @@ func TestResolveConfigParsesSessionFields(t *testing.T) {
 	}
 }
 
-func TestResolveConfigStoreInheritanceAndEnvDSN(t *testing.T) {
+func TestResolveConfigStoreInheritanceAndDSN(t *testing.T) {
 	applyDefault := false
 	applyAudit := true
-	resolved, err := ResolveConfig(Config{Stores: StoresConfig{
-		Default: StoreConfig{Driver: "postgres", DSNEnv: "APP_AUTH_DATABASE_URL", ApplySchema: &applyDefault},
+	resolved, err := ResolveConfig(Config{Mode: ModeDev, Stores: StoresConfig{
+		Default: StoreConfig{Driver: "postgres", DSN: " postgres://example/app ", ApplySchema: &applyDefault},
 		Audit:   StoreConfig{ApplySchema: &applyAudit},
 		Session: StoreConfig{Driver: "sqlite", DSN: "file:sessions.db"},
-	}}, ResolveOptions{LookupEnv: func(key string) (string, bool) {
-		if key == "APP_AUTH_DATABASE_URL" {
-			return " postgres://example/app ", true
-		}
-		return "", false
-	}})
+	}}, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("ResolveConfig: %v", err)
 	}
@@ -106,7 +111,7 @@ func TestResolveConfigStoreInheritanceAndEnvDSN(t *testing.T) {
 }
 
 func TestResolveConfigExplicitMemoryStoreIgnoresInheritedDSN(t *testing.T) {
-	resolved, err := ResolveConfig(Config{Stores: StoresConfig{
+	resolved, err := ResolveConfig(Config{Mode: ModeDev, Stores: StoresConfig{
 		Default: StoreConfig{Driver: "postgres", DSN: "postgres://example/app"},
 		Audit:   StoreConfig{Driver: "memory"},
 	}}, ResolveOptions{})
@@ -137,14 +142,12 @@ func TestResolveConfigRejectsInvalidValuesWithPaths(t *testing.T) {
 		{name: "same-site", cfg: Config{Session: SessionConfig{Cookie: CookieConfig{SameSite: "weird"}}}, path: "auth.session.cookie.same-site", want: "unsupported SameSite"},
 		{name: "path", cfg: Config{Session: SessionConfig{Cookie: CookieConfig{Path: "app"}}}, path: "auth.session.cookie.path", want: "must start with /"},
 		{name: "idle", cfg: Config{Session: SessionConfig{IdleTimeout: "0s"}}, path: "auth.session.idle-timeout", want: "must be positive"},
-		{name: "driver", cfg: Config{Stores: StoresConfig{Default: StoreConfig{Driver: "mysql"}}}, path: "auth.stores.session.driver", want: "unsupported store driver"},
-		{name: "missing dsn", cfg: Config{Stores: StoresConfig{Default: StoreConfig{Driver: "postgres"}}}, path: "auth.stores.session.dsn", want: "dsn or dsn-env is required"},
-		{name: "dsn conflict", cfg: Config{Stores: StoresConfig{Default: StoreConfig{Driver: "postgres", DSN: "postgres://example", DSNEnv: "APP_AUTH_DATABASE_URL"}}}, path: "auth.stores.session", want: "set either dsn or dsn-env"},
-		{name: "missing env", cfg: Config{Stores: StoresConfig{Default: StoreConfig{Driver: "postgres", DSNEnv: "APP_AUTH_DATABASE_URL"}}}, path: "auth.stores.session.dsn-env", want: "is not set"},
+		{name: "driver", cfg: Config{Mode: ModeDev, Stores: StoresConfig{Default: StoreConfig{Driver: "mysql"}}}, path: "auth.stores.session.driver", want: "unsupported store driver"},
+		{name: "missing dsn", cfg: Config{Mode: ModeDev, Stores: StoresConfig{Default: StoreConfig{Driver: "postgres"}}}, path: "auth.stores.session.dsn", want: "dsn is required"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ResolveConfig(tt.cfg, ResolveOptions{LookupEnv: func(string) (string, bool) { return "", false }})
+			_, err := ResolveConfig(tt.cfg, ResolveOptions{})
 			if err == nil {
 				t.Fatal("expected error")
 			}

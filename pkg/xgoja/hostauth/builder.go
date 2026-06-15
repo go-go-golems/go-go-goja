@@ -3,7 +3,6 @@ package hostauth
 import (
 	"context"
 	"errors"
-	"os"
 	"time"
 
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
@@ -16,7 +15,6 @@ import (
 // BuilderOptions configures a generated-host auth service factory.
 type BuilderOptions struct {
 	Config      Config
-	LookupEnv   func(string) (string, bool)
 	ActorLoader sessionauth.ActorLoader
 	Now         func() time.Time
 }
@@ -43,16 +41,22 @@ func NewServiceFactory(opts BuilderOptions) *Builder {
 // BuildHostAuthServices builds concrete auth services for one command/runtime
 // execution. The vals argument is reserved for future Glazed-value overlays;
 // this first implementation resolves from BuilderOptions.Config and env refs.
+func (b *Builder) AuthConfigDefaults() Config {
+	if b == nil {
+		return Config{}
+	}
+	return b.options.Config
+}
+
 func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values) (*Services, error) {
-	_ = vals
 	if b == nil {
 		return nil, errNilBuilder()
 	}
-	lookupEnv := b.options.LookupEnv
-	if lookupEnv == nil {
-		lookupEnv = os.LookupEnv
+	cfg, err := ConfigFromValues(vals, b.options.Config)
+	if err != nil {
+		return nil, err
 	}
-	resolved, err := ResolveConfig(b.options.Config, ResolveOptions{LookupEnv: lookupEnv})
+	resolved, err := ResolveConfig(cfg, ResolveOptions{})
 	if err != nil {
 		return nil, err
 	}

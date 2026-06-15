@@ -38,7 +38,7 @@ func TestBuildStoresMemory(t *testing.T) {
 func TestBuildStoresSQLiteSharedDBAndApplySchema(t *testing.T) {
 	ctx := context.Background()
 	applySchema := true
-	stores, err := BuildStores(ctx, mustResolveStores(t, Config{Stores: StoresConfig{Default: StoreConfig{
+	stores, err := BuildStores(ctx, mustResolveStores(t, Config{Mode: ModeDev, Stores: StoresConfig{Default: StoreConfig{
 		Driver:      "sqlite",
 		DSN:         "file:hostauth-buildstores-shared?mode=memory&cache=shared",
 		ApplySchema: &applySchema,
@@ -59,7 +59,7 @@ func TestBuildStoresSQLiteSharedDBAndApplySchema(t *testing.T) {
 
 func TestBuildStoresSQLiteWithoutApplySchemaDoesNotCreateTables(t *testing.T) {
 	ctx := context.Background()
-	stores, err := BuildStores(ctx, mustResolveStores(t, Config{Stores: StoresConfig{Default: StoreConfig{
+	stores, err := BuildStores(ctx, mustResolveStores(t, Config{Mode: ModeDev, Stores: StoresConfig{Default: StoreConfig{
 		Driver: "sqlite",
 		DSN:    "file:hostauth-buildstores-no-schema?mode=memory&cache=shared",
 	}}}))
@@ -78,7 +78,7 @@ func TestBuildStoresSQLiteWithoutApplySchemaDoesNotCreateTables(t *testing.T) {
 
 func TestBuildStoresPostgresConstructsWithoutConnectingWhenSchemaDisabled(t *testing.T) {
 	ctx := context.Background()
-	stores, err := BuildStores(ctx, mustResolveStores(t, Config{Stores: StoresConfig{Default: StoreConfig{
+	stores, err := BuildStores(ctx, mustResolveStores(t, Config{Mode: ModeDev, Stores: StoresConfig{Default: StoreConfig{
 		Driver: "postgres",
 		DSN:    "postgres://goja:goja@127.0.0.1:1/goja_auth?sslmode=disable",
 	}}}))

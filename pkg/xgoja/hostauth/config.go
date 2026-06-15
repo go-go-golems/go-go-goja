@@ -62,7 +62,6 @@ type StoresConfig struct {
 type StoreConfig struct {
 	Driver      string `yaml:"driver" json:"driver"`
 	DSN         string `yaml:"dsn" json:"dsn"`
-	DSNEnv      string `yaml:"dsn-env" json:"dsn-env"`
 	ApplySchema *bool  `yaml:"apply-schema" json:"apply-schema"`
 }
 

@@ -124,29 +124,21 @@ func TestServiceFactoryDevBuildsUsableAuthServices(t *testing.T) {
 	}
 }
 
-func TestServiceFactoryUsesEnvLookupAtBuildTime(t *testing.T) {
+func TestServiceFactoryUsesDirectDSNAtBuildTime(t *testing.T) {
 	factory := NewServiceFactory(BuilderOptions{Config: Config{
 		Mode:   ModeDev,
-		Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite", DSNEnv: "HOSTAUTH_TEST_DSN"}},
+		Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite"}},
 	}})
 	_, err := factory.BuildHostAuthServices(context.Background(), nil)
 	if err == nil {
-		t.Fatalf("expected missing env error")
+		t.Fatalf("expected missing dsn error")
 	}
 
 	applySchema := true
-	factory = NewServiceFactory(BuilderOptions{
-		Config: Config{
-			Mode:   ModeDev,
-			Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite", DSNEnv: "HOSTAUTH_TEST_DSN", ApplySchema: &applySchema}},
-		},
-		LookupEnv: func(key string) (string, bool) {
-			if key == "HOSTAUTH_TEST_DSN" {
-				return "file:hostauth-service-factory-env?mode=memory&cache=shared", true
-			}
-			return "", false
-		},
-	})
+	factory = NewServiceFactory(BuilderOptions{Config: Config{
+		Mode:   ModeDev,
+		Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite", DSN: "file:hostauth-service-factory-dsn?mode=memory&cache=shared", ApplySchema: &applySchema}},
+	}})
 	services, err := factory.BuildHostAuthServices(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("BuildHostAuthServices: %v", err)

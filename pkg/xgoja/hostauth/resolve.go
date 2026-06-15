@@ -10,9 +10,7 @@ import (
 
 var ErrOIDCNotImplemented = errors.New("hostauth: auth.mode=oidc is not implemented yet")
 
-type ResolveOptions struct {
-	LookupEnv func(string) (string, bool)
-}
+type ResolveOptions struct{}
 
 type ConfigError struct {
 	Path string
@@ -49,7 +47,14 @@ func ResolveConfig(cfg Config, opts ResolveOptions) (ResolvedConfig, error) {
 	if err != nil {
 		return ResolvedConfig{}, err
 	}
-	stores, err := resolveStoresConfig(cfg.Stores, opts.LookupEnv)
+	if mode == ModeNone {
+		stores, err := resolveStoresConfig(StoresConfig{})
+		if err != nil {
+			return ResolvedConfig{}, err
+		}
+		return ResolvedConfig{Mode: mode, Session: session, Stores: stores}, nil
+	}
+	stores, err := resolveStoresConfig(cfg.Stores)
 	if err != nil {
 		return ResolvedConfig{}, err
 	}
@@ -133,32 +138,32 @@ func parseOptionalDuration(path string, value string) (time.Duration, error) {
 	return d, nil
 }
 
-func resolveStoresConfig(cfg StoresConfig, lookupEnv func(string) (string, bool)) (ResolvedStoresConfig, error) {
+func resolveStoresConfig(cfg StoresConfig) (ResolvedStoresConfig, error) {
 	defaults := cfg.Default
 	if strings.TrimSpace(defaults.Driver) == "" {
 		defaults.Driver = string(StoreDriverMemory)
 	}
 
-	session, err := resolveStoreConfig("session", cfg.Session, defaults, lookupEnv)
+	session, err := resolveStoreConfig("session", cfg.Session, defaults)
 	if err != nil {
 		return ResolvedStoresConfig{}, err
 	}
-	audit, err := resolveStoreConfig("audit", cfg.Audit, defaults, lookupEnv)
+	audit, err := resolveStoreConfig("audit", cfg.Audit, defaults)
 	if err != nil {
 		return ResolvedStoresConfig{}, err
 	}
-	appauth, err := resolveStoreConfig("appauth", cfg.AppAuth, defaults, lookupEnv)
+	appauth, err := resolveStoreConfig("appauth", cfg.AppAuth, defaults)
 	if err != nil {
 		return ResolvedStoresConfig{}, err
 	}
-	capability, err := resolveStoreConfig("capability", cfg.Capability, defaults, lookupEnv)
+	capability, err := resolveStoreConfig("capability", cfg.Capability, defaults)
 	if err != nil {
 		return ResolvedStoresConfig{}, err
 	}
 	return ResolvedStoresConfig{Session: session, Audit: audit, AppAuth: appauth, Capability: capability}, nil
 }
 
-func resolveStoreConfig(name string, specific StoreConfig, defaults StoreConfig, lookupEnv func(string) (string, bool)) (ResolvedStoreConfig, error) {
+func resolveStoreConfig(name string, specific StoreConfig, defaults StoreConfig) (ResolvedStoreConfig, error) {
 	path := "auth.stores." + name
 	merged := inheritStoreConfig(specific, defaults)
 	driver, err := parseStoreDriver(merged.Driver)
@@ -174,7 +179,7 @@ func resolveStoreConfig(name string, specific StoreConfig, defaults StoreConfig,
 		return ResolvedStoreConfig{Name: name, Driver: driver, ApplySchema: applySchema}, nil
 	}
 
-	dsn, err := resolveDSN(path, merged, lookupEnv)
+	dsn, err := resolveDSN(path, merged)
 	if err != nil {
 		return ResolvedStoreConfig{}, err
 	}
@@ -188,11 +193,6 @@ func inheritStoreConfig(specific StoreConfig, defaults StoreConfig) StoreConfig 
 	}
 	if strings.TrimSpace(specific.DSN) != "" {
 		out.DSN = specific.DSN
-		out.DSNEnv = ""
-	}
-	if strings.TrimSpace(specific.DSNEnv) != "" {
-		out.DSNEnv = specific.DSNEnv
-		out.DSN = ""
 	}
 	if specific.ApplySchema != nil {
 		out.ApplySchema = specific.ApplySchema
@@ -211,24 +211,10 @@ func parseStoreDriver(value string) (StoreDriver, error) {
 	}
 }
 
-func resolveDSN(path string, cfg StoreConfig, lookupEnv func(string) (string, bool)) (string, error) {
+func resolveDSN(path string, cfg StoreConfig) (string, error) {
 	dsn := strings.TrimSpace(cfg.DSN)
-	dsnEnv := strings.TrimSpace(cfg.DSNEnv)
-	if dsn != "" && dsnEnv != "" {
-		return "", configError(path, fmt.Errorf("set either dsn or dsn-env, not both"))
+	if dsn == "" {
+		return "", configError(path+".dsn", fmt.Errorf("dsn is required for non-memory stores"))
 	}
-	if dsn != "" {
-		return dsn, nil
-	}
-	if dsnEnv != "" {
-		if lookupEnv == nil {
-			return "", configError(path+".dsn-env", fmt.Errorf("environment lookup is not configured"))
-		}
-		value, ok := lookupEnv(dsnEnv)
-		if !ok || strings.TrimSpace(value) == "" {
-			return "", configError(path+".dsn-env", fmt.Errorf("environment variable %q is not set", dsnEnv))
-		}
-		return strings.TrimSpace(value), nil
-	}
-	return "", configError(path+".dsn", fmt.Errorf("dsn or dsn-env is required for non-memory stores"))
+	return dsn, nil
 }
