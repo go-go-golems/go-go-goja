@@ -208,3 +208,98 @@ pkg/gojahttp/planned_http.go
 pkg/gojahttp/planned_http_test.go
 ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/reference/01-implementation-diary.md
 ```
+
+## Step 3: Add the Go fluent planned-route builder
+
+This step adds the ergonomic API that traditional Go callers should use most often. `RegisterPlannedHTTP` is the low-level primitive; `gojahttp.NewApp(host)` is the human-facing builder that mirrors the JavaScript planned-route chain while staying idiomatic enough for Go.
+
+The builder produces the same `RoutePlan` as JavaScript routes and then delegates to `RegisterPlannedHTTP`. It does not contain a second enforcement path. That is the important design property: JavaScript routes and Go routes differ in declaration syntax and handler backend, not in authentication semantics.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue implementing the Go-side planned auth API in focused commits, updating the diary and tests at each step.
+
+**Inferred user intent:** Build the planned API incrementally without losing reviewability.
+
+**Commit (code):** pending at time of diary update — planned message `Add Go planned route builder`.
+
+### What I did
+
+- Added `pkg/gojahttp/app.go`.
+- Added `gojahttp.NewApp(host)` and method helpers: `Get`, `Post`, `Put`, `Patch`, `Delete`, `All`, and `Route`.
+- Added staged builder types:
+  - `RouteNeedsSecurity`
+  - `RouteNeedsPolicy`
+  - `RouteNeedsHandler`
+- Added Go auth/resource spec builders:
+  - `gojahttp.User().Required()`
+  - `gojahttp.User().MFAFresh(duration)`
+  - `gojahttp.Resource(type).IDFromParam(...).TenantFromParam(...).MustExist()`
+- Added `Handle` for native planned handlers.
+- Added `HandleJSON` for common JSON route responses.
+- Added tests in `pkg/gojahttp/app_test.go` for public JSON routes, authenticated resource/CSRF/action routes, and builder validation errors.
+
+### Why
+
+- Direct `RoutePlan` construction is useful for generated code, but it is verbose for application authors.
+- The Go builder gives traditional Go hosts the same mental model as Express planned routes: declare security first, declare policy, then attach a handler.
+
+### What worked
+
+- The builder composes cleanly over `RegisterPlannedHTTP`.
+- `HandleJSON` gives a concise happy path without hiding the lower-level `http.ResponseWriter` API.
+- Focused validation passed:
+
+```bash
+GOFLAGS=-buildvcs=false go test ./pkg/gojahttp ./modules/express -count=1
+```
+
+### What didn't work
+
+- My first validation-error test attempted to call `.Handle(...)` directly after `.Auth(...)`. That failed at compile time because the staged Go API correctly returns `*RouteNeedsPolicy`, which has no `Handle` method:
+
+```text
+pkg/gojahttp/app_test.go:85:73: app.Get("/me").Auth(...).Handle undefined (type *gojahttp.RouteNeedsPolicy has no field or method Handle)
+```
+
+- I changed the test to call `.Allow("").Handle(...)`, which reaches the handler stage but still fails `ValidateRoutePlan` because the action is empty.
+
+### What I learned
+
+- Even without generics, separate staged builder types catch some incorrect usage at compile time.
+- The remaining validation still belongs in `ValidateRoutePlan`; the builder should not duplicate all plan validation rules.
+
+### What was tricky to build
+
+- The resource builder needs to support both fluent route declarations and final `ResourceSpec` values. I used value receivers so each builder method returns a modified copy, and `MustExist()` / `Spec()` produce the final `ResourceSpec`.
+- `HandleJSON` must return encoder errors so handler failure audit still works through the planned HTTP dispatch path.
+
+### What warrants a second pair of eyes
+
+- Whether `ResourceBuilder.MustExist()` should return `ResourceBuilder` instead of `ResourceSpec` for a more uniform builder API. The current shape optimizes for concise route declarations.
+- Whether `HandleJSON` should support status-code helpers now or wait for a future response abstraction.
+- Whether `gojahttp.User()` and `gojahttp.Resource()` are the right package-level names, or whether they should live under a sub-builder namespace to avoid future name collisions.
+
+### What should be done in the future
+
+- Add standard `net/http` planned middleware on top of the same enforcement path.
+- Add docs/examples for the Go builder once the API settles.
+- Consider adding `Name(...)` to later builder stages as a convenience if route authors want to name routes after declaring auth.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/app.go` and verify the builder only accumulates `RoutePlan` data and delegates to `RegisterPlannedHTTP`.
+- Review `pkg/gojahttp/app_test.go` to see intended usage.
+- Validate with `GOFLAGS=-buildvcs=false go test ./pkg/gojahttp ./modules/express -count=1`.
+
+### Technical details
+
+Files changed in this step:
+
+```text
+pkg/gojahttp/app.go
+pkg/gojahttp/app_test.go
+ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/reference/01-implementation-diary.md
+```
