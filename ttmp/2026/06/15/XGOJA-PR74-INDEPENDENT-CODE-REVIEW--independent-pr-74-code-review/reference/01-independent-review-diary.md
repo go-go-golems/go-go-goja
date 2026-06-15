@@ -15,10 +15,18 @@ Owners: []
 RelatedFiles:
     - Path: examples/xgoja/21-generated-host-auth/Makefile
       Note: Smoke coverage for --auth-* flags (commit 938e99a)
+    - Path: pkg/gojahttp/auth/internal/sessionauthtest/store_contract.go
+      Note: Reusable missing-old rotation contract (commit 6ca29c0)
     - Path: pkg/gojahttp/auth/sessionauth/sessionauth.go
-      Note: CSRF/session review focus and blocking finding.
+      Note: |-
+        CSRF/session review focus and blocking finding.
+        CSRF fail-closed and memory rotation fixes (commits beebe55
+    - Path: pkg/gojahttp/auth/sessionauth/sqlstore/sqlstore.go
+      Note: SQL rotation requires an existing old session (commit 6ca29c0)
     - Path: pkg/gojahttp/planned_dispatch.go
-      Note: Planned secure context mutability review focus.
+      Note: |-
+        Planned secure context mutability review focus.
+        Copies auth context before JavaScript exposure (commit 3cf420e)
     - Path: pkg/xgoja/hostauth/glazed.go
       Note: Glazed auth section and parsed values decoding (commits 698e049
     - Path: pkg/xgoja/hostauth/resolve.go
@@ -33,6 +41,7 @@ LastUpdated: 2026-06-15T16:48:00-04:00
 WhatFor: Record commands, evidence, failures, and findings for the independent PR 74 code review.
 WhenToUse: Use to continue or audit the independent review without reading colleague-produced ticket artifacts.
 ---
+
 
 
 # Diary
@@ -522,3 +531,114 @@ GOFLAGS=-buildvcs=false go test ./... -count=1
 ```bash
 rg -n "DSNEnv|LookupEnv|dsn-env|os\\.LookupEnv|os\\.Getenv" pkg/xgoja/hostauth -S
 ```
+
+## Step 6: Fix the security issues surfaced by the independent review
+
+I closed the completed review/design phase of the ticket, then added follow-up implementation tasks for the review findings that should be fixed in code. I addressed the three product-code issues that were still relevant after the Glazed settings refactor: CSRF fail-open on empty persisted tokens, mutable host-owned auth values exposed to JavaScript, and session rotation creating a replacement when the old session does not exist.
+
+The fixes landed as three focused commits. Each commit passed the repository pre-commit hook, and I also ran targeted package tests plus both generated/auth example smokes after the final fix.
+
+### Prompt Context
+
+**User prompt (verbatim):** "close the ticket. Now let's tackle the issues surfaced by the code review, add tasks to the code review ticket and then work on them step by step, keeping a diary as you work, and committing at appropriate intervals."
+
+**Assistant interpretation:** Close the review ticket's completed phase, add implementation tasks for the review findings, fix them incrementally, validate, commit at sensible checkpoints, and keep the existing ticket diary current.
+
+**Inferred user intent:** Move from review/design into remediation while retaining the same audit trail and task bookkeeping.
+
+**Commit (code):** `beebe55bd95c80622bb5b768a340d8db937c0bc4` — "Fail closed on empty CSRF tokens"
+
+**Commit (code):** `3cf420eb0de411b4b4a60d3c9ce30dcfd04fc343` — "Copy auth values before exposing to JavaScript"
+
+**Commit (code):** `6ca29c05bf5c4bb3f9ff00dc0f157cff4aa6e937` — "Require existing session during rotation"
+
+### What I did
+- Closed ticket `XGOJA-PR74-INDEPENDENT-CODE-REVIEW` after the review/Glazed implementation phase was complete.
+- Added follow-up tasks for:
+  - CSRF fail-closed behavior.
+  - JavaScript mutation isolation for host-owned auth values.
+  - Session rotation missing-old-session behavior.
+  - Validation and diary/changelog updates.
+- Updated `pkg/gojahttp/auth/sessionauth/sessionauth.go` so `VerifyCSRF` trims and rejects blank header tokens and blank stored CSRF tokens before constant-time comparison.
+- Added `TestCSRFFailsClosedWhenStoredTokenIsEmpty` in `pkg/gojahttp/auth/sessionauth/sessionauth_test.go`.
+- Updated `pkg/gojahttp/planned_dispatch.go` so actor tenant IDs, actor claims, resource claims, and nested claim maps/slices are copied before conversion into JavaScript values.
+- Added `TestPlannedHandlerCannotMutateHostOwnedAuthValues` in `pkg/gojahttp/planned_dispatch_test.go`.
+- Updated in-memory and SQL session stores so `Rotate` requires the old session row to exist before inserting the replacement.
+- Extended `pkg/gojahttp/auth/internal/sessionauthtest/store_contract.go` with a reusable contract test proving failed missing-old rotation does not create the next session.
+
+### Why
+- CSRF verification must fail closed even if persistence contains malformed or partially initialized session state.
+- Planned route handlers should see auth context as data for decisions and responses, not as mutable aliases into host-owned authorization state.
+- Session rotation should be an atomic replacement operation, not create-on-missing; otherwise stale/missing old sessions can silently mint a new valid session.
+
+### What worked
+- Focused CSRF/sessionauth test passed:
+
+```text
+go test ./pkg/gojahttp/auth/sessionauth -count=1
+ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth	0.003s
+```
+
+- Focused planned-dispatch mutation test passed:
+
+```text
+go test ./pkg/gojahttp -run 'TestPlannedHandlerCannotMutateHostOwnedAuthValues|TestPlannedUserRouteAuthenticatesAndAuthorizes' -count=1
+ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp	0.005s
+```
+
+- Store contract tests passed for memory and SQLite-backed session stores:
+
+```text
+go test ./pkg/gojahttp/auth/sessionauth ./pkg/gojahttp/auth/sessionauth/sqlstore -count=1
+ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth	0.013s
+ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth/sqlstore	0.018s
+```
+
+- Final targeted validation and smokes passed:
+
+```text
+go test ./pkg/gojahttp ./pkg/gojahttp/auth/sessionauth ./pkg/gojahttp/auth/sessionauth/sqlstore -count=1
+make -C examples/xgoja/18-express-auth-host smoke
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+- Each code commit passed the pre-commit hook, including lint and `go test ./...`.
+
+### What didn't work
+- The code changes themselves were straightforward; there were no failed implementation attempts in this step.
+- N/A.
+
+### What I learned
+- `subtle.ConstantTimeCompare` returns equality for two empty byte slices, so callers must reject blank expected and supplied tokens before constant-time comparison.
+- Copying only the top-level JavaScript map is insufficient: Goja can mutate nested maps/slices such as `actor.claims`, `actor.tenantIds`, and `resource.claims` if they are passed through directly.
+- SQL `DELETE` without checking `RowsAffected` can make replacement-style operations silently succeed even when the source row did not exist.
+
+### What was tricky to build
+- The auth value copying needed to preserve the existing JavaScript shape while breaking aliases. The solution copies `[]string`, `[]any`, and `map[string]any` recursively for claim payloads, while leaving scalar values as-is.
+- The rotation fix needed to preserve atomicity in SQL stores. The implementation keeps the delete and insert inside one transaction, but now checks the delete result with `requireAffected` before inserting the replacement.
+
+### What warrants a second pair of eyes
+- `cloneAnyValue` intentionally handles the claim shapes currently exposed by auth (`map[string]any`, `[]any`, `[]string`). If claims can carry arbitrary mutable Go objects in the future, this helper may need to grow or switch to JSON-style normalization.
+- The memory and SQL stores now return `ErrInvalidCookie` for missing-old rotation. Confirm that any callers prefer this fail-closed behavior over idempotent create-on-missing.
+
+### What should be done in the future
+- Consider copying request DTO maps (`query`, `params`, `headers`, `cookies`) as a separate hardening pass if JavaScript mutation of request metadata becomes a concern.
+- Consider adding a short security note to auth docs explaining that planned handler auth context is copied and should be treated as read-only data.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/sessionauth/sessionauth.go:VerifyCSRF` and its new regression test.
+- Review `pkg/gojahttp/planned_dispatch.go:actorJSMap`, `resourceRefJSMap`, and `cloneAnyValue` for mutation isolation.
+- Review `pkg/gojahttp/auth/sessionauth/sessionauth.go:MemoryStore.Rotate`, `pkg/gojahttp/auth/sessionauth/sqlstore/sqlstore.go:Rotate`, and the reusable store contract.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp ./pkg/gojahttp/auth/sessionauth ./pkg/gojahttp/auth/sessionauth/sqlstore -count=1
+make -C examples/xgoja/18-express-auth-host smoke
+make -C examples/xgoja/21-generated-host-auth smoke
+GOFLAGS=-buildvcs=false go test ./... -count=1
+```
+
+### Technical details
+- Empty CSRF storage and empty CSRF request headers now both return `missing or invalid X-CSRF-Token`.
+- JavaScript receives copied auth payloads; the host-owned `*Actor` and `*ResourceRef` values returned by Go auth hooks are unchanged after handler mutation attempts.
+- Store `Rotate` now has the contract: validate next session ID, require old session existence, delete old session, insert cloned next session.

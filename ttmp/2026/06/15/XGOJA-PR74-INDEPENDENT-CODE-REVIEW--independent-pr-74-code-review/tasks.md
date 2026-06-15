@@ -14,3 +14,7 @@
 - [x] Update generated-host auth example to use --auth-* flags instead of os.Getenv
 - [x] Update docs and tests for Glazed auth settings
 - [x] Run validation, commit implementation, and update diary/changelog
+- [x] Fix CSRF verification to fail closed when persisted session CSRF token is empty
+- [x] Prevent JavaScript planned handlers from mutating Go-owned actor/resource/capability maps and slices
+- [x] Clarify or fix session rotation behavior for missing old sessions
+- [x] Run validation for code review fixes and update diary/changelog

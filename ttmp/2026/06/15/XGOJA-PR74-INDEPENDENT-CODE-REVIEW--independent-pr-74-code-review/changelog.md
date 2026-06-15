@@ -53,3 +53,24 @@ Implemented Glazed-backed generated-host auth settings, removed hostauth DSNEnv/
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/glazed.go — New Glazed auth settings section
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/serve.go — Auth settings attached to serve jsverb commands
 
+
+## 2026-06-15
+
+Ticket closed
+
+
+## 2026-06-15
+
+Fixed independent review findings: CSRF now fails closed for blank stored/header tokens, planned JS handlers receive copied auth values, and session rotation requires the old session to exist; validated targeted packages plus express and generated-host auth smokes (commits beebe55, 3cf420e, 6ca29c0).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/sessionauth/sessionauth.go — CSRF and memory rotate fixes
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/sessionauth/sqlstore/sqlstore.go — SQL rotate missing-old check
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/planned_dispatch.go — Auth value copy hardening
+
+
+## 2026-06-15
+
+Ticket closed
+
