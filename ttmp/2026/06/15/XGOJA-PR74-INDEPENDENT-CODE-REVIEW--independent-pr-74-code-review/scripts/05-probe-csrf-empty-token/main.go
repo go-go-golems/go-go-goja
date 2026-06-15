@@ -42,4 +42,12 @@ func main() {
 
 type httpCookie struct{ Name, Value string }
 
-func (c *httpCookie) Cookie() *http.Cookie { return &http.Cookie{Name: c.Name, Value: c.Value} }
+func (c *httpCookie) Cookie() *http.Cookie {
+	return &http.Cookie{
+		Name:     c.Name,
+		Value:    c.Value,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+}

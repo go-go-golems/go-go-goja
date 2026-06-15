@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"time"
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 )
@@ -125,7 +126,15 @@ func main() {
 		return
 	}
 	log.Printf("listening on http://%s", *listen)
-	log.Fatal(http.ListenAndServe(*listen, handler))
+	server := &http.Server{
+		Addr:              *listen,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	log.Fatal(server.ListenAndServe())
 }
 
 func runSmoke(handler http.Handler) error {
