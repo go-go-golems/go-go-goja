@@ -1,0 +1,475 @@
+---
+Title: PR 74 Inventory Output
+Ticket: XGOJA-PR74-CODE-REVIEW-PLAN
+Status: active
+Topics:
+    - review
+    - goja
+    - xgoja
+    - auth
+    - security
+    - testing
+DocType: reference
+Intent: long-term
+Owners: []
+RelatedFiles: []
+ExternalSources: []
+Summary: "Captured local diff, PR metadata, changed packages, and largest deltas."
+LastUpdated: 2026-06-14T20:55:00-04:00
+WhatFor: "Evidence captured while planning the PR 74 code review."
+WhenToUse: "Use as supporting evidence for the PR 74 review methodology guide."
+---
+
+# PR 74 Inventory
+
+repo: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja
+base: origin/main (d406577)
+head: HEAD (b66baea)
+branch: task/goja-express-auth
+
+## PR metadata
+{"author":"wesen","baseRefName":"main","commitCount":92,"fileCount":100,"headRefName":"task/goja-express-auth","number":74,"state":"OPEN","title":"Add planned Express auth and host auth examples","url":"https://github.com/go-go-golems/go-go-goja/pull/74"}
+
+## Diff stat
+ ...11-provider-runtime-config-and-host-services.md |   34 +
+ cmd/xgoja/doc/17-xgoja-v2-reference.md             |   57 +-
+ .../scripts/serve-static-assets.js                 |    4 +-
+ examples/xgoja/13-http-serve-jsverbs/README.md     |    9 +-
+ .../xgoja/13-http-serve-jsverbs/verbs/sites.js     |    4 +-
+ examples/xgoja/13-http-serve-jsverbs/xgoja.yaml    |    3 +
+ .../js/types/xgoja-modules.d.ts                    |   62 +-
+ .../xgoja/16-typescript-jsverbs/verbs/sites.ts     |   16 +-
+ examples/xgoja/18-express-auth-host/Makefile       |   14 +
+ examples/xgoja/18-express-auth-host/README.md      |  119 ++
+ .../xgoja/18-express-auth-host/cmd/host/main.go    |  226 +++
+ .../xgoja/18-express-auth-host/scripts/server.js   |   51 +
+ .../xgoja/19-express-keycloak-auth-host/Makefile   |   37 +
+ .../xgoja/19-express-keycloak-auth-host/README.md  |  124 ++
+ .../19-express-keycloak-auth-host/cmd/host/main.go |  413 +++++
+ .../docker-compose.yml                             |   36 +
+ .../keycloak/realm-goja-demo.json                  |   61 +
+ .../scripts/keycloak_smoke.py                      |  245 +++
+ .../scripts/server.js                              |   48 +
+ .../19-express-keycloak-auth-host/scripts/smoke.sh |  132 ++
+ examples/xgoja/20-express-hello-world/Makefile     |   12 +
+ examples/xgoja/20-express-hello-world/README.md    |   53 +
+ .../xgoja/20-express-hello-world/cmd/host/main.go  |  115 ++
+ .../xgoja/20-express-hello-world/scripts/server.js |   17 +
+ examples/xgoja/21-generated-host-auth/Makefile     |   62 +
+ examples/xgoja/21-generated-host-auth/README.md    |   96 +
+ .../xgoja/21-generated-host-auth/cmd/host/main.go  |   83 +
+ .../xgoja_embed/jsverbs/local_sites/sites.js       |   20 +
+ .../internal/xgojaruntime/xgoja_runtime.gen.go     |  179 ++
+ .../xgoja/21-generated-host-auth/verbs/sites.js    |   20 +
+ examples/xgoja/21-generated-host-auth/xgoja.yaml   |   46 +
+ examples/xgoja/README.md                           |   12 +-
+ go.mod                                             |    3 +
+ go.sum                                             |    6 +
+ modules/express/auth_builders.go                   |  215 +++
+ modules/express/auth_builders_integration_test.go  |  247 +++
+ modules/express/express.go                         |   28 +-
+ modules/express/express_integration_test.go        |   16 +-
+ modules/express/typescript.go                      |   62 +-
+ pkg/doc/18-express-module.md                       |  164 +-
+ pkg/doc/29-express-auth-user-guide.md              |  293 +++
+ pkg/doc/30-migrate-express-apps-to-planned-auth.md |  262 +++
+ pkg/doc/31-express-auth-examples.md                |  182 ++
+ pkg/gojahttp/auth/appauth/README.md                |   71 +
+ pkg/gojahttp/auth/appauth/appauth.go               |  349 ++++
+ pkg/gojahttp/auth/appauth/appauth_test.go          |  162 ++
+ pkg/gojahttp/auth/appauth/logcopter.go             |    7 +
+ .../auth/appauth/memory_store_contract_test.go     |   22 +
+ pkg/gojahttp/auth/appauth/sqlstore/logcopter.go    |    7 +
+ pkg/gojahttp/auth/appauth/sqlstore/schema.go       |   89 +
+ pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go     |  431 +++++
+ .../auth/appauth/sqlstore/sqlstore_test.go         |   75 +
+ pkg/gojahttp/auth/audit/README.md                  |   33 +
+ pkg/gojahttp/auth/audit/audit.go                   |  320 ++++
+ pkg/gojahttp/auth/audit/audit_test.go              |  108 ++
+ pkg/gojahttp/auth/audit/logcopter.go               |    7 +
+ .../auth/audit/memory_store_contract_test.go       |   15 +
+ pkg/gojahttp/auth/audit/sqlstore/README.md         |   44 +
+ pkg/gojahttp/auth/audit/sqlstore/logcopter.go      |    7 +
+ pkg/gojahttp/auth/audit/sqlstore/schema.go         |   63 +
+ pkg/gojahttp/auth/audit/sqlstore/sqlstore.go       |  264 +++
+ pkg/gojahttp/auth/audit/sqlstore/sqlstore_test.go  |  136 ++
+ pkg/gojahttp/auth/capability/README.md             |   47 +
+ pkg/gojahttp/auth/capability/capability.go         |  295 +++
+ pkg/gojahttp/auth/capability/capability_test.go    |  131 ++
+ pkg/gojahttp/auth/capability/invite.go             |   50 +
+ pkg/gojahttp/auth/capability/logcopter.go          |    7 +
+ .../auth/capability/memory_store_contract_test.go  |   14 +
+ pkg/gojahttp/auth/capability/sqlstore/logcopter.go |    7 +
+ pkg/gojahttp/auth/capability/sqlstore/schema.go    |   49 +
+ pkg/gojahttp/auth/capability/sqlstore/sqlstore.go  |  305 ++++
+ .../auth/capability/sqlstore/sqlstore_test.go      |   47 +
+ pkg/gojahttp/auth/devauth/devauth.go               |  463 +++++
+ pkg/gojahttp/auth/devauth/devauth_test.go          |  157 ++
+ pkg/gojahttp/auth/devauth/logcopter.go             |    7 +
+ .../auth/internal/appauthtest/logcopter.go         |    7 +
+ .../auth/internal/appauthtest/store_contract.go    |  141 ++
+ pkg/gojahttp/auth/internal/audittest/logcopter.go  |    7 +
+ .../auth/internal/audittest/store_contract.go      |   95 +
+ .../auth/internal/capabilitytest/logcopter.go      |    7 +
+ .../auth/internal/capabilitytest/store_contract.go |  168 ++
+ .../auth/internal/sessionauthtest/logcopter.go     |    7 +
+ .../internal/sessionauthtest/store_contract.go     |  147 ++
+ pkg/gojahttp/auth/keycloakauth/README.md           |   72 +
+ pkg/gojahttp/auth/keycloakauth/keycloakauth.go     |  350 ++++
+ .../auth/keycloakauth/keycloakauth_test.go         |  381 ++++
+ pkg/gojahttp/auth/keycloakauth/logcopter.go        |    7 +
+ pkg/gojahttp/auth/sessionauth/logcopter.go         |    7 +
+ .../auth/sessionauth/memory_store_contract_test.go |   14 +
+ pkg/gojahttp/auth/sessionauth/sessionauth.go       |  434 +++++
+ pkg/gojahttp/auth/sessionauth/sessionauth_test.go  |  246 +++
+ .../auth/sessionauth/sqlstore/logcopter.go         |    7 +
+ pkg/gojahttp/auth/sessionauth/sqlstore/schema.go   |   51 +
+ pkg/gojahttp/auth/sessionauth/sqlstore/sqlstore.go |  317 ++++
+ .../auth/sessionauth/sqlstore/sqlstore_test.go     |  129 ++
+ pkg/gojahttp/auth_plan.go                          |  276 +++
+ pkg/gojahttp/auth_plan_test.go                     |   87 +
+ pkg/gojahttp/host.go                               |   48 +-
+ pkg/gojahttp/planned_dispatch.go                   |  316 ++++
+ pkg/gojahttp/planned_dispatch_test.go              |  397 +++++
+ pkg/gojahttp/request_response.go                   |    3 +-
+ pkg/gojahttp/route_registry.go                     |   30 +-
+ pkg/gojahttp/route_registry_test.go                |   30 +
+ pkg/gojahttp/session_integration_test.go           |    2 +-
+ pkg/xgoja/hostauth/builder.go                      |  132 ++
+ pkg/xgoja/hostauth/builder_test.go                 |  160 ++
+ pkg/xgoja/hostauth/config.go                       |  102 ++
+ pkg/xgoja/hostauth/doc.go                          |    8 +
+ pkg/xgoja/hostauth/logcopter.go                    |    7 +
+ pkg/xgoja/hostauth/lookup.go                       |   62 +
+ pkg/xgoja/hostauth/lookup_test.go                  |  108 ++
+ pkg/xgoja/hostauth/resolve.go                      |  234 +++
+ pkg/xgoja/hostauth/resolve_test.go                 |  168 ++
+ pkg/xgoja/hostauth/services.go                     |   59 +
+ pkg/xgoja/hostauth/stores.go                       |  249 +++
+ pkg/xgoja/hostauth/stores_test.go                  |  166 ++
+ pkg/xgoja/providers/http/http.go                   |  147 +-
+ pkg/xgoja/providers/http/http_test.go              |  162 +-
+ pkg/xgoja/providers/http/serve.go                  |   96 +-
+ pkg/xgoja/providers/http/serve_test.go             |  294 ++-
+ .../changelog.md                                   |    1 -
+ .../README.md                                      |   21 +
+ .../changelog.md                                   |   16 +
+ ...uction-hardening-and-mfa-implementation-plan.md |  250 +++
+ .../index.md                                       |   62 +
+ .../reference/01-investigation-diary.md            |   88 +
+ .../tasks.md                                       |   47 +
+ .../README.md                                      |   21 +
+ .../changelog.md                                   |   16 +
+ ...auth-deployment-docs-and-policy-adapter-plan.md |  154 ++
+ .../index.md                                       |   64 +
+ .../reference/01-investigation-diary.md            |   85 +
+ .../tasks.md                                       |   28 +
+ .../README.md                                      |   21 +
+ .../changelog.md                                   |   71 +
+ ...01-persistent-auth-store-implementation-plan.md |  216 +++
+ .../index.md                                       |   62 +
+ .../reference/01-investigation-diary.md            |  711 ++++++++
+ .../tasks.md                                       |   46 +
+ .../README.md                                      |   21 +
+ .../changelog.md                                   |  218 +++
+ ...tication-api-design-and-implementation-guide.md |  992 +++++++++++
+ ...dleware-auth-design-and-implementation-guide.md | 1185 ++++++++++++
+ .../index.md                                       |   64 +
+ .../reference/01-investigation-diary.md            | 1883 ++++++++++++++++++++
+ .../sources/01-auth-preliminary-api-ideas.md       | 1476 +++++++++++++++
+ ...oidc-session-authz-host-implementation-notes.md |  302 ++++
+ .../tasks.md                                       |   94 +
+ .../README.md                                      |   21 +
+ .../changelog.md                                   |  106 ++
+ ...st-side-user-auth-system-implementation-plan.md |  651 +++++++
+ .../index.md                                       |   62 +
+ .../reference/01-investigation-diary.md            | 1225 +++++++++++++
+ .../01-keycloak-oidc-session-authz-host-notes.md   |  302 ++++
+ .../tasks.md                                       |  101 ++
+ .../README.md                                      |   21 +
+ .../changelog.md                                   |   24 +
+ .../01-appauth-sql-store-implementation-plan.md    |  126 ++
+ .../index.md                                       |   58 +
+ .../reference/01-implementation-diary.md           |  266 +++
+ .../tasks.md                                       |   30 +
+ .../README.md                                      |   21 +
+ .../changelog.md                                   |   25 +
+ .../01-async-express-handler-demo-plan.md          |  169 ++
+ .../index.md                                       |   56 +
+ .../reference/01-implementation-diary.md           |  180 ++
+ .../tasks.md                                       |   10 +
+ .../README.md                                      |   21 +
+ .../changelog.md                                   |   24 +
+ .../01-capability-sql-store-implementation-plan.md |  108 ++
+ .../index.md                                       |   58 +
+ .../reference/01-implementation-diary.md           |  266 +++
+ .../tasks.md                                       |   27 +
+ .../README.md                                      |   21 +
+ .../changelog.md                                   |   94 +
+ ...-auth-session-and-store-configuration-design.md |  909 ++++++++++
+ .../index.md                                       |   56 +
+ .../reference/01-implementation-diary.md           |  781 ++++++++
+ .../tasks.md                                       |  156 ++
+ .../README.md                                      |   21 +
+ .../changelog.md                                   |   49 +
+ ...figuration-analysis-and-implementation-guide.md |  466 +++++
+ .../index.md                                       |   59 +
+ .../reference/01-implementation-diary.md           |  256 +++
+ .../tasks.md                                       |   22 +
+ ttmp/vocabulary.yaml                               |   12 +
+ 186 files changed, 28570 insertions(+), 119 deletions(-)
+
+## Changed files by status
+M	cmd/xgoja/doc/11-provider-runtime-config-and-host-services.md
+M	cmd/xgoja/doc/17-xgoja-v2-reference.md
+M	examples/xgoja/10-embedded-assets-fs/scripts/serve-static-assets.js
+M	examples/xgoja/13-http-serve-jsverbs/README.md
+M	examples/xgoja/13-http-serve-jsverbs/verbs/sites.js
+M	examples/xgoja/13-http-serve-jsverbs/xgoja.yaml
+M	examples/xgoja/16-typescript-jsverbs/js/types/xgoja-modules.d.ts
+M	examples/xgoja/16-typescript-jsverbs/verbs/sites.ts
+A	examples/xgoja/18-express-auth-host/Makefile
+A	examples/xgoja/18-express-auth-host/README.md
+A	examples/xgoja/18-express-auth-host/cmd/host/main.go
+A	examples/xgoja/18-express-auth-host/scripts/server.js
+A	examples/xgoja/19-express-keycloak-auth-host/Makefile
+A	examples/xgoja/19-express-keycloak-auth-host/README.md
+A	examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go
+A	examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml
+A	examples/xgoja/19-express-keycloak-auth-host/keycloak/realm-goja-demo.json
+A	examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py
+A	examples/xgoja/19-express-keycloak-auth-host/scripts/server.js
+A	examples/xgoja/19-express-keycloak-auth-host/scripts/smoke.sh
+A	examples/xgoja/20-express-hello-world/Makefile
+A	examples/xgoja/20-express-hello-world/README.md
+A	examples/xgoja/20-express-hello-world/cmd/host/main.go
+A	examples/xgoja/20-express-hello-world/scripts/server.js
+A	examples/xgoja/21-generated-host-auth/Makefile
+A	examples/xgoja/21-generated-host-auth/README.md
+A	examples/xgoja/21-generated-host-auth/cmd/host/main.go
+A	examples/xgoja/21-generated-host-auth/internal/xgojaruntime/xgoja_embed/jsverbs/local_sites/sites.js
+A	examples/xgoja/21-generated-host-auth/internal/xgojaruntime/xgoja_runtime.gen.go
+A	examples/xgoja/21-generated-host-auth/verbs/sites.js
+A	examples/xgoja/21-generated-host-auth/xgoja.yaml
+M	examples/xgoja/README.md
+M	go.mod
+M	go.sum
+A	modules/express/auth_builders.go
+A	modules/express/auth_builders_integration_test.go
+M	modules/express/express.go
+M	modules/express/express_integration_test.go
+M	modules/express/typescript.go
+M	pkg/doc/18-express-module.md
+A	pkg/doc/29-express-auth-user-guide.md
+A	pkg/doc/30-migrate-express-apps-to-planned-auth.md
+A	pkg/doc/31-express-auth-examples.md
+A	pkg/gojahttp/auth/appauth/README.md
+A	pkg/gojahttp/auth/appauth/appauth.go
+A	pkg/gojahttp/auth/appauth/appauth_test.go
+A	pkg/gojahttp/auth/appauth/logcopter.go
+A	pkg/gojahttp/auth/appauth/memory_store_contract_test.go
+A	pkg/gojahttp/auth/appauth/sqlstore/logcopter.go
+A	pkg/gojahttp/auth/appauth/sqlstore/schema.go
+A	pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go
+A	pkg/gojahttp/auth/appauth/sqlstore/sqlstore_test.go
+A	pkg/gojahttp/auth/audit/README.md
+A	pkg/gojahttp/auth/audit/audit.go
+A	pkg/gojahttp/auth/audit/audit_test.go
+A	pkg/gojahttp/auth/audit/logcopter.go
+A	pkg/gojahttp/auth/audit/memory_store_contract_test.go
+A	pkg/gojahttp/auth/audit/sqlstore/README.md
+A	pkg/gojahttp/auth/audit/sqlstore/logcopter.go
+A	pkg/gojahttp/auth/audit/sqlstore/schema.go
+A	pkg/gojahttp/auth/audit/sqlstore/sqlstore.go
+A	pkg/gojahttp/auth/audit/sqlstore/sqlstore_test.go
+A	pkg/gojahttp/auth/capability/README.md
+A	pkg/gojahttp/auth/capability/capability.go
+A	pkg/gojahttp/auth/capability/capability_test.go
+A	pkg/gojahttp/auth/capability/invite.go
+A	pkg/gojahttp/auth/capability/logcopter.go
+A	pkg/gojahttp/auth/capability/memory_store_contract_test.go
+A	pkg/gojahttp/auth/capability/sqlstore/logcopter.go
+A	pkg/gojahttp/auth/capability/sqlstore/schema.go
+A	pkg/gojahttp/auth/capability/sqlstore/sqlstore.go
+A	pkg/gojahttp/auth/capability/sqlstore/sqlstore_test.go
+A	pkg/gojahttp/auth/devauth/devauth.go
+A	pkg/gojahttp/auth/devauth/devauth_test.go
+A	pkg/gojahttp/auth/devauth/logcopter.go
+A	pkg/gojahttp/auth/internal/appauthtest/logcopter.go
+A	pkg/gojahttp/auth/internal/appauthtest/store_contract.go
+A	pkg/gojahttp/auth/internal/audittest/logcopter.go
+A	pkg/gojahttp/auth/internal/audittest/store_contract.go
+A	pkg/gojahttp/auth/internal/capabilitytest/logcopter.go
+A	pkg/gojahttp/auth/internal/capabilitytest/store_contract.go
+A	pkg/gojahttp/auth/internal/sessionauthtest/logcopter.go
+A	pkg/gojahttp/auth/internal/sessionauthtest/store_contract.go
+A	pkg/gojahttp/auth/keycloakauth/README.md
+A	pkg/gojahttp/auth/keycloakauth/keycloakauth.go
+A	pkg/gojahttp/auth/keycloakauth/keycloakauth_test.go
+A	pkg/gojahttp/auth/keycloakauth/logcopter.go
+A	pkg/gojahttp/auth/sessionauth/logcopter.go
+A	pkg/gojahttp/auth/sessionauth/memory_store_contract_test.go
+A	pkg/gojahttp/auth/sessionauth/sessionauth.go
+A	pkg/gojahttp/auth/sessionauth/sessionauth_test.go
+A	pkg/gojahttp/auth/sessionauth/sqlstore/logcopter.go
+A	pkg/gojahttp/auth/sessionauth/sqlstore/schema.go
+A	pkg/gojahttp/auth/sessionauth/sqlstore/sqlstore.go
+A	pkg/gojahttp/auth/sessionauth/sqlstore/sqlstore_test.go
+A	pkg/gojahttp/auth_plan.go
+A	pkg/gojahttp/auth_plan_test.go
+M	pkg/gojahttp/host.go
+A	pkg/gojahttp/planned_dispatch.go
+A	pkg/gojahttp/planned_dispatch_test.go
+M	pkg/gojahttp/request_response.go
+M	pkg/gojahttp/route_registry.go
+M	pkg/gojahttp/route_registry_test.go
+M	pkg/gojahttp/session_integration_test.go
+A	pkg/xgoja/hostauth/builder.go
+A	pkg/xgoja/hostauth/builder_test.go
+A	pkg/xgoja/hostauth/config.go
+A	pkg/xgoja/hostauth/doc.go
+A	pkg/xgoja/hostauth/logcopter.go
+A	pkg/xgoja/hostauth/lookup.go
+A	pkg/xgoja/hostauth/lookup_test.go
+A	pkg/xgoja/hostauth/resolve.go
+A	pkg/xgoja/hostauth/resolve_test.go
+A	pkg/xgoja/hostauth/services.go
+A	pkg/xgoja/hostauth/stores.go
+A	pkg/xgoja/hostauth/stores_test.go
+M	pkg/xgoja/providers/http/http.go
+M	pkg/xgoja/providers/http/http_test.go
+M	pkg/xgoja/providers/http/serve.go
+M	pkg/xgoja/providers/http/serve_test.go
+M	ttmp/2026/06/12/GOJA-HTTP-MOUNT-001--goja-http-mountable-handler-abi-for-express-composition/changelog.md
+A	ttmp/2026/06/12/XGOJA-AUTH-KEYCLOAK-MFA--production-keycloak-hardening-and-mfa-flows/README.md
+A	ttmp/2026/06/12/XGOJA-AUTH-KEYCLOAK-MFA--production-keycloak-hardening-and-mfa-flows/changelog.md
+A	ttmp/2026/06/12/XGOJA-AUTH-KEYCLOAK-MFA--production-keycloak-hardening-and-mfa-flows/design/01-keycloak-production-hardening-and-mfa-implementation-plan.md
+A	ttmp/2026/06/12/XGOJA-AUTH-KEYCLOAK-MFA--production-keycloak-hardening-and-mfa-flows/index.md
+A	ttmp/2026/06/12/XGOJA-AUTH-KEYCLOAK-MFA--production-keycloak-hardening-and-mfa-flows/reference/01-investigation-diary.md
+A	ttmp/2026/06/12/XGOJA-AUTH-KEYCLOAK-MFA--production-keycloak-hardening-and-mfa-flows/tasks.md
+A	ttmp/2026/06/12/XGOJA-AUTH-PROD-DOCS--production-auth-deployment-guide-and-policy-adapter-planning/README.md
+A	ttmp/2026/06/12/XGOJA-AUTH-PROD-DOCS--production-auth-deployment-guide-and-policy-adapter-planning/changelog.md
+A	ttmp/2026/06/12/XGOJA-AUTH-PROD-DOCS--production-auth-deployment-guide-and-policy-adapter-planning/design/01-production-auth-deployment-docs-and-policy-adapter-plan.md
+A	ttmp/2026/06/12/XGOJA-AUTH-PROD-DOCS--production-auth-deployment-guide-and-policy-adapter-planning/index.md
+A	ttmp/2026/06/12/XGOJA-AUTH-PROD-DOCS--production-auth-deployment-guide-and-policy-adapter-planning/reference/01-investigation-diary.md
+A	ttmp/2026/06/12/XGOJA-AUTH-PROD-DOCS--production-auth-deployment-guide-and-policy-adapter-planning/tasks.md
+A	ttmp/2026/06/12/XGOJA-AUTH-STORES--production-host-auth-persistent-stores/README.md
+A	ttmp/2026/06/12/XGOJA-AUTH-STORES--production-host-auth-persistent-stores/changelog.md
+A	ttmp/2026/06/12/XGOJA-AUTH-STORES--production-host-auth-persistent-stores/design/01-persistent-auth-store-implementation-plan.md
+A	ttmp/2026/06/12/XGOJA-AUTH-STORES--production-host-auth-persistent-stores/index.md
+A	ttmp/2026/06/12/XGOJA-AUTH-STORES--production-host-auth-persistent-stores/reference/01-investigation-diary.md
+A	ttmp/2026/06/12/XGOJA-AUTH-STORES--production-host-auth-persistent-stores/tasks.md
+A	ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/README.md
+A	ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/changelog.md
+A	ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/design/01-mvp-authentication-api-design-and-implementation-guide.md
+A	ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/design/02-express-style-middleware-auth-design-and-implementation-guide.md
+A	ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/index.md
+A	ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md
+A	ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/sources/01-auth-preliminary-api-ideas.md
+A	ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/sources/02-keycloak-oidc-session-authz-host-implementation-notes.md
+A	ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/tasks.md
+A	ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/README.md
+A	ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/changelog.md
+A	ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/design-doc/01-host-side-user-auth-system-implementation-plan.md
+A	ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/index.md
+A	ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/reference/01-investigation-diary.md
+A	ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/sources/01-keycloak-oidc-session-authz-host-notes.md
+A	ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/tasks.md
+A	ttmp/2026/06/14/XGOJA-APPAUTH-SQLSTORE--persistent-sql-store-for-app-auth-users-memberships-resources/README.md
+A	ttmp/2026/06/14/XGOJA-APPAUTH-SQLSTORE--persistent-sql-store-for-app-auth-users-memberships-resources/changelog.md
+A	ttmp/2026/06/14/XGOJA-APPAUTH-SQLSTORE--persistent-sql-store-for-app-auth-users-memberships-resources/design/01-appauth-sql-store-implementation-plan.md
+A	ttmp/2026/06/14/XGOJA-APPAUTH-SQLSTORE--persistent-sql-store-for-app-auth-users-memberships-resources/index.md
+A	ttmp/2026/06/14/XGOJA-APPAUTH-SQLSTORE--persistent-sql-store-for-app-auth-users-memberships-resources/reference/01-implementation-diary.md
+A	ttmp/2026/06/14/XGOJA-APPAUTH-SQLSTORE--persistent-sql-store-for-app-auth-users-memberships-resources/tasks.md
+A	ttmp/2026/06/14/XGOJA-ASYNC-EXPRESS-DEMOS--add-async-express-handler-demos/README.md
+A	ttmp/2026/06/14/XGOJA-ASYNC-EXPRESS-DEMOS--add-async-express-handler-demos/changelog.md
+A	ttmp/2026/06/14/XGOJA-ASYNC-EXPRESS-DEMOS--add-async-express-handler-demos/design-doc/01-async-express-handler-demo-plan.md
+A	ttmp/2026/06/14/XGOJA-ASYNC-EXPRESS-DEMOS--add-async-express-handler-demos/index.md
+A	ttmp/2026/06/14/XGOJA-ASYNC-EXPRESS-DEMOS--add-async-express-handler-demos/reference/01-implementation-diary.md
+A	ttmp/2026/06/14/XGOJA-ASYNC-EXPRESS-DEMOS--add-async-express-handler-demos/tasks.md
+A	ttmp/2026/06/14/XGOJA-CAPABILITY-SQLSTORE--persistent-sql-store-for-capability-tokens/README.md
+A	ttmp/2026/06/14/XGOJA-CAPABILITY-SQLSTORE--persistent-sql-store-for-capability-tokens/changelog.md
+A	ttmp/2026/06/14/XGOJA-CAPABILITY-SQLSTORE--persistent-sql-store-for-capability-tokens/design/01-capability-sql-store-implementation-plan.md
+A	ttmp/2026/06/14/XGOJA-CAPABILITY-SQLSTORE--persistent-sql-store-for-capability-tokens/index.md
+A	ttmp/2026/06/14/XGOJA-CAPABILITY-SQLSTORE--persistent-sql-store-for-capability-tokens/reference/01-implementation-diary.md
+A	ttmp/2026/06/14/XGOJA-CAPABILITY-SQLSTORE--persistent-sql-store-for-capability-tokens/tasks.md
+A	ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/README.md
+A	ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/changelog.md
+A	ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/design-doc/01-generated-host-auth-session-and-store-configuration-design.md
+A	ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/index.md
+A	ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/reference/01-implementation-diary.md
+A	ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/tasks.md
+A	ttmp/2026/06/14/XGOJA-HTTP-AUTH-CONFIG--design-xgoja-http-auth-provider-configuration/README.md
+A	ttmp/2026/06/14/XGOJA-HTTP-AUTH-CONFIG--design-xgoja-http-auth-provider-configuration/changelog.md
+A	ttmp/2026/06/14/XGOJA-HTTP-AUTH-CONFIG--design-xgoja-http-auth-provider-configuration/design-doc/01-http-auth-provider-configuration-analysis-and-implementation-guide.md
+A	ttmp/2026/06/14/XGOJA-HTTP-AUTH-CONFIG--design-xgoja-http-auth-provider-configuration/index.md
+A	ttmp/2026/06/14/XGOJA-HTTP-AUTH-CONFIG--design-xgoja-http-auth-provider-configuration/reference/01-implementation-diary.md
+A	ttmp/2026/06/14/XGOJA-HTTP-AUTH-CONFIG--design-xgoja-http-auth-provider-configuration/tasks.md
+M	ttmp/vocabulary.yaml
+
+## Changed Go packages
+./examples/xgoja/18-express-auth-host/cmd/host
+./examples/xgoja/19-express-keycloak-auth-host/cmd/host
+./examples/xgoja/20-express-hello-world/cmd/host
+./examples/xgoja/21-generated-host-auth/cmd/host
+./examples/xgoja/21-generated-host-auth/internal/xgojaruntime
+./modules/express
+./pkg/gojahttp
+./pkg/gojahttp/auth/appauth
+./pkg/gojahttp/auth/appauth/sqlstore
+./pkg/gojahttp/auth/audit
+./pkg/gojahttp/auth/audit/sqlstore
+./pkg/gojahttp/auth/capability
+./pkg/gojahttp/auth/capability/sqlstore
+./pkg/gojahttp/auth/devauth
+./pkg/gojahttp/auth/internal/appauthtest
+./pkg/gojahttp/auth/internal/audittest
+./pkg/gojahttp/auth/internal/capabilitytest
+./pkg/gojahttp/auth/internal/sessionauthtest
+./pkg/gojahttp/auth/keycloakauth
+./pkg/gojahttp/auth/sessionauth
+./pkg/gojahttp/auth/sessionauth/sqlstore
+./pkg/xgoja/hostauth
+./pkg/xgoja/providers/http
+
+## Largest changed files by line delta
+    1883        0     1883 ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/reference/01-investigation-diary.md
+    1476        0     1476 ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/sources/01-auth-preliminary-api-ideas.md
+    1225        0     1225 ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/reference/01-investigation-diary.md
+    1185        0     1185 ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/design/02-express-style-middleware-auth-design-and-implementation-guide.md
+     992        0      992 ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/design/01-mvp-authentication-api-design-and-implementation-guide.md
+     909        0      909 ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/design-doc/01-generated-host-auth-session-and-store-configuration-design.md
+     781        0      781 ttmp/2026/06/14/XGOJA-GENERATED-HOST-AUTH-CONFIG--design-generated-host-auth-session-and-store-configuration/reference/01-implementation-diary.md
+     711        0      711 ttmp/2026/06/12/XGOJA-AUTH-STORES--production-host-auth-persistent-stores/reference/01-investigation-diary.md
+     651        0      651 ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/design-doc/01-host-side-user-auth-system-implementation-plan.md
+     466        0      466 ttmp/2026/06/14/XGOJA-HTTP-AUTH-CONFIG--design-xgoja-http-auth-provider-configuration/design-doc/01-http-auth-provider-configuration-analysis-and-implementation-guide.md
+     463        0      463 pkg/gojahttp/auth/devauth/devauth.go
+     434        0      434 pkg/gojahttp/auth/sessionauth/sessionauth.go
+     431        0      431 pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go
+     413        0      413 examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go
+     397        0      397 pkg/gojahttp/planned_dispatch_test.go
+     381        0      381 pkg/gojahttp/auth/keycloakauth/keycloakauth_test.go
+     350        0      350 pkg/gojahttp/auth/keycloakauth/keycloakauth.go
+     349        0      349 pkg/gojahttp/auth/appauth/appauth.go
+     320        0      320 pkg/gojahttp/auth/audit/audit.go
+     317        0      317 pkg/gojahttp/auth/sessionauth/sqlstore/sqlstore.go
+     316        0      316 pkg/gojahttp/planned_dispatch.go
+     305        0      305 pkg/gojahttp/auth/capability/sqlstore/sqlstore.go
+     302        0      302 ttmp/2026/06/12/XGOJA-EXPRESS-AUTH--add-proper-authentication-to-express-http-module/sources/02-keycloak-oidc-session-authz-host-implementation-notes.md
+     302        0      302 ttmp/2026/06/12/XGOJA-HOST-AUTH--plan-host-side-user-authentication-system/sources/01-keycloak-oidc-session-authz-host-notes.md
+     295        0      295 pkg/gojahttp/auth/capability/capability.go
+     292        2      294 pkg/xgoja/providers/http/serve_test.go
+     293        0      293 pkg/doc/29-express-auth-user-guide.md
+     276        0      276 pkg/gojahttp/auth_plan.go
+     266        0      266 ttmp/2026/06/14/XGOJA-APPAUTH-SQLSTORE--persistent-sql-store-for-app-auth-users-memberships-resources/reference/01-implementation-diary.md
+     266        0      266 ttmp/2026/06/14/XGOJA-CAPABILITY-SQLSTORE--persistent-sql-store-for-capability-tokens/reference/01-implementation-diary.md
+     264        0      264 pkg/gojahttp/auth/audit/sqlstore/sqlstore.go
+     262        0      262 pkg/doc/30-migrate-express-apps-to-planned-auth.md
+     256        0      256 ttmp/2026/06/14/XGOJA-HTTP-AUTH-CONFIG--design-xgoja-http-auth-provider-configuration/reference/01-implementation-diary.md
+     250        0      250 ttmp/2026/06/12/XGOJA-AUTH-KEYCLOAK-MFA--production-keycloak-hardening-and-mfa-flows/design/01-keycloak-production-hardening-and-mfa-implementation-plan.md
+     249        0      249 pkg/xgoja/hostauth/stores.go
+     247        0      247 modules/express/auth_builders_integration_test.go
+     246        0      246 pkg/gojahttp/auth/sessionauth/sessionauth_test.go
+     245        0      245 examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py
+     234        0      234 pkg/xgoja/hostauth/resolve.go
+     226        0      226 examples/xgoja/18-express-auth-host/cmd/host/main.go
