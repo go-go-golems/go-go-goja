@@ -1,22 +1,42 @@
 package gojahttp
 
 import (
+	"context"
+	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/dop251/goja"
 )
 
+// PlannedHTTPHandler is a Go-native planned route handler. The handler runs
+// only after the route plan has authenticated, checked CSRF when required,
+// resolved resources, and authorized the requested action.
+type PlannedHTTPHandler func(ctx context.Context, sec *SecureContext, w http.ResponseWriter, r *http.Request) error
+
+// RouteKind identifies which handler backend owns a matched route.
+type RouteKind string
+
+const (
+	RouteKindRawGoja     RouteKind = "raw-goja"
+	RouteKindPlannedGoja RouteKind = "planned-goja"
+	RouteKindPlannedHTTP RouteKind = "planned-http"
+)
+
 type Route struct {
 	Method  string
 	Pattern string
-	Handler goja.Callable
+	Kind    RouteKind
 	Plan    *RoutePlan
+
+	GojaHandler goja.Callable
+	HTTPHandler PlannedHTTPHandler
 }
 
 type RouteDescriptor struct {
 	Method       string       `json:"method"`
 	Pattern      string       `json:"pattern"`
+	Kind         RouteKind    `json:"kind,omitempty"`
 	Planned      bool         `json:"planned"`
 	SecurityMode SecurityMode `json:"securityMode,omitempty"`
 	Action       string       `json:"action,omitempty"`
@@ -35,7 +55,7 @@ func NewRegistry() *Registry { return &Registry{} }
 func (r *Registry) Add(method, pattern string, handler goja.Callable) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.routes = append(r.routes, Route{Method: strings.ToUpper(method), Pattern: cleanPath(pattern), Handler: handler})
+	r.routes = append(r.routes, Route{Method: strings.ToUpper(method), Pattern: cleanPath(pattern), Kind: RouteKindRawGoja, GojaHandler: handler})
 }
 
 func (r *Registry) AddPlanned(plan RoutePlan, handler goja.Callable) {
@@ -43,7 +63,15 @@ func (r *Registry) AddPlanned(plan RoutePlan, handler goja.Callable) {
 	defer r.mu.Unlock()
 	plan.Method = strings.ToUpper(plan.Method)
 	plan.Pattern = cleanPath(plan.Pattern)
-	r.routes = append(r.routes, Route{Method: plan.Method, Pattern: plan.Pattern, Handler: handler, Plan: &plan})
+	r.routes = append(r.routes, Route{Method: plan.Method, Pattern: plan.Pattern, Kind: RouteKindPlannedGoja, Plan: &plan, GojaHandler: handler})
+}
+
+func (r *Registry) AddPlannedHTTP(plan RoutePlan, handler PlannedHTTPHandler) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	plan.Method = strings.ToUpper(plan.Method)
+	plan.Pattern = cleanPath(plan.Pattern)
+	r.routes = append(r.routes, Route{Method: plan.Method, Pattern: plan.Pattern, Kind: RouteKindPlannedHTTP, Plan: &plan, HTTPHandler: handler})
 }
 
 func (r *Registry) Routes() []RouteDescriptor {
@@ -55,6 +83,9 @@ func (r *Registry) Routes() []RouteDescriptor {
 	out := make([]RouteDescriptor, 0, len(r.routes))
 	for _, route := range r.routes {
 		descriptor := RouteDescriptor{Method: route.Method, Pattern: route.Pattern}
+		if route.kind() == RouteKindPlannedHTTP {
+			descriptor.Kind = RouteKindPlannedHTTP
+		}
 		if route.Plan != nil {
 			descriptor.Planned = true
 			descriptor.SecurityMode = route.Plan.Security.Mode
@@ -83,6 +114,16 @@ func (r *Registry) Match(method, path string) (Route, map[string]string, bool) {
 		}
 	}
 	return Route{}, nil, false
+}
+
+func (route Route) kind() RouteKind {
+	if route.Kind != "" {
+		return route.Kind
+	}
+	if route.Plan != nil {
+		return RouteKindPlannedGoja
+	}
+	return RouteKindRawGoja
 }
 
 func cleanPath(p string) string {

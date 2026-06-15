@@ -9,12 +9,25 @@ import (
 	"github.com/dop251/goja"
 )
 
-type secureEnvelope struct {
+// SecureContext is the Go-native result of planned-route enforcement. It is
+// built after authentication, CSRF verification, resource resolution, and
+// authorization succeed, then passed to Go planned handlers or projected into a
+// JavaScript ctx object for planned Goja handlers.
+type SecureContext struct {
 	Plan      RoutePlan
 	Request   *RequestDTO
 	Actor     *Actor
+	Resource  *ResourceRef
 	Resources map[string]*ResourceRef
+	Params    map[string]string
 	Body      any
+}
+
+// secureEnvelope is the JavaScript adapter around SecureContext kept for the
+// planned Goja route path. Go-native planned handlers receive SecureContext
+// directly.
+type secureEnvelope struct {
+	*SecureContext
 }
 
 func (h *Host) servePlannedRoute(w http.ResponseWriter, r *http.Request, route Route, req *RequestDTO) {
@@ -27,7 +40,7 @@ func (h *Host) servePlannedRoute(w http.ResponseWriter, r *http.Request, route R
 	}
 	h.recordAudit(r.Context(), r, req, route.Plan, envelope, "allowed", 0, nil)
 	ret, err := h.owner.Call(r.Context(), "http-planned-handler", func(ctx context.Context, vm *goja.Runtime) (any, error) {
-		result, err := route.Handler(goja.Undefined(), envelope.JSObject(vm), res.JSObject(vm))
+		result, err := route.GojaHandler(goja.Undefined(), envelope.JSObject(vm), res.JSObject(vm))
 		if err != nil {
 			return nil, err
 		}
@@ -59,7 +72,7 @@ func (h *Host) buildSecureEnvelope(ctx context.Context, httpReq *http.Request, r
 	if plan == nil {
 		return nil, http.StatusInternalServerError, fmt.Errorf("planned route is missing route plan")
 	}
-	envelope := &secureEnvelope{Plan: *plan, Request: req, Body: req.Body, Resources: map[string]*ResourceRef{}}
+	envelope := &secureEnvelope{SecureContext: &SecureContext{Plan: *plan, Request: req, Params: cloneStringMap(req.Params), Body: req.Body, Resources: map[string]*ResourceRef{}}}
 	var actor *Actor
 	switch plan.Security.Mode {
 	case SecurityModePublic:
@@ -128,6 +141,7 @@ func (h *Host) buildSecureEnvelope(ctx context.Context, httpReq *http.Request, r
 			return envelope, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires authorizer", plan.Method, plan.Pattern)
 		}
 		resource := firstPlannedResource(plan, envelope.Resources)
+		envelope.Resource = resource
 		decision, err := h.auth.Authorizer.Authorize(ctx, AuthorizationRequest{HTTPRequest: httpReq, Request: req, Actor: actor, Action: plan.Action, Resource: resource, Resources: envelope.Resources})
 		if err != nil {
 			return envelope, statusForAuthError(err), err
@@ -139,6 +153,7 @@ func (h *Host) buildSecureEnvelope(ctx context.Context, httpReq *http.Request, r
 			return envelope, http.StatusForbidden, ErrForbidden
 		}
 	}
+	envelope.Resource = firstPlannedResource(plan, envelope.Resources)
 	return envelope, 0, nil
 }
 
@@ -259,6 +274,17 @@ func copyResourceRefs(resources map[string]*ResourceRef) map[string]*ResourceRef
 	out := make(map[string]*ResourceRef, len(resources))
 	for name, resource := range resources {
 		out[name] = resource
+	}
+	return out
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for key, value := range in {
+		out[key] = value
 	}
 	return out
 }

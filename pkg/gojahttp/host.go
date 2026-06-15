@@ -60,6 +60,14 @@ func (h *Host) RegisterPlanned(plan RoutePlan, handler goja.Callable) error {
 	h.registry.AddPlanned(plan, handler)
 	return nil
 }
+func (h *Host) RegisterPlannedHTTP(plan RoutePlan, handler PlannedHTTPHandler) error {
+	plan, err := ValidateRoutePlan(plan)
+	if err != nil {
+		return err
+	}
+	h.registry.AddPlannedHTTP(plan, handler)
+	return nil
+}
 func (h *Host) Routes() []RouteDescriptor {
 	if h == nil || h.registry == nil {
 		return nil
@@ -146,10 +154,6 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if h.owner == nil {
-		http.Error(w, "runtime not initialized", http.StatusInternalServerError)
-		return
-	}
 	route, params, ok := h.registry.Match(r.Method, r.URL.Path)
 	if !ok && r.Method == http.MethodHead {
 		route, params, ok = h.registry.Match(http.MethodGet, r.URL.Path)
@@ -175,13 +179,29 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if route.Plan != nil {
+	switch route.kind() {
+	case RouteKindPlannedHTTP:
+		h.servePlannedHTTP(w, r, route, req, loggingWriter)
+		return
+	case RouteKindPlannedGoja:
+		if h.owner == nil {
+			http.Error(w, "runtime not initialized", http.StatusInternalServerError)
+			return
+		}
 		h.servePlannedRoute(w, r, route, req)
+		return
+	case RouteKindRawGoja:
+		if h.owner == nil {
+			http.Error(w, "runtime not initialized", http.StatusInternalServerError)
+			return
+		}
+	default:
+		http.Error(w, "unknown route kind", http.StatusInternalServerError)
 		return
 	}
 	res := NewResponse(w, h.renderer)
 	ret, err := h.owner.Call(r.Context(), "http-handler", func(ctx context.Context, vm *goja.Runtime) (any, error) {
-		result, err := route.Handler(goja.Undefined(), vm.ToValue(req.Map()), res.JSObject(vm))
+		result, err := route.GojaHandler(goja.Undefined(), vm.ToValue(req.Map()), res.JSObject(vm))
 		if err != nil {
 			return nil, err
 		}
