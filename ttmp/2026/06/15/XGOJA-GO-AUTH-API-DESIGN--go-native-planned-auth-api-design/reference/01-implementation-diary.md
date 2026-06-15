@@ -14,7 +14,13 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: cmd/xgoja/doc/18-go-planned-auth-api.md
-      Note: User-facing embedded help guide for the Go planned auth API
+      Note: |-
+        User-facing embedded help guide for the Go planned auth API
+        Updated public documentation for Enforcer usage
+    - Path: pkg/gojahttp/enforcer.go
+      Note: Reusable planned-auth enforcement pipeline extracted for hosts
+    - Path: pkg/gojahttp/middleware.go
+      Note: Middleware now uses Enforcer instead of a hidden Host
     - Path: ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/design/01-go-native-planned-auth-api-intern-implementation-guide.md
       Note: Main intern-oriented implementation guide.
     - Path: ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/sources/01-current-gojahttp-auth-surface.md
@@ -25,6 +31,7 @@ LastUpdated: 2026-06-15T22:18:00-04:00
 WhatFor: Preserve context for the Go-side planned auth API design work.
 WhenToUse: Read before implementing SecureContext, RegisterPlannedHTTP, Go fluent route builders, middleware, or hostauth.AuthKit.
 ---
+
 
 
 # Diary
@@ -467,6 +474,102 @@ GOFLAGS=-buildvcs=false go test ./cmd/xgoja ./cmd/xgoja/doc ./pkg/gojahttp ./mod
 Files changed in this step:
 
 ```text
+cmd/xgoja/doc/18-go-planned-auth-api.md
+ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/reference/01-implementation-diary.md
+```
+
+## Step 6: Extract a reusable planned-auth Enforcer
+
+This step converts the “future Enforcer” idea into an exported API. `Host` and `PlannedMiddleware` now share a router-independent `gojahttp.Enforcer` that owns the planned auth pipeline instead of making middleware construct a hidden host just to reuse host internals.
+
+The new type keeps the higher-level route APIs intact. Application authors can still use `NewApp(host)` or `PlannedMiddleware`; adapter authors now have a smaller primitive for custom routers and generated dispatchers.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add the reusable enforcer, and update the docs."
+
+**Assistant interpretation:** Implement the reusable Enforcer abstraction discussed after the docs step, refactor the existing host/middleware paths to use it, and update the user-facing guide.
+
+**Inferred user intent:** Make planned auth reusable by more Go router integrations without duplicating enforcement setup or routing everything through `Host`.
+
+**Commit (code):** pending at time of diary update — planned message `Add reusable planned auth enforcer`.
+
+### What I did
+
+- Added `pkg/gojahttp/enforcer.go`.
+- Added exported `EnforcerOptions`, `Enforcer`, `NewEnforcer`, `Enforcer.Session`, `Enforcer.Request`, and `Enforcer.Enforce`.
+- Moved the shared secure-context construction logic from `Host.buildSecureEnvelope` into `Enforcer.Enforce`.
+- Moved planned HTTP audit/error/handler execution into the enforcer-backed path.
+- Refactored `Host` to create and hold an `Enforcer`.
+- Refactored `PlannedMiddleware` to create an `Enforcer` instead of a hidden `Host`.
+- Added `pkg/gojahttp/enforcer_test.go` for direct enforcer use and unauthenticated status behavior.
+- Updated `cmd/xgoja/doc/18-go-planned-auth-api.md` with an Enforcer section and API-selection guidance.
+- Ran focused validation:
+
+```bash
+GOFLAGS=-buildvcs=false go test ./pkg/gojahttp ./modules/express ./cmd/xgoja ./cmd/xgoja/doc -count=1
+```
+
+### Why
+
+- Middleware and future router adapters need the same auth pipeline but not the whole `Host` router/runtime surface.
+- A reusable enforcer gives generated code and custom routers a stable integration seam: build params/request DTO, call `Enforce`, then pass `SecureContext` to the domain handler.
+
+### What worked
+
+- Existing host and middleware tests continued to pass after the refactor.
+- Direct `Enforcer` tests show the type can be used without `Host` routing.
+- The JavaScript planned route path still receives a `secureEnvelope` adapter, but that adapter now wraps the `SecureContext` returned by the enforcer.
+
+### What didn't work
+
+- The first refactor had a Go compile error in `enforcer.go` because I tried to redeclare `status` in a scope where it already existed:
+
+```text
+pkg/gojahttp/enforcer.go:164:9: no new variables on left side of :=
+```
+
+- I changed the completed-audit status assignment from `status := 0` to `status = 0` and reran validation.
+
+### What I learned
+
+- `Enforcer.Enforce` is the right public primitive; the handler-execution helper still uses an unexported method because it depends on the package's access-log response writer.
+- Keeping the JavaScript `secureEnvelope` as an adapter around exported `SecureContext` lets JS behavior remain stable while Go gets a cleaner API.
+
+### What was tricky to build
+
+- The old host method returned a `secureEnvelope`; the reusable API should return `SecureContext`. The solution was to make `Host.buildSecureEnvelope` a thin wrapper around `Enforcer.Enforce`.
+- Middleware had to preserve its previous session-error versus request-DTO-error HTTP statuses, so it uses `Enforcer.Session` plus `NewRequestDTO` directly instead of only using `Enforcer.Request`.
+
+### What warrants a second pair of eyes
+
+- Whether `Enforcer.Request` should remain as a convenience if middleware prefers the more explicit `Session` + `NewRequestDTO` split.
+- Whether a future exported helper should run a full `PlannedHTTPHandler` with audit/error behavior, or whether public callers should keep using `Enforce` and own their response writing.
+
+### What should be done in the future
+
+- Add package-level Go examples once the public API stabilizes.
+- Consider exposing an audited handler runner only if a real external adapter needs it.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/enforcer.go` and compare `Enforcer.Enforce` to the previous `Host.buildSecureEnvelope` behavior.
+- Review `pkg/gojahttp/planned_dispatch.go` to confirm JavaScript planned routes still wrap `SecureContext` in `secureEnvelope`.
+- Review `pkg/gojahttp/middleware.go` to confirm middleware no longer constructs a hidden `Host`.
+- Review `cmd/xgoja/doc/18-go-planned-auth-api.md` for updated public guidance.
+- Validate with `GOFLAGS=-buildvcs=false go test ./pkg/gojahttp ./modules/express ./cmd/xgoja ./cmd/xgoja/doc -count=1`.
+
+### Technical details
+
+Files changed in this step:
+
+```text
+pkg/gojahttp/enforcer.go
+pkg/gojahttp/enforcer_test.go
+pkg/gojahttp/host.go
+pkg/gojahttp/middleware.go
+pkg/gojahttp/planned_dispatch.go
+pkg/gojahttp/planned_http.go
 cmd/xgoja/doc/18-go-planned-auth-api.md
 ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/reference/01-implementation-diary.md
 ```

@@ -69,92 +69,11 @@ func (h *Host) servePlannedRoute(w http.ResponseWriter, r *http.Request, route R
 }
 
 func (h *Host) buildSecureEnvelope(ctx context.Context, httpReq *http.Request, req *RequestDTO, plan *RoutePlan) (*secureEnvelope, int, error) {
-	if plan == nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("planned route is missing route plan")
+	sec, status, err := h.enforcer.Enforce(ctx, httpReq, req, plan)
+	if sec == nil {
+		return nil, status, err
 	}
-	envelope := &secureEnvelope{SecureContext: &SecureContext{Plan: *plan, Request: req, Params: cloneStringMap(req.Params), Body: req.Body, Resources: map[string]*ResourceRef{}}}
-	var actor *Actor
-	switch plan.Security.Mode {
-	case SecurityModePublic:
-		// No actor required.
-	case SecurityModeUser:
-		if h.auth.Authenticator == nil {
-			return envelope, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires authenticator", plan.Method, plan.Pattern)
-		}
-		var err error
-		actor, err = h.auth.Authenticator.Authenticate(ctx, httpReq, req.Session, plan.Security)
-		if err != nil {
-			return envelope, statusForAuthError(err), err
-		}
-		if actor == nil {
-			return envelope, http.StatusUnauthorized, ErrUnauthenticated
-		}
-		envelope.Actor = actor
-	default:
-		return envelope, http.StatusInternalServerError, fmt.Errorf("unsupported planned route security mode %q", plan.Security.Mode)
-	}
-
-	if plan.CSRF.Required && isUnsafeMethod(httpReq.Method) {
-		if h.auth.CSRF == nil {
-			return envelope, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires csrf protector", plan.Method, plan.Pattern)
-		}
-		if err := h.auth.CSRF.VerifyCSRF(ctx, CSRFRequest{HTTPRequest: httpReq, Request: req, Session: req.Session, Actor: actor, Plan: *plan}); err != nil {
-			return envelope, statusForAuthError(fmt.Errorf("%w: %v", ErrCSRF, err)), err
-		}
-	}
-
-	if len(plan.Resources) > 0 {
-		if h.auth.Resources == nil {
-			return envelope, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires resource resolver", plan.Method, plan.Pattern)
-		}
-		for _, spec := range plan.Resources {
-			id, err := resolveValueSource(req, spec.ID)
-			if err != nil {
-				return envelope, http.StatusBadRequest, err
-			}
-			tenantID := ""
-			if spec.Tenant != nil {
-				tenantID, err = resolveValueSource(req, *spec.Tenant)
-				if err != nil {
-					return envelope, http.StatusBadRequest, err
-				}
-			}
-			resource, err := h.auth.Resources.ResolveResource(ctx, ResourceRequest{HTTPRequest: httpReq, Request: req, Actor: actor, Spec: spec, ID: id, TenantID: tenantID})
-			if err != nil {
-				return envelope, statusForAuthError(err), err
-			}
-			if resource == nil {
-				return envelope, http.StatusNotFound, ErrNotFound
-			}
-			if resource.Name == "" {
-				resource.Name = spec.Name
-			}
-			if resource.Type == "" {
-				resource.Type = spec.Type
-			}
-			envelope.Resources[spec.Name] = resource
-		}
-	}
-
-	if plan.Security.Mode != SecurityModePublic && plan.Action != "" {
-		if h.auth.Authorizer == nil {
-			return envelope, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires authorizer", plan.Method, plan.Pattern)
-		}
-		resource := firstPlannedResource(plan, envelope.Resources)
-		envelope.Resource = resource
-		decision, err := h.auth.Authorizer.Authorize(ctx, AuthorizationRequest{HTTPRequest: httpReq, Request: req, Actor: actor, Action: plan.Action, Resource: resource, Resources: envelope.Resources})
-		if err != nil {
-			return envelope, statusForAuthError(err), err
-		}
-		if !decision.Allowed {
-			if decision.Reason != "" {
-				return envelope, http.StatusForbidden, fmt.Errorf("%w: %s", ErrForbidden, decision.Reason)
-			}
-			return envelope, http.StatusForbidden, ErrForbidden
-		}
-	}
-	envelope.Resource = firstPlannedResource(plan, envelope.Resources)
-	return envelope, 0, nil
+	return &secureEnvelope{SecureContext: sec}, status, err
 }
 
 func (h *Host) writePlannedError(w http.ResponseWriter, res *Response, status int, err error) {
@@ -172,35 +91,11 @@ func (h *Host) writePlannedError(w http.ResponseWriter, res *Response, status in
 }
 
 func (h *Host) recordAudit(ctx context.Context, httpReq *http.Request, req *RequestDTO, plan *RoutePlan, envelope *secureEnvelope, outcome string, status int, err error) {
-	if h.auth.Audit == nil || plan == nil || plan.Audit.Event == "" {
-		return
-	}
-	var actor *Actor
-	resources := map[string]*ResourceRef{}
+	var sec *SecureContext
 	if envelope != nil {
-		actor = envelope.Actor
-		resources = copyResourceRefs(envelope.Resources)
+		sec = envelope.SecureContext
 	}
-	resource := firstPlannedResource(plan, resources)
-	reason := ""
-	if err != nil {
-		reason = err.Error()
-	}
-	_ = h.auth.Audit.RecordAudit(ctx, AuditEvent{
-		HTTPRequest: httpReq,
-		Request:     req,
-		Event:       plan.Audit.Event,
-		Outcome:     outcome,
-		Reason:      reason,
-		StatusCode:  status,
-		RouteName:   plan.Name,
-		Method:      plan.Method,
-		Pattern:     plan.Pattern,
-		Action:      plan.Action,
-		Actor:       actor,
-		Resource:    resource,
-		Resources:   resources,
-	})
+	h.enforcer.recordAudit(ctx, httpReq, req, plan, sec, outcome, status, err)
 }
 
 func statusForAuthError(err error) int {

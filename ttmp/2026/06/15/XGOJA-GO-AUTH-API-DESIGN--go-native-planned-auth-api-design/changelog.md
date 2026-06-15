@@ -32,3 +32,13 @@ Documented the Go planned auth API, including fluent routes, low-level registrat
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/18-go-planned-auth-api.md — New embedded help guide
 
+
+## 2026-06-15
+
+Implemented reusable planned-auth Enforcer and updated docs so custom routers can reuse enforcement without constructing a hidden Host.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/18-go-planned-auth-api.md — Updated docs
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/enforcer.go — New reusable enforcement API
+

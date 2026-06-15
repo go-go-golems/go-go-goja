@@ -22,7 +22,7 @@ func PlannedMiddleware(opts MiddlewareOptions, plan RoutePlan, next PlannedHTTPH
 	if err != nil {
 		return nil, err
 	}
-	host := NewHost(HostOptions{Dev: opts.Dev, Sessions: opts.Sessions, Auth: opts.Auth})
+	enforcer := NewEnforcer(EnforcerOptions{Dev: opts.Dev, Sessions: opts.Sessions, Auth: opts.Auth})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if plan.Method != "ALL" && r.Method != plan.Method && (r.Method != http.MethodHead || plan.Method != http.MethodGet) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -33,7 +33,7 @@ func PlannedMiddleware(opts MiddlewareOptions, plan RoutePlan, next PlannedHTTPH
 			http.NotFound(w, r)
 			return
 		}
-		session, err := host.sessions.Session(w, r)
+		session, err := enforcer.Session(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -44,8 +44,7 @@ func PlannedMiddleware(opts MiddlewareOptions, plan RoutePlan, next PlannedHTTPH
 			return
 		}
 		loggingWriter, wrappedWriter := newAccessLogResponseWriter(w)
-		route := Route{Method: plan.Method, Pattern: plan.Pattern, Kind: RouteKindPlannedHTTP, Plan: &plan, HTTPHandler: next}
-		host.servePlannedHTTP(wrappedWriter, r, route, req, loggingWriter)
+		enforcer.servePlannedHTTP(wrappedWriter, r, &plan, req, next, loggingWriter)
 	}), nil
 }
 

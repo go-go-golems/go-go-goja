@@ -28,6 +28,7 @@ Use the Go API when a traditional Go program wants the planned auth framework wi
 | `gojahttp.RoutePlan` | Shared planned-route contract used by JavaScript and Go routes. |
 | `gojahttp.SecureContext` | Immutable-by-convention handler input populated after auth, resource resolution, and authorization. |
 | `gojahttp.PlannedHTTPHandler` | Go handler signature for planned routes. |
+| `gojahttp.Enforcer` | Router-independent planned-auth pipeline for custom adapters. |
 | `(*gojahttp.Host).RegisterPlannedHTTP` | Low-level registration API for generated code or explicit `RoutePlan` construction. |
 | `gojahttp.NewApp(host)` | Fluent Go route builder for application code. |
 | `gojahttp.PlannedMiddleware` | Standard `net/http` middleware for programs that already route with `http.ServeMux` or another router. |
@@ -167,6 +168,42 @@ mux.Handle("GET /orgs/{orgID}/projects/{projectID}", handler)
 
 If `ParamFunc` is omitted, the middleware falls back to gojahttp's own `:param` path matcher and can be served directly for matching paths.
 
+## Reusable Enforcer
+
+Use `gojahttp.Enforcer` when writing a custom router adapter or generated host that needs the planned-auth pipeline without using `gojahttp.Host` or `PlannedMiddleware` directly.
+
+```go
+enforcer := gojahttp.NewEnforcer(gojahttp.EnforcerOptions{
+    Auth:     authOptions,
+    Sessions: sessionOptions,
+})
+
+req, err := enforcer.Request(w, r, map[string]string{"projectID": "p1"})
+if err != nil {
+    http.Error(w, err.Error(), http.StatusBadRequest)
+    return
+}
+
+sec, status, err := enforcer.Enforce(r.Context(), r, req, &gojahttp.RoutePlan{
+    Method:   http.MethodGet,
+    Pattern:  "/projects/:projectID",
+    Security: gojahttp.User().Required(),
+    Resources: []gojahttp.ResourceSpec{
+        gojahttp.Resource("project").IDFromParam("projectID").MustExist(),
+    },
+    Action: "project.read",
+})
+if err != nil {
+    http.Error(w, http.StatusText(status), status)
+    return
+}
+
+// sec is safe to pass to the domain handler.
+_ = sec
+```
+
+`Enforcer` is the shared engine behind `Host` and `PlannedMiddleware`. It owns session loading plus the ordered checks: authentication, CSRF verification, resource resolution, authorization, and audit support. Prefer the higher-level APIs unless you are integrating a router/framework that needs direct control over dispatch.
+
 ## Choosing the API
 
 | Use case | Recommended API |
@@ -174,6 +211,7 @@ If `ParamFunc` is omitted, the middleware falls back to gojahttp's own `:param` 
 | Hand-written Go app that can use `gojahttp.Host` as router | `gojahttp.NewApp(host)` |
 | Generated Go code that already has a serialized plan | `host.RegisterPlannedHTTP(plan, handler)` |
 | Existing `net/http` app with its own mux/router | `gojahttp.PlannedMiddleware(...)` |
+| Custom router/framework adapter | `gojahttp.NewEnforcer(...)` |
 | JavaScript-authored behavior | Express planned route builder (`.public()`, `.auth(...)`, `.allow(...)`, `.handle(...)`) |
 
 ## Security model

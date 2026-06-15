@@ -39,13 +39,14 @@ type Host struct {
 	renderer        Renderer
 	owner           runtimeowner.RuntimeOwner
 	sessions        *SessionManager
-	auth            AuthOptions
+	enforcer        *Enforcer
 	rejectRawRoutes bool
 	static          []StaticMount
 }
 
 func NewHost(opts HostOptions) *Host {
-	return &Host{registry: NewRegistry(), dev: opts.Dev, renderer: opts.Renderer, sessions: NewSessionManager(opts.Sessions), auth: opts.Auth, rejectRawRoutes: opts.RejectRawRoutes}
+	enforcer := NewEnforcer(EnforcerOptions{Dev: opts.Dev, Sessions: opts.Sessions, Auth: opts.Auth})
+	return &Host{registry: NewRegistry(), dev: opts.Dev, renderer: opts.Renderer, sessions: enforcer.sessions, enforcer: enforcer, rejectRawRoutes: opts.RejectRawRoutes}
 }
 
 func (h *Host) SetRuntime(owner runtimeowner.RuntimeOwner) { h.owner = owner }
