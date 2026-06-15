@@ -42,3 +42,13 @@ Implemented reusable planned-auth Enforcer and updated docs so custom routers ca
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/18-go-planned-auth-api.md — Updated docs
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/enforcer.go — New reusable enforcement API
 
+
+## 2026-06-15
+
+Added a runnable Go-only planned auth example with fluent host routes, PlannedMiddleware, and smoke validation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/18-go-planned-auth-api.md — Docs link to the example
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/gojahttp/01-planned-auth/main.go — Runnable example
+

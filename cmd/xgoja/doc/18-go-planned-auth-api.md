@@ -225,3 +225,19 @@ Do not put security decisions in the handler. Handlers may rely on `SecureContex
 - audit persistence in `AuditSink`.
 
 The planned route declaration is allowed to say “this route requires a user and action `project.read`”. It should not embed secrets, store DSNs, OIDC client configuration, or application policy rules.
+
+## Runnable example
+
+See `examples/gojahttp/01-planned-auth` for a runnable Go-only planned auth host. It demonstrates:
+
+- fluent `gojahttp.NewApp(host)` routes,
+- a standard `http.ServeMux` route protected by `PlannedMiddleware`,
+- tiny demo `Authenticator`, `ResourceResolver`, and `Authorizer` implementations,
+- smoke checks for public, unauthenticated, allowed, middleware, and forbidden paths.
+
+Run it from the repository root:
+
+```bash
+make -C examples/gojahttp/01-planned-auth smoke
+make -C examples/gojahttp/01-planned-auth serve
+```

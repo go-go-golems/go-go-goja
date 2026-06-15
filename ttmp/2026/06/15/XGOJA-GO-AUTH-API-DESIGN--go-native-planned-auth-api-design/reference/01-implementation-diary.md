@@ -17,6 +17,12 @@ RelatedFiles:
       Note: |-
         User-facing embedded help guide for the Go planned auth API
         Updated public documentation for Enforcer usage
+    - Path: examples/gojahttp/01-planned-auth/Makefile
+      Note: Smoke and serve entrypoints for the runnable example
+    - Path: examples/gojahttp/01-planned-auth/README.md
+      Note: Example usage notes and curl commands
+    - Path: examples/gojahttp/01-planned-auth/main.go
+      Note: Runnable Go-only planned auth example covering fluent host routes and middleware
     - Path: pkg/gojahttp/enforcer.go
       Note: Reusable planned-auth enforcement pipeline extracted for hosts
     - Path: pkg/gojahttp/middleware.go
@@ -31,6 +37,7 @@ LastUpdated: 2026-06-15T22:18:00-04:00
 WhatFor: Preserve context for the Go-side planned auth API design work.
 WhenToUse: Read before implementing SecureContext, RegisterPlannedHTTP, Go fluent route builders, middleware, or hostauth.AuthKit.
 ---
+
 
 
 
@@ -570,6 +577,89 @@ pkg/gojahttp/host.go
 pkg/gojahttp/middleware.go
 pkg/gojahttp/planned_dispatch.go
 pkg/gojahttp/planned_http.go
+cmd/xgoja/doc/18-go-planned-auth-api.md
+ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/reference/01-implementation-diary.md
+```
+
+## Step 7: Add a runnable Go-only planned auth example
+
+This step adds a concrete example for developers who want to see the Go-native planned auth API outside of tests. The example is intentionally small: a public health route, an authenticated project route registered through the fluent Go builder, and an equivalent protected route mounted through standard `http.ServeMux` and `PlannedMiddleware`.
+
+The example does not attempt to be production auth. Its demo auth services read `X-Demo-User`, resolve synthetic project resources, and deny a single `forbidden` resource ID so smoke tests can exercise public, unauthenticated, allowed, middleware, and forbidden paths.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead."
+
+**Assistant interpretation:** Proceed with the previously suggested next step: add a runnable example for the new Go planned auth API.
+
+**Inferred user intent:** Make the new public API easier to evaluate and copy from by adding a smoke-testable example.
+
+**Commit (code):** pending at time of diary update — planned message `Add Go planned auth example`.
+
+### What I did
+
+- Added `examples/gojahttp/01-planned-auth/main.go`.
+- Added `examples/gojahttp/01-planned-auth/README.md`.
+- Added `examples/gojahttp/01-planned-auth/Makefile` with `smoke` and `serve` targets.
+- Updated `examples/README.md` to list the new `gojahttp/` examples folder and smoke command.
+- Updated `cmd/xgoja/doc/18-go-planned-auth-api.md` to point readers at the runnable example.
+- Ran validation:
+
+```bash
+make -C examples/gojahttp/01-planned-auth smoke
+GOFLAGS=-buildvcs=false go test ./examples/gojahttp/01-planned-auth ./pkg/gojahttp ./modules/express ./cmd/xgoja ./cmd/xgoja/doc -count=1
+```
+
+### Why
+
+- Tests prove behavior, but examples teach intended use. The API now has several entry points, so a runnable example helps developers see how they fit together.
+- The example also gives maintainers a cheap smoke target for the host route and middleware integration paths.
+
+### What worked
+
+- The smoke target runs through `go run` and uses an internal `httptest.Server`, so it does not leave a long-running server behind.
+- The fluent `NewApp(host)` and `PlannedMiddleware` paths can share the same tiny demo auth implementation.
+- Focused validation passed.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The middleware route does not emit host access logs because it is mounted directly on the outer `http.ServeMux`, while the fluent app routes do go through `Host` logging. That difference is expected and is useful to remember when comparing smoke output.
+
+### What was tricky to build
+
+- The example mux has both `/` mounted to `gojahttp.Host` and a more specific Go 1.22 mux pattern for `/middleware/projects/{projectID}`. The standard mux selects the more specific pattern, allowing the middleware route to demonstrate non-Host dispatch.
+- The demo had to stay small enough to be readable while still covering resource resolution and authorization, so the policy is intentionally simple: `project.read` is allowed unless the resource ID is `forbidden`.
+
+### What warrants a second pair of eyes
+
+- Whether the example should live under `examples/gojahttp` or as a numbered `examples/xgoja` example. It is Go-only, so `examples/gojahttp` seems more accurate.
+- Whether the docs should include a shorter inline excerpt from the example once the API stabilizes further.
+
+### What should be done in the future
+
+- Add a second example only if a real generated-host adapter starts using `Enforcer` directly.
+- Consider package-level `Example...` tests if Go doc discoverability becomes important.
+
+### Code review instructions
+
+- Start with `examples/gojahttp/01-planned-auth/main.go` and verify the demo auth services are clearly non-production.
+- Run `make -C examples/gojahttp/01-planned-auth smoke`.
+- Run `GOFLAGS=-buildvcs=false go test ./examples/gojahttp/01-planned-auth ./pkg/gojahttp ./modules/express ./cmd/xgoja ./cmd/xgoja/doc -count=1`.
+
+### Technical details
+
+Files changed in this step:
+
+```text
+examples/gojahttp/01-planned-auth/main.go
+examples/gojahttp/01-planned-auth/README.md
+examples/gojahttp/01-planned-auth/Makefile
+examples/README.md
 cmd/xgoja/doc/18-go-planned-auth-api.md
 ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/reference/01-implementation-diary.md
 ```
