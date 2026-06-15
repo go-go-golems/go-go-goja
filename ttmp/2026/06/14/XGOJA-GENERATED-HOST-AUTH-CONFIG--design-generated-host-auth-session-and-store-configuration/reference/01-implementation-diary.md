@@ -10,6 +10,20 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/doc/17-xgoja-v2-reference.md
+      Note: Step 6 documents runtime-package auth seam and deferred top-level auth schema (commit c7d2a54)
+    - Path: examples/xgoja/21-generated-host-auth/Makefile
+      Note: Step 6 memory and SQLite smoke targets (commit c7d2a54)
+    - Path: examples/xgoja/21-generated-host-auth/README.md
+      Note: Step 6 generated-host auth example documentation (commit c7d2a54)
+    - Path: examples/xgoja/21-generated-host-auth/cmd/host/main.go
+      Note: Step 6 runtime-package host injects hostauth.ServiceFactoryKey (commit c7d2a54)
+    - Path: examples/xgoja/21-generated-host-auth/verbs/sites.js
+      Note: Step 6 public and protected planned routes for generated-host smoke (commit c7d2a54)
+    - Path: examples/xgoja/21-generated-host-auth/xgoja.yaml
+      Note: Step 6 runtime-package spec selects HTTP provider and embedded jsverb source (commit c7d2a54)
+    - Path: pkg/doc/31-express-auth-examples.md
+      Note: Step 6 adds generated-host auth smoke documentation (commit c7d2a54)
     - Path: pkg/xgoja/hostauth/builder.go
       Note: Step 4 service factory implementation (commit 5276bfb)
     - Path: pkg/xgoja/hostauth/builder_test.go
@@ -50,6 +64,7 @@ LastUpdated: 2026-06-14T19:57:00-04:00
 WhatFor: Use this to understand what changed during XGOJA-GENERATED-HOST-AUTH-CONFIG and how to continue implementation.
 WhenToUse: Read before resuming generated-host auth config implementation, reviewing design decisions, or updating tasks/changelog.
 ---
+
 
 
 
@@ -626,3 +641,141 @@ Current HTTP provider auth behavior:
 - Factory present with `auth.mode=dev`: the provider creates a host with session manager, CSRF, audit, appauth resolver/authorizer, and store-backed services.
 - Existing external `go-go-goja-http.host` in the base host services wins in the non-hot-reload path.
 - Hot reload shares one auth service bundle across candidates and passes candidate-specific hosts through `go-go-goja-http.host` overlays.
+
+## Step 6: Add generated-host auth runtime-package example
+
+This step added the first generated-host auth example that uses the runtime-package seam instead of a fully custom Go host. The example proves that a generated package can expose provider-owned `serve` commands while the embedding Go host still owns session/store configuration through `Options.ConfigureServices` and `hostauth.ServiceFactoryKey`.
+
+The example intentionally stops short of generated binary template changes or a top-level `auth:` block in `xgoja/v2`. It demonstrates the stable library/provider seam first: JavaScript declares planned route intent, the generated Go host injects a lazy auth service factory, and the HTTP provider builds concrete auth services after command values are parsed.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Continue from HTTP provider integration into the generated runtime-package example and docs slice.
+
+**Inferred user intent:** Show that generated xgoja hosts can use the new hostauth service factory in a runnable, documented example before deeper template/schema work.
+
+**Commit (code):** c7d2a54 — "Add generated-host auth example"
+
+### What I did
+
+- Added `examples/xgoja/21-generated-host-auth` with:
+  - `xgoja.yaml` selecting the HTTP provider, Express module, local jsverb source, provider `serve` command, and `runtime-package` artifact.
+  - `verbs/sites.js` with public `/`, public `/healthz`, and protected `/me` planned routes.
+  - `cmd/host/main.go` importing the generated package and injecting `hostauth.ServiceFactoryKey` through `xgojaruntime.Options.ConfigureServices`.
+  - memory-store default mode for fast local runs.
+  - SQLite mode via `XGOJA_AUTH_STORE=sqlite` and `XGOJA_AUTH_SQLITE_DSN`, with schema application enabled.
+  - `Makefile` targets for doctor, generate, memory smoke, SQLite smoke, and combined smoke.
+  - `README.md` explaining runtime-package host auth, memory/SQLite modes, and manual checks.
+- Generated `examples/xgoja/21-generated-host-auth/internal/xgojaruntime` with embedded jsverbs.
+- Updated user-facing docs:
+  - `cmd/xgoja/doc/11-provider-runtime-config-and-host-services.md`
+  - `cmd/xgoja/doc/17-xgoja-v2-reference.md`
+  - `pkg/doc/29-express-auth-user-guide.md`
+  - `pkg/doc/31-express-auth-examples.md`
+- Updated the design doc with a Phase 7 implementation note.
+- Checked off tasks 83 through 90, 91 through 99, 101 through 103, and deferred follow-up tasks 107 through 111.
+
+### Why
+
+- The previous slice wired `hostauth` into HTTP serve, but needed a generated-host proof point that was not a hand-written custom HTTP host.
+- Runtime-package `ConfigureServices` is already a supported generated-host seam, so it is safer to prove auth there before adding generated binary template injection or first-class `auth:` schema.
+- Supporting SQLite in the example demonstrates persistent store configuration without committing DSNs or secrets to YAML.
+
+### What worked
+
+- `make -C examples/xgoja/21-generated-host-auth smoke` passed. It exercises both memory and SQLite store modes.
+- `make -C examples/xgoja/13-http-serve-jsverbs smoke` passed, proving the existing no-auth HTTP serve example still works.
+- Focused tests passed:
+  - `go test ./pkg/xgoja/hostauth ./pkg/xgoja/app ./pkg/xgoja/providers/http ./examples/xgoja/21-generated-host-auth/... -count=1`
+- Full tests passed:
+  - `go test ./... -count=1`
+- Targeted vulnerability scanning passed:
+  - `GOWORK=off go run golang.org/x/vuln/cmd/govulncheck@latest ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./examples/xgoja/21-generated-host-auth/...`
+  - Result: `No vulnerabilities found. Your code is affected by 0 vulnerabilities.`
+- The pre-commit hook passed lint, `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+The first smoke run failed because `hostauth.StoreConfig.Driver` is a `string` in the input config struct, while the constants are typed `hostauth.StoreDriver` values. The compile error was:
+
+```text
+# github.com/go-go-golems/go-go-goja/examples/xgoja/21-generated-host-auth/cmd/host
+examples/xgoja/21-generated-host-auth/cmd/host/main.go:60:13: cannot use hostauth.StoreDriverMemory (constant "memory" of string type hostauth.StoreDriver) as string value in struct literal
+examples/xgoja/21-generated-host-auth/cmd/host/main.go:75:17: cannot use hostauth.StoreDriverSQLite (constant "sqlite" of string type hostauth.StoreDriver) as string value in struct literal
+make: *** [Makefile:23: memory-smoke] Error 1
+```
+
+The fix was to use `string(hostauth.StoreDriverMemory)` and `string(hostauth.StoreDriverSQLite)` in the example host config.
+
+The next smoke run failed because the static smoke port was already used by an unrelated local process:
+
+```text
+Error: GoError: listen on 127.0.0.1:18796: listen tcp 127.0.0.1:18796: bind: address already in use at github.com/go-go-golems/go-go-goja/modules/express.(*routeBuilder).needsHandlerObject.func1 (native)
+exit status 1
+make: *** [Makefile:23: memory-smoke] Error 1
+```
+
+`ss -ltnp 'sport = :18796'` showed `minitrace-viz` listening on that port. The fix was to make the Makefile smoke targets choose a free loopback port dynamically with Python before starting the host.
+
+### What I learned
+
+- Runtime-package artifacts with `sources: [local-sites]` correctly embed jsverb sources into the generated package, and `AttachDefaultCommands` can expose the HTTP provider's `serve` command from that package host.
+- The `hostauth.Config` input model intentionally keeps raw config fields such as store `Driver` as strings, while resolved config uses typed enums. Example code should either use string constants or leave fields empty for defaults.
+- Smoke targets should avoid static ports when possible; generated-host examples are more reliable if they allocate a free port per run.
+
+### What was tricky to build
+
+- The main subtlety was separating generated package output from the host wrapper. The generated package owns providers, embedded source metadata, and command attachment; `cmd/host/main.go` owns host service injection and process lifecycle.
+- Another subtlety was making SQLite persistent-store mode simple without committing a DSN. The host reads `XGOJA_AUTH_SQLITE_DSN`, applies schema for the example, and leaves production DSN management to real host configuration.
+- The docs also needed to avoid implying that `auth:` is already part of `xgoja/v2`. The reference now states that the YAML shape is illustrative host config and that top-level xgoja auth schema remains deferred.
+
+### What warrants a second pair of eyes
+
+- Whether `examples/xgoja/21-generated-host-auth` should eventually become a generated binary example as well as a runtime-package example.
+- Whether the example should include an actual login/session creation endpoint, or whether 401 on a protected planned route is the right minimal proof for generated-host auth services.
+- Whether SQLite schema application should be demonstrated per-store rather than through default inheritance.
+
+### What should be done in the future
+
+- Add explicit service-factory closer failure-path tests for task 65.
+- Decide in a follow-up whether generated binary templates should install `hostauth.ServiceFactoryKey` from a first-class config block.
+- Implement OIDC/Keycloak generated-host configuration in a separate ticket after this foundation stabilizes.
+
+### Code review instructions
+
+- Start with `examples/xgoja/21-generated-host-auth/README.md` for the intended behavior.
+- Review `examples/xgoja/21-generated-host-auth/cmd/host/main.go` to see the `ConfigureServices` injection.
+- Review `examples/xgoja/21-generated-host-auth/xgoja.yaml` and generated `internal/xgojaruntime/xgoja_runtime.gen.go` to confirm the runtime-package artifact embeds jsverbs.
+- Review docs changed under `cmd/xgoja/doc` and `pkg/doc` for wording about deferred top-level auth schema and OIDC.
+- Validate with:
+  - `make -C examples/xgoja/21-generated-host-auth smoke`
+  - `make -C examples/xgoja/13-http-serve-jsverbs smoke`
+  - `go test ./... -count=1`
+
+### Technical details
+
+The generated-host example uses this host-owned service injection pattern:
+
+```go
+bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{
+    ConfigureServices: func(services *app.HostServices) {
+        _ = services.SetHostService(
+            hostauth.ServiceFactoryKey,
+            hostauth.NewServiceFactory(hostauth.BuilderOptions{Config: authConfig}),
+        )
+    },
+})
+```
+
+The protected route remains a JavaScript declaration only:
+
+```javascript
+app.get("/me")
+  .auth(express.user().required())
+  .allow("user.self.read")
+  .handle((ctx, res) => res.json({ actor: ctx.actor.id, action: ctx.action }));
+```
+
+The memory smoke asserts `/healthz` returns `200`, `/` returns public text, and `/me` returns `401`. The SQLite smoke repeats the auth check with `XGOJA_AUTH_STORE=sqlite` and a temporary environment-supplied database path.

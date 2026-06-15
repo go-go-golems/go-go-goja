@@ -81,3 +81,14 @@ Pushed Step 5 HTTP hostauth integration and diary commits to task/goja-express-a
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/serve.go — Pushed implementation commit addd553
 
+
+## 2026-06-14
+
+Step 6: added generated-host auth runtime-package example with memory/SQLite smokes and documentation (commit c7d2a54)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/Makefile — Generated-host auth smoke targets
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/cmd/host/main.go — Runtime-package ConfigureServices hostauth injection
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/31-express-auth-examples.md — Generated-host auth example docs
+
