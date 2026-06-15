@@ -145,6 +145,72 @@ func TestPlannedUserRouteAuthenticatesAndAuthorizes(t *testing.T) {
 	}
 }
 
+func TestPlannedHandlerCannotMutateHostOwnedAuthValues(t *testing.T) {
+	actor := &gojahttp.Actor{ID: "u1", Kind: "user", TenantIDs: []string{"o1"}, Claims: map[string]any{
+		"role":   "reader",
+		"nested": map[string]any{"tier": "basic"},
+		"tags":   []any{"alpha"},
+	}}
+	resource := &gojahttp.ResourceRef{Name: "project", Type: "project", ID: "p1", TenantID: "o1", Claims: map[string]any{
+		"owner":  "u1",
+		"nested": map[string]any{"state": "open"},
+	}}
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		Authenticator: authenticatorFunc(func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (*gojahttp.Actor, error) {
+			return actor, nil
+		}),
+		Resources: resolverFunc(func(context.Context, gojahttp.ResourceRequest) (*gojahttp.ResourceRef, error) {
+			return resource, nil
+		}),
+		Authorizer: authorizerFunc(func(context.Context, gojahttp.AuthorizationRequest) (gojahttp.AuthorizationDecision, error) {
+			return gojahttp.AuthorizationDecision{Allowed: true}, nil
+		}),
+	}})
+	handler := plannedTestRuntime(t, host, `(function(ctx, res) {
+  ctx.actor.tenantIds[0] = "mutated";
+  ctx.actor.claims.role = "admin";
+  ctx.actor.claims.nested.tier = "root";
+  ctx.actor.claims.tags[0] = "omega";
+  ctx.resources.project.claims.owner = "attacker";
+  ctx.resources.project.claims.nested.state = "closed";
+  ctx.resource("project").claims.owner = "other";
+  res.json({ ok: true });
+})`)
+	if err := host.RegisterPlanned(gojahttp.RoutePlan{
+		Method:   "PATCH",
+		Pattern:  "/projects/:projectId",
+		Security: gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser},
+		Resources: []gojahttp.ResourceSpec{{
+			Name: "project",
+			Type: "project",
+			ID:   gojahttp.ValueSource{Kind: gojahttp.ValueSourceParam, Key: "projectId"},
+		}},
+		Action: "project.update",
+	}, handler); err != nil {
+		t.Fatalf("RegisterPlanned: %v", err)
+	}
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodPatch, "/projects/p1", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if actor.TenantIDs[0] != "o1" || actor.Claims["role"] != "reader" {
+		t.Fatalf("actor mutated: %#v", actor)
+	}
+	if nested := actor.Claims["nested"].(map[string]any); nested["tier"] != "basic" {
+		t.Fatalf("actor nested claims mutated: %#v", actor.Claims)
+	}
+	if tags := actor.Claims["tags"].([]any); tags[0] != "alpha" {
+		t.Fatalf("actor claim slice mutated: %#v", actor.Claims)
+	}
+	if resource.Claims["owner"] != "u1" {
+		t.Fatalf("resource claims mutated: %#v", resource.Claims)
+	}
+	if nested := resource.Claims["nested"].(map[string]any); nested["state"] != "open" {
+		t.Fatalf("resource nested claims mutated: %#v", resource.Claims)
+	}
+}
+
 func TestPlannedUserRouteReturns401WhenUnauthenticated(t *testing.T) {
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
 		Authenticator: authenticatorFunc(func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (*gojahttp.Actor, error) {

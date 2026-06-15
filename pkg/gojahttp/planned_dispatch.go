@@ -289,8 +289,8 @@ func actorJSMap(actor *Actor) map[string]any {
 	return map[string]any{
 		"id":        actor.ID,
 		"kind":      actor.Kind,
-		"tenantIds": actor.TenantIDs,
-		"claims":    actor.Claims,
+		"tenantIds": append([]string(nil), actor.TenantIDs...),
+		"claims":    cloneAnyMap(actor.Claims),
 	}
 }
 
@@ -311,6 +311,34 @@ func resourceRefJSMap(resource *ResourceRef) map[string]any {
 		"type":     resource.Type,
 		"id":       resource.ID,
 		"tenantId": resource.TenantID,
-		"claims":   resource.Claims,
+		"claims":   cloneAnyMap(resource.Claims),
+	}
+}
+
+func cloneAnyMap(in map[string]any) map[string]any {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for key, value := range in {
+		out[key] = cloneAnyValue(value)
+	}
+	return out
+}
+
+func cloneAnyValue(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		return cloneAnyMap(v)
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			out[i] = cloneAnyValue(item)
+		}
+		return out
+	case []string:
+		return append([]string(nil), v...)
+	default:
+		return value
 	}
 }
