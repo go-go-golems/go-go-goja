@@ -303,3 +303,88 @@ pkg/gojahttp/app.go
 pkg/gojahttp/app_test.go
 ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/reference/01-implementation-diary.md
 ```
+
+## Step 4: Add planned auth middleware for standard net/http routers
+
+This step adds a bridge for Go programs that do not want to route requests through `gojahttp.Host`. The new middleware lets a standard `http.ServeMux` route use the same `RoutePlan` enforcement path and the same `PlannedHTTPHandler` signature.
+
+The middleware is deliberately small. It validates the route plan, constructs request/session DTOs, extracts params either from the gojahttp `:param` matcher or from a caller-provided `ParamFunc`, and then delegates to the same planned HTTP dispatch path used by `RegisterPlannedHTTP`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue the implementation in focused slices and commit after each validated increment.
+
+**Inferred user intent:** Make the framework useful to multiple Go host styles, not only hosts that use `gojahttp.Host` as the primary router.
+
+**Commit (code):** pending at time of diary update — planned message `Add planned auth middleware`.
+
+### What I did
+
+- Added `pkg/gojahttp/middleware.go`.
+- Added `MiddlewareOptions` with `Auth`, `Sessions`, `Dev`, and `ParamFunc`.
+- Added `PlannedMiddleware(opts, plan, next)`.
+- Added fallback parameter extraction using the existing `:param` matcher.
+- Added `ParamFunc` support for Go 1.22 `http.ServeMux` path values.
+- Added tests in `pkg/gojahttp/middleware_test.go` for standard mux path values and method rejection.
+
+### Why
+
+- Some Go applications already have a router and should not have to replace it with `gojahttp.Host` just to use planned auth.
+- The middleware keeps `RoutePlan` as the shared contract while letting callers integrate with standard `net/http` routing.
+
+### What worked
+
+- The middleware test uses `http.NewServeMux()` and `r.PathValue(name)` to map `{orgID}` / `{projectID}` into a `RoutePlan` that uses `:orgID` / `:projectID` resource sources.
+- Focused validation passed:
+
+```bash
+GOFLAGS=-buildvcs=false go test ./pkg/gojahttp ./modules/express -count=1
+```
+
+### What didn't work
+
+- The first commit attempt failed in the pre-commit lint hook because staticcheck preferred De Morgan form for method validation:
+
+```text
+pkg/gojahttp/middleware.go:27:57: QF1001: could apply De Morgan's law (staticcheck)
+```
+
+- I rewrote the condition from `!(r.Method == http.MethodHead && plan.Method == http.MethodGet)` to `(r.Method != http.MethodHead || plan.Method != http.MethodGet)` and reran focused validation before retrying the commit.
+
+### What I learned
+
+- `ParamFunc` is enough for the first middleware version. It avoids forcing `gojahttp` route-pattern syntax onto users of standard mux while still preserving `RoutePlan` validation.
+- Reusing `servePlannedHTTP` keeps error and audit behavior aligned with host-native planned routes.
+
+### What was tricky to build
+
+- The middleware cannot rely on the host's normal `ServeHTTP` wrapping, so it creates an access-log response writer only to track whether the planned handler already wrote a response. It does not emit a second access log.
+- Method validation must handle `ALL` and GET/HEAD compatibility without interfering with the caller's router.
+
+### What warrants a second pair of eyes
+
+- Whether `PlannedMiddleware` should be implemented on top of an exported `Enforcer` type before more integrations are added.
+- Whether `ParamFunc` should return `(string, bool)` instead of an empty string for missing params to support empty literal-like values. Route params should probably stay non-empty.
+
+### What should be done in the future
+
+- Extract `Enforcer` if host, middleware, or tests start duplicating more request setup.
+- Add documentation showing standard mux usage beside `gojahttp.NewApp(host)` usage.
+
+### Code review instructions
+
+- Review `pkg/gojahttp/middleware.go` to confirm it delegates to `servePlannedHTTP` rather than reimplementing enforcement.
+- Review `pkg/gojahttp/middleware_test.go` for the expected Go 1.22 mux integration pattern.
+- Validate with `GOFLAGS=-buildvcs=false go test ./pkg/gojahttp ./modules/express -count=1`.
+
+### Technical details
+
+Files changed in this step:
+
+```text
+pkg/gojahttp/middleware.go
+pkg/gojahttp/middleware_test.go
+ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/reference/01-implementation-diary.md
+```
