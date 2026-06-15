@@ -248,7 +248,7 @@ The optional packages under `pkg/gojahttp/auth/...` provide reusable Go-side imp
 | `audit` | Normalize route audit events into redacted records for logs or stores. | Persist records if they matter for compliance or incident review. |
 | `capability` | Hashed, expiring bearer-token flows such as org invites, email verification, password reset, or one-time downloads. | Store only hashes and make single-use redemption atomic. |
 
-For development, start with `devauth` or the `examples/xgoja/18-express-auth-host` smoke. For production-shaped browser login, combine `keycloakauth`, `sessionauth`, `appauth`, and `audit` as shown in `examples/xgoja/19-express-keycloak-auth-host`.
+For development, start with `devauth` or the `examples/xgoja/18-express-auth-host` smoke. For generated runtime-package hosts, `pkg/xgoja/hostauth` provides the lazy `ServiceFactoryKey` seam used by `examples/xgoja/21-generated-host-auth`: the Go host injects session/store configuration with `ConfigureServices`, and the HTTP `serve` provider builds `gojahttp.AuthOptions` at command execution time. For production-shaped browser login, combine `keycloakauth`, `sessionauth`, `appauth`, and `audit` as shown in `examples/xgoja/19-express-keycloak-auth-host`.
 
 ## Error behavior
 
@@ -287,6 +287,7 @@ In development mode, 500-class errors include more detail. In production mode, r
 
 - [Express-style HTTP Module](express-module) — The full module reference, including static mounts and response helpers.
 - [Migrate Express Apps to Planned Auth Routes](migrate-express-apps-to-planned-auth) — Step-by-step migration tutorial for old `app.get(path, handler)` scripts.
-- [Express Auth Examples](express-auth-examples) — Dev-auth and Keycloak smoke-test guide for full host wiring.
+- [Express Auth Examples](express-auth-examples) — Dev-auth, generated-host, and Keycloak smoke-test guide for full host wiring.
 - `examples/xgoja/18-express-auth-host` — Runnable dev-auth example for public, current-user, and resource-bound planned routes.
+- `examples/xgoja/21-generated-host-auth` — Runtime-package example that injects `hostauth.ServiceFactoryKey` and supports memory or SQLite stores.
 - `examples/xgoja/20-express-hello-world` — Minimal no-auth public-route host.

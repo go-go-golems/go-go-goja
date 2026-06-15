@@ -1,0 +1,46 @@
+schema: xgoja/v2
+name: generated-host-auth
+app:
+  name: generated-host-auth
+go:
+  module: xgoja.generated/generated-host-auth
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+    register: Register
+runtime:
+  modules:
+    - provider: go-go-goja-http
+      name: express
+      config:
+        reject-raw-routes: true
+        dev-errors: false
+sources:
+  - id: local-sites
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    language: javascript
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    name: verbs
+    sources:
+      - local-sites
+  - id: http-serve
+    type: provider.command-set
+    name: serve
+    mount: serve
+    provider: go-go-goja-http
+    sources:
+      - local-sites
+artifacts:
+  - id: runtime-package
+    type: runtime-package
+    output: internal/xgojaruntime
+    package: xgojaruntime
+    sources:
+      - local-sites

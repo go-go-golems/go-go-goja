@@ -116,41 +116,41 @@
 
 ### K. Generated host / runtime-package integration
 
-- [ ] Task 83: Add a runtime-package example that manually injects `hostauth.ServiceFactoryKey` with `ConfigureServices`.
-- [ ] Task 84: Demonstrate `auth.mode=dev` with memory stores in that example.
-- [ ] Task 85: Demonstrate SQLite stores in that example if the setup remains simple.
-- [ ] Task 86: Add a smoke script for the generated-host auth example.
-- [ ] Task 87: Document how runtime-package `ConfigureServices` differs from custom host examples 18/19/20.
-- [ ] Task 88: Decide whether to extend generated binary templates directly in this ticket or leave that for a follow-up.
-- [ ] Task 89: If extending templates, update `cmd/xgoja/internal/generate/templates/main.go.tmpl` or related template generation code with minimal auth service factory injection.
-- [ ] Task 90: Add generator tests for any new template output.
+- [x] Task 83: Add a runtime-package example that manually injects `hostauth.ServiceFactoryKey` with `ConfigureServices`.
+- [x] Task 84: Demonstrate `auth.mode=dev` with memory stores in that example.
+- [x] Task 85: Demonstrate SQLite stores in that example if the setup remains simple.
+- [x] Task 86: Add a smoke script for the generated-host auth example.
+- [x] Task 87: Document how runtime-package `ConfigureServices` differs from custom host examples 18/19/20.
+- [x] Task 88: Decide whether to extend generated binary templates directly in this ticket or leave that for a follow-up.
+- [x] Task 89: N/A for this ticket; direct generated binary template auth injection is deferred after the runtime-package seam proved sufficient.
+- [x] Task 90: N/A for this ticket; no template output changed, so no generator template test was required.
 
 ### L. Documentation
 
-- [ ] Task 91: Update `cmd/xgoja/doc/11-provider-runtime-config-and-host-services.md` with generated-host auth service factory guidance.
-- [ ] Task 92: Update `cmd/xgoja/doc/17-xgoja-v2-reference.md` with the supported auth configuration surface or explicit deferral if schema remains unchanged.
-- [ ] Task 93: Update `pkg/doc/29-express-auth-user-guide.md` to mention generated-host session/store configuration.
-- [ ] Task 94: Update `pkg/doc/31-express-auth-examples.md` with the new example and smoke command.
-- [ ] Task 95: Document store inheritance with concrete YAML snippets.
-- [ ] Task 96: Document cookie security defaults and local-only `allow-insecure-http` usage.
-- [ ] Task 97: Document that OIDC/Keycloak config is deferred until this foundation is stable.
-- [ ] Task 98: Document that app authorization remains app-owned Go, not YAML policy.
+- [x] Task 91: Update `cmd/xgoja/doc/11-provider-runtime-config-and-host-services.md` with generated-host auth service factory guidance.
+- [x] Task 92: Update `cmd/xgoja/doc/17-xgoja-v2-reference.md` with the supported auth configuration surface or explicit deferral if schema remains unchanged.
+- [x] Task 93: Update `pkg/doc/29-express-auth-user-guide.md` to mention generated-host session/store configuration.
+- [x] Task 94: Update `pkg/doc/31-express-auth-examples.md` with the new example and smoke command.
+- [x] Task 95: Document store inheritance with concrete YAML snippets.
+- [x] Task 96: Document cookie security defaults and local-only `allow-insecure-http` usage.
+- [x] Task 97: Document that OIDC/Keycloak config is deferred until this foundation is stable.
+- [x] Task 98: Document that app authorization remains app-owned Go, not YAML policy.
 
 ### M. Validation and release hygiene
 
 - [x] Task 99: Run focused tests for `pkg/xgoja/hostauth`, `pkg/xgoja/providers/http`, and `pkg/xgoja/app`.
 - [x] Task 100: Run focused tests for all auth store packages.
-- [ ] Task 101: Run affected xgoja example smokes.
+- [x] Task 101: Run affected xgoja example smokes.
 - [x] Task 102: Run `go test ./... -count=1` before final push.
-- [ ] Task 103: Run targeted security scanner if SQL/cookie/http server code changes.
+- [x] Task 103: Run targeted security scanner if SQL/cookie/http server code changes.
 - [x] Task 104: Run `docmgr doctor --ticket XGOJA-GENERATED-HOST-AUTH-CONFIG --stale-after 30`.
 - [x] Task 105: Update changelog and diary after each implementation slice.
 - [x] Task 106: Commit in focused slices and push to `task/goja-express-auth`.
 
 ### N. Explicitly deferred follow-ups
 
-- [ ] Task 107: Defer `auth.mode=oidc` implementation to a later OIDC/Keycloak config ticket.
-- [ ] Task 108: Defer durable OIDC transaction store design to the OIDC follow-up.
-- [ ] Task 109: Defer MFA freshness update flows to the Keycloak/MFA ticket.
-- [ ] Task 110: Defer YAML authorization policy DSL design to a separate policy adapter ticket.
-- [ ] Task 111: Defer secret-manager integrations beyond `dsn-env` unless needed by the first generated-host example.
+- [x] Task 107: Defer `auth.mode=oidc` implementation to a later OIDC/Keycloak config ticket.
+- [x] Task 108: Defer durable OIDC transaction store design to the OIDC follow-up.
+- [x] Task 109: Defer MFA freshness update flows to the Keycloak/MFA ticket.
+- [x] Task 110: Defer YAML authorization policy DSL design to a separate policy adapter ticket.
+- [x] Task 111: Defer secret-manager integrations beyond `dsn-env` unless needed by the first generated-host example.

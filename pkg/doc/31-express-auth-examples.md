@@ -1,7 +1,7 @@
 ---
 Title: Express Auth Examples
 Slug: express-auth-examples
-Short: Run the dev-auth and Keycloak host examples for planned Express authentication.
+Short: Run the dev-auth, generated-host, and Keycloak examples for planned Express authentication.
 Topics:
 - http
 - express
@@ -18,17 +18,20 @@ ShowPerDefault: true
 SectionType: Tutorial
 ---
 
-The Express auth examples show the same planned-route API at two levels of operational realism. The dev-auth example runs without external services and is best for learning the host interfaces. The Keycloak example uses Docker Compose and proves the production-shaped browser login flow with OIDC Authorization Code + PKCE, app sessions, CSRF, app-owned authorization, and audit.
+The Express auth examples show the same planned-route API at three levels of operational realism. The dev-auth example runs without external services and is best for learning the host interfaces. The generated-host example demonstrates the runtime-package `ConfigureServices` seam with reusable `hostauth` session/store builders. The Keycloak example uses Docker Compose and proves the production-shaped browser login flow with OIDC Authorization Code + PKCE, app sessions, CSRF, app-owned authorization, and audit.
 
 ## Choose the right example
 
 Start with the dev-auth example when you want to understand planned routes or test route declarations quickly. It keeps all identity, sessions, resources, authorization, and audit state in memory so you can run a complete smoke without Keycloak or a database.
+
+Use the generated-host example when you want a generated runtime package and provider-owned `serve` commands, but still want the Go host to own sessions, stores, cookies, and app authorization services.
 
 Use the Keycloak example when you need to validate the production boundary: Keycloak authenticates the browser user, the Go host creates an opaque app session, and planned routes authorize against app-owned resources and memberships.
 
 | Example | Directory | Best for | External services |
 | --- | --- | --- | --- |
 | Dev auth host | `examples/xgoja/18-express-auth-host` | Local route-authoring, demos, fast smoke tests. | None. |
+| Generated-host auth | `examples/xgoja/21-generated-host-auth` | Runtime-package host-service injection, memory/SQLite store demos. | None. |
 | Keycloak auth host | `examples/xgoja/19-express-keycloak-auth-host` | Production-shaped OIDC/session/authz smoke. | Docker Compose Keycloak. |
 
 ## Dev-auth smoke
@@ -67,6 +70,25 @@ host := gojahttp.NewHost(gojahttp.HostOptions{
     },
 })
 ```
+
+## Generated-host auth smoke
+
+The generated-host smoke regenerates a runtime package, starts the package host's provider-owned `serve sites demo` command, checks public routes, and verifies that a protected planned route returns `401 Unauthorized` without a session cookie. The host injects a lazy `hostauth.ServiceFactoryKey` through `xgojaruntime.Options.ConfigureServices`; JavaScript still only declares route intent.
+
+```bash
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+By default the example uses memory stores. To demonstrate persistent local stores, set `XGOJA_AUTH_STORE=sqlite` and provide the DSN through the environment:
+
+```bash
+XGOJA_AUTH_STORE=sqlite \
+XGOJA_AUTH_SQLITE_DSN=/tmp/xgoja-generated-host-auth.sqlite \
+go run ./examples/xgoja/21-generated-host-auth/cmd/host \
+  serve sites demo --http-listen 127.0.0.1:8787
+```
+
+The DSN is intentionally an environment value, not committed YAML. OIDC/Keycloak generated-host config remains deferred; use the Keycloak host example below for the current production-shaped browser login smoke.
 
 ## Keycloak smoke
 
@@ -150,10 +172,11 @@ That workaround is limited to the smoke client. It does not change the Go host o
 | Keycloak smoke times out waiting for discovery | Docker is still pulling/starting Keycloak or the container failed. | Run `docker compose -f examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml logs keycloak`. |
 | `address already in use` | A previous host or Keycloak process is still using the default port. | Stop the old process, use `KEYCLOAK_PORT=18081`, or override the host `LISTEN` address. |
 | Keycloak callback fails | Issuer, redirect URI, or client settings no longer match the imported realm. | Use the default Makefile values or update the realm redirect URI and host flags together. |
+| Generated-host `/me` returns 500 | The host did not inject `hostauth.ServiceFactoryKey` or the HTTP provider did not receive the generated auth host. | Use the provided `cmd/host` or configure services with `hostauth.NewServiceFactory`. |
 
 ## See Also
 
 - `express-auth-user-guide` — Main planned-auth route authoring and host-wiring guide.
 - `migrate-express-apps-to-planned-auth` — Migration tutorial for old raw handlers.
 - `express-module` — General Express-style HTTP module reference.
-- Source: `examples/xgoja/18-express-auth-host` and `examples/xgoja/19-express-keycloak-auth-host`.
+- Source: `examples/xgoja/18-express-auth-host`, `examples/xgoja/19-express-keycloak-auth-host`, and `examples/xgoja/21-generated-host-auth`.

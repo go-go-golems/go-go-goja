@@ -381,6 +381,25 @@ func newCommandSet(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, 
 
 The `examples/xgoja/05-command-provider` smoke test includes a concrete `fixture asset` command that reads an embedded asset this way.
 
+### Lazy generated-host auth services
+
+Some host services should be discoverable during command construction but built only when a command actually runs. Generated-host Express auth uses that pattern. A runtime-package host injects a lightweight factory with `Options.ConfigureServices`:
+
+```go
+bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{
+    ConfigureServices: func(services *app.HostServices) {
+        _ = services.SetHostService(
+            hostauth.ServiceFactoryKey,
+            hostauth.NewServiceFactory(hostauth.BuilderOptions{Config: authConfig}),
+        )
+    },
+})
+```
+
+The HTTP `serve` command discovers `hostauth.ServiceFactoryKey` from `CommandSetContext.Host` while constructing provider commands, but it calls the factory later, after Glazed values are parsed. The resulting `hostauth.Services` bundle supplies `gojahttp.AuthOptions`, stores, session manager, and closers. The provider passes an auth-enabled `gojahttp.Host` through the existing `go-go-goja-http.host` service and also exposes the concrete bundle as `hostauth.ServicesKey` for future modules/tools.
+
+See `examples/xgoja/21-generated-host-auth` for a runnable runtime-package host that uses memory stores by default and SQLite stores when `XGOJA_AUTH_STORE=sqlite` plus `XGOJA_AUTH_SQLITE_DSN` are provided.
+
 `Sources` is scoped to the command's `commands[].sources` list. A provider command should use it as the source of truth:
 
 ```go

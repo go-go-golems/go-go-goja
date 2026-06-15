@@ -807,6 +807,12 @@ Hot reload reuses one command-level auth service bundle across candidate runtime
 4. Include a smoke script.
 5. Document how this differs from custom Go host examples 18/19/20.
 
+### Phase 7 implementation note
+
+Implemented `examples/xgoja/21-generated-host-auth` as the first generated-host demonstration. It uses a `runtime-package` artifact with embedded jsverbs, a small Go `cmd/host` wrapper, and `xgojaruntime.Options.ConfigureServices` to inject `hostauth.ServiceFactoryKey`. The default host config uses `auth.mode=dev` with memory stores and local-only `allow-insecure-http`; setting `XGOJA_AUTH_STORE=sqlite` plus `XGOJA_AUTH_SQLITE_DSN` switches all stores to SQLite with schema application.
+
+This deliberately proves the library/provider/runtime-package seam before changing generated binary templates or adding top-level `auth:` to `xgoja/v2`. Direct template injection and first-class YAML auth schema remain follow-up work.
+
 ### Phase 8: docs and migration guidance
 
 1. Update xgoja provider runtime config docs.
@@ -862,6 +868,7 @@ Hot reload reuses one command-level auth service bundle across candidate runtime
 
 - Existing `examples/xgoja/13-http-serve-jsverbs` smoke still passes.
 - Dev auth generated-host example smoke passes.
+- Generated runtime-package host auth smoke passes for memory and SQLite store modes.
 - Existing custom-host examples 18, 19, and 20 still pass.
 
 ## Risks

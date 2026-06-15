@@ -403,6 +403,48 @@ help source sets that should be copied into the generated embedded filesystem.
 For assets, use a separate `embedded-assets` artifact with `sources` pointing at
 asset source IDs.
 
+Runtime-package hosts can inject Go-owned services through `NewBundle` and
+`Options.ConfigureServices`. This is the supported generated-host seam for
+Express auth session/store configuration in this phase: the Go host installs a
+lazy `hostauth.ServiceFactoryKey`, and the HTTP `serve` provider builds concrete
+session/store/auth services at command execution time. The v2 YAML schema does
+not yet define a top-level `auth:` block, and `auth.mode=oidc` / Keycloak config
+remain deferred follow-up work. See `examples/xgoja/21-generated-host-auth` for
+a runtime-package example that uses memory stores by default and SQLite stores
+from environment-supplied DSNs.
+
+When host applications map their own config into `hostauth.Config`, store
+inheritance is field-level. The following shape is illustrative host config, not
+a supported top-level `xgoja/v2` schema block yet:
+
+```yaml
+auth:
+  mode: dev
+  session:
+    cookie:
+      allow-insecure-http: false
+      same-site: lax
+      path: /
+  stores:
+    default:
+      driver: sqlite
+      dsn-env: AUTH_DB_DSN
+      apply-schema: true
+    audit:
+      driver: memory       # override only audit to memory
+    capability:
+      dsn-env: CAP_DB_DSN  # override inherited DSN source only
+```
+
+`dsn` and `dsn-env` are mutually exclusive after inheritance, and an explicit
+one clears the other. Keep DSNs and secrets in environment/config references,
+not committed generated YAML. Cookie defaults are secure (`Secure`,
+`HttpOnly`, `SameSite=Lax`, `Path=/`); set `allow-insecure-http: true` only for
+local HTTP development such as smoke tests. Application authorization remains
+app-owned Go (`appauth`, domain services, or a future policy engine), not a YAML
+policy DSL in this phase.
+
+
 A `template` artifact is a code-generation output shape. It should not be used
 to model runtime behavior such as HTTP serving, WebSocket mounting, or provider
 module setup. Runtime behavior belongs in provider packages, runtime modules,
