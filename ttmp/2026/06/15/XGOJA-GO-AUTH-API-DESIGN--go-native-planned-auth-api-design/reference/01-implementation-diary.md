@@ -13,9 +13,11 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/design/01-go-native-planned-auth-api-intern-implementation-guide.md
+    - Path: cmd/xgoja/doc/18-go-planned-auth-api.md
+      Note: User-facing embedded help guide for the Go planned auth API
+    - Path: ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/design/01-go-native-planned-auth-api-intern-implementation-guide.md
       Note: Main intern-oriented implementation guide.
-    - Path: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/sources/01-current-gojahttp-auth-surface.md
+    - Path: ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/sources/01-current-gojahttp-auth-surface.md
       Note: Current code evidence used by the guide.
 ExternalSources: []
 Summary: Diary for creating the Go-native planned auth API design ticket and uploading it to reMarkable.
@@ -23,6 +25,7 @@ LastUpdated: 2026-06-15T22:18:00-04:00
 WhatFor: Preserve context for the Go-side planned auth API design work.
 WhenToUse: Read before implementing SecureContext, RegisterPlannedHTTP, Go fluent route builders, middleware, or hostauth.AuthKit.
 ---
+
 
 # Diary
 
@@ -386,5 +389,84 @@ Files changed in this step:
 ```text
 pkg/gojahttp/middleware.go
 pkg/gojahttp/middleware_test.go
+ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/reference/01-implementation-diary.md
+```
+
+## Step 5: Document the Go planned auth API
+
+This step turns the newly added Go route APIs into a user-facing help page. The implementation now has three entry points, so the documentation focuses on choosing the right one: fluent `NewApp(host)` for hand-written Go routes, `RegisterPlannedHTTP` for generated or low-level routes, and `PlannedMiddleware` for existing `net/http` routers.
+
+The docs also restate the most important security boundary: route declarations describe intent, but Go-owned services still perform authentication, authorization, resource resolution, CSRF, and audit.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add docs. 
+
+then explain concisely what a reusable Enforcer is ."
+
+**Assistant interpretation:** Add user-facing documentation for the Go-native planned auth API, then briefly explain the future reusable Enforcer idea.
+
+**Inferred user intent:** Make the new API understandable to future callers and clarify the design follow-up before deciding whether to implement it.
+
+**Commit (code):** pending at time of diary update — planned message `Docs: add Go planned auth API guide`.
+
+### What I did
+
+- Added `cmd/xgoja/doc/18-go-planned-auth-api.md`.
+- Documented the core types: `RoutePlan`, `SecureContext`, `PlannedHTTPHandler`, `RegisterPlannedHTTP`, `NewApp`, and `PlannedMiddleware`.
+- Added examples for:
+  - host-owned auth service configuration,
+  - fluent Go routes,
+  - direct `RegisterPlannedHTTP`,
+  - standard Go 1.22 `http.ServeMux` middleware integration.
+- Ran focused validation:
+
+```bash
+GOFLAGS=-buildvcs=false go test ./cmd/xgoja ./cmd/xgoja/doc ./pkg/gojahttp ./modules/express -count=1
+```
+
+### Why
+
+- The Go API is no longer just an internal primitive; it needs discoverable documentation in the embedded xgoja help docs.
+- The docs reduce ambiguity about which API shape to use and where security decisions belong.
+
+### What worked
+
+- The new doc lives under `cmd/xgoja/doc`, which is already embedded by `cmd/xgoja/doc/doc.go` using `//go:embed *.md`.
+- Focused validation passed.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The best documentation structure is “choose the API by host shape” rather than “list every type in implementation order”. That matches how adopters will approach the feature.
+
+### What was tricky to build
+
+- The examples need to be concrete enough to teach route planning, but not imply that docs should configure real secrets, stores, or policy inline. I kept auth services as host-provided variables and emphasized the boundary in prose.
+
+### What warrants a second pair of eyes
+
+- Whether this belongs only in xgoja help docs or should also be copied into package-level Go docs once the API settles.
+- Whether examples should use a concrete appauth/sqlstore setup later, after auth service construction APIs stabilize.
+
+### What should be done in the future
+
+- Add a runnable example under `examples/xgoja` or `examples/gojahttp` if this API becomes a primary public integration path.
+- Consider extracting a reusable Enforcer if more adapters need to share the same request setup and enforcement flow.
+
+### Code review instructions
+
+- Review `cmd/xgoja/doc/18-go-planned-auth-api.md` for API accuracy against `pkg/gojahttp/app.go`, `pkg/gojahttp/host.go`, and `pkg/gojahttp/middleware.go`.
+- Validate with `GOFLAGS=-buildvcs=false go test ./cmd/xgoja ./cmd/xgoja/doc ./pkg/gojahttp ./modules/express -count=1`.
+
+### Technical details
+
+Files changed in this step:
+
+```text
+cmd/xgoja/doc/18-go-planned-auth-api.md
 ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/reference/01-implementation-diary.md
 ```

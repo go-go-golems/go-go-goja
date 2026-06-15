@@ -23,3 +23,12 @@ Uploaded Go-native planned auth API guide bundle to reMarkable at /ai/2026/06/15
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/15/XGOJA-GO-AUTH-API-DESIGN--go-native-planned-auth-api-design/design/01-go-native-planned-auth-api-intern-implementation-guide.md — Uploaded as primary bundle document
 
+
+## 2026-06-15
+
+Documented the Go planned auth API, including fluent routes, low-level registration, middleware integration, and security boundaries.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/18-go-planned-auth-api.md — New embedded help guide
+
