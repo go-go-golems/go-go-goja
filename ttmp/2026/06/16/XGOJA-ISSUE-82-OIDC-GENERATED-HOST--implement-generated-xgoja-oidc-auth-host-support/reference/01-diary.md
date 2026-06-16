@@ -234,3 +234,78 @@ The revised v2 bundle was uploaded successfully:
 ```text
 OK: uploaded XGOJA Issue 82 Generated OIDC Host Design v2.pdf -> /ai/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST
 ```
+
+
+## Step 4: Add implementation task plan and inventory current HTTP ownership
+
+I converted the issue #82 design into an implementation checklist before changing production code. The new tasks start with the HTTP server ownership cutover because generated OIDC support depends on a clear place to mount native `/auth/*` handlers. I also inspected the current provider and Express paths to identify the exact seam that must change.
+
+The inventory confirmed the design problem: `serveVerb` currently creates a runtime and invokes the JS verb, but the actual non-hot-reload listener is still started as an Express module side effect. `newExpressLoader` wires `express.WithOnUse` to `capability.start`, and `capability.start` calls `net.Listen`/`http.Server.Serve`. Hot reload already owns a listener in `serveVerbHotReload`, so the normal serve path is the first target for a hard cutover.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add detailed tasks to the ticket, then work on them step by step, committing at appropriate intervals, keeping a detailed diary as you work"
+
+**Assistant interpretation:** Add a detailed task breakdown to the issue #82 ticket and begin implementation incrementally, committing coherent steps and recording diary/changelog updates.
+
+**Inferred user intent:** Turn the design package into an executable implementation workflow with traceable progress and reviewable commits.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Checked the previously completed reMarkable upload task.
+- Added detailed implementation tasks for inventory, regression tests, server lifecycle refactor, hot reload adaptation, auth config/schema work, generated example work, docs, and validation.
+- Inspected:
+  - `pkg/xgoja/providers/http/http.go`
+  - `pkg/xgoja/providers/http/serve.go`
+  - `pkg/xgoja/providers/http/serve_test.go`
+  - `modules/express/express.go`
+- Confirmed current ownership path:
+  - `newExpressLoader` installs `express.WithOnUse`.
+  - `express.NewLoader` calls the registrar loader.
+  - route-builder use eventually triggers the on-use callback.
+  - `capability.start` creates the listener and `http.Server` unless the host is external and `OwnsListen=false`.
+
+### Why
+- The implementation should proceed from an explicit task list rather than an ad hoc refactor.
+- The server lifecycle change is risky enough to merit a separate inventory checkpoint.
+
+### What worked
+- `docmgr task list` now shows concrete implementation tasks.
+- The code inventory found a small number of concentrated files for the first cutover.
+
+### What didn't work
+- N/A for this planning/inventory step.
+
+### What I learned
+- Normal `serveVerb` still depends on Express side-effect listener startup.
+- Hot reload already has command-owned listener behavior, but its mux currently mounts only status and manager routes; native auth handler mounting still needs to be designed into that path later.
+- `ExternalHostService{OwnsListen:false}` is already used in tests for external host registration without listener ownership.
+
+### What was tricky to build
+- The task plan needed to separate two concerns that are currently intertwined: Express route registration and HTTP lifecycle. The inventory clarifies that the first commit can target normal serve ownership without yet completing generated OIDC schema work.
+
+### What warrants a second pair of eyes
+- The upcoming hard cutover may break examples that rely on `require("express")` outside the `serve` command. Those migrations should be found and tested before the final implementation bundle.
+
+### What should be done in the future
+- Implement a regression test proving `require("express")` no longer starts a listener when invoked through `serve`.
+- Refactor normal `serveVerb` before changing hot reload or auth schema.
+
+### Code review instructions
+- Start with the task list in `tasks.md`, then review the current listener path in `pkg/xgoja/providers/http/http.go:newExpressLoader` and `capability.start`.
+
+### Technical details
+- Current normal serve ownership chain:
+
+```text
+serveVerb
+  -> NewRuntimeFromSections(... registry.RequireLoader())
+  -> InitRuntimeFromSections(... selected modules ...)
+  -> registry.InvokeInRuntime(...)
+  -> JS require("express")
+  -> http capability newExpressLoader
+  -> express.NewLoader(... express.WithOnUse(c.start))
+  -> capability.start
+  -> net.Listen + http.Server.Serve(host)
+```
