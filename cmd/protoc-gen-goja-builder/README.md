@@ -25,6 +25,43 @@ func New<Message>GojaBuilder(vm *goja.Runtime) (*goja.Object, error)
 
 The JavaScript namespace has `typeName`, `builder()`, `from(value)`, `is(value)`, and `clone(value)`. Builders expose fluent field setters, `clear<Field>()`, `build()`, `clone()`, repeated `add<Field>()`, map `put<Field>()`/`delete<Field>()`, explicit-presence `has<Field>()`, and real-oneof `which<Oneof>()`/`clear<Oneof>()` helpers.
 
+## Namespace values, payload values, and metadata
+
+The generated API intentionally separates protobuf type tokens from protobuf
+payload values:
+
+- `pb.ModuleManifest` is a generated **namespace**. It represents a protobuf
+  message type and carries a hidden prototype reference. Consume it with
+  `protogoja.MessagePrototypeFromValue(value)`.
+- `pb.ModuleManifest.builder().moduleName("demo").build()` is a generated
+  **payload**. It carries a hidden message reference. Consume it with
+  `protogoja.MessageFromValue(value)`.
+
+The public `typeName` property is metadata. It is useful for TypeScript,
+logging, debugging, and UI display, but it is not a substitute for the hidden
+reference. A plain object with a `typeName` property is not a generated protobuf
+namespace or payload.
+
+Native host modules should inspect generated values while they are still the
+original `goja.Value`s:
+
+```go
+if prototype, ok := protogoja.MessagePrototypeFromValue(value); ok {
+    // Schema/type path: value is a namespace such as pb.ModuleManifest.
+    _ = prototype.NewMessage()
+}
+
+if msg, ok := protogoja.MessageFromValue(value); ok {
+    // Payload path: value is a built protobuf message.
+    _ = msg
+}
+```
+
+Do not run generated namespace or payload values through `Export`, `ExportTo`,
+`JSON.stringify`, object spread, or other copying/serialization before trying
+those helpers. Such conversions keep public fields like `typeName`, but they
+lose the hidden Go-owned references that make the value protobuf-aware.
+
 ## JavaScript usage
 
 Given a generated module named `hashiplugin.contract.v1`:
