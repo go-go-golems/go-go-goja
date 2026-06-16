@@ -21,7 +21,7 @@
 - [x] Run full validation, update diary/changelog, and upload final implementation bundle
 - [x] Write production migration guide for replacing example-19 image with generated example-21 OIDC image
 - [x] Update source image build and publish workflow to produce the generated OIDC host binary
-- [ ] Validate generated image locally with env-only configuration
+- [x] Validate generated image locally with env-only configuration
 - [ ] Build and push a GHCR generated OIDC auth-host image
 - [ ] Update K3s GitOps Deployment to run the generated image with XGOJA_OIDC_DEMO env vars
 - [ ] Sync/verify production and record validation or rollback

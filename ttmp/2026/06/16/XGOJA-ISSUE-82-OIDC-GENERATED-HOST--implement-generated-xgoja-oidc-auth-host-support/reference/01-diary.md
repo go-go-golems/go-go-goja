@@ -1353,3 +1353,79 @@ make -C examples/xgoja/21-generated-host-auth clean
 ```
 
 - Production runtime config will come from `XGOJA_OIDC_DEMO_*` env vars in the K3s Deployment.
+
+
+## Step 17: Validate the generated Docker image with env-only configuration
+
+I built the updated `Dockerfile.auth-host` locally and ran the resulting image using only generated `XGOJA_OIDC_DEMO_*` environment variables plus the image default `serve sites demo` command. The smoke used the tracked fake OIDC discovery provider and verified public routes, native login redirect routing, and unauthenticated denial for `/me`.
+
+This proves the production Deployment can configure the generated image through Kubernetes/Vault env vars without baking secrets or URLs into the Dockerfile and without passing secrets as command-line arguments.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 15)
+
+**Assistant interpretation:** Validate that the generated image can run with env-only Glazed configuration before publishing and updating production.
+
+**Inferred user intent:** Ensure the generated image is operational and matches the desired runtime config model before touching GHCR or K3s.
+
+**Commit (code):** N/A — validation/bookkeeping-only step.
+
+### What I did
+- Built a local image:
+
+```bash
+docker build -f Dockerfile.auth-host -t go-goja-auth-host:generated-local .
+```
+
+- Started `examples/xgoja/21-generated-host-auth/scripts/fake_oidc_provider.py`.
+- Ran the image with env-only generated settings:
+
+```text
+XGOJA_OIDC_DEMO_HTTP_LISTEN=<local addr>
+XGOJA_OIDC_DEMO_AUTH_MODE=oidc
+XGOJA_OIDC_DEMO_AUTH_SESSION_COOKIE_ALLOW_INSECURE_HTTP=true
+XGOJA_OIDC_DEMO_AUTH_OIDC_ISSUER_URL=<fake issuer>
+XGOJA_OIDC_DEMO_AUTH_OIDC_CLIENT_ID=generated-oidc-host-auth
+XGOJA_OIDC_DEMO_AUTH_OIDC_CLIENT_SECRET=smoke-secret
+XGOJA_OIDC_DEMO_AUTH_OIDC_PUBLIC_BASE_URL=http://<local addr>
+```
+
+### Why
+- The K3s production migration will rely on generated env-variable parsing. This test proves the env-prefix mapping works from inside the container.
+
+### What worked
+- Docker build completed successfully.
+- Docker env-only smoke passed:
+
+```text
+docker env-only smoke passed at http://127.0.0.1:38445
+```
+
+- Verified endpoints:
+  - `/healthz`
+  - `/async-return?name=docker`
+  - `/auth/login` redirects to the fake OIDC authorization endpoint
+  - `/me` returns `401` without a session
+
+### What didn't work
+- N/A. The image validation passed on the first run after the source image changes.
+
+### What I learned
+- The image's default `CMD ["serve", "sites", "demo"]` is sufficient; runtime-specific values can all come from env.
+
+### What was tricky to build
+- Docker host networking was used so the container could reach the local fake OIDC issuer at `127.0.0.1`. In Kubernetes the issuer is the public Keycloak URL and does not need this workaround.
+
+### What warrants a second pair of eyes
+- Review the exact production env mapping before applying GitOps; typos in generated env names would make the pod fail at startup.
+
+### What should be done in the future
+- Add a CI job that runs this Docker env-only smoke on pull requests if runtime cost is acceptable.
+
+### Code review instructions
+- Reproduce with `docker build -f Dockerfile.auth-host -t go-goja-auth-host:generated-local .` and an env-only `docker run` against the fake OIDC provider.
+
+### Technical details
+- The image was run without explicit command args; it used Dockerfile `CMD`.
+- The smoke intentionally used memory stores, while production will override the store driver/DSN to Postgres.
