@@ -1485,3 +1485,84 @@ sha-f1fa40f: digest: sha256:b52d5d84633def546fc1e44f4abc8e260df493f3924358840d0b
 
 ### Technical details
 - Image digest: `sha256:b52d5d84633def546fc1e44f4abc8e260df493f3924358840d0bcbfc83da214a`.
+
+
+## Step 19: Update K3s GitOps to run the generated OIDC image
+
+I updated the live K3s GitOps Deployment for `goja-auth-host-demo` to use the generated OIDC image and generated xgoja env-prefix configuration. The Deployment now runs `serve sites demo` and supplies `XGOJA_OIDC_DEMO_*` environment variables from the existing Vault runtime Secret.
+
+The existing Namespace, Service, Ingress, VaultStaticSecret resources, Postgres bootstrap, and Keycloak realm/client remain unchanged.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 15)
+
+**Assistant interpretation:** Change production GitOps so the live app runs the generated example-21 image as a drop-in platform replacement.
+
+**Inferred user intent:** Promote the generated OIDC host from local/image validation into the actual K3s deployment.
+
+**Commit (code):** K3s commit `90dc20c` — "goja-auth-host: deploy generated OIDC image"
+
+### What I did
+- Updated `/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-auth-host-demo/deployment.yaml`.
+- Changed image to `ghcr.io/go-go-golems/go-goja-auth-host:sha-f1fa40f`.
+- Changed args from the old hand-written host flags to:
+
+```text
+serve sites demo
+```
+
+- Replaced old env names with generated env names:
+
+```text
+XGOJA_OIDC_DEMO_HTTP_LISTEN=:8080
+XGOJA_OIDC_DEMO_AUTH_MODE=oidc
+XGOJA_OIDC_DEMO_AUTH_DEFAULT_STORE_DRIVER=postgres
+XGOJA_OIDC_DEMO_AUTH_DEFAULT_STORE_DSN=<Vault dsn>
+XGOJA_OIDC_DEMO_AUTH_DEFAULT_STORE_APPLY_SCHEMA=true
+XGOJA_OIDC_DEMO_AUTH_SESSION_COOKIE_ALLOW_INSECURE_HTTP=false
+XGOJA_OIDC_DEMO_AUTH_OIDC_ISSUER_URL=<Vault keycloak_issuer>
+XGOJA_OIDC_DEMO_AUTH_OIDC_CLIENT_ID=<Vault keycloak_client_id>
+XGOJA_OIDC_DEMO_AUTH_OIDC_CLIENT_SECRET=<Vault keycloak_client_secret>
+XGOJA_OIDC_DEMO_AUTH_OIDC_PUBLIC_BASE_URL=<Vault public_base_url>
+XGOJA_OIDC_DEMO_AUTH_OIDC_AFTER_LOGIN_URL=/
+XGOJA_OIDC_DEMO_AUTH_OIDC_AFTER_LOGOUT_URL=/
+```
+
+### Why
+- The generated binary reads Glazed fields through the generated `XGOJA_OIDC_DEMO` env prefix, so secrets can stay in Kubernetes env vars sourced from Vault rather than process args or Dockerfile defaults.
+
+### What worked
+- `kubectl kustomize gitops/kustomize/goja-auth-host-demo` rendered successfully.
+- The K3s commit was pushed to `main`:
+
+```text
+ce981dd..90dc20c  main -> main
+```
+
+### What didn't work
+- The K3s repo still has unrelated modified ticket docs under `ttmp/2026/06/06/...`; I left them unstaged and committed only the Deployment.
+
+### What I learned
+- The GitOps delta is small: image, args, and env names. The platform-owned resources do not need to change.
+
+### What was tricky to build
+- Avoiding unrelated K3s doc changes required staging only the Deployment file.
+
+### What warrants a second pair of eyes
+- Review the generated env var names in the Deployment carefully; a single typo would prevent startup or cause local YAML defaults to leak through.
+
+### What should be done in the future
+- Once this branch is merged, let the normal source workflow publish a mainline-generated image and update GitOps away from the feature-branch `sha-f1fa40f` tag.
+
+### Code review instructions
+- Review K3s commit `90dc20c`.
+- Validate rendering with:
+
+```bash
+cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
+kubectl kustomize gitops/kustomize/goja-auth-host-demo >/tmp/goja-auth-host-demo-rendered.yaml
+```
+
+### Technical details
+- Existing unrelated K3s modifications were preserved and not committed.

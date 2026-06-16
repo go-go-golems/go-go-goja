@@ -23,5 +23,5 @@
 - [x] Update source image build and publish workflow to produce the generated OIDC host binary
 - [x] Validate generated image locally with env-only configuration
 - [x] Build and push a GHCR generated OIDC auth-host image
-- [ ] Update K3s GitOps Deployment to run the generated image with XGOJA_OIDC_DEMO env vars
+- [x] Update K3s GitOps Deployment to run the generated image with XGOJA_OIDC_DEMO env vars
 - [ ] Sync/verify production and record validation or rollback
