@@ -29,6 +29,15 @@ func NewEnforcer(opts EnforcerOptions) *Enforcer {
 	return &Enforcer{dev: opts.Dev, sessions: NewSessionManager(opts.Sessions), auth: opts.Auth}
 }
 
+// SetAuthOptions replaces the host-owned planned-auth services used by future
+// Enforce calls.
+func (e *Enforcer) SetAuthOptions(auth AuthOptions) {
+	if e == nil {
+		return
+	}
+	e.auth = auth
+}
+
 // Session loads or creates the request session using the enforcer's session
 // manager.
 func (e *Enforcer) Session(w http.ResponseWriter, r *http.Request) (*SessionDTO, error) {

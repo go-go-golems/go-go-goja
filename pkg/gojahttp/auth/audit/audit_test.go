@@ -36,6 +36,7 @@ func TestNormalizeRecordAndRedaction(t *testing.T) {
 			"safe":          "ok",
 			"sessionID":     "secret-session",
 			"capability":    "secret-capability",
+			"capabilityId":  "cap-123",
 			"nested":        map[string]any{"accessToken": "secret-token", "value": "kept"},
 			"authorization": "Bearer secret",
 		},
@@ -56,7 +57,7 @@ func TestNormalizeRecordAndRedaction(t *testing.T) {
 			t.Fatalf("record leaked %q: %s", forbidden, text)
 		}
 	}
-	if !strings.Contains(text, "[REDACTED]") || !strings.Contains(text, "kept") {
+	if !strings.Contains(text, "[REDACTED]") || !strings.Contains(text, "kept") || !strings.Contains(text, "cap-123") {
 		t.Fatalf("record missing redaction/kept value: %s", text)
 	}
 }

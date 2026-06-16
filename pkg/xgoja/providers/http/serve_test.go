@@ -295,7 +295,7 @@ __verb__("start", { name: "start", short: "Serve protected site", output: "text"
 	}
 }
 
-func TestServeVerbPreservesExternalHostWithHostAuthFactory(t *testing.T) {
+func TestServeVerbAppliesHostAuthToExternalHost(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "site.js"), []byte(`
 __package__({ name: "site" });
@@ -303,8 +303,9 @@ function start() {
   const express = require("express");
   const app = express.app();
   app.get("/external-auth")
-    .public()
-    .handle((_ctx, res) => res.type("text/plain").send("external host"));
+    .auth(express.user().required())
+    .allow("user.self.read")
+    .handle((ctx, res) => res.type("text/plain").send("external host " + ctx.actor.id));
 }
 __verb__("start", { name: "start", short: "Serve external host", output: "text" });
 `), 0o644); err != nil {
@@ -354,9 +355,9 @@ __verb__("start", { name: "start", short: "Serve external host", output: "text" 
 		done <- err
 	}()
 
-	body := waitForServeTestHostBody(t, jsHost, "/external-auth", done, stdhttp.StatusOK)
-	if body != "external host" {
-		t.Fatalf("external host body = %q", body)
+	body := waitForServeTestHostBody(t, jsHost, "/external-auth", done, stdhttp.StatusUnauthorized)
+	if body == "" {
+		t.Fatalf("external host body is empty")
 	}
 	cancel()
 	select {

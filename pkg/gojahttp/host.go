@@ -50,6 +50,22 @@ func NewHost(opts HostOptions) *Host {
 }
 
 func (h *Host) SetRuntime(owner runtimeowner.RuntimeOwner) { h.owner = owner }
+
+// SetAuthOptions replaces the host-owned planned-auth services used by future
+// requests. It is intended for generated/runtime hosts whose auth services are
+// constructed after the Host itself is created.
+func (h *Host) SetAuthOptions(auth AuthOptions) {
+	if h == nil {
+		return
+	}
+	if h.enforcer == nil {
+		h.enforcer = NewEnforcer(EnforcerOptions{Auth: auth})
+		h.sessions = h.enforcer.sessions
+		return
+	}
+	h.enforcer.SetAuthOptions(auth)
+}
+
 func (h *Host) Register(method, pattern string, handler goja.Callable) {
 	h.registry.Add(method, pattern, handler)
 }

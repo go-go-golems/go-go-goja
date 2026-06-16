@@ -42,6 +42,37 @@ func TestSQLiteStoreContract(t *testing.T) {
 	})
 }
 
+func TestUpsertFromOIDCIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	store := newSQLiteStore(t)
+	created, err := store.UpsertFromOIDC(ctx, "kc-race", "first@example.test", true)
+	if err != nil {
+		t.Fatalf("first UpsertFromOIDC: %v", err)
+	}
+	updated, err := store.UpsertFromOIDC(ctx, "kc-race", "second@example.test", false)
+	if err != nil {
+		t.Fatalf("second UpsertFromOIDC: %v", err)
+	}
+	if updated.ID != created.ID || updated.KeycloakSub != "kc-race" || updated.Email != "second@example.test" || updated.EmailVerified {
+		t.Fatalf("unexpected updated user: %#v created=%#v", updated, created)
+	}
+}
+
+func TestUpsertFromOIDCUpdatesExistingSubID(t *testing.T) {
+	ctx := context.Background()
+	store := newSQLiteStore(t)
+	if err := store.AddUser(ctx, appauth.User{ID: "user:existing", KeycloakSub: "kc-existing", Email: "old@example.test", EmailVerified: false}); err != nil {
+		t.Fatalf("AddUser: %v", err)
+	}
+	updated, err := store.UpsertFromOIDC(ctx, "kc-existing", "new@example.test", true)
+	if err != nil {
+		t.Fatalf("UpsertFromOIDC: %v", err)
+	}
+	if updated.ID != "user:existing" || updated.Email != "new@example.test" || !updated.EmailVerified {
+		t.Fatalf("unexpected user: %#v", updated)
+	}
+}
+
 func TestNewValidation(t *testing.T) {
 	if _, err := sqlstore.New(sqlstore.Config{}); err == nil {
 		t.Fatalf("expected missing db error")

@@ -248,7 +248,10 @@ func redactValue(value any) any {
 
 func secretKey(key string) bool {
 	key = strings.ToLower(key)
-	for _, fragment := range []string{"token", "secret", "password", "cookie", "session", "authorization", "credential", "code", "capability"} {
+	if key == "capability" {
+		return true
+	}
+	for _, fragment := range []string{"token", "secret", "password", "cookie", "session", "authorization", "credential", "code"} {
 		if strings.Contains(key, fragment) {
 			return true
 		}

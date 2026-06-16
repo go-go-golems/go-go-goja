@@ -147,32 +147,21 @@ func (s *Store) UpsertFromOIDC(ctx context.Context, sub, email string, emailVeri
 	}
 	defer rollback(tx)
 
-	user, err := scanUser(tx.QueryRowContext(ctx, s.userBySubQuery(), sub))
-	if err == nil {
-		if user.DisabledAt != nil {
-			return nil, gojahttp.ErrNotFound
-		}
-		if _, err := tx.ExecContext(ctx, s.updateOIDCUserQuery(), email, emailVerified, user.ID); err != nil {
-			return nil, fmt.Errorf("update oidc user: %w", err)
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("commit oidc user update: %w", err)
-		}
-		user.Email = email
-		user.EmailVerified = emailVerified
-		return user, nil
+	candidate := appauth.User{ID: "user:" + sub, KeycloakSub: sub, Email: email, EmailVerified: emailVerified}
+	if _, err := tx.ExecContext(ctx, s.upsertOIDCUserQuery(), candidate.ID, candidate.KeycloakSub, candidate.Email, candidate.DisplayName, candidate.EmailVerified, nullTime(candidate.DisabledAt)); err != nil {
+		return nil, fmt.Errorf("upsert oidc user: %w", err)
 	}
-	if !errors.Is(err, gojahttp.ErrNotFound) {
+	user, err := scanUser(tx.QueryRowContext(ctx, s.userBySubQuery(), sub))
+	if err != nil {
 		return nil, err
 	}
-	created := appauth.User{ID: "user:" + sub, KeycloakSub: sub, Email: email, EmailVerified: emailVerified}
-	if _, err := tx.ExecContext(ctx, s.insertUserQuery(), created.ID, created.KeycloakSub, created.Email, created.DisplayName, created.EmailVerified, nullTime(created.DisabledAt)); err != nil {
-		return nil, fmt.Errorf("create oidc user: %w", err)
+	if user.DisabledAt != nil {
+		return nil, gojahttp.ErrNotFound
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit oidc user create: %w", err)
+		return nil, fmt.Errorf("commit oidc user upsert: %w", err)
 	}
-	return &created, nil
+	return user, nil
 }
 
 func (s *Store) MembershipsForUser(ctx context.Context, userID string) ([]appauth.Membership, error) {
@@ -275,12 +264,10 @@ const (
 )
 
 const (
-	insertUserSQLite       = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?)`
-	insertUserPostgres     = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6)`
 	upsertUserSQLite       = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET keycloak_sub = excluded.keycloak_sub, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
 	upsertUserPostgres     = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(id) DO UPDATE SET keycloak_sub = excluded.keycloak_sub, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
-	updateOIDCUserSQLite   = `UPDATE auth_app_users SET email = ?, email_verified = ? WHERE id = ?`
-	updateOIDCUserPostgres = `UPDATE auth_app_users SET email = $1, email_verified = $2 WHERE id = $3`
+	upsertOIDCUserSQLite   = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(keycloak_sub) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
+	upsertOIDCUserPostgres = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(keycloak_sub) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
 	userByIDSQLite         = `SELECT ` + userColumns + ` FROM auth_app_users WHERE id = ?`
 	userByIDPostgres       = `SELECT ` + userColumns + ` FROM auth_app_users WHERE id = $1`
 	userBySubSQLite        = `SELECT ` + userColumns + ` FROM auth_app_users WHERE keycloak_sub = ?`
@@ -304,13 +291,6 @@ const (
 	resourceByIDPostgres   = `SELECT ` + resourceColumns + ` FROM auth_app_resources WHERE type = $1 AND id = $2`
 )
 
-func (s *Store) insertUserQuery() string {
-	if s.dialect == DialectPostgres {
-		return insertUserPostgres
-	}
-	return insertUserSQLite
-}
-
 func (s *Store) upsertUserQuery() string {
 	if s.dialect == DialectPostgres {
 		return upsertUserPostgres
@@ -318,11 +298,11 @@ func (s *Store) upsertUserQuery() string {
 	return upsertUserSQLite
 }
 
-func (s *Store) updateOIDCUserQuery() string {
+func (s *Store) upsertOIDCUserQuery() string {
 	if s.dialect == DialectPostgres {
-		return updateOIDCUserPostgres
+		return upsertOIDCUserPostgres
 	}
-	return updateOIDCUserSQLite
+	return upsertOIDCUserSQLite
 }
 
 func (s *Store) userByIDQuery() string {

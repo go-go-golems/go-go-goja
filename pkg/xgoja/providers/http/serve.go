@@ -148,12 +148,15 @@ func serveVerb(ctx context.Context, commandCtx providerapi.CommandSetContext, re
 			return nil, err
 		}
 		includeGeneratedHost := true
+		serveHost := gojahttp.NewHost(hostOptionsWithAuth(httpSettings, authServices))
 		if externalHost, err := externalHostService(commandCtx.Host); err != nil {
 			return nil, err
 		} else if externalHost.Host != nil {
+			externalHost.Host.SetAuthOptions(authServices.AuthOptions)
+			serveHost = externalHost.Host
 			includeGeneratedHost = false
 		}
-		runtimeServices, err := serveRuntimeServices(gojahttp.NewHost(hostOptionsWithAuth(httpSettings, authServices)), authServices, true, includeGeneratedHost)
+		runtimeServices, err := serveRuntimeServices(serveHost, authServices, true, includeGeneratedHost)
 		if err != nil {
 			return nil, err
 		}
