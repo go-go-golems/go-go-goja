@@ -5,14 +5,25 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"flag"
+	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/fields"
+	"github.com/go-go-golems/glazed/pkg/cmds/logging"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	_ "github.com/lib/pq"
+	"github.com/spf13/cobra"
 
 	"github.com/go-go-golems/go-go-goja/modules/express"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
@@ -29,31 +40,187 @@ import (
 )
 
 func main() {
-	listen := flag.String("listen", "127.0.0.1:8790", "listen address")
-	script := flag.String("script", "examples/xgoja/19-express-keycloak-auth-host/scripts/server.js", "JavaScript route script")
-	issuer := flag.String("issuer", envOr("KEYCLOAK_ISSUER", "http://127.0.0.1:18080/realms/goja-demo"), "OIDC issuer URL")
-	clientID := flag.String("client-id", envOr("KEYCLOAK_CLIENT_ID", "goja-app"), "OIDC client ID")
-	clientSecret := flag.String("client-secret", os.Getenv("KEYCLOAK_CLIENT_SECRET"), "OIDC client secret, if configured")
-	sessionDBDSN := flag.String("session-db-dsn", os.Getenv("SESSION_DB_DSN"), "Postgres DSN for persistent app sessions; empty uses in-memory sessions")
-	auditDBDSN := flag.String("audit-db-dsn", os.Getenv("AUDIT_DB_DSN"), "Postgres DSN for persistent audit records; empty logs audit records")
-	appDBDSN := flag.String("app-db-dsn", os.Getenv("APPAUTH_DB_DSN"), "Postgres DSN for persistent appauth users/resources; empty uses in-memory appauth")
-	capabilityDBDSN := flag.String("capability-db-dsn", os.Getenv("CAPABILITY_DB_DSN"), "Postgres DSN for persistent capability tokens; empty uses in-memory capabilities")
-	flag.Parse()
-	if err := run(context.Background(), config{Listen: *listen, Script: *script, Issuer: *issuer, ClientID: *clientID, ClientSecret: *clientSecret, SessionDBDSN: *sessionDBDSN, AuditDBDSN: *auditDBDSN, AppDBDSN: *appDBDSN, CapabilityDBDSN: *capabilityDBDSN}); err != nil {
+	root, err := newRootCommand()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := root.Execute(); err != nil {
 		log.Fatal(err)
 	}
 }
 
+func newRootCommand() (*cobra.Command, error) {
+	root := &cobra.Command{
+		Use:   "goja-keycloak-auth-host",
+		Short: "Run the go-go-goja Keycloak auth host example",
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return logging.InitLoggerFromCobra(cmd)
+		},
+	}
+	if err := logging.AddLoggingSectionToRootCommand(root, "goja-keycloak-auth-host"); err != nil {
+		return nil, err
+	}
+	serveCommand := newServeCommand()
+	cobraCommand, err := cli.BuildCobraCommand(serveCommand,
+		cli.WithParserConfig(cli.CobraParserConfig{
+			ShortHelpSections: []string{schema.DefaultSlug},
+			MiddlewaresFunc:   cli.CobraCommandDefaultMiddlewares,
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	root.AddCommand(cobraCommand)
+	return root, nil
+}
+
+type serveCommand struct {
+	*cmds.CommandDescription
+}
+
+var _ cmds.BareCommand = (*serveCommand)(nil)
+
+func newServeCommand() *serveCommand {
+	return &serveCommand{CommandDescription: cmds.NewCommandDescription("serve",
+		cmds.WithShort("Serve the Keycloak-backed planned-auth example host"),
+		cmds.WithLong(`Serve the Keycloak-backed planned-auth example host.
+
+The host is intentionally still an example binary, but all operator-facing
+configuration is exposed as Glazed flags with environment-backed defaults. Use
+--public-base-url for the external HTTPS origin behind ingress; --redirect-url is
+an advanced explicit callback override.`),
+		cmds.WithFlags(
+			fields.New("listen", fields.TypeString, fields.WithDefault(envOr("LISTEN_ADDR", ":8080")), fields.WithHelp("Listen address for the in-pod HTTP server")),
+			fields.New("script", fields.TypeString, fields.WithDefault(envOr("SCRIPT_PATH", "/app/server.js")), fields.WithHelp("JavaScript route script to load")),
+			fields.New("issuer", fields.TypeString, fields.WithDefault(os.Getenv("KEYCLOAK_ISSUER")), fields.WithHelp("OIDC issuer URL for the Keycloak realm")),
+			fields.New("client-id", fields.TypeString, fields.WithDefault(envOr("KEYCLOAK_CLIENT_ID", "goja-auth-host-demo")), fields.WithHelp("OIDC client ID")),
+			fields.New("client-secret", fields.TypeString, fields.WithDefault(os.Getenv("KEYCLOAK_CLIENT_SECRET")), fields.WithHelp("OIDC client secret for confidential clients")),
+			fields.New("public-base-url", fields.TypeString, fields.WithDefault(os.Getenv("PUBLIC_BASE_URL")), fields.WithHelp("External browser-visible base URL, for example https://goja-auth.yolo.scapegoat.dev")),
+			fields.New("redirect-url", fields.TypeString, fields.WithDefault(os.Getenv("KEYCLOAK_REDIRECT_URL")), fields.WithHelp("Explicit OIDC callback URL; defaults to <public-base-url>/auth/callback")),
+			fields.New("after-login-url", fields.TypeString, fields.WithDefault(envOr("AFTER_LOGIN_URL", "/")), fields.WithHelp("Local path to redirect to after successful login")),
+			fields.New("after-logout-url", fields.TypeString, fields.WithDefault(envOr("AFTER_LOGOUT_URL", "/")), fields.WithHelp("Local path to redirect to after logout")),
+			fields.New("allow-insecure-http", fields.TypeBool, fields.WithDefault(envBool("ALLOW_INSECURE_HTTP", false)), fields.WithHelp("Use insecure localhost cookie and URL settings; must be false behind HTTPS ingress")),
+			fields.New("session-db-dsn", fields.TypeString, fields.WithDefault(os.Getenv("SESSION_DB_DSN")), fields.WithHelp("Postgres DSN for server-side app sessions")),
+			fields.New("audit-db-dsn", fields.TypeString, fields.WithDefault(os.Getenv("AUDIT_DB_DSN")), fields.WithHelp("Postgres DSN for audit records")),
+			fields.New("app-db-dsn", fields.TypeString, fields.WithDefault(os.Getenv("APPAUTH_DB_DSN")), fields.WithHelp("Postgres DSN for appauth users, memberships, and resources")),
+			fields.New("capability-db-dsn", fields.TypeString, fields.WithDefault(os.Getenv("CAPABILITY_DB_DSN")), fields.WithHelp("Postgres DSN for capability tokens")),
+		),
+	)}
+}
+
+func (c *serveCommand) Run(ctx context.Context, vals *values.Values) error {
+	settings := serveSettings{}
+	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
+		return err
+	}
+	redirectURL, err := resolveRedirectURL(settings)
+	if err != nil {
+		return err
+	}
+	return run(ctx, config{
+		Listen:            settings.Listen,
+		Script:            settings.Script,
+		Issuer:            settings.Issuer,
+		ClientID:          settings.ClientID,
+		ClientSecret:      settings.ClientSecret,
+		RedirectURL:       redirectURL,
+		AfterLoginURL:     settings.AfterLoginURL,
+		AfterLogoutURL:    settings.AfterLogoutURL,
+		AllowInsecureHTTP: settings.AllowInsecureHTTP,
+		SessionDBDSN:      settings.SessionDBDSN,
+		AuditDBDSN:        settings.AuditDBDSN,
+		AppDBDSN:          settings.AppDBDSN,
+		CapabilityDBDSN:   settings.CapabilityDBDSN,
+	})
+}
+
+type serveSettings struct {
+	Listen            string `glazed:"listen"`
+	Script            string `glazed:"script"`
+	Issuer            string `glazed:"issuer"`
+	ClientID          string `glazed:"client-id"`
+	ClientSecret      string `glazed:"client-secret"`
+	PublicBaseURL     string `glazed:"public-base-url"`
+	RedirectURL       string `glazed:"redirect-url"`
+	AfterLoginURL     string `glazed:"after-login-url"`
+	AfterLogoutURL    string `glazed:"after-logout-url"`
+	AllowInsecureHTTP bool   `glazed:"allow-insecure-http"`
+	SessionDBDSN      string `glazed:"session-db-dsn"`
+	AuditDBDSN        string `glazed:"audit-db-dsn"`
+	AppDBDSN          string `glazed:"app-db-dsn"`
+	CapabilityDBDSN   string `glazed:"capability-db-dsn"`
+}
+
 type config struct {
-	Listen          string
-	Script          string
-	Issuer          string
-	ClientID        string
-	ClientSecret    string
-	SessionDBDSN    string
-	AuditDBDSN      string
-	AppDBDSN        string
-	CapabilityDBDSN string
+	Listen            string
+	Script            string
+	Issuer            string
+	ClientID          string
+	ClientSecret      string
+	RedirectURL       string
+	AfterLoginURL     string
+	AfterLogoutURL    string
+	AllowInsecureHTTP bool
+	SessionDBDSN      string
+	AuditDBDSN        string
+	AppDBDSN          string
+	CapabilityDBDSN   string
+}
+
+func resolveRedirectURL(settings serveSettings) (string, error) {
+	if redirectURL := strings.TrimSpace(settings.RedirectURL); redirectURL != "" {
+		return redirectURL, requireAllowedURLScheme(redirectURL, settings.AllowInsecureHTTP)
+	}
+	publicBase := strings.TrimRight(strings.TrimSpace(settings.PublicBaseURL), "/")
+	if publicBase == "" {
+		return "", errors.New("public-base-url or redirect-url is required")
+	}
+	if err := requireAllowedURLScheme(publicBase, settings.AllowInsecureHTTP); err != nil {
+		return "", err
+	}
+	return publicBase + "/auth/callback", nil
+}
+
+func requireAllowedURLScheme(raw string, allowInsecureHTTP bool) error {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("parse URL %q: %w", raw, err)
+	}
+	switch parsed.Scheme {
+	case "https":
+		return nil
+	case "http":
+		if allowInsecureHTTP && isLocalhost(parsed.Hostname()) {
+			return nil
+		}
+		return fmt.Errorf("%s must use https unless allow-insecure-http is true for localhost", raw)
+	default:
+		return fmt.Errorf("%s must use http or https", raw)
+	}
+}
+
+func isLocalhost(host string) bool {
+	switch strings.ToLower(host) {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	default:
+		return false
+	}
+}
+
+func envBool(name string, fallback bool) bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv(name)))
+	if value == "" {
+		return fallback
+	}
+	switch value {
+	case "1", "true", "t", "yes", "y", "on":
+		return true
+	case "0", "false", "f", "no", "n", "off":
+		return false
+	default:
+		return fallback
+	}
 }
 
 func run(ctx context.Context, cfg config) error {
@@ -67,7 +234,7 @@ func run(ctx context.Context, cfg config) error {
 		return err
 	}
 	defer cleanupCapabilities()
-	sessions, cleanupSessions, err := newSessionManager(cfg.SessionDBDSN)
+	sessions, cleanupSessions, err := newSessionManager(cfg.SessionDBDSN, cfg.AllowInsecureHTTP)
 	if err != nil {
 		return err
 	}
@@ -81,9 +248,9 @@ func run(ctx context.Context, cfg config) error {
 		IssuerURL:      cfg.Issuer,
 		ClientID:       cfg.ClientID,
 		ClientSecret:   cfg.ClientSecret,
-		RedirectURL:    "http://" + cfg.Listen + "/auth/callback",
-		AfterLoginURL:  "/",
-		AfterLogoutURL: "/",
+		RedirectURL:    cfg.RedirectURL,
+		AfterLoginURL:  cfg.AfterLoginURL,
+		AfterLogoutURL: cfg.AfterLogoutURL,
 		SessionManager: sessions,
 		UserNormalizer: keycloakauth.UserNormalizerFunc(func(ctx context.Context, claims keycloakauth.OIDCClaims) (keycloakauth.UserSession, error) {
 			user, err := appStores.store.UpsertFromOIDC(ctx, claims.Subject, claims.Email, claims.EmailVerified)
@@ -141,8 +308,9 @@ func run(ctx context.Context, cfg config) error {
 	mux.Handle("POST /orgs/o1/invites", issueInviteHandler(sessions, appStores.store, capabilityService))
 	mux.Handle("POST /org-invites/accept", acceptInviteHandler(capabilityService))
 	mux.Handle("/", indexPage(host))
-	log.Printf("serving Keycloak auth example on http://%s", cfg.Listen)
+	log.Printf("serving Keycloak auth example on %s", cfg.Listen)
 	log.Printf("Keycloak issuer: %s", cfg.Issuer)
+	log.Printf("OIDC redirect URL: %s", cfg.RedirectURL)
 	server := &http.Server{
 		Addr:              cfg.Listen,
 		Handler:           mux,
@@ -151,12 +319,39 @@ func run(ctx context.Context, cfg config) error {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	return server.ListenAndServe()
+	return serveWithShutdown(ctx, server)
 }
 
-func newSessionManager(sessionDBDSN string) (*sessionauth.Manager, func(), error) {
+func serveWithShutdown(ctx context.Context, server *http.Server) error {
+	serveCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	errCh := make(chan error, 1)
+	go func() {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+			return
+		}
+		errCh <- nil
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-serveCtx.Done():
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return err
+	}
+	return <-errCh
+}
+
+func newSessionManager(sessionDBDSN string, allowInsecureHTTP bool) (*sessionauth.Manager, func(), error) {
 	if sessionDBDSN == "" {
-		sessions, err := sessionauth.New(sessionauth.Config{Store: sessionauth.NewMemoryStore(), AllowInsecureHTTP: true})
+		sessions, err := sessionauth.New(sessionauth.Config{Store: sessionauth.NewMemoryStore(), AllowInsecureHTTP: allowInsecureHTTP})
 		return sessions, func() {}, err
 	}
 	db, err := sql.Open("postgres", sessionDBDSN)
@@ -177,7 +372,7 @@ func newSessionManager(sessionDBDSN string) (*sessionauth.Manager, func(), error
 		cleanup()
 		return nil, func() {}, err
 	}
-	sessions, err := sessionauth.New(sessionauth.Config{Store: store, AllowInsecureHTTP: true})
+	sessions, err := sessionauth.New(sessionauth.Config{Store: store, AllowInsecureHTTP: allowInsecureHTTP})
 	if err != nil {
 		cleanup()
 		return nil, func() {}, err

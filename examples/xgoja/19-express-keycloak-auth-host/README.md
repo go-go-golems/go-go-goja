@@ -73,8 +73,25 @@ password: demo-password
 
 ## Start the Go host
 
+The host is a small Glazed CLI. Use the `serve` subcommand; local smoke/manual runs pass `--public-base-url http://127.0.0.1:8790 --allow-insecure-http` so Keycloak callbacks and non-secure localhost cookies work. Behind HTTPS ingress, use a real external origin such as `--public-base-url https://goja-auth.yolo.scapegoat.dev` and leave `--allow-insecure-http=false`.
+
 ```bash
 make -C examples/xgoja/19-express-keycloak-auth-host serve
+```
+
+Equivalent explicit command:
+
+```bash
+GOWORK=off go run ./examples/xgoja/19-express-keycloak-auth-host/cmd/host serve \
+  --listen 127.0.0.1:8790 \
+  --script examples/xgoja/19-express-keycloak-auth-host/scripts/server.js \
+  --issuer http://127.0.0.1:18080/realms/goja-demo \
+  --public-base-url http://127.0.0.1:8790 \
+  --allow-insecure-http \
+  --session-db-dsn 'postgres://goja:goja@127.0.0.1:15432/goja_auth?sslmode=disable' \
+  --audit-db-dsn 'postgres://goja:goja@127.0.0.1:15432/goja_auth?sslmode=disable' \
+  --app-db-dsn 'postgres://goja:goja@127.0.0.1:15432/goja_auth?sslmode=disable' \
+  --capability-db-dsn 'postgres://goja:goja@127.0.0.1:15432/goja_auth?sslmode=disable'
 ```
 
 Open:

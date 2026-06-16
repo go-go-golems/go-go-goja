@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -10,6 +11,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/dop251/goja"
@@ -63,7 +66,34 @@ func run(ctx context.Context, listen, script string, smoke bool) error {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	return server.ListenAndServe()
+	return serveWithShutdown(ctx, server)
+}
+
+func serveWithShutdown(ctx context.Context, server *http.Server) error {
+	serveCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	errCh := make(chan error, 1)
+	go func() {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+			return
+		}
+		errCh <- nil
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-serveCtx.Done():
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return err
+	}
+	return <-errCh
 }
 
 func runSmoke(handler http.Handler) error {

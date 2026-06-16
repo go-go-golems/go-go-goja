@@ -30,7 +30,7 @@ RelatedFiles:
       Note: hostauth.Config host-owned auth infra knobs (Mode, Session, Stores)
     - Path: deploy/gitops-targets.json
       Note: Existing target metadata (essay); append goja-auth-host-prod target
-    - Path: .github/workflows/publish-image.yaml
+    - Path: .github/workflows/publish-auth-host-image.yaml
       Note: Existing GHCR + open_gitops_pr.py pipeline to extend
 ExternalSources:
     - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/go-go-host/
@@ -69,7 +69,7 @@ the design doc and is **approval-gated** (not implemented here).
 ## Scope boundary (important)
 
 - **In scope (this repo):** `cmd/goja-auth-host`, `Dockerfile.auth-host`,
-  `.github/workflows/publish-image.yaml`, `deploy/gitops-targets.json`, docs.
+  `.github/workflows/publish-auth-host-image.yaml`, `deploy/gitops-targets.json`, docs.
 - **Out of scope / approval-gated:** cluster repo Kustomize + Argo Application
   + Vault policies/roles; terraform Keycloak realm/client; Vault secret
   seeding. See design doc §10–§12.

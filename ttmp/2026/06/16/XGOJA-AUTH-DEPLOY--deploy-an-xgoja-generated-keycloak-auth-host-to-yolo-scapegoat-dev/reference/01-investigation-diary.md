@@ -287,3 +287,101 @@ Final delivery step: pass `docmgr doctor`, resolve vocabulary warnings, and publ
 - Vocabulary added: `deployment`, `gitops`, `kubernetes`, `vault`.
 - reMarkable remote: `/ai/2026/06/16/XGOJA-AUTH-DEPLOY/XGOJA-AUTH-DEPLOY — Deploy xgoja Keycloak auth host to yolo.pdf`.
 - Bundle members: `design/01-...` (primary guide) + `reference/01-...` (this diary).
+
+
+## Step 7: Implement Glazed temporary auth host and signal-aware example servers
+
+I implemented the source-repo side of the temporary auth host deployment. The deployment still builds from `examples/xgoja/19-express-keycloak-auth-host/cmd/host`, but the host is now a Glazed CLI with a `serve` subcommand instead of a raw `flag` program. The critical deployment setting is `public-base-url`: it represents the browser-visible HTTPS origin and is used to derive the Keycloak callback URL when `redirect-url` is not explicitly supplied.
+
+During local smoke validation, the auth flow itself passed, but the command looked like it was hanging after the final success line. Instrumenting the smoke cleanup showed the hang was waiting for the host process after SIGTERM. I fixed example 19 and the sibling example HTTP hosts to shut down gracefully on SIGINT/SIGTERM by calling `http.Server.Shutdown` with a timeout.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Implement and deploy, committing and pushing at appropriate intervals, keeping a detailed diary."
+
+**Assistant interpretation:** Start implementing the temporary auth-host deployment plan, commit and push coherent increments, and keep ticket documentation current.
+
+**Inferred user intent:** Move from planning to working deployment artifacts while preserving an audit trail for review and continuation.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Converted `examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go` to a Glazed root + `serve` command.
+- Added Glazed flags/env defaults for `listen`, `script`, `issuer`, `client-id`, `client-secret`, `public-base-url`, `redirect-url`, post-login/logout URLs, `allow-insecure-http`, and all four Postgres DSNs.
+- Added `resolveRedirectURL` tests for public-base URL derivation, explicit redirect override, HTTPS enforcement, localhost HTTP allowance, and missing URL errors.
+- Added `Dockerfile.auth-host` that builds the example host and copies `scripts/server.js` to `/app/server.js`.
+- Added `.github/workflows/publish-auth-host-image.yaml` for the auth-host image.
+- Reintroduced `deploy/gitops-targets.json` with `goja-auth-host-demo` pointing at the future GitOps deployment manifest.
+- Updated the example Makefile/README/smoke script to call `serve`, pass `CLIENT_ID=goja-app` for the local Keycloak realm, pass `--public-base-url`, and keep local HTTP behind `--allow-insecure-http`.
+- Diagnosed the apparent smoke hang: the auth flow passed; cleanup was waiting on the host process after SIGTERM.
+- Added signal-aware graceful shutdown to example 19 and the sibling example servers with direct `ListenAndServe` calls:
+  - `examples/xgoja/18-express-auth-host/cmd/host/main.go`
+  - `examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go`
+  - `examples/xgoja/20-express-hello-world/cmd/host/main.go`
+  - `examples/gojahttp/01-planned-auth/main.go`
+
+### Why
+- Glazed gives the temporary host the same flag/env/config discipline as the rest of the repo and lets `glazed-lint` enforce command wiring.
+- `public-base-url` must be explicit because listen address and public browser origin differ behind ingress.
+- Signal-aware shutdown prevents smoke and Kubernetes termination from relying on SIGKILL.
+
+### What worked
+- `GOWORK=off go test ./examples/xgoja/19-express-keycloak-auth-host/cmd/host -count=1` passed.
+- `GOWORK=off go build ./examples/xgoja/19-express-keycloak-auth-host/cmd/host` passed.
+- `go run ... serve --help` showed the new Glazed flags.
+- `make glazed-lint` passed.
+- `docker build -f Dockerfile.auth-host -t goja-auth-host-demo:local .` passed.
+- `docker run --rm goja-auth-host-demo:local --help` rendered CLI help.
+- `make -C examples/xgoja/19-express-keycloak-auth-host smoke` passed after fixing the local client-id and signal-aware cleanup.
+
+### What didn't work
+- First smoke attempt failed with `listen tcp 127.0.0.1:8790: bind: address already in use`; a stale local process was bound to the default smoke port.
+- Alternate-port smoke reached Keycloak but returned HTTP 400 because the local imported realm client only allows the canonical redirect URI/client settings.
+- After returning to the canonical port, smoke still failed until the local path passed `--client-id goja-app`; the Glazed deploy default is `goja-auth-host-demo`, but Docker Compose imports `goja-app`.
+- After functional success, the smoke appeared to hang because `wait "$HOST_PID"` waited on a host process that did not handle SIGTERM gracefully.
+
+### What I learned
+- The auth flow was healthy; the apparent hang was cleanup, not login or Postgres.
+- Example 19's local Keycloak realm and the deploy target intentionally use different client IDs, so local smoke must pass `CLIENT_ID=goja-app` explicitly.
+- Several examples had the same direct `ListenAndServe` pattern, so fixing only example 19 would leave the same operational problem elsewhere.
+
+### What was tricky to build
+- `public-base-url` is topology, not OIDC itself. The correct invariant is: derive callback URL from public origin, never from bind address. The code enforces HTTPS except for explicit localhost/insecure mode.
+- The smoke script needed bounded cleanup instrumentation to distinguish a real auth failure from post-success cleanup waiting.
+
+### What warrants a second pair of eyes
+- Whether `client-id` should default to the deploy value (`goja-auth-host-demo`) or have no default so local/deploy callers must always supply it explicitly.
+- Whether the auth-host image workflow should smoke-test only CLI help in PRs or spin up a full Keycloak/Postgres Compose environment in CI.
+- Whether the duplicated `serveWithShutdown` helper across examples should be factored into a small shared example utility later.
+
+### What should be done in the future
+- Add the cluster GitOps package, Vault/VSO resources, Postgres bootstrap Job, and Keycloak client setup.
+- After the temporary deployment is retired, remove the image workflow and GitOps target again.
+
+### Code review instructions
+- Start with `examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go` and review `newServeCommand`, `serveSettings`, `resolveRedirectURL`, and `serveWithShutdown`.
+- Review `Dockerfile.auth-host` and `.github/workflows/publish-auth-host-image.yaml` next.
+- Validate with:
+  ```bash
+  GOWORK=off go test ./examples/xgoja/19-express-keycloak-auth-host/cmd/host -count=1
+  make glazed-lint
+  docker build -f Dockerfile.auth-host -t goja-auth-host-demo:local .
+  make -C examples/xgoja/19-express-keycloak-auth-host smoke
+  ```
+
+### Technical details
+- Smoke hang diagnosis output after instrumentation:
+  ```text
+  cleanup: start (exit=0)
+  cleanup: stopping host pid ...
+  cleanup: host pid ... did not exit after SIGTERM; sending SIGKILL
+  ```
+- After signal-aware shutdown:
+  ```text
+  cleanup: start (exit=0)
+  cleanup: stopping host pid ...
+  cleanup: host stopped
+  cleanup: docker compose down -v
+  cleanup: docker cleanup done
+  cleanup: done
+  ```

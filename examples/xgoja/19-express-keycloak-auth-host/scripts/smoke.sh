@@ -8,6 +8,7 @@ BASE_URL="${BASE_URL:-http://${LISTEN}}"
 KEYCLOAK_PORT="${KEYCLOAK_PORT:-18080}"
 POSTGRES_PORT="${POSTGRES_PORT:-15432}"
 ISSUER="${ISSUER:-http://127.0.0.1:${KEYCLOAK_PORT}/realms/goja-demo}"
+CLIENT_ID="${CLIENT_ID:-goja-app}"
 SESSION_DB_DSN="${SESSION_DB_DSN:-postgres://goja:goja@127.0.0.1:${POSTGRES_PORT}/goja_auth?sslmode=disable}"
 AUDIT_DB_DSN="${AUDIT_DB_DSN:-${SESSION_DB_DSN}}"
 APPAUTH_DB_DSN="${APPAUTH_DB_DSN:-${SESSION_DB_DSN}}"
@@ -19,13 +20,32 @@ HOST_PID=""
 
 cleanup() {
   local code=$?
+  echo "cleanup: start (exit=${code})" >&2
   if [[ -n "${HOST_PID}" ]] && kill -0 "${HOST_PID}" >/dev/null 2>&1; then
+    echo "cleanup: stopping host pid ${HOST_PID}" >&2
     kill "${HOST_PID}" >/dev/null 2>&1 || true
+    for _ in $(seq 1 20); do
+      if ! kill -0 "${HOST_PID}" >/dev/null 2>&1; then
+        break
+      fi
+      sleep 0.25
+    done
+    if kill -0 "${HOST_PID}" >/dev/null 2>&1; then
+      echo "cleanup: host pid ${HOST_PID} did not exit after SIGTERM; sending SIGKILL" >&2
+      kill -KILL "${HOST_PID}" >/dev/null 2>&1 || true
+    fi
     wait "${HOST_PID}" >/dev/null 2>&1 || true
+    echo "cleanup: host stopped" >&2
   fi
   rm -f "${HOST_BIN}" >/dev/null 2>&1 || true
   if [[ "${KEEP_KEYCLOAK:-0}" != "1" ]]; then
-    docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" down -v >/dev/null 2>&1 || true
+    echo "cleanup: docker compose down -v" >&2
+    timeout 45s docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" down -v >/dev/null 2>&1 || {
+      echo "cleanup: docker compose down timed out or failed; forcing matching containers" >&2
+      docker rm -f 19-express-keycloak-auth-host-keycloak-1 19-express-keycloak-auth-host-postgres-1 >/dev/null 2>&1 || true
+      docker volume rm 19-express-keycloak-auth-host_postgres-data >/dev/null 2>&1 || true
+    }
+    echo "cleanup: docker cleanup done" >&2
   fi
   if [[ ${code} -ne 0 ]]; then
     echo "--- host log (${HOST_LOG}) ---" >&2
@@ -33,6 +53,7 @@ cleanup() {
   else
     echo "host log: ${HOST_LOG}"
   fi
+  echo "cleanup: done" >&2
 }
 trap cleanup EXIT
 
@@ -94,10 +115,13 @@ wait_for_url "keycloak discovery" "${ISSUER}/.well-known/openid-configuration" 9
   cd "${REPO_ROOT}"
   GOWORK=off go build -o "${HOST_BIN}" ./examples/xgoja/19-express-keycloak-auth-host/cmd/host
 )
-"${HOST_BIN}" \
+"${HOST_BIN}" serve \
   --script "${SCRIPT}" \
   --listen "${LISTEN}" \
   --issuer "${ISSUER}" \
+  --client-id "${CLIENT_ID}" \
+  --public-base-url "${BASE_URL}" \
+  --allow-insecure-http \
   --session-db-dsn "${SESSION_DB_DSN}" \
   --audit-db-dsn "${AUDIT_DB_DSN}" \
   --app-db-dsn "${APPAUTH_DB_DSN}" \
@@ -105,7 +129,7 @@ wait_for_url "keycloak discovery" "${ISSUER}/.well-known/openid-configuration" 9
 HOST_PID=$!
 
 wait_for_host_url "host health" "${BASE_URL}/healthz" 60
-python3 "${EXAMPLE_DIR}/scripts/keycloak_smoke.py" --base-url "${BASE_URL}"
+timeout 90s python3 "${EXAMPLE_DIR}/scripts/keycloak_smoke.py" --base-url "${BASE_URL}"
 
 audit_count="$(docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" exec -T postgres psql -U goja -d goja_auth -tAc "SELECT count(*) FROM auth_audit_records WHERE event IN ('health.checked', 'user.self.read', 'project.updated')")"
 audit_count="${audit_count//[[:space:]]/}"

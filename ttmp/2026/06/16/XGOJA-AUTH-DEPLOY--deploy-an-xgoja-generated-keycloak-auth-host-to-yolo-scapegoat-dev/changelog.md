@@ -36,3 +36,14 @@ Added documentation improvement plan (design/02-...): maps the two-tree Glazed h
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/doc.go — Tree 1 loader referenced by the doc plan
 
+
+## 2026-06-16
+
+Implemented source-repo auth-host increment: example 19 is now a Glazed serve command with public-base-url/redirect-url handling, auth-host Dockerfile/workflow/target were added, local smoke was updated for the demo Keycloak client, and example HTTP servers now handle SIGINT/SIGTERM with graceful Shutdown. Local Keycloak/Postgres smoke passes.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/.github/workflows/publish-auth-host-image.yaml — Auth-host image publishing workflow
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/Dockerfile.auth-host — Temporary auth-host image
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go — Glazed serve command
+
