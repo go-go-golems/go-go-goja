@@ -309,3 +309,124 @@ serveVerb
   -> capability.start
   -> net.Listen + http.Server.Serve(host)
 ```
+
+
+## Step 5: Move normal `serve` onto a command-owned HTTP server
+
+I implemented the first code slice of the hard cutover: the non-hot-reload `serve` path now owns the listener and `http.Server` instead of waiting for Express route registration to start the process. The key behavioral regression test starts a site whose JS verb only calls `require("express")`; under the old behavior no listener existed, while the new command-owned server responds with a normal 404 from the app host.
+
+This is not the full issue #82 implementation yet. It establishes the server lifecycle boundary needed for native OIDC handlers: `serve` creates the app host, injects it into the runtime as an external non-listening host, invokes JS route registration, then starts the server with a top-level mux. Express still has legacy listener-starting code for non-serve uses; the `serve` path no longer depends on it.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue executing the ticket tasks incrementally, committing the first coherent server lifecycle refactor slice with tests and diary evidence.
+
+**Inferred user intent:** Make implementation progress while preserving traceability and avoiding one huge unreviewable change.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Added `TestServeVerbStartsCommandOwnedServerWithoutExpressListen` in `pkg/xgoja/providers/http/serve_test.go`.
+- Confirmed the test failed before implementation with:
+
+```text
+xgoja http serve: runtime is alive; press Ctrl-C to stop
+--- FAIL: TestServeVerbStartsCommandOwnedServerWithoutExpressListen (5.05s)
+    serve_test.go:273: timed out waiting for http://127.0.0.1:46233/__no_route_registered status 404
+FAIL
+FAIL	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	5.066s
+FAIL
+```
+
+- Refactored `pkg/xgoja/providers/http/serve.go` normal `serveVerb` to:
+  - decode HTTP settings early;
+  - require `http.enabled=true`;
+  - build auth services when present;
+  - create or reuse the app `gojahttp.Host`;
+  - inject the app host into the runtime as `ExternalHostService{OwnsListen:false}`;
+  - invoke JS route registration before listening;
+  - start a command-owned `http.Server` with a top-level mux;
+  - shut down gracefully on context cancellation/SIGINT/SIGTERM.
+- Added `buildServeHandler` as the top-level mux seam for future native auth handlers.
+- Added `serveHTTPServer` to share command-owned server shutdown mechanics.
+
+### Why
+- Generated OIDC needs a stable top-level mux where Go-owned `/auth/*` handlers can mount beside the app host.
+- The command that keeps the process alive should own listener and shutdown behavior.
+- The regression ensures `serve` does not rely on route registration or `app.listen()` to bind a port.
+
+### What worked
+- The new regression failed before the refactor and passed after it.
+- Targeted tests passed:
+
+```text
+go test ./pkg/xgoja/providers/http -run 'TestServeVerb(StartsCommandOwnedServerWithoutExpressListen|LoadsIncludedHelperModulesWithoutHelperCommands|UsesHostAuthServiceFactory|AppliesHostAuthToExternalHost)$' -count=1
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.237s
+```
+
+- Full HTTP provider package tests passed:
+
+```text
+go test ./pkg/xgoja/providers/http -count=1
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.542s
+```
+
+### What didn't work
+- The initial regression timed out exactly as expected because the old normal serve path never opened a listener when JS only required Express.
+- The first commit attempt failed in the pre-commit lint hook because the refactor left behind the old helper:
+
+```text
+pkg/xgoja/providers/http/serve.go:581:6: func waitForServeShutdown is unused (unused)
+func waitForServeShutdown(ctx context.Context) error {
+     ^
+1 issues:
+* unused: 1
+make: *** [Makefile:33: lint] Error 1
+```
+
+I removed `waitForServeShutdown` because `serveHTTPServer` now owns the normal serve wait/shutdown path.
+
+### What I learned
+- The current `serve` command can be cut over without removing all legacy Express startup code at once by injecting the host with `OwnsListen:false`.
+- Existing hot reload already follows a command-owned listener pattern, so the normal path can reuse similar shutdown structure.
+
+### What was tricky to build
+- The runtime service layering can produce duplicate host-service values if a base host already has `HostServiceKey` and the runtime overlay adds another one. The implementation preserves the existing `includeGeneratedHost=false` behavior for externally supplied hosts to avoid `externalHostService` seeing multiple values.
+- The listener must start after JS route registration so the command does not accept traffic before planned routes are installed.
+
+### What warrants a second pair of eyes
+- Review whether requiring `http.enabled=true` for normal `serve` is acceptable. Hot reload already required it; the old normal path effectively hung without a listener when HTTP was disabled.
+- Review the `serveHTTPServer` helper against the existing hot reload shutdown flow; future cleanup could deduplicate hot reload onto the helper too.
+
+### What should be done in the future
+- Remove or demote legacy Express listener startup for non-serve use.
+- Extend `buildServeHandler` to mount native auth handlers before the app host.
+- Adapt hot reload's top-level mux to use the same native auth handler seam.
+
+### Code review instructions
+- Start with `pkg/xgoja/providers/http/serve.go:serveVerb` and confirm the order: settings/auth/host/runtime/invoke/listen/shutdown.
+- Then read `TestServeVerbStartsCommandOwnedServerWithoutExpressListen` to understand the lifecycle regression.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/providers/http -count=1
+```
+
+### Technical details
+- New normal serve lifecycle:
+
+```text
+serveVerb
+  -> decode HTTP/auth settings
+  -> appHost := gojahttp.NewHost(...)
+  -> topHandler := buildServeHandler(appHost, authServices)
+  -> runtimeServices include ExternalHostService{Host: appHost, OwnsListen:false}
+  -> NewRuntimeFromSectionsWithHostServices(...)
+  -> InitRuntimeFromSections(...)
+  -> InvokeInRuntime(...)
+  -> net.Listen(http.listen)
+  -> http.Server{Handler: topHandler}.Serve(listener)
+  -> Shutdown on context/signal
+```

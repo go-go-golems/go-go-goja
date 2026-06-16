@@ -226,6 +226,62 @@ module.exports = { register };
 	}
 }
 
+func TestServeVerbStartsCommandOwnedServerWithoutExpressListen(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "site.js"), []byte(`
+__package__({ name: "site" });
+function start() {
+  require("express");
+}
+__verb__("start", { name: "start", short: "Serve empty Express site", output: "text" });
+`), 0o644); err != nil {
+		t.Fatalf("write site.js: %v", err)
+	}
+	registry, err := jsverbs.ScanDir(dir)
+	if err != nil {
+		t.Fatalf("scan dir: %v", err)
+	}
+	providers := providerapi.NewProviderRegistry()
+	if err := Register(providers); err != nil {
+		t.Fatalf("register http provider: %v", err)
+	}
+	capabilities, ok := providers.ResolvePackageCapabilities(PackageID)
+	if !ok || len(capabilities) != 1 {
+		t.Fatalf("http capabilities = %#v", capabilities)
+	}
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "express", As: "express"}}}}
+	factory := app.NewRuntimeFactory(providers, runtimePlan, app.HostServices{})
+	addr := freeServeTestAddr(t)
+	parsedValues := serveHotReloadTestValues(t, addr, map[string]any{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		verb, _ := registry.Verb("site start")
+		_, err := serveVerb(ctx, providerapi.CommandSetContext{
+			RuntimeFactory: factory,
+			SelectedModules: []providerapi.ModuleDescriptor{{
+				PackageID:           PackageID,
+				ModuleID:            "express",
+				As:                  "express",
+				PackageCapabilities: capabilities,
+			}},
+		}, registry, verb, parsedValues)
+		done <- err
+	}()
+
+	_ = waitForServeTestStatusBody(t, "http://"+addr+"/__no_route_registered", done, stdhttp.StatusNotFound)
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil && !strings.Contains(err.Error(), "context canceled") {
+			t.Fatalf("serve returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("serve did not stop after cancel")
+	}
+}
+
 func TestServeVerbUsesHostAuthServiceFactory(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "site.js"), []byte(`

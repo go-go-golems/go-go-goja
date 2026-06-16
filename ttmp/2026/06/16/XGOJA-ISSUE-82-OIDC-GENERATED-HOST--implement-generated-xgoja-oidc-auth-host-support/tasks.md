@@ -8,8 +8,8 @@
 - [x] Write intern-oriented design and implementation guide
 - [x] Validate docs and upload bundle to reMarkable
 - [x] Inventory current HTTP provider, Express loader, hot reload, and generated host call paths before changing code
-- [ ] Add regression coverage showing require("express") does not start a listener when an external host is provided
-- [ ] Refactor the HTTP provider so serve owns listener, http.Server, top-level handler, and graceful shutdown
+- [x] Add regression coverage showing require("express") does not start a listener when an external host is provided
+- [x] Refactor the HTTP provider so serve owns listener, http.Server, top-level handler, and graceful shutdown
 - [ ] Keep Express as a pure route-registration module and remove serve-time reliance on express.WithOnUse startup
 - [ ] Adapt hot reload to one stable listener/top-level handler that swaps only app runtime snapshots
 - [ ] Add top-level auth fields to xgoja v2 spec and generated runtime planning

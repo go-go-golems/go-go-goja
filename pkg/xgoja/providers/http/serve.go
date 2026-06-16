@@ -129,6 +129,13 @@ func serveVerb(ctx context.Context, commandCtx providerapi.CommandSetContext, re
 	if hotReloadSettings.Enabled {
 		return serveVerbHotReload(ctx, commandCtx, registry, verb, parsedValues, hotReloadSettings)
 	}
+	httpSettings, err := decodeHTTPServeSettings(parsedValues)
+	if err != nil {
+		return nil, err
+	}
+	if !httpSettings.Enabled {
+		return nil, fmt.Errorf("http serve requires http.enabled=true")
+	}
 	authServices, hasAuthFactory, err := buildServeAuthServices(ctx, commandCtx, parsedValues)
 	if err != nil {
 		return nil, err
@@ -137,38 +144,32 @@ func serveVerb(ctx context.Context, commandCtx providerapi.CommandSetContext, re
 		defer func() { _ = authServices.Close(context.Background()) }()
 	}
 
-	var rt *engine.Runtime
-	if hasAuthFactory {
-		factory, ok := commandCtx.RuntimeFactory.(providerapi.RuntimeFactoryWithHostServices)
-		if !ok || factory == nil {
-			return nil, fmt.Errorf("http serve with hostauth requires runtime factory with per-runtime host services")
-		}
-		httpSettings, err := decodeHTTPServeSettings(parsedValues)
-		if err != nil {
-			return nil, err
-		}
-		includeGeneratedHost := true
-		serveHost := gojahttp.NewHost(hostOptionsWithAuth(httpSettings, authServices))
-		if externalHost, err := externalHostService(commandCtx.Host); err != nil {
-			return nil, err
-		} else if externalHost.Host != nil {
+	factory, ok := commandCtx.RuntimeFactory.(providerapi.RuntimeFactoryWithHostServices)
+	if !ok || factory == nil {
+		return nil, fmt.Errorf("http serve requires runtime factory with per-runtime host services")
+	}
+	includeGeneratedHost := true
+	serveHost := gojahttp.NewHost(hostOptionsWithAuth(httpSettings, authServices))
+	if externalHost, err := externalHostService(commandCtx.Host); err != nil {
+		return nil, err
+	} else if externalHost.Host != nil {
+		if authServices != nil {
 			externalHost.Host.SetAuthOptions(authServices.AuthOptions)
-			serveHost = externalHost.Host
-			includeGeneratedHost = false
 		}
-		runtimeServices, err := serveRuntimeServices(serveHost, authServices, true, includeGeneratedHost)
-		if err != nil {
-			return nil, err
-		}
-		rt, err = factory.NewRuntimeFromSectionsWithHostServices(ctx, parsedValues, runtimeServices, require.WithLoader(registry.RequireLoader()))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		rt, err = commandCtx.RuntimeFactory.NewRuntimeFromSections(ctx, parsedValues, require.WithLoader(registry.RequireLoader()))
-		if err != nil {
-			return nil, err
-		}
+		serveHost = externalHost.Host
+		includeGeneratedHost = false
+	}
+	topHandler, err := buildServeHandler(serveHost, authServices)
+	if err != nil {
+		return nil, err
+	}
+	runtimeServices, err := serveRuntimeServices(serveHost, authServices, false, includeGeneratedHost)
+	if err != nil {
+		return nil, err
+	}
+	rt, err := factory.NewRuntimeFromSectionsWithHostServices(ctx, parsedValues, runtimeServices, require.WithLoader(registry.RequireLoader()))
+	if err != nil {
+		return nil, err
 	}
 	defer func() { _ = rt.Close(context.Background()) }()
 
@@ -181,8 +182,13 @@ func serveVerb(ctx context.Context, commandCtx providerapi.CommandSetContext, re
 		return nil, err
 	}
 
-	fmt.Fprintln(os.Stderr, "xgoja http serve: runtime is alive; press Ctrl-C to stop")
-	return nil, waitForServeShutdown(ctx)
+	listener, err := net.Listen("tcp", httpSettings.Listen)
+	if err != nil {
+		return nil, fmt.Errorf("listen on %s: %w", httpSettings.Listen, err)
+	}
+	server := &stdhttp.Server{Addr: httpSettings.Listen, Handler: topHandler, ReadHeaderTimeout: 5 * time.Second}
+	fmt.Fprintf(os.Stderr, "xgoja http serve: runtime is alive on %s; press Ctrl-C to stop\n", httpSettings.Listen)
+	return nil, serveHTTPServer(ctx, server, listener)
 }
 
 func serveVerbHotReload(ctx context.Context, commandCtx providerapi.CommandSetContext, registry *jsverbs.Registry, verb *jsverbs.VerbSpec, parsedValues *values.Values, hotReloadSettings serveHotReloadSettings) (interface{}, error) {
@@ -432,6 +438,15 @@ func hostOptionsWithAuth(cfg settings, authServices *hostauth.Services) gojahttp
 	return opts
 }
 
+func buildServeHandler(appHost stdhttp.Handler, _ *hostauth.Services) (stdhttp.Handler, error) {
+	if appHost == nil {
+		return nil, fmt.Errorf("http serve app host is nil")
+	}
+	mux := stdhttp.NewServeMux()
+	mux.Handle("/", appHost)
+	return mux, nil
+}
+
 func serveRuntimeServices(host *gojahttp.Host, authServices *hostauth.Services, ownsListen bool, includeHost bool) (app.HostServices, error) {
 	services := app.HostServices{}
 	if includeHost {
@@ -563,13 +578,34 @@ func decodeServeHotReloadSettings(vals *values.Values) (serveHotReloadSettings, 
 	return settings, nil
 }
 
-func waitForServeShutdown(ctx context.Context) error {
+func serveHTTPServer(ctx context.Context, server *stdhttp.Server, listener net.Listener) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	signalCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	if server == nil {
+		return fmt.Errorf("http serve server is nil")
+	}
+	if listener == nil {
+		return fmt.Errorf("http serve listener is nil")
+	}
+	serveCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	<-signalCtx.Done()
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.Serve(listener)
+	}()
+	select {
+	case err := <-serverErr:
+		if err != nil && !errors.Is(err, stdhttp.ErrServerClosed) {
+			return err
+		}
+	case <-serveCtx.Done():
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return err
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
