@@ -27,7 +27,7 @@ Each example directory has its own `README.md`, `Makefile`, and native `schema: 
 19. `19-express-keycloak-auth-host/` — **production template**. Keycloak/OIDC host used for the live `goja-auth-host-demo` deployment pattern; includes Docker Compose Keycloak smoke, app sessions, app-owned authorization, Postgres store wiring, and planned Express routes.
 20. `20-express-hello-world/` — **smoke-only template**. Tiny no-auth Express host with public planned routes only; useful for HTTP provider sanity checks, not auth deployment design.
 
-21. `21-generated-host-auth/` — **generated-seam template**. Demonstrates generated runtime package plus host-owned auth service injection; OIDC/Keycloak remains follow-up work tracked separately.
+21. `21-generated-host-auth/` — **generated OIDC template**. Demonstrates a self-contained generated binary with top-level `auth.mode=oidc`, native Go OIDC handlers, and planned Express authorization routes.
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 

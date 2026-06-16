@@ -1,5 +1,5 @@
 __package__({ name: "sites" });
-__verb__("demo", { name: "demo", short: "Serve generated-host auth demo", output: "text" });
+__verb__("demo", { name: "demo", short: "Serve generated OIDC host auth demo", output: "text" });
 
 function demo() {
   const express = require("express");
@@ -7,11 +7,11 @@ function demo() {
 
   app.get("/")
     .public()
-    .handle((_ctx, res) => res.type("text/plain").send("generated host auth demo"));
+    .handle((_ctx, res) => res.type("text/plain").send("generated OIDC host auth demo"));
 
   app.get("/healthz")
     .public()
-    .handle((_ctx, res) => res.json({ ok: true, auth: "generated-host" }));
+    .handle((_ctx, res) => res.json({ ok: true, auth: "generated-oidc" }));
 
   app.get("/me")
     .auth(express.user().required())

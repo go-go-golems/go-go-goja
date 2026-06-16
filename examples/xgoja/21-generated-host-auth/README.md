@@ -1,9 +1,9 @@
-# xgoja generated-host auth example
+# xgoja generated OIDC host auth example
 
-This example demonstrates the generated runtime-package seam for host-owned Express auth.
-The generated package does not hard-code auth stores or session policy in JavaScript.
-Instead, the Go host imports the generated package and injects a lazy
-`hostauth.ServiceFactoryKey` with `Options.ConfigureServices`.
+This example demonstrates a self-contained `xgoja.yaml` generated HTTP host with
+server-side OIDC auth. The YAML carries the top-level `auth:` block, the HTTP
+provider exposes Glazed/env-backed `--auth-*` settings, and the generated binary
+runs `serve` without a hand-written Go host shell.
 
 Run the smoke test:
 
@@ -11,45 +11,46 @@ Run the smoke test:
 make -C examples/xgoja/21-generated-host-auth smoke
 ```
 
-The smoke test regenerates `internal/xgojaruntime`, starts the generated host's
-`serve sites demo` command, checks public routes, and verifies that the planned
-auth route returns `401 Unauthorized` without a session cookie.
+The smoke test builds `dist/generated-oidc-host-auth`, starts a tiny local OIDC
+discovery endpoint, runs the generated `serve sites demo` command, verifies
+public JavaScript routes, verifies that `/auth/login` is handled by the native
+Go OIDC handler, and verifies that `/me` remains protected without a session.
 
 ## What this demonstrates
 
-The xgoja spec selects the HTTP provider and embeds local jsverbs into a runtime
-package artifact:
+The xgoja spec selects the HTTP provider, embeds local jsverbs, builds a binary,
+and configures OIDC entirely through YAML:
 
 ```yaml
-runtime:
-  modules:
-    - provider: go-go-goja-http
-      name: express
-      config:
-        reject-raw-routes: true
-        dev-errors: false
+auth:
+  mode: oidc
+  session:
+    cookie:
+      allow-insecure-http: true
+  stores:
+    default:
+      driver: memory
+  oidc:
+    issuer-url: http://localhost:18080/realms/generated-oidc-host-auth
+    client-id: generated-oidc-host-auth
+    public-base-url: http://localhost:18789
+
 artifacts:
-  - id: runtime-package
-    type: runtime-package
-    output: internal/xgojaruntime
-    package: xgojaruntime
+  - id: binary
+    type: binary
+    output: dist/generated-oidc-host-auth
     sources: [local-sites]
 ```
 
-The host application wires auth services in Go:
+`serve` owns the listener and mux. Native auth handlers are mounted before the
+JavaScript app host:
 
-```go
-bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{
-    ConfigureServices: func(services *app.HostServices) {
-        _ = services.SetHostService(
-            hostauth.ServiceFactoryKey,
-            hostauth.NewServiceFactory(hostauth.BuilderOptions{Config: defaultAuthConfig()}),
-        )
-    },
-})
-```
+- `GET /auth/login`
+- `GET /auth/callback`
+- `GET /auth/logout`
+- `POST /auth/logout`
 
-The JavaScript route only declares intent:
+The JavaScript route only declares application authorization intent:
 
 ```js
 app.get("/me")
@@ -58,42 +59,34 @@ app.get("/me")
   .handle((ctx, res) => res.json({ actor: ctx.actor.id, action: ctx.action }));
 ```
 
-The Go host owns the session manager, cookies, stores, audit sink, resource
-resolver, and authorizer. This keeps Express as a route declaration layer rather
-than an auth infrastructure owner.
+## Manual run
 
-## Store modes
-
-By default the host uses in-memory stores, suitable for a fast local smoke:
+Build the generated binary:
 
 ```bash
-go run ./examples/xgoja/21-generated-host-auth/cmd/host \
-  serve sites demo --http-listen 127.0.0.1:8787
+make -C examples/xgoja/21-generated-host-auth build
 ```
 
-To demonstrate persistent stores, pass the auth store settings through the
-Glazed-backed `serve` command flags. The host applies schema on startup for this
-example:
+Run it against a real OIDC issuer:
 
 ```bash
-go run ./examples/xgoja/21-generated-host-auth/cmd/host \
+examples/xgoja/21-generated-host-auth/dist/generated-oidc-host-auth \
   serve sites demo \
-  --http-listen 127.0.0.1:8787 \
-  --auth-default-store-driver sqlite \
-  --auth-default-store-dsn /tmp/xgoja-generated-host-auth.sqlite \
-  --auth-default-store-apply-schema
+  --http-listen 127.0.0.1:18789 \
+  --auth-oidc-issuer-url http://localhost:18080/realms/generated-oidc-host-auth \
+  --auth-oidc-client-id generated-oidc-host-auth \
+  --auth-oidc-client-secret "$OIDC_CLIENT_SECRET" \
+  --auth-oidc-public-base-url http://127.0.0.1:18789
 ```
 
-The DSN is deliberately supplied as a Glazed command setting rather than being
-read directly with `os.Getenv` in auth code. Postgres and OIDC/Keycloak
-configuration remain follow-up work; this example focuses on the generated-host
-seam and dev/session-store foundation.
+Then visit:
 
-## Manual checks
+- <http://127.0.0.1:18789/> — public text route.
+- <http://127.0.0.1:18789/healthz> — public JSON health route.
+- <http://127.0.0.1:18789/auth/login> — native OIDC login redirect.
+- <http://127.0.0.1:18789/me> — protected route, expected `401` without a
+  session cookie.
 
-Start the server and then visit:
-
-- <http://127.0.0.1:8787/> — public text route.
-- <http://127.0.0.1:8787/healthz> — public JSON health route.
-- <http://127.0.0.1:8787/me> — protected planned auth route, expected `401`
-  without a session cookie.
+Production deployments should keep `allow-insecure-http` false and use an HTTPS
+`public-base-url`; `redirect-url` is only needed when the callback is not
+`<public-base-url>/auth/callback`.

@@ -1,9 +1,10 @@
 schema: xgoja/v2
-name: generated-host-auth
+name: generated-oidc-host-auth
 app:
-  name: generated-host-auth
+  name: generated-oidc-host-auth
+  envPrefix: XGOJA_OIDC_DEMO
 go:
-  module: xgoja.generated/generated-host-auth
+  module: xgoja.generated/generated-oidc-host-auth
   version: "1.26"
 workspace:
   mode: auto
@@ -18,6 +19,25 @@ runtime:
       config:
         reject-raw-routes: true
         dev-errors: false
+auth:
+  mode: oidc
+  session:
+    cookie:
+      # Local smoke/manual runs use localhost HTTP. Production should leave this
+      # false and use HTTPS public-base-url values.
+      allow-insecure-http: true
+  stores:
+    default:
+      driver: memory
+  oidc:
+    # These defaults are intentionally local placeholders so the generated
+    # command exposes a complete, env/flag-overridable OIDC surface. Override
+    # them with --auth-oidc-* flags or XGOJA_OIDC_DEMO_AUTH_OIDC_* env vars.
+    issuer-url: http://localhost:18080/realms/generated-oidc-host-auth
+    client-id: generated-oidc-host-auth
+    public-base-url: http://localhost:18789
+    after-login-url: /
+    after-logout-url: /
 sources:
   - id: local-sites
     kind: jsverbs
@@ -38,9 +58,8 @@ commands:
     sources:
       - local-sites
 artifacts:
-  - id: runtime-package
-    type: runtime-package
-    output: internal/xgojaruntime
-    package: xgojaruntime
+  - id: binary
+    type: binary
+    output: dist/generated-oidc-host-auth
     sources:
       - local-sites

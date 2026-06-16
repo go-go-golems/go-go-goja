@@ -857,3 +857,102 @@ hostauth native handlers
 serve extra Go mounts, e.g. hot reload status
 / fallback -> app host or hotreload.Manager
 ```
+
+
+## Step 11: Convert example 21 into a self-contained generated OIDC host
+
+I converted `examples/xgoja/21-generated-host-auth` from a runtime-package plus hand-written Go host example into a binary generated directly from `xgoja.yaml`. The example now carries top-level `auth.mode=oidc` configuration, builds `dist/generated-oidc-host-auth`, and verifies that `/auth/login` is served by the native Go OIDC handler.
+
+This turns the generated OIDC architecture into a runnable fixture: the generated binary owns `serve`, auth services come from the YAML/runtime plan plus Glazed overrides, JavaScript only declares application routes, and no custom Go host injection is required for the demo.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue the implementation sequence by replacing the old custom generated-host auth example with an OIDC-capable generated binary example.
+
+**Inferred user intent:** Provide a concrete self-contained fixture that proves generated `auth.mode=oidc` hosts can be built and smoked without the temporary hand-written Go auth shell.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Rewrote `examples/xgoja/21-generated-host-auth/xgoja.yaml` with top-level `auth.mode=oidc`, local insecure-cookie allowance for smoke tests, memory stores, OIDC defaults, and a `binary` artifact.
+- Removed the old `cmd/host` custom shell and stale generated `internal/xgojaruntime` output.
+- Updated the JavaScript demo labels to `generated-oidc`.
+- Rewrote the example README around the self-contained generated OIDC binary flow.
+- Added `scripts/fake_oidc_provider.py` and updated the Makefile smoke to verify `/auth/login` redirects through the native OIDC handler.
+- Updated `examples/xgoja/README.md` to describe example 21 as the generated OIDC template.
+
+### Why
+- The old fixture still depended on custom Go injection, which did not prove issue #82's target: generated `xgoja serve` should be able to construct and mount OIDC auth from YAML/config.
+- A binary artifact example is closer to the intended deployment shape and is easier to document and smoke test.
+
+### What worked
+- Focused tests passed:
+
+```text
+go test ./cmd/xgoja/internal/generate ./pkg/xgoja/providers/http ./pkg/xgoja/hostauth -count=1
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.041s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.554s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth	0.032s
+```
+
+- The generated example smoke passed:
+
+```text
+make -C examples/xgoja/21-generated-host-auth smoke
+...
+xgoja build ok: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/dist/generated-oidc-host-auth
+```
+
+### What didn't work
+- The first OIDC smoke attempt failed because the generated host tried to discover the fake OIDC provider before the provider process was accepting connections:
+
+```text
+Error: keycloakauth: discover provider: Get "http://127.0.0.1:49625/.well-known/openid-configuration": dial tcp 127.0.0.1:49625: connect: connection refused
+make: *** [Makefile:19: oidc-smoke] Error 1
+```
+
+- I fixed this by adding a readiness loop against `/.well-known/openid-configuration` before starting the generated host.
+
+### What I learned
+- A minimal OIDC discovery endpoint is enough to smoke handler construction and `/auth/login` redirect behavior; a full callback/token exchange is not needed for this example-level regression.
+
+### What was tricky to build
+- Makefile heredocs were brittle for the fake provider, so I moved the provider into a tracked Python script. This makes the smoke readable and avoids shell quoting failures.
+- OIDC discovery happens during serve startup, so the smoke must treat the provider as a dependency and wait for it explicitly.
+
+### What warrants a second pair of eyes
+- Review whether the example defaults should include a placeholder `client-secret`. The current YAML keeps secrets out of the file and the smoke overrides `--auth-oidc-client-secret smoke-secret`.
+- Review whether the smoke should later validate a callback/token exchange with signed ID tokens, or whether login redirect coverage is sufficient for this fixture.
+
+### What should be done in the future
+- Extend task 14 tests with more explicit generated runtime-plan/auth assertions and HTTP routing tests.
+- Update permanent docs so the example appears in the OIDC runbook and v2 YAML reference.
+
+### Code review instructions
+- Start with `examples/xgoja/21-generated-host-auth/xgoja.yaml` and `Makefile`.
+- Confirm `cmd/host` and stale generated runtime-package files were intentionally removed.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja/internal/generate ./pkg/xgoja/providers/http ./pkg/xgoja/hostauth -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+make -C examples/xgoja/21-generated-host-auth clean
+```
+
+### Technical details
+- The smoke starts a fake discovery provider that serves:
+  - `/.well-known/openid-configuration`
+  - `/jwks`
+- The generated host runs with:
+
+```text
+serve sites demo --auth-oidc-issuer-url <fake issuer> --auth-oidc-public-base-url http://<listen>
+```
+
+- Verified endpoints:
+  - `/healthz` returns `auth: generated-oidc`.
+  - `/` returns public demo text.
+  - `/auth/login` returns `302` to the fake authorization endpoint.
+  - `/me` returns `401` without a session cookie.

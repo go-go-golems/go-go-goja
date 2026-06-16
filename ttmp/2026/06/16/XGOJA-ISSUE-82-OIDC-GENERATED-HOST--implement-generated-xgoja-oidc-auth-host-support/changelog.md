@@ -149,3 +149,16 @@ Mounted hostauth native handlers in the serve-owned mux before the JavaScript ap
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 10 records native handler mounting
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/tasks.md — Task 12 completed
 
+
+## 2026-06-16
+
+Converted example 21 into a self-contained generated OIDC binary example with native /auth/login smoke coverage.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/Makefile — OIDC smoke builds/runs generated binary
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/scripts/fake_oidc_provider.py — Minimal fake OIDC discovery provider for smoke
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/xgoja.yaml — Top-level auth.mode=oidc generated binary fixture
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 11 records generated OIDC example conversion
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/tasks.md — Task 13 completed
+
