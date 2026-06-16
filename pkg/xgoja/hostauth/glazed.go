@@ -42,6 +42,15 @@ type GlazedSettings struct {
 	CapabilityStoreDriver      string `glazed:"auth-capability-store-driver"`
 	CapabilityStoreDSN         string `glazed:"auth-capability-store-dsn"`
 	CapabilityStoreApplySchema bool   `glazed:"auth-capability-store-apply-schema"`
+
+	OIDCIssuerURL      string   `glazed:"auth-oidc-issuer-url"`
+	OIDCClientID       string   `glazed:"auth-oidc-client-id"`
+	OIDCClientSecret   string   `glazed:"auth-oidc-client-secret"`
+	OIDCPublicBaseURL  string   `glazed:"auth-oidc-public-base-url"`
+	OIDCRedirectURL    string   `glazed:"auth-oidc-redirect-url"`
+	OIDCScopes         []string `glazed:"auth-oidc-scopes"`
+	OIDCAfterLoginURL  string   `glazed:"auth-oidc-after-login-url"`
+	OIDCAfterLogoutURL string   `glazed:"auth-oidc-after-logout-url"`
 }
 
 // ConfigDefaultsProvider is implemented by service factories that can expose
@@ -68,6 +77,16 @@ func GlazedConfigSection(base Config, opts ...schema.SectionOption) (schema.Sect
 	opts = append(opts, storeFields("audit", defaults.AuditStoreDriver, defaults.AuditStoreDSN, defaults.AuditStoreApplySchema)...)
 	opts = append(opts, storeFields("appauth", defaults.AppAuthStoreDriver, defaults.AppAuthStoreDSN, defaults.AppAuthStoreApplySchema)...)
 	opts = append(opts, storeFields("capability", defaults.CapabilityStoreDriver, defaults.CapabilityStoreDSN, defaults.CapabilityStoreApplySchema)...)
+	opts = append(opts, schema.WithFields(
+		fields.New("auth-oidc-issuer-url", fields.TypeString, fields.WithDefault(defaults.OIDCIssuerURL), fields.WithHelp("OIDC issuer URL for auth.mode=oidc")),
+		fields.New("auth-oidc-client-id", fields.TypeString, fields.WithDefault(defaults.OIDCClientID), fields.WithHelp("OIDC client ID for auth.mode=oidc")),
+		fields.New("auth-oidc-client-secret", fields.TypeString, fields.WithDefault(defaults.OIDCClientSecret), fields.WithHelp("OIDC client secret for confidential clients")),
+		fields.New("auth-oidc-public-base-url", fields.TypeString, fields.WithDefault(defaults.OIDCPublicBaseURL), fields.WithHelp("External browser-visible HTTPS origin; callback defaults to <public-base-url>/auth/callback")),
+		fields.New("auth-oidc-redirect-url", fields.TypeString, fields.WithDefault(defaults.OIDCRedirectURL), fields.WithHelp("Advanced explicit OIDC callback URL override")),
+		fields.New("auth-oidc-scopes", fields.TypeStringList, fields.WithDefault(defaults.OIDCScopes), fields.WithHelp("OIDC scopes; openid is added automatically")),
+		fields.New("auth-oidc-after-login-url", fields.TypeString, fields.WithDefault(defaults.OIDCAfterLoginURL), fields.WithHelp("Relative URL to redirect to after login")),
+		fields.New("auth-oidc-after-logout-url", fields.TypeString, fields.WithDefault(defaults.OIDCAfterLogoutURL), fields.WithHelp("Relative URL to redirect to after logout")),
+	))
 	return schema.NewSection(SectionSlug, "Generated host auth", opts...)
 }
 
@@ -117,6 +136,15 @@ func FlattenConfig(cfg Config) GlazedSettings {
 		CapabilityStoreDriver:      strings.TrimSpace(capability.Driver),
 		CapabilityStoreDSN:         strings.TrimSpace(capability.DSN),
 		CapabilityStoreApplySchema: boolValue(capability.ApplySchema),
+
+		OIDCIssuerURL:      strings.TrimSpace(cfg.OIDC.IssuerURL),
+		OIDCClientID:       strings.TrimSpace(cfg.OIDC.ClientID),
+		OIDCClientSecret:   strings.TrimSpace(cfg.OIDC.ClientSecret),
+		OIDCPublicBaseURL:  strings.TrimSpace(cfg.OIDC.PublicBaseURL),
+		OIDCRedirectURL:    strings.TrimSpace(cfg.OIDC.RedirectURL),
+		OIDCScopes:         append([]string(nil), cfg.OIDC.Scopes...),
+		OIDCAfterLoginURL:  strings.TrimSpace(cfg.OIDC.AfterLoginURL),
+		OIDCAfterLogoutURL: strings.TrimSpace(cfg.OIDC.AfterLogoutURL),
 	}
 }
 
@@ -164,7 +192,28 @@ func (s GlazedSettings) ToConfig() Config {
 			AppAuth:    storeConfigFromGlazed(s.AppAuthStoreDriver, s.AppAuthStoreDSN, s.AppAuthStoreApplySchema),
 			Capability: storeConfigFromGlazed(s.CapabilityStoreDriver, s.CapabilityStoreDSN, s.CapabilityStoreApplySchema),
 		},
+		OIDC: OIDCConfig{
+			IssuerURL:      strings.TrimSpace(s.OIDCIssuerURL),
+			ClientID:       strings.TrimSpace(s.OIDCClientID),
+			ClientSecret:   strings.TrimSpace(s.OIDCClientSecret),
+			PublicBaseURL:  strings.TrimSpace(s.OIDCPublicBaseURL),
+			RedirectURL:    strings.TrimSpace(s.OIDCRedirectURL),
+			Scopes:         trimStringSlice(s.OIDCScopes),
+			AfterLoginURL:  strings.TrimSpace(s.OIDCAfterLoginURL),
+			AfterLogoutURL: strings.TrimSpace(s.OIDCAfterLogoutURL),
+		},
 	}
+}
+
+func trimStringSlice(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
 }
 
 func storeConfigFromGlazed(driver, dsn string, applySchema bool) StoreConfig {

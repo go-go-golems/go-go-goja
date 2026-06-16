@@ -2,6 +2,7 @@ package hostauth
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
@@ -25,6 +26,14 @@ type ServiceFactory interface {
 	BuildHostAuthServices(ctx context.Context, vals *values.Values) (*Services, error)
 }
 
+// NativeHandler describes a Go-owned HTTP route mounted by the command-owned
+// server before the JavaScript app host fallback.
+type NativeHandler struct {
+	Method  string
+	Path    string
+	Handler http.Handler
+}
+
 // AppAuthStores groups the app-owned authorization data stores.
 type AppAuthStores struct {
 	Users       appauth.UserStore
@@ -46,6 +55,8 @@ type Services struct {
 
 	AppAuth    AppAuthStores
 	Capability capability.Store
+
+	NativeHandlers []NativeHandler
 
 	Closers []func(context.Context) error
 }

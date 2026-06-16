@@ -17,6 +17,7 @@ func TestGlazedConfigSectionDefaultsFromBaseConfig(t *testing.T) {
 			IdleTimeout: "15m", AbsoluteTimeout: "8h",
 		},
 		Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite", DSN: "file:auth.db", ApplySchema: &applySchema}},
+		OIDC:   OIDCConfig{IssuerURL: "https://auth.example.test/realms/demo", ClientID: "goja-app", PublicBaseURL: "https://app.example.test", Scopes: []string{"profile", "email"}},
 	})
 	if err != nil {
 		t.Fatalf("GlazedConfigSection: %v", err)
@@ -30,6 +31,9 @@ func TestGlazedConfigSectionDefaultsFromBaseConfig(t *testing.T) {
 	assertDefault(t, section, "auth-default-store-driver", "sqlite")
 	assertDefault(t, section, "auth-default-store-dsn", "file:auth.db")
 	assertDefault(t, section, "auth-session-store-apply-schema", false)
+	assertDefault(t, section, "auth-oidc-issuer-url", "https://auth.example.test/realms/demo")
+	assertDefault(t, section, "auth-oidc-client-id", "goja-app")
+	assertDefault(t, section, "auth-oidc-public-base-url", "https://app.example.test")
 }
 
 func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
@@ -51,6 +55,11 @@ func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
 		"auth-audit-store-driver":                 "memory",
 		"auth-audit-store-dsn":                    "",
 		"auth-audit-store-apply-schema":           false,
+		"auth-oidc-issuer-url":                    "https://auth.example.test/realms/demo",
+		"auth-oidc-client-id":                     "goja-app",
+		"auth-oidc-client-secret":                 "secret",
+		"auth-oidc-public-base-url":               "https://app.example.test",
+		"auth-oidc-scopes":                        []string{"profile", "email"},
 	})
 	cfg, err := ConfigFromValues(values.New(values.WithSectionValues(SectionSlug, sectionValues)), Config{Mode: ModeNone})
 	if err != nil {
@@ -70,6 +79,12 @@ func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
 	}
 	if cfg.Stores.Audit.Driver != "memory" || cfg.Stores.Audit.DSN != "" || cfg.Stores.Audit.ApplySchema == nil || *cfg.Stores.Audit.ApplySchema {
 		t.Fatalf("audit store = %#v", cfg.Stores.Audit)
+	}
+	if cfg.OIDC.IssuerURL != "https://auth.example.test/realms/demo" || cfg.OIDC.ClientID != "goja-app" || cfg.OIDC.ClientSecret != "secret" || cfg.OIDC.PublicBaseURL != "https://app.example.test" {
+		t.Fatalf("oidc = %#v", cfg.OIDC)
+	}
+	if len(cfg.OIDC.Scopes) != 2 || cfg.OIDC.Scopes[0] != "profile" || cfg.OIDC.Scopes[1] != "email" {
+		t.Fatalf("oidc scopes = %#v", cfg.OIDC.Scopes)
 	}
 }
 

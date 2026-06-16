@@ -1,14 +1,12 @@
 package hostauth
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
-
-var ErrOIDCNotImplemented = errors.New("hostauth: auth.mode=oidc is not implemented yet")
 
 type ResolveOptions struct{}
 
@@ -39,10 +37,6 @@ func ResolveConfig(cfg Config, opts ResolveOptions) (ResolvedConfig, error) {
 	if err != nil {
 		return ResolvedConfig{}, configError("auth.mode", err)
 	}
-	if mode == ModeOIDC {
-		return ResolvedConfig{}, configError("auth.mode", ErrOIDCNotImplemented)
-	}
-
 	session, err := resolveSessionConfig(cfg.Session)
 	if err != nil {
 		return ResolvedConfig{}, err
@@ -58,7 +52,15 @@ func ResolveConfig(cfg Config, opts ResolveOptions) (ResolvedConfig, error) {
 	if err != nil {
 		return ResolvedConfig{}, err
 	}
-	return ResolvedConfig{Mode: mode, Session: session, Stores: stores}, nil
+	resolved := ResolvedConfig{Mode: mode, Session: session, Stores: stores}
+	if mode == ModeOIDC {
+		oidc, err := resolveOIDCConfig(cfg.OIDC, session.Cookie.AllowInsecureHTTP)
+		if err != nil {
+			return ResolvedConfig{}, err
+		}
+		resolved.OIDC = oidc
+	}
+	return resolved, nil
 }
 
 func configError(path string, err error) error {
@@ -136,6 +138,88 @@ func parseOptionalDuration(path string, value string) (time.Duration, error) {
 		return 0, configError(path, fmt.Errorf("must be positive"))
 	}
 	return d, nil
+}
+
+func resolveOIDCConfig(cfg OIDCConfig, allowInsecureHTTP bool) (ResolvedOIDCConfig, error) {
+	issuerURL := strings.TrimSpace(cfg.IssuerURL)
+	if issuerURL == "" {
+		return ResolvedOIDCConfig{}, configError("auth.oidc.issuer-url", fmt.Errorf("is required for auth.mode=oidc"))
+	}
+	if err := requireAllowedURLScheme("auth.oidc.issuer-url", issuerURL, allowInsecureHTTP); err != nil {
+		return ResolvedOIDCConfig{}, err
+	}
+	clientID := strings.TrimSpace(cfg.ClientID)
+	if clientID == "" {
+		return ResolvedOIDCConfig{}, configError("auth.oidc.client-id", fmt.Errorf("is required for auth.mode=oidc"))
+	}
+	redirectURL, err := resolveOIDCRedirectURL(cfg, allowInsecureHTTP)
+	if err != nil {
+		return ResolvedOIDCConfig{}, err
+	}
+	return ResolvedOIDCConfig{
+		IssuerURL:      issuerURL,
+		ClientID:       clientID,
+		ClientSecret:   strings.TrimSpace(cfg.ClientSecret),
+		RedirectURL:    redirectURL,
+		Scopes:         trimStringSlice(cfg.Scopes),
+		AfterLoginURL:  defaultRelativeURL(strings.TrimSpace(cfg.AfterLoginURL), "/"),
+		AfterLogoutURL: defaultRelativeURL(strings.TrimSpace(cfg.AfterLogoutURL), "/"),
+	}, nil
+}
+
+func resolveOIDCRedirectURL(cfg OIDCConfig, allowInsecureHTTP bool) (string, error) {
+	if redirectURL := strings.TrimSpace(cfg.RedirectURL); redirectURL != "" {
+		if err := requireAllowedURLScheme("auth.oidc.redirect-url", redirectURL, allowInsecureHTTP); err != nil {
+			return "", err
+		}
+		return redirectURL, nil
+	}
+	publicBaseURL := strings.TrimRight(strings.TrimSpace(cfg.PublicBaseURL), "/")
+	if publicBaseURL == "" {
+		return "", configError("auth.oidc.public-base-url", fmt.Errorf("public-base-url or redirect-url is required for auth.mode=oidc"))
+	}
+	if err := requireAllowedURLScheme("auth.oidc.public-base-url", publicBaseURL, allowInsecureHTTP); err != nil {
+		return "", err
+	}
+	return publicBaseURL + "/auth/callback", nil
+}
+
+func requireAllowedURLScheme(path string, raw string, allowInsecureHTTP bool) error {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return configError(path, fmt.Errorf("parse URL %q: %w", raw, err))
+	}
+	switch parsed.Scheme {
+	case "https":
+		return nil
+	case "http":
+		if allowInsecureHTTP && isLocalhost(parsed.Hostname()) {
+			return nil
+		}
+		return configError(path, fmt.Errorf("must use https unless allow-insecure-http is true for localhost"))
+	default:
+		return configError(path, fmt.Errorf("must use http or https"))
+	}
+}
+
+func isLocalhost(host string) bool {
+	switch strings.ToLower(strings.TrimSpace(host)) {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	default:
+		return false
+	}
+}
+
+func defaultRelativeURL(value string, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	if !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") {
+		return fallback
+	}
+	return value
 }
 
 func resolveStoresConfig(cfg StoresConfig) (ResolvedStoresConfig, error) {

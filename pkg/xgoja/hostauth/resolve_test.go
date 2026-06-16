@@ -123,12 +123,57 @@ func TestResolveConfigExplicitMemoryStoreIgnoresInheritedDSN(t *testing.T) {
 	}
 }
 
-func TestResolveConfigRejectsOIDCModeForThisPhase(t *testing.T) {
-	_, err := ResolveConfig(Config{Mode: ModeOIDC}, ResolveOptions{})
-	if !errors.Is(err, ErrOIDCNotImplemented) {
-		t.Fatalf("error = %v, want ErrOIDCNotImplemented", err)
+func TestResolveConfigOIDCDerivesRedirectFromPublicBaseURL(t *testing.T) {
+	resolved, err := ResolveConfig(Config{
+		Mode:    ModeOIDC,
+		Session: SessionConfig{Cookie: CookieConfig{AllowInsecureHTTP: true}},
+		OIDC: OIDCConfig{
+			IssuerURL:      "http://localhost:8080/realms/demo",
+			ClientID:       "goja-app",
+			PublicBaseURL:  "http://localhost:8787/",
+			Scopes:         []string{"profile", "email"},
+			AfterLoginURL:  "/dashboard",
+			AfterLogoutURL: "/logged-out",
+		},
+	}, ResolveOptions{})
+	if err != nil {
+		t.Fatalf("ResolveConfig: %v", err)
 	}
-	assertConfigPath(t, err, "auth.mode")
+	if resolved.Mode != ModeOIDC || resolved.OIDC.RedirectURL != "http://localhost:8787/auth/callback" {
+		t.Fatalf("resolved OIDC = %#v", resolved.OIDC)
+	}
+	if resolved.OIDC.AfterLoginURL != "/dashboard" || resolved.OIDC.AfterLogoutURL != "/logged-out" {
+		t.Fatalf("after URLs = %#v", resolved.OIDC)
+	}
+	if len(resolved.OIDC.Scopes) != 2 || resolved.OIDC.Scopes[0] != "profile" || resolved.OIDC.Scopes[1] != "email" {
+		t.Fatalf("scopes = %#v", resolved.OIDC.Scopes)
+	}
+}
+
+func TestResolveConfigOIDCRedirectOverrideAndHTTPSPolicy(t *testing.T) {
+	resolved, err := ResolveConfig(Config{
+		Mode: ModeOIDC,
+		OIDC: OIDCConfig{
+			IssuerURL:   "https://auth.example.test/realms/demo",
+			ClientID:    "goja-app",
+			RedirectURL: "https://app.example.test/custom/callback",
+		},
+	}, ResolveOptions{})
+	if err != nil {
+		t.Fatalf("ResolveConfig: %v", err)
+	}
+	if resolved.OIDC.RedirectURL != "https://app.example.test/custom/callback" {
+		t.Fatalf("redirect = %q", resolved.OIDC.RedirectURL)
+	}
+
+	_, err = ResolveConfig(Config{
+		Mode: ModeOIDC,
+		OIDC: OIDCConfig{IssuerURL: "https://auth.example.test/realms/demo", ClientID: "goja-app", PublicBaseURL: "http://app.example.test"},
+	}, ResolveOptions{})
+	if err == nil {
+		t.Fatal("expected non-local http public base URL rejection")
+	}
+	assertConfigPath(t, err, "auth.oidc.public-base-url")
 }
 
 func TestResolveConfigRejectsInvalidValuesWithPaths(t *testing.T) {
@@ -144,6 +189,9 @@ func TestResolveConfigRejectsInvalidValuesWithPaths(t *testing.T) {
 		{name: "idle", cfg: Config{Session: SessionConfig{IdleTimeout: "0s"}}, path: "auth.session.idle-timeout", want: "must be positive"},
 		{name: "driver", cfg: Config{Mode: ModeDev, Stores: StoresConfig{Default: StoreConfig{Driver: "mysql"}}}, path: "auth.stores.session.driver", want: "unsupported store driver"},
 		{name: "missing dsn", cfg: Config{Mode: ModeDev, Stores: StoresConfig{Default: StoreConfig{Driver: "postgres"}}}, path: "auth.stores.session.dsn", want: "dsn is required"},
+		{name: "oidc issuer", cfg: Config{Mode: ModeOIDC, OIDC: OIDCConfig{ClientID: "goja-app", PublicBaseURL: "https://app.example.test"}}, path: "auth.oidc.issuer-url", want: "is required"},
+		{name: "oidc client", cfg: Config{Mode: ModeOIDC, OIDC: OIDCConfig{IssuerURL: "https://auth.example.test/realms/demo", PublicBaseURL: "https://app.example.test"}}, path: "auth.oidc.client-id", want: "is required"},
+		{name: "oidc callback", cfg: Config{Mode: ModeOIDC, OIDC: OIDCConfig{IssuerURL: "https://auth.example.test/realms/demo", ClientID: "goja-app"}}, path: "auth.oidc.public-base-url", want: "public-base-url or redirect-url"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

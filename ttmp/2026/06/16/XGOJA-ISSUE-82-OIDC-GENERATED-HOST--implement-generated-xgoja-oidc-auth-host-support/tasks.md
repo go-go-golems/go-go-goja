@@ -13,7 +13,7 @@
 - [x] Keep Express as a pure route-registration module and remove serve-time reliance on express.WithOnUse startup
 - [x] Adapt hot reload to one stable listener/top-level handler that swaps only app runtime snapshots
 - [x] Add top-level auth fields to xgoja v2 spec and generated runtime planning
-- [ ] Build hostauth services from generated serve configuration using Glazed/env-backed settings
+- [x] Build hostauth services from generated serve configuration using Glazed/env-backed settings
 - [ ] Mount native OIDC handlers before the generated app host in the serve-owned mux
 - [ ] Generate a self-contained xgoja.yaml OIDC example to replace the temporary hand-written auth host
 - [ ] Add unit, generated-example, and smoke tests for OIDC serve behavior

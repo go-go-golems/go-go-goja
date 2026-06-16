@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -81,6 +82,10 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	}
 	auditSink := audit.Sink{Store: stores.Audit}
 	authOptions := BuildAuthOptions(sessionManager, stores, auditSink)
+	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores)
+	if err != nil {
+		return nil, err
+	}
 	services := &Services{
 		Config:         resolved,
 		AuthOptions:    authOptions,
@@ -90,10 +95,88 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		AuditStore:     stores.Audit,
 		AppAuth:        stores.AppAuth,
 		Capability:     stores.Capability,
+		NativeHandlers: nativeHandlers,
 		Closers:        stores.Closers,
 	}
 	success = true
 	return services, nil
+}
+
+// BuildNativeHandlers maps resolved auth config into Go-owned HTTP handlers
+// mounted by xgoja serve before the JavaScript app host fallback.
+func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager *sessionauth.Manager, stores *StoreBundle) ([]NativeHandler, error) {
+	if cfg.Mode != ModeOIDC {
+		return nil, nil
+	}
+	if sessionManager == nil {
+		return nil, configError("auth.session", errors.New("session manager is required for auth.mode=oidc"))
+	}
+	if stores == nil || stores.AppAuth.Users == nil {
+		return nil, configError("auth.stores.appauth", errors.New("app auth user store is required for auth.mode=oidc"))
+	}
+	handlers, err := keycloakauth.New(ctx, keycloakauth.Config{
+		IssuerURL:      cfg.OIDC.IssuerURL,
+		ClientID:       cfg.OIDC.ClientID,
+		ClientSecret:   cfg.OIDC.ClientSecret,
+		RedirectURL:    cfg.OIDC.RedirectURL,
+		Scopes:         cfg.OIDC.Scopes,
+		AfterLoginURL:  cfg.OIDC.AfterLoginURL,
+		AfterLogoutURL: cfg.OIDC.AfterLogoutURL,
+		SessionManager: sessionManager,
+		UserNormalizer: DefaultOIDCUserNormalizer(stores),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return []NativeHandler{
+		{Method: "GET", Path: "/auth/login", Handler: handlers.LoginHandler()},
+		{Method: "GET", Path: "/auth/callback", Handler: handlers.CallbackHandler()},
+		{Method: "POST", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
+		{Method: "GET", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
+	}, nil
+}
+
+// DefaultOIDCUserNormalizer upserts an app user by stable OIDC subject and
+// projects existing app memberships into the application session. It does not
+// grant roles or seed tenants; application seeding remains outside generic
+// hostauth.
+func DefaultOIDCUserNormalizer(stores *StoreBundle) keycloakauth.UserNormalizer {
+	return keycloakauth.UserNormalizerFunc(func(ctx context.Context, claims keycloakauth.OIDCClaims) (keycloakauth.UserSession, error) {
+		user, err := stores.AppAuth.Users.UpsertFromOIDC(ctx, claims.Subject, claims.Email, claims.EmailVerified)
+		if err != nil {
+			return keycloakauth.UserSession{}, err
+		}
+		tenantIDs := []string(nil)
+		if stores.AppAuth.Memberships != nil {
+			memberships, err := stores.AppAuth.Memberships.MembershipsForUser(ctx, user.ID)
+			if err != nil {
+				return keycloakauth.UserSession{}, err
+			}
+			seen := map[string]struct{}{}
+			for _, membership := range memberships {
+				if membership.RevokedAt != nil || membership.TenantID == "" {
+					continue
+				}
+				if _, ok := seen[membership.TenantID]; ok {
+					continue
+				}
+				seen[membership.TenantID] = struct{}{}
+				tenantIDs = append(tenantIDs, membership.TenantID)
+			}
+		}
+		return keycloakauth.UserSession{
+			UserID:        user.ID,
+			Email:         user.Email,
+			EmailVerified: user.EmailVerified,
+			TenantIDs:     tenantIDs,
+			Claims: map[string]any{
+				"keycloakSub":       claims.Subject,
+				"preferredUsername": claims.PreferredUsername,
+				"name":              claims.Name,
+				"groups":            append([]string(nil), claims.Groups...),
+			},
+		}, nil
+	})
 }
 
 // BuildSessionManager maps resolved generated-host config into sessionauth.

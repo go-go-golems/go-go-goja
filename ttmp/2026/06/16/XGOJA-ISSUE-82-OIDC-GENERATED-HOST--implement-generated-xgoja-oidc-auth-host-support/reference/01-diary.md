@@ -687,3 +687,103 @@ xgoja.yaml auth:
   -> HostServices[hostauth.ServiceFactoryKey]
   -> http serve command discovers factory and adds auth flags/builds services
 ```
+
+
+## Step 9: Build OIDC-capable hostauth services from generated serve config
+
+I added the hostauth configuration and service-building pieces needed for generated `xgoja serve` OIDC mode. The generated top-level `auth:` block can now carry OIDC issuer/client/public-base-url settings, Glazed exposes matching `--auth-oidc-*` fields, resolution derives the callback URL from `public-base-url`, and the service factory builds Keycloak/OIDC handlers into a `NativeHandlers` list.
+
+This step intentionally stops just before mounting those handlers into the HTTP `serve` mux. The service layer now produces the routes; the next step wires them into the command-owned top-level mux before the JavaScript app fallback.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue task execution by implementing generated OIDC auth service construction and keeping diary/changelog evidence.
+
+**Inferred user intent:** Turn the design into runnable infrastructure incrementally, with each commit reviewable and tested.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Added `hostauth.OIDCConfig` under `hostauth.Config.OIDC`.
+- Added `ResolvedOIDCConfig` under `ResolvedConfig.OIDC`.
+- Added Glazed fields:
+  - `auth-oidc-issuer-url`
+  - `auth-oidc-client-id`
+  - `auth-oidc-client-secret`
+  - `auth-oidc-public-base-url`
+  - `auth-oidc-redirect-url`
+  - `auth-oidc-scopes`
+  - `auth-oidc-after-login-url`
+  - `auth-oidc-after-logout-url`
+- Implemented OIDC config resolution:
+  - `public-base-url` derives `<public-base-url>/auth/callback`;
+  - explicit `redirect-url` overrides;
+  - HTTPS is required except local HTTP when `allow-insecure-http=true`;
+  - issuer URL and client ID are required in OIDC mode.
+- Added `hostauth.NativeHandler` and `Services.NativeHandlers`.
+- Added `BuildNativeHandlers` for `auth.mode=oidc` using `keycloakauth.New`.
+- Added `DefaultOIDCUserNormalizer`, which upserts users by OIDC subject and projects existing memberships without granting roles.
+- Added tests for OIDC config resolution, Glazed mapping, service native handler construction, and default user normalization.
+
+### Why
+- `serve` needs concrete Go-owned auth handlers before it can mount `/auth/login`, `/auth/callback`, and `/auth/logout`.
+- OIDC settings must come from generated command/config/env surfaces, not from a hand-written demo host.
+- Generic hostauth must not auto-seed tenants or grant demo roles.
+
+### What worked
+- Hostauth tests passed:
+
+```text
+go test ./pkg/xgoja/hostauth -count=1
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth	0.031s
+```
+
+- Cross-package targeted tests passed:
+
+```text
+go test ./pkg/xgoja/providers/http ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.554s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.266s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.042s
+```
+
+### What didn't work
+- N/A in this step after edits; the targeted tests passed.
+
+### What I learned
+- `keycloakauth.New` only needs OIDC discovery during construction, so an in-test discovery server is enough to validate service construction without a full login flow.
+- The existing appauth stores already provide the right generic primitive: `UpsertFromOIDC` plus `MembershipsForUser`.
+
+### What was tricky to build
+- The URL policy had to respect the existing production rule: never derive callback URLs from `--listen`; derive from `public-base-url` or accept explicit `redirect-url`.
+- The generic normalizer needed to be useful without encoding the demo's admin seed behavior. It upserts the user and includes existing memberships only.
+
+### What warrants a second pair of eyes
+- Review whether `client-secret` should be required for OIDC mode or remain optional for public-client/local experiments.
+- Review whether exposing both GET and POST logout handlers is acceptable; POST is the primary route, GET preserves redirect-friendly logout semantics from `keycloakauth`.
+
+### What should be done in the future
+- Mount `Services.NativeHandlers` in `buildServeHandler` before `/`.
+- Add `/auth/session` if the generated host should expose a first-class session introspection endpoint.
+- Add a generated OIDC example and docs after the route wiring lands.
+
+### Code review instructions
+- Start with `pkg/xgoja/hostauth/config.go` and `resolve.go` to review the public config and URL validation.
+- Then review `pkg/xgoja/hostauth/builder.go:BuildNativeHandlers` and `DefaultOIDCUserNormalizer`.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/app ./cmd/xgoja/internal/generate -count=1
+```
+
+### Technical details
+- Native handlers produced for `auth.mode=oidc`:
+
+```text
+GET  /auth/login
+GET  /auth/callback
+POST /auth/logout
+GET  /auth/logout
+```

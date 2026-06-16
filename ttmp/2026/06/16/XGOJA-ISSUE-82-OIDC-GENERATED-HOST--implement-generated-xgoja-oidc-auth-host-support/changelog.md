@@ -119,3 +119,21 @@ Resolved the test import cycle caused by app importing hostauth by moving hostau
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/lookup_test.go — External-package test avoids app<->hostauth test import cycle
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 8 records the import-cycle failure and fix
 
+
+## 2026-06-16
+
+Built OIDC-capable hostauth services from generated auth config, including Glazed auth-oidc fields, redirect resolution, default OIDC user normalization, and native auth handlers.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder.go — OIDC native handler construction and default normalizer
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder_test.go — OIDC service construction and normalizer tests
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/config.go — OIDC config and resolved config shape
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/glazed.go — auth-oidc Glazed fields for flags/env/config
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/glazed_test.go — OIDC Glazed mapping tests
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/resolve.go — OIDC URL validation and callback derivation
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/resolve_test.go — OIDC config resolution tests
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/services.go — NativeHandler service payload
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 9 records hostauth OIDC service construction
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/tasks.md — Task 11 completed
+

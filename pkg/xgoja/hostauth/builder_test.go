@@ -2,12 +2,15 @@ package hostauth
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -124,6 +127,62 @@ func TestServiceFactoryDevBuildsUsableAuthServices(t *testing.T) {
 	}
 }
 
+func TestServiceFactoryOIDCBuildsNativeHandlers(t *testing.T) {
+	issuer := newOIDCDiscoveryServer(t)
+	services, err := NewServiceFactory(BuilderOptions{Config: Config{
+		Mode:    ModeOIDC,
+		Session: SessionConfig{Cookie: CookieConfig{AllowInsecureHTTP: true}},
+		OIDC: OIDCConfig{
+			IssuerURL:      issuer.URL,
+			ClientID:       "goja-app",
+			PublicBaseURL:  "http://localhost:8787",
+			AfterLoginURL:  "/after",
+			AfterLogoutURL: "/bye",
+		},
+	}}).BuildHostAuthServices(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BuildHostAuthServices: %v", err)
+	}
+	defer func() { _ = services.Close(context.Background()) }()
+	if services.Config.Mode != ModeOIDC || services.Config.OIDC.RedirectURL != "http://localhost:8787/auth/callback" {
+		t.Fatalf("config = %#v", services.Config)
+	}
+	if services.SessionManager == nil || services.AuthOptions.Authenticator == nil {
+		t.Fatalf("missing session/auth options: %#v", services)
+	}
+	got := map[string]bool{}
+	for _, route := range services.NativeHandlers {
+		got[route.Method+" "+route.Path] = route.Handler != nil
+	}
+	for _, want := range []string{"GET /auth/login", "GET /auth/callback", "POST /auth/logout", "GET /auth/logout"} {
+		if !got[want] {
+			t.Fatalf("native handlers missing %s: %#v", want, services.NativeHandlers)
+		}
+	}
+}
+
+func TestDefaultOIDCUserNormalizerUpsertsUserWithoutGrantingMemberships(t *testing.T) {
+	stores, err := BuildStores(context.Background(), mustResolveStores(t, Config{}))
+	if err != nil {
+		t.Fatalf("BuildStores: %v", err)
+	}
+	defer func() { _ = stores.Close(context.Background()) }()
+	normalizer := DefaultOIDCUserNormalizer(stores)
+	session, err := normalizer.NormalizeOIDCUser(context.Background(), fakeOIDCClaims("kc-sub-1", "demo@example.test"))
+	if err != nil {
+		t.Fatalf("NormalizeOIDCUser: %v", err)
+	}
+	if session.UserID == "" || session.Email != "demo@example.test" || !session.EmailVerified {
+		t.Fatalf("session = %#v", session)
+	}
+	if len(session.TenantIDs) != 0 {
+		t.Fatalf("generic normalizer must not grant memberships, got %#v", session.TenantIDs)
+	}
+	if session.Claims["keycloakSub"] != "kc-sub-1" || session.Claims["preferredUsername"] != "demo" {
+		t.Fatalf("claims = %#v", session.Claims)
+	}
+}
+
 func TestServiceFactoryUsesDirectDSNAtBuildTime(t *testing.T) {
 	factory := NewServiceFactory(BuilderOptions{Config: Config{
 		Mode:   ModeDev,
@@ -149,4 +208,33 @@ func TestServiceFactoryUsesDirectDSNAtBuildTime(t *testing.T) {
 	if err := services.Close(context.Background()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
+}
+
+func newOIDCDiscoveryServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/.well-known/openid-configuration":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"issuer":                                server.URL,
+				"authorization_endpoint":                server.URL + "/auth",
+				"token_endpoint":                        server.URL + "/token",
+				"jwks_uri":                              server.URL + "/jwks",
+				"id_token_signing_alg_values_supported": []string{"RS256"},
+			})
+		case "/jwks":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"keys":[]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func fakeOIDCClaims(sub string, email string) keycloakauth.OIDCClaims {
+	return keycloakauth.OIDCClaims{Subject: sub, Email: email, EmailVerified: true, PreferredUsername: strings.TrimSuffix(email, "@example.test")}
 }
