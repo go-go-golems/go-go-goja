@@ -47,3 +47,14 @@ Implemented source-repo auth-host increment: example 19 is now a Glazed serve co
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/Dockerfile.auth-host — Temporary auth-host image
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go — Glazed serve command
 
+
+## 2026-06-16
+
+Deployed goja-auth-host-demo to yolo: pushed GHCR image sha-ba77afc, added K3s GitOps/Vault/Postgres/Argo resources on task/clubmed-prod-gitops, provisioned a dedicated Keycloak realm/client/user, synced Argo to Healthy, issued TLS for goja-auth.yolo.scapegoat.dev, and passed the public Keycloak smoke test.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/goja-auth-host-demo.yaml — Argo Application for the demo
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-auth-host-demo/deployment.yaml — Live auth-host Deployment
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-goja-auth-host-demo-runtime-secrets.sh — Vault runtime secret bootstrap helper
+
