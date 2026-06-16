@@ -50,6 +50,44 @@ func RegisterGojaBuilderFileTaskProtoMessageTypes(register func(string, proto.Me
 
 Each protobuf message becomes a JavaScript namespace with `builder()`, `from(value)`, `is(value)`, and `clone(value)`. The namespace is also a hidden prototype token, so Go code can recover the message type with `protogoja.MessagePrototypeFromValue` when it needs a schema handle rather than a payload.
 
+## Namespace values, message values, and `typeName`
+
+Generated protobuf modules expose two related JavaScript value shapes:
+
+- `pb.Task` is a **message namespace**. It is a type/schema token. Go should
+  consume it with `protogoja.MessagePrototypeFromValue(value)` when a host API
+  needs to register or inspect a protobuf type.
+- `pb.Task.builder().title("demo").build()` is a **built message value**. It is
+  a payload. Go should consume it with `protogoja.MessageFromValue(value)` when
+  a host API needs the concrete `proto.Message`.
+
+Both shapes expose public `typeName` metadata so JavaScript can log, compare,
+or display the protobuf full name. That public property is not the same thing as
+the hidden Go-owned reference. A plain object such as
+`{ typeName: "examples.tasks.v1.Task" }` is only ordinary JavaScript data; it is
+not a generated namespace and does not carry a hidden prototype token.
+
+Host integrations should therefore check the hidden-reference helpers before
+using generic JavaScript export paths:
+
+```go
+if prototype, ok := protogoja.MessagePrototypeFromValue(value); ok {
+    // value is a generated namespace such as pb.Task.
+    _ = prototype.TypeName()
+    _ = prototype.NewMessage()
+}
+
+if msg, ok := protogoja.MessageFromValue(value); ok {
+    // value is a built payload such as pb.Task.builder().build().
+    _ = msg
+}
+```
+
+Avoid calling `value.Export()`, `vm.ExportTo(...)`, `JSON.stringify`, object
+spread, or other copying/serialization mechanisms before these checks. Those
+operations preserve only public JavaScript data such as `typeName`; they do not
+preserve hidden `protogoja` references.
+
 ## Quick start with protoc
 
 Use `protoc` when your project already has direct protobuf generation commands or `go:generate` lines. Install both generators, then invoke them in the same command so `*.pb.go` and `*_goja.pb.go` stay in sync.

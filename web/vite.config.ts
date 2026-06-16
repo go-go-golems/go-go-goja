@@ -26,7 +26,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     build: {
       outDir: path.resolve(import.meta.dirname, "dist/public"),
-      emptyOutDir: true
+      emptyOutDir: true,
+      target: "esnext"
     },
     resolve: {
       alias: {
