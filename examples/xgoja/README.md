@@ -22,7 +22,7 @@ Each example directory has its own `README.md`, `Makefile`, and native `schema: 
 14. `14-generated-runtime-package/` — `xgoja generate` writes an importable runtime package that a host application uses directly.
 15. `15-protobuf-builder-provider/` — a provider exposes a generated protobuf builder module, generated from a local `.proto`, and tests JavaScript-to-Go protobuf extraction without JSON/protojson conversion.
 16. `16-typescript-jsverbs/` — TypeScript-authored jsverbs use esbuild-backed compilation, `xgoja run` TypeScript entry support, generated declarations, and HTTP hot reload.
-17. Reserved; the old route-authoring-only Express sketch was removed because the runnable examples below cover the same API.
+17. `17-sourcegraph-runtime-aliases/` — source graph import resolution regression guard combining local `require()` imports with several runtime features in one binary.
 18. `18-express-auth-host/` — **local dev-auth template**. Runnable Go-owned dev-auth host that wires login/logout, session cookies, CSRF, resources, authorization, audit, and strict raw-route rejection for planned Express auth routes without external services.
 19. `19-express-keycloak-auth-host/` — **production template**. Keycloak/OIDC host used for the live `goja-auth-host-demo` deployment pattern; includes Docker Compose Keycloak smoke, app sessions, app-owned authorization, Postgres store wiring, and planned Express routes.
 20. `20-express-hello-world/` — **smoke-only template**. Tiny no-auth Express host with public planned routes only; useful for HTTP provider sanity checks, not auth deployment design.
@@ -80,6 +80,7 @@ for dir in \
   15-protobuf-builder-provider \
   16-typescript-jsverbs \
   18-express-auth-host \
+  17-sourcegraph-runtime-aliases; do
   20-express-hello-world; do
   make -C examples/xgoja/$dir smoke
 done

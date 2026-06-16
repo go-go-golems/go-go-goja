@@ -142,10 +142,11 @@ type fsWatchState struct {
 	mu           sync.Mutex
 	watchedPaths map[string]struct{}
 
-	debounceMu     sync.Mutex
-	pending        map[string]pendingFSEvent
-	timers         map[string]*time.Timer
-	debounceClosed bool
+	debounceMu         sync.Mutex
+	pending            map[string]pendingFSEvent
+	timers             map[string]*time.Timer
+	debounceGeneration map[string]uint64
+	debounceClosed     bool
 }
 
 // FSWatchHelper installs a JS-callable helper object with watch(path, emitter,
@@ -352,15 +353,16 @@ func validateGlobPatterns(patterns []string, name string) error {
 
 func newFSWatchState(watchPath string, opts fsWatchCallOptions, hostOpts FSWatchOptions, watcher *fsnotify.Watcher, ref *EmitterRef) *fsWatchState {
 	return &fsWatchState{
-		watchPath:    watchPath,
-		opts:         opts,
-		matcher:      fsWatchGlobMatcher{include: opts.Include, exclude: opts.Exclude},
-		hostOpts:     hostOpts,
-		watcher:      watcher,
-		ref:          ref,
-		watchedPaths: map[string]struct{}{},
-		pending:      map[string]pendingFSEvent{},
-		timers:       map[string]*time.Timer{},
+		watchPath:          watchPath,
+		opts:               opts,
+		matcher:            fsWatchGlobMatcher{include: opts.Include, exclude: opts.Exclude},
+		hostOpts:           hostOpts,
+		watcher:            watcher,
+		ref:                ref,
+		watchedPaths:       map[string]struct{}{},
+		pending:            map[string]pendingFSEvent{},
+		timers:             map[string]*time.Timer{},
+		debounceGeneration: map[string]uint64{},
 	}
 }
 
@@ -520,24 +522,27 @@ func (s *fsWatchState) dispatchDebounced(event fsnotify.Event) {
 		pending = pendingFSEvent{Event: event, Count: 1}
 	}
 	s.pending[key] = pending
+	s.debounceGeneration[key]++
+	generation := s.debounceGeneration[key]
 	if timer, ok := s.timers[key]; ok {
 		timer.Stop()
 	}
 	s.timers[key] = time.AfterFunc(s.opts.Debounce, func() {
-		s.flushDebounced(key)
+		s.flushDebounced(key, generation)
 	})
 	s.debounceMu.Unlock()
 }
 
-func (s *fsWatchState) flushDebounced(key string) {
+func (s *fsWatchState) flushDebounced(key string, generation uint64) {
 	s.debounceMu.Lock()
-	if s.debounceClosed {
+	if s.debounceClosed || s.debounceGeneration[key] != generation {
 		s.debounceMu.Unlock()
 		return
 	}
 	pending, ok := s.pending[key]
 	if ok {
 		delete(s.pending, key)
+		delete(s.debounceGeneration, key)
 	}
 	if timer, ok := s.timers[key]; ok {
 		timer.Stop()
@@ -560,6 +565,9 @@ func (s *fsWatchState) stopDebounceTimers() {
 	}
 	for key := range s.pending {
 		delete(s.pending, key)
+	}
+	for key := range s.debounceGeneration {
+		delete(s.debounceGeneration, key)
 	}
 }
 
