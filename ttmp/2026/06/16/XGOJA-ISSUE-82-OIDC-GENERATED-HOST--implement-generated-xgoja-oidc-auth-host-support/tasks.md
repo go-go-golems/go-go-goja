@@ -18,4 +18,4 @@
 - [x] Generate a self-contained xgoja.yaml OIDC example to replace the temporary hand-written auth host
 - [x] Add unit, generated-example, and smoke tests for OIDC serve behavior
 - [x] Update permanent xgoja docs and runbooks after implementation
-- [ ] Run full validation, update diary/changelog, and upload final implementation bundle
+- [x] Run full validation, update diary/changelog, and upload final implementation bundle

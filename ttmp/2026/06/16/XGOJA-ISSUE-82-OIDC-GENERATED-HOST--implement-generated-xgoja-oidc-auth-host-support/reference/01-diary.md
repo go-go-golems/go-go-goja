@@ -1119,3 +1119,101 @@ rg -n "OIDC.*not implemented|ErrOIDCNotImplemented|issue #82" cmd/xgoja/doc pkg/
   - Native OIDC handlers mount before JavaScript fallback.
   - `public-base-url` derives `/auth/callback`; `redirect-url` is advanced override.
   - HTTPS is required outside localhost unless insecure HTTP is explicitly enabled for local smoke tests.
+
+
+## Step 14: Final validation and implementation bundle upload
+
+I ran the final validation suite for the generated OIDC implementation and uploaded the final issue #82 implementation bundle to reMarkable. This closes the implementation task list: code, example, tests, permanent docs, ticket diary/changelog, docmgr validation, and reMarkable delivery are all complete.
+
+The final bundle includes the design guide, diary, changelog, tasks, and generated OIDC example README so the implementation history and operator-facing example are available together.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Finish the remaining final-validation and delivery task for generated OIDC serve support.
+
+**Inferred user intent:** Leave the branch in a reviewable, validated, pushed, and documented state with final reMarkable materials delivered.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Ran `docmgr doctor --ticket XGOJA-ISSUE-82-OIDC-GENERATED-HOST --stale-after 30`.
+- Ran `make lint`.
+- Ran `go test ./... -count=1`.
+- Ran `make -C examples/xgoja/21-generated-host-auth smoke`.
+- Ran `make -C examples/xgoja/21-generated-host-auth clean`.
+- Dry-ran and uploaded the final reMarkable bundle.
+
+### Why
+- This confirms the implementation is not just locally plausible but passes the repository-wide lint/test gates and the generated OIDC example smoke.
+- The reMarkable bundle provides a durable review artifact for issue #82.
+
+### What worked
+- `docmgr doctor` passed cleanly:
+
+```text
+## Doctor Report (1 findings)
+
+### XGOJA-ISSUE-82-OIDC-GENERATED-HOST
+
+- ✅ All checks passed
+```
+
+- `make lint` passed with zero golangci-lint issues and glazed-lint vet completion.
+- `go test ./... -count=1` passed across the repository.
+- Generated example smoke passed and produced:
+
+```text
+xgoja build ok: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/dist/generated-oidc-host-auth
+```
+
+- reMarkable upload succeeded:
+
+```text
+OK: uploaded XGOJA Issue 82 Generated OIDC Host Implementation.pdf -> /ai/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST
+```
+
+### What didn't work
+- N/A. Final validation and upload completed successfully.
+
+### What I learned
+- The final generated example smoke is the strongest integration signal for this feature because it exercises YAML planning, generated binary build, OIDC discovery, native handler mounting, public routes, and protected-route denial in one path.
+
+### What was tricky to build
+- The final validation includes both repository-wide tests and an external generated-binary smoke. Keeping `make clean` after the smoke matters so generated `dist/` artifacts do not leak into git status.
+
+### What warrants a second pair of eyes
+- Full OIDC callback/token exchange against a real Keycloak instance is still not part of the generated example smoke. The previous production demo already proves the Keycloak flow in the hand-composed host; the generated fixture currently proves discovery and login redirect.
+- Multi-replica OIDC mode should wait until transaction/session durability semantics are explicitly reviewed.
+
+### What should be done in the future
+- Replace the live example-19 deployment image with a generated example-21-style image and rerun the public Keycloak smoke.
+- Add a callback/token-exchange CI fixture if a reliable local Keycloak or signed fake OIDC provider becomes cheap enough.
+
+### Code review instructions
+- Review commits from `7079160` through the final diary commit.
+- Start with the architecture seams:
+  - `pkg/xgoja/hostauth/*`
+  - `pkg/xgoja/providers/http/serve.go`
+  - `examples/xgoja/21-generated-host-auth/xgoja.yaml`
+- Validate with:
+
+```bash
+docmgr doctor --ticket XGOJA-ISSUE-82-OIDC-GENERATED-HOST --stale-after 30
+make lint
+go test ./... -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+make -C examples/xgoja/21-generated-host-auth clean
+```
+
+### Technical details
+- Uploaded bundle:
+  - Name: `XGOJA Issue 82 Generated OIDC Host Implementation.pdf`
+  - Path: `/ai/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST`
+- Bundle contents:
+  - design guide
+  - diary
+  - changelog
+  - tasks
+  - generated OIDC example README
