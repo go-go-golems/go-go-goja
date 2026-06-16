@@ -131,7 +131,7 @@ Minimum generated-host public smoke:
 6. `/me` returns the logged-in actor after login.
 7. `POST /auth/logout` clears the session.
 
-The old full example-19 smoke also checks `/auth/session`, invite routes, and seeded project authorization flows. Those are app-demo routes from the hand-written host and are not required for the first generated-image cut unless we explicitly port them.
+The old full example-19 smoke also checks `/auth/session`, invite routes, and seeded project authorization flows. The generated production replacement now provides compatibility handlers for those demo endpoints so the existing public smoke can pass unchanged while the platform runs the generated image.
 
 ## Decisions
 
@@ -149,12 +149,12 @@ The old full example-19 smoke also checks `/auth/session`, invite routes, and se
 - **Rationale:** This directly exercises generated xgoja's env/config support and keeps secrets out of process arguments.
 - **Consequence:** Operators must know the generated env prefix mapping; this guide records it.
 
-### Decision 3: Keep the first cut minimal but drop-in at platform level
+### Decision 3: Keep the production cut full-smoke compatible
 
 - **Status:** accepted
-- **Decision:** Replace the platform image/command/config with generated OIDC, but do not port every example-19 app-demo native route in the first cut.
-- **Rationale:** The goal is to prove generated OIDC `serve` in production with the existing Keycloak/Vault/Postgres/Ingress stack.
-- **Consequence:** Existing full smoke may need a generated-host smoke variant until app-demo-only routes are ported.
+- **Decision:** Replace the platform image/command/config with generated OIDC and include demo compatibility handlers for `/auth/session`, `/orgs/o1/invites`, and `/org-invites/accept`.
+- **Rationale:** The existing full public smoke is the strongest deployment confidence signal and should pass unchanged for the first production replacement.
+- **Consequence:** A small amount of demo-specific native routing currently lives in hostauth until a cleaner generated-host extension point exists.
 
 ## Rollback
 

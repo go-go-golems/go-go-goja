@@ -1639,3 +1639,112 @@ make -C examples/xgoja/21-generated-host-auth smoke
 ### Technical details
 - The issue handler requires an authenticated session, valid CSRF token, and `org.invite` authorization on org `o1`.
 - The accept handler returns `409` for reused tokens to match the old smoke expectation.
+
+
+## Step 21: Deploy the smoke-compatible generated image and validate production
+
+I rebuilt the generated OIDC image after adding demo invite compatibility handlers, pushed the new GHCR tag, updated K3s GitOps to use that tag, waited for Argo CD to sync to the new revision, and ran the existing full public Keycloak smoke successfully. The live `goja-auth-host-demo` service now runs the generated example-21 xgoja OIDC host as a production drop-in replacement for the previous example-19 image.
+
+This is the production proof point for the migration: same public URL, same Keycloak realm/client, same Vault runtime secret, same Postgres database, same Ingress, but a generated `xgoja.yaml` host binary.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 15)
+
+**Assistant interpretation:** Finish the live production rollout and verify it with the strongest available smoke test.
+
+**Inferred user intent:** Ensure the generated OIDC implementation is not merely built and deployed but actually works end-to-end in the public environment.
+
+**Commit (code):** K3s commit `96b4814` — "goja-auth-host: update generated image tag"
+
+### What I did
+- Built and pushed the smoke-compatible image:
+
+```text
+ghcr.io/go-go-golems/go-goja-auth-host:sha-81d40b9
+```
+
+- Updated K3s Deployment image from `sha-f1fa40f` to `sha-81d40b9`.
+- Pushed K3s commit `96b4814` to `main`.
+- Refreshed Argo CD and waited for:
+
+```text
+Synced Healthy 96b48142ed02565d90f9815bd38df37b698e12c7
+```
+
+- Verified the live Deployment image:
+
+```text
+ghcr.io/go-go-golems/go-goja-auth-host:sha-81d40b9
+```
+
+- Ran the full public Keycloak smoke.
+
+### Why
+- The initial generated production image proved health/login/session/project behavior but failed the old smoke at invite routes. The updated image proves full compatibility with the existing public smoke.
+
+### What worked
+- The final full smoke passed:
+
+```text
+ok public health                200
+ok async return                 200
+ok async send                   200
+ok me before login              401
+ok login page                   200
+ok keycloak form login          200
+ok login redirected to host     https://goja-auth.yolo.scapegoat.dev/
+ok me after login               200
+ok session after login          200
+ok project missing csrf         403
+ok project update               200
+ok project missing              404
+ok invite issue                 200
+ok invite accept                200
+ok invite accept reused         409
+ok logout                       204
+ok me after logout              401
+{"status": "PASS", "actorId": "user:dc900749-ba1e-4af7-adae-7d3489dd080a", "csrfChecked": true, "inviteChecked": true}
+```
+
+### What didn't work
+- The previous generated image `sha-f1fa40f` failed the full smoke at invite issuance:
+
+```text
+FAIL: invite issue: expected HTTP 200, got 404; body='404 page not found\n'
+```
+
+- I fixed this by adding demo invite handlers and publishing `sha-81d40b9`.
+
+### What I learned
+- The generated host was already production-valid for OIDC/session/project flow. Full drop-in compatibility required only the demo-native invite endpoints.
+
+### What was tricky to build
+- The live rollout required coordinating three states: source commit/image tag, K3s Deployment revision, and Argo CD sync revision. Recording each hash prevents ambiguity during rollback.
+
+### What warrants a second pair of eyes
+- The generated production replacement currently includes demo-specific invite handlers inside generic hostauth. This is acceptable for proving drop-in replacement but should be revisited architecturally.
+
+### What should be done in the future
+- Move demo-native handlers behind an explicit generated-host extension mechanism.
+- Merge the source branch and republish from `main`, then update GitOps to the mainline-generated tag.
+- Consider closing the ticket once review is complete.
+
+### Code review instructions
+- Review source commits through `81d40b9` and K3s commits `90dc20c` and `96b4814`.
+- Validate production with:
+
+```bash
+export VAULT_ADDR=https://vault.yolo.scapegoat.dev
+export VAULT_TOKEN=$(cat ~/.vault-token)
+python3 examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py \
+  --base-url https://goja-auth.yolo.scapegoat.dev \
+  --username demo-user \
+  --password "$(vault kv get -field=demo_password kv/apps/goja-auth-host-demo/prod/runtime)"
+```
+
+### Technical details
+- Final live image: `ghcr.io/go-go-golems/go-goja-auth-host:sha-81d40b9`.
+- Final K3s revision: `96b48142ed02565d90f9815bd38df37b698e12c7`.
+- Final source image commit: `81d40b9`.
+- Public URL: `https://goja-auth.yolo.scapegoat.dev`.
