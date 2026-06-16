@@ -1217,3 +1217,55 @@ make -C examples/xgoja/21-generated-host-auth clean
   - changelog
   - tasks
   - generated OIDC example README
+
+
+## Step 15: Plan the production migration to the generated OIDC image
+
+I added a dedicated production migration guide for replacing the live example-19 auth host image with the generated example-21 OIDC image. The guide records the current hand-written host contract, the target generated command/env contract, the required source and K3s GitOps changes, image publication steps, validation checks, and rollback procedure.
+
+I also reopened the ticket task list with deployment-specific tasks so the production rollout can be tracked separately from the core issue #82 implementation work.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add implementation guide for updating the deployed app to use the example 21 setup. then add tasks. then do all the work and push it into th eproduction so that it is kind of a drop in replacement. Don't forget to keep a diary and to commit at appropriate intervals as you work through the tasks."
+
+**Assistant interpretation:** Create a concrete migration guide and tasks, then update the source image build and production GitOps deployment so the live app runs the generated example-21 OIDC host.
+
+**Inferred user intent:** Move from the temporary hand-written Keycloak host to the generated xgoja OIDC host in production while preserving documentation, task tracking, diary, commits, and rollback safety.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Added `design-doc/02-production-migration-to-generated-oidc-image.md`.
+- Added deployment tasks for guide creation, source image changes, local image validation, GHCR push, K3s GitOps update, and production verification.
+
+### Why
+- The generated binary has a different command/env contract than the current example-19 image, so a guide is needed before changing production.
+- The task list had been closed after issue #82 implementation; deployment work needs its own tracked checklist.
+
+### What worked
+- The guide captures the key difference: production values stay in Kubernetes/Vault and are supplied to generated Glazed fields via `XGOJA_OIDC_DEMO_*` env vars.
+
+### What didn't work
+- N/A. This was a documentation and planning step.
+
+### What I learned
+- The migration can keep the existing Keycloak realm/client, Vault secret, Postgres database, Service, Ingress, and Argo Application; the risky parts are image build, command shape, env mapping, and smoke expectations.
+
+### What was tricky to build
+- The old full smoke includes demo-native routes from the hand-written host. The guide explicitly separates the platform drop-in replacement from full app-demo route parity.
+
+### What warrants a second pair of eyes
+- Review whether the first production cut should port `/auth/session` and invite routes before rollout, or accept a minimal generated-host public smoke first.
+
+### What should be done in the future
+- If the generated image becomes the permanent production path, create a dedicated generated-host public smoke script rather than reusing the example-19 full smoke unchanged.
+
+### Code review instructions
+- Start with `design-doc/02-production-migration-to-generated-oidc-image.md`.
+- Review the new tasks in `tasks.md` before the implementation commits that follow.
+
+### Technical details
+- Target generated env prefix: `XGOJA_OIDC_DEMO`.
+- Target runtime command: `goja-auth-host serve sites demo`.
+- Target production config source: Vault-rendered Kubernetes env vars, not Dockerfile-baked values.
