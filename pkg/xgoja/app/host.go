@@ -5,6 +5,7 @@ import (
 	"io/fs"
 
 	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/spf13/cobra"
 )
@@ -38,6 +39,7 @@ func NewHost(providers *providerapi.ProviderRegistry, runtimePlan *RuntimePlan) 
 func NewHostWithOptions(providers *providerapi.ProviderRegistry, runtimePlan *RuntimePlan, opts HostOptions) *Host {
 	sourceRegistry := NewSourceRegistryWithRuntimeAliases(providers, opts.EmbeddedJSVerbs, runtimePlan.allSources(), runtimePlanModuleAliases(runtimePlan.runtimeModules()))
 	services := HostServices{Assets: NewAssetStoreFromSources(opts.EmbeddedAssets, sourceRegistry.ListSourcesByKind(providerapi.RuntimeSourceKindAssets))}
+	configureRuntimePlanAuthServices(runtimePlan, &services)
 	if opts.ConfigureServices != nil {
 		opts.ConfigureServices(&services)
 	}
@@ -57,6 +59,14 @@ func NewHostWithOptions(providers *providerapi.ProviderRegistry, runtimePlan *Ru
 		Out:             opts.Out,
 		MiddlewaresFunc: middlewaresFunc,
 	}
+}
+
+func configureRuntimePlanAuthServices(runtimePlan *RuntimePlan, services *HostServices) {
+	if runtimePlan == nil || runtimePlan.Auth == nil || services == nil {
+		return
+	}
+	cfg := *runtimePlan.Auth
+	_ = services.SetHostService(hostauth.ServiceFactoryKey, hostauth.NewServiceFactory(hostauth.BuilderOptions{Config: cfg}))
 }
 
 func (h *Host) AttachDefaultCommands(root *cobra.Command) {

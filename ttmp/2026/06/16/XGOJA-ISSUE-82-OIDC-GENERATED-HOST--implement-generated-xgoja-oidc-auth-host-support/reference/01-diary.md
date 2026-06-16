@@ -596,3 +596,94 @@ one listener/server owned by serveVerbHotReload
   status path -> Go status handler, if configured
   /           -> hotreload.Manager -> current app snapshot
 ```
+
+
+## Step 8: Add top-level `auth:` to generated runtime planning
+
+I added the first generated-configuration slice for issue #82: `xgoja/v2` specs can now carry a top-level `auth:` block, the generated runtime plan preserves it, and host construction installs a lazy `hostauth.ServiceFactory` before command providers are built. This is the required plumbing for `xgoja serve` commands to discover auth configuration at command-construction time.
+
+This step deliberately does not build OIDC native handlers yet. It only establishes the schema/runtime-plan/service-factory path so later work can add OIDC-specific fields and handler mounting without putting auth under an Express module config.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue the issue #82 checklist by implementing the top-level auth schema/planning path.
+
+**Inferred user intent:** Move from server lifecycle cleanup into generated OIDC configuration support while keeping changes reviewable.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Added `Auth *hostauth.Config` to `cmd/xgoja/internal/specv2.Config` with `yaml:"auth"` / `json:"auth"` tags.
+- Added `Auth *hostauth.Config` to `pkg/xgoja/app.RuntimePlan`.
+- Updated `RenderRuntimePlanJSONFromPlan` to copy top-level auth config into embedded runtime plan JSON.
+- Updated `app.NewHostWithOptions` to install `hostauth.NewServiceFactory(...)` into host services when `runtimePlan.Auth` is present.
+- Added `TestRenderRuntimePlanJSONFromPlanCopiesTopLevelAuth`.
+- Added `TestNewHostInstallsRuntimePlanAuthServiceFactory`.
+
+### Why
+- Provider command sets discover host services before any JavaScript runtime exists, so auth cannot live only under `runtime.modules[].config`.
+- A lazy service factory lets `serve` add auth flags/env-backed defaults during command construction without opening stores until command execution.
+
+### What worked
+- Targeted tests passed:
+
+```text
+go test ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./cmd/xgoja/internal/specv2 -count=1
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.074s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/app	0.303s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/specv2	0.030s
+```
+
+### What didn't work
+- I initially wrote the new app test with a typo in the import path (`go-goja` instead of `go-go-goja`) and fixed it before running tests.
+- The first full pre-commit attempt failed because importing `hostauth` from `app` introduced a test-only import cycle: `hostauth` internal tests imported `app`, and `app` now imported `hostauth`.
+
+```text
+package github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth
+	imports github.com/go-go-golems/go-go-goja/pkg/xgoja/app from lookup_test.go
+	imports github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth from host.go: import cycle not allowed in test
+FAIL	github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth [setup failed]
+```
+
+I fixed that by moving `pkg/xgoja/hostauth/lookup_test.go` to external `hostauth_test` style and qualifying hostauth symbols.
+
+### What I learned
+- `app.NewHostWithOptions` is the right installation point because it is used by generated roots before `AttachDefaultCommands`, and command providers receive `ctx.Host` from that host.
+- Keeping `Auth` as a pointer preserves the difference between omitted auth config and an explicit auth block such as `auth: { mode: none }`.
+
+### What was tricky to build
+- The runtime plan lives in `pkg/xgoja/app`, while the source spec lives in `cmd/xgoja/internal/specv2`. Both need the same hostauth config shape so generated JSON can round-trip without ad hoc maps.
+- Host service installation must happen before optional user `ConfigureServices` so custom hosts can still override the generated factory if needed.
+
+### What warrants a second pair of eyes
+- Review whether importing `hostauth` into `specv2` and `app` is acceptable for package boundaries. It keeps one config type, but it does couple the generic runtime plan to hostauth.
+- Review whether `ConfigureServices` should override generated auth services as currently ordered.
+
+### What should be done in the future
+- Extend `hostauth.Config` with OIDC provider/client/public-base-url/redirect-url fields.
+- Add generated example YAML using top-level `auth:`.
+- Ensure docs show auth is top-level, not under the Express provider module.
+
+### Code review instructions
+- Review `cmd/xgoja/internal/specv2/types.go` and `pkg/xgoja/app/runtime_plan.go` for the new auth field.
+- Review `pkg/xgoja/app/host.go:configureRuntimePlanAuthServices` for service-factory installation.
+- Review `cmd/xgoja/internal/generate/templates.go:RenderRuntimePlanJSONFromPlan` for JSON propagation.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja/internal/generate ./pkg/xgoja/app ./cmd/xgoja/internal/specv2 -count=1
+```
+
+### Technical details
+- New generated auth plumbing:
+
+```text
+xgoja.yaml auth:
+  -> specv2.Config.Auth
+  -> app.RuntimePlan.Auth in embedded xgoja.runtime.json
+  -> app.NewHostWithOptions
+  -> HostServices[hostauth.ServiceFactoryKey]
+  -> http serve command discovers factory and adds auth flags/builds services
+```

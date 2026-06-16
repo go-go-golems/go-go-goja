@@ -7,6 +7,8 @@
 // inside goja.
 package specv2
 
+import "github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
+
 // Schema is the required schema marker for native v2 xgoja specs.
 const Schema = "xgoja/v2"
 
@@ -18,6 +20,7 @@ type Config struct {
 	Workspace WorkspaceSpec          `yaml:"workspace,omitempty" json:"workspace,omitempty"`
 	Providers []ProviderSpec         `yaml:"providers,omitempty" json:"providers,omitempty"`
 	Runtime   RuntimeSpec            `yaml:"runtime,omitempty" json:"runtime,omitempty"`
+	Auth      *hostauth.Config       `yaml:"auth,omitempty" json:"auth,omitempty"`
 	Sources   []SourceSpec           `yaml:"sources,omitempty" json:"sources,omitempty"`
 	Commands  []CommandSurfaceSpec   `yaml:"commands,omitempty" json:"commands,omitempty"`
 	Artifacts []ArtifactSpec         `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`

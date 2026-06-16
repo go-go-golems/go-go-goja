@@ -93,3 +93,29 @@ Aligned hot reload with the serve-owned top-level handler and shutdown helpers s
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 7 records hot reload alignment
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/tasks.md — Task 9 completed
 
+
+## 2026-06-16
+
+Added top-level auth to xgoja/v2 specs and runtime plans, installing a lazy hostauth service factory during generated host construction.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/internal/generate/generate_test.go — Runtime plan auth propagation test
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/internal/generate/templates.go — Runtime plan JSON copies auth config
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/internal/specv2/types.go — Top-level auth schema field
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/app/auth_plan_test.go — Host service factory installation test
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/app/host.go — Generated host installs hostauth service factory
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/app/runtime_plan.go — Runtime plan carries auth config
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 8 records top-level auth planning
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/tasks.md — Task 10 completed
+
+
+## 2026-06-16
+
+Resolved the test import cycle caused by app importing hostauth by moving hostauth lookup tests to external package style.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/lookup_test.go — External-package test avoids app<->hostauth test import cycle
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 8 records the import-cycle failure and fix
+
