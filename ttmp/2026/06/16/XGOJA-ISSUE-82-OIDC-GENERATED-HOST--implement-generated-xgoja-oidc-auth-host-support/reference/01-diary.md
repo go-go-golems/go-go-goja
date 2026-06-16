@@ -1429,3 +1429,59 @@ docker env-only smoke passed at http://127.0.0.1:38445
 ### Technical details
 - The image was run without explicit command args; it used Dockerfile `CMD`.
 - The smoke intentionally used memory stores, while production will override the store driver/DSN to Postgres.
+
+
+## Step 18: Build and push the generated OIDC GHCR image
+
+I built the generated OIDC auth-host image from the current source branch and pushed it to GHCR with a commit-derived tag. This image is the production candidate used by the K3s GitOps migration.
+
+The pushed image contains the generated example-21 xgoja binary and defaults to `serve sites demo`; it does not contain production secrets or URLs.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 15)
+
+**Assistant interpretation:** Publish a production-candidate generated OIDC image after local validation.
+
+**Inferred user intent:** Make a concrete image available for the live K3s Deployment update.
+
+**Commit (code):** N/A — image publication step for source commit `f1fa40f`.
+
+### What I did
+- Built and pushed:
+
+```text
+ghcr.io/go-go-golems/go-goja-auth-host:sha-f1fa40f
+```
+
+### Why
+- The live Deployment can only be migrated once a generated image tag exists in GHCR.
+
+### What worked
+- Docker build reused cache from the validated local image.
+- Push succeeded:
+
+```text
+sha-f1fa40f: digest: sha256:b52d5d84633def546fc1e44f4abc8e260df493f3924358840d0bcbfc83da214a size: 3651
+```
+
+### What didn't work
+- N/A. The image push completed successfully.
+
+### What I learned
+- The generated image layers are pushable with the existing GHCR authentication on this machine.
+
+### What was tricky to build
+- N/A for this step; the runtime-linking concern was resolved in Step 16 before publishing.
+
+### What warrants a second pair of eyes
+- Confirm the tag `sha-f1fa40f` is acceptable for a pre-main production trial because it references a feature-branch commit.
+
+### What should be done in the future
+- Once merged to `main`, allow the GitHub workflow to publish the canonical `sha-<main>` tag and update GitOps through the normal automation.
+
+### Code review instructions
+- Inspect `docker pull ghcr.io/go-go-golems/go-goja-auth-host:sha-f1fa40f` if image provenance needs verification.
+
+### Technical details
+- Image digest: `sha256:b52d5d84633def546fc1e44f4abc8e260df493f3924358840d0bcbfc83da214a`.
