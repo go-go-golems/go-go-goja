@@ -1037,3 +1037,85 @@ make -C examples/xgoja/21-generated-host-auth smoke
   - User normalization: `TestDefaultOIDCUserNormalizerUpsertsUserWithoutGrantingMemberships`.
   - Serve mux order: `TestBuildServeHandlerMountsNativeAuthBeforeAppHost`.
   - Generated binary smoke: example 21 Makefile.
+
+
+## Step 13: Update permanent docs for generated OIDC serve hosts
+
+I updated the permanent xgoja and goja-repl documentation to describe generated `auth.mode=oidc` as implemented. The docs now explain top-level `auth:` YAML, Glazed/env-backed `--auth-oidc-*` settings, `public-base-url` vs `redirect-url`, native `/auth/*` handler mounting, the generated example 21 fixture, and migration from the original hand-composed production demo.
+
+This removes stale guidance that told users generated OIDC was not implemented and keeps the deployment/runbook material aligned with the code path now exercised by the generated example smoke.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue by updating permanent documentation and runbooks after generated OIDC implementation.
+
+**Inferred user intent:** Ensure operators and future implementers can use the new generated OIDC path without relying on outdated issue #82 planning text.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Updated `cmd/xgoja/doc/17-xgoja-v2-reference.md` for top-level `auth:` and generated OIDC CLI overrides.
+- Updated `cmd/xgoja/doc/20-hostauth-config-reference.md` for implemented OIDC mode, OIDC fields, validation, and troubleshooting.
+- Updated `cmd/xgoja/doc/22-http-serve-command-reference.md` for serve-owned lifecycle, native handler mounting, `app.listen()` migration behavior, and OIDC examples.
+- Updated `cmd/xgoja/doc/23-auth-host-production-runbook.md` for generated OIDC migration and Kubernetes command contracts.
+- Updated `pkg/doc/32-deploying-an-express-auth-host.md` to remove stale “OIDC not implemented” language.
+- Searched for stale OIDC-not-implemented wording in permanent docs.
+
+### Why
+- The documentation still reflected the pre-implementation state and would have sent users back to the hand-composed example 19 host even though generated OIDC now works.
+
+### What worked
+- Stale wording scan is clean for OIDC implementation status:
+
+```text
+rg -n "OIDC.*not implemented|ErrOIDCNotImplemented|issue #82|not implemented yet|deferred follow-up|auth.mode=oidc is not implemented" cmd/xgoja/doc pkg/doc examples/xgoja -S
+pkg/doc/16-nodejs-primitives.md:327:... unrelated path.posix/path.win32 note ...
+```
+
+- Focused doc/help tests and generated example smoke passed:
+
+```text
+go test ./cmd/xgoja ./pkg/doc -count=1
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja	11.958s
+?   	github.com/go-go-golems/go-go-goja/pkg/doc	[no test files]
+
+make -C examples/xgoja/21-generated-host-auth smoke
+...
+xgoja build ok: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/dist/generated-oidc-host-auth
+```
+
+### What didn't work
+- N/A. The docs update was straightforward after the stale wording scan identified `pkg/doc/32-deploying-an-express-auth-host.md` as an extra file beyond the initial task list.
+
+### What I learned
+- The permanent docs had duplicated OIDC status in both xgoja command help and goja-repl package help; both need updating together when generated-host capabilities change.
+
+### What was tricky to build
+- The main risk was leaving contradictory guidance behind. I used a repo-wide targeted search over `cmd/xgoja/doc`, `pkg/doc`, and `examples/xgoja` to catch stale “not implemented” statements.
+
+### What warrants a second pair of eyes
+- Review the production runbook language around generated deployment commands. The exact Docker ENTRYPOINT/CMD will depend on the eventual production generated image.
+
+### What should be done in the future
+- After replacing the live example-19 image with a generated image, update the live deployment fields and smoke command examples to point at the generated artifact directly.
+
+### Code review instructions
+- Review the five doc files changed in this step.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja ./pkg/doc -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+make -C examples/xgoja/21-generated-host-auth clean
+rg -n "OIDC.*not implemented|ErrOIDCNotImplemented|issue #82" cmd/xgoja/doc pkg/doc examples/xgoja -S
+```
+
+### Technical details
+- The docs now state:
+  - `serve` owns the listener/server/mux/shutdown.
+  - Express is route registration only; `app.listen()` errors.
+  - Native OIDC handlers mount before JavaScript fallback.
+  - `public-base-url` derives `/auth/callback`; `redirect-url` is advanced override.
+  - HTTPS is required outside localhost unless insecure HTTP is explicitly enabled for local smoke tests.

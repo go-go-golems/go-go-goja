@@ -176,3 +176,18 @@ Recorded OIDC serve behavior coverage across hostauth, HTTP serve, generation, a
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 12 records the test coverage matrix
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/tasks.md — Task 14 completed
 
+
+## 2026-06-16
+
+Updated permanent xgoja/goja-repl docs for implemented generated OIDC serve hosts.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/17-xgoja-v2-reference.md — Top-level auth and generated OIDC YAML reference
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/20-hostauth-config-reference.md — OIDC config
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/22-http-serve-command-reference.md — Serve lifecycle and native auth mounting reference
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/23-auth-host-production-runbook.md — Generated OIDC deployment runbook updates
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/32-deploying-an-express-auth-host.md — Deployment tutorial no longer says generated OIDC is unimplemented
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 13 records permanent docs update
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/tasks.md — Task 15 completed
+

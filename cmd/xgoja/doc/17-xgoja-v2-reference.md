@@ -403,38 +403,57 @@ help source sets that should be copied into the generated embedded filesystem.
 For assets, use a separate `embedded-assets` artifact with `sources` pointing at
 asset source IDs.
 
-Runtime-package hosts can inject Go-owned services through `NewBundle` and
-`Options.ConfigureServices`. This is the supported generated-host seam for
-Express auth session/store configuration in this phase: the Go host installs a
-lazy `hostauth.ServiceFactoryKey`, and the HTTP `serve` provider builds concrete
-session/store/auth services at command execution time. The v2 YAML schema does
-not yet define a top-level `auth:` block, and `auth.mode=oidc` / Keycloak config
-remain deferred follow-up work. See `examples/xgoja/21-generated-host-auth` for
-a runtime-package example that uses memory stores by default and SQLite stores
-from Glazed-backed `--auth-*` command settings.
+Generated hosts can configure Go-owned auth services with a top-level `auth:`
+block. `app.NewHostWithOptions` installs a lazy `hostauth.ServiceFactoryKey`
+from the runtime plan, and the HTTP `serve` provider builds concrete
+session/store/auth services at command execution time. Runtime-package hosts may
+still override that factory through `NewBundle` and `Options.ConfigureServices`,
+but the common generated-binary path does not need a hand-written Go shell.
 
-When host applications install `hostauth.ServiceFactoryKey`, the HTTP `serve`
-commands expose an `auth` Glazed section. The CLI surface is flat and prefixed
-with `--auth-`; Glazed can then source the same fields from flags, config, or
+```yaml
+auth:
+  mode: oidc
+  session:
+    cookie:
+      allow-insecure-http: false
+  stores:
+    default:
+      driver: postgres
+      dsn: postgres://user:pass@postgres:5432/app?sslmode=disable
+      apply-schema: true
+  oidc:
+    issuer-url: https://auth.example.test/realms/demo
+    client-id: demo-app
+    public-base-url: https://demo.example.test
+```
+
+The HTTP `serve` commands expose an `auth` Glazed section whenever the host has a
+`hostauth.ServiceFactoryKey`. The CLI surface is flat and prefixed with
+`--auth-`; Glazed can then source the same fields from flags, config files, or
 environment according to the generated application's normal middleware setup.
-The nested `hostauth.Config` remains a Go default shape, while command-time
+The nested `hostauth.Config` remains the YAML/default shape, while command-time
 settings arrive through parsed `*values.Values`:
 
 ```bash
-generated-host-auth serve sites demo \
-  --auth-mode dev \
-  --auth-default-store-driver sqlite \
-  --auth-default-store-dsn /tmp/auth.sqlite \
-  --auth-default-store-apply-schema
+generated-oidc-host-auth serve sites demo \
+  --auth-mode oidc \
+  --auth-default-store-driver postgres \
+  --auth-default-store-dsn "$DATABASE_URL" \
+  --auth-oidc-issuer-url https://auth.example.test/realms/demo \
+  --auth-oidc-client-id demo-app \
+  --auth-oidc-client-secret "$OIDC_CLIENT_SECRET" \
+  --auth-oidc-public-base-url https://demo.example.test
 ```
 
-The auth resolver does not read environment variables directly and no longer
-supports `dsn-env`. Keep DSNs and secrets in the Glazed input layer rather than
-committed generated YAML. Cookie defaults are secure (`Secure`, `HttpOnly`,
-`SameSite=Lax`, `Path=/`); set `--auth-session-cookie-allow-insecure-http` only
-for local HTTP development such as smoke tests. Application authorization
-remains app-owned Go (`appauth`, domain services, or a future policy engine),
-not a YAML policy DSL in this phase.
+`public-base-url` is the normal deployment setting; the callback defaults to
+`<public-base-url>/auth/callback`. Use `redirect-url` only as an advanced
+override when the callback does not follow that convention. The auth resolver
+does not read environment variables directly and no longer supports `dsn-env`.
+Keep DSNs and secrets in the Glazed input layer rather than committed generated
+YAML. Cookie defaults are secure (`Secure`, `HttpOnly`, `SameSite=Lax`,
+`Path=/`); set `--auth-session-cookie-allow-insecure-http` only for localhost
+HTTP smoke tests. Application authorization remains app-owned Go (`appauth`,
+domain services, or a future policy engine), not a YAML policy DSL.
 
 
 A `template` artifact is a code-generation output shape. It should not be used

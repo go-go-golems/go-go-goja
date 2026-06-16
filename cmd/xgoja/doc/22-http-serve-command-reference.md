@@ -16,7 +16,7 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-The HTTP provider contributes a `serve` command set for generated xgoja applications. The command keeps a JavaScript verb alive long enough for Express route declarations to register into a Go-owned `gojahttp.Host`. It can run with an xgoja-owned host, an external host supplied by the embedding Go program, or an auth-enabled host built from `hostauth` services.
+The HTTP provider contributes a `serve` command set for generated xgoja applications. The command owns the listener, `http.Server`, top-level mux, route-registration readiness, signal handling, and graceful shutdown. Express is only a JavaScript route-registration DSL; `app.listen()` is not supported in xgoja and users should run `xgoja serve` instead. The command can run with an xgoja-owned host, an external host supplied by the embedding Go program, or an auth-enabled host built from `hostauth` services.
 
 ## Where the command comes from
 
@@ -66,10 +66,16 @@ serve command invoked
   -> parse Glazed HTTP/auth/hot-reload sections
   -> find selected jsverb
   -> build hostauth services if a hostauth factory is installed
-  -> choose xgoja-owned host or external host
+  -> choose xgoja-owned app host or external host
+  -> build the top-level handler/mux
+       -> mount native auth handlers first
+       -> mount serve/hot-reload helper routes
+       -> mount the app host at /
   -> create runtime with per-runtime host services
   -> execute the selected jsverb so it registers routes
-  -> wait until context cancellation
+  -> net.Listen(http.listen)
+  -> http.Server.Serve(listener)
+  -> graceful Shutdown on context cancellation or SIGINT/SIGTERM
 ```
 
 The route script must register routes while the runtime starts. The command then keeps the runtime alive; if the runtime exits immediately, the HTTP host would not have a live JavaScript owner for request callbacks.
@@ -89,7 +95,7 @@ Generated CLI flags usually appear as prefixed fields such as `--http-listen` de
 
 ## Hostauth integration
 
-If the embedding host installs `hostauth.ServiceFactoryKey`, the HTTP `serve` provider adds an `auth` Glazed section and later builds `hostauth.Services` after values are parsed.
+If the generated runtime plan or embedding host installs `hostauth.ServiceFactoryKey`, the HTTP `serve` provider adds an `auth` Glazed section and later builds `hostauth.Services` after values are parsed.
 
 ```text
 Command construction time:
@@ -101,17 +107,27 @@ Command execution time:
   -> factory.Build(ctx, values)
   -> hostOptionsWithAuth(httpSettings, authServices)
   -> gojahttp.NewHost(...)
+  -> buildServeHandler(appHost, authServices)
 ```
 
-This two-step design lets the command show auth flags without opening databases or resolving runtime settings during help generation.
+This two-step design lets the command show auth flags without opening databases, discovering OIDC providers, or resolving runtime settings during help generation.
 
-`auth.mode=oidc` is not implemented in generated hostauth yet. Use the direct Keycloak example host when you need production-shaped OIDC today.
+When `auth.mode=oidc`, `hostauth.Services.NativeHandlers` contains Go-owned OIDC routes. `serve` mounts them before the JavaScript app fallback:
+
+```text
+GET  /auth/login
+GET  /auth/callback
+GET  /auth/logout
+POST /auth/logout
+```
+
+Use `--auth-oidc-public-base-url` for the browser-visible HTTPS origin; the callback defaults to `<public-base-url>/auth/callback`. Use `--auth-oidc-redirect-url` only as an advanced callback override. See `examples/xgoja/21-generated-host-auth` for a generated binary smoke fixture.
 
 ## External host integration
 
 A Go program can provide an existing `*gojahttp.Host` with `httpprovider.ExternalHostService`. The provider then registers Express routes into that host instead of creating a new one.
 
-Use an external host when a Go application already owns the `http.ServeMux`, WebSocket upgrades, middleware order, or auth handlers. This is the pattern used by hand-composed auth hosts.
+Use an external host when a Go application already owns the app host or needs custom Go integrations. The `serve` command still owns the listener and top-level lifecycle; external-host mode only swaps the `gojahttp.Host` used for Express route registration.
 
 ## Hot reload
 
@@ -125,7 +141,7 @@ The serve command can run in hot-reload mode. The hot-reload section is named `h
 | `debounce` | Debounces reload events. |
 | `smoke-path` | Optional path used as a reload smoke check. |
 
-Hot reload creates a manager that can swap route snapshots while the listener stays alive. It still uses signal-aware shutdown for SIGINT/SIGTERM.
+Hot reload creates one stable listener/top-level mux. Native auth handlers stay mounted in Go, and the hot-reload manager swaps only app route snapshots. It still uses signal-aware shutdown for SIGINT/SIGTERM.
 
 ## Minimal generated spec
 
@@ -161,6 +177,25 @@ commands:
       - site
 ```
 
+For generated OIDC login, add top-level `auth:`:
+
+```yaml
+auth:
+  mode: oidc
+  session:
+    cookie:
+      allow-insecure-http: false
+  stores:
+    default:
+      driver: postgres
+      dsn: postgres://user:pass@postgres:5432/app?sslmode=disable
+      apply-schema: true
+  oidc:
+    issuer-url: https://auth.example.test/realms/demo
+    client-id: demo-app
+    public-base-url: https://demo.example.test
+```
+
 Run the generated command with:
 
 ```bash
@@ -175,8 +210,9 @@ The exact command path depends on the jsverb namespace and command-set mount.
 | --- | --- | --- |
 | Command construction says serve requires runtime sources | The command set has no jsverb source IDs. | Add `sources:` to the provider command-set entry. |
 | Express routes do not register | The selected jsverb did not require/register the route script. | Check the jsverb body and source filters. |
-| `auth` flags are missing | No `hostauth.ServiceFactoryKey` was installed in host services. | Inject the factory before building the command set. |
-| `auth.mode=oidc` fails | Generated hostauth OIDC is not implemented. | Use example 19 direct OIDC host or implement issue #82. |
+| `auth` flags are missing | No top-level `auth:` block exists and no `hostauth.ServiceFactoryKey` was installed in host services. | Add `auth:` to `xgoja.yaml` or inject the factory before building the command set. |
+| `app.listen()` errors | Express is registration-only in xgoja. | Run the generated `serve` command; do not start listeners from JavaScript. |
+| `/auth/login` is handled by the app route instead of OIDC | Native handlers were not built or mounted. | Check `--auth-mode oidc`, OIDC config, and startup logs/errors. |
 | Hot reload starts but reload never triggers | Watch roots do not include the edited files. | Add explicit `--watch` roots or fix source roots. |
 
 ## See also

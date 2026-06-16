@@ -23,7 +23,7 @@ SectionType: Tutorial
 
 This tutorial explains the deployment path proven by `goja-auth-host-demo` on `yolo.scapegoat.dev`. It starts with an Express planned-auth host in `go-go-goja`, builds a container image, deploys it through K3s GitOps, reads secrets from Vault, authenticates through Keycloak, persists auth state in PostgreSQL, and validates the public browser flow.
 
-The current deployment uses `examples/xgoja/19-express-keycloak-auth-host` directly. That is a temporary bridge. The generated `auth.mode=oidc` path is not implemented yet, so the example host calls `keycloakauth.New` directly while still exercising the same production platform.
+The current live deployment image was built from `examples/xgoja/19-express-keycloak-auth-host`, a hand-composed Keycloak host that proved the production platform. Generated `auth.mode=oidc` is now available for `xgoja serve`; use `examples/xgoja/21-generated-host-auth` as the generated-binary starting point for new hosts while reusing the same Keycloak, Vault, Postgres, GitOps, and public smoke boundaries described here.
 
 ## What is deployed
 
@@ -60,7 +60,25 @@ The app will not work if any one of these contracts drifts. The image can build 
 
 A deployable auth host needs explicit configuration for the values that differ between local Docker Compose and the cluster.
 
-The example 19 host exposes these through a Glazed `serve` command:
+Generated OIDC hosts expose these through the HTTP provider's Glazed-backed `serve` command:
+
+```text
+--http-listen
+--auth-mode
+--auth-default-store-driver
+--auth-default-store-dsn
+--auth-default-store-apply-schema
+--auth-oidc-issuer-url
+--auth-oidc-client-id
+--auth-oidc-client-secret
+--auth-oidc-public-base-url
+--auth-oidc-redirect-url
+--auth-oidc-after-login-url
+--auth-oidc-after-logout-url
+--auth-session-cookie-allow-insecure-http
+```
+
+The original example 19 host exposes a hand-composed equivalent through its own Glazed `serve` command:
 
 ```text
 --listen                  LISTEN_ADDR
@@ -81,7 +99,13 @@ The example 19 host exposes these through a Glazed `serve` command:
 
 `public-base-url` is required in production. It is the browser-visible origin behind ingress. Do not derive callback URLs from `--listen`.
 
-For local Docker Compose:
+For a local generated-host smoke:
+
+```bash
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+For local Docker Compose with the original example 19 host:
 
 ```bash
 go run ./examples/xgoja/19-express-keycloak-auth-host/cmd/host serve \
@@ -271,9 +295,9 @@ A passing smoke proves more than liveness. It proves public routes, unauthentica
 | `curl -I /auth/login` returns 405 | HEAD is not the login method. | Use GET for redirect checks. |
 | Smoke hangs after success | Server may not handle SIGTERM. | Add signal-aware `http.Server.Shutdown`. |
 
-## What remains temporary
+## Migrating from the original live image
 
-The deployed service is functional, but it is not the final generated architecture. Generated `auth.mode=oidc` still returns `ErrOIDCNotImplemented`. Keep this distinction visible in docs and tickets. The production platform is proven; the generated OIDC host path remains future work.
+The deployed service is functional, but the original image is still the hand-composed example-19 architecture. To migrate it to the generated architecture, build a generated binary from an `xgoja.yaml` like `examples/xgoja/21-generated-host-auth/xgoja.yaml`, keep the same HTTPS `public-base-url`, Keycloak client, Vault secret fields, and Postgres DSN, then rerun the public smoke test. Keep replicas at 1 until OIDC transaction storage is durable across pods.
 
 ## See also
 
