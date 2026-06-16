@@ -521,3 +521,78 @@ route registration -> registrar.start -> onUse -> http capability.start -> net.L
 route registration -> host.Register*/RegisterPlanned only
 serve command -> net.Listen + http.Server
 ```
+
+
+## Step 7: Align hot reload with the serve-owned handler seam
+
+I aligned hot reload with the same top-level handler construction and shutdown helper used by normal `serve`. Hot reload already owned one listener and swapped app snapshots through the manager, so this step was intentionally small: it made hot reload use `buildServeHandler` and `serveHTTPServer` instead of building a separate mux/shutdown loop inline.
+
+This keeps the future OIDC mounting point consistent. When `hostauth.Services` grows native auth handlers, both normal serve and hot reload will pass through the same handler-building seam before mounting the app host or hot reload manager at `/`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue the step-by-step implementation by bringing hot reload onto the same top-level server/mux abstraction.
+
+**Inferred user intent:** Avoid splitting normal serve and hot reload into divergent server architectures before adding OIDC handlers.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Extended `buildServeHandler` to accept optional mux-mount callbacks before the app fallback.
+- Changed hot reload status mounting to pass through `buildServeHandler`.
+- Changed hot reload serving to reuse `serveHTTPServer` for `Serve`/shutdown behavior.
+- Kept the hot reload manager as the `/` fallback handler, preserving the existing snapshot-swap model.
+
+### Why
+- Native auth handlers must eventually mount before the app/hot-reload fallback in both serve modes.
+- Using one helper reduces the chance that normal serve and hot reload diverge during OIDC integration.
+
+### What worked
+- Targeted hot reload and lifecycle tests passed:
+
+```text
+go test ./pkg/xgoja/providers/http -run 'TestServeVerbHotReload|TestServeVerbStartsCommandOwnedServerWithoutExpressListen' -count=1
+ok  	github.com/go-go-golems/go-goja/pkg/xgoja/providers/http	0.390s
+```
+
+- Full HTTP provider package tests passed:
+
+```text
+go test ./pkg/xgoja/providers/http -count=1
+ok  	github.com/go-go-golems/go-goja/pkg/xgoja/providers/http	0.542s
+```
+
+### What didn't work
+- N/A. This refactor was narrow and test-covered.
+
+### What I learned
+- Hot reload was already much closer to the desired architecture than normal serve. The main gap was that its mux/shutdown logic was separate from the new normal serve seam.
+
+### What was tricky to build
+- The status endpoint must be mounted before the `/` fallback manager. The `serveMuxMount` callback keeps that ordering explicit and leaves room for native auth handlers to be inserted before the fallback too.
+
+### What warrants a second pair of eyes
+- Review whether `serveHTTPServer(serveCtx, ...)` returning `context canceled` on shutdown remains the desired observable behavior for hot reload tests and callers.
+
+### What should be done in the future
+- Add native auth route mounting inside `buildServeHandler` once the hostauth service exposes concrete handlers.
+- Consider moving hot reload initial reload/listen ordering into a shared lifecycle helper only if it remains readable.
+
+### Code review instructions
+- Review `pkg/xgoja/providers/http/serve.go:buildServeHandler` and the hot reload block around status-path mounting.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/providers/http -count=1
+```
+
+### Technical details
+- Hot reload topology after this step:
+
+```text
+one listener/server owned by serveVerbHotReload
+  status path -> Go status handler, if configured
+  /           -> hotreload.Manager -> current app snapshot
+```

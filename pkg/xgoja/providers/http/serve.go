@@ -281,43 +281,26 @@ func serveVerbHotReload(ctx context.Context, commandCtx providerapi.CommandSetCo
 	if _, err := manager.Reload(ctx); err != nil {
 		return nil, fmt.Errorf("initial hot reload: %w", err)
 	}
+	topHandler, err := buildServeHandler(manager, authServices, func(mux *stdhttp.ServeMux) error {
+		statusPath := normalizeServeHotReloadStatusPath(hotReloadSettings.StatusPath)
+		if statusPath != "" {
+			mux.HandleFunc(statusPath, func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(manager.Status())
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
 	listener, err := net.Listen("tcp", httpSettings.Listen)
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", httpSettings.Listen, err)
 	}
-
-	mux := stdhttp.NewServeMux()
-	statusPath := normalizeServeHotReloadStatusPath(hotReloadSettings.StatusPath)
-	if statusPath != "" {
-		mux.HandleFunc(statusPath, func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(manager.Status())
-		})
-	}
-	mux.Handle("/", manager)
-	server := &stdhttp.Server{Addr: httpSettings.Listen, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
-	serverErr := make(chan error, 1)
-	go func() {
-		serverErr <- server.Serve(listener)
-	}()
-
+	server := &stdhttp.Server{Addr: httpSettings.Listen, Handler: topHandler, ReadHeaderTimeout: 5 * time.Second}
 	fmt.Fprintf(os.Stderr, "xgoja http serve: hot reload runtime is alive on %s; press Ctrl-C to stop\n", httpSettings.Listen)
-	select {
-	case err := <-serverErr:
-		if err != nil && !errors.Is(err, stdhttp.ErrServerClosed) {
-			return nil, err
-		}
-	case <-serveCtx.Done():
-	}
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		return nil, err
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	return nil, nil
+	return nil, serveHTTPServer(serveCtx, server, listener)
 }
 
 func startServeHotReloadWatcher(ctx context.Context, manager *hotreload.Manager, watchRoots []string, hotReloadSettings serveHotReloadSettings, poll, debounce time.Duration) error {
@@ -438,11 +421,21 @@ func hostOptionsWithAuth(cfg settings, authServices *hostauth.Services) gojahttp
 	return opts
 }
 
-func buildServeHandler(appHost stdhttp.Handler, _ *hostauth.Services) (stdhttp.Handler, error) {
+type serveMuxMount func(*stdhttp.ServeMux) error
+
+func buildServeHandler(appHost stdhttp.Handler, _ *hostauth.Services, mounts ...serveMuxMount) (stdhttp.Handler, error) {
 	if appHost == nil {
 		return nil, fmt.Errorf("http serve app host is nil")
 	}
 	mux := stdhttp.NewServeMux()
+	for _, mount := range mounts {
+		if mount == nil {
+			continue
+		}
+		if err := mount(mux); err != nil {
+			return nil, err
+		}
+	}
 	mux.Handle("/", appHost)
 	return mux, nil
 }
