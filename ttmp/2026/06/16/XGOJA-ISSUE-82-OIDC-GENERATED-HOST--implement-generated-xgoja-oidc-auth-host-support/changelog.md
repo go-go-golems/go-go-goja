@@ -24,3 +24,23 @@ Validated the issue #82 ticket and uploaded the design bundle to reMarkable at /
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/design-doc/01-generated-xgoja-oidc-auth-host-design-and-implementation-guide.md — Primary uploaded design guide
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Diary records validation and upload evidence
 
+
+## 2026-06-16
+
+Revised the issue #82 design for a hard cutover: serve owns HTTP server lifecycle, Express only registers routes, and old implicit Express startup users should be migrated rather than wrapped.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/design-doc/01-generated-xgoja-oidc-auth-host-design-and-implementation-guide.md — Updated hard-cutover server ownership design
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Diary Step 3 records the architectural clarification
+
+
+## 2026-06-16
+
+Uploaded revised v2 design bundle to reMarkable after hard-cutover server ownership clarification.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/design-doc/01-generated-xgoja-oidc-auth-host-design-and-implementation-guide.md — Revised v2 design content
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Upload evidence for v2 bundle
+

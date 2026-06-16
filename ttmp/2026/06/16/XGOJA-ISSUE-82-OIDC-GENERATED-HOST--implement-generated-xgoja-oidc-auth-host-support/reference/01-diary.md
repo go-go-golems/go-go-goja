@@ -166,3 +166,71 @@ The upload target is the standard ticket-scoped folder under `/ai/2026/06/16/`. 
 ### Technical details
 - reMarkable destination: `/ai/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST`.
 - Uploaded PDF name: `XGOJA Issue 82 Generated OIDC Host Design.pdf`.
+
+
+## Step 3: Clarify hard-cutover HTTP server ownership
+
+I updated the design after the architectural clarification that backwards compatibility is not required. The revised document now says to hard-cut the HTTP provider to a cleaner lifecycle model: the `serve` command owns `net.Listen`, `http.Server`, top-level mux composition, JavaScript route-registration readiness, and graceful shutdown. The Express module should only register routes and must no longer start a listener as a side effect of `require("express")`.
+
+This changes the earlier native-handler mounting recommendation. Instead of adding native route support to `gojahttp.Host` to fit the old Express-starts-server model, the new design mounts native `/auth/*` handlers in a top-level mux owned by `serve`, then mounts the app host at `/`. Existing examples or users that relied on implicit Express startup should be migrated, not preserved with wrappers.
+
+### Prompt Context
+
+**User prompt (verbatim):** "update the document if needed, also we don't need any backwards compatibility and wrappers, we can do a hard cutover, we'll migrate whatever users of the express module we have if needed."
+
+**Assistant interpretation:** Revise the design doc to prefer the clean command-owned HTTP server architecture and explicitly reject compatibility wrappers for old Express side-effect startup.
+
+**Inferred user intent:** Keep issue #82 implementation guidance aligned with the desired long-term architecture rather than an incremental patch to reach OIDC quickly.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Replaced the current-state discussion of Express-owned server startup with a statement that this is the wrong production boundary.
+- Replaced the `gojahttp.Host` native route recommendation with a top-level `serve`-owned mux design.
+- Added a decision record: `serve` owns HTTP server lifecycle.
+- Rewrote Phase 3 as a hard-cutover refactor:
+  - remove Express listener startup;
+  - make `serveVerb` build auth/app host/top-level handler/runtime/server in order;
+  - keep hot reload listener and native auth handlers stable;
+  - migrate existing examples/tests.
+- Added an addendum recording the no-backwards-compatibility clarification.
+
+### Why
+- OIDC native handlers, health/status routes, hot reload, and graceful shutdown are all server lifecycle concerns.
+- The long-term architecture is clearer if the command that keeps the process alive owns the network listener.
+- Compatibility wrappers would preserve the confusing old boundary and make future production behavior harder to reason about.
+
+### What worked
+- `docmgr doctor --ticket XGOJA-ISSUE-82-OIDC-GENERATED-HOST --stale-after 30` passed after the update.
+
+### What didn't work
+- N/A. This was a documentation/design revision only.
+
+### What I learned
+- The issue #82 implementation should be treated as an architectural cleanup, not only an OIDC feature. The correct server ownership boundary is a prerequisite for clean generated OIDC support.
+
+### What was tricky to build
+- The revised design needed to preserve the earlier evidence while changing the recommendation. The evidence remains valid: Express currently starts the server. The conclusion changed: that behavior should be removed rather than extended.
+
+### What warrants a second pair of eyes
+- Review whether all existing examples that rely on implicit Express startup are captured by the migration plan before implementation begins.
+- Review hot reload after the server lifecycle refactor, because it currently assumes hosts/snapshots in ways that may need adjustment.
+
+### What should be done in the future
+- During implementation, start with the server lifecycle refactor before wiring OIDC handlers.
+- Add a regression test that `require("express")` does not bind a port.
+
+### Code review instructions
+- In the design doc, review `The current HTTP server ownership is the wrong boundary`, `HTTP server ownership and top-level handler strategy`, the new decision record, and Phase 3.
+
+### Technical details
+- Revised reMarkable upload should use a v2 name so it is distinguishable from the first bundle.
+
+
+### Step 3 delivery update
+
+The revised v2 bundle was uploaded successfully:
+
+```text
+OK: uploaded XGOJA Issue 82 Generated OIDC Host Design v2.pdf -> /ai/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST
+```

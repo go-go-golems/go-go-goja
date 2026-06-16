@@ -171,16 +171,21 @@ At command execution time, `serveVerb` calls `buildServeAuthServices`, creates a
 
 This is the right high-level architecture. The gap is that `serve` currently only routes to the Express host. It does not know how to mount Go-owned auth handlers around that host.
 
-### The HTTP server is started by the Express module capability
+### The current HTTP server ownership is the wrong boundary
 
-The Express loader starts the HTTP server when the JavaScript module is used. The provider creates or reuses a `gojahttp.Host` (`pkg/xgoja/providers/http/http.go:177-207`), starts a server in `capability.start`, and uses that host as the HTTP handler (`pkg/xgoja/providers/http/http.go:220-260`).
+The Express loader currently starts the HTTP server when the JavaScript module is used. The provider creates or reuses a `gojahttp.Host` (`pkg/xgoja/providers/http/http.go:177-207`), starts a server in `capability.start`, and uses that host as the HTTP handler (`pkg/xgoja/providers/http/http.go:220-260`).
 
-Because server startup is owned by the HTTP capability, OIDC endpoint mounting must be integrated into the host/handler before the server begins accepting traffic. That can happen in one of two ways:
+That implicit startup was acceptable for an early Express module, but it is not the correct production boundary. The command that keeps the process alive should own the network listener, top-level handler tree, and graceful shutdown. For generated xgoja HTTP applications, that command is the provider-owned `serve` command.
 
-- make `gojahttp.Host` itself aware of native auth endpoint handlers; or
-- wrap the host in an outer `http.ServeMux` and make the HTTP capability serve the wrapper.
+The hard-cutover target is therefore:
 
-The second option requires changing `ExternalHostService` or `runtimeEntry` to carry a handler distinct from `*gojahttp.Host`. The first option is simpler if `gojahttp.Host` has or can receive native route mounting support.
+- `serve` owns `net.Listen`, `http.Server`, top-level `http.ServeMux`, readiness of JavaScript route registration, signal handling, and shutdown;
+- the Express module only provides the JavaScript DSL and registers routes into a Go-owned `gojahttp.Host`;
+- `require("express")` must not bind a port or start a server;
+- native Go routes such as `/auth/login`, `/auth/callback`, and `/auth/logout` are mounted in the `serve` command's top-level mux before the app host fallback;
+- existing users of the old Express side-effect startup are migrated rather than preserved through compatibility wrappers.
+
+This design is intentionally a breaking cleanup. It removes ambiguous lifecycle ownership instead of layering OIDC-specific behavior onto the old implicit startup path.
 
 ### The Keycloak adapter is complete enough for a generated host
 
@@ -555,70 +560,81 @@ For the production demo, seed membership/resource data through one of these appr
 
 Do not build a broad app policy language into this ticket.
 
-### HTTP `serve` mounting strategy
+### HTTP server ownership and top-level handler strategy
 
-The current HTTP provider server starts by serving a `*gojahttp.Host`. To mount native handlers, use one of these designs.
+The correct implementation is not to teach the Express module how to mount OIDC. The correct implementation is to move HTTP lifecycle ownership into `serve` and make Express registration a pure registration step.
 
-#### Option A: Add native handler support to `gojahttp.Host`
+The `serve` command should construct one app host and one top-level handler tree:
+
+```text
+serve command
+  -> parse http/auth/hot-reload config
+  -> build hostauth.Services
+  -> appHost := gojahttp.NewHost(hostOptionsWithAuth(...))
+  -> mux := http.NewServeMux()
+       GET  /auth/login    -> OIDC login handler
+       GET  /auth/callback -> OIDC callback handler
+       POST /auth/logout   -> OIDC logout handler
+       GET  /auth/session  -> optional session handler
+       /                  -> appHost
+  -> create runtime with appHost as HostServiceKey
+  -> invoke selected JS verb so routes register into appHost
+  -> start http.Server with mux
+  -> graceful shutdown on SIGINT/SIGTERM
+```
 
 API sketch:
 
 ```go
-type NativeRoute struct {
-    Method string
-    Path   string
+type NativeHandler struct {
+    Method  string
+    Path    string
     Handler http.Handler
 }
 
-func (h *Host) MountNative(method, path string, handler http.Handler) error
-```
-
-`Host.ServeHTTP` checks native routes before planned/raw route resolution.
-
-Pros:
-
-- Minimal changes to HTTP provider shape.
-- Works in normal serve and hot reload because candidate hosts are still `*gojahttp.Host`.
-- Avoids changing `ExternalHostService` and `runtimeEntry` to carry arbitrary handlers.
-
-Cons:
-
-- Extends `gojahttp.Host` with a second route table.
-- Must ensure native routes cannot accidentally shadow planned routes without review.
-
-#### Option B: Let HTTP provider serve an outer handler
-
-API sketch:
-
-```go
-type ExternalHostService struct {
-    Host       *gojahttp.Host
-    Handler    http.Handler
-    OwnsListen bool
+func buildServeHandler(appHost http.Handler, authServices *hostauth.Services) (http.Handler, error) {
+    mux := http.NewServeMux()
+    for _, route := range authServices.NativeHandlers {
+        pattern := route.Method + " " + route.Path
+        mux.Handle(pattern, route.Handler)
+    }
+    mux.Handle("/", appHost)
+    return mux, nil
 }
 ```
 
-When auth services exist, create:
+The Express module receives the `appHost` through the existing host service mechanism and only registers planned routes. It should no longer call `capability.start` as an `express.WithOnUse` side effect. In other words, remove or demote this current lifecycle path:
 
 ```go
-mux := http.NewServeMux()
-mountNativeHandlers(mux, authServices.NativeHandlers)
-mux.Handle("/", serveHost)
-ExternalHostService{Host: serveHost, Handler: mux, OwnsListen: true}
+express.NewLoader(host, express.WithOnUse(func(vm *goja.Runtime) error {
+    return c.start(vm, entry)
+}))
 ```
 
-Pros:
+The normal serve sequence should be explicit:
 
-- Keeps `gojahttp.Host` focused on app routes.
-- Mirrors example 19 exactly.
+```go
+authServices := buildAuthServices(ctx, commandCtx, parsedValues)
+appHost := gojahttp.NewHost(hostOptionsWithAuth(httpSettings, authServices))
+topHandler := buildServeHandler(appHost, authServices)
 
-Cons:
+rt := newRuntimeWithHostServices(appHost, authServices)
+invokeSelectedJSVerb(rt) // route registration completes before listen
 
-- Larger HTTP provider refactor.
-- Hot reload manager currently expects candidate hosts and serves them directly.
-- More surfaces to keep consistent between normal and hot-reload serve.
+server := &http.Server{Addr: httpSettings.Listen, Handler: topHandler}
+return serveWithShutdown(ctx, server)
+```
 
-Decision recommendation: implement Option A first. It is smaller and fits the current provider ownership model. If `gojahttp.Host` already has a native mount primitive not shown in the inspected files, use that instead of inventing a new one.
+Hot reload uses the same model. Auth handlers are stable Go/config/store state and should not be rebuilt for every JavaScript reload. The hot reload manager swaps only app-host/runtime snapshots behind the `/` fallback:
+
+```text
+one listener
+one top-level mux
+  /auth/* -> stable hostauth native handlers
+  /       -> hotreload.Manager -> current app snapshot
+```
+
+This hard cutover is preferred over compatibility wrappers. Any current examples or users that relied on `require("express")` starting a listener should be migrated to a `serve` command or explicit host-owned server setup.
 
 ### BuildHostAuthServices for OIDC
 
@@ -701,6 +717,16 @@ func buildRoot() (*cobra.Command, error) {
 Do not make the HTTP provider invent the auth config by reading `runtime.modules[].config`; auth service discovery must happen at host construction, before command sets are attached.
 
 ## Decision records
+
+
+### Decision: `serve` owns HTTP server lifecycle
+
+- **Context:** The existing Express module starts the HTTP server as a side effect of `require("express")`. OIDC requires native Go handlers mounted beside the app host, graceful shutdown, and a clear top-level handler tree.
+- **Options considered:** Preserve Express side-effect startup and add native routes to `gojahttp.Host`; wrap old behavior with compatibility layers; hard-cut to command-owned server lifecycle.
+- **Decision:** Hard-cut to `serve` owning `net.Listen`, `http.Server`, top-level mux composition, JS route-registration readiness, and graceful shutdown. Express becomes route registration only.
+- **Rationale:** The command that keeps the process alive should own the server. This gives one explicit place to mount `/auth/*`, `/healthz`, status endpoints, static assets, and the app host fallback.
+- **Consequences:** Existing examples/users that depended on implicit Express startup must be migrated. The implementation is cleaner and avoids long-term compatibility wrappers.
+- **Status:** accepted for the issue #82 design.
 
 ### Decision: Add top-level `auth:` to xgoja/v2
 
@@ -805,7 +831,7 @@ Tests:
 - Builder closes stores on OIDC construction error.
 - Default normalizer upserts user and projects tenant IDs from memberships.
 
-### Phase 3: Mount native auth handlers in HTTP serve
+### Phase 3: Hard-cut HTTP server lifecycle into `serve`
 
 Files:
 
@@ -817,24 +843,33 @@ Files:
 
 Tasks:
 
-1. Add a native handler mount mechanism to `gojahttp.Host`, or implement equivalent outer handler support.
-2. In `serveVerb`, after `gojahttp.NewHost(hostOptionsWithAuth(...))`, mount `authServices.NativeHandlers` before runtime creation.
-3. In external host mode, set auth options and mount native handlers on the external host if supported.
-4. In hot reload mode, ensure each candidate host has native auth handlers mounted.
-5. Add tests that a generated serve command with OIDC services exposes the auth section and routes `/auth/login` to the native handler before planned routes.
+1. Remove listener startup from the Express module `OnUse` path. `require("express")` should register routes only.
+2. Make `serveVerb` decode HTTP settings, build auth services, create `appHost`, build a top-level `http.ServeMux`, create the runtime, invoke the selected JS verb, and only then start `http.Server`.
+3. Mount `authServices.NativeHandlers` on the top-level mux before `mux.Handle("/", appHost)`.
+4. Give the runtime the app host through `HostServiceKey` with `OwnsListen=false`; the command owns the listener.
+5. Refactor hot reload so the listener and native auth handlers are stable and the hot reload manager swaps only the app host/runtime snapshot.
+6. Migrate existing examples/tests that relied on implicit Express startup to use `serve` or explicit Go server ownership.
+7. Add tests that `require("express")` does not bind a port and that `serve` starts the only HTTP server.
+8. Add tests that generated serve routes `/auth/login` to the native handler and `/` to the app host after JS registration.
 
 Pseudocode:
 
 ```go
-func applyAuthServicesToHost(host *gojahttp.Host, services *hostauth.Services) error {
-    if host == nil || services == nil { return nil }
-    host.SetAuthOptions(services.AuthOptions)
-    for _, route := range services.NativeHandlers {
-        if err := host.MountNative(route.Method, route.Path, route.Handler); err != nil {
-            return err
-        }
-    }
-    return nil
+func serveVerb(...) (interface{}, error) {
+    httpSettings := decodeHTTPServeSettings(parsedValues)
+    authServices := buildServeAuthServices(...)
+    appHost := gojahttp.NewHost(hostOptionsWithAuth(httpSettings, authServices))
+    topHandler := buildServeHandler(appHost, authServices)
+
+    runtimeServices := serveRuntimeServices(appHost, authServices, false, true)
+    rt := factory.NewRuntimeFromSectionsWithHostServices(ctx, parsedValues, runtimeServices, require.WithLoader(registry.RequireLoader()))
+    defer rt.Close(context.Background())
+
+    providerutil.InitRuntimeFromSections(ctx, parsedValues, runtimeHandle{rt: rt}, commandCtx.SelectedModules)
+    registry.InvokeInRuntime(ctx, rt, verb, parsedValues)
+
+    server := &http.Server{Addr: httpSettings.Listen, Handler: topHandler, ReadHeaderTimeout: 5 * time.Second}
+    return nil, serveWithShutdown(ctx, server)
 }
 ```
 
@@ -948,7 +983,7 @@ Tasks:
 - `auth.mode=none` still produces no auth section behavior.
 - `auth.mode=dev` still works for example 21.
 - Postgres store inheritance remains unchanged.
-- Hot reload with auth still mounts native auth handlers after reload.
+- Hot reload keeps native auth handlers stable and swaps only app host/runtime snapshots.
 
 ## Production migration plan
 
@@ -963,7 +998,7 @@ Tasks:
 
 ## Risks and open questions
 
-- **Native handler mounting shape:** Adding native routes to `gojahttp.Host` is likely easiest, but reviewers should confirm it does not violate planned-route invariants.
+- **Hard cutover blast radius:** Existing examples or users that relied on `require("express")` starting a listener must be migrated to `serve` or explicit Go server ownership. This is intentional; do not add compatibility wrappers.
 - **Capability invite endpoints:** Example 19 includes Go-only capability demo endpoints. A purely generated example may need to defer these or expose a generic way for JS routes to issue/redeem capabilities.
 - **Durable OIDC transactions:** `keycloakauth` defaults to memory transactions. Keep replicas at 1 until this is durable or sticky.
 - **Secret sourcing:** Do not commit client secrets or DSNs in `xgoja.yaml`. The implementation must use Glazed command/config/env input.
@@ -1001,3 +1036,8 @@ Tasks:
 - `cmd/xgoja/doc/20-hostauth-config-reference.md` — current documentation of the OIDC hard stop.
 - `cmd/xgoja/doc/22-http-serve-command-reference.md` — current serve/auth factory docs.
 - `pkg/doc/32-deploying-an-express-auth-host.md` — production deployment tutorial that should be updated after issue #82 lands.
+
+
+## Addendum: hard-cutover clarification
+
+After the initial design was written, we clarified that backwards compatibility is not required. The implementation should therefore prefer a clean server ownership boundary over an incremental compatibility path. The decisive rule is: `serve` owns the HTTP server lifecycle; Express only registers routes. Any existing examples or users of the old implicit Express startup should be migrated as part of the implementation work.
