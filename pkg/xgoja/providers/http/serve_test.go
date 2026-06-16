@@ -226,6 +226,35 @@ module.exports = { register };
 	}
 }
 
+func TestBuildServeHandlerMountsNativeAuthBeforeAppHost(t *testing.T) {
+	appHost := stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+		_, _ = w.Write([]byte("app"))
+	})
+	authServices := &hostauth.Services{NativeHandlers: []hostauth.NativeHandler{{
+		Method: "GET",
+		Path:   "/auth/login",
+		Handler: stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+			_, _ = w.Write([]byte("native auth"))
+		}),
+	}}}
+	handler, err := buildServeHandler(appHost, authServices)
+	if err != nil {
+		t.Fatalf("buildServeHandler: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(stdhttp.MethodGet, "/auth/login", nil))
+	if recorder.Code != stdhttp.StatusOK || recorder.Body.String() != "native auth" {
+		t.Fatalf("native response status=%d body=%q", recorder.Code, recorder.Body.String())
+	}
+
+	recorder = httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(stdhttp.MethodGet, "/app", nil))
+	if recorder.Code != stdhttp.StatusOK || recorder.Body.String() != "app" {
+		t.Fatalf("app response status=%d body=%q", recorder.Code, recorder.Body.String())
+	}
+}
+
 func TestServeVerbStartsCommandOwnedServerWithoutExpressListen(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "site.js"), []byte(`

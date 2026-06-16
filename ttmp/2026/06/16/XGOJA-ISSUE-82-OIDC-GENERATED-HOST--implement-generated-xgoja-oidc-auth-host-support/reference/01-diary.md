@@ -787,3 +787,73 @@ GET  /auth/callback
 POST /auth/logout
 GET  /auth/logout
 ```
+
+
+## Step 10: Mount native auth handlers in the serve-owned mux
+
+I wired the OIDC-native handler payload from hostauth into the shared `serve` handler builder. Native handlers are mounted before any extra Go-owned routes and before the JavaScript app or hot-reload fallback at `/`, so `/auth/login`, `/auth/callback`, and `/auth/logout` are handled by Go regardless of what JavaScript routes exist.
+
+This completes the server-side seam required by the hard-cutover architecture: `serve` owns one top-level mux, auth routes are stable Go handlers, and the app host remains the fallback.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue the task sequence by wiring native OIDC handlers into the command-owned serve mux.
+
+**Inferred user intent:** Make generated OIDC mode reachable over HTTP instead of only building handler objects.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Updated `pkg/xgoja/providers/http/serve.go:buildServeHandler` to mount `authServices.NativeHandlers` before the app fallback.
+- Added validation for method/path/handler and leading `/` paths.
+- Added `muxHandle` to convert `http.ServeMux` duplicate-pattern panics into regular errors.
+- Added `TestBuildServeHandlerMountsNativeAuthBeforeAppHost`.
+
+### Why
+- OIDC handlers must be mounted outside JavaScript so they remain stable across app reloads and are not affected by route registration order.
+- The same handler builder is used by normal serve and hot reload, so this one change covers both server modes.
+
+### What worked
+- Targeted tests passed:
+
+```text
+go test ./pkg/xgoja/providers/http ./pkg/xgoja/hostauth -count=1
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.557s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth	0.040s
+```
+
+### What didn't work
+- N/A. The mount slice was direct and test-covered.
+
+### What I learned
+- The earlier `buildServeHandler` seam paid off: mounting native auth handlers did not require touching normal vs hot reload lifecycle code separately.
+
+### What was tricky to build
+- `http.ServeMux.Handle` panics on duplicate patterns. Since generated config errors should be returned, `muxHandle` recovers and turns those panics into errors with the conflicting pattern.
+
+### What warrants a second pair of eyes
+- Review whether native auth handlers should mount before or after hot reload status routes. The current order is auth first, then extra mounts, then `/` fallback.
+
+### What should be done in the future
+- Add an end-to-end generated example using `auth.mode=oidc`.
+- Add session introspection if needed (`/auth/session`) after deciding the stable response contract.
+
+### Code review instructions
+- Review `pkg/xgoja/providers/http/serve.go:buildServeHandler`.
+- Review `TestBuildServeHandlerMountsNativeAuthBeforeAppHost` for expected ordering.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/providers/http ./pkg/xgoja/hostauth -count=1
+```
+
+### Technical details
+- Mount order now is:
+
+```text
+hostauth native handlers
+serve extra Go mounts, e.g. hot reload status
+/ fallback -> app host or hotreload.Manager
+```

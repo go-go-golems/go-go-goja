@@ -423,11 +423,26 @@ func hostOptionsWithAuth(cfg settings, authServices *hostauth.Services) gojahttp
 
 type serveMuxMount func(*stdhttp.ServeMux) error
 
-func buildServeHandler(appHost stdhttp.Handler, _ *hostauth.Services, mounts ...serveMuxMount) (stdhttp.Handler, error) {
+func buildServeHandler(appHost stdhttp.Handler, authServices *hostauth.Services, mounts ...serveMuxMount) (stdhttp.Handler, error) {
 	if appHost == nil {
 		return nil, fmt.Errorf("http serve app host is nil")
 	}
 	mux := stdhttp.NewServeMux()
+	if authServices != nil {
+		for _, route := range authServices.NativeHandlers {
+			method := strings.ToUpper(strings.TrimSpace(route.Method))
+			path := strings.TrimSpace(route.Path)
+			if method == "" || path == "" || route.Handler == nil {
+				return nil, fmt.Errorf("http serve native auth handler requires method, path, and handler")
+			}
+			if !strings.HasPrefix(path, "/") {
+				return nil, fmt.Errorf("http serve native auth handler path %q must start with /", path)
+			}
+			if err := muxHandle(mux, method+" "+path, route.Handler); err != nil {
+				return nil, err
+			}
+		}
+	}
 	for _, mount := range mounts {
 		if mount == nil {
 			continue
@@ -438,6 +453,16 @@ func buildServeHandler(appHost stdhttp.Handler, _ *hostauth.Services, mounts ...
 	}
 	mux.Handle("/", appHost)
 	return mux, nil
+}
+
+func muxHandle(mux *stdhttp.ServeMux, pattern string, handler stdhttp.Handler) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("mount http serve handler %q: %v", pattern, recovered)
+		}
+	}()
+	mux.Handle(pattern, handler)
+	return nil
 }
 
 func serveRuntimeServices(host *gojahttp.Host, authServices *hostauth.Services, ownsListen bool, includeHost bool) (app.HostServices, error) {
