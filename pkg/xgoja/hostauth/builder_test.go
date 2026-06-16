@@ -154,7 +154,7 @@ func TestServiceFactoryOIDCBuildsNativeHandlers(t *testing.T) {
 	for _, route := range services.NativeHandlers {
 		got[route.Method+" "+route.Path] = route.Handler != nil
 	}
-	for _, want := range []string{"GET /auth/login", "GET /auth/callback", "POST /auth/logout", "GET /auth/logout"} {
+	for _, want := range []string{"GET /auth/login", "GET /auth/callback", "POST /auth/logout", "GET /auth/logout", "GET /auth/session"} {
 		if !got[want] {
 			t.Fatalf("native handlers missing %s: %#v", want, services.NativeHandlers)
 		}

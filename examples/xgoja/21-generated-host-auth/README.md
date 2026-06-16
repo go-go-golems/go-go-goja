@@ -15,6 +15,9 @@ The smoke test builds `dist/generated-oidc-host-auth`, starts a tiny local OIDC
 discovery endpoint, runs the generated `serve sites demo` command, verifies
 public JavaScript routes, verifies that `/auth/login` is handled by the native
 Go OIDC handler, and verifies that `/me` remains protected without a session.
+The route script also keeps the public async routes and protected project route
+shape used by the production demo so the generated image is closer to a drop-in
+platform replacement.
 
 ## What this demonstrates
 
@@ -49,6 +52,7 @@ JavaScript app host:
 - `GET /auth/callback`
 - `GET /auth/logout`
 - `POST /auth/logout`
+- `GET /auth/session`
 
 The JavaScript route only declares application authorization intent:
 
@@ -83,7 +87,10 @@ Then visit:
 
 - <http://127.0.0.1:18789/> — public text route.
 - <http://127.0.0.1:18789/healthz> — public JSON health route.
+- <http://127.0.0.1:18789/async-return?name=demo> — public async return route.
+- <http://127.0.0.1:18789/async-send?name=demo> — public async JSON route.
 - <http://127.0.0.1:18789/auth/login> — native OIDC login redirect.
+- <http://127.0.0.1:18789/auth/session> — native app-session metadata after login.
 - <http://127.0.0.1:18789/me> — protected route, expected `401` without a
   session cookie.
 

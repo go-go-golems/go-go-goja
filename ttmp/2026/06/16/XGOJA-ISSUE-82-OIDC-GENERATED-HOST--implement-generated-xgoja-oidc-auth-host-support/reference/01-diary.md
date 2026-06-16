@@ -1269,3 +1269,87 @@ I also reopened the ticket task list with deployment-specific tasks so the produ
 - Target generated env prefix: `XGOJA_OIDC_DEMO`.
 - Target runtime command: `goja-auth-host serve sites demo`.
 - Target production config source: Vault-rendered Kubernetes env vars, not Dockerfile-baked values.
+
+
+## Step 16: Switch the auth-host source image to the generated OIDC binary
+
+I changed the source image contract from the hand-written example-19 host to the generated example-21 host. The Dockerfile now invokes `xgoja build` against `examples/xgoja/21-generated-host-auth/xgoja.yaml`, copies the generated binary into the runtime image, and uses `serve sites demo` as the default command.
+
+I also moved the runtime base from static distroless to base distroless because the generated binary currently links dynamically against glibc. Finally, I improved drop-in behavior by adding a generic native `/auth/session` handler and adding the old public async/project route surface to example 21.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 15)
+
+**Assistant interpretation:** Implement the source-side generated image changes needed before building/pushing a production candidate.
+
+**Inferred user intent:** Make the published auth-host image run the generated `xgoja.yaml` OIDC solution rather than the temporary hand-written Go host.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Updated `Dockerfile.auth-host` to build `examples/xgoja/21-generated-host-auth/xgoja.yaml` with `xgoja build`.
+- Changed the runtime base to `gcr.io/distroless/base-debian12:nonroot` for the generated binary's glibc dependency.
+- Set image defaults to `ENTRYPOINT ["/app/goja-auth-host"]` and `CMD ["serve", "sites", "demo"]`.
+- Updated the GHCR workflow to smoke example 21 and watch example 21 paths.
+- Added a generated native `GET /auth/session` handler.
+- Added `timer` to example 21 and ported public async routes plus the protected project route shape.
+- Updated example 21 README.
+
+### Why
+- Production can only switch images if the image itself contains the generated host binary and starts with the generated command shape.
+- `/auth/session` and route parity reduce the gap between the old production demo and the generated replacement.
+
+### What worked
+- Focused tests and generated example smoke passed:
+
+```text
+go test ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./cmd/xgoja/internal/generate -count=1
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth	0.053s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.558s
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.037s
+
+make -C examples/xgoja/21-generated-host-auth smoke
+...
+xgoja build ok: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/dist/generated-oidc-host-auth
+```
+
+### What didn't work
+- The generated binary was confirmed to be dynamically linked:
+
+```text
+ELF 64-bit LSB executable ... dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2
+```
+
+- Because of that, keeping `gcr.io/distroless/static-debian12` would be unsafe. I switched to `base-debian12`.
+
+### What I learned
+- The generated host pulls in auth store support that currently makes the built binary depend on glibc. Static runtime images are not appropriate until we make a separate static build profile.
+
+### What was tricky to build
+- Drop-in parity is not only image/command config. The old hand-written host exposed `/auth/session` outside JavaScript, so generated hostauth needed a native equivalent.
+
+### What warrants a second pair of eyes
+- Review whether generic hostauth should expose `/auth/session` unconditionally for OIDC mode. It is useful for browser apps but it also standardizes a small session metadata contract.
+
+### What should be done in the future
+- Decide whether to port the old invite demo-native routes or replace the full smoke with a generated-host-specific public smoke.
+
+### Code review instructions
+- Review `Dockerfile.auth-host`, `.github/workflows/publish-auth-host-image.yaml`, `pkg/xgoja/hostauth/builder.go`, and `examples/xgoja/21-generated-host-auth`.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./cmd/xgoja/internal/generate -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+make -C examples/xgoja/21-generated-host-auth clean
+```
+
+### Technical details
+- Target image command:
+
+```text
+/app/goja-auth-host serve sites demo
+```
+
+- Production runtime config will come from `XGOJA_OIDC_DEMO_*` env vars in the K3s Deployment.

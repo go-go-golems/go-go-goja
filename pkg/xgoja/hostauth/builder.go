@@ -2,7 +2,9 @@ package hostauth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
 	"time"
 
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
@@ -133,7 +135,26 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 		{Method: "GET", Path: "/auth/callback", Handler: handlers.CallbackHandler()},
 		{Method: "POST", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
 		{Method: "GET", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
+		{Method: "GET", Path: "/auth/session", Handler: sessionInfoHandler(sessionManager)},
 	}, nil
+}
+
+func sessionInfoHandler(sessionManager *sessionauth.Manager) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		session, err := sessionManager.SessionFromRequest(r.Context(), r)
+		if err != nil {
+			http.Error(w, "unauthenticated", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]any{
+			"userId":    session.UserID,
+			"csrfToken": session.CSRFToken,
+			"tenantIds": append([]string(nil), session.TenantIDs...),
+		}); err != nil {
+			http.Error(w, "encode session", http.StatusInternalServerError)
+		}
+	})
 }
 
 // DefaultOIDCUserNormalizer upserts an app user by stable OIDC subject and

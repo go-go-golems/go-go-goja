@@ -212,3 +212,18 @@ Added production migration guide and deployment tasks for replacing the live exa
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 15 records migration planning
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/tasks.md — Deployment tasks 17-22 added and task 17 completed
 
+
+## 2026-06-16
+
+Switched the auth-host source image and workflow to build the generated example-21 OIDC binary, with native /auth/session and closer route parity.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/.github/workflows/publish-auth-host-image.yaml — Publishes generated OIDC image
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/Dockerfile.auth-host — Builds generated OIDC host image
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/verbs/sites.js — Generated demo route parity
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/xgoja.yaml — Generated image spec with timer
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder.go — Native /auth/session handler
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 16 records source image changes
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/tasks.md — Task 18 completed
+

@@ -7,13 +7,16 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/goja-auth-host ./examples/xgoja/19-express-keycloak-auth-host/cmd/host
+RUN GOWORK=off go run ./cmd/xgoja build \
+    -f examples/xgoja/21-generated-host-auth/xgoja.yaml \
+    --output /out/goja-auth-host \
+    --xgoja-replace /src \
+    --keep-work
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/base-debian12:nonroot
 WORKDIR /app
 COPY --from=builder /out/goja-auth-host /app/goja-auth-host
-COPY examples/xgoja/19-express-keycloak-auth-host/scripts/server.js /app/server.js
 
 EXPOSE 8080
-ENTRYPOINT ["/app/goja-auth-host", "serve"]
-CMD ["--listen", ":8080", "--script", "/app/server.js"]
+ENTRYPOINT ["/app/goja-auth-host"]
+CMD ["serve", "sites", "demo"]

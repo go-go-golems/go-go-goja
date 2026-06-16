@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - Dockerfile.auth-host
-      - examples/xgoja/19-express-keycloak-auth-host/**
+      - examples/xgoja/21-generated-host-auth/**
       - modules/**
       - pkg/**
       - go.mod
@@ -17,7 +17,7 @@ on:
       - main
     paths:
       - Dockerfile.auth-host
-      - examples/xgoja/19-express-keycloak-auth-host/**
+      - examples/xgoja/21-generated-host-auth/**
       - modules/**
       - pkg/**
       - go.mod
@@ -50,8 +50,8 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Run auth host tests
-        run: go test ./examples/xgoja/19-express-keycloak-auth-host/cmd/host -count=1
+      - name: Run generated auth host smoke
+        run: make -C examples/xgoja/21-generated-host-auth smoke
 
       - name: Define image metadata
         run: |
@@ -72,7 +72,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
           labels: |
             org.opencontainers.image.title=go-goja-auth-host
-            org.opencontainers.image.description=Temporary go-go-goja Keycloak auth host demo
+            org.opencontainers.image.description=Generated xgoja OIDC auth host demo
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: Log in to GHCR

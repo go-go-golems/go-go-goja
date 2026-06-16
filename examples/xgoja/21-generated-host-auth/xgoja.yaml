@@ -9,11 +9,17 @@ go:
 workspace:
   mode: auto
 providers:
+  - id: go-go-goja-core
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
+    register: Register
   - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
     register: Register
 runtime:
   modules:
+    - provider: go-go-goja-core
+      name: timer
+      as: timer
     - provider: go-go-goja-http
       name: express
       config:
