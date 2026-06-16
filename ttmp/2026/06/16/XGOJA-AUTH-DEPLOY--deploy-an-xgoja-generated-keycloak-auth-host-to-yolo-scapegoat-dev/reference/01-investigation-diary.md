@@ -613,3 +613,121 @@ This closes the largest documentation gap found during the ticket: before this s
 - Slug count after additions: 51 help slugs across `pkg/doc` and `cmd/xgoja/doc`.
 - New xgoja slugs: `express-auth-host-integration-guide`, `hostauth-config-reference`, `auth-stores-reference`, `http-serve-command-reference`, `auth-host-production-runbook`.
 - New goja-repl slug: `deploying-an-express-auth-host`.
+
+
+## Step 10: Land durable Keycloak IaC and switch Argo back to main
+
+I completed the post-deployment operational cleanup that was left after the live auth host validation. The Keycloak realm, OIDC client, and `demo-user` fixture are now represented in Terraform, imported into Terraform state, reconciled to no-op plans, merged to the Terraform `main` branch, and the live Argo CD Application now targets the K3s GitOps `main` branch instead of the temporary validation branch.
+
+This turns the deployment from a working branch-backed demo into a normal reconciled service: Kubernetes manifests are on `main`, Argo reports `Synced Healthy` against `main`, and Keycloak state is no longer only manual `kcadm.sh` state. The only incomplete validation in this step is the final password-backed public smoke, which is blocked by the current shell having no valid Vault token to retrieve `demo_password`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead."
+
+**Assistant interpretation:** Continue with the next operational follow-ups: merge the K3s GitOps branch, switch live Argo back to `main`, run smoke if possible, and update docs.
+
+**Inferred user intent:** Finish production cleanup so the live auth host is controlled by mainline GitOps/Terraform state instead of temporary branches and manual Keycloak resources.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- In `/home/manuel/code/wesen/terraform`:
+  - Added and merged PR #7 for `goja-auth-host-demo` Keycloak Terraform IaC.
+  - Imported/reconciled realm, client, and `demo-user` into Terraform state.
+  - Pushed commit `142cea6 Manage goja auth host demo user` to `main`.
+- In `/home/manuel/code/wesen/2026-03-27--hetzner-k3s`:
+  - Opened PR #133 for the auth-host GitOps app.
+  - Rebasing removed already-applied rag-evaluation commits and left only auth-host commits.
+  - Merged PR #133 as `ce981ddd26f0fd73c90d176ede0c8d4367b61fee` / `Add goja auth host demo GitOps app`.
+  - Patched the live Argo Application `goja-auth-host-demo` from `targetRevision=task/clubmed-prod-gitops` to `targetRevision=main`.
+  - Confirmed Argo status:
+    ```text
+    targetRevision=main
+    sync=Synced
+    health=Healthy
+    revision=ce981ddd26f0fd73c90d176ede0c8d4367b61fee
+    operation=Succeeded
+    ```
+- Removed accidental untracked backup noise `examples/xgoja/README.md.orig` after confirming it was identical to `examples/xgoja/README.md`.
+
+### Why
+- The live Argo app should not track a task branch after the GitOps changes are merged.
+- Keycloak realm/client/user state should be recoverable from Terraform and remote state, not just manual Keycloak operations.
+- The original deployment ticket needs to reflect that the previously open follow-ups are now complete or narrowed.
+
+### What worked
+- Terraform PR #7 merged successfully and `main` now contains the durable Keycloak env.
+- K3s PR #133 initially conflicted, but rebasing onto `origin/main` succeeded. The already-landed rag-evaluation commits were skipped, leaving the auth-host changes cleanly mergeable.
+- The live Argo app accepted the patch to `main` and immediately reported `Synced Healthy` on the mainline merge revision.
+- Public unauthenticated parts of the smoke still worked before the password failure:
+  ```text
+  ok public health                200
+  ok async return                 200
+  ok async send                   200
+  ok me before login              401
+  ok login page                   200
+  ok keycloak form login          200
+  ```
+
+### What didn't work
+- The final password-backed public smoke could not complete because the current Vault token is invalid/unauthorized:
+  ```text
+  Error making API request.
+
+  URL: GET https://vault.yolo.scapegoat.dev/v1/sys/internal/ui/mounts/kv/apps/goja-auth-host-demo/prod/runtime
+  Code: 403. Errors:
+
+  * 2 errors occurred:
+    * permission denied
+    * invalid token
+  ```
+- Attempting `vault login -method=oidc role=operators` required browser interaction and timed out in this non-interactive session:
+  ```text
+  Complete the login via your OIDC provider. Launching browser to:
+  ...
+  Waiting for OIDC authentication to complete...
+  still-no-valid-token
+  ```
+- Because the password command failed, the smoke submitted an empty/invalid password and did not return to the host:
+  ```text
+  FAIL: login did not return to host; final URL was https://auth.yolo.scapegoat.dev/realms/goja-auth-host-demo/login-actions/authenticate?...
+  ```
+
+### What I learned
+- The K3s branch had accumulated unrelated rag-evaluation commits, but those had already landed on `main`; a normal rebase skipped them and reduced the PR to the auth-host changes.
+- The local `argocd` CLI is not configured with a server address, but Kubernetes patches and Argo status polling through `kubectl` were enough to switch and verify the Application.
+- A valid Vault token is now the only missing ingredient for the final full browser-flow smoke after the mainline switch.
+
+### What was tricky to build
+- The local K3s repo had unrelated modified ticket docs. I stashed them before rebasing the GitOps branch, merged the PR, fast-forwarded `main`, and restored the stash so unrelated local work was preserved.
+- The Argo sync command failed through the `argocd` CLI, so I relied on direct Kubernetes patching and status polling rather than changing CLI configuration mid-task.
+- The smoke failure could have looked like an auth regression, but the first error line showed the real cause: Vault password retrieval failed before the Keycloak form submission.
+
+### What warrants a second pair of eyes
+- Confirm whether the restored unrelated K3s ticket doc edits should be committed, discarded, or left for their original task.
+- Confirm that `ce981ddd26f0fd73c90d176ede0c8d4367b61fee` is the intended long-term GitOps revision for the live Argo app.
+- Once a valid Vault token is available, rerun the full public smoke to close the last validation gap.
+
+### What should be done in the future
+- Rerun the public smoke with a valid Vault token:
+  ```bash
+  export VAULT_ADDR=https://vault.yolo.scapegoat.dev
+  export VAULT_TOKEN=<valid operator token>
+  python3 examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py     --base-url https://goja-auth.yolo.scapegoat.dev     --username demo-user     --password "$(vault kv get -field=demo_password kv/apps/goja-auth-host-demo/prod/runtime)"
+  ```
+- Continue issue #82 for generated `auth.mode=oidc` support.
+
+### Code review instructions
+- For Terraform, review `/home/manuel/code/wesen/terraform/keycloak/apps/goja-auth-host-demo/envs/k3s-parallel` and commit `142cea6`.
+- For GitOps, review `/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-auth-host-demo` and merge commit `ce981ddd`.
+- Verify Argo with:
+  ```bash
+  kubectl -n argocd get application goja-auth-host-demo -o jsonpath='{.spec.source.targetRevision}{"\n"}{.status.sync.status}{" "}{.status.health.status}{"\n"}{.status.sync.revision}{"\n"}'
+  ```
+
+### Technical details
+- Terraform merge: `99654a7217670d5cb8dc98ae26b4279ca36ebb1f` / PR #7.
+- Terraform demo-user commit: `142cea6 Manage goja auth host demo user`.
+- K3s GitOps merge: `ce981ddd26f0fd73c90d176ede0c8d4367b61fee` / PR #133.
+- Live Argo app: `goja-auth-host-demo`, target `main`, revision `ce981ddd26f0fd73c90d176ede0c8d4367b61fee`.

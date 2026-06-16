@@ -80,3 +80,14 @@ Implemented permanent auth-host docs: README help-tree map, cross-links between 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/32-deploying-an-express-auth-host.md — goja-repl deployment tutorial
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-AUTH-DEPLOY--deploy-an-xgoja-generated-keycloak-auth-host-to-yolo-scapegoat-dev/reference/01-investigation-diary.md — Diary Step 9 documentation implementation record
 
+
+## 2026-06-16
+
+Completed post-deployment cleanup: Keycloak realm/client/demo-user are Terraform-managed, K3s GitOps PR #133 merged, live Argo goja-auth-host-demo now targets main at ce981ddd and is Synced Healthy; final password smoke is blocked by invalid Vault token.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/goja-auth-host-demo.yaml — Mainline Argo Application now backing live app
+- /home/manuel/code/wesen/terraform/keycloak/apps/goja-auth-host-demo/envs/k3s-parallel/main.tf — Durable Keycloak realm/client/demo-user IaC
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-AUTH-DEPLOY--deploy-an-xgoja-generated-keycloak-auth-host-to-yolo-scapegoat-dev/reference/01-investigation-diary.md — Step 10 cleanup and smoke status
+
