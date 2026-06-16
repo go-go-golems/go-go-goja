@@ -956,3 +956,84 @@ serve sites demo --auth-oidc-issuer-url <fake issuer> --auth-oidc-public-base-ur
   - `/` returns public demo text.
   - `/auth/login` returns `302` to the fake authorization endpoint.
   - `/me` returns `401` without a session cookie.
+
+
+## Step 12: Consolidate OIDC serve behavior test coverage
+
+I reviewed the test and smoke coverage added across the generated OIDC slices and recorded task 14 as complete. The coverage now spans configuration resolution, Glazed mapping, OIDC native handler construction, default OIDC user normalization, native handler mount ordering, and a generated binary smoke that verifies the native `/auth/login` redirect path.
+
+No new production code was needed for this step; the important outcome was ensuring the ticket’s testing task reflects the actual validated surfaces before moving on to permanent documentation.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue after the generated example by confirming OIDC serve behavior has unit, generated-example, and smoke coverage.
+
+**Inferred user intent:** Avoid moving to documentation/final validation until the generated OIDC behavior is backed by repeatable tests and smoke checks.
+
+**Commit (code):** N/A — documentation/bookkeeping-only step.
+
+### What I did
+- Reviewed existing OIDC-focused tests:
+  - `pkg/xgoja/hostauth/resolve_test.go`
+  - `pkg/xgoja/hostauth/glazed_test.go`
+  - `pkg/xgoja/hostauth/builder_test.go`
+  - `pkg/xgoja/providers/http/serve_test.go`
+  - `cmd/xgoja/internal/generate/generate_test.go`
+- Verified the generated example smoke covers build + native `/auth/login` routing.
+- Marked task 14 complete.
+
+### Why
+- The implementation added tests incrementally in earlier slices; task 14 is complete only if those slices collectively cover the expected behavior.
+
+### What worked
+- Focused tests passed:
+
+```text
+go test ./cmd/xgoja/internal/generate ./pkg/xgoja/providers/http ./pkg/xgoja/hostauth -count=1
+ok  	github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/generate	0.041s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http	0.554s
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth	0.032s
+```
+
+- Generated example smoke passed:
+
+```text
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+- The commit hook also ran repository lint and `go test ./...` successfully during the previous code commit.
+
+### What didn't work
+- N/A for this step. The only smoke failure was already recorded in Step 11 and fixed with OIDC provider readiness waiting.
+
+### What I learned
+- The practical coverage boundary is: unit tests prove config/build/mount behavior; the example smoke proves generated binary integration and native auth route precedence without needing a full token exchange.
+
+### What was tricky to build
+- The tests are spread across several packages because the behavior crosses spec planning, hostauth construction, and HTTP serving. The diary now records the test map explicitly so reviewers know where to look.
+
+### What warrants a second pair of eyes
+- Decide whether final validation should include a full OIDC callback/token exchange against Keycloak. The smoke currently validates discovery and login redirect but not callback token verification.
+
+### What should be done in the future
+- Add a richer OIDC integration smoke once a local signed-token fake provider or disposable Keycloak fixture is cheap enough to run in CI.
+
+### Code review instructions
+- Review the test files listed above by package boundary.
+- Validate with:
+
+```bash
+go test ./cmd/xgoja/internal/generate ./pkg/xgoja/providers/http ./pkg/xgoja/hostauth -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+### Technical details
+- Task 14 coverage matrix:
+  - Config resolution: `ResolveConfig` OIDC tests.
+  - Glazed/env-backed surface: hostauth Glazed tests.
+  - Handler construction: `TestServiceFactoryOIDCBuildsNativeHandlers`.
+  - User normalization: `TestDefaultOIDCUserNormalizerUpsertsUserWithoutGrantingMemberships`.
+  - Serve mux order: `TestBuildServeHandlerMountsNativeAuthBeforeAppHost`.
+  - Generated binary smoke: example 21 Makefile.

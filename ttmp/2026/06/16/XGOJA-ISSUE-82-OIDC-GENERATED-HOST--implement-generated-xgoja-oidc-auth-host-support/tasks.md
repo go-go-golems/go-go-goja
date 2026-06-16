@@ -16,6 +16,6 @@
 - [x] Build hostauth services from generated serve configuration using Glazed/env-backed settings
 - [x] Mount native OIDC handlers before the generated app host in the serve-owned mux
 - [x] Generate a self-contained xgoja.yaml OIDC example to replace the temporary hand-written auth host
-- [ ] Add unit, generated-example, and smoke tests for OIDC serve behavior
+- [x] Add unit, generated-example, and smoke tests for OIDC serve behavior
 - [ ] Update permanent xgoja docs and runbooks after implementation
 - [ ] Run full validation, update diary/changelog, and upload final implementation bundle
