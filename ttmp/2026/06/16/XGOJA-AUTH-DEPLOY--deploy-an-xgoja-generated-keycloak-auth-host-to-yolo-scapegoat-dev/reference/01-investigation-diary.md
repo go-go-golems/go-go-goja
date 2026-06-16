@@ -525,3 +525,91 @@ The first live rollout caught an argument-contract mismatch between the Docker i
   ```json
   {"status":"PASS","actorId":"user:dc900749-ba1e-4af7-adae-7d3489dd080a","csrfChecked":true,"inviteChecked":true}
   ```
+
+
+## Step 9: Implement the permanent auth-host documentation pages
+
+I turned the post-deployment documentation plan into actual Glazed help pages and navigation edits. The new docs now cover the Go host composition story, generated-host `hostauth` configuration, auth store persistence, HTTP `serve` internals, and the Kubernetes/Keycloak/Vault/Postgres/Argo production runbook that was proven by the live `goja-auth-host-demo` deployment.
+
+This closes the largest documentation gap found during the ticket: before this step, the only complete explanation of the production path lived in ticket docs and diary entries. After this step, both help trees have discoverable entry points, and the README points readers to the right tree for JavaScript route authoring versus xgoja/Go host integration.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead, implement the docs."
+
+**Assistant interpretation:** Write the permanent help documentation and navigation updates described by the updated documentation improvement plan.
+
+**Inferred user intent:** Move from planning documentation improvements to shipping durable in-repo docs that future engineers can discover through README and Glazed help.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Added five xgoja help pages:
+  - `cmd/xgoja/doc/19-express-auth-host-integration-guide.md`
+  - `cmd/xgoja/doc/20-hostauth-config-reference.md`
+  - `cmd/xgoja/doc/21-auth-stores-reference.md`
+  - `cmd/xgoja/doc/22-http-serve-command-reference.md`
+  - `cmd/xgoja/doc/23-auth-host-production-runbook.md`
+- Added one goja-repl help page:
+  - `pkg/doc/32-deploying-an-express-auth-host.md`
+- Added a `README.md` Documentation section that names both Glazed help trees and key auth/deployment entry points.
+- Added cross-links from `pkg/doc/29-express-auth-user-guide.md` to the xgoja Go-host docs.
+- Added cross-links from `cmd/xgoja/doc/18-go-planned-auth-api.md` back to JS auth docs and forward to the host-integration docs.
+- Annotated `examples/xgoja/README.md` so examples 18/19/20/21 are labeled as local dev-auth, production template, smoke-only, and generated-seam template.
+
+### Why
+- The investigation found two disjoint help trees with no README map. That made existing auth docs hard to discover and made the live deployment lessons ticket-local.
+- The production rollout added concrete operational material that needed permanent docs: `public-base-url`, image ENTRYPOINT vs Kubernetes args, Vault/VSO secret paths, Keycloak realm/client state, Argo branch validation, and full browser-flow smoke testing.
+
+### What worked
+- Frontmatter and slug uniqueness validation passed across `pkg/doc` and `cmd/xgoja/doc`.
+- All new help pages rendered through their owning binaries:
+  - `go run ./cmd/xgoja help express-auth-host-integration-guide`
+  - `go run ./cmd/xgoja help hostauth-config-reference`
+  - `go run ./cmd/xgoja help auth-stores-reference`
+  - `go run ./cmd/xgoja help http-serve-command-reference`
+  - `go run ./cmd/xgoja help auth-host-production-runbook`
+  - `go run ./cmd/goja-repl help deploying-an-express-auth-host`
+- Targeted tests passed:
+  ```bash
+  go test ./cmd/xgoja ./cmd/goja-repl ./pkg/docaccess/... -count=1
+  ```
+- `make glazed-lint` passed.
+
+### What didn't work
+- No implementation failures occurred. I did have to keep the pages split by audience: xgoja/Go-host material belongs in `cmd/xgoja/doc`, while the longer operator tutorial belongs in `pkg/doc` for `goja-repl help` readers.
+
+### What I learned
+- The existing Glazed help embedding picked up new pages automatically; no Go wiring changes were needed because both help trees already use `//go:embed *`.
+- The new docs make the temporary nature of example 19 explicit: the deployment proves the platform path, while generated `auth.mode=oidc` remains blocked by issue #82.
+
+### What was tricky to build
+- The hardest part was avoiding a single monolithic deployment page. The final split gives readers a short xgoja-side production runbook, a longer goja-repl tutorial, and separate reference pages for host integration, hostauth config, stores, and HTTP serve internals.
+- The documentation also needed to preserve the difference between the public browser URL and the in-pod listen address. That invariant appears in multiple pages because it is the deployment setting most likely to break Keycloak callbacks.
+
+### What warrants a second pair of eyes
+- Whether `pkg/doc/32-deploying-an-express-auth-host.md` and `cmd/xgoja/doc/23-auth-host-production-runbook.md` have the right amount of overlap. They intentionally repeat the production checklist for different help-tree audiences.
+- Whether the example 21 entry in `examples/xgoja/README.md` should stay listed even though the earlier numbered learning path text had stopped at 20.
+- Whether `Dockerfile.auth-host` should be changed later so `serve` is in `CMD` rather than `ENTRYPOINT`; the docs now explain the current contract, not a proposed change.
+
+### What should be done in the future
+- Merge the K3s GitOps branch and switch live Argo back to `main`.
+- Implement issue #82 so generated `auth.mode=oidc` can replace the temporary example-19 deployment path.
+- If the demo is retained, move Keycloak realm/client provisioning into Terraform and update the docs accordingly.
+
+### Code review instructions
+- Start with `README.md` to verify the new documentation map.
+- Review `cmd/xgoja/doc/19-23*.md` for xgoja-side host docs.
+- Review `pkg/doc/32-deploying-an-express-auth-host.md` for the long operator tutorial.
+- Validate with:
+  ```bash
+  go run ./cmd/xgoja help auth-host-production-runbook
+  go run ./cmd/goja-repl help deploying-an-express-auth-host
+  go test ./cmd/xgoja ./cmd/goja-repl ./pkg/docaccess/... -count=1
+  make glazed-lint
+  ```
+
+### Technical details
+- Slug count after additions: 51 help slugs across `pkg/doc` and `cmd/xgoja/doc`.
+- New xgoja slugs: `express-auth-host-integration-guide`, `hostauth-config-reference`, `auth-stores-reference`, `http-serve-command-reference`, `auth-host-production-runbook`.
+- New goja-repl slug: `deploying-an-express-auth-host`.

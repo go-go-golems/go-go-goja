@@ -23,9 +23,11 @@ Each example directory has its own `README.md`, `Makefile`, and native `schema: 
 15. `15-protobuf-builder-provider/` — a provider exposes a generated protobuf builder module, generated from a local `.proto`, and tests JavaScript-to-Go protobuf extraction without JSON/protojson conversion.
 16. `16-typescript-jsverbs/` — TypeScript-authored jsverbs use esbuild-backed compilation, `xgoja run` TypeScript entry support, generated declarations, and HTTP hot reload.
 17. Reserved; the old route-authoring-only Express sketch was removed because the runnable examples below cover the same API.
-18. `18-express-auth-host/` — runnable Go-owned dev-auth host that wires login/logout, session cookies, CSRF, resources, authorization, audit, and strict raw-route rejection for planned Express auth routes.
-19. `19-express-keycloak-auth-host/` — production-oriented Keycloak/OIDC host skeleton with Docker Compose Keycloak realm, app sessions, app-owned authorization, and planned Express routes.
-20. `20-express-hello-world/` — tiny no-auth Express host with public planned routes only.
+18. `18-express-auth-host/` — **local dev-auth template**. Runnable Go-owned dev-auth host that wires login/logout, session cookies, CSRF, resources, authorization, audit, and strict raw-route rejection for planned Express auth routes without external services.
+19. `19-express-keycloak-auth-host/` — **production template**. Keycloak/OIDC host used for the live `goja-auth-host-demo` deployment pattern; includes Docker Compose Keycloak smoke, app sessions, app-owned authorization, Postgres store wiring, and planned Express routes.
+20. `20-express-hello-world/` — **smoke-only template**. Tiny no-auth Express host with public planned routes only; useful for HTTP provider sanity checks, not auth deployment design.
+
+21. `21-generated-host-auth/` — **generated-seam template**. Demonstrates generated runtime package plus host-owned auth service injection; OIDC/Keycloak remains follow-up work tracked separately.
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 

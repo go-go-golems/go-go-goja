@@ -43,6 +43,27 @@ The canonical API is explicit runtime composition:
 
 ---
 
+## Documentation
+
+go-go-goja ships two Glazed help trees. Browse them with:
+
+- `goja-repl help` — module authoring, JavaScript route DSLs, REPL workflows, and native modules (`pkg/doc/`).
+- `xgoja help` — code generation, Go host integration, provider configuration, and generated `serve` commands (`cmd/xgoja/doc/`).
+
+Key entry points:
+
+- JavaScript planned-auth routes: `goja-repl help express-auth-user-guide`
+- Planned-auth examples: `goja-repl help express-auth-examples`
+- Go planned-auth API: `xgoja help go-planned-auth-api`
+- Go auth host integration: `xgoja help express-auth-host-integration-guide`
+- Generated host auth configuration: `xgoja help hostauth-config-reference`
+- Auth store persistence: `xgoja help auth-stores-reference`
+- HTTP `serve` internals: `xgoja help http-serve-command-reference`
+- Kubernetes/Keycloak deployment: `goja-repl help deploying-an-express-auth-host` and `xgoja help auth-host-production-runbook`
+
+The two trees are intentionally separate because they are loaded by different binaries. Cross-links in the auth pages point to the corresponding topic in the other tree.
+
+
 ## Quick start
 
 ```bash

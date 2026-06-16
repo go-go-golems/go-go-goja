@@ -241,3 +241,11 @@ Run it from the repository root:
 make -C examples/gojahttp/01-planned-auth smoke
 make -C examples/gojahttp/01-planned-auth serve
 ```
+
+
+## See also
+
+- `goja-repl help express-auth-user-guide` — JavaScript planned-route DSL for the same route-plan model.
+- `goja-repl help express-auth-examples` — runnable planned-auth examples.
+- `xgoja help express-auth-host-integration-guide` — composing the Go host around planned routes, OIDC handlers, stores, and shutdown.
+- `xgoja help hostauth-config-reference` — generated-host auth configuration and the current OIDC hard-stop.

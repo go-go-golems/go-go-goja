@@ -291,3 +291,11 @@ In development mode, 500-class errors include more detail. In production mode, r
 - `examples/xgoja/18-express-auth-host` — Runnable dev-auth example for public, current-user, and resource-bound planned routes.
 - `examples/xgoja/21-generated-host-auth` — Runtime-package example that injects `hostauth.ServiceFactoryKey` and supports memory or SQLite stores.
 - `examples/xgoja/20-express-hello-world` — Minimal no-auth public-route host.
+
+
+## See also
+
+- `xgoja help go-planned-auth-api` — the Go route API that uses the same `RoutePlan` contract.
+- `xgoja help express-auth-host-integration-guide` — how a Go host composes OIDC, sessions, stores, and planned Express routes.
+- `xgoja help auth-host-production-runbook` — production deployment checklist for Keycloak-backed auth hosts.
+- `goja-repl help express-auth-examples` — runnable examples for dev auth, generated host auth, and Keycloak auth.
