@@ -58,3 +58,13 @@ Deployed goja-auth-host-demo to yolo: pushed GHCR image sha-ba77afc, added K3s G
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-auth-host-demo/deployment.yaml — Live auth-host Deployment
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-goja-auth-host-demo-runtime-secrets.sh — Vault runtime secret bootstrap helper
 
+
+## 2026-06-16
+
+Updated the documentation improvement plan with live production rollout lessons: Glazed auth-host config, public-base-url invariant, signal-aware shutdown, GHCR/Dockerfile ENTRYPOINT contract, K3s GitOps/Vault/Postgres/Keycloak/Argo workflow, live yolo failure modes, and new permanent doc/runbook targets.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-auth-host-demo/deployment.yaml — Live deployment lessons feeding the doc plan
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-AUTH-DEPLOY--deploy-an-xgoja-generated-keycloak-auth-host-to-yolo-scapegoat-dev/design/02-documentation-improvement-plan-for-go-go-goja.md — Post-deployment documentation gap analysis and implementation plan
+

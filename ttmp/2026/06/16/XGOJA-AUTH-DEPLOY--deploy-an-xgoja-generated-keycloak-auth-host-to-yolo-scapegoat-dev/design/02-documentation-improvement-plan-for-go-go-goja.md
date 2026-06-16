@@ -41,10 +41,24 @@ RelatedFiles:
       Note: hostauth.Config — rich schema with zero user-facing reference doc
     - Path: reference/02-research-logbook.md
       Note: Research logbook whose Part H produced the navigation findings this plan extends
-ExternalSources: []
+    - Path: Dockerfile.auth-host
+      Note: Temporary auth-host image build added during live deployment; proves production docs need image ENTRYPOINT/CMD guidance
+    - Path: .github/workflows/publish-auth-host-image.yaml
+      Note: Auth-host GHCR publishing workflow added for the temporary deployment
+    - Path: examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go
+      Note: Glazed serve command, public-base-url handling, and signal-aware shutdown implemented during productionization
+    - Path: examples/xgoja/19-express-keycloak-auth-host/scripts/smoke.sh
+      Note: Local Keycloak/Postgres smoke updated; cleanup instrumentation exposed the signal-handling gap
+    - Path: deploy/gitops-targets.json
+      Note: GitOps image update target for goja-auth-host-demo
+ExternalSources:
+    - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-auth-host-demo/deployment.yaml — Live yolo Deployment, env contract, image tag, and corrected args
+    - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/goja-auth-host-demo.yaml — Argo CD Application for the deployed demo
+    - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-goja-auth-host-demo-runtime-secrets.sh — Vault runtime secret bootstrap helper for DB DSN and Keycloak client secret
+    - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/policies/kubernetes/goja-auth-host-demo.hcl — Vault read policy for runtime and image-pull secrets
 Summary: 'Intern-facing analysis, design, and implementation guide for closing the go-go-goja documentation gaps discovered during the XGOJA-AUTH-DEPLOY investigation: the two-tree help system, the JS-documented/Go-underserved asymmetry, the missing hostauth/stores/deployment references, and the README navigation map.'
-LastUpdated: 2026-06-16T10:45:00-04:00
-WhatFor: Use when planning or executing doc-cleanup work across go-go-goja so the next engineer does not have to re-derive the doc landscape by hand.
+LastUpdated: 2026-06-16T16:45:00-04:00
+WhatFor: Use when planning or executing doc-cleanup work across go-go-goja so the next engineer does not have to re-derive the doc landscape, the auth-host productionization path, or the live yolo deployment lessons by hand.
 WhenToUse: Before writing any new pkg/doc or cmd/xgoja/doc page, and before editing README.md for navigation.
 ---
 
@@ -93,6 +107,17 @@ real depth gaps, and (b) a navigation layer (README "Documentation" map +
 cross-links) that makes the existing 47 pages discoverable. The navigation work
 is the highest-leverage, lowest-effort part.
 
+**Post-deployment update (2026-06-16 afternoon):** this plan was originally
+written before the temporary auth host was actually shipped. We have since built
+and pushed `ghcr.io/go-go-golems/go-goja-auth-host:sha-ba77afc`, deployed it to
+`https://goja-auth.yolo.scapegoat.dev`, provisioned a real Keycloak realm/client,
+seeded Vault/VSO runtime and image-pull secrets, bootstrapped a shared Postgres
+database/user, fixed one live Kubernetes command-contract bug, and passed the
+full public Keycloak smoke test. That work changes the doc priorities: the
+missing "deployment" page is no longer a speculative distillation of
+`design/01`; it must be a production runbook that captures the exact source repo
+↔ GHCR ↔ GitOps ↔ Vault ↔ Keycloak ↔ Argo CD chain and the sharp edges we hit.
+
 ## 2. Problem statement and scope
 
 ### 2.1 Problem
@@ -121,10 +146,15 @@ and `README.md` never tells a reader that 47 Glazed help pages even exist.
 
 ### 2.3 Out of scope
 
-- The actual *deployment* design (that is `design/01-...`).
+- The original deployment design narrative (that is `design/01-...`). This
+  document now records what permanent docs should be written *from* the live
+  deployment, not the deployment design itself.
 - The `ModeOIDC` *implementation* (that is GitHub issue #82 / `XGOJA-AUTH-KEYCLOAK-MFA`).
 - Writing the docs themselves — this plan specifies them; writing is the
   implementation phase.
+- Terraforming the live Keycloak realm/client. The documentation should call out
+  that the current demo used manual `kcadm.sh` provisioning and should be
+  converted if the demo remains long-lived.
 
 ### 2.4 Relationship to prior work in this ticket
 
@@ -134,6 +164,81 @@ and `README.md` never tells a reader that 47 Glazed help pages even exist.
 - The earlier doc-plan discussion proposed docs `32`–`37`. This plan corrects
   that numbering: because `cmd/xgoja/doc/18` already exists, several proposed
   pages merge or move. See §5.
+
+## 2.5 New production lessons from the live yolo rollout
+
+The live deployment produced concrete lessons that should change the eventual
+permanent docs. These are no longer hypothetical recommendations. They are based
+on the shipped `goja-auth-host-demo` app and the failures fixed during rollout.
+
+### 2.5.1 The temporary host is a real Glazed program now
+
+Example 19 is no longer just a raw `flag`-based sketch. Its host binary now has
+a Glazed root with a `serve` subcommand and environment-backed fields for:
+
+- `LISTEN_ADDR` / `--listen`
+- `SCRIPT_PATH` / `--script`
+- `KEYCLOAK_ISSUER` / `--issuer`
+- `KEYCLOAK_CLIENT_ID` / `--client-id`
+- `KEYCLOAK_CLIENT_SECRET` / `--client-secret`
+- `PUBLIC_BASE_URL` / `--public-base-url`
+- `KEYCLOAK_REDIRECT_URL` / `--redirect-url`
+- `AFTER_LOGIN_URL` and `AFTER_LOGOUT_URL`
+- `ALLOW_INSECURE_HTTP` / `--allow-insecure-http`
+- `SESSION_DB_DSN`, `AUDIT_DB_DSN`, `APPAUTH_DB_DSN`, `CAPABILITY_DB_DSN`
+
+Permanent docs must therefore teach the `public-base-url` invariant explicitly:
+**derive callback URLs from the browser-visible HTTPS origin, not from the
+`--listen` address.** `redirect-url` is an advanced override, and local HTTP is
+allowed only via `--allow-insecure-http` for localhost/Compose smoke.
+
+### 2.5.2 Production deployment is a six-boundary workflow
+
+The successful path crossed six repositories/systems, each with a distinct
+contract:
+
+1. **go-go-goja source** builds the host and defines `deploy/gitops-targets.json`.
+2. **GHCR** stores `ghcr.io/go-go-golems/go-goja-auth-host:sha-<commit>`.
+3. **K3s GitOps repo** defines Argo, Kustomize, Deployment, Ingress, VSO, and DB
+   bootstrap resources under `gitops/kustomize/goja-auth-host-demo/`.
+4. **Vault** stores runtime secrets and image-pull credentials at
+   `kv/apps/goja-auth-host-demo/prod/{runtime,image-pull}` and exposes them via
+   Kubernetes auth roles.
+5. **Keycloak** owns the realm/client/user state. The live demo used realm
+   `goja-auth-host-demo` and confidential client `goja-auth-host-demo`.
+6. **Argo CD** syncs the Kustomize package and tracks app health. The live app
+   temporarily targets branch `task/clubmed-prod-gitops` until that branch is
+   merged; the committed Application target is `main`.
+
+Docs must describe these boundaries separately. Blurring them is what makes
+deployments hard to debug.
+
+### 2.5.3 The live failure modes are now acceptance-test material
+
+The production rollout found real sharp edges that must be documented as
+troubleshooting entries:
+
+- **Missing `VAULT_TOKEN`:** the first Vault seed failed with
+  `VAULT_TOKEN required`; use `~/.vault-token` or `vault login -method=oidc role=operators`.
+- **Missing `GITHUB_DEPLOY_PAT`:** image-pull secret bootstrap failed until a
+  deploy token was supplied.
+- **ENTRYPOINT/args mismatch:** `Dockerfile.auth-host` has
+  `ENTRYPOINT ["/app/goja-auth-host", "serve"]`; Kubernetes `args` must pass
+  flags only. Passing `serve` again crashed the pod with `Too many arguments`.
+- **Argo stuck on an older operation:** after pushing the args fix, the live
+  Application needed operation clearing/hard refresh before syncing the new
+  revision.
+- **`curl -I /auth/login` is the wrong check:** HEAD returns 405; GET returns
+  the expected 302 to Keycloak.
+
+### 2.5.4 Signal handling is operational, not cosmetic
+
+Local smoke initially looked hung after a successful auth flow. The cause was
+that the host process did not gracefully exit after SIGTERM. We added
+signal-aware `http.Server.Shutdown` helpers to example 19 and sibling example
+servers. Docs should treat graceful shutdown as a required host-integration
+step, because it affects local smoke, Kubernetes termination, and review
+confidence.
 
 ## 3. Current-state architecture: the two-tree help system
 
@@ -234,12 +339,15 @@ all." That was **imprecise**. After discovering tree 2, the accurate picture is:
 | G4 | `hostauth.Config` reference (Mode/Session/Stores + Glazed section) | ❌ | only `config.go`/`glazed.go` | no reference page |
 | G5 | Auth store drivers (memory/sqlite/postgres, ApplySchema, DSNs) | ❌ | only `sqlstore/*.go` | no reference page |
 | G6 | `ModeOIDC` hard-stop + hybrid decision | ❌ | only `resolve.go` error + example 21 README | no page; misleading (`glazed.go` offers the `oidc` choice but it errors) |
-| G7 | Deployment (image/GitOps/Keycloak/Vault) | ❌ | only `design/01-...` ticket | no permanent `pkg/doc` page |
+| G7 | Deployment (image/GitOps/Keycloak/Vault/Postgres/Argo) | ✅ ticket + live branch, ❌ permanent docs | `design/01`, diary Step 8, K3s branch `task/clubmed-prod-gitops` | no permanent runbook/help page; live lessons not in repo docs |
 | G8 | `serve` command internals (factory discovery, host build, hot reload) | ⚠️ partial | `serve.go` + example READMEs | no reference page |
 | G9 | **Cross-tree navigation** | ❌ | — | two trees never linked |
 | G10 | **README navigation map** | ❌ | — | README ignores both trees |
+| G11 | Glazed auth-host CLI contract (`public-base-url`, env vars, insecure-local flag) | ✅ in code/README example, ❌ reference | example 19 `main.go` + README | no durable operator-facing reference |
+| G12 | Image/ENTRYPOINT/GitOps target contract | ✅ in code/live fix, ❌ docs | `Dockerfile.auth-host`, workflow, K3s deployment | no warning about duplicate `serve` args |
+| G13 | Live validation/troubleshooting playbook | ✅ diary only | diary Step 8 + smoke output | no permanent acceptance-test/troubleshooting doc |
 
-So the genuine content gaps are **G3, G4, G5, G6, G7, G8**; the navigation gaps
+So the genuine content gaps are **G3, G4, G5, G6, G7, G8, G11, G12, G13**; the navigation gaps
 are **G9, G10** (and they are the cheapest, highest-leverage fixes).
 
 ## 5. Proposed solution
@@ -265,7 +373,8 @@ existing Go auth page `18` lives — keeping the Go-host story in one place.
 | `cmd/xgoja/doc/20-hostauth-config-reference.md` | 2 | G4, G6 | GeneralTopic | hostauth configuration reference (`hostauth-config-reference`) |
 | `cmd/xgoja/doc/21-auth-stores-reference.md` | 2 | G5 | GeneralTopic | Auth stores and persistence reference (`auth-stores-reference`) |
 | `cmd/xgoja/doc/22-http-serve-command-reference.md` | 2 | G8 | GeneralTopic | The generated `serve` command reference (`http-serve-command-reference`) |
-| `pkg/doc/32-deploying-an-express-auth-host.md` | 1 | G7 | Tutorial | Deploying an Express auth host (`deploying-an-express-auth-host`) |
+| `pkg/doc/32-deploying-an-express-auth-host.md` | 1 | G7, G11, G12, G13 | Tutorial | Deploying an Express auth host to Kubernetes (`deploying-an-express-auth-host`) |
+| `cmd/xgoja/doc/23-auth-host-production-runbook.md` | 2 | G7, G11, G12, G13 | Application | Auth host production runbook (`auth-host-production-runbook`) |
 
 Per-page rationale (audience + what it must contain + file anchors):
 
@@ -312,18 +421,44 @@ Per-page rationale (audience + what it must contain + file anchors):
   flags, and the `http.*` / `hot-reload.*` Glazed sections.
 - **Anchors:** `pkg/xgoja/providers/http/{serve.go,http.go}`.
 
-#### Page E — `pkg/doc/32-deploying-an-express-auth-host.md` (closes G7)
+#### Page E — `pkg/doc/32-deploying-an-express-auth-host.md` (closes G7, G11, G12, G13)
 
-- **Audience:** operators deploying to the cluster.
-- **Contains:** the `pkg/doc` rendering of `design/01-...` — image build,
-  `deploy/gitops-targets.json`, Keycloak client, Vault/VSO secrets, probes,
-  TLS/`Secure`-cookie, multi-instance transaction store. Lands in tree 1 because
-  it pairs with the `pkg/doc/31` examples page.
-- **Anchors:** `Dockerfile`, `deploy/gitops-targets.json`, `.github/workflows/publish-image.yaml`.
+- **Audience:** operators and example users deploying an auth host to Kubernetes
+  or another HTTPS reverse-proxy environment.
+- **Contains:** the permanent, cleaned-up version of the now-live deployment:
+  image build and GHCR publishing; `deploy/gitops-targets.json`; Keycloak
+  realm/client/redirect URI; Vault/VSO runtime and image-pull secrets; shared
+  Postgres bootstrap job; probes; TLS/`Secure` cookie requirements;
+  `public-base-url` vs `redirect-url`; local HTTP exception; one-replica warning
+  while OIDC transaction state is in-memory; smoke validation; and
+  troubleshooting for the exact failures seen during the yolo rollout. Lands in
+  tree 1 because it pairs with the `pkg/doc/31` examples page.
+- **Must include a "Live yolo example" box:**
+  - URL: `https://goja-auth.yolo.scapegoat.dev`
+  - image: `ghcr.io/go-go-golems/go-goja-auth-host:sha-ba77afc`
+  - issuer: `https://auth.yolo.scapegoat.dev/realms/goja-auth-host-demo`
+  - runtime secret path: `kv/apps/goja-auth-host-demo/prod/runtime`
+  - smoke command: `scripts/keycloak_smoke.py --base-url https://goja-auth.yolo.scapegoat.dev ...`
+- **Anchors:** `Dockerfile.auth-host`, `deploy/gitops-targets.json`,
+  `.github/workflows/publish-auth-host-image.yaml`, K3s
+  `gitops/kustomize/goja-auth-host-demo/*`, and the new Vault bootstrap scripts.
+
+#### Page F — `cmd/xgoja/doc/23-auth-host-production-runbook.md` (closes G7, G11, G12, G13 from the xgoja side)
+
+- **Audience:** a Go/xgoja engineer who has generated or hand-composed a host
+  and now needs to run it like an app.
+- **Contains:** a concise operator runbook in the `xgoja help` tree: host CLI
+  env contract, `public-base-url` invariant, image ENTRYPOINT/args contract,
+  GitOps target semantics, Vault/Keycloak/Postgres prerequisite checklist, Argo
+  sync workflow, and validation commands.
+- **Why both Page E and F:** Page E is the long tutorial paired with the JS
+  examples. Page F is the short `xgoja help` runbook that a generated-host user
+  can discover without switching help trees.
 
 > Note on numbering: the earlier discussion proposed `32`–`37`. After finding
-> tree 2's existing `18`, the plan is tighter: five pages, with the Go-host
-> pages (`19`–`22`) sitting next to the existing `18` in `cmd/xgoja/doc/`.
+> tree 2's existing `18` and then doing the live deployment, the plan is six
+> pages: four Go-host pages (`19`–`22`), one xgoja production runbook (`23`),
+> and one longer deployment tutorial in `pkg/doc/32`.
 
 ### 5.3 Navigation fixes (cheapest, highest leverage)
 
@@ -339,13 +474,13 @@ Insert after the Folder layout, before Quick start:
 go-go-goja ships two Glazed help trees. Browse them with:
 
 - `goja-repl help` — module authoring, JS route DSL, REPL (37 pages in `pkg/doc/`).
-- `xgoja help` — code generation, Go host integration, the `serve` command (10 pages in `cmd/xgoja/doc/`).
+- `xgoja help` — code generation, Go host integration, the `serve` command (10+ pages in `cmd/xgoja/doc/`).
 
 Key entry points:
 
 - JS planned-auth routes: `goja-repl help express-auth-user-guide`
 - Go planned-auth API:    `xgoja help go-planned-auth-api`
-- Deploying an auth host: see ticket `XGOJA-AUTH-DEPLOY` (`design/01-...`).
+- Deploying an auth host: `goja-repl help deploying-an-express-auth-host` (after Page E lands); until then see ticket `XGOJA-AUTH-DEPLOY` and the live yolo demo notes.
 ```
 
 #### N2 — cross-link the two auth pages (closes G9)
@@ -403,6 +538,31 @@ Annotate the learning path (research-logbook H3):
   warning; document the new OIDC config block).
 - **Status:** accepted
 
+### Decision D4: make `public-base-url` first-class in docs
+
+- **Context:** the live deployment sits behind HTTPS ingress. `--listen :8080`
+  is not the browser origin and must not be used to derive OIDC redirects.
+- **Decision:** every deployment/host-integration doc must explain
+  `public-base-url` first and treat `redirect-url` as an advanced override.
+- **Rationale:** this was the central operator-facing setting required to make
+  Keycloak callbacks correct in cluster.
+- **Consequences:** local examples must explicitly show
+  `--public-base-url http://127.0.0.1:8790 --allow-insecure-http`; production
+  examples must show HTTPS and omit `allow-insecure-http`.
+- **Status:** accepted
+
+### Decision D5: document the temporary demo as an example, not as the final architecture
+
+- **Context:** `goja-auth-host-demo` is deployed from example 19 because fully
+  generated `auth.mode=oidc` remains blocked by issue #82.
+- **Decision:** permanent docs should use the live demo as the concrete working
+  example while clearly stating it is a temporary bridge.
+- **Rationale:** the example proves the production stack, but the desired final
+  state is generated `xgoja serve` OIDC support.
+- **Consequences:** docs must include a cleanup/retirement note and avoid
+  presenting example 19 as the only blessed long-term app layout.
+- **Status:** accepted
+
 ## 7. Implementation plan
 
 Phases are ordered by leverage. Each page is a single Markdown file with Glazed
@@ -456,12 +616,30 @@ the express module → OIDC handlers on the mux → probes/shutdown → "See als
 
 Validate: `xgoja help <slug>` for each new slug resolves.
 
-### Phase 3 — Content: deployment tutorial (closes G7)
+### Phase 3 — Content: deployment tutorial/runbook (closes G7, G11, G12, G13)
 
-- `pkg/doc/32-deploying-an-express-auth-host.md` — distil `design/01-...` into a
-  permanent, non-ticket page. Cross-link `pkg/doc/31-express-auth-examples.md`.
+- `pkg/doc/32-deploying-an-express-auth-host.md` — distil `design/01-...`, diary
+  Step 8, and the K3s branch into a permanent, non-ticket page. Cross-link
+  `pkg/doc/31-express-auth-examples.md`.
+- `cmd/xgoja/doc/23-auth-host-production-runbook.md` — shorter xgoja-side
+  production checklist for generated/host-author users.
 
-Validate: `goja-repl help deploying-an-express-auth-host` resolves.
+Required subsections for both docs:
+
+1. source build → image tag → GitOps target flow;
+2. Keycloak realm/client/redirect URI provisioning;
+3. Vault runtime secret and image-pull secret schema;
+4. Postgres bootstrap Job and DSN reuse across four stores;
+5. Kustomize/Argo CD resources and sync waves;
+6. `public-base-url`/`redirect-url`/HTTPS rules;
+7. ENTRYPOINT vs Kubernetes `args` warning;
+8. signal-aware shutdown expectation;
+9. health/login/smoke validation commands;
+10. troubleshooting table for Vault token, GHCR token, Argo stuck operation,
+    Keycloak redirect mismatch, and HEAD-vs-GET login checks.
+
+Validate: `goja-repl help deploying-an-express-auth-host` and
+`xgoja help auth-host-production-runbook` resolve.
 
 ### Phase 4 — Cross-repo doc health (out of scope here; record for follow-up)
 
@@ -490,6 +668,15 @@ here for continuity, **not** implemented in this ticket:
 - **Link liveness:** every "See also" target slug must resolve in its tree.
 - **Doctor:** `docmgr doctor --ticket XGOJA-AUTH-DEPLOY` stays green after
   relating the new page.
+- **Production smoke example:** docs should include a copy/pasteable live smoke
+  command for the yolo demo, with the password read from Vault instead of
+  printed in docs:
+  ```bash
+  python3 examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py \
+    --base-url https://goja-auth.yolo.scapegoat.dev \
+    --username demo-user \
+    --password "$(VAULT_TOKEN=$(cat ~/.vault-token) vault kv get -field=demo_password kv/apps/goja-auth-host-demo/prod/runtime)"
+  ```
 
 ## 9. Risks, alternatives, open questions
 
@@ -502,6 +689,12 @@ here for continuity, **not** implemented in this ticket:
 - **Discoverability of tree 2 for non-xgoja users.** A `goja-repl` user cannot
   `goja-repl help go-planned-auth-api` (it is in the other tree). Mitigation:
   N1 names both binaries and N2 bridges the auth pages.
+- **Docs may accidentally bless temporary manual Keycloak state.** Mitigation:
+  every production doc must state whether Keycloak state is manual `kcadm.sh`,
+  Terraform-managed, or reconciled by a job; for the live demo it is currently
+  manual and should be promoted if retained.
+- **Sensitive demo credentials.** Mitigation: docs must point to Vault retrieval
+  commands, never paste passwords or client secrets.
 
 ### Alternatives considered
 - **Merge the two trees into one.** Rejected for now: they are served by
@@ -517,6 +710,11 @@ here for continuity, **not** implemented in this ticket:
    `31`; revisit if `xgoja` users report they can't find it.)
 2. Is there appetite for a single top-level `docs/index.md` that indexes both
    trees for web/GitHub readers (outside the Glazed help system)?
+3. Should `Dockerfile.auth-host` keep `serve` in ENTRYPOINT, or should it move
+   `serve` into CMD so Kubernetes and `docker run` command composition is less
+   surprising?
+4. Should the live `goja-auth-host-demo` Keycloak realm/client be moved to the
+   Terraform Keycloak repo before the demo is advertised more broadly?
 
 ## 10. References
 
@@ -539,8 +737,22 @@ here for continuity, **not** implemented in this ticket:
 - `pkg/xgoja/providers/http/{serve.go,http.go}`.
 - `examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go` — integration reference.
 - `examples/gojahttp/01-planned-auth/` — Go-only planned-auth example (referenced by `18`).
+- `Dockerfile.auth-host` — temporary auth-host image; ENTRYPOINT includes `serve`.
+- `.github/workflows/publish-auth-host-image.yaml` — GHCR image publish + GitOps PR workflow.
+- `deploy/gitops-targets.json` — image update target for `goja-auth-host-demo`.
+- `examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go` — Glazed command, `public-base-url`, redirect URL validation, graceful shutdown.
+- `examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py` — reusable public smoke driver.
+
+### Live cluster anchors from the rollout
+- `/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-auth-host-demo/` — Kustomize package deployed to yolo.
+- `/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/goja-auth-host-demo.yaml` — Argo Application.
+- `/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/projects/demo-apps.yaml` — namespace allowlist update.
+- `/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-goja-auth-host-demo-runtime-secrets.sh` — runtime secret seeding helper.
+- `/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-goja-auth-host-demo-image-pull-secret.sh` — GHCR pull secret seeding helper.
+- `/home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/policies/kubernetes/goja-auth-host-demo*.hcl` and `vault/roles/kubernetes/goja-auth-host-demo*.json` — Vault Kubernetes auth contract.
 
 ### Companion documents in this ticket
-- `design/01-deploy-xgoja-keycloak-auth-host-to-yolo.md` — the deployment design (Page E source).
+- `design/01-deploy-xgoja-keycloak-auth-host-to-yolo.md` — the original deployment design (Page E source).
+- `reference/01-investigation-diary.md` Step 8 — the live deployment diary and failure record.
 - `reference/02-research-logbook.md` Part H — original navigation findings (H1–H7).
 - GitHub issue #82 — the `ModeOIDC` implementation that Page B's warning tracks.
