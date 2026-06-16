@@ -68,3 +68,17 @@ Moved normal xgoja http serve onto a command-owned listener/server/mux lifecycle
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 5 records failing test
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/tasks.md — Tasks 6 and 7 completed
 
+
+## 2026-06-16
+
+Made the Express module pure route registration by removing WithOnUse/capability.start listener side effects; app.listen now reports to use xgoja serve.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/auth_builders.go — Planned route handle now only registers into the host
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/express.go — Removed Express listener startup hook and made app.listen a migration error
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/http.go — HTTP module loader no longer starts listeners
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/http_test.go — Updated no-bind regression expectations
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/reference/01-diary.md — Step 6 records Express hard-cutover details
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/16/XGOJA-ISSUE-82-OIDC-GENERATED-HOST--implement-generated-xgoja-oidc-auth-host-support/tasks.md — Task 8 completed
+

@@ -177,9 +177,6 @@ func (b *routeBuilder) needsHandlerObject() goja.Value {
 		if !ok {
 			return fmt.Errorf("planned route .handle(...) requires a function")
 		}
-		if err := b.registrar.start(b.vm); err != nil {
-			return err
-		}
 		return b.registrar.host.RegisterPlanned(b.plan, fn)
 	})
 	return obj

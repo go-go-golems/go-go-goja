@@ -3,13 +3,9 @@ package http
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net"
-	stdhttp "net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
@@ -70,9 +66,6 @@ type runtimeEntry struct {
 	settings           settings
 	settingsConfigured bool
 	host               *gojahttp.Host
-	server             *stdhttp.Server
-	external           bool
-	ownsListen         bool
 }
 
 type capability struct {
@@ -164,8 +157,9 @@ func (c *capability) InitRuntimeFromSections(ctx context.Context, vals *values.V
 	entry.settings = normalizeSettings(cfg)
 	entry.settingsConfigured = true
 	entry.mu.Unlock()
-	return runtime.AddCloser(func(ctx context.Context) error {
-		return c.shutdownRuntime(ctx, runtime.VM)
+	return runtime.AddCloser(func(context.Context) error {
+		c.cleanupRuntime(runtime.VM)
+		return nil
 	})
 }
 
@@ -189,20 +183,14 @@ func (c *capability) newExpressLoader(hostServices providerapi.HostServices, cfg
 		if entry.host == nil {
 			if externalHost.Host != nil {
 				entry.host = externalHost.Host
-				entry.external = true
-				entry.ownsListen = externalHost.OwnsListen
 			} else {
 				entry.host = gojahttp.NewHost(hostOptions(entry.settings))
-				entry.external = false
-				entry.ownsListen = true
 			}
 		}
 		host := entry.host
 		entry.mu.Unlock()
 
-		express.NewLoader(host, express.WithOnUse(func(vm *goja.Runtime) error {
-			return c.start(vm, entry)
-		}))(vm, moduleObj)
+		express.NewLoader(host)(vm, moduleObj)
 	}, nil
 }
 
@@ -236,56 +224,10 @@ func (c *capability) entry(vm *goja.Runtime) *runtimeEntry {
 	return entry
 }
 
-func (c *capability) start(vm *goja.Runtime, entry *runtimeEntry) error {
-	entry.mu.Lock()
-	defer entry.mu.Unlock()
-	cfg := normalizeSettings(entry.settings)
-	entry.settings = cfg
-	if !cfg.Enabled {
-		return nil
-	}
-	if entry.host == nil {
-		entry.host = gojahttp.NewHost(hostOptions(cfg))
-		entry.external = false
-		entry.ownsListen = true
-	}
-	if entry.external && !entry.ownsListen {
-		return nil
-	}
-	if entry.server != nil {
-		return nil
-	}
-	listener, err := net.Listen("tcp", cfg.Listen)
-	if err != nil {
-		return fmt.Errorf("listen on %s: %w", cfg.Listen, err)
-	}
-	server := &stdhttp.Server{Addr: cfg.Listen, Handler: entry.host, ReadHeaderTimeout: 5 * time.Second}
-	entry.server = server
-	go func() {
-		if err := server.Serve(listener); err != nil && !errors.Is(err, stdhttp.ErrServerClosed) {
-			fmt.Printf("xgoja http server failed on %s: %v\n", cfg.Listen, err)
-		}
-	}()
-	_ = vm
-	return nil
-}
-
-func (c *capability) shutdownRuntime(ctx context.Context, vm *goja.Runtime) error {
+func (c *capability) cleanupRuntime(vm *goja.Runtime) {
 	c.mu.Lock()
-	entry := c.entries[vm]
 	delete(c.entries, vm)
 	c.mu.Unlock()
-	if entry == nil {
-		return nil
-	}
-	entry.mu.Lock()
-	server := entry.server
-	entry.server = nil
-	entry.mu.Unlock()
-	if server == nil {
-		return nil
-	}
-	return server.Shutdown(ctx)
 }
 
 func defaultSettings(enabled bool) settings {

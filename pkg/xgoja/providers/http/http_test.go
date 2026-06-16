@@ -383,34 +383,8 @@ func TestExpressRequireDoesNotBindHTTPPort(t *testing.T) {
 		_, runErr := vm.RunString(`require("express").app().get("/healthz").public().handle((_ctx, res) => res.json({ ok: true }))`)
 		return nil, runErr
 	})
-	if err == nil {
-		t.Fatal("expected route registration to report occupied port")
-	}
-	if !strings.Contains(err.Error(), "listen on ") {
-		t.Fatalf("expected listen error after route registration, got %v", err)
-	}
-}
-
-func TestCapabilityStartReportsPortConflictsSynchronously(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("reserve listen address: %v", err)
-	}
-	defer func() { _ = listener.Close() }()
-
-	capability := newHTTPCapability()
-	vm := goja.New()
-	entry := capability.entry(vm)
-	entry.mu.Lock()
-	entry.settings = settings{Enabled: true, Listen: listener.Addr().String()}
-	entry.mu.Unlock()
-
-	err = capability.start(vm, entry)
-	if err == nil {
-		t.Fatal("expected port conflict error")
-	}
-	if !strings.Contains(err.Error(), "listen on ") {
-		t.Fatalf("expected listen error, got %v", err)
+		t.Fatalf("route registration should not bind occupied port: %v", err)
 	}
 }
 

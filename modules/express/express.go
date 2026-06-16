@@ -16,12 +16,9 @@ import (
 
 type Option func(*Registrar)
 
-type StartFunc func(*goja.Runtime) error
-
 type Registrar struct {
-	host  *gojahttp.Host
-	name  string
-	onUse StartFunc
+	host *gojahttp.Host
+	name string
 }
 
 func NewRegistrar(host *gojahttp.Host, opts ...Option) *Registrar {
@@ -38,14 +35,6 @@ func WithName(name string) Option {
 	return func(r *Registrar) {
 		if r != nil && name != "" {
 			r.name = name
-		}
-	}
-}
-
-func WithOnUse(fn StartFunc) Option {
-	return func(r *Registrar) {
-		if r != nil {
-			r.onUse = fn
 		}
 	}
 }
@@ -167,9 +156,6 @@ func (r *Registrar) appObject(vm *goja.Runtime, builders *builderStore) goja.Val
 		if prefix == "" {
 			return fmt.Errorf("app.mount requires prefix")
 		}
-		if err := r.start(vm); err != nil {
-			return err
-		}
 		handler, ok := gojahttp.HTTPHandlerFromValue(handlerValue)
 		if !ok {
 			return fmt.Errorf("app.mount(%q) requires a Go http.Handler-backed object", prefix)
@@ -201,18 +187,12 @@ func (r *Registrar) appObject(vm *goja.Runtime, builders *builderStore) goja.Val
 		if prefix == "" || dir == "" {
 			return fmt.Errorf("app.static requires prefix and directory")
 		}
-		if err := r.start(vm); err != nil {
-			return err
-		}
 		r.host.RegisterStatic(prefix, dir)
 		return nil
 	})
 	_ = obj.Set("staticFromAssetsModule", func(prefix string, assetsModule goja.Value, root string) error {
 		if prefix == "" || root == "" {
 			return fmt.Errorf("app.staticFromAssetsModule requires prefix and root")
-		}
-		if err := r.start(vm); err != nil {
-			return err
 		}
 		handler, err := fsmod.StaticHandlerFromAssetsModule(vm, assetsModule, root)
 		if err != nil {
@@ -225,9 +205,6 @@ func (r *Registrar) appObject(vm *goja.Runtime, builders *builderStore) goja.Val
 		if prefix == "" || root == "" {
 			return fmt.Errorf("app.spaFromAssetsModule requires prefix and root")
 		}
-		if err := r.start(vm); err != nil {
-			return err
-		}
 		spaOptions := spaFromAssetsOptions(vm, options)
 		handler, err := fsmod.SPAHandlerFromAssetsModule(vm, assetsModule, root, spaOptions.Index)
 		if err != nil {
@@ -236,13 +213,8 @@ func (r *Registrar) appObject(vm *goja.Runtime, builders *builderStore) goja.Val
 		r.host.RegisterStaticHandlerWithOptions(prefix, handler, spaOptions.ExcludePrefixes)
 		return nil
 	})
-	_ = obj.Set("listen", func() error { return r.start(vm) })
+	_ = obj.Set("listen", func() error {
+		return fmt.Errorf("app.listen is not supported by the xgoja Express module; use the xgoja serve command to own the HTTP server")
+	})
 	return obj
-}
-
-func (r *Registrar) start(vm *goja.Runtime) error {
-	if r.onUse == nil {
-		return nil
-	}
-	return r.onUse(vm)
 }

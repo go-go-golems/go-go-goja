@@ -10,7 +10,7 @@
 - [x] Inventory current HTTP provider, Express loader, hot reload, and generated host call paths before changing code
 - [x] Add regression coverage showing require("express") does not start a listener when an external host is provided
 - [x] Refactor the HTTP provider so serve owns listener, http.Server, top-level handler, and graceful shutdown
-- [ ] Keep Express as a pure route-registration module and remove serve-time reliance on express.WithOnUse startup
+- [x] Keep Express as a pure route-registration module and remove serve-time reliance on express.WithOnUse startup
 - [ ] Adapt hot reload to one stable listener/top-level handler that swaps only app runtime snapshots
 - [ ] Add top-level auth fields to xgoja v2 spec and generated runtime planning
 - [ ] Build hostauth services from generated serve configuration using Glazed/env-backed settings

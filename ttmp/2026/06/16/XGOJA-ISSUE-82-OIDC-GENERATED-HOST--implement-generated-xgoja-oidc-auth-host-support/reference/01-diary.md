@@ -430,3 +430,94 @@ serveVerb
   -> http.Server{Handler: topHandler}.Serve(listener)
   -> Shutdown on context/signal
 ```
+
+
+## Step 6: Make Express route registration pure
+
+I removed the remaining `serve`-time dependency on Express startup hooks. Express route APIs now register routes, static handlers, and mounts into their `gojahttp.Host` without attempting to bind a socket. The HTTP provider no longer passes `express.WithOnUse` into the module loader, and `app.listen()` now returns an explicit error that tells users to use the xgoja `serve` command for server ownership.
+
+This is the hard-cutover behavior requested in the design: no compatibility wrapper keeps the old “route registration starts a listener” behavior alive. Existing users must run through `serve` or own a Go `http.Server` explicitly.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue the server lifecycle cleanup by removing legacy Express side-effect listener startup.
+
+**Inferred user intent:** Ensure the implementation matches the clarified architecture: Express is only a route-registration DSL.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Removed `StartFunc`, `WithOnUse`, and registrar `onUse` state from `modules/express/express.go`.
+- Removed `r.start(...)` calls from:
+  - `app.mount` / `app.mountHandler`;
+  - `app.static`;
+  - `app.staticFromAssetsModule`;
+  - `app.spaFromAssetsModule`;
+  - planned route `.handle(...)` in `modules/express/auth_builders.go`.
+- Changed `app.listen()` to return a direct error telling users to use xgoja `serve`.
+- Simplified `pkg/xgoja/providers/http/http.go`:
+  - stopped passing `express.WithOnUse`;
+  - removed `capability.start`;
+  - removed per-runtime `http.Server` state from the module capability;
+  - kept runtime-entry cleanup so the capability map does not retain closed runtimes.
+- Updated `TestExpressRequireDoesNotBindHTTPPort` so route registration is expected not to bind an occupied port.
+- Removed the obsolete port-conflict test for `capability.start`.
+
+### Why
+- `serve` now owns the process listener; keeping Express startup hooks would leave two competing lifecycle paths.
+- OIDC native handlers need one top-level mux owned outside Express.
+- A hard cutover is cleaner than a wrapper preserving old side effects.
+
+### What worked
+- Targeted validation passed:
+
+```text
+go test ./modules/express ./pkg/xgoja/providers/http -count=1
+ok  	github.com/go-go-golems/go-go-goja/modules/express	0.040s
+ok  	github.com/go-go-golems/go-goja/pkg/xgoja/providers/http	0.538s
+```
+
+### What didn't work
+- N/A for this step; the code compiled and targeted tests passed after the direct edits.
+
+### What I learned
+- The legacy startup path was concentrated in a small API surface: `WithOnUse`, `r.start`, and `capability.start`.
+- Normal `serve` can now be reasoned about independently of Express internals: runtime route registration mutates a host, while the command owns serving that host.
+
+### What was tricky to build
+- Removing `capability.start` required preserving cleanup for `capability.entries`; otherwise closed runtimes could remain in the capability map. The replacement closer now just deletes the entry.
+- `app.listen()` needed an explicit behavior. I chose a clear error instead of a no-op so migrated users get actionable feedback.
+
+### What warrants a second pair of eyes
+- Review whether `app.listen()` should be removed from the JS API entirely or kept as this explicit migration error.
+- Review external/custom uses of `express.NewLoader(..., opts...)`; `WithName` remains, but `WithOnUse` is gone.
+
+### What should be done in the future
+- Update public docs to state that Express never starts a server.
+- Search downstream examples before final release for any explicit `app.listen()` usage.
+
+### Code review instructions
+- Review `modules/express/express.go` first, especially `appObject` and `app.listen`.
+- Review `modules/express/auth_builders.go:needsHandlerObject` for planned-route registration.
+- Review `pkg/xgoja/providers/http/http.go:newExpressLoader` and confirm it only creates/reuses a host and installs the loader.
+- Validate with:
+
+```bash
+go test ./modules/express ./pkg/xgoja/providers/http -count=1
+```
+
+### Technical details
+- Old path removed:
+
+```text
+route registration -> registrar.start -> onUse -> http capability.start -> net.Listen
+```
+
+- New path:
+
+```text
+route registration -> host.Register*/RegisterPlanned only
+serve command -> net.Listen + http.Server
+```
