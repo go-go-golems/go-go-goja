@@ -3,10 +3,9 @@
 all: build
 
 VERSION=v0.1.14
-GLAZED_LINT_BIN ?= /tmp/glazed-lint
+GLAZED_LINT_BIN ?= $(CURDIR)/.bin/glazed-lint
 GLAZED_LINT_PKG ?= github.com/go-go-golems/glazed/cmd/tools/glazed-lint
 GLAZED_VERSION ?= $(shell GOWORK=off go list -m -f '{{.Version}}' github.com/go-go-golems/glazed 2>/dev/null)
-GLAZED_LINT_TOOL_VERSION ?= v1.3.5
 GLAZED_LINT_FLAGS ?= -glazedclilint.allow-paths=pkg/analysis/,pkg/cli/,pkg/cmds/fields/,pkg/cmds/logging/,pkg/cmds/sources/,pkg/help/
 GLAZED_LINT_DIRS ?= ./cmd/... ./internal/... ./pkg/...
 GOLANGCI_LINT_VERSION ?= $(shell cat .golangci-lint-version)
@@ -21,9 +20,10 @@ golangci-lint-install:
 	mkdir -p $(dir $(GOLANGCI_LINT_BIN))
 	GOBIN=$(dir $(GOLANGCI_LINT_BIN)) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 glazed-lint-build:
-	@echo "Building glazed-lint from pinned tool module..."
-	@echo "Installing $(GLAZED_LINT_PKG)@$(GLAZED_LINT_TOOL_VERSION)"
-	@GOBIN=$(dir $(GLAZED_LINT_BIN)) GOWORK=off go install $(GLAZED_LINT_PKG)@$(GLAZED_LINT_TOOL_VERSION)
+	@echo "Building glazed-lint from go.mod tool dependency..."
+	@echo "Installing $(GLAZED_LINT_PKG) (glazed $(GLAZED_VERSION))"
+	@mkdir -p $(dir $(GLAZED_LINT_BIN))
+	@GOBIN=$(dir $(GLAZED_LINT_BIN)) GOWORK=off go install $(GLAZED_LINT_PKG)
 
 glazed-lint: glazed-lint-build
 	GOWORK=off go vet -vettool=$(GLAZED_LINT_BIN) $(GLAZED_LINT_FLAGS) $(GLAZED_LINT_DIRS)

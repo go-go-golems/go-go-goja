@@ -145,6 +145,14 @@ topics:
       description: Runnable examples, demos, and smoke-testable sample applications
     - slug: auth
       description: Authentication and authorization implementation and documentation
+    - slug: deployment
+      description: Deployment, release, and rollout work (images, CI/CD, GitOps)
+    - slug: gitops
+      description: GitOps (Argo CD, Kustomize, declarative cluster state)
+    - slug: kubernetes
+      description: Kubernetes (K3s) cluster packaging and runtime
+    - slug: vault
+      description: HashiCorp Vault and Vault Secrets Operator secret management
 docTypes:
     - slug: index
       description: Index document for a ticket

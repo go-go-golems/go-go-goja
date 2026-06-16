@@ -163,4 +163,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-tool github.com/go-go-golems/logcopter/cmd/logcopter-gen
+tool (
+	github.com/go-go-golems/glazed/cmd/tools/glazed-lint
+	github.com/go-go-golems/logcopter/cmd/logcopter-gen
+)
