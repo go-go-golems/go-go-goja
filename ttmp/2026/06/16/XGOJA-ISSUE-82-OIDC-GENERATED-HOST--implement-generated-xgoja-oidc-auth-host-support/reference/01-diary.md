@@ -1566,3 +1566,76 @@ kubectl kustomize gitops/kustomize/goja-auth-host-demo >/tmp/goja-auth-host-demo
 
 ### Technical details
 - Existing unrelated K3s modifications were preserved and not committed.
+
+
+## Step 20: Add generated demo invite handlers for full smoke parity
+
+After the generated image reached production, the existing full public smoke passed the generated OIDC login, `/auth/session`, and protected project checks, but failed on the old hand-written host's app-specific invite endpoint. I added native generated demo invite handlers backed by the existing hostauth capability store so the generated image can satisfy the legacy smoke contract.
+
+These handlers are intentionally demo-shaped (`/orgs/o1/invites` and `/org-invites/accept`) and use the same session, CSRF, appauth authorization, and capability-token primitives as the old example-19 host.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 15)
+
+**Assistant interpretation:** Make the generated production replacement close enough to the old public app that the existing smoke can pass unchanged.
+
+**Inferred user intent:** Avoid a partial migration where basic login works but production validation still fails on known demo routes.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Added native `POST /orgs/o1/invites` and `POST /org-invites/accept` handlers to OIDC `hostauth` services.
+- Wired invite issuing through `capability.Service.IssueOrgInvite`.
+- Wired invite acceptance through `capability.Service.AcceptOrgInvite`.
+- Updated native handler construction tests.
+
+### Why
+- The existing production smoke script validates invite issuance/reuse as part of the deployed demo's behavior. Without these handlers, the generated replacement is only a platform-level drop-in, not a smoke-compatible drop-in.
+
+### What worked
+- Focused tests and generated example smoke passed:
+
+```text
+go test ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http -count=1
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth	0.055s
+ok  	github.com/go-go-golems/go-goja/pkg/xgoja/providers/http	0.586s
+
+make -C examples/xgoja/21-generated-host-auth smoke
+...
+xgoja build ok: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/dist/generated-oidc-host-auth
+```
+
+### What didn't work
+- The first implementation used `issued.ExpiresAt`, but `capability.IssueResult` stores that field under `issued.Capability.ExpiresAt`:
+
+```text
+pkg/xgoja/hostauth/builder.go:199:74: issued.ExpiresAt undefined (type capability.IssueResult has no field or method ExpiresAt)
+```
+
+- I corrected the field access and reran tests successfully.
+
+### What I learned
+- The old production smoke is a useful compatibility oracle: it showed the generated deployment was already valid for OIDC/session/project behavior, with only invite demo routes missing.
+
+### What was tricky to build
+- These invite routes are more app-specific than generic OIDC login/session/logout. They are included for demo drop-in parity, not because every generated OIDC host should expose org-invite endpoints.
+
+### What warrants a second pair of eyes
+- Decide whether these demo invite handlers should remain in generic `hostauth` or move behind a future example-specific extension point.
+
+### What should be done in the future
+- Design an explicit generated-host extension mechanism for app-native Go routes so demo-specific handlers do not live in generic hostauth indefinitely.
+
+### Code review instructions
+- Review `pkg/xgoja/hostauth/builder.go` around `issueDemoInviteHandler` and `acceptDemoInviteHandler`.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+### Technical details
+- The issue handler requires an authenticated session, valid CSRF token, and `org.invite` authorization on org `o1`.
+- The accept handler returns `409` for reused tokens to match the old smoke expectation.
