@@ -10,6 +10,7 @@ import (
 	stdlog "log"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -44,6 +45,54 @@ type Record struct {
 // Store persists normalized audit records.
 type Store interface {
 	InsertAuditRecord(ctx context.Context, record Record) error
+}
+
+const (
+	// DefaultQueryLimit is used when callers omit a positive audit query limit.
+	DefaultQueryLimit = 50
+	// MaxQueryLimit is the package-level safety ceiling used by stores. Callers
+	// such as xgoja modules may enforce a lower ceiling before reaching stores.
+	MaxQueryLimit = 100
+)
+
+// Query describes bounded filters for reading normalized audit records. It is
+// intentionally field-based instead of SQL-based so callers cannot smuggle raw
+// predicates into host-owned auth stores.
+type Query struct {
+	TenantID     string `json:"tenantId,omitempty"`
+	Outcome      string `json:"outcome,omitempty"`
+	ActorID      string `json:"actorId,omitempty"`
+	ResourceType string `json:"resourceType,omitempty"`
+	ResourceID   string `json:"resourceId,omitempty"`
+	Limit        int    `json:"limit,omitempty"`
+	Offset       int    `json:"offset,omitempty"`
+}
+
+// QueryStore is implemented by audit stores that support safe, bounded reads.
+type QueryStore interface {
+	QueryAuditRecords(ctx context.Context, query Query) ([]Record, error)
+}
+
+// NormalizeQuery applies default and maximum limits for audit reads.
+func NormalizeQuery(query Query, maxLimit int) Query {
+	if maxLimit <= 0 || maxLimit > MaxQueryLimit {
+		maxLimit = MaxQueryLimit
+	}
+	if query.Limit <= 0 {
+		query.Limit = DefaultQueryLimit
+	}
+	if query.Limit > maxLimit {
+		query.Limit = maxLimit
+	}
+	if query.Offset < 0 {
+		query.Offset = 0
+	}
+	query.TenantID = strings.TrimSpace(query.TenantID)
+	query.Outcome = strings.TrimSpace(query.Outcome)
+	query.ActorID = strings.TrimSpace(query.ActorID)
+	query.ResourceType = strings.TrimSpace(query.ResourceType)
+	query.ResourceID = strings.TrimSpace(query.ResourceID)
+	return query
 }
 
 // Normalizer maps gojahttp.AuditEvent values into Records.
@@ -153,6 +202,50 @@ func (s *MemoryStore) Snapshot() []Record {
 		out[i] = cloneRecord(record)
 	}
 	return out
+}
+
+// QueryAuditRecords returns matching memory records newest first with a bounded
+// limit. It exists for tests, local demos, and generated hosts configured with
+// memory auth stores.
+func (s *MemoryStore) QueryAuditRecords(ctx context.Context, query Query) ([]Record, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	query = NormalizeQuery(query, MaxQueryLimit)
+	s.mu.Lock()
+	records := make([]Record, len(s.Records))
+	for i, record := range s.Records {
+		records[i] = cloneRecord(record)
+	}
+	s.mu.Unlock()
+
+	sort.SliceStable(records, func(i, j int) bool {
+		if records[i].CreatedAt.Equal(records[j].CreatedAt) {
+			return i > j
+		}
+		return records[i].CreatedAt.After(records[j].CreatedAt)
+	})
+
+	out := make([]Record, 0, min(query.Limit, len(records)))
+	matched := 0
+	for _, record := range records {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if !recordMatchesQuery(record, query) {
+			continue
+		}
+		if matched < query.Offset {
+			matched++
+			continue
+		}
+		out = append(out, cloneRecord(record))
+		if len(out) >= query.Limit {
+			break
+		}
+		matched++
+	}
+	return out, nil
 }
 
 // LogSink logs a minimal audit event summary as JSON for development.
@@ -282,6 +375,25 @@ func firstHeader(r *http.Request, names ...string) string {
 		}
 	}
 	return ""
+}
+
+func recordMatchesQuery(record Record, query Query) bool {
+	if query.TenantID != "" && record.TenantID != query.TenantID {
+		return false
+	}
+	if query.Outcome != "" && record.Outcome != query.Outcome {
+		return false
+	}
+	if query.ActorID != "" && record.ActorID != query.ActorID {
+		return false
+	}
+	if query.ResourceType != "" && record.ResourceType != query.ResourceType {
+		return false
+	}
+	if query.ResourceID != "" && record.ResourceID != query.ResourceID {
+		return false
+	}
+	return true
 }
 
 func cloneRecord(record Record) Record {
