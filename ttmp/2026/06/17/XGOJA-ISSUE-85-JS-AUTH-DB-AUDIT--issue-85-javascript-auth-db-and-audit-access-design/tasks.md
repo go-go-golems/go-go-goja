@@ -26,3 +26,7 @@
 - [x] Expose auth.capabilities fluent builders in hostauth JavaScript module
 - [x] Move example 21 invite routes into JavaScript using auth.capabilities builders
 - [x] Add rich demo smoke coverage for audit and capability flows
+- [x] Archive ad-hoc and reusable smoke scripts under the ticket scripts directory
+- [x] Map JS invite token reuse errors to 409 instead of generic 500
+- [x] Commit reusable example 21 Docker Compose Keycloak smoke target
+- [x] Validate standard and compose-backed generated-host smokes after fixes

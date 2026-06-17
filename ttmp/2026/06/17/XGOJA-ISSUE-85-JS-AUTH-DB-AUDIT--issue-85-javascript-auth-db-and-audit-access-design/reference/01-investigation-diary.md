@@ -17,13 +17,20 @@ RelatedFiles:
     - Path: examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py
       Note: Existing Keycloak form-login helper reused by temporary generated-host smoke
     - Path: examples/xgoja/21-generated-host-auth/Makefile
-      Note: Extended smoke checks for capability route wiring and failure behavior (commit 4e89303)
+      Note: |-
+        Extended smoke checks for capability route wiring and failure behavior (commit 4e89303)
+        Adds compose-smoke target for generated host real Keycloak validation (commit 0d18982)
+    - Path: examples/xgoja/21-generated-host-auth/scripts/compose_smoke.sh
+      Note: Reusable compose runner for generated example 21 Keycloak/Postgres smoke (commit 0d18982)
+    - Path: examples/xgoja/21-generated-host-auth/scripts/keycloak_compose_smoke.py
+      Note: Browserless real Keycloak smoke for generated example 21 with appauth seeding (commit 0d18982)
     - Path: examples/xgoja/21-generated-host-auth/verbs/sites.js
       Note: |-
         Example route calls auth audit query from JavaScript commit b7f85cc
         Updated example audit route to fluent auth audit query builder (commit eedfdb7)
         Moved org invite routes into JavaScript using auth.capabilities builders (commit 4e89303)
         JS-owned audit and invite routes validated against real Keycloak/Postgres
+        Maps reused invite capability tokens to HTTP 409 JSON instead of generic 500 (commit 0d18982)
     - Path: examples/xgoja/21-generated-host-auth/xgoja.yaml
       Note: Registers hostauth provider and auth module commit b7f85cc
     - Path: pkg/gojahttp/auth/appauth/appauth.go
@@ -54,6 +61,8 @@ RelatedFiles:
       Note: |-
         Step 6 cleanup design deliverable
         Step 8 fluent-builder v2 design and reMarkable upload
+    - Path: ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/scripts
+      Note: Archived retroactive and reusable smoke scripts for the ticket
 ExternalSources:
     - https://github.com/go-go-golems/go-go-goja/issues/85
 Summary: Chronological record for the Issue 85 JavaScript auth DB and audit access design ticket.
@@ -61,6 +70,7 @@ LastUpdated: 2026-06-17T16:25:00-04:00
 WhatFor: Use this to understand how the Issue 85 design document was prepared and validated.
 WhenToUse: Before resuming or implementing the JavaScript auth DB/audit access work.
 ---
+
 
 
 
@@ -1260,3 +1270,101 @@ ok persisted used org-invite capability rows 1
 ```
 
 - The smoke cleaned up the Docker Compose stack with `docker compose down -v` after completion.
+
+
+## Step 13: Archive smoke scripts, make compose smoke reusable, and map token reuse to 409
+
+I addressed the two follow-up issues from the local Keycloak smoke. The generated example now has a committed `compose-smoke` target that starts the existing Keycloak/Postgres Docker Compose stack, runs the generated OIDC host with Postgres-backed auth stores, seeds demo authorization data explicitly, and verifies the JS-owned audit/invite flows end-to-end.
+
+I also changed the JS-owned invite accept route so expected capability failures are returned as client errors instead of generic handler failures. Reusing a consumed invite token now returns `409` JSON, while other capability rejection cases return `400` JSON.
+
+### Prompt Context
+
+**User prompt (verbatim):** "storeall th scripts (retroactively as well) into the scripts/ folder of the ticket. 
+
+Address both issues."
+
+**Assistant interpretation:** Preserve all ad-hoc and final smoke scripts under the ticket scripts directory, then fix the two known follow-ups: reusable compose smoke automation and better token-reuse error mapping.
+
+**Inferred user intent:** Make the validation reproducible and remove the remaining polish issue before release/deploy.
+
+**Commit (code):** 0d18982 — "examples: add generated Keycloak compose smoke"
+
+### What I did
+- Added reusable generated example 21 scripts:
+  - `examples/xgoja/21-generated-host-auth/scripts/compose_smoke.sh`,
+  - `examples/xgoja/21-generated-host-auth/scripts/keycloak_compose_smoke.py`.
+- Added `make -C examples/xgoja/21-generated-host-auth compose-smoke`.
+- Updated `examples/xgoja/21-generated-host-auth/verbs/sites.js`:
+  - wraps `auth.capabilities.consume(...).run()` in `try/catch`,
+  - maps `capability already used` to HTTP `409`,
+  - maps other capability rejections to HTTP `400`,
+  - returns JSON `{error: ...}` instead of surfacing as a generic `500`.
+- Archived scripts into ticket scripts:
+  - `scripts/00-retroactive-generated-keycloak-smoke.py`,
+  - `scripts/01-example21-compose-smoke.sh`,
+  - `scripts/02-example21-keycloak-compose-smoke.py`,
+  - `scripts/README.md`.
+- Added and checked ticket tasks 24–27.
+- Ran validation:
+
+```bash
+make -C examples/xgoja/21-generated-host-auth smoke
+make -C examples/xgoja/21-generated-host-auth compose-smoke
+```
+
+### Why
+- The temporary `/tmp/generated_keycloak_smoke.py` proved the idea but was not reproducible for future release checks.
+- Ticket scripts should preserve investigation artifacts, including one-off scripts created during debugging/validation.
+- Reused invite tokens are expected client/application errors; returning `500` made safe behavior look like a server failure.
+
+### What worked
+- Standard generated smoke passed.
+- New compose-backed smoke passed and now checks the exact `409` reuse behavior:
+
+```text
+ok invite accept reused         409
+ok persisted used org-invite capability rows 1
+{"status": "PASS", "actorId": "user:8d868477-bc4a-4a35-8457-936d0a2b69d7", "csrfChecked": true, "auditChecked": true, "inviteChecked": true}
+```
+
+### What didn't work
+- N/A after the route error mapping change; the previous `500` reuse response is now fixed.
+
+### What I learned
+- The compose smoke is valuable enough to keep as an explicit example target because it validates behavior the fake discovery smoke cannot: real Keycloak login, session cookies, Postgres persistence, and capability consumption.
+- The appauth seeding step should remain visible in the smoke script because it documents the generic-host boundary: authentication is generic; demo authorization setup is application data.
+
+### What was tricky to build
+- The smoke script needs to reuse the example 19 Keycloak realm/client because that is the only existing compose realm. The generated host therefore runs with `client-id=goja-app` and the example 19 issuer, while still serving example 21 routes.
+- Seeding must happen after login, once `/me` reveals the generated app user id. The script SQL-quotes that id before inserting the demo membership.
+- The reusable script must clean up both the host process and Docker Compose volume reliably while still supporting `KEEP_KEYCLOAK=1` for debugging.
+
+### What warrants a second pair of eyes
+- Review whether `400` is the right default for all non-`already used` capability rejections on the public accept route.
+- Review the compose smoke’s dependency on the example 19 compose realm; if example 21 should be fully standalone, it may deserve its own realm import file later.
+- Review whether ticket script copies should remain archival only or whether future updates should sync them automatically.
+
+### What should be done in the future
+- Optional: add a dedicated example 21 Keycloak realm JSON to remove the cross-example dependency.
+- Optional: add a small JS helper for capability error mapping if more routes use capability builders.
+
+### Code review instructions
+- Start with `examples/xgoja/21-generated-host-auth/verbs/sites.js` for the `409` mapping.
+- Review `examples/xgoja/21-generated-host-auth/scripts/compose_smoke.sh` for process/compose cleanup.
+- Review `examples/xgoja/21-generated-host-auth/scripts/keycloak_compose_smoke.py` for login, seeding, and route assertions.
+- Validate with:
+
+```bash
+make -C examples/xgoja/21-generated-host-auth smoke
+make -C examples/xgoja/21-generated-host-auth compose-smoke
+```
+
+### Technical details
+- New reusable target:
+
+```bash
+make -C examples/xgoja/21-generated-host-auth compose-smoke
+```
+
+- Environment overrides supported by the shell runner include `LISTEN`, `BASE_URL`, `KEYCLOAK_PORT`, `POSTGRES_PORT`, `ISSUER`, `CLIENT_ID`, `AUTH_DB_DSN`, `KEEP_KEYCLOAK`, `SKIP_KEYCLOAK_UP`, and `SKIP_BUILD`.

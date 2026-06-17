@@ -123,3 +123,13 @@ Step 12: validated generated example 21 against local Docker Compose Keycloak/Po
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml — Compose Keycloak/Postgres validation stack
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/verbs/sites.js — Validated JS-owned auth routes
 
+
+## 2026-06-17
+
+Step 13: archived smoke scripts under ticket scripts, added reusable example 21 compose-smoke target, and mapped reused invite tokens to HTTP 409 JSON (commit 0d18982).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/scripts/compose_smoke.sh — Reusable compose smoke runner
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/verbs/sites.js — Invite accept error mapping
+
