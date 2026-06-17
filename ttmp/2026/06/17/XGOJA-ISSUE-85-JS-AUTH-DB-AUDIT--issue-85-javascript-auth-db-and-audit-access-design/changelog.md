@@ -63,3 +63,13 @@ Step 6: added reusable auth core cleanup and self-contained demo design doc.
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md — Design for auth core cleanup and richer demo
 
+
+## 2026-06-17
+
+Step 7: uploaded reusable auth core cleanup design to reMarkable.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md — Uploaded to reMarkable as XGOJA Issue 85 Reusable Auth Core Cleanup Design.pdf
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/reference/01-investigation-diary.md — Step 7 records upload result
+

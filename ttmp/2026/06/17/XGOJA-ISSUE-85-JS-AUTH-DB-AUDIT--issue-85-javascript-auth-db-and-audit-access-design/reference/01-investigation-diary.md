@@ -633,3 +633,62 @@ function issueOrgInvite(auth, ctx) {
   });
 }
 ```
+
+
+## Step 7: Upload reusable auth core cleanup design to reMarkable
+
+I uploaded the new reusable auth core cleanup design document to the existing Issue 85 reMarkable folder. This makes the follow-up #86/core-cleanup design available alongside the earlier Issue 85 implementation guide.
+
+The upload was a single direct `remarquee upload bundle` call, following the reMarkable upload workflow guidance to avoid separate status or post-upload listing calls.
+
+### Prompt Context
+
+**User prompt (verbatim):** "update new doc to remarkable as well"
+
+**Assistant interpretation:** Upload the newly created reusable auth core cleanup design document to reMarkable too.
+
+**Inferred user intent:** Keep the reMarkable review set current with the latest design document.
+
+**Commit (code):** N/A — documentation/upload bookkeeping only.
+
+### What I did
+- Uploaded `design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md` as a standalone reMarkable bundle/PDF.
+- Recorded the upload result in the diary and changelog.
+- Ran `docmgr doctor` for ticket hygiene.
+
+### Why
+- The new cleanup design is a key follow-up document for #86 and capability API planning, so it should be available on reMarkable for review.
+
+### What worked
+- Upload succeeded:
+
+```text
+OK: uploaded XGOJA Issue 85 Reusable Auth Core Cleanup Design.pdf -> /ai/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT
+```
+
+### What didn't work
+- N/A.
+
+### What I learned
+- N/A.
+
+### What was tricky to build
+- N/A; this was a straightforward upload/bookkeeping step.
+
+### What warrants a second pair of eyes
+- N/A.
+
+### What should be done in the future
+- If the cleanup design changes materially after #86/capability implementation, upload a refreshed version or a full ticket bundle.
+
+### Code review instructions
+- Review the uploaded source document at `design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md`.
+- Validate ticket hygiene with:
+
+```bash
+docmgr doctor --ticket XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT --stale-after 30
+```
+
+### Technical details
+- reMarkable destination: `/ai/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT`.
+- Uploaded document: `XGOJA Issue 85 Reusable Auth Core Cleanup Design.pdf`.
