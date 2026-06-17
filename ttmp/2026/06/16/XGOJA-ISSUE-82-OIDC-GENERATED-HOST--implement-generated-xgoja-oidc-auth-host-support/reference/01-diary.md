@@ -1807,3 +1807,77 @@ make -C examples/xgoja/21-generated-host-auth clean
 ### Technical details
 - `/auth/audit` returns at most the most recent 50 records.
 - The dashboard uses browser `fetch()` to call `/auth/session`, `/me`, `/auth/audit`, project update, and invite endpoints.
+
+
+## Step 23: Deploy and verify the dashboard/audit image
+
+I built and pushed the dashboard/audit image, updated K3s GitOps to deploy it, waited for Argo CD to converge, and verified the live landing page, protected audit endpoint behavior, health endpoint, and full Keycloak smoke.
+
+The live site now has a human-friendly landing page at `/` with links and interactive controls for login, session inspection, project update, invite capability, and audit records.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 22)
+
+**Assistant interpretation:** Ship the nicer landing page and audit endpoint to the public generated OIDC deployment.
+
+**Inferred user intent:** Make the live site demonstrable from a browser while preserving the previously validated OIDC/full-smoke behavior.
+
+**Commit (code):** K3s commit `20c353b` — "goja-auth-host: deploy dashboard image"
+
+### What I did
+- Built and pushed `ghcr.io/go-go-golems/go-goja-auth-host:sha-d89d363`.
+- Updated K3s Deployment to `sha-d89d363` and pushed K3s commit `20c353b`.
+- Waited for Argo CD to reach:
+
+```text
+Synced Healthy 20c353b3a820bc9c78251930d6a3522144707ce3
+```
+
+- Verified `/` contains the dashboard HTML title.
+- Verified `/auth/audit` returns `401` without a session.
+- Reran the full public Keycloak smoke successfully.
+
+### Why
+- The feature is primarily user-facing, so production validation needed both page-level checks and the existing end-to-end smoke.
+
+### What worked
+- Live image:
+
+```text
+ghcr.io/go-go-golems/go-goja-auth-host:sha-d89d363
+```
+
+- Full smoke passed unchanged:
+
+```text
+{"status": "PASS", "actorId": "user:dc900749-ba1e-4af7-adae-7d3489dd080a", "csrfChecked": true, "inviteChecked": true}
+```
+
+### What didn't work
+- N/A. The dashboard rollout and smoke validation succeeded.
+
+### What I learned
+- `/auth/audit` is correctly protected from anonymous access while still being linked from the landing page for logged-in users.
+
+### What was tricky to build
+- The embedded page had to preserve smoke behavior at `/` by returning valid HTML while keeping existing API endpoints unchanged.
+
+### What warrants a second pair of eyes
+- Audit visibility should eventually be restricted by admin authorization, not just “any logged-in user,” if this becomes more than a demo feature.
+
+### What should be done in the future
+- Add pagination/filtering and a rendered audit table instead of raw JSON in the browser.
+
+### Code review instructions
+- Review K3s commit `20c353b` and source commit `d89d363`.
+- Validate:
+
+```bash
+curl -fsS https://goja-auth.yolo.scapegoat.dev/ | grep -q '<title>go-go-goja generated OIDC auth host</title>'
+curl -sS -o /tmp/audit.txt -w '%{http_code}' https://goja-auth.yolo.scapegoat.dev/auth/audit
+```
+
+### Technical details
+- Public dashboard URL: `https://goja-auth.yolo.scapegoat.dev/`.
+- Audit endpoint: `GET /auth/audit`, session required, returns up to 50 recent records.
