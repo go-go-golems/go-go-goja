@@ -18,20 +18,26 @@ RelatedFiles:
     - Path: pkg/gojahttp/auth/appauth/appauth.go
       Note: Current starter app authorization policy that mixes reusable interfaces with demo actions
     - Path: pkg/gojahttp/auth/audit/audit.go
+      Note: Go audit Query and QueryStore contracts retained behind fluent JS builder
     - Path: pkg/gojahttp/auth/capability/capability.go
-      Note: Capability primitives to generalize beyond org invites
+      Note: |-
+        Capability primitives to generalize beyond org invites
+        Future generic capability service backing fluent capability builders
     - Path: pkg/xgoja/hostauth/builder.go
       Note: Current generic native handler list includes demo routes to remove under cleanup
     - Path: pkg/xgoja/providers/hostauth/hostauth.go
-      Note: Current auth JS module to extend with generic capabilities
+      Note: |-
+        Current auth JS module to extend with generic capabilities
+        Current object-bag auth.audit.query implementation to refactor into fluent builder
 ExternalSources:
     - https://github.com/go-go-golems/go-go-goja/issues/85
     - https://github.com/go-go-golems/go-go-goja/issues/86
-Summary: Design for cleaning xgoja auth interfaces into a reusable opinionated core and moving demo-specific org/project/invite behavior into demos.
-LastUpdated: 2026-06-17T14:25:00-04:00
+Summary: Design v2 for cleaning xgoja auth interfaces into a reusable opinionated core, replacing object-bag JS APIs with fluent Go-backed builders, and moving demo-specific org/project/invite behavior into demos.
+LastUpdated: 2026-06-17T14:50:00-04:00
 WhatFor: 'Use this when implementing issue #86 and follow-up auth API cleanup so generic hostauth remains reusable while examples remain rich.'
 WhenToUse: Before changing hostauth native handlers, appauth action policy, capability APIs, or example 21 demo routes.
 ---
+
 
 
 # Reusable auth core interface cleanup and demo design
@@ -45,12 +51,12 @@ The desired end state is a **small, opinionated, reusable auth core** plus a **s
 This document proposes a cleanup plan:
 
 1. Remove demo-native routes from generic hostauth (#86).
-2. Promote platform-level APIs:
-   - `auth.audit.query(...)`
-   - `auth.capabilities.issue(...)`
-   - `auth.capabilities.validate(...)`
-   - `auth.capabilities.consume(...)`
-   - `auth.capabilities.revoke(...)`
+2. Promote platform-level APIs as **fluent Go-backed builders** instead of object bags:
+   - `auth.audit.query().tenantId(...).limit(...).run()`
+   - `auth.capabilities.issue(type).resource(...).ttlSeconds(...).run()`
+   - `auth.capabilities.validate(token).expectedType(...).run()`
+   - `auth.capabilities.consume(token).expectedType(...).run()`
+   - `auth.capabilities.revoke().id(...).reason(...).run()`
 3. Keep route authorization policy in the route DSL (`.auth`, `.csrf`, `.resource`, `.allow`, `.audit`) rather than hiding authorization inside token helpers.
 4. Split current `appauth` concepts into reusable interfaces and demo/starter policy.
 5. Rebuild example 21 as a rich demo that uses the reusable APIs to implement org invites, project authorization, audit browsing, share links, and one-time token flows in JavaScript.
@@ -175,178 +181,378 @@ The core should expose generic capability primitives and let demo code implement
 | `ActionProjectUpdate`, `ActionOrgInvite`, demo role policy | Prefer yes | Demo/starter policy package or example-local JS/Go. |
 | Hard-coded resources `org`, `project`, `o1`, `p1` | Yes | Example fixtures. |
 
-## Proposed JavaScript core API
+## Proposed JavaScript core API v2: fluent Go-backed builders
 
-### `auth.audit.query(...)`
+The first #85 implementation exposed an object-bag API:
 
-Already implemented in #85 phase 1.
+```js
+auth.audit.query({ tenantId: "o1", outcome: "denied", limit: 50 })
+```
+
+That proved the architecture, but it should not be the long-term shape. The reusable auth core should expose **fluent builder APIs backed by Go objects**. JavaScript should call typed methods one field at a time, then call `.run()` to execute. This keeps the public API ergonomic while avoiding defensive map/object decoding on the Go side.
+
+The main benefits are:
+
+- method names become the API surface instead of arbitrary object keys,
+- Go receives typed method arguments instead of `map[string]any`,
+- TypeScript declarations are straightforward and discoverable,
+- validation errors happen close to the incorrect setter call,
+- the builder owns defaulting, clamping, and final validation,
+- object casing mismatches such as `tenantId` versus `TenantID` cannot silently widen a query,
+- large or weird nested JS objects do not get passed through unless an explicit setter accepts them.
+
+Go still validates inputs. Fluent builders do **not** make JavaScript statically safe at runtime. They do, however, reduce the attack surface and accidental misuse from "any object shape" to a small list of typed methods.
+
+### Audit query cleanup: `auth.audit.query()` builder
+
+Current API to replace:
 
 ```js
 const records = auth.audit.query({
-  tenantId: "o1",
-  outcome: "denied",
-  actorId: "user:123",
-  resourceType: "project",
-  resourceId: "p1",
+  tenantId: org.id,
+  outcome: ctx.request.query.outcome,
   limit: 50,
-  offset: 0,
 });
 ```
 
-Properties:
-
-- bounded by module max limit,
-- field-based filters only,
-- no SQL fragments,
-- returns redacted normalized audit records,
-- route authorization remains the app's job.
-
-### `auth.capabilities.issue(...)`
-
-Generic token issuance.
+Target API:
 
 ```js
-const issued = auth.capabilities.issue({
+const records = auth.audit.query()
+  .tenantId(org.id)
+  .outcome(ctx.request.query.outcome || "")
+  .limit(50)
+  .run();
+```
+
+Full example:
+
+```js
+const records = auth.audit.query()
+  .tenantId(ctx.params.orgId)
+  .outcome(ctx.request.query.outcome || "")
+  .actorId(ctx.request.query.actorId || "")
+  .resource("project", ctx.request.query.projectId || "")
+  .limit(Number(ctx.request.query.limit || 50))
+  .offset(Number(ctx.request.query.offset || 0))
+  .run();
+```
+
+TypeScript shape:
+
+```ts
+interface AuthModule {
+  audit: AuditAPI;
+  capabilities: CapabilitiesAPI;
+}
+
+interface AuditAPI {
+  query(): AuditQueryBuilder;
+}
+
+interface AuditQueryBuilder {
+  tenantId(id: string): this;
+  outcome(outcome: string): this;
+  actorId(id: string): this;
+  resource(type: string, id: string): this;
+  resourceType(type: string): this;
+  resourceId(id: string): this;
+  limit(limit: number): this;
+  offset(offset: number): this;
+  run(): AuditRecord[];
+}
+```
+
+Go implementation sketch:
+
+```go
+func newAuditQueryBuilder(vm *goja.Runtime, store audit.QueryStore, maxLimit int) *goja.Object {
+    var q audit.Query
+    obj := vm.NewObject()
+
+    _ = obj.Set("tenantId", func(id string) *goja.Object {
+        q.TenantID = strings.TrimSpace(id)
+        return obj
+    })
+    _ = obj.Set("outcome", func(outcome string) *goja.Object {
+        q.Outcome = strings.TrimSpace(outcome)
+        return obj
+    })
+    _ = obj.Set("actorId", func(id string) *goja.Object {
+        q.ActorID = strings.TrimSpace(id)
+        return obj
+    })
+    _ = obj.Set("resource", func(typ, id string) *goja.Object {
+        q.ResourceType = strings.TrimSpace(typ)
+        q.ResourceID = strings.TrimSpace(id)
+        return obj
+    })
+    _ = obj.Set("resourceType", func(typ string) *goja.Object {
+        q.ResourceType = strings.TrimSpace(typ)
+        return obj
+    })
+    _ = obj.Set("resourceId", func(id string) *goja.Object {
+        q.ResourceID = strings.TrimSpace(id)
+        return obj
+    })
+    _ = obj.Set("limit", func(limit int) *goja.Object {
+        q.Limit = limit
+        return obj
+    })
+    _ = obj.Set("offset", func(offset int) *goja.Object {
+        q.Offset = offset
+        return obj
+    })
+    _ = obj.Set("run", func() goja.Value {
+        normalized := audit.NormalizeQuery(q, maxLimit)
+        records, err := store.QueryAuditRecords(runtimebridge.CurrentOwnerContext(vm), normalized)
+        if err != nil {
+            panic(vm.NewGoError(err))
+        }
+        return vm.ToValue(recordsForJS(records))
+    })
+    return obj
+}
+```
+
+Module export:
+
+```go
+_ = auditObj.Set("query", func() *goja.Object {
+    return newAuditQueryBuilder(vm, queryStore, maxLimit)
+})
+```
+
+Cleanup required from the current #85 implementation:
+
+1. Keep `audit.Query` and `audit.QueryStore`; those are good internal Go contracts.
+2. Replace `auth.audit.query(object)` in `pkg/xgoja/providers/hostauth/hostauth.go` with `auth.audit.query()` returning a builder.
+3. Delete `queryFromValue`, `optionalString`, and `optionalInt`; they exist only for object-bag decoding.
+4. Update `pkg/xgoja/providers/hostauth/hostauth_test.go` to call the builder chain.
+5. Update `examples/xgoja/21-generated-host-auth/verbs/sites.js` to call the builder chain.
+6. Add TypeScript declarations for the builder shape when the provider starts emitting DTS.
+
+### Generic capability issue builder
+
+Current object-bag idea to avoid:
+
+```js
+auth.capabilities.issue({
   type: "org-invite",
   subject: "email:invitee@example.test",
   resource: { type: "org", id: orgId, tenantId: orgId },
   claims: { role: "viewer" },
   ttlSeconds: 900,
   createdBy: ctx.actor.id,
-  metadata: { delivery: "copy-link" },
-});
-
-// issued
-{
-  token: "opaque-token-value",
-  capability: {
-    id: "cap_...",
-    type: "org-invite",
-    subject: "email:invitee@example.test",
-    resource: { type: "org", id: "o1", tenantId: "o1" },
-    claims: { role: "viewer" },
-    expiresAt: "...",
-    createdBy: "user:...",
-    createdAt: "..."
-  }
-}
-```
-
-Required fields:
-
-- `type`: non-empty string; caller-defined token type.
-- `ttlSeconds`: positive, clamped by module config.
-
-Optional fields:
-
-- `subject`: user/email/entity the token is about.
-- `resource`: typed resource scope.
-- `claims`: JSON-compatible claims.
-- `createdBy`: actor ID for auditability.
-- `metadata`: non-authoritative operational metadata.
-
-Safety rules:
-
-- token returned only once at issue time,
-- TTL clamped to configured maximum,
-- token type allow-list optional but recommended,
-- claims size bounded,
-- no raw store or DB handle exposed.
-
-### `auth.capabilities.validate(...)`
-
-Check token without consuming it.
-
-```js
-const result = auth.capabilities.validate({
-  token,
-  expectedType: "org-invite",
-});
-
-if (!result.valid) {
-  return res.status(400).json({ error: result.reason });
-}
-```
-
-Return shape:
-
-```js
-{
-  valid: true,
-  capability: { ... }
-}
-```
-
-or:
-
-```js
-{
-  valid: false,
-  reason: "expired" | "used" | "revoked" | "wrong_type" | "not_found"
-}
-```
-
-This supports preview pages such as "You were invited to Example Org" before a user accepts.
-
-### `auth.capabilities.consume(...)`
-
-Consume one-time token.
-
-```js
-const consumed = auth.capabilities.consume({
-  token,
-  expectedType: "org-invite",
 });
 ```
 
-Properties:
+Target API:
 
-- atomic where store supports it,
-- fails if expired, revoked, or already consumed,
-- can optionally validate expected type,
-- returns capability claims and resource scope.
+```js
+const issued = auth.capabilities.issue("org-invite")
+  .subject("email", email)
+  .resource("org", orgId)
+  .tenantId(orgId)
+  .claimString("role", role)
+  .ttlSeconds(900)
+  .createdBy(ctx.actor.id)
+  .run();
+```
 
-Potential error model:
+A different workflow uses the same generic builder:
+
+```js
+const share = auth.capabilities.issue("project-share-link")
+  .resource("project", project.id)
+  .tenantId(project.tenantId)
+  .claimString("permission", "project.read")
+  .claimBool("anonymous", true)
+  .ttlSeconds(24 * 60 * 60)
+  .createdBy(ctx.actor.id)
+  .run();
+```
+
+TypeScript shape:
+
+```ts
+interface CapabilitiesAPI {
+  issue(type: string): CapabilityIssueBuilder;
+  validate(token: string): CapabilityValidateBuilder;
+  consume(token: string): CapabilityConsumeBuilder;
+  revoke(): CapabilityRevokeBuilder;
+}
+
+interface CapabilityIssueBuilder {
+  subject(kind: string, value: string): this;
+  subjectRaw(subject: string): this;
+  resource(type: string, id: string): this;
+  tenantId(id: string): this;
+  claimString(key: string, value: string): this;
+  claimNumber(key: string, value: number): this;
+  claimBool(key: string, value: boolean): this;
+  metadataString(key: string, value: string): this;
+  ttlSeconds(seconds: number): this;
+  createdBy(actorId: string): this;
+  run(): IssuedCapability;
+}
+```
+
+Go implementation sketch:
+
+```go
+func newCapabilityIssueBuilder(vm *goja.Runtime, service capability.Service, cfg CapabilityConfig, capType string) *goja.Object {
+    spec := capability.IssueSpec{
+        Type:     strings.TrimSpace(capType),
+        Claims:   map[string]any{},
+        Metadata: map[string]any{},
+    }
+    obj := vm.NewObject()
+
+    _ = obj.Set("subject", func(kind, value string) *goja.Object {
+        spec.Subject = strings.TrimSpace(kind) + ":" + strings.TrimSpace(value)
+        return obj
+    })
+    _ = obj.Set("subjectRaw", func(subject string) *goja.Object {
+        spec.Subject = strings.TrimSpace(subject)
+        return obj
+    })
+    _ = obj.Set("resource", func(typ, id string) *goja.Object {
+        spec.ResourceType = strings.TrimSpace(typ)
+        spec.ResourceID = strings.TrimSpace(id)
+        return obj
+    })
+    _ = obj.Set("tenantId", func(id string) *goja.Object {
+        spec.TenantID = strings.TrimSpace(id)
+        return obj
+    })
+    _ = obj.Set("claimString", func(key, value string) *goja.Object {
+        setClaim(spec.Claims, key, value)
+        return obj
+    })
+    _ = obj.Set("claimNumber", func(key string, value float64) *goja.Object {
+        setClaim(spec.Claims, key, value)
+        return obj
+    })
+    _ = obj.Set("claimBool", func(key string, value bool) *goja.Object {
+        setClaim(spec.Claims, key, value)
+        return obj
+    })
+    _ = obj.Set("ttlSeconds", func(seconds int) *goja.Object {
+        spec.TTL = time.Duration(seconds) * time.Second
+        return obj
+    })
+    _ = obj.Set("createdBy", func(actorID string) *goja.Object {
+        spec.CreatedBy = strings.TrimSpace(actorID)
+        return obj
+    })
+    _ = obj.Set("run", func() goja.Value {
+        issued, err := service.Issue(runtimebridge.CurrentOwnerContext(vm), normalizeIssueSpec(spec, cfg))
+        if err != nil {
+            panic(vm.NewGoError(err))
+        }
+        return vm.ToValue(issuedForJS(issued))
+    })
+    return obj
+}
+```
+
+Setter validation should reject empty claim keys, unsupported token types, invalid TTLs, or oversized metadata/claims early where possible. Final validation still runs in `.run()` because some invariants require the full spec.
+
+### Capability validate / consume builders
+
+Validation checks a token without consuming it:
+
+```js
+const preview = auth.capabilities.validate(token)
+  .expectedType("org-invite")
+  .expectedResource("org", orgId)
+  .run();
+```
+
+Consumption atomically marks a one-time token used:
+
+```js
+const accepted = auth.capabilities.consume(token)
+  .expectedType("org-invite")
+  .expectedResource("org", orgId)
+  .run();
+```
+
+TypeScript shape:
+
+```ts
+interface CapabilityValidateBuilder {
+  expectedType(type: string): this;
+  expectedResource(type: string, id: string): this;
+  run(): CapabilityValidation;
+}
+
+interface CapabilityConsumeBuilder {
+  expectedType(type: string): this;
+  expectedResource(type: string, id: string): this;
+  run(): ConsumedCapability;
+}
+```
+
+`validate(...).run()` should return structured invalid results rather than throw for normal invalid-token states:
+
+```js
+{ valid: false, reason: "expired" }
+```
+
+`consume(...).run()` can throw structured errors for states the caller must handle:
 
 ```js
 try {
-  const consumed = auth.capabilities.consume({ token, expectedType: "org-invite" });
+  const accepted = auth.capabilities.consume(token).expectedType("org-invite").run();
 } catch (e) {
   if (e.code === "capability_used") ...
   if (e.code === "capability_expired") ...
 }
 ```
 
-### `auth.capabilities.revoke(...)`
-
-Revoke active capability by ID or token.
+### Capability revoke builder
 
 ```js
-auth.capabilities.revoke({ id: capabilityId, reason: "user_request" });
+auth.capabilities.revoke()
+  .id(capabilityId)
+  .reason("user_request")
+  .run();
 ```
 
 or:
 
 ```js
-auth.capabilities.revoke({ token, reason: "rotated" });
+auth.capabilities.revoke()
+  .token(token)
+  .reason("rotated")
+  .run();
 ```
 
-This is useful for share links and admin UIs.
+TypeScript shape:
 
-### `auth.capabilities.list(...)` (optional phase 2)
+```ts
+interface CapabilityRevokeBuilder {
+  id(id: string): this;
+  token(token: string): this;
+  reason(reason: string): this;
+  run(): void;
+}
+```
 
-List capabilities by type/resource/subject for management UIs.
+### Capability listing remains optional and should also be fluent
+
+Listing capabilities creates more information-disclosure risk than issuing or consuming a specific token. Delay it until a concrete UI needs it. If added, keep it fluent and bounded:
 
 ```js
-const links = auth.capabilities.list({
-  type: "share-link",
-  resource: { type: "document", id: docId },
-  includeExpired: false,
-  limit: 50,
-});
+const links = auth.capabilities.list()
+  .type("project-share-link")
+  .resource("project", project.id)
+  .includeExpired(false)
+  .limit(50)
+  .run();
 ```
-
-This should be delayed until there is a clear UI need, because listing tokens creates more information-disclosure risk than issue/validate/consume.
 
 ## Proposed Go core API
 
@@ -534,19 +740,22 @@ function issueOrgInvite(auth, ctx) {
   const body = ctx.request.body || {};
   const orgId = ctx.params.orgId;
   const role = normalizeInviteRole(body.role);
-  return auth.capabilities.issue({
-    type: "org-invite",
-    subject: `email:${String(body.email || "").trim().toLowerCase()}`,
-    resource: { type: "org", id: orgId, tenantId: orgId },
-    claims: { role },
-    ttlSeconds: 15 * 60,
-    createdBy: ctx.actor.id,
-    metadata: { demo: true },
-  });
+  return auth.capabilities.issue("org-invite")
+    .subject("email", String(body.email || "").trim().toLowerCase())
+    .resource("org", orgId)
+    .tenantId(orgId)
+    .claimString("role", role)
+    .metadataString("demo", "true")
+    .ttlSeconds(15 * 60)
+    .createdBy(ctx.actor.id)
+    .run();
 }
 
-function acceptOrgInvite(auth, token) {
-  const consumed = auth.capabilities.consume({ token, expectedType: "org-invite" });
+function acceptOrgInvite(auth, token, orgId) {
+  const consumed = auth.capabilities.consume(token)
+    .expectedType("org-invite")
+    .expectedResource("org", orgId)
+    .run();
   return {
     orgId: consumed.capability.resource.id,
     role: consumed.capability.claims.role,
@@ -570,14 +779,16 @@ app.get("/org-invites/preview")
   .public()
   .audit("org.invite.previewed")
   .handle((ctx, res) => {
-    const result = auth.capabilities.validate({ token: ctx.request.query.token, expectedType: "org-invite" });
+    const result = auth.capabilities.validate(ctx.request.query.token)
+      .expectedType("org-invite")
+      .run();
     res.json(result);
   });
 
 app.post("/org-invites/accept")
   .public()
   .audit("org.invite.accepted")
-  .handle((ctx, res) => res.json(acceptOrgInvite(auth, ctx.request.body.token)));
+  .handle((ctx, res) => res.json(acceptOrgInvite(auth, ctx.request.body.token, ctx.request.body.orgId)));
 ```
 
 ### Demo share link flow
@@ -593,13 +804,14 @@ app.post("/orgs/:orgId/projects/:projectId/share-links")
   .audit("project.share_link.issued")
   .handle((ctx, res) => {
     const project = ctx.resource("project");
-    const issued = auth.capabilities.issue({
-      type: "project-share-link",
-      resource: { type: "project", id: project.id, tenantId: project.tenantId },
-      claims: { permissions: ["project.read"], anonymous: true },
-      ttlSeconds: 24 * 60 * 60,
-      createdBy: ctx.actor.id,
-    });
+    const issued = auth.capabilities.issue("project-share-link")
+      .resource("project", project.id)
+      .tenantId(project.tenantId)
+      .claimString("permission", "project.read")
+      .claimBool("anonymous", true)
+      .ttlSeconds(24 * 60 * 60)
+      .createdBy(ctx.actor.id)
+      .run();
     res.json(issued);
   });
 
@@ -607,7 +819,9 @@ app.get("/share/:token")
   .public()
   .audit("project.share_link.viewed")
   .handle((ctx, res) => {
-    const result = auth.capabilities.validate({ token: ctx.params.token, expectedType: "project-share-link" });
+    const result = auth.capabilities.validate(ctx.params.token)
+      .expectedType("project-share-link")
+      .run();
     if (!result.valid) return res.status(404).json({ error: result.reason });
     res.json({ projectId: result.capability.resource.id, claims: result.capability.claims });
   });
@@ -638,6 +852,29 @@ runtime:
 The important principle: requesting raw DB access means the user is advanced, but it does not mean the resulting route is safe. Safer high-level APIs should cover common workflows first.
 
 ## Implementation plan
+
+### Phase 0: Clean up the current audit query API to a fluent builder
+
+The current implementation has already proven the host service lookup, audit store query contract, and JS module wiring. Before expanding the auth module with capabilities, refactor the audit API from object-bag decoding to a fluent builder:
+
+```js
+// Replace this
+auth.audit.query({ tenantId: org.id, limit: 50 });
+
+// With this
+auth.audit.query().tenantId(org.id).limit(50).run();
+```
+
+Implementation tasks:
+
+1. Add `newAuditQueryBuilder` in `pkg/xgoja/providers/hostauth/hostauth.go`.
+2. Change `auth.audit.query` to return a builder object instead of accepting an options object.
+3. Remove JS object decoding helpers from the module.
+4. Keep `audit.Query`/`audit.QueryStore` as the Go-side execution contract.
+5. Update provider tests and example 21 route code.
+6. Document the builder API in generated TypeScript metadata when available.
+
+This should happen before adding `auth.capabilities.*`, so all auth module APIs share the same builder style.
 
 ### Phase 1: #86 native route cleanup
 
@@ -677,10 +914,10 @@ Suggested migration:
 Extend `pkg/xgoja/providers/hostauth/hostauth.go`:
 
 ```js
-auth.capabilities.issue(...)
-auth.capabilities.validate(...)
-auth.capabilities.consume(...)
-auth.capabilities.revoke(...)
+auth.capabilities.issue(type).resource(...).ttlSeconds(...).run()
+auth.capabilities.validate(token).expectedType(...).run()
+auth.capabilities.consume(token).expectedType(...).run()
+auth.capabilities.revoke().id(...).reason(...).run()
 ```
 
 Config:
@@ -706,9 +943,9 @@ runtime:
 
 Update `examples/xgoja/21-generated-host-auth/verbs/sites.js` or helper modules:
 
-- `POST /orgs/:orgId/invites` implemented in JS with `auth.capabilities.issue`.
-- `GET /org-invites/preview` implemented in JS with `auth.capabilities.validate`.
-- `POST /org-invites/accept` implemented in JS with `auth.capabilities.consume`.
+- `POST /orgs/:orgId/invites` implemented in JS with `auth.capabilities.issue(...).run()`.
+- `GET /org-invites/preview` implemented in JS with `auth.capabilities.validate(...).run()`.
+- `POST /org-invites/accept` implemented in JS with `auth.capabilities.consume(...).run()`.
 
 Update dashboard JS to call those routes.
 
@@ -775,22 +1012,30 @@ The demo should clearly show that all app-domain routes are JS-owned.
 - **Consequence:** JS handlers must be written with the route chain; capability APIs validate token mechanics, not caller permissions.
 - **Status:** proposed.
 
+### Decision: JS auth APIs use fluent Go-backed builders instead of object bags
+
+- **Context:** Object-bag APIs are easy to call but force Go to defensively decode arbitrary JS objects and nested maps.
+- **Decision:** Use fluent builders for `auth.audit.query`, `auth.capabilities.issue`, `validate`, `consume`, and `revoke`.
+- **Rationale:** Builders give users readable APIs while letting Go accept typed setter arguments, enforce method-level validation, and avoid casing/nesting bugs.
+- **Consequence:** The API is a little more verbose, but safer, easier to document in TypeScript, and consistent with the existing route-builder style.
+- **Status:** proposed.
+
 ## Test strategy
 
 ### Core tests
 
 - `hostauth.BuildNativeHandlers` only returns lifecycle/session routes.
-- `auth.capabilities.issue` clamps TTL and rejects invalid type/claims.
-- `auth.capabilities.validate` returns structured invalid reasons.
-- `auth.capabilities.consume` is one-time and maps used-token errors.
-- `auth.capabilities.revoke` prevents future validation/consumption.
+- `auth.capabilities.issue(type).ttlSeconds(...).run()` clamps TTL and rejects invalid type/claims.
+- `auth.capabilities.validate(token).expectedType(...).run()` returns structured invalid reasons.
+- `auth.capabilities.consume(token).expectedType(...).run()` is one-time and maps used-token errors.
+- `auth.capabilities.revoke().id(...).run()` prevents future validation/consumption.
 - Memory and SQL capability stores satisfy the same contract.
 
 ### JS module tests
 
-- Runtime can `require("auth").capabilities.issue(...)`.
+- Runtime can `require("auth").capabilities.issue("type").ttlSeconds(...).run()`.
 - JS cannot issue a token with disallowed type if config has `allowedTypes`.
-- JS cannot exceed max TTL.
+- JS cannot exceed max TTL, even when setting TTL through the builder.
 - JS receives no token hash or store internals.
 - JS errors include stable `code` fields.
 
@@ -807,7 +1052,7 @@ The demo should clearly show that all app-domain routes are JS-owned.
 
 ### Risk: API becomes too generic and unsafe
 
-Mitigation: Keep capability API field-based and policy-bounded. Avoid arbitrary SQL, arbitrary store access, or unbounded listing.
+Mitigation: Keep capability APIs method-based, field-based, and policy-bounded. Avoid arbitrary SQL, arbitrary store access, object-bag passthrough, or unbounded listing.
 
 ### Risk: API becomes too specific again
 
@@ -823,9 +1068,9 @@ Mitigation: Move in phases. First remove native routes. Then add generic capabil
 
 ## Open questions
 
-1. Should `auth.capabilities.validate` throw errors or return `{ valid:false, reason }`? Recommendation: return structured invalid result for validate, throw for issue/consume/revoke failures.
-2. Should `auth.capabilities.consume` support consuming by expected resource as well as expected type? Recommendation: yes, optional `expectedResource` is useful.
-3. Should capability claims be arbitrary JSON or restricted to `map[string]string` initially? Recommendation: JSON with max byte size.
+1. Should `auth.capabilities.validate(token).run()` throw errors or return `{ valid:false, reason }`? Recommendation: return structured invalid result for validate, throw for issue/consume/revoke failures.
+2. Should `auth.capabilities.consume(token)` require expected resource as well as expected type? Recommendation: support optional `.expectedResource(type, id)` and encourage demos to use it.
+3. Should capability claims be arbitrary JSON or restricted to typed setter methods initially? Recommendation: start with typed setters (`claimString`, `claimNumber`, `claimBool`) and add explicit JSON support later only if needed.
 4. Should appauth be renamed/split now or after #86? Recommendation: after #86 and generic capabilities, to avoid too much churn at once.
 5. Should demo helper modules be JS files only or a Go demo provider package? Recommendation: JS first; only add Go demo helpers if JS cannot express setup/fixtures cleanly.
 

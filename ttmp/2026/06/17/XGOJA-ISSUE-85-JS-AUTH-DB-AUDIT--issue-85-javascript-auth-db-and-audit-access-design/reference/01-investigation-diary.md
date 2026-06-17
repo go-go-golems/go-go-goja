@@ -27,7 +27,9 @@ RelatedFiles:
     - Path: ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/01-javascript-auth-db-and-audit-access-design-and-implementation-guide.md
       Note: Primary deliverable described by diary
     - Path: ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md
-      Note: Step 6 cleanup design deliverable
+      Note: |-
+        Step 6 cleanup design deliverable
+        Step 8 fluent-builder v2 design and reMarkable upload
 ExternalSources:
     - https://github.com/go-go-golems/go-go-goja/issues/85
 Summary: Chronological record for the Issue 85 JavaScript auth DB and audit access design ticket.
@@ -35,6 +37,7 @@ LastUpdated: 2026-06-17T16:25:00-04:00
 WhatFor: Use this to understand how the Issue 85 design document was prepared and validated.
 WhenToUse: Before resuming or implementing the JavaScript auth DB/audit access work.
 ---
+
 
 
 
@@ -692,3 +695,109 @@ docmgr doctor --ticket XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT --stale-after 30
 ### Technical details
 - reMarkable destination: `/ai/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT`.
 - Uploaded document: `XGOJA Issue 85 Reusable Auth Core Cleanup Design.pdf`.
+
+
+## Step 8: Revise cleanup design around fluent Go-backed auth builders
+
+I updated the reusable auth core cleanup design to v2. The major change is replacing object-bag JavaScript APIs with fluent Go-backed builders for both audit queries and future capability APIs.
+
+This revision explicitly calls out that the current `auth.audit.query({ ... })` implementation should be cleaned up before expanding the auth module. The target shape is `auth.audit.query().tenantId(...).limit(...).run()`, with similar builder chains for `auth.capabilities.issue(...)`, `validate(...)`, `consume(...)`, and `revoke(...)`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "update the design doc, and add a section to cleanup the audit query part (and others if necessary). upload as v2 to remarkable once done"
+
+**Assistant interpretation:** Revise the reusable auth core cleanup design to specify fluent builder APIs, include an explicit audit query cleanup section, update any related capability API designs, and upload the revised document to reMarkable as version 2.
+
+**Inferred user intent:** Avoid long-term JS object-map decoding in the auth module and make the reusable core safer, more typed, and more idiomatic through fluent Go-backed builders.
+
+**Commit (code):** N/A — documentation/design only.
+
+### What I did
+- Updated `design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md`.
+- Marked the document as v2 in the summary and updated `LastUpdated`.
+- Replaced the object-bag JavaScript API section with `Proposed JavaScript core API v2: fluent Go-backed builders`.
+- Added explicit audit query cleanup guidance:
+  - replace `auth.audit.query(object)` with `auth.audit.query().tenantId(...).run()`,
+  - keep `audit.Query` / `audit.QueryStore` as the Go-side execution contract,
+  - remove object decoding helpers from the current provider implementation,
+  - update provider tests and example 21 route code.
+- Redesigned capability APIs as fluent builders:
+  - `auth.capabilities.issue(type).resource(...).ttlSeconds(...).run()`,
+  - `auth.capabilities.validate(token).expectedType(...).run()`,
+  - `auth.capabilities.consume(token).expectedType(...).run()`,
+  - `auth.capabilities.revoke().id(...).reason(...).run()`.
+- Updated demo invite/share-link snippets to use the fluent builder style.
+- Added an implementation `Phase 0` for audit query cleanup before #86/generic capabilities.
+- Added a decision record for fluent Go-backed builders instead of object bags.
+- Uploaded the revised document to reMarkable as v2.
+
+### Why
+- Object-bag APIs force Go to defensively decode arbitrary JavaScript objects and nested maps.
+- Fluent builders let Go accept typed setter arguments one field at a time, improving runtime safety and TypeScript documentation while preserving a nice JavaScript authoring experience.
+- The audit query API already exists, so documenting its cleanup now prevents capability APIs from copying the less-safe object-bag shape.
+
+### What worked
+- reMarkable upload succeeded:
+
+```text
+OK: uploaded XGOJA Issue 85 Reusable Auth Core Cleanup Design v2.pdf -> /ai/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT
+```
+
+### What didn't work
+- N/A.
+
+### What I learned
+- The fluent builder style aligns well with the existing xgoja route-builder style: `.auth(...).resource(...).allow(...).handle(...)`.
+- The key cleanup is not the Go store contract; `audit.Query` and `audit.QueryStore` remain useful. The cleanup is specifically the JavaScript-facing object decoder.
+
+### What was tricky to build
+- The tricky part was keeping the design generic without making it abstract. The new shape keeps concrete typed methods (`tenantId`, `resource`, `claimString`, `ttlSeconds`) while avoiding domain-specific methods such as `issueOrgInvite` in the core.
+
+### What warrants a second pair of eyes
+- Review whether capability claims should start with only typed setters (`claimString`, `claimNumber`, `claimBool`) or also expose an explicit JSON setter later.
+- Review whether `validate(...).run()` should return structured invalid results while `consume(...).run()` throws structured errors.
+- Review whether the audit query builder should expose `.timeRange(...)` before or after the first cleanup implementation.
+
+### What should be done in the future
+- Refactor the current implemented `auth.audit.query(object)` to the fluent builder style before adding capability APIs.
+- Then implement #86 native route cleanup and generic capability builders.
+
+### Code review instructions
+- Review `design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md`, especially:
+  - `Proposed JavaScript core API v2: fluent Go-backed builders`,
+  - `Audit query cleanup: auth.audit.query() builder`,
+  - implementation `Phase 0`,
+  - the new fluent-builder decision record.
+- Validate ticket hygiene with:
+
+```bash
+docmgr doctor --ticket XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT --stale-after 30
+```
+
+### Technical details
+- Target audit API:
+
+```js
+auth.audit.query()
+  .tenantId(org.id)
+  .outcome("denied")
+  .limit(50)
+  .run();
+```
+
+- Target capability issue API:
+
+```js
+auth.capabilities.issue("org-invite")
+  .subject("email", email)
+  .resource("org", orgId)
+  .tenantId(orgId)
+  .claimString("role", role)
+  .ttlSeconds(900)
+  .createdBy(ctx.actor.id)
+  .run();
+```
+
+- reMarkable destination: `/ai/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT`.
+- Uploaded document: `XGOJA Issue 85 Reusable Auth Core Cleanup Design v2.pdf`.

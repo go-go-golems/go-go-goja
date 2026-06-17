@@ -13,4 +13,5 @@
 - [x] Implement bounded audit query store interface
 - [x] Implement high-level JavaScript auth audit module
 - [x] Wire example 21 to JavaScript-owned audit route
-- [ ] Design reusable auth core cleanup and self-contained demo split
+- [x] Design reusable auth core cleanup and self-contained demo split
+- [ ] Revise reusable auth cleanup design with fluent builder APIs and upload v2
