@@ -11,20 +11,23 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
 )
 
 const RuntimePlanSchema = "xgoja/runtime/v2"
 
 type RuntimePlan struct {
-	Schema    string         `json:"schema"`
-	Name      string         `json:"name"`
-	App       AppPlan        `json:"app,omitempty"`
-	Target    TargetPlan     `json:"target"`
-	Providers []ProviderPlan `json:"providers,omitempty"`
-	Runtime   RuntimeSection `json:"runtime,omitempty"`
-	Sources   []SourcePlan   `json:"sources,omitempty"`
-	Commands  []CommandPlan  `json:"commands,omitempty"`
-	Artifacts []ArtifactPlan `json:"artifacts,omitempty"`
+	Schema    string           `json:"schema"`
+	Name      string           `json:"name"`
+	App       AppPlan          `json:"app,omitempty"`
+	Target    TargetPlan       `json:"target"`
+	Providers []ProviderPlan   `json:"providers,omitempty"`
+	Runtime   RuntimeSection   `json:"runtime,omitempty"`
+	Auth      *hostauth.Config `json:"auth,omitempty"`
+	Sources   []SourcePlan     `json:"sources,omitempty"`
+	Commands  []CommandPlan    `json:"commands,omitempty"`
+	Artifacts []ArtifactPlan   `json:"artifacts,omitempty"`
 }
 
 type AppPlan struct {

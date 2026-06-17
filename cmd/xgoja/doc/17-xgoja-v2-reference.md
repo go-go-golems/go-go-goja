@@ -193,11 +193,22 @@ runtime:
       name: express
       as: express
       config:
-        debug: true
+        listen: 127.0.0.1:8787
+        dev-errors: false
+        reject-raw-routes: true
 ```
 
 Runtime modules are Go-backed CommonJS modules. JavaScript or TypeScript source
-imports them with `require("express")` or an equivalent compiled import.
+imports them with `require("express")` or an equivalent compiled import. Provider-specific `config` maps are parsed by that provider; unknown fields are rejected when the provider exposes an xgoja config section.
+
+For `go-go-goja-http` / `express`, the first supported static config fields are:
+
+| Field | Meaning |
+| --- | --- |
+| `enabled` | Start the xgoja-owned HTTP server when Express registers routes. |
+| `listen` | Listen address for the xgoja-owned HTTP server. |
+| `dev-errors` | Return development JavaScript handler error details from the internal `gojahttp` host. Keep `false` for production. |
+| `reject-raw-routes` | Reject matched raw/unplanned routes; planned `.public()`/`.auth()` routes and static mounts still work. |
 
 The planner derives runtime module aliases from `runtime.modules`. TypeScript
 source sets do not need to repeat those aliases under a separate `external`
@@ -391,6 +402,59 @@ For binary/runtime-package style artifacts, `sources` marks local jsverb and
 help source sets that should be copied into the generated embedded filesystem.
 For assets, use a separate `embedded-assets` artifact with `sources` pointing at
 asset source IDs.
+
+Generated hosts can configure Go-owned auth services with a top-level `auth:`
+block. `app.NewHostWithOptions` installs a lazy `hostauth.ServiceFactoryKey`
+from the runtime plan, and the HTTP `serve` provider builds concrete
+session/store/auth services at command execution time. Runtime-package hosts may
+still override that factory through `NewBundle` and `Options.ConfigureServices`,
+but the common generated-binary path does not need a hand-written Go shell.
+
+```yaml
+auth:
+  mode: oidc
+  session:
+    cookie:
+      allow-insecure-http: false
+  stores:
+    default:
+      driver: postgres
+      dsn: postgres://user:pass@postgres:5432/app?sslmode=disable
+      apply-schema: true
+  oidc:
+    issuer-url: https://auth.example.test/realms/demo
+    client-id: demo-app
+    public-base-url: https://demo.example.test
+```
+
+The HTTP `serve` commands expose an `auth` Glazed section whenever the host has a
+`hostauth.ServiceFactoryKey`. The CLI surface is flat and prefixed with
+`--auth-`; Glazed can then source the same fields from flags, config files, or
+environment according to the generated application's normal middleware setup.
+The nested `hostauth.Config` remains the YAML/default shape, while command-time
+settings arrive through parsed `*values.Values`:
+
+```bash
+generated-oidc-host-auth serve sites demo \
+  --auth-mode oidc \
+  --auth-default-store-driver postgres \
+  --auth-default-store-dsn "$DATABASE_URL" \
+  --auth-oidc-issuer-url https://auth.example.test/realms/demo \
+  --auth-oidc-client-id demo-app \
+  --auth-oidc-client-secret "$OIDC_CLIENT_SECRET" \
+  --auth-oidc-public-base-url https://demo.example.test
+```
+
+`public-base-url` is the normal deployment setting; the callback defaults to
+`<public-base-url>/auth/callback`. Use `redirect-url` only as an advanced
+override when the callback does not follow that convention. The auth resolver
+does not read environment variables directly and no longer supports `dsn-env`.
+Keep DSNs and secrets in the Glazed input layer rather than committed generated
+YAML. Cookie defaults are secure (`Secure`, `HttpOnly`, `SameSite=Lax`,
+`Path=/`); set `--auth-session-cookie-allow-insecure-http` only for localhost
+HTTP smoke tests. Application authorization remains app-owned Go (`appauth`,
+domain services, or a future policy engine), not a YAML policy DSL.
+
 
 A `template` artifact is a code-generation output shape. It should not be used
 to model runtime behavior such as HTTP serving, WebSocket mounting, or provider

@@ -1,0 +1,93 @@
+schema: xgoja/v2
+name: generated-oidc-host-auth
+app:
+  name: generated-oidc-host-auth
+  envPrefix: XGOJA_OIDC_DEMO
+go:
+  module: xgoja.generated/generated-oidc-host-auth
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
+  - id: go-go-goja-core
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
+    register: Register
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+    register: Register
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+    register: Register
+runtime:
+  modules:
+    - provider: go-go-goja-core
+      name: timer
+      as: timer
+    - provider: go-go-goja-host
+      name: fs
+      as: fs:assets
+      config:
+        embedded:
+          allow: true
+          mounts:
+            - asset: dashboard-assets
+              mount: /app
+    - provider: go-go-goja-http
+      name: express
+      config:
+        reject-raw-routes: true
+        dev-errors: false
+auth:
+  mode: oidc
+  session:
+    cookie:
+      # Local smoke/manual runs use localhost HTTP. Production should leave this
+      # false and use HTTPS public-base-url values.
+      allow-insecure-http: true
+  stores:
+    default:
+      driver: memory
+  oidc:
+    # These defaults are intentionally local placeholders so the generated
+    # command exposes a complete, env/flag-overridable OIDC surface. Override
+    # them with --auth-oidc-* flags or XGOJA_OIDC_DEMO_AUTH_OIDC_* env vars.
+    issuer-url: http://localhost:18080/realms/generated-oidc-host-auth
+    client-id: generated-oidc-host-auth
+    public-base-url: http://localhost:18789
+    after-login-url: /
+    after-logout-url: /
+sources:
+  - id: local-sites
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    language: javascript
+  - id: dashboard-assets
+    kind: assets
+    from:
+      dir: ./assets
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    name: verbs
+    sources:
+      - local-sites
+  - id: http-serve
+    type: provider.command-set
+    name: serve
+    mount: serve
+    provider: go-go-goja-http
+    sources:
+      - local-sites
+      - dashboard-assets
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/generated-oidc-host-auth
+    sources:
+      - local-sites
+      - dashboard-assets
+  - id: embedded-dashboard-assets
+    type: embedded-assets
+    sources:
+      - dashboard-assets

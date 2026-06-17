@@ -10,6 +10,6 @@ function demo() {
   const express = require("express")
   const app = express.app()
 
-  app.get("/", (_req, res) => res.send("hello from an xgoja jsverb site"))
-  app.get("/healthz", (_req, res) => res.json({ ok: true, site: "demo" }))
+  app.get("/").public().handle((_ctx, res) => res.send("hello from an xgoja jsverb site"))
+  app.get("/healthz").public().handle((_ctx, res) => res.json({ ok: true, site: "demo" }))
 }

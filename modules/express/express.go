@@ -16,12 +16,9 @@ import (
 
 type Option func(*Registrar)
 
-type StartFunc func(*goja.Runtime) error
-
 type Registrar struct {
-	host  *gojahttp.Host
-	name  string
-	onUse StartFunc
+	host *gojahttp.Host
+	name string
 }
 
 func NewRegistrar(host *gojahttp.Host, opts ...Option) *Registrar {
@@ -38,14 +35,6 @@ func WithName(name string) Option {
 	return func(r *Registrar) {
 		if r != nil && name != "" {
 			r.name = name
-		}
-	}
-}
-
-func WithOnUse(fn StartFunc) Option {
-	return func(r *Registrar) {
-		if r != nil {
-			r.onUse = fn
 		}
 	}
 }
@@ -99,7 +88,12 @@ func (a runtimebridgeOwnerAdapter) IsClosed() bool                 { return fals
 
 func (r *Registrar) loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	exports := moduleObj.Get("exports").(*goja.Object)
-	_ = exports.Set("app", func() goja.Value { return r.appObject(vm) })
+	builders := newBuilderStore()
+	_ = exports.Set("app", func() goja.Value { return r.appObject(vm, builders) })
+	_ = exports.Set("user", func() goja.Value { return builders.newUserBuilder(vm) })
+	_ = exports.Set("resource", func(resourceType string) (goja.Value, error) {
+		return builders.newResourceBuilder(vm, resourceType)
+	})
 }
 
 type spaOptions struct {
@@ -156,14 +150,11 @@ func mountOptionsFromValue(vm *goja.Runtime, value goja.Value) mountOptions {
 	return ret
 }
 
-func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
+func (r *Registrar) appObject(vm *goja.Runtime, builders *builderStore) goja.Value {
 	obj := vm.NewObject()
 	mount := func(prefix string, handlerValue goja.Value, options goja.Value) error {
 		if prefix == "" {
 			return fmt.Errorf("app.mount requires prefix")
-		}
-		if err := r.start(vm); err != nil {
-			return err
 		}
 		handler, ok := gojahttp.HTTPHandlerFromValue(handlerValue)
 		if !ok {
@@ -177,24 +168,24 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 	_ = obj.Set("mountHandler", mount)
 	for _, method := range []string{"get", "post", "put", "patch", "delete", "all"} {
 		method := method
-		_ = obj.Set(method, func(pattern string, handler goja.Value) error {
-			fn, ok := goja.AssertFunction(handler)
-			if !ok {
-				return fmt.Errorf("app.%s(%q) requires a function handler", method, pattern)
+		upperMethod := strings.ToUpper(method)
+		_ = obj.Set(method, func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 || goja.IsUndefined(call.Argument(0)) || goja.IsNull(call.Argument(0)) {
+				panic(vm.NewTypeError("app.%s(pattern) requires a route pattern", method))
 			}
-			if err := r.start(vm); err != nil {
-				return err
+			pattern := call.Argument(0).String()
+			if len(call.Arguments) > 1 && !goja.IsUndefined(call.Argument(1)) && !goja.IsNull(call.Argument(1)) {
+				panic(vm.NewTypeError("app.%s(pattern, handler) was removed; use app.%s(pattern).public().handle(handler) or app.%s(pattern).auth(...).allow(...).handle(handler)", method, method, method))
 			}
-			r.host.Register(strings.ToUpper(method), pattern, fn)
-			return nil
+			return newRouteBuilder(vm, r, builders, upperMethod, pattern)
 		})
 	}
+	_ = obj.Set("route", func(method, pattern string) goja.Value {
+		return newRouteBuilder(vm, r, builders, method, pattern)
+	})
 	_ = obj.Set("static", func(prefix, dir string) error {
 		if prefix == "" || dir == "" {
 			return fmt.Errorf("app.static requires prefix and directory")
-		}
-		if err := r.start(vm); err != nil {
-			return err
 		}
 		r.host.RegisterStatic(prefix, dir)
 		return nil
@@ -202,9 +193,6 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 	_ = obj.Set("staticFromAssetsModule", func(prefix string, assetsModule goja.Value, root string) error {
 		if prefix == "" || root == "" {
 			return fmt.Errorf("app.staticFromAssetsModule requires prefix and root")
-		}
-		if err := r.start(vm); err != nil {
-			return err
 		}
 		handler, err := fsmod.StaticHandlerFromAssetsModule(vm, assetsModule, root)
 		if err != nil {
@@ -217,9 +205,6 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 		if prefix == "" || root == "" {
 			return fmt.Errorf("app.spaFromAssetsModule requires prefix and root")
 		}
-		if err := r.start(vm); err != nil {
-			return err
-		}
 		spaOptions := spaFromAssetsOptions(vm, options)
 		handler, err := fsmod.SPAHandlerFromAssetsModule(vm, assetsModule, root, spaOptions.Index)
 		if err != nil {
@@ -228,13 +213,8 @@ func (r *Registrar) appObject(vm *goja.Runtime) goja.Value {
 		r.host.RegisterStaticHandlerWithOptions(prefix, handler, spaOptions.ExcludePrefixes)
 		return nil
 	})
-	_ = obj.Set("listen", func() error { return r.start(vm) })
+	_ = obj.Set("listen", func() error {
+		return fmt.Errorf("app.listen is not supported by the xgoja Express module; use the xgoja serve command to own the HTTP server")
+	})
 	return obj
-}
-
-func (r *Registrar) start(vm *goja.Runtime) error {
-	if r.onUse == nil {
-		return nil
-	}
-	return r.onUse(vm)
 }

@@ -1,11 +1,11 @@
 {
   "targets": [
     {
-      "name": "goja-essay-prod",
+      "name": "goja-auth-host-demo",
       "gitops_repo": "wesen/2026-03-27--hetzner-k3s",
       "gitops_branch": "main",
-      "manifest_path": "gitops/kustomize/goja-essay/deployment.yaml",
-      "container_name": "goja-essay"
+      "manifest_path": "gitops/kustomize/goja-auth-host-demo/deployment.yaml",
+      "container_name": "goja-auth-host-demo"
     }
   ]
 }

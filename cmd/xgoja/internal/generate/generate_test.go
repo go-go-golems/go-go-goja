@@ -11,6 +11,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/specv2"
 	"github.com/go-go-golems/go-go-goja/cmd/xgoja/internal/workspace"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
+	"github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
 )
 
 func TestRenderGoModPlanDeterministic(t *testing.T) {
@@ -76,6 +77,38 @@ func TestRenderRuntimePlanJSONFromPlanUsesRuntimeShapeAndEmbeddedRoots(t *testin
 	assertRuntimeSource(t, runtimePlan, app.SourceKindJSVerbs, "xgoja_embed/jsverbs/verbs", true)
 	assertRuntimeSource(t, runtimePlan, app.SourceKindHelp, "xgoja_embed/help/docs", true)
 	assertRuntimeSource(t, runtimePlan, app.SourceKindAssets, "xgoja_embed/assets/assets", true)
+}
+
+func TestRenderRuntimePlanJSONFromPlanCopiesTopLevelAuth(t *testing.T) {
+	compiled := fixturePlan(t)
+	compiled.Config.Auth = &hostauth.Config{
+		Mode: hostauth.ModeDev,
+		Session: hostauth.SessionConfig{Cookie: hostauth.CookieConfig{
+			AllowInsecureHTTP: true,
+			Name:              "xgoja_test_session",
+		}},
+		Stores: hostauth.StoresConfig{Default: hostauth.StoreConfig{
+			Driver: string(hostauth.StoreDriverSQLite),
+			DSN:    "file:test-auth.db",
+		}},
+	}
+
+	var runtimePlan app.RuntimePlan
+	if err := json.Unmarshal([]byte(RenderRuntimePlanJSONFromPlan(compiled)), &runtimePlan); err != nil {
+		t.Fatalf("decode embedded runtime plan: %v", err)
+	}
+	if runtimePlan.Auth == nil {
+		t.Fatal("runtime auth config is nil")
+	}
+	if runtimePlan.Auth.Mode != hostauth.ModeDev {
+		t.Fatalf("runtime auth mode = %q, want %q", runtimePlan.Auth.Mode, hostauth.ModeDev)
+	}
+	if !runtimePlan.Auth.Session.Cookie.AllowInsecureHTTP || runtimePlan.Auth.Session.Cookie.Name != "xgoja_test_session" {
+		t.Fatalf("runtime auth cookie = %#v", runtimePlan.Auth.Session.Cookie)
+	}
+	if runtimePlan.Auth.Stores.Default.Driver != string(hostauth.StoreDriverSQLite) || runtimePlan.Auth.Stores.Default.DSN != "file:test-auth.db" {
+		t.Fatalf("runtime auth default store = %#v", runtimePlan.Auth.Stores.Default)
+	}
 }
 
 func TestWriteAllPlanCopiesEmbeddedSources(t *testing.T) {

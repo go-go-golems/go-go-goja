@@ -8,11 +8,15 @@ function demo(): void {
   const app = express.app()
   const version = 1
 
-  app.get("/", (_req: unknown, res: any) => {
-    res.send(message("xgoja", version))
-  })
+  app.get("/")
+    .public()
+    .handle((_ctx: unknown, res: any) => {
+      res.send(message("xgoja", version))
+    })
 
-  app.get("/healthz", (_req: unknown, res: any) => {
-    res.json({ ok: true, site: "typescript-demo", version })
-  })
+  app.get("/healthz")
+    .public()
+    .handle((_ctx: unknown, res: any) => {
+      res.json({ ok: true, site: "typescript-demo", version })
+    })
 }

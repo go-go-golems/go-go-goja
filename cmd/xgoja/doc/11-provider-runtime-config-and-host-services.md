@@ -57,6 +57,21 @@ module setup
 
 The important rule is timing: `NewRuntimeFromSections` receives parsed Glazed values and applies provider mappings before module setup. If a value must affect the shape or behavior of `require("my-module")`, it must be mapped before `NewModuleFactory` returns the loader.
 
+For example, the HTTP provider maps the public `http` section into the `express` module's xgoja config so static `xgoja.yaml` values and command-line overrides share one setup path:
+
+```yaml
+runtime:
+  modules:
+    - provider: go-go-goja-http
+      name: express
+      config:
+        listen: 127.0.0.1:8787
+        dev-errors: false
+        reject-raw-routes: true
+```
+
+This config controls host infrastructure. JavaScript still declares route intent with `.public()`, `.auth(...)`, `.csrf()`, and `.allow(...)`; it should not configure cookies, OIDC clients, SQL stores, or application authorization policy.
+
 ## Public Glazed sections
 
 Implement `providerapi.GlazedConfigSectionCapability` when a provider wants to expose user-facing command/config/env values.
@@ -365,6 +380,25 @@ func newCommandSet(ctx providerapi.CommandSetContext) (*providerapi.CommandSet, 
 ```
 
 The `examples/xgoja/05-command-provider` smoke test includes a concrete `fixture asset` command that reads an embedded asset this way.
+
+### Lazy generated-host auth services
+
+Some host services should be discoverable during command construction but built only when a command actually runs. Generated-host Express auth uses that pattern. A runtime-package host injects a lightweight factory with `Options.ConfigureServices`:
+
+```go
+bundle, err := xgojaruntime.NewBundle(xgojaruntime.Options{
+    ConfigureServices: func(services *app.HostServices) {
+        _ = services.SetHostService(
+            hostauth.ServiceFactoryKey,
+            hostauth.NewServiceFactory(hostauth.BuilderOptions{Config: authConfig}),
+        )
+    },
+})
+```
+
+The HTTP `serve` command discovers `hostauth.ServiceFactoryKey` from `CommandSetContext.Host` while constructing provider commands, but it calls the factory later, after Glazed values are parsed. The resulting `hostauth.Services` bundle supplies `gojahttp.AuthOptions`, stores, session manager, and closers. The provider passes an auth-enabled `gojahttp.Host` through the existing `go-go-goja-http.host` service and also exposes the concrete bundle as `hostauth.ServicesKey` for future modules/tools.
+
+See `examples/xgoja/21-generated-host-auth` for a runnable runtime-package host that uses memory stores by default and SQLite stores when Glazed-backed `--auth-default-store-*` command settings are provided.
 
 `Sources` is scoped to the command's `commands[].sources` list. A provider command should use it as the source of truth:
 

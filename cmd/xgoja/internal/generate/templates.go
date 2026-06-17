@@ -359,6 +359,10 @@ func RenderRuntimePlanJSONFromPlan(compiled *plan.Plan) string {
 		},
 		Target: app.TargetPlan{Kind: targetDataFromPlanArtifacts(cfg.Artifacts).Kind, Output: targetOutputFromPlanArtifacts(cfg.Artifacts)},
 	}
+	if cfg.Auth != nil {
+		authConfig := *cfg.Auth
+		runtimePlan.Auth = &authConfig
+	}
 	for _, provider := range cfg.Providers {
 		runtimePlan.Providers = append(runtimePlan.Providers, app.ProviderPlan{ID: provider.ID})
 	}

@@ -12,9 +12,11 @@ import (
 )
 
 type HostOptions struct {
-	Dev      bool
-	Renderer Renderer
-	Sessions SessionOptions
+	Dev             bool
+	Renderer        Renderer
+	Sessions        SessionOptions
+	Auth            AuthOptions
+	RejectRawRoutes bool
 }
 
 type StaticMount struct {
@@ -32,21 +34,56 @@ type MountOptions struct {
 }
 
 type Host struct {
-	registry *Registry
-	dev      bool
-	renderer Renderer
-	owner    runtimeowner.RuntimeOwner
-	sessions *SessionManager
-	static   []StaticMount
+	registry        *Registry
+	dev             bool
+	renderer        Renderer
+	owner           runtimeowner.RuntimeOwner
+	sessions        *SessionManager
+	enforcer        *Enforcer
+	rejectRawRoutes bool
+	static          []StaticMount
 }
 
 func NewHost(opts HostOptions) *Host {
-	return &Host{registry: NewRegistry(), dev: opts.Dev, renderer: opts.Renderer, sessions: NewSessionManager(opts.Sessions)}
+	enforcer := NewEnforcer(EnforcerOptions{Dev: opts.Dev, Sessions: opts.Sessions, Auth: opts.Auth})
+	return &Host{registry: NewRegistry(), dev: opts.Dev, renderer: opts.Renderer, sessions: enforcer.sessions, enforcer: enforcer, rejectRawRoutes: opts.RejectRawRoutes}
 }
 
 func (h *Host) SetRuntime(owner runtimeowner.RuntimeOwner) { h.owner = owner }
+
+// SetAuthOptions replaces the host-owned planned-auth services used by future
+// requests. It is intended for generated/runtime hosts whose auth services are
+// constructed after the Host itself is created.
+func (h *Host) SetAuthOptions(auth AuthOptions) {
+	if h == nil {
+		return
+	}
+	if h.enforcer == nil {
+		h.enforcer = NewEnforcer(EnforcerOptions{Auth: auth})
+		h.sessions = h.enforcer.sessions
+		return
+	}
+	h.enforcer.SetAuthOptions(auth)
+}
+
 func (h *Host) Register(method, pattern string, handler goja.Callable) {
 	h.registry.Add(method, pattern, handler)
+}
+func (h *Host) RegisterPlanned(plan RoutePlan, handler goja.Callable) error {
+	plan, err := ValidateRoutePlan(plan)
+	if err != nil {
+		return err
+	}
+	h.registry.AddPlanned(plan, handler)
+	return nil
+}
+func (h *Host) RegisterPlannedHTTP(plan RoutePlan, handler PlannedHTTPHandler) error {
+	plan, err := ValidateRoutePlan(plan)
+	if err != nil {
+		return err
+	}
+	h.registry.AddPlannedHTTP(plan, handler)
+	return nil
 }
 func (h *Host) Routes() []RouteDescriptor {
 	if h == nil || h.registry == nil {
@@ -134,10 +171,6 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if h.owner == nil {
-		http.Error(w, "runtime not initialized", http.StatusInternalServerError)
-		return
-	}
 	route, params, ok := h.registry.Match(r.Method, r.URL.Path)
 	if !ok && r.Method == http.MethodHead {
 		route, params, ok = h.registry.Match(http.MethodGet, r.URL.Path)
@@ -147,6 +180,10 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if !ok {
 		http.NotFound(w, r)
+		return
+	}
+	if route.Plan == nil && h.rejectRawRoutes {
+		h.writeRawRouteRejected(w, route)
 		return
 	}
 	session, err := h.sessions.Session(w, r)
@@ -159,9 +196,29 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	switch route.kind() {
+	case RouteKindPlannedHTTP:
+		h.servePlannedHTTP(w, r, route, req, loggingWriter)
+		return
+	case RouteKindPlannedGoja:
+		if h.owner == nil {
+			http.Error(w, "runtime not initialized", http.StatusInternalServerError)
+			return
+		}
+		h.servePlannedRoute(w, r, route, req)
+		return
+	case RouteKindRawGoja:
+		if h.owner == nil {
+			http.Error(w, "runtime not initialized", http.StatusInternalServerError)
+			return
+		}
+	default:
+		http.Error(w, "unknown route kind", http.StatusInternalServerError)
+		return
+	}
 	res := NewResponse(w, h.renderer)
 	ret, err := h.owner.Call(r.Context(), "http-handler", func(ctx context.Context, vm *goja.Runtime) (any, error) {
-		result, err := route.Handler(goja.Undefined(), vm.ToValue(req.Map()), res.JSObject(vm))
+		result, err := route.GojaHandler(goja.Undefined(), vm.ToValue(req.Map()), res.JSObject(vm))
 		if err != nil {
 			return nil, err
 		}
@@ -185,6 +242,14 @@ func (h *Host) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 	}
+}
+
+func (h *Host) writeRawRouteRejected(w http.ResponseWriter, route Route) {
+	message := "raw routes disabled"
+	if h.dev {
+		message = fmt.Sprintf("raw route %s %s rejected: register a planned route with .public() or auth", route.Method, route.Pattern)
+	}
+	http.Error(w, message, http.StatusInternalServerError)
 }
 
 func (h *Host) finishHandlerResult(vm *goja.Runtime, res *Response, result goja.Value) error {

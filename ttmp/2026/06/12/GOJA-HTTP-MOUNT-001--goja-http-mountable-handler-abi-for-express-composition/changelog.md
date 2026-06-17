@@ -34,4 +34,3 @@ Validated mountable HTTP handler implementation: targeted gojahttp/express/http-
 ### Related Files
 
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/ttmp/2026/06/12/GOJA-HTTP-MOUNT-001--goja-http-mountable-handler-abi-for-express-composition/reference/01-implementation-diary.md — Validation step
-
