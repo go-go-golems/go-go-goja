@@ -138,6 +138,7 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 		{Method: "POST", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
 		{Method: "GET", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
 		{Method: "GET", Path: "/auth/session", Handler: sessionInfoHandler(sessionManager)},
+		{Method: "GET", Path: "/auth/audit", Handler: auditRecordsHandler(sessionManager, stores.Audit)},
 		{Method: "POST", Path: "/orgs/o1/invites", Handler: issueDemoInviteHandler(sessionManager, stores.AppAuth.Memberships, capabilityService)},
 		{Method: "POST", Path: "/org-invites/accept", Handler: acceptDemoInviteHandler(capabilityService)},
 	}, nil
@@ -155,6 +156,43 @@ func sessionInfoHandler(sessionManager *sessionauth.Manager) http.Handler {
 			"csrfToken": session.CSRFToken,
 			"tenantIds": append([]string(nil), session.TenantIDs...),
 		})
+	})
+}
+
+type auditSnapshotStore interface {
+	Snapshot(context.Context) ([]audit.Record, error)
+}
+
+type auditMemorySnapshotStore interface {
+	Snapshot() []audit.Record
+}
+
+func auditRecordsHandler(sessionManager *sessionauth.Manager, store audit.Store) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, err := sessionManager.SessionFromRequest(r.Context(), r); err != nil {
+			http.Error(w, "unauthenticated", http.StatusUnauthorized)
+			return
+		}
+		var records []audit.Record
+		switch s := store.(type) {
+		case auditSnapshotStore:
+			var err error
+			records, err = s.Snapshot(r.Context())
+			if err != nil {
+				http.Error(w, "query audit records", http.StatusInternalServerError)
+				return
+			}
+		case auditMemorySnapshotStore:
+			records = s.Snapshot()
+		default:
+			http.Error(w, "audit store does not support snapshots", http.StatusNotImplemented)
+			return
+		}
+		const limit = 50
+		if len(records) > limit {
+			records = records[len(records)-limit:]
+		}
+		writeJSON(w, map[string]any{"records": records, "count": len(records)})
 	})
 }
 

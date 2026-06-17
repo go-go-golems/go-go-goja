@@ -1748,3 +1748,62 @@ python3 examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py \
 - Final K3s revision: `96b48142ed02565d90f9815bd38df37b698e12c7`.
 - Final source image commit: `81d40b9`.
 - Public URL: `https://goja-auth.yolo.scapegoat.dev`.
+
+
+## Step 22: Add a landing dashboard and audit viewer
+
+I replaced the generated demo's plain text root page with an embedded HTML dashboard. The page links to login/logout/session/me/audit endpoints and includes small buttons for the protected project update and invite capability flow, so the live demo is easier to explore from a browser.
+
+I also added a protected native `GET /auth/audit` endpoint that returns recent audit records from stores that support snapshots. This exposes the audit feature already used by planned routes without requiring direct database access.
+
+### Prompt Context
+
+**User prompt (verbatim):** "can we make a nicer landing page with embeddded html and links, and also, is it possible to show audit logs and some of the other features?"
+
+**Assistant interpretation:** Improve the generated auth demo's browser UX and expose audit/features through discoverable links and endpoints.
+
+**Inferred user intent:** Make the public generated OIDC demo understandable and interactive for humans, not just smoke-testable by scripts.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Added protected native `GET /auth/audit` in `pkg/xgoja/hostauth/builder.go`.
+- Updated native handler tests to include `/auth/audit`.
+- Replaced example 21's `/` route with an embedded HTML dashboard.
+- Updated the example smoke root-page assertion for HTML.
+
+### Why
+- The production site previously showed only plain text at `/`, so users had to know endpoint paths manually.
+- Audit logs are already recorded by planned routes; exposing a recent-record JSON endpoint makes the feature visible.
+
+### What worked
+- Focused tests and generated example smoke passed:
+
+```text
+go test ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+make -C examples/xgoja/21-generated-host-auth clean
+```
+
+### What didn't work
+- The first smoke run failed because it still expected the old root text payload. I updated the smoke to assert the new HTML title.
+
+### What I learned
+- The audit SQL store already has `Snapshot(ctx)` and the in-memory audit store has `Snapshot()`, so a simple read-only demo endpoint can support both.
+
+### What was tricky to build
+- The audit endpoint should not be public. It currently requires a valid app session before returning records.
+
+### What warrants a second pair of eyes
+- Review whether `/auth/audit` should require a stronger admin-style authorization check before this evolves beyond a demo.
+
+### What should be done in the future
+- Add pagination/filtering and an admin authorization policy if audit viewing becomes a real product feature.
+
+### Code review instructions
+- Review `examples/xgoja/21-generated-host-auth/verbs/sites.js` for the embedded dashboard.
+- Review `pkg/xgoja/hostauth/builder.go:auditRecordsHandler` for auth and store behavior.
+
+### Technical details
+- `/auth/audit` returns at most the most recent 50 records.
+- The dashboard uses browser `fetch()` to call `/auth/session`, `/me`, `/auth/audit`, project update, and invite endpoints.

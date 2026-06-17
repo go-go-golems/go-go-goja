@@ -46,7 +46,7 @@ oidc-smoke: build
 	grep -q '"ok":true' /tmp/xgoja-generated-oidc-health.json; \
 	grep -q '"auth":"generated-oidc"' /tmp/xgoja-generated-oidc-health.json; \
 	curl -fsS http://$$addr/ >/tmp/xgoja-generated-oidc-root.txt; \
-	grep -q 'generated OIDC host auth demo' /tmp/xgoja-generated-oidc-root.txt; \
+	grep -q '<title>go-go-goja generated OIDC auth host</title>' /tmp/xgoja-generated-oidc-root.txt; \
 	status=$$(curl -sS -D /tmp/xgoja-generated-oidc-login.headers -o /dev/null -w '%{http_code}' http://$$addr/auth/login); \
 	test "$$status" = "302"; \
 	grep -q "^Location: $$issuer/auth" /tmp/xgoja-generated-oidc-login.headers; \
