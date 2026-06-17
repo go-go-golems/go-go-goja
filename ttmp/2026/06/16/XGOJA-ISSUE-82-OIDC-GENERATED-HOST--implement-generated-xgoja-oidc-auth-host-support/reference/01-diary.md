@@ -119,7 +119,7 @@ The upload target is the standard ticket-scoped folder under `/ai/2026/06/16/`. 
 
 **Inferred user intent:** Make the implementation guide easy to review offline and share as a durable research/design deliverable.
 
-**Commit (code):** Pending at time of diary update.
+**Commit (code):** `45444c7` — "examples: serve dashboard from embedded assets"
 
 ### What I did
 - Replaced the non-vocabulary ticket topic `gojahttp` with existing topic `http`.
@@ -1960,3 +1960,80 @@ make -C examples/xgoja/21-generated-host-auth smoke
 - `fs:assets` mounts source `dashboard-assets` at `/app`.
 - `/` reads `/app/public/index.html` from the embedded fs.
 - `/static/app.js` and `/static/styles.css` are served by `app.staticFromAssetsModule("/static", assets, "/app/public")`.
+
+
+## Step 25: Deploy and verify the embedded-assets dashboard image
+
+I built the generated host image from the embedded-assets refactor, pushed it to GHCR, updated K3s GitOps, waited for Argo CD to converge, and verified the live site serves the dashboard HTML plus split `/static/app.js` and `/static/styles.css` assets from the generated binary.
+
+The full public Keycloak smoke still passes on the embedded-assets image, so the refactor preserved native OIDC login, server-side sessions, CSRF checks, protected routes, and invite capability behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 24)
+
+**Assistant interpretation:** Ship the embedded-assets dashboard version to the live generated OIDC demo.
+
+**Inferred user intent:** Make the public demo showcase xgoja's embedded asset support, not just the local example.
+
+**Commit (code):** Source commit `45444c7` — "examples: serve dashboard from embedded assets"; K3s commit `a1396b8` — "goja-auth-host: deploy embedded assets image"
+
+### What I did
+- Pushed source branch `task/goja-express-auth` at `45444c7`.
+- Built and pushed `ghcr.io/go-go-golems/go-goja-auth-host:sha-45444c7`.
+- Updated K3s deployment image and pushed commit `a1396b8`.
+- Waited for Argo CD:
+
+```text
+Synced Healthy a1396b88ea8571ef6466fe1e0acedceed999f064
+```
+
+- Verified live root HTML references `/static/app.js`.
+- Verified live `/static/app.js` contains the dashboard audit loader.
+- Verified live `/static/styles.css` contains the dashboard CSS.
+- Ran full public Keycloak smoke successfully.
+
+### Why
+- The user specifically wanted the demo to showcase xgoja power through embeddable split assets, so the live deployment should demonstrate that capability.
+
+### What worked
+- Live image:
+
+```text
+ghcr.io/go-go-golems/go-goja-auth-host:sha-45444c7
+```
+
+- Full smoke passed:
+
+```text
+{"status": "PASS", "actorId": "user:dc900749-ba1e-4af7-adae-7d3489dd080a", "csrfChecked": true, "inviteChecked": true}
+```
+
+### What didn't work
+- N/A. The production rollout and smoke validation succeeded.
+
+### What I learned
+- The production image build path correctly embeds the split dashboard assets once the host-service asset resolver overlay bug is fixed.
+
+### What was tricky to build
+- The local smoke failure was not production-specific; it came from generated-runtime host-service layering. Fixing it before deployment avoided shipping an image that could not initialize `fs:assets` under `serve`.
+
+### What warrants a second pair of eyes
+- Review whether `/auth/audit` should remain linked from the public dashboard while access is only "authenticated user" rather than admin/audit-reader.
+
+### What should be done in the future
+- Add authorization hardening or feature gating for `/auth/audit` before this demo becomes a production template.
+
+### Code review instructions
+- Review source commit `45444c7` and K3s commit `a1396b8`.
+- Validate live embedded assets:
+
+```bash
+curl -fsS https://goja-auth.yolo.scapegoat.dev/ | grep -q '<script src="/static/app.js"></script>'
+curl -fsS https://goja-auth.yolo.scapegoat.dev/static/app.js | grep -q 'async function loadAudit'
+curl -fsS https://goja-auth.yolo.scapegoat.dev/static/styles.css | grep -q 'radial-gradient'
+```
+
+### Technical details
+- Live dashboard URL: `https://goja-auth.yolo.scapegoat.dev/`.
+- Live embedded asset URLs: `/static/app.js`, `/static/styles.css`.
