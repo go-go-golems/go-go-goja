@@ -421,7 +421,12 @@ __verb__("start", { name: "start", short: "Serve external host", output: "text" 
 	}
 	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "express", As: "express"}}}}
 	factory := app.NewRuntimeFactory(providers, runtimePlan, hostServices)
-	parsedValues := serveHotReloadTestValues(t, freeServeTestAddr(t), map[string]any{})
+	occupiedListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("occupy listen address: %v", err)
+	}
+	defer func() { _ = occupiedListener.Close() }()
+	parsedValues := serveHotReloadTestValues(t, occupiedListener.Addr().String(), map[string]any{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)

@@ -149,6 +149,7 @@ func serveVerb(ctx context.Context, commandCtx providerapi.CommandSetContext, re
 		return nil, fmt.Errorf("http serve requires runtime factory with per-runtime host services")
 	}
 	includeGeneratedHost := true
+	externalOwnsListen := true
 	serveHost := gojahttp.NewHost(hostOptionsWithAuth(httpSettings, authServices))
 	if externalHost, err := externalHostService(commandCtx.Host); err != nil {
 		return nil, err
@@ -157,11 +158,8 @@ func serveVerb(ctx context.Context, commandCtx providerapi.CommandSetContext, re
 			externalHost.Host.SetAuthOptions(authServices.AuthOptions)
 		}
 		serveHost = externalHost.Host
+		externalOwnsListen = externalHost.OwnsListen
 		includeGeneratedHost = false
-	}
-	topHandler, err := buildServeHandler(serveHost, authServices)
-	if err != nil {
-		return nil, err
 	}
 	runtimeServices, err := serveRuntimeServices(serveHost, authServices, false, includeGeneratedHost)
 	if err != nil {
@@ -182,6 +180,15 @@ func serveVerb(ctx context.Context, commandCtx providerapi.CommandSetContext, re
 		return nil, err
 	}
 
+	if !externalOwnsListen {
+		fmt.Fprintln(os.Stderr, "xgoja http serve: routes registered into external host; listener is owned by caller")
+		return nil, waitForServeNoListen(ctx)
+	}
+
+	topHandler, err := buildServeHandler(serveHost, authServices)
+	if err != nil {
+		return nil, err
+	}
 	listener, err := net.Listen("tcp", httpSettings.Listen)
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", httpSettings.Listen, err)
@@ -594,6 +601,19 @@ func decodeServeHotReloadSettings(vals *values.Values) (serveHotReloadSettings, 
 		return serveHotReloadSettings{}, err
 	}
 	return settings, nil
+}
+
+func waitForServeNoListen(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	serveCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	<-serveCtx.Done()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func serveHTTPServer(ctx context.Context, server *stdhttp.Server, listener net.Listener) error {
