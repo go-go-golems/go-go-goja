@@ -12,6 +12,10 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: pkg/gojahttp/auth/audit/audit.go
+      Note: Added audit.Query
+    - Path: pkg/gojahttp/auth/audit/sqlstore/sqlstore.go
+      Note: Added bounded SQL audit query implementation (commit a0a2eeb)
     - Path: ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/01-javascript-auth-db-and-audit-access-design-and-implementation-guide.md
       Note: Primary deliverable described by diary
 ExternalSources:
@@ -21,6 +25,7 @@ LastUpdated: 2026-06-17T16:25:00-04:00
 WhatFor: Use this to understand how the Issue 85 design document was prepared and validated.
 WhenToUse: Before resuming or implementing the JavaScript auth DB/audit access work.
 ---
+
 
 
 # Diary
@@ -217,3 +222,96 @@ docmgr vocab add --category topics --slug database --description "Database acces
 ### Technical details
 - reMarkable destination: `/ai/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT`.
 - Uploaded document: `XGOJA Issue 85 JavaScript Auth DB Audit Design.pdf`.
+
+
+## Step 3: Implement bounded audit query stores
+
+I implemented the first code slice for issue #85: a formal, safe audit query contract at the store layer. This gives JavaScript-facing code a stable Go API to call later, without exposing raw SQL or auth database internals.
+
+The implementation added `audit.Query`, `audit.QueryStore`, bounded limit normalization, memory-store filtering, and SQL-store filtering. The SQL implementation builds parameterized predicates from known fields only and preserves newest-first ordering for audit browser use cases.
+
+### Prompt Context
+
+**User prompt (verbatim):** "implement step by step, commit at appropriate intervals, keep a detailed diary"
+
+**Assistant interpretation:** Start implementing the Issue 85 design incrementally, commit each coherent slice, and maintain a detailed chronological diary.
+
+**Inferred user intent:** Convert the design guide into production code safely while preserving reviewable commits and continuation-friendly documentation.
+
+**Commit (code):** a0a2eeb — "auth: add bounded audit query stores"
+
+### What I did
+- Added `audit.Query` and `audit.QueryStore` in `pkg/gojahttp/auth/audit/audit.go`.
+- Added `audit.NormalizeQuery` with default/max limits and whitespace normalization.
+- Implemented `MemoryStore.QueryAuditRecords` with field filtering, offset, bounded limit, and newest-first ordering.
+- Implemented `sqlstore.Store.QueryAuditRecords` with parameterized SQL built from known audit fields.
+- Rewired `QueryByOutcome` to call the new general query API.
+- Added memory and SQL tests covering filtering, ordering, and bounds.
+- Ran focused validation:
+
+```bash
+go test ./pkg/gojahttp/auth/audit ./pkg/gojahttp/auth/audit/sqlstore -count=1
+```
+
+- The pre-commit hook also ran full lint and test successfully during `git commit`.
+
+### Why
+- The high-level JavaScript `auth.audit.query(...)` module needs a stable Go query interface that works for both memory and SQL auth stores.
+- Keeping queries field-based avoids exposing raw SQL predicates or auth database internals to JavaScript.
+
+### What worked
+- Focused audit tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit	0.006s
+ok  	github.com/go-go-golems/go-goja/pkg/gojahttp/auth/audit/sqlstore	0.037s
+```
+
+- The repository pre-commit hook passed lint and full tests before creating commit `a0a2eeb`.
+
+### What didn't work
+- N/A. This slice did not hit compile or test failures.
+
+### What I learned
+- The existing SQL audit store already had enough scan and persistence infrastructure to support a general query method with minimal change.
+- Reusing the existing `QueryByOutcome` behavior through the new query API keeps old operational helpers intact while creating a broader contract.
+
+### What was tricky to build
+- The SQL builder needed to preserve parameterization across SQLite (`?`) and Postgres (`$1`, `$2`, ...), while avoiding any user-provided SQL fragments.
+- Memory-store ordering needed to be newest-first without mutating stored insertion order or leaking mutable `Attributes` maps.
+
+### What warrants a second pair of eyes
+- Confirm that clamping excessive limits is preferable to returning validation errors.
+- Confirm newest-first ordering is the desired stable API contract for all audit query stores.
+- Review whether `Offset` is needed for v1 or should remain internal until pagination UI exists.
+
+### What should be done in the future
+- Add the JavaScript-facing `require("auth")` provider module that consumes `audit.QueryStore` through `hostauth.Services`.
+- Add integration tests showing JS can query audit records through host services.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/audit/audit.go`, especially `Query`, `NormalizeQuery`, and `MemoryStore.QueryAuditRecords`.
+- Then review `pkg/gojahttp/auth/audit/sqlstore/sqlstore.go`, especially `QueryAuditRecords` and `queryAuditRecordsQuery`.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp/auth/audit ./pkg/gojahttp/auth/audit/sqlstore -count=1
+```
+
+### Technical details
+- `audit.QueryStore` contract:
+
+```go
+type QueryStore interface {
+    QueryAuditRecords(ctx context.Context, query Query) ([]Record, error)
+}
+```
+
+- Supported filters in this slice:
+  - `tenantId`
+  - `outcome`
+  - `actorId`
+  - `resourceType`
+  - `resourceId`
+  - `limit`
+  - `offset`

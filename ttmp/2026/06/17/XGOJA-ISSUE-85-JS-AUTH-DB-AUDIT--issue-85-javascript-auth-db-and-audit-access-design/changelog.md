@@ -24,3 +24,13 @@ Validated Issue 85 ticket, added audit/database vocabulary topics, and uploaded 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/reference/01-investigation-diary.md — Step 2 records validation and reMarkable upload
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/vocabulary.yaml — Added audit and database topic vocabulary entries
 
+
+## 2026-06-17
+
+Step 3: implemented bounded audit QueryStore for memory and SQL stores (commit a0a2eeb).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/audit/audit.go — Query contract and memory query implementation
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/audit/sqlstore/sqlstore.go — SQL query implementation
+

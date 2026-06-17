@@ -9,4 +9,5 @@
 - [x] Write intern-oriented design and implementation guide
 - [x] Write investigation diary
 - [x] Validate ticket with docmgr doctor
-- [ ] Upload design bundle to reMarkable
+- [x] Upload design bundle to reMarkable
+- [ ] Implement bounded audit query store interface
