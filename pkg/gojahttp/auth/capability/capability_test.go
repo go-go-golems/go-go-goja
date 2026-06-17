@@ -30,12 +30,19 @@ func TestIssueRedeemSingleUseAndAudit(t *testing.T) {
 	if len(stored.TokenHash) == 0 || stored.Claims["role"] != "viewer" {
 		t.Fatalf("stored capability missing token hash/claims: %#v", stored)
 	}
-	redeemed, err := service.Redeem(ctx, "org.invite.accept", issued.Token)
+	validated, err := service.Validate(ctx, "org.invite.accept", issued.Token)
 	if err != nil {
-		t.Fatalf("redeem: %v", err)
+		t.Fatalf("validate: %v", err)
+	}
+	if validated.ID != issued.Capability.ID || len(validated.TokenHash) != 0 || validated.UsedAt != nil {
+		t.Fatalf("unexpected validated capability: %#v", validated)
+	}
+	redeemed, err := service.Consume(ctx, "org.invite.accept", issued.Token)
+	if err != nil {
+		t.Fatalf("consume: %v", err)
 	}
 	if redeemed.ID != issued.Capability.ID || len(redeemed.TokenHash) != 0 || redeemed.UsedAt == nil {
-		t.Fatalf("unexpected redeemed capability: %#v", redeemed)
+		t.Fatalf("unexpected consumed capability: %#v", redeemed)
 	}
 	_, err = service.Redeem(ctx, "org.invite.accept", issued.Token)
 	if !errors.Is(err, ErrUsed) {
@@ -48,8 +55,8 @@ func TestIssueRedeemSingleUseAndAudit(t *testing.T) {
 	if strings.Contains(string(auditJSON), issued.Token) {
 		t.Fatalf("audit leaked raw token: %s", string(auditJSON))
 	}
-	if !strings.Contains(string(auditJSON), "capability.issued") || !strings.Contains(string(auditJSON), "capability.redeemed") {
-		t.Fatalf("expected issue/redeem audit events: %s", string(auditJSON))
+	if !strings.Contains(string(auditJSON), "capability.issued") || !strings.Contains(string(auditJSON), "capability.validated") || !strings.Contains(string(auditJSON), "capability.consumed") {
+		t.Fatalf("expected issue/validate/consume audit events: %s", string(auditJSON))
 	}
 }
 

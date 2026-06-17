@@ -11,7 +11,6 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
-	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
@@ -131,16 +130,12 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 	if err != nil {
 		return nil, err
 	}
-	capabilityService := capability.Service{Store: stores.Capability}
 	return []NativeHandler{
 		{Method: "GET", Path: "/auth/login", Handler: handlers.LoginHandler()},
 		{Method: "GET", Path: "/auth/callback", Handler: handlers.CallbackHandler()},
 		{Method: "POST", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
 		{Method: "GET", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
 		{Method: "GET", Path: "/auth/session", Handler: sessionInfoHandler(sessionManager)},
-		{Method: "GET", Path: "/auth/audit", Handler: auditRecordsHandler(sessionManager, stores.Audit)},
-		{Method: "POST", Path: "/orgs/o1/invites", Handler: issueDemoInviteHandler(sessionManager, stores.AppAuth.Memberships, capabilityService)},
-		{Method: "POST", Path: "/org-invites/accept", Handler: acceptDemoInviteHandler(capabilityService)},
 	}, nil
 }
 
@@ -156,107 +151,6 @@ func sessionInfoHandler(sessionManager *sessionauth.Manager) http.Handler {
 			"csrfToken": session.CSRFToken,
 			"tenantIds": append([]string(nil), session.TenantIDs...),
 		})
-	})
-}
-
-type auditSnapshotStore interface {
-	Snapshot(context.Context) ([]audit.Record, error)
-}
-
-type auditMemorySnapshotStore interface {
-	Snapshot() []audit.Record
-}
-
-func auditRecordsHandler(sessionManager *sessionauth.Manager, store audit.Store) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, err := sessionManager.SessionFromRequest(r.Context(), r); err != nil {
-			http.Error(w, "unauthenticated", http.StatusUnauthorized)
-			return
-		}
-		var records []audit.Record
-		switch s := store.(type) {
-		case auditSnapshotStore:
-			var err error
-			records, err = s.Snapshot(r.Context())
-			if err != nil {
-				http.Error(w, "query audit records", http.StatusInternalServerError)
-				return
-			}
-		case auditMemorySnapshotStore:
-			records = s.Snapshot()
-		default:
-			http.Error(w, "audit store does not support snapshots", http.StatusNotImplemented)
-			return
-		}
-		const limit = 50
-		if len(records) > limit {
-			records = records[len(records)-limit:]
-		}
-		writeJSON(w, map[string]any{"records": records, "count": len(records)})
-	})
-}
-
-func issueDemoInviteHandler(sessionManager *sessionauth.Manager, memberships appauth.MembershipStore, capabilityService capability.Service) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		session, err := sessionManager.SessionFromRequest(r.Context(), r)
-		if err != nil {
-			http.Error(w, "unauthenticated", http.StatusUnauthorized)
-			return
-		}
-		actor := &gojahttp.Actor{ID: session.UserID, Kind: "user"}
-		if err := sessionManager.VerifyCSRF(r.Context(), gojahttp.CSRFRequest{HTTPRequest: r, Actor: actor}); err != nil {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
-		if memberships == nil {
-			http.Error(w, "authorization failed", http.StatusInternalServerError)
-			return
-		}
-		decision, err := (appauth.Authorizer{Memberships: memberships}).Authorize(r.Context(), gojahttp.AuthorizationRequest{Actor: actor, Action: appauth.ActionOrgInvite, Resource: &gojahttp.ResourceRef{Type: "org", ID: "o1"}})
-		if err != nil {
-			http.Error(w, "authorization failed", http.StatusInternalServerError)
-			return
-		}
-		if !decision.Allowed {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
-		var req struct {
-			Email string `json:"email"`
-			Role  string `json:"role"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
-			return
-		}
-		issued, err := capabilityService.IssueOrgInvite(r.Context(), capability.OrgInviteSpec{OrgID: "o1", Email: req.Email, Role: req.Role, TTL: 15 * time.Minute, CreatedBy: session.UserID})
-		if err != nil {
-			http.Error(w, "issue invite", http.StatusInternalServerError)
-			return
-		}
-		writeJSON(w, map[string]any{"token": issued.Token, "expiresAt": issued.Capability.ExpiresAt})
-	})
-}
-
-func acceptDemoInviteHandler(capabilityService capability.Service) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Token string `json:"token"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
-			return
-		}
-		accepted, err := capabilityService.AcceptOrgInvite(r.Context(), req.Token)
-		if err != nil {
-			status := http.StatusBadRequest
-			if errors.Is(err, capability.ErrUsed) {
-				status = http.StatusConflict
-			}
-			http.Error(w, err.Error(), status)
-			return
-		}
-		writeJSON(w, accepted)
 	})
 }
 

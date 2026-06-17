@@ -15,6 +15,9 @@ providers:
   - id: go-go-goja-host
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
     register: Register
+  - id: go-go-goja-hostauth
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/hostauth
+    register: Register
   - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
     register: Register
@@ -32,6 +35,12 @@ runtime:
           mounts:
             - asset: dashboard-assets
               mount: /app
+    - provider: go-go-goja-hostauth
+      name: auth
+      as: auth
+      config:
+        audit:
+          maxLimit: 50
     - provider: go-go-goja-http
       name: express
       config:

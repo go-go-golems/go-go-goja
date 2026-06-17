@@ -79,6 +79,8 @@ For new generated OIDC hosts, start from:
 examples/xgoja/21-generated-host-auth/xgoja.yaml
 examples/xgoja/21-generated-host-auth/Makefile
 examples/xgoja/21-generated-host-auth/scripts/fake_oidc_provider.py
+examples/xgoja/21-generated-host-auth/scripts/compose_smoke.sh
+examples/xgoja/21-generated-host-auth/scripts/keycloak_compose_smoke.py
 ```
 
 For the original live demo image, the hand-composed reference files are:
@@ -228,7 +230,14 @@ Check login redirect with GET, not HEAD:
 curl -sS -D - -o /dev/null https://goja-auth.yolo.scapegoat.dev/auth/login
 ```
 
-Run the full smoke script after TLS and Keycloak are ready.
+Run the full smoke script after TLS and Keycloak are ready. Before publishing a generated image, also run the local generated-host checks:
+
+```bash
+make -C examples/xgoja/21-generated-host-auth smoke
+make -C examples/xgoja/21-generated-host-auth compose-smoke
+```
+
+The compose smoke validates real Keycloak login, Postgres-backed auth stores, JavaScript-owned audit and invite routes, and `409 Conflict` behavior for reused single-use capability tokens.
 
 ## Troubleshooting
 
@@ -249,8 +258,10 @@ The original example-19 image can be replaced when the generated binary uses dur
 
 ## See also
 
+- `xgoja help generated-auth-javascript-apis`
 - `xgoja help express-auth-host-integration-guide`
 - `xgoja help hostauth-config-reference`
 - `xgoja help auth-stores-reference`
 - `xgoja help http-serve-command-reference`
+- `goja-repl help auth-module-guide`
 - `goja-repl help deploying-an-express-auth-host`

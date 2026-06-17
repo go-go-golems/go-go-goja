@@ -110,9 +110,16 @@ The Keycloak subject is not enough for authorization. It identifies the browser 
 
 ## Capability store
 
-The capability store backs flows where a token represents a limited action. Example 19 uses it for invite issue and accept routes. The token is not a session. It is a constrained grant with its own lifecycle and reuse checks.
+The capability store backs flows where a token represents a limited action. The token is not a session. It is a constrained grant with its own lifecycle and reuse checks.
 
-The public smoke verifies capability behavior by issuing an invite, accepting it, and then confirming that reusing the same token returns `409 Conflict`.
+The service exposes two read paths with different side effects:
+
+| Operation | Store behavior | Use case |
+| --- | --- | --- |
+| Validate / lookup | Checks token hash, purpose, expiry, revocation, and used state without mutating the record. | Preview a token or check expected resource/type before consuming it. |
+| Consume / redeem | Performs the same checks and then marks a single-use token as used. | Accept an invite or perform the delegated action exactly once. |
+
+Example 21 uses the capability store from JavaScript through `auth.capabilities.issue(...)` and `auth.capabilities.consume(...)`. Its compose smoke verifies capability behavior by issuing an invite, accepting it, and then confirming that reusing the same token returns `409 Conflict`.
 
 ## PostgreSQL DSN examples
 
@@ -144,11 +151,13 @@ SQLite DSNs are interpreted by `github.com/mattn/go-sqlite3`. PostgreSQL DSNs ar
 | SQL store fails during `ApplySchema` | The app role lacks DDL permission or the DSN points at the wrong database. | Check DB bootstrap, role ownership, and DSN. |
 | Auth works until restart, then users are logged out | Sessions are in memory. | Use `postgres` or `sqlite` for the session store. |
 | Authorization fails after login | User exists but memberships/resources are not seeded. | Check the OIDC normalizer and appauth seed logic. |
-| Capability accept works repeatedly | Capability reuse is not being persisted or checked. | Use the capability store and test reused-token behavior. |
+| Capability accept works repeatedly | Capability reuse is not being persisted or checked. | Use the capability store, consume single-use tokens, and test reused-token behavior. |
 
 ## See also
 
+- `xgoja help generated-auth-javascript-apis`
 - `xgoja help hostauth-config-reference`
 - `xgoja help express-auth-host-integration-guide`
+- `goja-repl help auth-module-guide`
 - `goja-repl help express-auth-examples`
 - `goja-repl help deploying-an-express-auth-host`

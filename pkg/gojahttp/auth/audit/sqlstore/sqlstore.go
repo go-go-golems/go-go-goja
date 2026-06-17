@@ -125,12 +125,20 @@ func (s *Store) Snapshot(ctx context.Context) ([]audit.Record, error) {
 // failed requests. It doubles as executable documentation for common audit
 // queries used in deployment runbooks.
 func (s *Store) QueryByOutcome(ctx context.Context, outcome string, limit int) ([]audit.Record, error) {
-	if limit <= 0 {
-		limit = 100
+	return s.QueryAuditRecords(ctx, audit.Query{Outcome: outcome, Limit: limit})
+}
+
+// QueryAuditRecords returns matching audit rows newest first using a bounded,
+// field-based query. It deliberately does not accept raw SQL predicates.
+func (s *Store) QueryAuditRecords(ctx context.Context, query audit.Query) ([]audit.Record, error) {
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	rows, err := s.db.QueryContext(ctx, s.queryByOutcomeQuery(), outcome, limit)
+	query = audit.NormalizeQuery(query, audit.MaxQueryLimit)
+	sqlQuery, args := s.queryAuditRecordsQuery(query)
+	rows, err := s.db.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query audit records by outcome: %w", err)
+		return nil, fmt.Errorf("query audit records: %w", err)
 	}
 	defer closeRows(rows)
 	out := []audit.Record{}
@@ -142,7 +150,7 @@ func (s *Store) QueryByOutcome(ctx context.Context, outcome string, limit int) (
 		out = append(out, record)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate audit records by outcome: %w", err)
+		return nil, fmt.Errorf("iterate audit records: %w", err)
 	}
 	return out, nil
 }
@@ -226,6 +234,47 @@ func (s *Store) queryByOutcomeQuery() string {
 		return queryByOutcomePostgres
 	}
 	return queryByOutcomeSQLite
+}
+
+func (s *Store) queryAuditRecordsQuery(query audit.Query) (string, []any) {
+	var b strings.Builder
+	b.WriteString(`SELECT `)
+	b.WriteString(auditColumns)
+	b.WriteString(` FROM auth_audit_records`)
+	args := []any{}
+	addWhere := func(column string, value string) {
+		if value == "" {
+			return
+		}
+		if len(args) == 0 {
+			b.WriteString(` WHERE `)
+		} else {
+			b.WriteString(` AND `)
+		}
+		args = append(args, value)
+		b.WriteString(column)
+		b.WriteString(` = `)
+		b.WriteString(s.placeholder(len(args)))
+	}
+	addWhere("tenant_id", query.TenantID)
+	addWhere("outcome", query.Outcome)
+	addWhere("actor_id", query.ActorID)
+	addWhere("resource_type", query.ResourceType)
+	addWhere("resource_id", query.ResourceID)
+	b.WriteString(` ORDER BY created_at DESC, id DESC LIMIT `)
+	args = append(args, query.Limit)
+	b.WriteString(s.placeholder(len(args)))
+	b.WriteString(` OFFSET `)
+	args = append(args, query.Offset)
+	b.WriteString(s.placeholder(len(args)))
+	return b.String(), args
+}
+
+func (s *Store) placeholder(index int) string {
+	if s.dialect == DialectPostgres {
+		return fmt.Sprintf("$%d", index)
+	}
+	return "?"
 }
 
 func marshalAttributes(attrs map[string]any) ([]byte, error) {

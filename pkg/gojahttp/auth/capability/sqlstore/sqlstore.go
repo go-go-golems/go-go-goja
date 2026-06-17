@@ -98,6 +98,17 @@ func (s *Store) Create(ctx context.Context, record capability.Capability) error 
 	return nil
 }
 
+func (s *Store) Lookup(ctx context.Context, tokenHash []byte, purpose string, now time.Time) (*capability.Capability, error) {
+	record, err := s.scanByHash(ctx, s.db, tokenHash)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateCapability(record, purpose, now); err != nil {
+		return nil, err
+	}
+	return record, nil
+}
+
 func (s *Store) Redeem(ctx context.Context, tokenHash []byte, purpose string, now time.Time) (*capability.Capability, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -109,19 +120,10 @@ func (s *Store) Redeem(ctx context.Context, tokenHash []byte, purpose string, no
 	if err != nil {
 		return nil, err
 	}
-	if record.Purpose != purpose {
-		return nil, capability.ErrWrongPurpose
-	}
-	if record.RevokedAt != nil {
-		return nil, capability.ErrRevoked
-	}
-	if !record.ExpiresAt.IsZero() && now.After(record.ExpiresAt) {
-		return nil, capability.ErrExpired
+	if err := validateCapability(record, purpose, now); err != nil {
+		return nil, err
 	}
 	if record.SingleUse {
-		if record.UsedAt != nil {
-			return nil, capability.ErrUsed
-		}
 		res, err := tx.ExecContext(ctx, s.markUsedQuery(), now, record.ID)
 		if err != nil {
 			return nil, fmt.Errorf("mark capability used: %w", err)
@@ -136,6 +138,22 @@ func (s *Store) Redeem(ctx context.Context, tokenHash []byte, purpose string, no
 		return nil, fmt.Errorf("commit redeem capability: %w", err)
 	}
 	return record, nil
+}
+
+func validateCapability(record *capability.Capability, purpose string, now time.Time) error {
+	if record.Purpose != purpose {
+		return capability.ErrWrongPurpose
+	}
+	if record.RevokedAt != nil {
+		return capability.ErrRevoked
+	}
+	if !record.ExpiresAt.IsZero() && now.After(record.ExpiresAt) {
+		return capability.ErrExpired
+	}
+	if record.SingleUse && record.UsedAt != nil {
+		return capability.ErrUsed
+	}
+	return nil
 }
 
 func (s *Store) Revoke(ctx context.Context, id string, now time.Time) error {

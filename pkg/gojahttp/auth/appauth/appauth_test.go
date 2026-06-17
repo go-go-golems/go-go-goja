@@ -43,6 +43,7 @@ func TestAuthorizerAllowsExpectedActions(t *testing.T) {
 		{Actor: actor, Action: ActionProjectRead, Resource: project},
 		{Actor: actor, Action: ActionProjectUpdate, Resource: project},
 		{Actor: actor, Action: ActionOrgInvite, Resource: org},
+		{Actor: actor, Action: ActionAuditRead, Resource: org},
 	} {
 		decision, err := authorizer.Authorize(ctx, req)
 		if err != nil {
@@ -68,6 +69,7 @@ func TestAuthorizerDeniesNegativeCases(t *testing.T) {
 		{Actor: nonMember, Action: ActionProjectRead, Resource: projectOtherTenant},
 		{Actor: nonMember, Action: ActionProjectUpdate, Resource: projectOtherTenant},
 		{Actor: actor, Action: ActionProjectUpdate},
+		{Actor: actor, Action: ActionAuditRead, Resource: projectOtherTenant},
 	}
 	for _, req := range tests {
 		decision, err := authorizer.Authorize(ctx, req)

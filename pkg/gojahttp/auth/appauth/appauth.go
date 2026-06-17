@@ -19,6 +19,7 @@ const (
 	ActionProjectRead    = "project.read"
 	ActionProjectUpdate  = "project.update"
 	ActionOrgInvite      = "org.member.invite"
+	ActionAuditRead      = "audit.read"
 )
 
 // User is the minimal app-owned user model used by helpers.
@@ -138,6 +139,15 @@ func (a Authorizer) Authorize(ctx context.Context, req gojahttp.AuthorizationReq
 		}
 		tenantID := req.Resource.TenantID
 		if req.Resource.Type == "org" && tenantID == "" {
+			tenantID = req.Resource.ID
+		}
+		return a.roleDecision(ctx, req.Actor.ID, tenantID, "admin")
+	case ActionAuditRead:
+		if req.Resource == nil || req.Resource.Type != "org" {
+			return deny("missing organization resource"), nil
+		}
+		tenantID := req.Resource.TenantID
+		if tenantID == "" {
 			tenantID = req.Resource.ID
 		}
 		return a.roleDecision(ctx, req.Actor.ID, tenantID, "admin")

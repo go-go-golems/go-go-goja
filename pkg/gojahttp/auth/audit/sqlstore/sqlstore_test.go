@@ -99,6 +99,38 @@ func TestQueryByOutcome(t *testing.T) {
 	}
 }
 
+func TestQueryAuditRecordsFiltersBoundsAndOrders(t *testing.T) {
+	store := newSQLiteStore(t)
+	ctx := context.Background()
+	now := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+	for _, record := range []audit.Record{
+		{Event: "old denied", Outcome: "denied", TenantID: "o1", ActorID: "u1", ResourceType: "project", ResourceID: "p1", CreatedAt: now},
+		{Event: "other tenant", Outcome: "denied", TenantID: "o2", ActorID: "u2", ResourceType: "project", ResourceID: "p2", CreatedAt: now.Add(time.Second)},
+		{Event: "new denied", Outcome: "denied", TenantID: "o1", ActorID: "u3", ResourceType: "project", ResourceID: "p3", CreatedAt: now.Add(2 * time.Second)},
+		{Event: "allowed", Outcome: "allowed", TenantID: "o1", ActorID: "u4", ResourceType: "project", ResourceID: "p4", CreatedAt: now.Add(3 * time.Second)},
+	} {
+		if err := store.InsertAuditRecord(ctx, record); err != nil {
+			t.Fatalf("insert %s: %v", record.Event, err)
+		}
+	}
+
+	records, err := store.QueryAuditRecords(ctx, audit.Query{TenantID: "o1", Outcome: "denied", Limit: 10})
+	if err != nil {
+		t.Fatalf("query records: %v", err)
+	}
+	if len(records) != 2 || records[0].Event != "new denied" || records[1].Event != "old denied" {
+		t.Fatalf("unexpected filtered records: %#v", records)
+	}
+
+	limited, err := store.QueryAuditRecords(ctx, audit.Query{TenantID: "o1", Limit: 1})
+	if err != nil {
+		t.Fatalf("query limited records: %v", err)
+	}
+	if len(limited) != 1 || limited[0].Event != "allowed" {
+		t.Fatalf("unexpected limited records: %#v", limited)
+	}
+}
+
 func TestPostgresSchemaAndPlaceholders(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
@@ -111,6 +143,15 @@ func TestPostgresSchemaAndPlaceholders(t *testing.T) {
 	}
 	if got := store.queryByOutcomeQuery(); !strings.Contains(got, "$1") || !strings.Contains(got, "$2") {
 		t.Fatalf("unexpected postgres query by outcome: %s", got)
+	}
+	query, args := store.queryAuditRecordsQuery(audit.NormalizeQuery(audit.Query{TenantID: "o1", Outcome: "denied", Limit: 10}, audit.MaxQueryLimit))
+	for _, placeholder := range []string{"$1", "$2", "$3", "$4"} {
+		if !strings.Contains(query, placeholder) {
+			t.Fatalf("postgres query missing %s: %s", placeholder, query)
+		}
+	}
+	if len(args) != 4 {
+		t.Fatalf("postgres query args len=%d, want 4", len(args))
 	}
 	if !strings.Contains(store.Schema(), "JSONB") || !strings.Contains(store.Schema(), "TIMESTAMPTZ") || !strings.Contains(store.Schema(), "BIGSERIAL") {
 		t.Fatalf("postgres schema missing expected types: %s", store.Schema())
