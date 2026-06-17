@@ -208,6 +208,9 @@ func (s *MemoryStore) Snapshot() []Record {
 // limit. It exists for tests, local demos, and generated hosts configured with
 // memory auth stores.
 func (s *MemoryStore) QueryAuditRecords(ctx context.Context, query Query) ([]Record, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

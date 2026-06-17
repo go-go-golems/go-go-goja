@@ -131,6 +131,9 @@ func (s *Store) QueryByOutcome(ctx context.Context, outcome string, limit int) (
 // QueryAuditRecords returns matching audit rows newest first using a bounded,
 // field-based query. It deliberately does not accept raw SQL predicates.
 func (s *Store) QueryAuditRecords(ctx context.Context, query audit.Query) ([]audit.Record, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	query = audit.NormalizeQuery(query, audit.MaxQueryLimit)
 	sqlQuery, args := s.queryAuditRecordsQuery(query)
 	rows, err := s.db.QueryContext(ctx, sqlQuery, args...)
