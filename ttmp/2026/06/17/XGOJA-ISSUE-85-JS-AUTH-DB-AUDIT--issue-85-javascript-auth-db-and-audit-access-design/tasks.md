@@ -19,9 +19,9 @@
 - [x] Update auth provider tests for fluent audit query builder
 - [x] Update example 21 audit route to use fluent audit query builder
 - [x] Validate fluent audit builder with focused tests and example smoke
-- [ ] Remove generic native demo handlers from hostauth BuildNativeHandlers for issue 86
-- [ ] Update hostauth native handler tests for lifecycle-only handlers
-- [ ] Validate issue 86 native handler cleanup with focused tests and example smoke
+- [x] Remove generic native demo handlers from hostauth BuildNativeHandlers for issue 86
+- [x] Update hostauth native handler tests for lifecycle-only handlers
+- [x] Validate issue 86 native handler cleanup with focused tests and example smoke
 - [ ] Design and implement generic Go capability service methods issue validate consume revoke
 - [ ] Expose auth.capabilities fluent builders in hostauth JavaScript module
 - [ ] Move example 21 invite routes into JavaScript using auth.capabilities builders

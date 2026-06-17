@@ -24,6 +24,10 @@ RelatedFiles:
       Note: Added audit.Query
     - Path: pkg/gojahttp/auth/audit/sqlstore/sqlstore.go
       Note: Added bounded SQL audit query implementation (commit a0a2eeb)
+    - Path: pkg/xgoja/hostauth/builder.go
+      Note: Removed generic native demo handlers; hostauth now owns lifecycle/session routes only (commit e094279)
+    - Path: pkg/xgoja/hostauth/builder_test.go
+      Note: Updated native handler test to assert demo endpoints are absent (commit e094279)
     - Path: pkg/xgoja/providers/hostauth/hostauth.go
       Note: Refactored auth.audit.query from object-bag decoder to fluent builder (commit eedfdb7)
     - Path: pkg/xgoja/providers/hostauth/hostauth_test.go
@@ -43,6 +47,7 @@ LastUpdated: 2026-06-17T16:25:00-04:00
 WhatFor: Use this to understand how the Issue 85 design document was prepared and validated.
 WhenToUse: Before resuming or implementing the JavaScript auth DB/audit access work.
 ---
+
 
 
 
@@ -914,4 +919,105 @@ const records = auth.audit.query()
 ```go
 normalized := audit.NormalizeQuery(query, maxLimit)
 records, err := queryStore.QueryAuditRecords(runtimebridge.CurrentOwnerContext(vm), normalized)
+```
+
+
+## Step 10: Remove native demo endpoints from generic hostauth
+
+I removed the generic native demo endpoints from `BuildNativeHandlers`, leaving native hostauth responsible only for OIDC and session lifecycle routes. This closes the main issue #86 architecture debt: the generic Go auth host no longer owns example-specific audit listing or org-invite semantics.
+
+The example already owns `/orgs/:orgId/audit` through the JavaScript `auth.audit` module. Invite routes are intentionally not reintroduced yet because the generic fluent capability API does not exist; until that lands, the generic host should not expose hard-coded `o1` invite behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 9)
+
+**Assistant interpretation:** Continue implementing the granular ticket tasks one by one, committing code and updating the diary after each coherent slice.
+
+**Inferred user intent:** Incrementally harden the auth host by separating reusable auth lifecycle mechanics from demo-specific application semantics.
+
+**Commit (code):** e094279 — "hostauth: remove native demo endpoints"
+
+### What I did
+- Updated `pkg/xgoja/hostauth/builder.go`:
+  - removed native `GET /auth/audit`,
+  - removed native `POST /orgs/o1/invites`,
+  - removed native `POST /org-invites/accept`,
+  - removed helper implementations for audit snapshots and demo invite issue/accept.
+- Updated `pkg/xgoja/hostauth/builder_test.go`:
+  - expected only lifecycle/session handlers,
+  - asserted the three removed demo routes are not registered.
+- Ran focused validation:
+
+```bash
+go test ./pkg/xgoja/hostauth ./pkg/xgoja/providers/hostauth -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+- Pre-commit hook also ran lint and full tests before commit `e094279`.
+
+### Why
+- Native handlers mount before the JavaScript app fallback, so generic demo endpoints can shadow application routes.
+- `/auth/audit` has a safe JavaScript-owned replacement via the high-level audit module.
+- Hard-coded org invite endpoints (`o1`) are demo sugar and should not live in reusable auth core.
+
+### What worked
+- Focused tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/hostauth
+```
+
+- Example 21 smoke still passed, confirming generated host build/doctor remains healthy after route removal.
+- Pre-commit lint and full `go test ./...` passed before the code commit.
+
+### What didn't work
+- N/A. The removal was straightforward after the fluent audit route was already in example JavaScript.
+
+### What I learned
+- The previous generic hostauth builder had two responsibilities mixed together: reusable OIDC/session lifecycle and demo application behavior. Removing the demo routes makes the boundary obvious and easier to review.
+- The remaining native handler list is now small enough to audit visually: login, callback, logout, session.
+
+### What was tricky to build
+- The tricky part was sequencing, not code complexity. Removing `/auth/audit` before JavaScript audit support would have broken the demo dashboard; doing Step 9 first made this slice safe.
+- Invite endpoints require a future replacement API because the current reusable capability service methods are still org-invite-specific. I deliberately did not move them into JavaScript yet because that would either require raw DB handles or preserve demo-specific Go helpers.
+
+### What warrants a second pair of eyes
+- Confirm that no production smoke or dashboard path still depends on native `/auth/audit`.
+- Confirm it is acceptable for invite smoke coverage to be deferred until generic `auth.capabilities.*` exists.
+- Review whether `/auth/session` should remain native or eventually become part of a route DSL/session info API.
+
+### What should be done in the future
+- Implement generic capability service methods and fluent JS builders.
+- Rebuild invite demo routes in example 21 over `auth.capabilities.*`.
+- Add smoke coverage that proves removed native endpoints are either absent or application-owned.
+
+### Code review instructions
+- Start at `pkg/xgoja/hostauth/builder.go`, `BuildNativeHandlers`.
+- Review `pkg/xgoja/hostauth/builder_test.go`, `TestServiceFactoryOIDCBuildsNativeHandlers`.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/hostauth ./pkg/xgoja/providers/hostauth -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+### Technical details
+- Remaining native OIDC routes:
+
+```text
+GET  /auth/login
+GET  /auth/callback
+POST /auth/logout
+GET  /auth/logout
+GET  /auth/session
+```
+
+- Removed generic demo routes:
+
+```text
+GET  /auth/audit
+POST /orgs/o1/invites
+POST /org-invites/accept
 ```
