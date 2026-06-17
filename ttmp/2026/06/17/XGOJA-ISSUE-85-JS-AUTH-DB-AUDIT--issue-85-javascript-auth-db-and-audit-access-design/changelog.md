@@ -44,3 +44,13 @@ Step 4: implemented guarded JavaScript auth audit module exposing require("auth"
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/hostauth.go — Auth provider module implementation
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/hostauth_test.go — Provider and runtime tests
 
+
+## 2026-06-17
+
+Step 5: wired example 21 to JS-owned /orgs/:orgId/audit route using auth.audit.query and audit.read authorization (commit b7f85cc).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/verbs/sites.js — JS-owned audit route
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/appauth/appauth.go — audit.read authorization action
+

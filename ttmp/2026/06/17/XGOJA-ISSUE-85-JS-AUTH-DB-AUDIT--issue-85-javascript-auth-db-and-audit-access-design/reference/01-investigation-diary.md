@@ -12,10 +12,18 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/xgoja/21-generated-host-auth/verbs/sites.js
+      Note: Example route calls auth audit query from JavaScript commit b7f85cc
+    - Path: examples/xgoja/21-generated-host-auth/xgoja.yaml
+      Note: Registers hostauth provider and auth module commit b7f85cc
+    - Path: pkg/gojahttp/auth/appauth/appauth.go
+      Note: Added audit.read appauth action for JS-owned audit route commit b7f85cc
     - Path: pkg/gojahttp/auth/audit/audit.go
       Note: Added audit.Query
     - Path: pkg/gojahttp/auth/audit/sqlstore/sqlstore.go
       Note: Added bounded SQL audit query implementation (commit a0a2eeb)
+    - Path: pkg/xgoja/providers/hostauth/hostauth_test.go
+      Note: Runtime tests for auth audit query module commit 53156f5
     - Path: ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/01-javascript-auth-db-and-audit-access-design-and-implementation-guide.md
       Note: Primary deliverable described by diary
 ExternalSources:
@@ -25,6 +33,7 @@ LastUpdated: 2026-06-17T16:25:00-04:00
 WhatFor: Use this to understand how the Issue 85 design document was prepared and validated.
 WhenToUse: Before resuming or implementing the JavaScript auth DB/audit access work.
 ---
+
 
 
 
@@ -426,3 +435,105 @@ const records = auth.audit.query({ tenantId: "o1", outcome: "denied", limit: 50 
 ```
 
 - The module returns audit records as plain JS objects with keys such as `event`, `outcome`, `tenantId`, `actorId`, `resourceType`, `resourceId`, and `createdAt`.
+
+
+## Step 5: Wire example 21 to the JS-owned audit query route
+
+I wired the generated OIDC example to use the new high-level JavaScript audit API. The example now registers the `go-go-goja-hostauth` provider, requires `auth` in `verbs/sites.js`, and exposes an application-owned `/orgs/:orgId/audit` route that calls `auth.audit.query(...)`.
+
+I also added an explicit `audit.read` appauth action and made it require an admin role on an organization resource. This keeps the example route from becoming another "any authenticated user can read audit records" path, while still leaving raw native demo endpoint removal to issue #86.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue staged implementation by wiring the new JS audit module into the generated OIDC demo and validating it through the example build/smoke path.
+
+**Inferred user intent:** Prove the #85 API is usable in the real generated-host example before removing the generic native demo endpoint in #86.
+
+**Commit (code):** b7f85cc — "examples: use JS auth audit query route"
+
+### What I did
+- Added `ActionAuditRead = "audit.read"` to `pkg/gojahttp/auth/appauth/appauth.go`.
+- Updated `appauth.Authorizer` so `audit.read` requires an organization resource and admin role.
+- Updated appauth tests for allowed/denied `audit.read` cases.
+- Added provider `go-go-goja-hostauth` to example 21 `xgoja.yaml`.
+- Added runtime module `auth` with `audit.maxLimit: 50`.
+- Updated `examples/xgoja/21-generated-host-auth/verbs/sites.js`:
+  - `const auth = require("auth")`
+  - new `/orgs/:orgId/audit` route
+  - route requires user auth, org resource resolution, `audit.read`, and calls `auth.audit.query(...)`
+- Updated dashboard `app.js` to fetch `/orgs/o1/audit` instead of `/auth/audit`.
+- Updated the example smoke test to verify the dashboard references `/orgs/o1/audit` and unauthenticated requests to that JS route return `401`.
+- Included generated `pkg/xgoja/providers/hostauth/logcopter.go` created by the repository's `go generate` pre-commit flow.
+
+### Why
+- The new module is only useful if generated applications can declare it in `xgoja.yaml` and call it from route code.
+- Adding `audit.read` makes the JS-owned audit route use an explicit permission rather than reusing unrelated `user.self.read` or allowing every authenticated user.
+
+### What worked
+- Focused tests passed:
+
+```bash
+go test ./pkg/gojahttp/auth/appauth ./pkg/xgoja/providers/hostauth -count=1
+```
+
+- Example doctor/build passed:
+
+```bash
+make -C examples/xgoja/21-generated-host-auth doctor build
+```
+
+- Full example smoke completed successfully:
+
+```bash
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+- Pre-commit hook passed full lint and full `go test ./...` before commit `b7f85cc`.
+
+### What didn't work
+- N/A for this slice. The build and smoke path passed on the first run after edits.
+
+### What I learned
+- The generated example can import a new provider package cleanly through `xgoja.yaml`; `xgoja doctor` resolved the workspace provider without extra generator changes.
+- The example smoke target is mostly quiet on success because the OIDC smoke recipe is `@`-prefixed; successful completion with no shell output after build is expected.
+
+### What was tricky to build
+- The route authorization needed a real action. Reusing `user.self.read` would have made the demo work but would also encode the wrong security model. Adding `audit.read` to appauth keeps the route aligned with the design and issue #86 hardening goals.
+- The native `/auth/audit` route still exists and still mounts before JS. To avoid route shadowing before #86, the JS-owned route uses `/orgs/:orgId/audit` and the dashboard now calls that route.
+
+### What warrants a second pair of eyes
+- Review `audit.read` semantics: it currently requires an admin role on an org resource.
+- Review whether `/orgs/:orgId/audit` should filter by `tenantId: org.id` or use a different tenant derivation for organizations that have separate resource IDs and tenant IDs.
+- Review whether the old native `/auth/audit` should now be removed immediately under #86.
+
+### What should be done in the future
+- Implement issue #86: remove generic native `/auth/audit`, invite issue, and invite accept demo endpoints from `hostauth.BuildNativeHandlers`.
+- Add an authenticated integration smoke if a local fake OIDC flow can cheaply establish a session and seed `audit.read` permissions.
+
+### Code review instructions
+- Review appauth policy changes in `pkg/gojahttp/auth/appauth/appauth.go` and tests.
+- Review example wiring in `examples/xgoja/21-generated-host-auth/xgoja.yaml` and `verbs/sites.js`.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp/auth/appauth ./pkg/xgoja/providers/hostauth -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+### Technical details
+- New example route:
+
+```js
+app.get("/orgs/:orgId/audit")
+  .auth(express.user().required())
+  .resource(express.resource("org").idFromParam("orgId").mustExist())
+  .allow("audit.read")
+  .audit("audit.records.read")
+  .handle((ctx, res) => {
+    const org = ctx.resource("org");
+    const records = auth.audit.query({ tenantId: org.id, outcome: ctx.request.query.outcome || undefined, limit: Number(ctx.request.query.limit || 50) });
+    res.json({ records, count: records.length });
+  });
+```

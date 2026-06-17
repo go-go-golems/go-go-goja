@@ -11,4 +11,5 @@
 - [x] Validate ticket with docmgr doctor
 - [x] Upload design bundle to reMarkable
 - [x] Implement bounded audit query store interface
-- [ ] Implement high-level JavaScript auth audit module
+- [x] Implement high-level JavaScript auth audit module
+- [ ] Wire example 21 to JavaScript-owned audit route
