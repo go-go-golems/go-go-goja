@@ -5,6 +5,7 @@ function demo() {
   const express = require("express");
   const timer = require("timer");
   const assets = require("fs:assets");
+  const auth = require("auth");
   const app = express.app();
 
   app.staticFromAssetsModule("/static", assets, "/app/public");
@@ -56,5 +57,24 @@ function demo() {
     .handle((ctx, res) => {
       const project = ctx.resource("project");
       res.json({ updated: project.id, tenant: project.tenantId });
+    });
+
+  app.get("/orgs/:orgId/audit")
+    .auth(express.user().required())
+    .resource(
+      express.resource("org")
+        .idFromParam("orgId")
+        .mustExist()
+    )
+    .allow("audit.read")
+    .audit("audit.records.read")
+    .handle((ctx, res) => {
+      const org = ctx.resource("org");
+      const records = auth.audit.query({
+        tenantId: org.id,
+        outcome: ctx.request.query.outcome || undefined,
+        limit: Number(ctx.request.query.limit || 50),
+      });
+      res.json({ records, count: records.length });
     });
 }

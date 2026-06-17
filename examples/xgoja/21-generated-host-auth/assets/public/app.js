@@ -61,6 +61,6 @@ async function acceptInvite() {
   }));
 }
 
-async function loadAudit() { show("audit-output", await fetchText("/auth/audit")); }
+async function loadAudit() { show("audit-output", await fetchText("/orgs/o1/audit")); }
 
 loadSession();
