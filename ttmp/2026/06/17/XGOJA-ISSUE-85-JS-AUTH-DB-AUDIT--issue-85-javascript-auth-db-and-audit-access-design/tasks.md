@@ -33,3 +33,6 @@
 - [x] Write Glazed help docs for JavaScript auth audit and capability APIs
 - [x] Update xgoja generated auth docs and auth store/runbook cross-links
 - [x] Validate new help slugs for goja-repl and xgoja
+- [x] Publish generated auth host image for merged commit d78b664
+- [x] Deploy sha-d78b664 to goja-auth.yolo.scapegoat.dev via K3s GitOps
+- [x] Run public Keycloak smoke against deployed generated auth host

@@ -143,3 +143,13 @@ Step 14: added Glazed help docs for JavaScript auth audit/capability APIs and up
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/24-generated-auth-javascript-apis.md — Generated host auth JS API guide
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/33-auth-module-guide.md — JavaScript auth module guide
 
+
+## 2026-06-17
+
+Step 15: deployed generated auth host image sha-d78b664 to goja-auth.yolo.scapegoat.dev via K3s GitOps commit 0983e62 and validated public Keycloak smoke.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-auth-host-demo/deployment.yaml — Live deployment image bump
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/Dockerfile.auth-host — Image build path
+

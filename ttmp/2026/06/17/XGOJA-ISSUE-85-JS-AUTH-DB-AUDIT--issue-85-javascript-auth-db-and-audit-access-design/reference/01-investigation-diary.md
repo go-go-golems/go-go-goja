@@ -12,6 +12,10 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../../../../code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-auth-host-demo/deployment.yaml
+      Note: Deployed public demo image sha-d78b664 via K3s GitOps commit 0983e62
+    - Path: Dockerfile.auth-host
+      Note: Built and manually pushed generated auth host image sha-d78b664
     - Path: cmd/xgoja/doc/20-hostauth-config-reference.md
       Note: Updated native handler list and documented JS-owned demo routes
     - Path: cmd/xgoja/doc/24-generated-auth-javascript-apis.md
@@ -78,6 +82,7 @@ LastUpdated: 2026-06-17T16:25:00-04:00
 WhatFor: Use this to understand how the Issue 85 design document was prepared and validated.
 WhenToUse: Before resuming or implementing the JavaScript auth DB/audit access work.
 ---
+
 
 
 
@@ -1469,3 +1474,124 @@ GOWORK=off go run ./cmd/goja-repl help auth-module-guide >/tmp/goja-auth-module-
 ### Technical details
 - The rendered xgoja help page had 255 lines.
 - The rendered goja-repl auth module guide had 291 lines.
+
+
+## Step 15: Deploy generated auth host to goja-auth.yolo.scapegoat.dev
+
+I deployed the merged generated auth host to the public `goja-auth.yolo.scapegoat.dev` demo. The live deployment now runs image `ghcr.io/go-go-golems/go-goja-auth-host:sha-d78b664`, built from merged source commit `d78b664`.
+
+The GitHub Actions publish workflow successfully built the image but failed to push to GHCR with a `403 Forbidden` on the package blob upload. I published the same immutable tag manually from the local machine using the authenticated `gh` token, then updated the K3s GitOps manifest and let Argo CD roll the deployment forward.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, can we update the deployed goja-auth.yolo.scapegoat.dev demo?"
+
+**Assistant interpretation:** Publish the latest generated auth host image and deploy it to the existing public K3s/Argo CD demo, then validate it publicly.
+
+**Inferred user intent:** Put the completed Issue 85/#86 work live so the public demo uses JS-owned audit/capability routes and the hardened generated-host split.
+
+**Commit (code):** d78b664 — "Merge pull request #88 from wesen/task/expose-auth-dbs"
+
+### What I did
+- Confirmed `origin/main` was at merge commit `d78b664`.
+- Checked the `publish-auth-host-image` workflow run for `d78b664`:
+  - run `27722762964`,
+  - build completed through generated host compilation,
+  - push failed with GHCR `403 Forbidden` for `ghcr.io/go-go-golems/go-goja-auth-host:main`.
+- Published the immutable image manually:
+
+```bash
+gh auth token | docker login ghcr.io -u "$(gh api user --jq .login)" --password-stdin
+docker buildx build --platform linux/amd64 \
+  -f Dockerfile.auth-host \
+  -t ghcr.io/go-go-golems/go-goja-auth-host:sha-d78b664 \
+  --push .
+```
+
+- Updated K3s GitOps deployment:
+  - repo: `/home/manuel/code/wesen/2026-03-27--hetzner-k3s`,
+  - file: `gitops/kustomize/goja-auth-host-demo/deployment.yaml`,
+  - image `sha-45444c7` -> `sha-d78b664`,
+  - commit `0983e62` — "Deploy goja auth host sha-d78b664".
+- Validated the Kustomize render with `kubectl kustomize gitops/kustomize/goja-auth-host-demo`.
+- Pushed K3s GitOps `main`.
+- Hard-refreshed Argo CD and waited for sync/rollout:
+  - Argo revision `0983e627dcc11e51ccf9bae07fbb691f8be80cac`,
+  - Application `Synced Healthy`,
+  - Deployment rolled out successfully,
+  - live image `ghcr.io/go-go-golems/go-goja-auth-host:sha-d78b664`.
+- Ran a public browserless Keycloak smoke against `https://goja-auth.yolo.scapegoat.dev` using the demo password retrieved from Vault without printing it.
+
+### Why
+- The implementation was complete and validated locally, but the public demo still ran the older generated image.
+- Deploying the latest image validates the production path after removing native demo endpoints and moving audit/invite behavior into JavaScript.
+
+### What worked
+- Manual GHCR publish succeeded for the immutable tag `sha-d78b664`.
+- Argo CD picked up the K3s GitOps commit and rolled out the pod.
+- The public smoke passed:
+
+```text
+ok public health                200
+ok me before login              401
+ok login page                   200
+ok keycloak form login          200
+ok login redirected to host     https://goja-auth.yolo.scapegoat.dev/
+ok me after login               200
+ok session after login          200
+ok project missing csrf         403
+ok project update               200
+ok audit read                   200
+ok invite issue                 200
+ok invite accept                200
+ok invite accept reused         409
+ok logout                       204
+ok me after logout              401
+{"status": "PASS", "actorId": "user:dc900749-ba1e-4af7-adae-7d3489dd080a", "csrfChecked": true, "auditChecked": true, "inviteChecked": true, "reuseStatus": 409}
+```
+
+### What didn't work
+- The GitHub Actions publish workflow failed during GHCR push:
+
+```text
+failed to push ghcr.io/go-go-golems/go-goja-auth-host:main: unexpected status from HEAD request ... 403 Forbidden
+```
+
+- No automated GitOps PR was opened because the docker job failed before the `gitops-pr` job.
+
+### What I learned
+- The workflow has enough permissions declared (`packages: write`), but the package push still failed for `GITHUB_TOKEN`; local push with a `write:packages` token succeeded. This points to a GHCR package/repository linkage or package permission configuration issue rather than an image build issue.
+- The production database already has the required demo appauth rows for the existing demo user, so the generic OIDC normalizer can project existing membership without reintroducing demo grants into core hostauth.
+
+### What was tricky to build
+- The deployment path had two independent failure points: image publishing and GitOps rollout. I kept them separate by first proving the immutable image was pushed, then making a single-file GitOps image bump.
+- The public smoke had to use the new JS-owned response shape (`orgId`, `email`) and assert reused tokens return `409`, not the older native endpoint behavior.
+
+### What warrants a second pair of eyes
+- Fix the GHCR publish workflow/package permission issue so future main pushes publish without manual intervention.
+- Confirm whether the workflow should avoid pushing mutable `main`/`latest` tags if the package permission only allows immutable tags, or whether package admin settings need adjustment.
+- Consider committing the public smoke script if it should become a release gate, but keep password retrieval external and never print secrets.
+
+### What should be done in the future
+- Repair GHCR Actions package publishing.
+- Optionally update the publish workflow to run the new `compose-smoke` on demand or in a separate scheduled/manual job, since it depends on Docker Compose Keycloak and is heavier than the fake-OIDC smoke.
+- Close the ticket after any desired reMarkable upload/update.
+
+### Code review instructions
+- Source image commit: `d78b664` in `go-go-goja`.
+- Deployment commit: `0983e62` in `/home/manuel/code/wesen/2026-03-27--hetzner-k3s`.
+- Verify live image with:
+
+```bash
+kubectl -n goja-auth-host-demo get deploy goja-auth-host-demo \
+  -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+```
+
+- Verify public smoke with a script equivalent to `/tmp/goja_auth_public_smoke.py`, passing the demo password from Vault without printing it.
+
+### Technical details
+- Live URL: `https://goja-auth.yolo.scapegoat.dev`.
+- Argo app: `goja-auth-host-demo`.
+- Namespace: `goja-auth-host-demo`.
+- Image: `ghcr.io/go-go-golems/go-goja-auth-host:sha-d78b664`.
+- K3s GitOps commit: `0983e62`.
