@@ -1,0 +1,842 @@
+---
+Title: Reusable auth core interface cleanup and demo design
+Ticket: XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT
+Status: active
+Topics:
+    - xgoja
+    - auth
+    - audit
+    - database
+    - javascript
+DocType: design-doc
+Intent: long-term
+Owners: []
+RelatedFiles:
+    - Path: examples/xgoja/21-generated-host-auth/verbs/sites.js
+      Note: Target demo for self-contained app-domain routes
+    - Path: examples/xgoja/21-generated-host-auth/xgoja.yaml
+    - Path: pkg/gojahttp/auth/appauth/appauth.go
+      Note: Current starter app authorization policy that mixes reusable interfaces with demo actions
+    - Path: pkg/gojahttp/auth/audit/audit.go
+    - Path: pkg/gojahttp/auth/capability/capability.go
+      Note: Capability primitives to generalize beyond org invites
+    - Path: pkg/xgoja/hostauth/builder.go
+      Note: Current generic native handler list includes demo routes to remove under cleanup
+    - Path: pkg/xgoja/providers/hostauth/hostauth.go
+      Note: Current auth JS module to extend with generic capabilities
+ExternalSources:
+    - https://github.com/go-go-golems/go-go-goja/issues/85
+    - https://github.com/go-go-golems/go-go-goja/issues/86
+Summary: Design for cleaning xgoja auth interfaces into a reusable opinionated core and moving demo-specific org/project/invite behavior into demos.
+LastUpdated: 2026-06-17T14:25:00-04:00
+WhatFor: 'Use this when implementing issue #86 and follow-up auth API cleanup so generic hostauth remains reusable while examples remain rich.'
+WhenToUse: Before changing hostauth native handlers, appauth action policy, capability APIs, or example 21 demo routes.
+---
+
+
+# Reusable auth core interface cleanup and demo design
+
+## Executive summary
+
+The current generated OIDC auth host has grown a useful but mixed auth surface. Some parts are clearly reusable platform primitives: OIDC login/callback/logout/session lifecycle, server-side sessions, CSRF verification, audit recording/querying, route-level `.auth()`, `.resource()`, `.allow()`, and `.audit()` hooks, and capability token storage. Other parts are demo-specific: hard-coded organization invite endpoints, project update actions, fixed organization ID `o1`, role names such as `admin`/`editor`/`viewer`, and native demo routes mounted by generic `hostauth.BuildNativeHandlers`.
+
+The desired end state is a **small, opinionated, reusable auth core** plus a **self-contained demo** that showcases how to build real applications on top of it. The core should provide safe primitives that real users can compose without needing raw DB access for common auth workflows. The demo should live entirely in `examples/xgoja/21-generated-host-auth` (or a clearly marked demo helper package) and should use the same public JavaScript-facing APIs that users would use.
+
+This document proposes a cleanup plan:
+
+1. Remove demo-native routes from generic hostauth (#86).
+2. Promote platform-level APIs:
+   - `auth.audit.query(...)`
+   - `auth.capabilities.issue(...)`
+   - `auth.capabilities.validate(...)`
+   - `auth.capabilities.consume(...)`
+   - `auth.capabilities.revoke(...)`
+3. Keep route authorization policy in the route DSL (`.auth`, `.csrf`, `.resource`, `.allow`, `.audit`) rather than hiding authorization inside token helpers.
+4. Split current `appauth` concepts into reusable interfaces and demo/starter policy.
+5. Rebuild example 21 as a rich demo that uses the reusable APIs to implement org invites, project authorization, audit browsing, share links, and one-time token flows in JavaScript.
+
+The goal is not to make the core fully generic or policy-engine-heavy. The goal is a pragmatic auth toolkit: safe by default, small enough to understand, and flexible enough that users do not immediately reach for raw database handles.
+
+## Current-state problem
+
+### Generic hostauth currently mounts demo routes
+
+`pkg/xgoja/hostauth/builder.go` currently installs native handlers for OIDC lifecycle and demo application behavior from the same generic function:
+
+```text
+GET  /auth/login
+GET  /auth/callback
+POST /auth/logout
+GET  /auth/logout
+GET  /auth/session
+GET  /auth/audit              <-- demo/admin UI behavior
+POST /orgs/o1/invites         <-- hard-coded demo org invite behavior
+POST /org-invites/accept      <-- hard-coded demo invite acceptance behavior
+```
+
+The first five routes are generic OIDC/session lifecycle. The last three are application behavior. They should not be mounted by the reusable hostauth package because:
+
+- they hard-code paths and domain concepts,
+- they bypass JavaScript route ownership,
+- they can shadow application routes because native handlers mount before app fallback,
+- they encode demo policy in generic Go,
+- they make it harder for users to see which routes their app owns.
+
+### Appauth mixes useful interfaces with app-specific policy
+
+`pkg/gojahttp/auth/appauth/appauth.go` contains useful concepts:
+
+- user store interface,
+- membership store interface,
+- resource store interface,
+- resource resolver,
+- authorizer shape,
+- authorization decision shape.
+
+It also contains app-specific action names and policy:
+
+```go
+ActionUserSelfRead   = "user.self.read"
+ActionProjectRead    = "project.read"
+ActionProjectUpdate  = "project.update"
+ActionOrgInvite      = "org.member.invite"
+ActionAuditRead      = "audit.read"
+```
+
+The hard-coded switch that says project updates require `admin`/`editor`, org invites require `admin`, and audit reads require org `admin` is fine for the demo, but it is not a universal auth model. Real users will have actions such as:
+
+- `invoice.read`,
+- `workspace.member.invite`,
+- `document.share`,
+- `billing.plan.update`,
+- `dataset.export`,
+- `admin.impersonate`.
+
+The generic core should make it easy to plug those actions into route authorization, not prescribe project/org semantics.
+
+### Capability currently contains org-invite-specific helpers
+
+The capability package is conceptually reusable: it stores issued, expiring, revocable, consumable tokens. But the current public helpers are centered on org invites:
+
+```go
+IssueOrgInvite(...)
+AcceptOrgInvite(...)
+OrgInviteSpec
+```
+
+Org invites are a good demo use case, but capability tokens are broader. Real users will want:
+
+- email verification links,
+- passwordless login links,
+- invite links,
+- share links,
+- temporary upload/download grants,
+- API bootstrap tokens,
+- one-time approval tokens,
+- cross-device pairing codes,
+- account recovery tokens.
+
+The core should expose generic capability primitives and let demo code implement org invites as one possible token type.
+
+## Design goals
+
+1. **Reusable core, not a demo framework.** Core packages should expose primitives that are useful across many app domains.
+2. **Opinionated safety.** APIs should prefer bounded queries, explicit TTLs, explicit token types, explicit resource scopes, and no raw secrets in JS.
+3. **Composable route ownership.** Application routes should be in JavaScript or app code. Native hostauth should only own host lifecycle endpoints.
+4. **No accidental global admin endpoints.** Audit browsing and token issuance must be app routes with app-specific authorization.
+5. **No raw DB as first resort.** Raw DB handles can exist later behind explicit guarded config, but common workflows should have safer APIs.
+6. **Demos showcase real patterns.** Example 21 should be a high-quality cookbook for building auth flows using the reusable APIs.
+7. **Small enough to learn.** Avoid introducing a full policy engine unless a concrete need appears.
+
+## Proposed package boundaries
+
+### Generic core should keep
+
+| Area | Keep in reusable core? | Reason |
+|---|---:|---|
+| OIDC login/callback/logout/session handlers | Yes | Host lifecycle concern, not app-domain behavior. |
+| Session manager/store | Yes | Core auth infrastructure. |
+| CSRF verification | Yes | Core web auth safety primitive. |
+| Audit record model and safe query | Yes | Operational platform concern. |
+| Generic capability token store | Yes | Reusable token primitive. |
+| Route DSL `.auth`, `.csrf`, `.resource`, `.allow`, `.audit` | Yes | Core app integration surface. |
+| Host service injection | Yes | Runtime composition primitive. |
+| JavaScript `auth.audit.query` | Yes | Safe high-level read API. |
+| JavaScript `auth.capabilities.*` | Yes | Safe high-level token API. |
+
+### Demo/starter code should own
+
+| Area | Move out of generic hostauth? | Destination |
+|---|---:|---|
+| Native `/auth/audit` | Yes | JS route in example 21. |
+| Native `/orgs/o1/invites` | Yes | JS route in example 21. |
+| Native `/org-invites/accept` | Yes | JS route in example 21. |
+| `IssueOrgInvite` / `AcceptOrgInvite` convenience helpers | Prefer yes | Demo helper or JS wrapper over generic capabilities. |
+| `ActionProjectUpdate`, `ActionOrgInvite`, demo role policy | Prefer yes | Demo/starter policy package or example-local JS/Go. |
+| Hard-coded resources `org`, `project`, `o1`, `p1` | Yes | Example fixtures. |
+
+## Proposed JavaScript core API
+
+### `auth.audit.query(...)`
+
+Already implemented in #85 phase 1.
+
+```js
+const records = auth.audit.query({
+  tenantId: "o1",
+  outcome: "denied",
+  actorId: "user:123",
+  resourceType: "project",
+  resourceId: "p1",
+  limit: 50,
+  offset: 0,
+});
+```
+
+Properties:
+
+- bounded by module max limit,
+- field-based filters only,
+- no SQL fragments,
+- returns redacted normalized audit records,
+- route authorization remains the app's job.
+
+### `auth.capabilities.issue(...)`
+
+Generic token issuance.
+
+```js
+const issued = auth.capabilities.issue({
+  type: "org-invite",
+  subject: "email:invitee@example.test",
+  resource: { type: "org", id: orgId, tenantId: orgId },
+  claims: { role: "viewer" },
+  ttlSeconds: 900,
+  createdBy: ctx.actor.id,
+  metadata: { delivery: "copy-link" },
+});
+
+// issued
+{
+  token: "opaque-token-value",
+  capability: {
+    id: "cap_...",
+    type: "org-invite",
+    subject: "email:invitee@example.test",
+    resource: { type: "org", id: "o1", tenantId: "o1" },
+    claims: { role: "viewer" },
+    expiresAt: "...",
+    createdBy: "user:...",
+    createdAt: "..."
+  }
+}
+```
+
+Required fields:
+
+- `type`: non-empty string; caller-defined token type.
+- `ttlSeconds`: positive, clamped by module config.
+
+Optional fields:
+
+- `subject`: user/email/entity the token is about.
+- `resource`: typed resource scope.
+- `claims`: JSON-compatible claims.
+- `createdBy`: actor ID for auditability.
+- `metadata`: non-authoritative operational metadata.
+
+Safety rules:
+
+- token returned only once at issue time,
+- TTL clamped to configured maximum,
+- token type allow-list optional but recommended,
+- claims size bounded,
+- no raw store or DB handle exposed.
+
+### `auth.capabilities.validate(...)`
+
+Check token without consuming it.
+
+```js
+const result = auth.capabilities.validate({
+  token,
+  expectedType: "org-invite",
+});
+
+if (!result.valid) {
+  return res.status(400).json({ error: result.reason });
+}
+```
+
+Return shape:
+
+```js
+{
+  valid: true,
+  capability: { ... }
+}
+```
+
+or:
+
+```js
+{
+  valid: false,
+  reason: "expired" | "used" | "revoked" | "wrong_type" | "not_found"
+}
+```
+
+This supports preview pages such as "You were invited to Example Org" before a user accepts.
+
+### `auth.capabilities.consume(...)`
+
+Consume one-time token.
+
+```js
+const consumed = auth.capabilities.consume({
+  token,
+  expectedType: "org-invite",
+});
+```
+
+Properties:
+
+- atomic where store supports it,
+- fails if expired, revoked, or already consumed,
+- can optionally validate expected type,
+- returns capability claims and resource scope.
+
+Potential error model:
+
+```js
+try {
+  const consumed = auth.capabilities.consume({ token, expectedType: "org-invite" });
+} catch (e) {
+  if (e.code === "capability_used") ...
+  if (e.code === "capability_expired") ...
+}
+```
+
+### `auth.capabilities.revoke(...)`
+
+Revoke active capability by ID or token.
+
+```js
+auth.capabilities.revoke({ id: capabilityId, reason: "user_request" });
+```
+
+or:
+
+```js
+auth.capabilities.revoke({ token, reason: "rotated" });
+```
+
+This is useful for share links and admin UIs.
+
+### `auth.capabilities.list(...)` (optional phase 2)
+
+List capabilities by type/resource/subject for management UIs.
+
+```js
+const links = auth.capabilities.list({
+  type: "share-link",
+  resource: { type: "document", id: docId },
+  includeExpired: false,
+  limit: 50,
+});
+```
+
+This should be delayed until there is a clear UI need, because listing tokens creates more information-disclosure risk than issue/validate/consume.
+
+## Proposed Go core API
+
+The current capability store/service should be generalized around a shape like this.
+
+```go
+type Capability struct {
+    ID           string
+    Type         string
+    Subject      string
+    ResourceType string
+    ResourceID   string
+    TenantID     string
+    Claims       map[string]any
+    Metadata     map[string]any
+    CreatedBy    string
+    CreatedAt    time.Time
+    ExpiresAt    time.Time
+    UsedAt       *time.Time
+    RevokedAt    *time.Time
+}
+
+type IssueSpec struct {
+    Type       string
+    Subject    string
+    Resource   ResourceRef
+    Claims     map[string]any
+    Metadata   map[string]any
+    TTL        time.Duration
+    CreatedBy  string
+}
+
+type ValidateSpec struct {
+    Token        string
+    ExpectedType string
+}
+
+type ConsumeSpec struct {
+    Token        string
+    ExpectedType string
+}
+
+type RevokeSpec struct {
+    ID     string
+    Token  string
+    Reason string
+}
+```
+
+Service methods:
+
+```go
+type Service struct { Store Store }
+
+func (s Service) Issue(ctx context.Context, spec IssueSpec) (Issued, error)
+func (s Service) Validate(ctx context.Context, spec ValidateSpec) (Validation, error)
+func (s Service) Consume(ctx context.Context, spec ConsumeSpec) (Consumed, error)
+func (s Service) Revoke(ctx context.Context, spec RevokeSpec) error
+```
+
+Store methods:
+
+```go
+type Store interface {
+    Insert(ctx context.Context, cap Capability, tokenHash string) error
+    ByTokenHash(ctx context.Context, tokenHash string) (*Capability, error)
+    MarkUsed(ctx context.Context, id string, usedAt time.Time) (*Capability, error)
+    Revoke(ctx context.Context, id string, revokedAt time.Time, reason string) error
+}
+```
+
+Implementation details:
+
+- Continue storing only token hashes, never raw tokens.
+- Return raw token only from `Issue`.
+- Use atomic `MarkUsed` for one-time consumption where possible.
+- Preserve current SQL/memory stores but rename org-invite helpers into demo wrappers.
+
+## App authorization cleanup
+
+### Keep the generic route contract
+
+The route DSL should remain the center of authorization composition:
+
+```js
+app.post("/workspaces/:workspaceId/invites")
+  .auth(express.user().required())
+  .resource(express.resource("workspace").idFromParam("workspaceId").mustExist())
+  .csrf()
+  .allow("workspace.member.invite")
+  .audit("workspace.invite.issued")
+  .handle(...)
+```
+
+This pattern is good because it separates concerns:
+
+- `.auth(...)` establishes actor/session.
+- `.resource(...)` establishes resource context.
+- `.csrf()` protects state-changing browser requests.
+- `.allow(...)` delegates policy to the configured authorizer.
+- `.audit(...)` records the action and outcome.
+- handler code performs business behavior.
+
+### Split `appauth` into reusable interfaces and starter policy
+
+Recommended package split:
+
+```text
+pkg/gojahttp/auth/policy/          # reusable interfaces and request/decision helpers
+pkg/gojahttp/auth/appauth/         # maybe retained for starter app stores
+pkg/gojahttp/auth/appauth/starter/ # optional demo/starter hard-coded policy
+examples/xgoja/21.../demoauth/     # example-specific policy/fixtures, if Go helper needed
+```
+
+Possible reusable policy package:
+
+```go
+type Authorizer interface {
+    Authorize(ctx context.Context, req gojahttp.AuthorizationRequest) (gojahttp.AuthorizationDecision, error)
+}
+
+type ResourceStore interface {
+    GetResource(ctx context.Context, typ, id string) (*Resource, error)
+}
+
+type MembershipStore interface {
+    MembershipsForUser(ctx context.Context, userID string) ([]Membership, error)
+    IsMember(ctx context.Context, userID, tenantID string) (bool, error)
+    HasRole(ctx context.Context, userID, tenantID string, roles ...string) (bool, error)
+}
+```
+
+Starter/demo policy can still provide:
+
+```go
+const (
+    ActionProjectUpdate = "project.update"
+    ActionOrgInvite     = "org.member.invite"
+    ActionAuditRead     = "audit.read"
+)
+```
+
+But those constants should not be presented as the universal auth model.
+
+## Example 21 demo architecture
+
+The demo should become a showcase of real-world patterns built on reusable core APIs.
+
+### Demo goals
+
+Example 21 should demonstrate:
+
+1. OIDC login/logout/session.
+2. Protected self route (`/me`).
+3. Resource-scoped project route.
+4. Audit browser route using `auth.audit.query`.
+5. One-time org invite flow using `auth.capabilities.issue` and `consume`.
+6. Validate-before-consume invite preview using `auth.capabilities.validate`.
+7. Optional share link flow to demonstrate a second capability type.
+8. Dashboard UI backed by embedded split assets.
+
+### Demo code organization
+
+Keep demo logic in example-local JavaScript modules:
+
+```text
+examples/xgoja/21-generated-host-auth/
+  verbs/
+    sites.js                 # route registration
+    demo-policy.js           # action names, role checks if JS-side helpers exist
+    invites.js               # org invite helper over auth.capabilities
+    share-links.js           # optional second capability example
+  assets/public/
+    index.html
+    app.js
+    styles.css
+```
+
+If route DSL policy still uses Go `appauth.Authorizer`, then fixture/policy setup remains in Go store config. But path/domain behavior should still be in JS routes.
+
+### Demo invite helper in JavaScript
+
+```js
+function issueOrgInvite(auth, ctx) {
+  const body = ctx.request.body || {};
+  const orgId = ctx.params.orgId;
+  const role = normalizeInviteRole(body.role);
+  return auth.capabilities.issue({
+    type: "org-invite",
+    subject: `email:${String(body.email || "").trim().toLowerCase()}`,
+    resource: { type: "org", id: orgId, tenantId: orgId },
+    claims: { role },
+    ttlSeconds: 15 * 60,
+    createdBy: ctx.actor.id,
+    metadata: { demo: true },
+  });
+}
+
+function acceptOrgInvite(auth, token) {
+  const consumed = auth.capabilities.consume({ token, expectedType: "org-invite" });
+  return {
+    orgId: consumed.capability.resource.id,
+    role: consumed.capability.claims.role,
+    subject: consumed.capability.subject,
+  };
+}
+```
+
+Routes:
+
+```js
+app.post("/orgs/:orgId/invites")
+  .auth(express.user().required())
+  .resource(express.resource("org").idFromParam("orgId").mustExist())
+  .csrf()
+  .allow("org.member.invite")
+  .audit("org.invite.issued")
+  .handle((ctx, res) => res.json(issueOrgInvite(auth, ctx)));
+
+app.get("/org-invites/preview")
+  .public()
+  .audit("org.invite.previewed")
+  .handle((ctx, res) => {
+    const result = auth.capabilities.validate({ token: ctx.request.query.token, expectedType: "org-invite" });
+    res.json(result);
+  });
+
+app.post("/org-invites/accept")
+  .public()
+  .audit("org.invite.accepted")
+  .handle((ctx, res) => res.json(acceptOrgInvite(auth, ctx.request.body.token)));
+```
+
+### Demo share link flow
+
+A second capability type would prove the API is not invite-specific:
+
+```js
+app.post("/orgs/:orgId/projects/:projectId/share-links")
+  .auth(express.user().required())
+  .resource(express.resource("project").idFromParam("projectId").tenantFromParam("orgId").mustExist())
+  .csrf()
+  .allow("project.share")
+  .audit("project.share_link.issued")
+  .handle((ctx, res) => {
+    const project = ctx.resource("project");
+    const issued = auth.capabilities.issue({
+      type: "project-share-link",
+      resource: { type: "project", id: project.id, tenantId: project.tenantId },
+      claims: { permissions: ["project.read"], anonymous: true },
+      ttlSeconds: 24 * 60 * 60,
+      createdBy: ctx.actor.id,
+    });
+    res.json(issued);
+  });
+
+app.get("/share/:token")
+  .public()
+  .audit("project.share_link.viewed")
+  .handle((ctx, res) => {
+    const result = auth.capabilities.validate({ token: ctx.params.token, expectedType: "project-share-link" });
+    if (!result.valid) return res.status(404).json({ error: result.reason });
+    res.json({ projectId: result.capability.resource.id, claims: result.capability.claims });
+  });
+```
+
+This demonstrates reusable tokens without adding a new Go helper for every domain concept.
+
+## Raw DB handles remain a separate advanced feature
+
+Raw host DB handles still have a place, especially for reporting, migrations, admin tooling, and application-specific queries. But they should not be the primary answer for auth workflows.
+
+If implemented, raw handles should be explicit and guarded:
+
+```yaml
+runtime:
+  modules:
+    - provider: go-go-goja-host
+      name: database
+      as: auditdb
+      config:
+        hostHandle: auth.audit
+        access: read-only
+        allowedTables: [auth_audit_records]
+        maxRows: 100
+        timeout: 2s
+```
+
+The important principle: requesting raw DB access means the user is advanced, but it does not mean the resulting route is safe. Safer high-level APIs should cover common workflows first.
+
+## Implementation plan
+
+### Phase 1: #86 native route cleanup
+
+Remove from `pkg/xgoja/hostauth/builder.go` generic native handlers:
+
+- `GET /auth/audit`,
+- `POST /orgs/o1/invites`,
+- `POST /org-invites/accept`.
+
+Keep:
+
+- `GET /auth/login`,
+- `GET /auth/callback`,
+- `POST /auth/logout`,
+- `GET /auth/logout`,
+- `GET /auth/session`.
+
+Update tests in `pkg/xgoja/hostauth/builder_test.go` to expect only lifecycle/session handlers.
+
+Example 21 already has JS-owned audit browsing through `/orgs/:orgId/audit`.
+
+### Phase 2: Generic capability service API
+
+Refactor `pkg/gojahttp/auth/capability` to support generic issue/validate/consume/revoke operations.
+
+Preserve store compatibility where possible, but move org-invite naming out of the generic API.
+
+Suggested migration:
+
+1. Add generic types and methods alongside existing org-invite helpers.
+2. Reimplement org-invite helpers as thin wrappers or move them to demo helpers.
+3. Update tests to cover multiple token types.
+4. Mark old org-invite helpers as demo-only or remove if no external compatibility is required.
+
+### Phase 3: Expose `auth.capabilities.*` in JS
+
+Extend `pkg/xgoja/providers/hostauth/hostauth.go`:
+
+```js
+auth.capabilities.issue(...)
+auth.capabilities.validate(...)
+auth.capabilities.consume(...)
+auth.capabilities.revoke(...)
+```
+
+Config:
+
+```yaml
+runtime:
+  modules:
+    - provider: go-go-goja-hostauth
+      name: auth
+      as: auth
+      config:
+        audit:
+          maxLimit: 50
+        capabilities:
+          maxTTLSeconds: 86400
+          maxClaimsBytes: 8192
+          allowedTypes:
+            - org-invite
+            - project-share-link
+```
+
+### Phase 4: Move invite demo into example JS
+
+Update `examples/xgoja/21-generated-host-auth/verbs/sites.js` or helper modules:
+
+- `POST /orgs/:orgId/invites` implemented in JS with `auth.capabilities.issue`.
+- `GET /org-invites/preview` implemented in JS with `auth.capabilities.validate`.
+- `POST /org-invites/accept` implemented in JS with `auth.capabilities.consume`.
+
+Update dashboard JS to call those routes.
+
+### Phase 5: Appauth split / renaming
+
+Decide whether to:
+
+1. Keep `appauth` as a starter appauth package but document it clearly as starter/demo policy, or
+2. Split reusable policy interfaces into a more neutral package and move hard-coded actions into a starter/demo package.
+
+Recommended short-term approach:
+
+- keep current interfaces to avoid churn,
+- move hard-coded action constants and authorizer switch out of the generic path once example/demo has its own policy package,
+- document `appauth.Authorizer` as a starter policy, not a universal policy engine.
+
+### Phase 6: Rich demo polish
+
+Enhance example 21 dashboard to show:
+
+- current session,
+- protected `/me`,
+- project update success/failure,
+- audit browser with outcome filter,
+- issue invite,
+- preview invite,
+- accept invite,
+- issue/share project link,
+- validate/share link.
+
+The demo should clearly show that all app-domain routes are JS-owned.
+
+## Decision records
+
+### Decision: native hostauth owns only auth lifecycle routes
+
+- **Context:** Generic hostauth currently mounts demo routes.
+- **Decision:** Keep only OIDC/session lifecycle native routes in hostauth.
+- **Rationale:** App-domain behavior belongs to applications and demos.
+- **Consequence:** Demos must implement audit/invite/share routes themselves using public APIs.
+- **Status:** proposed.
+
+### Decision: generic capabilities before raw DB handles
+
+- **Context:** Users may ask for raw DB access to build token workflows.
+- **Decision:** Provide `auth.capabilities.*` first for common safe token workflows.
+- **Rationale:** Capability issuance/consumption is a common auth primitive that can be made safer than raw SQL.
+- **Consequence:** Raw DB handles remain advanced/optional.
+- **Status:** proposed.
+
+### Decision: invite helpers are demo sugar, not core API
+
+- **Context:** `IssueOrgInvite` is convenient but domain-specific.
+- **Decision:** Implement invites in demo code on top of generic capabilities.
+- **Rationale:** Real applications need arbitrary token types and claims.
+- **Consequence:** Example 21 gets slightly more JS helper code, but the core becomes cleaner.
+- **Status:** proposed.
+
+### Decision: route DSL remains the authorization boundary
+
+- **Context:** Capability APIs could hide authorization checks internally.
+- **Decision:** Keep authorization explicit on routes with `.auth`, `.resource`, `.csrf`, `.allow`, `.audit`.
+- **Rationale:** It is clearer, composable, auditable, and matches current xgoja route planning.
+- **Consequence:** JS handlers must be written with the route chain; capability APIs validate token mechanics, not caller permissions.
+- **Status:** proposed.
+
+## Test strategy
+
+### Core tests
+
+- `hostauth.BuildNativeHandlers` only returns lifecycle/session routes.
+- `auth.capabilities.issue` clamps TTL and rejects invalid type/claims.
+- `auth.capabilities.validate` returns structured invalid reasons.
+- `auth.capabilities.consume` is one-time and maps used-token errors.
+- `auth.capabilities.revoke` prevents future validation/consumption.
+- Memory and SQL capability stores satisfy the same contract.
+
+### JS module tests
+
+- Runtime can `require("auth").capabilities.issue(...)`.
+- JS cannot issue a token with disallowed type if config has `allowedTypes`.
+- JS cannot exceed max TTL.
+- JS receives no token hash or store internals.
+- JS errors include stable `code` fields.
+
+### Example tests
+
+- Example 21 `xgoja doctor` resolves providers.
+- Example 21 build succeeds.
+- Smoke verifies dashboard references JS-owned routes.
+- Unauthenticated audit/invite issue routes return `401`.
+- Public invite preview/accept routes are app-owned.
+- Optional authenticated smoke verifies real invite issue/accept if session setup is available.
+
+## Risks and mitigations
+
+### Risk: API becomes too generic and unsafe
+
+Mitigation: Keep capability API field-based and policy-bounded. Avoid arbitrary SQL, arbitrary store access, or unbounded listing.
+
+### Risk: API becomes too specific again
+
+Mitigation: Keep domain terms out of core method names. Token type and claims are caller-defined.
+
+### Risk: users confuse token validation with authorization
+
+Mitigation: Document that `auth.capabilities.*` validates token mechanics only. Route authorization remains `.auth/.resource/.allow`.
+
+### Risk: appauth churn breaks existing examples
+
+Mitigation: Move in phases. First remove native routes. Then add generic capability API. Then move starter policy.
+
+## Open questions
+
+1. Should `auth.capabilities.validate` throw errors or return `{ valid:false, reason }`? Recommendation: return structured invalid result for validate, throw for issue/consume/revoke failures.
+2. Should `auth.capabilities.consume` support consuming by expected resource as well as expected type? Recommendation: yes, optional `expectedResource` is useful.
+3. Should capability claims be arbitrary JSON or restricted to `map[string]string` initially? Recommendation: JSON with max byte size.
+4. Should appauth be renamed/split now or after #86? Recommendation: after #86 and generic capabilities, to avoid too much churn at once.
+5. Should demo helper modules be JS files only or a Go demo provider package? Recommendation: JS first; only add Go demo helpers if JS cannot express setup/fixtures cleanly.
+
+## References
+
+- GitHub issue #85: <https://github.com/go-go-golems/go-go-goja/issues/85>
+- GitHub issue #86: <https://github.com/go-go-golems/go-go-goja/issues/86>
+- `pkg/xgoja/hostauth/builder.go`
+- `pkg/xgoja/providers/hostauth/hostauth.go`
+- `pkg/gojahttp/auth/appauth/appauth.go`
+- `pkg/gojahttp/auth/capability/capability.go`
+- `pkg/gojahttp/auth/audit/audit.go`
+- `examples/xgoja/21-generated-host-auth/verbs/sites.js`
+- `examples/xgoja/21-generated-host-auth/xgoja.yaml`

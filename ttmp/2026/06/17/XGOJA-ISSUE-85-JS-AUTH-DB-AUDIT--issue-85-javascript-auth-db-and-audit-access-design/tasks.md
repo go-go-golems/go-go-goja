@@ -12,4 +12,5 @@
 - [x] Upload design bundle to reMarkable
 - [x] Implement bounded audit query store interface
 - [x] Implement high-level JavaScript auth audit module
-- [ ] Wire example 21 to JavaScript-owned audit route
+- [x] Wire example 21 to JavaScript-owned audit route
+- [ ] Design reusable auth core cleanup and self-contained demo split

@@ -26,6 +26,8 @@ RelatedFiles:
       Note: Runtime tests for auth audit query module commit 53156f5
     - Path: ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/01-javascript-auth-db-and-audit-access-design-and-implementation-guide.md
       Note: Primary deliverable described by diary
+    - Path: ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md
+      Note: Step 6 cleanup design deliverable
 ExternalSources:
     - https://github.com/go-go-golems/go-go-goja/issues/85
 Summary: Chronological record for the Issue 85 JavaScript auth DB and audit access design ticket.
@@ -33,6 +35,7 @@ LastUpdated: 2026-06-17T16:25:00-04:00
 WhatFor: Use this to understand how the Issue 85 design document was prepared and validated.
 WhenToUse: Before resuming or implementing the JavaScript auth DB/audit access work.
 ---
+
 
 
 
@@ -536,4 +539,97 @@ app.get("/orgs/:orgId/audit")
     const records = auth.audit.query({ tenantId: org.id, outcome: ctx.request.query.outcome || undefined, limit: Number(ctx.request.query.limit || 50) });
     res.json({ records, count: records.length });
   });
+```
+
+
+## Step 6: Design reusable auth core cleanup and self-contained demo split
+
+I added a second design document that captures the desired cleanup direction after implementing the high-level audit API. The new design separates reusable hostauth primitives from demo-specific org/project/invite behavior, and proposes a generic capability API that real applications can use without raw database access.
+
+The design also lays out how example 21 should become a rich, self-contained showcase: JavaScript-owned app routes using `auth.audit.query(...)`, future `auth.capabilities.*`, route-level `.auth/.csrf/.resource/.allow/.audit`, and demo-local helper code for org invites and share links.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Add detailed design doc on the cleanup of the interfaces in order to make a really nice reusable core (yet simple and opinoinated), and then a demo taking fulla dvantage of these to show case the different possibilities."
+
+**Assistant interpretation:** Add a detailed design document explaining how to clean up current auth interfaces into a reusable opinionated core, move demo-specific behavior into demos, and design a showcase demo that exercises the resulting APIs.
+
+**Inferred user intent:** Prevent the generic auth package from accumulating demo-specific abstractions while still offering real users useful high-level APIs and a compelling example.
+
+**Commit (code):** N/A — documentation/design only.
+
+### What I did
+- Added design doc `design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md`.
+- Defined which auth pieces should remain generic core versus demo/starter code.
+- Proposed generic JavaScript capability APIs:
+  - `auth.capabilities.issue(...)`
+  - `auth.capabilities.validate(...)`
+  - `auth.capabilities.consume(...)`
+  - `auth.capabilities.revoke(...)`
+- Proposed moving org invite semantics out of core and into example-local JavaScript helpers.
+- Proposed splitting `appauth` reusable interfaces from hard-coded starter/demo action policy.
+- Added a phased implementation plan for #86 and follow-up core cleanup.
+- Added test strategy, risks, decision records, and example 21 demo architecture.
+
+### Why
+- The previous implementation is enough to remove native `/auth/audit`, but invite/capability flows still risk either remaining demo-native or becoming too domain-specific in core.
+- Real users need reusable primitives such as generic capability tokens, not only `issueOrgInvite` helpers.
+- The demo should showcase how to compose the primitives rather than hide app-domain behavior inside generic hostauth.
+
+### What worked
+- The new design doc gives a concrete migration sequence:
+  1. remove generic native demo routes,
+  2. add generic capability service/API,
+  3. expose `auth.capabilities.*` to JS,
+  4. port invite/share flows into example JS,
+  5. split or clarify `appauth` starter policy.
+
+### What didn't work
+- N/A. This was a documentation/design step.
+
+### What I learned
+- The cleanest abstraction is neither raw DB access nor domain-specific `auth.invites.*` as core. A mid-level capability API gives real users room to build app-specific safe flows.
+- `appauth` should be treated carefully because it contains both broadly useful interfaces and demo/starter policy decisions.
+
+### What was tricky to build
+- The hard part was drawing the boundary between useful opinionated core and demo-specific sugar. The resulting rule is: core APIs should talk about generic actors, resources, audit records, capabilities, sessions, and policy checks; demos should talk about orgs, projects, invites, roles, and share links.
+
+### What warrants a second pair of eyes
+- Review whether `auth.capabilities.validate` should return `{ valid:false, reason }` while `consume` throws structured errors.
+- Review whether `appauth` should be split into a new package or simply documented as starter policy first.
+- Review the proposed module config for allowed capability types, max TTL, and max claims size.
+
+### What should be done in the future
+- Use this design to implement #86 native route cleanup.
+- Add generic capability service and JavaScript APIs.
+- Port invite and share-link demos into example 21 JavaScript.
+
+### Code review instructions
+- Start with `design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md`.
+- Cross-check the current demo-specific native handlers in `pkg/xgoja/hostauth/builder.go`.
+- Cross-check current JS module design in `pkg/xgoja/providers/hostauth/hostauth.go`.
+
+### Technical details
+- Proposed generic capability JS surface:
+
+```js
+auth.capabilities.issue({ type, subject, resource, claims, ttlSeconds, createdBy });
+auth.capabilities.validate({ token, expectedType });
+auth.capabilities.consume({ token, expectedType });
+auth.capabilities.revoke({ id, token, reason });
+```
+
+- Proposed demo-local invite helper:
+
+```js
+function issueOrgInvite(auth, ctx) {
+  return auth.capabilities.issue({
+    type: "org-invite",
+    subject: `email:${ctx.request.body.email}`,
+    resource: { type: "org", id: ctx.params.orgId, tenantId: ctx.params.orgId },
+    claims: { role: ctx.request.body.role },
+    ttlSeconds: 900,
+    createdBy: ctx.actor.id,
+  });
+}
 ```

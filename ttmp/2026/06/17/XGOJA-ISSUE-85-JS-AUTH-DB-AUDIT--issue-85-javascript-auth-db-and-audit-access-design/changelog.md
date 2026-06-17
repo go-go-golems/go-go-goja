@@ -54,3 +54,12 @@ Step 5: wired example 21 to JS-owned /orgs/:orgId/audit route using auth.audit.q
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/verbs/sites.js — JS-owned audit route
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/appauth/appauth.go — audit.read authorization action
 
+
+## 2026-06-17
+
+Step 6: added reusable auth core cleanup and self-contained demo design doc.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md — Design for auth core cleanup and richer demo
+
