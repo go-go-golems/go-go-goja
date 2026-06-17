@@ -268,6 +268,30 @@ Planned routes fail closed. Missing services are host configuration errors; miss
 
 In development mode, 500-class errors include more detail. In production mode, responses stay generic.
 
+## Query audit records and issue capabilities
+
+Generated hosts can expose `require("auth")` to JavaScript routes. Use it after planned-route policy has authorized the request. The module is intentionally narrow: it provides bounded audit queries and capability-token builders, not raw auth database handles.
+
+```javascript
+const auth = require("auth")
+
+app.get("/orgs/:orgId/audit")
+  .auth(express.user().required())
+  .resource(express.resource("org").idFromParam("orgId").mustExist())
+  .allow("audit.read")
+  .audit("audit.records.read")
+  .handle((ctx, res) => {
+    const org = ctx.resource("org")
+    const records = auth.audit.query()
+      .tenantId(org.id)
+      .limit(50)
+      .run()
+    res.json({ records, count: records.length })
+  })
+```
+
+Capability routes follow the same rule: the route plan protects the issue operation, and the auth module performs the token operation. Public accept routes should catch expected capability errors and map reused single-use tokens to `409 Conflict` rather than a generic server error. See `goja-repl help auth-module-guide` for the full JavaScript API.
+
 ## Troubleshooting
 
 | Problem | Cause | Solution |
@@ -289,7 +313,7 @@ In development mode, 500-class errors include more detail. In production mode, r
 - [Migrate Express Apps to Planned Auth Routes](migrate-express-apps-to-planned-auth) — Step-by-step migration tutorial for old `app.get(path, handler)` scripts.
 - [Express Auth Examples](express-auth-examples) — Dev-auth, generated-host, and Keycloak smoke-test guide for full host wiring.
 - `examples/xgoja/18-express-auth-host` — Runnable dev-auth example for public, current-user, and resource-bound planned routes.
-- `examples/xgoja/21-generated-host-auth` — Runtime-package example that injects `hostauth.ServiceFactoryKey` and supports memory or SQLite stores.
+- `examples/xgoja/21-generated-host-auth` — Generated OIDC host example with JS-owned audit and capability routes plus fake-OIDC and Docker Compose Keycloak smokes.
 - `examples/xgoja/20-express-hello-world` — Minimal no-auth public-route host.
 
 
@@ -298,4 +322,6 @@ In development mode, 500-class errors include more detail. In production mode, r
 - `xgoja help go-planned-auth-api` — the Go route API that uses the same `RoutePlan` contract.
 - `xgoja help express-auth-host-integration-guide` — how a Go host composes OIDC, sessions, stores, and planned Express routes.
 - `xgoja help auth-host-production-runbook` — production deployment checklist for Keycloak-backed auth hosts.
+- `xgoja help generated-auth-javascript-apis` — generated-host `require("auth")` setup and example 21 route snippets.
+- `goja-repl help auth-module-guide` — JavaScript audit and capability builder reference.
 - `goja-repl help express-auth-examples` — runnable examples for dev auth, generated host auth, and Keycloak auth.

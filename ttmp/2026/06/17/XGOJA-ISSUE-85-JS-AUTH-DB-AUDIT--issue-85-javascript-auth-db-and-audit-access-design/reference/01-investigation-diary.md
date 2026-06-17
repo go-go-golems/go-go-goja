@@ -12,6 +12,10 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/doc/20-hostauth-config-reference.md
+      Note: Updated native handler list and documented JS-owned demo routes
+    - Path: cmd/xgoja/doc/24-generated-auth-javascript-apis.md
+      Note: New xgoja help page for generated-host auth module wiring and examples
     - Path: examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml
       Note: Local Keycloak/Postgres stack used for generated example 21 real OIDC validation
     - Path: examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py
@@ -33,6 +37,10 @@ RelatedFiles:
         Maps reused invite capability tokens to HTTP 409 JSON instead of generic 500 (commit 0d18982)
     - Path: examples/xgoja/21-generated-host-auth/xgoja.yaml
       Note: Registers hostauth provider and auth module commit b7f85cc
+    - Path: pkg/doc/29-express-auth-user-guide.md
+      Note: Cross-links and summary section for auth module usage from planned routes
+    - Path: pkg/doc/33-auth-module-guide.md
+      Note: New Glazed help page for JavaScript auth audit and capability APIs
     - Path: pkg/gojahttp/auth/appauth/appauth.go
       Note: Added audit.read appauth action for JS-owned audit route commit b7f85cc
     - Path: pkg/gojahttp/auth/audit/audit.go
@@ -70,6 +78,7 @@ LastUpdated: 2026-06-17T16:25:00-04:00
 WhatFor: Use this to understand how the Issue 85 design document was prepared and validated.
 WhenToUse: Before resuming or implementing the JavaScript auth DB/audit access work.
 ---
+
 
 
 
@@ -1368,3 +1377,95 @@ make -C examples/xgoja/21-generated-host-auth compose-smoke
 ```
 
 - Environment overrides supported by the shell runner include `LISTEN`, `BASE_URL`, `KEYCLOAK_PORT`, `POSTGRES_PORT`, `ISSUER`, `CLIENT_ID`, `AUTH_DB_DSN`, `KEEP_KEYCLOAK`, `SKIP_KEYCLOAK_UP`, and `SKIP_BUILD`.
+
+
+## Step 14: Add Glazed help docs for generated auth JavaScript APIs
+
+I wrote the user-facing Glazed help documentation for the new high-level JavaScript auth APIs. The docs now cover both audiences: JavaScript route authors using `require("auth")`, and generated-host operators/authors wiring the provider through `xgoja.yaml` and validating it with smoke tests.
+
+I also updated the existing auth-related help pages so they no longer describe generic native demo endpoints as hostauth responsibilities. The new documentation points users toward JS-owned audit and capability routes, explains validate-versus-consume capability semantics, and documents the compose-backed generated-host smoke target.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead."
+
+**Assistant interpretation:** Proceed with writing and updating the Glazed help docs proposed in the previous answer.
+
+**Inferred user intent:** Make the newly implemented `auth.audit` and `auth.capabilities` APIs discoverable through the project’s built-in help system before release.
+
+**Commit (code):** N/A — documentation-only slice before commit.
+
+### What I did
+- Added `pkg/doc/33-auth-module-guide.md`:
+  - documents `require("auth")`,
+  - explains `auth.audit.query()` fluent filters,
+  - explains `auth.capabilities.issue`, `validate`, `consume`, and `revoke`,
+  - shows capability error mapping, including reused token `409`,
+  - links to example 21 smoke targets.
+- Added `cmd/xgoja/doc/24-generated-auth-javascript-apis.md`:
+  - documents provider/runtime YAML wiring,
+  - separates native lifecycle routes from JS-owned application routes,
+  - includes example 21 snippets for audit, invite issue, and invite accept,
+  - documents local `smoke` and `compose-smoke` validation.
+- Updated existing docs:
+  - `pkg/doc/29-express-auth-user-guide.md`,
+  - `pkg/doc/32-deploying-an-express-auth-host.md`,
+  - `cmd/xgoja/doc/19-express-auth-host-integration-guide.md`,
+  - `cmd/xgoja/doc/20-hostauth-config-reference.md`,
+  - `cmd/xgoja/doc/21-auth-stores-reference.md`,
+  - `cmd/xgoja/doc/23-auth-host-production-runbook.md`.
+- Ran validation:
+
+```bash
+go test ./pkg/doc ./cmd/xgoja/doc ./cmd/xgoja -count=1
+GOWORK=off go run ./cmd/xgoja help generated-auth-javascript-apis
+GOWORK=off go run ./cmd/goja-repl help auth-module-guide
+```
+
+### Why
+- The implementation added a new public JavaScript API surface, so users need help pages that are reachable from the CLI help systems.
+- The generated-host docs needed to reflect the post-cleanup architecture: hostauth owns OIDC/session lifecycle; application audit/invite semantics live in JavaScript.
+- The compose smoke is now a release-quality validation path and should be documented where operators look for generated-host guidance.
+
+### What worked
+- Both new help slugs render successfully:
+  - `xgoja help generated-auth-javascript-apis`,
+  - `goja-repl help auth-module-guide`.
+- The doc packages and xgoja command package tests passed.
+
+### What didn't work
+- N/A. The help docs loaded and rendered on the first validation run after writing and cross-linking.
+
+### What I learned
+- `pkg/doc` is the right place for the runtime JavaScript module reference because it is useful outside xgoja as well.
+- `cmd/xgoja/doc` is the right place for generated-host wiring, command flags, smoke targets, and deployment guidance.
+
+### What was tricky to build
+- The main challenge was avoiding duplication between module-level docs and generated-host docs. I split them by audience: `auth-module-guide` focuses on JavaScript API behavior; `generated-auth-javascript-apis` focuses on generated host wiring and route ownership.
+- Existing docs still mention example 19 and the original deployment path, so I updated cross-links instead of rewriting those pages wholesale.
+
+### What warrants a second pair of eyes
+- Review whether `auth-module-guide` should be top-level in `goja-repl help`, or whether it should be discoverable only through auth/express topics.
+- Review whether the xgoja page should be `Application` or `GeneralTopic`; I chose `Application` because it spans YAML wiring, route code, store config, and smoke tests.
+- Review whether more TypeScript declaration details should be added now or deferred until provider DTS support is implemented.
+
+### What should be done in the future
+- Add TypeScript declarations for the `auth` module when provider DTS support is extended.
+- Consider adding a small example 22 only if example 21 remains too large for readers after these docs.
+
+### Code review instructions
+- Start with the new docs:
+  - `pkg/doc/33-auth-module-guide.md`,
+  - `cmd/xgoja/doc/24-generated-auth-javascript-apis.md`.
+- Then review cross-link/staleness fixes in existing auth docs.
+- Validate with:
+
+```bash
+go test ./pkg/doc ./cmd/xgoja/doc ./cmd/xgoja -count=1
+GOWORK=off go run ./cmd/xgoja help generated-auth-javascript-apis >/tmp/xgoja-generated-auth-help.txt
+GOWORK=off go run ./cmd/goja-repl help auth-module-guide >/tmp/goja-auth-module-help.txt
+```
+
+### Technical details
+- The rendered xgoja help page had 255 lines.
+- The rendered goja-repl auth module guide had 291 lines.

@@ -30,3 +30,6 @@
 - [x] Map JS invite token reuse errors to 409 instead of generic 500
 - [x] Commit reusable example 21 Docker Compose Keycloak smoke target
 - [x] Validate standard and compose-backed generated-host smokes after fixes
+- [x] Write Glazed help docs for JavaScript auth audit and capability APIs
+- [x] Update xgoja generated auth docs and auth store/runbook cross-links
+- [x] Validate new help slugs for goja-repl and xgoja

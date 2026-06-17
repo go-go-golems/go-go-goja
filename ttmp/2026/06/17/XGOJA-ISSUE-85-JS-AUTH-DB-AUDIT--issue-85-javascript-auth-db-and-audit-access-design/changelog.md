@@ -133,3 +133,13 @@ Step 13: archived smoke scripts under ticket scripts, added reusable example 21 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/scripts/compose_smoke.sh — Reusable compose smoke runner
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/verbs/sites.js — Invite accept error mapping
 
+
+## 2026-06-17
+
+Step 14: added Glazed help docs for JavaScript auth audit/capability APIs and updated generated-host auth doc cross-links.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/24-generated-auth-javascript-apis.md — Generated host auth JS API guide
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/doc/33-auth-module-guide.md — JavaScript auth module guide
+
