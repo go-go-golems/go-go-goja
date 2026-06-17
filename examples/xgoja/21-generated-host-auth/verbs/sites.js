@@ -70,11 +70,11 @@ function demo() {
     .audit("audit.records.read")
     .handle((ctx, res) => {
       const org = ctx.resource("org");
-      const records = auth.audit.query({
-        tenantId: org.id,
-        outcome: ctx.request.query.outcome || undefined,
-        limit: Number(ctx.request.query.limit || 50),
-      });
+      const records = auth.audit.query()
+        .tenantId(org.id)
+        .outcome(ctx.request.query.outcome || "")
+        .limit(Number(ctx.request.query.limit || 50))
+        .run();
       res.json({ records, count: records.length });
     });
 }

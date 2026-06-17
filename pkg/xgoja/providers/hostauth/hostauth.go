@@ -26,8 +26,8 @@ type AuditConfig struct {
 }
 
 // Register exposes safe JavaScript access to host-owned auth services. It does
-// not expose raw auth database handles; callers get narrow APIs such as
-// auth.audit.query(...).
+// not expose raw auth database handles; callers get narrow builder APIs such as
+// auth.audit.query().tenantId(...).run().
 func Register(registry *providerapi.ProviderRegistry) error {
 	return registry.Package(PackageID, authModule())
 }
@@ -78,55 +78,58 @@ func newLoader(queryStore audit.QueryStore, maxLimit int) require.ModuleLoader {
 	return func(vm *goja.Runtime, moduleObj *goja.Object) {
 		exports := moduleObj.Get("exports").(*goja.Object)
 		auditObj := vm.NewObject()
-		modules.SetExport(auditObj, "auth.audit", "query", func(call goja.FunctionCall) goja.Value {
-			query, err := queryFromValue(vm, call.Argument(0), maxLimit)
-			if err != nil {
-				panic(vm.NewTypeError(err.Error()))
-			}
-			records, err := queryStore.QueryAuditRecords(runtimebridge.CurrentOwnerContext(vm), query)
-			if err != nil {
-				panic(vm.NewGoError(err))
-			}
-			return vm.ToValue(recordsForJS(records))
+		modules.SetExport(auditObj, "auth.audit", "query", func() *goja.Object {
+			return newAuditQueryBuilder(vm, queryStore, maxLimit)
 		})
 		modules.SetExport(exports, "auth", "audit", auditObj)
 	}
 }
 
-func queryFromValue(vm *goja.Runtime, value goja.Value, maxLimit int) (audit.Query, error) {
-	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
-		return audit.NormalizeQuery(audit.Query{}, maxLimit), nil
-	}
-	obj := value.ToObject(vm)
-	if obj == nil {
-		return audit.Query{}, fmt.Errorf("auth.audit.query expects an object")
-	}
-	query := audit.Query{
-		TenantID:     optionalString(obj, "tenantId"),
-		Outcome:      optionalString(obj, "outcome"),
-		ActorID:      optionalString(obj, "actorId"),
-		ResourceType: optionalString(obj, "resourceType"),
-		ResourceID:   optionalString(obj, "resourceId"),
-		Limit:        optionalInt(obj, "limit"),
-		Offset:       optionalInt(obj, "offset"),
-	}
-	return audit.NormalizeQuery(query, maxLimit), nil
-}
-
-func optionalString(obj *goja.Object, name string) string {
-	value := obj.Get(name)
-	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
-		return ""
-	}
-	return value.String()
-}
-
-func optionalInt(obj *goja.Object, name string) int {
-	value := obj.Get(name)
-	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
-		return 0
-	}
-	return int(value.ToInteger())
+func newAuditQueryBuilder(vm *goja.Runtime, queryStore audit.QueryStore, maxLimit int) *goja.Object {
+	query := audit.Query{}
+	obj := vm.NewObject()
+	modules.SetExport(obj, "auth.audit.query", "tenantId", func(id string) *goja.Object {
+		query.TenantID = strings.TrimSpace(id)
+		return obj
+	})
+	modules.SetExport(obj, "auth.audit.query", "outcome", func(outcome string) *goja.Object {
+		query.Outcome = strings.TrimSpace(outcome)
+		return obj
+	})
+	modules.SetExport(obj, "auth.audit.query", "actorId", func(id string) *goja.Object {
+		query.ActorID = strings.TrimSpace(id)
+		return obj
+	})
+	modules.SetExport(obj, "auth.audit.query", "resource", func(typ, id string) *goja.Object {
+		query.ResourceType = strings.TrimSpace(typ)
+		query.ResourceID = strings.TrimSpace(id)
+		return obj
+	})
+	modules.SetExport(obj, "auth.audit.query", "resourceType", func(typ string) *goja.Object {
+		query.ResourceType = strings.TrimSpace(typ)
+		return obj
+	})
+	modules.SetExport(obj, "auth.audit.query", "resourceId", func(id string) *goja.Object {
+		query.ResourceID = strings.TrimSpace(id)
+		return obj
+	})
+	modules.SetExport(obj, "auth.audit.query", "limit", func(limit int) *goja.Object {
+		query.Limit = limit
+		return obj
+	})
+	modules.SetExport(obj, "auth.audit.query", "offset", func(offset int) *goja.Object {
+		query.Offset = offset
+		return obj
+	})
+	modules.SetExport(obj, "auth.audit.query", "run", func() goja.Value {
+		normalized := audit.NormalizeQuery(query, maxLimit)
+		records, err := queryStore.QueryAuditRecords(runtimebridge.CurrentOwnerContext(vm), normalized)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return vm.ToValue(recordsForJS(records))
+	})
+	return obj
 }
 
 func recordsForJS(records []audit.Record) []map[string]any {

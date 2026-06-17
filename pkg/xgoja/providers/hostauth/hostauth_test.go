@@ -81,7 +81,11 @@ func TestAuthAuditQueryFromJavaScript(t *testing.T) {
 	ret, err := rt.Owner.Call(context.Background(), "hostauth.test", func(_ context.Context, vm *goja.Runtime) (any, error) {
 		value, runErr := vm.RunString(`
 			const auth = require("auth");
-			const records = auth.audit.query({ tenantId: "o1", outcome: "denied", limit: 99 });
+			const records = auth.audit.query()
+				.tenantId("o1")
+				.outcome("denied")
+				.limit(99)
+				.run();
 			JSON.stringify({ count: records.length, event: records[0].event, tenantId: records[0].tenantId, resourceId: records[0].resourceId });
 		`)
 		if runErr != nil {
