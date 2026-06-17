@@ -103,3 +103,13 @@ Step 10: removed generic native demo endpoints from hostauth BuildNativeHandlers
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder.go — Lifecycle-only native handlers
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder_test.go — Absence assertions for removed demo handlers
 
+
+## 2026-06-17
+
+Step 11: added generic capability validate/consume semantics, exposed auth.capabilities fluent builders, moved invite demo routes into JavaScript, and extended smoke coverage (commit 4e89303).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/verbs/sites.js — JS-owned invite issue/accept routes
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/hostauth.go — Fluent capability builders
+

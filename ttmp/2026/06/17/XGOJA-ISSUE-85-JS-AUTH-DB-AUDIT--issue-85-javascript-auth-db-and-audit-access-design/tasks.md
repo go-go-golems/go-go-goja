@@ -22,7 +22,7 @@
 - [x] Remove generic native demo handlers from hostauth BuildNativeHandlers for issue 86
 - [x] Update hostauth native handler tests for lifecycle-only handlers
 - [x] Validate issue 86 native handler cleanup with focused tests and example smoke
-- [ ] Design and implement generic Go capability service methods issue validate consume revoke
-- [ ] Expose auth.capabilities fluent builders in hostauth JavaScript module
-- [ ] Move example 21 invite routes into JavaScript using auth.capabilities builders
-- [ ] Add rich demo smoke coverage for audit and capability flows
+- [x] Design and implement generic Go capability service methods issue validate consume revoke
+- [x] Expose auth.capabilities fluent builders in hostauth JavaScript module
+- [x] Move example 21 invite routes into JavaScript using auth.capabilities builders
+- [x] Add rich demo smoke coverage for audit and capability flows

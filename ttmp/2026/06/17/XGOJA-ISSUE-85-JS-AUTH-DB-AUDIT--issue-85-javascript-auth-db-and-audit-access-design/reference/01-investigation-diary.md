@@ -12,10 +12,13 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/xgoja/21-generated-host-auth/Makefile
+      Note: Extended smoke checks for capability route wiring and failure behavior (commit 4e89303)
     - Path: examples/xgoja/21-generated-host-auth/verbs/sites.js
       Note: |-
         Example route calls auth audit query from JavaScript commit b7f85cc
         Updated example audit route to fluent auth audit query builder (commit eedfdb7)
+        Moved org invite routes into JavaScript using auth.capabilities builders (commit 4e89303)
     - Path: examples/xgoja/21-generated-host-auth/xgoja.yaml
       Note: Registers hostauth provider and auth module commit b7f85cc
     - Path: pkg/gojahttp/auth/appauth/appauth.go
@@ -24,12 +27,18 @@ RelatedFiles:
       Note: Added audit.Query
     - Path: pkg/gojahttp/auth/audit/sqlstore/sqlstore.go
       Note: Added bounded SQL audit query implementation (commit a0a2eeb)
+    - Path: pkg/gojahttp/auth/capability/capability.go
+      Note: Added generic Validate/Consume service semantics and non-consuming Lookup contract (commit 4e89303)
+    - Path: pkg/gojahttp/auth/capability/sqlstore/sqlstore.go
+      Note: Implemented SQL non-consuming capability Lookup and shared validation checks (commit 4e89303)
     - Path: pkg/xgoja/hostauth/builder.go
       Note: Removed generic native demo handlers; hostauth now owns lifecycle/session routes only (commit e094279)
     - Path: pkg/xgoja/hostauth/builder_test.go
       Note: Updated native handler test to assert demo endpoints are absent (commit e094279)
     - Path: pkg/xgoja/providers/hostauth/hostauth.go
-      Note: Refactored auth.audit.query from object-bag decoder to fluent builder (commit eedfdb7)
+      Note: |-
+        Refactored auth.audit.query from object-bag decoder to fluent builder (commit eedfdb7)
+        Exposed auth.capabilities fluent JavaScript builders (commit 4e89303)
     - Path: pkg/xgoja/providers/hostauth/hostauth_test.go
       Note: |-
         Runtime tests for auth audit query module commit 53156f5
@@ -47,6 +56,7 @@ LastUpdated: 2026-06-17T16:25:00-04:00
 WhatFor: Use this to understand how the Issue 85 design document was prepared and validated.
 WhenToUse: Before resuming or implementing the JavaScript auth DB/audit access work.
 ---
+
 
 
 
@@ -1020,4 +1030,119 @@ GET  /auth/session
 GET  /auth/audit
 POST /orgs/o1/invites
 POST /org-invites/accept
+```
+
+
+## Step 11: Add fluent JavaScript capability builders and move invite demo routes into JavaScript
+
+I implemented the generic `auth.capabilities.*` builder API and moved the example 21 invite issue/accept routes out of native Go handlers into the JavaScript application. This completes the intended split: reusable Go auth core owns token mechanics, while the demo owns its org-invite semantics and route policy.
+
+The capability store/service now supports non-consuming validation separately from consuming redemption. That distinction lets JavaScript validate expected type/resource before consuming a single-use token, which prevents wrong-resource checks from burning a valid token.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead."
+
+**Assistant interpretation:** Continue with the remaining granular ticket tasks after the previous commits, specifically generic capability APIs, JS fluent builders, example invite-route migration, and validation.
+
+**Inferred user intent:** Finish the planned auth-core/demo separation work without stopping for another approval checkpoint.
+
+**Commit (code):** 4e89303 — "xgoja: expose fluent auth capability builders"
+
+### What I did
+- Extended `pkg/gojahttp/auth/capability`:
+  - added store-level `Lookup` for non-consuming token validation,
+  - added service-level `Validate`,
+  - added service-level `Consume`, with `Redeem` now delegating to `Consume`,
+  - preserved redaction of token hashes from returned capabilities.
+- Updated `pkg/gojahttp/auth/capability/sqlstore`:
+  - implemented non-consuming `Lookup`,
+  - factored shared validity checks for purpose, revoked, expired, and used states.
+- Exposed fluent JavaScript builders in `pkg/xgoja/providers/hostauth`:
+  - `auth.capabilities.issue(type).resource(...).tenantId(...).claimString(...).ttlSeconds(...).singleUse(...).createdBy(...).run()`,
+  - `auth.capabilities.validate(token).expectedType(...).expectedResource(...).run()`,
+  - `auth.capabilities.consume(token).expectedType(...).expectedResource(...).run()`,
+  - `auth.capabilities.revoke().id(...).reason(...).run()`.
+- Added provider tests that issue, validate, and consume a capability from JavaScript.
+- Moved example 21 invite routes into `examples/xgoja/21-generated-host-auth/verbs/sites.js`:
+  - `POST /orgs/:orgId/invites` is now JavaScript-owned and protected by auth, CSRF, resource, and `org.member.invite` authorization,
+  - `POST /org-invites/accept` is now JavaScript-owned and consumes `org-invite` tokens via `auth.capabilities.consume`.
+- Extended example smoke to check invite UI wiring plus unauthenticated/invalid capability-route behavior.
+- Ran focused validation:
+
+```bash
+go test ./pkg/gojahttp/auth/capability ./pkg/gojahttp/auth/capability/sqlstore ./pkg/xgoja/providers/hostauth -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+- Pre-commit hook ran lint and full `go test ./...` before commit `4e89303`.
+
+### Why
+- Hard-coded org-invite helpers are demo behavior, not generic auth core behavior.
+- Generic capability builders let applications define their own purpose strings, resources, claims, TTLs, and single-use behavior without raw database access.
+- Non-consuming validation is required for safe expected-resource checks: a wrong resource should not consume a single-use token.
+
+### What worked
+- Capability unit tests passed for memory store and SQL store behavior.
+- Hostauth provider JavaScript tests passed for audit and capability APIs.
+- Example 21 generated host smoke passed after moving routes into JavaScript.
+- Full pre-commit lint and tests passed.
+
+### What didn't work
+- Full authenticated invite smoke is still limited by the fake OIDC provider: it only serves discovery/JWKS and does not mint signed ID tokens. The new smoke therefore verifies route wiring and negative unauthenticated/invalid-token behavior, while the JavaScript provider test covers actual issue/validate/consume mechanics.
+
+### What I learned
+- The existing `Redeem` operation was already the right primitive for consuming single-use tokens, but the API needed an explicit non-consuming `Validate` counterpart before JavaScript could safely enforce expected resource constraints.
+- Keeping claims as `map[string]string` is enough for the current invite demo, but future richer capability use cases may need typed or JSON claims.
+
+### What was tricky to build
+- The subtle part was consume ordering. The first builder shape could have consumed the token before checking expected resource type/id. I corrected the builder to call `Validate`, check expected constraints, and only then call `Consume`.
+- Another edge is audit event naming: `Redeem` now delegates to `Consume`, so the service emits `capability.consumed` for consuming redemption and `capability.validated` for non-consuming validation.
+
+### What warrants a second pair of eyes
+- Review whether `auth.capabilities.issue().subject(kind, id)` should store non-user subjects as claims or whether the core model needs first-class subject type.
+- Review whether `.tenantId()` should remain a claim or become first-class on `capability.Capability`.
+- Review the public `POST /org-invites/accept` route error behavior; invalid tokens currently surface as handler errors rather than a tailored 400 response.
+- Review whether validating before consuming should emit two audit events for successful consume flows (`validated` and `consumed`) or whether the provider should perform an unaudited preflight check.
+
+### What should be done in the future
+- Add TypeScript declarations for `auth.audit` and `auth.capabilities` when provider DTS generation is extended.
+- Teach the fake OIDC provider to mint signed ID tokens so example smoke can run a full browserless authenticated invite flow locally.
+- Consider replacing string-only claims with a JSON claims representation if capability consumers need structured payloads.
+
+### Code review instructions
+- Start with `pkg/gojahttp/auth/capability/capability.go` to review `Validate` vs `Consume` semantics.
+- Review SQL parity in `pkg/gojahttp/auth/capability/sqlstore/sqlstore.go`.
+- Review JS API surface in `pkg/xgoja/providers/hostauth/hostauth.go`.
+- Review example semantics in `examples/xgoja/21-generated-host-auth/verbs/sites.js`.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp/auth/capability ./pkg/gojahttp/auth/capability/sqlstore ./pkg/xgoja/providers/hostauth -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+go test ./... 
+```
+
+### Technical details
+- Example issue route:
+
+```js
+const issued = auth.capabilities.issue("org-invite")
+  .resource("org", org.id)
+  .tenantId(org.id)
+  .claimString("email", body.email || "")
+  .claimString("role", body.role || "viewer")
+  .ttlSeconds(900)
+  .singleUse(true)
+  .createdBy(ctx.actor.id)
+  .run();
+```
+
+- Example accept route:
+
+```js
+const accepted = auth.capabilities.consume(body.token || "")
+  .expectedType("org-invite")
+  .expectedResource("org", "o1")
+  .run();
 ```
