@@ -83,3 +83,13 @@ Step 8: revised cleanup design with fluent Go-backed auth builders and uploaded 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md — V2 fluent-builder API design uploaded to reMarkable
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/reference/01-investigation-diary.md — Step 8 records v2 upload result
 
+
+## 2026-06-17
+
+Step 9: refactored auth.audit.query to fluent Go-backed builder and updated example 21 (commit eedfdb7).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/verbs/sites.js — Example audit route uses builder
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/hostauth.go — Fluent audit query builder
+

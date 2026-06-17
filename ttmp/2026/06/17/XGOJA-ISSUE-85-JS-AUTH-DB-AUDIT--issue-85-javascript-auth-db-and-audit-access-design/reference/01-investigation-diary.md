@@ -13,7 +13,9 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: examples/xgoja/21-generated-host-auth/verbs/sites.js
-      Note: Example route calls auth audit query from JavaScript commit b7f85cc
+      Note: |-
+        Example route calls auth audit query from JavaScript commit b7f85cc
+        Updated example audit route to fluent auth audit query builder (commit eedfdb7)
     - Path: examples/xgoja/21-generated-host-auth/xgoja.yaml
       Note: Registers hostauth provider and auth module commit b7f85cc
     - Path: pkg/gojahttp/auth/appauth/appauth.go
@@ -22,8 +24,12 @@ RelatedFiles:
       Note: Added audit.Query
     - Path: pkg/gojahttp/auth/audit/sqlstore/sqlstore.go
       Note: Added bounded SQL audit query implementation (commit a0a2eeb)
+    - Path: pkg/xgoja/providers/hostauth/hostauth.go
+      Note: Refactored auth.audit.query from object-bag decoder to fluent builder (commit eedfdb7)
     - Path: pkg/xgoja/providers/hostauth/hostauth_test.go
-      Note: Runtime tests for auth audit query module commit 53156f5
+      Note: |-
+        Runtime tests for auth audit query module commit 53156f5
+        Updated runtime test to use fluent audit query builder (commit eedfdb7)
     - Path: ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/01-javascript-auth-db-and-audit-access-design-and-implementation-guide.md
       Note: Primary deliverable described by diary
     - Path: ttmp/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT--issue-85-javascript-auth-db-and-audit-access-design/design-doc/02-reusable-auth-core-interface-cleanup-and-demo-design.md
@@ -37,6 +43,7 @@ LastUpdated: 2026-06-17T16:25:00-04:00
 WhatFor: Use this to understand how the Issue 85 design document was prepared and validated.
 WhenToUse: Before resuming or implementing the JavaScript auth DB/audit access work.
 ---
+
 
 
 
@@ -801,3 +808,110 @@ auth.capabilities.issue("org-invite")
 
 - reMarkable destination: `/ai/2026/06/17/XGOJA-ISSUE-85-JS-AUTH-DB-AUDIT`.
 - Uploaded document: `XGOJA Issue 85 Reusable Auth Core Cleanup Design v2.pdf`.
+
+
+## Step 9: Refactor audit query API to a fluent Go-backed builder
+
+I refactored the current `auth.audit.query` JavaScript API from an object-bag function into a fluent Go-backed builder. The public JavaScript shape is now `auth.audit.query().tenantId(...).outcome(...).limit(...).run()`, matching the v2 design direction and avoiding arbitrary JS object decoding in the provider.
+
+The Go-side `audit.Query` and `audit.QueryStore` contracts remain unchanged. The cleanup is strictly at the JavaScript module boundary: the provider now builds an internal `audit.Query` through typed setter methods and executes it only when `.run()` is called.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add detailed tasks to the ticket so that we can granularly track your progress, and then implementation them one by one. Commit at appropriate intervals, and keep a detaield diary as you work."
+
+**Assistant interpretation:** Add granular docmgr tasks for the planned auth cleanup work, then implement each slice incrementally with code commits and detailed diary updates.
+
+**Inferred user intent:** Track progress precisely while turning the fluent-builder design into implementation safely and reviewably.
+
+**Commit (code):** eedfdb7 — "xgoja: make auth audit query fluent"
+
+### What I did
+- Added granular ticket tasks for:
+  - fluent audit query cleanup,
+  - provider tests,
+  - example 21 update,
+  - validation,
+  - #86 native route cleanup,
+  - future generic capability service/API work.
+- Refactored `pkg/xgoja/providers/hostauth/hostauth.go`:
+  - `auth.audit.query` now returns a builder object,
+  - added builder methods `.tenantId`, `.outcome`, `.actorId`, `.resource`, `.resourceType`, `.resourceId`, `.limit`, `.offset`, `.run`,
+  - removed object-bag decoding helpers `queryFromValue`, `optionalString`, and `optionalInt`.
+- Updated `pkg/xgoja/providers/hostauth/hostauth_test.go` to use the fluent chain.
+- Updated `examples/xgoja/21-generated-host-auth/verbs/sites.js` to use the fluent chain in `/orgs/:orgId/audit`.
+- Ran focused validation:
+
+```bash
+go test ./pkg/xgoja/providers/hostauth ./pkg/gojahttp/auth/audit ./pkg/gojahttp/auth/audit/sqlstore -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+- Pre-commit hook also ran lint and full tests before commit `eedfdb7`.
+
+### Why
+- The object-bag API required Go to defensively decode arbitrary JavaScript maps/objects and had already exposed field-name mismatch risk during the first implementation.
+- Fluent builder methods keep the API ergonomic while making the Go boundary narrower and more typed.
+- This establishes the style future `auth.capabilities.*` APIs should follow.
+
+### What worked
+- Focused tests passed:
+
+```text
+ok  	github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/hostauth
+ok  	github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit
+ok  	github.com/go-go-golems/go-goja/pkg/gojahttp/auth/audit/sqlstore
+```
+
+- Example 21 smoke passed after the route update.
+- Pre-commit lint and full tests passed before the code commit.
+
+### What didn't work
+- N/A. This slice passed focused validation on the first run after edits.
+
+### What I learned
+- The builder pattern fits naturally into the existing xgoja API style because route registration already uses chained builders.
+- Keeping `audit.Query` as an internal Go value behind the builder gives a good separation: JS gets fluent ergonomics, Go keeps the strongly shaped query contract.
+
+### What was tricky to build
+- The main subtlety is that the builder object closes over mutable query state. This is fine for one-shot builder chains, but reviewers should confirm that returning the same object from each setter is acceptable and that users should call `auth.audit.query()` for each independent query.
+- Another subtlety is that `.outcome("")` intentionally clears/omits the filter after normalization. This supports simple route code using `ctx.request.query.outcome || ""` without reintroducing object-bag `undefined` handling.
+
+### What warrants a second pair of eyes
+- Review the builder methods in `newAuditQueryBuilder` for naming and completeness.
+- Confirm that `.resource(type, id)` plus `.resourceType` / `.resourceId` is the right combination.
+- Confirm that `.run()` should normalize/clamp silently rather than returning explicit validation errors for large limits.
+
+### What should be done in the future
+- Implement #86 native demo route removal next.
+- Use the same fluent builder pattern when adding `auth.capabilities.*`.
+- Add TypeScript declarations for `AuditQueryBuilder` once provider DTS is wired.
+
+### Code review instructions
+- Start at `pkg/xgoja/providers/hostauth/hostauth.go`, especially `newAuditQueryBuilder`.
+- Review runtime proof in `pkg/xgoja/providers/hostauth/hostauth_test.go`.
+- Review example usage in `examples/xgoja/21-generated-host-auth/verbs/sites.js`.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/providers/hostauth ./pkg/gojahttp/auth/audit ./pkg/gojahttp/auth/audit/sqlstore -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+### Technical details
+- New JavaScript API:
+
+```js
+const records = auth.audit.query()
+  .tenantId(org.id)
+  .outcome(ctx.request.query.outcome || "")
+  .limit(Number(ctx.request.query.limit || 50))
+  .run();
+```
+
+- Internal Go execution still uses:
+
+```go
+normalized := audit.NormalizeQuery(query, maxLimit)
+records, err := queryStore.QueryAuditRecords(runtimebridge.CurrentOwnerContext(vm), normalized)
+```

@@ -14,4 +14,15 @@
 - [x] Implement high-level JavaScript auth audit module
 - [x] Wire example 21 to JavaScript-owned audit route
 - [x] Design reusable auth core cleanup and self-contained demo split
-- [ ] Revise reusable auth cleanup design with fluent builder APIs and upload v2
+- [x] Revise reusable auth cleanup design with fluent builder APIs and upload v2
+- [x] Refactor auth.audit.query JavaScript API from object bag to fluent builder
+- [x] Update auth provider tests for fluent audit query builder
+- [x] Update example 21 audit route to use fluent audit query builder
+- [x] Validate fluent audit builder with focused tests and example smoke
+- [ ] Remove generic native demo handlers from hostauth BuildNativeHandlers for issue 86
+- [ ] Update hostauth native handler tests for lifecycle-only handlers
+- [ ] Validate issue 86 native handler cleanup with focused tests and example smoke
+- [ ] Design and implement generic Go capability service methods issue validate consume revoke
+- [ ] Expose auth.capabilities fluent builders in hostauth JavaScript module
+- [ ] Move example 21 invite routes into JavaScript using auth.capabilities builders
+- [ ] Add rich demo smoke coverage for audit and capability flows
