@@ -37,7 +37,7 @@ oidc-smoke: build
 	  --auth-oidc-public-base-url http://$$addr \
 	  >$$log 2>&1 & \
 	pid=$$!; \
-	trap 'kill $$pid $$provider_pid >/dev/null 2>&1 || true; wait $$pid >/dev/null 2>&1 || true; wait $$provider_pid >/dev/null 2>&1 || true; rm -f $$log $$provider_log /tmp/xgoja-generated-oidc-health.json /tmp/xgoja-generated-oidc-root.txt /tmp/xgoja-generated-oidc-login.headers /tmp/xgoja-generated-oidc-me.txt' EXIT; \
+	trap 'kill $$pid $$provider_pid >/dev/null 2>&1 || true; wait $$pid >/dev/null 2>&1 || true; wait $$provider_pid >/dev/null 2>&1 || true; rm -f $$log $$provider_log /tmp/xgoja-generated-oidc-health.json /tmp/xgoja-generated-oidc-root.txt /tmp/xgoja-generated-oidc-app.js /tmp/xgoja-generated-oidc-styles.css /tmp/xgoja-generated-oidc-login.headers /tmp/xgoja-generated-oidc-me.txt' EXIT; \
 	for i in $$(seq 1 80); do \
 		if curl -fsS http://$$addr/healthz >/tmp/xgoja-generated-oidc-health.json 2>/dev/null; then break; fi; \
 		if ! kill -0 $$pid >/dev/null 2>&1; then cat $$log; exit 1; fi; \
@@ -47,6 +47,11 @@ oidc-smoke: build
 	grep -q '"auth":"generated-oidc"' /tmp/xgoja-generated-oidc-health.json; \
 	curl -fsS http://$$addr/ >/tmp/xgoja-generated-oidc-root.txt; \
 	grep -q '<title>go-go-goja generated OIDC auth host</title>' /tmp/xgoja-generated-oidc-root.txt; \
+	grep -q '<script src="/static/app.js"></script>' /tmp/xgoja-generated-oidc-root.txt; \
+	curl -fsS http://$$addr/static/app.js >/tmp/xgoja-generated-oidc-app.js; \
+	grep -q 'async function loadAudit' /tmp/xgoja-generated-oidc-app.js; \
+	curl -fsS http://$$addr/static/styles.css >/tmp/xgoja-generated-oidc-styles.css; \
+	grep -q 'radial-gradient' /tmp/xgoja-generated-oidc-styles.css; \
 	status=$$(curl -sS -D /tmp/xgoja-generated-oidc-login.headers -o /dev/null -w '%{http_code}' http://$$addr/auth/login); \
 	test "$$status" = "302"; \
 	grep -q "^Location: $$issuer/auth" /tmp/xgoja-generated-oidc-login.headers; \

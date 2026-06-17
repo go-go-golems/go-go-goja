@@ -21,8 +21,9 @@ platform replacement.
 
 ## What this demonstrates
 
-The xgoja spec selects the HTTP provider, embeds local jsverbs, builds a binary,
-and configures OIDC entirely through YAML:
+The xgoja spec selects the HTTP and host providers, embeds local jsverbs plus
+split dashboard assets, builds a binary, and configures OIDC entirely through
+YAML:
 
 ```yaml
 auth:
@@ -38,11 +39,36 @@ auth:
     client-id: generated-oidc-host-auth
     public-base-url: http://localhost:18789
 
+sources:
+  - id: local-sites
+    kind: jsverbs
+    from:
+      dir: ./verbs
+  - id: dashboard-assets
+    kind: assets
+    from:
+      dir: ./assets
+
 artifacts:
   - id: binary
     type: binary
     output: dist/generated-oidc-host-auth
-    sources: [local-sites]
+    sources: [local-sites, dashboard-assets]
+  - id: embedded-dashboard-assets
+    type: embedded-assets
+    sources: [dashboard-assets]
+```
+
+The route script uses the embedded asset filesystem directly:
+
+```js
+const assets = require("fs:assets");
+app.staticFromAssetsModule("/static", assets, "/app/public");
+app.get("/")
+  .public()
+  .handle((_ctx, res) => res.type("text/html").send(
+    assets.readFileSync("/app/public/index.html", "utf8")
+  ));
 ```
 
 `serve` owns the listener and mux. Native auth handlers are mounted before the
@@ -85,7 +111,9 @@ examples/xgoja/21-generated-host-auth/dist/generated-oidc-host-auth \
 
 Then visit:
 
-- <http://127.0.0.1:18789/> — public text route.
+- <http://127.0.0.1:18789/> — public embedded HTML dashboard.
+- <http://127.0.0.1:18789/static/app.js> — embedded dashboard JavaScript.
+- <http://127.0.0.1:18789/static/styles.css> — embedded dashboard CSS.
 - <http://127.0.0.1:18789/healthz> — public JSON health route.
 - <http://127.0.0.1:18789/async-return?name=demo> — public async return route.
 - <http://127.0.0.1:18789/async-send?name=demo> — public async JSON route.

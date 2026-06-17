@@ -1881,3 +1881,82 @@ curl -sS -o /tmp/audit.txt -w '%{http_code}' https://goja-auth.yolo.scapegoat.de
 ### Technical details
 - Public dashboard URL: `https://goja-auth.yolo.scapegoat.dev/`.
 - Audit endpoint: `GET /auth/audit`, session required, returns up to 50 recent records.
+
+
+## Step 24: Split the dashboard into embedded xgoja assets
+
+I moved the generated OIDC demo dashboard out of the route JavaScript template literal and into normal frontend files under `examples/xgoja/21-generated-host-auth/assets/public`. The generated host now embeds those files via an `assets` source and serves them through `require("fs:assets")` plus `app.staticFromAssetsModule`, so the demo shows xgoja's ability to bundle JS verbs and static frontend assets into one generated binary.
+
+While testing this, I found and fixed a host-service layering bug: an empty per-runtime `app.HostServices{}` overlay returned a typed-nil asset resolver as a non-nil interface, masking the base embedded asset resolver. That only surfaced once `serve` combined native auth services with an embedded asset fs module.
+
+### Prompt Context
+
+**User prompt (verbatim):** "save html and js as split files as embeddable assets through xgoja, to showcase xgoja  power."
+
+**Assistant interpretation:** Refactor the dashboard into separate HTML/CSS/JS files and wire them through xgoja embedded assets rather than keeping the page inline in the JS route file.
+
+**Inferred user intent:** Make example 21 demonstrate more of xgoja's generated-binary capabilities: embedded JS verbs, embedded static assets, native OIDC, and JavaScript app routes all in one artifact.
+
+**Commit (code):** Pending at time of diary update.
+
+### What I did
+- Added `assets/public/index.html`, `assets/public/app.js`, and `assets/public/styles.css` to example 21.
+- Added the host provider and `fs:assets` runtime module to `examples/xgoja/21-generated-host-auth/xgoja.yaml`.
+- Added `dashboard-assets` as an embedded assets source/artifact.
+- Changed `verbs/sites.js` to read `index.html` from `fs:assets` and serve `/static/*` from the embedded asset module.
+- Fixed `app.HostServices.AssetResolver()` so nil asset stores return a real nil interface.
+- Added a regression test for runtime host-service overlays preserving the base asset resolver.
+- Updated example smoke to assert `/static/app.js` and `/static/styles.css` are served from the generated binary.
+- Updated the example README to document the embedded asset setup.
+
+### Why
+- Inline HTML made the demo harder to maintain and did not showcase xgoja's asset embedding feature.
+- Production-like demos should separate app route declarations from frontend assets while still producing a self-contained binary/image.
+
+### What worked
+- Focused validation passed:
+
+```text
+go test ./pkg/xgoja/app ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+make -C examples/xgoja/21-generated-host-auth clean
+```
+
+### What didn't work
+- First smoke runs failed with:
+
+```text
+Error: register module "xgoja:go-go-goja-host.fs:fs:assets": create module go-go-goja-host.fs: fs:assets embedded config: unknown embedded asset "dashboard-assets"
+```
+
+- I initially checked whether the fs module expected the embedded-assets artifact id instead of the source id; it did not.
+- A probe showed the generated runtime plan and embedded files were correct. The actual bug was the typed-nil asset resolver returned by an empty per-runtime host-services overlay.
+
+### What I learned
+- The asset source id is the correct `embedded.mounts[].asset` value.
+- `serve` passes per-runtime host services for HTTP/auth wiring, so base host-service preservation matters for generated binaries that combine auth and embedded assets.
+
+### What was tricky to build
+- The failure looked like a generation or YAML issue because the generated workspace contained the expected files and runtime JSON. The underlying cause was Go interface nil semantics: a nil `*AssetStore` returned as `providerapi.AssetResolver` is not a nil interface, so layered host services stopped before falling back to the base resolver.
+
+### What warrants a second pair of eyes
+- Review `pkg/xgoja/app/assets.go` and `pkg/xgoja/app/assets_test.go` to confirm the nil-interface fix is the right abstraction boundary.
+- Review `examples/xgoja/21-generated-host-auth/xgoja.yaml` to ensure the asset source is intentionally included in both the serve command sources and binary artifact sources.
+
+### What should be done in the future
+- Consider adding a generated-assets smoke test at the xgoja build/generate layer so this combination is covered outside example 21.
+
+### Code review instructions
+- Start with `examples/xgoja/21-generated-host-auth/xgoja.yaml` to see the embedded asset source/module wiring.
+- Then review `examples/xgoja/21-generated-host-auth/verbs/sites.js` and `assets/public/*` for route/static separation.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/app ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http -count=1
+make -C examples/xgoja/21-generated-host-auth smoke
+```
+
+### Technical details
+- `fs:assets` mounts source `dashboard-assets` at `/app`.
+- `/` reads `/app/public/index.html` from the embedded fs.
+- `/static/app.js` and `/static/styles.css` are served by `app.staticFromAssetsModule("/static", assets, "/app/public")`.

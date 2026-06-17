@@ -76,14 +76,7 @@ func TestRuntimeFactoryPassesHostServicesToModules(t *testing.T) {
 	if err := registry.Package("fixture", providerapi.Module{
 		Name: "asset-check",
 		NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
-			resolver := ctx.Host.AssetResolver()
-			fsys, root, ok := resolver.ResolveAsset("app")
-			if !ok {
-				t.Fatalf("expected module context host to resolve asset")
-			}
-			if _, err := fs.ReadFile(fsys, path.Join(root, "config.json")); err != nil {
-				t.Fatalf("read asset through module context host: %v", err)
-			}
+			assertModuleCanResolveAsset(t, ctx.Host)
 			seen = true
 			return func(vm *goja.Runtime, module *goja.Object) {}, nil
 		},
@@ -99,5 +92,52 @@ func TestRuntimeFactoryPassesHostServicesToModules(t *testing.T) {
 	defer func() { _ = rt.Close(context.Background()) }()
 	if !seen {
 		t.Fatal("module factory did not observe host services")
+	}
+}
+
+func TestRuntimeFactoryHostServiceOverlayDoesNotHideBaseAssetResolver(t *testing.T) {
+	assetFS := fstest.MapFS{
+		"xgoja_embed/assets/app/config.json": &fstest.MapFile{Data: []byte(`{"ok":true}`)},
+	}
+	runtimePlan := &RuntimePlan{
+		Sources: []SourcePlan{{ID: "app", Kind: SourceKindAssets, Path: "xgoja_embed/assets/app", Embed: true}},
+		Runtime: RuntimeSection{Modules: []RuntimeModulePlan{{Provider: "fixture", Name: "asset-check", As: "asset-check"}}},
+	}
+	seen := false
+	registry := providerapi.NewProviderRegistry()
+	if err := registry.Package("fixture", providerapi.Module{
+		Name: "asset-check",
+		NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
+			assertModuleCanResolveAsset(t, ctx.Host)
+			seen = true
+			return func(vm *goja.Runtime, module *goja.Object) {}, nil
+		},
+	}); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+
+	host := NewHostWithOptions(registry, runtimePlan, HostOptions{EmbeddedAssets: assetFS})
+	rt, err := host.Factory.NewRuntimeFromSectionsWithHostServices(context.Background(), nil, HostServices{})
+	if err != nil {
+		t.Fatalf("new runtime with empty overlay host services: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+	if !seen {
+		t.Fatal("module factory did not observe host services")
+	}
+}
+
+func assertModuleCanResolveAsset(t *testing.T, host providerapi.HostServices) {
+	t.Helper()
+	resolver := host.AssetResolver()
+	if resolver == nil {
+		t.Fatalf("expected module context host to expose asset resolver")
+	}
+	fsys, root, ok := resolver.ResolveAsset("app")
+	if !ok {
+		t.Fatalf("expected module context host to resolve asset")
+	}
+	if _, err := fs.ReadFile(fsys, path.Join(root, "config.json")); err != nil {
+		t.Fatalf("read asset through module context host: %v", err)
 	}
 }

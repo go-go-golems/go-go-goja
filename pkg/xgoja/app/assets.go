@@ -58,6 +58,9 @@ func (s *AssetStore) ResolveAsset(id string) (fs.FS, string, bool) {
 }
 
 func (s HostServices) AssetResolver() providerapi.AssetResolver {
+	if s.Assets == nil {
+		return nil
+	}
 	return s.Assets
 }
 

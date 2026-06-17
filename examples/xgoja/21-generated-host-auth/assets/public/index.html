@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>go-go-goja generated OIDC auth host</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<main>
+  <section class="hero">
+    <span class="badge">generated xgoja serve · native OIDC · embedded assets · server-side sessions</span>
+    <h1>go-go-goja auth host</h1>
+    <p>This public demo is served by a binary generated from <code>xgoja.yaml</code>. Login is handled by native Go OIDC routes, the app routes are declared in JavaScript, and this HTML/CSS/JS dashboard is bundled as embedded xgoja assets.</p>
+    <div class="actions">
+      <a class="button primary" href="/auth/login">Login with Keycloak</a>
+      <button onclick="postLogout()">Logout</button>
+      <a class="button" href="/healthz">Health JSON</a>
+      <a class="button" href="/me">/me</a>
+      <a class="button" href="/auth/session">/auth/session</a>
+      <a class="button" href="/auth/audit">/auth/audit</a>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Session</h2>
+      <p id="session-status" class="status">Checking session…</p>
+      <div class="actions">
+        <button onclick="loadSession()">Refresh session</button>
+        <button onclick="loadMe()">Load /me</button>
+      </div>
+      <pre id="session-output"></pre>
+    </article>
+
+    <article class="card">
+      <h2>Protected project update</h2>
+      <p>Uses the app session, CSRF token, resource lookup, authorization, and audit pipeline.</p>
+      <div class="actions">
+        <button onclick="updateProject()">PATCH project p1</button>
+        <button onclick="updateMissingProject()">PATCH missing project</button>
+      </div>
+      <pre id="project-output"></pre>
+    </article>
+
+    <article class="card">
+      <h2>Invite capability</h2>
+      <p>Issues a single-use org invite capability and redeems it once.</p>
+      <div class="actions">
+        <button onclick="issueInvite()">Issue invite</button>
+        <button onclick="acceptInvite()">Accept invite</button>
+        <button onclick="acceptInvite()">Accept again</button>
+      </div>
+      <pre id="invite-output"></pre>
+    </article>
+
+    <article class="card">
+      <h2>Recent audit records</h2>
+      <p>Shows the last records from the configured audit store. You must be logged in.</p>
+      <div class="actions"><button onclick="loadAudit()">Load audit log</button></div>
+      <pre id="audit-output"></pre>
+    </article>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
