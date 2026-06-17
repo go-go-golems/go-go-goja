@@ -34,3 +34,13 @@ Step 3: implemented bounded audit QueryStore for memory and SQL stores (commit a
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/audit/audit.go — Query contract and memory query implementation
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/audit/sqlstore/sqlstore.go — SQL query implementation
 
+
+## 2026-06-17
+
+Step 4: implemented guarded JavaScript auth audit module exposing require("auth").audit.query (commit 53156f5).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/hostauth.go — Auth provider module implementation
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/hostauth_test.go — Provider and runtime tests
+

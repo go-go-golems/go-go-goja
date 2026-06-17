@@ -10,4 +10,5 @@
 - [x] Write investigation diary
 - [x] Validate ticket with docmgr doctor
 - [x] Upload design bundle to reMarkable
-- [ ] Implement bounded audit query store interface
+- [x] Implement bounded audit query store interface
+- [ ] Implement high-level JavaScript auth audit module

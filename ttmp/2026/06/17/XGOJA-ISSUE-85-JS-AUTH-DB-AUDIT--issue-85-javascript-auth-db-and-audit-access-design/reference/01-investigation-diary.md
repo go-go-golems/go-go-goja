@@ -315,3 +315,114 @@ type QueryStore interface {
   - `resourceId`
   - `limit`
   - `offset`
+
+
+## Step 4: Expose high-level `require("auth").audit.query(...)`
+
+I implemented the JavaScript-facing auth module for issue #85. The new provider package `pkg/xgoja/providers/hostauth` registers a guarded `auth` module that looks up `hostauth.Services` from runtime host services and exposes a single high-level API: `auth.audit.query(...)`.
+
+This slice intentionally does not expose raw database handles. JavaScript can query audit records through a bounded, field-based API, while Go keeps ownership of auth stores, query normalization, and result shaping.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue the staged implementation by adding the JS module layer after the store query contract.
+
+**Inferred user intent:** Make the audit query capability usable from generated xgoja JavaScript without opening unrestricted auth DB access.
+
+**Commit (code):** 53156f5 — "xgoja: expose high-level auth audit module"
+
+### What I did
+- Added package `pkg/xgoja/providers/hostauth`.
+- Registered provider package ID `go-go-goja-hostauth` with module `auth`.
+- Added module config for `audit.maxLimit` / `audit.max-limit`.
+- Looked up `hostauth.Services` via `hostauth.LookupServices(ctx.Host)`.
+- Required `Services.AuditStore` to implement `audit.QueryStore`.
+- Exposed `auth.audit.query(query)` to JavaScript.
+- Returned lower-camel-case JavaScript record objects instead of raw Go struct field names.
+- Added tests for:
+  - provider registration,
+  - missing hostauth service error,
+  - real runtime `require("auth").audit.query(...)` with max-limit clamping.
+- Made audit query stores tolerate nil contexts defensively after the JS module test surfaced that edge.
+
+### Why
+- This is the core #85 high-level API needed before moving the demo `/auth/audit` route into JavaScript.
+- It lets application routes own authorization policy while avoiding raw SQL or direct table access.
+
+### What worked
+- Focused validation passed:
+
+```bash
+go test ./pkg/gojahttp/auth/audit ./pkg/gojahttp/auth/audit/sqlstore ./pkg/xgoja/providers/hostauth -count=1
+```
+
+- The pre-commit hook passed full lint and full `go test ./...` before commit `53156f5`.
+
+### What didn't work
+- First provider compile failed because I initially followed the design-doc shorthand and tried to read `services.Stores.AuditStore`. The actual `hostauth.Services` shape exposes `AuditStore` directly:
+
+```text
+pkg/xgoja/providers/hostauth/hostauth.go:64:16: services.Stores undefined (type *"github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth".Services has no field or method Stores)
+pkg/xgoja/providers/hostauth/hostauth_test.go:63:87: unknown field Stores in struct literal of type "github.com/go-go-golems/go-goja/pkg/xgoja/hostauth".Services
+```
+
+- The first JS runtime test returned the wrong tenant because `goja.ExportTo` did not map JS `tenantId` to Go `TenantID` through JSON tags:
+
+```text
+state missing "event":"new denied": {"count":1,"event":"other tenant","tenantId":"o2","resourceId":"p3"}
+```
+
+I fixed this by explicitly decoding JS object fields (`tenantId`, `outcome`, `actorId`, `resourceType`, `resourceId`, `limit`, `offset`).
+
+- The next runtime test panicked on nil optional fields / nil context before the final fix:
+
+```text
+runtimeowner hostauth.test: runtime call panicked: runtime error: invalid memory address or nil pointer dereference
+```
+
+I fixed this by making optional JS value decoding nil-safe and by making `QueryAuditRecords` tolerate nil contexts.
+
+### What I learned
+- The design direction was right, but the exact service shape is `Services.AuditStore`, not a nested store bundle.
+- JSON tags are not a reliable way to decode JS objects into Go structs through goja; explicit property decoding is safer for stable JavaScript APIs.
+- Store-level query methods should defensively handle nil contexts because module/runtime bridges can be exercised from tests or hosts that do not install owner call contexts exactly as expected.
+
+### What was tricky to build
+- The sharpest edge was JavaScript-to-Go field decoding. The symptom was a query that ignored `tenantId`, which could become a serious data isolation bug. The fix was to decode every supported public JS field by exact property name instead of relying on Go reflection.
+- Another tricky point was result shaping. Returning raw `audit.Record` values risks Go field names leaking into JS. The module now builds lower-camel-case maps deliberately.
+
+### What warrants a second pair of eyes
+- Review the explicit JS query decoder for all supported fields and nil/undefined/null behavior.
+- Review the decision to clamp max limits rather than throw when JS asks for too many records.
+- Review whether the provider package should eventually carry TypeScript declarations for `require("auth")`.
+
+### What should be done in the future
+- Wire example 21 to register the new provider and use `require("auth")` from its JS route file.
+- Add an HTTP/serve-level integration test if the example smoke does not fully cover generated host wiring.
+- Implement issue #86 after the JS-owned audit route exists.
+
+### Code review instructions
+- Start at `pkg/xgoja/providers/hostauth/hostauth.go`.
+- Pay special attention to:
+  - `LookupServices` usage,
+  - `queryFromValue`,
+  - `recordsForJS`,
+  - `effectiveMaxLimit`.
+- Then review `pkg/xgoja/providers/hostauth/hostauth_test.go` for runtime-level proof that `require("auth")` works.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp/auth/audit ./pkg/gojahttp/auth/audit/sqlstore ./pkg/xgoja/providers/hostauth -count=1
+```
+
+### Technical details
+- JavaScript API implemented in this step:
+
+```js
+const auth = require("auth");
+const records = auth.audit.query({ tenantId: "o1", outcome: "denied", limit: 50 });
+```
+
+- The module returns audit records as plain JS objects with keys such as `event`, `outcome`, `tenantId`, `actorId`, `resourceType`, `resourceId`, and `createdAt`.
