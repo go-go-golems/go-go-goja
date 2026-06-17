@@ -153,6 +153,10 @@ topics:
       description: Kubernetes (K3s) cluster packaging and runtime
     - slug: vault
       description: HashiCorp Vault and Vault Secrets Operator secret management
+    - slug: audit
+      description: Audit logging, audit records, and audit access patterns
+    - slug: database
+      description: Database access, SQL handles, stores, and persistence design
 docTypes:
     - slug: index
       description: Index document for a ticket
