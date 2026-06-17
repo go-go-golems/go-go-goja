@@ -12,6 +12,10 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml
+      Note: Local Keycloak/Postgres stack used for generated example 21 real OIDC validation
+    - Path: examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py
+      Note: Existing Keycloak form-login helper reused by temporary generated-host smoke
     - Path: examples/xgoja/21-generated-host-auth/Makefile
       Note: Extended smoke checks for capability route wiring and failure behavior (commit 4e89303)
     - Path: examples/xgoja/21-generated-host-auth/verbs/sites.js
@@ -19,6 +23,7 @@ RelatedFiles:
         Example route calls auth audit query from JavaScript commit b7f85cc
         Updated example audit route to fluent auth audit query builder (commit eedfdb7)
         Moved org invite routes into JavaScript using auth.capabilities builders (commit 4e89303)
+        JS-owned audit and invite routes validated against real Keycloak/Postgres
     - Path: examples/xgoja/21-generated-host-auth/xgoja.yaml
       Note: Registers hostauth provider and auth module commit b7f85cc
     - Path: pkg/gojahttp/auth/appauth/appauth.go
@@ -56,6 +61,7 @@ LastUpdated: 2026-06-17T16:25:00-04:00
 WhatFor: Use this to understand how the Issue 85 design document was prepared and validated.
 WhenToUse: Before resuming or implementing the JavaScript auth DB/audit access work.
 ---
+
 
 
 
@@ -1146,3 +1152,111 @@ const accepted = auth.capabilities.consume(body.token || "")
   .expectedResource("org", "o1")
   .run();
 ```
+
+
+## Step 12: Validate generated host against local Docker Compose Keycloak
+
+I ran the generated example 21 host against the existing example 19 Docker Compose Keycloak/Postgres stack. This exercised a real Keycloak Authorization Code + PKCE login, server-side session creation, Postgres-backed auth stores, JavaScript-owned audit reads, JavaScript-owned invite issue/accept routes, and persisted used capability records.
+
+Because the generic generated host intentionally does not grant demo memberships during OIDC normalization, the smoke seeded the logged-in user’s demo `o1` membership and demo resources externally after login. That mirrors the intended architecture boundary: reusable auth core authenticates users and projects existing memberships; application setup/migrations grant demo authorization data.
+
+### Prompt Context
+
+**User prompt (verbatim):** "can we run it against the keycloak dockercompose for local somke?"
+
+**Assistant interpretation:** Run the generated OIDC host locally against the repository’s real Keycloak Docker Compose setup instead of only the fake OIDC discovery smoke.
+
+**Inferred user intent:** Gain higher confidence that the generated auth host, Keycloak login, Postgres-backed stores, and new JS capability routes work together end-to-end before publishing/deploying.
+
+**Commit (code):** N/A — validation only.
+
+### What I did
+- Reused the existing Docker Compose stack from `examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml`.
+- Built `examples/xgoja/21-generated-host-auth/dist/generated-oidc-host-auth`.
+- Started generated example 21 with:
+  - issuer `http://127.0.0.1:18080/realms/goja-demo`,
+  - client id `goja-app`,
+  - public base URL `http://127.0.0.1:8790`,
+  - all auth stores backed by the compose Postgres DSN,
+  - schema application enabled for session, audit, appauth, and capability stores.
+- Wrote and ran a temporary smoke driver at `/tmp/generated_keycloak_smoke.py` that reused the existing Keycloak form-login helper.
+- Seeded demo appauth rows after login:
+  - tenant `o1`,
+  - org resource `o1`,
+  - project resource `p1`,
+  - admin membership for the logged-in app user.
+- Exercised:
+  - public `/healthz`,
+  - unauthenticated `/me` rejection,
+  - real Keycloak login,
+  - authenticated `/me`,
+  - `/auth/session` CSRF token,
+  - CSRF denial for project update,
+  - successful project update,
+  - JS-owned `/orgs/o1/audit`,
+  - JS-owned `/orgs/o1/invites`,
+  - JS-owned `/org-invites/accept`,
+  - rejected token reuse,
+  - persisted used `org-invite` capability row.
+
+### Why
+- The regular example 21 smoke uses a minimal fake OIDC discovery endpoint and proves build/route wiring but does not perform full login.
+- The Docker Compose Keycloak smoke proves the generated host still works with real Keycloak redirects, cookies, sessions, Postgres stores, and the new JavaScript capability route ownership.
+
+### What worked
+- The local compose-backed smoke passed:
+
+```text
+ok public health                200
+ok me before login              401
+ok login page                   200
+ok keycloak form login          200
+ok login redirected to host     http://127.0.0.1:8790/
+ok me after login               200
+ok seeded demo appauth rows for actor user:29962ddc-4fbe-4af3-9c42-2c5569ae7259
+ok session after login          200
+ok project missing csrf         403
+ok project update               200
+ok audit read                   200
+ok invite issue                 200
+ok invite accept                200
+ok invite reuse rejected with status 500
+ok persisted used org-invite capability rows 1
+{"status": "PASS", "actorId": "user:29962ddc-4fbe-4af3-9c42-2c5569ae7259", "csrfChecked": true, "auditChecked": true, "inviteChecked": true}
+```
+
+### What didn't work
+- Token reuse rejection returned HTTP 500 instead of a nicer application-level 409/400. The smoke accepted non-200 for the reuse check, but this warrants cleanup if we want polished demo UX.
+- The smoke was run through a temporary `/tmp/generated_keycloak_smoke.py` script rather than a committed reusable example 21 target.
+
+### What I learned
+- The new JS-owned invite routes work end-to-end with the real generated host and Postgres capability store.
+- The generic OIDC normalizer boundary is doing what the design says: it upserts users and projects existing memberships, but does not grant demo memberships itself.
+- A committed compose smoke for example 21 should include an explicit appauth seeding step or a small test-only seeding mode.
+
+### What was tricky to build
+- The main tricky part was authorization seeding. Without demo membership/resource rows, real login succeeds but protected org/project/invite routes cannot pass authorization. I handled this by seeding after `/me` exposed the generated app user id.
+- The existing example 19 smoke expected old invite response key casing (`OrgID`, `Email`), while example 21’s JS route returns lower camel case (`orgId`, `email`). The temporary smoke driver checks the new JS-owned payload shape.
+
+### What warrants a second pair of eyes
+- Decide whether to commit an example 21 compose smoke target and script.
+- Decide whether token reuse on `/org-invites/accept` should map `capability.ErrUsed` to 409 in JavaScript-accessible route error handling.
+- Review whether appauth seed data should be a first-class generated-host demo option or remain external setup.
+
+### What should be done in the future
+- Commit a reusable `compose-smoke` target for example 21 if this validation should become part of CI/manual release gates.
+- Improve JS route error handling for capability errors.
+- Consider a small admin/seed command for demo appauth data in generated examples.
+
+### Code review instructions
+- No code changed in this validation step.
+- To reproduce, run the existing example 19 compose stack, start example 21 with Postgres-backed auth stores, seed the logged-in user into `o1`, then run the smoke flow from `/tmp/generated_keycloak_smoke.py` or commit an equivalent script under example 21.
+
+### Technical details
+- Host log from the successful run was written to:
+
+```text
+/tmp/generated-keycloak-host.1wsW4J.log
+```
+
+- The smoke cleaned up the Docker Compose stack with `docker compose down -v` after completion.

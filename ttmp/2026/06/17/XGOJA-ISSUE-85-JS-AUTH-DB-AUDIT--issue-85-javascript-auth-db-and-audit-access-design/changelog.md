@@ -113,3 +113,13 @@ Step 11: added generic capability validate/consume semantics, exposed auth.capab
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/verbs/sites.js — JS-owned invite issue/accept routes
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/hostauth.go — Fluent capability builders
 
+
+## 2026-06-17
+
+Step 12: validated generated example 21 against local Docker Compose Keycloak/Postgres with real login, JS audit, JS invite issue/accept, and persisted used capability record.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/docker-compose.yml — Compose Keycloak/Postgres validation stack
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/verbs/sites.js — Validated JS-owned auth routes
+
