@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/modules"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	hostauthsvc "github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
@@ -68,13 +70,17 @@ func authModule() providerapi.Module {
 			if !ok {
 				return nil, fmt.Errorf("auth audit store %T does not support query access", services.AuditStore)
 			}
+			if services.Capability == nil {
+				return nil, fmt.Errorf("auth module requires a capability store")
+			}
+			capabilityService := capability.Service{Store: services.Capability, Audit: services.AuditSink}
 			maxLimit := effectiveMaxLimit(cfg.Audit)
-			return newLoader(queryStore, maxLimit), nil
+			return newLoader(queryStore, maxLimit, capabilityService), nil
 		},
 	}
 }
 
-func newLoader(queryStore audit.QueryStore, maxLimit int) require.ModuleLoader {
+func newLoader(queryStore audit.QueryStore, maxLimit int, capabilityService capability.Service) require.ModuleLoader {
 	return func(vm *goja.Runtime, moduleObj *goja.Object) {
 		exports := moduleObj.Get("exports").(*goja.Object)
 		auditObj := vm.NewObject()
@@ -82,6 +88,21 @@ func newLoader(queryStore audit.QueryStore, maxLimit int) require.ModuleLoader {
 			return newAuditQueryBuilder(vm, queryStore, maxLimit)
 		})
 		modules.SetExport(exports, "auth", "audit", auditObj)
+
+		capabilitiesObj := vm.NewObject()
+		modules.SetExport(capabilitiesObj, "auth.capabilities", "issue", func(purpose string) *goja.Object {
+			return newCapabilityIssueBuilder(vm, capabilityService, purpose)
+		})
+		modules.SetExport(capabilitiesObj, "auth.capabilities", "validate", func(token string) *goja.Object {
+			return newCapabilityValidateBuilder(vm, capabilityService, token, false)
+		})
+		modules.SetExport(capabilitiesObj, "auth.capabilities", "consume", func(token string) *goja.Object {
+			return newCapabilityValidateBuilder(vm, capabilityService, token, true)
+		})
+		modules.SetExport(capabilitiesObj, "auth.capabilities", "revoke", func() *goja.Object {
+			return newCapabilityRevokeBuilder(vm, capabilityService)
+		})
+		modules.SetExport(exports, "auth", "capabilities", capabilitiesObj)
 	}
 }
 
@@ -130,6 +151,163 @@ func newAuditQueryBuilder(vm *goja.Runtime, queryStore audit.QueryStore, maxLimi
 		return vm.ToValue(recordsForJS(records))
 	})
 	return obj
+}
+
+func newCapabilityIssueBuilder(vm *goja.Runtime, service capability.Service, purpose string) *goja.Object {
+	spec := capability.IssueSpec{Purpose: strings.TrimSpace(purpose)}
+	obj := vm.NewObject()
+	modules.SetExport(obj, "auth.capabilities.issue", "subject", func(kind, id string) *goja.Object {
+		kind = strings.TrimSpace(kind)
+		id = strings.TrimSpace(id)
+		if kind == "" || kind == "id" || kind == "user" {
+			spec.SubjectID = id
+		} else if id != "" {
+			if spec.Claims == nil {
+				spec.Claims = map[string]string{}
+			}
+			spec.Claims["subject."+kind] = id
+		}
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.issue", "subjectId", func(id string) *goja.Object {
+		spec.SubjectID = strings.TrimSpace(id)
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.issue", "resource", func(typ, id string) *goja.Object {
+		spec.ResourceType = strings.TrimSpace(typ)
+		spec.ResourceID = strings.TrimSpace(id)
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.issue", "tenantId", func(id string) *goja.Object {
+		if spec.Claims == nil {
+			spec.Claims = map[string]string{}
+		}
+		spec.Claims["tenantId"] = strings.TrimSpace(id)
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.issue", "claimString", func(key, value string) *goja.Object {
+		key = strings.TrimSpace(key)
+		if key != "" {
+			if spec.Claims == nil {
+				spec.Claims = map[string]string{}
+			}
+			spec.Claims[key] = value
+		}
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.issue", "ttlSeconds", func(seconds int) *goja.Object {
+		if seconds > 0 {
+			spec.TTL = time.Duration(seconds) * time.Second
+		}
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.issue", "expiresAt", func(value string) *goja.Object {
+		if strings.TrimSpace(value) == "" {
+			return obj
+		}
+		parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value))
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		spec.ExpiresAt = parsed
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.issue", "singleUse", func(singleUse bool) *goja.Object {
+		spec.SingleUse = singleUse
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.issue", "createdBy", func(id string) *goja.Object {
+		spec.CreatedBy = strings.TrimSpace(id)
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.issue", "run", func() goja.Value {
+		issued, err := service.Issue(runtimebridge.CurrentOwnerContext(vm), spec)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return vm.ToValue(map[string]any{"token": issued.Token, "capability": capabilityForJS(issued.Capability)})
+	})
+	return obj
+}
+
+func newCapabilityValidateBuilder(vm *goja.Runtime, service capability.Service, token string, consume bool) *goja.Object {
+	purpose := ""
+	expectedResourceType := ""
+	expectedResourceID := ""
+	obj := vm.NewObject()
+	modules.SetExport(obj, "auth.capabilities.validate", "expectedType", func(value string) *goja.Object {
+		purpose = strings.TrimSpace(value)
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.validate", "expectedResource", func(typ, id string) *goja.Object {
+		expectedResourceType = strings.TrimSpace(typ)
+		expectedResourceID = strings.TrimSpace(id)
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.validate", "run", func() goja.Value {
+		ctx := runtimebridge.CurrentOwnerContext(vm)
+		capabilityRecord, err := service.Validate(ctx, purpose, token)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		if expectedResourceType != "" && capabilityRecord.ResourceType != expectedResourceType {
+			panic(vm.NewGoError(fmt.Errorf("capability: resource type mismatch")))
+		}
+		if expectedResourceID != "" && capabilityRecord.ResourceID != expectedResourceID {
+			panic(vm.NewGoError(fmt.Errorf("capability: resource id mismatch")))
+		}
+		if consume {
+			capabilityRecord, err = service.Consume(ctx, purpose, token)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+		}
+		return vm.ToValue(capabilityForJS(*capabilityRecord))
+	})
+	return obj
+}
+
+func newCapabilityRevokeBuilder(vm *goja.Runtime, service capability.Service) *goja.Object {
+	id := ""
+	obj := vm.NewObject()
+	modules.SetExport(obj, "auth.capabilities.revoke", "id", func(value string) *goja.Object {
+		id = strings.TrimSpace(value)
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.revoke", "reason", func(_ string) *goja.Object {
+		return obj
+	})
+	modules.SetExport(obj, "auth.capabilities.revoke", "run", func() goja.Value {
+		if err := service.Revoke(runtimebridge.CurrentOwnerContext(vm), id); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return vm.ToValue(map[string]any{"revoked": true, "id": id})
+	})
+	return obj
+}
+
+func capabilityForJS(record capability.Capability) map[string]any {
+	out := map[string]any{
+		"id":           record.ID,
+		"purpose":      record.Purpose,
+		"resourceType": record.ResourceType,
+		"resourceId":   record.ResourceID,
+		"singleUse":    record.SingleUse,
+		"expiresAt":    record.ExpiresAt,
+		"createdAt":    record.CreatedAt,
+	}
+	setString(out, "subjectId", record.SubjectID)
+	setString(out, "createdBy", record.CreatedBy)
+	if record.UsedAt != nil {
+		out["usedAt"] = *record.UsedAt
+	}
+	if record.RevokedAt != nil {
+		out["revokedAt"] = *record.RevokedAt
+	}
+	if len(record.Claims) > 0 {
+		out["claims"] = record.Claims
+	}
+	return out
 }
 
 func recordsForJS(records []audit.Record) []map[string]any {

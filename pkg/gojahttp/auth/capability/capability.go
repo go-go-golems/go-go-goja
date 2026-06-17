@@ -65,6 +65,7 @@ type IssueResult struct {
 // Store persists capabilities by token hash.
 type Store interface {
 	Create(ctx context.Context, capability Capability) error
+	Lookup(ctx context.Context, tokenHash []byte, purpose string, now time.Time) (*Capability, error)
 	Redeem(ctx context.Context, tokenHash []byte, purpose string, now time.Time) (*Capability, error)
 	Revoke(ctx context.Context, id string, now time.Time) error
 	ByID(ctx context.Context, id string) (*Capability, error)
@@ -110,16 +111,34 @@ func (s Service) Issue(ctx context.Context, spec IssueSpec) (IssueResult, error)
 	return IssueResult{Capability: redactCapability(capability), Token: token}, nil
 }
 
+func (s Service) Validate(ctx context.Context, purpose, token string) (*Capability, error) {
+	if s.Store == nil {
+		return nil, fmt.Errorf("capability: store is required")
+	}
+	capability, err := s.Store.Lookup(ctx, HashToken(token), purpose, s.now())
+	if err != nil {
+		s.record(ctx, "capability.validated", "denied", Capability{Purpose: purpose}, err)
+		return nil, err
+	}
+	s.record(ctx, "capability.validated", "completed", *capability, nil)
+	redacted := redactCapability(*capability)
+	return &redacted, nil
+}
+
 func (s Service) Redeem(ctx context.Context, purpose, token string) (*Capability, error) {
+	return s.Consume(ctx, purpose, token)
+}
+
+func (s Service) Consume(ctx context.Context, purpose, token string) (*Capability, error) {
 	if s.Store == nil {
 		return nil, fmt.Errorf("capability: store is required")
 	}
 	capability, err := s.Store.Redeem(ctx, HashToken(token), purpose, s.now())
 	if err != nil {
-		s.record(ctx, "capability.redeemed", "denied", Capability{Purpose: purpose}, err)
+		s.record(ctx, "capability.consumed", "denied", Capability{Purpose: purpose}, err)
 		return nil, err
 	}
-	s.record(ctx, "capability.redeemed", "completed", *capability, nil)
+	s.record(ctx, "capability.consumed", "completed", *capability, nil)
 	redacted := redactCapability(*capability)
 	return &redacted, nil
 }
@@ -204,36 +223,55 @@ func (s *MemoryStore) Create(_ context.Context, capability Capability) error {
 	return nil
 }
 
+func (s *MemoryStore) Lookup(_ context.Context, tokenHash []byte, purpose string, now time.Time) (*Capability, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	capability, err := s.lookupLocked(tokenHash, purpose, now)
+	if err != nil {
+		return nil, err
+	}
+	clone := redactCapability(capability)
+	return &clone, nil
+}
+
 func (s *MemoryStore) Redeem(_ context.Context, tokenHash []byte, purpose string, now time.Time) (*Capability, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	id, ok := s.byHash[hashKey(tokenHash)]
-	if !ok {
-		return nil, ErrNotFound
-	}
-	capability := s.byID[id]
-	if subtle.ConstantTimeCompare(capability.TokenHash, tokenHash) != 1 {
-		return nil, ErrNotFound
-	}
-	if capability.Purpose != purpose {
-		return nil, ErrWrongPurpose
-	}
-	if capability.RevokedAt != nil {
-		return nil, ErrRevoked
-	}
-	if !capability.ExpiresAt.IsZero() && now.After(capability.ExpiresAt) {
-		return nil, ErrExpired
-	}
-	if capability.SingleUse && capability.UsedAt != nil {
-		return nil, ErrUsed
+	capability, err := s.lookupLocked(tokenHash, purpose, now)
+	if err != nil {
+		return nil, err
 	}
 	if capability.SingleUse {
 		usedAt := now
 		capability.UsedAt = &usedAt
-		s.byID[id] = capability
+		s.byID[capability.ID] = capability
 	}
 	clone := redactCapability(capability)
 	return &clone, nil
+}
+
+func (s *MemoryStore) lookupLocked(tokenHash []byte, purpose string, now time.Time) (Capability, error) {
+	id, ok := s.byHash[hashKey(tokenHash)]
+	if !ok {
+		return Capability{}, ErrNotFound
+	}
+	capability := s.byID[id]
+	if subtle.ConstantTimeCompare(capability.TokenHash, tokenHash) != 1 {
+		return Capability{}, ErrNotFound
+	}
+	if capability.Purpose != purpose {
+		return Capability{}, ErrWrongPurpose
+	}
+	if capability.RevokedAt != nil {
+		return Capability{}, ErrRevoked
+	}
+	if !capability.ExpiresAt.IsZero() && now.After(capability.ExpiresAt) {
+		return Capability{}, ErrExpired
+	}
+	if capability.SingleUse && capability.UsedAt != nil {
+		return Capability{}, ErrUsed
+	}
+	return capability, nil
 }
 
 func (s *MemoryStore) Revoke(_ context.Context, id string, now time.Time) error {

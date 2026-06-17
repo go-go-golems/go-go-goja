@@ -59,6 +59,48 @@ function demo() {
       res.json({ updated: project.id, tenant: project.tenantId });
     });
 
+  app.post("/orgs/:orgId/invites")
+    .auth(express.user().required())
+    .resource(
+      express.resource("org")
+        .idFromParam("orgId")
+        .mustExist()
+    )
+    .csrf()
+    .allow("org.member.invite")
+    .audit("org.invite.issued")
+    .handle((ctx, res) => {
+      const org = ctx.resource("org");
+      const body = ctx.body || {};
+      const issued = auth.capabilities.issue("org-invite")
+        .resource("org", org.id)
+        .tenantId(org.id)
+        .claimString("email", body.email || "")
+        .claimString("role", body.role || "viewer")
+        .ttlSeconds(900)
+        .singleUse(true)
+        .createdBy(ctx.actor.id)
+        .run();
+      res.json({ token: issued.token, expiresAt: issued.capability.expiresAt, capabilityId: issued.capability.id });
+    });
+
+  app.post("/org-invites/accept")
+    .public()
+    .audit("org.invite.accepted")
+    .handle((ctx, res) => {
+      const body = ctx.body || {};
+      const accepted = auth.capabilities.consume(body.token || "")
+        .expectedType("org-invite")
+        .expectedResource("org", "o1")
+        .run();
+      res.json({
+        capabilityId: accepted.id,
+        orgId: accepted.resourceId,
+        email: accepted.claims.email,
+        role: accepted.claims.role
+      });
+    });
+
   app.get("/orgs/:orgId/audit")
     .auth(express.user().required())
     .resource(

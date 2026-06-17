@@ -8,6 +8,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 	hostauthsvc "github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
@@ -60,7 +61,7 @@ func TestAuthAuditQueryFromJavaScript(t *testing.T) {
 	}
 
 	hostServices := app.HostServices{}
-	if err := hostServices.SetHostService(hostauthsvc.ServicesKey, &hostauthsvc.Services{AuditStore: store}); err != nil {
+	if err := hostServices.SetHostService(hostauthsvc.ServicesKey, &hostauthsvc.Services{AuditStore: store, Capability: capability.NewMemoryStore()}); err != nil {
 		t.Fatalf("set hostauth services: %v", err)
 	}
 	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{
@@ -98,6 +99,74 @@ func TestAuthAuditQueryFromJavaScript(t *testing.T) {
 	}
 	state := ret.(string)
 	for _, want := range []string{`"count":1`, `"event":"new denied"`, `"tenantId":"o1"`, `"resourceId":"p2"`} {
+		if !strings.Contains(state, want) {
+			t.Fatalf("state missing %s: %s", want, state)
+		}
+	}
+}
+
+func TestAuthCapabilitiesFromJavaScript(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	store := capability.NewMemoryStore()
+	hostServices := app.HostServices{}
+	if err := hostServices.SetHostService(hostauthsvc.ServicesKey, &hostauthsvc.Services{AuditStore: &audit.MemoryStore{}, Capability: store}); err != nil {
+		t.Fatalf("set hostauth services: %v", err)
+	}
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{
+		Provider: PackageID,
+		Name:     "auth",
+		As:       "auth",
+	}}}}
+	factory := app.NewRuntimeFactory(registry, runtimePlan, hostServices)
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "hostauth.capability-test", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`
+			const auth = require("auth");
+			const issued = auth.capabilities.issue("org-invite")
+				.resource("org", "o1")
+				.tenantId("o1")
+				.claimString("email", "invitee@example.test")
+				.claimString("role", "viewer")
+				.ttlSeconds(900)
+				.singleUse(true)
+				.createdBy("u1")
+				.run();
+			const validated = auth.capabilities.validate(issued.token)
+				.expectedType("org-invite")
+				.expectedResource("org", "o1")
+				.run();
+			const consumed = auth.capabilities.consume(issued.token)
+				.expectedType("org-invite")
+				.expectedResource("org", "o1")
+				.run();
+			JSON.stringify({
+				token: issued.token.length > 20,
+				issuedId: issued.capability.id,
+				validatedId: validated.id,
+				consumedId: consumed.id,
+				used: !!consumed.usedAt,
+				email: consumed.claims.email,
+				role: consumed.claims.role
+			});
+		`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("run auth capability module: %v", err)
+	}
+	state := ret.(string)
+	for _, want := range []string{`"token":true`, `"used":true`, `"email":"invitee@example.test"`, `"role":"viewer"`} {
 		if !strings.Contains(state, want) {
 			t.Fatalf("state missing %s: %s", want, state)
 		}
