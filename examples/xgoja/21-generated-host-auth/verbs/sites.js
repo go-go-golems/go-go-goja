@@ -89,16 +89,22 @@ function demo() {
     .audit("org.invite.accepted")
     .handle((ctx, res) => {
       const body = ctx.body || {};
-      const accepted = auth.capabilities.consume(body.token || "")
-        .expectedType("org-invite")
-        .expectedResource("org", "o1")
-        .run();
-      res.json({
-        capabilityId: accepted.id,
-        orgId: accepted.resourceId,
-        email: accepted.claims.email,
-        role: accepted.claims.role
-      });
+      try {
+        const accepted = auth.capabilities.consume(body.token || "")
+          .expectedType("org-invite")
+          .expectedResource("org", "o1")
+          .run();
+        res.json({
+          capabilityId: accepted.id,
+          orgId: accepted.resourceId,
+          email: accepted.claims.email,
+          role: accepted.claims.role
+        });
+      } catch (err) {
+        const message = String((err && err.message) || err || "capability rejected");
+        const status = message.includes("already used") ? 409 : 400;
+        res.status(status).json({ error: message });
+      }
     });
 
   app.get("/orgs/:orgId/audit")

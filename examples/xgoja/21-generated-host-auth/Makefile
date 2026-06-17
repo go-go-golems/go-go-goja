@@ -5,9 +5,12 @@ EXAMPLE_DIR := $(abspath .)
 BIN := $(EXAMPLE_DIR)/dist/generated-oidc-host-auth
 XGOJA := cd $(REPO_ROOT) && GOWORK=off go run ./cmd/xgoja
 
-.PHONY: smoke doctor build oidc-smoke clean
+.PHONY: smoke doctor build oidc-smoke compose-smoke clean
 
 smoke: doctor build oidc-smoke
+
+compose-smoke:
+	$(EXAMPLE_DIR)/scripts/compose_smoke.sh
 
 doctor:
 	$(XGOJA) doctor -f $(EXAMPLE_DIR)/xgoja.yaml
