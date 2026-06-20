@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -57,6 +58,11 @@ type Services struct {
 
 	AppAuth    AppAuthStores
 	Capability capability.Store
+
+	AgentStore    programauth.AgentStore
+	APITokenStore programauth.APITokenStore
+	Agents        programauth.AgentService
+	APITokens     programauth.APITokenService
 
 	NativeHandlers []NativeHandler
 

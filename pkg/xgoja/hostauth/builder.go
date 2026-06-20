@@ -12,6 +12,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -84,7 +85,11 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	}
 	auditSink := audit.Sink{Store: stores.Audit}
 	rateLimiter := gojahttp.NewMemoryRateLimiter()
-	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter)
+	agentStore := programauth.NewMemoryAgentStore()
+	apiTokenStore := programauth.NewMemoryAPITokenStore()
+	agentService := programauth.AgentService{Store: agentStore, Now: b.options.Now}
+	apiTokenService := programauth.APITokenService{Store: apiTokenStore, Agents: agentService, Now: b.options.Now}
+	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter, apiTokenService)
 	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores)
 	if err != nil {
 		return nil, err
@@ -99,6 +104,10 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		RateLimiter:    rateLimiter,
 		AppAuth:        stores.AppAuth,
 		Capability:     stores.Capability,
+		AgentStore:     agentStore,
+		APITokenStore:  apiTokenStore,
+		Agents:         agentService,
+		APITokens:      apiTokenService,
 		NativeHandlers: nativeHandlers,
 		Closers:        stores.Closers,
 	}
@@ -223,11 +232,14 @@ func BuildSessionManager(cfg ResolvedSessionConfig, store sessionauth.Store, act
 
 // BuildAuthOptions wires a session manager and built auth stores into
 // gojahttp's host-owned auth interfaces.
-func BuildAuthOptions(sessionManager *sessionauth.Manager, stores *StoreBundle, auditSink gojahttp.AuditSink, rateLimiter gojahttp.RateLimiter) gojahttp.AuthOptions {
+func BuildAuthOptions(sessionManager *sessionauth.Manager, stores *StoreBundle, auditSink gojahttp.AuditSink, rateLimiter gojahttp.RateLimiter, bearer programauth.BearerAuthenticator) gojahttp.AuthOptions {
 	var options gojahttp.AuthOptions
 	if sessionManager != nil {
 		options.Authenticator = sessionManager
 		options.CSRF = sessionManager
+	}
+	if bearer != nil {
+		options.Authenticator = programauth.CompositeAuthenticator{Session: sessionManager, APITokens: bearer}
 	}
 	if auditSink != nil {
 		options.Audit = auditSink
