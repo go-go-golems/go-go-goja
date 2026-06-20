@@ -11,8 +11,9 @@ import (
 )
 
 type builderStore struct {
-	authSpecs     sync.Map // map[*goja.Object]*gojahttp.SecuritySpec
-	resourceSpecs sync.Map // map[*goja.Object]*gojahttp.ResourceSpec
+	authSpecs      sync.Map // map[*goja.Object]*gojahttp.SecuritySpec
+	resourceSpecs  sync.Map // map[*goja.Object]*gojahttp.ResourceSpec
+	rateLimitSpecs sync.Map // map[*goja.Object]*gojahttp.RateLimitSpec
 }
 
 func newBuilderStore() *builderStore { return &builderStore{} }
@@ -96,6 +97,87 @@ func (s *builderStore) newResourceBuilder(vm *goja.Runtime, resourceType string)
 	return obj, nil
 }
 
+func (s *builderStore) newRateLimitBuilder(vm *goja.Runtime, policy string) (goja.Value, error) {
+	policy = strings.TrimSpace(policy)
+	if policy == "" {
+		return nil, fmt.Errorf("express.rateLimit(policy) requires a non-empty policy")
+	}
+	spec := &gojahttp.RateLimitSpec{Policy: policy}
+	obj := vm.NewObject()
+	s.rateLimitSpecs.Store(obj, spec)
+	_ = obj.Set("limit", func(count int, window string) (goja.Value, error) {
+		d, err := time.ParseDuration(strings.TrimSpace(window))
+		if err != nil {
+			return nil, fmt.Errorf("rateLimit.limit(%d, %q): %w", count, window, err)
+		}
+		spec.Limit = count
+		spec.Window = d
+		return obj, nil
+	})
+	_ = obj.Set("window", func(window string) (goja.Value, error) {
+		d, err := time.ParseDuration(strings.TrimSpace(window))
+		if err != nil {
+			return nil, fmt.Errorf("rateLimit.window(%q): %w", window, err)
+		}
+		spec.Window = d
+		return obj, nil
+	})
+	_ = obj.Set("perSecond", func(count int) goja.Value { spec.Limit = count; spec.Window = time.Second; return obj })
+	_ = obj.Set("perMinute", func(count int) goja.Value { spec.Limit = count; spec.Window = time.Minute; return obj })
+	_ = obj.Set("perHour", func(count int) goja.Value { spec.Limit = count; spec.Window = time.Hour; return obj })
+	_ = obj.Set("burst", func(count int) goja.Value { spec.Burst = count; return obj })
+	_ = obj.Set("byIP", func() goja.Value {
+		spec.KeyParts = append(spec.KeyParts, gojahttp.RateLimitKeyPart{Kind: gojahttp.RateLimitKeyIP})
+		return obj
+	})
+	_ = obj.Set("byRoute", func() goja.Value {
+		spec.KeyParts = append(spec.KeyParts, gojahttp.RateLimitKeyPart{Kind: gojahttp.RateLimitKeyRoute})
+		return obj
+	})
+	_ = obj.Set("byActor", func() goja.Value {
+		spec.KeyParts = append(spec.KeyParts, gojahttp.RateLimitKeyPart{Kind: gojahttp.RateLimitKeyActor})
+		return obj
+	})
+	_ = obj.Set("byParam", func(param string) goja.Value {
+		spec.KeyParts = append(spec.KeyParts, gojahttp.RateLimitKeyPart{Kind: gojahttp.RateLimitKeyParam, Key: strings.TrimSpace(param)})
+		return obj
+	})
+	_ = obj.Set("byTenantParam", func(param string) goja.Value {
+		spec.KeyParts = append(spec.KeyParts, gojahttp.RateLimitKeyPart{Kind: gojahttp.RateLimitKeyTenantParam, Key: strings.TrimSpace(param)})
+		return obj
+	})
+	_ = obj.Set("byHeader", func(header string) goja.Value {
+		spec.KeyParts = append(spec.KeyParts, gojahttp.RateLimitKeyPart{Kind: gojahttp.RateLimitKeyHeader, Key: strings.TrimSpace(header)})
+		return obj
+	})
+	_ = obj.Set("byBodyField", func(field string) goja.Value {
+		spec.KeyParts = append(spec.KeyParts, gojahttp.RateLimitKeyPart{Kind: gojahttp.RateLimitKeyBodyField, Key: strings.TrimSpace(field)})
+		return obj
+	})
+	_ = obj.Set("byResource", func(name string) goja.Value {
+		spec.KeyParts = append(spec.KeyParts, gojahttp.RateLimitKeyPart{Kind: gojahttp.RateLimitKeyResource, Key: strings.TrimSpace(name)})
+		return obj
+	})
+	_ = obj.Set("failOpen", func(value bool) goja.Value { spec.FailOpen = value; return obj })
+	return obj, nil
+}
+
+func (s *builderStore) rateLimitSpec(vm *goja.Runtime, value goja.Value) (gojahttp.RateLimitSpec, error) {
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return gojahttp.RateLimitSpec{}, fmt.Errorf(".rateLimit(...) expects value returned by express.rateLimit(policy)")
+	}
+	obj := value.ToObject(vm)
+	raw, ok := s.rateLimitSpecs.Load(obj)
+	if !ok {
+		return gojahttp.RateLimitSpec{}, fmt.Errorf(".rateLimit(...) expects value returned by express.rateLimit(policy); got %s", valueString(value))
+	}
+	spec, ok := raw.(*gojahttp.RateLimitSpec)
+	if !ok || spec == nil {
+		return gojahttp.RateLimitSpec{}, fmt.Errorf("internal rate limit spec has invalid type")
+	}
+	return *spec, nil
+}
+
 func (s *builderStore) resourceSpec(vm *goja.Runtime, value goja.Value) (gojahttp.ResourceSpec, error) {
 	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
 		return gojahttp.ResourceSpec{}, fmt.Errorf(".resource(...) expects value returned by express.resource(type)")
@@ -157,6 +239,7 @@ func (b *routeBuilder) needsPolicyObject() goja.Value {
 	})
 	b.attachCSRFMethod(obj)
 	b.attachAuditMethod(obj)
+	b.attachRateLimitMethod(obj)
 	_ = obj.Set("allow", func(action string) (goja.Value, error) {
 		action = strings.TrimSpace(action)
 		if action == "" {
@@ -172,6 +255,7 @@ func (b *routeBuilder) needsHandlerObject() goja.Value {
 	obj := b.vm.NewObject()
 	b.attachCSRFMethod(obj)
 	b.attachAuditMethod(obj)
+	b.attachRateLimitMethod(obj)
 	_ = obj.Set("handle", func(handler goja.Value) error {
 		fn, ok := goja.AssertFunction(handler)
 		if !ok {
@@ -190,6 +274,17 @@ func (b *routeBuilder) attachCSRFMethod(obj *goja.Object) {
 		}
 		b.plan.CSRF.Required = required
 		return obj
+	})
+}
+
+func (b *routeBuilder) attachRateLimitMethod(obj *goja.Object) {
+	_ = obj.Set("rateLimit", func(value goja.Value) (goja.Value, error) {
+		spec, err := b.store.rateLimitSpec(b.vm, value)
+		if err != nil {
+			return nil, err
+		}
+		b.plan.RateLimits = append(b.plan.RateLimits, spec)
+		return obj, nil
 	})
 }
 

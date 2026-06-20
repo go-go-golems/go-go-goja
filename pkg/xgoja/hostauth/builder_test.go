@@ -62,8 +62,9 @@ func TestBuildAuthOptionsWiresSessionAuditResourcesAndAuthorizer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildSessionManager: %v", err)
 	}
-	options := BuildAuthOptions(manager, stores, nil)
-	if options.Authenticator == nil || options.CSRF == nil || options.Resources == nil || options.Authorizer == nil {
+	limiter := gojahttp.NewMemoryRateLimiter()
+	options := BuildAuthOptions(manager, stores, nil, limiter)
+	if options.Authenticator == nil || options.CSRF == nil || options.Resources == nil || options.Authorizer == nil || options.RateLimiter == nil {
 		t.Fatalf("auth options missing fields: %#v", options)
 	}
 	if options.Audit != nil {
@@ -101,10 +102,10 @@ func TestServiceFactoryDevBuildsUsableAuthServices(t *testing.T) {
 			t.Fatalf("Close: %v", err)
 		}
 	}()
-	if services.AuthOptions.Authenticator == nil || services.AuthOptions.CSRF == nil || services.AuthOptions.Audit == nil || services.AuthOptions.Resources == nil || services.AuthOptions.Authorizer == nil {
+	if services.AuthOptions.Authenticator == nil || services.AuthOptions.CSRF == nil || services.AuthOptions.Audit == nil || services.AuthOptions.Resources == nil || services.AuthOptions.Authorizer == nil || services.AuthOptions.RateLimiter == nil {
 		t.Fatalf("auth options missing fields: %#v", services.AuthOptions)
 	}
-	if services.SessionManager == nil || services.SessionStore == nil || services.AuditStore == nil || services.Capability == nil {
+	if services.RateLimiter == nil || services.SessionManager == nil || services.SessionStore == nil || services.AuditStore == nil || services.Capability == nil {
 		t.Fatalf("services missing stores/managers: %#v", services)
 	}
 
@@ -147,7 +148,7 @@ func TestServiceFactoryOIDCBuildsNativeHandlers(t *testing.T) {
 	if services.Config.Mode != ModeOIDC || services.Config.OIDC.RedirectURL != "http://localhost:8787/auth/callback" {
 		t.Fatalf("config = %#v", services.Config)
 	}
-	if services.SessionManager == nil || services.AuthOptions.Authenticator == nil {
+	if services.SessionManager == nil || services.AuthOptions.Authenticator == nil || services.AuthOptions.RateLimiter == nil {
 		t.Fatalf("missing session/auth options: %#v", services)
 	}
 	got := map[string]bool{}

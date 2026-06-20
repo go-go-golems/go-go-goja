@@ -2,8 +2,10 @@ package gojahttp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 // EnforcerOptions configures the reusable planned-auth enforcement pipeline.
@@ -72,6 +74,9 @@ func (e *Enforcer) Enforce(ctx context.Context, httpReq *http.Request, req *Requ
 	}
 	plan = &validatedPlan
 	sec := &SecureContext{Plan: *plan, Request: req, Params: cloneStringMap(req.Params), Body: req.Body, Resources: map[string]*ResourceRef{}}
+	if err := e.checkRateLimits(ctx, httpReq, req, plan, sec, RateLimitStagePreAuth); err != nil {
+		return sec, statusForAuthError(err), err
+	}
 	var actor *Actor
 	switch plan.Security.Mode {
 	case SecurityModePublic:
@@ -135,6 +140,11 @@ func (e *Enforcer) Enforce(ctx context.Context, httpReq *http.Request, req *Requ
 		}
 	}
 
+	sec.Resource = firstPlannedResource(plan, sec.Resources)
+	if err := e.checkRateLimits(ctx, httpReq, req, plan, sec, RateLimitStagePostAuth); err != nil {
+		return sec, statusForAuthError(err), err
+	}
+
 	if plan.Security.Mode != SecurityModePublic && plan.Action != "" {
 		if e.auth.Authorizer == nil {
 			return sec, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires authorizer", plan.Method, plan.Pattern)
@@ -189,6 +199,9 @@ func (e *Enforcer) writePlannedHTTPError(w http.ResponseWriter, loggingWriter *a
 	if status == 0 {
 		status = http.StatusInternalServerError
 	}
+	if rateErr := (*RateLimitError)(nil); errors.As(err, &rateErr) && rateErr.RetryAfter > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(int(rateErr.RetryAfter.Seconds()+0.999)))
+	}
 	message := http.StatusText(status)
 	if e.dev && err != nil && status >= 500 {
 		message = err.Error()
@@ -211,6 +224,13 @@ func (e *Enforcer) recordAudit(ctx context.Context, httpReq *http.Request, req *
 	if err != nil {
 		reason = err.Error()
 	}
+	attributes := map[string]any(nil)
+	if rateErr := (*RateLimitError)(nil); errors.As(err, &rateErr) {
+		attributes = map[string]any{"rateLimitPolicy": rateErr.Policy}
+		if rateErr.RetryAfter > 0 {
+			attributes["retryAfterSeconds"] = int(rateErr.RetryAfter.Seconds() + 0.999)
+		}
+	}
 	_ = e.auth.Audit.RecordAudit(ctx, AuditEvent{
 		HTTPRequest: httpReq,
 		Request:     req,
@@ -225,5 +245,6 @@ func (e *Enforcer) recordAudit(ctx context.Context, httpReq *http.Request, req *
 		Actor:       actor,
 		Resource:    resource,
 		Resources:   resources,
+		Attributes:  attributes,
 	})
 }

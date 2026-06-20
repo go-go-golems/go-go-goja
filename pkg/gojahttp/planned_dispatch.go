@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/dop251/goja"
 )
@@ -83,6 +84,9 @@ func (h *Host) writePlannedError(w http.ResponseWriter, res *Response, status in
 	if status == 0 {
 		status = http.StatusInternalServerError
 	}
+	if rateErr := (*RateLimitError)(nil); errors.As(err, &rateErr) && rateErr.RetryAfter > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(int(rateErr.RetryAfter.Seconds()+0.999)))
+	}
 	message := http.StatusText(status)
 	if h.dev && err != nil && status >= 500 {
 		message = err.Error()
@@ -108,6 +112,8 @@ func statusForAuthError(err error) int {
 		return http.StatusNotFound
 	case errors.Is(err, ErrCSRF):
 		return http.StatusForbidden
+	case errors.Is(err, ErrRateLimited):
+		return http.StatusTooManyRequests
 	default:
 		return http.StatusInternalServerError
 	}

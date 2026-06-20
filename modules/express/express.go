@@ -94,6 +94,9 @@ func (r *Registrar) loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	_ = exports.Set("resource", func(resourceType string) (goja.Value, error) {
 		return builders.newResourceBuilder(vm, resourceType)
 	})
+	_ = exports.Set("rateLimit", func(policy string) (goja.Value, error) {
+		return builders.newRateLimitBuilder(vm, policy)
+	})
 }
 
 type spaOptions struct {

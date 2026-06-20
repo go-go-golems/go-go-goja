@@ -30,6 +30,29 @@ func TestGoAppPublicHandleJSON(t *testing.T) {
 	}
 }
 
+func TestGoAppRateLimitBuilder(t *testing.T) {
+	limiter := gojahttp.NewMemoryRateLimiter()
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{RateLimiter: limiter}})
+	app := gojahttp.NewApp(host)
+	if err := app.Get("/limited").Public().RateLimit(gojahttp.RateLimit("public").PerMinute(1).ByIP().ByRoute().Spec()).HandleJSON(func(context.Context, *gojahttp.SecureContext) (any, error) {
+		return map[string]any{"ok": true}, nil
+	}); err != nil {
+		t.Fatalf("HandleJSON: %v", err)
+	}
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/limited", nil)
+		req.RemoteAddr = "192.0.2.20:1234"
+		rr := httptest.NewRecorder()
+		host.ServeHTTP(rr, req)
+		if i == 0 && rr.Code != http.StatusOK {
+			t.Fatalf("first status=%d body=%s", rr.Code, rr.Body.String())
+		}
+		if i == 1 && rr.Code != http.StatusTooManyRequests {
+			t.Fatalf("second status=%d body=%s", rr.Code, rr.Body.String())
+		}
+	}
+}
+
 func TestGoAppAuthResourceCSRFAndAllow(t *testing.T) {
 	csrfCalled := false
 	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{

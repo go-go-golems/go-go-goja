@@ -83,7 +83,8 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		return nil, err
 	}
 	auditSink := audit.Sink{Store: stores.Audit}
-	authOptions := BuildAuthOptions(sessionManager, stores, auditSink)
+	rateLimiter := gojahttp.NewMemoryRateLimiter()
+	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter)
 	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores)
 	if err != nil {
 		return nil, err
@@ -95,6 +96,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		SessionStore:   stores.Session,
 		AuditSink:      auditSink,
 		AuditStore:     stores.Audit,
+		RateLimiter:    rateLimiter,
 		AppAuth:        stores.AppAuth,
 		Capability:     stores.Capability,
 		NativeHandlers: nativeHandlers,
@@ -221,7 +223,7 @@ func BuildSessionManager(cfg ResolvedSessionConfig, store sessionauth.Store, act
 
 // BuildAuthOptions wires a session manager and built auth stores into
 // gojahttp's host-owned auth interfaces.
-func BuildAuthOptions(sessionManager *sessionauth.Manager, stores *StoreBundle, auditSink gojahttp.AuditSink) gojahttp.AuthOptions {
+func BuildAuthOptions(sessionManager *sessionauth.Manager, stores *StoreBundle, auditSink gojahttp.AuditSink, rateLimiter gojahttp.RateLimiter) gojahttp.AuthOptions {
 	var options gojahttp.AuthOptions
 	if sessionManager != nil {
 		options.Authenticator = sessionManager
@@ -229,6 +231,9 @@ func BuildAuthOptions(sessionManager *sessionauth.Manager, stores *StoreBundle, 
 	}
 	if auditSink != nil {
 		options.Audit = auditSink
+	}
+	if rateLimiter != nil {
+		options.RateLimiter = rateLimiter
 	}
 	if stores != nil {
 		if stores.AppAuth.Resources != nil {

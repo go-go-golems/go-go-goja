@@ -53,6 +53,8 @@ type Services struct {
 	AuditSink  gojahttp.AuditSink
 	AuditStore audit.Store
 
+	RateLimiter gojahttp.RateLimiter
+
 	AppAuth    AppAuthStores
 	Capability capability.Store
 

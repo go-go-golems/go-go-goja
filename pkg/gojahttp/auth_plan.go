@@ -33,19 +33,21 @@ var (
 	ErrForbidden       = errors.New("forbidden")
 	ErrNotFound        = errors.New("not found")
 	ErrCSRF            = errors.New("csrf invalid")
+	ErrRateLimited     = errors.New("rate limit exceeded")
 )
 
 // RoutePlan is the Go-owned security contract compiled by the Express fluent
 // route builder at registration time.
 type RoutePlan struct {
-	Name      string
-	Method    string
-	Pattern   string
-	Security  SecuritySpec
-	Resources []ResourceSpec
-	Action    string
-	CSRF      CSRFSpec
-	Audit     AuditSpec
+	Name       string
+	Method     string
+	Pattern    string
+	Security   SecuritySpec
+	Resources  []ResourceSpec
+	Action     string
+	CSRF       CSRFSpec
+	Audit      AuditSpec
+	RateLimits []RateLimitSpec
 }
 
 // SecuritySpec describes who may enter a planned route.
@@ -109,6 +111,7 @@ type AuthOptions struct {
 	Authorizer    Authorizer
 	CSRF          CSRFProtector
 	Audit         AuditSink
+	RateLimiter   RateLimiter
 }
 
 type Authenticator interface {
@@ -191,6 +194,14 @@ func ValidateRoutePlan(plan RoutePlan) (RoutePlan, error) {
 	}
 	if plan.Pattern == "" {
 		return RoutePlan{}, fmt.Errorf("planned route pattern is required")
+	}
+
+	for i := range plan.RateLimits {
+		limit, err := normalizeRateLimitSpec(plan, plan.RateLimits[i])
+		if err != nil {
+			return RoutePlan{}, err
+		}
+		plan.RateLimits[i] = limit
 	}
 
 	switch plan.Security.Mode {
