@@ -146,6 +146,9 @@ func (e *Enforcer) Enforce(ctx context.Context, httpReq *http.Request, req *Requ
 	if err := e.checkRateLimits(ctx, httpReq, req, plan, sec, RateLimitStagePostAuth); err != nil {
 		return sec, statusForAuthError(err), err
 	}
+	if plan.Action != "" && len(sec.Auth.Grants.Grants) > 0 && !sec.Auth.Grants.Allows(plan.Action, sec.Resource) {
+		return sec, http.StatusForbidden, fmt.Errorf("%w: insufficient grant for %s", ErrForbidden, plan.Action)
+	}
 
 	if plan.Security.Mode != SecurityModePublic && plan.Action != "" {
 		if e.auth.Authorizer == nil {
