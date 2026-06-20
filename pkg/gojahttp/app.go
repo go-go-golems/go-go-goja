@@ -224,6 +224,33 @@ func (b UserAuthBuilder) MFAFresh(within time.Duration) SecuritySpec {
 	return b.spec
 }
 
+// Agent restricts a planned route to authenticated agent principals.
+func Agent() SecuritySpec {
+	return SecuritySpec{Mode: SecurityModeUser, Required: true, AuthRequirements: []AuthRequirement{{PrincipalKind: PrincipalKindAgent}}}
+}
+
+// SessionUser restricts a planned route to browser-session user principals.
+func SessionUser() SecuritySpec {
+	return SecuritySpec{Mode: SecurityModeUser, Required: true, AuthRequirements: []AuthRequirement{{Method: AuthMethodSession, PrincipalKind: PrincipalKindUser}}}
+}
+
+// AnyOf combines route auth specs as alternatives. The result accepts any
+// authenticated principal that satisfies at least one non-empty requirement.
+func AnyOf(specs ...SecuritySpec) SecuritySpec {
+	out := SecuritySpec{Mode: SecurityModeUser, Required: true}
+	for _, spec := range specs {
+		if spec.MFAFreshWithin > out.MFAFreshWithin {
+			out.MFAFreshWithin = spec.MFAFreshWithin
+		}
+		if len(spec.AuthRequirements) == 0 {
+			out.AuthRequirements = nil
+			return out
+		}
+		out.AuthRequirements = append(out.AuthRequirements, spec.AuthRequirements...)
+	}
+	return out
+}
+
 // Resource starts a Go-native resource spec builder.
 func Resource(typ string) ResourceBuilder {
 	typ = strings.TrimSpace(typ)

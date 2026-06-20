@@ -72,11 +72,22 @@ type RoutePlan struct {
 	RateLimits []RateLimitSpec
 }
 
+// AuthRequirement constrains which authenticated principal families may enter
+// a planned route. Empty fields are wildcards, so {PrincipalKind: "agent"}
+// accepts any current or future credential family that authenticates as an
+// agent, while {Method: "session", PrincipalKind: "user"} is browser-session
+// user auth only.
+type AuthRequirement struct {
+	Method        AuthMethod
+	PrincipalKind PrincipalKind
+}
+
 // SecuritySpec describes who may enter a planned route.
 type SecuritySpec struct {
-	Mode           SecurityMode
-	Required       bool
-	MFAFreshWithin time.Duration
+	Mode             SecurityMode
+	Required         bool
+	MFAFreshWithin   time.Duration
+	AuthRequirements []AuthRequirement
 }
 
 // ValueSource describes a typed value extraction from the HTTP adapter layer.
@@ -251,8 +262,16 @@ func ValidateRoutePlan(plan RoutePlan) (RoutePlan, error) {
 	switch plan.Security.Mode {
 	case SecurityModePublic:
 		plan.Security.Required = false
+		if len(plan.Security.AuthRequirements) > 0 {
+			return RoutePlan{}, fmt.Errorf("planned public route %s %s cannot declare auth requirements", plan.Method, plan.Pattern)
+		}
 	case SecurityModeUser:
 		plan.Security.Required = true
+		authRequirements, err := normalizeAuthRequirements(plan.Security.AuthRequirements)
+		if err != nil {
+			return RoutePlan{}, fmt.Errorf("planned route %s %s auth requirements: %w", plan.Method, plan.Pattern, err)
+		}
+		plan.Security.AuthRequirements = authRequirements
 		if plan.Action == "" {
 			return RoutePlan{}, fmt.Errorf("planned user route %s %s requires .allow(action)", plan.Method, plan.Pattern)
 		}
@@ -281,6 +300,51 @@ func ValidateRoutePlan(plan RoutePlan) (RoutePlan, error) {
 		}
 	}
 	return plan, nil
+}
+
+func normalizeAuthRequirements(in []AuthRequirement) ([]AuthRequirement, error) {
+	if len(in) == 0 {
+		return nil, nil
+	}
+	out := make([]AuthRequirement, 0, len(in))
+	seen := map[AuthRequirement]struct{}{}
+	for _, requirement := range in {
+		requirement.Method = AuthMethod(strings.TrimSpace(string(requirement.Method)))
+		requirement.PrincipalKind = PrincipalKind(strings.TrimSpace(string(requirement.PrincipalKind)))
+		if requirement.Method == "" && requirement.PrincipalKind == "" {
+			return nil, fmt.Errorf("empty auth requirement")
+		}
+		if err := validateAuthMethod(requirement.Method); err != nil {
+			return nil, err
+		}
+		if err := validatePrincipalKind(requirement.PrincipalKind); err != nil {
+			return nil, err
+		}
+		if _, ok := seen[requirement]; ok {
+			continue
+		}
+		seen[requirement] = struct{}{}
+		out = append(out, requirement)
+	}
+	return out, nil
+}
+
+func validateAuthMethod(method AuthMethod) error {
+	switch method {
+	case "", AuthMethodNone, AuthMethodSession, AuthMethodAPIToken, AuthMethodAccessToken:
+		return nil
+	default:
+		return fmt.Errorf("unsupported auth method %q", method)
+	}
+}
+
+func validatePrincipalKind(kind PrincipalKind) error {
+	switch kind {
+	case "", PrincipalKindUser, PrincipalKindAgent, PrincipalKindService:
+		return nil
+	default:
+		return fmt.Errorf("unsupported principal kind %q", kind)
+	}
 }
 
 func validateValueSource(source ValueSource, pathParams map[string]struct{}, label string) error {

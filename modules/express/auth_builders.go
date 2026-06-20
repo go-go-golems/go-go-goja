@@ -20,6 +20,42 @@ func newBuilderStore() *builderStore { return &builderStore{} }
 
 func (s *builderStore) newUserBuilder(vm *goja.Runtime) goja.Value {
 	spec := &gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser, Required: true}
+	return s.newAuthBuilder(vm, spec, "express.user()")
+}
+
+func (s *builderStore) newAgentBuilder(vm *goja.Runtime) goja.Value {
+	spec := &gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser, Required: true, AuthRequirements: []gojahttp.AuthRequirement{{PrincipalKind: gojahttp.PrincipalKindAgent}}}
+	return s.newAuthBuilder(vm, spec, "express.agent()")
+}
+
+func (s *builderStore) newSessionUserBuilder(vm *goja.Runtime) goja.Value {
+	spec := &gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser, Required: true, AuthRequirements: []gojahttp.AuthRequirement{{Method: gojahttp.AuthMethodSession, PrincipalKind: gojahttp.PrincipalKindUser}}}
+	return s.newAuthBuilder(vm, spec, "express.sessionUser()")
+}
+
+func (s *builderStore) newAnyOfBuilder(vm *goja.Runtime, values ...goja.Value) (goja.Value, error) {
+	if len(values) == 0 {
+		return nil, fmt.Errorf("express.anyOf(...) requires at least one auth spec")
+	}
+	combined := gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser, Required: true}
+	for _, value := range values {
+		spec, err := s.authSpec(vm, value)
+		if err != nil {
+			return nil, err
+		}
+		if spec.MFAFreshWithin > combined.MFAFreshWithin {
+			combined.MFAFreshWithin = spec.MFAFreshWithin
+		}
+		if len(spec.AuthRequirements) == 0 {
+			combined.AuthRequirements = nil
+			return s.newAuthBuilder(vm, &combined, "express.anyOf(...)"), nil
+		}
+		combined.AuthRequirements = append(combined.AuthRequirements, spec.AuthRequirements...)
+	}
+	return s.newAuthBuilder(vm, &combined, "express.anyOf(...)"), nil
+}
+
+func (s *builderStore) newAuthBuilder(vm *goja.Runtime, spec *gojahttp.SecuritySpec, label string) goja.Value {
 	obj := vm.NewObject()
 	s.authSpecs.Store(obj, spec)
 	_ = obj.Set("required", func() goja.Value {
@@ -29,7 +65,7 @@ func (s *builderStore) newUserBuilder(vm *goja.Runtime) goja.Value {
 	_ = obj.Set("mfaFresh", func(raw string) (goja.Value, error) {
 		d, err := time.ParseDuration(strings.TrimSpace(raw))
 		if err != nil {
-			return nil, fmt.Errorf("express.user().mfaFresh(%q): %w", raw, err)
+			return nil, fmt.Errorf("%s.mfaFresh(%q): %w", label, raw, err)
 		}
 		spec.MFAFreshWithin = d
 		return obj, nil
@@ -39,12 +75,12 @@ func (s *builderStore) newUserBuilder(vm *goja.Runtime) goja.Value {
 
 func (s *builderStore) authSpec(vm *goja.Runtime, value goja.Value) (gojahttp.SecuritySpec, error) {
 	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
-		return gojahttp.SecuritySpec{}, fmt.Errorf(".auth(...) expects value returned by express.user()")
+		return gojahttp.SecuritySpec{}, fmt.Errorf(".auth(...) expects value returned by express.user(), express.agent(), express.sessionUser(), or express.anyOf(...)")
 	}
 	obj := value.ToObject(vm)
 	raw, ok := s.authSpecs.Load(obj)
 	if !ok {
-		return gojahttp.SecuritySpec{}, fmt.Errorf(".auth(...) expects value returned by express.user(); got %s", valueString(value))
+		return gojahttp.SecuritySpec{}, fmt.Errorf(".auth(...) expects value returned by express.user(), express.agent(), express.sessionUser(), or express.anyOf(...); got %s", valueString(value))
 	}
 	spec, ok := raw.(*gojahttp.SecuritySpec)
 	if !ok || spec == nil {

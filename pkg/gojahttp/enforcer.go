@@ -94,6 +94,9 @@ func (e *Enforcer) Enforce(ctx context.Context, httpReq *http.Request, req *Requ
 			return sec, http.StatusUnauthorized, ErrUnauthenticated
 		}
 		sec.Auth = auth
+		if err := checkAuthRequirements(plan.Security, auth); err != nil {
+			return sec, http.StatusForbidden, err
+		}
 		actor = auth.Actor
 		sec.Actor = actor
 	default:
@@ -237,6 +240,20 @@ func normalizeAuthResult(auth AuthResult) AuthResult {
 		auth.Scopes = auth.Grants.ScopeStrings()
 	}
 	return auth
+}
+
+func checkAuthRequirements(spec SecuritySpec, auth AuthResult) error {
+	if len(spec.AuthRequirements) == 0 {
+		return nil
+	}
+	for _, requirement := range spec.AuthRequirements {
+		methodMatches := requirement.Method == "" || requirement.Method == auth.Method
+		kindMatches := requirement.PrincipalKind == "" || requirement.PrincipalKind == auth.PrincipalKind
+		if methodMatches && kindMatches {
+			return nil
+		}
+	}
+	return fmt.Errorf("%w: authenticated principal does not satisfy route auth requirements", ErrForbidden)
 }
 
 func shouldVerifyCSRF(mode SecurityMode, auth AuthResult) bool {

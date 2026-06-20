@@ -20,6 +20,9 @@ func (r *Registrar) TypeScriptModule() *spec.Module {
 		},
 		RawDTS: []string{
 			"export function user(): UserAuthBuilder;",
+			"export function agent(): UserAuthBuilder;",
+			"export function sessionUser(): UserAuthBuilder;",
+			"export function anyOf(...specs: UserAuthSpec[]): UserAuthBuilder;",
 			"export function resource(type: string): ResourceBuilder;",
 			"export function rateLimit(policy: string): RateLimitBuilder;",
 			"export type HttpMethod = \"GET\" | \"POST\" | \"PUT\" | \"PATCH\" | \"DELETE\" | \"ALL\" | string;",
