@@ -161,6 +161,10 @@ topics:
       description: Audit logging, audit records, and audit access patterns
     - slug: database
       description: Database access, SQL handles, stores, and persistence design
+    - slug: fetch
+      description: Client-side fetch and outbound HTTP APIs
+    - slug: javascript-api
+      description: JavaScript-facing API design and implementation
 docTypes:
     - slug: index
       description: Index document for a ticket
