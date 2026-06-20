@@ -223,8 +223,15 @@ func normalizeAuthResult(auth AuthResult) AuthResult {
 	if auth.PrincipalKind == "" && auth.Method == AuthMethodSession {
 		auth.PrincipalKind = PrincipalKindUser
 	}
+	if len(auth.Grants.Grants) > 0 {
+		if normalized, err := auth.Grants.Normalize(); err == nil {
+			auth.Grants = normalized
+		}
+	}
 	if auth.Scopes != nil {
 		auth.Scopes = append([]string(nil), auth.Scopes...)
+	} else if len(auth.Grants.Grants) > 0 {
+		auth.Scopes = auth.Grants.ScopeStrings()
 	}
 	return auth
 }

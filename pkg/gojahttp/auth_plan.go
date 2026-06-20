@@ -137,6 +137,7 @@ type AuthResult struct {
 	PrincipalID    string
 	CredentialID   string
 	CredentialHint string
+	Grants         GrantSet
 	Scopes         []string
 	CSRFRequired   bool
 }
