@@ -14,11 +14,17 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: modules/express/auth_builders.go
-      Note: Express fluent rate-limit builders implemented in commit 1486dbb
+      Note: |-
+        Express fluent rate-limit builders implemented in commit 1486dbb
+        Express auth restriction builders for agent/session/anyOf (commit 84d9e3c)
     - Path: modules/express/typescript.go
-      Note: PlannedContext AuthInfo TypeScript declarations added in commit 1add4b5
+      Note: |-
+        PlannedContext AuthInfo TypeScript declarations added in commit 1add4b5
+        TypeScript declarations for route auth restriction builders (commit 84d9e3c)
     - Path: pkg/gojahttp/api_token_integration_test.go
       Note: End-to-end planned-route API-token behavior (commit 00a1e86)
+    - Path: pkg/gojahttp/app.go
+      Note: Go route helper builders Agent
     - Path: pkg/gojahttp/auth/programauth/agent.go
       Note: Programmatic Agent model/service and actor projection added in commit 5800dd7
     - Path: pkg/gojahttp/auth/programauth/composite.go
@@ -35,11 +41,13 @@ RelatedFiles:
       Note: |-
         AuthResult
         AuthResult GrantSet field added in commit 5800dd7
+        AuthRequirement route-plan contract and validation for phase 6 (commit 84d9e3c)
     - Path: pkg/gojahttp/enforcer.go
       Note: |-
         Pre/post route limit enforcement implemented in commit 1486dbb
         ResultAuthenticator integration
         Grant intersection enforcement for AuthResult.Grants (commit 00a1e86)
+        Enforces agent/session route auth requirements before downstream checks (commit 84d9e3c)
     - Path: pkg/gojahttp/grants.go
       Note: Typed GrantSet model
     - Path: pkg/gojahttp/planned_dispatch.go
@@ -66,6 +74,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -909,4 +918,108 @@ pkg/xgoja/hostauth/services.go
 pkg/xgoja/providers/hostauth/hostauth.go
 pkg/xgoja/providers/hostauth/programmatic.go
 pkg/xgoja/providers/hostauth/hostauth_test.go
+```
+
+## Step 9: Add route auth restrictions for agents, session users, and alternatives
+
+I added a route-level auth requirement layer on top of the existing authenticated-route envelope. Planned routes can now restrict entry to agent principals, browser session users, or an explicit union of alternatives while still using the same resource resolution, rate limiting, CSRF, audit, and app authorizer pipeline.
+
+The Go and Express builders now expose the same concepts: `gojahttp.Agent()`, `gojahttp.SessionUser()`, `gojahttp.AnyOf(...)`, plus `express.agent()`, `express.sessionUser()`, and `express.anyOf(...)`. This keeps the route declaration fluent while making principal-family requirements visible in the Go-owned route plan.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 8)
+
+**Assistant interpretation:** Continue the implementation plan after committing ticket metadata and the previous programmatic-auth slices.
+
+**Inferred user intent:** Progress through the planned phases with focused commits, validation, and ticket bookkeeping.
+
+**Commit (code):** 84d9e3c — "gojahttp: add route auth requirement builders"
+
+### What I did
+
+- Added `gojahttp.AuthRequirement` and `SecuritySpec.AuthRequirements` to represent route-level method/principal constraints.
+- Validated and deduplicated auth requirements during `ValidateRoutePlan`.
+- Enforced auth requirements after authentication normalizes `AuthResult` and before CSRF/resource/authorization work.
+- Added Go route helpers for `Agent()`, `SessionUser()`, and `AnyOf(...)`.
+- Added Express builders for `express.agent()`, `express.sessionUser()`, and `express.anyOf(...)`.
+- Updated Express TypeScript declarations.
+- Added core enforcer tests and Express integration tests for allowed agent alternatives and forbidden wrong-principal access.
+- Marked Phase 6 complete and updated the changelog.
+
+### Why
+
+- Route declarations need to distinguish automation agents from browser users before the app-specific authorizer runs.
+- The requirement should remain route-local and declarative, rather than requiring every authorizer implementation to infer credential families from `ctx.auth`.
+- Express and Go route builders should expose the same security vocabulary.
+
+### What worked
+
+- `AuthResult` already carries `Method` and `PrincipalKind`, so the enforcer check is small and does not need to inspect credentials.
+- The existing builder-store pattern in Express cleanly supports additional Go-owned auth spec objects.
+- Focused package tests, full `go test ./...`, and the pre-commit lint/test hook passed.
+
+### What didn't work
+
+- No implementation blocker occurred in this slice.
+- As in the previous commit, the pre-commit hook ran `go generate ./...` and started the Dagger engine while using cached frontend build output.
+
+### What I learned
+
+- Keeping auth restrictions as `AuthRequirement` alternatives avoids hard-coding every future credential family into route builders.
+- `express.anyOf(...)` needs to preserve OR semantics. If any alternative is an unrestricted authenticated-user spec, the combined result must remain unrestricted rather than accidentally narrowing to the other alternatives.
+- Denied auth-requirement checks should keep the normalized `AuthResult` on the partial secure context so audit/debug paths can still see what principal was denied.
+
+### What was tricky to build
+
+- The main design edge was representing `anyOf` without turning separate method/kind requirements into an unintended cross product. I used explicit `AuthRequirement` alternatives where each requirement can constrain method, principal kind, or both.
+- Another subtlety was ordering in the enforcer. Requirement checks must happen after authentication and normalization, but before CSRF and authorization, so a session user cannot reach an agent-only route and trigger unrelated downstream checks.
+- Public routes cannot carry auth requirements; `ValidateRoutePlan` now rejects that combination so route metadata stays unambiguous.
+
+### What warrants a second pair of eyes
+
+- Whether `express.agent()` should mean any agent principal or only API-token-backed agents; the current implementation intentionally keys on principal kind, not credential method.
+- Whether `AuthRequirement` should eventually include tenant/agent-kind constraints or remain only method/principal-family selection.
+- Whether denied auth-requirement responses should gain OAuth-style `insufficient_scope`/`WWW-Authenticate` metadata in the next bearer-error phase.
+
+### What should be done in the future
+
+- Add bearer challenge headers and OAuth-style error codes.
+- Add SQL-backed programauth stores before production use.
+- Continue with access/refresh token families and device authorization flow.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/auth_plan.go` for the new `AuthRequirement` contract and route-plan validation.
+- Review `pkg/gojahttp/enforcer.go` for enforcement ordering and denied-context behavior.
+- Review `pkg/gojahttp/app.go` for Go route builder helpers.
+- Review `modules/express/auth_builders.go`, `modules/express/express.go`, and `modules/express/typescript.go` for JavaScript/TypeScript API shape.
+- Validate with `go test ./pkg/gojahttp ./modules/express ./pkg/gojahttp/auth/programauth ./pkg/xgoja/hostauth ./pkg/xgoja/providers/hostauth` and `go test ./...`.
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+go test ./pkg/gojahttp ./modules/express ./pkg/gojahttp/auth/programauth ./pkg/xgoja/hostauth ./pkg/xgoja/providers/hostauth
+# ok for all focused packages
+
+go test ./...
+# ok for full repository
+
+git commit -m "gojahttp: add route auth requirement builders"
+# pre-commit lint/test passed; commit 84d9e3c
+```
+
+Primary files:
+
+```text
+pkg/gojahttp/auth_plan.go
+pkg/gojahttp/enforcer.go
+pkg/gojahttp/app.go
+pkg/gojahttp/enforcer_test.go
+modules/express/auth_builders.go
+modules/express/express.go
+modules/express/typescript.go
+modules/express/auth_builders_integration_test.go
 ```

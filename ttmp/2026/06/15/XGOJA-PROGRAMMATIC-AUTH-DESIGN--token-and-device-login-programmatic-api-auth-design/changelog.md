@@ -135,3 +135,15 @@ Phase 5: wired generated hostauth services with programauth stores/composite bea
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/hostauth_test.go — Covers auth.agents/auth.tokens issuance/list/revoke behavior from JavaScript
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/programmatic.go — Exposes Go-owned fluent JavaScript builders for grants, agents, and API tokens
 
+
+## 2026-06-20
+
+Phase 6: added route auth requirements and Go/Express builders for agent, session-user, and anyOf restrictions (commit 84d9e3c).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/auth_builders.go — Adds express.agent, express.sessionUser, and express.anyOf auth builders
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/typescript.go — Declares TypeScript support for route auth restriction builders
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth_plan.go — Defines AuthRequirement route constraints and validates allowed auth methods/principal kinds
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/enforcer.go — Enforces route auth requirements after authentication and before CSRF/resource/authorization work
+
