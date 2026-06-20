@@ -13,9 +13,17 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/design/01-token-and-device-login-programmatic-api-auth-implementation-guide.md
+    - Path: modules/express/auth_builders.go
+      Note: Express fluent rate-limit builders implemented in commit 1486dbb
+    - Path: pkg/gojahttp/enforcer.go
+      Note: Pre/post route limit enforcement implemented in commit 1486dbb
+    - Path: pkg/gojahttp/ratelimit.go
+      Note: Core rate-limit model and in-memory limiter implemented in commit 1486dbb
+    - Path: pkg/xgoja/hostauth/services.go
+      Note: Generated hostauth rate-limiter wiring implemented in commit 1486dbb
+    - Path: ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/design/01-token-and-device-login-programmatic-api-auth-implementation-guide.md
       Note: Primary implementation guide produced by this ticket.
-    - Path: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/sources/01-current-auth-surface.md
+    - Path: ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/sources/01-current-auth-surface.md
       Note: Current code evidence used to ground the guide.
 ExternalSources: []
 Summary: Diary for creating the token/device-login programmatic API auth design ticket and reMarkable bundle.
@@ -23,6 +31,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 # Diary
 
@@ -115,4 +124,315 @@ Important paths:
 ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/design/01-token-and-device-login-programmatic-api-auth-implementation-guide.md
 ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/reference/01-implementation-diary.md
 ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/sources/01-current-auth-surface.md
+```
+
+## Step 2: Review the plan against external best practice and current code
+
+I revisited the original programmatic auth plan as a design review rather than as an implementation task. The goal was to test the plan against OWASP, IETF, NIST, and practical fine-grained token guidance, then update the ticket with a more opinionated design for JavaScript-authored programmatic agent APIs.
+
+The main outcome is a new long-form review document. It keeps the original plan's strongest ideas, but shifts the implementation target from `planned_dispatch.go` to the current `gojahttp.Enforcer`, adds a first-class programmatic agent model, and recommends Go-backed fluent builders for `auth.agents`, `auth.tokens`, `auth.device`, and typed grant construction.
+
+### Prompt Context
+
+**User prompt (verbatim):** "The plan was written by your little brother. Can you do some research on best practice (say, owasp and co), using defuddle to download the resources to the sources/ directory (could be that they already did that), and then review their plan in depth and figure out if not only things are correct and well written out, but reflecting on potential missed opportunities to create a simple yet opiinoinated way to build javascript APIs around programmatic agent design. We want to have opinionated but also flexible / general APIs to use, with some core principles like minimizing the use of js maps / object sto avoid overly defensive programming and using fluent, builder api style where the core objects are under go control. 
+
+Create  a detailed analysis / design / code review that is for a new intern, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file references. It should be very clear and technical. Store in the ticket and the nupload to remarkable."
+
+**Assistant interpretation:** Research external API/OAuth/session/token best practice, save sources into the ticket, deeply review the existing programmatic auth guide, and write a new intern-friendly design/code-review document emphasizing opinionated Go-owned fluent JavaScript APIs for programmatic agents.
+
+**Inferred user intent:** Improve the quality of the original design before implementation so the next engineer builds a secure, ergonomic, reusable programmatic auth surface rather than a pile of token endpoints.
+
+**Commit (code):** N/A — documentation and ticket-source updates only.
+
+### What I did
+
+- Downloaded OWASP API Security, OWASP cheat sheets, IETF RFCs, NIST session guidance, and GitHub fine-grained PAT guidance into `sources/`.
+- Used `defuddle parse --md` for the standard web pages.
+- Stored RFC 8628 and RFC 6750 from RFC Editor plain text after defuddle could not extract their HTML pages.
+- Added `design/02-best-practice-review-and-opinionated-javascript-api-design-for-programmatic-auth.md`.
+- Related the new design doc to current implementation files:
+  - `/home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/enforcer.go`
+  - `/home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth_plan.go`
+  - `/home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/auth_builders.go`
+  - `/home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/hostauth.go`
+  - `/home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder.go`
+  - `/home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/verbs/sites.js`
+- Added and checked ticket tasks for source download, review writing, and reMarkable upload.
+- Dry-ran and uploaded the bundle `XGOJA Programmatic Auth Best Practice Review` to `/ai/2026/06/18/XGOJA-PROGRAMMATIC-AUTH-DESIGN`.
+- Fixed a Mermaid label that broke rendering and re-uploaded the bundle with `--force`.
+
+### Why
+
+- The original plan was written before later auth work moved enforcement into `gojahttp.Enforcer` and before the `require("auth")` fluent audit/capability APIs existed.
+- External guidance makes rate limiting, header-only bearer transport, refresh-token rotation, object-level authorization, and device-code polling semantics more explicit than the original plan did.
+- Programmatic auth should be designed as an agent/API product surface, not just token storage and endpoints.
+
+### What worked
+
+- The current codebase already has the right API style precedent in `auth.audit.query()` and `auth.capabilities.issue()`.
+- The staged `modules/express` builder pattern already demonstrates how to avoid object-bag defensive programming.
+- The existing generated-host service factory is a good seam for future token/device stores and native handlers.
+
+### What didn't work
+
+- `defuddle parse https://www.ietf.org/rfc/rfc8628.html --md` failed with:
+  `Error: No content could be extracted from https://www.ietf.org/rfc/rfc8628.html`
+- `defuddle parse https://www.ietf.org/rfc/rfc6750.html --md` failed with:
+  `Error: No content could be extracted from https://www.ietf.org/rfc/rfc6750.html`
+- Retrying the RFC Editor HTML pages also failed with the same extraction error.
+- I stored the RFC Editor `.txt` versions for RFC 8628 and RFC 6750 with a `FetchNote` explaining the fallback.
+- The first real `remarquee upload bundle` succeeded, but emitted Mermaid rendering warnings:
+  `Error: Parse error on line 24: ... JSAuthModule[require("auth") fluent APIs ... got 'PS'`
+- I changed the Mermaid subgraph label to `auth module fluent APIs`, reran a dry-run, and re-uploaded with `--force`; the second upload completed without warnings.
+
+### What I learned
+
+- The original plan's security instincts are mostly correct, but it under-specifies the product model around durable automation identities.
+- OWASP API2 and RFC 8628 make rate limiting part of the auth design, not merely an operational note.
+- NIST's session guidance is useful for explaining why bearer access tokens must not be treated as proof of active browser-session presence.
+- GitHub fine-grained PAT guidance is a useful practical model: token access is constrained by owner access and further narrowed by token permissions.
+
+### What was tricky to build
+
+- The review had to distinguish between what was wrong in the old plan and what simply became stale after later auth work. The key example is `planned_dispatch.go`: it still projects JavaScript context, but `gojahttp.Enforcer` now owns the enforcement algorithm and must be the primary AuthResult integration target.
+- The JavaScript API proposal needed to stay flexible without collapsing into free-form object maps. The solution was to recommend high-level `auth.agents` builders and lower-level `auth.tokens` builders, all backed by Go-owned state and explicit `.run()` side-effect boundaries.
+
+### What warrants a second pair of eyes
+
+- Whether the implementation should use one cohesive `programauth` package or keep separate `apitoken`, `tokenauth`, and `deviceauth` packages with a shared grant/agent package.
+- Whether `express.agent()` and `express.sessionUser()` should ship in the first AuthResult PR or wait until after API-token authentication works.
+- Whether production generated-host config should fail hard without a configured rate limiter when device login is enabled, or start with warnings plus a no-op dev limiter.
+
+### What should be done in the future
+
+- Update the original `design/01-...` guide to mark stale integration points and link to the new review.
+- Implement Phase 1 from the new review: `AuthResult` in `gojahttp.Enforcer` and safe `ctx.auth` projection.
+- N/A.
+
+### Code review instructions
+
+- Start with `design/02-best-practice-review-and-opinionated-javascript-api-design-for-programmatic-auth.md`.
+- Pay special attention to the sections `Review of the existing plan`, `Opinionated JavaScript API design`, `Revised enforcement algorithm`, and `Concrete implementation phases`.
+- Validate the claims against the cited files and downloaded sources in `sources/`.
+
+### Technical details
+
+Important commands and outcomes:
+
+```bash
+defuddle parse https://owasp.org/API-Security/editions/2023/en/0x11-t10/ --md | fold -w 100 -s > sources/02-owasp-api-security-top-10-2023.md
+defuddle parse https://cheatsheetseries.owasp.org/cheatsheets/OAuth2_Cheat_Sheet.html --md | fold -w 100 -s > sources/10-owasp-oauth2-cheat-sheet.md
+defuddle parse https://www.ietf.org/rfc/rfc8628.html --md
+# Error: No content could be extracted from https://www.ietf.org/rfc/rfc8628.html
+curl -fsSL https://www.rfc-editor.org/rfc/rfc8628.txt > sources/12-ietf-rfc8628-device-authorization-grant.md
+remarquee upload bundle ... --name "XGOJA Programmatic Auth Best Practice Review" --remote-dir "/ai/2026/06/18/XGOJA-PROGRAMMATIC-AUTH-DESIGN" --toc-depth 2 --dry-run --non-interactive
+remarquee upload bundle ... --name "XGOJA Programmatic Auth Best Practice Review" --remote-dir "/ai/2026/06/18/XGOJA-PROGRAMMATIC-AUTH-DESIGN" --toc-depth 2 --force --non-interactive
+# OK: uploaded XGOJA Programmatic Auth Best Practice Review.pdf -> /ai/2026/06/18/XGOJA-PROGRAMMATIC-AUTH-DESIGN
+```
+
+Primary new document:
+
+```text
+ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/design/02-best-practice-review-and-opinionated-javascript-api-design-for-programmatic-auth.md
+```
+
+## Step 3: Promote rate limiting to a planned-route primitive
+
+I updated the revised programmatic auth review to treat rate limiting as a first-class planned-route primitive, parallel to `.audit(...)` and `.csrf()`. The design now says rate limits should apply to all planned routes, with pre-auth limits for cheap IP/route keys and post-auth limits for actor, tenant, and resource-aware quotas.
+
+This is a meaningful correction to the previous auth design. Programmatic auth makes the omission more visible because token, refresh, and device endpoints are obvious abuse targets, but OWASP API4 applies to every API route. The right abstraction is therefore not a few special auth-endpoint throttles; it is a general `RateLimitSpec` compiled into `RoutePlan` and enforced by `gojahttp.Enforcer`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "- can the rate limiting be applied to all routes now? I must admit I forgot that in my previous express auth design that we are building upon. It probably makes sense to make rate limiting a fundamental primitive like audit() ."
+
+**Assistant interpretation:** Confirm whether rate limiting should become a general route primitive and update the programmatic auth design accordingly.
+
+**Inferred user intent:** Avoid designing rate limiting as a narrow auth-flow afterthought; make it part of the core Express/planned-route security DSL so all routes can declare and inherit request budgets.
+
+**Commit (code):** N/A — documentation update only.
+
+### What I did
+
+- Added a `Route-level rate limiting primitive` section to the best-practice review.
+- Updated the design principles to list `rateLimit` next to `auth`, `resource`, `allow`, `csrf`, and `audit`.
+- Added JavaScript API sketches for `.rateLimit(express.rateLimit(...))` on public, authenticated, and auth-sensitive routes.
+- Added Go API sketches for `RateLimitSpec`, `RateLimitKeyPart`, `RateLimiter`, and `AuthOptions.RateLimiter`.
+- Updated the enforcer pseudocode with pre-auth and post-auth rate-limit checks.
+- Added security invariants, implementation-phase tasks, tests, code-review checklist items, and a decision record for rate limiting.
+- Re-uploaded the revised bundle to reMarkable with `--force` at `/ai/2026/06/18/XGOJA-PROGRAMMATIC-AUTH-DESIGN`.
+
+### Why
+
+- OWASP API4 is about unrestricted resource consumption across APIs, not just authentication endpoints.
+- OWASP API2 and RFC 8628 require stricter throttling for auth/device flows, but that should be a specialization of a general primitive.
+- Route authors know the business cost of a route; the host knows normalized keys such as IP, actor, tenant, principal, and resource. A planned-route rate-limit primitive lets both cooperate without unsafe JavaScript key concatenation.
+
+### What worked
+
+- The existing planned-route DSL already has the right shape: `.audit(...)` is available on public and authenticated stages, so `.rateLimit(...)` can follow the same pattern.
+- The current staged builder design can add `express.rateLimit(policy)` as another Go-backed builder object stored in `builderStore`.
+- `gojahttp.Enforcer` is the right enforcement point because it can run cheap pre-auth limits before expensive auth work and actor/tenant/resource limits after authentication/resource extraction.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- A single limiter pass is not enough. Pre-auth limits protect public/login/device endpoints before expensive work; post-auth limits support actor/tenant/resource quotas.
+- Rate-limit failures should be audited as `429` denials with redacted policy/key hints.
+- Generated hosts should support default route-limit policies even when JavaScript authors forget to call `.rateLimit(...)`.
+
+### What was tricky to build
+
+- The design needed to avoid making rate limits either too early or too late in the pipeline. If limits only run after authentication, public routes and login/device endpoints remain exposed. If limits only run before authentication, per-actor and per-tenant quotas are impossible. The proposed solution is a compiled two-stage limiter plan.
+
+### What warrants a second pair of eyes
+
+- Whether route-level rate-limit specs should live directly in `RoutePlan` or in a separate policy registry referenced by route policy name.
+- Whether production generated-host config should fail closed for all limiter outages or only for auth-sensitive routes.
+- Whether limiter defaults should be injected globally by generated-host config even if route plans do not declare `.rateLimit(...)`.
+
+### What should be done in the future
+
+- Implement `RateLimitSpec` in the same PR as `AuthResult` or as the immediately following PR, because both belong in `gojahttp.Enforcer`.
+
+### Code review instructions
+
+- In `design/02-best-practice-review-and-opinionated-javascript-api-design-for-programmatic-auth.md`, review `Route-level rate limiting primitive`, `Revised enforcement algorithm`, `Security invariants`, `Concrete implementation phases`, and the rate-limit decision record.
+- Validate future code by adding tests for public pre-auth limits, authenticated actor limits, tenant/resource limits, generated defaults, and `429` audit redaction.
+
+### Technical details
+
+Primary changed document:
+
+```text
+ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/design/02-best-practice-review-and-opinionated-javascript-api-design-for-programmatic-auth.md
+```
+
+Upload command:
+
+```bash
+remarquee upload bundle ... --name "XGOJA Programmatic Auth Best Practice Review" --remote-dir "/ai/2026/06/18/XGOJA-PROGRAMMATIC-AUTH-DESIGN" --toc-depth 2 --force --non-interactive
+# OK: uploaded XGOJA Programmatic Auth Best Practice Review.pdf -> /ai/2026/06/18/XGOJA-PROGRAMMATIC-AUTH-DESIGN
+```
+
+## Step 4: Implement planned-route rate limiting
+
+I implemented the first programmatic-auth implementation phase by making rate limiting a compiled planned-route primitive instead of a handler-local convention. Routes can now declare one or more rate-limit policies in Go or JavaScript, and `gojahttp.Enforcer` evaluates those policies before or after authentication depending on the key material they need.
+
+The implementation keeps the security-sensitive pieces Go-owned: JavaScript receives fluent builders, route plans store typed specs, generated hosts get a default in-memory limiter for development, and production hosts can replace it through `AuthOptions.RateLimiter` without changing route declarations.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Create all phases/tasks for the programmatic auth work, then fully implement the rate-limiting phases, keep a detailed diary, and commit at appropriate intervals."
+
+**Assistant interpretation:** Turn the programmatic-auth design into docmgr phase tasks, complete the rate-limiting implementation phases, validate them, record the work in the diary, and commit focused changes.
+
+**Inferred user intent:** Move from design into a reviewable first implementation slice while keeping ticket bookkeeping and commit history clean enough for later auth/token/device phases.
+
+**Commit (code):** 1486dbbba2a840d879c4087be2f28faf67986458 — "gojahttp: add planned route rate limiting"
+
+### What I did
+
+- Added docmgr tasks for Phase 1A through Phase 1E and later Phase 2 through Phase 9 programmatic-auth work.
+- Added `pkg/gojahttp/ratelimit.go` with typed `RateLimitSpec`, key parts, stage selection, `RateLimiter`, `RateLimitRequest`, `RateLimitDecision`, `RateLimitError`, validation, deterministic key construction, and a fixed-window `MemoryRateLimiter`.
+- Added `RateLimits []RateLimitSpec` to `RoutePlan` and `RateLimiter RateLimiter` to `AuthOptions`.
+- Integrated pre-auth and post-auth checks into `gojahttp.Enforcer`, including `429 Too Many Requests` status mapping and `Retry-After` response handling.
+- Added Go builder support through `gojahttp.RateLimit(policy)` and `.RateLimit(...)` methods on planned route policy/handler phases.
+- Added Express support through `express.rateLimit(policy)`, fluent builder methods such as `.perMinute(...)`, `.byIP()`, `.byActor()`, `.byParam(...)`, `.failOpen(...)`, and planned-route `.rateLimit(...)` methods.
+- Updated generated-host auth services so `BuildHostAuthServices` creates a default `gojahttp.NewMemoryRateLimiter()` and `BuildAuthOptions` wires it into `gojahttp.AuthOptions`.
+- Added tests for validation, pre-auth enforcement, post-auth enforcement, Go builder usage, Express builder integration, plain-object rejection, and generated-host service wiring.
+- Marked tasks 10 through 14 complete and updated the ticket changelog.
+
+### Why
+
+- Rate limiting is now part of the route security contract alongside auth, resource resolution, authorization, CSRF, and audit.
+- Keeping limiter keys as typed Go-owned route-plan data avoids making JavaScript handlers concatenate security-sensitive bucket identifiers.
+- Two-stage enforcement protects public/auth endpoints before expensive auth work while still allowing actor/resource-aware quotas after authentication.
+
+### What worked
+
+- The staged planned-route builders already had natural extension points for `.RateLimit(...)` and `.rateLimit(...)`.
+- `gojahttp.Enforcer` had enough request, actor, resource, and route-plan context to centralize limiter enforcement cleanly.
+- Focused package tests and the full repository test suite passed after the lint fix.
+- The pre-commit hook passed lint, glazed lint, go generation, and `go test ./...` before creating commit `1486dbb`.
+
+### What didn't work
+
+- A focused test run initially failed after `RouteDescriptor.RateLimitPolicies` was introduced as `[]string`; existing tests compared route descriptors with non-comparable struct values. I changed `RateLimitPolicies` to a comma-separated `string` populated with `strings.Join(...)`.
+- The first commit attempt failed in `golangci-lint` exhaustive checking:
+  `pkg/gojahttp/ratelimit.go:230:3: missing cases in switch of type gojahttp.RateLimitKeyKind: gojahttp.RateLimitKeyIP, gojahttp.RateLimitKeyRoute, gojahttp.RateLimitKeyParam, gojahttp.RateLimitKeyTenantParam, gojahttp.RateLimitKeyHeader, gojahttp.RateLimitKeyBodyField (exhaustive)`
+- I fixed the lint error by making `rateLimitStage` explicitly continue for pre-auth key kinds.
+
+### What I learned
+
+- The rate-limit stage decision must be explicit enough for the repository's exhaustive linter, even when the default behavior is pre-auth.
+- Route descriptor fields used in test struct comparisons should remain comparable or tests need to change shape.
+- Generated-host defaults are useful for development, but the route declaration still fails closed if a plan declares limits and the host has no limiter configured.
+
+### What was tricky to build
+
+- The main sharp edge was preserving a small JavaScript API while still supporting multiple keying strategies. The solution was to use Go-owned builder objects stored in `builderStore`, reject arbitrary object bags, and copy typed specs into `RoutePlan`.
+- The enforcement order mattered. Pre-auth limit checks need route and request information only; post-auth checks need actor/resource data. I implemented stage inference from key parts so route authors do not need to choose the stage manually.
+- Fixed-window memory limiting needed deterministic keys and safe concurrency. The memory limiter keeps buckets under a mutex, resets windows when they expire, and returns `RetryAfter` based on the current bucket window.
+
+### What warrants a second pair of eyes
+
+- Whether the first production limiter interface needs richer metadata such as cost/weight before non-dev backends are implemented.
+- Whether `RateLimitKeyBodyField` should remain in the public builder before body parsing semantics are finalized for planned routes.
+- Whether `FailOpen` should be allowed on auth-sensitive routes or require host-level policy restrictions.
+
+### What should be done in the future
+
+- Implement Phase 2: `AuthResult`, `ResultAuthenticator`, and safe redacted `ctx.auth` projection.
+- Add production/distributed limiter examples after the in-memory development limiter has been exercised.
+- Consider generated-host default policies for auth/device/token endpoints once those endpoints exist.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/ratelimit.go` for the model, validation, key construction, and memory limiter.
+- Then review `pkg/gojahttp/enforcer.go` for enforcement order and error/status handling.
+- Review `pkg/gojahttp/app.go` and `modules/express/auth_builders.go` for Go and JavaScript builder ergonomics.
+- Review `pkg/xgoja/hostauth/services.go` and `pkg/xgoja/hostauth/builder.go` for generated-host wiring.
+- Validate with `go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth` and `go test ./...`.
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+gofmt -w pkg/gojahttp/route_registry.go modules/express/ratelimit_integration_test.go
+go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth
+# ok for all focused packages
+
+go test ./...
+# ok for full repository before commit
+
+git commit -m "gojahttp: add planned route rate limiting"
+# first attempt failed exhaustive lint on rateLimitStage switch
+
+gofmt -w pkg/gojahttp/ratelimit.go
+go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth
+# ok for all focused packages
+
+git commit -m "gojahttp: add planned route rate limiting"
+# pre-commit lint/test passed; commit 1486dbbba2a840d879c4087be2f28faf67986458
+```
+
+Primary files:
+
+```text
+pkg/gojahttp/ratelimit.go
+pkg/gojahttp/enforcer.go
+pkg/gojahttp/auth_plan.go
+pkg/gojahttp/app.go
+pkg/gojahttp/planned_dispatch.go
+pkg/gojahttp/route_registry.go
+modules/express/auth_builders.go
+modules/express/express.go
+modules/express/typescript.go
+pkg/xgoja/hostauth/services.go
+pkg/xgoja/hostauth/builder.go
 ```
