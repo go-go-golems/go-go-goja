@@ -15,8 +15,16 @@ Owners: []
 RelatedFiles:
     - Path: modules/express/auth_builders.go
       Note: Express fluent rate-limit builders implemented in commit 1486dbb
+    - Path: modules/express/typescript.go
+      Note: PlannedContext AuthInfo TypeScript declarations added in commit 1add4b5
+    - Path: pkg/gojahttp/auth_plan.go
+      Note: AuthResult
     - Path: pkg/gojahttp/enforcer.go
-      Note: Pre/post route limit enforcement implemented in commit 1486dbb
+      Note: |-
+        Pre/post route limit enforcement implemented in commit 1486dbb
+        ResultAuthenticator integration
+    - Path: pkg/gojahttp/planned_dispatch.go
+      Note: SecureContext Auth field and redacted ctx.auth JavaScript projection added in commit 1add4b5
     - Path: pkg/gojahttp/ratelimit.go
       Note: Core rate-limit model and in-memory limiter implemented in commit 1486dbb
     - Path: pkg/xgoja/hostauth/services.go
@@ -31,6 +39,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 # Diary
@@ -435,4 +444,110 @@ modules/express/express.go
 modules/express/typescript.go
 pkg/xgoja/hostauth/services.go
 pkg/xgoja/hostauth/builder.go
+```
+
+## Step 5: Add AuthResult and redacted ctx.auth projection
+
+I continued past rate limiting into the next implementation phase: authentication now returns a non-secret `AuthResult` when the host authenticator supports it. The enforcer still accepts the existing `Authenticator` interface, but adapts legacy session authenticators into an `AuthResult` so existing hosts keep working.
+
+This gives future API-token, access-token, device-login, and agent work a stable place to put credential method, principal identity, credential IDs/hints, scopes, and CSRF behavior without overloading `Actor.Claims` or exposing secrets to JavaScript.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue with the next programmatic-auth implementation phase after the completed rate-limiting slice.
+
+**Inferred user intent:** Keep progressing through the ticket tasks in order, committing focused implementation work and preserving the implementation diary.
+
+**Commit (code):** 1add4b5ebbd58fbabe6974465ecefe8978cd370f — "gojahttp: expose auth results in planned contexts"
+
+### What I did
+
+- Added `AuthMethod` constants for `none`, `session`, `apiToken`, and `accessToken`.
+- Added `PrincipalKind` constants for `user`, `agent`, and `service`.
+- Added `AuthResult` with actor, method, principal, credential ID/hint, scopes, and `CSRFRequired` metadata.
+- Added `ResultAuthenticator` as an optional richer interface while preserving the existing `Authenticator` interface.
+- Updated `gojahttp.Enforcer` to prefer `ResultAuthenticator`, normalize returned results, and adapt legacy authenticators as session/user results.
+- Added `Auth AuthResult` to `SecureContext`.
+- Projected a redacted `ctx.auth` object into planned JavaScript handlers.
+- Made route CSRF enforcement conditional on auth method metadata for authenticated routes, while preserving public-route CSRF checks.
+- Added redacted auth metadata to route audit attributes.
+- Updated Express TypeScript declarations with `AuthInfo`.
+- Added tests for legacy-session compatibility, redacted `ctx.auth`, scope-copy safety, and CSRF skipping for token-style auth results.
+- Marked task 15 complete and updated the changelog.
+
+### Why
+
+- Programmatic credentials need method and credential metadata that should not be mixed into actor identity.
+- JavaScript handlers should be able to inspect non-secret caller metadata, but should never receive raw tokens, token hashes, refresh token IDs, or device codes.
+- API tokens should not have to satisfy browser-session CSRF checks; session-based auth remains CSRF-required through the compatibility adapter.
+
+### What worked
+
+- The existing `Authenticator` interface could remain intact by adding `ResultAuthenticator` as an optional extension interface.
+- `SecureContext` was already the right carrier for enforcement output, so adding `Auth` required only local changes in the enforcer and JavaScript projection.
+- Focused package tests and `go test ./...` passed before committing.
+- The pre-commit hook passed lint, glazed lint, generation, and the full test suite before creating commit `1add4b5`.
+
+### What didn't work
+
+- N/A. No compile or test failures occurred in this step.
+
+### What I learned
+
+- CSRF behavior is easier to reason about when it is attached to the authentication result instead of inferred from actor kind or route security mode alone.
+- The compatibility adapter gives legacy session auth the right defaults: method `session`, principal kind `user`, principal ID from `Actor.ID`, and `CSRFRequired=true`.
+- `ctx.auth` should remain a projection, not the source of authorization truth; route authorization still happens before the handler runs.
+
+### What was tricky to build
+
+- The subtle part was preserving existing public-route CSRF behavior. Authenticated token requests can opt out with `CSRFRequired=false`, but public unsafe routes that declare `.csrf()` still need the CSRF verifier to run because they have no `AuthResult` to consult.
+- Another edge was mutation safety. `AuthResult.Scopes` is copied during normalization and copied again during JavaScript projection so handler mutations do not alter host-owned scope slices.
+
+### What warrants a second pair of eyes
+
+- Whether `CredentialID` should be exposed to JavaScript or only to audit; it is intended to be a stable non-secret ID, but future token implementations must keep it that way.
+- Whether `AuthResult` should grow typed grants in this struct or keep grants as a separate Phase 3 abstraction with scopes as the current wire/debug view.
+- Whether audit attributes should include `principalId` for every route or only for auth-sensitive events.
+
+### What should be done in the future
+
+- Implement Phase 3: typed grants and first-class agent model.
+- Implement composite bearer/session authentication once API-token and access-token authenticators exist.
+- Add docs/examples that demonstrate `ctx.auth` as diagnostic metadata rather than an authorization mechanism.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/auth_plan.go` for the new public auth metadata types.
+- Review `pkg/gojahttp/enforcer.go` for compatibility behavior, normalization, CSRF gating, and audit attributes.
+- Review `pkg/gojahttp/planned_dispatch.go` for the redacted JavaScript projection.
+- Review `pkg/gojahttp/planned_dispatch_test.go` for the intended `ctx.auth` and CSRF behavior.
+- Validate with `go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth` and `go test ./...`.
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+gofmt -w pkg/gojahttp/auth_plan.go pkg/gojahttp/enforcer.go pkg/gojahttp/planned_dispatch.go modules/express/typescript.go
+go test ./pkg/gojahttp ./modules/express ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth
+# ok for all focused packages
+
+go test ./...
+# ok for full repository
+
+git commit -m "gojahttp: expose auth results in planned contexts"
+# pre-commit lint/test passed; commit 1add4b5ebbd58fbabe6974465ecefe8978cd370f
+```
+
+Primary files:
+
+```text
+pkg/gojahttp/auth_plan.go
+pkg/gojahttp/enforcer.go
+pkg/gojahttp/planned_dispatch.go
+pkg/gojahttp/enforcer_test.go
+pkg/gojahttp/planned_dispatch_test.go
+modules/express/typescript.go
 ```

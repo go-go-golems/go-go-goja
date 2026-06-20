@@ -78,3 +78,15 @@ Implemented Phase 1 rate limiting: RateLimitSpec/RateLimiter core, fixed-window 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/ratelimit.go — Core rate-limit model
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/services.go — Provides a default in-memory limiter for generated hostauth services (commit 1486dbb)
 
+
+## 2026-06-20
+
+Implemented Phase 2 AuthResult plumbing and redacted ctx.auth projection for planned routes (commit 1add4b5).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/typescript.go — Adds AuthInfo to planned Express TypeScript declarations (commit 1add4b5)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth_plan.go — Defines AuthMethod
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/enforcer.go — Prefers ResultAuthenticator
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/planned_dispatch.go — Adds Auth to SecureContext and exposes safe ctx.auth to JavaScript (commit 1add4b5)
+
