@@ -19,6 +19,8 @@ RelatedFiles:
       Note: PlannedContext AuthInfo TypeScript declarations added in commit 1add4b5
     - Path: pkg/gojahttp/auth/programauth/agent.go
       Note: Programmatic Agent model/service and actor projection added in commit 5800dd7
+    - Path: pkg/gojahttp/auth/programauth/logcopter.go
+      Note: Generated log metadata committed after go generate hook (commit 5412cc6)
     - Path: pkg/gojahttp/auth/programauth/memory_store.go
       Note: In-memory AgentStore with clone isolation/listing/disablement added in commit 5800dd7
     - Path: pkg/gojahttp/auth_plan.go
@@ -47,6 +49,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -575,7 +578,7 @@ This step deliberately stops before token issuance. The goal is to create the po
 
 **Inferred user intent:** Keep building the feature in small reviewable slices, with tests, diary notes, task bookkeeping, and focused commits.
 
-**Commit (code):** 5800dd7aa1f086acc6fbdd645b2ef85bbcf54a84 — "gojahttp: add programmatic grants and agents"
+**Commit (code):** 5800dd7aa1f086acc6fbdd645b2ef85bbcf54a84 — "gojahttp: add programmatic grants and agents"; 5412cc6dbd990712801270c3d44665172e69d332 — "programauth: add generated log metadata"
 
 ### What I did
 
@@ -589,6 +592,7 @@ This step deliberately stops before token issuance. The goal is to create the po
   - `MemoryAgentStore` for tests, examples, and local generated hosts.
   - actor projection from agent to `gojahttp.Actor` with `PrincipalKindAgent`.
 - Added tests for grant normalization/matching/wildcards, agent creation/validation, list filtering, disablement, actor projection, and store clone isolation.
+- Committed generated `programauth/logcopter.go` metadata produced by repository generation hooks.
 - Marked task 16 complete and updated the changelog.
 
 ### Why
@@ -653,6 +657,9 @@ go test ./...
 
 git commit -m "gojahttp: add programmatic grants and agents"
 # pre-commit lint/test passed; commit 5800dd7aa1f086acc6fbdd645b2ef85bbcf54a84
+
+git commit -m "programauth: add generated log metadata"
+# pre-commit lint/test passed; commit 5412cc6dbd990712801270c3d44665172e69d332
 ```
 
 Primary files:
@@ -665,4 +672,5 @@ pkg/gojahttp/enforcer.go
 pkg/gojahttp/auth/programauth/agent.go
 pkg/gojahttp/auth/programauth/memory_store.go
 pkg/gojahttp/auth/programauth/agent_test.go
+pkg/gojahttp/auth/programauth/logcopter.go
 ```
