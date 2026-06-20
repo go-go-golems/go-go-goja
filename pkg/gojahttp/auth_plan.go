@@ -18,6 +18,28 @@ const (
 	SecurityModeUser   SecurityMode = "user"
 )
 
+// AuthMethod identifies the credential family that authenticated a request.
+// Values are deliberately protocol-level and non-secret so they can be safely
+// exposed in planned-route context and audit metadata.
+type AuthMethod string
+
+const (
+	AuthMethodNone        AuthMethod = "none"
+	AuthMethodSession     AuthMethod = "session"
+	AuthMethodAPIToken    AuthMethod = "apiToken"
+	AuthMethodAccessToken AuthMethod = "accessToken"
+)
+
+// PrincipalKind identifies the durable principal represented by an auth
+// result. Credentials prove possession; principals carry ownership and policy.
+type PrincipalKind string
+
+const (
+	PrincipalKindUser    PrincipalKind = "user"
+	PrincipalKindAgent   PrincipalKind = "agent"
+	PrincipalKindService PrincipalKind = "service"
+)
+
 // ValueSourceKind identifies where a route-plan value should be read from.
 type ValueSourceKind string
 
@@ -105,6 +127,20 @@ type ResourceRef struct {
 	Claims   map[string]any `json:"claims,omitempty"`
 }
 
+// AuthResult is the non-secret outcome of authenticating a planned-route
+// request. Raw bearer tokens, token hashes, refresh-token identifiers, device
+// codes, and other credentials must never be stored here.
+type AuthResult struct {
+	Actor          *Actor
+	Method         AuthMethod
+	PrincipalKind  PrincipalKind
+	PrincipalID    string
+	CredentialID   string
+	CredentialHint string
+	Scopes         []string
+	CSRFRequired   bool
+}
+
 type AuthOptions struct {
 	Authenticator Authenticator
 	Resources     ResourceResolver
@@ -116,6 +152,13 @@ type AuthOptions struct {
 
 type Authenticator interface {
 	Authenticate(ctx context.Context, req *http.Request, session *SessionDTO, spec SecuritySpec) (*Actor, error)
+}
+
+// ResultAuthenticator is the richer authentication interface used by
+// programmatic auth implementations. Existing Authenticator implementations
+// remain supported and are adapted to AuthResult as session user auth.
+type ResultAuthenticator interface {
+	AuthenticateResult(ctx context.Context, req *http.Request, session *SessionDTO, spec SecuritySpec) (AuthResult, error)
 }
 
 type ResourceResolver interface {

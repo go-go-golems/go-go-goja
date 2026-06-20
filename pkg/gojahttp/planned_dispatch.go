@@ -17,6 +17,7 @@ import (
 type SecureContext struct {
 	Plan      RoutePlan
 	Request   *RequestDTO
+	Auth      AuthResult
 	Actor     *Actor
 	Resource  *ResourceRef
 	Resources map[string]*ResourceRef
@@ -193,6 +194,7 @@ func cloneStringMap(in map[string]string) map[string]string {
 func (e *secureEnvelope) JSObject(vm *goja.Runtime) *goja.Object {
 	obj := vm.NewObject()
 	_ = obj.Set("request", e.Request.Map())
+	_ = obj.Set("auth", authJSMap(e.Auth))
 	_ = obj.Set("actor", actorJSMap(e.Actor))
 	_ = obj.Set("body", e.Body)
 	_ = obj.Set("params", e.Request.Params)
@@ -207,6 +209,40 @@ func (e *secureEnvelope) JSObject(vm *goja.Runtime) *goja.Object {
 		return vm.ToValue(resourceRefJSMap(resource))
 	})
 	return obj
+}
+
+func authJSMap(auth AuthResult) map[string]any {
+	return map[string]any{
+		"method":         string(auth.Method),
+		"principalKind":  string(auth.PrincipalKind),
+		"principalId":    auth.PrincipalID,
+		"credentialId":   auth.CredentialID,
+		"credentialHint": auth.CredentialHint,
+		"scopes":         append([]string(nil), auth.Scopes...),
+	}
+}
+
+func authAuditAttributes(auth AuthResult) map[string]any {
+	if auth.Method == "" {
+		return nil
+	}
+	out := map[string]any{"authMethod": string(auth.Method)}
+	if auth.PrincipalKind != "" {
+		out["principalKind"] = string(auth.PrincipalKind)
+	}
+	if auth.PrincipalID != "" {
+		out["principalId"] = auth.PrincipalID
+	}
+	if auth.CredentialID != "" {
+		out["credentialId"] = auth.CredentialID
+	}
+	if auth.CredentialHint != "" {
+		out["credentialHint"] = auth.CredentialHint
+	}
+	if len(auth.Scopes) > 0 {
+		out["scopes"] = append([]string(nil), auth.Scopes...)
+	}
+	return out
 }
 
 func actorJSMap(actor *Actor) map[string]any {

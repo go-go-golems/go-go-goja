@@ -73,7 +73,7 @@ func (e *Enforcer) Enforce(ctx context.Context, httpReq *http.Request, req *Requ
 		return nil, http.StatusInternalServerError, err
 	}
 	plan = &validatedPlan
-	sec := &SecureContext{Plan: *plan, Request: req, Params: cloneStringMap(req.Params), Body: req.Body, Resources: map[string]*ResourceRef{}}
+	sec := &SecureContext{Plan: *plan, Request: req, Auth: AuthResult{Method: AuthMethodNone}, Params: cloneStringMap(req.Params), Body: req.Body, Resources: map[string]*ResourceRef{}}
 	if err := e.checkRateLimits(ctx, httpReq, req, plan, sec, RateLimitStagePreAuth); err != nil {
 		return sec, statusForAuthError(err), err
 	}
@@ -85,20 +85,22 @@ func (e *Enforcer) Enforce(ctx context.Context, httpReq *http.Request, req *Requ
 		if e.auth.Authenticator == nil {
 			return sec, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires authenticator", plan.Method, plan.Pattern)
 		}
-		var err error
-		actor, err = e.auth.Authenticator.Authenticate(ctx, httpReq, req.Session, plan.Security)
+		auth, err := authenticateResult(ctx, e.auth.Authenticator, httpReq, req.Session, plan.Security)
 		if err != nil {
 			return sec, statusForAuthError(err), err
 		}
-		if actor == nil {
+		auth = normalizeAuthResult(auth)
+		if auth.Actor == nil {
 			return sec, http.StatusUnauthorized, ErrUnauthenticated
 		}
+		sec.Auth = auth
+		actor = auth.Actor
 		sec.Actor = actor
 	default:
 		return sec, http.StatusInternalServerError, fmt.Errorf("unsupported planned route security mode %q", plan.Security.Mode)
 	}
 
-	if plan.CSRF.Required && isUnsafeMethod(httpReq.Method) {
+	if plan.CSRF.Required && isUnsafeMethod(httpReq.Method) && shouldVerifyCSRF(plan.Security.Mode, sec.Auth) {
 		if e.auth.CSRF == nil {
 			return sec, http.StatusInternalServerError, fmt.Errorf("planned route %s %s requires csrf protector", plan.Method, plan.Pattern)
 		}
@@ -192,6 +194,48 @@ func (e *Enforcer) servePlannedHTTP(w http.ResponseWriter, r *http.Request, plan
 	e.recordAudit(r.Context(), r, req, plan, sec, "completed", status, nil)
 }
 
+func authenticateResult(ctx context.Context, authenticator Authenticator, req *http.Request, session *SessionDTO, spec SecuritySpec) (AuthResult, error) {
+	if resultAuthenticator, ok := authenticator.(ResultAuthenticator); ok {
+		return resultAuthenticator.AuthenticateResult(ctx, req, session, spec)
+	}
+	actor, err := authenticator.Authenticate(ctx, req, session, spec)
+	if err != nil {
+		return AuthResult{}, err
+	}
+	if actor == nil {
+		return AuthResult{}, ErrUnauthenticated
+	}
+	return AuthResult{Actor: actor, Method: AuthMethodSession, PrincipalKind: PrincipalKindUser, PrincipalID: actor.ID, CSRFRequired: true}, nil
+}
+
+func normalizeAuthResult(auth AuthResult) AuthResult {
+	if auth.Method == "" {
+		auth.Method = AuthMethodSession
+	}
+	if auth.Actor != nil {
+		if auth.PrincipalID == "" {
+			auth.PrincipalID = auth.Actor.ID
+		}
+		if auth.PrincipalKind == "" {
+			auth.PrincipalKind = PrincipalKind(auth.Actor.Kind)
+		}
+	}
+	if auth.PrincipalKind == "" && auth.Method == AuthMethodSession {
+		auth.PrincipalKind = PrincipalKindUser
+	}
+	if auth.Scopes != nil {
+		auth.Scopes = append([]string(nil), auth.Scopes...)
+	}
+	return auth
+}
+
+func shouldVerifyCSRF(mode SecurityMode, auth AuthResult) bool {
+	if mode == SecurityModePublic {
+		return true
+	}
+	return auth.CSRFRequired
+}
+
 func (e *Enforcer) writePlannedHTTPError(w http.ResponseWriter, loggingWriter *accessLogResponseWriter, status int, err error) {
 	if loggingWriter != nil && loggingWriter.wroteHeader {
 		return
@@ -225,8 +269,14 @@ func (e *Enforcer) recordAudit(ctx context.Context, httpReq *http.Request, req *
 		reason = err.Error()
 	}
 	attributes := map[string]any(nil)
+	if sec != nil {
+		attributes = authAuditAttributes(sec.Auth)
+	}
 	if rateErr := (*RateLimitError)(nil); errors.As(err, &rateErr) {
-		attributes = map[string]any{"rateLimitPolicy": rateErr.Policy}
+		if attributes == nil {
+			attributes = map[string]any{}
+		}
+		attributes["rateLimitPolicy"] = rateErr.Policy
 		if rateErr.RetryAfter > 0 {
 			attributes["retryAfterSeconds"] = int(rateErr.RetryAfter.Seconds() + 0.999)
 		}

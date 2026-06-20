@@ -51,6 +51,9 @@ func TestEnforcerBuildsSecureContextWithoutHostRouter(t *testing.T) {
 	if sec.Actor.ID != "u1" || sec.Resource.ID != "p1" || sec.Resources["project"].ID != "p1" {
 		t.Fatalf("secure context = %#v", sec)
 	}
+	if sec.Auth.Method != gojahttp.AuthMethodSession || sec.Auth.PrincipalKind != gojahttp.PrincipalKindUser || sec.Auth.PrincipalID != "u1" || !sec.Auth.CSRFRequired {
+		t.Fatalf("legacy authenticator auth result = %#v", sec.Auth)
+	}
 }
 
 func TestEnforcerReportsUnauthenticatedStatus(t *testing.T) {
