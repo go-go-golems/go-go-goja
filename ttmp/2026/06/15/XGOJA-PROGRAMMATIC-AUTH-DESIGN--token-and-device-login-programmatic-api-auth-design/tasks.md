@@ -20,7 +20,7 @@
 - [x] Phase 2: Add AuthResult and safe ctx.auth projection
 - [x] Phase 3: Add typed programmatic grants and first-class agent model
 - [x] Phase 4: Add API token issue/list/revoke/authenticate and bearer planned-route auth
-- [ ] Phase 5: Add auth.agents and auth.tokens fluent JavaScript APIs
+- [x] Phase 5: Add auth.agents and auth.tokens fluent JavaScript APIs
 - [ ] Phase 6: Add route auth restriction builders for agent/session/anyOf
 - [ ] Phase 7: Add access and rotating refresh token families
 - [ ] Phase 8: Add device authorization flow and native polling/token handlers

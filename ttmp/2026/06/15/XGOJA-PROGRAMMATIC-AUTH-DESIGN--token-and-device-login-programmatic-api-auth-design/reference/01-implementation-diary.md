@@ -46,8 +46,16 @@ RelatedFiles:
       Note: SecureContext Auth field and redacted ctx.auth JavaScript projection added in commit 1add4b5
     - Path: pkg/gojahttp/ratelimit.go
       Note: Core rate-limit model and in-memory limiter implemented in commit 1486dbb
+    - Path: pkg/xgoja/hostauth/builder.go
+      Note: Generated hostauth service wiring for programauth stores and composite bearer/session auth (commit 432b628)
     - Path: pkg/xgoja/hostauth/services.go
-      Note: Generated hostauth rate-limiter wiring implemented in commit 1486dbb
+      Note: |-
+        Generated hostauth rate-limiter wiring implemented in commit 1486dbb
+        Service bundle fields for programauth agent and API-token services (commit 432b628)
+    - Path: pkg/xgoja/providers/hostauth/hostauth_test.go
+      Note: Runtime coverage for JavaScript programmatic auth builders (commit 432b628)
+    - Path: pkg/xgoja/providers/hostauth/programmatic.go
+      Note: Fluent JavaScript auth.grants/auth.agents/auth.tokens builders (commit 432b628)
     - Path: ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/design/01-token-and-device-login-programmatic-api-auth-implementation-guide.md
       Note: Primary implementation guide produced by this ticket.
     - Path: ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/sources/01-current-auth-surface.md
@@ -58,6 +66,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -800,4 +809,104 @@ pkg/gojahttp/auth/programauth/composite.go
 pkg/gojahttp/auth/programauth/token_test.go
 pkg/gojahttp/api_token_integration_test.go
 pkg/gojahttp/enforcer.go
+```
+
+## Step 8: Wire generated hostauth services and add fluent JavaScript programmatic auth builders
+
+I moved the programmatic-auth primitives from Go-only services into generated-host runtime services and the safe `go-go-goja-hostauth` JavaScript module. Generated hostauth services now create in-memory agent and API-token stores, expose those services through `Services`, and use a bearer-first/session-fallback composite authenticator for planned routes.
+
+I also added Go-owned fluent JavaScript builders for grants, agents, and API tokens. JavaScript can now declare grants, create explicit automation agents, issue an API token at creation time, list redacted token metadata, and revoke tokens without ever handling store internals or token hashes.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Commit the ticket metadata files, then continue the implementation/work."
+
+**Assistant interpretation:** Commit the pending ticket metadata updates first, then keep implementing the next programmatic-auth phase.
+
+**Inferred user intent:** Preserve documentation bookkeeping in git, then continue the implementation plan in a focused, tested slice.
+
+**Commit (code):** 432b628 — "hostauth: expose programmatic auth builders"
+
+### What I did
+
+- Committed the ticket metadata snapshot before resuming implementation.
+- Extended `hostauth.Services` with programauth agent/API-token stores and services.
+- Updated generated hostauth service construction to build memory programauth stores and wire `programauth.CompositeAuthenticator` into `gojahttp.AuthOptions`.
+- Added `pkg/xgoja/providers/hostauth/programmatic.go` with `auth.grants()`, `auth.agents.create(...)`, and `auth.tokens.api.*` builders.
+- Added JavaScript runtime coverage for grant declaration, agent creation, one-time raw token return, redacted token listing, and revocation.
+- Marked Phase 5 complete and updated the changelog.
+
+### Why
+
+- The API-token service was implemented, but generated hostauth applications did not yet receive the shared stores/services needed to issue and authenticate those tokens.
+- Programmatic auth should be usable from JavaScript through constrained fluent builders instead of security-sensitive object bags.
+- Listing and revocation need to be available from scripts without exposing raw token values after issuance.
+
+### What worked
+
+- The existing `ServiceFactory` boundary was a good place to create programauth stores and attach composite auth without changing application route code.
+- The provider module could add builders without widening the raw store interface to JavaScript.
+- Focused tests passed, full `go test ./...` passed, and the commit pre-hook passed lint, generation, and tests.
+
+### What didn't work
+
+- No implementation blocker occurred in this slice.
+- The pre-commit hook ran `go generate ./...`, which started the Dagger engine and printed a transient Docker registry `HTTP HEAD` error while using cached build output; the hook still completed successfully.
+
+### What I learned
+
+- Programauth fits naturally into the generated hostauth service bundle alongside audit, capability, appauth, sessions, and rate limiting.
+- A small Go-side grant builder is enough to keep JavaScript declarative while preserving typed `gojahttp.GrantSet` semantics internally.
+- The raw token boundary is easiest to maintain when issue returns a separate `value` field and list/revoke paths only project `APITokenView` metadata.
+
+### What was tricky to build
+
+- The main sharp edge was preserving Go ownership of grant state while still giving JavaScript a fluent builder. I used an internal Go-side store keyed by builder objects so `.grants(auth.grants().tenant(...).allow(...).done())` can pass typed grant data without accepting arbitrary JavaScript maps.
+- Another tricky point is time ownership for `expiresInDays(...)`: the builder currently computes expiry at builder runtime and delegates issuance to the token service. A future iteration may want to route all clock usage through hostauth `BuilderOptions.Now` for deterministic generated-host tests.
+- The generated service wiring had to keep session auth behavior intact. `BuildAuthOptions` now installs the composite authenticator only when a bearer authenticator is present, preserving CSRF/session setup while enabling bearer-first fallback.
+
+### What warrants a second pair of eyes
+
+- Whether the initial JavaScript builder names and return shapes (`auth.grants`, `auth.agents.create`, `auth.tokens.api.issue/list/revoke`) should be considered stable public API.
+- Whether generated hostauth should persist programauth stores through the same SQL store configuration before this is considered production-ready.
+- Whether `expiresInDays` should use an injected clock instead of `time.Now()` inside provider builders.
+
+### What should be done in the future
+
+- Add route auth restriction builders for agent/session/anyOf.
+- Add SQL-backed agent/API-token stores before production use.
+- Add bearer challenge headers and OAuth-style error codes.
+- Extend examples/help docs to show the new JavaScript builders.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/hostauth/builder.go` for generated-service wiring and composite auth setup.
+- Review `pkg/xgoja/hostauth/services.go` for the service bundle shape exposed to providers.
+- Review `pkg/xgoja/providers/hostauth/programmatic.go` for JavaScript builder state, projections, and redaction boundaries.
+- Review `pkg/xgoja/providers/hostauth/hostauth_test.go` for the expected JavaScript API behavior.
+- Validate with `go test ./pkg/xgoja/hostauth ./pkg/xgoja/providers/hostauth ./pkg/gojahttp ./pkg/gojahttp/auth/programauth ./modules/express` and `go test ./...`.
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+go test ./pkg/xgoja/hostauth ./pkg/xgoja/providers/hostauth ./pkg/gojahttp ./pkg/gojahttp/auth/programauth ./modules/express
+# ok for all focused packages
+
+go test ./...
+# ok for full repository
+
+git commit -m "hostauth: expose programmatic auth builders"
+# pre-commit lint/test passed; commit 432b628
+```
+
+Primary files:
+
+```text
+pkg/xgoja/hostauth/builder.go
+pkg/xgoja/hostauth/services.go
+pkg/xgoja/providers/hostauth/hostauth.go
+pkg/xgoja/providers/hostauth/programmatic.go
+pkg/xgoja/providers/hostauth/hostauth_test.go
 ```

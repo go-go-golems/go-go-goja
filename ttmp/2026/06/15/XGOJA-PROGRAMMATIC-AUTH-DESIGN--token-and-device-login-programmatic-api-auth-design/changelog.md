@@ -124,3 +124,14 @@ Implemented Phase 4 API-token issue/list/revoke/authenticate, bearer parsing, co
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/token.go — API-token model/service/hasher/bearer parser/authentication implementation (commit 00a1e86)
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/enforcer.go — Enforces AuthResult grant intersection before app authorizer (commit 00a1e86)
 
+
+## 2026-06-20
+
+Phase 5: wired generated hostauth services with programauth stores/composite bearer auth and added fluent auth.grants/auth.agents/auth.tokens JavaScript builders (commit 432b628).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder.go — Builds memory programauth stores and composite bearer/session auth for generated hostauth services
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/hostauth_test.go — Covers auth.agents/auth.tokens issuance/list/revoke behavior from JavaScript
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/hostauth/programmatic.go — Exposes Go-owned fluent JavaScript builders for grants, agents, and API tokens
+
