@@ -90,3 +90,15 @@ Implemented Phase 2 AuthResult plumbing and redacted ctx.auth projection for pla
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/enforcer.go — Prefers ResultAuthenticator
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/planned_dispatch.go — Adds Auth to SecureContext and exposes safe ctx.auth to JavaScript (commit 1add4b5)
 
+
+## 2026-06-20
+
+Implemented Phase 3 typed grants and first-class programmatic agent model with in-memory store/service and tests (commit 5800dd7).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/agent.go — Agent model
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/memory_store.go — Concurrency-safe in-memory AgentStore for tests/dev generated hosts (commit 5800dd7)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth_plan.go — AuthResult now carries typed GrantSet in addition to scope strings (commit 5800dd7)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/grants.go — Typed Grant and GrantSet normalization/matching/scope serialization (commit 5800dd7)
+

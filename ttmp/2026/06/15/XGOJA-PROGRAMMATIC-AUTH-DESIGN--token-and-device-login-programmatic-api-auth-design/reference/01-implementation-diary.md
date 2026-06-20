@@ -17,12 +17,20 @@ RelatedFiles:
       Note: Express fluent rate-limit builders implemented in commit 1486dbb
     - Path: modules/express/typescript.go
       Note: PlannedContext AuthInfo TypeScript declarations added in commit 1add4b5
+    - Path: pkg/gojahttp/auth/programauth/agent.go
+      Note: Programmatic Agent model/service and actor projection added in commit 5800dd7
+    - Path: pkg/gojahttp/auth/programauth/memory_store.go
+      Note: In-memory AgentStore with clone isolation/listing/disablement added in commit 5800dd7
     - Path: pkg/gojahttp/auth_plan.go
-      Note: AuthResult
+      Note: |-
+        AuthResult
+        AuthResult GrantSet field added in commit 5800dd7
     - Path: pkg/gojahttp/enforcer.go
       Note: |-
         Pre/post route limit enforcement implemented in commit 1486dbb
         ResultAuthenticator integration
+    - Path: pkg/gojahttp/grants.go
+      Note: Typed GrantSet model
     - Path: pkg/gojahttp/planned_dispatch.go
       Note: SecureContext Auth field and redacted ctx.auth JavaScript projection added in commit 1add4b5
     - Path: pkg/gojahttp/ratelimit.go
@@ -39,6 +47,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -550,4 +559,110 @@ pkg/gojahttp/planned_dispatch.go
 pkg/gojahttp/enforcer_test.go
 pkg/gojahttp/planned_dispatch_test.go
 modules/express/typescript.go
+```
+
+## Step 6: Add typed grants and first-class agents
+
+I added the first durable programmatic-auth domain model: typed grants and automation agents. Grants are now represented as structured Go data with deterministic normalization, matching, cloning, and scope-string serialization, while agents provide a lifecycle object that future API tokens and device clients can attach to.
+
+This step deliberately stops before token issuance. The goal is to create the policy and principal foundation first, so later token work can authenticate credentials into an agent-backed `AuthResult` instead of inventing token-specific policy strings or anonymous automation identities.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue with the next programmatic-auth implementation phase after AuthResult plumbing.
+
+**Inferred user intent:** Keep building the feature in small reviewable slices, with tests, diary notes, task bookkeeping, and focused commits.
+
+**Commit (code):** 5800dd7aa1f086acc6fbdd645b2ef85bbcf54a84 — "gojahttp: add programmatic grants and agents"
+
+### What I did
+
+- Added `gojahttp.Grant` and `gojahttp.GrantSet`.
+- Implemented grant normalization, validation, deduplication, deterministic sorting, clone isolation, scope-string serialization, and action/tenant/resource matching.
+- Added `Grants GrantSet` to `AuthResult`; `normalizeAuthResult` now normalizes grants and derives scope strings when explicit scopes are not provided.
+- Added `pkg/gojahttp/auth/programauth` with:
+  - `AgentKind` constants for personal, service, device, CI, and integration agents.
+  - `Agent` as a durable automation identity with owner, tenant, disablement, timestamps, and grant policy.
+  - `AgentCreateSpec`, `AgentQuery`, `AgentStore`, and `AgentService`.
+  - `MemoryAgentStore` for tests, examples, and local generated hosts.
+  - actor projection from agent to `gojahttp.Actor` with `PrincipalKindAgent`.
+- Added tests for grant normalization/matching/wildcards, agent creation/validation, list filtering, disablement, actor projection, and store clone isolation.
+- Marked task 16 complete and updated the changelog.
+
+### Why
+
+- Programmatic credentials should reference durable principals; otherwise long-lived tokens become anonymous blobs that are hard to list, disable, audit, or explain.
+- Typed grants let Go own policy semantics while still allowing OAuth-style scope strings at storage/protocol boundaries.
+- The in-memory agent store provides a low-friction implementation for tests and development while preserving a store interface for SQL-backed production work later.
+
+### What worked
+
+- Keeping grants in `gojahttp` lets `AuthResult` carry typed policy without introducing an import cycle.
+- Keeping the agent service in `pkg/gojahttp/auth/programauth` lets the programmatic-auth model evolve separately from the core enforcer.
+- Focused package tests and `go test ./...` passed before committing.
+- The pre-commit hook passed lint, glazed lint, generation, and the full test suite before creating commit `5800dd7`.
+
+### What didn't work
+
+- N/A. No compile or test failures occurred in this step.
+
+### What I learned
+
+- `GrantSet` needs both a typed matcher and a deterministic string projection. The matcher is the source of truth; scope strings are for debugging, wire protocols, and storage.
+- Agent policy clone isolation matters even for an in-memory dev store because tests and future JavaScript APIs may mutate returned data.
+- Agent disablement should be modeled on the service boundary: the store can return disabled records for admin listing, while `AgentService.GetAgent` rejects disabled agents for active-auth use.
+
+### What was tricky to build
+
+- The grant matching semantics needed careful wildcard behavior. Empty tenant/resource fields act as wildcards, but populated fields must match exactly; the action `*` is allowed while still respecting tenant/resource restrictions.
+- Package placement was the main design edge. Putting `GrantSet` only in `programauth` would make `gojahttp.AuthResult` depend on a subpackage and create an import cycle risk. I put `Grant`/`GrantSet` in `gojahttp` and kept agent lifecycle in `programauth`.
+
+### What warrants a second pair of eyes
+
+- Whether scope-string format should be finalized now or treated as provisional until API-token storage is implemented.
+- Whether `AgentService.GetAgent` should return disabled agents plus a status instead of returning `ErrAgentDisabled`; the current behavior is auth-path oriented.
+- Whether agent IDs should use a host-provided ID generator in production rather than the current secure random default.
+
+### What should be done in the future
+
+- Implement Phase 4: API-token issue/list/revoke/authenticate and bearer planned-route auth.
+- Add a SQL-backed `programauth` agent store before production use.
+- Wire generated hostauth services to construct a programauth agent store once token issuance is added.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/grants.go` and `pkg/gojahttp/grants_test.go` for grant semantics.
+- Review `pkg/gojahttp/auth/programauth/agent.go` for the agent model and service boundary.
+- Review `pkg/gojahttp/auth/programauth/memory_store.go` and `agent_test.go` for clone isolation, listing, and disablement behavior.
+- Review `pkg/gojahttp/enforcer.go` only for the small `AuthResult.Grants` normalization/scope derivation change.
+- Validate with `go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth ./modules/express ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth` and `go test ./...`.
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+gofmt -w pkg/gojahttp/grants.go pkg/gojahttp/grants_test.go pkg/gojahttp/auth_plan.go pkg/gojahttp/enforcer.go pkg/gojahttp/auth/programauth/agent.go pkg/gojahttp/auth/programauth/memory_store.go pkg/gojahttp/auth/programauth/agent_test.go
+go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth ./modules/express ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth
+# ok for all focused packages
+
+go test ./...
+# ok for full repository
+
+git commit -m "gojahttp: add programmatic grants and agents"
+# pre-commit lint/test passed; commit 5800dd7aa1f086acc6fbdd645b2ef85bbcf54a84
+```
+
+Primary files:
+
+```text
+pkg/gojahttp/grants.go
+pkg/gojahttp/grants_test.go
+pkg/gojahttp/auth_plan.go
+pkg/gojahttp/enforcer.go
+pkg/gojahttp/auth/programauth/agent.go
+pkg/gojahttp/auth/programauth/memory_store.go
+pkg/gojahttp/auth/programauth/agent_test.go
 ```

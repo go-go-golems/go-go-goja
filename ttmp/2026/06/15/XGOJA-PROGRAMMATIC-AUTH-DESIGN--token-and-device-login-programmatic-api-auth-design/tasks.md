@@ -18,7 +18,7 @@
 - [x] Phase 1D: Wire generated hostauth services with a default in-memory RateLimiter and tests
 - [x] Phase 1E: Validate focused packages and commit rate limiting implementation
 - [x] Phase 2: Add AuthResult and safe ctx.auth projection
-- [ ] Phase 3: Add typed programmatic grants and first-class agent model
+- [x] Phase 3: Add typed programmatic grants and first-class agent model
 - [ ] Phase 4: Add API token issue/list/revoke/authenticate and bearer planned-route auth
 - [ ] Phase 5: Add auth.agents and auth.tokens fluent JavaScript APIs
 - [ ] Phase 6: Add route auth restriction builders for agent/session/anyOf
