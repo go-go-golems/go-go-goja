@@ -17,12 +17,20 @@ RelatedFiles:
       Note: Express fluent rate-limit builders implemented in commit 1486dbb
     - Path: modules/express/typescript.go
       Note: PlannedContext AuthInfo TypeScript declarations added in commit 1add4b5
+    - Path: pkg/gojahttp/api_token_integration_test.go
+      Note: End-to-end planned-route API-token behavior (commit 00a1e86)
     - Path: pkg/gojahttp/auth/programauth/agent.go
       Note: Programmatic Agent model/service and actor projection added in commit 5800dd7
+    - Path: pkg/gojahttp/auth/programauth/composite.go
+      Note: Bearer-first/session-fallback composite authenticator (commit 00a1e86)
     - Path: pkg/gojahttp/auth/programauth/logcopter.go
       Note: Generated log metadata committed after go generate hook (commit 5412cc6)
     - Path: pkg/gojahttp/auth/programauth/memory_store.go
       Note: In-memory AgentStore with clone isolation/listing/disablement added in commit 5800dd7
+    - Path: pkg/gojahttp/auth/programauth/memory_token_store.go
+      Note: In-memory API-token store with prefix lookup/list/revoke/touch behavior (commit 00a1e86)
+    - Path: pkg/gojahttp/auth/programauth/token.go
+      Note: API-token service
     - Path: pkg/gojahttp/auth_plan.go
       Note: |-
         AuthResult
@@ -31,6 +39,7 @@ RelatedFiles:
       Note: |-
         Pre/post route limit enforcement implemented in commit 1486dbb
         ResultAuthenticator integration
+        Grant intersection enforcement for AuthResult.Grants (commit 00a1e86)
     - Path: pkg/gojahttp/grants.go
       Note: Typed GrantSet model
     - Path: pkg/gojahttp/planned_dispatch.go
@@ -49,6 +58,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -673,4 +683,121 @@ pkg/gojahttp/auth/programauth/agent.go
 pkg/gojahttp/auth/programauth/memory_store.go
 pkg/gojahttp/auth/programauth/agent_test.go
 pkg/gojahttp/auth/programauth/logcopter.go
+```
+
+## Step 7: Add API-token issue, storage, authentication, and bearer route enforcement
+
+I implemented the first credential family on top of the new agent and grant foundation. Programauth can now issue opaque API tokens, store only hashes plus redacted prefixes, list/revoke records without returning secrets, and authenticate `Authorization: Bearer ...` requests into `AuthResult` values backed by agents and typed grants.
+
+This completes the first end-to-end programmatic route-auth path: a token can call a planned route, the enforcer skips browser CSRF for bearer auth, still resolves resources, intersects the route action with token grants, and then runs the application authorizer.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue with the next programmatic-auth implementation phase after grants and agents.
+
+**Inferred user intent:** Keep progressing through the implementation plan in focused, tested commits while maintaining ticket docs and diary continuity.
+
+**Commit (code):** 00a1e866e75c17cb07121463021e03ca1d046725 — "programauth: add API token authentication"
+
+### What I did
+
+- Added API-token records, safe list views, issue specs, query specs, and issue results in `programauth`.
+- Added SHA-256 token hashing plus optional peppered HMAC hashing.
+- Implemented opaque token generation with `ggpat_<prefix>_<secret>` format; the prefix is usable for lookup and diagnostics, while the full token is returned only on issuance.
+- Added strict `Authorization: Bearer <token>` parsing that rejects malformed/duplicate authorization headers and `access_token` query parameters.
+- Added `APITokenStore` and `MemoryAPITokenStore` with create, prefix lookup, list, revoke, and touch operations.
+- Added `APITokenService` issue/list/revoke/authenticate methods.
+- Added `CompositeAuthenticator`, which tries header bearer auth first and falls back to a configured session authenticator when no bearer token is present.
+- Updated `gojahttp.Enforcer` to deny authenticated routes when `AuthResult.Grants` are present and do not allow the planned route action/resource.
+- Added planned-route integration coverage: an API-token request can call a CSRF-declared route without browser CSRF, and a disallowed action is denied before the handler runs.
+- Added unit tests for issue/auth/list/revoke, expiry, disabled-agent denial, and bearer parser rejection cases.
+- Marked task 17 complete and updated the changelog.
+
+### Why
+
+- API tokens are the simplest programmatic credential family and validate that `AuthResult`, typed grants, agents, and route enforcement fit together.
+- Header-only bearer parsing keeps token transport predictable and avoids leaking credentials through query strings, logs, or caches.
+- Prefix lookup avoids scanning all token hashes while still requiring a constant-time full hash comparison before authentication succeeds.
+
+### What worked
+
+- The agent service cleanly gates token authentication: disabling the agent immediately makes future token auth fail.
+- The grant intersection in the enforcer is small because `GrantSet` already knows how to match action/tenant/resource dimensions.
+- Focused package tests and `go test ./...` passed before commit.
+- The pre-commit hook passed after fixing named return lint failures.
+
+### What didn't work
+
+- The first commit attempt failed `golangci-lint` because the new token helpers used named returns:
+  `pkg/gojahttp/auth/programauth/token.go:297:1: named return "value" with type "string" found (nonamedreturns)`
+  `pkg/gojahttp/auth/programauth/token.go:361:1: named return "token" with type "string" found (nonamedreturns)`
+- I changed `newRawAPIToken` and `BearerFromHeader` to use unnamed return values and reran focused tests before committing.
+
+### What I learned
+
+- API-token auth becomes straightforward once agents and grants exist; most complexity is around safe token handling and lifecycle redaction.
+- The planned-route enforcer is the right place to enforce the intersection of token grants and route action/resource, before app-specific authorization.
+- Query-parameter bearer rejection should happen in the shared parser so all future bearer credential families inherit the transport rule.
+
+### What was tricky to build
+
+- The sharpest boundary is between stored token records and list/detail projections. Store records need hashes, but list responses and JavaScript APIs must never expose hashes or raw values. I introduced `APITokenView` so service list/revoke/issue metadata paths are redacted by construction.
+- Another tricky detail is prefix lookup. The prefix narrows candidates, but never authenticates by itself; authentication still hashes the raw token and uses constant-time comparison against candidate hashes.
+- The enforcer grant check had to run after resource resolution so tenant/resource-bound grants can be evaluated, but before the app authorizer and handler.
+
+### What warrants a second pair of eyes
+
+- Whether the initial `ggpat_<prefix>_<secret>` format is the desired long-term public token format.
+- Whether `TokenHash` should be moved behind unexported store-only structs before JavaScript-facing token APIs are added.
+- Whether the enforcer should add `WWW-Authenticate` bearer challenge headers for malformed/expired/insufficient-scope cases in this PR or a follow-up.
+
+### What should be done in the future
+
+- Wire generated hostauth services with agent/API-token stores and composite auth.
+- Add JavaScript `auth.agents` and `auth.tokens` fluent builders.
+- Add SQL-backed token/agent stores before production use.
+- Add bearer challenge headers and OAuth-style error codes.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/auth/programauth/token.go` for token format, hashing, parser, service, and authenticator behavior.
+- Review `pkg/gojahttp/auth/programauth/memory_token_store.go` for clone/redaction-sensitive store semantics.
+- Review `pkg/gojahttp/auth/programauth/composite.go` for bearer-first/session-fallback ordering.
+- Review `pkg/gojahttp/enforcer.go` for grant intersection enforcement.
+- Review `pkg/gojahttp/api_token_integration_test.go` for the intended route-level behavior.
+- Validate with `go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth ./modules/express ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth` and `go test ./...`.
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+gofmt -w pkg/gojahttp/auth/programauth/token.go pkg/gojahttp/auth/programauth/memory_token_store.go pkg/gojahttp/auth/programauth/composite.go pkg/gojahttp/auth/programauth/token_test.go pkg/gojahttp/api_token_integration_test.go pkg/gojahttp/enforcer.go
+go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth ./modules/express ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth
+# ok for all focused packages
+
+go test ./...
+# ok for full repository
+
+git commit -m "programauth: add API token authentication"
+# first attempt failed nonamedreturns lint on token.go
+gofmt -w pkg/gojahttp/auth/programauth/token.go
+go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth ./modules/express ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth
+# ok for all focused packages
+
+git commit -m "programauth: add API token authentication"
+# pre-commit lint/test passed; commit 00a1e866e75c17cb07121463021e03ca1d046725
+```
+
+Primary files:
+
+```text
+pkg/gojahttp/auth/programauth/token.go
+pkg/gojahttp/auth/programauth/memory_token_store.go
+pkg/gojahttp/auth/programauth/composite.go
+pkg/gojahttp/auth/programauth/token_test.go
+pkg/gojahttp/api_token_integration_test.go
+pkg/gojahttp/enforcer.go
 ```

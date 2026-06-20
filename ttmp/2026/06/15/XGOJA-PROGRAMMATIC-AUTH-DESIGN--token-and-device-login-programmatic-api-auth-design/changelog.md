@@ -111,3 +111,16 @@ Committed generated programauth log metadata emitted by repository generation ho
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/logcopter.go — Generated package log metadata for new programauth package (commit 5412cc6)
 
+
+## 2026-06-20
+
+Implemented Phase 4 API-token issue/list/revoke/authenticate, bearer parsing, composite bearer/session auth, and grant enforcement for planned routes (commit 00a1e86).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/api_token_integration_test.go — Planned-route API-token integration coverage for CSRF skip and grant denial (commit 00a1e86)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/composite.go — Composite bearer-first/session-fallback authenticator (commit 00a1e86)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/memory_token_store.go — In-memory API-token store with prefix lookup/revoke/touch/list behavior (commit 00a1e86)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/token.go — API-token model/service/hasher/bearer parser/authentication implementation (commit 00a1e86)
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/enforcer.go — Enforces AuthResult grant intersection before app authorizer (commit 00a1e86)
+
