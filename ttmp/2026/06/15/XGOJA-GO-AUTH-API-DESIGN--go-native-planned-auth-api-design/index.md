@@ -1,7 +1,7 @@
 ---
 Title: Go Native Planned Auth API Design
 Ticket: XGOJA-GO-AUTH-API-DESIGN
-Status: active
+Status: complete
 Topics:
     - goja
     - xgoja
@@ -15,10 +15,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-15T17:52:47.293831262-04:00
+LastUpdated: 2026-06-18T17:34:38.426676583-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Go Native Planned Auth API Design
 

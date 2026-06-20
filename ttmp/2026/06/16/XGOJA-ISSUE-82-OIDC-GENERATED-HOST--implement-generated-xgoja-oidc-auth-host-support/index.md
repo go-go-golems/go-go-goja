@@ -1,7 +1,7 @@
 ---
 Title: Implement generated xgoja OIDC auth host support
 Ticket: XGOJA-ISSUE-82-OIDC-GENERATED-HOST
-Status: active
+Status: complete
 Topics:
     - xgoja
     - auth
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-16T18:01:37.644631377-04:00
+LastUpdated: 2026-06-18T17:34:36.213679911-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Implement generated xgoja OIDC auth host support
 
