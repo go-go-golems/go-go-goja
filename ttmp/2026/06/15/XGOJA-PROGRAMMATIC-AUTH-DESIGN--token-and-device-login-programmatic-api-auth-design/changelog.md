@@ -204,3 +204,13 @@ Phase 11A: added SQL-backed programauth store schema and transaction contract de
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/design-doc/01-sql-backed-programauth-stores-design.md — SQL store design
 
+
+## 2026-06-21
+
+Phase 11B: implemented SQL-backed programauth agent and API-token stores with SQLite tests and generated log metadata (commit f8ebbbe).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go — SQL agent/API token store implementation
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go — SQL store tests
+

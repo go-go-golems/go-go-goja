@@ -25,6 +25,10 @@ RelatedFiles:
       Note: |-
         Access/refresh token store contracts and refresh rotation requirements.
         Access/refresh token family contracts and rotation requirements
+    - Path: pkg/gojahttp/auth/programauth/sqlstore/schema.go
+      Note: Implements first schema slice from this design
+    - Path: pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go
+      Note: Concrete SQL store package described by this design
     - Path: pkg/gojahttp/auth/programauth/token.go
       Note: |-
         APITokenStore contract and hash/prefix lookup semantics.
@@ -39,6 +43,7 @@ LastUpdated: 2026-06-21T18:39:06.871727447-04:00
 WhatFor: Guide implementation of production-ready programauth SQL stores.
 WhenToUse: Use before implementing or reviewing SQL-backed agents, API tokens, access/refresh token families, or device authorizations.
 ---
+
 
 
 # SQL-backed programauth stores design

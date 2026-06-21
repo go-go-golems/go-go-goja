@@ -59,6 +59,12 @@ RelatedFiles:
       Note: Access/refresh token family service and AuthMethodAccessToken bearer authentication (commit 730b4dd)
     - Path: pkg/gojahttp/auth/programauth/oauth_token_test.go
       Note: Refresh rotation
+    - Path: pkg/gojahttp/auth/programauth/sqlstore/schema.go
+      Note: SQL schema for programauth agents and API tokens (commit f8ebbbe)
+    - Path: pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go
+      Note: SQL AgentStore and APITokenStore implementation (commit f8ebbbe)
+    - Path: pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go
+      Note: SQLite and service-level tests for SQL programauth stores (commit f8ebbbe)
     - Path: pkg/gojahttp/auth/programauth/token.go
       Note: API-token service
     - Path: pkg/gojahttp/auth_plan.go
@@ -103,6 +109,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -1594,4 +1601,118 @@ Primary document:
 
 ```text
 ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/design-doc/01-sql-backed-programauth-stores-design.md
+```
+
+## Step 15: Add SQL-backed agent and API-token stores
+
+This step implements the first durable programauth store slice. The new `programauth/sqlstore` package follows the same shape as the existing auth SQL stores: dialect selection, schema strings, `ApplySchema`, SQLite tests, and a concrete store type that satisfies focused service interfaces.
+
+The initial SQL store implements agents and API tokens only. This keeps the first durable-storage commit reviewable before adding the more sensitive token-family and device-code transaction logic.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 13)
+
+**Assistant interpretation:** Continue from the SQL store design into implementation, starting with the simpler agent and API-token contracts.
+
+**Inferred user intent:** Make production persistence real in incremental slices rather than leaving the SQL store concern as a design note.
+
+**Commit (code):** f8ebbbe — "programauth: add sql agent and api token stores"
+
+### What I did
+
+- Added `pkg/gojahttp/auth/programauth/sqlstore/schema.go` with SQLite and PostgreSQL DDL for:
+  - `auth_program_agents`,
+  - `auth_program_api_tokens`.
+- Added `pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go` with:
+  - `Dialect`, `Config`, `Store`, `New`, `Schema`, and `ApplySchema`,
+  - `AgentStore` implementation,
+  - `APITokenStore` implementation,
+  - grant JSON marshal/unmarshal helpers,
+  - token hash scanning/cloning helpers,
+  - placeholder rebinding for PostgreSQL.
+- Added `pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go` covering:
+  - agent create/get/list/disable behavior,
+  - clone isolation for agent policy grants,
+  - API-token issue/authenticate/list/revoke through `APITokenService`,
+  - unsupported dialect validation.
+- Included generated `pkg/gojahttp/auth/programauth/sqlstore/logcopter.go` from the pre-commit `go generate ./...` hook.
+
+### Why
+
+- Agents and API tokens are the least transactionally complex programauth stores, so they are the right first SQL-backed slice.
+- API-token storage validates the important hash + prefix pattern in SQL before access/refresh token families reuse the same helpers.
+- Keeping store behavior behind existing interfaces lets the service layer remain unchanged.
+
+### What worked
+
+- `go test ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth` passed before commit.
+- The pre-commit hook passed after a small lint fix, including full `go test ./...`.
+- The SQL-backed API-token store authenticated through the existing `APITokenService`, proving the store satisfies the service contract rather than just raw CRUD tests.
+
+### What didn't work
+
+- The first commit attempt failed lint with:
+
+```text
+pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go:349:4: QF1012: Use fmt.Fprintf(...) instead of WriteString(fmt.Sprintf(...)) (staticcheck)
+```
+
+I changed the PostgreSQL placeholder rebinder from `b.WriteString(fmt.Sprintf(...))` to `fmt.Fprintf(&b, ...)`, reran `gofmt`, reran the package test, and committed successfully.
+
+### What I learned
+
+- The existing auth SQL package pattern is easy to reuse, but programauth needs more shared helpers because several stores carry `GrantSet` JSON and token hash bytes.
+- Testing SQL API-token authentication through the service is more valuable than only testing `CreateAPIToken`/`GetAPITokenByID`, because it exercises prefix lookup, hash comparison, agent loading, touch-on-use, and revocation behavior.
+- `go generate ./...` created `sqlstore/logcopter.go` automatically once the new package existed; committing it keeps generated metadata consistent with the rest of the repo.
+
+### What was tricky to build
+
+- The SQL store package cannot call unexported clone helpers from `programauth`, so it has local clone helpers that preserve the same copy-isolation behavior for byte slices, time pointers, and grant sets.
+- PostgreSQL placeholder rebinding needed to support static queries and dynamic query builders. Static `?` queries are converted to `$1`, `$2`, etc.; dynamic list queries use `placeholder(index)` directly.
+- SQL rows store grants as JSON, but service code expects normalized `GrantSet` values. The SQL store normalizes on write and read to keep deterministic scopes and tests.
+
+### What warrants a second pair of eyes
+
+- Whether one `programauth/sqlstore.Store` should continue to implement all programauth store interfaces as later token-family/device methods are added.
+- Whether API-token `TouchAPIToken` should eventually throttle updates in SQL, mirroring the design note about avoiding high write volume on every authenticated request.
+- Whether table names `auth_program_*` are final before production migrations freeze.
+
+### What should be done in the future
+
+- Implement Phase 11C: SQL-backed access/refresh token stores with transactional refresh rotation.
+- Implement Phase 11D: SQL-backed device authorization store with atomic status transitions.
+- Wire generated hostauth configuration after all programauth SQL contracts exist.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/auth/programauth/sqlstore/schema.go` for DDL and indexes.
+- Review `pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go` for interface implementation and clone/JSON helpers.
+- Review `pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go` for service-level API-token coverage.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth
+go test ./...
+```
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth
+# ok
+
+git commit -m "programauth: add sql agent and api token stores"
+# first attempt failed lint with QF1012; after fix, pre-commit lint/test passed; commit f8ebbbe
+```
+
+Primary files:
+
+```text
+pkg/gojahttp/auth/programauth/sqlstore/schema.go
+pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go
+pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go
+pkg/gojahttp/auth/programauth/sqlstore/logcopter.go
 ```
