@@ -85,15 +85,10 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	}
 	auditSink := audit.Sink{Store: stores.Audit}
 	rateLimiter := gojahttp.NewMemoryRateLimiter()
-	agentStore := programauth.NewMemoryAgentStore()
-	apiTokenStore := programauth.NewMemoryAPITokenStore()
-	accessTokenStore := programauth.NewMemoryAccessTokenStore()
-	refreshTokenStore := programauth.NewMemoryRefreshTokenStore()
-	deviceStore := programauth.NewMemoryDeviceAuthorizationStore()
-	agentService := programauth.AgentService{Store: agentStore, Now: b.options.Now}
-	apiTokenService := programauth.APITokenService{Store: apiTokenStore, Agents: agentService, Now: b.options.Now}
-	oauthTokenService := programauth.OAuthTokenService{AccessTokens: accessTokenStore, RefreshTokens: refreshTokenStore, Agents: agentService, Now: b.options.Now}
-	deviceService := programauth.DeviceService{Store: deviceStore, Agents: agentService, OAuthTokens: oauthTokenService, Now: b.options.Now, VerificationURI: "/auth/device"}
+	agentService := programauth.AgentService{Store: stores.ProgramAuth.Agents, Now: b.options.Now}
+	apiTokenService := programauth.APITokenService{Store: stores.ProgramAuth.APITokens, Agents: agentService, Now: b.options.Now}
+	oauthTokenService := programauth.OAuthTokenService{AccessTokens: stores.ProgramAuth.AccessTokens, RefreshTokens: stores.ProgramAuth.RefreshTokens, Agents: agentService, Now: b.options.Now}
+	deviceService := programauth.DeviceService{Store: stores.ProgramAuth.Devices, Agents: agentService, OAuthTokens: oauthTokenService, Now: b.options.Now, VerificationURI: "/auth/device"}
 	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter, apiTokenService, oauthTokenService)
 	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores, deviceService)
 	if err != nil {
@@ -109,11 +104,11 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		RateLimiter:       rateLimiter,
 		AppAuth:           stores.AppAuth,
 		Capability:        stores.Capability,
-		AgentStore:        agentStore,
-		APITokenStore:     apiTokenStore,
-		AccessTokenStore:  accessTokenStore,
-		RefreshTokenStore: refreshTokenStore,
-		DeviceStore:       deviceStore,
+		AgentStore:        stores.ProgramAuth.Agents,
+		APITokenStore:     stores.ProgramAuth.APITokens,
+		AccessTokenStore:  stores.ProgramAuth.AccessTokens,
+		RefreshTokenStore: stores.ProgramAuth.RefreshTokens,
+		DeviceStore:       stores.ProgramAuth.Devices,
 		Agents:            agentService,
 		APITokens:         apiTokenService,
 		OAuthTokens:       oauthTokenService,

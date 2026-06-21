@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
+	programauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -186,6 +187,41 @@ func TestDefaultOIDCUserNormalizerUpsertsUserWithoutGrantingMemberships(t *testi
 	}
 	if session.Claims["keycloakSub"] != "kc-sub-1" || session.Claims["preferredUsername"] != "demo" {
 		t.Fatalf("claims = %#v", session.Claims)
+	}
+}
+
+func TestServiceFactoryUsesSQLProgramAuthStore(t *testing.T) {
+	applySchema := true
+	factory := NewServiceFactory(BuilderOptions{Config: Config{
+		Mode: ModeDev,
+		Stores: StoresConfig{
+			Default:     StoreConfig{Driver: "memory"},
+			ProgramAuth: StoreConfig{Driver: "sqlite", DSN: "file:hostauth-programauth-store?mode=memory&cache=shared", ApplySchema: &applySchema},
+		},
+	}})
+	services, err := factory.BuildHostAuthServices(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BuildHostAuthServices: %v", err)
+	}
+	defer func() {
+		if err := services.Close(context.Background()); err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	}()
+	if _, ok := services.AgentStore.(*programauthsql.Store); !ok {
+		t.Fatalf("agent store type = %T", services.AgentStore)
+	}
+	if _, ok := services.APITokenStore.(*programauthsql.Store); !ok {
+		t.Fatalf("api token store type = %T", services.APITokenStore)
+	}
+	if _, ok := services.AccessTokenStore.(*programauthsql.Store); !ok {
+		t.Fatalf("access token store type = %T", services.AccessTokenStore)
+	}
+	if _, ok := services.RefreshTokenStore.(*programauthsql.Store); !ok {
+		t.Fatalf("refresh token store type = %T", services.RefreshTokenStore)
+	}
+	if _, ok := services.DeviceStore.(*programauthsql.Store); !ok {
+		t.Fatalf("device store type = %T", services.DeviceStore)
 	}
 }
 

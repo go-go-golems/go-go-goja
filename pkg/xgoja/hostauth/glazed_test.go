@@ -31,6 +31,7 @@ func TestGlazedConfigSectionDefaultsFromBaseConfig(t *testing.T) {
 	assertDefault(t, section, "auth-default-store-driver", "sqlite")
 	assertDefault(t, section, "auth-default-store-dsn", "file:auth.db")
 	assertDefault(t, section, "auth-session-store-apply-schema", false)
+	assertDefault(t, section, "auth-programauth-store-apply-schema", false)
 	assertDefault(t, section, "auth-oidc-issuer-url", "https://auth.example.test/realms/demo")
 	assertDefault(t, section, "auth-oidc-client-id", "goja-app")
 	assertDefault(t, section, "auth-oidc-public-base-url", "https://app.example.test")
@@ -55,6 +56,9 @@ func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
 		"auth-audit-store-driver":                 "memory",
 		"auth-audit-store-dsn":                    "",
 		"auth-audit-store-apply-schema":           false,
+		"auth-programauth-store-driver":           "sqlite",
+		"auth-programauth-store-dsn":              "file:programauth.db?mode=memory&cache=shared",
+		"auth-programauth-store-apply-schema":     true,
 		"auth-oidc-issuer-url":                    "https://auth.example.test/realms/demo",
 		"auth-oidc-client-id":                     "goja-app",
 		"auth-oidc-client-secret":                 "secret",
@@ -79,6 +83,9 @@ func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
 	}
 	if cfg.Stores.Audit.Driver != "memory" || cfg.Stores.Audit.DSN != "" || cfg.Stores.Audit.ApplySchema == nil || *cfg.Stores.Audit.ApplySchema {
 		t.Fatalf("audit store = %#v", cfg.Stores.Audit)
+	}
+	if cfg.Stores.ProgramAuth.Driver != "sqlite" || cfg.Stores.ProgramAuth.DSN != "file:programauth.db?mode=memory&cache=shared" || cfg.Stores.ProgramAuth.ApplySchema == nil || !*cfg.Stores.ProgramAuth.ApplySchema {
+		t.Fatalf("programauth store = %#v", cfg.Stores.ProgramAuth)
 	}
 	if cfg.OIDC.IssuerURL != "https://auth.example.test/realms/demo" || cfg.OIDC.ClientID != "goja-app" || cfg.OIDC.ClientSecret != "secret" || cfg.OIDC.PublicBaseURL != "https://app.example.test" {
 		t.Fatalf("oidc = %#v", cfg.OIDC)
