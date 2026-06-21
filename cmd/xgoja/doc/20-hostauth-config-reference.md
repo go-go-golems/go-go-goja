@@ -247,6 +247,7 @@ The error path is part of the operator experience. Preserve it when adding new f
 ## See also
 
 - `xgoja help generated-auth-javascript-apis`
+- `xgoja help programmatic-auth-javascript-apis`
 - `xgoja help auth-stores-reference`
 - `xgoja help http-serve-command-reference`
 - `xgoja help express-auth-host-integration-guide`

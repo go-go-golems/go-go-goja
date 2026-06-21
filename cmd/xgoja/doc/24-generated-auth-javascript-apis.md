@@ -26,7 +26,7 @@ SectionType: Application
 
 Generated OIDC hosts can expose a JavaScript `auth` module alongside the Express planned-route module. The module gives route code safe access to high-level auth services: bounded audit queries and generic capability-token operations. It does not expose raw database handles, session stores, Keycloak tokens, or authorization internals.
 
-Use this page when you are building an `xgoja.yaml` host with `auth.mode=oidc`, writing JavaScript routes for that host, or reviewing the generated example in `examples/xgoja/21-generated-host-auth`.
+Use this page when you are building an `xgoja.yaml` host with `auth.mode=oidc`, writing JavaScript routes for browser-session and capability-token flows, or reviewing the generated example in `examples/xgoja/21-generated-host-auth`. For automation agents and API tokens, use `xgoja help programmatic-auth-javascript-apis` instead.
 
 ## Provider and runtime configuration
 
@@ -222,6 +222,9 @@ For production deployments, keep these boundaries stable:
 
 ## See also
 
+- `xgoja help programmatic-auth-javascript-apis`
+- `xgoja help express-route-auth-requirements`
+- `xgoja help guarded-fetch-client-api`
 - `goja-repl help auth-module-guide`
 - `goja-repl help express-auth-user-guide`
 - `xgoja help hostauth-config-reference`
