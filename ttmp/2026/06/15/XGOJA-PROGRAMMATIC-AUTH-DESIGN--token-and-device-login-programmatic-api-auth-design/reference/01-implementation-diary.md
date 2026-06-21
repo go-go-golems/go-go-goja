@@ -2067,3 +2067,109 @@ cmd/xgoja/doc/21-auth-stores-reference.md
 cmd/xgoja/doc/25-programmatic-auth-javascript-apis.md
 cmd/xgoja/doc/28-device-authorization-programmatic-access.md
 ```
+
+## Step 19: Validate SQL programauth stores and write production migration notes
+
+This step closes the production-hardening loop for SQL-backed programauth by adding operator-facing migration notes and rerunning the focused validation path. The implementation now has SQL stores, generated host wiring, help docs, and a ticket reference that explains rollout and retention practices.
+
+The validation confirms the relevant package tests still pass and that the generated programmatic-agent example still builds and runs its black-box smoke test after hostauth gained a configurable `programauth` store family.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 16)
+
+**Assistant interpretation:** Finish the final validation/documentation phase for SQL-backed programauth stores.
+
+**Inferred user intent:** Make the production SQL store work handoff-ready, with validation commands and migration guidance captured in the ticket.
+
+**Commit (code):** N/A — documentation and validation step.
+
+### What I did
+
+- Added `reference/02-programauth-sql-production-migration-notes.md` to the ticket.
+- Documented:
+  - generated hostauth `programauth` YAML and flat flag configuration,
+  - the five `auth_program_*` SQL tables,
+  - token/hash and device transition invariants,
+  - migration practice for `apply-schema`,
+  - cleanup/retention candidates,
+  - rollout validation checks.
+- Related the new reference to SQL schema, SQL store implementation, and generated host store construction files.
+- Ran focused validation tests and the generated programmatic-agent-auth smoke test.
+
+### Why
+
+- Production deployment needs more than DDL and code. Operators need to know how to apply schema, when to disable app-owned DDL, which tables exist, and what invariants must be preserved.
+- The example smoke test verifies that generated host changes did not regress the programmatic agent flow while hardening the persistence layer.
+
+### What worked
+
+- Focused tests passed:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/xgoja/hostauth
+```
+
+- Generated example smoke passed:
+
+```bash
+make -C examples/xgoja/22-programmatic-agent-auth smoke
+# programmatic agent auth smoke passed
+```
+
+### What didn't work
+
+- No failures occurred in this step.
+
+### What I learned
+
+- The generated programmatic-agent-auth smoke remains useful as an end-to-end guard even though it uses memory stores by default. It exercises xgoja doctor/build, generated host wiring, native device start/polling, API-token route auth, and guarded fetch client behavior.
+- The final missing production artifact was documentation rather than code: store selection, SQL schema ownership, and cleanup policy needed to be explicit for handoff.
+
+### What was tricky to build
+
+- The migration notes needed to distinguish bootstrap convenience from production migration practice. `apply-schema: true` is valid for local/demo databases, but production should normally apply DDL through migration tooling and run with `apply-schema: false`.
+- Cleanup guidance had to avoid unsafe refresh-family deletion. Refresh rows carry family-level security evidence, so cleanup should be retention-aware rather than deleting individual expired rows blindly.
+
+### What warrants a second pair of eyes
+
+- Whether the suggested cleanup candidates match the intended audit-retention policy for production deployments.
+- Whether the generated example should gain an optional SQLite programauth smoke mode before closing the ticket permanently.
+- Whether the migration notes should be copied into public `xgoja help` docs or kept as ticket-level operator guidance.
+
+### What should be done in the future
+
+- If a deployment uses a dedicated `programauth` database, add migration files in that deployment repository from the canonical DDL.
+- Consider adding metrics around refresh reuse, device slow-down, and token revocation events.
+
+### Code review instructions
+
+- Review `ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/reference/02-programauth-sql-production-migration-notes.md` for production guidance.
+- Cross-check table names and invariants against `pkg/gojahttp/auth/programauth/sqlstore/schema.go` and `sqlstore.go`.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/xgoja/hostauth
+make -C examples/xgoja/22-programmatic-agent-auth smoke
+```
+
+### Technical details
+
+Validation commands and outcomes:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/xgoja/hostauth
+# ok
+
+make -C examples/xgoja/22-programmatic-agent-auth smoke
+# programmatic agent auth smoke passed: http://127.0.0.1:<port>
+```
+
+Primary files:
+
+```text
+ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/reference/02-programauth-sql-production-migration-notes.md
+pkg/gojahttp/auth/programauth/sqlstore/schema.go
+pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go
+pkg/xgoja/hostauth/stores.go
+```

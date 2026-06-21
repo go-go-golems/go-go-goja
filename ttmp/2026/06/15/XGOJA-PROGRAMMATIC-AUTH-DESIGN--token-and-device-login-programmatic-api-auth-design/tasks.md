@@ -31,4 +31,4 @@
 - [x] Phase 11C: Implement SQL-backed access/refresh token stores with transactional refresh rotation
 - [x] Phase 11D: Implement SQL-backed device authorization store with atomic approval/consume transitions
 - [x] Phase 11E: Wire generated hostauth configuration to select durable programauth stores
-- [ ] Phase 11F: Validate SQL programauth stores and document production migration notes
+- [x] Phase 11F: Validate SQL programauth stores and document production migration notes
