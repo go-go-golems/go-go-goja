@@ -28,13 +28,21 @@ RelatedFiles:
     - Path: pkg/gojahttp/auth/programauth/agent.go
       Note: Programmatic Agent model/service and actor projection added in commit 5800dd7
     - Path: pkg/gojahttp/auth/programauth/composite.go
-      Note: Bearer-first/session-fallback composite authenticator (commit 00a1e86)
+      Note: |-
+        Bearer-first/session-fallback composite authenticator (commit 00a1e86)
+        Composite bearer auth now supports API-token and access-token authenticators (commit 730b4dd)
     - Path: pkg/gojahttp/auth/programauth/logcopter.go
       Note: Generated log metadata committed after go generate hook (commit 5412cc6)
+    - Path: pkg/gojahttp/auth/programauth/memory_oauth_token_store.go
+      Note: Memory access/refresh stores with atomic refresh rotation and family revocation (commit 730b4dd)
     - Path: pkg/gojahttp/auth/programauth/memory_store.go
       Note: In-memory AgentStore with clone isolation/listing/disablement added in commit 5800dd7
     - Path: pkg/gojahttp/auth/programauth/memory_token_store.go
       Note: In-memory API-token store with prefix lookup/list/revoke/touch behavior (commit 00a1e86)
+    - Path: pkg/gojahttp/auth/programauth/oauth_token.go
+      Note: Access/refresh token family service and AuthMethodAccessToken bearer authentication (commit 730b4dd)
+    - Path: pkg/gojahttp/auth/programauth/oauth_token_test.go
+      Note: Refresh rotation
     - Path: pkg/gojahttp/auth/programauth/token.go
       Note: API-token service
     - Path: pkg/gojahttp/auth_plan.go
@@ -74,6 +82,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -1022,4 +1031,119 @@ modules/express/auth_builders.go
 modules/express/express.go
 modules/express/typescript.go
 modules/express/auth_builders_integration_test.go
+```
+
+## Step 10: Add access and rotating refresh token families
+
+This step starts the remaining token-family portion of the programmatic-auth plan. API tokens already cover directly revocable long-lived programmatic credentials; this slice adds a separate OAuth-style access/refresh-token family model where short-lived access tokens authenticate planned routes and refresh tokens rotate on every use.
+
+The implementation deliberately keeps refresh tokens out of planned-route bearer authentication. Access tokens use `AuthMethodAccessToken`; refresh tokens can only be presented to the refresh service. Reusing an already-used refresh token revokes the whole family, which is the core safety property the design called out before moving on to device authorization.
+
+### Prompt Context
+
+**User prompt (verbatim):** "close the client topic, then continue the main ticket."
+
+**Assistant interpretation:** Close the completed client-side fetch/auth ticket, then resume the main programmatic-auth implementation at the next unfinished phase.
+
+**Inferred user intent:** Finish bookkeeping for the completed client work and keep advancing the original token/device-login programmatic-auth roadmap.
+
+**Commit (code):** 730b4dd — "programauth: add access and refresh token families"
+
+### What I did
+
+- Closed `XGOJA-CLIENT-FETCH-AUTH-DESIGN` and committed the ticket closure separately as `8cf17b5`.
+- Added `pkg/gojahttp/auth/programauth/oauth_token.go` with:
+  - `AccessToken` and `RefreshToken` records,
+  - redacted views,
+  - opaque `ggat_...` access-token and `ggrt_...` refresh-token formats,
+  - `OAuthTokenService.IssueTokenPair`,
+  - `OAuthTokenService.RefreshTokenPair`,
+  - `OAuthTokenService.AuthenticateBearer` for access tokens only.
+- Added `pkg/gojahttp/auth/programauth/memory_oauth_token_store.go` with concurrency-safe in-memory access-token and refresh-token stores.
+- Extended `programauth.CompositeAuthenticator` so it can try API-token and access-token bearer authenticators while preserving session fallback.
+- Added tests for issue/authenticate, refresh rotation, refresh reuse family revocation, concurrent double refresh, access-token expiry, disabled-agent rejection, and refresh-token rejection from planned-route bearer auth.
+
+### Why
+
+- Device authorization needs an access/refresh-token pair after browser approval, so the token-family service must exist before device flow handlers can be implemented.
+- API tokens and refresh tokens have different lifecycle semantics. API tokens authenticate directly and can be revoked directly; refresh tokens rotate, detect reuse, and issue short-lived access tokens.
+- Refresh tokens must never be accepted as route credentials. Planned routes should see sessions, API tokens, and access tokens, not long-lived refresh credentials.
+
+### What worked
+
+- The existing `TokenHasher`, opaque-token prefix pattern, `GrantSet`, and `AgentService` model reused cleanly.
+- Access-token authentication can return the same redacted `AuthResult` shape as API tokens, with `Method: accessToken` and `PrincipalKind: agent`.
+- `go test ./pkg/gojahttp/auth/programauth`, focused auth packages, full `go test ./...`, and the pre-commit lint/test hook passed.
+
+### What didn't work
+
+- My first refresh implementation created the replacement access token before atomically rotating the refresh token. That could create an orphan access token in a concurrent double-refresh race. I changed the order so `RotateRefreshToken` runs before storing the replacement access token.
+- The pre-commit hook again ran `go generate ./...`, which started the Dagger engine for cached frontend build assets. It completed successfully but is noisy.
+
+### What I learned
+
+- Refresh-token rotation needs a store-level operation, not just service-level get/update calls. The in-memory store now exposes `RotateRefreshToken` so the current token can be checked, marked used, and linked to the replacement while holding the store lock.
+- Access and refresh token prefixes make it cheap to keep refresh tokens out of planned-route auth. `AuthenticateBearer` only accepts the `ggat_...` format; `ggrt_...` fails as unauthenticated.
+- Composite bearer auth should prefer the authenticator implied by the token prefix so revoked API-token errors are not accidentally masked by access-token format errors.
+
+### What was tricky to build
+
+- The main correctness edge was concurrent refresh. Two callers can present the same refresh token close together. Exactly one should rotate successfully; the other should observe reuse and revoke the family. The test now drives this with two goroutines against the same raw refresh value.
+- Another subtle point is transaction scope. The current implementation has separate access-token and refresh-token stores, so the memory-backed version can make refresh rotation atomic but cannot yet provide a cross-store SQL transaction for rotating refresh and inserting access together. SQL-backed production stores remain future work.
+- The model had to preserve the distinction between direct API tokens and OAuth-style access tokens. They both arrive as `Authorization: Bearer ...`, but they have different prefixes, methods, expiry assumptions, and lifecycle rules.
+
+### What warrants a second pair of eyes
+
+- Whether `OAuthTokenService.RefreshTokenPair` should eventually accept a transaction-capable combined store rather than separate access/refresh stores.
+- Whether access-token family revocation should also revoke outstanding access tokens immediately, or only prevent future refresh and rely on short access-token TTLs.
+- Whether user-subject access tokens should be supported before device flow, or whether the first production path should remain agent-only.
+
+### What should be done in the future
+
+- Add SQL-backed programauth stores with transactional refresh rotation.
+- Wire generated hostauth services with access/refresh token stores once native device/token handlers exist.
+- Implement Phase 8 device authorization flow using this token-family service.
+- Add OAuth-style error response helpers and bearer challenge metadata for native token endpoints.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/auth/programauth/oauth_token.go` for the access/refresh data model and service methods.
+- Review `pkg/gojahttp/auth/programauth/memory_oauth_token_store.go` for refresh rotation and family revocation semantics.
+- Review `pkg/gojahttp/auth/programauth/composite.go` for bearer authenticator ordering and session fallback.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth
+go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth ./pkg/xgoja/hostauth ./pkg/xgoja/providers/hostauth
+go test ./...
+```
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+docmgr ticket close --ticket XGOJA-CLIENT-FETCH-AUTH-DESIGN
+# closed client ticket; committed as 8cf17b5
+
+go test ./pkg/gojahttp/auth/programauth
+# ok
+
+go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth ./pkg/xgoja/hostauth ./pkg/xgoja/providers/hostauth
+# ok
+
+go test ./...
+# ok
+
+git commit -m "programauth: add access and refresh token families"
+# pre-commit lint/test passed; commit 730b4dd
+```
+
+Primary files:
+
+```text
+pkg/gojahttp/auth/programauth/oauth_token.go
+pkg/gojahttp/auth/programauth/memory_oauth_token_store.go
+pkg/gojahttp/auth/programauth/oauth_token_test.go
+pkg/gojahttp/auth/programauth/composite.go
 ```

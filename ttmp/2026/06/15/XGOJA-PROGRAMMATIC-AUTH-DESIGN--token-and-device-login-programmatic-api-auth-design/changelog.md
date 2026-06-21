@@ -147,3 +147,14 @@ Phase 6: added route auth requirements and Go/Express builders for agent, sessio
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth_plan.go — Defines AuthRequirement route constraints and validates allowed auth methods/principal kinds
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/enforcer.go — Enforces route auth requirements after authentication and before CSRF/resource/authorization work
 
+
+## 2026-06-20
+
+Phase 7: Added access-token and rotating refresh-token family service with memory stores, access-token bearer auth, refresh reuse family revocation, and concurrency tests (commit 730b4dd).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/memory_oauth_token_store.go — Memory token-family stores
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/oauth_token.go — Access/refresh token family service
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/oauth_token_test.go — Token-family behavior tests
+
