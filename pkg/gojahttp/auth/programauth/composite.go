@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 )
@@ -16,8 +17,9 @@ type BearerAuthenticator interface {
 // and falls back to the configured session authenticator when no bearer token is
 // present. It intentionally does not accept query/body bearer tokens.
 type CompositeAuthenticator struct {
-	Session   gojahttp.Authenticator
-	APITokens BearerAuthenticator
+	Session      gojahttp.Authenticator
+	APITokens    BearerAuthenticator
+	AccessTokens BearerAuthenticator
 }
 
 func (a CompositeAuthenticator) Authenticate(ctx context.Context, req *http.Request, session *gojahttp.SessionDTO, spec gojahttp.SecuritySpec) (*gojahttp.Actor, error) {
@@ -34,10 +36,7 @@ func (a CompositeAuthenticator) AuthenticateResult(ctx context.Context, req *htt
 		return gojahttp.AuthResult{}, err
 	}
 	if ok {
-		if a.APITokens == nil {
-			return gojahttp.AuthResult{}, fmt.Errorf("%w: api token authenticator is not configured", gojahttp.ErrUnauthenticated)
-		}
-		return a.APITokens.AuthenticateBearer(ctx, raw, spec)
+		return a.authenticateBearer(ctx, raw, spec)
 	}
 	if a.Session == nil {
 		return gojahttp.AuthResult{}, gojahttp.ErrUnauthenticated
@@ -53,4 +52,28 @@ func (a CompositeAuthenticator) AuthenticateResult(ctx context.Context, req *htt
 		return gojahttp.AuthResult{}, gojahttp.ErrUnauthenticated
 	}
 	return gojahttp.AuthResult{Actor: actor, Method: gojahttp.AuthMethodSession, PrincipalKind: gojahttp.PrincipalKindUser, PrincipalID: actor.ID, CSRFRequired: true}, nil
+}
+
+func (a CompositeAuthenticator) authenticateBearer(ctx context.Context, raw string, spec gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {
+	var lastErr error
+	configured := false
+	authenticators := []BearerAuthenticator{a.APITokens, a.AccessTokens}
+	if strings.HasPrefix(strings.TrimSpace(raw), defaultAccessTokenPrefix+"_") {
+		authenticators = []BearerAuthenticator{a.AccessTokens, a.APITokens}
+	}
+	for _, authenticator := range authenticators {
+		if authenticator == nil {
+			continue
+		}
+		configured = true
+		result, err := authenticator.AuthenticateBearer(ctx, raw, spec)
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+	}
+	if !configured {
+		return gojahttp.AuthResult{}, fmt.Errorf("%w: bearer authenticator is not configured", gojahttp.ErrUnauthenticated)
+	}
+	return gojahttp.AuthResult{}, lastErr
 }
