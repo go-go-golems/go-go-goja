@@ -63,14 +63,17 @@ RelatedFiles:
       Note: |-
         SQL schema for programauth agents and API tokens (commit f8ebbbe)
         SQL schema now includes access and refresh token family tables (commit c47880e)
+        SQL device authorization schema added in commit 1f9895f
     - Path: pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go
       Note: |-
         SQL AgentStore and APITokenStore implementation (commit f8ebbbe)
         SQL access/refresh token stores and transactional refresh rotation (commit c47880e)
+        SQL DeviceAuthorizationStore implementation added in commit 1f9895f
     - Path: pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go
       Note: |-
         SQLite and service-level tests for SQL programauth stores (commit f8ebbbe)
         SQL OAuth token service lifecycle tests (commit c47880e)
+        SQL device authorization lifecycle tests added in commit 1f9895f
     - Path: pkg/gojahttp/auth/programauth/token.go
       Note: API-token service
     - Path: pkg/gojahttp/auth_plan.go
@@ -115,6 +118,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -1831,5 +1835,112 @@ Primary files:
 ```text
 pkg/gojahttp/auth/programauth/sqlstore/schema.go
 pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go
+pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go
+```
+
+## Step 17: Add SQL-backed device authorization store
+
+This step completes the durable SQL store coverage for core programauth state by adding device authorization persistence. Device start, lookup, poll recording, approval, denial, and consumption can now run through the SQL store package.
+
+The implementation uses conditional updates for approval, denial, and consumption so state transitions remain single-owner operations. A device code cannot be approved after it was denied, denied after it was approved, or consumed twice.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 16)
+
+**Assistant interpretation:** Continue from SQL access/refresh token stores into the next unfinished phase: durable device authorization storage.
+
+**Inferred user intent:** Finish the SQL persistence foundation for programmatic device login before generated-host wiring.
+
+**Commit (code):** 1f9895f — "programauth: add sql device authorization store"
+
+### What I did
+
+- Extended `programauth/sqlstore` schema with `auth_program_device_authorizations` for SQLite and PostgreSQL.
+- Added indexes for:
+  - device-code prefix lookup,
+  - unique user-code hash lookup,
+  - expiry scans,
+  - approval/denial/consumption status queries.
+- Implemented `programauth.DeviceAuthorizationStore` in SQL:
+  - `CreateDeviceAuthorization`,
+  - `FindDeviceAuthorizationByDeviceCodePrefix`,
+  - `GetDeviceAuthorizationByUserCodeHash`,
+  - `RecordDevicePoll`,
+  - `ApproveDeviceAuthorization`,
+  - `DenyDeviceAuthorization`,
+  - `ConsumeDeviceAuthorization`.
+- Added SQL device service tests covering pending, slow-down, approval, token issuance, consumed-code failure, duplicate user-code hash rejection, denial, and denied consume behavior.
+
+### Why
+
+- Device authorization state must be durable for production use: a device may start authorization on one process, be approved by a browser session on another, and poll again after a process restart.
+- Device code consumption must be atomic so a successful approved poll cannot issue two token pairs.
+- Implementing this store finishes the persistence contracts needed before generated hostauth can select SQL-backed programauth stores.
+
+### What worked
+
+- `go test ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth` passed before commit.
+- The pre-commit lint/test hook passed, including full `go test ./...`.
+- The existing `DeviceService` exercised the SQL store without service-level changes.
+
+### What didn't work
+
+- I initially botched an automated schema edit and duplicated a device authorization table inside the SQLite schema with PostgreSQL column types. I rewrote `schema.go` cleanly with one SQLite and one PostgreSQL schema block, then reran `gofmt` and tests successfully.
+- The pre-commit hook again ran `go generate ./...` and Dagger cached frontend asset work. It completed successfully.
+
+### What I learned
+
+- SQL schema edits are safer as a whole-file rewrite when both dialect blocks have nearly identical index anchors. Targeted replacement can accidentally match the wrong dialect block.
+- Device transition store methods need to return meaningful sentinel errors after conditional updates affect zero rows. The implementation reloads the row and maps denied/consumed/already-approved states back to service-level errors.
+- The device service tests are valuable because they exercise persistence through the actual start/poll/approve/token issuance lifecycle, not just store CRUD.
+
+### What was tricky to build
+
+- The store interface does not pass expiry checks into the SQL transition methods; the service still owns expiry policy. The SQL store therefore protects structural state transitions but leaves time policy in `DeviceService`, matching the memory store contract.
+- `RecordDevicePoll` always writes the poll interval passed by the service. Slow-down behavior remains in service code, and the store only persists the new interval and poll timestamp.
+- Transition error mapping required a helper: if a conditional update affects zero rows, the store reloads the row and returns `ErrDeviceDenied`, `ErrDeviceConsumed`, an already-approved error, or the original fallback.
+
+### What warrants a second pair of eyes
+
+- Whether SQL device transitions should also include `expires_at > now` predicates, or whether keeping expiry policy exclusively in `DeviceService` is preferable.
+- Whether already-approved should become a sentinel error like denied/consumed for easier handler mapping.
+- Whether `DenyDeviceAuthorization` should allow denial after approval in any administrative workflow; the current SQL store disallows it for the device-flow transition contract.
+
+### What should be done in the future
+
+- Implement Phase 11E: generated hostauth configuration for selecting durable programauth stores.
+- Add a production cleanup playbook for expired device authorizations and token rows.
+
+### Code review instructions
+
+- Review `pkg/gojahttp/auth/programauth/sqlstore/schema.go` for the device authorization table and indexes.
+- Review `pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go`, especially the conditional update queries and `deviceTransitionError`.
+- Review `TestSQLStoreDeviceAuthorizationServiceLifecycle` and `TestSQLStoreDeviceAuthorizationDenyAndDuplicateUserCode`.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth
+go test ./...
+```
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth
+# ok
+
+git commit -m "programauth: add sql device authorization store"
+# pre-commit lint/test passed; commit 1f9895f
+```
+
+Primary files:
+
+```text
+pkg/gojahttp/auth/programauth/sqlstore/schema.go
+pkg/gojahttp/auth/programauth/sqlstore
+/sqlstore.go
 pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go
 ```

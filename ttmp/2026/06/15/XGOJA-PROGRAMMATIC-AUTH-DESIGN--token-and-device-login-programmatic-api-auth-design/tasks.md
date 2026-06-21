@@ -29,6 +29,6 @@
 - [x] Phase 11A: Design SQL-backed programauth store schema and transaction contracts
 - [x] Phase 11B: Implement SQL-backed agent and API-token stores
 - [x] Phase 11C: Implement SQL-backed access/refresh token stores with transactional refresh rotation
-- [ ] Phase 11D: Implement SQL-backed device authorization store with atomic approval/consume transitions
+- [x] Phase 11D: Implement SQL-backed device authorization store with atomic approval/consume transitions
 - [ ] Phase 11E: Wire generated hostauth configuration to select durable programauth stores
 - [ ] Phase 11F: Validate SQL programauth stores and document production migration notes

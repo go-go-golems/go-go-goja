@@ -224,3 +224,14 @@ Phase 11C: implemented SQL-backed access/refresh token stores with transactional
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go — SQL OAuth token family stores
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go — SQL OAuth token lifecycle tests
 
+
+## 2026-06-21
+
+Phase 11D: added SQL-backed device authorization store with conditional approval, denial, poll, and consume transitions (commit 1f9895f)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/schema.go — Device authorization table and indexes
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go — Device authorization store implementation
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go — Device authorization SQL tests
+
