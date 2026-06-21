@@ -26,7 +26,7 @@
 - [x] Phase 8: Add device authorization flow and native polling/token handlers
 - [x] Phase 9: Add generated examples, smoke tests, help docs, and final reMarkable bundle
 - [x] Phase 10: Enforce device approval grant intersection and add regression tests
-- [ ] Phase 11A: Design SQL-backed programauth store schema and transaction contracts
+- [x] Phase 11A: Design SQL-backed programauth store schema and transaction contracts
 - [ ] Phase 11B: Implement SQL-backed agent and API-token stores
 - [ ] Phase 11C: Implement SQL-backed access/refresh token stores with transactional refresh rotation
 - [ ] Phase 11D: Implement SQL-backed device authorization store with atomic approval/consume transitions

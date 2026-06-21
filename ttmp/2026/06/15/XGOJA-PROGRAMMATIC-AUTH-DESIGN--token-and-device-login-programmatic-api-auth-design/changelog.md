@@ -195,3 +195,12 @@ Phase 10: reopened ticket, added production-hardening tasks, and enforced device
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/device.go — Device approval grant narrowing
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/grants.go — GrantSet intersection
 
+
+## 2026-06-21
+
+Phase 11A: added SQL-backed programauth store schema and transaction contract design.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/design-doc/01-sql-backed-programauth-stores-design.md — SQL store design
+

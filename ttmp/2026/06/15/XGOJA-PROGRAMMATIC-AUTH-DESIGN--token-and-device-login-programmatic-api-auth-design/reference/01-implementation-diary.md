@@ -1509,3 +1509,89 @@ pkg/gojahttp/grants_test.go
 pkg/gojahttp/auth/programauth/device.go
 pkg/gojahttp/auth/programauth/device_test.go
 ```
+
+## Step 14: Design SQL-backed programauth stores and transaction contracts
+
+This step turns the SQL-backed store concern into an implementation design before writing store code. The design keeps the existing programauth service APIs and store interfaces intact, and adds one concrete SQL store package that can satisfy all programauth persistence contracts.
+
+The design focuses on the operations that need database-level correctness: refresh-token rotation and device-code transitions. Simple CRUD can mirror the memory stores, but refresh and device flows need conditional updates or row locks so multiple generated-host processes do not issue duplicate credentials.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 13)
+
+**Assistant interpretation:** Continue the reopened ticket by designing the SQL-backed programauth store phase before implementation.
+
+**Inferred user intent:** Make the production hardening work concrete enough that implementation can proceed in focused, reviewable slices.
+
+**Commit (code):** N/A — design/documentation step.
+
+### What I did
+
+- Added `design-doc/01-sql-backed-programauth-stores-design.md`.
+- Defined SQL table shapes for:
+  - `auth_program_agents`,
+  - `auth_program_api_tokens`,
+  - `auth_program_access_tokens`,
+  - `auth_program_refresh_tokens`,
+  - `auth_program_device_authorizations`.
+- Defined indexes for lookup paths such as token prefix, family id, agent id, subject user id, user-code hash, and device-code prefix.
+- Specified transaction contracts for:
+  - refresh-token rotation,
+  - refresh family revocation,
+  - device approval,
+  - device denial,
+  - device consumption.
+- Chose a single `pkg/gojahttp/auth/programauth/sqlstore` package to implement all five store interfaces.
+
+### Why
+
+- The SQL work is large enough that implementation needs an explicit schema and transaction plan.
+- Refresh rotation and device consumption are correctness-sensitive under concurrency; those invariants should be documented before code is written.
+- Existing auth SQL packages already define a project-local pattern for dialects, schemas, `ApplySchema`, placeholder helpers, and SQLite tests.
+
+### What worked
+
+- The existing store interfaces are sufficient for the first SQL-backed implementation; no service API change is required for store parity.
+- A single concrete SQL store can satisfy all five programauth store interfaces while still allowing services to depend only on focused interfaces.
+- The memory-store behavior maps cleanly to SQL tables with JSON-encoded `GrantSet` values and binary token hashes.
+
+### What didn't work
+
+- N/A. This was a design step and did not hit command or code failures.
+
+### What I learned
+
+- The current `RefreshTokenStore` interface is enough to make refresh rotation atomic at the refresh-store level, but it does not atomically insert the replacement access token in the same SQL transaction. That is acceptable for parity with memory stores, but a future combined token-family store could improve cross-table atomicity.
+- Device approval/denial/consume transitions should be conditional updates even though the service checks state first. The store must protect against concurrent requests from multiple processes.
+
+### What was tricky to build
+
+- The schema has to preserve the typed grant model rather than collapsing grants into scope strings. That means JSON storage should encode `[]gojahttp.Grant`, not just `[]string`.
+- The design needs to support both SQLite and PostgreSQL. PostgreSQL can use `SELECT ... FOR UPDATE`; SQLite relies on transactional write serialization, so tests need to focus on observable invariants rather than dialect-specific lock syntax.
+- Generated hostauth wiring should wait until store parity tests pass. Otherwise configuration work may hide correctness gaps in the underlying durable store.
+
+### What warrants a second pair of eyes
+
+- Whether programauth SQL stores should use one shared table prefix `auth_program_*` or align more tightly with existing `auth_app_*` names.
+- Whether token hash columns should remain unindexed, relying only on prefix lookup.
+- Whether refresh-token family revocation should also revoke outstanding access tokens once a combined store abstraction exists.
+
+### What should be done in the future
+
+- Implement Phase 11B: SQL-backed agent and API-token stores.
+- Implement SQL contract tests that compare memory and SQL behavior for clone isolation, filtering, revocation, and prefix lookup.
+
+### Code review instructions
+
+- Review `design-doc/01-sql-backed-programauth-stores-design.md` first.
+- Compare the proposed store package shape with `pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go` and `pkg/gojahttp/auth/sessionauth/sqlstore/sqlstore.go`.
+- Pay special attention to the refresh rotation and device consumption transaction contracts.
+
+### Technical details
+
+Primary document:
+
+```text
+ttmp/2026/06/15/XGOJA-PROGRAMMATIC-AUTH-DESIGN--token-and-device-login-programmatic-api-auth-design/design-doc/01-sql-backed-programauth-stores-design.md
+```
