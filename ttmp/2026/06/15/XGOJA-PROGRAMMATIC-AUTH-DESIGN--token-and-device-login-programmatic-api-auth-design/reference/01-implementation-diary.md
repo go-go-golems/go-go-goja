@@ -13,6 +13,8 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/doc/21-auth-stores-reference.md
+      Note: Programauth store family documented in commit f832ea7
     - Path: cmd/xgoja/doc/28-device-authorization-programmatic-access.md
       Note: Device authorization help page (commit a32d3eb)
     - Path: examples/xgoja/22-programmatic-agent-auth/README.md
@@ -99,11 +101,16 @@ RelatedFiles:
       Note: |-
         Generated hostauth service wiring for programauth stores and composite bearer/session auth (commit 432b628)
         Generated hostauth wiring for device/access/refresh services and native handlers (commit 4758e78)
+        Generated services now use configured programauth stores in commit f98d30e
+    - Path: pkg/xgoja/hostauth/glazed.go
+      Note: Programauth store flags added in commit f98d30e
     - Path: pkg/xgoja/hostauth/services.go
       Note: |-
         Generated hostauth rate-limiter wiring implemented in commit 1486dbb
         Service bundle fields for programauth agent and API-token services (commit 432b628)
         Service bundle exposes device and OAuth token stores/services (commit 4758e78)
+    - Path: pkg/xgoja/hostauth/stores.go
+      Note: ProgramAuthStores construction added in commit f98d30e
     - Path: pkg/xgoja/providers/hostauth/hostauth_test.go
       Note: Runtime coverage for JavaScript programmatic auth builders (commit 432b628)
     - Path: pkg/xgoja/providers/hostauth/programmatic.go
@@ -118,6 +125,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -1943,4 +1951,119 @@ pkg/gojahttp/auth/programauth/sqlstore/schema.go
 pkg/gojahttp/auth/programauth/sqlstore
 /sqlstore.go
 pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go
+```
+
+## Step 18: Wire generated hostauth to durable programauth stores
+
+This step makes the SQL programauth store selectable by generated host configuration. Generated hosts no longer hard-code in-memory programauth stores after the main hostauth store bundle is built.
+
+The change adds a fifth generated-host store family, `programauth`, alongside session, audit, appauth, and capability. It can inherit the default store DSN/schema policy, or it can be pointed at a dedicated SQLite/PostgreSQL DSN with `auth.stores.programauth` and `--auth-programauth-store-*` flags.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 16)
+
+**Assistant interpretation:** Continue the production hardening phases after SQL programauth persistence by wiring generated hosts to select those stores.
+
+**Inferred user intent:** Make durable programauth stores usable from generated xgoja hosts, not just available as a package-level implementation.
+
+**Commit (code):** f98d30e — "hostauth: wire durable programauth stores"
+
+### What I did
+
+- Added `ProgramAuth` to `StoresConfig` and `ResolvedStoresConfig`.
+- Added flat Glazed fields:
+  - `--auth-programauth-store-driver`,
+  - `--auth-programauth-store-dsn`,
+  - `--auth-programauth-store-apply-schema`.
+- Extended `BuildStores` to construct `ProgramAuthStores` from memory, SQLite, or PostgreSQL.
+- Wired `Builder.BuildHostAuthServices` to build `AgentService`, `APITokenService`, `OAuthTokenService`, and `DeviceService` from `stores.ProgramAuth` instead of fresh memory stores.
+- Added tests for config inheritance, Glazed mapping, memory-store construction, and generated service factory SQL programauth selection.
+- Updated help docs to explain the `programauth` store family and device/programmatic-auth durability expectations.
+
+### Why
+
+- SQL-backed programauth stores are only useful in generated hosts if the hostauth configuration can choose them.
+- Programmatic credential state should be configurable separately from browser sessions, because deployments may isolate automation credentials, apply schema separately, or use different migration policies.
+- Durable programauth storage is required for multi-process revocation, refresh-token reuse detection, and device-code consumption.
+
+### What worked
+
+- Focused tests passed:
+
+```bash
+go test ./pkg/xgoja/hostauth ./cmd/xgoja/doc ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth
+```
+
+- The pre-commit hook passed on the code commit, including lint, `go generate ./...`, and full `go test ./...`.
+- Documentation-only commit skipped hooks as expected because no Go files were staged.
+
+### What didn't work
+
+- No test or lint failures occurred in this step.
+- The pre-commit hook again ran Dagger-backed asset generation through `go generate ./...`; it completed successfully but produced a large trace in the terminal.
+
+### What I learned
+
+- The generated hostauth store model was already shaped to add another store family cleanly. `ResolvedStoresConfig`, `BuildStores`, and the flat Glazed setting layer were the main expansion points.
+- Keeping programauth as one store-family config is simpler than exposing separate agent/api-token/access-token/refresh-token/device store configs. The SQL implementation already provides all five interfaces from one store value, and the memory implementation can still return focused memory stores.
+- The service builder was the only place still forcing programauth state into memory after SQL stores existed.
+
+### What was tricky to build
+
+- The generated CLI surface has both nested YAML and flat Glazed fields. Adding a store family required updating both shapes so config files and command flags remain equivalent.
+- `BuildStores` shares SQL handles by `(driver, dsn)`, so `programauth` needed to participate in that existing sharing logic rather than opening its own independent database connection pool.
+- Tests needed to prove actual service wiring, not just config resolution. `TestServiceFactoryUsesSQLProgramAuthStore` asserts that the generated service bundle exposes `*programauth/sqlstore.Store` for each programauth interface.
+
+### What warrants a second pair of eyes
+
+- Whether one `programauth` store family is enough, or whether some deployments will want separate DSNs for token families versus device authorization state.
+- Whether generated examples should demonstrate a SQLite `programauth` override instead of inheriting memory defaults.
+- Whether CLI help should emphasize that `apply-schema` is a bootstrap convenience and production migrations should manage schema separately.
+
+### What should be done in the future
+
+- Implement Phase 11F: validate SQL programauth stores end-to-end and document production migration/cleanup notes.
+- Consider adding a generated example mode that uses SQLite programauth stores in the smoke test.
+
+### Code review instructions
+
+- Start with `pkg/xgoja/hostauth/stores.go` for `ProgramAuthStores` construction.
+- Review `pkg/xgoja/hostauth/builder.go` to confirm services use `stores.ProgramAuth`.
+- Review `pkg/xgoja/hostauth/glazed.go` and `config.go` for the YAML/flag configuration surface.
+- Review the help-doc changes in `cmd/xgoja/doc/20-hostauth-config-reference.md`, `21-auth-stores-reference.md`, `25-programmatic-auth-javascript-apis.md`, and `28-device-authorization-programmatic-access.md`.
+- Validate with:
+
+```bash
+go test ./pkg/xgoja/hostauth ./cmd/xgoja/doc ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth
+go test ./...
+```
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+go test ./pkg/xgoja/hostauth ./cmd/xgoja/doc ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth
+# ok
+
+git commit -m "hostauth: wire durable programauth stores"
+# pre-commit lint/test passed; commit f98d30e
+
+git commit -m "docs: document programauth store config"
+# docs-only commit f832ea7
+```
+
+Primary files:
+
+```text
+pkg/xgoja/hostauth/config.go
+pkg/xgoja/hostauth/resolve.go
+pkg/xgoja/hostauth/glazed.go
+pkg/xgoja/hostauth/stores.go
+pkg/xgoja/hostauth/builder.go
+cmd/xgoja/doc/20-hostauth-config-reference.md
+cmd/xgoja/doc/21-auth-stores-reference.md
+cmd/xgoja/doc/25-programmatic-auth-javascript-apis.md
+cmd/xgoja/doc/28-device-authorization-programmatic-access.md
 ```

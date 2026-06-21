@@ -235,3 +235,14 @@ Phase 11D: added SQL-backed device authorization store with conditional approval
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go — Device authorization store implementation
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go — Device authorization SQL tests
 
+
+## 2026-06-21
+
+Phase 11E: wired generated hostauth configuration to select memory, SQLite, or PostgreSQL programauth stores and documented the programauth store family (commits f98d30e, f832ea7)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/21-auth-stores-reference.md — Programauth store documentation
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder.go — Generated service wiring
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/stores.go — Programauth store construction
+
