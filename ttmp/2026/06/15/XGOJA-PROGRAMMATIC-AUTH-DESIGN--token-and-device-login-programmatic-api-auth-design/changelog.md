@@ -214,3 +214,13 @@ Phase 11B: implemented SQL-backed programauth agent and API-token stores with SQ
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go — SQL agent/API token store implementation
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go — SQL store tests
 
+
+## 2026-06-21
+
+Phase 11C: implemented SQL-backed access/refresh token stores with transactional refresh rotation and service-level tests (commit c47880e).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go — SQL OAuth token family stores
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go — SQL OAuth token lifecycle tests
+

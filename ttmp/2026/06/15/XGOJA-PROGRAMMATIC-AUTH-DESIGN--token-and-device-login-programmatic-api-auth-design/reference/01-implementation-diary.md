@@ -60,11 +60,17 @@ RelatedFiles:
     - Path: pkg/gojahttp/auth/programauth/oauth_token_test.go
       Note: Refresh rotation
     - Path: pkg/gojahttp/auth/programauth/sqlstore/schema.go
-      Note: SQL schema for programauth agents and API tokens (commit f8ebbbe)
+      Note: |-
+        SQL schema for programauth agents and API tokens (commit f8ebbbe)
+        SQL schema now includes access and refresh token family tables (commit c47880e)
     - Path: pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go
-      Note: SQL AgentStore and APITokenStore implementation (commit f8ebbbe)
+      Note: |-
+        SQL AgentStore and APITokenStore implementation (commit f8ebbbe)
+        SQL access/refresh token stores and transactional refresh rotation (commit c47880e)
     - Path: pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go
-      Note: SQLite and service-level tests for SQL programauth stores (commit f8ebbbe)
+      Note: |-
+        SQLite and service-level tests for SQL programauth stores (commit f8ebbbe)
+        SQL OAuth token service lifecycle tests (commit c47880e)
     - Path: pkg/gojahttp/auth/programauth/token.go
       Note: API-token service
     - Path: pkg/gojahttp/auth_plan.go
@@ -109,6 +115,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -1715,4 +1722,114 @@ pkg/gojahttp/auth/programauth/sqlstore/schema.go
 pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go
 pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go
 pkg/gojahttp/auth/programauth/sqlstore/logcopter.go
+```
+
+## Step 16: Add SQL-backed access and refresh token stores
+
+This step extends the programauth SQL store from direct agents/API tokens into OAuth-style token families. SQL-backed access tokens can now authenticate planned routes through the existing `OAuthTokenService`, and SQL-backed refresh tokens can rotate inside a database transaction.
+
+The important part is `RotateRefreshToken`: it loads the current refresh token in a transaction, rejects revoked or already-used tokens, inserts the replacement refresh token, and conditionally marks the current token used. This preserves the single-use refresh-token invariant at the store boundary.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the next unfinished ticket phase, which is SQL-backed access/refresh token stores with transactional refresh rotation.
+
+**Inferred user intent:** Keep advancing the reopened production-hardening work without stopping after the first SQL store slice.
+
+**Commit (code):** c47880e — "programauth: add sql oauth token stores"
+
+### What I did
+
+- Extended `programauth/sqlstore` schema with:
+  - `auth_program_access_tokens`,
+  - `auth_program_refresh_tokens`,
+  - lookup indexes for prefixes, family ids, agent ids, expiry, used, and revoked state.
+- Implemented `programauth.AccessTokenStore` in SQL:
+  - `CreateAccessToken`,
+  - `FindAccessTokenByPrefix`,
+  - `TouchAccessToken`.
+- Implemented `programauth.RefreshTokenStore` in SQL:
+  - `CreateRefreshToken`,
+  - `FindRefreshTokenByPrefix`,
+  - `RotateRefreshToken`,
+  - `RevokeRefreshTokenFamily`.
+- Added SQL-backed OAuth token service coverage proving:
+  - token-pair issue,
+  - access-token authentication,
+  - refresh tokens are rejected as planned-route credentials,
+  - refresh rotation increments generation and preserves family id,
+  - old refresh reuse is unauthenticated,
+  - refresh reuse revokes the family and rejects the replacement refresh token.
+
+### Why
+
+- Access/refresh token families are the state that most needs durable storage before production use.
+- Refresh tokens are single-use. A store implementation must make rotation atomic enough that multiple callers cannot both rotate the same refresh token.
+- Keeping the behavior behind `OAuthTokenService` confirms the SQL store works with the existing service API.
+
+### What worked
+
+- `go test ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth` passed.
+- The pre-commit lint/test hook passed, including full `go test ./...`.
+- The SQL-backed service test caught the full refresh lifecycle rather than only checking raw inserts.
+
+### What didn't work
+
+- No new command failures in this step. The implementation compiled and tests passed before commit.
+- The pre-commit hook again ran `go generate ./...` and the cached Dagger frontend asset path, which completed successfully.
+
+### What I learned
+
+- The existing `RefreshTokenStore` interface is sufficient for store-local atomic rotation. It does not make access-token insertion part of the same SQL transaction, because `OAuthTokenService` creates access tokens after refresh rotation. That matches the memory-store behavior but remains a future design point for stronger all-or-nothing token-family transactions.
+- The SQL store needs local clone helpers for access and refresh tokens just like it did for API tokens, because returned token hashes and grant slices must not alias mutable internal data.
+
+### What was tricky to build
+
+- Rotation has two writes: insert replacement refresh token and mark current token used. The implementation does both in a transaction and makes the update conditional on `used_at IS NULL AND revoked_at IS NULL`.
+- The service-level refresh flow expects `ErrRefreshTokenUsed` to trigger family revocation. Returning the correct sentinel from SQL rotation is therefore part of the security contract, not just error cosmetics.
+- SQLite and PostgreSQL do not share row-lock syntax. The first implementation keeps the transaction boundary explicit and uses a conditional update that is portable across both dialects.
+
+### What warrants a second pair of eyes
+
+- Whether `RotateRefreshToken` should update current before inserting the replacement to avoid a possible unique-id collision rollback path changing the observed order.
+- Whether a future `TokenFamilyStore` should rotate refresh tokens and insert access tokens in one transaction.
+- Whether SQL tests should add an explicit concurrent double-refresh case using shared-cache SQLite.
+
+### What should be done in the future
+
+- Implement Phase 11D: SQL-backed device authorization store with atomic approval, denial, poll, and consume transitions.
+- Consider a future combined token-family transaction abstraction for stricter access+refresh atomicity.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/auth/programauth/sqlstore/schema.go` for the new access/refresh tables and indexes.
+- Review `pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go`, especially `RotateRefreshToken` and `RevokeRefreshTokenFamily`.
+- Review `TestSQLStoreOAuthTokenServiceIssueRefreshAndReuse` for the service-level lifecycle coverage.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth
+go test ./...
+```
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth/sqlstore ./pkg/gojahttp/auth/programauth
+# ok
+
+git commit -m "programauth: add sql oauth token stores"
+# pre-commit lint/test passed; commit c47880e
+```
+
+Primary files:
+
+```text
+pkg/gojahttp/auth/programauth/sqlstore/schema.go
+pkg/gojahttp/auth/programauth/sqlstore/sqlstore.go
+pkg/gojahttp/auth/programauth/sqlstore/sqlstore_test.go
 ```
