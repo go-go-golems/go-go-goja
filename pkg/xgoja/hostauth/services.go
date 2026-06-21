@@ -59,10 +59,15 @@ type Services struct {
 	AppAuth    AppAuthStores
 	Capability capability.Store
 
-	AgentStore    programauth.AgentStore
-	APITokenStore programauth.APITokenStore
-	Agents        programauth.AgentService
-	APITokens     programauth.APITokenService
+	AgentStore        programauth.AgentStore
+	APITokenStore     programauth.APITokenStore
+	AccessTokenStore  programauth.AccessTokenStore
+	RefreshTokenStore programauth.RefreshTokenStore
+	DeviceStore       programauth.DeviceAuthorizationStore
+	Agents            programauth.AgentService
+	APITokens         programauth.APITokenService
+	OAuthTokens       programauth.OAuthTokenService
+	Devices           programauth.DeviceService
 
 	NativeHandlers []NativeHandler
 

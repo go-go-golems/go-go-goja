@@ -63,7 +63,7 @@ func TestBuildAuthOptionsWiresSessionAuditResourcesAndAuthorizer(t *testing.T) {
 		t.Fatalf("BuildSessionManager: %v", err)
 	}
 	limiter := gojahttp.NewMemoryRateLimiter()
-	options := BuildAuthOptions(manager, stores, nil, limiter, nil)
+	options := BuildAuthOptions(manager, stores, nil, limiter, nil, nil)
 	if options.Authenticator == nil || options.CSRF == nil || options.Resources == nil || options.Authorizer == nil || options.RateLimiter == nil {
 		t.Fatalf("auth options missing fields: %#v", options)
 	}
@@ -105,7 +105,7 @@ func TestServiceFactoryDevBuildsUsableAuthServices(t *testing.T) {
 	if services.AuthOptions.Authenticator == nil || services.AuthOptions.CSRF == nil || services.AuthOptions.Audit == nil || services.AuthOptions.Resources == nil || services.AuthOptions.Authorizer == nil || services.AuthOptions.RateLimiter == nil {
 		t.Fatalf("auth options missing fields: %#v", services.AuthOptions)
 	}
-	if services.RateLimiter == nil || services.SessionManager == nil || services.SessionStore == nil || services.AuditStore == nil || services.Capability == nil || services.AgentStore == nil || services.APITokenStore == nil {
+	if services.RateLimiter == nil || services.SessionManager == nil || services.SessionStore == nil || services.AuditStore == nil || services.Capability == nil || services.AgentStore == nil || services.APITokenStore == nil || services.AccessTokenStore == nil || services.RefreshTokenStore == nil || services.DeviceStore == nil {
 		t.Fatalf("services missing stores/managers: %#v", services)
 	}
 
