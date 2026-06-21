@@ -62,7 +62,7 @@ auth:
       driver: memory
 ```
 
-For production-shaped hosts, use durable stores rather than memory. The current generated store configuration covers sessions, audit, appauth, and capability stores. SQL-backed programmatic token/agent stores should be reviewed before multi-process production use.
+For production-shaped hosts, use durable stores rather than memory. Generated hostauth now includes a `programauth` store family for agents, API tokens, access/refresh token families, and device authorization codes. Use `auth.stores.programauth` or the `--auth-programauth-store-*` flags when those records need a different SQL DSN or schema policy from the default store.
 
 ## Create an agent and issue its first token
 

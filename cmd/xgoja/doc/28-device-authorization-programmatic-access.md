@@ -101,6 +101,25 @@ Only `ggat_...` access tokens authenticate planned routes. Refresh tokens are ac
 
 If actions are omitted, the requested grants are approved as-is. If actions are present, the service intersects requested grants with approved grants so approval cannot broaden privilege.
 
+## Durable store configuration
+
+Device authorization uses the generated hostauth `programauth` store family. In production-shaped generated hosts, configure that family with SQLite for local persistence or PostgreSQL for shared multi-process deployments:
+
+```yaml
+auth:
+  stores:
+    default:
+      driver: postgres
+      dsn: ${AUTH_DATABASE_URL}
+      apply-schema: true
+    programauth:
+      driver: postgres
+      dsn: ${PROGRAMAUTH_DATABASE_URL}
+      apply-schema: true
+```
+
+If `programauth` is omitted, it inherits from `default`. Durable storage is required when device start, browser approval, token polling, refresh reuse detection, or token revocation may happen on different processes.
+
 ## Example and validation
 
 See `examples/xgoja/22-programmatic-agent-auth`. Its smoke test verifies generated host wiring for:

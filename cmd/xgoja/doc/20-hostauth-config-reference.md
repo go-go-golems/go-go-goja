@@ -88,7 +88,7 @@ The top-level fields are:
 | --- | --- | --- |
 | `mode` | `none`, `dev`, `oidc` | Selects the auth infrastructure shape. |
 | `session` | object | Controls server-side app-session cookies and timeouts. |
-| `stores` | object | Configures session, audit, appauth, and capability persistence. |
+| `stores` | object | Configures session, audit, appauth, capability, and programmatic-auth persistence. |
 | `oidc` | object | Configures browser OIDC login when `mode=oidc`. |
 
 ## Modes
@@ -144,7 +144,7 @@ roles, tenants, or capabilities automatically.
 
 ## Store inheritance
 
-`StoresConfig` has a `default` store and four per-store overrides. The per-store blocks inherit from `default` field by field.
+`StoresConfig` has a `default` store and five per-store overrides: `session`, `audit`, `appauth`, `capability`, and `programauth`. The per-store blocks inherit from `default` field by field.
 
 ```yaml
 auth:
@@ -157,7 +157,7 @@ auth:
       apply-schema: false
 ```
 
-In this example, `audit` uses the default Postgres driver and DSN but overrides `apply-schema` to false. Empty per-store blocks inherit all default fields.
+In this example, `audit` uses the default Postgres driver and DSN but overrides `apply-schema` to false. Empty per-store blocks inherit all default fields. The `programauth` store backs automation agents, API tokens, access/refresh token families, and device authorization codes.
 
 Store drivers are:
 
@@ -201,6 +201,9 @@ The full store flag pattern is:
 --auth-capability-store-driver
 --auth-capability-store-dsn
 --auth-capability-store-apply-schema
+--auth-programauth-store-driver
+--auth-programauth-store-dsn
+--auth-programauth-store-apply-schema
 ```
 
 The OIDC flag pattern is:
