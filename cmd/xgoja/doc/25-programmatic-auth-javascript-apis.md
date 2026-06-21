@@ -235,6 +235,7 @@ The smoke verifies these auth properties:
 
 - `xgoja help express-route-auth-requirements`
 - `xgoja help guarded-fetch-client-api`
+- `xgoja help device-authorization-programmatic-access`
 - `xgoja help generated-auth-javascript-apis`
 - `xgoja help hostauth-config-reference`
 - `xgoja help auth-stores-reference`

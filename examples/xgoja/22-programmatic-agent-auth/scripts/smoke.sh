@@ -17,13 +17,15 @@ log="$(mktemp)"
 agent_out="$(mktemp)"
 no_token_out="$(mktemp)"
 session_out="$(mktemp)"
+device_start_out="$(mktemp)"
+device_poll_out="$(mktemp)"
 
 cleanup() {
   if [[ -n "${pid:-}" ]]; then
     kill "$pid" >/dev/null 2>&1 || true
     wait "$pid" >/dev/null 2>&1 || true
   fi
-  rm -f "$token_file" "$log" "$agent_out" "$no_token_out" "$session_out"
+  rm -f "$token_file" "$log" "$agent_out" "$no_token_out" "$session_out" "$device_start_out" "$device_poll_out"
 }
 trap cleanup EXIT
 
@@ -49,6 +51,22 @@ fi
 
 grep -q '"value"' "$token_file"
 grep -q '"agent"' "$token_file"
+
+curl -fsS -H 'Content-Type: application/json' \
+  -d '{"clientName":"smoke-device","tenantId":"o1","actions":["user.self.read"]}' \
+  "$base_url/auth/device/start" >"$device_start_out"
+grep -q '"device_code"' "$device_start_out"
+grep -q '"user_code"' "$device_start_out"
+device_code=$(python3 - <<PY
+import json
+print(json.load(open("$device_start_out"))["device_code"])
+PY
+)
+status=$(curl -sS -H 'Content-Type: application/json' \
+  -d "{\"grant_type\":\"urn:ietf:params:oauth:grant-type:device_code\",\"device_code\":\"${device_code}\"}" \
+  -o "$device_poll_out" -w '%{http_code}' "$base_url/auth/device/token")
+test "$status" = "400"
+grep -q '"authorization_pending"' "$device_poll_out"
 
 status=$(curl -sS -o "$no_token_out" -w '%{http_code}' "$base_url/agent/reports/daily")
 test "$status" = "401"

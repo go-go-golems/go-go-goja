@@ -233,6 +233,7 @@ The smoke harness uses `curl` only as an external black-box assertion tool. The 
 ## See also
 
 - `xgoja help programmatic-auth-javascript-apis`
+- `xgoja help device-authorization-programmatic-access`
 - `xgoja help express-route-auth-requirements`
 - `xgoja help http-serve-command-reference`
 - `xgoja help provider-runtime-config-and-host-services`

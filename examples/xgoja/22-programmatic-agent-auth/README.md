@@ -13,7 +13,7 @@ The JavaScript agent does **not** use `exec` or `curl`. Outbound HTTP is perform
 make -C examples/xgoja/22-programmatic-agent-auth smoke
 ```
 
-The smoke test builds two generated binaries: `dist/programmatic-agent-auth-server` and `dist/programmatic-agent-auth-agent`. It starts the server on a random localhost port, waits for `/healthz`, verifies the agent route rejects unauthenticated requests, runs the agent jsverb, and verifies the same API token is rejected by a session-user-only route.
+The smoke test builds two generated binaries: `dist/programmatic-agent-auth-server` and `dist/programmatic-agent-auth-agent`. It starts the server on a random localhost port, waits for `/healthz`, verifies the native device authorization start/pending-poll endpoints, verifies the agent route rejects unauthenticated requests, runs the agent jsverb, and verifies the same API token is rejected by a session-user-only route.
 
 ## Server-side pattern
 
@@ -79,3 +79,13 @@ runtime:
 ```
 
 Production agents should narrow `allowedOrigins` and `credentials.allowedFiles` to exact values.
+
+## Native device authorization endpoints
+
+Generated hostauth services also mount native Go-owned device authorization endpoints when auth is enabled:
+
+- `POST /auth/device/start` creates a `device_code` and `user_code`.
+- `POST /auth/device/token` polls with the device code and returns OAuth-style errors such as `authorization_pending` and `slow_down` until approval.
+- `POST /auth/device/approve` is session + CSRF protected and narrows requested grants before allowing the next poll to receive access/refresh tokens.
+
+The smoke script exercises the start and pending-poll path as a black-box generated-host check. Full approval and token issuance are covered by Go handler tests because the local demo does not include a browser login UI.
