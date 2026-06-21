@@ -102,6 +102,54 @@ func TestSQLStoreAPITokenServiceIssueAuthenticateListRevoke(t *testing.T) {
 	}
 }
 
+func TestSQLStoreOAuthTokenServiceIssueRefreshAndReuse(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	now := time.Date(2026, 6, 21, 21, 0, 0, 0, time.UTC)
+	current := now
+	agents := programauth.AgentService{Store: store, Now: func() time.Time { return current }, NewID: func() (string, error) { return "agt_oauth_sql", nil }}
+	_, err := agents.CreateAgent(ctx, programauth.AgentCreateSpec{Name: "sql oauth bot", Kind: programauth.AgentKindDevice, TenantID: "o1", Policy: mustGrantSet(t, gojahttp.Grant{Action: "report.read", TenantID: "o1"})})
+	if err != nil {
+		t.Fatalf("CreateAgent: %v", err)
+	}
+	ids := map[string]int{}
+	oauth := programauth.OAuthTokenService{
+		AccessTokens:  store,
+		RefreshTokens: store,
+		Agents:        agents,
+		Now:           func() time.Time { return current },
+		NewID: func(prefix string) (string, error) {
+			ids[prefix]++
+			return fmt.Sprintf("%s_sql_%d", prefix, ids[prefix]), nil
+		},
+		Random: deterministicRandom(),
+	}
+	issued, err := oauth.IssueTokenPair(ctx, programauth.OAuthTokenIssueSpec{AgentID: "agt_oauth_sql", AccessTTL: time.Minute, RefreshTTL: time.Hour, Grants: mustGrantSet(t, gojahttp.Grant{Action: "report.read", TenantID: "o1"})})
+	if err != nil {
+		t.Fatalf("IssueTokenPair: %v", err)
+	}
+	if _, err := oauth.AuthenticateBearer(ctx, issued.AccessValue, gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser}); err != nil {
+		t.Fatalf("AuthenticateBearer(access): %v", err)
+	}
+	if _, err := oauth.AuthenticateBearer(ctx, issued.RefreshValue, gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser}); !errors.Is(err, gojahttp.ErrUnauthenticated) {
+		t.Fatalf("refresh token authenticated planned route, err=%v", err)
+	}
+	current = current.Add(10 * time.Second)
+	refreshed, err := oauth.RefreshTokenPair(ctx, issued.RefreshValue, time.Minute, time.Hour)
+	if err != nil {
+		t.Fatalf("RefreshTokenPair: %v", err)
+	}
+	if refreshed.RefreshToken.Generation != issued.RefreshToken.Generation+1 || refreshed.RefreshToken.FamilyID != issued.RefreshToken.FamilyID {
+		t.Fatalf("refreshed metadata = %#v", refreshed.RefreshToken)
+	}
+	if _, err := oauth.RefreshTokenPair(ctx, issued.RefreshValue, time.Minute, time.Hour); !errors.Is(err, gojahttp.ErrUnauthenticated) {
+		t.Fatalf("old refresh token reuse should be unauthenticated, err=%v", err)
+	}
+	if _, err := oauth.RefreshTokenPair(ctx, refreshed.RefreshValue, time.Minute, time.Hour); !errors.Is(err, gojahttp.ErrUnauthenticated) {
+		t.Fatalf("family revocation should reject replacement refresh token, err=%v", err)
+	}
+}
+
 func TestSQLStoreRejectsUnsupportedDialect(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {

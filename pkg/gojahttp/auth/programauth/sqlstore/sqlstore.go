@@ -182,6 +182,128 @@ func (s *Store) TouchAPIToken(ctx context.Context, id string, usedAt time.Time) 
 	return requireAffected(res, programauth.ErrAPITokenNotFound)
 }
 
+func (s *Store) CreateAccessToken(ctx context.Context, token programauth.AccessToken) (programauth.AccessToken, error) {
+	token = cloneAccessToken(token)
+	if token.ID == "" {
+		return programauth.AccessToken{}, fmt.Errorf("access token id is required")
+	}
+	if token.TokenPrefix == "" || len(token.TokenHash) == 0 {
+		return programauth.AccessToken{}, fmt.Errorf("access token hash and prefix are required")
+	}
+	grantsJSON, err := marshalGrantSet(token.Grants)
+	if err != nil {
+		return programauth.AccessToken{}, err
+	}
+	_, err = s.db.ExecContext(ctx, s.insertAccessTokenQuery(), token.ID, token.AgentID, token.SubjectUserID, token.FamilyID, append([]byte(nil), token.TokenHash...), token.TokenPrefix, token.CreatedAt, token.UpdatedAt, token.ExpiresAt, nullTime(token.LastUsedAt), nullTime(token.RevokedAt), grantsJSON)
+	if err != nil {
+		return programauth.AccessToken{}, fmt.Errorf("create programauth access token: %w", err)
+	}
+	return token, nil
+}
+
+func (s *Store) FindAccessTokenByPrefix(ctx context.Context, prefix string) ([]programauth.AccessToken, error) {
+	rows, err := s.db.QueryContext(ctx, s.accessTokensByPrefixQuery(), strings.TrimSpace(prefix))
+	if err != nil {
+		return nil, fmt.Errorf("find programauth access tokens by prefix: %w", err)
+	}
+	return scanAccessTokenRows(rows)
+}
+
+func (s *Store) TouchAccessToken(ctx context.Context, id string, usedAt time.Time) error {
+	usedAt = usedAt.UTC()
+	res, err := s.db.ExecContext(ctx, s.touchAccessTokenQuery(), usedAt, usedAt, strings.TrimSpace(id))
+	if err != nil {
+		return fmt.Errorf("touch programauth access token: %w", err)
+	}
+	return requireAffected(res, programauth.ErrAccessTokenNotFound)
+}
+
+func (s *Store) CreateRefreshToken(ctx context.Context, token programauth.RefreshToken) (programauth.RefreshToken, error) {
+	token = cloneRefreshToken(token)
+	if err := validateRefreshTokenForInsert(token); err != nil {
+		return programauth.RefreshToken{}, err
+	}
+	if err := s.insertRefreshToken(ctx, s.db, token); err != nil {
+		return programauth.RefreshToken{}, err
+	}
+	return token, nil
+}
+
+func (s *Store) FindRefreshTokenByPrefix(ctx context.Context, prefix string) ([]programauth.RefreshToken, error) {
+	rows, err := s.db.QueryContext(ctx, s.refreshTokensByPrefixQuery(), strings.TrimSpace(prefix))
+	if err != nil {
+		return nil, fmt.Errorf("find programauth refresh tokens by prefix: %w", err)
+	}
+	return scanRefreshTokenRows(rows)
+}
+
+func (s *Store) RotateRefreshToken(ctx context.Context, currentID string, next programauth.RefreshToken, usedAt time.Time) (programauth.RefreshToken, programauth.RefreshToken, error) {
+	currentID = strings.TrimSpace(currentID)
+	next = cloneRefreshToken(next)
+	if err := validateRefreshTokenForInsert(next); err != nil {
+		return programauth.RefreshToken{}, programauth.RefreshToken{}, err
+	}
+	usedAt = usedAt.UTC()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return programauth.RefreshToken{}, programauth.RefreshToken{}, fmt.Errorf("begin refresh token rotation: %w", err)
+	}
+	defer rollback(tx)
+	current, err := scanRefreshToken(tx.QueryRowContext(ctx, s.refreshTokenByIDQuery(), currentID))
+	if err != nil {
+		return programauth.RefreshToken{}, programauth.RefreshToken{}, err
+	}
+	if current.Revoked() {
+		return programauth.RefreshToken{}, programauth.RefreshToken{}, programauth.ErrRefreshTokenRevoked
+	}
+	if current.Used() {
+		return programauth.RefreshToken{}, programauth.RefreshToken{}, programauth.ErrRefreshTokenUsed
+	}
+	next.FamilyID = current.FamilyID
+	if err := s.insertRefreshToken(ctx, tx, next); err != nil {
+		return programauth.RefreshToken{}, programauth.RefreshToken{}, err
+	}
+	res, err := tx.ExecContext(ctx, s.rotateRefreshTokenQuery(), usedAt, next.ID, usedAt, currentID)
+	if err != nil {
+		return programauth.RefreshToken{}, programauth.RefreshToken{}, fmt.Errorf("rotate programauth refresh token: %w", err)
+	}
+	if err := requireAffected(res, programauth.ErrRefreshTokenUsed); err != nil {
+		return programauth.RefreshToken{}, programauth.RefreshToken{}, err
+	}
+	current.UsedAt = &usedAt
+	current.ReplacedByID = next.ID
+	current.UpdatedAt = usedAt
+	if err := tx.Commit(); err != nil {
+		return programauth.RefreshToken{}, programauth.RefreshToken{}, fmt.Errorf("commit refresh token rotation: %w", err)
+	}
+	return cloneRefreshToken(current), cloneRefreshToken(next), nil
+}
+
+func (s *Store) RevokeRefreshTokenFamily(ctx context.Context, familyID string, revokedAt time.Time) error {
+	familyID = strings.TrimSpace(familyID)
+	if familyID == "" {
+		return fmt.Errorf("refresh token family id is required")
+	}
+	revokedAt = revokedAt.UTC()
+	_, err := s.db.ExecContext(ctx, s.revokeRefreshTokenFamilyQuery(), revokedAt, revokedAt, familyID)
+	if err != nil {
+		return fmt.Errorf("revoke programauth refresh token family: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) insertRefreshToken(ctx context.Context, exec sqlExecer, token programauth.RefreshToken) error {
+	grantsJSON, err := marshalGrantSet(token.Grants)
+	if err != nil {
+		return err
+	}
+	_, err = exec.ExecContext(ctx, s.insertRefreshTokenQuery(), token.ID, token.AgentID, token.SubjectUserID, token.FamilyID, token.Generation, append([]byte(nil), token.TokenHash...), token.TokenPrefix, token.CreatedAt, token.UpdatedAt, token.ExpiresAt, nullTime(token.UsedAt), nullTime(token.RevokedAt), token.ReplacedByID, grantsJSON)
+	if err != nil {
+		return fmt.Errorf("create programauth refresh token: %w", err)
+	}
+	return nil
+}
+
 func scanAgent(row scanner) (programauth.Agent, error) {
 	var agent programauth.Agent
 	var kind string
@@ -242,6 +364,80 @@ func scanAPITokenRows(rows *sql.Rows) ([]programauth.APIToken, error) {
 	return out, nil
 }
 
+func scanAccessToken(row scanner) (programauth.AccessToken, error) {
+	var token programauth.AccessToken
+	var lastUsedAt sql.NullTime
+	var revokedAt sql.NullTime
+	var grantsJSON string
+	if err := row.Scan(&token.ID, &token.AgentID, &token.SubjectUserID, &token.FamilyID, &token.TokenHash, &token.TokenPrefix, &token.CreatedAt, &token.UpdatedAt, &token.ExpiresAt, &lastUsedAt, &revokedAt, &grantsJSON); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return programauth.AccessToken{}, programauth.ErrAccessTokenNotFound
+		}
+		return programauth.AccessToken{}, fmt.Errorf("scan programauth access token: %w", err)
+	}
+	token.LastUsedAt = timePtr(lastUsedAt)
+	token.RevokedAt = timePtr(revokedAt)
+	grants, err := unmarshalGrantSet(grantsJSON)
+	if err != nil {
+		return programauth.AccessToken{}, err
+	}
+	token.Grants = grants
+	return cloneAccessToken(token), nil
+}
+
+func scanAccessTokenRows(rows *sql.Rows) ([]programauth.AccessToken, error) {
+	defer closeRows(rows)
+	out := []programauth.AccessToken{}
+	for rows.Next() {
+		token, err := scanAccessToken(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, token)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate programauth access tokens: %w", err)
+	}
+	return out, nil
+}
+
+func scanRefreshToken(row scanner) (programauth.RefreshToken, error) {
+	var token programauth.RefreshToken
+	var usedAt sql.NullTime
+	var revokedAt sql.NullTime
+	var grantsJSON string
+	if err := row.Scan(&token.ID, &token.AgentID, &token.SubjectUserID, &token.FamilyID, &token.Generation, &token.TokenHash, &token.TokenPrefix, &token.CreatedAt, &token.UpdatedAt, &token.ExpiresAt, &usedAt, &revokedAt, &token.ReplacedByID, &grantsJSON); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return programauth.RefreshToken{}, programauth.ErrRefreshTokenNotFound
+		}
+		return programauth.RefreshToken{}, fmt.Errorf("scan programauth refresh token: %w", err)
+	}
+	token.UsedAt = timePtr(usedAt)
+	token.RevokedAt = timePtr(revokedAt)
+	grants, err := unmarshalGrantSet(grantsJSON)
+	if err != nil {
+		return programauth.RefreshToken{}, err
+	}
+	token.Grants = grants
+	return cloneRefreshToken(token), nil
+}
+
+func scanRefreshTokenRows(rows *sql.Rows) ([]programauth.RefreshToken, error) {
+	defer closeRows(rows)
+	out := []programauth.RefreshToken{}
+	for rows.Next() {
+		token, err := scanRefreshToken(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, token)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate programauth refresh tokens: %w", err)
+	}
+	return out, nil
+}
+
 func (s *Store) insertAgentQuery() string {
 	return s.rebind(`INSERT INTO auth_program_agents (id, name, kind, owner_user_id, tenant_id, disabled_at, created_by, created_at, updated_at, policy_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 }
@@ -272,6 +468,38 @@ func (s *Store) revokeAPITokenQuery() string {
 
 func (s *Store) touchAPITokenQuery() string {
 	return s.rebind(`UPDATE auth_program_api_tokens SET last_used_at = ?, updated_at = ? WHERE id = ?`)
+}
+
+func (s *Store) insertAccessTokenQuery() string {
+	return s.rebind(`INSERT INTO auth_program_access_tokens (id, agent_id, subject_user_id, family_id, token_hash, token_prefix, created_at, updated_at, expires_at, last_used_at, revoked_at, grants_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+}
+
+func (s *Store) accessTokensByPrefixQuery() string {
+	return s.rebind(`SELECT id, agent_id, subject_user_id, family_id, token_hash, token_prefix, created_at, updated_at, expires_at, last_used_at, revoked_at, grants_json FROM auth_program_access_tokens WHERE token_prefix = ? ORDER BY created_at ASC, id ASC`)
+}
+
+func (s *Store) touchAccessTokenQuery() string {
+	return s.rebind(`UPDATE auth_program_access_tokens SET last_used_at = ?, updated_at = ? WHERE id = ?`)
+}
+
+func (s *Store) insertRefreshTokenQuery() string {
+	return s.rebind(`INSERT INTO auth_program_refresh_tokens (id, agent_id, subject_user_id, family_id, generation, token_hash, token_prefix, created_at, updated_at, expires_at, used_at, revoked_at, replaced_by_id, grants_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+}
+
+func (s *Store) refreshTokenByIDQuery() string {
+	return s.rebind(`SELECT id, agent_id, subject_user_id, family_id, generation, token_hash, token_prefix, created_at, updated_at, expires_at, used_at, revoked_at, replaced_by_id, grants_json FROM auth_program_refresh_tokens WHERE id = ?`)
+}
+
+func (s *Store) refreshTokensByPrefixQuery() string {
+	return s.rebind(`SELECT id, agent_id, subject_user_id, family_id, generation, token_hash, token_prefix, created_at, updated_at, expires_at, used_at, revoked_at, replaced_by_id, grants_json FROM auth_program_refresh_tokens WHERE token_prefix = ? ORDER BY created_at ASC, id ASC`)
+}
+
+func (s *Store) rotateRefreshTokenQuery() string {
+	return s.rebind(`UPDATE auth_program_refresh_tokens SET used_at = ?, replaced_by_id = ?, updated_at = ? WHERE id = ? AND used_at IS NULL AND revoked_at IS NULL`)
+}
+
+func (s *Store) revokeRefreshTokenFamilyQuery() string {
+	return s.rebind(`UPDATE auth_program_refresh_tokens SET revoked_at = ?, updated_at = ? WHERE family_id = ? AND revoked_at IS NULL`)
 }
 
 func (s *Store) listAgentsQuery(query programauth.AgentQuery) (string, []any) {
@@ -366,6 +594,10 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
+type sqlExecer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
 func marshalGrantSet(grants gojahttp.GrantSet) (string, error) {
 	normalized, err := grants.Normalize()
 	if err != nil {
@@ -425,6 +657,37 @@ func cloneAPIToken(token programauth.APIToken) programauth.APIToken {
 	return out
 }
 
+func cloneAccessToken(token programauth.AccessToken) programauth.AccessToken {
+	out := token
+	out.TokenHash = append([]byte(nil), token.TokenHash...)
+	out.Grants = token.Grants.Clone()
+	out.LastUsedAt = cloneTimePtr(token.LastUsedAt)
+	out.RevokedAt = cloneTimePtr(token.RevokedAt)
+	return out
+}
+
+func cloneRefreshToken(token programauth.RefreshToken) programauth.RefreshToken {
+	out := token
+	out.TokenHash = append([]byte(nil), token.TokenHash...)
+	out.Grants = token.Grants.Clone()
+	out.UsedAt = cloneTimePtr(token.UsedAt)
+	out.RevokedAt = cloneTimePtr(token.RevokedAt)
+	return out
+}
+
+func validateRefreshTokenForInsert(token programauth.RefreshToken) error {
+	if token.ID == "" {
+		return fmt.Errorf("refresh token id is required")
+	}
+	if token.FamilyID == "" {
+		return fmt.Errorf("refresh token family id is required")
+	}
+	if token.TokenPrefix == "" || len(token.TokenHash) == 0 {
+		return fmt.Errorf("refresh token hash and prefix are required")
+	}
+	return nil
+}
+
 func cloneTimePtr(value *time.Time) *time.Time {
 	if value == nil {
 		return nil
@@ -446,6 +709,8 @@ func requireAffected(res sql.Result, missing error) error {
 
 func closeRows(rows *sql.Rows) { _ = rows.Close() }
 
+func rollback(tx *sql.Tx) { _ = tx.Rollback() }
+
 func splitSQLStatements(schema string) []string {
 	pieces := strings.Split(schema, ";")
 	out := make([]string, 0, len(pieces))
@@ -460,3 +725,5 @@ func splitSQLStatements(schema string) []string {
 
 var _ programauth.AgentStore = (*Store)(nil)
 var _ programauth.APITokenStore = (*Store)(nil)
+var _ programauth.AccessTokenStore = (*Store)(nil)
+var _ programauth.RefreshTokenStore = (*Store)(nil)
