@@ -38,9 +38,13 @@ RelatedFiles:
         Bearer-first/session-fallback composite authenticator (commit 00a1e86)
         Composite bearer auth now supports API-token and access-token authenticators (commit 730b4dd)
     - Path: pkg/gojahttp/auth/programauth/device.go
-      Note: Device authorization service and token-pair issuance flow (commit 4758e78)
+      Note: |-
+        Device authorization service and token-pair issuance flow (commit 4758e78)
+        Device approval now intersects explicit grants with requested grants (commit 01615c9)
     - Path: pkg/gojahttp/auth/programauth/device_handlers.go
       Note: Native device start/token/approval HTTP handlers (commit 4758e78)
+    - Path: pkg/gojahttp/auth/programauth/device_test.go
+      Note: Regression tests for narrowed and broader device approval grants (commit 01615c9)
     - Path: pkg/gojahttp/auth/programauth/logcopter.go
       Note: Generated log metadata committed after go generate hook (commit 5412cc6)
     - Path: pkg/gojahttp/auth/programauth/memory_device_store.go
@@ -69,7 +73,9 @@ RelatedFiles:
         Grant intersection enforcement for AuthResult.Grants (commit 00a1e86)
         Enforces agent/session route auth requirements before downstream checks (commit 84d9e3c)
     - Path: pkg/gojahttp/grants.go
-      Note: Typed GrantSet model
+      Note: |-
+        Typed GrantSet model
+        GrantSet intersection helper for device approval narrowing (commit 01615c9)
     - Path: pkg/gojahttp/planned_dispatch.go
       Note: SecureContext Auth field and redacted ctx.auth JavaScript projection added in commit 1add4b5
     - Path: pkg/gojahttp/ratelimit.go
@@ -97,6 +103,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -1394,4 +1401,111 @@ cmd/xgoja/doc/25-programmatic-auth-javascript-apis.md
 cmd/xgoja/doc/27-guarded-fetch-client-api.md
 examples/xgoja/22-programmatic-agent-auth/scripts/smoke.sh
 examples/xgoja/22-programmatic-agent-auth/README.md
+```
+
+## Step 13: Reopen the ticket and enforce device approval grant intersection
+
+I reopened the programmatic-auth ticket for production-hardening follow-ups discovered while writing the vault report. The first follow-up fixes the device approval grant-narrowing invariant: approval can now accept the originally requested grants as-is or narrow them, but it cannot broaden the device request into unrelated permissions.
+
+This step also adds a reusable `GrantSet.Intersect` operation. That keeps the security rule in the core grant model instead of encoding a one-off comparison in device authorization. The intersection operation understands the existing wildcard semantics: empty tenant/resource dimensions are wildcards, and action `*` is an action wildcard.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, add necessary phases and tasks to the ticket, then continue working on them , committing at appropriate intervals, and keeping a detailed adiary as you work"
+
+**Assistant interpretation:** Reopen the main programmatic-auth ticket, add follow-up tasks for grant narrowing and SQL-backed stores, then continue implementing the follow-ups with focused commits and diary updates.
+
+**Inferred user intent:** Turn the production-hardening concerns from the vault report into tracked implementation work and keep the same evidence-rich ticket workflow going.
+
+**Commit (code):** 01615c9 — "programauth: narrow device approval grants"
+
+### What I did
+
+- Reopened `XGOJA-PROGRAMMATIC-AUTH-DESIGN` by setting its ticket status back to `active`.
+- Added follow-up tasks for:
+  - Phase 10 grant intersection,
+  - Phase 11A SQL store schema/transaction design,
+  - Phase 11B SQL agent/API-token stores,
+  - Phase 11C SQL access/refresh token stores,
+  - Phase 11D SQL device authorization store,
+  - Phase 11E generated hostauth store selection,
+  - Phase 11F validation and production migration notes.
+- Added `gojahttp.GrantSet.Intersect` and tests for wildcard narrowing and disjoint grant rejection.
+- Updated `DeviceService.ApproveDeviceAuthorization` so explicit approval grants are intersected with the original device-request grants.
+- Added regression tests proving approval can narrow requested grants and rejects broader disjoint grants.
+
+### Why
+
+- Device approval is a delegated authorization step. It must not be able to grant more than the device originally requested.
+- Keeping intersection in `GrantSet` makes the operation reusable for future token exchange and consent-style flows.
+- The vault report identified this as the highest-priority correctness issue before SQL store work.
+
+### What worked
+
+- The existing grant wildcard semantics mapped cleanly to intersection: if one side is a wildcard and the other side is specific, the intersection is the specific value.
+- `go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth` passed after correcting the first test expectation.
+- The pre-commit lint/test hook passed, including full `go test ./...`.
+
+### What didn't work
+
+- My first grant-intersection test expected only `project.update` in the overlap. That was incorrect because a tenant-scoped `project.read` request intersects with an approval grant scoped to resource `project:p1`; the result is the narrower `project:p1` read grant. I updated the expected result to include both narrowed read and update grants.
+- The pre-commit hook again ran `go generate ./...` and started the cached Dagger frontend asset flow. It completed successfully but remains noisy.
+
+### What I learned
+
+- Intersections need to preserve the most specific grant that both sides permit, not simply match exact scope strings.
+- The grant model already treated empty tenant/resource fields as wildcards. Intersection therefore needs dimension-wise compatibility rather than string equality.
+- Approval narrowing is easiest to reason about as `requested ∩ approved`, with empty explicit approval meaning “approve the original request”.
+
+### What was tricky to build
+
+- The tricky part was defining intersection with wildcard semantics. Exact string matching would reject legitimate narrowing cases such as requested tenant-wide read plus approved resource-specific read. The implementation now computes the overlap dimension by dimension.
+- Action wildcarding is different from tenant/resource wildcarding because action uses `*` while tenant/resource dimensions use empty strings. The helper accepts the wildcard value per dimension so the behavior is explicit.
+- Empty intersections are valid for the generic `GrantSet.Intersect` helper, but device approval treats an explicit empty intersection as an error because issuing a device credential with no overlap is more likely a caller mistake than a useful authorization.
+
+### What warrants a second pair of eyes
+
+- Whether `GrantSet.Intersect` should eventually support pattern-like actions beyond exact strings and `*`.
+- Whether device approval should reject empty requested grants as well, or continue allowing no-scope device authorizations for future non-resource workflows.
+- Whether the error returned for disjoint approval grants should become a sentinel error for easier handler mapping.
+
+### What should be done in the future
+
+- Continue with Phase 11A: document SQL-backed programauth schemas, indexes, and transaction contracts.
+- Add SQL store contract tests that exercise the same grant and token-family invariants against durable stores.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/grants.go`, especially `GrantSet.Intersect` and `intersectGrantDimension`.
+- Review `pkg/gojahttp/auth/programauth/device.go` to confirm approval uses requested grants unless explicit approval grants are supplied, and intersects explicit grants otherwise.
+- Review regression tests in `pkg/gojahttp/grants_test.go` and `pkg/gojahttp/auth/programauth/device_test.go`.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth
+go test ./...
+```
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+docmgr meta update --ticket XGOJA-PROGRAMMATIC-AUTH-DESIGN --field Status --value active
+# ticket reopened for production-hardening follow-ups
+
+go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth
+# first run failed due to an incorrect test expectation; second run passed
+
+git commit -m "programauth: narrow device approval grants"
+# pre-commit lint/test passed; commit 01615c9
+```
+
+Primary files:
+
+```text
+pkg/gojahttp/grants.go
+pkg/gojahttp/grants_test.go
+pkg/gojahttp/auth/programauth/device.go
+pkg/gojahttp/auth/programauth/device_test.go
 ```

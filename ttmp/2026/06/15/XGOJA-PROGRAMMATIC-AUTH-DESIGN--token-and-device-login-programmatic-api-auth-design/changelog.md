@@ -185,3 +185,13 @@ Phase 9: added device authorization help docs, smoke coverage for generated nati
 
 Ticket closed
 
+
+## 2026-06-21
+
+Phase 10: reopened ticket, added production-hardening tasks, and enforced device approval grant intersection with regression tests (commit 01615c9).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/device.go — Device approval grant narrowing
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/grants.go — GrantSet intersection
+
