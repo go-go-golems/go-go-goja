@@ -1393,7 +1393,7 @@ Tasks:
 Files:
 
 - `pkg/gojahttp/auth/programauth/device.go`
-- `pkg/gojahttp/auth/programauth/handlers.go`
+- `pkg/gojahttp/auth/programauth/device_handlers.go`
 - `pkg/xgoja/hostauth/builder.go`
 - `pkg/xgoja/providers/http/serve.go`
 
@@ -1405,6 +1405,8 @@ Tasks:
 4. Issue access/refresh token pair after approval.
 5. Add native handlers for standard device endpoints.
 6. Add optional JavaScript builders for custom approval UI.
+
+Implementation status, commit `4758e78`: the core device authorization service, in-memory store, and native handlers now exist. Generated hostauth services build in-memory access-token, refresh-token, and device stores; native HTTP mounting exposes `POST /auth/device/start`, `POST /auth/device/token`, and `POST /auth/device/approve`. Polling returns OAuth-style `authorization_pending`, `slow_down`, `expired_token`, `access_denied`, and `invalid_grant` responses. Approval requires a session plus CSRF token and narrows requested grants before the next successful poll consumes the device code and returns an access/refresh-token pair. Remaining work in this phase is product-facing: generated examples, help docs, smoke tests, and production SQL store/rate-limit policy wiring.
 
 ### Phase 8: Examples and docs
 

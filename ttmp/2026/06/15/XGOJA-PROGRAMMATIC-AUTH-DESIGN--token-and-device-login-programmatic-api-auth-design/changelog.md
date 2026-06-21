@@ -158,3 +158,14 @@ Phase 7: Added access-token and rotating refresh-token family service with memor
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/oauth_token.go — Access/refresh token family service
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/oauth_token_test.go — Token-family behavior tests
 
+
+## 2026-06-20
+
+Phase 8: implemented device authorization service, memory store, native start/token/approve handlers, generated hostauth wiring, and tests (commit 4758e78).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/device.go — Device authorization service
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/device_handlers.go — Native device handlers
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder.go — Generated hostauth device service wiring
+

@@ -31,8 +31,14 @@ RelatedFiles:
       Note: |-
         Bearer-first/session-fallback composite authenticator (commit 00a1e86)
         Composite bearer auth now supports API-token and access-token authenticators (commit 730b4dd)
+    - Path: pkg/gojahttp/auth/programauth/device.go
+      Note: Device authorization service and token-pair issuance flow (commit 4758e78)
+    - Path: pkg/gojahttp/auth/programauth/device_handlers.go
+      Note: Native device start/token/approval HTTP handlers (commit 4758e78)
     - Path: pkg/gojahttp/auth/programauth/logcopter.go
       Note: Generated log metadata committed after go generate hook (commit 5412cc6)
+    - Path: pkg/gojahttp/auth/programauth/memory_device_store.go
+      Note: In-memory device-code store and atomic approval/consume transitions (commit 4758e78)
     - Path: pkg/gojahttp/auth/programauth/memory_oauth_token_store.go
       Note: Memory access/refresh stores with atomic refresh rotation and family revocation (commit 730b4dd)
     - Path: pkg/gojahttp/auth/programauth/memory_store.go
@@ -63,11 +69,14 @@ RelatedFiles:
     - Path: pkg/gojahttp/ratelimit.go
       Note: Core rate-limit model and in-memory limiter implemented in commit 1486dbb
     - Path: pkg/xgoja/hostauth/builder.go
-      Note: Generated hostauth service wiring for programauth stores and composite bearer/session auth (commit 432b628)
+      Note: |-
+        Generated hostauth service wiring for programauth stores and composite bearer/session auth (commit 432b628)
+        Generated hostauth wiring for device/access/refresh services and native handlers (commit 4758e78)
     - Path: pkg/xgoja/hostauth/services.go
       Note: |-
         Generated hostauth rate-limiter wiring implemented in commit 1486dbb
         Service bundle fields for programauth agent and API-token services (commit 432b628)
+        Service bundle exposes device and OAuth token stores/services (commit 4758e78)
     - Path: pkg/xgoja/providers/hostauth/hostauth_test.go
       Note: Runtime coverage for JavaScript programmatic auth builders (commit 432b628)
     - Path: pkg/xgoja/providers/hostauth/programmatic.go
@@ -82,6 +91,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -1146,4 +1156,125 @@ pkg/gojahttp/auth/programauth/oauth_token.go
 pkg/gojahttp/auth/programauth/memory_oauth_token_store.go
 pkg/gojahttp/auth/programauth/oauth_token_test.go
 pkg/gojahttp/auth/programauth/composite.go
+```
+
+## Step 11: Add device authorization and native token polling handlers
+
+This step implements the RFC 8628-style device authorization slice that the earlier token-family work was preparing for. Limited-input clients can now start a device authorization, poll with protocol-shaped pending and slow-down errors, and receive access/refresh tokens after a browser session approves the user code.
+
+The implementation keeps the high-volume polling/token endpoint in Go-owned native handlers rather than JavaScript route code. JavaScript applications can still build product-specific approval screens later, but the security-sensitive device-code lifecycle, polling cadence, token issuance, and refresh-token boundary now live in the `programauth` service layer and generated-host service wiring.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Continue the next unfinished phase of the main programmatic-auth ticket, focusing on device authorization flow implementation.
+
+**Inferred user intent:** Move from the completed access/refresh-token family into browser-assisted programmatic login for devices and agents.
+
+**Commit (code):** 4758e78 — "programauth: add device authorization flow"
+
+### What I did
+
+- Added `pkg/gojahttp/auth/programauth/device.go` with:
+  - device authorization records and statuses,
+  - device/user code generation,
+  - start, poll, approve, deny, and consume flows,
+  - grant narrowing at approval,
+  - access/refresh token-pair issuance after approval.
+- Added `pkg/gojahttp/auth/programauth/memory_device_store.go` with clone-safe in-memory device-code storage and atomic approval/denial/consume operations.
+- Added `pkg/gojahttp/auth/programauth/device_handlers.go` with native handlers for:
+  - `POST /auth/device/start`,
+  - `POST /auth/device/token`,
+  - `POST /auth/device/approve`.
+- Wired generated hostauth services with in-memory access-token, refresh-token, and device stores in `pkg/xgoja/hostauth/builder.go`.
+- Exposed the new stores/services through `pkg/xgoja/hostauth/services.go`.
+- Extended `BuildAuthOptions` so generated hosts authenticate both API tokens and access tokens via the composite bearer/session authenticator.
+- Added unit and handler tests in `device_test.go` and `device_handlers_test.go`.
+
+### Why
+
+- Device authorization needs Go-owned code lifecycle management because polling intervals, pending/slow-down responses, expiry, denial, consumed-code handling, and token issuance must be consistent across applications.
+- Generated hosts need the device service and native handlers available before generated device-login examples and help docs can be added.
+- The access/refresh token-family service from Step 10 becomes useful here: approved device codes now produce `ggat_...` access tokens and `ggrt_...` refresh tokens.
+
+### What worked
+
+- The existing `OAuthTokenService` integrated cleanly with device approval and polling. Once a code is approved, polling consumes the device code and issues the token pair.
+- `GrantSet.Intersect` gave a compact way to narrow requested grants to user-approved grants without broadening privilege.
+- Focused tests, full `go test ./...`, and the pre-commit lint/test hook passed.
+
+### What didn't work
+
+- `go test ./pkg/gojahttp/auth/programauth` initially failed after adding consumed/expired/denied poll checks because device errors formatted sentinel errors with `%v`. That prevented `errors.Is` from detecting `ErrDeviceExpired`, `ErrDeviceDenied`, and `ErrDeviceConsumed` through the wrapper. I changed those wrappers to `%w` and the package tests passed.
+- The pre-commit hook again ran `go generate ./...`, which starts a cached Dagger frontend asset build. It completed successfully but remains noisy.
+
+### What I learned
+
+- Device polling errors need to preserve sentinel identity. The HTTP handler can only map `authorization_pending`, `slow_down`, `expired_token`, `access_denied`, and `invalid_grant` reliably if the service wraps errors with `%w`.
+- Native handler wiring belongs in `hostauth.BuildNativeHandlers`, because `providers/http/serve.go` already mounts `Services.NativeHandlers` before planned application routes.
+- The current first slice deliberately keeps browser approval simple: it requires a valid session and CSRF token, then calls the Go service. A richer custom approval UI can be layered on top without moving token issuance into JavaScript.
+
+### What was tricky to build
+
+- The subtle invariant is that a device code can be consumed exactly once. Polling before approval must update the next allowed poll time and return protocol errors; polling after approval must atomically consume the device code before returning tokens. The memory store exposes `ConsumeDeviceAuthorization` so this transition happens under the store lock.
+- Slow-down behavior is stateful. The service records `LastPolledAt`, `NextPollAfter`, and `PollIntervalSeconds`; an early poll increases the interval and returns `ErrDeviceSlowDown` with the updated interval for the client.
+- Approval has to narrow grants rather than replacing requested grants with an arbitrary broader set. The implementation intersects requested grants with approved grants when the approving route supplies explicit actions.
+
+### What warrants a second pair of eyes
+
+- Whether native device endpoints should be configurable paths instead of fixed `/auth/device/start`, `/auth/device/token`, and `/auth/device/approve`.
+- Whether `POST /auth/device/start` should require registered client metadata or stronger per-client policy before production use.
+- Whether the built-in approval handler should return a smaller response projection than the full redacted device view.
+- Whether device start, polling, and approval should be automatically registered with default rate-limit specs in generated hostauth rather than relying on future app/server configuration.
+
+### What should be done in the future
+
+- Add generated device-login examples and smoke tests for the full browser approval + polling path.
+- Add Glazed help docs for device authorization endpoints and access/refresh-token behavior.
+- Add SQL-backed device-code stores before production use.
+- Add route-level/default native endpoint rate-limit policy wiring.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/auth/programauth/device.go` for service semantics and protocol error behavior.
+- Review `pkg/gojahttp/auth/programauth/memory_device_store.go` for clone isolation and atomic status transitions.
+- Review `pkg/gojahttp/auth/programauth/device_handlers.go` for endpoint semantics, OAuth-style errors, session/CSRF approval gating, and JSON/form parsing.
+- Review `pkg/xgoja/hostauth/builder.go` to see how generated hosts construct device, access-token, and refresh-token services and mount native handlers.
+- Validate with:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth
+go test ./pkg/gojahttp/auth/programauth ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth ./pkg/gojahttp
+go test ./...
+```
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+go test ./pkg/gojahttp/auth/programauth
+# initially failed until wrapped sentinel errors used %w; then ok
+
+go test ./pkg/gojahttp/auth/programauth ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/xgoja/providers/hostauth ./pkg/gojahttp
+# ok
+
+go test ./...
+# ok
+
+git commit -m "programauth: add device authorization flow"
+# pre-commit lint/test passed; commit 4758e78
+```
+
+Primary files:
+
+```text
+pkg/gojahttp/auth/programauth/device.go
+pkg/gojahttp/auth/programauth/memory_device_store.go
+pkg/gojahttp/auth/programauth/device_handlers.go
+pkg/gojahttp/auth/programauth/device_test.go
+pkg/gojahttp/auth/programauth/device_handlers_test.go
+pkg/xgoja/hostauth/builder.go
+pkg/xgoja/hostauth/services.go
 ```
