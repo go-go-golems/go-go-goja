@@ -292,6 +292,112 @@ func (s *Store) RevokeRefreshTokenFamily(ctx context.Context, familyID string, r
 	return nil
 }
 
+func (s *Store) CreateDeviceAuthorization(ctx context.Context, device programauth.DeviceAuthorization) (programauth.DeviceAuthorization, error) {
+	device = cloneDeviceAuthorization(device)
+	if err := validateDeviceAuthorizationForInsert(device); err != nil {
+		return programauth.DeviceAuthorization{}, err
+	}
+	grantsJSON, err := marshalGrantSet(device.Grants)
+	if err != nil {
+		return programauth.DeviceAuthorization{}, err
+	}
+	_, err = s.db.ExecContext(ctx, s.insertDeviceAuthorizationQuery(), device.ID, device.ClientName, append([]byte(nil), device.DeviceCodeHash...), device.DeviceCodePrefix, append([]byte(nil), device.UserCodeHash...), device.UserCode, device.VerificationURI, device.VerificationURIComplete, device.CreatedAt, device.UpdatedAt, device.ExpiresAt, int(device.PollInterval/time.Second), nullTime(device.LastPolledAt), nullTime(device.ApprovedAt), nullTime(device.DeniedAt), nullTime(device.ConsumedAt), device.AgentID, device.SubjectUserID, device.TenantID, grantsJSON)
+	if err != nil {
+		return programauth.DeviceAuthorization{}, fmt.Errorf("create programauth device authorization: %w", err)
+	}
+	return device, nil
+}
+
+func (s *Store) FindDeviceAuthorizationByDeviceCodePrefix(ctx context.Context, prefix string) ([]programauth.DeviceAuthorization, error) {
+	rows, err := s.db.QueryContext(ctx, s.devicesByDeviceCodePrefixQuery(), strings.TrimSpace(prefix))
+	if err != nil {
+		return nil, fmt.Errorf("find programauth device authorizations by prefix: %w", err)
+	}
+	return scanDeviceAuthorizationRows(rows)
+}
+
+func (s *Store) GetDeviceAuthorizationByUserCodeHash(ctx context.Context, hash []byte) (programauth.DeviceAuthorization, error) {
+	return scanDeviceAuthorization(s.db.QueryRowContext(ctx, s.deviceByUserCodeHashQuery(), append([]byte(nil), hash...)))
+}
+
+func (s *Store) RecordDevicePoll(ctx context.Context, id string, polledAt time.Time, interval time.Duration) (programauth.DeviceAuthorization, error) {
+	id = strings.TrimSpace(id)
+	polledAt = polledAt.UTC()
+	res, err := s.db.ExecContext(ctx, s.recordDevicePollQuery(), polledAt, int(interval/time.Second), polledAt, id)
+	if err != nil {
+		return programauth.DeviceAuthorization{}, fmt.Errorf("record programauth device poll: %w", err)
+	}
+	if err := requireAffected(res, programauth.ErrDeviceNotFound); err != nil {
+		return programauth.DeviceAuthorization{}, err
+	}
+	return s.getDeviceAuthorizationByID(ctx, id)
+}
+
+func (s *Store) ApproveDeviceAuthorization(ctx context.Context, id string, approved programauth.DeviceAuthorization, approvedAt time.Time) (programauth.DeviceAuthorization, error) {
+	id = strings.TrimSpace(id)
+	approved = cloneDeviceAuthorization(approved)
+	approvedAt = approvedAt.UTC()
+	grantsJSON, err := marshalGrantSet(approved.Grants)
+	if err != nil {
+		return programauth.DeviceAuthorization{}, err
+	}
+	res, err := s.db.ExecContext(ctx, s.approveDeviceAuthorizationQuery(), approvedAt, approvedAt, approved.AgentID, approved.SubjectUserID, approved.TenantID, grantsJSON, id)
+	if err != nil {
+		return programauth.DeviceAuthorization{}, fmt.Errorf("approve programauth device authorization: %w", err)
+	}
+	if err := requireAffected(res, programauth.ErrDeviceConsumed); err != nil {
+		return programauth.DeviceAuthorization{}, s.deviceTransitionError(ctx, id, err)
+	}
+	return s.getDeviceAuthorizationByID(ctx, id)
+}
+
+func (s *Store) DenyDeviceAuthorization(ctx context.Context, id string, deniedAt time.Time) (programauth.DeviceAuthorization, error) {
+	id = strings.TrimSpace(id)
+	deniedAt = deniedAt.UTC()
+	res, err := s.db.ExecContext(ctx, s.denyDeviceAuthorizationQuery(), deniedAt, deniedAt, id)
+	if err != nil {
+		return programauth.DeviceAuthorization{}, fmt.Errorf("deny programauth device authorization: %w", err)
+	}
+	if err := requireAffected(res, programauth.ErrDeviceConsumed); err != nil {
+		return programauth.DeviceAuthorization{}, s.deviceTransitionError(ctx, id, err)
+	}
+	return s.getDeviceAuthorizationByID(ctx, id)
+}
+
+func (s *Store) ConsumeDeviceAuthorization(ctx context.Context, id string, consumedAt time.Time) (programauth.DeviceAuthorization, error) {
+	id = strings.TrimSpace(id)
+	consumedAt = consumedAt.UTC()
+	res, err := s.db.ExecContext(ctx, s.consumeDeviceAuthorizationQuery(), consumedAt, consumedAt, id)
+	if err != nil {
+		return programauth.DeviceAuthorization{}, fmt.Errorf("consume programauth device authorization: %w", err)
+	}
+	if err := requireAffected(res, programauth.ErrDeviceConsumed); err != nil {
+		return programauth.DeviceAuthorization{}, s.deviceTransitionError(ctx, id, err)
+	}
+	return s.getDeviceAuthorizationByID(ctx, id)
+}
+
+func (s *Store) getDeviceAuthorizationByID(ctx context.Context, id string) (programauth.DeviceAuthorization, error) {
+	return scanDeviceAuthorization(s.db.QueryRowContext(ctx, s.deviceByIDQuery(), strings.TrimSpace(id)))
+}
+
+func (s *Store) deviceTransitionError(ctx context.Context, id string, fallback error) error {
+	device, err := s.getDeviceAuthorizationByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	switch {
+	case device.Denied():
+		return programauth.ErrDeviceDenied
+	case device.Consumed():
+		return programauth.ErrDeviceConsumed
+	case device.Approved():
+		return fmt.Errorf("device authorization already approved")
+	default:
+		return fallback
+	}
+}
+
 func (s *Store) insertRefreshToken(ctx context.Context, exec sqlExecer, token programauth.RefreshToken) error {
 	grantsJSON, err := marshalGrantSet(token.Grants)
 	if err != nil {
@@ -438,6 +544,49 @@ func scanRefreshTokenRows(rows *sql.Rows) ([]programauth.RefreshToken, error) {
 	return out, nil
 }
 
+func scanDeviceAuthorization(row scanner) (programauth.DeviceAuthorization, error) {
+	var device programauth.DeviceAuthorization
+	var pollIntervalSeconds int
+	var lastPolledAt sql.NullTime
+	var approvedAt sql.NullTime
+	var deniedAt sql.NullTime
+	var consumedAt sql.NullTime
+	var grantsJSON string
+	if err := row.Scan(&device.ID, &device.ClientName, &device.DeviceCodeHash, &device.DeviceCodePrefix, &device.UserCodeHash, &device.UserCode, &device.VerificationURI, &device.VerificationURIComplete, &device.CreatedAt, &device.UpdatedAt, &device.ExpiresAt, &pollIntervalSeconds, &lastPolledAt, &approvedAt, &deniedAt, &consumedAt, &device.AgentID, &device.SubjectUserID, &device.TenantID, &grantsJSON); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return programauth.DeviceAuthorization{}, programauth.ErrDeviceNotFound
+		}
+		return programauth.DeviceAuthorization{}, fmt.Errorf("scan programauth device authorization: %w", err)
+	}
+	device.PollInterval = time.Duration(pollIntervalSeconds) * time.Second
+	device.LastPolledAt = timePtr(lastPolledAt)
+	device.ApprovedAt = timePtr(approvedAt)
+	device.DeniedAt = timePtr(deniedAt)
+	device.ConsumedAt = timePtr(consumedAt)
+	grants, err := unmarshalGrantSet(grantsJSON)
+	if err != nil {
+		return programauth.DeviceAuthorization{}, err
+	}
+	device.Grants = grants
+	return cloneDeviceAuthorization(device), nil
+}
+
+func scanDeviceAuthorizationRows(rows *sql.Rows) ([]programauth.DeviceAuthorization, error) {
+	defer closeRows(rows)
+	out := []programauth.DeviceAuthorization{}
+	for rows.Next() {
+		device, err := scanDeviceAuthorization(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, device)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate programauth device authorizations: %w", err)
+	}
+	return out, nil
+}
+
 func (s *Store) insertAgentQuery() string {
 	return s.rebind(`INSERT INTO auth_program_agents (id, name, kind, owner_user_id, tenant_id, disabled_at, created_by, created_at, updated_at, policy_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 }
@@ -500,6 +649,42 @@ func (s *Store) rotateRefreshTokenQuery() string {
 
 func (s *Store) revokeRefreshTokenFamilyQuery() string {
 	return s.rebind(`UPDATE auth_program_refresh_tokens SET revoked_at = ?, updated_at = ? WHERE family_id = ? AND revoked_at IS NULL`)
+}
+
+func (s *Store) insertDeviceAuthorizationQuery() string {
+	return s.rebind(`INSERT INTO auth_program_device_authorizations (id, client_name, device_code_hash, device_code_prefix, user_code_hash, user_code, verification_uri, verification_uri_complete, created_at, updated_at, expires_at, poll_interval_seconds, last_polled_at, approved_at, denied_at, consumed_at, agent_id, subject_user_id, tenant_id, grants_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+}
+
+func (s *Store) deviceColumns() string {
+	return `id, client_name, device_code_hash, device_code_prefix, user_code_hash, user_code, verification_uri, verification_uri_complete, created_at, updated_at, expires_at, poll_interval_seconds, last_polled_at, approved_at, denied_at, consumed_at, agent_id, subject_user_id, tenant_id, grants_json`
+}
+
+func (s *Store) deviceByIDQuery() string {
+	return s.rebind(`SELECT ` + s.deviceColumns() + ` FROM auth_program_device_authorizations WHERE id = ?`)
+}
+
+func (s *Store) devicesByDeviceCodePrefixQuery() string {
+	return s.rebind(`SELECT ` + s.deviceColumns() + ` FROM auth_program_device_authorizations WHERE device_code_prefix = ? ORDER BY created_at ASC, id ASC`)
+}
+
+func (s *Store) deviceByUserCodeHashQuery() string {
+	return s.rebind(`SELECT ` + s.deviceColumns() + ` FROM auth_program_device_authorizations WHERE user_code_hash = ?`)
+}
+
+func (s *Store) recordDevicePollQuery() string {
+	return s.rebind(`UPDATE auth_program_device_authorizations SET last_polled_at = ?, poll_interval_seconds = ?, updated_at = ? WHERE id = ?`)
+}
+
+func (s *Store) approveDeviceAuthorizationQuery() string {
+	return s.rebind(`UPDATE auth_program_device_authorizations SET approved_at = ?, updated_at = ?, agent_id = ?, subject_user_id = ?, tenant_id = ?, grants_json = ? WHERE id = ? AND approved_at IS NULL AND denied_at IS NULL AND consumed_at IS NULL`)
+}
+
+func (s *Store) denyDeviceAuthorizationQuery() string {
+	return s.rebind(`UPDATE auth_program_device_authorizations SET denied_at = ?, updated_at = ? WHERE id = ? AND approved_at IS NULL AND denied_at IS NULL AND consumed_at IS NULL`)
+}
+
+func (s *Store) consumeDeviceAuthorizationQuery() string {
+	return s.rebind(`UPDATE auth_program_device_authorizations SET consumed_at = ?, updated_at = ? WHERE id = ? AND approved_at IS NOT NULL AND denied_at IS NULL AND consumed_at IS NULL`)
 }
 
 func (s *Store) listAgentsQuery(query programauth.AgentQuery) (string, []any) {
@@ -688,6 +873,28 @@ func validateRefreshTokenForInsert(token programauth.RefreshToken) error {
 	return nil
 }
 
+func cloneDeviceAuthorization(device programauth.DeviceAuthorization) programauth.DeviceAuthorization {
+	out := device
+	out.DeviceCodeHash = append([]byte(nil), device.DeviceCodeHash...)
+	out.UserCodeHash = append([]byte(nil), device.UserCodeHash...)
+	out.LastPolledAt = cloneTimePtr(device.LastPolledAt)
+	out.ApprovedAt = cloneTimePtr(device.ApprovedAt)
+	out.DeniedAt = cloneTimePtr(device.DeniedAt)
+	out.ConsumedAt = cloneTimePtr(device.ConsumedAt)
+	out.Grants = device.Grants.Clone()
+	return out
+}
+
+func validateDeviceAuthorizationForInsert(device programauth.DeviceAuthorization) error {
+	if device.ID == "" {
+		return fmt.Errorf("device authorization id is required")
+	}
+	if device.DeviceCodePrefix == "" || len(device.DeviceCodeHash) == 0 || len(device.UserCodeHash) == 0 {
+		return fmt.Errorf("device authorization hashes and prefix are required")
+	}
+	return nil
+}
+
 func cloneTimePtr(value *time.Time) *time.Time {
 	if value == nil {
 		return nil
@@ -727,3 +934,4 @@ var _ programauth.AgentStore = (*Store)(nil)
 var _ programauth.APITokenStore = (*Store)(nil)
 var _ programauth.AccessTokenStore = (*Store)(nil)
 var _ programauth.RefreshTokenStore = (*Store)(nil)
+var _ programauth.DeviceAuthorizationStore = (*Store)(nil)

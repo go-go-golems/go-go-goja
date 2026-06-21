@@ -150,6 +150,92 @@ func TestSQLStoreOAuthTokenServiceIssueRefreshAndReuse(t *testing.T) {
 	}
 }
 
+func TestSQLStoreDeviceAuthorizationServiceLifecycle(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	now := time.Date(2026, 6, 21, 22, 0, 0, 0, time.UTC)
+	current := now
+	agents := programauth.AgentService{Store: store, Now: func() time.Time { return current }, NewID: func() (string, error) { return "agt_device_sql", nil }}
+	ids := map[string]int{}
+	random := deterministicRandom()
+	oauth := programauth.OAuthTokenService{
+		AccessTokens:  store,
+		RefreshTokens: store,
+		Agents:        agents,
+		Now:           func() time.Time { return current },
+		NewID: func(prefix string) (string, error) {
+			ids[prefix]++
+			return fmt.Sprintf("%s_device_sql_%d", prefix, ids[prefix]), nil
+		},
+		Random: random,
+	}
+	devices := programauth.DeviceService{
+		Store:           store,
+		Agents:          agents,
+		OAuthTokens:     oauth,
+		Now:             func() time.Time { return current },
+		VerificationURI: "https://app.example.test/device",
+		NewID: func(prefix string) (string, error) {
+			ids[prefix]++
+			return fmt.Sprintf("%s_device_sql_%d", prefix, ids[prefix]), nil
+		},
+		Random: random,
+	}
+	started, err := devices.StartDeviceAuthorization(ctx, programauth.DeviceStartSpec{ClientName: "sql device", TenantID: "o1", Grants: mustGrantSet(t, gojahttp.Grant{Action: "report.read", TenantID: "o1"})})
+	if err != nil {
+		t.Fatalf("StartDeviceAuthorization: %v", err)
+	}
+	if _, err := devices.PollDeviceAuthorization(ctx, started.DeviceCode); !errors.Is(err, programauth.ErrDeviceAuthorizationPending) {
+		t.Fatalf("first poll should be pending, err=%v", err)
+	}
+	if _, err := devices.PollDeviceAuthorization(ctx, started.DeviceCode); !errors.Is(err, programauth.ErrDeviceSlowDown) {
+		t.Fatalf("second poll should slow down, err=%v", err)
+	}
+	approved, err := devices.ApproveDeviceAuthorization(ctx, programauth.DeviceApprovalSpec{UserCode: started.UserCode, SubjectUserID: "u1", TenantID: "o1", Grants: mustGrantSet(t, gojahttp.Grant{Action: "report.read", TenantID: "o1"})})
+	if err != nil {
+		t.Fatalf("ApproveDeviceAuthorization: %v", err)
+	}
+	if approved.AgentID == "" || approved.SubjectUserID != "u1" {
+		t.Fatalf("approved = %#v", approved)
+	}
+	current = current.Add(20 * time.Second)
+	issued, err := devices.PollDeviceAuthorization(ctx, started.DeviceCode)
+	if err != nil {
+		t.Fatalf("approved poll: %v", err)
+	}
+	if issued.AccessValue == "" || issued.RefreshValue == "" {
+		t.Fatalf("issued = %#v", issued)
+	}
+	if _, err := devices.PollDeviceAuthorization(ctx, started.DeviceCode); !errors.Is(err, programauth.ErrDeviceConsumed) {
+		t.Fatalf("consumed poll should fail, err=%v", err)
+	}
+}
+
+func TestSQLStoreDeviceAuthorizationDenyAndDuplicateUserCode(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	now := time.Date(2026, 6, 21, 23, 0, 0, 0, time.UTC)
+	device := programauth.DeviceAuthorization{ID: "dev_one", ClientName: "one", DeviceCodeHash: []byte("device-1"), DeviceCodePrefix: "aaaa", UserCodeHash: []byte("user-1"), UserCode: "AAAA-BBBB-CCCC", CreatedAt: now, UpdatedAt: now, ExpiresAt: now.Add(time.Minute), PollInterval: 5 * time.Second, Grants: mustGrantSet(t, gojahttp.Grant{Action: "read"})}
+	if _, err := store.CreateDeviceAuthorization(ctx, device); err != nil {
+		t.Fatalf("CreateDeviceAuthorization: %v", err)
+	}
+	device.ID = "dev_two"
+	device.DeviceCodeHash = []byte("device-2")
+	if _, err := store.CreateDeviceAuthorization(ctx, device); err == nil {
+		t.Fatal("expected duplicate user code hash to fail")
+	}
+	denied, err := store.DenyDeviceAuthorization(ctx, "dev_one", now.Add(time.Second))
+	if err != nil {
+		t.Fatalf("DenyDeviceAuthorization: %v", err)
+	}
+	if denied.DeniedAt == nil {
+		t.Fatalf("denied missing timestamp: %#v", denied)
+	}
+	if _, err := store.ConsumeDeviceAuthorization(ctx, "dev_one", now.Add(2*time.Second)); !errors.Is(err, programauth.ErrDeviceDenied) {
+		t.Fatalf("denied consume should return ErrDeviceDenied, err=%v", err)
+	}
+}
+
 func TestSQLStoreRejectsUnsupportedDialect(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
