@@ -13,6 +13,12 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/xgoja/doc/28-device-authorization-programmatic-access.md
+      Note: Device authorization help page (commit a32d3eb)
+    - Path: examples/xgoja/22-programmatic-agent-auth/README.md
+      Note: Example README documents native device endpoints (commit a32d3eb)
+    - Path: examples/xgoja/22-programmatic-agent-auth/scripts/smoke.sh
+      Note: Generated-host smoke coverage for device start and pending poll (commit a32d3eb)
     - Path: modules/express/auth_builders.go
       Note: |-
         Express fluent rate-limit builders implemented in commit 1486dbb
@@ -91,6 +97,7 @@ LastUpdated: 2026-06-15T22:00:00-04:00
 WhatFor: Track what was created, why, and how to continue implementation.
 WhenToUse: Read before resuming implementation of token-based or device-login-based programmatic API access.
 ---
+
 
 
 
@@ -1277,4 +1284,114 @@ pkg/gojahttp/auth/programauth/device_test.go
 pkg/gojahttp/auth/programauth/device_handlers_test.go
 pkg/xgoja/hostauth/builder.go
 pkg/xgoja/hostauth/services.go
+```
+
+## Step 12: Add device help docs, smoke coverage, and final reMarkable bundle
+
+This step closes the implementation loop around the device authorization slice by making it visible to generated-host users. The existing programmatic-agent example now smoke-tests native device start and pending-poll behavior, and xgoja help includes a dedicated device authorization page that explains endpoint semantics and token boundaries.
+
+I also uploaded a final programmatic-auth bundle to reMarkable so the implementation guide, diary, help pages, and example README are available as one reviewable PDF.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 11)
+
+**Assistant interpretation:** Continue the main programmatic-auth ticket through the remaining example, documentation, smoke-test, and delivery work.
+
+**Inferred user intent:** Finish the implementation package with user-facing docs, validation, ticket bookkeeping, and an offline review artifact.
+
+**Commit (code):** a32d3eb — "docs: add device authorization help and smoke coverage"
+
+### What I did
+
+- Added `cmd/xgoja/doc/28-device-authorization-programmatic-access.md`.
+- Linked the device help page from the programmatic auth and guarded fetch help pages.
+- Extended `examples/xgoja/22-programmatic-agent-auth/scripts/smoke.sh` to verify:
+  - `POST /auth/device/start` returns `device_code` and `user_code`,
+  - `POST /auth/device/token` returns `authorization_pending` before approval.
+- Updated the example README with the native device endpoint summary.
+- Ran the generated example smoke test after the handler and script changes.
+- Uploaded `XGOJA Programmatic Auth Final Bundle.pdf` to `/ai/2026/06/20/XGOJA-PROGRAMMATIC-AUTH-DESIGN`.
+
+### Why
+
+- Phase 8 introduced the service and native handlers; Phase 9 needed a user-facing route into those capabilities.
+- The generated example is the strongest end-to-end check that hostauth, HTTP native handler mounting, route auth restrictions, and guarded fetch still work together.
+- The final reMarkable bundle gives reviewers one artifact with both the design rationale and concrete usage documentation.
+
+### What worked
+
+- `xgoja help device-authorization-programmatic-access` rendered successfully.
+- `make -C examples/xgoja/22-programmatic-agent-auth smoke` passed after adding device endpoint assertions.
+- `remarquee upload bundle ... --non-interactive` uploaded the final PDF successfully.
+
+### What didn't work
+
+- N/A. The help render, generated example smoke test, and reMarkable upload all succeeded on the first run for this step.
+
+### What I learned
+
+- The existing generated programmatic-agent example is a good place to prove native device endpoint mounting without adding a separate login UI example yet.
+- The local smoke can safely use `curl` as an external black-box assertion tool while keeping the JavaScript agent itself on the guarded `fetch.client()` API.
+- Device approval remains better covered by Go handler tests until a real browser-session UI example exists.
+
+### What was tricky to build
+
+- The example has to avoid implying that `curl` is the canonical JavaScript client path. I kept `curl` in the shell smoke only for black-box server assertions and left the JavaScript agent on `fetch.client()`.
+- The device smoke cannot complete approval because the local demo has no login UI. The smoke therefore proves generated native handler mounting and pending-poll semantics, while `device_handlers_test.go` proves session + CSRF approval and token issuance.
+
+### What warrants a second pair of eyes
+
+- Whether Phase 9 should add a separate browser-session approval demo instead of extending the existing server+agent example.
+- Whether the final help page should document a future refresh endpoint once a public generated-host refresh handler is added.
+
+### What should be done in the future
+
+- Add a full browser UI or CLI-assisted session demo for approving device codes.
+- Add production SQL-backed stores for device codes and token families.
+- Add native endpoint default rate-limit policy wiring.
+
+### Code review instructions
+
+- Start with `cmd/xgoja/doc/28-device-authorization-programmatic-access.md` for the user-facing endpoint contract.
+- Review `examples/xgoja/22-programmatic-agent-auth/scripts/smoke.sh` for generated-host black-box validation.
+- Review `examples/xgoja/22-programmatic-agent-auth/README.md` for the boundary between smoke `curl` usage and canonical JavaScript `fetch.client()` usage.
+- Validate with:
+
+```bash
+GOWORK=off go run ./cmd/xgoja help device-authorization-programmatic-access
+GOWORK=off go run ./cmd/xgoja help
+GOWORK=off go test ./cmd/xgoja/doc
+make -C examples/xgoja/22-programmatic-agent-auth smoke
+```
+
+### Technical details
+
+Key commands and outcomes:
+
+```bash
+GOWORK=off go run ./cmd/xgoja help device-authorization-programmatic-access
+# rendered successfully
+
+GOWORK=off go run ./cmd/xgoja help | rg "device-authorization|programmatic"
+# listed device authorization and programmatic auth help pages
+
+GOWORK=off go test ./cmd/xgoja/doc
+# ok
+
+make -C examples/xgoja/22-programmatic-agent-auth smoke
+# programmatic agent auth smoke passed
+
+remarquee upload bundle ... --name "XGOJA Programmatic Auth Final Bundle" --remote-dir "/ai/2026/06/20/XGOJA-PROGRAMMATIC-AUTH-DESIGN" --toc-depth 2 --non-interactive
+# OK: uploaded XGOJA Programmatic Auth Final Bundle.pdf -> /ai/2026/06/20/XGOJA-PROGRAMMATIC-AUTH-DESIGN
+```
+
+Primary files:
+
+```text
+cmd/xgoja/doc/28-device-authorization-programmatic-access.md
+cmd/xgoja/doc/25-programmatic-auth-javascript-apis.md
+cmd/xgoja/doc/27-guarded-fetch-client-api.md
+examples/xgoja/22-programmatic-agent-auth/scripts/smoke.sh
+examples/xgoja/22-programmatic-agent-auth/README.md
 ```

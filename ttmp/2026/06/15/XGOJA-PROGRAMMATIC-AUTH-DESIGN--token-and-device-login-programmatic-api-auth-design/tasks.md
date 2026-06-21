@@ -24,4 +24,4 @@
 - [x] Phase 6: Add route auth restriction builders for agent/session/anyOf
 - [x] Phase 7: Add access and rotating refresh token families
 - [x] Phase 8: Add device authorization flow and native polling/token handlers
-- [ ] Phase 9: Add generated examples, smoke tests, help docs, and final reMarkable bundle
+- [x] Phase 9: Add generated examples, smoke tests, help docs, and final reMarkable bundle

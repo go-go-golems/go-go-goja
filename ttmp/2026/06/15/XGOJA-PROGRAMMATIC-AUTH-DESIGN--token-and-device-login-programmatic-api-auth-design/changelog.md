@@ -169,3 +169,19 @@ Phase 8: implemented device authorization service, memory store, native start/to
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/device_handlers.go — Native device handlers
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder.go — Generated hostauth device service wiring
 
+
+## 2026-06-20
+
+Phase 9: added device authorization help docs, smoke coverage for generated native device endpoints, checked all tasks, and uploaded final reMarkable bundle to /ai/2026/06/20/XGOJA-PROGRAMMATIC-AUTH-DESIGN (commit a32d3eb).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/28-device-authorization-programmatic-access.md — Device authorization help page
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/22-programmatic-agent-auth/README.md — Example documentation updated with device endpoints
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/22-programmatic-agent-auth/scripts/smoke.sh — Generated-host smoke coverage for device start/pending poll
+
+
+## 2026-06-20
+
+Ticket closed
+
