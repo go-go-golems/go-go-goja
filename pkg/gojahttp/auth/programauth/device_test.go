@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -57,6 +58,66 @@ func TestDeviceAuthorizationPendingSlowDownApproveAndPoll(t *testing.T) {
 	}
 }
 
+func TestDeviceAuthorizationApprovalNarrowsRequestedGrants(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 6, 21, 3, 0, 0, 0, time.UTC)
+	current := now
+	service := newDeviceTestService(func() time.Time { return current })
+	started, err := service.StartDeviceAuthorization(ctx, programauth.DeviceStartSpec{
+		ClientName: "goja-cli",
+		TenantID:   "o1",
+		Grants: mustGrantSet(t,
+			gojahttp.Grant{Action: "report.read", TenantID: "o1"},
+			gojahttp.Grant{Action: "report.export", TenantID: "o1"},
+		),
+	})
+	if err != nil {
+		t.Fatalf("StartDeviceAuthorization: %v", err)
+	}
+	approved, err := service.ApproveDeviceAuthorization(ctx, programauth.DeviceApprovalSpec{
+		UserCode:      started.UserCode,
+		SubjectUserID: "u1",
+		TenantID:      "o1",
+		Grants:        mustGrantSet(t, gojahttp.Grant{Action: "report.read", TenantID: "o1"}),
+	})
+	if err != nil {
+		t.Fatalf("ApproveDeviceAuthorization: %v", err)
+	}
+	if got, want := approved.Scopes, []string{"tenant:o1:report.read"}; !sameStrings(got, want) {
+		t.Fatalf("approved scopes = %#v, want %#v", got, want)
+	}
+	current = current.Add(10 * time.Second)
+	issued, err := service.PollDeviceAuthorization(ctx, started.DeviceCode)
+	if err != nil {
+		t.Fatalf("PollDeviceAuthorization: %v", err)
+	}
+	if got, want := issued.AccessToken.Scopes, []string{"tenant:o1:report.read"}; !sameStrings(got, want) {
+		t.Fatalf("access scopes = %#v, want %#v", got, want)
+	}
+}
+
+func TestDeviceAuthorizationApprovalRejectsBroaderGrants(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 6, 21, 3, 30, 0, 0, time.UTC)
+	service := newDeviceTestService(func() time.Time { return now })
+	started, err := service.StartDeviceAuthorization(ctx, programauth.DeviceStartSpec{
+		ClientName: "goja-cli",
+		TenantID:   "o1",
+		Grants:     mustGrantSet(t, gojahttp.Grant{Action: "report.read", TenantID: "o1"}),
+	})
+	if err != nil {
+		t.Fatalf("StartDeviceAuthorization: %v", err)
+	}
+	if _, err := service.ApproveDeviceAuthorization(ctx, programauth.DeviceApprovalSpec{
+		UserCode:      started.UserCode,
+		SubjectUserID: "u1",
+		TenantID:      "o1",
+		Grants:        mustGrantSet(t, gojahttp.Grant{Action: "admin.write", TenantID: "o1"}),
+	}); err == nil {
+		t.Fatal("expected broader disjoint approval grants to fail")
+	}
+}
+
 func TestDeviceAuthorizationExpiryAndDeny(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 6, 21, 1, 0, 0, 0, time.UTC)
@@ -82,6 +143,8 @@ func TestDeviceAuthorizationExpiryAndDeny(t *testing.T) {
 		t.Fatalf("denied device poll should be unauthenticated, err=%v", err)
 	}
 }
+
+func sameStrings(a, b []string) bool { return reflect.DeepEqual(a, b) }
 
 func newDeviceTestService(now func() time.Time) programauth.DeviceService {
 	var mu sync.Mutex

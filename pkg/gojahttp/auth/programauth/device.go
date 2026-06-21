@@ -206,9 +206,15 @@ func (s DeviceService) ApproveDeviceAuthorization(ctx context.Context, spec Devi
 	if err := validateDeviceForApproval(device, now); err != nil {
 		return DeviceAuthorizationView{}, err
 	}
-	grants := spec.Grants
-	if len(grants.Grants) == 0 {
-		grants = device.Grants.Clone()
+	grants := device.Grants.Clone()
+	if len(spec.Grants.Grants) > 0 {
+		grants, err = device.Grants.Intersect(spec.Grants)
+		if err != nil {
+			return DeviceAuthorizationView{}, err
+		}
+		if len(grants.Grants) == 0 {
+			return DeviceAuthorizationView{}, fmt.Errorf("device approval grants do not intersect requested grants")
+		}
 	}
 	grants, err = grants.Normalize()
 	if err != nil {

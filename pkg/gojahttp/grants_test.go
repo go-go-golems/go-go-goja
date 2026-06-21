@@ -66,3 +66,45 @@ func TestGrantSetWildcardAllowsAnyAction(t *testing.T) {
 		t.Fatal("wildcard tenant grant should still enforce tenant")
 	}
 }
+
+func TestGrantSetIntersectNarrowsWildcards(t *testing.T) {
+	requested, err := gojahttp.NewGrantSet(
+		gojahttp.Grant{Action: "project.read", TenantID: "o1"},
+		gojahttp.Grant{Action: "project.update", TenantID: "o1", ResourceType: "project"},
+	)
+	if err != nil {
+		t.Fatalf("requested grants: %v", err)
+	}
+	approved, err := gojahttp.NewGrantSet(
+		gojahttp.Grant{Action: "*", TenantID: "o1", ResourceType: "project", ResourceID: "p1"},
+	)
+	if err != nil {
+		t.Fatalf("approved grants: %v", err)
+	}
+	got, err := requested.Intersect(approved)
+	if err != nil {
+		t.Fatalf("Intersect: %v", err)
+	}
+	want := []string{"tenant:o1:resource:project:p1:project.read", "tenant:o1:resource:project:p1:project.update"}
+	if !reflect.DeepEqual(got.ScopeStrings(), want) {
+		t.Fatalf("intersection = %#v, want %#v", got.ScopeStrings(), want)
+	}
+}
+
+func TestGrantSetIntersectRejectsDisjointGrants(t *testing.T) {
+	requested, err := gojahttp.NewGrantSet(gojahttp.Grant{Action: "project.read", TenantID: "o1"})
+	if err != nil {
+		t.Fatalf("requested grants: %v", err)
+	}
+	approved, err := gojahttp.NewGrantSet(gojahttp.Grant{Action: "project.read", TenantID: "o2"})
+	if err != nil {
+		t.Fatalf("approved grants: %v", err)
+	}
+	got, err := requested.Intersect(approved)
+	if err != nil {
+		t.Fatalf("Intersect: %v", err)
+	}
+	if len(got.Grants) != 0 {
+		t.Fatalf("expected empty intersection, got %#v", got.ScopeStrings())
+	}
+}

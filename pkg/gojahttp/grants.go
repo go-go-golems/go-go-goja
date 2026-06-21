@@ -55,6 +55,30 @@ func (s GrantSet) Clone() GrantSet {
 	return GrantSet{Grants: append([]Grant(nil), s.Grants...)}
 }
 
+// Intersect returns the grants allowed by both sets. Empty tenant/resource
+// fields act as wildcards, and action "*" acts as an action wildcard. The
+// returned grant is the more specific overlap for each compatible pair.
+func (s GrantSet) Intersect(other GrantSet) (GrantSet, error) {
+	left, err := s.Normalize()
+	if err != nil {
+		return GrantSet{}, err
+	}
+	right, err := other.Normalize()
+	if err != nil {
+		return GrantSet{}, err
+	}
+	out := make([]Grant, 0)
+	for _, a := range left.Grants {
+		for _, b := range right.Grants {
+			grant, ok := intersectGrant(a, b)
+			if ok {
+				out = append(out, grant)
+			}
+		}
+	}
+	return NewGrantSet(out...)
+}
+
 // ScopeStrings returns a deterministic debug/wire view of the grant set.
 func (s GrantSet) ScopeStrings() []string {
 	normalized, err := s.Normalize()
@@ -131,4 +155,39 @@ func normalizeGrant(grant Grant) Grant {
 		ResourceType: strings.TrimSpace(grant.ResourceType),
 		ResourceID:   strings.TrimSpace(grant.ResourceID),
 	}
+}
+
+func intersectGrant(a, b Grant) (Grant, bool) {
+	a = normalizeGrant(a)
+	b = normalizeGrant(b)
+	action, ok := intersectGrantDimension(a.Action, b.Action, "*")
+	if !ok {
+		return Grant{}, false
+	}
+	tenantID, ok := intersectGrantDimension(a.TenantID, b.TenantID, "")
+	if !ok {
+		return Grant{}, false
+	}
+	resourceType, ok := intersectGrantDimension(a.ResourceType, b.ResourceType, "")
+	if !ok {
+		return Grant{}, false
+	}
+	resourceID, ok := intersectGrantDimension(a.ResourceID, b.ResourceID, "")
+	if !ok {
+		return Grant{}, false
+	}
+	return Grant{Action: action, TenantID: tenantID, ResourceType: resourceType, ResourceID: resourceID}, true
+}
+
+func intersectGrantDimension(a, b, wildcard string) (string, bool) {
+	if a == b {
+		return a, true
+	}
+	if a == wildcard {
+		return b, true
+	}
+	if b == wildcard {
+		return a, true
+	}
+	return "", false
 }
