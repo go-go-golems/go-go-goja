@@ -3,11 +3,14 @@ package host
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
@@ -19,7 +22,7 @@ func TestRegisterHostProvider(t *testing.T) {
 	if err := Register(registry); err != nil {
 		t.Fatalf("register host provider: %v", err)
 	}
-	for _, name := range []string{"fs", "node:fs", "exec", "database", "db"} {
+	for _, name := range []string{"fs", "node:fs", "fetch", "exec", "database", "db"} {
 		mod, ok := registry.ResolveModule(PackageID, name)
 		if !ok {
 			t.Fatalf("expected host module %q", name)
@@ -27,6 +30,89 @@ func TestRegisterHostProvider(t *testing.T) {
 		if mod.TypeScript == nil {
 			t.Fatalf("expected host module %q to carry TypeScript descriptor", name)
 		}
+	}
+}
+
+func TestFetchRequiresExplicitAllow(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register host provider: %v", err)
+	}
+	mod, ok := registry.ResolveModule(PackageID, "fetch")
+	if !ok {
+		t.Fatal("expected fetch module")
+	}
+	_, err := mod.NewModuleFactory(providerapi.ModuleSetupContext{Context: context.Background(), Name: "fetch", As: "fetch"})
+	if err == nil || !strings.Contains(err.Error(), "config.allow=true") {
+		t.Fatalf("expected allow error, got %v", err)
+	}
+}
+
+func TestFetchProviderHonorsAllowedOrigins(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register host provider: %v", err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{
+		Provider: PackageID,
+		Name:     "fetch",
+		As:       "fetch",
+		Config: map[string]any{
+			"allow":          true,
+			"allowedOrigins": []any{server.URL},
+			"timeout":        "2s",
+		},
+	}}}}
+	host := app.NewHostWithOptions(registry, runtimePlan, app.HostOptions{})
+	rt, err := host.Factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	_, err = rt.Owner.Call(context.Background(), "host.fetch.setup", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		_, runErr := vm.RunString(`
+			globalThis.__fetchProviderSmoke = { done: false };
+			(async () => {
+				const fetch = require("fetch");
+				const allowed = await fetch.fetch(` + strconv.Quote(server.URL) + `);
+				let denied = "";
+				try { await fetch.fetch("http://example.invalid/"); }
+				catch (e) { denied = String(e); }
+				globalThis.__fetchProviderSmoke = { done: true, error: "", allowed: allowed.status, denied };
+			})().catch(e => { globalThis.__fetchProviderSmoke = { done: true, error: String(e) }; });
+		`)
+		return nil, runErr
+	})
+	if err != nil {
+		t.Fatalf("run fetch setup: %v", err)
+	}
+	state := ""
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		ret, err := rt.Owner.Call(context.Background(), "host.fetch.state", func(_ context.Context, vm *goja.Runtime) (any, error) {
+			value, runErr := vm.RunString(`JSON.stringify(globalThis.__fetchProviderSmoke || { done: false })`)
+			if runErr != nil {
+				return nil, runErr
+			}
+			return value.String(), nil
+		})
+		if err != nil {
+			t.Fatalf("read fetch state: %v", err)
+		}
+		state = ret.(string)
+		if strings.Contains(state, `"done":true`) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !strings.Contains(state, `"error":""`) || !strings.Contains(state, `"allowed":200`) || !strings.Contains(state, "not allowed") {
+		t.Fatalf("fetch provider state = %s", state)
 	}
 }
 
