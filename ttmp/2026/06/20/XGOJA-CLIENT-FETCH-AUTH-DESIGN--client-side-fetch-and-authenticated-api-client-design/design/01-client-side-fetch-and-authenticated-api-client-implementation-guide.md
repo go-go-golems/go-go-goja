@@ -13,8 +13,16 @@ Owners: []
 RelatedFiles:
     - Path: examples/xgoja/21-generated-host-auth/xgoja.yaml
       Note: Generated-host example structure to follow for future server+agent smoke example
+    - Path: examples/xgoja/22-programmatic-agent-auth/README.md
+      Note: Canonical no-curl server+agent smoke example
     - Path: modules/express/auth_builders.go
       Note: Go-owned fluent builder-store pattern for security-sensitive route specs
+    - Path: modules/fetch/auth_builder.go
+      Note: Implemented Go-owned bearer credential builders described by the guide
+    - Path: modules/fetch/client_builder.go
+      Note: Implemented fluent fetch.client request builder described by the guide
+    - Path: modules/fetch/fetch.go
+      Note: Implemented low-level Promise fetch module described by the guide
     - Path: modules/fs/fs.go
       Note: Promise-returning module API and TypeScript declaration pattern
     - Path: modules/fs/fs_async.go
@@ -29,10 +37,11 @@ RelatedFiles:
       Note: Programauth JavaScript builders and redacted token projection patterns
 ExternalSources: []
 Summary: Design and implementation guide for a guarded client-side fetch module and authenticated fluent API client for xgoja JavaScript agents.
-LastUpdated: 2026-06-20T11:38:12.072209588-04:00
+LastUpdated: 2026-06-20T16:20:00-04:00
 WhatFor: Use when implementing outbound HTTP/fetch support, client-side authentication builders, or server+agent smoke examples for programmatic auth.
 WhenToUse: Before adding a fetch/http client module or writing examples that call agent-protected gojahttp routes.
 ---
+
 
 
 # Client-side Fetch and Authenticated API Client Implementation Guide
@@ -58,6 +67,29 @@ The first implementation should not try to support every browser `fetch` feature
 - a fluent client builder with `.baseUrl(...)`, `.bearerToken(...)`, `.bearerFromFile(...).jsonPath(...)`, `.expectJson()`, and request builders such as `.get(...).run()`;
 - TypeScript declarations;
 - examples and smoke tests that demonstrate both server and agent sides without `exec` or `curl`.
+
+## Implementation status
+
+Status: implemented in commits `c2cd764` (`modules: add guarded fetch client`) and `5aa18ec` (`examples: add programmatic agent fetch auth demo`). The implemented API uses `fetch.fetch(...)`, `fetch.client()`, and `fetch.auth` with `none()` plus bearer sources from inline values, environment variables, files, and JSON paths.
+
+Key implementation files:
+
+- `modules/fetch/fetch.go` — module exports, low-level request parsing, guarded execution, and Promise plumbing.
+- `modules/fetch/config.go` — outbound HTTP policy, allowed origins, timeout, response limit, and credential-source gates.
+- `modules/fetch/response.go` — buffered response projection with `text()`, `json()`, and header helpers.
+- `modules/fetch/client_builder.go` — fluent authenticated client and request builder API.
+- `modules/fetch/auth_builder.go` — Go-owned credential source builders and redacted bearer resolution.
+- `modules/fetch/typescript.go` — generated TypeScript declarations for low-level and fluent APIs.
+- `pkg/xgoja/providers/host/host.go` — guarded `fetch` module registration and xgoja config decoding.
+- `examples/xgoja/22-programmatic-agent-auth/` — generated server and agent smoke example with no `exec` or `curl`.
+
+Validation commands that passed during implementation:
+
+```bash
+go test ./modules/fetch ./pkg/xgoja/providers/host
+go test ./...
+make -C examples/xgoja/22-programmatic-agent-auth smoke
+```
 
 ## Problem statement and scope
 

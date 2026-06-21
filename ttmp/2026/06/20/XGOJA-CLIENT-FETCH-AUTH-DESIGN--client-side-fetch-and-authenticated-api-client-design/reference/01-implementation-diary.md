@@ -11,18 +11,25 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/xgoja/22-programmatic-agent-auth/scripts/smoke.sh
+      Note: Step 2 validation script for no-curl programmatic agent auth
+    - Path: modules/fetch/fetch.go
+      Note: Step 2 implementation file for guarded low-level fetch
     - Path: pkg/xgoja/providers/host/host.go
-      Note: Key evidence for guarded fetch module placement
+      Note: |-
+        Key evidence for guarded fetch module placement
+        Step 2 integration point for guarded fetch registration
     - Path: pkg/xgoja/providers/hostauth/programmatic.go
       Note: Key evidence for Go-owned credential/auth builder style
     - Path: ttmp/2026/06/20/XGOJA-CLIENT-FETCH-AUTH-DESIGN--client-side-fetch-and-authenticated-api-client-design/design/01-client-side-fetch-and-authenticated-api-client-implementation-guide.md
       Note: Primary design deliverable created in Step 1
 ExternalSources: []
 Summary: Chronological diary for the client-side fetch and authenticated API client design ticket.
-LastUpdated: 2026-06-20T11:45:00-04:00
+LastUpdated: 2026-06-20T16:25:00-04:00
 WhatFor: Use to understand what was investigated, why the fetch/auth design exists, and how to continue implementation.
 WhenToUse: Read before implementing the fetch module, client auth builders, or programmatic agent smoke examples.
 ---
+
 
 
 # Diary
@@ -140,4 +147,136 @@ Primary files:
 ttmp/2026/06/20/XGOJA-CLIENT-FETCH-AUTH-DESIGN--client-side-fetch-and-authenticated-api-client-design/design/01-client-side-fetch-and-authenticated-api-client-implementation-guide.md
 ttmp/2026/06/20/XGOJA-CLIENT-FETCH-AUTH-DESIGN--client-side-fetch-and-authenticated-api-client-design/reference/01-implementation-diary.md
 ttmp/2026/06/20/XGOJA-CLIENT-FETCH-AUTH-DESIGN--client-side-fetch-and-authenticated-api-client-design/tasks.md
+```
+
+## Step 2: Implement guarded fetch, authenticated client builders, and the agent smoke example
+
+This step turned the design into working code. The implementation adds a guarded host `fetch` module, a low-level Promise-returning HTTP API, a fluent `fetch.client()` builder, and Go-owned bearer credential sources so JavaScript agents can call authenticated routes without shelling out to `curl`.
+
+It also adds a generated server+agent smoke example. The server provisions an automation agent and bootstrap API token, protects one route with `express.agent()`, protects another with `express.sessionUser()`, and the separate agent binary reads the token through `fetch.auth.bearer().fromFile(...).jsonPath(...)` before making the request.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the split implementation turn: finish the fetch/client-auth implementation, validate the generated example, and update ticket bookkeeping.
+
+**Inferred user intent:** Complete the client-side fetch/auth work so programmatic auth has a canonical no-`exec` JavaScript agent example.
+
+**Commit (code):** `c2cd764` — "modules: add guarded fetch client"; `5aa18ec` — "examples: add programmatic agent fetch auth demo"
+
+### What I did
+
+- Added `modules/fetch` with guarded outbound HTTP policy, Promise-returning `fetch.fetch(...)`, response helpers, fluent client builders, bearer credential source builders, TypeScript declarations, and tests.
+- Registered the `fetch` host module in `pkg/xgoja/providers/host/host.go` with explicit `allow: true`, allowed origins, timeouts, response-size limits, and credential-source permissions.
+- Added `examples/xgoja/22-programmatic-agent-auth` with separate generated server and agent specs.
+- Added `scripts/smoke.sh` to build and run the no-curl smoke path: unauthenticated agent route returns `401`, the agent client succeeds, and the same token is rejected by the session-only route with `403`.
+- Updated the design guide with an implementation status section and updated ticket tasks/changelog.
+
+### Why
+
+- A programmatic auth stack needs both a server-side route/auth model and a client-side way for agents to call those routes.
+- A dedicated fetch module is narrower and more auditable than `exec curl`, and it lets Go own network policy, credential source policy, and redaction.
+- Separate server and agent generated binaries keep server-only hostauth services out of the agent runtime.
+
+### What worked
+
+- The existing `runtimebridge`/Promise pattern fit the blocking HTTP client work.
+- The host provider guard pattern fit outbound HTTP cleanly: fetch is disabled unless explicitly configured.
+- The final generated smoke passed with `make -C examples/xgoja/22-programmatic-agent-auth smoke`.
+- Targeted tests and the full suite passed during implementation:
+  - `go test ./modules/fetch ./pkg/xgoja/providers/host`
+  - `go test ./...`
+
+### What didn't work
+
+- The first smoke attempt passed `--http-listen` at the wrong command level:
+
+```text
+Error: unknown flag: --http-listen
+unknown flag: --http-listen
+```
+
+- The agent verb initially used a hyphenated function name that jsverbs rejected:
+
+```text
+Error: scan jsverb source local-verbs: agent.js references unknown function "call-report"
+scan jsverb source local-verbs: agent.js references unknown function "call-report"
+```
+
+- The agent verb initially declared unsupported `output: "json"`:
+
+```text
+Error: agent.js#callReport has unsupported output mode "json"
+agent.js#callReport has unsupported output mode "json"
+```
+
+- A single generated binary that included both `hostauth` and agent `fetch` modules failed because the agent runtime tried to instantiate `auth` without hostauth services:
+
+```text
+Error: register module "xgoja:go-go-goja-hostauth.auth:auth": create module go-go-goja-hostauth.auth: auth module requires hostauth services
+```
+
+### What I learned
+
+- jsverbs command names and JavaScript function identifiers need to stay compatible; a CLI command can be user-facing, but the underlying function reference cannot use a hyphenated identifier.
+- Current jsverbs output modes are narrower than arbitrary JSON mode; returning JSON text is the compatible path for this example.
+- Server and agent specs are cleaner as separate generated hosts because they need different host capabilities and service wiring.
+
+### What was tricky to build
+
+- The hardest edge was keeping credentials out of ordinary JavaScript object bags while still making the API ergonomic. The solution was to make `fetch.auth.bearer()` a Go-owned builder and reject plain object auth specs for sensitive credential input.
+- Another tricky part was origin matching. The module needed to accept local generated examples such as `http://127.0.0.1:*` without silently opening all outbound HTTP.
+- The example wiring exposed a service-lifetime boundary: hostauth services exist for the generated HTTP server runtime, not automatically for a separate jsverbs-only agent command. Splitting the xgoja specs resolved that boundary explicitly.
+
+### What warrants a second pair of eyes
+
+- Review `modules/fetch/config.go` and `pkg/xgoja/providers/host/host.go` for policy semantics, especially wildcard origin matching and credential file permissions.
+- Review `modules/fetch/auth_builder.go` for redaction guarantees and whether raw bearer values can appear in returned errors.
+- Review `examples/xgoja/22-programmatic-agent-auth` for whether the two-binary generated example is the right canonical shape.
+
+### What should be done in the future
+
+- Consider re-uploading the updated implementation guide and diary bundle to reMarkable if this ticket needs a post-implementation PDF snapshot.
+- Add future credential builders for device/refresh-token flows after server-side refresh token families exist.
+- Consider streaming response support only after the bounded-buffer v1 is stable.
+
+### Code review instructions
+
+- Start with `modules/fetch/config.go`, then `modules/fetch/fetch.go`, `modules/fetch/client_builder.go`, and `modules/fetch/auth_builder.go`.
+- Check the integration point in `pkg/xgoja/providers/host/host.go`.
+- Run:
+
+```bash
+go test ./modules/fetch ./pkg/xgoja/providers/host
+go test ./...
+make -C examples/xgoja/22-programmatic-agent-auth smoke
+```
+
+### Technical details
+
+Implemented and validated commands included:
+
+```bash
+GOWORK=off go run ./cmd/xgoja doctor -f examples/xgoja/22-programmatic-agent-auth/xgoja.yaml
+GOWORK=off go run ./cmd/xgoja doctor -f examples/xgoja/22-programmatic-agent-auth/agent.xgoja.yaml
+make -C examples/xgoja/22-programmatic-agent-auth smoke
+docmgr task check --ticket XGOJA-CLIENT-FETCH-AUTH-DESIGN --id 6,7,8,9,10
+```
+
+Primary implementation files:
+
+```text
+modules/fetch/config.go
+modules/fetch/fetch.go
+modules/fetch/response.go
+modules/fetch/client_builder.go
+modules/fetch/auth_builder.go
+modules/fetch/typescript.go
+pkg/xgoja/providers/host/host.go
+examples/xgoja/22-programmatic-agent-auth/xgoja.yaml
+examples/xgoja/22-programmatic-agent-auth/agent.xgoja.yaml
+examples/xgoja/22-programmatic-agent-auth/verbs/server.js
+examples/xgoja/22-programmatic-agent-auth/verbs/agent.js
+examples/xgoja/22-programmatic-agent-auth/scripts/smoke.sh
 ```
