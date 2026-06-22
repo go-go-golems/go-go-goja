@@ -1,0 +1,95 @@
+# Required schema selector. Step 04 keeps xgoja v2 and separates the JavaScript
+# into server, client, and reusable library files.
+schema: xgoja/v2
+
+# Snapshot-specific name for the first API-backed client/server stage.
+name: personal-knowledge-inbox-api-client-server
+
+# Application identity for generated command/config metadata.
+app:
+  name: personal-knowledge-inbox-api-client-server
+
+# Generated Go module settings for this tutorial snapshot.
+go:
+  module: xgoja.generated/personal-knowledge-inbox-api-client-server
+  version: "1.26"
+
+# Workspace resolution strategy for local tutorial builds.
+workspace:
+  mode: auto
+
+# Providers used in Step 04:
+#   - host: database for server persistence and fetch for client HTTP calls
+#   - http: Express runtime module and provider-backed serve command
+providers:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+    register: Register
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+    register: Register
+
+# Runtime modules define what JavaScript can require(). Step 04 adds `fetch` so
+# CLI verbs can call the API instead of opening SQLite directly.
+runtime:
+  modules:
+    - provider: go-go-goja-host
+      name: database
+      as: database
+      config:
+        allowConfigure: true
+    - provider: go-go-goja-host
+      name: fetch
+      as: fetch
+      config:
+        allow: true
+        allowedOrigins:
+          - http://127.0.0.1:*
+        timeout: 5s
+        maxResponseBytes: 1048576
+    - provider: go-go-goja-http
+      name: express
+      config:
+        reject-raw-routes: true
+        dev-errors: false
+
+# Step 04 source layout:
+#   server.js      jsverb that registers public API routes
+#   client.js      jsverbs that call those API routes with fetch
+#   lib/*.js       reusable helpers imported by server/client code
+# Only files listed here are copied/embedded into the generated binary.
+sources:
+  - id: inbox-verbs
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    include:
+      - server.js
+      - client.js
+      - lib/*.js
+    language: javascript
+
+# Commands keep both surfaces:
+#   - `verbs inboxctl ...` runs API client commands
+#   - `serve inbox server ...` starts the public API server
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    name: verbs
+    sources:
+      - inbox-verbs
+  - id: http-serve
+    type: provider.command-set
+    name: serve
+    mount: serve
+    provider: go-go-goja-http
+    sources:
+      - inbox-verbs
+
+# Binary artifact for the Step 04 snapshot.
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/personal-knowledge-inbox-api-client-server
+    sources:
+      - inbox-verbs
