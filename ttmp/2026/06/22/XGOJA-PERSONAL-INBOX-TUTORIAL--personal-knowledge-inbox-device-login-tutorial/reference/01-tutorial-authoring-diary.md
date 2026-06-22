@@ -13,13 +13,18 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/xgoja/23-personal-knowledge-inbox/README.md
+      Note: Top-level step-index for the incremental tutorial workspace
     - Path: examples/xgoja/23-personal-knowledge-inbox/Makefile
-      Note: Chapter 1A validation targets and absolute xgoja replace pattern
-    - Path: examples/xgoja/23-personal-knowledge-inbox/verbs/hello.js
-      Note: Chapter 1A hello-world jsverb
-    - Path: examples/xgoja/23-personal-knowledge-inbox/xgoja.yaml
+      Note: Top-level smoke dispatcher for step directories
+    - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/xgoja.yaml
       Note: Chapter 1A minimal generated xgoja spec
-    - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/design/01-personal-knowledge-inbox-tutorial.md:Primary tutorial draft
+    - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/verbs/hello.js
+      Note: Chapter 1A hello-world jsverb
+    - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/Makefile
+      Note: Chapter 1A validation targets and absolute xgoja replace pattern
+    - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/design/01-personal-knowledge-inbox-tutorial.md
+      Note: Primary tutorial draft
     - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/02-implementation-logbook.md
       Note: Extended step-by-step construction log
 ExternalSources: []
@@ -268,4 +273,95 @@ examples/xgoja/23-personal-knowledge-inbox/verbs/hello.js
 examples/xgoja/23-personal-knowledge-inbox/Makefile
 examples/xgoja/23-personal-knowledge-inbox/README.md
 ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/02-implementation-logbook.md
+```
+
+## Step 3: Restructure the tutorial example into per-step directories
+
+This step changes the example layout to match the intended teaching format. Instead of one directory that is repeatedly mutated as the app grows, each tutorial chapter will have its own complete runnable subdirectory.
+
+That structure lets the tutorial preserve intermediate versions of the files. A new developer can run Step 01, read only the files that exist in Step 01, then move to Step 02 and see exactly what changed.
+
+### Prompt Context
+
+**User prompt (verbatim):** "in fact, we are going to make subdirectories for each step, and just copy the material to the next step as we work, that way we have the full thing laid out and new developers can read the individual steps as they go."
+
+**Assistant interpretation:** Reorganize the tutorial workspace so every step is a standalone subdirectory, starting by moving the minimal hello-world jsverb example into `01-minimal-jsverb` and adding a top-level step index.
+
+**Inferred user intent:** Make the implementation history directly readable from the filesystem, not only from git history or the diary.
+
+**Commit (code):** N/A — pending commit for this restructuring step.
+
+### What I did
+
+- Moved the first runnable example into `examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/`.
+- Added a top-level `examples/xgoja/23-personal-knowledge-inbox/README.md` that explains the step-directory approach.
+- Added a top-level `Makefile` that delegates `make smoke` to the current first step.
+- Updated the nested step `Makefile` because it moved one directory deeper and now needs `REPO_ROOT := $(abspath ../../../..)`.
+- Updated the tutorial design document to describe the per-step corpus layout.
+- Extended `reference/02-implementation-logbook.md` with a detailed entry explaining the restructuring and why it improves the tutorial.
+
+### Why
+
+- The final tutorial should not ask readers to infer earlier states from the final files.
+- Per-step directories make each chapter independently runnable and reviewable.
+- The future workflow becomes simple: copy the previous step directory, add one new concept, validate, document the delta.
+
+### What worked
+
+- The top-level smoke passed after the move:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+- The command delegated to `01-minimal-jsverb`, ran `xgoja doctor`, built the generated binary, and verified the hello verb output.
+
+### What didn't work
+
+- No failures occurred during the restructuring.
+
+### What I learned
+
+- The step-directory layout is a better fit for a tutorial than a single evolving example directory.
+- The nested step Makefile needs to compute repository root relative to the step directory, not the tutorial root.
+- The top-level Makefile can serve as a stable entry point while individual steps stay self-contained.
+
+### What was tricky to build
+
+- The main sharp edge was path depth. Moving the example from `23-personal-knowledge-inbox/` to `23-personal-knowledge-inbox/01-minimal-jsverb/` changes the relative repository root from `../../..` to `../../../..`.
+- The documentation had to be updated so it no longer implies the final server and CLI files live directly at the tutorial root.
+
+### What warrants a second pair of eyes
+
+- Whether step directory names should be numeric plus descriptive, as currently chosen, or nested under a `steps/` directory.
+- Whether the top-level `make smoke` should eventually run every step smoke or only the latest step.
+
+### What should be done in the future
+
+- For Chapter 1B, copy `01-minimal-jsverb` to `02-hello-web-server` and add only the HTTP provider/server concept.
+- Keep adding logbook entries that explain both the file delta and the teaching reason for each step.
+
+### Code review instructions
+
+- Review the top-level `examples/xgoja/23-personal-knowledge-inbox/README.md` and `Makefile` first.
+- Review `examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/` to confirm it remains self-contained.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### Technical details
+
+The validated step layout is:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/
+  README.md
+  Makefile
+  01-minimal-jsverb/
+    README.md
+    Makefile
+    xgoja.yaml
+    verbs/hello.js
 ```

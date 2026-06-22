@@ -104,28 +104,29 @@ The tutorial is organized around five concepts:
 
 ## Repository layout
 
-The tutorial should eventually become a runnable example, probably here:
+The tutorial should become a sequence of complete runnable snapshots. Each step lives in a subdirectory and copies the previous step before adding one new idea:
 
 ```text
 examples/xgoja/23-personal-knowledge-inbox/
   README.md
   Makefile
-  server.xgoja.yaml
-  inboxctl.xgoja.yaml
-  verbs/
-    server.js
-    inboxctl.js
-  assets/
-    public/
-      index.html
-      app.js
-      styles.css
-  scripts/
-    smoke.sh
-    local-keycloak-smoke.py
+  01-minimal-jsverb/
+    xgoja.yaml
+    verbs/hello.js
+  02-hello-web-server/
+    xgoja.yaml
+    verbs/server.js
+  03-cli-and-server-sqlite/
+    server.xgoja.yaml
+    inboxctl.xgoja.yaml
+    verbs/server.js
+    verbs/inboxctl.js
+  ...
 ```
 
-Two generated binaries keep the mental model clean:
+This layout is part of the teaching strategy. A new developer can open one directory, read the files that exist at that point in the narrative, run the smoke test, and then compare it with the next directory.
+
+The later server/CLI steps should converge on two generated binaries:
 
 | Binary | Built from | Responsibility |
 | --- | --- | --- |

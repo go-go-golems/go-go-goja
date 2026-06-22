@@ -13,15 +13,16 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/xgoja/23-personal-knowledge-inbox/README.md
+      Note: Top-level step index for the incremental tutorial workspace
     - Path: examples/xgoja/23-personal-knowledge-inbox/Makefile
-      Note: Validation commands and xgoja replace fix
-    - Path: examples/xgoja/23-personal-knowledge-inbox/Makefile:Validation commands for the tutorial example
-    - Path: examples/xgoja/23-personal-knowledge-inbox/verbs/hello.js
-      Note: First tutorial JavaScript verb
-    - Path: examples/xgoja/23-personal-knowledge-inbox/verbs/hello.js:First tutorial JavaScript verb
-    - Path: examples/xgoja/23-personal-knowledge-inbox/xgoja.yaml
-      Note: Incremental tutorial xgoja spec
-    - Path: examples/xgoja/23-personal-knowledge-inbox/xgoja.yaml:Incremental tutorial xgoja spec
+      Note: Top-level smoke target delegates to individual step directories
+    - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/xgoja.yaml
+      Note: Step 01 minimal generated xgoja spec
+    - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/verbs/hello.js
+      Note: Step 01 hello-world JavaScript verb
+    - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/Makefile
+      Note: Step 01 validation commands and xgoja replace pattern
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
@@ -262,3 +263,110 @@ The final tutorial should keep this chapter small. It should explain only:
 - why `--xgoja-replace` should use an absolute repository path during local tutorial development.
 
 It should not introduce auth, HTTP, SQLite, or device flow yet. Those concepts belong to later chapters.
+
+## Entry 2: Restructure the example into step directories
+
+### User request
+
+After the first minimal example existed, the user changed the structure: every tutorial step should live in its own subdirectory. Each later step should copy the previous step and add one concept. This gives the finished tutorial a sequence of concrete snapshots rather than one directory that is repeatedly mutated beyond recognition.
+
+### Teaching intent
+
+This is a better tutorial structure. A new developer can read the sequence like this:
+
+```text
+01-minimal-jsverb      -> what is the smallest generated xgoja command?
+02-hello-web-server    -> what changes when we add HTTP serve?
+03-cli-server-sqlite   -> what changes when we add app state and a second binary?
+04-hostauth-session    -> what changes when browser sessions enter?
+05-device-login        -> what changes when the CLI acquires tokens?
+```
+
+Each directory is runnable. The learner does not have to inspect git history or mentally remove features from the final app. The code on disk matches the chapter being read.
+
+### Files moved and created
+
+The first implementation was moved from the tutorial root into:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/
+  README.md
+  Makefile
+  xgoja.yaml
+  verbs/
+    hello.js
+```
+
+The top-level tutorial directory now contains an index and dispatcher:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/
+  README.md
+  Makefile
+  01-minimal-jsverb/
+    ...
+```
+
+The top-level `README.md` explains that each step is a complete runnable snapshot. The top-level `Makefile` delegates `make smoke` to `01-minimal-jsverb` for now:
+
+```make
+.DEFAULT_GOAL := smoke
+
+.PHONY: smoke step-01 clean
+
+smoke: step-01
+
+step-01:
+	$(MAKE) -C 01-minimal-jsverb smoke
+
+clean:
+	$(MAKE) -C 01-minimal-jsverb clean
+```
+
+The nested step Makefile had to adjust its repository-root calculation because it moved one directory deeper:
+
+```make
+REPO_ROOT := $(abspath ../../../..)
+EXAMPLE_DIR := $(abspath .)
+```
+
+### Validation
+
+After the move, the top-level smoke still passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+The command delegated to `01-minimal-jsverb`, ran `xgoja doctor`, built the generated binary, and verified the hello command output.
+
+### What changed conceptually
+
+The tutorial is no longer one evolving example directory. It is a step-indexed corpus. That means future work should use this pattern:
+
+```bash
+cp -a 01-minimal-jsverb 02-hello-web-server
+# modify only 02-hello-web-server for the next chapter
+```
+
+When a later chapter needs two binaries, that step can introduce `server.xgoja.yaml` and `inboxctl.xgoja.yaml` without rewriting the earlier steps. When a later chapter needs SQLite or hostauth, those files appear only in the step that teaches them.
+
+### Notes for final tutorial refinement
+
+The final tutorial should explicitly teach why the repository is structured this way. The step directories are not just source organization. They are part of the pedagogy: each directory is an executable checkpoint.
+
+The chapter instructions should include commands like:
+
+```bash
+cd examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb
+make smoke
+```
+
+and later:
+
+```bash
+cd ../02-hello-web-server
+make smoke
+```
+
+The comparison between adjacent directories can become an exercise. For example, after Chapter 2 the reader can diff `01-minimal-jsverb/xgoja.yaml` against `02-hello-web-server/xgoja.yaml` to see exactly what the HTTP provider adds.
