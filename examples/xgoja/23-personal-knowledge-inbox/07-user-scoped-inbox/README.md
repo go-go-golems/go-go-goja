@@ -64,3 +64,11 @@ make keycloak-down
 ```
 
 Later device/programmatic steps will grant non-browser clients access to this same user/resource boundary instead of reopening public API access.
+
+## Run tinyidp smoke
+
+```bash
+make tinyidp-smoke
+```
+
+This replaces the local Keycloak container with tinyidp for the browser login path, then verifies that the generated app creates an authenticated session and can read the protected inbox route.

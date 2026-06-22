@@ -86,3 +86,11 @@ Use the returned `access_token` to capture through the programmatic route:
 ```
 
 Refresh the browser inbox for the approving user. The item appears in that user's scoped inbox.
+
+## Run tinyidp smoke
+
+```bash
+make tinyidp-smoke
+```
+
+This uses tinyidp for the browser login/approval authority and the native xgoja device endpoints for device-code start, approval, token polling, and token-authenticated programmatic capture. It intentionally waits after the pre-approval poll so the device poll interval is respected.

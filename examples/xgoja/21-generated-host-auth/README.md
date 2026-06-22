@@ -125,3 +125,13 @@ Then visit:
 Production deployments should keep `allow-insecure-http` false and use an HTTPS
 `public-base-url`; `redirect-url` is only needed when the callback is not
 `<public-base-url>/auth/callback`.
+
+## tinyidp smoke
+
+The generated host can also be tested against tinyidp instead of Docker Compose Keycloak:
+
+```bash
+make -C examples/xgoja/21-generated-host-auth tinyidp-smoke
+```
+
+The target starts Postgres from the existing compose file, starts tinyidp as the OIDC issuer, runs the generated host, logs in through tinyidp, seeds demo appauth rows, and exercises CSRF, audit, and invite routes.

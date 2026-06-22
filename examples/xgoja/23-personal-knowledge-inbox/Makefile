@@ -6,6 +6,8 @@ smoke: step-01 step-02 step-03 step-04 step-05 step-06 step-07 step-08
 
 tinyidp-smoke:
 	$(MAKE) -C 06-browser-login-keycloak tinyidp-smoke
+	$(MAKE) -C 07-user-scoped-inbox tinyidp-smoke
+	$(MAKE) -C 08-device-authorization tinyidp-smoke
 
 step-01:
 	$(MAKE) -C 01-minimal-jsverb smoke

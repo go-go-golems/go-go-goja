@@ -9,8 +9,13 @@ BASE_URL := http://$(HTTP_ADDR)
 KEYCLOAK_PORT ?= 18088
 ISSUER := http://127.0.0.1:$(KEYCLOAK_PORT)/realms/personal-inbox
 COMPOSE := docker compose -f $(EXAMPLE_DIR)/compose.yaml
+TINYIDP_ROOT ?= /home/manuel/workspaces/2026-06-20/ui-notebook-package/2026-06-22--mock-oidc-idp
+TINYIDP_ADDR ?= 127.0.0.1:19089
+TINYIDP_APP_ADDR ?= 127.0.0.1:19796
+TINYIDP_ISSUER := http://$(TINYIDP_ADDR)
+TINYIDP_BASE_URL := http://$(TINYIDP_APP_ADDR)
 
-.PHONY: doctor build smoke direct-smoke keycloak-up keycloak-wait keycloak-down keycloak-smoke clean
+.PHONY: doctor build smoke direct-smoke keycloak-up keycloak-wait keycloak-down keycloak-smoke tinyidp-smoke clean
 
 doctor:
 	$(XGOJA) doctor -f $(EXAMPLE_DIR)/xgoja.yaml
@@ -99,6 +104,67 @@ keycloak-smoke: doctor build keycloak-up
 	code=$$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["device_code"])' $$device); \
 	if $(BIN) verbs inboxctl device-token --base-url $(BASE_URL) --device-code $$code >$$pending 2>/dev/null; then echo 'device-token unexpectedly succeeded before approval'; exit 1; fi; \
 	echo 'ok keycloak login smoke'
+
+tinyidp-smoke: doctor build
+	@set -eu; \
+	if [ ! -d "$(TINYIDP_ROOT)" ]; then echo "TINYIDP_ROOT not found: $(TINYIDP_ROOT)" >&2; exit 1; fi; \
+	db=$$(mktemp -u /tmp/xgoja-tinyidp-$(notdir $(EXAMPLE_DIR))-api-XXXXXX.sqlite); \
+	authdb=$$(mktemp -u /tmp/xgoja-tinyidp-$(notdir $(EXAMPLE_DIR))-auth-XXXXXX.sqlite); \
+	idp_log=$$(mktemp); \
+	app_log=$$(mktemp); \
+	tinyidp_bin=$$(mktemp); \
+	root=$$(mktemp); \
+	idp_pid=; \
+	app_pid=; \
+	device=$$(mktemp); \
+	tokens=$$(mktemp); \
+	capture=$$(mktemp); \
+	trap 'if [ -n "$$idp_pid" ]; then kill $$idp_pid >/dev/null 2>&1 || true; wait $$idp_pid >/dev/null 2>&1 || true; fi; if [ -n "$$app_pid" ]; then kill $$app_pid >/dev/null 2>&1 || true; wait $$app_pid >/dev/null 2>&1 || true; fi; rm -f $$db $$authdb $$idp_log $$app_log $$tinyidp_bin $$root $$device $$tokens $$capture' EXIT; \
+	(cd $(TINYIDP_ROOT) && GOWORK=off go build -o $$tinyidp_bin ./cmd/tinyidp); \
+	$$tinyidp_bin serve \
+		--addr $(TINYIDP_ADDR) \
+		--issuer $(TINYIDP_ISSUER) \
+		--client-id personal-inbox-local \
+		--redirect-uris $(TINYIDP_BASE_URL)/auth/callback \
+		>$$idp_log 2>&1 & \
+	idp_pid=$$!; \
+	for i in $$(seq 1 120); do \
+		if curl -fsS $(TINYIDP_ISSUER)/.well-known/openid-configuration >/dev/null 2>&1; then break; fi; \
+		if ! kill -0 $$idp_pid >/dev/null 2>&1; then cat $$idp_log; exit 1; fi; \
+		sleep 0.25; \
+	done; \
+	curl -fsS $(TINYIDP_ISSUER)/.well-known/openid-configuration >/dev/null; \
+	$(BIN) serve inbox server --http-listen $(TINYIDP_APP_ADDR) --db $$db \
+		--auth-oidc-issuer-url $(TINYIDP_ISSUER) \
+		--auth-oidc-client-id personal-inbox-local \
+		--auth-oidc-public-base-url $(TINYIDP_BASE_URL) \
+		--auth-session-cookie-allow-insecure-http=true \
+		--auth-default-store-driver sqlite \
+		--auth-default-store-dsn $$authdb \
+		--auth-default-store-apply-schema=true \
+		>$$app_log 2>&1 & \
+	app_pid=$$!; \
+	for i in $$(seq 1 120); do \
+		if curl -fsS $(TINYIDP_BASE_URL)/healthz >/dev/null 2>&1; then break; fi; \
+		if ! kill -0 $$app_pid >/dev/null 2>&1; then cat $$app_log; exit 1; fi; \
+		sleep 0.25; \
+	done; \
+	curl -fsS $(TINYIDP_BASE_URL)/ >$$root; \
+	grep -q 'alice-password' $$root; \
+	status=$$(curl -s -o /dev/null -w '%{http_code}' $(TINYIDP_BASE_URL)/api/inbox); \
+	test "$$status" = "401"; \
+	$(BIN) verbs inboxctl device-start --base-url $(TINYIDP_BASE_URL) >$$device; \
+	python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["device_code"].startswith("ggdc_"), d; assert d["user_code"], d; print("ok tinyidp device start")' $$device; \
+	device_code=$$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["device_code"])' $$device); \
+	user_code=$$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["user_code"])' $$device); \
+	if $(BIN) verbs inboxctl device-token --base-url $(TINYIDP_BASE_URL) --device-code $$device_code >/dev/null 2>&1; then echo 'device-token unexpectedly succeeded before approval'; exit 1; fi; \
+	python3 $(EXAMPLE_DIR)/../06-browser-login-keycloak/scripts/tinyidp_login_smoke.py --base-url $(TINYIDP_BASE_URL) --approve-user-code $$user_code; \
+	sleep 5; \
+	$(BIN) verbs inboxctl device-token --base-url $(TINYIDP_BASE_URL) --device-code $$device_code >$$tokens; \
+	access_token=$$(python3 -c 'import json,sys; t=json.load(open(sys.argv[1])); assert t["access_token"].startswith("ggat_"), t; print(t["access_token"])' $$tokens); \
+	$(BIN) verbs inboxctl token-capture --base-url $(TINYIDP_BASE_URL) --access-token $$access_token --title 'Tinyidp device capture' --url https://example.com/tinyidp-device >$$capture; \
+	python3 -c 'import json,sys; c=json.load(open(sys.argv[1])); assert c["ok"] is True, c; assert c["item"]["submittedByKind"] == "sessionUser", c; print("ok tinyidp device token capture")' $$capture; \
+	echo 'ok tinyidp device authorization smoke'
 
 clean:
 	rm -rf $(EXAMPLE_DIR)/dist

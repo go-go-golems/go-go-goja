@@ -43,6 +43,7 @@ def main() -> None:
     parser.add_argument("--base-url", required=True, help="Generated app base URL")
     parser.add_argument("--login", default="alice", help="tinyidp login name")
     parser.add_argument("--expected-email", default="alice@example.test")
+    parser.add_argument("--approve-user-code", default="", help="Approve this device user_code after login")
     args = parser.parse_args()
 
     base_url = args.base_url.rstrip("/")
@@ -78,11 +79,27 @@ def main() -> None:
     if not session.get("csrfToken"):
         raise SystemExit(f"session did not include csrfToken: {session!r}")
 
+    if args.approve_user_code:
+        approve_body = json.dumps({"user_code": args.approve_user_code, "actions": ["user.self.read"]}).encode()
+        approve_request = urllib.request.Request(
+            base_url + "/auth/device/approve",
+            data=approve_body,
+            method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "X-CSRF-Token": session["csrfToken"],
+            },
+        )
+        approve_response = opener.open(approve_request)
+        if approve_response.status != 200:
+            raise SystemExit(f"/auth/device/approve returned {approve_response.status}")
+        approve_response.read()
+
     api_response = opener.open(base_url + "/api/inbox")
     if api_response.status != 200:
         raise SystemExit(f"/api/inbox returned {api_response.status}")
 
-    print(f"ok tinyidp step06 full login smoke; session email={session.get('email')}")
+    print(f"ok tinyidp login smoke; session email={session.get('email')}")
 
 
 if __name__ == "__main__":

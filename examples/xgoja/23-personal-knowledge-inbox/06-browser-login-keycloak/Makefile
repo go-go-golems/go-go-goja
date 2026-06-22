@@ -106,14 +106,16 @@ tinyidp-smoke: doctor build
 	authdb=$$(mktemp -u /tmp/xgoja-tinyidp-step06-auth-XXXXXX.sqlite); \
 	idp_log=$$(mktemp); \
 	app_log=$$(mktemp); \
+	tinyidp_bin=$$(mktemp); \
 	idp_pid=; \
 	app_pid=; \
-	trap 'if [ -n "$$idp_pid" ]; then kill $$idp_pid >/dev/null 2>&1 || true; wait $$idp_pid >/dev/null 2>&1 || true; fi; if [ -n "$$app_pid" ]; then kill $$app_pid >/dev/null 2>&1 || true; wait $$app_pid >/dev/null 2>&1 || true; fi; rm -f $$db $$authdb $$idp_log $$app_log' EXIT; \
-	(cd $(TINYIDP_ROOT) && GOWORK=off go run ./cmd/tinyidp serve \
+	trap 'if [ -n "$$idp_pid" ]; then kill $$idp_pid >/dev/null 2>&1 || true; wait $$idp_pid >/dev/null 2>&1 || true; fi; if [ -n "$$app_pid" ]; then kill $$app_pid >/dev/null 2>&1 || true; wait $$app_pid >/dev/null 2>&1 || true; fi; rm -f $$db $$authdb $$idp_log $$app_log $$tinyidp_bin' EXIT; \
+	(cd $(TINYIDP_ROOT) && GOWORK=off go build -o $$tinyidp_bin ./cmd/tinyidp); \
+	$$tinyidp_bin serve \
 		--addr $(TINYIDP_ADDR) \
 		--issuer $(TINYIDP_ISSUER) \
 		--client-id personal-inbox-local \
-		--redirect-uris $(TINYIDP_BASE_URL)/auth/callback) \
+		--redirect-uris $(TINYIDP_BASE_URL)/auth/callback \
 		>$$idp_log 2>&1 & \
 	idp_pid=$$!; \
 	for i in $$(seq 1 120); do \
