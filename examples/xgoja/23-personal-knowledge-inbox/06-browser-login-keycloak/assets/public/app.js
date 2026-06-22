@@ -31,14 +31,13 @@ async function loadSession() {
       return;
     }
     const body = await readResponse(res);
-    if (!res.ok || !body.authenticated) {
+    if (!res.ok || !body.userId) {
       setLoggedOut();
       return;
     }
     csrfToken = body.csrfToken || "";
     authenticated = true;
-    const actor = body.actor || {};
-    sessionStatusEl.textContent = `Logged in as ${actor.claims?.email || actor.id || "session user"}.`;
+    sessionStatusEl.textContent = `Logged in as ${body.userId}.`;
     sessionStatusEl.classList.remove("error");
     loginEl.classList.add("hidden");
     logoutEl.classList.remove("hidden");
