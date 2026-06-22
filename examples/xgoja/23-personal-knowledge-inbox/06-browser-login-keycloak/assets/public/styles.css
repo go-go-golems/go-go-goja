@@ -177,6 +177,8 @@ button:hover, button:focus-visible {
   text-transform: uppercase;
 }
 
+.hidden { display: none !important; }
+
 .items {
   list-style: none;
   margin: 0;

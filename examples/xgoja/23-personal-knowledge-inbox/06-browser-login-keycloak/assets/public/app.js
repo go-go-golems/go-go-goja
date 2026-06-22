@@ -3,11 +3,17 @@ const statusEl = document.querySelector("#status");
 const sessionStatusEl = document.querySelector("#session-status");
 const itemsEl = document.querySelector("#items");
 const refreshEl = document.querySelector("#refresh");
+const loginEl = document.querySelector("#login");
 const logoutEl = document.querySelector("#logout");
 let csrfToken = "";
+let authenticated = false;
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!authenticated) {
+    setStatus("Log in before capturing from the browser UI.", true);
+    return;
+  }
   const data = Object.fromEntries(new FormData(form).entries());
   await captureItem(data);
 });
@@ -16,24 +22,49 @@ refreshEl.addEventListener("click", () => loadItems());
 logoutEl.addEventListener("click", () => logout());
 
 loadSession();
-loadItems();
 
 async function loadSession() {
   try {
     const res = await fetch("/auth/session");
-    const body = await res.json();
+    if (res.status === 401) {
+      setLoggedOut();
+      return;
+    }
+    const body = await readResponse(res);
     if (!res.ok || !body.authenticated) {
-      sessionStatusEl.textContent = "Not logged in.";
-      sessionStatusEl.classList.add("error");
+      setLoggedOut();
       return;
     }
     csrfToken = body.csrfToken || "";
+    authenticated = true;
     const actor = body.actor || {};
     sessionStatusEl.textContent = `Logged in as ${actor.claims?.email || actor.id || "session user"}.`;
     sessionStatusEl.classList.remove("error");
+    loginEl.classList.add("hidden");
+    logoutEl.classList.remove("hidden");
+    setFormEnabled(true);
+    await loadItems();
   } catch (err) {
     sessionStatusEl.textContent = String(err.message || err);
     sessionStatusEl.classList.add("error");
+    setFormEnabled(false);
+  }
+}
+
+function setLoggedOut() {
+  authenticated = false;
+  csrfToken = "";
+  sessionStatusEl.textContent = "Not logged in.";
+  sessionStatusEl.classList.add("error");
+  loginEl.classList.remove("hidden");
+  logoutEl.classList.add("hidden");
+  setFormEnabled(false);
+  itemsEl.innerHTML = '<li class="empty">Log in to view the inbox.</li>';
+}
+
+function setFormEnabled(enabled) {
+  for (const control of form.elements) {
+    control.disabled = !enabled;
   }
 }
 
@@ -53,8 +84,8 @@ async function captureItem(data) {
       headers: { "Content-Type": "application/json", ...csrfHeaders() },
       body: JSON.stringify({ ...data, source: "browser-ui" })
     });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    const body = await readResponse(res);
+    if (!res.ok) throw new Error(body.error || body.message || `HTTP ${res.status}`);
     form.reset();
     setStatus("Captured.");
     await loadItems();
@@ -64,10 +95,14 @@ async function captureItem(data) {
 }
 
 async function loadItems() {
+  if (!authenticated) {
+    itemsEl.innerHTML = '<li class="empty">Log in to view the inbox.</li>';
+    return;
+  }
   try {
     const res = await fetch("/api/inbox");
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    const body = await readResponse(res);
+    if (!res.ok) throw new Error(body.error || body.message || `HTTP ${res.status}`);
     renderItems(body.items || []);
   } catch (err) {
     itemsEl.innerHTML = `<li class="empty">${escapeHtml(String(err.message || err))}</li>`;
@@ -89,6 +124,15 @@ function renderItems(items) {
       <div class="item-meta">${escapeHtml(item.source || "api")}</div>
     </li>
   `).join("");
+}
+
+async function readResponse(res) {
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return await res.json();
+  }
+  const text = await res.text();
+  return { message: text || res.statusText };
 }
 
 function setStatus(message, isError = false) {
