@@ -118,3 +118,13 @@ Step 05: added embedded retro browser UI assets and validated full tutorial smok
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/assets/public/index.html — Browser UI entry point
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/xgoja.yaml — Embedded asset source and runtime mount
 
+
+## 2026-06-22
+
+Step 06: added local Keycloak login with Alice and Bob, protected browser API routes, and replaced CLI API calls with direct SQLite verbs (commit 5c259f6).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/keycloak/realm-personal-inbox.json — Seeded tutorial users
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/xgoja.yaml — Generated hostauth OIDC config
+

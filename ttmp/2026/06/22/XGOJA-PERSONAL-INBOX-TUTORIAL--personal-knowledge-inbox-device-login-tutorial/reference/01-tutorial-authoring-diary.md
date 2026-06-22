@@ -31,6 +31,14 @@ RelatedFiles:
       Note: Serves embedded root HTML and static assets
     - Path: examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/xgoja.yaml
       Note: Step 05 embedded asset source and fs runtime mount
+    - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/keycloak/realm-personal-inbox.json
+      Note: Alice and Bob Keycloak tutorial users
+    - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/verbs/client.js
+      Note: Direct SQLite CLI verbs replacing fetch-backed client verbs
+    - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/verbs/server.js
+      Note: Session-protected browser API routes
+    - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/xgoja.yaml
+      Note: Step 06 generated hostauth OIDC configuration
     - Path: examples/xgoja/23-personal-knowledge-inbox/Makefile
       Note: Top-level smoke dispatcher for step directories
     - Path: examples/xgoja/23-personal-knowledge-inbox/README.md
@@ -45,6 +53,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -824,4 +833,140 @@ examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/assets/public/ap
 examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/Makefile
 examples/xgoja/23-personal-knowledge-inbox/README.md
 examples/xgoja/23-personal-knowledge-inbox/Makefile
+```
+
+## Step 8: Add local Keycloak browser login
+
+This step creates the sixth runnable tutorial snapshot. It introduces the first human login boundary with local Keycloak as the OIDC identity provider, while keeping human credentials outside xgoja. The generated host owns app sessions, CSRF checks, and app-local user upsert after OIDC login.
+
+During the step, the CLI commands changed direction. Once the browser API became session-protected, the fetch-backed CLI from Step 04/05 no longer made sense as the default local CLI path. Step 06 therefore replaces those CLI verbs with direct SQLite access again, leaving the protected HTTP API for browser sessions and future device/programmatic credentials.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, create 2 users: alice and bob. go ahead with step 06."
+
+**Assistant interpretation:** Add the next tutorial snapshot with local Keycloak OIDC login, seed two tutorial users, and validate generated hostauth login wiring.
+
+**Inferred user intent:** Teach how first human users log in without xgoja owning passwords, and prepare the browser session foundation required for later device authorization approval.
+
+**Commit (code):** 5c259f6 — "examples: add personal inbox keycloak login step"
+
+### What I did
+
+- Added `06-browser-login-keycloak` as a new runnable tutorial step.
+- Added `compose.yaml` for local Keycloak.
+- Added `keycloak/realm-personal-inbox.json` with:
+  - realm `personal-inbox`,
+  - OIDC client `personal-inbox-local`,
+  - user `alice` / `alice-password`,
+  - user `bob` / `bob-password`.
+- Added hostauth provider and top-level OIDC `auth:` config in Step 06 `xgoja.yaml`.
+- Protected `/api/inbox`, `/api/capture`, and `/api/inbox/:id/archive` with `express.sessionUser()`.
+- Added `.csrf()` to unsafe browser mutation routes.
+- Updated the browser UI to call `/auth/session`, show login state, and send `X-CSRF-Token` for mutations/logout.
+- Replaced API-fetch CLI verbs with direct SQLite verbs that share `verbs/lib/inbox_store.js`.
+- Added `make keycloak-smoke` to start Keycloak, verify the login redirect, and verify unauthenticated API requests return `401`.
+
+### Why
+
+- xgoja should not manage human passwords; OIDC/Keycloak owns user credentials.
+- The app still needs app-local users and sessions, which hostauth/appauth creates after OIDC login.
+- Device authorization later requires an existing browser session to approve CLI/device requests.
+- The CLI cannot call session+CSRF browser APIs unless it has a browser session; direct local CLI verbs are clearer until device/access-token auth is introduced.
+
+### What worked
+
+- Fast Step 06 smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak smoke
+```
+
+- Keycloak/OIDC smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak keycloak-smoke
+```
+
+- Full tutorial smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### What didn't work
+
+- The first Step 06 fast smoke failed because selecting the hostauth `auth` JavaScript runtime module made direct CLI verbs try to construct `require("auth")` without hostauth services:
+
+```text
+Error: register module "xgoja:go-go-goja-hostauth.auth:auth": create module go-go-goja-hostauth.auth: auth module requires hostauth services
+```
+
+I fixed this by keeping the `go-go-goja-hostauth` provider and top-level `auth:` config, but not selecting the `auth` JavaScript module in this step. Native auth endpoints still mount through the generated serve host.
+
+- The first Keycloak smoke failed with a planned route chain error after adding `.auth(express.sessionUser())` without an explicit authorization action:
+
+```text
+Error: TypeError: Object has no member 'handle' at server (/server.js:61:12(72))
+```
+
+I fixed this by adding `.allow("user.self.read")` before `.audit(...).handle(...)` on the session-protected API routes.
+
+- The next Keycloak smoke failed because the smoke used `curl -I /auth/login`, but the native login endpoint does not accept `HEAD`:
+
+```text
+curl: (22) The requested URL returned error: 405
+```
+
+I fixed the smoke to use `GET` with `curl -D headers -o /dev/null`.
+
+### What I learned
+
+- Generated hostauth can mount native auth routes without exposing the JavaScript `auth` module to every command.
+- Session-protected planned routes should declare an explicit `.allow(...)` action before audit/handler chaining.
+- Once an API is browser-session-only, CLI access should either be direct local access or a real programmatic credential flow; using unauthenticated fetch would teach the wrong boundary.
+
+### What was tricky to build
+
+- The main boundary issue was separating host-level auth services from JavaScript module exposure. The top-level `auth:` block enables generated serve-time hostauth, while `runtime.modules[].name: auth` exposes JavaScript auth builders. Direct CLI verbs do not have serve-time hostauth services, so this step must not load that module globally.
+- The tutorial also has two useful validation layers: fast smoke that avoids Docker, and Keycloak smoke that proves the local OIDC redirect and protected API behavior.
+
+### What warrants a second pair of eyes
+
+- Whether using `.allow("user.self.read")` as the temporary authorization action for inbox API routes is acceptable until app-specific actions/resources are introduced.
+- Whether direct CLI verbs should remain under `inboxctl`, or be renamed in a later UX cleanup once programmatic/device auth is added.
+- Whether the next step should add first-owner bootstrap or go directly to device authorization.
+
+### What should be done in the future
+
+- Add a browser-login Playwright smoke that logs in as Alice and Bob, not just a redirect/protected-route smoke.
+- Add first-owner/bootstrap semantics so the first logged-in user owns a personal inbox tenant.
+- Introduce device authorization after browser login is fully interactive.
+
+### Code review instructions
+
+- Review `06-browser-login-keycloak/xgoja.yaml` for hostauth/OIDC config and the absence of the JavaScript `auth` module.
+- Review `06-browser-login-keycloak/keycloak/realm-personal-inbox.json` for Alice/Bob seed users and OIDC client redirect URI.
+- Review `06-browser-login-keycloak/verbs/server.js` for session-only API routes and CSRF on unsafe methods.
+- Review `06-browser-login-keycloak/verbs/client.js` for direct SQLite CLI commands.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak smoke
+make -C examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak keycloak-smoke
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### Technical details
+
+Primary files:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/xgoja.yaml
+examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/compose.yaml
+examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/keycloak/realm-personal-inbox.json
+examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/verbs/server.js
+examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/verbs/client.js
+examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/assets/public/app.js
+examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/Makefile
 ```

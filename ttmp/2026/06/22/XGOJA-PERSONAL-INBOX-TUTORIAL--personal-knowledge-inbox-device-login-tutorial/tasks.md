@@ -23,3 +23,4 @@
 - [x] Step 04: separate reusable JS lib, server routes, and API client CLI verbs
 - [x] Step 04: add API server routes and API client CLI verbs
 - [x] Add Step 05 embedded retro browser UI assets
+- [x] Step 06: add local Keycloak login with Alice and Bob

@@ -978,3 +978,43 @@ make -C examples/xgoja/23-personal-knowledge-inbox smoke
 ```
 
 Both commands passed. The Step 05 smoke verifies root HTML, CSS asset serving, browser JavaScript serving, health JSON, and the existing client/API capture-list-archive flow.
+
+## Step 06 — Browser login with local Keycloak
+
+Step 06 copies `05-embedded-retro-ui` into `06-browser-login-keycloak` and adds the first human login boundary.
+
+Key points:
+
+- Keycloak owns human credentials.
+- The realm seeds two tutorial users: `alice` / `alice-password` and `bob` / `bob-password`.
+- xgoja hostauth owns OIDC redirects/callbacks, app-session cookies, CSRF, and app-local user upsert.
+- The browser API is now session-only.
+- CLI verbs are direct SQLite commands again because the browser API now requires session cookies and CSRF.
+
+Validation commands:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak smoke
+make -C examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak keycloak-smoke
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+Important failures fixed during the step:
+
+```text
+Error: register module "xgoja:go-go-goja-hostauth.auth:auth": create module go-go-goja-hostauth.auth: auth module requires hostauth services
+```
+
+The fix was to keep generated hostauth config/provider but not expose the JavaScript `auth` runtime module to direct CLI verbs yet.
+
+```text
+Error: TypeError: Object has no member 'handle' at server (/server.js:61:12(72))
+```
+
+The fix was to add `.allow("user.self.read")` before `.audit(...).handle(...)` on session-protected routes.
+
+```text
+curl: (22) The requested URL returned error: 405
+```
+
+The fix was to make the login redirect smoke use `GET /auth/login` instead of `HEAD /auth/login`.
