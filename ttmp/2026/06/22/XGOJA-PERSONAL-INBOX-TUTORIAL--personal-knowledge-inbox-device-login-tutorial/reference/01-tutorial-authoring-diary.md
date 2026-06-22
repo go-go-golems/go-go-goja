@@ -289,7 +289,7 @@ That structure lets the tutorial preserve intermediate versions of the files. A 
 
 **Inferred user intent:** Make the implementation history directly readable from the filesystem, not only from git history or the diary.
 
-**Commit (code):** N/A — pending commit for this restructuring step.
+**Commit (code):** e3041bd — "examples: split personal inbox tutorial into steps"
 
 ### What I did
 

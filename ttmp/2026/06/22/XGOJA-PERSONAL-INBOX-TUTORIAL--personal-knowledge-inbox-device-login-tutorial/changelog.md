@@ -55,3 +55,13 @@ Restructured Personal Knowledge Inbox example into per-step subdirectories, with
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/README.md — Documents the step-directory tutorial layout
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/02-implementation-logbook.md — Extended restructuring log
 
+
+## 2026-06-22
+
+Committed step-directory restructure for the Personal Knowledge Inbox tutorial (commit e3041bd)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/Makefile — Self-contained Step 01 validation committed in e3041bd
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/README.md — Top-level step index committed in e3041bd
+
