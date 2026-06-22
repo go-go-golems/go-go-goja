@@ -76,3 +76,12 @@ Chapter 1B: added Step 02 generated hello-world web server with HTTP provider, s
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/xgoja.yaml — HTTP provider and serve command
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/02-implementation-logbook.md — Detailed Step 02 logbook entry
 
+
+## 2026-06-22
+
+Saved follow-up tasks for revisiting Step 03 structured output and future xgoja developer-experience improvements
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/tasks.md — Tracks structured output revisit and xgoja DX follow-up phase
+
