@@ -65,3 +65,14 @@ Committed step-directory restructure for the Personal Knowledge Inbox tutorial (
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/Makefile — Self-contained Step 01 validation committed in e3041bd
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/README.md — Top-level step index committed in e3041bd
 
+
+## 2026-06-22
+
+Chapter 1B: added Step 02 generated hello-world web server with HTTP provider, serve command, public Express routes, and smoke validation (commit 2107ba3)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/verbs/hello.js — Public hello and health routes
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/xgoja.yaml — HTTP provider and serve command
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/02-implementation-logbook.md — Detailed Step 02 logbook entry
+

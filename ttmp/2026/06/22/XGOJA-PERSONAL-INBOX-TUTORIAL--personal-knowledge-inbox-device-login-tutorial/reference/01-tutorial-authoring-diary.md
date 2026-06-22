@@ -13,16 +13,22 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: examples/xgoja/23-personal-knowledge-inbox/README.md
-      Note: Top-level step-index for the incremental tutorial workspace
-    - Path: examples/xgoja/23-personal-knowledge-inbox/Makefile
-      Note: Top-level smoke dispatcher for step directories
-    - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/xgoja.yaml
-      Note: Chapter 1A minimal generated xgoja spec
-    - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/verbs/hello.js
-      Note: Chapter 1A hello-world jsverb
     - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/Makefile
       Note: Chapter 1A validation targets and absolute xgoja replace pattern
+    - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/verbs/hello.js
+      Note: Chapter 1A hello-world jsverb
+    - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/xgoja.yaml
+      Note: Chapter 1A minimal generated xgoja spec
+    - Path: examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/Makefile
+      Note: Step 02 CLI and server smoke validation
+    - Path: examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/verbs/hello.js
+      Note: Step 02 CLI hello plus HTTP route registration
+    - Path: examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/xgoja.yaml
+      Note: Step 02 generated HTTP serve xgoja spec
+    - Path: examples/xgoja/23-personal-knowledge-inbox/Makefile
+      Note: Top-level smoke dispatcher for step directories
+    - Path: examples/xgoja/23-personal-knowledge-inbox/README.md
+      Note: Top-level step-index for the incremental tutorial workspace
     - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/design/01-personal-knowledge-inbox-tutorial.md
       Note: Primary tutorial draft
     - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/02-implementation-logbook.md
@@ -33,6 +39,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Diary
@@ -364,4 +371,113 @@ examples/xgoja/23-personal-knowledge-inbox/
     Makefile
     xgoja.yaml
     verbs/hello.js
+```
+
+## Step 4: Add Step 02 hello-world generated web server
+
+This step copies the Step 01 minimal jsverb example into a second runnable snapshot and adds the HTTP provider. The generated binary still exposes the original `verbs inbox hello` command, but it now also exposes a provider-backed `serve inbox server` command that registers public Express routes and keeps an HTTP listener alive.
+
+The tutorial now has its first visible progression: Step 01 is a generated CLI, and Step 02 is the same generated CLI plus generated HTTP serving. The difference between the two directories is intentionally small enough for a new developer to inspect directly.
+
+### Prompt Context
+
+**User prompt (verbatim):** "i reverted it, continue with 02-hello-web-server"
+
+**Assistant interpretation:** Proceed after the user reverted the accidental command-name edit by creating the next tutorial snapshot, `02-hello-web-server`, based on Step 01 plus a hello-world HTTP server.
+
+**Inferred user intent:** Continue the incremental tutorial implementation with the next smallest validated concept: generated xgoja HTTP serving.
+
+**Commit (code):** 2107ba3 — "examples: add personal inbox hello web server step"
+
+### What I did
+
+- Copied `01-minimal-jsverb` to `02-hello-web-server`.
+- Updated Step 02 `xgoja.yaml` to add:
+  - the `go-go-goja-http` provider,
+  - the `express` runtime module,
+  - the provider-backed `serve` command set.
+- Extended `verbs/hello.js` in Step 02 with a `server` verb that registers:
+  - `GET /`, public text response,
+  - `GET /healthz`, public JSON health response.
+- Added a Step 02 `README.md` and `Makefile`.
+- Updated the top-level tutorial `README.md` and `Makefile` so the top-level smoke runs Step 01 and Step 02.
+- Added a detailed logbook entry for the Step 02 implementation.
+
+### Why
+
+- HTTP serving is the next foundational xgoja concept after a CLI-only jsverb.
+- Keeping the original `hello` CLI verb in Step 02 demonstrates that provider-backed commands extend the generated binary; they do not replace built-in jsverb commands.
+- Public routes are the right first HTTP route shape because auth, sessions, CSRF, and agents would distract from the mechanics of route registration and serving.
+
+### What worked
+
+- Focused Step 02 validation passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server smoke
+```
+
+- Top-level validation passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+- The smoke verified both CLI and HTTP behavior.
+
+### What didn't work
+
+- The first Step 02 Makefile made `serve-smoke` depend on `build`, while `smoke` already ran `build`. This caused a redundant second generated build. I removed the extra dependency so `serve-smoke` uses the already-built binary.
+
+### What I learned
+
+- Adding a provider-backed command set requires three linked xgoja changes: provider declaration, runtime module selection, and `commands[].type: provider.command-set`.
+- The HTTP provider's `serve` command invokes the selected jsverb to register routes and then owns the long-running listener.
+- This step produces a useful tutorial diff against Step 01 because the HTTP-specific additions are isolated.
+
+### What was tricky to build
+
+- The implementation itself was straightforward; the main issue was keeping the step educationally small. It would be easy to add SQLite or auth now, but that would make the Step 01 to Step 02 diff harder to understand.
+- Smoke testing a long-running server requires starting the generated binary in the background, polling `/healthz`, asserting the root response, and cleaning up the process reliably.
+
+### What warrants a second pair of eyes
+
+- Whether Step 02 should keep CLI `hello` and HTTP `server` in the same JavaScript file or split them into separate files before Step 03.
+- Whether the top-level smoke should always run every implemented step, as it does now, or eventually only run the latest step by default.
+
+### What should be done in the future
+
+- Step 03 should copy Step 02 and add the next concept, likely SQLite-backed inbox state and/or separate generated server and CLI binaries.
+- The final tutorial should include a Step 01 to Step 02 diff exercise.
+
+### Code review instructions
+
+- Review `examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/xgoja.yaml` for the HTTP provider and serve command additions.
+- Review `examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/verbs/hello.js` for the public Express route registration.
+- Review `examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/Makefile` for the server smoke pattern.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### Technical details
+
+Important command paths:
+
+```bash
+examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/dist/personal-knowledge-inbox-hello-web-server \
+  verbs inbox hello --name tutorial
+
+examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/dist/personal-knowledge-inbox-hello-web-server \
+  serve inbox server --http-listen 127.0.0.1:18790
+```
+
+Primary files:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/xgoja.yaml
+examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/verbs/hello.js
+examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/Makefile
+examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/README.md
 ```
