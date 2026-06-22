@@ -25,6 +25,12 @@ RelatedFiles:
       Note: Step 02 CLI hello plus HTTP route registration
     - Path: examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/xgoja.yaml
       Note: Step 02 generated HTTP serve xgoja spec
+    - Path: examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/assets/public/styles.css
+      Note: Retro monochrome UI styling for Step 05
+    - Path: examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/verbs/server.js
+      Note: Serves embedded root HTML and static assets
+    - Path: examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/xgoja.yaml
+      Note: Step 05 embedded asset source and fs runtime mount
     - Path: examples/xgoja/23-personal-knowledge-inbox/Makefile
       Note: Top-level smoke dispatcher for step directories
     - Path: examples/xgoja/23-personal-knowledge-inbox/README.md
@@ -39,6 +45,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -713,4 +720,108 @@ examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/lib/inbox_
 examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/lib/api_client.js
 examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/Makefile
 examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/scripts/api_smoke.py
+```
+
+## Step 7: Add embedded retro browser UI
+
+This step creates the fifth runnable tutorial snapshot by copying Step 04 and adding embedded browser assets. The server still exposes the same public API and the CLI still calls that API with guarded fetch; the new concept is static asset embedding and serving from the generated xgoja binary.
+
+The visual implementation follows the requested direction: a monochrome, retro Macintosh-influenced page without menu bars, window chrome, or Chicago-style fonts. The CSS uses modern system Swiss typography, restrained weights, thin rules instead of heavy panels, and muted foreground-only accent colors.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Add embedded HTML + CSS assets styled in a retro monochrome macOS 1-inspired look: no menu bar, no window chrome, no Chicago font. Use modern clean Swiss typography, restrained font sizes/weights, minimal boxes. Muted accent colors are allowed only for foreground text accents."
+
+**Assistant interpretation:** Continue the Personal Knowledge Inbox tutorial by adding a new step that embeds and serves static HTML/CSS/JS assets, with a restrained monochrome retro UI that avoids literal Mac window chrome or Chicago fonts.
+
+**Inferred user intent:** Introduce embedded assets and a browser-facing surface before adding auth, while keeping the tutorial's visual language polished, minimal, and appropriate for the requested design constraints.
+
+**Commit (code):** f3e6bca — "examples: add personal inbox embedded UI step"
+
+### What I did
+
+- Copied `04-api-client-server` to `05-embedded-retro-ui`.
+- Added embedded assets under `assets/public/`:
+  - `index.html`,
+  - `styles.css`,
+  - `app.js`.
+- Updated Step 05 `xgoja.yaml` to add:
+  - an `fs:assets` runtime module with an embedded mount,
+  - a `ui-assets` asset source,
+  - an `embedded-assets` artifact.
+- Updated `verbs/server.js` so `/` returns the embedded HTML and `/static/*` serves embedded CSS/JS.
+- Updated the Step 05 smoke test to verify `/`, `/static/styles.css`, `/static/app.js`, `/healthz`, and the existing API/client flow.
+- Updated the top-level tutorial README and Makefile to include Step 05.
+
+### Why
+
+- The tutorial needs a browser-facing app surface before it teaches browser sessions and device login.
+- Embedded assets keep the generated binary self-contained and mirror how a small production tool can ship a UI without a separate frontend build pipeline.
+- The UI gives later auth steps concrete pages and flows to protect.
+
+### What worked
+
+- Focused Step 05 smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui smoke
+```
+
+- Top-level tutorial smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### What didn't work
+
+- No validation failures occurred in this step.
+
+### What I learned
+
+- The existing xgoja embedded asset path is a good fit for tutorial UI chapters: declare an `assets` source, mount it through `fs:assets`, and use `app.staticFromAssetsModule` for browser files.
+- The generated binary can keep serving the existing API while adding a static UI with a very small JavaScript layer.
+- The visual requirements were easier to preserve by using typographic hierarchy and horizontal rules, rather than simulating a Macintosh desktop or window frame.
+
+### What was tricky to build
+
+- The main design constraint was avoiding literal retro UI elements while still making the page feel intentionally monochrome and early-computing-inspired. I kept the retro reference in the density, rule work, and simple forms, while using modern system fonts and no chrome.
+- The asset source and runtime module are two separate pieces: `sources` embeds files into the generated build, while the `fs:assets` runtime mount is what JavaScript uses to read and serve them.
+
+### What warrants a second pair of eyes
+
+- Whether the CSS strikes the right balance between retro austerity and modern readability.
+- Whether Step 05 should keep the API public, as currently implemented, or if the next step should immediately introduce browser session protection.
+- Whether the smoke should also use a browser automation check later, once the UI grows beyond simple fetch calls.
+
+### What should be done in the future
+
+- Step 06 should introduce browser/session routes or the first auth boundary around the UI/API.
+- Later steps should teach device login and programmatic capture tokens using this browser surface as the approval/interaction context.
+- Consider adding a screenshot-based visual regression only if the tutorial UI becomes stable enough to justify it.
+
+### Code review instructions
+
+- Review `05-embedded-retro-ui/xgoja.yaml` for the embedded asset source, `fs:assets` mount, and `embedded-assets` artifact.
+- Review `05-embedded-retro-ui/verbs/server.js` for static asset mounting and root HTML serving.
+- Review `05-embedded-retro-ui/assets/public/styles.css` against the visual constraints.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### Technical details
+
+Primary files:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/xgoja.yaml
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/verbs/server.js
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/assets/public/index.html
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/assets/public/styles.css
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/assets/public/app.js
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/Makefile
+examples/xgoja/23-personal-knowledge-inbox/README.md
+examples/xgoja/23-personal-knowledge-inbox/Makefile
 ```

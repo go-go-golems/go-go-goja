@@ -108,3 +108,13 @@ Step 04: added reusable JS lib, public inbox API routes, and fetch-backed API cl
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/lib/inbox_store.js — Reusable SQLite store helpers
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/server.js — Public API routes
 
+
+## 2026-06-22
+
+Step 05: added embedded retro browser UI assets and validated full tutorial smoke (commit f3e6bca).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/assets/public/index.html — Browser UI entry point
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/xgoja.yaml — Embedded asset source and runtime mount
+

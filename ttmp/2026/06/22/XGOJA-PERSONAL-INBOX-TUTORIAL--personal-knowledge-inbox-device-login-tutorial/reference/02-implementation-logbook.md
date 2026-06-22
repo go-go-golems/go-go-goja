@@ -920,3 +920,61 @@ The final tutorial should ask the reader to compare Step 03 and Step 04:
 - `fetch` appears for the first time.
 
 This step is also a good place to explain why server-side validation remains necessary even when jsverbs marks CLI fields as required.
+
+## Step 05 — Embedded retro UI
+
+Step 05 copies `04-api-client-server` into `05-embedded-retro-ui` and keeps the existing public API/client behavior intact. The new lesson is embedded browser assets.
+
+Files added or changed:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/assets/public/index.html
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/assets/public/styles.css
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/assets/public/app.js
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/verbs/server.js
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/xgoja.yaml
+examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/Makefile
+```
+
+The `xgoja.yaml` lesson is that embedded assets need both an asset source and a runtime mount:
+
+```yaml
+sources:
+  - id: ui-assets
+    kind: assets
+    from:
+      dir: ./assets
+
+runtime:
+  modules:
+    - provider: go-go-goja-host
+      name: fs
+      as: fs:assets
+      config:
+        embedded:
+          allow: true
+          mounts:
+            - asset: ui-assets
+              mount: /app
+```
+
+The server then uses the mounted asset filesystem:
+
+```js
+const assets = require("fs:assets");
+app.staticFromAssetsModule("/static", assets, "/app/public");
+app.get("/").public().handle((_ctx, res) => {
+  res.type("text/html").send(assets.readFileSync("/app/public/index.html", "utf8"));
+});
+```
+
+The UI intentionally avoids menu bars, window chrome, Chicago-like typography, and heavy boxed panels. It uses a warm monochrome background, modern system sans fonts, thin horizontal rules, restrained weights, and muted accent colors only for small foreground text details.
+
+Validation:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui smoke
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+Both commands passed. The Step 05 smoke verifies root HTML, CSS asset serving, browser JavaScript serving, health JSON, and the existing client/API capture-list-archive flow.

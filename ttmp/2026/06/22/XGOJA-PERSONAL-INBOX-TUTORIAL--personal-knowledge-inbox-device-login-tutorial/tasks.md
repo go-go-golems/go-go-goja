@@ -15,10 +15,11 @@
 
 ## Future phase: revisit xgoja developer experience from tutorial findings
 
-- [ ] Investigate better ways to mount verbs so tutorials/apps do not need to expose everything under a top-level `verbs` node
+- [x] Investigate better ways to mount verbs so tutorials/apps do not need to expose everything under a top-level `verbs` node
 - [ ] Investigate better ergonomics for starting web servers with the provider `serve` verb
 - [ ] Clarify and improve structured output, Glazed output modes, and Glazed flags for jsverbs commands
 - [ ] Hide `log-*` global flags by default in generated command help, or move them behind long/advanced help
 - [ ] Adapt generated help text so new developers see app-specific commands before framework/global machinery
 - [x] Step 04: separate reusable JS lib, server routes, and API client CLI verbs
 - [x] Step 04: add API server routes and API client CLI verbs
+- [x] Add Step 05 embedded retro browser UI assets
