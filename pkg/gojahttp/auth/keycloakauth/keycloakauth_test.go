@@ -242,6 +242,20 @@ func TestCallbackRejectsNormalizerFailureAndLogoutClearsCookie(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected session revoked after logout")
 	}
+
+	session, err = manager.NewSession(ctx, "u2")
+	if err != nil {
+		t.Fatalf("new session for get logout: %v", err)
+	}
+	client.Jar.SetCookies(mustURL(t, app.URL), []*http.Cookie{{Name: sessionauth.InsecureCookieName, Value: session.ID, Path: "/"}})
+	resp, err = client.Get(app.URL + "/auth/logout")
+	if err != nil {
+		t.Fatalf("get logout: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.Request.URL.Path != "/" {
+		t.Fatalf("GET logout did not return through provider logout, final URL=%s", resp.Request.URL.String())
+	}
 }
 
 func passthroughNormalizer() UserNormalizer {
@@ -272,6 +286,7 @@ func newFakeProvider(t *testing.T) *fakeProvider {
 	mux.HandleFunc("/keys", provider.keys)
 	mux.HandleFunc("/auth", provider.auth)
 	mux.HandleFunc("/token", provider.token)
+	mux.HandleFunc("/logout", provider.logout)
 	provider.server = httptest.NewServer(mux)
 	return provider
 }
@@ -280,7 +295,7 @@ func (p *fakeProvider) URL() string { return p.server.URL }
 func (p *fakeProvider) Close()      { p.server.Close() }
 
 func (p *fakeProvider) discovery(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(tResponseWriter{w}, map[string]any{"issuer": p.URL(), "authorization_endpoint": p.URL() + "/auth", "token_endpoint": p.URL() + "/token", "jwks_uri": p.URL() + "/keys"})
+	writeJSON(tResponseWriter{w}, map[string]any{"issuer": p.URL(), "authorization_endpoint": p.URL() + "/auth", "token_endpoint": p.URL() + "/token", "jwks_uri": p.URL() + "/keys", "end_session_endpoint": p.URL() + "/logout"})
 }
 
 func (p *fakeProvider) keys(w http.ResponseWriter, _ *http.Request) {
@@ -302,6 +317,15 @@ func (p *fakeProvider) auth(w http.ResponseWriter, r *http.Request) {
 	q.Set("code", code)
 	callback.RawQuery = q.Encode()
 	http.Redirect(w, r, callback.String(), http.StatusFound)
+}
+
+func (p *fakeProvider) logout(w http.ResponseWriter, r *http.Request) {
+	redirectURI := r.URL.Query().Get("post_logout_redirect_uri")
+	if redirectURI == "" {
+		_, _ = w.Write([]byte("logged out"))
+		return
+	}
+	http.Redirect(w, r, redirectURI, http.StatusFound)
 }
 
 func (p *fakeProvider) token(w http.ResponseWriter, r *http.Request) {

@@ -176,9 +176,12 @@ func sessionInfoHandler(sessionManager *sessionauth.Manager) http.Handler {
 			return
 		}
 		writeJSON(w, map[string]any{
-			"userId":    session.UserID,
-			"csrfToken": session.CSRFToken,
-			"tenantIds": append([]string(nil), session.TenantIDs...),
+			"userId":        session.UserID,
+			"email":         session.Email,
+			"emailVerified": session.EmailVerified,
+			"csrfToken":     session.CSRFToken,
+			"tenantIds":     append([]string(nil), session.TenantIDs...),
+			"claims":        cloneSessionClaims(session.Claims),
 		})
 	})
 }
@@ -188,6 +191,17 @@ func writeJSON(w http.ResponseWriter, value any) {
 	if err := json.NewEncoder(w).Encode(value); err != nil {
 		http.Error(w, "encode json", http.StatusInternalServerError)
 	}
+}
+
+func cloneSessionClaims(in map[string]any) map[string]any {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }
 
 // DefaultOIDCUserNormalizer upserts an app user by stable OIDC subject and

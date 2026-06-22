@@ -37,7 +37,7 @@ async function loadSession() {
     }
     csrfToken = body.csrfToken || "";
     authenticated = true;
-    sessionStatusEl.textContent = `Logged in as ${body.userId}.`;
+    sessionStatusEl.textContent = `Logged in as ${displayName(body)}.`;
     sessionStatusEl.classList.remove("error");
     loginEl.classList.add("hidden");
     logoutEl.classList.remove("hidden");
@@ -67,12 +67,8 @@ function setFormEnabled(enabled) {
   }
 }
 
-async function logout() {
-  try {
-    await fetch("/auth/logout", { method: "POST", headers: csrfHeaders() });
-  } finally {
-    window.location.href = "/";
-  }
+function logout() {
+  window.location.href = "/auth/logout";
 }
 
 async function captureItem(data) {
@@ -137,6 +133,11 @@ async function readResponse(res) {
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
   statusEl.classList.toggle("error", isError);
+}
+
+function displayName(session) {
+  const claims = session.claims || {};
+  return claims.preferredUsername || session.email || claims.name || session.userId || "session user";
 }
 
 function csrfHeaders() {
