@@ -38,6 +38,22 @@ make keycloak-smoke
 
 This starts Keycloak, starts the generated app, verifies the OIDC login redirect, verifies the UI assets, and verifies that unauthenticated API access returns `401`.
 
+## Run tinyidp smoke
+
+```bash
+make tinyidp-smoke
+```
+
+This runs the same generated hostauth OIDC login path against `tinyidp`, a small local mock IdP, instead of Docker Compose Keycloak. It starts `tinyidp`, starts the generated app with a root issuer URL, drives `/auth/login` through the HTML login form as `alice`, and asserts that `/auth/session` returns `alice@example.test` plus a CSRF token.
+
+By default the target expects `tinyidp` at:
+
+```text
+/home/manuel/workspaces/2026-06-20/ui-notebook-package/2026-06-22--mock-oidc-idp
+```
+
+Override it with `TINYIDP_ROOT=/path/to/tinyidp make tinyidp-smoke`. The smoke intentionally uses a root issuer such as `http://127.0.0.1:19087`; Keycloak-style realm-path issuer compatibility is a separate tinyidp feature.
+
 ## Manual run
 
 ```bash

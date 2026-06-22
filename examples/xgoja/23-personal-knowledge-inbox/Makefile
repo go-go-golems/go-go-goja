@@ -1,8 +1,11 @@
 .DEFAULT_GOAL := smoke
 
-.PHONY: smoke step-01 step-02 step-03 step-04 step-05 step-06 step-07 step-08 clean
+.PHONY: smoke tinyidp-smoke step-01 step-02 step-03 step-04 step-05 step-06 step-07 step-08 clean
 
 smoke: step-01 step-02 step-03 step-04 step-05 step-06 step-07 step-08
+
+tinyidp-smoke:
+	$(MAKE) -C 06-browser-login-keycloak tinyidp-smoke
 
 step-01:
 	$(MAKE) -C 01-minimal-jsverb smoke

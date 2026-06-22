@@ -31,6 +31,7 @@ make -C 04-api-client-server smoke
 make -C 05-embedded-retro-ui smoke
 make -C 06-browser-login-keycloak smoke
 make -C 06-browser-login-keycloak keycloak-smoke
+make -C 06-browser-login-keycloak tinyidp-smoke
 make -C 07-user-scoped-inbox smoke
 make -C 07-user-scoped-inbox keycloak-smoke
 make -C 08-device-authorization smoke
@@ -38,3 +39,15 @@ make -C 08-device-authorization keycloak-smoke
 ```
 
 Future steps will add a hello-world web server, a separate CLI verb, SQLite-backed inbox state, generated hostauth, device login, and programmatic capture.
+
+## tinyidp OIDC smoke
+
+Step 06 also has a `tinyidp-smoke` target. It is the fast mock-IdP replacement for the first Keycloak-backed tutorial step and proves that generated hostauth OIDC login works without a Keycloak container:
+
+```bash
+make tinyidp-smoke
+# or
+make -C 06-browser-login-keycloak tinyidp-smoke
+```
+
+The Keycloak smoke remains available as a compatibility check. The tinyidp smoke currently uses a root issuer URL rather than a Keycloak realm-path issuer.
