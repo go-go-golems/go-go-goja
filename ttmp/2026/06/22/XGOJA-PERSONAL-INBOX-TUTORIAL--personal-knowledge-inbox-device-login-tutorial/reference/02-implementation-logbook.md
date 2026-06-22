@@ -1018,3 +1018,29 @@ curl: (22) The requested URL returned error: 405
 ```
 
 The fix was to make the login redirect smoke use `GET /auth/login` instead of `HEAD /auth/login`.
+
+## Step 07 — User-scoped inbox ownership
+
+Step 07 copies `06-browser-login-keycloak` into `07-user-scoped-inbox` and changes the browser API to scope application data by the current session actor.
+
+Core implementation delta:
+
+```js
+res.json({
+  ok: true,
+  ownerUserId: ctx.actor.id,
+  items: store.listInboxItemsForUser(database, ctx.actor.id, false)
+});
+```
+
+Capture already writes `submittedByKind: "sessionUser"`; Step 07 ensures `submittedById` is `ctx.actor.id` and then uses that value for list/archive filters.
+
+Validation:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox smoke
+make -C examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox keycloak-smoke
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+All passed. Manual review should still log in as Alice and Bob to check the intended browser-visible isolation because the current Keycloak smoke only verifies redirect/protected-route behavior.

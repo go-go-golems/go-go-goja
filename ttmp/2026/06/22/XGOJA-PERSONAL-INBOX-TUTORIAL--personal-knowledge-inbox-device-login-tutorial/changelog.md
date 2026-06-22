@@ -128,3 +128,13 @@ Step 06: added local Keycloak login with Alice and Bob, protected browser API ro
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/keycloak/realm-personal-inbox.json — Seeded tutorial users
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/xgoja.yaml — Generated hostauth OIDC config
 
+
+## 2026-06-22
+
+Step 07: added user-scoped inbox step so browser API rows are filtered by ctx.actor.id (commit 5d10630).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/verbs/lib/inbox_store.js — Owner-filtered SQL helpers
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/verbs/server.js — Session actor data boundary
+

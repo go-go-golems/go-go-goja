@@ -39,6 +39,12 @@ RelatedFiles:
       Note: Session-protected browser API routes
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/xgoja.yaml
       Note: Step 06 generated hostauth OIDC configuration
+    - Path: examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/verbs/lib/inbox_store.js
+      Note: Owner-filtered inbox SQL helpers
+    - Path: examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/verbs/server.js
+      Note: Step 07 session actor scoping for browser API routes
+    - Path: examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/xgoja.yaml
+      Note: Step 07 generated app and Keycloak port configuration
     - Path: examples/xgoja/23-personal-knowledge-inbox/Makefile
       Note: Top-level smoke dispatcher for step directories
     - Path: examples/xgoja/23-personal-knowledge-inbox/README.md
@@ -53,6 +59,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -969,4 +976,118 @@ examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/verbs/serve
 examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/verbs/client.js
 examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/assets/public/app.js
 examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/Makefile
+```
+
+## Step 9: Add user-scoped inbox ownership
+
+This step creates the seventh runnable tutorial snapshot. It keeps the Step 06 Keycloak login foundation, but changes the browser API from “any logged-in user can see the global inbox” to “each logged-in user sees only rows owned by that session user.”
+
+That is the next security lesson after login: authentication gives the application an identity, but handlers must still scope application data by that identity or by an app-owned tenant/resource boundary. Step 07 uses the simplest possible boundary, `ctx.actor.id`, before later device/programmatic credentials inherit the same boundary.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead."
+
+**Assistant interpretation:** Implement the proposed Step 07 user-scoped inbox tutorial snapshot.
+
+**Inferred user intent:** Continue the tutorial by making authenticated identity meaningful for application data ownership before adding device authorization.
+
+**Commit (code):** 5d10630 — "examples: add personal inbox user-scoped step"
+
+### What I did
+
+- Added `07-user-scoped-inbox` as a new runnable tutorial step copied from Step 06.
+- Moved Step 07 to its own local ports:
+  - app: `127.0.0.1:18794`,
+  - Keycloak: `127.0.0.1:18087`.
+- Updated Step 07 Keycloak realm redirects and post-logout redirect settings for port `18794`.
+- Updated `verbs/lib/inbox_store.js` with:
+  - `listInboxItemsForUser(database, userID, includeArchived)`,
+  - `archiveInboxItemForUser(database, id, userID)`.
+- Updated `verbs/server.js` so browser API routes use `ctx.actor.id`:
+  - capture stores `submittedByKind: "sessionUser"` and `submittedById: ctx.actor.id`,
+  - list returns only `sessionUser` rows for `ctx.actor.id`,
+  - archive updates only rows for `ctx.actor.id`.
+- Updated the UI copy and owner label to explain the user-scoped inbox.
+- Updated the tutorial root README and Makefile so top-level smoke includes Step 07.
+
+### Why
+
+- Login alone is not a data-isolation policy.
+- The tutorial needs an explicit bridge from OIDC identity to application-owned data boundaries.
+- User-scoped rows are easier to teach than tenants/resources before the device authorization chapters.
+- Future device/access-token steps can request or inherit access to this same user-owned inbox boundary.
+
+### What worked
+
+- Step 07 fast smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox smoke
+```
+
+- Step 07 Keycloak smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox keycloak-smoke
+```
+
+- Full tutorial smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### What didn't work
+
+- No validation failures occurred while implementing Step 07.
+
+### What I learned
+
+- The Step 06 route protection was necessary but incomplete: list/archive still operated on global rows until the handler queries included `ctx.actor.id`.
+- A per-user row filter is the smallest useful authorization/data ownership concept before adding richer app tenants/resources.
+- Keeping Step 07 on separate ports from Step 06 makes both snapshots easier to run independently during manual review.
+
+### What was tricky to build
+
+- The main sharp edge was preserving the direct CLI behavior while changing browser behavior. Direct CLI commands still use local SQLite for tutorial/debugging access; browser API routes now use session-scoped access.
+- The route action remains the generic `user.self.read` action. That is acceptable for this teaching step, but app-specific actions should be introduced when the tutorial adds richer authorization semantics.
+
+### What warrants a second pair of eyes
+
+- Whether Step 07 should use a dedicated `inbox.read` / `inbox.capture` / `inbox.archive` action set instead of temporary `user.self.read`.
+- Whether archive should report when no row was affected. The current database helper returns `{id, archivedAt}` even if the row did not belong to the user.
+- Whether Playwright should be added next to prove Alice/Bob isolation end-to-end through the browser.
+
+### What should be done in the future
+
+- Add a browser automation smoke that logs in as Alice and Bob and proves row isolation visually/API-wise.
+- Introduce app-specific grants/actions before device/programmatic credentials.
+- Add device authorization so a CLI can obtain scoped tokens for the logged-in user's inbox.
+
+### Code review instructions
+
+- Review `07-user-scoped-inbox/verbs/server.js` for `ctx.actor.id` usage in list/capture/archive.
+- Review `07-user-scoped-inbox/verbs/lib/inbox_store.js` for owner-filtered SQL helpers.
+- Review `07-user-scoped-inbox/xgoja.yaml` for Step 07 ports and command-set listen defaults.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox smoke
+make -C examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox keycloak-smoke
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### Technical details
+
+Primary files:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/xgoja.yaml
+examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/verbs/server.js
+examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/verbs/lib/inbox_store.js
+examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/assets/public/app.js
+examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/README.md
+examples/xgoja/23-personal-knowledge-inbox/Makefile
+examples/xgoja/23-personal-knowledge-inbox/README.md
 ```
