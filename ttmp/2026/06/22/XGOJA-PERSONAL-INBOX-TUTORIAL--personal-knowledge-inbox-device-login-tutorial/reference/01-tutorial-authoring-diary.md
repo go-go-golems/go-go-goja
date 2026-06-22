@@ -157,7 +157,7 @@ We are tyring to do things incrementally, so we will have intermediate versions 
 
 **Inferred user intent:** Build a step-by-step implementation history that can later be turned into a more complete tutorial and technical deep dive.
 
-**Commit (code):** N/A — pending commit for this step.
+**Commit (code):** 8991ac9 — "examples: start personal inbox tutorial"
 
 ### What I did
 

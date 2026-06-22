@@ -34,3 +34,13 @@ Added example index entry for the new Personal Knowledge Inbox incremental tutor
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/README.md — Lists example 23 in the xgoja learning path
 
+
+## 2026-06-22
+
+Chapter 1A committed minimal generated xgoja tutorial workspace (commit 8991ac9)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/verbs/hello.js — Hello jsverb committed in 8991ac9
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/xgoja.yaml — Minimal xgoja spec committed in 8991ac9
+
