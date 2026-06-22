@@ -605,3 +605,112 @@ examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/verbs/inbox.js
 examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/Makefile
 examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/scripts/cli_smoke.py
 ```
+
+## Step 6: Add API server and API client CLI verbs
+
+This step creates the fourth runnable tutorial snapshot. It separates the Step 03 single-file implementation into server entrypoints, client entrypoints, and reusable library modules. The CLI no longer opens SQLite directly; it calls public API routes with the guarded `fetch` module.
+
+The step intentionally keeps the API public. Authentication comes later. The purpose here is to introduce the client/server boundary and make the future security boundary concrete.
+
+### Prompt Context
+
+**User prompt (verbatim):** "step 04: separate out a lib/ for reusable js. separate out server.js for the server. Add API routes to the server, add a client.js for CLI verbs that hit the API."
+
+**Assistant interpretation:** Copy Step 03 into Step 04, split reusable SQLite and fetch code into `lib/`, move HTTP route registration into `server.js`, and move CLI behavior into `client.js` where commands call the API instead of direct SQLite.
+
+**Inferred user intent:** Teach the API boundary before adding authentication/device login, while preserving the per-step runnable tutorial structure.
+
+**Commit (code):** 0263363 — "examples: add personal inbox API client-server step"
+
+### What I did
+
+- Added `04-api-client-server` as a new step directory.
+- Added `verbs/server.js` with public API routes:
+  - `GET /`,
+  - `GET /healthz`,
+  - `GET /api/inbox`,
+  - `POST /api/capture`,
+  - `POST /api/inbox/:id/archive`.
+- Added `verbs/client.js` with API client CLI verbs:
+  - `verbs inboxctl capture`,
+  - `verbs inboxctl list`,
+  - `verbs inboxctl archive`.
+- Added reusable libraries:
+  - `verbs/lib/inbox_store.js`,
+  - `verbs/lib/api_client.js`.
+- Added the guarded `fetch` runtime module to Step 04.
+- Updated the Step 04 smoke to start the API server, run client verbs against it, and validate persisted state.
+- Updated the top-level tutorial README and Makefile to include Step 04.
+
+### Why
+
+- The tutorial needs a clear transition from local CLI state to client/server architecture before auth is introduced.
+- Separating `server.js`, `client.js`, and `lib/` makes code ownership clearer for new developers.
+- The API boundary is the future authorization boundary. This step lets later chapters say: now we protect these routes.
+
+### What worked
+
+- Focused Step 04 smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/04-api-client-server smoke
+```
+
+- Top-level tutorial smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### What didn't work
+
+- No validation failures occurred after the initial implementation.
+- I removed the copied Step 03 `cli_smoke.py` from Step 04 before finalizing the commit, because Step 04 uses `api_smoke.py` instead.
+
+### What I learned
+
+- Helper files under `lib/` should be included in the jsverbs source set even when they do not declare verbs. They need to be embedded so local `require("./lib/...")` works in the generated binary.
+- Step 04 cleanly separates server-owned `--db` from client-owned `--base-url`, which will make later auth/token-cache sections easier to teach.
+- Public API routes still need server-side validation. CLI required fields are useful UX but not a trust boundary.
+
+### What was tricky to build
+
+- The main design choice was whether Step 04 should split into two generated binaries immediately. I kept one binary for now because the requested concept was API/client separation in JavaScript, not binary packaging. Later device-login steps can split server and CLI binaries when that distinction becomes educationally useful.
+- The source include list needed to include both verb files and helper files without accidentally treating helper files as commands. The existing jsverbs scanner tolerates helper files without `__verb__` declarations.
+
+### What warrants a second pair of eyes
+
+- Whether the package names `inbox` for server and `inboxctl` for client are the right command UX before the broader xgoja verb-mounting follow-up is addressed.
+- Whether Step 05 should split server and client into separate binaries, or wait until device login/token cache makes that split necessary.
+
+### What should be done in the future
+
+- Step 05 should add either a minimal browser UI or unauthenticated REST route cleanup before auth.
+- Later steps should protect these API routes with session and programmatic auth.
+- Revisit structured output so client commands can return proper Glazed rows instead of JSON text.
+
+### Code review instructions
+
+- Review `04-api-client-server/xgoja.yaml` for the `fetch` module and multi-file source set.
+- Review `verbs/server.js` for public API route shape and server-side validation.
+- Review `verbs/client.js` and `verbs/lib/api_client.js` for guarded fetch usage.
+- Review `verbs/lib/inbox_store.js` for reusable SQLite logic.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### Technical details
+
+Primary files:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/xgoja.yaml
+examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/server.js
+examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/client.js
+examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/lib/inbox_store.js
+examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/lib/api_client.js
+examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/Makefile
+examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/scripts/api_smoke.py
+```

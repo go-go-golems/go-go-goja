@@ -730,3 +730,193 @@ The final tutorial should include three small exercises at this point:
 3. Open `inbox.js` and identify which commands reuse the `storage` section.
 
 It should also explicitly say that `output: "json"` is not supported, and that the tutorial will revisit structured/Glazed output after the SQLite CLI behavior is stable.
+
+## Entry 5: Step 04 — Split reusable JavaScript, add public API routes, and move CLI verbs to fetch
+
+### User request
+
+The user asked for Step 04 to separate reusable JavaScript into a `lib/` directory, separate server route registration into `server.js`, add API routes to the server, and add `client.js` CLI verbs that hit the API.
+
+### Teaching intent
+
+Step 03 taught local application state: CLI verbs opened SQLite directly. Step 04 introduces the API boundary without adding authentication yet. This is the right order because the reader can learn the transport boundary before learning session cookies, agent tokens, CSRF, or device authorization.
+
+The new architecture is:
+
+```text
+server.js
+  -> registers public HTTP routes
+  -> uses lib/inbox_store.js for SQLite
+
+client.js
+  -> exposes CLI verbs
+  -> uses lib/api_client.js and guarded fetch
+  -> no longer opens SQLite directly
+
+lib/inbox_store.js
+  -> shared database schema and data operations
+
+lib/api_client.js
+  -> shared fetch client helpers
+```
+
+This step also makes local `require("./lib/...")` part of the tutorial. The source list includes both jsverb entry files and helper files so they are embedded in the generated binary.
+
+### Files created
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/
+  README.md
+  Makefile
+  xgoja.yaml
+  scripts/
+    api_smoke.py
+  verbs/
+    server.js
+    client.js
+    lib/
+      inbox_store.js
+      api_client.js
+```
+
+### xgoja.yaml changes
+
+Step 04 keeps `database` and `express` from Step 03 and adds the guarded `fetch` module:
+
+```yaml
+runtime:
+  modules:
+    - provider: go-go-goja-host
+      name: database
+      as: database
+      config:
+        allowConfigure: true
+    - provider: go-go-goja-host
+      name: fetch
+      as: fetch
+      config:
+        allow: true
+        allowedOrigins:
+          - http://127.0.0.1:*
+        timeout: 5s
+        maxResponseBytes: 1048576
+    - provider: go-go-goja-http
+      name: express
+```
+
+The source list now includes multiple files:
+
+```yaml
+sources:
+  - id: inbox-verbs
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    include:
+      - server.js
+      - client.js
+      - lib/*.js
+```
+
+This is a useful teaching point. `server.js` and `client.js` declare verbs. `lib/*.js` files do not declare verbs, but they must still be embedded so `require("./lib/inbox_store")` and `require("./lib/api_client")` work in the generated binary.
+
+### API routes
+
+The server registers public routes:
+
+```text
+GET  /
+GET  /healthz
+GET  /api/inbox
+POST /api/capture
+POST /api/inbox/:id/archive
+```
+
+There is still no auth. All API routes are `.public()`. That is deliberate. The step teaches that the CLI now crosses an HTTP boundary; later steps will secure that boundary.
+
+`POST /api/capture` performs server-side validation as well as CLI-side validation:
+
+```javascript
+if (!body.title || !body.url) {
+  res.status(400).json({ error: "title and url are required" });
+  return;
+}
+```
+
+The duplication is intentional. Client validation improves CLI UX, but server validation remains necessary because HTTP clients are not trusted.
+
+### Client verbs
+
+`client.js` declares package `inboxctl` and provides:
+
+```text
+verbs inboxctl capture
+verbs inboxctl list
+verbs inboxctl archive
+```
+
+The reusable `api` section defines `--base-url` once and binds it into each client command. This mirrors the Step 03 `storage` section but for the API boundary.
+
+The client helpers use guarded fetch:
+
+```javascript
+return fetch.client()
+  .baseUrl(trimRight(baseUrl || "http://127.0.0.1:18792", "/"))
+  .acceptJson()
+  .expectJson();
+```
+
+This prepares the tutorial for later authenticated fetch calls without introducing credentials yet.
+
+### Validation
+
+Focused Step 04 smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/04-api-client-server smoke
+```
+
+Top-level tutorial smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+The Step 04 smoke verifies:
+
+1. `xgoja doctor` sees four source files.
+2. The generated server starts and serves `/` plus `/healthz`.
+3. Client-side `capture` fails without a URL.
+4. Client-side `capture` fails without a title.
+5. Two captures through `verbs inboxctl capture` reach the API and persist into SQLite.
+6. `verbs inboxctl list` returns two items through the API.
+7. `verbs inboxctl archive` archives one item through the API.
+8. A second list returns one active item.
+
+### What changed conceptually
+
+Step 03 had this path:
+
+```text
+CLI verb -> database module -> SQLite
+```
+
+Step 04 changes it to:
+
+```text
+CLI verb -> fetch module -> HTTP API route -> database module -> SQLite
+```
+
+That extra boundary is what later auth will protect. The tutorial now has a realistic client/server shape before adding credentials.
+
+### Notes for final tutorial refinement
+
+The final tutorial should ask the reader to compare Step 03 and Step 04:
+
+- `verbs/inbox.js` became `server.js`, `client.js`, and `lib/*`.
+- `--db` is now a server concern.
+- `--base-url` is now a client concern.
+- CLI verbs no longer depend on the `database` module directly.
+- `fetch` appears for the first time.
+
+This step is also a good place to explain why server-side validation remains necessary even when jsverbs marks CLI fields as required.

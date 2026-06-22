@@ -96,3 +96,15 @@ Step 03: added SQLite-backed CLI inbox verbs, reusable storage section, required
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/verbs/inbox.js — SQLite inbox commands and reusable storage section
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/xgoja.yaml — Host database module and YAML teaching comments
 
+
+## 2026-06-22
+
+Step 04: added reusable JS lib, public inbox API routes, and fetch-backed API client CLI verbs (commit 0263363)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/client.js — Fetch-backed CLI verbs
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/lib/api_client.js — Reusable guarded fetch helpers
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/lib/inbox_store.js — Reusable SQLite store helpers
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/04-api-client-server/verbs/server.js — Public API routes
+
