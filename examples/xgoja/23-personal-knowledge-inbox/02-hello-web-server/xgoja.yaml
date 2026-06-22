@@ -1,0 +1,47 @@
+schema: xgoja/v2
+name: personal-knowledge-inbox-hello-web-server
+app:
+  name: personal-knowledge-inbox-hello-web-server
+go:
+  module: xgoja.generated/personal-knowledge-inbox-hello-web-server
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+    register: Register
+runtime:
+  modules:
+    - provider: go-go-goja-http
+      name: express
+      config:
+        reject-raw-routes: true
+        dev-errors: false
+sources:
+  - id: inbox-verbs
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    include:
+      - hello.js
+    language: javascript
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    name: verbs
+    sources:
+      - inbox-verbs
+  - id: http-serve
+    type: provider.command-set
+    name: serve
+    mount: serve
+    provider: go-go-goja-http
+    sources:
+      - inbox-verbs
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/personal-knowledge-inbox-hello-web-server
+    sources:
+      - inbox-verbs

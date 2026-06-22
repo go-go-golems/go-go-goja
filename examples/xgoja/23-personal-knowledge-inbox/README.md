@@ -7,17 +7,19 @@ This layout is intentional: a new developer can read and run each directory in o
 ## Steps
 
 1. `01-minimal-jsverb/` — minimal `xgoja.yaml`, one JavaScript verb, generated CLI binary, and smoke test.
+2. `02-hello-web-server/` — copies Step 01 and adds the HTTP provider, `serve` command, and public Express routes.
 
-Run the current first step:
+Run all currently implemented steps:
 
 ```bash
 make smoke
 ```
 
-Or run it directly:
+Or run an individual step directly:
 
 ```bash
 make -C 01-minimal-jsverb smoke
+make -C 02-hello-web-server smoke
 ```
 
 Future steps will add a hello-world web server, a separate CLI verb, SQLite-backed inbox state, generated hostauth, device login, and programmatic capture.
