@@ -13,6 +13,7 @@ This layout is intentional: a new developer can read and run each directory in o
 5. `05-embedded-retro-ui/` — copies Step 04 and adds embedded HTML/CSS/browser JS assets with a restrained monochrome retro UI.
 6. `06-browser-login-keycloak/` — copies Step 05, adds local Keycloak OIDC login with Alice and Bob, protects browser API routes with session auth/CSRF, and returns CLI commands to direct SQLite access.
 7. `07-user-scoped-inbox/` — copies Step 06 and scopes browser API list/capture/archive behavior to the current authenticated session user.
+8. `08-device-authorization/` — copies Step 07, adds device-code start/poll CLI verbs, browser approval UI, and a token-authenticated programmatic capture route.
 
 Run all currently implemented steps:
 
@@ -32,6 +33,8 @@ make -C 06-browser-login-keycloak smoke
 make -C 06-browser-login-keycloak keycloak-smoke
 make -C 07-user-scoped-inbox smoke
 make -C 07-user-scoped-inbox keycloak-smoke
+make -C 08-device-authorization smoke
+make -C 08-device-authorization keycloak-smoke
 ```
 
 Future steps will add a hello-world web server, a separate CLI verb, SQLite-backed inbox state, generated hostauth, device login, and programmatic capture.

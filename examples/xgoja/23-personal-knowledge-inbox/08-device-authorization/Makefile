@@ -1,0 +1,104 @@
+.DEFAULT_GOAL := smoke
+
+REPO_ROOT := $(abspath ../../../..)
+EXAMPLE_DIR := $(abspath .)
+BIN := $(EXAMPLE_DIR)/dist/personal-knowledge-inbox-device-authorization
+XGOJA := cd $(REPO_ROOT) && GOWORK=off go run ./cmd/xgoja
+HTTP_ADDR := 127.0.0.1:18795
+BASE_URL := http://$(HTTP_ADDR)
+KEYCLOAK_PORT ?= 18088
+ISSUER := http://127.0.0.1:$(KEYCLOAK_PORT)/realms/personal-inbox
+COMPOSE := docker compose -f $(EXAMPLE_DIR)/compose.yaml
+
+.PHONY: doctor build smoke direct-smoke keycloak-up keycloak-wait keycloak-down keycloak-smoke clean
+
+doctor:
+	$(XGOJA) doctor -f $(EXAMPLE_DIR)/xgoja.yaml
+
+build:
+	$(XGOJA) build -f $(EXAMPLE_DIR)/xgoja.yaml --output $(BIN) --xgoja-replace $(REPO_ROOT) --keep-work
+
+# Default smoke stays local and fast: it validates the generated binary and the
+# direct database CLI verbs. Run `make keycloak-smoke` for the Docker/OIDC flow.
+smoke: doctor build direct-smoke
+
+direct-smoke:
+	@set -eu; \
+	db=$$(mktemp -u /tmp/xgoja-personal-inbox-direct-XXXXXX.sqlite); \
+	capture1=$$(mktemp); \
+	capture2=$$(mktemp); \
+	list1=$$(mktemp); \
+	trap 'rm -f $$db $$capture1 $$capture2 $$list1' EXIT; \
+	if $(BIN) verbs inboxctl capture --db $$db --title 'Missing URL' >/dev/null 2>&1; then echo 'direct capture without url unexpectedly succeeded'; exit 1; fi; \
+	if $(BIN) verbs inboxctl capture --db $$db --url https://example.com/missing-title >/dev/null 2>&1; then echo 'direct capture without title unexpectedly succeeded'; exit 1; fi; \
+	$(BIN) verbs inboxctl capture --db $$db --title 'First direct item' --url https://example.com/first --note 'Read first' >$$capture1; \
+	$(BIN) verbs inboxctl capture --db $$db --title 'Second direct item' --url https://example.com/second --note 'Read second' >$$capture2; \
+	$(BIN) verbs inboxctl list --db $$db >$$list1; \
+	python3 -c 'import json,sys; c=json.load(open(sys.argv[1])); l=json.load(open(sys.argv[2])); assert c["ok"] is True, c; assert c["item"]["submittedByKind"] == "localCli", c; assert l["ok"] is True, l; assert len(l["items"]) == 2, l; print("ok direct cli capture/list")' $$capture1 $$list1
+
+keycloak-up:
+	KEYCLOAK_PORT=$(KEYCLOAK_PORT) $(COMPOSE) up -d
+	$(MAKE) keycloak-wait
+
+keycloak-wait:
+	@set -eu; \
+	for i in $$(seq 1 90); do \
+		if curl -fsS $(ISSUER)/.well-known/openid-configuration >/dev/null 2>&1; then \
+			echo "ok keycloak discovery $(ISSUER)"; \
+			exit 0; \
+		fi; \
+		sleep 2; \
+	done; \
+	echo "timed out waiting for keycloak discovery: $(ISSUER)" >&2; \
+	exit 1
+
+keycloak-down:
+	$(COMPOSE) down -v
+
+keycloak-smoke: doctor build keycloak-up
+	@set -eu; \
+	db=$$(mktemp -u /tmp/xgoja-personal-inbox-api-XXXXXX.sqlite); \
+	authdb=$$(mktemp -u /tmp/xgoja-personal-inbox-auth-XXXXXX.sqlite); \
+	log=$$(mktemp); \
+	health=$$(mktemp); \
+	root=$$(mktemp); \
+	login_headers=$$(mktemp); \
+	device=$$(mktemp); \
+	pending=$$(mktemp); \
+	trap 'kill $$pid >/dev/null 2>&1 || true; wait $$pid >/dev/null 2>&1 || true; rm -f $$db $$authdb $$log $$health $$root $$login_headers $$device $$pending; $(COMPOSE) down -v >/dev/null 2>&1 || true' EXIT; \
+	for i in $$(seq 1 90); do \
+		if curl -fsS $(ISSUER)/.well-known/openid-configuration >/dev/null 2>&1; then break; fi; \
+		sleep 2; \
+	done; \
+	$(BIN) serve inbox server --http-listen $(HTTP_ADDR) --db $$db \
+		--auth-oidc-issuer-url $(ISSUER) \
+		--auth-oidc-client-id personal-inbox-local \
+		--auth-oidc-public-base-url $(BASE_URL) \
+		--auth-session-cookie-allow-insecure-http=true \
+		--auth-default-store-driver sqlite \
+		--auth-default-store-dsn $$authdb \
+		--auth-default-store-apply-schema=true \
+		>$$log 2>&1 & \
+	pid=$$!; \
+	for i in $$(seq 1 80); do \
+		if curl -fsS $(BASE_URL)/healthz >$$health 2>/dev/null; then break; fi; \
+		if ! kill -0 $$pid >/dev/null 2>&1; then cat $$log; exit 1; fi; \
+		sleep 0.25; \
+	done; \
+	grep -q '"ok":true' $$health; \
+	grep -q '"step":"08-device-authorization"' $$health; \
+	curl -fsS $(BASE_URL)/ >$$root; \
+	grep -q 'alice-password' $$root; \
+	curl -fsS $(BASE_URL)/static/app.js | grep -q '/auth/session'; \
+	status=$$(curl -s -o /dev/null -w '%{http_code}' $(BASE_URL)/api/inbox); \
+	test "$$status" = "401"; \
+	curl -fsS -D $$login_headers -o /dev/null $(BASE_URL)/auth/login; \
+	grep -qi 'location: .*127.0.0.1:$(KEYCLOAK_PORT).*personal-inbox' $$login_headers; \
+	$(BIN) verbs inboxctl device-start --base-url $(BASE_URL) >$$device; \
+	python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["device_code"].startswith("ggdc_"), d; assert d["user_code"], d; print("ok device start")' $$device; \
+	code=$$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["device_code"])' $$device); \
+	if $(BIN) verbs inboxctl device-token --base-url $(BASE_URL) --device-code $$code >$$pending 2>/dev/null; then echo 'device-token unexpectedly succeeded before approval'; exit 1; fi; \
+	echo 'ok keycloak login smoke'
+
+clean:
+	rm -rf $(EXAMPLE_DIR)/dist
