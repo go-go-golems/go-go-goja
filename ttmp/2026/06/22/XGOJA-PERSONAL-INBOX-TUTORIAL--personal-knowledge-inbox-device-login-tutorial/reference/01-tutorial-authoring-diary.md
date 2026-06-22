@@ -15,6 +15,10 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../../../../code/wesen/go-go-golems/go-go-parc/Projects/2026/06/22/ARTICLE - tinyidp as a Keycloak Replacement for go-go-goja Auth Testing.md
       Note: source handoff article for tinyidp replacement constraints
+    - Path: examples/xgoja/19-express-keycloak-auth-host/scripts/tinyidp_smoke.sh
+      Note: tinyidp replacement smoke for custom Express auth host
+    - Path: examples/xgoja/21-generated-host-auth/scripts/tinyidp_smoke.sh
+      Note: tinyidp replacement smoke for generated hostauth example
     - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/Makefile
       Note: Chapter 1A validation targets and absolute xgoja replace pattern
     - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/verbs/hello.js
@@ -51,6 +55,8 @@ RelatedFiles:
       Note: Step 07 session actor scoping for browser API routes
     - Path: examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/xgoja.yaml
       Note: Step 07 generated app and Keycloak port configuration
+    - Path: examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/Makefile
+      Note: tinyidp-backed browser login plus native device authorization smoke
     - Path: examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/assets/public/app.js
       Note: Browser device approval UI
     - Path: examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/client.js
@@ -71,6 +77,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1326,4 +1333,131 @@ The generated app is started with matching OIDC flags and a separate SQLite auth
   --auth-session-cookie-allow-insecure-http=true \
   --auth-default-store-driver sqlite \
   --auth-default-store-apply-schema=true
+```
+
+## Step 12: Extend tinyidp smokes across auth examples
+
+This step broadens the tinyidp replacement from the first personal-inbox login step to the other current Keycloak-backed auth examples. Keycloak remains available as the real-provider compatibility path, while tinyidp becomes a faster local OIDC smoke for generated hostauth and the custom Express auth host.
+
+The change also fixes an important process-management detail discovered during validation: `go run ./cmd/tinyidp` can leave the compiled child process alive after the parent is killed. The smokes now build a temporary tinyidp binary and run it directly, so normal PID cleanup works.
+
+### Prompt Context
+
+**User prompt (verbatim):** "can you adapt the other examples to tinyidp as well?"
+
+**Assistant interpretation:** Add tinyidp-backed smoke targets for the remaining Keycloak/OIDC examples, not just Step 06.
+
+**Inferred user intent:** Make local auth validation consistently available without requiring full Keycloak startup, while keeping Keycloak tests for compatibility.
+
+**Commit (code):** 0ffff46 — "examples: extend tinyidp smokes across auth examples"
+
+### What I did
+
+- Added `tinyidp-smoke` to personal-inbox Step 07.
+- Added `tinyidp-smoke` to personal-inbox Step 08, including device-code start, browser-session approval through tinyidp login, token polling, and token-authenticated capture.
+- Changed the top-level personal-inbox `tinyidp-smoke` target to run Steps 06, 07, and 08.
+- Extended the Step 06 Python tinyidp login driver with optional `--approve-user-code` support.
+- Made `examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py` form parsing work with both Keycloak and tinyidp login forms.
+- Added `tinyidp-smoke` to example 19 with Postgres-only compose startup plus tinyidp.
+- Added `tinyidp-smoke` to example 21 with Postgres-only compose startup plus tinyidp.
+- Updated READMEs for the new targets.
+
+### Why
+
+- Step 07 and Step 08 still rely on browser OIDC login even though they add user scoping and device authorization on top.
+- Example 19 and 21 are broader hostauth/appauth examples and should prove that tinyidp works beyond the personal-inbox tutorial.
+- Keeping Postgres in examples 19 and 21 preserves the durable-store behavior while removing Keycloak from the fast mock-IdP path.
+
+### What worked
+
+Validation passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+make -C examples/xgoja/21-generated-host-auth tinyidp-smoke
+make -C examples/xgoja/19-express-keycloak-auth-host tinyidp-smoke
+```
+
+Step 08 now validates a fuller device path under tinyidp-backed browser login:
+
+1. start device authorization,
+2. verify pre-approval token polling fails,
+3. log in through tinyidp,
+4. approve the user code with CSRF,
+5. wait for the poll interval,
+6. poll access/refresh tokens,
+7. capture with the bearer access token.
+
+### What didn't work
+
+- The first generated-host-auth tinyidp run failed because the generic login helper treated tinyidp's form as a username/password form when it saw a `password` field. tinyidp requires the `login` field, while the password field is ignored.
+
+Exact failure:
+
+```text
+FAIL: keycloak form login: expected HTTP 200, got 400; body='login is required\n'
+```
+
+- Several `go run ./cmd/tinyidp` invocations left compiled tinyidp child processes alive after Makefile cleanup. This caused later port collisions.
+
+Example observed process shape:
+
+```text
+/home/manuel/.cache/go-build/.../tinyidp serve --addr 127.0.0.1:19091 ...
+```
+
+### What I learned
+
+- tinyidp's login form includes both `login` and `password`, but only `login` matters.
+- A helper that supports both Keycloak and tinyidp must key off the presence of `login`, not just `password`.
+- For smoke tests that manage child processes, building a temporary tinyidp binary is safer than backgrounding `go run`.
+- Step 08's device polling must respect the poll interval after an intentional pre-approval failed poll; otherwise the second poll can hit `slow_down`.
+
+### What was tricky to build
+
+- The same `keycloak_smoke.py` helper is shared by example 19 and example 21. Updating it for tinyidp had to preserve the Keycloak login path while accepting tinyidp's generic POST form.
+- Example 21 needs Postgres but not Keycloak for the tinyidp smoke. The new script starts only the `postgres` compose service, then starts tinyidp separately.
+- Step 08 mixes two auth systems in one smoke: tinyidp for human browser login, and xgoja native device authorization for device codes and access tokens.
+
+### What warrants a second pair of eyes
+
+- Whether the shared helper should be renamed from `keycloak_smoke.py` now that it supports generic OIDC/tinyidp forms.
+- Whether example 19 and 21 should eventually use a repository-local tinyidp binary path instead of `TINYIDP_ROOT`.
+- Whether tinyidp root issuer URLs are acceptable long-term or realm-path compatibility should be implemented before CI adoption.
+
+### What should be done in the future
+
+- Add tinyidp realm/base-path support so tests can use Keycloak-shaped issuer URLs.
+- Consider factoring duplicated tinyidp process orchestration into one shared script.
+- Keep Keycloak smokes as slower compatibility checks until the replacement policy is decided.
+
+### Code review instructions
+
+- Review `examples/xgoja/19-express-keycloak-auth-host/scripts/keycloak_smoke.py` first; it is the shared login helper changed for tinyidp.
+- Review `examples/xgoja/19-express-keycloak-auth-host/scripts/tinyidp_smoke.sh` and `examples/xgoja/21-generated-host-auth/scripts/tinyidp_smoke.sh` for Postgres/tinyidp process orchestration.
+- Review personal-inbox Step 07/08 Makefile tinyidp targets, especially Step 08's poll-interval wait.
+- Validate with the three commands listed under `What worked`.
+
+### Technical details
+
+New targets:
+
+```bash
+make -C examples/xgoja/19-express-keycloak-auth-host tinyidp-smoke
+make -C examples/xgoja/21-generated-host-auth tinyidp-smoke
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+make -C examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox tinyidp-smoke
+make -C examples/xgoja/23-personal-knowledge-inbox/08-device-authorization tinyidp-smoke
+```
+
+Default tinyidp checkout:
+
+```text
+/home/manuel/workspaces/2026-06-20/ui-notebook-package/2026-06-22--mock-oidc-idp
+```
+
+Override:
+
+```bash
+TINYIDP_ROOT=/path/to/tinyidp make tinyidp-smoke
 ```

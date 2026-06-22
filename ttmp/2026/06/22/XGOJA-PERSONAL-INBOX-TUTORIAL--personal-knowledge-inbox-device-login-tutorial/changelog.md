@@ -158,3 +158,13 @@ Added tinyidp smoke for Step 06 as the first Keycloak-backed personal-inbox tuto
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/Makefile — New tinyidp-smoke target
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_login_smoke.py — Login flow assertions
 
+
+## 2026-06-22
+
+Extended tinyidp smoke coverage to personal-inbox Steps 07/08 and auth examples 19/21 (commit 0ffff46).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/scripts/tinyidp_smoke.sh — Custom host tinyidp smoke
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/scripts/tinyidp_smoke.sh — Generated hostauth tinyidp smoke
+
