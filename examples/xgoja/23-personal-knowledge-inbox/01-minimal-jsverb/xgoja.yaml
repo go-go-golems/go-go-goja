@@ -1,12 +1,46 @@
+# Required schema selector. For this tutorial we use the native xgoja v2
+# document shape. Other values are not part of this tutorial path.
 schema: xgoja/v2
+
+# Human-readable spec name. Used in generated metadata and diagnostics.
+# Required: yes. Shape: string.
 name: personal-knowledge-inbox
+
+# Application identity. This is separate from the Go module name and is used by
+# generated command/config surfaces. Minimal shape:
+#   app:
+#     name: string        # required
+#     envPrefix: string   # optional, used later for env-backed config
 app:
   name: personal-knowledge-inbox
+
+# Generated Go module settings. xgoja creates a temporary/generated Go module
+# when building the binary. Minimal shape:
+#   go:
+#     module: string      # required Go module path for generated code
+#     version: string     # optional Go language/toolchain version
+# Later steps keep this section but change the module path per snapshot.
 go:
   module: xgoja.generated/personal-knowledge-inbox
   version: "1.26"
+
+# Workspace resolution strategy. `auto` lets xgoja resolve the local checkout
+# during tutorial builds. Minimal shape:
+#   workspace:
+#     mode: auto | off | ...
+# In this tutorial, keep `auto` unless a step explicitly teaches module wiring.
 workspace:
   mode: auto
+
+# Source sets tell xgoja where JavaScript verbs, assets, or other input files
+# come from. Step 01 introduces only jsverbs. Minimal jsverbs shape:
+#   - id: string                  # required local identifier
+#     kind: jsverbs               # required source kind here
+#     from:
+#       dir: path                 # required directory, relative to this file
+#     include: [glob-or-file]     # optional allow-list
+#     exclude: [glob-or-file]     # optional deny-list
+#     language: javascript|...    # optional; explicit here for readability
 sources:
   - id: inbox-verbs
     kind: jsverbs
@@ -15,12 +49,27 @@ sources:
     include:
       - hello.js
     language: javascript
+
+# Commands define the generated binary's CLI surface. Step 01 uses the built-in
+# jsverbs command set, which exposes JavaScript packages and verbs under a root
+# command named by `name`. Minimal builtin.jsverbs shape:
+#   - id: string                  # required local identifier
+#     type: builtin.jsverbs       # required command-set type
+#     name: string                # CLI command name, `verbs` here
+#     sources: [source-id]        # jsverbs sources to mount
 commands:
   - id: verbs
     type: builtin.jsverbs
     name: verbs
     sources:
       - inbox-verbs
+
+# Artifacts describe generated outputs. A binary artifact builds an executable
+# and embeds any listed source sets into it. Minimal binary shape:
+#   - id: string                  # required local identifier
+#     type: binary                # required artifact type here
+#     output: path                # required output path
+#     sources: [source-id]        # optional inputs to embed/copy
 artifacts:
   - id: binary
     type: binary
