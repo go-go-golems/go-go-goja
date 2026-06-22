@@ -481,3 +481,127 @@ examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/verbs/hello.js
 examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/Makefile
 examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/README.md
 ```
+
+## Step 5: Add SQLite CLI inbox verbs and reusable storage section
+
+This step completes the third runnable tutorial snapshot. Step 03 copies the hello web server step, adds the guarded host database module, and introduces SQLite-backed CLI verbs for capturing, listing, and archiving inbox items. It still has no REST API; the point is to teach local application state and command schemas before moving data behind HTTP routes.
+
+The step also improves the tutorial source itself by adding explanatory comments to each current `xgoja.yaml`. Those comments define the sections as they appear, so new developers can learn the spec from the step files without constantly switching to reference docs.
+
+### Prompt Context
+
+**User prompt (verbatim):** "step 3: add sqlite inbox + CLI verbs (no REST API yet)."
+
+**Additional user prompt (verbatim):** "go over the xgoja.yaml files so far, and each time a new feature / section is introduced, add a docstring above it that gives a concise explanation of each field, and a short schema of what is possible, what is optional, etc... That way people can understand what the sections are for and allow."
+
+**Additional user prompt (verbatim):** "capture verb should fail if title / url not present. (required true). also introduce the concept of a section of parameters that are going to be reused across commands (like the db)"
+
+**Assistant interpretation:** Finish Step 03 by adding local SQLite inbox commands, annotating tutorial YAML files as teaching material, making capture require title and URL, and introducing reusable jsverbs sections for shared database parameters.
+
+**Inferred user intent:** Build a more pedagogical intermediate step that teaches command validation and reusable CLI metadata before adding REST or auth.
+
+**Commit (code):** 67473dd — "examples: add personal inbox sqlite cli step"
+
+### What I did
+
+- Added `03-sqlite-cli-inbox` by copying Step 02.
+- Added the host provider and `database` runtime module to Step 03.
+- Replaced `hello.js` with `inbox.js` containing:
+  - the existing `hello` CLI verb,
+  - the existing public `server` route-registration verb,
+  - a `storage` section with shared `--db`,
+  - `capture`, `list`, and `archive` CLI verbs.
+- Made `capture` require both `title` and `url`.
+- Added negative smoke checks for missing `--title` and missing `--url`.
+- Added `scripts/cli_smoke.py` to keep Makefile validation readable.
+- Added YAML teaching comments to Steps 01, 02, and 03.
+- Added `.gitignore` for local SQLite files under the tutorial workspace.
+
+### Why
+
+- SQLite gives the tutorial its first durable application state, but keeping access local through CLI verbs avoids introducing REST design too early.
+- Required CLI fields make validation visible at the command boundary.
+- A reusable `storage` section teaches how shared flags can be declared once and reused across commands.
+- Annotated YAML files turn each step directory into self-contained teaching material.
+
+### What worked
+
+- Step 03 smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox smoke
+```
+
+- Top-level tutorial smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### What didn't work
+
+- The first Step 03 Makefile embedded a Python heredoc inside a Make recipe and failed with:
+
+```text
+Makefile:54: *** missing separator.  Stop.
+```
+
+I moved the Python validation code into `scripts/cli_smoke.py`.
+
+- The first Step 03 verb metadata used unsupported output mode `json`, producing:
+
+```text
+Error: inbox.js#archive has unsupported output mode "json"
+```
+
+I changed the current Step 03 verbs to `output: "text"` with `JSON.stringify(...)` and kept a task to revisit proper structured/Glazed output.
+
+- After making `url` required, the existing smoke's second capture failed because it intentionally had no URL. I updated the smoke so missing title/URL are explicit negative tests, then made both successful captures include URLs.
+
+### What I learned
+
+- `__section__` is the right mechanism for file-local reusable flag groups. Commands opt in with `sections: ["storage"]` and receive values through a bound field such as `storage: { bind: "storage" }`.
+- Required jsverbs fields fail before the JavaScript function runs, which is the right behavior for CLI validation.
+- `output: "json"` is not a supported jsverbs output alias; structured output needs a separate follow-up.
+
+### What was tricky to build
+
+- The main tricky part was balancing current functionality with future improvements. Proper structured output is desirable, but Step 03's teaching goal is SQLite state and reusable sections. Keeping JSON-as-text for now avoids expanding the scope.
+- Make recipes are fragile for multiline embedded scripts. Moving the smoke assertions into a script made the validation easier to read and maintain.
+- SQLite files are runtime artifacts. A smoke run created `personal-inbox.sqlite`, which I removed from the commit and prevented with a tutorial-level `.gitignore`.
+
+### What warrants a second pair of eyes
+
+- Whether requiring both `title` and `url` is the right product rule long term; notes without URLs may be useful later, but the current rule is good for teaching required fields.
+- Whether Step 03 should introduce structured output now or keep the current follow-up task.
+- Whether `allowConfigure: true` is acceptable for this local tutorial step, or whether the next step should show a narrower host-owned database configuration.
+
+### What should be done in the future
+
+- Step 04 should copy Step 03 and move inbox operations behind HTTP routes.
+- Revisit proper jsverbs structured/Glazed output for `capture`, `list`, and `archive`.
+- Use the `storage` section pattern in later CLI steps for token cache paths and base URLs.
+
+### Code review instructions
+
+- Review `03-sqlite-cli-inbox/xgoja.yaml` for the host provider and database module.
+- Review `03-sqlite-cli-inbox/verbs/inbox.js` for the `storage` section, required capture fields, and SQLite helpers.
+- Review `03-sqlite-cli-inbox/Makefile` and `scripts/cli_smoke.py` for validation coverage.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### Technical details
+
+Primary files:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/xgoja.yaml
+examples/xgoja/23-personal-knowledge-inbox/02-hello-web-server/xgoja.yaml
+examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/xgoja.yaml
+examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/verbs/inbox.js
+examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/Makefile
+examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/scripts/cli_smoke.py
+```

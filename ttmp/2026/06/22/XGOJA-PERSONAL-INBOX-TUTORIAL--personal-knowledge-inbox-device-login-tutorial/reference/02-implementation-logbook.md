@@ -537,3 +537,196 @@ diff -u 01-minimal-jsverb/xgoja.yaml 02-hello-web-server/xgoja.yaml
 ```
 
 The meaningful additions are the provider declaration, runtime module selection, and provider command-set mounting. That diff is a better teaching artifact than a long prose explanation alone.
+
+## Entry 4: Step 03 — Add SQLite-backed CLI inbox verbs and annotated xgoja specs
+
+### User request
+
+The user asked for Step 03 to add a SQLite inbox and CLI verbs, without adding a REST API yet. During the step, the user also asked that the tutorial xgoja YAML files teach the schema inline: whenever a new section or feature appears, the YAML should include concise comments explaining the fields, optionality, and possible shapes. Finally, the user clarified that `capture` should fail unless both `title` and `url` are present, and that this step should introduce reusable parameter sections for shared flags such as the database path.
+
+### Teaching intent
+
+Step 03 introduces local application state without introducing HTTP API design or authentication. The learner already knows how to build a generated CLI and how to start a generated hello web server. This step adds the next concept: a CLI command can use a guarded host capability, open SQLite, and manipulate domain data.
+
+The step also introduces jsverbs sections. The `storage` section defines one reusable `--db` flag and each inbox command opts into it. This is the first place where command metadata starts to look like a small CLI schema rather than a list of unrelated flags.
+
+### Files created and changed
+
+Step 03 lives at:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/
+  README.md
+  Makefile
+  xgoja.yaml
+  scripts/
+    cli_smoke.py
+  verbs/
+    inbox.js
+```
+
+The top-level tutorial README and Makefile now include Step 03. The tutorial-level `.gitignore` ignores local `*.sqlite` files so smoke/manual runs do not commit database artifacts.
+
+### YAML teaching comments
+
+All current tutorial `xgoja.yaml` files now contain explanatory comments:
+
+```text
+01-minimal-jsverb/xgoja.yaml
+02-hello-web-server/xgoja.yaml
+03-sqlite-cli-inbox/xgoja.yaml
+```
+
+The comments explain each section when it first matters:
+
+- `schema`, `name`, `app`, `go`, and `workspace` in Step 01;
+- `providers`, `runtime.modules`, and `provider.command-set` in Step 02;
+- multiple providers and the guarded host `database` module in Step 03.
+
+This makes the YAML files part of the tutorial text. A reader can open a step directory and understand the spec without jumping immediately to the long reference documentation.
+
+### Step 03 xgoja changes
+
+Step 03 adds the host provider:
+
+```yaml
+providers:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+    register: Register
+```
+
+It adds the guarded database runtime module:
+
+```yaml
+runtime:
+  modules:
+    - provider: go-go-goja-host
+      name: database
+      as: database
+      config:
+        allowConfigure: true
+```
+
+`allowConfigure: true` is acceptable here because this is a local tutorial CLI that deliberately accepts `--db`. Later production-shaped steps should narrow capabilities more aggressively.
+
+### jsverbs section for shared database parameters
+
+The new `inbox.js` begins with a reusable section:
+
+```javascript
+__section__("storage", {
+  title: "Storage",
+  description: "Shared SQLite database settings used by inbox commands",
+  fields: {
+    db: {
+      type: "string",
+      default: "personal-inbox.sqlite",
+      help: "SQLite database path"
+    }
+  }
+});
+```
+
+Commands opt into the section and bind it into a function parameter:
+
+```javascript
+__verb__("capture", {
+  sections: ["storage"],
+  fields: {
+    title: { type: "string", required: true },
+    url: { type: "string", required: true },
+    storage: { bind: "storage" }
+  }
+});
+
+function capture(title, url, note, source, storage) {
+  const database = openInbox(storage.db);
+  // ...
+}
+```
+
+This pattern avoids repeating the `db` field in `capture`, `list`, and `archive`. It also creates a natural teaching point: sections describe reusable flag groups, while bound parameters decide how JavaScript receives those parsed values.
+
+### Required capture fields
+
+`capture` now requires both title and URL:
+
+```javascript
+title: {
+  type: "string",
+  required: true,
+  help: "Capture title"
+},
+url: {
+  type: "string",
+  required: true,
+  help: "URL to capture"
+}
+```
+
+The smoke test now checks the negative cases first:
+
+```bash
+if ./dist/... verbs inbox capture --db "$db" --title 'Missing URL'; then
+  echo 'capture without url unexpectedly succeeded'
+  exit 1
+fi
+
+if ./dist/... verbs inbox capture --db "$db" --url https://example.com/missing-title; then
+  echo 'capture without title unexpectedly succeeded'
+  exit 1
+fi
+```
+
+This is important for the tutorial because validation should be visible. The CLI should fail at the command boundary when required capture fields are missing.
+
+### Output mode issue
+
+The first Step 03 version used `output: "json"`. That is not a supported jsverbs output mode. The observed error was:
+
+```text
+Error: inbox.js#archive has unsupported output mode "json"
+```
+
+For now the Step 03 verbs use `output: "text"` and return `JSON.stringify(...)`. A follow-up task records that we should revisit proper structured/Glazed output. This keeps Step 03 runnable without losing the improvement idea.
+
+### Validation
+
+Focused Step 03 smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox smoke
+```
+
+Top-level smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+The Step 03 smoke verifies:
+
+1. `xgoja doctor` accepts the spec and resolves both host and HTTP providers.
+2. The original CLI hello command still works.
+3. The hello web server still starts and serves `/` plus `/healthz`.
+4. `capture` fails without `--url`.
+5. `capture` fails without `--title`.
+6. Two captures can be inserted into SQLite.
+7. `list` returns two active items.
+8. `archive` archives the first item.
+9. A second `list` returns only the remaining active item.
+
+### What this unlocks
+
+The tutorial now has local app data before it has REST routes. That order is useful. The next step can move inbox operations behind HTTP routes while preserving the same schema and command behavior. When auth arrives later, the reader will already understand the domain model and persistence layer.
+
+### Notes for final tutorial refinement
+
+The final tutorial should include three small exercises at this point:
+
+1. Run `capture` without `--url` and inspect the error.
+2. Run `capture` without `--title` and inspect the error.
+3. Open `inbox.js` and identify which commands reuse the `storage` section.
+
+It should also explicitly say that `output: "json"` is not supported, and that the tutorial will revisit structured/Glazed output after the SQLite CLI behavior is stable.

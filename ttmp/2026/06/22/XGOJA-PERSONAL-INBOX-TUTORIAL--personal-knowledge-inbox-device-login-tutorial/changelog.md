@@ -85,3 +85,14 @@ Saved follow-up tasks for revisiting Step 03 structured output and future xgoja 
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/tasks.md — Tracks structured output revisit and xgoja DX follow-up phase
 
+
+## 2026-06-22
+
+Step 03: added SQLite-backed CLI inbox verbs, reusable storage section, required title/url validation, annotated xgoja.yaml files, and smoke coverage (commit 67473dd)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/Makefile — Step 03 smoke with required-field negative tests
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/verbs/inbox.js — SQLite inbox commands and reusable storage section
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/03-sqlite-cli-inbox/xgoja.yaml — Host database module and YAML teaching comments
+

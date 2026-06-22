@@ -10,7 +10,7 @@
 
 ## Current tutorial implementation
 
-- [ ] Step 03: add SQLite inbox + CLI verbs, with no REST API yet
+- [x] Step 03: add SQLite inbox + CLI verbs, with no REST API yet
 - [ ] Revisit Step 03 output mode: replace JSON-as-text with proper jsverbs structured/Glazed output once the cleanest return shape is confirmed
 
 ## Future phase: revisit xgoja developer experience from tutorial findings
