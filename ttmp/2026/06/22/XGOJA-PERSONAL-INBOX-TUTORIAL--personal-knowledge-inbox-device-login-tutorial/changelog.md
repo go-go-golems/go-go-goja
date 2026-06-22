@@ -148,3 +148,13 @@ Step 08: added device authorization CLI verbs, browser approval UI, and token-au
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/client.js — Device start/token/capture CLI verbs
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/server.js — Agent-only programmatic capture
 
+
+## 2026-06-22
+
+Added tinyidp smoke for Step 06 as the first Keycloak-backed personal-inbox tutorial step (commit 874993d).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/Makefile — New tinyidp-smoke target
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_login_smoke.py — Login flow assertions
+

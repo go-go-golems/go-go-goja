@@ -26,3 +26,4 @@
 - [x] Step 06: add local Keycloak login with Alice and Bob
 - [x] Step 07: scope browser inbox data to the authenticated user
 - [x] Step 08: add device authorization and programmatic capture
+- [x] Add tinyidp smoke for first browser-login OIDC step

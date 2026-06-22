@@ -1082,3 +1082,40 @@ make -C examples/xgoja/23-personal-knowledge-inbox smoke
 ```
 
 All passed. The current smoke verifies device start and pending poll; a future Playwright smoke should perform browser approval and token capture end-to-end.
+
+## Tinyidp smoke for Step 06
+
+The Obsidian tinyidp replacement article was promoted into the active tutorial tree. Step 06 now has:
+
+```bash
+make tinyidp-smoke
+```
+
+The top-level tutorial directory also delegates to it:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+```
+
+The target starts tinyidp from:
+
+```text
+/home/manuel/workspaces/2026-06-20/ui-notebook-package/2026-06-22--mock-oidc-idp
+```
+
+Override with `TINYIDP_ROOT=/path/to/tinyidp`. The target uses root issuer `http://127.0.0.1:19087`, app URL `http://127.0.0.1:19794`, and client id `personal-inbox-local`.
+
+The login driver lives at:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_login_smoke.py
+```
+
+Validation passed:
+
+```text
+ok tinyidp step06 full login smoke; session email=alice@example.test
+ok tinyidp replacement smoke
+```
+
+Known limitation: this does not provide Keycloak realm-path issuer compatibility yet. Keep `keycloak-smoke` for real Keycloak coverage.

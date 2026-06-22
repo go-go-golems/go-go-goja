@@ -13,6 +13,8 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../../../../code/wesen/go-go-golems/go-go-parc/Projects/2026/06/22/ARTICLE - tinyidp as a Keycloak Replacement for go-go-goja Auth Testing.md
+      Note: source handoff article for tinyidp replacement constraints
     - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/Makefile
       Note: Chapter 1A validation targets and absolute xgoja replace pattern
     - Path: examples/xgoja/23-personal-knowledge-inbox/01-minimal-jsverb/verbs/hello.js
@@ -31,8 +33,12 @@ RelatedFiles:
       Note: Serves embedded root HTML and static assets
     - Path: examples/xgoja/23-personal-knowledge-inbox/05-embedded-retro-ui/xgoja.yaml
       Note: Step 05 embedded asset source and fs runtime mount
+    - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/Makefile
+      Note: tinyidp-smoke process orchestration for first OIDC tutorial step
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/keycloak/realm-personal-inbox.json
       Note: Alice and Bob Keycloak tutorial users
+    - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_login_smoke.py
+      Note: standard-library OIDC login smoke driver
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/verbs/client.js
       Note: Direct SQLite CLI verbs replacing fetch-backed client verbs
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/verbs/server.js
@@ -65,6 +71,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1211,4 +1218,112 @@ examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/server.
 examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/assets/public/app.js
 examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/Makefile
 examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/README.md
+```
+
+## Step 11: Promote tinyidp smoke for the first browser-login step
+
+This step promotes the tinyidp proof from the Obsidian handoff article into the active `go-go-goja` tutorial tree. It starts with Step 06 because that is the first personal-inbox step that uses Keycloak/OIDC and it isolates generated hostauth browser login before later user-scoping and device-authorization concepts.
+
+The new target keeps Keycloak available as the compatibility check, but adds a faster mock-IdP path that runs without Docker Compose Keycloak. The smoke uses tinyidp as a standards-shaped OIDC issuer, drives the real browser-facing authorization-code flow through an HTML form, and asserts that the generated app creates a normal xgoja app session.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Read \" /home/manuel/code/wesen/go-go-golems/go-go-parc/Projects/2026/06/22/ARTICLE - tinyidp as a Keycloak Replacement for go-go-goja Auth Testing.md      \" and set up tinyidp as a keycloak replacement in our current tests, going back to the first keycloak use."
+
+**Assistant interpretation:** Read the prior tinyidp replacement report, then move its working Step 06 proof into the active personal-inbox tutorial tests as a maintained target alongside Keycloak.
+
+**Inferred user intent:** Make local OIDC smoke tests faster and lighter by using tinyidp for the first Keycloak-backed tutorial step while preserving Keycloak as a real-provider compatibility target.
+
+**Commit (code):** 874993d — "examples: add tinyidp smoke for personal inbox login"
+
+### What I did
+
+- Read the Obsidian article describing the previous tinyidp replacement proof and its root-issuer caveat.
+- Added `scripts/tinyidp_login_smoke.py` to Step 06.
+- Added a Step 06 `tinyidp-smoke` Makefile target.
+- Added top-level personal-inbox `make tinyidp-smoke`, which delegates to Step 06.
+- Updated Step 06 and top-level tutorial README files to document the target, `TINYIDP_ROOT`, and the root issuer URL shape.
+- Left the existing `keycloak-smoke` target intact.
+
+### Why
+
+- Step 06 is the first personal-inbox Keycloak/OIDC use and the smallest generated hostauth login target.
+- tinyidp can prove the OIDC relying-party behavior without starting a Keycloak container.
+- Keeping both targets lets tinyidp serve as the fast local smoke while Keycloak remains the slower compatibility check.
+
+### What worked
+
+- The promoted top-level target passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+```
+
+- The script completed `/auth/login` → tinyidp `/authorize` form → app `/auth/callback` → `/auth/session` and printed:
+
+```text
+ok tinyidp step06 full login smoke; session email=alice@example.test
+ok tinyidp replacement smoke
+```
+
+### What didn't work
+
+- No implementation failure occurred in this step. The known limitation from the handoff article remains: the smoke uses a root tinyidp issuer (`http://127.0.0.1:19087`), not a Keycloak realm-path issuer (`/realms/personal-inbox`).
+
+### What I learned
+
+- The existing generated hostauth OIDC client is provider-generic enough for tinyidp; no xgoja OIDC client code changes were needed.
+- A standard-library Python login driver is sufficient for this smoke because tinyidp's login page is simple and the generated app's callback/session behavior is server-side.
+
+### What was tricky to build
+
+- Process cleanup needed care: the Makefile target starts both tinyidp and the generated app, so the trap now avoids assuming both PIDs are initialized before failures.
+- The target intentionally uses a separate app port (`19794`) and IdP port (`19087`) to avoid collisions with the Keycloak tutorial ports.
+
+### What warrants a second pair of eyes
+
+- Whether `TINYIDP_ROOT` should remain an absolute local default or move to a repository/tooling convention once tinyidp is installed as a normal binary.
+- Whether Step 07 should reuse the same smoke after Step 06 proves hostauth login, or whether Step 07 should wait for an Alice/Bob isolation browser smoke.
+- Whether tinyidp should gain Keycloak realm-path compatibility before more examples are migrated.
+
+### What should be done in the future
+
+- Add tinyidp base-path/realm-path support in the tinyidp repo if tests need Keycloak-looking issuer URLs.
+- Consider adding tinyidp smoke for Step 07 once it can assert user-scoped isolation end-to-end.
+- Keep Step 08 on Keycloak or native hostauth device tests until tinyidp implements device authorization.
+
+### Code review instructions
+
+- Start with `examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/Makefile`, especially the `tinyidp-smoke` process startup and cleanup.
+- Review `examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_login_smoke.py` for the OIDC form-driving assertions.
+- Review README updates for the root-issuer caveat.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+```
+
+### Technical details
+
+The tinyidp command shape is:
+
+```bash
+GOWORK=off go run ./cmd/tinyidp serve \
+  --addr 127.0.0.1:19087 \
+  --issuer http://127.0.0.1:19087 \
+  --client-id personal-inbox-local \
+  --redirect-uris http://127.0.0.1:19794/auth/callback
+```
+
+The generated app is started with matching OIDC flags and a separate SQLite auth store:
+
+```bash
+./dist/personal-knowledge-inbox-browser-login-keycloak serve inbox server \
+  --http-listen 127.0.0.1:19794 \
+  --auth-oidc-issuer-url http://127.0.0.1:19087 \
+  --auth-oidc-client-id personal-inbox-local \
+  --auth-oidc-public-base-url http://127.0.0.1:19794 \
+  --auth-session-cookie-allow-insecure-http=true \
+  --auth-default-store-driver sqlite \
+  --auth-default-store-apply-schema=true
 ```
