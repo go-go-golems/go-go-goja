@@ -1044,3 +1044,41 @@ make -C examples/xgoja/23-personal-knowledge-inbox smoke
 ```
 
 All passed. Manual review should still log in as Alice and Bob to check the intended browser-visible isolation because the current Keycloak smoke only verifies redirect/protected-route behavior.
+
+## Step 08 — Device authorization and programmatic capture
+
+Step 08 copies `07-user-scoped-inbox` into `08-device-authorization` and adds the first device-code flow.
+
+New CLI verbs:
+
+```bash
+verbs inboxctl device-start
+verbs inboxctl device-token --device-code ggdc_...
+verbs inboxctl token-capture --access-token ggat_... --title ... --url ...
+```
+
+New browser behavior:
+
+- logged-in user enters `user_code`,
+- UI posts `/auth/device/approve` with CSRF,
+- native hostauth creates a device agent owned by that user.
+
+New programmatic route:
+
+```js
+app.post("/api/programmatic/capture")
+  .auth(express.agent())
+  .allow("user.self.read")
+```
+
+The route stores captures under `ctx.actor.claims.ownerUserId`, so the item appears in the approving user's browser inbox.
+
+Validation:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/08-device-authorization smoke
+make -C examples/xgoja/23-personal-knowledge-inbox/08-device-authorization keycloak-smoke
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+All passed. The current smoke verifies device start and pending poll; a future Playwright smoke should perform browser approval and token capture end-to-end.

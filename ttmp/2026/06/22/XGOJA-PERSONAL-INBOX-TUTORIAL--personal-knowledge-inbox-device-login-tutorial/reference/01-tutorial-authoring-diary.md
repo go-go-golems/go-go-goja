@@ -45,6 +45,12 @@ RelatedFiles:
       Note: Step 07 session actor scoping for browser API routes
     - Path: examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/xgoja.yaml
       Note: Step 07 generated app and Keycloak port configuration
+    - Path: examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/assets/public/app.js
+      Note: Browser device approval UI
+    - Path: examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/client.js
+      Note: Step 08 device CLI verbs
+    - Path: examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/server.js
+      Note: Programmatic capture route protected by agent auth
     - Path: examples/xgoja/23-personal-knowledge-inbox/Makefile
       Note: Top-level smoke dispatcher for step directories
     - Path: examples/xgoja/23-personal-knowledge-inbox/README.md
@@ -59,6 +65,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1090,4 +1097,118 @@ examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/assets/public/ap
 examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/README.md
 examples/xgoja/23-personal-knowledge-inbox/Makefile
 examples/xgoja/23-personal-knowledge-inbox/README.md
+```
+
+## Step 10: Add device authorization for programmatic capture
+
+This step creates the eighth runnable tutorial snapshot. It keeps the user-scoped browser inbox from Step 07 and adds a device authorization flow so a CLI can request programmatic access without receiving the user's browser cookie or password.
+
+The browser session remains the approval authority. A CLI starts device authorization and receives a raw `device_code` plus human-readable `user_code`; the logged-in browser user approves the `user_code`; the CLI polls for access/refresh tokens; and the access token can call an agent-only programmatic capture route.
+
+### Prompt Context
+
+**User prompt (verbatim):** "cool, it works manually. continue"
+
+**Assistant interpretation:** Continue the tutorial after the user manually confirmed Step 07 by adding the next logical feature: device authorization and a token-authenticated programmatic capture path.
+
+**Inferred user intent:** Move from browser-only user-scoped data access toward the tutorial's core device-login/programmatic-token acquisition goal.
+
+**Commit (code):** 2588034 — "examples: add personal inbox device authorization step"
+
+### What I did
+
+- Added `08-device-authorization` as a new runnable tutorial step copied from Step 07.
+- Moved Step 08 to separate local ports:
+  - app: `127.0.0.1:18795`,
+  - Keycloak: `127.0.0.1:18088`.
+- Added guarded `fetch` runtime config for CLI calls to native device endpoints.
+- Added `verbs/lib/device_client.js` for device start, token polling, and token-authenticated capture.
+- Added CLI verbs:
+  - `verbs inboxctl device-start`,
+  - `verbs inboxctl device-token`,
+  - `verbs inboxctl token-capture`.
+- Added browser UI for device approval via `/auth/device/approve` with CSRF.
+- Added `/api/programmatic/capture`, protected with `express.agent()` and `.allow("user.self.read")`.
+- Programmatic capture stores rows under the approving user's owner id from the device-created agent (`ctx.actor.claims.ownerUserId`).
+- Updated top-level tutorial README and Makefile to include Step 08.
+
+### Why
+
+- The tutorial is about device login and programmatic token acquisition; Step 08 introduces those concepts after browser login and user-scoped data boundaries are already established.
+- Device authorization keeps human credentials in Keycloak and keeps browser sessions separate from CLI credentials.
+- The programmatic route demonstrates why access tokens are route credentials and why refresh tokens/device codes are not.
+
+### What worked
+
+- Step 08 fast smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/08-device-authorization smoke
+```
+
+- Step 08 Keycloak/device smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/08-device-authorization keycloak-smoke
+```
+
+- Full tutorial smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### What didn't work
+
+- No validation failures occurred while implementing Step 08.
+
+### What I learned
+
+- The native device endpoints can be introduced without exposing the JavaScript `auth` module; the generated host mounts them from hostauth services.
+- A device-created agent carries `ownerUserId`, which is the bridge back to the approving browser user for user-scoped programmatic capture.
+- A useful first automated device smoke can verify start and pending poll before adding full browser automation for approval.
+
+### What was tricky to build
+
+- The route boundary had to stay explicit: browser routes use `express.sessionUser()` and CSRF, while programmatic capture uses `express.agent()` and bearer-token auth.
+- The CLI now has two categories of verbs: direct SQLite tutorial/debug verbs and HTTP device/programmatic verbs. The README calls this out so readers do not confuse local DB access with production-style API access.
+
+### What warrants a second pair of eyes
+
+- Whether `user.self.read` is the right temporary grant for programmatic capture, or whether Step 09 should introduce app-specific actions such as `inbox.capture`.
+- Whether the programmatic capture route should return less actor/auth detail once the tutorial moves past diagnostics.
+- Whether token persistence should be added before refresh-token rotation is taught.
+
+### What should be done in the future
+
+- Add a Playwright/device integration smoke that logs in, approves a user code, polls tokens, and captures a row end-to-end.
+- Introduce app-specific grants/actions for inbox operations.
+- Add token cache and refresh-token usage for the CLI.
+
+### Code review instructions
+
+- Review `08-device-authorization/xgoja.yaml` for `fetch` config and hostauth settings.
+- Review `08-device-authorization/verbs/client.js` and `verbs/lib/device_client.js` for device CLI behavior.
+- Review `08-device-authorization/verbs/server.js` for `express.agent()` and owner-user scoping.
+- Review `08-device-authorization/assets/public/app.js` for browser approval and CSRF handling.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/08-device-authorization smoke
+make -C examples/xgoja/23-personal-knowledge-inbox/08-device-authorization keycloak-smoke
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### Technical details
+
+Primary files:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/xgoja.yaml
+examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/client.js
+examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/lib/device_client.js
+examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/server.js
+examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/assets/public/app.js
+examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/Makefile
+examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/README.md
 ```

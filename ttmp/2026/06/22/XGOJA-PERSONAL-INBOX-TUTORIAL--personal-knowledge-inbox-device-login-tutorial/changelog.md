@@ -138,3 +138,13 @@ Step 07: added user-scoped inbox step so browser API rows are filtered by ctx.ac
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/verbs/lib/inbox_store.js — Owner-filtered SQL helpers
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/verbs/server.js — Session actor data boundary
 
+
+## 2026-06-22
+
+Step 08: added device authorization CLI verbs, browser approval UI, and token-authenticated programmatic capture (commit 2588034).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/client.js — Device start/token/capture CLI verbs
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/server.js — Agent-only programmatic capture
+
