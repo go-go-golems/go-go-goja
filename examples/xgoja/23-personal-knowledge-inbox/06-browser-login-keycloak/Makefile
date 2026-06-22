@@ -10,7 +10,7 @@ KEYCLOAK_PORT ?= 18086
 ISSUER := http://127.0.0.1:$(KEYCLOAK_PORT)/realms/personal-inbox
 COMPOSE := docker compose -f $(EXAMPLE_DIR)/compose.yaml
 
-.PHONY: doctor build smoke direct-smoke keycloak-up keycloak-down keycloak-smoke clean
+.PHONY: doctor build smoke direct-smoke keycloak-up keycloak-wait keycloak-down keycloak-smoke clean
 
 doctor:
 	$(XGOJA) doctor -f $(EXAMPLE_DIR)/xgoja.yaml
@@ -38,6 +38,19 @@ direct-smoke:
 
 keycloak-up:
 	KEYCLOAK_PORT=$(KEYCLOAK_PORT) $(COMPOSE) up -d
+	$(MAKE) keycloak-wait
+
+keycloak-wait:
+	@set -eu; \
+	for i in $$(seq 1 90); do \
+		if curl -fsS $(ISSUER)/.well-known/openid-configuration >/dev/null 2>&1; then \
+			echo "ok keycloak discovery $(ISSUER)"; \
+			exit 0; \
+		fi; \
+		sleep 2; \
+	done; \
+	echo "timed out waiting for keycloak discovery: $(ISSUER)" >&2; \
+	exit 1
 
 keycloak-down:
 	$(COMPOSE) down -v

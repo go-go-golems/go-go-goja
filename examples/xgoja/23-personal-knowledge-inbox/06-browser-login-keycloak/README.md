@@ -42,7 +42,7 @@ This starts Keycloak, starts the generated app, verifies the OIDC login redirect
 
 ```bash
 make build
-make keycloak-up
+make keycloak-up # waits until OIDC discovery is reachable
 ./dist/personal-knowledge-inbox-browser-login-keycloak \
   serve inbox server \
   --http-listen 127.0.0.1:18793 \
@@ -50,6 +50,12 @@ make keycloak-up
 ```
 
 Then open <http://127.0.0.1:18793/> and log in as Alice or Bob.
+
+If you start Keycloak with raw `docker compose up -d`, wait for discovery before starting the app:
+
+```bash
+make keycloak-wait
+```
 
 Stop Keycloak with:
 
