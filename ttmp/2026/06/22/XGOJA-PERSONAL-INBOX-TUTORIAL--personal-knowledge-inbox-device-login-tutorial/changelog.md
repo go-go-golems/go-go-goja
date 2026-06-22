@@ -14,3 +14,23 @@ Created textbook-style personal knowledge inbox tutorial with xgoja server/CLI a
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/design/01-personal-knowledge-inbox-tutorial.md — Primary tutorial draft
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/01-tutorial-authoring-diary.md — Authoring diary
 
+
+## 2026-06-22
+
+Chapter 1A: added minimal generated xgoja example with hello-world jsverb, validation Makefile, diary entry, and extended logbook
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/verbs/hello.js — Hello-world jsverb
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/xgoja.yaml — Minimal xgoja spec
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/02-implementation-logbook.md — Detailed implementation logbook
+
+
+## 2026-06-22
+
+Added example index entry for the new Personal Knowledge Inbox incremental tutorial workspace
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/README.md — Lists example 23 in the xgoja learning path
+

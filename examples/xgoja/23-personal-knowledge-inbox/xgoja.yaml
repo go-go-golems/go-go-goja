@@ -1,0 +1,29 @@
+schema: xgoja/v2
+name: personal-knowledge-inbox
+app:
+  name: personal-knowledge-inbox
+go:
+  module: xgoja.generated/personal-knowledge-inbox
+  version: "1.26"
+workspace:
+  mode: auto
+sources:
+  - id: inbox-verbs
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    include:
+      - hello.js
+    language: javascript
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    name: verbs
+    sources:
+      - inbox-verbs
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/personal-knowledge-inbox
+    sources:
+      - inbox-verbs

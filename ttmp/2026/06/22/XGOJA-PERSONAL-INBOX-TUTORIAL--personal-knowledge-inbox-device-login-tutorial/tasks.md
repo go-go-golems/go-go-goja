@@ -5,4 +5,5 @@
 - [x] Add tasks here
 
 - [x] Write textbook-style personal knowledge inbox tutorial
-- [ ] Include resource map for deeper device-flow and xgoja study
+- [x] Include resource map for deeper device-flow and xgoja study
+- [ ] Chapter 1A: create minimal xgoja.yaml and hello-world jsverb

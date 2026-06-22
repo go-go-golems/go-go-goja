@@ -28,6 +28,8 @@ Each example directory has its own `README.md`, `Makefile`, and native `schema: 
 20. `20-express-hello-world/` — **smoke-only template**. Tiny no-auth Express host with public planned routes only; useful for HTTP provider sanity checks, not auth deployment design.
 
 21. `21-generated-host-auth/` — **generated OIDC template**. Demonstrates a self-contained generated binary with top-level `auth.mode=oidc`, native Go OIDC handlers, and planned Express authorization routes.
+22. `22-programmatic-agent-auth/` — **programmatic auth template**. Demonstrates generated server and agent binaries, API-token agent authentication, guarded fetch, and native device authorization smoke checks.
+23. `23-personal-knowledge-inbox/` — **incremental tutorial workspace**. Builds the Personal Knowledge Inbox device-login tutorial step by step, starting with a minimal generated jsverbs CLI.
 
 The Discord bot xgoja example lives in the sibling `discord-bot` repository because it demonstrates inserting xgoja into an existing host-owned runner rather than a standalone generated binary.
 

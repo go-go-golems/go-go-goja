@@ -1,21 +1,34 @@
 ---
-DocType: reference
 Title: Tutorial Authoring Diary
 Ticket: XGOJA-PERSONAL-INBOX-TUTORIAL
 Status: active
-Intent: long-term
 Topics:
-  - xgoja
-  - auth
-  - security
-  - examples
-  - jsverbs
-  - documentation
-Created: 2026-06-22
-Updated: 2026-06-22
+    - xgoja
+    - auth
+    - security
+    - examples
+    - jsverbs
+    - documentation
+DocType: reference
+Intent: long-term
+Owners: []
 RelatedFiles:
-  - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/design/01-personal-knowledge-inbox-tutorial.md:Primary tutorial draft
+    - Path: examples/xgoja/23-personal-knowledge-inbox/Makefile
+      Note: Chapter 1A validation targets and absolute xgoja replace pattern
+    - Path: examples/xgoja/23-personal-knowledge-inbox/verbs/hello.js
+      Note: Chapter 1A hello-world jsverb
+    - Path: examples/xgoja/23-personal-knowledge-inbox/xgoja.yaml
+      Note: Chapter 1A minimal generated xgoja spec
+    - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/design/01-personal-knowledge-inbox-tutorial.md:Primary tutorial draft
+    - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/02-implementation-logbook.md
+      Note: Extended step-by-step construction log
+ExternalSources: []
+Summary: ""
+LastUpdated: 0001-01-01T00:00:00Z
+WhatFor: ""
+WhenToUse: ""
 ---
+
 
 # Diary
 
@@ -122,4 +135,137 @@ docmgr ticket create-ticket --ticket XGOJA-PERSONAL-INBOX-TUTORIAL --title "Pers
 docmgr doc add --ticket XGOJA-PERSONAL-INBOX-TUTORIAL --doc-type design --title "Personal Knowledge Inbox Tutorial"
 
 docmgr doc add --ticket XGOJA-PERSONAL-INBOX-TUTORIAL --doc-type reference --title "Tutorial Authoring Diary"
+```
+
+## Step 2: Start Chapter 1 with a minimal generated xgoja verb
+
+This step begins the runnable tutorial example with the smallest validated xgoja artifact: a generated CLI binary that exposes one JavaScript verb. The point is not to build the inbox yet. The point is to give the learner a concrete baseline for how `xgoja.yaml`, jsverbs sources, generated binaries, and command paths fit together.
+
+The implementation deliberately stays smaller than the full tutorial design. It does not include HTTP serving, SQLite, browser sessions, device login, or programauth. Those concepts will be layered in later chapters so each intermediate file state can become part of the final educational narrative.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Let's keep a detailed logbook / diary as we work through it, so that we can not only refine the tutorial later on, and have a nice step by step history, but also to write a detailed report / technical dive as we go. So fill your diary, but also keep an extended version of it in a logbook.
+
+Let's start with chapter 1, by first creating a minmal xgoja.yaml and a simple hello world js verb. 
+
+(after that we'll expand to a hello world web server, then to CLI verb + serve with sqlite backend, etc...)
+
+We are tyring to do things incrementally, so we will have intermediate versions of the files that are not as complete in your current tutorial write up, which is good for educational purposes where we do things in smaller validated steps. We will use that for a fully fleshed out tutorial."
+
+**Assistant interpretation:** Begin implementing the tutorial incrementally by creating the first runnable xgoja example with only a minimal spec and hello-world jsverb, while recording both a standard diary and a more detailed logbook.
+
+**Inferred user intent:** Build a step-by-step implementation history that can later be turned into a more complete tutorial and technical deep dive.
+
+**Commit (code):** N/A — pending commit for this step.
+
+### What I did
+
+- Created `examples/xgoja/23-personal-knowledge-inbox/`.
+- Added a minimal `xgoja.yaml` with:
+  - one `jsverbs` source,
+  - one built-in `verbs` command set,
+  - one generated binary artifact.
+- Added `verbs/hello.js` with package `inbox` and verb `hello`.
+- Added a small `Makefile` with `doctor`, `build`, `smoke`, and `clean` targets.
+- Added a short `README.md` explaining the Chapter 1 baseline.
+- Created `reference/02-implementation-logbook.md` as the extended logbook and recorded the detailed construction narrative.
+- Added and completed task 3: `Chapter 1A: create minimal xgoja.yaml and hello-world jsverb`.
+
+### Why
+
+- The final tutorial should teach xgoja and device login through incremental validated steps rather than presenting a large final app all at once.
+- A hello-world jsverb teaches the generated command path before the reader has to learn HTTP serving, host providers, auth, database persistence, or token acquisition.
+- The logbook preserves exact intermediate states and mistakes so the final tutorial can explain why the implementation evolved.
+
+### What worked
+
+- `make -C examples/xgoja/23-personal-knowledge-inbox doctor` passed.
+- After fixing the Makefile, `make -C examples/xgoja/23-personal-knowledge-inbox smoke` passed.
+- The generated command path works:
+
+```bash
+examples/xgoja/23-personal-knowledge-inbox/dist/personal-knowledge-inbox verbs inbox hello --name tutorial
+```
+
+### What didn't work
+
+- The first smoke attempt failed because the Makefile used a relative replacement path:
+
+```make
+--xgoja-replace .
+```
+
+The generated module runs `go mod tidy` from a temporary build workspace, so the relative replacement did not point at the repository checkout. The failure was:
+
+```text
+Error: go mod tidy failed: exit status 1
+go: xgoja.generated/personal-knowledge-inbox imports
+	github.com/go-go-golems/go-go-goja/pkg/xgoja/app: module github.com/go-go-golems/go-go-goja@latest found (v0.10.1, replaced by .), but does not contain package github.com/go-go-golems/go-go-goja/pkg/xgoja/app
+go: xgoja.generated/personal-knowledge-inbox imports
+	github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi: module github.com/go-go-golems/go-go-goja@latest found (v0.10.1, replaced by .), but does not contain package github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi
+```
+
+I fixed this by following the existing examples and using absolute paths:
+
+```make
+REPO_ROOT := $(abspath ../../..)
+EXAMPLE_DIR := $(abspath .)
+...
+--xgoja-replace $(REPO_ROOT)
+```
+
+### What I learned
+
+- The minimal generated jsverbs binary does not need runtime providers. It only needs a `jsverbs` source and the built-in jsverbs command set.
+- The generated CLI command structure is useful teaching material: `verbs inbox hello` comes from the command set name, the `__package__` name, and the `__verb__` name.
+- Local generated builds should use an absolute `--xgoja-replace` path so the generated temporary module resolves the current checkout correctly.
+
+### What was tricky to build
+
+- The subtlety was not the JavaScript verb or xgoja spec; it was the generated module's working directory during `go mod tidy`. Relative replacement paths are easy to write but fragile in generated build workflows.
+- The example needed to remain intentionally incomplete. It is tempting to add HTTP and database modules immediately, but doing so would weaken the educational value of this first chapter.
+
+### What warrants a second pair of eyes
+
+- Whether the minimal spec should include built-in `eval`, `run`, and `repl` commands for discoverability, or whether keeping only `verbs` is better for Chapter 1.
+- Whether the hello verb should accept a single `name` argument, as currently implemented, or bind `options` from the beginning to match later CLI verbs.
+
+### What should be done in the future
+
+- Chapter 1B: expand from the CLI hello verb to a hello-world generated web server.
+- Keep the logbook updated with every intermediate file state and validation command.
+- Later, revise the main tutorial draft so it incorporates this smaller first step before the full server/CLI/auth architecture.
+
+### Code review instructions
+
+- Review `examples/xgoja/23-personal-knowledge-inbox/xgoja.yaml` first.
+- Review `examples/xgoja/23-personal-knowledge-inbox/verbs/hello.js` for the jsverbs package and verb declaration.
+- Review `examples/xgoja/23-personal-knowledge-inbox/Makefile` for the absolute `--xgoja-replace` pattern.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+```
+
+### Technical details
+
+Validation commands and outcomes:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox doctor
+# schema ok; source-plan ok
+
+make -C examples/xgoja/23-personal-knowledge-inbox smoke
+# build ok; hello command output matched
+```
+
+Primary files:
+
+```text
+examples/xgoja/23-personal-knowledge-inbox/xgoja.yaml
+examples/xgoja/23-personal-knowledge-inbox/verbs/hello.js
+examples/xgoja/23-personal-knowledge-inbox/Makefile
+examples/xgoja/23-personal-knowledge-inbox/README.md
+ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/02-implementation-logbook.md
 ```
