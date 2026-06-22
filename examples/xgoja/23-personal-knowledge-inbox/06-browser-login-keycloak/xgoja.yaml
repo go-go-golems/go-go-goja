@@ -118,6 +118,10 @@ commands:
     name: serve
     mount: serve
     provider: go-go-goja-http
+    # Provider command-set config controls generated `serve` flags. This is
+    # separate from the `express` runtime module config above.
+    config:
+      listen: 127.0.0.1:18793
     sources:
       - inbox-verbs
 
