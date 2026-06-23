@@ -9,11 +9,12 @@ BASE_URL := http://$(HTTP_ADDR)
 KEYCLOAK_PORT ?= 18088
 ISSUER := http://127.0.0.1:$(KEYCLOAK_PORT)/realms/personal-inbox
 COMPOSE := docker compose -f $(EXAMPLE_DIR)/compose.yaml
-TINYIDP_ROOT ?= /home/manuel/workspaces/2026-06-20/ui-notebook-package/2026-06-22--mock-oidc-idp
+TINYIDP_ROOT ?= $(REPO_ROOT)/../2026-06-22--mock-oidc-idp
 TINYIDP_ADDR ?= 127.0.0.1:19089
 TINYIDP_APP_ADDR ?= 127.0.0.1:19796
 TINYIDP_ISSUER := http://$(TINYIDP_ADDR)
 TINYIDP_BASE_URL := http://$(TINYIDP_APP_ADDR)
+TINYIDP_USERS_FILE ?= $(EXAMPLE_DIR)/../tinyidp-users.yaml
 
 .PHONY: doctor build smoke direct-smoke keycloak-up keycloak-wait keycloak-down keycloak-smoke tinyidp-smoke clean
 
@@ -126,6 +127,7 @@ tinyidp-smoke: doctor build
 		--issuer $(TINYIDP_ISSUER) \
 		--client-id personal-inbox-local \
 		--redirect-uris $(TINYIDP_BASE_URL)/auth/callback \
+		--users-file $(TINYIDP_USERS_FILE) \
 		>$$idp_log 2>&1 & \
 	idp_pid=$$!; \
 	for i in $$(seq 1 120); do \

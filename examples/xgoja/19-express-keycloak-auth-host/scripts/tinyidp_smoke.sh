@@ -4,7 +4,7 @@ set -euo pipefail
 EXAMPLE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_ROOT="$(cd "${EXAMPLE_DIR}/../../.." && pwd)"
 COMPOSE_FILE="${COMPOSE_FILE:-${EXAMPLE_DIR}/docker-compose.yml}"
-TINYIDP_ROOT="${TINYIDP_ROOT:-/home/manuel/workspaces/2026-06-20/ui-notebook-package/2026-06-22--mock-oidc-idp}"
+TINYIDP_ROOT="${TINYIDP_ROOT:-${REPO_ROOT}/../2026-06-22--mock-oidc-idp}"
 LISTEN="${LISTEN:-127.0.0.1:8792}"
 BASE_URL="${BASE_URL:-http://${LISTEN}}"
 TINYIDP_ADDR="${TINYIDP_ADDR:-127.0.0.1:19092}"

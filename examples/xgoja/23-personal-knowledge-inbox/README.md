@@ -52,4 +52,4 @@ make tinyidp-smoke
 make -C 06-browser-login-keycloak tinyidp-smoke
 ```
 
-The Keycloak smoke remains available as a compatibility check. The tinyidp smokes currently use root issuer URLs rather than Keycloak realm-path issuers. Step 08 uses tinyidp only for browser login; device authorization remains implemented by the generated xgoja host.
+The Keycloak smoke remains available as a compatibility check. The tinyidp smokes currently use root issuer URLs rather than Keycloak realm-path issuers. They also pass `tinyidp-users.yaml` so Alice and Bob have stable seeded subjects and app-specific claims. Step 08 uses tinyidp only for browser login; device authorization remains implemented by the generated xgoja host.
