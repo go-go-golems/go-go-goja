@@ -1,0 +1,66 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+                                             │ ttmp/2026/06/23/2026-06-23-goja-bindings-benchmark--benchmark-goja-go-to-js-binding-mechanisms-native-func-reflect-dynamicobject-es6-proxy/various/01-bindings-bench-raw.txt │
+                                             │                                                                                    sec/op                                                                                    │
+BindingFunctionCall/NativeFunc-8                                                                                                                                                                               219.4n ± ∞ ¹
+BindingFunctionCall/WrappedFunc-8                                                                                                                                                                              751.5n ± ∞ ¹
+BindingFunctionCall/SetExport-8                                                                                                                                                                                918.2n ± ∞ ¹
+BindingFunctionCall/ReflectStructMethod-8                                                                                                                                                                      2.012µ ± ∞ ¹
+BindingFunctionCall/MapOfFuncs-8                                                                                                                                                                               1.716µ ± ∞ ¹
+BindingFunctionCall/ProxyApply-8                                                                                                                                                                               277.9n ± ∞ ¹
+BindingPropertyGet/PlainObject_Literal-8                                                                                                                                                                       623.9n ± ∞ ¹
+BindingPropertyGet/PlainObject_Reuse-8                                                                                                                                                                         113.9n ± ∞ ¹
+BindingPropertyGet/ReflectStructField-8                                                                                                                                                                        184.6n ± ∞ ¹
+BindingPropertyGet/GoMapSimple-8                                                                                                                                                                               127.5n ± ∞ ¹
+BindingPropertyGet/DynamicObject-8                                                                                                                                                                             125.2n ± ∞ ¹
+BindingPropertyGet/Proxy_GetTrap-8                                                                                                                                                                             198.7n ± ∞ ¹
+BindingArrayIndexGet/DynamicArray-8                                                                                                                                                                            167.9n ± ∞ ¹
+ProxyDispatchDetail/GetTrap_Miss_Undefined-8                                                                                                                                                                   228.4n ± ∞ ¹
+ProxyDispatchDetail/GetTrap_Switch_Hit-8                                                                                                                                                                       156.6n ± ∞ ¹
+ProxyDispatchDetail/GetTrap_Map_Hit-8                                                                                                                                                                          180.6n ± ∞ ¹
+geomean                                                                                                                                                                                                        308.0n
+¹ need >= 6 samples for confidence interval at level 0.95
+
+                                             │ ttmp/2026/06/23/2026-06-23-goja-bindings-benchmark--benchmark-goja-go-to-js-binding-mechanisms-native-func-reflect-dynamicobject-es6-proxy/various/01-bindings-bench-raw.txt │
+                                             │                                                                                     B/op                                                                                     │
+BindingFunctionCall/NativeFunc-8                                                                                                                                                                                224.0 ± ∞ ¹
+BindingFunctionCall/WrappedFunc-8                                                                                                                                                                               352.0 ± ∞ ¹
+BindingFunctionCall/SetExport-8                                                                                                                                                                                 352.0 ± ∞ ¹
+BindingFunctionCall/ReflectStructMethod-8                                                                                                                                                                     1.141Ki ± ∞ ¹
+BindingFunctionCall/MapOfFuncs-8                                                                                                                                                                              1.062Ki ± ∞ ¹
+BindingFunctionCall/ProxyApply-8                                                                                                                                                                                224.0 ± ∞ ¹
+BindingPropertyGet/PlainObject_Literal-8                                                                                                                                                                        656.0 ± ∞ ¹
+BindingPropertyGet/PlainObject_Reuse-8                                                                                                                                                                          32.00 ± ∞ ¹
+BindingPropertyGet/ReflectStructField-8                                                                                                                                                                         40.00 ± ∞ ¹
+BindingPropertyGet/GoMapSimple-8                                                                                                                                                                                32.00 ± ∞ ¹
+BindingPropertyGet/DynamicObject-8                                                                                                                                                                              32.00 ± ∞ ¹
+BindingPropertyGet/Proxy_GetTrap-8                                                                                                                                                                              48.00 ± ∞ ¹
+BindingArrayIndexGet/DynamicArray-8                                                                                                                                                                             96.00 ± ∞ ¹
+ProxyDispatchDetail/GetTrap_Miss_Undefined-8                                                                                                                                                                    48.00 ± ∞ ¹
+ProxyDispatchDetail/GetTrap_Switch_Hit-8                                                                                                                                                                        48.00 ± ∞ ¹
+ProxyDispatchDetail/GetTrap_Map_Hit-8                                                                                                                                                                           48.00 ± ∞ ¹
+geomean                                                                                                                                                                                                         124.8
+¹ need >= 6 samples for confidence interval at level 0.95
+
+                                             │ ttmp/2026/06/23/2026-06-23-goja-bindings-benchmark--benchmark-goja-go-to-js-binding-mechanisms-native-func-reflect-dynamicobject-es6-proxy/various/01-bindings-bench-raw.txt │
+                                             │                                                                                  allocs/op                                                                                   │
+BindingFunctionCall/NativeFunc-8                                                                                                                                                                                3.000 ± ∞ ¹
+BindingFunctionCall/WrappedFunc-8                                                                                                                                                                               12.00 ± ∞ ¹
+BindingFunctionCall/SetExport-8                                                                                                                                                                                 12.00 ± ∞ ¹
+BindingFunctionCall/ReflectStructMethod-8                                                                                                                                                                       24.00 ± ∞ ¹
+BindingFunctionCall/MapOfFuncs-8                                                                                                                                                                                21.00 ± ∞ ¹
+BindingFunctionCall/ProxyApply-8                                                                                                                                                                                3.000 ± ∞ ¹
+BindingPropertyGet/PlainObject_Literal-8                                                                                                                                                                        8.000 ± ∞ ¹
+BindingPropertyGet/PlainObject_Reuse-8                                                                                                                                                                          1.000 ± ∞ ¹
+BindingPropertyGet/ReflectStructField-8                                                                                                                                                                         2.000 ± ∞ ¹
+BindingPropertyGet/GoMapSimple-8                                                                                                                                                                                1.000 ± ∞ ¹
+BindingPropertyGet/DynamicObject-8                                                                                                                                                                              1.000 ± ∞ ¹
+BindingPropertyGet/Proxy_GetTrap-8                                                                                                                                                                              2.000 ± ∞ ¹
+BindingArrayIndexGet/DynamicArray-8                                                                                                                                                                             2.000 ± ∞ ¹
+ProxyDispatchDetail/GetTrap_Miss_Undefined-8                                                                                                                                                                    2.000 ± ∞ ¹
+ProxyDispatchDetail/GetTrap_Switch_Hit-8                                                                                                                                                                        2.000 ± ∞ ¹
+ProxyDispatchDetail/GetTrap_Map_Hit-8                                                                                                                                                                           2.000 ± ∞ ¹
+geomean                                                                                                                                                                                                         3.410
+¹ need >= 6 samples for confidence interval at level 0.95
