@@ -93,6 +93,6 @@ Refresh the browser inbox for the approving user. The item appears in that user'
 make tinyidp-smoke
 ```
 
-This uses tinyidp for the browser login/approval authority and the native xgoja device endpoints for device-code start, approval, token polling, and token-authenticated programmatic capture. It intentionally waits after the pre-approval poll so the device poll interval is respected.
+This uses tinyidp for the browser login/approval authority and the native xgoja device endpoints for device-code start, approval, token polling, and token-authenticated programmatic capture. It approves one device token as Alice and one as Bob, captures one item with each token, then verifies each browser user only sees the capture produced by their own approved device token.
 
 The tinyidp smoke uses `../tinyidp-users.yaml` so Alice and Bob have stable seeded `sub` values and inbox-specific claims.
