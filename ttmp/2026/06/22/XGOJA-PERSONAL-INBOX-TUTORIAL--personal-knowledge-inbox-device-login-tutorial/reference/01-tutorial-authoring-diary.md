@@ -43,6 +43,8 @@ RelatedFiles:
       Note: tinyidp-smoke process orchestration for first OIDC tutorial step
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/keycloak/realm-personal-inbox.json
       Note: Alice and Bob Keycloak tutorial users
+    - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_inbox_isolation_smoke.py
+      Note: Alice/Bob browser-session isolation smoke
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_login_smoke.py
       Note: standard-library OIDC login smoke driver
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/verbs/client.js
@@ -51,6 +53,8 @@ RelatedFiles:
       Note: Session-protected browser API routes
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/xgoja.yaml
       Note: Step 06 generated hostauth OIDC configuration
+    - Path: examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/Makefile
+      Note: Step 07 tinyidp-smoke now asserts isolation
     - Path: examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/verbs/lib/inbox_store.js
       Note: Owner-filtered inbox SQL helpers
     - Path: examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/verbs/server.js
@@ -81,6 +85,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1572,4 +1577,91 @@ users:
       preferred_username: alice
       groups: [inbox-users]
       tenant: personal
+```
+
+## Step 14: Assert Alice/Bob isolation with seeded tinyidp users
+
+This step turns the Step 07 tinyidp smoke from a login-only check into a user-isolation check. It logs in as Alice and Bob through tinyidp using separate cookie jars, captures one inbox item per user through the CSRF-protected browser API, and verifies that each user only sees their own row.
+
+The smoke now uses the stable seeded `sub` values from `tinyidp-users.yaml` as part of the assertion. That makes the test directly cover the Step 07 lesson: authentication identifies a principal, but the application must still scope reads and writes to that principal.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the tutorial hardening work after adding tinyidp seeded users by using the stable users to validate Step 07 isolation.
+
+**Inferred user intent:** Keep moving the personal-inbox tutorial forward with concrete validation rather than only setup work.
+
+**Commit (code):** f36f4ac — "examples: assert tinyidp inbox user isolation"
+
+### What I did
+
+- Added `tinyidp_inbox_isolation_smoke.py` as a standard-library browser-flow smoke helper.
+- Updated Step 07 `tinyidp-smoke` to call the new helper.
+- The helper logs in as Alice and Bob independently, checks seeded app user IDs, captures one item per user, and verifies list isolation.
+- Updated Step 07 README to describe the stronger tinyidp smoke.
+
+### Why
+
+- Step 07's purpose is user-scoped ownership, so its OIDC smoke should prove Alice/Bob isolation instead of stopping at “login works”.
+- The seeded tinyidp users introduced in the previous step make the expected user IDs stable: `user:user-alice-fixed` and `user:user-bob-fixed`.
+
+### What worked
+
+- Step 07 tinyidp smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox tinyidp-smoke
+```
+
+- Full personal-inbox tinyidp smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+```
+
+### What didn't work
+
+- No implementation failures occurred in this step.
+
+### What I learned
+
+- Separate Python cookie jars are enough to model two browser users against tinyidp and the generated app in one process.
+- The app session `userId` is `user:<oidc-sub>`, so seeded `sub: user-alice-fixed` becomes `user:user-alice-fixed` in xgoja's app session.
+
+### What was tricky to build
+
+- The smoke must assert both the session identity and the API owner field. Checking only row contents could hide a bug where both sessions accidentally share an actor but happen to see different rows because of test ordering.
+- The helper intentionally avoids sharing tinyidp/app cookies between Alice and Bob, because shared IdP sessions could silently reuse the prior login.
+
+### What warrants a second pair of eyes
+
+- Whether Step 08 should also assert that a device token approved by Alice cannot write into Bob's inbox.
+- Whether the helper should be generalized for future tutorial steps instead of living under Step 06 scripts.
+
+### What should be done in the future
+
+- Add an equivalent isolation assertion for programmatic device capture in Step 08.
+- Consider moving shared Python smoke helpers into a top-level `scripts/` directory for the personal-inbox tutorial.
+
+### Code review instructions
+
+- Review `examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_inbox_isolation_smoke.py`.
+- Review the Step 07 `tinyidp-smoke` target in `examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/Makefile`.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+```
+
+### Technical details
+
+The isolation helper asserts:
+
+```text
+Alice session userId == user:user-alice-fixed
+Bob session userId   == user:user-bob-fixed
+Alice list includes Alice item and excludes Bob item
+Bob list includes Bob item and excludes Alice item
 ```

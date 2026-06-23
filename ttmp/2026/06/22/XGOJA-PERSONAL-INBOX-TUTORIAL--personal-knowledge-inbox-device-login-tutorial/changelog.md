@@ -177,3 +177,12 @@ Added configurable tinyidp seeded users and wired the personal-inbox tinyidp smo
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/tinyidp-users.yaml — Seeded users fixture
 
+
+## 2026-06-22
+
+Strengthened Step 07 tinyidp smoke to assert Alice/Bob inbox isolation with seeded users (commit f36f4ac).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_inbox_isolation_smoke.py — Isolation smoke helper
+
