@@ -43,6 +43,8 @@ RelatedFiles:
       Note: tinyidp-smoke process orchestration for first OIDC tutorial step
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/keycloak/realm-personal-inbox.json
       Note: Alice and Bob Keycloak tutorial users
+    - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_device_capture_isolation_smoke.py
+      Note: Step 08 Alice/Bob device token capture isolation smoke
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_inbox_isolation_smoke.py
       Note: Alice/Bob browser-session isolation smoke
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_login_smoke.py
@@ -62,7 +64,9 @@ RelatedFiles:
     - Path: examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/xgoja.yaml
       Note: Step 07 generated app and Keycloak port configuration
     - Path: examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/Makefile
-      Note: tinyidp-backed browser login plus native device authorization smoke
+      Note: |-
+        tinyidp-backed browser login plus native device authorization smoke
+        Step 08 tinyidp-smoke now asserts programmatic capture isolation
     - Path: examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/assets/public/app.js
       Note: Browser device approval UI
     - Path: examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/client.js
@@ -85,6 +89,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1664,4 +1669,92 @@ Alice session userId == user:user-alice-fixed
 Bob session userId   == user:user-bob-fixed
 Alice list includes Alice item and excludes Bob item
 Bob list includes Bob item and excludes Alice item
+```
+
+## Step 15: Assert device-token capture isolation
+
+This step strengthens Step 08's tinyidp smoke so it proves programmatic device tokens inherit the approving browser user's data boundary. The smoke now approves one device flow as Alice and one as Bob, captures one inbox item with each resulting bearer access token, and verifies each browser session sees only the item created by its own approved token.
+
+This is the programmatic counterpart to Step 07's browser isolation check. It shows that adding device authorization did not create a global write credential: the access token is tied to an xgoja agent whose claims carry the approving user's owner id.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes, add it."
+
+**Assistant interpretation:** Add the Step 08 device-capture isolation smoke described in the previous turn.
+
+**Inferred user intent:** Ensure the programmatic/device path preserves Alice/Bob data ownership before continuing with more tutorial features.
+
+**Commit (code):** 9d2e704 — "examples: assert tinyidp device capture isolation"
+
+### What I did
+
+- Added `tinyidp_device_capture_isolation_smoke.py`.
+- Updated Step 08 `tinyidp-smoke` to call the new helper.
+- The helper logs in as Alice and Bob through tinyidp, starts a separate xgoja device flow for each user, approves each code with that user's CSRF-bearing browser session, polls access/refresh tokens, captures through `/api/programmatic/capture`, and verifies browser inbox isolation.
+- Simplified the Step 08 Makefile by removing the old one-user inline token-capture assertions.
+- Updated Step 08 README to describe the stronger smoke.
+
+### Why
+
+- Step 08 introduces programmatic access, so validation must cover more than token issuance.
+- The critical invariant is ownership propagation: Alice-approved tokens write Alice-owned rows; Bob-approved tokens write Bob-owned rows.
+
+### What worked
+
+- Step 08 tinyidp smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/08-device-authorization tinyidp-smoke
+```
+
+- Full personal-inbox tinyidp smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+```
+
+### What didn't work
+
+- No implementation failures occurred in this step.
+
+### What I learned
+
+- When the script avoids a pre-approval poll, the first post-approval poll succeeds immediately; no poll-interval sleep is needed.
+- The current programmatic capture route stores `submittedByKind: "sessionUser"` with `submittedById` equal to the approving user's owner id, even though the route credential is an agent access token. The isolation assertion should therefore focus on browser-visible ownership, not that metadata string.
+
+### What was tricky to build
+
+- The smoke needs two separate browser sessions and two separate device authorizations so a shared tinyidp session cannot accidentally approve both flows as the same user.
+- Device authorization remains xgoja-native; tinyidp only supplies browser login. The helper uses tinyidp login and xgoja device endpoints in one flow, so the ownership boundary is explicit.
+
+### What warrants a second pair of eyes
+
+- Whether `submittedByKind` should become `agent` for programmatic captures while preserving the owner-user id separately.
+- Whether Step 08 should expose owner/agent information in a less diagnostic response body after the tutorial moves past debugging.
+
+### What should be done in the future
+
+- Consider teaching refresh-token rotation for these device-issued refresh tokens in the next step.
+- Consider a small shared Python module for the duplicate tinyidp login/form parsing used by the smoke scripts.
+
+### Code review instructions
+
+- Review `examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_device_capture_isolation_smoke.py`.
+- Review Step 08's `tinyidp-smoke` target in `examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/Makefile`.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+```
+
+### Technical details
+
+The smoke asserts:
+
+```text
+Alice browser session -> approve Alice device -> token capture Alice item
+Bob browser session   -> approve Bob device   -> token capture Bob item
+Alice /api/inbox includes Alice item and excludes Bob item
+Bob /api/inbox includes Bob item and excludes Alice item
 ```

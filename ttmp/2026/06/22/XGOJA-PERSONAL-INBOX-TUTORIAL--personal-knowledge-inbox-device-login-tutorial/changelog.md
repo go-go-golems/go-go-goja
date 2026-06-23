@@ -186,3 +186,12 @@ Strengthened Step 07 tinyidp smoke to assert Alice/Bob inbox isolation with seed
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_inbox_isolation_smoke.py — Isolation smoke helper
 
+
+## 2026-06-22
+
+Strengthened Step 08 tinyidp smoke to assert Alice/Bob device-token capture isolation (commit 9d2e704).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_device_capture_isolation_smoke.py — Device capture isolation smoke helper
+
