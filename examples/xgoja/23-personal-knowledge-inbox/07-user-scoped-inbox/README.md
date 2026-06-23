@@ -71,6 +71,6 @@ Later device/programmatic steps will grant non-browser clients access to this sa
 make tinyidp-smoke
 ```
 
-This replaces the local Keycloak container with tinyidp for the browser login path, then verifies that the generated app creates an authenticated session and can read the protected inbox route.
+This replaces the local Keycloak container with tinyidp for the browser login path, then logs in as Alice and Bob with separate cookie jars, captures one item per user, and verifies each user only sees their own inbox rows.
 
 The tinyidp smoke uses `../tinyidp-users.yaml` so Alice and Bob have stable seeded `sub` values and inbox-specific claims.

@@ -146,8 +146,8 @@ tinyidp-smoke: doctor build
 	grep -q 'alice-password' $$root; \
 	status=$$(curl -s -o /dev/null -w '%{http_code}' $(TINYIDP_BASE_URL)/api/inbox); \
 	test "$$status" = "401"; \
-	python3 $(EXAMPLE_DIR)/../06-browser-login-keycloak/scripts/tinyidp_login_smoke.py --base-url $(TINYIDP_BASE_URL); \
-	echo 'ok tinyidp replacement smoke'
+	python3 $(EXAMPLE_DIR)/../06-browser-login-keycloak/scripts/tinyidp_inbox_isolation_smoke.py --base-url $(TINYIDP_BASE_URL); \
+	echo 'ok tinyidp isolation smoke'
 
 clean:
 	rm -rf $(EXAMPLE_DIR)/dist
