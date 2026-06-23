@@ -168,3 +168,12 @@ Extended tinyidp smoke coverage to personal-inbox Steps 07/08 and auth examples 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/scripts/tinyidp_smoke.sh — Custom host tinyidp smoke
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/scripts/tinyidp_smoke.sh — Generated hostauth tinyidp smoke
 
+
+## 2026-06-22
+
+Added configurable tinyidp seeded users and wired the personal-inbox tinyidp smokes to a stable Alice/Bob fixture (tinyidp commit 4f432d5, examples commit e8ee145).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/tinyidp-users.yaml — Seeded users fixture
+

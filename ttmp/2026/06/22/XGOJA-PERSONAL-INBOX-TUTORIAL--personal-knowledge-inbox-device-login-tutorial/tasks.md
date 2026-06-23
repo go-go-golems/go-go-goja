@@ -28,3 +28,4 @@
 - [x] Step 08: add device authorization and programmatic capture
 - [x] Add tinyidp smoke for first browser-login OIDC step
 - [x] Extend tinyidp smokes across auth examples
+- [x] Use configurable seeded tinyidp users in personal-inbox smokes

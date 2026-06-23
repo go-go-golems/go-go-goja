@@ -15,6 +15,8 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../../../../code/wesen/go-go-golems/go-go-parc/Projects/2026/06/22/ARTICLE - tinyidp as a Keycloak Replacement for go-go-goja Auth Testing.md
       Note: source handoff article for tinyidp replacement constraints
+    - Path: ../../../../../../../2026-06-22--mock-oidc-idp/internal/scenario/seeded_users.go
+      Note: tinyidp seeded user configuration
     - Path: examples/xgoja/19-express-keycloak-auth-host/scripts/tinyidp_smoke.sh
       Note: tinyidp replacement smoke for custom Express auth host
     - Path: examples/xgoja/21-generated-host-auth/scripts/tinyidp_smoke.sh
@@ -67,6 +69,8 @@ RelatedFiles:
       Note: Top-level smoke dispatcher for step directories
     - Path: examples/xgoja/23-personal-knowledge-inbox/README.md
       Note: Top-level step-index for the incremental tutorial workspace
+    - Path: examples/xgoja/23-personal-knowledge-inbox/tinyidp-users.yaml
+      Note: Seeded Alice/Bob fixture for personal-inbox smokes
     - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/design/01-personal-knowledge-inbox-tutorial.md
       Note: Primary tutorial draft
     - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/02-implementation-logbook.md
@@ -77,6 +81,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1460,4 +1465,111 @@ Override:
 
 ```bash
 TINYIDP_ROOT=/path/to/tinyidp make tinyidp-smoke
+```
+
+## Step 13: Seed tinyidp users for personal-inbox smokes
+
+This step adds configurable seeded users to tinyidp and then uses that feature from the personal-inbox tinyidp smokes. The tutorial can now keep friendly `alice` and `bob` logins while pinning their OIDC `sub` values and app-specific claims in a checked-in fixture.
+
+The device-authorization decision remains unchanged: xgoja owns device-code issuance, approval, access tokens, refresh tokens, and route enforcement. tinyidp supplies only the human browser login that authorizes the device.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add configurable seeded users. no need for drop0n keycloak urls.
+
+why wouldd we want to delegate device authorization instead of doing it in goja?"
+
+**Assistant interpretation:** Implement tinyidp seeded-user configuration, wire it into the current smokes where useful, and explain the device-authorization ownership tradeoff.
+
+**Inferred user intent:** Stabilize OIDC test identities without pursuing Keycloak URL compatibility, and confirm that xgoja should continue owning programmatic/device authorization.
+
+**Commit (code):** 4f432d5 — "feat: add configurable seeded users"
+
+**Commit (examples):** e8ee145 — "examples: use seeded tinyidp users for inbox smokes"
+
+### What I did
+
+- Added tinyidp `--users-file` / `TINYIDP_USERS_FILE` / `oidc.users-file` support in the sibling tinyidp repo.
+- Added seeded-user YAML/JSON parsing with stable `login`, `sub`, `email`, `name`, `email_verified`, `claims`, and `omit_claims` support.
+- Added tinyidp unit/integration tests for seeded user parsing, builtin override, and ID-token/userinfo claim propagation.
+- Added `examples/xgoja/23-personal-knowledge-inbox/tinyidp-users.yaml` with fixed Alice/Bob subjects and inbox claims.
+- Updated Step 06/07/08 tinyidp smokes to pass the users file.
+- Updated tinyidp smoke defaults to use the current workspace sibling `../2026-06-22--mock-oidc-idp` instead of the old experiment checkout path.
+
+### Why
+
+- Stable seeded subjects make browser-user ownership tests easier to reason about and prevent test data from depending on tinyidp's hash derivation internals.
+- Claims such as `groups` and `tenant` let later tutorial steps exercise app-specific normalization and authorization behavior without requiring Keycloak realm fixtures.
+- Device authorization should stay in xgoja because the tutorial's programmatic credentials are xgoja agents, grants, access tokens, refresh token families, and route requirements — not external IdP credentials.
+
+### What worked
+
+- tinyidp tests passed:
+
+```bash
+GOWORK=off go test ./... -count=1
+```
+
+- go-go-goja tinyidp smokes passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+make -C examples/xgoja/21-generated-host-auth tinyidp-smoke
+make -C examples/xgoja/19-express-keycloak-auth-host tinyidp-smoke
+```
+
+### What didn't work
+
+- I initially attempted to run `gofmt` over Markdown files while validating tinyidp changes. It printed parse errors such as:
+
+```text
+cmd/tinyidp/doc/pages/reference.md:1:1: expected 'package', found '--'
+README.md:1:1: illegal character U+0023 '#'
+```
+
+- I reran `gofmt` only on Go files and the full test suite passed.
+
+### What I learned
+
+- tinyidp's existing scenario model was the right extension point: seeded users can be normal scenarios that override builtins by login.
+- For our current goals, external IdP device authorization would add the wrong boundary. xgoja's device flow is app/programmatic authorization, not human identity proofing.
+
+### What was tricky to build
+
+- The users-file parser supports both object form (`users: [...]`) and bare-list YAML/JSON so tests can stay compact.
+- `email_verified` needs to be optional because omitted should preserve tinyidp's default `true`; explicit `false` should override it.
+- The smokes needed their default `TINYIDP_ROOT` corrected to the current workspace sibling so future runs use the repo the user actually rebased.
+
+### What warrants a second pair of eyes
+
+- Whether seeded users should later support per-user post-logout redirects or client allowlists.
+- Whether example 19/21 should also use checked-in seeded user files for the `demo` principal.
+- Whether `keycloak_smoke.py` should be renamed now that it also drives tinyidp.
+
+### What should be done in the future
+
+- Add Alice/Bob isolation assertions that rely on the fixed seeded subjects.
+- Consider a shared tinyidp smoke harness to reduce duplicated shell orchestration.
+
+### Code review instructions
+
+- Review tinyidp `internal/scenario/seeded_users.go` and `internal/cmds/serve.go` for the seeded-user configuration flow.
+- Review `examples/xgoja/23-personal-knowledge-inbox/tinyidp-users.yaml` and Step 06/07/08 Makefiles for smoke wiring.
+- Validate with the commands listed in `What worked`.
+
+### Technical details
+
+Seeded users file shape:
+
+```yaml
+users:
+  - login: alice
+    sub: user-alice-fixed
+    email: alice@example.test
+    name: Alice Inbox
+    email_verified: true
+    claims:
+      preferred_username: alice
+      groups: [inbox-users]
+      tenant: personal
 ```
