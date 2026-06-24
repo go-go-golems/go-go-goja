@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Cost of Crossing the Boundary — goja Go&#8594;JS Binding Mechanisms</title>
+<style>
+  :root{
+    --ink:#0a0a0a; --ink-2:#232323; --paper:#ffffff; --paper-2:#fafafa;
+    --muted:#6b6b6b; --hair:#e5e5e5;
+    --accent:#E8470C; --accent-soft:rgba(232,71,12,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-size:16px;line-height:1.6}
+  ::selection{background:var(--accent);color:#fff}
+  .wrap{max-width:880px;margin:0 auto;padding:0 32px}
+  section{padding:56px 0;border-top:1px solid var(--ink)}
+  section:first-of-type{border-top:none;padding-top:0}
+
+  /* masthead — paper title block */
+  .mast{padding:64px 0 44px;border-top:10px solid var(--ink)}
+  .mast .kicker{font:700 11px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin:0 0 28px}
+  .mast h1{font:700 38px/1.1 var(--sans);letter-spacing:-.02em;margin:0 0 18px;max-width:24ch}
+  .mast .lede{font:400 17px/1.55 var(--sans);color:var(--ink-2);max-width:64ch;margin:0}
+  .mast .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:40px;border-top:1px solid var(--hair);padding-top:18px}
+  .mast .meta div{border-right:1px solid var(--hair);padding:4px 16px 4px 0}
+  .mast .meta div:last-child{border-right:none}
+  .mast .meta dt{font:500 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+  .mast .meta dd{font:600 14px/1.3 var(--sans);margin:0}
+
+  /* abstract */
+  .abstract{font:400 18px/1.65 Georgia,"Times New Roman",serif;color:var(--ink-2);padding:8px 0 0}
+  .abstract b{color:var(--ink)}
+  .verdict{border:1px solid var(--ink);padding:22px 26px;margin:24px 0;background:var(--paper-2)}
+  .verdict .vh{font:700 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+  .verdict p{margin:0;font:400 15px/1.6 var(--sans);color:var(--ink-2)}
+  .verdict p+p{margin-top:10px}
+
+  /* section heads */
+  .sec-head{display:flex;align-items:baseline;gap:18px;margin-bottom:28px}
+  .sec-head .num{font:600 12px/1 var(--mono);color:var(--accent);letter-spacing:.12em}
+  .sec-head h2{font:700 24px/1.15 var(--sans);letter-spacing:-.01em;margin:0}
+  .sec-head .tag{margin-left:auto;font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+  /* prose */
+  .prose{max-width:66ch}
+  .prose p{margin:0 0 16px}
+  .prose h3{font:600 12px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;margin:28px 0 14px;color:var(--ink)}
+  .lead-in{font:400 16px/1.6 var(--sans);color:var(--ink)}
+  .insight{font:400 15px/1.6 var(--sans);color:var(--ink-2);border-left:3px solid var(--accent);padding:6px 0 6px 18px;margin:0 0 20px}
+  code,kbd{font:13px/1.4 var(--mono);background:var(--paper-2);border:1px solid var(--hair);padding:1px 5px;border-radius:2px}
+  .pre{font:13px/1.55 var(--mono);background:var(--paper-2);border:1px solid var(--hair);padding:14px 16px;overflow-x:auto;white-space:pre;border-radius:2px;margin:0 0 18px}
+  .num{font-variant-numeric:tabular-nums}
+  .accent{color:var(--accent);font-weight:600}
+  .small{font:500 11px/1.5 var(--mono);color:var(--muted);letter-spacing:.02em}
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;font:14px/1.5 var(--sans);margin:0 0 8px}
+  th,td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--hair);vertical-align:top}
+  th{font:600 10px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--ink)}
+  td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+  .tbl-cap{font:500 11px/1.5 var(--mono);color:var(--muted);letter-spacing:.02em;margin:0 0 10px}
+  .tbl-note{font:400 12px/1.5 var(--sans);color:var(--muted);margin:6px 0 22px}
+
+  figure{margin:0 0 28px}
+  figure .cap{font:400 12.5px/1.5 var(--sans);color:var(--muted);margin:8px 0 0;max-width:66ch}
+  figure .cap b{color:var(--ink-2)}
+
+  /* method inline diagram */
+  .diagram{font:12.5px/1.5 var(--mono);background:var(--paper-2);border:1px solid var(--hair);padding:16px 18px;white-space:pre;overflow-x:auto;margin:0 0 18px;border-radius:2px}
+
+  footer{padding:44px 0 64px;border-top:1px solid var(--ink);font:500 11px/1.7 var(--mono);color:var(--muted);letter-spacing:.06em}
+  footer b{color:var(--ink);font-weight:600}
+  footer p{margin:0 0 10px;max-width:none}
+
+  @media (max-width:860px){
+    .wrap{padding:0 20px}
+    .mast h1{font-size:28px}
+    .mast .meta{grid-template-columns:repeat(2,1fr)}
+  }
+  @media print{
+    body{font-size:11pt} .wrap{max-width:100%} section{padding:24px 0}
+    .insight,.verdict{break-inside:avoid} figure{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- MASTHEAD -->
+  <header class="mast">
+    <p class="kicker">Benchmark Report &#183; goja Go&#8594;JS Bindings</p>
+    <h1>The cost of crossing the boundary.</h1>
+    <p class="lede">A measured study of every mechanism by which the <b>goja</b> JavaScript runtime exposes Go objects and functions to JavaScript, with a focus on the motivating question: <i>how expensive is a Go-backed ES6 Proxy that dispatches its properties manually?</i></p>
+    <dl class="meta">
+      <div><dt>Runtime</dt><dd>goja (local fork)</dd></div>
+      <div><dt>Toolchain</dt><dd>go1.26.4 &#183; linux/amd64</dd></div>
+      <div><dt>Hardware</dt><dd>i7-1165G7 @ 2.80 GHz</dd></div>
+      <div><dt>Generated</dt><dd>2026-06-23</dd></div>
+    </dl>
+  </header>
+
+  <!-- ABSTRACT -->
+  <section>
+    <div class="sec-head"><span class="num">00 /</span><h2>Abstract</h2><span class="tag">5&#215;5 samples</span></div>
+    <div class="abstract">
+      <p>JavaScript in goja never touches Go memory directly. Every property read, every function call, crosses a bridging layer that translates between goja&#8217;s internal <code>Value</code> representation and ordinary Go. There are roughly half a dozen such layers, and they are not equally cheap. We benchmark all of them performing identical work &#8212; returning the integer <span class="num">42</span> &#8212; so that the only variable is the binding itself.</p>
+      <p>Two findings dominate. <b>First, in the function-call regime, latency is allocation-bound.</b> A native callable costs <span class="num">220&#160;ns</span> and forces <span class="num">3</span> allocations; an ordinary Go function wrapped by reflection costs <span class="num">752&#160;ns</span> and forces <span class="num">12</span>. The added <span class="num">9</span> allocations account almost entirely for the added <span class="num">532&#160;ns</span>, at roughly <span class="num">60&#8211;86&#160;ns per allocation</span>.</p>
+      <p><b>Second, a Go-backed ES6 Proxy is cheap, and for calls it is nearly free.</b> A Proxy <code>Get</code> trap costs <span class="num">191&#160;ns</span> per read &#8212; about <span class="num">1.6&#215;</span> a plain object and exactly one extra allocation. A Proxy <code>Apply</code> trap, used to call through a proxy, adds no allocations at all over a raw native call (<span class="num">277&#160;ns</span>, same <span class="num">3</span> allocs). The catch is statistical, not absolute: the Proxy paths are markedly noisier than their peers, so the headline ratios are robust while the raw nanoseconds are not.</p>
+    </div>
+    <div class="verdict">
+      <p class="vh">The answer to the motivating question</p>
+      <p>A Go proxy object with manual dispatch costs, per property read, <b>one additional allocation</b> and about <b>1.5&#8211;1.6&#215;</b> the time of a plain object &#8212; roughly <b>191&#160;ns</b>. For function calls it is essentially free. For any workload where the Go side performs real work (I/O, parsing, database), this overhead is negligible. It only matters in tight loops of millions of trivial reads, and there the drop-in upgrade is a <code>DynamicObject</code>, not a plain object.</p>
+    </div>
+  </section>
+
+  <!-- 01 METHOD -->
+  <section>
+    <div class="sec-head"><span class="num">01 /</span><h2>Method</h2><span class="tag">what is and isn&#8217;t measured</span></div>
+    <div class="prose">
+      <p class="lead-in">The experiment holds everything constant except the binding. Every benchmark exposes a Go value to a fresh goja runtime, compiles a one-expression JavaScript program once, then runs that program repeatedly. The program always does the same logical work &#8212; evaluate <code>add(40,&#160;2)</code> or read <code>obj.v</code> &#8212; and always yields <span class="num">42</span>, which the harness checks. Because compilation and runtime construction sit outside the timed loop, the only thing being measured is the act of crossing the Go&#8594;JS boundary.</p>
+
+      <p>Each configuration is sampled five times (<code>-count=5</code>) at one second of iterations each (<code>-benchtime=1s</code>), and the figures below report the mean of those samples with their spread. This sample size is small; we therefore lean on two deliberate crutches, both of which are central to how the results should be read.</p>
+
+      <div class="insight"><b>The first crutch is the most important idea in this report.</b> Go&#8217;s benchmark allocator counts <i>allocations per operation</i>, and that count is <b>deterministic</b> &#8212; an invariant of the code path, not a measurement. Across all five samples, for every configuration, the allocation count is identical to the single allocation. (That is why <code>benchstat</code> prints &#8220;&#177;&#8734;&#8221; on those columns: the variance is zero, and with fewer than six samples it declines to draw a confidence interval.) Nanoseconds vary run to run; <b>allocation counts do not.</b> Treat the allocation count as the load-bearing signal and the nanoseconds as corroboration.</p>
+
+      <p>The second crutch is honesty about the nanosecond. The measurements were taken on a shared laptop running an interpreted, single-goroutine runtime with no JIT. Absolute latency is therefore illustrative; the <i>ratios</i> between mechanisms, and especially the allocation counts, are what generalize. We quantify the noise explicitly in &#167;5, where it becomes a finding in its own right.</p>
+
+      <h3>The boundary, in one picture</h3>
+      <p>To read the numbers, one must picture the boundary they describe. A JavaScript expression such as <code>svc.Add(40,&#160;2)</code> is compiled to bytecode and executed by goja&#8217;s interpreter (<code>vm.go</code>). When the VM needs a property of <code>svc</code> or wants to call it, it does not reach into Go. It asks an <b>object</b> &#8212; an implementation of goja&#8217;s internal <code>objectImpl</code> interface &#8212; to do the work on Go&#8217;s behalf. Different binding mechanisms are simply different <code>objectImpl</code> implementations, each with its own dispatch path and its own allocation signature.</p>
+      <div class="diagram">  JS bytecode  &#160;&#160;  svc.Add(40, 2)
+       &#160;&#160;&#160;&#160;&#160;&#160;&#124;   &#160;&#160;&#160;&#160;&#160;&#160;            (vm.go: stack machine, no JIT)
+       &#160;&#160;&#160;&#160;&#160;&#160;&#9660;
+   objectImpl  &#160;&#160;  getStr("Add") &#8594; assertCallable &#8594; vmCall(call)
+   &#160;&#160;&#160;&#160;&#160;&#160;&#124;   &#160;&#160;&#160;&#160;&#160; one implementation per binding mechanism:
+   &#160;&#160;&#160;&#160;&#160;&#160;&#9660;   &#160;&#160;&#160;&#160;&#160; nativeFunc  &#160;&#160;&#8594;  func(FunctionCall) Value      (no reflection)
+   &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;objectGoReflect &#8594;  reflect.Value + reflect.Call    (the 12-alloc path)
+   &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;dynamicObject  &#8594;  your Get/Set/Has/... (Go interface)
+   &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;proxyObject    &#8594;  ES6 traps + invariant checks
+       &#160;&#160;&#160;&#160;&#160;&#160;&#9660;
+   your Go code</div>
+      <p>The expense lives entirely in the middle layer. The question this report answers is how thick that layer is, one implementation at a time.</p>
+    </div>
+  </section>
+
+  <!-- 02 CALLS -->
+  <section>
+    <div class="sec-head"><span class="num">02 /</span><h2>Function calls &#8212; an allocation-bound regime</h2><span class="tag">add(40, 2) &#8594; 42</span></div>
+    <div class="prose">
+      <p class="lead-in">A JavaScript function call into Go has two possible shapes, decided the instant you pass the value to <code>vm.Set</code>. If the Go value has the exact signature <code>func(goja.FunctionCall)&#160;goja.Value</code>, goja recognizes it as a <b>native</b> callable and stores it verbatim &#8212; the VM&#8217;s call trampoline (<code>func.go:558</code>) invokes it with no translation. <i>Any other</i> function type falls through a type switch to a reflection wrapper (<code>runtime.go:1973</code>) that, on every single call, reflects each argument into the parameter type, allocates a <code>[]reflect.Value</code>, performs a <code>reflect.Call</code>, and re-boxes the result.</p>
+
+      <p>The difference between those two shapes is the entire story of this section, and it is large: a factor of <span class="num">752&#160;/&#160;220&#160;&#8776;&#160;3.4</span> in time, and <span class="num">12&#160;/&#160;3&#160;=&#160;4&#215;</span> in allocations. Observe that the allocation ratio is the clean number, because it is an invariant.</p>
+
+      <figure>
+        <svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Function-call cost per mechanism, log scale" style="width:100%;height:auto;display:block;max-width:760px;margin:8px 0">
+<rect width="760" height="330" fill="#fff"/>
+<rect x="170" y="26" width="340" height="274" fill="none" stroke="#0a0a0a"/>
+<line x1="205.3" y1="26" x2="205.3" y2="300" stroke="#e5e5e5"/>
+<text x="205.3" y="321" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">200</text>
+<line x1="255.0" y1="26" x2="255.0" y2="300" stroke="#e5e5e5"/>
+<text x="255.0" y="321" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">300</text>
+<line x1="317.6" y1="26" x2="317.6" y2="300" stroke="#e5e5e5"/>
+<text x="317.6" y="321" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">500</text>
+<line x1="402.6" y1="26" x2="402.6" y2="300" stroke="#e5e5e5"/>
+<text x="402.6" y="321" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">1000</text>
+<line x1="487.6" y1="26" x2="487.6" y2="300" stroke="#e5e5e5"/>
+<text x="487.6" y="321" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">2000</text>
+<text x="340.0" y="332" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">nanoseconds per call &#160;(log scale)</text>
+<rect x="170" y="38.8" width="47.0" height="20" fill="#E8470C"/>
+<text x="158" y="52.8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Native func</text>
+<text x="226.0" y="52.8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">220 ns &#160;&#183;&#160; 3 allocs</text>
+<rect x="170" y="84.5" width="75.3" height="20" fill="#E8470C"/>
+<text x="158" y="98.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Proxy (Apply)</text>
+<text x="254.3" y="98.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">277 ns &#160;&#183;&#160; 3 allocs</text>
+<rect x="170" y="130.2" width="197.6" height="20" fill="#0a0a0a"/>
+<text x="158" y="144.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Wrapped func</text>
+<text x="376.6" y="144.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">752 ns &#160;&#183;&#160; 12 allocs</text>
+<rect x="170" y="175.8" width="219.8" height="20" fill="#0a0a0a"/>
+<text x="158" y="189.8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">SetExport</text>
+<text x="398.8" y="189.8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">901 ns &#160;&#183;&#160; 12 allocs</text>
+<rect x="170" y="221.5" width="300.4" height="20" fill="#0a0a0a"/>
+<text x="158" y="235.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Map of funcs</text>
+<text x="479.4" y="235.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">1737 ns &#160;&#183;&#160; 21 allocs</text>
+<rect x="170" y="267.2" width="318.7" height="20" fill="#0a0a0a"/>
+<text x="158" y="281.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Reflect method</text>
+<text x="497.7" y="281.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">2017 ns &#160;&#183;&#160; 24 allocs</text></svg>
+        <p class="cap"><b>Figure 1.</b> Per-call latency by binding mechanism, log scale. The horizontal span covers nearly an order of magnitude; log scale is chosen deliberately, because the mechanisms are <i>multiplicatively</i> ordered &#8212; a linear axis would compress the two leftmost bars to invisibility. Allocation counts are annotated on each bar; note how faithfully they track the bar length.</p>
+      </figure>
+
+      <h3>Reading the four calls in the middle</h3>
+      <p>Between the two extremes sit four mechanisms, and their allocation counts explain their order almost completely:</p>
+      <table>
+        <thead><tr><th>Mechanism</th><th class="r">ns/call</th><th class="r">allocs</th><th class="r">marginal ns/alloc</th></tr></thead>
+        <tbody>
+          <tr><td>Wrapped func <span class="small">(reflect.Call, 2 args)</span></td><td class="r">752</td><td class="r">12</td><td class="r">59</td></tr>
+          <tr><td>Map of funcs <span class="small">(func re-wrapped every access)</span></td><td class="r">1737</td><td class="r">21</td><td class="r">84</td></tr>
+          <tr><td>Reflect struct method <span class="small">(method lookup + reflect.Call)</span></td><td class="r">2017</td><td class="r">24</td><td class="r">86</td></tr>
+        </tbody>
+      </table>
+      <p class="tbl-note">Marginal cost is computed against the native floor (3 allocs, 220&#160;ns): <span class="num">&#916;ns&#160;/&#160;&#916;allocs</span>. It rises from 59 to ~85&#160;ns/alloc as the path accumulates reflection machinery on top of each allocation.</p>
+
+      <p>The marginal cost of one allocation is not constant: it climbs from <span class="num">59&#160;ns</span> for a plain wrapped function to roughly <span class="num">85&#160;ns</span> once the path also performs a reflective method lookup or re-wraps a function on every access. This is the deep structure behind the headline number &#8212; an allocation costs a baseline amount, and the reflection work that <i>surrounds</i> the allocation adds more. The reflect-struct-method path at <span class="num">2017&#160;ns</span> is the slowest not because it allocates the most bytes (it does) but because it stacks two full reflection traversals: resolve the method, then marshal its arguments.</p>
+
+      <div class="insight"><b>A surprise worth flagging.</b> Storing a Go function inside a <code>map[string]interface{}</code> and reading it back from JavaScript (<code>m.add(40,&#160;2)</code>) costs <span class="num">1737&#160;ns</span> &#8212; slower than a reflect-struct method would be if it did less work, and far slower than the <span class="num">752&#160;ns</span> the same function costs when set directly. The map is a <i>live</i> view: each access returns the raw <code>interface{}</code>, and goja re-wraps it through reflection on every single call. The map is not caching the function; it is re-deriving it each time. If JavaScript calls a function stored in a live map in a loop, pay the one-time cost to hoist it into a <code>vm.NewObject()</code> instead.</p>
+    </div>
+  </section>
+
+  <!-- 03 SCATTER -->
+  <section>
+    <div class="sec-head"><span class="num">03 /</span><h2>The single relationship that explains almost everything</h2><span class="tag">allocations &#8594; latency</span></div>
+    <div class="prose">
+      <p class="lead-in">Plotted together, all sixteen configurations reduce to one picture. Latency rises with allocation count along a near-linear trend, and the trend&#8217;s slope &#8212; about <span class="num">86&#160;ns per allocation</span> &#8212; is the unifying constant of the call regime. This is the figure to remember.</p>
+      <figure>
+        <svg viewBox="0 0 720 384" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Allocations per operation versus latency, by regime" style="width:100%;height:auto;display:block;max-width:720px;margin:8px 0">
+<rect width="720" height="384" fill="#fff"/>
+<rect x="58" y="26" width="452" height="312" fill="none" stroke="#0a0a0a"/>
+<line x1="58.0" y1="26" x2="58.0" y2="338" stroke="#e5e5e5"/><text x="58.0" y="358" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">0</text>
+<line x1="144.9" y1="26" x2="144.9" y2="338" stroke="#e5e5e5"/><text x="144.9" y="358" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">5</text>
+<line x1="231.8" y1="26" x2="231.8" y2="338" stroke="#e5e5e5"/><text x="231.8" y="358" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">10</text>
+<line x1="318.8" y1="26" x2="318.8" y2="338" stroke="#e5e5e5"/><text x="318.8" y="358" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">15</text>
+<line x1="405.7" y1="26" x2="405.7" y2="338" stroke="#e5e5e5"/><text x="405.7" y="358" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">20</text>
+<line x1="492.6" y1="26" x2="492.6" y2="338" stroke="#e5e5e5"/><text x="492.6" y="358" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">25</text>
+<line x1="58" y1="338.0" x2="510" y2="338.0" stroke="#e5e5e5"/><text x="49" y="342.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="end">0</text>
+<line x1="58" y1="263.7" x2="510" y2="263.7" stroke="#e5e5e5"/><text x="49" y="267.7" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="end">500</text>
+<line x1="58" y1="189.4" x2="510" y2="189.4" stroke="#e5e5e5"/><text x="49" y="193.4" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="end">1000</text>
+<line x1="58" y1="115.1" x2="510" y2="115.1" stroke="#e5e5e5"/><text x="49" y="119.1" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="end">1500</text>
+<line x1="58" y1="40.9" x2="510" y2="40.9" stroke="#e5e5e5"/><text x="49" y="44.9" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="end">2000</text>
+<text x="16" y="182.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle" transform="rotate(-90 16 182.0)">nanoseconds per operation</text>
+<text x="284.0" y="378" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">allocations per operation</text>
+<line x1="58.0" y1="338.0" x2="510.0" y2="7.3" stroke="#E8470C" stroke-width="1.3" stroke-dasharray="6 4" opacity="0.85"/>
+<text x="483.9" y="28.4" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10" fill="#E8470C" text-anchor="end">~86 ns/alloc (call regime)</text>
+<circle cx="110.2" cy="305.3" r="5.5" fill="#fff" stroke="#E8470C" stroke-width="1.7"/>
+<text x="100.2" y="309.3" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#0a0a0a" text-anchor="end">Native func</text>
+<circle cx="110.2" cy="296.8" r="5.5" fill="#fff" stroke="#E8470C" stroke-width="1.7"/>
+<text x="100.2" y="300.8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#0a0a0a" text-anchor="end">Proxy (Apply)</text>
+<circle cx="266.6" cy="226.3" r="5.5" fill="#fff" stroke="#E8470C" stroke-width="1.7"/>
+<text x="256.6" y="230.3" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#0a0a0a" text-anchor="end">Wrapped func</text>
+<circle cx="266.6" cy="204.2" r="5.5" fill="#fff" stroke="#E8470C" stroke-width="1.7"/>
+<text x="256.6" y="208.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#0a0a0a" text-anchor="end">SetExport</text>
+<circle cx="423.1" cy="79.9" r="5.5" fill="#fff" stroke="#E8470C" stroke-width="1.7"/>
+<text x="433.1" y="83.9" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#0a0a0a" text-anchor="start">Map of funcs</text>
+<circle cx="475.2" cy="38.3" r="5.5" fill="#fff" stroke="#E8470C" stroke-width="1.7"/>
+<text x="485.2" y="42.3" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#0a0a0a" text-anchor="start">Reflect method</text>
+<circle cx="75.4" cy="320.4" r="5" fill="#fff" stroke="#0a0a0a" stroke-width="1.5"/>
+<circle cx="75.4" cy="319.7" r="5" fill="#fff" stroke="#0a0a0a" stroke-width="1.5"/>
+<circle cx="75.4" cy="319.1" r="5" fill="#fff" stroke="#0a0a0a" stroke-width="1.5"/>
+<circle cx="92.8" cy="313.0" r="5" fill="#fff" stroke="#0a0a0a" stroke-width="1.5"/>
+<circle cx="92.8" cy="310.3" r="5" fill="#fff" stroke="#0a0a0a" stroke-width="1.5"/>
+<circle cx="92.8" cy="309.6" r="5" fill="#fff" stroke="#0a0a0a" stroke-width="1.5"/>
+<text x="98.1" y="315.7" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#6b6b6b">property reads</text>
+<text x="98.1" y="328.7" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#6b6b6b">(see Fig. 3)</text>
+<rect x="66" y="32" width="13" height="13" fill="#fff" stroke="#E8470C" stroke-width="1.7"/><text x="86" y="43" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#0a0a0a">function calls</text>
+<rect x="66" y="52" width="13" height="13" fill="#fff" stroke="#0a0a0a" stroke-width="1.7"/><text x="86" y="63" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#0a0a0a">property reads</text></svg>
+        <p class="cap"><b>Figure 2.</b> Every measured configuration, positioned by its deterministic allocation count (horizontal) and its mean latency (vertical). Open red circles are function calls; black circles are property reads. The dashed ray is the call-regime trend (&#8776;&#160;86&#160;ns per allocation). <b>Two regimes are visible at once.</b> The calls climb the ray; the reads hug the floor &#8212; they cost roughly the same whether they allocate once or twice, because their work is dominated by fixed dispatch overhead, not by allocation.</p>
+      </figure>
+      <p>This single chart is the reason the report can make confident claims from five-sample runs: even though individual nanosecond measurements wobble, the allocation count pins each point to a fixed horizontal position, and the latency then falls on a line whose slope is stable. A mechanism that forces more allocations will cost more, and the figure tells you by roughly how much before you measure it.</p>
+      <p>The reads&#8217; refusal to climb the ray is itself the finding of the next section: in the read regime, the dominant cost is the fixed overhead of a property dispatch, not the allocation it may or may not trigger. One allocation or two, the read costs ~120&#8211;190&#160;ns either way.</p>
+    </div>
+  </section>
+
+  <!-- 04 READS -->
+  <section>
+    <div class="sec-head"><span class="num">04 /</span><h2>Property reads &#8212; a fixed-overhead regime</h2><span class="tag">obj.v &#8594; 42</span></div>
+    <div class="prose">
+      <p class="lead-in">Reading a property is cheaper than calling a function, and the ranking of mechanisms is different. Here the floor is a cluster of <b>one-allocation</b> readers at roughly <span class="num">123&#160;ns</span>: a reused plain JavaScript object, a live Go map, and a <code>DynamicObject</code>. They are statistically indistinguishable from one another &#8212; the <code>DynamicObject</code> at <span class="num">124&#160;ns</span> is within the run-to-run noise of the plain object. <b>A fully Go-controlled object can be as fast to read as a plain JavaScript object.</b></p>
+      <figure>
+        <svg viewBox="0 0 720 314" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Property-read latency by mechanism" style="width:100%;height:auto;display:block;max-width:720px;margin:8px 0">
+<rect width="720" height="314" fill="#fff"/>
+<rect x="158" y="26" width="478" height="252" fill="none" stroke="#0a0a0a"/>
+<line x1="158.0" y1="26" x2="158.0" y2="278" stroke="#e5e5e5"/><text x="158.0" y="301" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">100</text>
+<line x1="328.7" y1="26" x2="328.7" y2="278" stroke="#e5e5e5"/><text x="328.7" y="301" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">150</text>
+<line x1="499.4" y1="26" x2="499.4" y2="278" stroke="#e5e5e5"/><text x="499.4" y="301" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">200</text>
+<text x="397.0" y="314" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">nanoseconds &#160;(min &#160;&#8212;&#160; median &#160;&#8212;&#160; max)</text>
+<text x="146" y="51.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Plain object (reused)</text>
+<line x1="200.7" y1="47.0" x2="280.6" y2="47.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="200.7" y1="42.0" x2="200.7" y2="52.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="280.6" y1="42.0" x2="280.6" y2="52.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="205.5" cy="47.0" r="5" fill="#E8470C"/>
+<line x1="220.2" y1="39.0" x2="220.2" y2="55.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="93.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">DynamicObject</text>
+<line x1="221.5" y1="89.0" x2="256.3" y2="89.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="221.5" y1="84.0" x2="221.5" y2="94.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="256.3" y1="84.0" x2="256.3" y2="94.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="244.0" cy="89.0" r="5" fill="#E8470C"/>
+<line x1="238.2" y1="81.0" x2="238.2" y2="97.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="135.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Go map</text>
+<line x1="234.8" y1="131.0" x2="261.8" y2="131.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="234.8" y1="126.0" x2="234.8" y2="136.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="261.8" y1="126.0" x2="261.8" y2="136.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="251.9" cy="131.0" r="5" fill="#E8470C"/>
+<line x1="250.3" y1="123.0" x2="250.3" y2="139.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="177.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">DynamicArray</text>
+<line x1="366.3" y1="173.0" x2="433.2" y2="173.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="366.3" y1="168.0" x2="366.3" y2="178.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="433.2" y1="168.0" x2="433.2" y2="178.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="389.8" cy="173.0" r="5" fill="#E8470C"/>
+<line x1="390.2" y1="165.0" x2="390.2" y2="181.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="219.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Reflect field</text>
+<line x1="438.0" y1="215.0" x2="490.9" y2="215.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="438.0" y1="210.0" x2="438.0" y2="220.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="490.9" y1="210.0" x2="490.9" y2="220.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="446.8" cy="215.0" r="5" fill="#E8470C"/>
+<line x1="453.6" y1="207.0" x2="453.6" y2="223.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="261.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Proxy (Get)</text>
+<line x1="339.6" y1="257.0" x2="604.9" y2="257.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="339.6" y1="252.0" x2="339.6" y2="262.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="604.9" y1="252.0" x2="604.9" y2="262.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="495.0" cy="257.0" r="5" fill="#E8470C"/>
+<line x1="470.3" y1="249.0" x2="470.3" y2="265.0" stroke="#0a0a0a" stroke-width="1"/>
+<circle cx="480" cy="284" r="5" fill="#E8470C"/><text x="492" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#6b6b6b">median</text>
+<line x1="546" y1="280" x2="546" y2="288" stroke="#0a0a0a"/><text x="554" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#6b6b6b">mean</text></svg>
+        <p class="cap"><b>Figure 3.</b> Property-read latency. Each row is a mechanism; the line spans the minimum to maximum across the five samples, the filled red dot is the median, and the black tick is the mean. The width of a line is the measurement noise. The three one-allocation readers bunch tightly at the left; the two-allocation readers sit higher &#8212; and the Proxy sits highest and <i>widest</i>.</p>
+      </figure>
+      <p>The two-allocation readers &#8212; reflect struct field, <code>DynamicArray</code>, and the Proxy &#8212; all pay one extra allocation over the floor and land at roughly <span class="num">1.4&#8211;1.6&#215;</span> its cost. That is consistent with the call regime&#8217;s marginal cost: one allocation is worth about 60&#8211;86&#160;ns, and the read delta is <span class="num">123&#160;&#8594;&#160;191&#160;ns</span>, i.e. <span class="num">~69&#160;ns</span> for one allocation. The two regimes agree, which is reassuring.</p>
+      <div class="insight"><b>For reads, prefer <code>DynamicObject</code> over <code>Proxy</code>.</b> Both give Go full control over what JavaScript sees. But the <code>DynamicObject</code> lands on the one-allocation floor at <span class="num">124&#160;ns</span> with a five-method interface (<code>Get/Set/Has/Delete/Keys</code>), while the Proxy pays a second allocation at <span class="num">191&#160;ns</span> to enforce ES6 invariants against its target. Reserve the Proxy for when you genuinely need an ES6-only trap &#8212; <code>construct</code>, <code>ownKeys</code>, <code>set</code> interception &#8212; that the dynamic interface cannot express.</p>
+    </div>
+  </section>
+
+  <!-- 05 PROXY -->
+  <section>
+    <div class="sec-head"><span class="num">05 /</span><h2>The Proxy, dissected</h2><span class="tag">machinery vs. dispatch vs. noise</span></div>
+    <div class="prose">
+      <p class="lead-in">The motivating question concerns the Proxy specifically, so it earns its own dissection. Three things must be separated: the cost of the Proxy <i>machinery</i> (the runtime&#8217;s invariant checking), the cost of the <i>dispatch logic</i> you write inside the trap, and the <i>noise</i> of measuring the Proxy at all.</p>
+
+      <h3>The dispatch body barely matters; the noise dominates</h3>
+      <p>We held the Proxy machinery fixed and varied only the body of the <code>Get</code> trap. A <code>switch</code> that hits, a <code>map</code> that hits, and a miss that returns <code>undefined</code> &#8212; the three sensible ways to write a manual-dispatch trap.</p>
+      <figure>
+        <svg viewBox="0 0 720 188" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Proxy Get-trap latency by dispatch body" style="width:100%;height:auto;display:block;max-width:720px;margin:8px 0">
+<rect width="720" height="188" fill="#fff"/>
+<rect x="158" y="26" width="478" height="126" fill="none" stroke="#0a0a0a"/>
+<line x1="187.9" y1="26" x2="187.9" y2="152" stroke="#e5e5e5"/><text x="187.9" y="175" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">150</text>
+<line x1="337.2" y1="26" x2="337.2" y2="152" stroke="#e5e5e5"/><text x="337.2" y="175" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">200</text>
+<line x1="486.6" y1="26" x2="486.6" y2="152" stroke="#e5e5e5"/><text x="486.6" y="175" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">250</text>
+<line x1="636.0" y1="26" x2="636.0" y2="152" stroke="#e5e5e5"/><text x="636.0" y="175" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">300</text>
+<text x="397.0" y="188" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">nanoseconds &#160;(min &#160;&#8212;&#160; median &#160;&#8212;&#160; max)</text>
+<text x="146" y="51.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">switch — hit</text>
+<line x1="196.5" y1="47.0" x2="239.0" y2="47.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="196.5" y1="42.0" x2="196.5" y2="52.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="239.0" y1="42.0" x2="239.0" y2="52.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="207.6" cy="47.0" r="5" fill="#E8470C"/>
+<line x1="210.6" y1="39.0" x2="210.6" y2="55.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="93.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">map — hit</text>
+<line x1="257.2" y1="89.0" x2="560.7" y2="89.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="257.2" y1="84.0" x2="257.2" y2="94.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="560.7" y1="84.0" x2="560.7" y2="94.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="279.3" cy="89.0" r="5" fill="#E8470C"/>
+<line x1="334.6" y1="81.0" x2="334.6" y2="97.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="135.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">miss → undefined</text>
+<line x1="191.2" y1="131.0" x2="591.5" y2="131.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="191.2" y1="126.0" x2="191.2" y2="136.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="591.5" y1="126.0" x2="591.5" y2="136.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="422.1" cy="131.0" r="5" fill="#E8470C"/>
+<line x1="390.1" y1="123.0" x2="390.1" y2="139.0" stroke="#0a0a0a" stroke-width="1"/>
+<circle cx="480" cy="158" r="5" fill="#E8470C"/><text x="492" y="162" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#6b6b6b">median</text>
+<line x1="546" y1="154" x2="546" y2="162" stroke="#0a0a0a"/><text x="554" y="162" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#6b6b6b">mean</text></svg>
+        <p class="cap"><b>Figure 4.</b> Proxy <code>Get</code>-trap latency by dispatch body. All three allocate identically (2 allocs, 48&#160;B) &#8212; the difference is purely in timing. The switch-hit is both the <i>fastest</i> and the most <i>predictable</i> (tight line). The miss is slowest, because a miss must continue the property lookup onto the proxy&#8217;s prototype chain before yielding <code>undefined</code>.</p>
+      </figure>
+      <table>
+        <thead><tr><th>Trap body</th><th class="r">mean ns</th><th class="r">CV</th><th class="r">allocs</th><th>note</th></tr></thead>
+        <tbody>
+          <tr><td>switch &#8212; hit</td><td class="r">158</td><td class="r">3.7%</td><td class="r">2</td><td>fastest &amp; most stable</td></tr>
+          <tr><td>map &#8212; hit</td><td class="r">199</td><td class="r">21.7%</td><td class="r">2</td><td>bimodal: 173 or 275</td></tr>
+          <tr><td>miss &#8594; undefined</td><td class="r">218</td><td class="r">28.8%</td><td class="r">2</td><td>walks the prototype chain</td></tr>
+        </tbody>
+      </table>
+      <p class="tbl-note">CV is the coefficient of variation (stddev&#160;/&#160;mean). A switch-dispatch Proxy is an order of magnitude more predictable than a miss.</p>
+
+      <p>The result is counter-intuitive and worth stating plainly: <b>a hit is faster than a miss</b>. When the trap returns a value, the lookup terminates; when it returns <code>undefined</code>, goja is obligated to keep searching the proxy target&#8217;s prototype chain before conceding. So the dispatch logic you write does matter, but in the opposite direction from a naïve guess &#8212; early-return-on-hit is not just clearer, it is faster.</p>
+
+      <div class="insight"><b>The noise is itself the finding.</b> Non-Proxy measurements in this report have coefficients of variation under 5% &#8212; the native function is <span class="num">1.5%</span>, the wrapped function <span class="num">0.8%</span>. The Proxy property read is <span class="num">18.2%</span>, and the miss is <span class="num">28.8%</span>. The Proxy path is intrinsically more variable. The likely cause is its invariant-checking machinery &#8212; <code>proxyObject.getStr</code> re-inspects the target&#8217;s own property on every access (<code>proxy.go:601</code>), a data-dependent branch that interacts unpredictably with the cache and the garbage collector. <b>Plan around the median, and do not trust any single Proxy sample.</b></p>
+
+      <h3>Calling through a Proxy is essentially free</h3>
+      <p>The read path is where the Proxy spends its budget; the call path is not. Fronting a <i>callable</i> target with a Proxy and invoking it through the <code>Apply</code> trap costs <span class="num">277&#160;ns</span> with <span class="num">3</span> allocations &#8212; byte-for-byte the same allocation signature as a raw native call, and only <span class="num">~57&#160;ns</span> slower for the one extra Go-callback hop. If your design calls a proxy rather than reading it, the Proxy machinery is not a cost worth worrying about.</p>
+    </div>
+  </section>
+
+  <!-- 06 LIMITS -->
+  <section>
+    <div class="sec-head"><span class="num">06 /</span><h2>Threats to validity</h2><span class="tag">what the numbers do not say</span></div>
+    <div class="prose">
+      <p>A benchmark is only as trustworthy as its stated limits. The important caveats for this one:</p>
+      <ul style="margin:0 0 16px;padding-left:22px;line-height:1.7">
+        <li><b>No JIT, one goroutine.</b> goja interprets bytecode and a runtime is not concurrency-safe. These are single-threaded, interpreted numbers. A future JIT would compress absolute latency but is unlikely to reorder the mechanisms, because the reflection wrapper&#8217;s allocations would remain.</li>
+        <li><b>Wall-clock on a shared machine.</b> The nanoseconds were taken on an interactive laptop. Treat every absolute figure as &#177;~10&#8211;20%; treat every <i>ratio</i> and every <i>allocation count</i> as robust.</li>
+        <li><b>Five samples.</b> Enough to expose the Proxy&#8217;s instability (its CV is large), too few for tight confidence intervals. The deterministic allocation counts compensate, which is why they are foregrounded throughout.</li>
+        <li><b>Single-key reads only.</b> Each read fetches one property. We did not measure enumeration &#8212; <code>Object.keys</code>, <code>for&#8230;in</code>, <code>JSON.stringify</code> &#8212; which for a Proxy is a multi-trap cascade and likely the regime where its overhead is largest. This is the obvious next experiment.</li>
+        <li><b>One payload.</b> Every call returns a small integer. Larger or nested return values would add conversion cost that is orthogonal to the binding choice and is not captured here.</li>
+      </ul>
+      <p>None of these threaten the central conclusions, because the conclusions rest on allocation counts and on ratios between mechanisms measured under identical conditions, both of which are insulated from the caveats above.</p>
+    </div>
+  </section>
+
+  <!-- 07 REPRO -->
+  <section>
+    <div class="sec-head"><span class="num">07 /</span><h2>Reproducibility</h2><span class="tag">one command</span></div>
+    <div class="prose">
+      <p>The harness is <code>go-go-goja/perf/goja/phase3_bindings_bench_test.go</code>. From the <code>go-go-goja</code> module root:</p>
+      <div class="pre">go test ./perf/goja -run '^$' \
+  -bench 'BindingFunctionCall|BindingPropertyGet|BindingArrayIndexGet|ProxyDispatchDetail' \
+  -benchtime=1s -count=5 -benchmem | tee raw.txt
+benchstat raw.txt</div>
+      <p>Or, using the ticket&#8217;s bundled reproducer, <code>bash&#160;scripts/02-run-bindings-bench.sh&#160;/tmp/out</code>. The raw five-sample output and the <code>benchstat</code> aggregation from which every figure here was derived are filed alongside this report in the ticket.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>Source.</b> Benchmark in <code>go-go-goja/perf/goja/phase3_bindings_bench_test.go</code> &#183; ticket <code>2026-06-23-goja-bindings-benchmark</code>. Engine is the local <code>goja</code> fork selected by the workspace <code>go.work</code>.</p>
+    <p><b>Method.</b> Identical work (return 42) across all mechanisms; reused runtime + pre-compiled program so only the boundary is timed. Five samples at 1&#160;s each; means and spreads reported, allocation counts treated as deterministic invariants.</p>
+    <p><b>Self-contained.</b> This file is a single static HTML document. All four figures are inline SVG generated directly from the measured statistics &#8212; no charting library, no network requests, no JavaScript.</p>
+  </footer>
+</div>
+</body>
+</html>

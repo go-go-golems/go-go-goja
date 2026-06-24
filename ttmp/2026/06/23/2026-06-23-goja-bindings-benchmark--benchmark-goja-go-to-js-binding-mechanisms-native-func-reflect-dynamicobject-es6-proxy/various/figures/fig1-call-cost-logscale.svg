@@ -1,0 +1,32 @@
+<svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Function-call cost per mechanism, log scale" style="width:100%;height:auto;display:block;max-width:760px;margin:8px 0">
+<rect width="760" height="330" fill="#fff"/>
+<rect x="170" y="26" width="340" height="274" fill="none" stroke="#0a0a0a"/>
+<line x1="205.3" y1="26" x2="205.3" y2="300" stroke="#e5e5e5"/>
+<text x="205.3" y="321" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">200</text>
+<line x1="255.0" y1="26" x2="255.0" y2="300" stroke="#e5e5e5"/>
+<text x="255.0" y="321" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">300</text>
+<line x1="317.6" y1="26" x2="317.6" y2="300" stroke="#e5e5e5"/>
+<text x="317.6" y="321" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">500</text>
+<line x1="402.6" y1="26" x2="402.6" y2="300" stroke="#e5e5e5"/>
+<text x="402.6" y="321" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">1000</text>
+<line x1="487.6" y1="26" x2="487.6" y2="300" stroke="#e5e5e5"/>
+<text x="487.6" y="321" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">2000</text>
+<text x="340.0" y="332" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">nanoseconds per call &#160;(log scale)</text>
+<rect x="170" y="38.8" width="47.0" height="20" fill="#E8470C"/>
+<text x="158" y="52.8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Native func</text>
+<text x="226.0" y="52.8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">220 ns &#160;&#183;&#160; 3 allocs</text>
+<rect x="170" y="84.5" width="75.3" height="20" fill="#E8470C"/>
+<text x="158" y="98.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Proxy (Apply)</text>
+<text x="254.3" y="98.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">277 ns &#160;&#183;&#160; 3 allocs</text>
+<rect x="170" y="130.2" width="197.6" height="20" fill="#0a0a0a"/>
+<text x="158" y="144.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Wrapped func</text>
+<text x="376.6" y="144.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">752 ns &#160;&#183;&#160; 12 allocs</text>
+<rect x="170" y="175.8" width="219.8" height="20" fill="#0a0a0a"/>
+<text x="158" y="189.8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">SetExport</text>
+<text x="398.8" y="189.8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">901 ns &#160;&#183;&#160; 12 allocs</text>
+<rect x="170" y="221.5" width="300.4" height="20" fill="#0a0a0a"/>
+<text x="158" y="235.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Map of funcs</text>
+<text x="479.4" y="235.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">1737 ns &#160;&#183;&#160; 21 allocs</text>
+<rect x="170" y="267.2" width="318.7" height="20" fill="#0a0a0a"/>
+<text x="158" y="281.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Reflect method</text>
+<text x="497.7" y="281.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">2017 ns &#160;&#183;&#160; 24 allocs</text></svg>

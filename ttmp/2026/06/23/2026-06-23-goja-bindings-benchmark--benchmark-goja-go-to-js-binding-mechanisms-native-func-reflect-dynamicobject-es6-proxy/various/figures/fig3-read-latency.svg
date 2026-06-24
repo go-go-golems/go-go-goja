@@ -1,0 +1,45 @@
+<svg viewBox="0 0 720 314" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Property-read latency by mechanism" style="width:100%;height:auto;display:block;max-width:720px;margin:8px 0">
+<rect width="720" height="314" fill="#fff"/>
+<rect x="158" y="26" width="478" height="252" fill="none" stroke="#0a0a0a"/>
+<line x1="158.0" y1="26" x2="158.0" y2="278" stroke="#e5e5e5"/><text x="158.0" y="301" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">100</text>
+<line x1="328.7" y1="26" x2="328.7" y2="278" stroke="#e5e5e5"/><text x="328.7" y="301" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">150</text>
+<line x1="499.4" y1="26" x2="499.4" y2="278" stroke="#e5e5e5"/><text x="499.4" y="301" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">200</text>
+<text x="397.0" y="314" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">nanoseconds &#160;(min &#160;&#8212;&#160; median &#160;&#8212;&#160; max)</text>
+<text x="146" y="51.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Plain object (reused)</text>
+<line x1="200.7" y1="47.0" x2="280.6" y2="47.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="200.7" y1="42.0" x2="200.7" y2="52.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="280.6" y1="42.0" x2="280.6" y2="52.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="205.5" cy="47.0" r="5" fill="#E8470C"/>
+<line x1="220.2" y1="39.0" x2="220.2" y2="55.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="93.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">DynamicObject</text>
+<line x1="221.5" y1="89.0" x2="256.3" y2="89.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="221.5" y1="84.0" x2="221.5" y2="94.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="256.3" y1="84.0" x2="256.3" y2="94.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="244.0" cy="89.0" r="5" fill="#E8470C"/>
+<line x1="238.2" y1="81.0" x2="238.2" y2="97.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="135.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Go map</text>
+<line x1="234.8" y1="131.0" x2="261.8" y2="131.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="234.8" y1="126.0" x2="234.8" y2="136.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="261.8" y1="126.0" x2="261.8" y2="136.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="251.9" cy="131.0" r="5" fill="#E8470C"/>
+<line x1="250.3" y1="123.0" x2="250.3" y2="139.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="177.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">DynamicArray</text>
+<line x1="366.3" y1="173.0" x2="433.2" y2="173.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="366.3" y1="168.0" x2="366.3" y2="178.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="433.2" y1="168.0" x2="433.2" y2="178.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="389.8" cy="173.0" r="5" fill="#E8470C"/>
+<line x1="390.2" y1="165.0" x2="390.2" y2="181.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="219.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Reflect field</text>
+<line x1="438.0" y1="215.0" x2="490.9" y2="215.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="438.0" y1="210.0" x2="438.0" y2="220.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="490.9" y1="210.0" x2="490.9" y2="220.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="446.8" cy="215.0" r="5" fill="#E8470C"/>
+<line x1="453.6" y1="207.0" x2="453.6" y2="223.0" stroke="#0a0a0a" stroke-width="1"/>
+<text x="146" y="261.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Proxy (Get)</text>
+<line x1="339.6" y1="257.0" x2="604.9" y2="257.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="339.6" y1="252.0" x2="339.6" y2="262.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<line x1="604.9" y1="252.0" x2="604.9" y2="262.0" stroke="#0a0a0a" stroke-width="1.4"/>
+<circle cx="495.0" cy="257.0" r="5" fill="#E8470C"/>
+<line x1="470.3" y1="249.0" x2="470.3" y2="265.0" stroke="#0a0a0a" stroke-width="1"/>
+<circle cx="480" cy="284" r="5" fill="#E8470C"/><text x="492" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#6b6b6b">median</text>
+<line x1="546" y1="280" x2="546" y2="288" stroke="#0a0a0a"/><text x="554" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#6b6b6b">mean</text></svg>

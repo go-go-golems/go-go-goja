@@ -1,0 +1,306 @@
+{
+ "BenchmarkBindingFunctionCall/NativeFunc-8": {
+  "name": "BenchmarkBindingFunctionCall/NativeFunc-8",
+  "mean": 220.08,
+  "std": 3.3424541881677237,
+  "cv": 1.5187450873172135,
+  "min": 216.9,
+  "max": 225.7,
+  "median": 219.4,
+  "samples": 5,
+  "ns": [
+   219.4,
+   219.9,
+   216.9,
+   218.5,
+   225.7
+  ],
+  "B": 224,
+  "allocs": 3
+ },
+ "BenchmarkBindingFunctionCall/WrappedFunc-8": {
+  "name": "BenchmarkBindingFunctionCall/WrappedFunc-8",
+  "mean": 751.66,
+  "std": 5.929418183936784,
+  "cv": 0.7888431184227955,
+  "min": 745.8,
+  "max": 761.0,
+  "median": 751.5,
+  "samples": 5,
+  "ns": [
+   747.4,
+   751.5,
+   745.8,
+   752.6,
+   761.0
+  ],
+  "B": 352,
+  "allocs": 12
+ },
+ "BenchmarkBindingFunctionCall/SetExport-8": {
+  "name": "BenchmarkBindingFunctionCall/SetExport-8",
+  "mean": 900.82,
+  "std": 109.7508177646071,
+  "cv": 12.183434844320407,
+  "min": 781.4,
+  "max": 1017.0,
+  "median": 918.2,
+  "samples": 5,
+  "ns": [
+   781.4,
+   793.7,
+   1017.0,
+   993.8,
+   918.2
+  ],
+  "B": 352,
+  "allocs": 12
+ },
+ "BenchmarkBindingFunctionCall/ReflectStructMethod-8": {
+  "name": "BenchmarkBindingFunctionCall/ReflectStructMethod-8",
+  "mean": 2017.0,
+  "std": 32.95451410656816,
+  "cv": 1.6338380816345148,
+  "min": 1984.0,
+  "max": 2072.0,
+  "median": 2012.0,
+  "samples": 5,
+  "ns": [
+   2014.0,
+   2003.0,
+   2072.0,
+   1984.0,
+   2012.0
+  ],
+  "B": 1168,
+  "allocs": 24
+ },
+ "BenchmarkBindingFunctionCall/MapOfFuncs-8": {
+  "name": "BenchmarkBindingFunctionCall/MapOfFuncs-8",
+  "mean": 1737.0,
+  "std": 40.55243519198323,
+  "cv": 2.3346249390894203,
+  "min": 1706.0,
+  "max": 1803.0,
+  "median": 1716.0,
+  "samples": 5,
+  "ns": [
+   1711.0,
+   1803.0,
+   1749.0,
+   1716.0,
+   1706.0
+  ],
+  "B": 1088,
+  "allocs": 21
+ },
+ "BenchmarkBindingFunctionCall/ProxyApply-8": {
+  "name": "BenchmarkBindingFunctionCall/ProxyApply-8",
+  "mean": 277.2,
+  "std": 4.76182738032364,
+  "cv": 1.7178309452826988,
+  "min": 271.1,
+  "max": 283.2,
+  "median": 277.9,
+  "samples": 5,
+  "ns": [
+   283.2,
+   271.1,
+   277.9,
+   274.0,
+   279.8
+  ],
+  "B": 224,
+  "allocs": 3
+ },
+ "BenchmarkBindingPropertyGet/PlainObject_Literal-8": {
+  "name": "BenchmarkBindingPropertyGet/PlainObject_Literal-8",
+  "mean": 621.4399999999999,
+  "std": 12.69657434113627,
+  "cv": 2.043089331413535,
+  "min": 609.0,
+  "max": 639.4,
+  "median": 623.9,
+  "samples": 5,
+  "ns": [
+   609.0,
+   625.5,
+   623.9,
+   609.4,
+   639.4
+  ],
+  "B": 656,
+  "allocs": 8
+ },
+ "BenchmarkBindingPropertyGet/PlainObject_Reuse-8": {
+  "name": "BenchmarkBindingPropertyGet/PlainObject_Reuse-8",
+  "mean": 118.22,
+  "std": 9.920282254049026,
+  "cv": 8.391373924927276,
+  "min": 112.5,
+  "max": 135.9,
+  "median": 113.9,
+  "samples": 5,
+  "ns": [
+   113.9,
+   112.5,
+   135.9,
+   113.9,
+   114.9
+  ],
+  "B": 32,
+  "allocs": 1
+ },
+ "BenchmarkBindingPropertyGet/ReflectStructField-8": {
+  "name": "BenchmarkBindingPropertyGet/ReflectStructField-8",
+  "mean": 186.58,
+  "std": 6.287845417947231,
+  "cv": 3.3700532843537525,
+  "min": 182.0,
+  "max": 197.5,
+  "median": 184.6,
+  "samples": 5,
+  "ns": [
+   182.0,
+   197.5,
+   182.9,
+   184.6,
+   185.9
+  ],
+  "B": 40,
+  "allocs": 2
+ },
+ "BenchmarkBindingPropertyGet/GoMapSimple-8": {
+  "name": "BenchmarkBindingPropertyGet/GoMapSimple-8",
+  "mean": 127.04,
+  "std": 2.8667054260945632,
+  "cv": 2.256537646485015,
+  "min": 122.5,
+  "max": 130.4,
+  "median": 127.5,
+  "samples": 5,
+  "ns": [
+   130.4,
+   127.9,
+   122.5,
+   127.5,
+   126.9
+  ],
+  "B": 32,
+  "allocs": 1
+ },
+ "BenchmarkBindingPropertyGet/DynamicObject-8": {
+  "name": "BenchmarkBindingPropertyGet/DynamicObject-8",
+  "mean": 123.5,
+  "std": 4.252058325093865,
+  "cv": 3.442962206553737,
+  "min": 118.6,
+  "max": 128.8,
+  "median": 125.2,
+  "samples": 5,
+  "ns": [
+   118.6,
+   119.7,
+   128.8,
+   125.2,
+   125.2
+  ],
+  "B": 32,
+  "allocs": 1
+ },
+ "BenchmarkBindingPropertyGet/Proxy_GetTrap-8": {
+  "name": "BenchmarkBindingPropertyGet/Proxy_GetTrap-8",
+  "mean": 191.48,
+  "std": 34.93725804925167,
+  "cv": 18.24590455883208,
+  "min": 153.2,
+  "max": 230.9,
+  "median": 198.7,
+  "samples": 5,
+  "ns": [
+   153.2,
+   198.7,
+   230.9,
+   217.1,
+   157.5
+  ],
+  "B": 48,
+  "allocs": 2
+ },
+ "BenchmarkBindingArrayIndexGet/DynamicArray-8": {
+  "name": "BenchmarkBindingArrayIndexGet/DynamicArray-8",
+  "mean": 168.02,
+  "std": 7.812297997388474,
+  "cv": 4.649623852748764,
+  "min": 161.0,
+  "max": 180.6,
+  "median": 167.9,
+  "samples": 5,
+  "ns": [
+   168.6,
+   161.0,
+   180.6,
+   167.9,
+   162.0
+  ],
+  "B": 96,
+  "allocs": 2
+ },
+ "BenchmarkProxyDispatchDetail/GetTrap_Miss_Undefined-8": {
+  "name": "BenchmarkProxyDispatchDetail/GetTrap_Miss_Undefined-8",
+  "mean": 217.7,
+  "std": 62.76929982085191,
+  "cv": 28.832935149679333,
+  "min": 151.1,
+  "max": 285.1,
+  "median": 228.4,
+  "samples": 5,
+  "ns": [
+   228.4,
+   285.1,
+   269.4,
+   154.5,
+   151.1
+  ],
+  "B": 48,
+  "allocs": 2
+ },
+ "BenchmarkProxyDispatchDetail/GetTrap_Switch_Hit-8": {
+  "name": "BenchmarkProxyDispatchDetail/GetTrap_Switch_Hit-8",
+  "mean": 157.62,
+  "std": 5.8160983485494775,
+  "cv": 3.689949466152441,
+  "min": 152.9,
+  "max": 167.1,
+  "median": 156.6,
+  "samples": 5,
+  "ns": [
+   153.0,
+   152.9,
+   167.1,
+   156.6,
+   158.5
+  ],
+  "B": 48,
+  "allocs": 2
+ },
+ "BenchmarkProxyDispatchDetail/GetTrap_Map_Hit-8": {
+  "name": "BenchmarkProxyDispatchDetail/GetTrap_Map_Hit-8",
+  "mean": 199.1,
+  "std": 43.11438275100318,
+  "cv": 21.65463724309552,
+  "min": 173.2,
+  "max": 274.8,
+  "median": 180.6,
+  "samples": 5,
+  "ns": [
+   173.4,
+   274.8,
+   173.2,
+   193.5,
+   180.6
+  ],
+  "B": 48,
+  "allocs": 2
+ }
+}
