@@ -346,6 +346,42 @@ func TestRecord_DynamicKeys(t *testing.T) {
 	}
 }
 
+// --- Array: for...of iterates lazily via the inherited Symbol.iterator -----
+
+func TestArray_ForOfIsLazy(t *testing.T) {
+	vm := newVM(t)
+	calls := map[int]int{}
+	a := &lazy.Array{
+		Len: 5,
+		Provider: func(i int) any {
+			calls[i]++
+			return i * 10
+		},
+	}
+	mustSet(t, vm, "arr", a.ToValue(vm))
+
+	out := runJS(t, vm, `
+		var out = [];
+		for (var x of arr) { out.push(x); }
+		JSON.stringify(out);
+	`).String()
+	if out != `[0,10,20,30,40]` {
+		t.Fatalf("for..of = %s, want [0,10,20,30,40]", out)
+	}
+	// Each element materialised exactly once (cached); none fetched twice.
+	for i := 0; i < 5; i++ {
+		if calls[i] != 1 {
+			t.Fatalf("for..of materialised index %d %d times, want 1", i, calls[i])
+		}
+	}
+
+	// for..of and indexing share the cache: re-reading an index is free.
+	runJS(t, vm, `arr[2]`)
+	if calls[2] != 1 {
+		t.Fatalf("arr[2] after for..of should be cached, got %d calls", calls[2])
+	}
+}
+
 func TestRecord_Mutable(t *testing.T) {
 	vm := newVM(t)
 	store := map[string]string{"HOME": "/home/manuel"}

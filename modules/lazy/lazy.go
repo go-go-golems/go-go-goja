@@ -173,9 +173,14 @@ func (m *Map) ToValue(vm *goja.Runtime) goja.Value {
 // Array is a lazily-valued integer-indexed object with a reported length.
 // Element i is produced on demand by Provider(i) when JS indexes it.
 //
+// for...of iterates 0..Len-1 lazily via the inherited Array.prototype
+// [Symbol.iterator], which reads .length (the Get trap) and indexes (GetIdx).
+// No GetSym trap is installed: the inherited iterator does the right thing and
+// each element is materialised at most once (cached).
+//
 // Note: indices are surfaced via [[Get]]/[[Has]] (indexing and `in`), not as
 // enumerable own properties. Object.keys() therefore returns [] — use indexing
-// or a for..of loop driven by .length. This keeps even "infinite" arrays cheap.
+// or for...of. This keeps even very large arrays cheap until iterated.
 type Array struct {
 	// Len is the reported .length. May be large; elements are not materialised.
 	Len int

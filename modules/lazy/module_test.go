@@ -86,7 +86,10 @@ func TestLazyModule_Array(t *testing.T) {
 		v, err := vm.RunString(`
 			const lazy = require("lazy");
 			const a = lazy.array({ length: 1000, get: (i) => i * i });
-			JSON.stringify({ len: a.length, five: a[5], three: a[3], cached: a[5], oob: a[1001] === undefined });
+			// for..of iterates lazily via the inherited Array iterator:
+			const first3 = [];
+			for (const x of a) { if (first3.length >= 3) break; first3.push(x); }
+			JSON.stringify({ len: a.length, five: a[5], three: a[3], cached: a[5], oob: a[1001] === undefined, first3 });
 		`)
 		if err != nil {
 			return "", err
@@ -95,7 +98,7 @@ func TestLazyModule_Array(t *testing.T) {
 	})
 
 	for _, want := range []string{
-		`"len":1000`, `"five":25`, `"three":9`, `"cached":25`, `"oob":true`,
+		`"len":1000`, `"five":25`, `"three":9`, `"cached":25`, `"oob":true`, `"first3":[0,1,4]`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in %s", want, out)
