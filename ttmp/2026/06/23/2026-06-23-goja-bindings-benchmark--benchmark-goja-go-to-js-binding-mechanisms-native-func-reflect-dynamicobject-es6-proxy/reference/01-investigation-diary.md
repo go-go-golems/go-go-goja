@@ -8,7 +8,13 @@ Intent: ""
 Owners: []
 RelatedFiles:
     - Path: go-go-goja/perf/goja/phase3_bindings_bench_test.go
-      Note: binding benchmark suite (Steps 2-3)
+      Note: |-
+        binding benchmark suite (Steps 2-3)
+        benchmark suite (Steps 2-3)
+    - Path: go-go-goja/ttmp/2026/06/23/2026-06-23-goja-bindings-benchmark--benchmark-goja-go-to-js-binding-mechanisms-native-func-reflect-dynamicobject-es6-proxy/scripts/04-goja-charts.py
+      Note: inline SVG chart generators (Step 5)
+    - Path: go-go-goja/ttmp/2026/06/23/2026-06-23-goja-bindings-benchmark--benchmark-goja-go-to-js-binding-mechanisms-native-func-reflect-dynamicobject-es6-proxy/scripts/06-make-report.py
+      Note: report driver (Step 5)
     - Path: goja/runtime.go
       Note: IsNumber/IsBigInt/IsString shim added to fix the goja_nodejs build (Step 1)
 ExternalSources: []
@@ -17,6 +23,9 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
+
 
 
 
@@ -246,3 +255,75 @@ design/implementation guide; store in the ticket; bundle-upload to reMarkable.
 
 ### Technical details
 - reMarkable remote path: `/ai/2026/06/23/2026-06-23-goja-bindings-benchmark/Goja Binding Mechanisms Benchmark + Intern Guide.pdf`
+
+---
+
+## Step 5: Build the self-contained HTML report and figure pipeline
+
+### Prompt Context
+
+**User prompt (verbatim):** "Use the html / css / js from /home/manuel/code/wesen/2026-06-22--analyze-tool-calls-gemma4 to create a nice self contained html report with the benchmark results. No need to do the little card thing at the top, instead I want something of scientific researsh paper / textbook quality, with a textbook authoring writing style and deep insight into the numbers measured. Statistical communication must be done with intent and precise, don't just make cute graphs because you can, information has to be communicated clearly."
+
+**Assistant interpretation:** Build a single-file, Swiss-styled HTML report from the benchmark statistics, with hand-written scientific prose and figures that each answer one question.
+
+### What I did
+- Built a 7-stage numbered pipeline (all stored in `scripts/`): `03-parse-bench-stats.py` (raw → stats JSON), `04-goja-charts.py` (pure-function SVG generators), `05-goja-report-template.html` (`@@token@@` slots), `06-make-report.py` (driver), `07-render-figures.py` (inkscape PNG).
+- Wrote 4 figures from real data: Fig 1 call-cost log-scale bars, Fig 2 allocations-vs-latency scatter (the unifying finding), Fig 3 read-latency dot-range, Fig 4 Proxy dispatch detail.
+- Key design choice: treat `allocs/op` as the deterministic load-bearing signal and `ns/op` as noisy corroboration (the pipeline computes CV for exactly this).
+
+### What worked
+- One question per chart; the scatter chart revealed the ~86 ns/alloc trend that unifies the call regime. Verified all 4 figures render correctly (no mojibake) via vision QA.
+
+### What didn't work
+- Python `playwright` not installed; switched the rasterizer to `inkscape` headless (cleaner, deterministic, no browser dep). First scatter version had overlapping labels in the 1-alloc read cluster; fixed by labeling calls individually and annotating the read cluster with a pointer to Fig 3 (the clustering is itself the finding).
+- `≈` glyph rendered as `~` under inkscape font substitution; reconciled the label to `~86 ns/alloc` rather than fighting substitution.
+
+### What was tricky to build
+- The `@@token@@` templating convention exists because `str.format` would choke on the CSS stylesheet's curly braces. The driver computes all derived values (deltas) as flat tokens; arithmetic is never in the template. Driver fails closed on undefined/leftover tokens.
+
+### What warrants a second pair of eyes
+- Five samples is too few for tight confidence intervals; the report foregrounds ratios + allocation counts precisely to compensate. Absolute ns are caveated as ±10–20%.
+
+### What should be done in the future
+- Enumeration benchmarks (`Object.keys`, `for…in`, `JSON.stringify`) — the multi-trap regime where Proxy overhead is likely largest.
+
+### Code review instructions
+- Reproduce: `python3 scripts/03-parse-bench-stats.py && python3 scripts/06-make-report.py && python3 scripts/07-render-figures.py`.
+- Final report: `various/06-bindings-report.html` (48 KB, single file, inline SVG, no JS).
+
+---
+
+## Step 6: Publish to the Obsidian vault and close
+
+### Prompt Context
+
+**User prompt (verbatim):** "write a detailed project report for the obsidian vault as a deep dive technical analysis blog post using a textbook writing style (no analogies, see skill). Commit and push the obsidian vault when done (go-go-parc vault). Capture screenshots / render out the diagrams..." followed by "actually write a second project report just about the report generation / graphs / styling / etc..." and "close the ticket".
+
+**Assistant interpretation:** Publish two textbook-style articles to the go-go-parc vault (binding analysis + the report-generation system), embed rendered figures and report screenshots, commit and push, then close the docmgr ticket.
+
+### What I did
+- Loaded `textbook-authoring` (no analogies; terms defined in their own right) and `obsidian-vault-writing` skills. Read the `ARTICLE -` exemplar for frontmatter/section shape.
+- Article 1: `ARTICLE - goja Binding Mechanisms - The Cost of Exposing Go to JavaScript.md` — deep-dive analysis, mermaid call-path diagram, 4 embedded figures.
+- Article 2: `ARTICLE - A Self-Contained Scientific Report Pipeline - Benchmarks to HTML.md` — the report-generation system (5 design constraints, pipeline architecture, statistical philosophy, chart design, SVG-without-JS, `@@token@@` templating, glyph-substitution failure mode), with 3 report screenshots.
+- Copied 4 figures + 3 screenshots into `Attachments/`; verified all wikilinks and image embeds resolve.
+- Vault commits: `bd85144` (article 1 + 4 figures), `b701288` (article 2 + 3 screenshots). Both pushed to `origin/main`.
+
+### What worked
+- Wikilink to the colleague's Lazy-DS article resolved exactly. Staged only the intended note + attachment files each commit; left incidental `.pi/`/`.ttmp.yaml` workspace config untracked per the skill rules.
+
+### What didn't work
+- `file://` blocked by the Playwright harness; served the report over a local HTTP server to capture screenshots (cleaned up afterward).
+
+### What I learned
+- The textbook skill's "no analogies" rule forced precise terminology: the HTML report's "floor/crutch/budget/climb-the-ray" became "minimum latency/baseline/increase along the trend" in the Obsidian article.
+
+### What should be done in the future
+- The enumeration benchmark (Step 5's future-work) remains the strongest next experiment.
+
+### Code review instructions
+- Vault: `/home/manuel/code/wesen/go-go-golems/go-go-parc`, `Projects/2026/06/23/`.
+- Ticket: all 7 tasks checked; status set to `complete` via `docmgr ticket close`.
+
+### Technical details
+- Vault remote: `ssh://git@github.com/go-go-golems/go-go-parc`, branch `main`.
+- Final vault HEAD: `b701288` on `origin/main`.

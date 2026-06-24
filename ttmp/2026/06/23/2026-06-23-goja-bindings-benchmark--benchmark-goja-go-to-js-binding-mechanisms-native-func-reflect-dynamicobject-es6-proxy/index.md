@@ -1,28 +1,31 @@
 ---
 Title: Benchmark goja Go-to-JS binding mechanisms (native func, reflect, DynamicObject, ES6 Proxy)
 Ticket: 2026-06-23-goja-bindings-benchmark
-Status: active
+Status: complete
 Topics:
     - goja
     - js-bindings
     - testing
     - architecture
 DocType: index
-Intent: long-term
+Intent: short-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-23T18:32:11.564974702-04:00
+LastUpdated: 2026-06-23T22:24:29.793707172-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Benchmark goja Go-to-JS binding mechanisms (native func, reflect, DynamicObject, ES6 Proxy)
 
 ## Overview
 
-<!-- Provide a brief overview of the ticket, its goals, and current status -->
+Benchmark and document the cost of every mechanism by which the goja JavaScript runtime exposes Go objects and functions to JavaScript, with a focus on the overhead of a Go-backed ES6 Proxy with manual dispatch. Delivered a Go benchmark suite, an intern-grade design guide, a reMarkable bundle, a self-contained HTML report with an inline-SVG figure pipeline, and two Obsidian vault articles.
+
+Headline finding: call latency is allocation-bound (~60–86 ns per allocation above the 3-alloc native minimum); a Proxy Get costs ~192 ns / 2 allocs (~1.6× a plain object); a DynamicObject matches a plain-object read (~124 ns / 1 alloc); a Proxy Apply adds no allocations over a native call.
 
 ## Key Links
 
@@ -31,7 +34,7 @@ WhenToUse: ""
 
 ## Status
 
-Current status: **active**
+Current status: **complete** (2026-06-23). All 7 tasks done; deliverables committed and the two vault articles pushed to go-go-parc origin/main.
 
 ## Topics
 

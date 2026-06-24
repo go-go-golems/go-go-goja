@@ -179,6 +179,8 @@ docTypes:
 intent:
     - slug: long-term
       description: Long-term reference document
+    - slug: short-term
+      description: Short-lived ticket or document (days to weeks)
 status:
     - slug: active
       description: Active ticket or document
