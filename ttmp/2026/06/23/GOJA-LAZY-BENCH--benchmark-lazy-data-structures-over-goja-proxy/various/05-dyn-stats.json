@@ -1,0 +1,65 @@
+{
+ "BenchmarkLazyBackendRead/Proxy": {
+  "mean": 233.62,
+  "min": 207.8,
+  "max": 269.6,
+  "median": 225.7,
+  "B": 48,
+  "allocs": 2,
+  "provider": 0.0
+ },
+ "BenchmarkLazyBackendRead/DynamicObject": {
+  "mean": 155.04,
+  "min": 146.2,
+  "max": 160.7,
+  "median": 156.8,
+  "B": 32,
+  "allocs": 1,
+  "provider": 0.0
+ },
+ "BenchmarkLazyBackendEnum/Proxy": {
+  "mean": 141129.0,
+  "min": 138570.0,
+  "max": 145411.0,
+  "median": 141060.0,
+  "B": 80073,
+  "allocs": 1033,
+  "provider": 0.0
+ },
+ "BenchmarkLazyBackendEnum/DynamicObject": {
+  "mean": 4996.4,
+  "min": 4699.0,
+  "max": 5588.0,
+  "median": 4871.0,
+  "B": 4080,
+  "allocs": 108,
+  "provider": 0.0
+ },
+ "BenchmarkLazyBackendScale/DynamicObject/N=10": {
+  "mean": 1330.8,
+  "min": 1283.0,
+  "max": 1385.0,
+  "median": 1320.0,
+  "B": 1008,
+  "allocs": 18,
+  "provider": 0.0
+ },
+ "BenchmarkLazyBackendScale/DynamicObject/N=100": {
+  "mean": 5276.6,
+  "min": 4731.0,
+  "max": 6127.0,
+  "median": 5171.0,
+  "B": 4080,
+  "allocs": 108,
+  "provider": 0.0
+ },
+ "BenchmarkLazyBackendScale/DynamicObject/N=1000": {
+  "mean": 50033.2,
+  "min": 41865.0,
+  "max": 60934.0,
+  "median": 48803.0,
+  "B": 33080,
+  "allocs": 1009,
+  "provider": 0.0
+ }
+}

@@ -206,3 +206,50 @@ def dotrange(rows, xmin, xmax, title):
              f'<text x="{L+pw-122}" y="{H-26}" font-family="{MONO}" font-size="10.5" '
              f'fill="{MUTED}">mean</text>')
     return "\n".join(p) + "</svg>"
+
+
+# ---------------------------------------------------------------------------
+# Figure 5 — Proxy vs DynamicObject backend (read + enumeration), log scale.
+# ---------------------------------------------------------------------------
+def backend_compare(read, enum):
+    # read / enum are dicts with keys "Proxy" and "DynamicObject", each a stat dict.
+    W, H, L, R, T, B = 720, 320, 70, 40, 26, 50
+    pw, ph = W - L - R, H - T - B
+    groups = [("Single read", read), ("Object.keys (100 keys)", enum)]
+    lo, hi = math.log10(100), math.log10(200000)
+
+    def x(v):
+        return L + (math.log10(v) - lo) / (hi - lo) * pw
+
+    p = [_svg_open(W, H, "Proxy vs DynamicObject backend, log scale")]
+    p.append(f'<rect width="{W}" height="{H}" fill="#fff"/>')
+    p.append(f'<rect x="{L}" y="{T}" width="{pw}" height="{ph}" fill="none" stroke="{INK}"/>')
+    for t in [100, 1000, 10000, 100000]:
+        xt = x(t)
+        p.append(f'<line x1="{xt:.1f}" y1="{T}" x2="{xt:.1f}" y2="{T+ph}" stroke="{HAIR}"/>')
+        lbl = f"{t/1000:.0f}k" if t < 100000 else f"{t/1e6:.1f}M" if t >= 1000000 else f"{t//1000}k"
+        p.append(f'<text x="{xt:.1f}" y="{H-12}" font-family="{MONO}" font-size="11" '
+                 f'fill="{MUTED}" text-anchor="middle">{lbl}</text>')
+    p.append(f'<text x="{L+pw/2}" y="{H-1}" font-family="{MONO}" font-size="11" '
+             f'fill="{MUTED}" text-anchor="middle">nanoseconds (log scale)</text>')
+    gw = pw / len(groups)
+    bw = gw / 3.2
+    for gi, (label, d) in enumerate(groups):
+        gx = L + gw * gi + gw / 2
+        p.append(f'<text x="{gx:.1f}" y="{T+ph+18}" font-family="{MONO}" font-size="12" '
+                 f'fill="{INK}" text-anchor="middle">{_esc(label)}</text>')
+        for bi, (name, col) in enumerate([("Proxy", INK), ("DynamicObject", ACCENT)]):
+            r = d[name]
+            bh = (math.log10(r["mean"]) - lo) / (hi - lo) * ph
+            bx = gx - bw + bi * (bw * 1.1)
+            by = T + ph - bh
+            p.append(f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bw:.1f}" height="{bh:.1f}" fill="{col}"/>')
+            p.append(f'<text x="{bx+bw/2:.1f}" y="{by-6:.1f}" font-family="{MONO}" font-size="10.5" '
+                     f'fill="{INK}" text-anchor="middle">{r["mean"]:.0f}</text>')
+    p.append(f'<rect x="{L+8}" y="{H-30}" width="13" height="13" fill="{INK}"/>'
+             f'<text x="{L+28}" y="{H-19}" font-family="{MONO}" font-size="11" '
+             f'fill="{INK}">Proxy</text>')
+    p.append(f'<rect x="{L+90}" y="{H-30}" width="13" height="13" fill="{ACCENT}"/>'
+             f'<text x="{L+110}" y="{H-19}" font-family="{MONO}" font-size="11" '
+             f'fill="{INK}">DynamicObject</text>')
+    return "\n".join(p) + "</svg>"

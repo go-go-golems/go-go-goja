@@ -1,0 +1,41 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkLazyBackendRead/Proxy-8         	 4123634	       269.6 ns/op	         0.0000002 provider/op	      48 B/op	       2 allocs/op
+BenchmarkLazyBackendRead/Proxy-8         	 4602088	       251.9 ns/op	         0.0000002 provider/op	      48 B/op	       2 allocs/op
+BenchmarkLazyBackendRead/Proxy-8         	 5350849	       225.7 ns/op	         0.0000002 provider/op	      48 B/op	       2 allocs/op
+BenchmarkLazyBackendRead/Proxy-8         	 6214743	       207.8 ns/op	         0.0000002 provider/op	      48 B/op	       2 allocs/op
+BenchmarkLazyBackendRead/Proxy-8         	 6366218	       213.1 ns/op	         0.0000002 provider/op	      48 B/op	       2 allocs/op
+BenchmarkLazyBackendRead/DynamicObject-8 	 7381395	       153.5 ns/op	         0.0000001 provider/op	      32 B/op	       1 allocs/op
+BenchmarkLazyBackendRead/DynamicObject-8 	 7910781	       156.8 ns/op	         0.0000001 provider/op	      32 B/op	       1 allocs/op
+BenchmarkLazyBackendRead/DynamicObject-8 	 6882939	       146.2 ns/op	         0.0000001 provider/op	      32 B/op	       1 allocs/op
+BenchmarkLazyBackendRead/DynamicObject-8 	 7195753	       158.0 ns/op	         0.0000001 provider/op	      32 B/op	       1 allocs/op
+BenchmarkLazyBackendRead/DynamicObject-8 	 7179104	       160.7 ns/op	         0.0000001 provider/op	      32 B/op	       1 allocs/op
+BenchmarkLazyBackendEnum/Proxy-8         	    8000	    145411 ns/op	         0 provider/op	   80073 B/op	    1033 allocs/op
+BenchmarkLazyBackendEnum/Proxy-8         	    8806	    138570 ns/op	         0 provider/op	   80072 B/op	    1033 allocs/op
+BenchmarkLazyBackendEnum/Proxy-8         	    9231	    141060 ns/op	         0 provider/op	   80072 B/op	    1033 allocs/op
+BenchmarkLazyBackendEnum/Proxy-8         	    8620	    141189 ns/op	         0 provider/op	   80072 B/op	    1033 allocs/op
+BenchmarkLazyBackendEnum/Proxy-8         	    8972	    139415 ns/op	         0 provider/op	   80072 B/op	    1033 allocs/op
+BenchmarkLazyBackendEnum/DynamicObject-8 	  225806	      4978 ns/op	         0 provider/op	    4080 B/op	     108 allocs/op
+BenchmarkLazyBackendEnum/DynamicObject-8 	  209126	      5588 ns/op	         0 provider/op	    4080 B/op	     108 allocs/op
+BenchmarkLazyBackendEnum/DynamicObject-8 	  258642	      4871 ns/op	         0 provider/op	    4080 B/op	     108 allocs/op
+BenchmarkLazyBackendEnum/DynamicObject-8 	  255423	      4699 ns/op	         0 provider/op	    4080 B/op	     108 allocs/op
+BenchmarkLazyBackendEnum/DynamicObject-8 	  279134	      4846 ns/op	         0 provider/op	    4080 B/op	     108 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=10-8         	  978777	      1320 ns/op	         0 provider/op	    1008 B/op	      18 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=10-8         	  951576	      1385 ns/op	         0 provider/op	    1008 B/op	      18 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=10-8         	  792792	      1286 ns/op	         0 provider/op	    1008 B/op	      18 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=10-8         	  990672	      1283 ns/op	         0 provider/op	    1008 B/op	      18 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=10-8         	 1000000	      1380 ns/op	         0 provider/op	    1008 B/op	      18 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=100-8        	  266024	      6127 ns/op	         0 provider/op	    4080 B/op	     108 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=100-8        	  212329	      5166 ns/op	         0 provider/op	    4080 B/op	     108 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=100-8        	  234322	      5171 ns/op	         0 provider/op	    4080 B/op	     108 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=100-8        	  236817	      5188 ns/op	         0 provider/op	    4080 B/op	     108 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=100-8        	  229459	      4731 ns/op	         0 provider/op	    4080 B/op	     108 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=1000-8       	   30956	     41865 ns/op	         0 provider/op	   33080 B/op	    1009 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=1000-8       	   31039	     48803 ns/op	         0 provider/op	   33080 B/op	    1009 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=1000-8       	   22224	     50906 ns/op	         0 provider/op	   33080 B/op	    1009 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=1000-8       	   17356	     60934 ns/op	         0 provider/op	   33080 B/op	    1009 allocs/op
+BenchmarkLazyBackendScale/DynamicObject/N=1000-8       	   24144	     47658 ns/op	         0 provider/op	   33080 B/op	    1009 allocs/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	49.903s

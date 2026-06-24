@@ -21,6 +21,7 @@ STATS_PATH = VAR / "03-stats.json"
 CHARTS_PATH = HERE / "04-lazy-charts.py"
 TEMPLATE_PATH = HERE / "05-lazy-report-template.html"
 OUT_PATH = VAR / "06-lazy-report.html"
+DYN_STATS_PATH = VAR / "05-dyn-stats.json"
 
 
 def load_charts(path):
@@ -93,6 +94,20 @@ def main():
         "chartC": charts.scale_bars(scale_rows),
         "chartD": charts.dotrange(read_rows, 0, 1400, "Single-read latency by mechanism"),
     }
+
+    # DynamicObject backend comparison (phase5)
+    dyn = json.loads(DYN_STATS_PATH.read_text()) if DYN_STATS_PATH.exists() else {}
+    if dyn:
+        dg = lambda k: {"mean": dyn[k]["mean"], "min": dyn[k]["min"], "max": dyn[k]["max"],
+                        "median": dyn[k]["median"], "allocs": dyn[k]["allocs"],
+                        "provider": dyn[k].get("provider", 0.0)}
+        backend_read = {"Proxy": dg("BenchmarkLazyBackendRead/Proxy"),
+                        "DynamicObject": dg("BenchmarkLazyBackendRead/DynamicObject")}
+        backend_enum = {"Proxy": dg("BenchmarkLazyBackendEnum/Proxy"),
+                        "DynamicObject": dg("BenchmarkLazyBackendEnum/DynamicObject")}
+        tokens["chartE"] = charts.backend_compare(backend_read, backend_enum)
+    else:
+        tokens["chartE"] = ""
 
     tmpl = TEMPLATE_PATH.read_text()
     referenced = set(re.findall(r"@@([a-zA-Z0-9_]+)@@", tmpl))

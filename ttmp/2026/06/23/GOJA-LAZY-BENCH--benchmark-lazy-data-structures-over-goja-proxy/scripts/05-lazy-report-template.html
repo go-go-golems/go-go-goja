@@ -177,7 +177,19 @@
   </section>
 
   <section>
-    <div class="sec-head"><span class="num">06 /</span><h2>Serialisation is inherently materialising</h2><span class="tag">JSON.stringify(device)</span></div>
+    <div class="sec-head"><span class="num">06 /</span><h2>Backend choice: Proxy vs DynamicObject</h2><span class="tag">a 28&#215; enumeration win</span></div>
+    <div class="prose">
+      <p class="lead-in">The <code>lazy</code> module ships two backends. <code>Map</code> uses an ES6 Proxy; <code>DynMap</code> uses goja's native <code>DynamicObject</code> (a 5-method Go interface: <code>Get/Set/Has/Delete/Keys</code>). The DynamicObject has no ES6 invariant checks and no target object, so it avoids the per-key descriptor machinery that made Proxy enumeration expensive.</p>
+      <figure>
+        @@chartE@@
+        <p class="cap"><b>Figure 5.</b> Proxy vs DynamicObject backend, log scale. Reads are <span class="num">1.5&#215;</span> faster on DynamicObject (1 allocation vs 2). Enumeration is <span class="num">28&#215;</span> faster &#8212; the per-key descriptor construction that dominates Proxy enumeration is absent entirely. DynamicObject enumeration is even cheaper than an eager object's <code>Object.keys</code>.</p>
+      </figure>
+      <div class="insight"><b>Use DynamicObject unless you need an ES6-only trap.</b> The Proxy remains the right choice only when you need <code>construct</code>, prototype interception, <code>defineProperty</code> interception, <code>Symbol</code> own properties, or per-key enumerability control. For a lazy map or record, <code>DynMap</code> is faster on every operation and simpler to reason about: <code>Get</code> returning <code>nil</code> delegates to the prototype automatically, with no manual fallthrough.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">07 /</span><h2>Serialisation is inherently materialising</h2><span class="tag">JSON.stringify(device)</span></div>
     <div class="prose">
       <p class="lead-in"><code>JSON.stringify</code> is the operation the flag-only descriptor cannot help. By definition, serialisation reads every value, so it calls the provider once per key. The measurement uses a non-caching lazy map so the per-call cost is visible; with the module's cache, only the <i>first</i> stringify materialises, and subsequent ones read cached values.</p>
       <table>
@@ -192,7 +204,7 @@
   </section>
 
   <section>
-    <div class="sec-head"><span class="num">07 /</span><h2>Threats to validity</h2><span class="tag">what the numbers do not say</span></div>
+    <div class="sec-head"><span class="num">08 /</span><h2>Threats to validity</h2><span class="tag">what the numbers do not say</span></div>
     <div class="prose">
       <ul style="margin:0 0 16px;padding-left:22px;line-height:1.7">
         <li><b>No JIT, one goroutine.</b> goja interprets bytecode and a runtime is not concurrency-safe. Absolute latency is illustrative; the <code>provider/op</code> counts and the ratios between mechanisms are what generalise.</li>
@@ -206,7 +218,7 @@
   </section>
 
   <section>
-    <div class="sec-head"><span class="num">08 /</span><h2>Reproducibility</h2><span class="tag">one command</span></div>
+    <div class="sec-head"><span class="num">09 /</span><h2>Reproducibility</h2><span class="tag">one command</span></div>
     <div class="prose">
       <p>The harness is <code>go-go-goja/perf/goja/phase4_lazy_bench_test.go</code>. From the <code>go-go-goja</code> module root:</p>
       <div class="pre">go test ./perf/goja -run '^$' \
