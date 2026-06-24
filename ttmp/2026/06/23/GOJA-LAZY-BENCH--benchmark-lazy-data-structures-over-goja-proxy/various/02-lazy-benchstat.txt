@@ -1,0 +1,25 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+                                               │ ttmp/2026/06/23/GOJA-LAZY-BENCH--benchmark-lazy-data-structures-over-goja-proxy/various/01-lazy-bench-raw.txt │
+                                               │                                                    sec/op                                                     │
+LazyRead/Eager_Object-8                                                                                                                           164.9n ± ∞ ¹
+LazyRead/LazyMap_Cached-8                                                                                                                         708.9n ± ∞ ¹
+LazyRead/LazyMap_Cold_NoCache-8                                                                                                                   1.143µ ± ∞ ¹
+LazyEnumeration/Eager_Keys-8                                                                                                                      37.85µ ± ∞ ¹
+LazyEnumeration/LazyMap_Keys_FlagOnly-8                                                                                                           591.9µ ± ∞ ¹
+LazyEnumeration/NaiveLazy_Keys_Materializing-8                                                                                                    611.1µ ± ∞ ¹
+LazyEnumeration/LazyMap_ForIn-8                                                                                                                   783.6µ ± ∞ ¹
+LazyScale/LazyMap_Keys/N=10-8                                                                                                                     58.69µ ± ∞ ¹
+LazyScale/LazyMap_Keys/N=100-8                                                                                                                    211.2µ ± ∞ ¹
+LazyScale/LazyMap_Keys/N=1000-8                                                                                                                   3.602m ± ∞ ¹
+LazyMaterialize/Eager_Stringify-8                                                                                                                 41.31µ ± ∞ ¹
+LazyMaterialize/LazyMap_Stringify-8                                                                                                               229.7µ ± ∞ ¹
+geomean                                                                                                                                           53.94µ
+¹ need >= 6 samples for confidence interval at level 0.95
+
+                                               │ ttmp/2026/06/23/GOJA-LAZY-BENCH--benchmark-lazy-data-structures-over-goja-proxy/various/01-lazy-bench-raw.txt │
+                                               │                                                     B/op                                                      │
+LazyRead/Eager_Object-8                                                                                                                            32.00 ± ∞ ¹
+LazyRead/LazyMap_Cached-8                                                                                                                          48.00 ± ∞ ¹

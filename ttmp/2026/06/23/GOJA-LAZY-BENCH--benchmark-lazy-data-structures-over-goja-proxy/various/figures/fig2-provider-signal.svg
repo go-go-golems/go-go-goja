@@ -1,0 +1,26 @@
+<svg viewBox="0 0 780 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Object.keys cost by mechanism, log scale" style="width:100%;height:auto;display:block;max-width:780px;margin:8px 0">
+<rect width="780" height="300" fill="#fff"/>
+<rect x="150" y="26" width="360" height="240" fill="none" stroke="#0a0a0a"/>
+<line x1="234.3" y1="26" x2="234.3" y2="266" stroke="#e5e5e5"/>
+<text x="234.3" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">50k</text>
+<line x1="298.1" y1="26" x2="298.1" y2="266" stroke="#e5e5e5"/>
+<text x="298.1" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">100k</text>
+<line x1="382.4" y1="26" x2="382.4" y2="266" stroke="#e5e5e5"/>
+<text x="382.4" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">250k</text>
+<line x1="446.2" y1="26" x2="446.2" y2="266" stroke="#e5e5e5"/>
+<text x="446.2" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">500k</text>
+<line x1="510.0" y1="26" x2="510.0" y2="266" stroke="#e5e5e5"/>
+<text x="510.0" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">1M</text>
+<text x="330.0" y="299" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">nanoseconds per Object.keys &#160;(log scale)</text>
+<rect x="150" y="45.0" width="58.8" height="22" fill="#E8470C"/>
+<text x="138" y="60.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Eager object</text>
+<text x="217.8" y="60.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">38 &#181;s &#160;&#183;&#160; 0 provider calls</text>
+<rect x="150" y="105.0" width="312.5" height="22" fill="#E8470C"/>
+<text x="138" y="120.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Lazy map (flag-only)</text>
+<text x="471.5" y="120.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">597 &#181;s &#160;&#183;&#160; 0 provider calls</text>
+<rect x="150" y="165.0" width="319.4" height="22" fill="#0a0a0a"/>
+<text x="138" y="180.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Naive lazy (materialising)</text>
+<text x="478.4" y="180.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">643 &#181;s &#160;&#183;&#160; 100 provider calls/op</text>
+<rect x="150" y="225.0" width="331.2" height="22" fill="#E8470C"/>
+<text x="138" y="240.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">for...in (flag-only)</text>
+<text x="490.2" y="240.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">732 &#181;s &#160;&#183;&#160; 0 provider calls</text></svg>

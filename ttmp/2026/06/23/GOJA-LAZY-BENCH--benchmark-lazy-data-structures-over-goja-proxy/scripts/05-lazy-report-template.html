@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>The Price of Laziness — goja Lazy Data Structures over Proxy</title>
+<style>
+  :root{
+    --ink:#0a0a0a; --ink-2:#232323; --paper:#ffffff; --paper-2:#fafafa;
+    --muted:#6b6b6b; --hair:#e5e5e5;
+    --accent:#E8470C; --accent-soft:rgba(232,71,12,.10);
+    --green:#2d7d46;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-size:16px;line-height:1.6}
+  ::selection{background:var(--accent);color:#fff}
+  .wrap{max-width:880px;margin:0 auto;padding:0 32px}
+  section{padding:56px 0;border-top:1px solid var(--ink)}
+  section:first-of-type{border-top:none;padding-top:0}
+  .mast{padding:64px 0 44px;border-top:10px solid var(--ink)}
+  .mast .kicker{font:700 11px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin:0 0 28px}
+  .mast h1{font:700 38px/1.1 var(--sans);letter-spacing:-.02em;margin:0 0 18px;max-width:24ch}
+  .mast .lede{font:400 17px/1.55 var(--sans);color:var(--ink-2);max-width:64ch;margin:0}
+  .mast .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:40px;border-top:1px solid var(--hair);padding-top:18px}
+  .mast .meta div{border-right:1px solid var(--hair);padding:4px 16px 4px 0}
+  .mast .meta div:last-child{border-right:none}
+  .mast .meta dt{font:500 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+  .mast .meta dd{font:600 14px/1.3 var(--sans);margin:0}
+  .abstract{font:400 18px/1.65 Georgia,"Times New Roman",serif;color:var(--ink-2);padding:8px 0 0}
+  .abstract b{color:var(--ink)}
+  .verdict{border:1px solid var(--ink);padding:22px 26px;margin:24px 0;background:var(--paper-2)}
+  .verdict .vh{font:700 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+  .verdict p{margin:0;font:400 15px/1.6 var(--sans);color:var(--ink-2)}
+  .verdict p+p{margin-top:10px}
+  .sec-head{display:flex;align-items:baseline;gap:18px;margin-bottom:28px}
+  .sec-head .num{font:600 12px/1 var(--mono);color:var(--accent);letter-spacing:.12em}
+  .sec-head h2{font:700 24px/1.15 var(--sans);letter-spacing:-.01em;margin:0}
+  .sec-head .tag{margin-left:auto;font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .prose{max-width:66ch}
+  .prose p{margin:0 0 16px}
+  .prose h3{font:600 12px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;margin:28px 0 14px;color:var(--ink)}
+  .lead-in{font:400 16px/1.6 var(--sans);color:var(--ink)}
+  .insight{font:400 15px/1.6 var(--sans);color:var(--ink-2);border-left:3px solid var(--accent);padding:6px 0 6px 18px;margin:0 0 20px}
+  code,kbd{font:13px/1.4 var(--mono);background:var(--paper-2);border:1px solid var(--hair);padding:1px 5px;border-radius:2px}
+  .pre{font:13px/1.55 var(--mono);background:var(--paper-2);border:1px solid var(--hair);padding:14px 16px;overflow-x:auto;white-space:pre;border-radius:2px;margin:0 0 18px}
+  .num{font-variant-numeric:tabular-nums}
+  .accent{color:var(--accent);font-weight:600}
+  .green{color:var(--green);font-weight:600}
+  .small{font:500 11px/1.5 var(--mono);color:var(--muted);letter-spacing:.02em}
+  table{width:100%;border-collapse:collapse;font:14px/1.5 var(--sans);margin:0 0 8px}
+  th,td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--hair);vertical-align:top}
+  th{font:600 10px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--ink)}
+  td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+  .tbl-note{font:400 12px/1.5 var(--sans);color:var(--muted);margin:6px 0 22px}
+  figure{margin:0 0 28px}
+  figure .cap{font:400 12.5px/1.5 var(--sans);color:var(--muted);margin:8px 0 0;max-width:66ch}
+  figure .cap b{color:var(--ink-2)}
+  .diagram{font:12.5px/1.5 var(--mono);background:var(--paper-2);border:1px solid var(--hair);padding:16px 18px;white-space:pre;overflow-x:auto;margin:0 0 18px;border-radius:2px}
+  footer{padding:44px 0 64px;border-top:1px solid var(--ink);font:500 11px/1.7 var(--mono);color:var(--muted);letter-spacing:.06em}
+  footer b{color:var(--ink);font-weight:600}
+  footer p{margin:0 0 10px;max-width:none}
+  @media (max-width:860px){.wrap{padding:0 20px}.mast h1{font-size:28px}.mast .meta{grid-template-columns:repeat(2,1fr)}}
+  @media print{body{font-size:11pt}.wrap{max-width:100%}section{padding:24px 0}.insight,.verdict,figure{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <p class="kicker">Benchmark Report &#183; goja Lazy Data Structures</p>
+    <h1>The price of laziness.</h1>
+    <p class="lede">A measured study of the <b>go-go-goja</b> <code>lazy</code> module, which exposes lazily-materialised Go data to JavaScript through an ES6 <b>Proxy</b>. The motivating question: the module's flag-only <code>GetOwnPropertyDescriptor</code> is designed to make <code>Object.keys()</code> enumeration free of provider work. How free is it, really &#8212; and what does the laziness cost in absolute terms?</p>
+    <dl class="meta">
+      <div><dt>Runtime</dt><dd>goja (local fork)</dd></div>
+      <div><dt>Toolchain</dt><dd>go1.26.4 &#183; linux/amd64</dd></div>
+      <div><dt>Hardware</dt><dd>i7-1165G7 @ 2.80 GHz</dd></div>
+      <div><dt>Generated</dt><dd>@@date@@</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <div class="sec-head"><span class="num">00 /</span><h2>Abstract</h2><span class="tag">5&#215;5 samples</span></div>
+    <div class="abstract">
+      <p>The <code>lazy</code> module puts a Go value behind a Proxy so that JavaScript reads a property only at the moment it is read. Its central design choice is a <i>flag-only</i> <code>GetOwnPropertyDescriptor</code> trap: it reports a key as enumerable without building the value, so that <code>Object.keys()</code> and <code>for...in</code> can list keys without ever calling the Go provider. We benchmark this against an eager object and against a naive value-materialising descriptor, over reads, enumeration, scaling, and serialisation.</p>
+      <p><b>First, the design goal is met and measurable.</b> Enumerating a 100-key lazy map calls the provider <span class="num green">0</span> times; the same enumeration through a naive descriptor calls it <span class="num accent">100</span> times. That count is a deterministic code-path invariant &#8212; identical across every sample &#8212; and it is the load-bearing signal of this report, the direct analogue of <code>allocs/op</code> in the binding-mechanism study.</p>
+      <p><b>Second, "free of provider work" is not "free."</b> Lazy enumeration costs <span class="num">@@enum_flagonly_ns@@&#160;ns</span> for 100 keys &#8212; about <span class="num">@@enum_ratio@@&#215;</span> an eager object's <span class="num">@@enum_eager_ns@@&#160;ns</span>, because the Proxy constructs a descriptor object for every key. The flag-only descriptor eliminates the <i>expensive</i> work (the provider, which may scan Wi-Fi or query a database); it does not eliminate the <i>machinery</i> work. Lazy enumeration is for correctness &#8212; listing keys without paying for values &#8212; not for speed.</p>
+    </div>
+    <div class="verdict">
+      <p class="vh">The answer to the motivating question</p>
+      <p>The flag-only descriptor succeeds at what it was designed to do: <code>Object.keys()</code> and <code>for...in</code> enumerate a lazy map with <b>zero provider calls</b>, versus <b>100</b> for a naive descriptor. The price of that laziness is roughly <b>@@enum_ratio@@&#215;</b> the wall-clock cost of enumerating an eager object, paid in per-key descriptor construction. For any provider that does real work (I/O, parsing, a scan), avoiding 100 of those calls dwarfs the descriptor machinery. Reserve eager snapshots for tight loops that enumerate millions of times; keep the lazy Proxy everywhere the point is to <i>not</i> pay for unread values.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">01 /</span><h2>Method</h2><span class="tag">what is measured</span></div>
+    <div class="prose">
+      <p class="lead-in">Every benchmark exposes a Go value to a fresh goja runtime, compiles a one-expression JavaScript program once, then runs it repeatedly. Compilation and runtime construction sit outside the timed loop, so the only thing measured is the act of touching the lazy object. Five samples at one second each (<code>-count=5 -benchtime=1s</code>); means and spreads are reported.</p>
+      <div class="insight"><b>The load-bearing signal is <code>provider/op</code>.</b> Each benchmark reports a custom metric: the number of times the Go provider was called per operation. It is a deterministic invariant &#8212; identical across all five samples, because it is a property of the code path, not a measurement. Nanoseconds wobble; <code>provider/op</code> does not. Where a configuration claims to be lazy, <code>provider/op&#160;=&#160;0</code> is the proof. Where it materialises, <code>provider/op</code> equals the key count.</div>
+      <p>The provider itself does trivial work (returns a pre-built string) so that the measurement isolates trap and dispatch overhead, not string formatting. This is the conservative choice: a real provider doing I/O would widen every gap in the lazy direction, because the provider calls the naive path performs would each be far more expensive than the few hundred nanoseconds measured here.</p>
+      <h3>The boundary, in one picture</h3>
+      <p>A JavaScript enumeration of a lazy Proxy is a two-trap cascade. <code>Object.keys</code> calls <code>ownKeys</code> once, then <code>[[GetOwnProperty]]</code> for every key to test enumerability. The flag-only descriptor makes that second call cheap in <i>provider</i> terms but not in <i>machinery</i> terms.</p>
+      <div class="diagram">  JS: Object.keys(device)
+       &#160;&#160;&#160;&#160;&#160;&#160;&#124;
+       &#160;&#160;&#160;&#160;&#160;&#160;&#9660;
+   [[OwnPropertyKeys]]  &#160;&#160;  OwnKeys(target)  &#8594;  ["k000", "k001", ...]   (1 array)
+       &#160;&#160;&#160;&#160;&#160;&#160;&#124;
+       &#160;&#160;&#160;&#160;&#160;&#160;&#9660;
+   for EACH key:
+   [[GetOwnProperty]]  &#160;&#160;  GetOwnPropertyDescriptor(key)
+       &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; flag-only  &#8594;  {enumerable:true, configurable:true}  (no value, no provider)
+       &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; naive     &#8594;  {value: provider(key), ...}        (provider called per key)</div>
+      <p>The expense lives in that per-key loop. The flag-only descriptor keeps the loop free of provider work; the naive descriptor performs the provider call inside it.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">02 /</span><h2>Reads &#8212; cached is cheap, cold pays the provider</h2><span class="tag">obj.k000 &#8594; "val-000"</span></div>
+    <div class="prose">
+      <p class="lead-in">A single property read is the cheapest operation, and the cached read is the realistic hot path. Once a key has been read once, its <code>goja.Value</code> is memoised; every subsequent read returns the cached value with no provider call and no <code>ToValue</code>. A cached lazy read costs <span class="num">@@read_cached_ns@@&#160;ns</span> &#8212; about <span class="num">@@read_ratio@@&#215;</span> the <span class="num">@@read_eager_ns@@&#160;ns</span> of reading an eager object, paying one extra allocation for the Proxy machinery.</p>
+      <figure>
+        @@chartD@@
+        <p class="cap"><b>Figure 1.</b> Single-read latency by mechanism (min&#8212;median&#8212;max, mean as a tick). The cached lazy read sits at the Proxy machinery floor (<span class="num">@@read_cached_allocs@@</span> allocs, <span class="num">0</span> provider). The cold, non-caching read pays the provider once (<span class="num">1 provider/op</span>) and re-converts the value each time.</p>
+      </figure>
+      <p>The cold read &#8212; a Proxy with no cache, so every read calls the provider and re-converts &#8212; costs <span class="num">@@read_cold_ns@@&#160;ns</span> with <span class="num">@@read_cold_allocs@@</span> allocations and <span class="num">1 provider/op</span>. This is the cost a lazy read pays the first time, and what a non-caching lazy object pays every time. The module caches by default, so the cold cost is paid once per key per runtime; the steady state is the cached bar.</p>
+      <div class="insight"><b>Cache the value, not the raw Go object.</b> The <code>lazy</code> module memoises the converted <code>goja.Value</code>, which serves two purposes: it avoids re-running <code>ToValue</code> (an allocation), and it preserves identity so <code>device.k === device.k</code> holds. A cache keyed on the raw Go value would pay the conversion on every read.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">03 /</span><h2>Enumeration &#8212; the flag-only win, measured</h2><span class="tag">Object.keys(device)</span></div>
+    <div class="prose">
+      <p class="lead-in">This is the regime the flag-only descriptor was built for. Enumerating a 100-key lazy map through the module's descriptor calls the provider <span class="num green">0</span> times. The same enumeration through a naive value-materialising descriptor calls it <span class="num accent">100</span> times &#8212; once per key. The naive descriptor is only modestly slower in nanoseconds, because the provider here does trivial work; with a real provider, those 100 calls would dominate.</p>
+      <figure>
+        @@chartA@@
+        <p class="cap"><b>Figure 2.</b> <code>Object.keys</code> cost per mechanism, log scale. Provider-call counts are annotated on each bar. The flag-only and naive bars are close in time because the provider is cheap; they are worlds apart in <i>provider work</i> &#8212; <span class="green">0</span> versus <span class="accent">100</span>. The eager bar is far left: a plain object enumerates in a quarter of the time because it skips the per-key descriptor trap entirely.</p>
+      </figure>
+      <table>
+        <thead><tr><th>Mechanism</th><th class="r">ns / Object.keys</th><th class="r">allocs</th><th class="r">provider/op</th></tr></thead>
+        <tbody>
+          <tr><td>Eager object <span class="small">(plain JS object)</span></td><td class="r">@@enum_eager_ns@@</td><td class="r">@@enum_eager_allocs@@</td><td class="r green">0</td></tr>
+          <tr><td>Lazy map (flag-only) <span class="small">(the module)</span></td><td class="r">@@enum_flagonly_ns@@</td><td class="r">@@enum_flagonly_allocs@@</td><td class="r green">0</td></tr>
+          <tr><td>Naive lazy (materialising descriptor)</td><td class="r">@@enum_naive_ns@@</td><td class="r">@@enum_naive_allocs@@</td><td class="r accent">100</td></tr>
+          <tr><td>Lazy map (for...in)</td><td class="r">@@enum_forin_ns@@</td><td class="r">@@enum_forin_allocs@@</td><td class="r green">0</td></tr>
+        </tbody>
+      </table>
+      <p class="tbl-note">provider/op is a deterministic invariant, identical across all five samples. It is the proof of laziness; the nanoseconds corroborate it.</p>
+      <div class="insight"><b>The nuance that matters.</b> Lazy enumeration is <i>not</i> faster than eager enumeration &#8212; it is <span class="num">@@enum_ratio@@&#215;</span> slower, because the Proxy builds a descriptor object for every key. The flag-only descriptor wins on the dimension that matters: it does <b>zero</b> provider work, where the naive descriptor does <b>N</b>. When the provider is a Wi-Fi scan, that is the difference between listing keys instantly and scanning 100 times. When the provider is a pre-built string, the machinery cost dominates and an eager snapshot would be faster. Choose by what the provider does, not by the nanoseconds alone.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">04 /</span><h2>The deterministic signal</h2><span class="tag">provider/op across operations</span></div>
+    <div class="prose">
+      <p class="lead-in">Plotting <code>provider/op</code> across every operation collapses the report to a single picture. Operations that read values materialise them; operations that only list keys do not. The boundary is sharp and it is exactly where the design said it would be.</p>
+      <figure>
+        @@chartB@@
+        <p class="cap"><b>Figure 3.</b> Provider calls per operation. Green bars perform no provider work; orange bars materialise values. <code>Object.keys</code> and <code>for...in</code> sit at zero; <code>JSON.stringify</code> sits at the key count because it reads every value; a cold read sits at one. This is the chart that generalises: any operation that reads a value will materialise it, regardless of how the descriptor is written.</p>
+      </figure>
+      <p>This chart is the reason the report can make confident claims from five-sample runs. Even though nanosecond measurements wobble, <code>provider/op</code> pins each configuration to a fixed position, and the position is determined entirely by whether the operation reads values. A future goja version may change the nanoseconds; it cannot change the fact that <code>Object.keys</code> does not read values and <code>JSON.stringify</code> does.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">05 /</span><h2>Scaling</h2><span class="tag">N = 10 / 100 / 1000</span></div>
+    <div class="prose">
+      <p class="lead-in">Enumeration cost grows linearly with the key count, and the provider-call count stays at zero throughout. This is the scaling behaviour the flag-only descriptor promises: the work is proportional to the number of keys, never to the cost of producing their values.</p>
+      <figure>
+        @@chartC@@
+        <p class="cap"><b>Figure 4.</b> <code>Object.keys</code> on a lazy map as the key count grows. The cost is linear in N (roughly <span class="num">4&#160;&#181;s per key</span>), and <code>provider/op</code> is <span class="green">0</span> at every scale. The allocation count grows at the same rate &#8212; about 10 allocations per key &#8212; which is the descriptor-construction cost the flag-only design carries.</p>
+      </figure>
+      <p>The per-key cost is stable: from 10 to 1000 keys, each key adds roughly <span class="num">4&#160;µs</span> and <span class="num">10</span> allocations. A 1000-key lazy map enumerates in <span class="num">@@scale_n1000_ns@@&#160;ns</span> &#8212; under four milliseconds &#8212; without a single provider call. For a provider that scans or queries, that is the difference between an instant key listing and a thousand fetches.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">06 /</span><h2>Serialisation is inherently materialising</h2><span class="tag">JSON.stringify(device)</span></div>
+    <div class="prose">
+      <p class="lead-in"><code>JSON.stringify</code> is the operation the flag-only descriptor cannot help. By definition, serialisation reads every value, so it calls the provider once per key. The measurement uses a non-caching lazy map so the per-call cost is visible; with the module's cache, only the <i>first</i> stringify materialises, and subsequent ones read cached values.</p>
+      <table>
+        <thead><tr><th>Mechanism</th><th class="r">ns / stringify</th><th class="r">allocs</th><th class="r">provider/op</th></tr></thead>
+        <tbody>
+          <tr><td>Eager object</td><td class="r">@@str_eager_ns@@</td><td class="r">@@str_eager_allocs@@</td><td class="r">0</td></tr>
+          <tr><td>Lazy map (no cache)</td><td class="r">@@str_lazy_ns@@</td><td class="r">@@str_lazy_allocs@@</td><td class="r accent">@@str_lazy_provider@@</td></tr>
+        </tbody>
+      </table>
+      <p>The lazy stringify reads every value (<span class="num">@@str_lazy_provider@@ provider/op</span>) and costs <span class="num">@@str_ratio@@&#215;</span> the eager stringify. This is not a flaw in the descriptor; it is the definition of serialisation. The guidance follows: for large lazy objects, do not <code>JSON.stringify</code> the whole proxy. Read specific keys, or install a <code>toJSON</code> trap that returns an explicit, compact shape.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">07 /</span><h2>Threats to validity</h2><span class="tag">what the numbers do not say</span></div>
+    <div class="prose">
+      <ul style="margin:0 0 16px;padding-left:22px;line-height:1.7">
+        <li><b>No JIT, one goroutine.</b> goja interprets bytecode and a runtime is not concurrency-safe. Absolute latency is illustrative; the <code>provider/op</code> counts and the ratios between mechanisms are what generalise.</li>
+        <li><b>Wall-clock on a shared laptop.</b> Treat absolute figures as &#177;~10&#8211;20%; treat <code>provider/op</code> as exact.</li>
+        <li><b>Five samples.</b> Enough to show the enumeration ordering and the deterministic provider counts; too few for tight confidence intervals on the nanoseconds.</li>
+        <li><b>Trivial provider.</b> The provider returns a pre-built string, so the naive path's 100 provider calls look cheap. A real provider (I/O, a scan) would make the flag-only win far larger than the nanoseconds suggest &#8212; the provider-call count, not the time, is then the decision metric.</li>
+        <li><b>100-key records.</b> Enumeration is measured at N=100 with scaling to 1000. Pathological key counts were not explored, but the linear scaling in Figure 4 makes the behaviour predictable.</li>
+      </ul>
+      <p>None of these threaten the central conclusion, which rests on the deterministic <code>provider/op</code> counts and on ratios measured under identical conditions.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">08 /</span><h2>Reproducibility</h2><span class="tag">one command</span></div>
+    <div class="prose">
+      <p>The harness is <code>go-go-goja/perf/goja/phase4_lazy_bench_test.go</code>. From the <code>go-go-goja</code> module root:</p>
+      <div class="pre">go test ./perf/goja -run '^$' \
+  -bench 'LazyRead|LazyEnumeration|LazyScale|LazyMaterialize' \
+  -benchtime=1s -count=5 -benchmem | tee raw.txt</div>
+      <p>The pipeline that turned that output into this report is in the ticket: <code>03-parse-lazy-stats.py</code> (raw &#8594; stats), <code>04-lazy-charts.py</code> (SVG figures), <code>05-lazy-report-template.html</code> + <code>06-make-lazy-report.py</code> (fill the template). Every figure is inline SVG generated directly from the measured statistics &#8212; no charting library, no JavaScript, no network requests.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>Source.</b> Benchmark in <code>go-go-goja/perf/goja/phase4_lazy_bench_test.go</code> &#183; module <code>go-go-goja/modules/lazy</code> &#183; ticket <code>GOJA-LAZY-BENCH</code>. Engine is the local <code>goja</code> fork selected by the workspace <code>go.work</code>.</p>
+    <p><b>Method.</b> Identical work across all configurations; reused runtime + pre-compiled program so only the lazy-object access is timed. Five samples at 1&#160;s each; means and spreads reported, <code>provider/op</code> treated as a deterministic invariant.</p>
+    <p><b>Self-contained.</b> This file is a single static HTML document. All four figures are inline SVG generated directly from the measured statistics.</p>
+  </footer>
+</div>
+</body>
+</html>

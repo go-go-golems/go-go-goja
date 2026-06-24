@@ -1,0 +1,66 @@
+goos: linux
+goarch: amd64
+pkg: github.com/go-go-golems/go-go-goja/perf/goja
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkLazyRead/Eager_Object-8         	 9471544	       164.9 ns/op	      32 B/op	       1 allocs/op
+BenchmarkLazyRead/Eager_Object-8         	 6414097	       177.7 ns/op	      32 B/op	       1 allocs/op
+BenchmarkLazyRead/Eager_Object-8         	 6856582	       166.7 ns/op	      32 B/op	       1 allocs/op
+BenchmarkLazyRead/Eager_Object-8         	 8352936	       140.6 ns/op	      32 B/op	       1 allocs/op
+BenchmarkLazyRead/Eager_Object-8         	 7527237	       142.7 ns/op	      32 B/op	       1 allocs/op
+BenchmarkLazyRead/LazyMap_Cached-8       	 4960584	       261.6 ns/op	         0.0000002 provider/op	      48 B/op	       2 allocs/op
+BenchmarkLazyRead/LazyMap_Cached-8       	 4073010	       299.7 ns/op	         0.0000002 provider/op	      48 B/op	       2 allocs/op
+BenchmarkLazyRead/LazyMap_Cached-8       	 4614682	       708.9 ns/op	         0.0000002 provider/op	      48 B/op	       2 allocs/op
+BenchmarkLazyRead/LazyMap_Cached-8       	 1382715	       818.5 ns/op	         0.0000007 provider/op	      48 B/op	       2 allocs/op
+BenchmarkLazyRead/LazyMap_Cached-8       	 1256247	       821.0 ns/op	         0.0000008 provider/op	      48 B/op	       2 allocs/op
+BenchmarkLazyRead/LazyMap_Cold_NoCache-8 	 1000000	      1239 ns/op	         1.000 provider/op	      80 B/op	       4 allocs/op
+BenchmarkLazyRead/LazyMap_Cold_NoCache-8 	 1000000	      1117 ns/op	         1.000 provider/op	      80 B/op	       4 allocs/op
+BenchmarkLazyRead/LazyMap_Cold_NoCache-8 	 1000000	      1143 ns/op	         1.000 provider/op	      80 B/op	       4 allocs/op
+BenchmarkLazyRead/LazyMap_Cold_NoCache-8 	 1000000	      1109 ns/op	         1.000 provider/op	      80 B/op	       4 allocs/op
+BenchmarkLazyRead/LazyMap_Cold_NoCache-8 	 1000000	      1199 ns/op	         1.000 provider/op	      80 B/op	       4 allocs/op
+BenchmarkLazyEnumeration/Eager_Keys-8    	   33696	     36152 ns/op	    6752 B/op	     115 allocs/op
+BenchmarkLazyEnumeration/Eager_Keys-8    	   32926	     37852 ns/op	    6752 B/op	     115 allocs/op
+BenchmarkLazyEnumeration/Eager_Keys-8    	   30616	     38718 ns/op	    6752 B/op	     115 allocs/op
+BenchmarkLazyEnumeration/Eager_Keys-8    	   28004	     37439 ns/op	    6753 B/op	     115 allocs/op
+BenchmarkLazyEnumeration/Eager_Keys-8    	   33591	     39208 ns/op	    6752 B/op	     115 allocs/op
+BenchmarkLazyEnumeration/LazyMap_Keys_FlagOnly-8         	    2506	    558681 ns/op	         0 provider/op	   80075 B/op	    1033 allocs/op
+BenchmarkLazyEnumeration/LazyMap_Keys_FlagOnly-8         	    2352	    591943 ns/op	         0 provider/op	   80077 B/op	    1033 allocs/op
+BenchmarkLazyEnumeration/LazyMap_Keys_FlagOnly-8         	    1996	    577754 ns/op	         0 provider/op	   80077 B/op	    1033 allocs/op
+BenchmarkLazyEnumeration/LazyMap_Keys_FlagOnly-8         	    2337	    635498 ns/op	         0 provider/op	   80076 B/op	    1033 allocs/op
+BenchmarkLazyEnumeration/LazyMap_Keys_FlagOnly-8         	    2078	    620453 ns/op	         0 provider/op	   80077 B/op	    1033 allocs/op
+BenchmarkLazyEnumeration/NaiveLazy_Keys_Materializing-8  	    1659	    779772 ns/op	       100.0 provider/op	   89677 B/op	    1333 allocs/op
+BenchmarkLazyEnumeration/NaiveLazy_Keys_Materializing-8  	    2167	    590157 ns/op	       100.0 provider/op	   89677 B/op	    1333 allocs/op
+BenchmarkLazyEnumeration/NaiveLazy_Keys_Materializing-8  	    2126	    604882 ns/op	       100.0 provider/op	   89676 B/op	    1333 allocs/op
+BenchmarkLazyEnumeration/NaiveLazy_Keys_Materializing-8  	    2326	    631471 ns/op	       100.0 provider/op	   89676 B/op	    1333 allocs/op
+BenchmarkLazyEnumeration/NaiveLazy_Keys_Materializing-8  	    2565	    611091 ns/op	       100.0 provider/op	   89675 B/op	    1333 allocs/op
+BenchmarkLazyEnumeration/LazyMap_ForIn-8                 	    1845	    824118 ns/op	         0 provider/op	   96569 B/op	    1470 allocs/op
+BenchmarkLazyEnumeration/LazyMap_ForIn-8                 	    1609	    783608 ns/op	         0 provider/op	   96569 B/op	    1470 allocs/op
+BenchmarkLazyEnumeration/LazyMap_ForIn-8                 	    1708	    758167 ns/op	         0 provider/op	   96569 B/op	    1470 allocs/op
+BenchmarkLazyEnumeration/LazyMap_ForIn-8                 	    4125	    503334 ns/op	         0 provider/op	   96564 B/op	    1470 allocs/op
+BenchmarkLazyEnumeration/LazyMap_ForIn-8                 	    1592	    789003 ns/op	         0 provider/op	   96569 B/op	    1470 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=10-8                   	   20443	     58691 ns/op	         0 provider/op	    9000 B/op	     124 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=10-8                   	   19644	     56319 ns/op	         0 provider/op	    9000 B/op	     124 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=10-8                   	   20455	     57124 ns/op	         0 provider/op	    9000 B/op	     124 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=10-8                   	   19312	     60251 ns/op	         0 provider/op	    9000 B/op	     124 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=10-8                   	   18842	     62256 ns/op	         0 provider/op	    9000 B/op	     124 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=100-8                  	    2496	    411629 ns/op	         0 provider/op	   80076 B/op	    1033 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=100-8                  	    4662	    278960 ns/op	         0 provider/op	   80073 B/op	    1033 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=100-8                  	    5208	    211207 ns/op	         0 provider/op	   80073 B/op	    1033 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=100-8                  	    5096	    199383 ns/op	         0 provider/op	   80073 B/op	    1033 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=100-8                  	    7456	    205241 ns/op	         0 provider/op	   80073 B/op	    1033 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=1000-8                 	     286	   5065334 ns/op	         0 provider/op	  818078 B/op	   10049 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=1000-8                 	     241	   4356158 ns/op	         0 provider/op	  818082 B/op	   10049 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=1000-8                 	     304	   3570084 ns/op	         0 provider/op	  818078 B/op	   10049 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=1000-8                 	     316	   3602103 ns/op	         0 provider/op	  818076 B/op	   10049 allocs/op
+BenchmarkLazyScale/LazyMap_Keys/N=1000-8                 	     322	   3339864 ns/op	         0 provider/op	  818075 B/op	   10049 allocs/op
+BenchmarkLazyMaterialize/Eager_Stringify-8               	   29576	     39634 ns/op	   18968 B/op	     425 allocs/op
+BenchmarkLazyMaterialize/Eager_Stringify-8               	   24414	     43091 ns/op	   18969 B/op	     425 allocs/op
+BenchmarkLazyMaterialize/Eager_Stringify-8               	   31690	     41310 ns/op	   18968 B/op	     425 allocs/op
+BenchmarkLazyMaterialize/Eager_Stringify-8               	   29125	     44411 ns/op	   18968 B/op	     425 allocs/op
+BenchmarkLazyMaterialize/Eager_Stringify-8               	   27327	     40122 ns/op	   18968 B/op	     425 allocs/op
+BenchmarkLazyMaterialize/LazyMap_Stringify-8             	    7039	    181250 ns/op	       101.0 provider/op	   97190 B/op	    1648 allocs/op
+BenchmarkLazyMaterialize/LazyMap_Stringify-8             	    5546	    184343 ns/op	       101.0 provider/op	   97191 B/op	    1648 allocs/op
+BenchmarkLazyMaterialize/LazyMap_Stringify-8             	    5180	    229662 ns/op	       101.0 provider/op	   97191 B/op	    1648 allocs/op
+BenchmarkLazyMaterialize/LazyMap_Stringify-8             	    3728	    299108 ns/op	       101.0 provider/op	   97192 B/op	    1648 allocs/op
+BenchmarkLazyMaterialize/LazyMap_Stringify-8             	    3883	    300931 ns/op	       101.0 provider/op	   97192 B/op	    1648 allocs/op
+PASS
+ok  	github.com/go-go-golems/go-go-goja/perf/goja	95.944s

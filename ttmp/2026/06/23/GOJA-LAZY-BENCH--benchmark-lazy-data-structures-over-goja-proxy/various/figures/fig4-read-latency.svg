@@ -1,0 +1,16 @@
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Object.keys on lazy.Map scaling with key count" style="width:100%;height:auto;display:block;max-width:720px;margin:8px 0">
+<rect width="720" height="320" fill="#fff"/>
+<rect x="70" y="26" width="610" height="244" fill="none" stroke="#0a0a0a"/>
+<rect x="120.8" y="266.7" width="101.7" height="3.3" fill="#E8470C"/>
+<text x="171.7" y="260.7" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="middle">59k ns</text>
+<text x="171.7" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="middle">N=10</text>
+<text x="171.7" y="304" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#6b6b6b" text-anchor="middle">124 allocs &#160;&#183;&#160; 0 provider</text>
+<rect x="324.2" y="255.5" width="101.7" height="14.5" fill="#E8470C"/>
+<text x="375.0" y="249.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="middle">261k ns</text>
+<text x="375.0" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="middle">N=100</text>
+<text x="375.0" y="304" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#6b6b6b" text-anchor="middle">1033 allocs &#160;&#183;&#160; 0 provider</text>
+<rect x="527.5" y="48.2" width="101.7" height="221.8" fill="#E8470C"/>
+<text x="578.3" y="42.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="middle">3987k ns</text>
+<text x="578.3" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="middle">N=1000</text>
+<text x="578.3" y="304" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="10.5" fill="#6b6b6b" text-anchor="middle">10049 allocs &#160;&#183;&#160; 0 provider</text>
+<text x="26" y="148.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle" transform="rotate(-90 26 148.0)">nanoseconds per Object.keys</text></svg>

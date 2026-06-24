@@ -1,0 +1,26 @@
+<svg viewBox="0 0 780 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Provider calls per operation — the deterministic signal" style="width:100%;height:auto;display:block;max-width:780px;margin:8px 0">
+<rect width="780" height="300" fill="#fff"/>
+<rect x="220" y="26" width="520" height="234" fill="none" stroke="#0a0a0a"/>
+<line x1="220.0" y1="26" x2="220.0" y2="260" stroke="#e5e5e5"/><text x="220.0" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">0</text>
+<line x1="331.9" y1="26" x2="331.9" y2="260" stroke="#e5e5e5"/><text x="331.9" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">25</text>
+<line x1="443.8" y1="26" x2="443.8" y2="260" stroke="#e5e5e5"/><text x="443.8" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">50</text>
+<line x1="555.8" y1="26" x2="555.8" y2="260" stroke="#e5e5e5"/><text x="555.8" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">75</text>
+<line x1="667.7" y1="26" x2="667.7" y2="260" stroke="#e5e5e5"/><text x="667.7" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">100</text>
+<text x="480.0" y="299" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6b6b6b" text-anchor="middle">provider calls per operation &#160;(deterministic)</text>
+<rect x="220" y="38.4" width="0.0" height="22" fill="#2d7d46"/>
+<text x="208" y="53.4" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">Object.keys (flag-only)</text>
+<text x="229.0" y="53.4" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">0 &#160;(lazy)</text>
+<rect x="220" y="85.2" width="0.0" height="22" fill="#2d7d46"/>
+<text x="208" y="100.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">for...in (flag-only)</text>
+<text x="229.0" y="100.2" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">0 &#160;(lazy)</text>
+<rect x="220" y="132.0" width="0.0" height="22" fill="#2d7d46"/>
+<text x="208" y="147.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">cached read</text>
+<text x="229.0" y="147.0" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">0 &#160;(lazy)</text>
+<rect x="220" y="178.8" width="4.5" height="22" fill="#E8470C"/>
+<text x="208" y="193.8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">cold read</text>
+<text x="233.5" y="193.8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">1 &#160;(materialises)</text>
+<rect x="220" y="225.6" width="452.2" height="22" fill="#E8470C"/>
+<text x="208" y="240.6" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a" text-anchor="end">JSON.stringify</text>
+<text x="681.2" y="240.6" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#0a0a0a">101 &#160;(materialises)</text>
+<rect x="228" y="270" width="13" height="13" fill="#2d7d46"/><text x="248" y="281" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#0a0a0a">no provider work</text>
+<rect x="400" y="270" width="13" height="13" fill="#E8470C"/><text x="420" y="281" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#0a0a0a">materialises values</text></svg>

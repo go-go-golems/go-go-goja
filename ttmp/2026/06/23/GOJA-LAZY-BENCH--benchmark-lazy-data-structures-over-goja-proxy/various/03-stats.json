@@ -1,0 +1,242 @@
+{
+ "BenchmarkLazyRead/Eager_Object-8": {
+  "name": "BenchmarkLazyRead/Eager_Object-8",
+  "mean": 158.51999999999998,
+  "std": 16.177824328382354,
+  "cv": 10.205541463778928,
+  "min": 140.6,
+  "max": 177.7,
+  "median": 164.9,
+  "samples": 5,
+  "ns": [
+   164.9,
+   177.7,
+   166.7,
+   140.6,
+   142.7
+  ],
+  "B": 32,
+  "allocs": 1,
+  "provider": 0.0
+ },
+ "BenchmarkLazyRead/LazyMap_Cached-8": {
+  "name": "BenchmarkLazyRead/LazyMap_Cached-8",
+  "mean": 581.94,
+  "std": 279.06374361425026,
+  "cv": 47.95404055645775,
+  "min": 261.6,
+  "max": 821.0,
+  "median": 708.9,
+  "samples": 5,
+  "ns": [
+   261.6,
+   299.7,
+   708.9,
+   818.5,
+   821.0
+  ],
+  "B": 48,
+  "allocs": 2,
+  "provider": 0.0
+ },
+ "BenchmarkLazyRead/LazyMap_Cold_NoCache-8": {
+  "name": "BenchmarkLazyRead/LazyMap_Cold_NoCache-8",
+  "mean": 1161.4,
+  "std": 55.88201857485107,
+  "cv": 4.811608280941197,
+  "min": 1109.0,
+  "max": 1239.0,
+  "median": 1143.0,
+  "samples": 5,
+  "ns": [
+   1239.0,
+   1117.0,
+   1143.0,
+   1109.0,
+   1199.0
+  ],
+  "B": 80,
+  "allocs": 4,
+  "provider": 1.0
+ },
+ "BenchmarkLazyEnumeration/Eager_Keys-8": {
+  "name": "BenchmarkLazyEnumeration/Eager_Keys-8",
+  "mean": 37873.8,
+  "std": 1188.1587436028908,
+  "cv": 3.13715218331113,
+  "min": 36152.0,
+  "max": 39208.0,
+  "median": 37852.0,
+  "samples": 5,
+  "ns": [
+   36152.0,
+   37852.0,
+   38718.0,
+   37439.0,
+   39208.0
+  ],
+  "B": 6752,
+  "allocs": 115,
+  "provider": 0.0
+ },
+ "BenchmarkLazyEnumeration/LazyMap_Keys_FlagOnly-8": {
+  "name": "BenchmarkLazyEnumeration/LazyMap_Keys_FlagOnly-8",
+  "mean": 596865.8,
+  "std": 31210.48177615975,
+  "cv": 5.229061838718143,
+  "min": 558681.0,
+  "max": 635498.0,
+  "median": 591943.0,
+  "samples": 5,
+  "ns": [
+   558681.0,
+   591943.0,
+   577754.0,
+   635498.0,
+   620453.0
+  ],
+  "B": 80075,
+  "allocs": 1033,
+  "provider": 0.0
+ },
+ "BenchmarkLazyEnumeration/NaiveLazy_Keys_Materializing-8": {
+  "name": "BenchmarkLazyEnumeration/NaiveLazy_Keys_Materializing-8",
+  "mean": 643474.6,
+  "std": 77623.96610132724,
+  "cv": 12.06325255127821,
+  "min": 590157.0,
+  "max": 779772.0,
+  "median": 611091.0,
+  "samples": 5,
+  "ns": [
+   779772.0,
+   590157.0,
+   604882.0,
+   631471.0,
+   611091.0
+  ],
+  "B": 89677,
+  "allocs": 1333,
+  "provider": 100.0
+ },
+ "BenchmarkLazyEnumeration/LazyMap_ForIn-8": {
+  "name": "BenchmarkLazyEnumeration/LazyMap_ForIn-8",
+  "mean": 731646.0,
+  "std": 129779.31119982107,
+  "cv": 17.737992307730934,
+  "min": 503334.0,
+  "max": 824118.0,
+  "median": 783608.0,
+  "samples": 5,
+  "ns": [
+   824118.0,
+   783608.0,
+   758167.0,
+   503334.0,
+   789003.0
+  ],
+  "B": 96569,
+  "allocs": 1470,
+  "provider": 0.0
+ },
+ "BenchmarkLazyScale/LazyMap_Keys/N=10-8": {
+  "name": "BenchmarkLazyScale/LazyMap_Keys/N=10-8",
+  "mean": 58928.2,
+  "std": 2394.962358785624,
+  "cv": 4.0642041650442815,
+  "min": 56319.0,
+  "max": 62256.0,
+  "median": 58691.0,
+  "samples": 5,
+  "ns": [
+   58691.0,
+   56319.0,
+   57124.0,
+   60251.0,
+   62256.0
+  ],
+  "B": 9000,
+  "allocs": 124,
+  "provider": 0.0
+ },
+ "BenchmarkLazyScale/LazyMap_Keys/N=100-8": {
+  "name": "BenchmarkLazyScale/LazyMap_Keys/N=100-8",
+  "mean": 261284.0,
+  "std": 89994.88538244826,
+  "cv": 34.44332044153039,
+  "min": 199383.0,
+  "max": 411629.0,
+  "median": 211207.0,
+  "samples": 5,
+  "ns": [
+   411629.0,
+   278960.0,
+   211207.0,
+   199383.0,
+   205241.0
+  ],
+  "B": 80076,
+  "allocs": 1033,
+  "provider": 0.0
+ },
+ "BenchmarkLazyScale/LazyMap_Keys/N=1000-8": {
+  "name": "BenchmarkLazyScale/LazyMap_Keys/N=1000-8",
+  "mean": 3986708.6,
+  "std": 714113.2742974325,
+  "cv": 17.912351915999892,
+  "min": 3339864.0,
+  "max": 5065334.0,
+  "median": 3602103.0,
+  "samples": 5,
+  "ns": [
+   5065334.0,
+   4356158.0,
+   3570084.0,
+   3602103.0,
+   3339864.0
+  ],
+  "B": 818078,
+  "allocs": 10049,
+  "provider": 0.0
+ },
+ "BenchmarkLazyMaterialize/Eager_Stringify-8": {
+  "name": "BenchmarkLazyMaterialize/Eager_Stringify-8",
+  "mean": 41713.6,
+  "std": 2012.0895357811492,
+  "cv": 4.823581603556512,
+  "min": 39634.0,
+  "max": 44411.0,
+  "median": 41310.0,
+  "samples": 5,
+  "ns": [
+   39634.0,
+   43091.0,
+   41310.0,
+   44411.0,
+   40122.0
+  ],
+  "B": 18968,
+  "allocs": 425,
+  "provider": 0.0
+ },
+ "BenchmarkLazyMaterialize/LazyMap_Stringify-8": {
+  "name": "BenchmarkLazyMaterialize/LazyMap_Stringify-8",
+  "mean": 239058.8,
+  "std": 58860.112832885396,
+  "cv": 24.621604740292096,
+  "min": 181250.0,
+  "max": 300931.0,
+  "median": 229662.0,
+  "samples": 5,
+  "ns": [
+   181250.0,
+   184343.0,
+   229662.0,
+   299108.0,
+   300931.0
+  ],
+  "B": 97190,
+  "allocs": 1648,
+  "provider": 101.0
+ }
+}
