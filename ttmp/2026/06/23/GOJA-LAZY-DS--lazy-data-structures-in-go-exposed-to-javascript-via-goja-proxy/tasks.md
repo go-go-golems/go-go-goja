@@ -33,3 +33,4 @@ mechanism, the enumeration sharp edge and its flag-only-descriptor fix, the
 proxy invariants, and the `for..of` finding. Remaining items are either
 descoped (async providers) or genuinely future work (infinite-stream type,
 Array own-property semantics) and are tracked above.
+- [ ] Implement DynamicObject-backed lazy map (DynMap) + benchmark vs Proxy-backed Map; write comprehensive intern guide; upload to reMarkable.

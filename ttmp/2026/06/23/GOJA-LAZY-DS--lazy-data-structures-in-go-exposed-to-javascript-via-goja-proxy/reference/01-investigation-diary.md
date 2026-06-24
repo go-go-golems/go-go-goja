@@ -434,3 +434,94 @@ for (const x of arr)
     Get(proxy, "length")             -> Get trap -> a.Len
     Get(proxy, i)                    -> GetIdx trap -> lazyGetInt(...)  (cached)
 ```
+
+---
+
+## Step 6: Alternative backends — DynamicObject vs Proxy (the 28× enumeration win)
+
+The user asked whether lazy data structures can be implemented in goja by
+means other than the ES6 Proxy. The answer is yes, and the strongest
+alternative — goja's native `DynamicObject` — turns out to be dramatically
+better than the Proxy for the common case. This step probed the alternatives,
+implemented a `DynMap`/`DynArray` backend in `modules/lazy`, and benchmarked
+it head-to-head against the Proxy-backed `Map`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "are there other ways to implement lazy data structures in goja? besides the proxy?" → "yes, continue, keep a detailed diary. Create a detailed analysis / design / implementation guide that is for a new intern ... Store in the ticket and upload to remarkable."
+
+**Assistant interpretation:** Identify and measure the non-Proxy lazy mechanisms, implement the best one (DynamicObject) as a real backend in the lazy module, benchmark it, and write a comprehensive intern guide.
+
+**Inferred user intent:** Decide whether the lazy module's Proxy default is the right choice, with evidence; produce a durable, intern-grade guide covering the whole system.
+
+### What I did
+
+- Read `goja/object_dynamic.go`: the `DynamicObject` interface (`Get/Set/Has/Delete/Keys`) and `Runtime.NewDynamicObject`, plus its documented contract (all properties writable/enumerable/configurable; always extensible; **no invariant checks, no target** — "a lot more efficient" than Proxy).
+- Probed enumeration behaviour with call-counting tests: `Object.keys`/`for..in` on a `DynamicObject` call `Get` **0 times** (enumeration uses `Keys()` alone); a single read calls `Get` once. Same probe for accessor getters: `Object.keys` calls the getter 0 times (JS-spec), a read calls it once.
+- Implemented `modules/lazy/dyn.go`: `DynMap` and `DynArray` mirroring `Map`/`Array` (Keys/Provider/Mutable) but backed by `DynamicObject`/`DynamicArray`. `Get` returning `nil` delegates to the prototype automatically (no manual fallthrough). Read-only when `Mutable=false` via a `readOnlyDynMap` wrapper.
+- Added `dyn_test.go` (6 tests: laziness, enumeration-free, has/inherited, mutable, read-only rejection, DynArray indexing/caching).
+- Added `perf/goja/phase5_lazy_dyn_bench_test.go`: head-to-head Proxy vs DynamicObject on reads, enumeration, and scaling.
+
+### Why
+
+The Proxy's enumeration cost (15.8× eager, from Step 4's benchmark) is almost entirely the per-key descriptor construction the flag-only descriptor still pays. `DynamicObject` has no `GetOwnPropertyDescriptor` at all, so it cannot pay that cost. The question was whether that theoretical advantage shows up in measurement, and by how much.
+
+### What worked
+
+Measured (5 samples, 1s each), `DynamicObject` vs `Proxy`:
+
+| operation (100 keys) | Proxy | DynamicObject | DynamicObject advantage |
+| --- | ---: | ---: | ---: |
+| single cached read | 234 ns / 2 allocs | 155 ns / 1 alloc | 1.51× faster, 1 fewer alloc |
+| `Object.keys` | 141,129 ns / 1033 allocs | 4,996 ns / 108 allocs | **28.2× faster**, 9.6× fewer allocs |
+| `Object.keys` N=1000 | ~3,986,709 ns (phase4) | 50,033 ns | ~80× faster |
+
+`provider/op` is **0** for both backends on enumeration — the laziness is preserved. The differentiator is the per-key descriptor machinery, which the DynamicObject does not have. DynamicObject enumeration (4,996 ns/100 keys) is even cheaper than an eager object's `Object.keys` (37,874 ns in phase4), because `Keys()` returns the slice directly and the dynamic object reports all keys as enumerable without iterating a stored property table.
+
+### What didn't work
+
+- First accessor-getter probe failed: I tried to define accessor properties on a Go `*Object` after placing placeholder data properties via `DefineDataProperty`, which interacted badly. Fixed by building the object with getters entirely in JS (`Object.defineProperty` with `get`). The JS-spec result (0 getter calls during `Object.keys`) then held.
+- No correctness failures in `DynMap` itself. The `DynamicObject.Get` contract ("may return nil if the property does not exist") made prototype delegation automatic, which is cleaner than the Proxy's manual `t.Get(p)` fallthrough.
+
+### What I learned
+
+- goja exposes **two** virtual-object mechanisms: the ES6 `Proxy` (full trap matrix + invariants + target) and the `DynamicObject`/`DynamicArray` (a fixed 5-/4-method Go interface, no invariants, no target). The latter is the right default for lazy maps/arrays.
+- The §6 enumeration sharp edge is **specific to the Proxy**. It exists because `Object.keys` calls `[[GetOwnProperty]]` per key and the Proxy routes that through a trap that constructs a descriptor. `DynamicObject` has no `GetOwnPropertyDescriptor`, so the edge does not exist there at all — there is nothing to "fix" with a flag-only descriptor.
+- `provider/op` remains the deterministic laziness signal across both backends (0 for enumeration, N for serialisation). The backend choice changes the *machinery* cost, not the *provider* cost.
+- Accessor getters on a plain object are a third viable mechanism for the known-finite-keys case: lazy reads via the getter, free enumeration by JS spec, but no dynamic/unknown keys and no `in`/`delete` interception.
+
+### What was tricky to build
+
+- Enforcing read-only semantics on a `DynamicObject`: the interface requires `Set`/`Delete` methods, so a non-mutable `DynMap` cannot simply omit them. Solved with a `readOnlyDynMap` wrapper whose `Set`/`Delete` return `false`, which goja treats as a rejected write (in non-strict mode the assignment is silently ignored; in strict mode it throws). This is the correct way to make a `DynamicObject` read-only.
+- Resisting the urge to switch `Map`'s default backend to `DynamicObject` unconditionally: the Proxy is still required when an ES6-only trap (`construct`, prototype interception, `defineProperty`, `Symbol` own props, per-key enumerability) is needed. The module now offers both; the guide gives the decision rule.
+
+### What warrants a second pair of eyes
+
+- `DynamicArray.Get` returns `nil` for out-of-bounds indices. goja treats a nil `Get` as an absent property (undefined), which matches array semantics, but confirm against `object_dynamic.go`'s `getIdx` path if a consumer relies on a specific out-of-bounds representation.
+- The cross-phase comparison (DynamicObject N=1000 vs Proxy N=1000) draws the Proxy number from phase4 and the DynamicObject number from phase5; both are 5-sample 1s runs but taken at different times. The within-phase5 Proxy-vs-DynamicObject ratio (28.2×) is the robust number; the 80× cross-phase figure is indicative.
+- `DynMap.Mutable=true` mutates `m.Keys` (a slice) on `Set`; as with `Map`, a `DynMap` configured once and `ToValue`'d per runtime must not be shared across goroutines while mutable.
+
+### What should be done in the future
+
+- Decide whether `lazy.Map` should default to the DynamicObject backend internally (keeping the Proxy behind a flag) — a breaking-ish API decision worth a separate discussion. For now both `Map` (Proxy) and `DynMap` (DynamicObject) are offered, and the guide recommends `DynMap` unless an ES6-only trap is needed.
+- Consider a `lazy.Map` with a `Backend` field (`"dynamic"` | `"proxy"`) to unify the two under one type, if callers prefer a single entry point.
+- A dedicated infinite-stream type (pull-based `Symbol.iterator`) remains future work; `DynamicObject` cannot own `Symbol` properties, but a prototype with `Symbol.iterator` can be set (per `object_dynamic.go` docs).
+
+### Code review instructions
+
+- Start at `modules/lazy/dyn.go` (`DynMap`, `dynMapHandler.Get`, `readOnlyDynMap`).
+- `cd go-go-goja && go test ./modules/lazy/ -run Dyn -v`.
+- `cd go-go-goja && go test ./perf/goja -run '^$' -bench LazyBackend -benchtime=1s -count=5 -benchmem`.
+- The head-to-head report: `GOJA-LAZY-BENCH/various/06-lazy-report.html` (Figure 5).
+
+### Technical details
+
+Backend decision matrix:
+
+| Need | Backend |
+| --- | --- |
+| Lazy map/record, cheap reads + free enumeration, no ES6-only traps | `DynMap` (DynamicObject) |
+| Lazy array, indexed + length | `DynArray` (DynamicArray) |
+| `construct`, prototype interception, `defineProperty` interception, `Symbol` own props, per-key enumerability | `Map`/`Array` (Proxy) |
+| Known finite set of lazy keys, no dynamic keys | accessor getters on a plain object |
+| On-demand compute, no object semantics | exported Go functions (`get(k)`) |

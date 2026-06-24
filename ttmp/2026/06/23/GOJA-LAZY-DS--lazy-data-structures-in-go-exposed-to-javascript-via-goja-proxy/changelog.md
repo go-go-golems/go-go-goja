@@ -72,3 +72,12 @@ Verified for..of on lazy Array works via inherited Array.prototype[Symbol.iterat
 
 Closed ticket: design doc + diary (Steps 1-5) complete; lazy module implemented, tested, registered; bundle uploaded to reMarkable. Remaining items descoped or future work (infinite-stream type, Array own-property semantics).
 
+
+## 2026-06-23
+
+Implemented DynamicObject backend (DynMap/DynArray); benchmarked vs Proxy: Dyn is 1.5x faster on reads, 28x faster on enumeration. Wrote comprehensive intern system guide (design-doc/02).
+
+### Related Files
+
+- modules/lazy/dyn.go — DynamicObject backend
+

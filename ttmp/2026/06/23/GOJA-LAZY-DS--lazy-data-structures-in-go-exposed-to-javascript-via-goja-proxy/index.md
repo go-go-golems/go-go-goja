@@ -16,12 +16,16 @@ Owners: []
 RelatedFiles:
     - Path: modules/common.go
       Note: NativeModule/Registry/Loader — how a reusable 'lazy' module would register
+    - Path: modules/lazy/dyn.go
+      Note: DynamicObject-backed DynMap/DynArray (the recommended backend)
     - Path: modules/lazy/lazy.go
       Note: core Map/Array/Record + flagOnlyDescriptor
     - Path: modules/lazy/lazy_test.go
       Note: enumeration-free + descriptor tradeoff regression tests
     - Path: modules/lazy/module.go
       Note: require('lazy') NativeModule + builders
+    - Path: perf/goja/phase5_lazy_dyn_bench_test.go
+      Note: Proxy vs DynamicObject head-to-head (Dyn 28x faster enum)
     - Path: ttmp/2026/06/23/GOJA-LAZY-DS--lazy-data-structures-in-go-exposed-to-javascript-via-goja-proxy/design-doc/01-lazy-data-structures-over-goja-proxy-design-and-implementation-guide.md
       Note: primary intern-facing design guide
     - Path: ttmp/2026/06/23/GOJA-LAZY-DS--lazy-data-structures-in-go-exposed-to-javascript-via-goja-proxy/reference/01-investigation-diary.md
@@ -34,10 +38,14 @@ RelatedFiles:
       Note: captured verbatim run output of experiments 01-04
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-23T21:37:55.464645752-04:00
+LastUpdated: 2026-06-23T22:38:01.957937262-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
+
+
 
 
 
