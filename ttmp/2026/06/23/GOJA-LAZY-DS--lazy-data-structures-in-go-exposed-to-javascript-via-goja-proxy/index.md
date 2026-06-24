@@ -1,7 +1,7 @@
 ---
 Title: Lazy data structures in Go exposed to JavaScript via goja Proxy
 Ticket: GOJA-LAZY-DS
-Status: closed
+Status: complete
 Topics:
     - goja
     - js-bindings
@@ -34,10 +34,11 @@ RelatedFiles:
       Note: captured verbatim run output of experiments 01-04
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-23T21:36:21.634448553-04:00
+LastUpdated: 2026-06-23T21:37:55.464645752-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 

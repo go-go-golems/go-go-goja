@@ -1,7 +1,7 @@
 ---
 Title: "Tasks — GOJA-LAZY-DS"
 Ticket: GOJA-LAZY-DS
-Status: closed
+Status: complete
 DocType: task-list
 LastUpdated: 2026-06-23
 ---
