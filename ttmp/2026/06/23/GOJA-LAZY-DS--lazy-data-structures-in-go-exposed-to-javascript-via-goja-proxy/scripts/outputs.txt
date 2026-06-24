@@ -1,0 +1,4 @@
+package explorations/lazyproxy is not in std (/usr/local/go/src/explorations/lazyproxy)
+package explorations/lazyproxy is not in std (/usr/local/go/src/explorations/lazyproxy)
+package explorations/lazyproxy is not in std (/usr/local/go/src/explorations/lazyproxy)
+package explorations/lazyproxy is not in std (/usr/local/go/src/explorations/lazyproxy)
