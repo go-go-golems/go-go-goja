@@ -359,3 +359,78 @@ Module surface:
 | `lazy.Map` | `lazy.map({keys,get,mutable?})` | Get, Has, GetOwnPropertyDescriptor, OwnKeys (+Set,Delete if Mutable) |
 | `lazy.Array` | `lazy.array({length,get})` | Get, GetIdx, HasIdx |
 | `lazy.Record` | `lazy.record({keys,get,has?,mutable?})` | Get, Has, GetOwnPropertyDescriptor, OwnKeys (+Set,Delete if Mutable) |
+
+---
+
+## Step 5: Symbol.iterator on lazy Array — and closing the ticket
+
+The remaining follow-up was making `for...of` work on `lazy.Array`. A probe test
+revealed it already worked: the inherited `Array.prototype[Symbol.iterator]`
+reads `.length` (the `Get` trap → `a.Len`) and indexes (`GetIdx` → lazy value),
+so no `GetSym` trap is required. Measured: `for (var x of arr)` over a 5-element
+array produced `[0,10,20,30,40]` with the provider called exactly once per index,
+and re-reading an index after iteration was free (shared cache).
+
+### Prompt Context
+
+**User prompt (verbatim):** "do the symbol iterator. no need for async providers. then close up the experiment ticket."
+
+**Assistant interpretation:** Make `for...of` work on the lazy Array; async providers are explicitly descoped; then finalise and close ticket GOJA-LAZY-DS.
+
+**Inferred user intent:** Complete the last functional gap (iteration) without scope-creep into async, then wrap the investigation up cleanly.
+
+### What I did
+
+- Probed whether the inherited Array iterator works through the proxy — it does.
+- Locked it in with `TestArray_ForOfIsLazy` (Go API) and a `for..of` assertion in `TestLazyModule_Array`.
+- Updated the `Array` docstring to state `for...of` is supported via inheritance and needs no `GetSym` trap.
+- Committed (`5bdc2e9`).
+
+### Why
+
+Adding a `GetSym` trap that merely replicates the inherited iterator would be redundant code. The inherited iterator already produces the correct lazy behaviour because the Array target's prototype chain supplies `Symbol.iterator`, and the proxy's `Get`/`GetIdx` traps supply the length and values.
+
+### What worked
+
+`for...of` over `lazy.Array` iterates 0..Len-1, materialising each element at most once.
+
+### What didn't work
+
+N/A — the inherited path worked first try.
+
+### What I learned
+
+- A Proxy with an Array target inherits `Array.prototype[Symbol.iterator]` for free; `for...of` works whenever `length` and integer indexing are intercepted. No explicit iterator trap is needed for finite lazy arrays.
+- `for...of` on a finite lazy array is inherently total: it materialises every element 0..Len-1. That is correct (iteration means reading all values) but means `for...of` on a Len=10⁶ array materialises 10⁶ values. Random access stays lazy; full iteration does not. Documented.
+
+### What was tricky to build
+
+Nothing implementation-side. The only subtlety is recognising that `for...of` does not need a `GetSym` trap, so the temptation to hand-roll an iterator was avoided.
+
+### What warrants a second pair of eyes
+
+- If a consumer needs an *infinite* stream (no finite length), the inherited iterator is the wrong tool — that would require a dedicated stream type with a `Symbol.iterator` whose `next()` has no termination. Out of scope here; noted as a separate future type.
+
+### What should be done in the future
+
+- (Descoped by user) Async/non-blocking providers — not needed now.
+- A dedicated infinite-stream type with a terminating-condition iterator, if a consumer appears.
+- Array index own-property semantics (`getOwnPropertyDescriptor(arr, i)`) remain a minor known limitation.
+
+### Code review instructions
+
+- `cd go-go-goja && go test ./modules/lazy/ -run ForOf -v`.
+- `lazy.go` `Array` docstring; `lazy_test.go` `TestArray_ForOfIsLazy`.
+
+### Technical details
+
+`for..of` dispatch on a `lazy.Array` proxy:
+
+```
+for (const x of arr)
+  [[Get]](Symbol.iterator)          -> no GetSym trap -> target -> Array.prototype[Symbol.iterator]
+  iterator = Array.prototype[Symbol.iterator].call(proxy)
+  iterator reads:
+    Get(proxy, "length")             -> Get trap -> a.Len
+    Get(proxy, i)                    -> GetIdx trap -> lazyGetInt(...)  (cached)
+```

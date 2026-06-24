@@ -49,3 +49,26 @@ Added diary Step 4 (implementation record): registration-as-build-time-concern, 
 
 - modules/lazy/module.go — require('lazy') builders and JS<->Go provider adapters
 
+
+## 2026-06-23
+
+Re-uploaded bundle (v2: implemented) to reMarkable at /ai/2026/06/23/GOJA-LAZY-DS; design doc + diary (Step 4) + tasks.
+
+### Related Files
+
+- ttmp/2026/06/23/GOJA-LAZY-DS--lazy-data-structures-in-go-exposed-to-javascript-via-goja-proxy/reference/01-investigation-diary.md — diary Step 4 records the modules/lazy implementation
+
+
+## 2026-06-23
+
+Verified for..of on lazy Array works via inherited Array.prototype[Symbol.iterator] (no GetSym trap); locked in with TestArray_ForOfIsLazy + module test (commit 5bdc2e9). Async providers descoped per user.
+
+### Related Files
+
+- modules/lazy/lazy.go — Array docstring documents for..of support
+
+
+## 2026-06-23
+
+Closed ticket: design doc + diary (Steps 1-5) complete; lazy module implemented, tested, registered; bundle uploaded to reMarkable. Remaining items descoped or future work (infinite-stream type, Array own-property semantics).
+

@@ -389,10 +389,12 @@ infinite[3]                      // -> "item-9"
 infinite[5]                      // -> cached, provider not recalled
 ```
 
-> Note: `for (const x of infinite)` uses the **iterable protocol** (`@@iterator`
-> / `Symbol.iterator`), not array indexing. If you want `for..of` support,
-> expose a `GetSym` trap returning a generator-like function, or implement
-> `Symbol.iterator`. Out of scope for v1; see §9.
+> Note: `for (const x of infinite)` works on `lazy.Array` via the inherited
+> `Array.prototype[Symbol.iterator]`, which reads `.length` (the `Get` trap)
+> and indexes (`GetIdx`) lazily. No `GetSym` trap is required (verified in
+> Step 5 of the diary). `for..of` materialises every element 0..Len-1, so it is
+> total for finite arrays and a footgun for very large ones; random access
+> stays lazy.
 
 ### 5.3 Dynamic key/value namespace (keys unknown until enumerated)
 
@@ -631,7 +633,8 @@ device.wifis          // lazy!
    builders, a `lazy.doc()`, and a `tsgen` TypeScript declaration (see
    `modules/fs/fs.go` `TypeScriptModule()` for the pattern).
 4. **Phase 3 — ergonomics.** `Set`/`DeleteProperty` traps (mutable stores),
-   `Symbol.iterator` for array-likes, `revoke()` lifecycle, error surfacing
+   `Symbol.iterator` for array-likes (done: inherited, no `GetSym` needed),
+   `revoke()` lifecycle (available via `Build().Revoke()`), error surfacing
    (panics in traps become JS exceptions via `vm.NewGoError`).
 5. **Phase 4 — docs & examples.** A `examples/lazy/` runnable demo and a help
    page in the goja-repl help tree.
