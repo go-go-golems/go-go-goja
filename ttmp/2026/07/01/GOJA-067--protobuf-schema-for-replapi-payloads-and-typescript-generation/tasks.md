@@ -51,36 +51,36 @@
 
 ### B.1 Schema/config skeleton
 
-- [ ] Add `proto/goja/replapi/v1/replapi.proto`.
-- [ ] Add or update root `buf.yaml` using Buf v2 format.
-- [ ] Add or update root `buf.gen.yaml` with Go and TypeScript generation targets.
-- [ ] Choose generated Go output path and package name.
-- [ ] Choose generated TypeScript output path and package layout.
+- [x] Add `proto/goja/replapi/v1/replapi.proto`.
+- [x] Add or update root `buf.yaml` using Buf v2 format.
+- [x] Add or update root `buf.gen.yaml` with Go and TypeScript generation targets.
+- [x] Choose generated Go output path and package name.
+- [x] Choose generated TypeScript output path and package layout.
 
 ### B.2 Live REPL messages
 
-- [ ] Define `EvaluateRequest` and `EvaluateResponse`.
-- [ ] Define response envelopes: `ListSessionsResponse`, `CreateSessionResponse`, `GetSessionResponse`, `DeleteSessionResponse`, `RestoreSessionResponse`, `HistoryResponse`, `BindingsResponse`, `DocsResponse`, and `ExportSessionResponse`.
-- [ ] Define `SessionSummary`.
-- [ ] Define session policy messages and `EvalMode` enum.
-- [ ] Define `CellReport` and subreports.
-- [ ] Define binding, runtime, static-analysis, AST/CST, range, and provenance messages.
+- [x] Define `EvaluateRequest` and `EvaluateResponse`.
+- [x] Define response envelopes: `ListSessionsResponse`, `CreateSessionResponse`, `GetSessionResponse`, `DeleteSessionResponse`, `RestoreSessionResponse`, `HistoryResponse`, `BindingsResponse`, `DocsResponse`, and `ExportSessionResponse`.
+- [x] Define `SessionSummary`.
+- [x] Define session policy messages and `EvalMode` enum.
+- [x] Define `CellReport` and subreports.
+- [x] Define binding, runtime, static-analysis, AST/CST, range, and provenance messages.
 
 ### B.3 Persistence/export messages
 
-- [ ] Define `SessionRecord` and `SessionExport`.
-- [ ] Define `EvaluationRecord`.
-- [ ] Define `ConsoleEventRecord`, `BindingVersionRecord`, and `BindingDocRecord`.
-- [ ] Use `google.protobuf.Value` for raw JSON persistence fields.
+- [x] Define `SessionRecord` and `SessionExport`.
+- [x] Define `EvaluationRecord`.
+- [x] Define `ConsoleEventRecord`, `BindingVersionRecord`, and `BindingDocRecord`.
+- [x] Use `google.protobuf.Value` for raw JSON persistence fields.
 
 ### B.4 Generation and validation
 
-- [ ] Run `buf lint`.
-- [ ] Run `buf generate`.
-- [ ] Verify generated Go files compile with `GOWORK=off go test ./pkg/replapi/... -count=1` or equivalent.
-- [ ] Verify generated TypeScript files import `@bufbuild/protobuf` and expose schemas.
-- [ ] Update diary/changelog/doc relations.
-- [ ] Commit Phase B.
+- [x] Run `buf lint`.
+- [x] Run `buf generate`.
+- [x] Verify generated Go files compile with `GOWORK=off go test ./pkg/replapi/... -count=1` or equivalent.
+- [x] Verify generated TypeScript files import `@bufbuild/protobuf` and expose schemas.
+- [x] Update diary/changelog/doc relations.
+- [x] Commit Phase B.
 
 ## Implementation Phase C — Go conversion adapters and protojson helpers
 
@@ -189,14 +189,14 @@
 
 ### F.2 Validation
 
-- [ ] Run `buf lint`.
+- [x] Run `buf lint`.
 - [ ] Run `buf generate` and verify clean generated output.
 - [ ] Run `GOWORK=off go test ./pkg/replapi/... ./pkg/replhttp/... ./pkg/replsession/... -count=1`.
 - [ ] Run `GOWORK=off go test ./... -count=1` if feasible.
 - [ ] Run `make test` if feasible.
 - [ ] Run `make lint` if feasible.
 - [ ] Run TypeScript smoke tests if added.
-- [ ] Run `docmgr --root ttmp doctor --ticket GOJA-067 --stale-after 30`.
+- [x] Run `docmgr --root ttmp doctor --ticket GOJA-067 --stale-after 30`.
 
 ### F.3 Delivery
 

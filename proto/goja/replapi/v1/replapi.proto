@@ -1,0 +1,415 @@
+syntax = "proto3";
+
+package goja.replapi.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/go-go-golems/go-go-goja/pkg/replapi/pb/proto/goja/replapi/v1;replapiv1";
+
+message EvaluateRequest {
+  uint32 schema_version = 1;
+  string source = 2;
+}
+
+message EvaluateResponse {
+  uint32 schema_version = 1;
+  SessionSummary session = 2;
+  CellReport cell = 3;
+}
+
+message ListSessionsResponse {
+  uint32 schema_version = 1;
+  repeated SessionRecord sessions = 2;
+}
+
+message CreateSessionResponse {
+  uint32 schema_version = 1;
+  SessionSummary session = 2;
+}
+
+message GetSessionResponse {
+  uint32 schema_version = 1;
+  SessionSummary session = 2;
+}
+
+message DeleteSessionResponse {
+  uint32 schema_version = 1;
+  bool deleted = 2;
+}
+
+message RestoreSessionResponse {
+  uint32 schema_version = 1;
+  SessionSummary session = 2;
+}
+
+message HistoryResponse {
+  uint32 schema_version = 1;
+  repeated EvaluationRecord history = 2;
+}
+
+message BindingsResponse {
+  uint32 schema_version = 1;
+  repeated BindingView bindings = 2;
+}
+
+message DocsResponse {
+  uint32 schema_version = 1;
+  repeated BindingDocRecord docs = 2;
+}
+
+message ExportSessionResponse {
+  uint32 schema_version = 1;
+  SessionExport session_export = 2;
+}
+
+message SessionSummary {
+  string id = 1;
+  string profile = 2;
+  SessionPolicy policy = 3;
+  google.protobuf.Timestamp created_at = 4;
+  uint32 cell_count = 5;
+  uint32 binding_count = 6;
+  repeated BindingView bindings = 7;
+  repeated HistoryEntry history = 8;
+  repeated GlobalStateView current_globals = 9;
+  repeated ProvenanceRecord provenance = 10;
+}
+
+message SessionPolicy {
+  EvalPolicy eval = 1;
+  ObservePolicy observe = 2;
+  PersistPolicy persist = 3;
+}
+
+enum EvalMode {
+  EVAL_MODE_UNSPECIFIED = 0;
+  EVAL_MODE_RAW = 1;
+  EVAL_MODE_INSTRUMENTED = 2;
+}
+
+message EvalPolicy {
+  EvalMode mode = 1;
+  bool capture_last_expression = 2;
+  bool support_top_level_await = 3;
+  int64 timeout_ms = 4;
+}
+
+message ObservePolicy {
+  bool static_analysis = 1;
+  bool runtime_snapshot = 2;
+  bool binding_tracking = 3;
+  bool console_capture = 4;
+  bool jsdoc_extraction = 5;
+}
+
+message PersistPolicy {
+  bool enabled = 1;
+  bool evaluations = 2;
+  bool binding_versions = 3;
+  bool binding_docs = 4;
+}
+
+message CellReport {
+  uint32 id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  string source = 3;
+  StaticReport static_report = 4;
+  RewriteReport rewrite = 5;
+  ExecutionReport execution = 6;
+  RuntimeReport runtime = 7;
+  repeated ProvenanceRecord provenance = 8;
+}
+
+message ExecutionReport {
+  string status = 1;
+  string result = 2;
+  string result_json = 3;
+  string error = 4;
+  int64 duration_ms = 5;
+  bool awaited = 6;
+  repeated ConsoleEvent console = 7;
+  bool had_side_effects = 8;
+  bool helper_error = 9;
+}
+
+message ConsoleEvent {
+  string kind = 1;
+  string message = 2;
+}
+
+message StaticReport {
+  repeated DiagnosticView diagnostics = 1;
+  repeated TopLevelBindingView top_level_bindings = 2;
+  repeated IdentifierUseView unresolved = 3;
+  repeated BindingReferenceGroup references = 4;
+  ScopeView scope = 5;
+  repeated ASTRowView ast = 6;
+  uint32 ast_node_count = 7;
+  bool ast_truncated = 8;
+  repeated CSTNodeView cst = 9;
+  uint32 cst_node_count = 10;
+  bool cst_truncated = 11;
+  RangeView final_expression = 12;
+  repeated StaticSummaryFact summary = 13;
+}
+
+message StaticSummaryFact {
+  string label = 1;
+  string value = 2;
+}
+
+message RewriteReport {
+  string mode = 1;
+  repeated string declared_names = 2;
+  repeated string helper_names = 3;
+  string last_helper_name = 4;
+  string binding_helper_name = 5;
+  bool captured_last_expr = 6;
+  string transformed_source = 7;
+  repeated RewriteStep operations = 8;
+  repeated string warnings = 9;
+  string final_expression_source = 10;
+}
+
+message RewriteStep {
+  string kind = 1;
+  string detail = 2;
+}
+
+message RuntimeReport {
+  repeated GlobalStateView before_globals = 1;
+  repeated GlobalStateView after_globals = 2;
+  repeated GlobalDiffView diffs = 3;
+  repeated string new_bindings = 4;
+  repeated string updated_bindings = 5;
+  repeated string removed_bindings = 6;
+  repeated string leaked_globals = 7;
+  repeated string persisted_by_wrap = 8;
+  string current_cell_value = 9;
+}
+
+message ProvenanceRecord {
+  string section = 1;
+  string source = 2;
+  repeated string notes = 3;
+}
+
+message HistoryEntry {
+  uint32 cell_id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  string source_preview = 3;
+  string result_preview = 4;
+  string status = 5;
+}
+
+message BindingView {
+  string name = 1;
+  string kind = 2;
+  string origin = 3;
+  uint32 declared_in_cell = 4;
+  uint32 last_updated_cell = 5;
+  uint32 declared_line = 6;
+  string declared_snippet = 7;
+  BindingStaticView static_view = 8;
+  BindingRuntimeView runtime = 9;
+  repeated ProvenanceRecord provenance = 10;
+}
+
+message BindingStaticView {
+  repeated IdentifierUseView references = 1;
+  repeated string parameters = 2;
+  string extends = 3;
+  repeated MemberView members = 4;
+}
+
+message BindingRuntimeView {
+  string value_kind = 1;
+  string preview = 2;
+  repeated PropertyView own_properties = 3;
+  repeated PrototypeLevelView prototype_chain = 4;
+  FunctionMappingView function_mapping = 5;
+}
+
+message PrototypeLevelView {
+  string name = 1;
+  repeated PropertyView properties = 2;
+}
+
+message PropertyView {
+  string name = 1;
+  string kind = 2;
+  string preview = 3;
+  bool is_symbol = 4;
+  DescriptorView descriptor = 5;
+}
+
+message DescriptorView {
+  bool writable = 1;
+  bool enumerable = 2;
+  bool configurable = 3;
+  bool has_getter = 4;
+  bool has_setter = 5;
+}
+
+message FunctionMappingView {
+  string name = 1;
+  string class_name = 2;
+  uint32 start_line = 3;
+  uint32 start_col = 4;
+  uint32 end_line = 5;
+  uint32 end_col = 6;
+  uint32 node_id = 7;
+}
+
+message GlobalStateView {
+  string name = 1;
+  string kind = 2;
+  string preview = 3;
+  string identity = 4;
+  uint32 property_count = 5;
+}
+
+message GlobalDiffView {
+  string name = 1;
+  string change = 2;
+  string before = 3;
+  string after = 4;
+  string before_kind = 5;
+  string after_kind = 6;
+  bool session_bound = 7;
+}
+
+message DiagnosticView {
+  string severity = 1;
+  string message = 2;
+}
+
+message TopLevelBindingView {
+  string name = 1;
+  string kind = 2;
+  uint32 line = 3;
+  string snippet = 4;
+  string extends = 5;
+  uint32 reference_count = 6;
+}
+
+message BindingReferenceGroup {
+  string name = 1;
+  string kind = 2;
+  repeated IdentifierUseView locations = 3;
+}
+
+message IdentifierUseView {
+  uint32 line = 1;
+  uint32 col = 2;
+  string context = 3;
+  uint32 node_id = 4;
+  string snippet = 5;
+}
+
+message ScopeView {
+  uint32 id = 1;
+  string kind = 2;
+  uint32 start = 3;
+  uint32 end = 4;
+  repeated ScopeBinding bindings = 5;
+  repeated ScopeView children = 6;
+}
+
+message ScopeBinding {
+  string name = 1;
+  string kind = 2;
+}
+
+message ASTRowView {
+  uint32 node_id = 1;
+  string title = 2;
+  string description = 3;
+}
+
+message CSTNodeView {
+  uint32 depth = 1;
+  string kind = 2;
+  string text = 3;
+  uint32 start_row = 4;
+  uint32 start_col = 5;
+  uint32 end_row = 6;
+  uint32 end_col = 7;
+  bool is_error = 8;
+  bool is_missing = 9;
+}
+
+message RangeView {
+  uint32 start_line = 1;
+  uint32 start_col = 2;
+  uint32 end_line = 3;
+  uint32 end_col = 4;
+}
+
+message MemberView {
+  string name = 1;
+  string kind = 2;
+  string preview = 3;
+  bool inherited = 4;
+  string source = 5;
+}
+
+message SessionRecord {
+  string session_id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp updated_at = 3;
+  google.protobuf.Timestamp deleted_at = 4;
+  string engine_kind = 5;
+  google.protobuf.Value metadata_json = 6;
+}
+
+message SessionExport {
+  SessionRecord session = 1;
+  repeated EvaluationRecord evaluations = 2;
+}
+
+message EvaluationRecord {
+  int64 evaluation_id = 1;
+  string session_id = 2;
+  uint32 cell_id = 3;
+  google.protobuf.Timestamp created_at = 4;
+  string raw_source = 5;
+  string rewritten_source = 6;
+  bool ok = 7;
+  google.protobuf.Value result_json = 8;
+  string error_text = 9;
+  google.protobuf.Value analysis_json = 10;
+  google.protobuf.Value globals_before_json = 11;
+  google.protobuf.Value globals_after_json = 12;
+  repeated ConsoleEventRecord console_events = 13;
+  repeated BindingVersionRecord binding_versions = 14;
+  repeated BindingDocRecord binding_docs = 15;
+}
+
+message ConsoleEventRecord {
+  string stream = 1;
+  uint32 seq = 2;
+  string text = 3;
+}
+
+message BindingVersionRecord {
+  string name = 1;
+  google.protobuf.Timestamp created_at = 2;
+  uint32 cell_id = 3;
+  string action = 4;
+  string runtime_type = 5;
+  string display_value = 6;
+  google.protobuf.Value summary_json = 7;
+  string export_kind = 8;
+  google.protobuf.Value export_json = 9;
+  string doc_digest = 10;
+}
+
+message BindingDocRecord {
+  string symbol_name = 1;
+  uint32 cell_id = 2;
+  string source_kind = 3;
+  string raw_doc = 4;
+  google.protobuf.Value normalized_json = 5;
+}

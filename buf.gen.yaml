@@ -1,0 +1,11 @@
+version: v2
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: pkg/replapi/pb
+    opt:
+      - paths=source_relative
+  - remote: buf.build/bufbuild/es
+    out: web/packages/replapi-types/src/generated
+    opt:
+      - target=ts
+      - import_extension=none

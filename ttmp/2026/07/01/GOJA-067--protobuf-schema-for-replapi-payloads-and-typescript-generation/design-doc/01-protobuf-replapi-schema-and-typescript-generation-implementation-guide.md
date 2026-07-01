@@ -15,8 +15,14 @@ RelatedFiles:
       Note: Local protojson transport options reference
     - Path: ../../../../../../../../../../code/wesen/go-go-golems/sessionstream/proto/sessionstream/v1/transport.proto
       Note: Local protobuf transport schema reference
+    - Path: buf.gen.yaml
+      Note: Phase B Go and TypeScript generation configuration
+    - Path: buf.yaml
+      Note: Phase B Buf module/lint configuration
     - Path: pkg/replapi/app.go
       Note: Application facade boundary for session and persistence behavior
+    - Path: pkg/replapi/pb/proto/goja/replapi/v1/replapi.pb.go
+      Note: Generated Go protobuf bindings
     - Path: pkg/repldb/types.go
       Note: Persistent session/export record shapes with raw JSON fields
     - Path: pkg/replhttp/handler.go
@@ -25,12 +31,17 @@ RelatedFiles:
       Note: Session policy structs and eval mode values that need proto representation
     - Path: pkg/replsession/types.go
       Note: Current JSON DTO layer and primary source for protobuf schema mapping
+    - Path: proto/goja/replapi/v1/replapi.proto
+      Note: Phase B public replapi protobuf schema
+    - Path: web/packages/replapi-types/src/generated/proto/goja/replapi/v1/replapi_pb.ts
+      Note: Generated TypeScript protobuf bindings
 ExternalSources: []
 Summary: Design for making go-go-goja replapi payloads schema-first with protobuf, protojson transport, and generated TypeScript bindings for future web/workbench UIs.
 LastUpdated: 2026-07-01T08:57:25.128406471-07:00
 WhatFor: Use when implementing or reviewing protobuf schemas, generated Go/TypeScript code, and compatibility adapters for replapi/replhttp payloads.
 WhenToUse: Use before changing pkg/replsession DTOs, pkg/replhttp JSON routes, goja-repl serve, or a frontend that consumes REPL session/evaluation payloads.
 ---
+
 
 
 # Protobuf replapi schema and TypeScript generation implementation guide

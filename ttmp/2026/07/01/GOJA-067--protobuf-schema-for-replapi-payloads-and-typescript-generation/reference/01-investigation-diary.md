@@ -277,3 +277,133 @@ Inventory doc:
 ```text
 ttmp/2026/07/01/GOJA-067--protobuf-schema-for-replapi-payloads-and-typescript-generation/reference/02-current-replapi-json-shape-inventory.md
 ```
+
+## Step 4: Implement Phase B Protobuf Schema and Buf Generation
+
+Phase B added the first concrete schema artifacts for `replapi`. The new `proto/goja/replapi/v1/replapi.proto` defines named request/response envelopes, live REPL session and cell-report messages, runtime/static-analysis detail messages, and persistence/export record messages. The repository now also has Buf configuration that can generate Go protobuf bindings and TypeScript bindings from that schema.
+
+This phase keeps the implementation at the schema/codegen layer. It does not yet change `replhttp` behavior and does not yet add conversion adapters. That separation is intentional: the schema and generated code should compile before any transport migration begins.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue implementing GOJA-067 phase by phase after completing the field inventory.
+
+**Inferred user intent:** The user wants incremental implementation with validation and commits at sensible boundaries.
+
+**Commit (code):** N/A — Phase B pending commit at time of diary entry.
+
+### What I did
+
+- Added `buf.yaml` using Buf v2 configuration.
+- Added `buf.gen.yaml` with remote Go and TypeScript generation plugins.
+- Added `proto/goja/replapi/v1/replapi.proto`.
+- Defined live API messages including `EvaluateRequest`, `EvaluateResponse`, route response envelopes, `SessionSummary`, policy messages, `CellReport`, `StaticReport`, `RewriteReport`, `ExecutionReport`, `RuntimeReport`, and detail views.
+- Defined persistence/export messages including `SessionRecord`, `SessionExport`, `EvaluationRecord`, `ConsoleEventRecord`, `BindingVersionRecord`, and `BindingDocRecord`.
+- Used `google.protobuf.Timestamp` for timestamps and `google.protobuf.Value` for raw JSON persistence fields.
+- Generated Go bindings under `pkg/replapi/pb/proto/goja/replapi/v1/replapi.pb.go`.
+- Generated TypeScript bindings under `web/packages/replapi-types/src/generated/proto/goja/replapi/v1/replapi_pb.ts`.
+
+### Why
+
+- The future frontend/workbench should consume generated TypeScript schemas rather than hand-written DTO mirrors.
+- The future HTTP transport adapter needs generated Go message types before it can implement protojson responses.
+
+### What worked
+
+- `buf lint` passes after configuring lint exceptions for existing repository proto layout constraints.
+- Targeted generation with `buf generate --path proto/goja/replapi/v1/replapi.proto` produced only the new replapi Go and TypeScript outputs.
+- `GOWORK=off go test ./pkg/replapi/... -count=1` passed with the generated Go bindings.
+- The generated TypeScript imports `@bufbuild/protobuf` and exposes generated schemas such as `EvaluateRequestSchema`.
+
+### What didn't work
+
+- The first `buf lint` run failed because the repository already contains proto files that do not satisfy Buf's default `PACKAGE_DIRECTORY_MATCH` and RPC naming lint rules, and the new file also had a `proto/` path prefix that triggers the same rule.
+
+Exact failure excerpts:
+
+```text
+examples/xgoja/15-protobuf-builder-provider/proto/task.proto:3:1:Files with package "examples.xgoja.protobuf.v1" must be within a directory "examples/xgoja/protobuf/v1" relative to root but were in directory "examples/xgoja/15-protobuf-builder-provider/proto".
+pkg/hashiplugin/contract/jsmodule.proto:3:1:Files with package "hashiplugin.contract.v1" must be within a directory "hashiplugin/contract/v1" relative to root but were in directory "pkg/hashiplugin/contract".
+pkg/hashiplugin/contract/jsmodule.proto:11:19:RPC request type "Empty" should be named "GetManifestRequest" or "JSModuleServiceGetManifestRequest".
+proto/goja/replapi/v1/replapi.proto:3:1:Files with package "goja.replapi.v1" must be within a directory "goja/replapi/v1" relative to root but were in directory "proto/goja/replapi/v1".
+```
+
+I added lint exceptions for `PACKAGE_DIRECTORY_MATCH`, `RPC_REQUEST_STANDARD_NAME`, and `RPC_RESPONSE_STANDARD_NAME` so the new Buf config can coexist with existing proto files.
+
+- The first generation attempt `buf generate proto/goja/replapi/v1` failed because Buf v2 requires using the configured module as input and filtering with `--path`.
+
+Exact error:
+
+```text
+Failure: failed to build input "proto/goja/replapi/v1" because it is contained by module at path "." specified in your configuration, you must provide the workspace or module as the input, and filter to this path using --path
+```
+
+The working command was:
+
+```bash
+buf generate --path proto/goja/replapi/v1/replapi.proto
+```
+
+The first normal `git commit` attempt for Phase B also failed in the repository pre-commit hook. The hook runs `make test` and `make lint` without `GOWORK=off`; the surrounding workspace still has a stale `go.work` version, and the hook-installed `golangci-lint` was built with Go 1.25 while the module targets Go 1.26.4.
+
+Exact failure excerpts:
+
+```text
+go: module . listed in go.work file requires go >= 1.26.1, but go.work lists go 1.25; to update it:
+	go work use
+make: *** [Makefile:50: install-generate-tools] Error 1
+```
+
+```text
+Error: can't load config: the Go language version (go1.25) used to build golangci-lint is lower than the targeted Go version (1.26.4)
+make: *** [Makefile:33: lint] Error 3
+```
+
+The Phase B focused validation remains valid because it was run explicitly with the workspace workaround:
+
+```bash
+buf lint
+buf generate --path proto/goja/replapi/v1/replapi.proto
+GOWORK=off go test ./pkg/replapi/... -count=1
+```
+
+### What I learned
+
+- In this repository, targeted generation is important. Running unfiltered generation would include unrelated existing proto files.
+- The generated TypeScript path keeps the `proto/` prefix because `paths=source_relative` and the source file lives under `proto/`.
+
+### What was tricky to build
+
+- Field names that collide with Go or TypeScript concepts should be made explicit in proto. I used `static_report` instead of `static` on `CellReport` and `static_view` instead of `static` on `BindingView`.
+- The schema must preserve existing semantics before improving them. For example, `ExecutionReport.result_json` remains a string while persistence raw JSON fields use `google.protobuf.Value`.
+
+### What warrants a second pair of eyes
+
+- Review the choice of `uint32` for line numbers, counts, and cell IDs.
+- Review whether `ExportSessionResponse.session_export` should instead be named `export` to match the current route more closely.
+- Review whether Buf lint exceptions should be global or whether existing proto files should be excluded from this module in a future cleanup.
+
+### What should be done in the future
+
+- Implement Phase C conversion adapters and protojson helpers.
+- Add golden tests so schema/codegen changes become visible in review.
+
+### Code review instructions
+
+- Start with `proto/goja/replapi/v1/replapi.proto`.
+- Then inspect `buf.yaml`, `buf.gen.yaml`, and the generated files.
+- Validate with:
+  - `buf lint`
+  - `buf generate --path proto/goja/replapi/v1/replapi.proto`
+  - `GOWORK=off go test ./pkg/replapi/... -count=1`
+
+### Technical details
+
+Generated files:
+
+```text
+pkg/replapi/pb/proto/goja/replapi/v1/replapi.pb.go
+web/packages/replapi-types/src/generated/proto/goja/replapi/v1/replapi_pb.ts
+```
