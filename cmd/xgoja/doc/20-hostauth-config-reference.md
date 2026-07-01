@@ -38,11 +38,14 @@ GET  /auth/login
 GET  /auth/callback
 GET  /auth/logout
 POST /auth/logout
+GET  /auth/session
 ```
 
 The browser receives an opaque app-session cookie. ID/access tokens stay server-side. JavaScript routes continue to declare authorization intent with planned Express auth builders such as `express.user().required()` and `.allow("action.name")`; OIDC is only the login mechanism.
 
-See `examples/xgoja/21-generated-host-auth` for a generated binary fixture that uses top-level `auth.mode=oidc` and smoke-tests `/auth/login` with a fake discovery provider.
+Generic hostauth does not own demo application routes such as `/auth/audit`, `/orgs/o1/invites`, or `/org-invites/accept`. Generated applications should implement those in JavaScript with planned routes and the high-level `require("auth")` APIs. See `xgoja help generated-auth-javascript-apis` for the audit and capability builders.
+
+See `examples/xgoja/21-generated-host-auth` for a generated binary fixture that uses top-level `auth.mode=oidc`, smoke-tests `/auth/login` with a fake discovery provider, and includes a real Docker Compose Keycloak/Postgres smoke.
 
 ## Nested YAML shape
 
@@ -243,8 +246,10 @@ The error path is part of the operator experience. Preserve it when adding new f
 
 ## See also
 
+- `xgoja help generated-auth-javascript-apis`
 - `xgoja help auth-stores-reference`
 - `xgoja help http-serve-command-reference`
 - `xgoja help express-auth-host-integration-guide`
 - `xgoja help auth-host-production-runbook`
+- `goja-repl help auth-module-guide`
 - `goja-repl help express-auth-examples`

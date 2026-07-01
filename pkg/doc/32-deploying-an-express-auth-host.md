@@ -99,11 +99,14 @@ The original example 19 host exposes a hand-composed equivalent through its own 
 
 `public-base-url` is required in production. It is the browser-visible origin behind ingress. Do not derive callback URLs from `--listen`.
 
-For a local generated-host smoke:
+For local generated-host smokes:
 
 ```bash
 make -C examples/xgoja/21-generated-host-auth smoke
+make -C examples/xgoja/21-generated-host-auth compose-smoke
 ```
+
+The first command validates generated build wiring with a fake discovery endpoint. The second command reuses the local Keycloak/Postgres Docker Compose stack, drives a real login, seeds demo appauth rows, and exercises the JavaScript-owned audit and capability routes.
 
 For local Docker Compose with the original example 19 host:
 
@@ -301,8 +304,10 @@ The deployed service is functional, but the original image is still the hand-com
 
 ## See also
 
+- `goja-repl help auth-module-guide`
 - `goja-repl help express-auth-user-guide`
 - `goja-repl help express-auth-examples`
+- `xgoja help generated-auth-javascript-apis`
 - `xgoja help express-auth-host-integration-guide`
 - `xgoja help hostauth-config-reference`
 - `xgoja help auth-host-production-runbook`

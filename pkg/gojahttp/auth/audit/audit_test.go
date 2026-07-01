@@ -101,6 +101,46 @@ func TestLogSinkOmitsSensitiveRequestMetadata(t *testing.T) {
 	}
 }
 
+func TestMemoryStoreQueryAuditRecordsFiltersBoundsAndOrders(t *testing.T) {
+	ctx := context.Background()
+	store := &MemoryStore{}
+	now := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
+	for _, record := range []Record{
+		{Event: "old denied", Outcome: "denied", TenantID: "o1", ActorID: "u1", ResourceType: "project", ResourceID: "p1", CreatedAt: now},
+		{Event: "other tenant", Outcome: "denied", TenantID: "o2", ActorID: "u2", ResourceType: "project", ResourceID: "p2", CreatedAt: now.Add(time.Second)},
+		{Event: "new denied", Outcome: "denied", TenantID: "o1", ActorID: "u3", ResourceType: "project", ResourceID: "p3", CreatedAt: now.Add(2 * time.Second)},
+		{Event: "allowed", Outcome: "allowed", TenantID: "o1", ActorID: "u4", ResourceType: "project", ResourceID: "p4", CreatedAt: now.Add(3 * time.Second)},
+	} {
+		if err := store.InsertAuditRecord(ctx, record); err != nil {
+			t.Fatalf("insert %s: %v", record.Event, err)
+		}
+	}
+
+	records, err := store.QueryAuditRecords(ctx, Query{TenantID: " o1 ", Outcome: "denied", Limit: 10})
+	if err != nil {
+		t.Fatalf("query records: %v", err)
+	}
+	if len(records) != 2 || records[0].Event != "new denied" || records[1].Event != "old denied" {
+		t.Fatalf("unexpected filtered records: %#v", records)
+	}
+
+	limited, err := store.QueryAuditRecords(ctx, Query{TenantID: "o1", Limit: 1})
+	if err != nil {
+		t.Fatalf("query limited records: %v", err)
+	}
+	if len(limited) != 1 || limited[0].Event != "allowed" {
+		t.Fatalf("unexpected limited records: %#v", limited)
+	}
+
+	clamped, err := store.QueryAuditRecords(ctx, Query{Limit: MaxQueryLimit + 100})
+	if err != nil {
+		t.Fatalf("query clamped records: %v", err)
+	}
+	if len(clamped) != 4 {
+		t.Fatalf("unexpected clamped records len=%d records=%#v", len(clamped), clamped)
+	}
+}
+
 type recordingStore struct{ records []Record }
 
 func (s *recordingStore) InsertAuditRecord(_ context.Context, record Record) error {

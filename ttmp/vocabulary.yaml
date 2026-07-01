@@ -157,6 +157,10 @@ topics:
       description: API contract and transport design
     - slug: protobuf
       description: Protocol Buffers schemas and protojson transport
+    - slug: audit
+      description: Audit logging, audit records, and audit access patterns
+    - slug: database
+      description: Database access, SQL handles, stores, and persistence design
 docTypes:
     - slug: index
       description: Index document for a ticket
