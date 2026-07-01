@@ -505,3 +505,92 @@ Golden fixture:
 ```text
 pkg/replapi/pbconv/testdata/evaluate_response.golden.json
 ```
+
+## Step 6: Implement Phase D Protobuf JSON HTTP Routes
+
+Phase D introduced a parallel protobuf JSON HTTP surface without replacing the legacy `encoding/json` handler. The new handler lives behind `NewProtoJSONHandler` and mounts `/api/v1/...` routes so callers can opt into generated transport messages while existing `/api/...` behavior remains unchanged.
+
+The v1 handler delegates business logic to the existing `replapi.App`, uses `pbconv` for transport encoding, and rejects unknown fields on evaluate requests. This creates a low-risk migration path: server integrations can wire the new handler when ready, while current users continue to use `NewHandler`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue from Phase C into HTTP integration by exposing generated protobuf JSON messages on explicit v1 routes.
+
+**Inferred user intent:** The user wants the schema to become usable over HTTP while avoiding a breaking migration of the existing handler.
+
+**Commit (code):** N/A — Phase D pending commit at time of diary entry.
+
+### What I did
+
+- Added `pkg/replhttp/proto_handler.go` with `NewProtoJSONHandler`.
+- Implemented `/api/v1` routes for:
+  - listing sessions,
+  - creating sessions,
+  - fetching sessions,
+  - deleting sessions,
+  - evaluating source,
+  - restoring sessions,
+  - history,
+  - bindings,
+  - docs,
+  - export.
+- Added `writeProtoJSON` to serialize protobuf responses via `pbconv.MarshalJSON`.
+- Added route tests for create/evaluate/history, unknown evaluate fields, and missing sessions.
+- Preserved the existing `NewHandler` implementation and route tree.
+
+### Why
+
+- `/api/v1` isolates the protobuf JSON contract from legacy response envelopes.
+- `NewProtoJSONHandler` keeps the integration explicit; embedders can choose when to mount it.
+
+### What worked
+
+- Focused validation passed:
+
+```bash
+GOWORK=off go test ./pkg/replhttp ./pkg/replapi/pbconv -count=1
+```
+
+- Unknown fields in evaluate requests now fail via strict `protojson.UnmarshalOptions{DiscardUnknown: false}`.
+
+### What didn't work
+
+- No blocking implementation failures occurred in this phase.
+
+### What I learned
+
+- The existing `replapi.App` surface already has the right shape for most v1 routes; the new handler is primarily transport adaptation.
+- Keeping errors as simple JSON error envelopes is sufficient for this phase, but a generated `ErrorResponse` protobuf could be added if clients need typed error payloads.
+
+### What was tricky to build
+
+- `repldb` history/export routes can contain arbitrary persisted JSON. Those routes must use the Phase C adapters so invalid raw JSON is reported as a server-side conversion error rather than silently emitted.
+- Route parity is broad enough that tests should exercise lifecycle behavior rather than only a single endpoint.
+
+### What warrants a second pair of eyes
+
+- Review whether `NewProtoJSONHandler` should be wired into `cmd/goja-repl serve` now or remain opt-in until TypeScript clients are ready.
+- Review whether `/api/v1` should expose typed protobuf error envelopes before public consumption.
+
+### What should be done in the future
+
+- Phase E should validate that generated TypeScript can decode real v1 handler output.
+
+### Code review instructions
+
+- Start with `pkg/replhttp/proto_handler.go` and compare its routes against `pkg/replhttp/handler.go`.
+- Validate with:
+
+```bash
+GOWORK=off go test ./pkg/replhttp ./pkg/replapi/pbconv -count=1
+```
+
+### Technical details
+
+The handler intentionally does not replace the legacy constructor:
+
+```go
+handler, err := replhttp.NewProtoJSONHandler(app)
+```

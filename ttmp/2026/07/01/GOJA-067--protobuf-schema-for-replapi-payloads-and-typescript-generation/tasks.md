@@ -123,34 +123,34 @@
 
 ### D.1 Handler design
 
-- [ ] Decide whether to add `/api/v1` routes or `NewProtoJSONHandler` only.
-- [ ] Add `pkg/replhttp/proto_handler.go` or equivalent.
-- [ ] Implement proto request decode for evaluate.
-- [ ] Implement proto response encode helper.
-- [ ] Preserve existing legacy `NewHandler` behavior unless explicitly migrated.
+- [x] Decide whether to add `/api/v1` routes or `NewProtoJSONHandler` only.
+- [x] Add `pkg/replhttp/proto_handler.go` or equivalent.
+- [x] Implement proto request decode for evaluate.
+- [x] Implement proto response encode helper.
+- [x] Preserve existing legacy `NewHandler` behavior unless explicitly migrated.
 
 ### D.2 Route implementation
 
-- [ ] Implement `GET /api/v1/sessions`.
-- [ ] Implement `POST /api/v1/sessions`.
-- [ ] Implement `GET /api/v1/sessions/{id}`.
-- [ ] Implement `DELETE /api/v1/sessions/{id}`.
-- [ ] Implement `POST /api/v1/sessions/{id}/evaluate`.
-- [ ] Implement `POST /api/v1/sessions/{id}/restore`.
-- [ ] Implement `GET /api/v1/sessions/{id}/history`.
-- [ ] Implement `GET /api/v1/sessions/{id}/bindings`.
-- [ ] Implement `GET /api/v1/sessions/{id}/docs`.
-- [ ] Implement `GET /api/v1/sessions/{id}/export`.
+- [x] Implement `GET /api/v1/sessions`.
+- [x] Implement `POST /api/v1/sessions`.
+- [x] Implement `GET /api/v1/sessions/{id}`.
+- [x] Implement `DELETE /api/v1/sessions/{id}`.
+- [x] Implement `POST /api/v1/sessions/{id}/evaluate`.
+- [x] Implement `POST /api/v1/sessions/{id}/restore`.
+- [x] Implement `GET /api/v1/sessions/{id}/history`.
+- [x] Implement `GET /api/v1/sessions/{id}/bindings`.
+- [x] Implement `GET /api/v1/sessions/{id}/docs`.
+- [x] Implement `GET /api/v1/sessions/{id}/export`.
 
 ### D.3 Handler tests
 
-- [ ] Add handler test for creating a session through v1 protobuf JSON route.
-- [ ] Add handler test for evaluating a cell through v1 protobuf JSON route.
-- [ ] Add handler test that unknown fields in evaluate request fail.
-- [ ] Add handler test for session-not-found errors.
-- [ ] Compare legacy and v1 core semantics where appropriate.
-- [ ] Update diary/changelog/doc relations.
-- [ ] Commit Phase D.
+- [x] Add handler test for creating a session through v1 protobuf JSON route.
+- [x] Add handler test for evaluating a cell through v1 protobuf JSON route.
+- [x] Add handler test that unknown fields in evaluate request fail.
+- [x] Add handler test for session-not-found errors.
+- [x] Compare legacy and v1 core semantics where appropriate.
+- [x] Update diary/changelog/doc relations.
+- [x] Commit Phase D.
 
 ## Implementation Phase E — TypeScript package and decode tests
 

@@ -36,7 +36,13 @@ RelatedFiles:
     - Path: pkg/repldb/types.go
       Note: Persistent session/export record shapes with raw JSON fields
     - Path: pkg/replhttp/handler.go
-      Note: Current JSON HTTP route surface to migrate or version
+      Note: |-
+        Current JSON HTTP route surface to migrate or version
+        Legacy handler preserved while v1 handler is added alongside it
+    - Path: pkg/replhttp/proto_handler.go
+      Note: Phase D protobuf JSON /api/v1 handler
+    - Path: pkg/replhttp/proto_handler_test.go
+      Note: Phase D protobuf JSON HTTP tests
     - Path: pkg/replsession/policy.go
       Note: Session policy structs and eval mode values that need proto representation
     - Path: pkg/replsession/types.go
@@ -51,6 +57,7 @@ LastUpdated: 2026-07-01T08:57:25.128406471-07:00
 WhatFor: Use when implementing or reviewing protobuf schemas, generated Go/TypeScript code, and compatibility adapters for replapi/replhttp payloads.
 WhenToUse: Use before changing pkg/replsession DTOs, pkg/replhttp JSON routes, goja-repl serve, or a frontend that consumes REPL session/evaluation payloads.
 ---
+
 
 
 

@@ -55,3 +55,13 @@ Phase C: added replapi pbconv adapters for live session DTOs and repldb records,
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replapi/pbconv/session.go — Live DTO conversion
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replapi/pbconv/session_test.go — Focused tests
 
+
+## 2026-07-01
+
+Phase D: added NewProtoJSONHandler with /api/v1 protobuf JSON routes for session lifecycle, evaluation, history, bindings, docs, and export while preserving legacy NewHandler; focused replhttp tests pass.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replhttp/proto_handler.go — New v1 handler
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replhttp/proto_handler_test.go — Route tests
+
