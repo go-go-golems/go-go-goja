@@ -1,0 +1,12 @@
+{
+	"name": "go-go-goja",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"replapi-types:typecheck": "pnpm --dir web/packages/replapi-types typecheck",
+		"replapi-types:test": "pnpm --dir web/packages/replapi-types test",
+		"replapi-types:build": "pnpm --dir web/packages/replapi-types build",
+		"replapi-types:pack-smoke": "pnpm --dir web/packages/replapi-types pack:smoke",
+		"replapi-types:consumer-smoke": "pnpm --dir web/packages/replapi-types consumer:smoke"
+	}
+}
