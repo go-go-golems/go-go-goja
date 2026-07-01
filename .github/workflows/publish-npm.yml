@@ -34,6 +34,11 @@ jobs:
     concurrency:
       group: replapi-types-npm-publish-production
       cancel-in-progress: false
+    env:
+      NPM_TAG: ${{ inputs.npm_tag }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      SKIP_EXISTING: ${{ inputs.skip_existing }}
+      CONFIRM_LATEST_PUBLISH_INPUT: ${{ inputs.confirm_latest_publish }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,7 +68,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ inputs.dry_run }}" = "false" ] && [ "${{ inputs.npm_tag }}" = "latest" ] && [ "${{ inputs.confirm_latest_publish }}" != "CONFIRM_LATEST" ]; then
+          if [[ ! "$NPM_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
+            echo "npm_tag must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" >&2
+            exit 1
+          fi
+          if [ "$DRY_RUN" != "true" ] && [ "$DRY_RUN" != "false" ]; then
+            echo "dry_run must be true or false" >&2
+            exit 1
+          fi
+          if [ "$SKIP_EXISTING" != "true" ] && [ "$SKIP_EXISTING" != "false" ]; then
+            echo "skip_existing must be true or false" >&2
+            exit 1
+          fi
+          if [ "$DRY_RUN" = "false" ] && [ "$NPM_TAG" = "latest" ] && [ "$CONFIRM_LATEST_PUBLISH_INPUT" != "CONFIRM_LATEST" ]; then
             echo "Real latest publishes require confirm_latest_publish=CONFIRM_LATEST" >&2
             exit 1
           fi
@@ -94,15 +111,15 @@ jobs:
           package_name=$(node -p "JSON.parse(require('fs').readFileSync('web/packages/replapi-types/dist/package.json', 'utf8')).name")
           package_version=$(node -p "JSON.parse(require('fs').readFileSync('web/packages/replapi-types/dist/package.json', 'utf8')).version")
 
-          echo "Publishing ${package_name}@${package_version} with tag ${{ inputs.npm_tag }}"
+          echo "Publishing ${package_name}@${package_version} with tag ${NPM_TAG}"
 
-          if [ "${{ inputs.skip_existing }}" = "true" ] && npm view "${package_name}@${package_version}" version >/dev/null 2>&1; then
+          if [ "$SKIP_EXISTING" = "true" ] && npm view "${package_name}@${package_version}" version >/dev/null 2>&1; then
             echo "${package_name}@${package_version} already exists; skipping publish."
             exit 0
           fi
 
-          publish_args=(--access public --tag "${{ inputs.npm_tag }}")
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
+          publish_args=(--access public --tag "$NPM_TAG")
+          if [ "$DRY_RUN" = "true" ]; then
             publish_args+=(--dry-run)
           else
             publish_args+=(--provenance)

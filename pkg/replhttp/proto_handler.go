@@ -1,6 +1,7 @@
 package replhttp
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -159,6 +160,7 @@ func writeProtoJSON(w http.ResponseWriter, status int, payload proto.Message) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
-	_, _ = w.Write(body)
+	_ = json.NewEncoder(w).Encode(json.RawMessage(body))
 }

@@ -140,3 +140,14 @@ Uploaded the final GOJA-067 bundle to reMarkable as GOJA-067 Protobuf replapi Fi
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/ttmp/2026/07/01/GOJA-067--protobuf-schema-for-replapi-payloads-and-typescript-generation/design-doc/01-protobuf-replapi-schema-and-typescript-generation-implementation-guide.md — Included in final reMarkable bundle
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/ttmp/2026/07/01/GOJA-067--protobuf-schema-for-replapi-payloads-and-typescript-generation/reference/01-investigation-diary.md — Included in final reMarkable bundle
 
+
+## 2026-07-01
+
+Addressed PR security findings: clamped int-to-uint32 protobuf adapter conversions to avoid G115 overflow findings, encoded protobuf JSON responses through json.Encoder with nosniff to avoid G705, and moved npm workflow_dispatch inputs into environment variables with dist-tag validation to avoid shell-evaluating untrusted inputs.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/.github/workflows/publish-npm.yml — Workflow inputs validated through environment variables before shell use
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replapi/pbconv/numeric.go — Safe int-to-uint32 clamp helper for protobuf adapters
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replhttp/proto_handler.go — Safe protobuf JSON response encoding
+

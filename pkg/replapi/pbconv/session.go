@@ -28,8 +28,8 @@ func SessionSummaryToProto(in *replsession.SessionSummary) *replapiv1.SessionSum
 		Profile:        in.Profile,
 		Policy:         SessionPolicyToProto(in.Policy),
 		CreatedAt:      timestamp(in.CreatedAt),
-		CellCount:      uint32(in.CellCount),
-		BindingCount:   uint32(in.BindingCount),
+		CellCount:      uint32FromInt(in.CellCount),
+		BindingCount:   uint32FromInt(in.BindingCount),
 		Bindings:       BindingViewsToProto(in.Bindings),
 		History:        HistoryEntriesToProto(in.History),
 		CurrentGlobals: GlobalStateViewsToProto(in.CurrentGlobals),
@@ -82,7 +82,7 @@ func CellReportToProto(in *replsession.CellReport) *replapiv1.CellReport {
 		return nil
 	}
 	return &replapiv1.CellReport{
-		Id:           uint32(in.ID),
+		Id:           uint32FromInt(in.ID),
 		CreatedAt:    timestamp(in.CreatedAt),
 		Source:       in.Source,
 		StaticReport: StaticReportToProto(in.Static),
@@ -113,10 +113,10 @@ func StaticReportToProto(in replsession.StaticReport) *replapiv1.StaticReport {
 		References:       BindingReferenceGroupsToProto(in.References),
 		Scope:            ScopeViewToProto(in.Scope),
 		Ast:              ASTRowViewsToProto(in.AST),
-		AstNodeCount:     uint32(in.ASTNodeCount),
+		AstNodeCount:     uint32FromInt(in.ASTNodeCount),
 		AstTruncated:     in.ASTTruncated,
 		Cst:              CSTNodeViewsToProto(in.CST),
-		CstNodeCount:     uint32(in.CSTNodeCount),
+		CstNodeCount:     uint32FromInt(in.CSTNodeCount),
 		CstTruncated:     in.CSTTruncated,
 		FinalExpression:  RangeViewToProto(in.FinalExpression),
 		Summary:          StaticSummaryFactsToProto(in.Summary),

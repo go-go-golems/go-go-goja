@@ -83,13 +83,13 @@ func EvaluationRecordToProto(in repldb.EvaluationRecord) (*replapiv1.EvaluationR
 	if err != nil {
 		return nil, err
 	}
-	return &replapiv1.EvaluationRecord{EvaluationId: in.EvaluationID, SessionId: in.SessionID, CellId: uint32(in.CellID), CreatedAt: timestamp(in.CreatedAt), RawSource: in.RawSource, RewrittenSource: in.RewrittenSource, Ok: in.OK, ResultJson: resultJSON, ErrorText: in.ErrorText, AnalysisJson: analysisJSON, GlobalsBeforeJson: globalsBeforeJSON, GlobalsAfterJson: globalsAfterJSON, ConsoleEvents: ConsoleEventRecordsToProto(in.ConsoleEvents), BindingVersions: bindingVersions, BindingDocs: bindingDocs}, nil
+	return &replapiv1.EvaluationRecord{EvaluationId: in.EvaluationID, SessionId: in.SessionID, CellId: uint32FromInt(in.CellID), CreatedAt: timestamp(in.CreatedAt), RawSource: in.RawSource, RewrittenSource: in.RewrittenSource, Ok: in.OK, ResultJson: resultJSON, ErrorText: in.ErrorText, AnalysisJson: analysisJSON, GlobalsBeforeJson: globalsBeforeJSON, GlobalsAfterJson: globalsAfterJSON, ConsoleEvents: ConsoleEventRecordsToProto(in.ConsoleEvents), BindingVersions: bindingVersions, BindingDocs: bindingDocs}, nil
 }
 
 func ConsoleEventRecordsToProto(in []repldb.ConsoleEventRecord) []*replapiv1.ConsoleEventRecord {
 	out := make([]*replapiv1.ConsoleEventRecord, 0, len(in))
 	for _, x := range in {
-		out = append(out, &replapiv1.ConsoleEventRecord{Stream: x.Stream, Seq: uint32(x.Seq), Text: x.Text})
+		out = append(out, &replapiv1.ConsoleEventRecord{Stream: x.Stream, Seq: uint32FromInt(x.Seq), Text: x.Text})
 	}
 	return out
 }
@@ -105,7 +105,7 @@ func BindingVersionRecordsToProto(in []repldb.BindingVersionRecord) ([]*replapiv
 		if err != nil {
 			return nil, fmt.Errorf("binding version %s export JSON: %w", record.Name, err)
 		}
-		out = append(out, &replapiv1.BindingVersionRecord{Name: record.Name, CreatedAt: timestamp(record.CreatedAt), CellId: uint32(record.CellID), Action: record.Action, RuntimeType: record.RuntimeType, DisplayValue: record.DisplayValue, SummaryJson: summary, ExportKind: record.ExportKind, ExportJson: exportJSON, DocDigest: record.DocDigest})
+		out = append(out, &replapiv1.BindingVersionRecord{Name: record.Name, CreatedAt: timestamp(record.CreatedAt), CellId: uint32FromInt(record.CellID), Action: record.Action, RuntimeType: record.RuntimeType, DisplayValue: record.DisplayValue, SummaryJson: summary, ExportKind: record.ExportKind, ExportJson: exportJSON, DocDigest: record.DocDigest})
 	}
 	return out, nil
 }
@@ -117,7 +117,7 @@ func BindingDocRecordsToProto(in []repldb.BindingDocRecord) ([]*replapiv1.Bindin
 		if err != nil {
 			return nil, fmt.Errorf("binding doc %s normalized JSON: %w", record.SymbolName, err)
 		}
-		out = append(out, &replapiv1.BindingDocRecord{SymbolName: record.SymbolName, CellId: uint32(record.CellID), SourceKind: record.SourceKind, RawDoc: record.RawDoc, NormalizedJson: normalized})
+		out = append(out, &replapiv1.BindingDocRecord{SymbolName: record.SymbolName, CellId: uint32FromInt(record.CellID), SourceKind: record.SourceKind, RawDoc: record.RawDoc, NormalizedJson: normalized})
 	}
 	return out, nil
 }
