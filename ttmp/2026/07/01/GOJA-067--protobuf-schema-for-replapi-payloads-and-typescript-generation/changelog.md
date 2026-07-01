@@ -86,3 +86,14 @@ Phase E: added replapi-types TypeScript package, pnpm workspace scripts, Go-emit
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/README.md — Consumer documentation
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/src/replapi_decode.test.ts — TypeScript decode smoke tests
 
+
+## 2026-07-01
+
+Phase E.5: aligned replapi-types with the trusted npm publishing playbook by adding a compiled dist artifact, pack and clean-consumer smoke scripts, publish metadata, and a tokenless GitHub Actions trusted-publishing workflow.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/.github/workflows/publish-npm.yml — Trusted publishing workflow
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/package.json — Public npm metadata and artifact scripts
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/scripts/consumer-smoke.mjs — Consumer validation
+

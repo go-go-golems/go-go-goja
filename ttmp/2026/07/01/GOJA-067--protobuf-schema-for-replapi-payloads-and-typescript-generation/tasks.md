@@ -179,6 +179,22 @@
 - [x] Update diary/changelog/doc relations.
 - [x] Commit Phase E.
 
+## Implementation Phase E.5 — npm package artifact and trusted publishing prep
+
+- [x] Read trusted npm publishing playbook and compare with `rag-evaluation-system`.
+- [x] Add compiled `dist/` build for `web/packages/replapi-types`.
+- [x] Add `tsconfig.build.json` for emitted JavaScript and declarations.
+- [x] Add `scripts/prepare-dist.mjs` to write publish-safe `dist/package.json`.
+- [x] Add `pack:smoke` validation.
+- [x] Add clean consumer smoke validation.
+- [x] Update package metadata with public npm fields, repository metadata, files, exports, and publishConfig.
+- [x] Add root scripts for build, pack smoke, and consumer smoke.
+- [x] Add tokenless GitHub Actions publish workflow using npm Trusted Publishing/OIDC.
+- [x] Document trusted publisher bootstrap and token-lockdown sequence.
+- [x] Run package build, pack smoke, and consumer smoke locally.
+- [x] Update diary/changelog/doc relations.
+- [x] Commit Phase E.5.
+
 ## Implementation Phase F — Documentation, help, and final validation
 
 ### F.1 Documentation

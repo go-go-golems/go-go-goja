@@ -11,10 +11,14 @@ DocType: design-doc
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../../../../code/wesen/go-go-golems/go-go-parc/Projects/2026/06/01/ARTICLE - Trusted npm Publishing for Go Go Golems React Packages.md
+      Note: Trusted publishing source playbook
     - Path: ../../../../../../../../../../code/wesen/go-go-golems/sessionstream/pkg/sessionstream/transport/ws/server.go
       Note: Local protojson transport options reference
     - Path: ../../../../../../../../../../code/wesen/go-go-golems/sessionstream/proto/sessionstream/v1/transport.proto
       Note: Local protobuf transport schema reference
+    - Path: .github/workflows/publish-npm.yml
+      Note: Tokenless npm Trusted Publishing workflow for replapi-types
     - Path: buf.gen.yaml
       Note: Phase B Go and TypeScript generation configuration
     - Path: buf.yaml
@@ -57,10 +61,16 @@ RelatedFiles:
       Note: Package usage and BigInt serialization notes
     - Path: web/packages/replapi-types/package.json
       Note: TypeScript protobuf package metadata scripts and dependencies
+    - Path: web/packages/replapi-types/scripts/consumer-smoke.mjs
+      Note: Clean consumer smoke validation for packed artifact
+    - Path: web/packages/replapi-types/scripts/prepare-dist.mjs
+      Note: Publish-safe dist package manifest generation
     - Path: web/packages/replapi-types/src/generated/proto/goja/replapi/v1/replapi_pb.ts
       Note: Generated TypeScript protobuf bindings
     - Path: web/packages/replapi-types/src/replapi_decode.test.ts
       Note: Generated schema decode smoke tests
+    - Path: web/packages/replapi-types/tsconfig.build.json
+      Note: Build config for compiled publish artifact
     - Path: web/packages/replapi-types/tsconfig.json
       Note: Strict TypeScript smoke-test compiler settings
 ExternalSources: []
@@ -69,6 +79,7 @@ LastUpdated: 2026-07-01T08:57:25.128406471-07:00
 WhatFor: Use when implementing or reviewing protobuf schemas, generated Go/TypeScript code, and compatibility adapters for replapi/replhttp payloads.
 WhenToUse: Use before changing pkg/replsession DTOs, pkg/replhttp JSON routes, goja-repl serve, or a frontend that consumes REPL session/evaluation payloads.
 ---
+
 
 
 
@@ -815,6 +826,34 @@ The Phase E smoke test decodes fixtures with `fromJson`, validates `bigint` beha
 pnpm replapi-types:typecheck
 pnpm replapi-types:test
 ```
+
+## npm publishing and trusted publishing implementation status
+
+The `replapi-types` package now follows the npm publishing pattern documented in Manuel's trusted publishing playbook and used by `rag-evaluation-system`. The source package is a development workspace, but publication uses a compiled `dist/` artifact. The package build emits JavaScript, declaration files, maps, and a rewritten `dist/package.json` whose exports point at runtime `.js` files and `.d.ts` types.
+
+Publishing is handled by `.github/workflows/publish-npm.yml`. The workflow is manual, uses the `npm-production` environment, grants `id-token: write`, upgrades npm to a Trusted Publishing-capable version, never passes `NODE_AUTH_TOKEN`, validates the package, builds the artifact, runs pack and clean-consumer smoke tests, and publishes `web/packages/replapi-types/dist` with provenance on real publishes.
+
+Bootstrap remains a human/operator step for the first package publication because npm trusted publishers require the package to exist before `npm trust github` can configure the package-workflow relationship. The intended trusted publisher tuple is:
+
+```text
+package:      @go-go-golems/go-go-goja-replapi-types
+repository:   go-go-golems/go-go-goja
+workflow:     publish-npm.yml
+environment:  npm-production
+provider:     GitHub Actions
+```
+
+Recommended bootstrap command after the package exists:
+
+```bash
+npx -y npm@latest trust github @go-go-golems/go-go-goja-replapi-types \
+  --repo go-go-golems/go-go-goja \
+  --file publish-npm.yml \
+  --env npm-production \
+  --allow-publish
+```
+
+Only after a real tokenless GitHub Actions publish under `next` succeeds should package settings be hardened to require 2FA and disallow token publishing.
 
 ## Testing strategy
 

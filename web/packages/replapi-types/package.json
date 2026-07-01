@@ -1,23 +1,53 @@
 {
 	"name": "@go-go-golems/go-go-goja-replapi-types",
 	"version": "0.1.0",
-	"private": true,
+	"private": false,
 	"type": "module",
 	"license": "MIT",
-	"description": "Generated TypeScript protobuf bindings and decode smoke tests for go-go-goja replapi.",
+	"description": "Generated TypeScript protobuf bindings for go-go-goja replapi protobuf JSON payloads.",
 	"keywords": [
 		"go-go-goja",
 		"replapi",
 		"protobuf",
-		"protojson"
+		"protojson",
+		"typescript"
+	],
+	"homepage": "https://github.com/go-go-golems/go-go-goja#readme",
+	"bugs": {
+		"url": "https://github.com/go-go-golems/go-go-goja/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/go-go-golems/go-go-goja.git",
+		"directory": "web/packages/replapi-types"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"**/*.js",
+		"**/*.d.ts",
+		"**/*.js.map",
+		"**/*.d.ts.map",
+		"**/*.json",
+		"README.md"
 	],
 	"exports": {
-		".": "./src/index.ts",
-		"./generated/proto/goja/replapi/v1/replapi_pb": "./src/generated/proto/goja/replapi/v1/replapi_pb.ts"
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./generated/proto/goja/replapi/v1/replapi_pb": {
+			"types": "./dist/generated/proto/goja/replapi/v1/replapi_pb.d.ts",
+			"import": "./dist/generated/proto/goja/replapi/v1/replapi_pb.js"
+		}
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit",
-		"test": "tsx src/replapi_decode.test.ts"
+		"test": "tsx src/replapi_decode.test.ts",
+		"build": "rm -rf dist && tsc -p tsconfig.build.json && node scripts/prepare-dist.mjs",
+		"pack:smoke": "npm pack --dry-run ./dist",
+		"consumer:smoke": "node scripts/consumer-smoke.mjs"
 	},
 	"dependencies": {
 		"@bufbuild/protobuf": "^2.12.1"

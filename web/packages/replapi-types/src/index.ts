@@ -1,1 +1,1 @@
-export * from "./generated/proto/goja/replapi/v1/replapi_pb.ts";
+export * from "./generated/proto/goja/replapi/v1/replapi_pb.js";

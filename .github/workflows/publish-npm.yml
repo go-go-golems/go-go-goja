@@ -1,0 +1,111 @@
+name: publish-npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      npm_tag:
+        description: npm dist-tag to publish under
+        required: true
+        default: latest
+        type: string
+      dry_run:
+        description: Run npm publish with --dry-run
+        required: true
+        default: true
+        type: boolean
+      skip_existing:
+        description: Skip if this package version already exists on npmjs
+        required: true
+        default: true
+        type: boolean
+      confirm_latest_publish:
+        description: Required for real latest publishes; type CONFIRM_LATEST to publish with tag=latest and dry_run=false
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    environment: npm-production
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: go-go-goja-replapi-types-npm-publish-production
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@^11.10.0
+
+      - name: Show tool versions
+        run: |
+          node --version
+          npm --version
+          pnpm --version
+
+      - name: Validate workflow inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.dry_run }}" = "false" ] && [ "${{ inputs.npm_tag }}" = "latest" ] && [ "${{ inputs.confirm_latest_publish }}" != "CONFIRM_LATEST" ]; then
+            echo "Real latest publishes require confirm_latest_publish=CONFIRM_LATEST" >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck package
+        run: pnpm replapi-types:typecheck
+
+      - name: Test package
+        run: pnpm replapi-types:test
+
+      - name: Build publish artifact
+        run: pnpm replapi-types:build
+
+      - name: Pack smoke package
+        run: pnpm replapi-types:pack-smoke
+
+      - name: Consumer smoke package
+        run: pnpm replapi-types:consumer-smoke
+
+      - name: Publish package to npmjs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          package_name=$(node -p "JSON.parse(require('fs').readFileSync('web/packages/replapi-types/dist/package.json', 'utf8')).name")
+          package_version=$(node -p "JSON.parse(require('fs').readFileSync('web/packages/replapi-types/dist/package.json', 'utf8')).version")
+
+          echo "Publishing ${package_name}@${package_version} with tag ${{ inputs.npm_tag }}"
+
+          if [ "${{ inputs.skip_existing }}" = "true" ] && npm view "${package_name}@${package_version}" version >/dev/null 2>&1; then
+            echo "${package_name}@${package_version} already exists; skipping publish."
+            exit 0
+          fi
+
+          publish_args=(--access public --tag "${{ inputs.npm_tag }}")
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            publish_args+=(--dry-run)
+          else
+            publish_args+=(--provenance)
+          fi
+
+          npm publish web/packages/replapi-types/dist "${publish_args[@]}"

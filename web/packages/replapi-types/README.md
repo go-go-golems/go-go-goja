@@ -20,6 +20,30 @@ const decoded = fromJson(EvaluateResponseSchema, body);
 console.log(decoded.cell?.execution?.status);
 ```
 
+## Validation and publishing
+
+```bash
+pnpm replapi-types:typecheck
+pnpm replapi-types:test
+pnpm replapi-types:build
+pnpm replapi-types:pack-smoke
+pnpm replapi-types:consumer-smoke
+```
+
+The package is published from `dist/`, not from the source package root. The GitHub Actions workflow `.github/workflows/publish-npm.yml` is designed for npm Trusted Publishing: it requests `id-token: write`, uses the `npm-production` environment, does not pass an npm token, and publishes with provenance on real publishes.
+
+For the first publication of a new npm package, create the package once manually or through an authorized bootstrap path, then configure trusted publishing:
+
+```bash
+npx -y npm@latest trust github @go-go-golems/go-go-goja-replapi-types \
+  --repo go-go-golems/go-go-goja \
+  --file publish-npm.yml \
+  --env npm-production \
+  --allow-publish
+```
+
+After a tokenless GitHub Actions publish has been verified under `next`, package settings can be hardened to require 2FA and disallow token publishing.
+
 ## int64 and JSON values
 
 `int64` protobuf fields decode as JavaScript `bigint` values with `@bufbuild/protobuf` v2. Do not pass decoded messages with `bigint` fields directly to `JSON.stringify`; use protobuf JSON helpers such as `toJson()` when serializing wire payloads again.

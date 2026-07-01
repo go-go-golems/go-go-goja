@@ -721,3 +721,115 @@ export * from "./generated/proto/goja/replapi/v1/replapi_pb.ts";
 ```
 
 The package deliberately uses `allowImportingTsExtensions` and `noEmit` because this phase validates source consumption rather than producing a distributable JavaScript build.
+
+## Step 8: Align replapi-types with trusted npm publishing
+
+After the TypeScript decode package existed, I reviewed the Go Go Golems trusted npm publishing playbook and the current `rag-evaluation-system` publish workflow. The important correction was that a package intended for npm should not rely on source `.ts` exports from the workspace package. It should build a clean `dist/` artifact, smoke-test the packed artifact from a separate consumer project, and publish through npm Trusted Publishing without long-lived tokens.
+
+This step made `web/packages/replapi-types` publish-ready in that style. The package now has an emitted JavaScript/declaration artifact, publish-safe metadata, pack and consumer smoke checks, and a manual GitHub Actions workflow designed for npm OIDC trusted publishing.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Look at how the npmjs package is published and how we do github app (i think) for trusted publishing. See /home/manuel/code/wesen/go-go-golems/go-go-parc/Projects/2026/06/01/ARTICLE - Trusted npm Publishing for Go Go Golems React Packages.md"
+
+**Assistant interpretation:** Inspect the existing trusted npm publishing playbook and apply the relevant package publication pattern to the new `replapi-types` package.
+
+**Inferred user intent:** The user wants the generated TypeScript package to be more than a local smoke-test package; it should be prepared for secure npm publication through the established Go Go Golems trusted-publishing workflow.
+
+**Commit (code):** N/A — Phase E.5 pending commit at time of diary entry.
+
+### What I did
+
+- Read the trusted publishing article in the Obsidian vault.
+- Inspected current trusted publishing workflows in:
+  - `react-chat/.github/workflows/publish-npm.yml`,
+  - `go-go-os-frontend/.github/workflows/publish-npm.yml`,
+  - `rag-evaluation-system/.github/workflows/publish-npm.yml`.
+- Inspected `rag-evaluation-system/packages/rag-evaluation-site` package metadata and publish scripts.
+- Added `web/packages/replapi-types/tsconfig.build.json` to emit JavaScript, declarations, and maps.
+- Added `scripts/prepare-dist.mjs` to write a publish-safe `dist/package.json`.
+- Added `scripts/consumer-smoke.mjs` to pack `dist/`, install it into a clean temp project, typecheck it, and run a runtime decode check.
+- Updated package metadata to include public npm fields, repository metadata, `publishConfig`, files, runtime exports, and build/smoke scripts.
+- Added root scripts for build, pack smoke, and consumer smoke.
+- Added `.github/workflows/publish-npm.yml` with tokenless Trusted Publishing/OIDC semantics.
+- Updated README/design docs with bootstrap and token-lockdown guidance.
+
+### Why
+
+- npm consumers should install compiled JavaScript and TypeScript declarations, not depend on compiling package source from `node_modules`.
+- Trusted Publishing avoids long-lived npm tokens in GitHub Actions and matches the established Go Go Golems release model.
+- Clean consumer smoke tests catch export and installability failures that workspace tests can hide.
+
+### What worked
+
+The full local publication-validation loop passed:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm replapi-types:typecheck
+pnpm replapi-types:test
+pnpm replapi-types:build
+pnpm replapi-types:pack-smoke
+pnpm replapi-types:consumer-smoke
+```
+
+The `npm pack --dry-run ./dist` tarball contained only the expected README, package metadata, generated JavaScript/declaration files, and maps.
+
+### What didn't work
+
+- No blocking failures occurred in this step.
+
+### What I learned
+
+- The repository already has the trusted-publishing pattern in `rag-evaluation-system`: manual workflow, `environment: npm-production`, `id-token: write`, npm upgrade, no `NODE_AUTH_TOKEN`, build artifact, consumer smoke, and `npm publish dist --provenance` for real publishes.
+- The source package exports can be optimized for local TypeScript development, but `dist/package.json` must expose `.js` runtime files and `.d.ts` declarations.
+
+### What was tricky to build
+
+- The generated TypeScript output is source-only until compiled. The build config had to include generated files while excluding tests and JSON fixtures from the published artifact.
+- The clean consumer smoke test needed to exercise both the root package export and the deep generated-schema export so that package `exports` drift is caught before publication.
+
+### What warrants a second pair of eyes
+
+- Review the npm package name `@go-go-golems/go-go-goja-replapi-types` before first publication; renaming is much easier before the package exists on npm.
+- Review whether `go-go-golems/go-go-goja` should publish this package directly or whether it should live under a broader frontend/workbench package family later.
+- Review the GitHub environment name `npm-production` and trusted publisher tuple before configuring npm trust.
+
+### What should be done in the future
+
+- Bootstrap the package on npm, then configure trusted publishing:
+
+```bash
+npx -y npm@latest trust github @go-go-golems/go-go-goja-replapi-types \
+  --repo go-go-golems/go-go-goja \
+  --file publish-npm.yml \
+  --env npm-production \
+  --allow-publish
+```
+
+- Verify a real GitHub Actions publish under `next` before disabling token publishing for the package.
+
+### Code review instructions
+
+- Start with `web/packages/replapi-types/package.json` and `scripts/prepare-dist.mjs` to verify the source-vs-dist contract.
+- Review `.github/workflows/publish-npm.yml` against the trusted publishing playbook.
+- Validate with:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm replapi-types:typecheck
+pnpm replapi-types:test
+pnpm replapi-types:build
+pnpm replapi-types:pack-smoke
+pnpm replapi-types:consumer-smoke
+```
+
+### Technical details
+
+The workflow intentionally publishes from:
+
+```text
+web/packages/replapi-types/dist
+```
+
+and intentionally does not set `NODE_AUTH_TOKEN`.
