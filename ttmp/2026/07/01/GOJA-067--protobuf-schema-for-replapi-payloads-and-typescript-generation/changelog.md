@@ -65,3 +65,24 @@ Phase D: added NewProtoJSONHandler with /api/v1 protobuf JSON routes for session
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replhttp/proto_handler.go — New v1 handler
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replhttp/proto_handler_test.go — Route tests
 
+
+## 2026-07-01
+
+Phase E planning update: selected a package-local TypeScript workspace layout modeled after rag-evaluation-system, with web/packages/replapi-types exporting generated protobuf bindings and running focused decode smoke tests.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/ttmp/2026/07/01/GOJA-067--protobuf-schema-for-replapi-payloads-and-typescript-generation/design-doc/01-protobuf-replapi-schema-and-typescript-generation-implementation-guide.md — Phase E package plan
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/ttmp/2026/07/01/GOJA-067--protobuf-schema-for-replapi-payloads-and-typescript-generation/tasks.md — Phase E checklist refinement
+
+
+## 2026-07-01
+
+Phase E: added replapi-types TypeScript package, pnpm workspace scripts, Go-emitted protojson fixtures, generated-schema decode smoke tests, and BigInt/Value usage documentation; validation passed with pnpm replapi-types:typecheck and pnpm replapi-types:test.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pnpm-lock.yaml — Locked TypeScript validation dependencies
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/README.md — Consumer documentation
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/src/replapi_decode.test.ts — TypeScript decode smoke tests
+

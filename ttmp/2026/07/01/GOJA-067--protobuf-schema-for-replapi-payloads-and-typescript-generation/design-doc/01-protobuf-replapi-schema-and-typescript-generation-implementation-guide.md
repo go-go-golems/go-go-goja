@@ -19,6 +19,8 @@ RelatedFiles:
       Note: Phase B Go and TypeScript generation configuration
     - Path: buf.yaml
       Note: Phase B Buf module/lint configuration
+    - Path: package.json
+      Note: Root pnpm scripts for replapi-types validation
     - Path: pkg/replapi/app.go
       Note: Application facade boundary for session and persistence behavior
     - Path: pkg/replapi/pb/proto/goja/replapi/v1/replapi.pb.go
@@ -47,16 +49,27 @@ RelatedFiles:
       Note: Session policy structs and eval mode values that need proto representation
     - Path: pkg/replsession/types.go
       Note: Current JSON DTO layer and primary source for protobuf schema mapping
+    - Path: pnpm-workspace.yaml
+      Note: Workspace package discovery for web/packages/*
     - Path: proto/goja/replapi/v1/replapi.proto
       Note: Phase B public replapi protobuf schema
+    - Path: web/packages/replapi-types/README.md
+      Note: Package usage and BigInt serialization notes
+    - Path: web/packages/replapi-types/package.json
+      Note: TypeScript protobuf package metadata scripts and dependencies
     - Path: web/packages/replapi-types/src/generated/proto/goja/replapi/v1/replapi_pb.ts
       Note: Generated TypeScript protobuf bindings
+    - Path: web/packages/replapi-types/src/replapi_decode.test.ts
+      Note: Generated schema decode smoke tests
+    - Path: web/packages/replapi-types/tsconfig.json
+      Note: Strict TypeScript smoke-test compiler settings
 ExternalSources: []
 Summary: Design for making go-go-goja replapi payloads schema-first with protobuf, protojson transport, and generated TypeScript bindings for future web/workbench UIs.
 LastUpdated: 2026-07-01T08:57:25.128406471-07:00
 WhatFor: Use when implementing or reviewing protobuf schemas, generated Go/TypeScript code, and compatibility adapters for replapi/replhttp payloads.
 WhenToUse: Use before changing pkg/replsession DTOs, pkg/replhttp JSON routes, goja-repl serve, or a frontend that consumes REPL session/evaluation payloads.
 ---
+
 
 
 
@@ -510,7 +523,15 @@ This is different from the live `ExecutionReport.result_json` string. The differ
 
 ## TypeScript generation plan
 
-Use Buf and `protoc-gen-es` through the remote Buf plugin. The exact output directory depends on whether `go-go-goja` will contain a frontend package. If the future workbench lives inside this repo, use a local package such as `web/replapi/src/generated`. If not, generate under `pkg/replapi/ts/generated` or `web/packages/replapi-types/src/generated` and publish/copy from there.
+Use Buf and `protoc-gen-es` through the remote Buf plugin. The implementation uses a repository-local workspace package at `web/packages/replapi-types`, following the same broad package layout used in `rag-evaluation-system`: a root private JavaScript workspace, package-specific `package.json` files, TypeScript-first source under `src/`, and package scripts for focused validation. The package is intentionally small and generated-code oriented: it exports the generated schema/type module, keeps handwritten code limited to an index barrel and smoke tests, and does not introduce a web application shell.
+
+The selected generated output path is:
+
+```text
+web/packages/replapi-types/src/generated/proto/goja/replapi/v1/replapi_pb.ts
+```
+
+This path makes the package usable by future in-repo workbench code and easy to publish or copy later if the workbench moves to a separate repository.
 
 Recommended `buf.yaml`:
 
@@ -749,6 +770,16 @@ Keep `NewHandler` unchanged until compatibility is proven. `goja-repl serve` can
 
 ### Phase 5: Add TypeScript consumer tests
 
+Add `web/packages/replapi-types` as a minimal TypeScript package. The package should mirror the `rag-evaluation-system` convention of package-local scripts (`typecheck`, focused validation scripts), strict `tsconfig.json`, and explicit package exports. It should stay framework-free: the purpose is generated schema consumption, not UI rendering.
+
+The package should include:
+
+- `package.json` with `@bufbuild/protobuf` as a runtime dependency and TypeScript test tooling as dev dependencies,
+- `tsconfig.json` with `strict`, `moduleResolution: "bundler"`, `allowImportingTsExtensions`, `noEmit`, and unused-code checks,
+- `src/index.ts` as a barrel export for generated protobuf bindings,
+- JSON fixtures emitted by Go `protojson`,
+- a TypeScript smoke test that decodes those fixtures with `fromJson` and verifies important fields.
+
 Add a minimal TS test package or script that imports generated types and decodes sample JSON with `fromJson`:
 
 ```ts
@@ -773,6 +804,17 @@ Once a workbench exists, use generated TypeScript shapes for API calls. Keep fro
 ### Phase 7: Decide whether to retire legacy JSON
 
 After one frontend consumes `/api/v1`, decide whether `pkg/replhttp.NewHandler` should remain legacy forever, internally call the proto handler, or be replaced by the protobuf handler in a major release.
+
+## Phase E implementation status
+
+The TypeScript consumer package is implemented at `web/packages/replapi-types`. It uses a root `pnpm-workspace.yaml` and root `package.json` scripts for focused validation, with package-local `typecheck` and `test` scripts. The package exports generated protobuf bindings through `src/index.ts` and includes Go-emitted protojson fixtures for `EvaluateResponse` and `SessionExport`.
+
+The Phase E smoke test decodes fixtures with `fromJson`, validates `bigint` behavior for `int64` fields such as `durationMs`, `timeoutMs`, and `evaluationId`, and uses `toJson` to confirm `google.protobuf.Value` fields preserve object, array, scalar, boolean, and null-compatible JSON shapes. CI wiring is intentionally deferred until the repository has a broader JavaScript/TypeScript CI policy; the package-local validation commands are:
+
+```bash
+pnpm replapi-types:typecheck
+pnpm replapi-types:test
+```
 
 ## Testing strategy
 

@@ -156,27 +156,28 @@
 
 ### E.1 TypeScript package skeleton
 
-- [ ] Add `web/packages/replapi-types/package.json` or selected package path.
-- [ ] Add `tsconfig.json` for generated-code smoke tests.
-- [ ] Add dependency on `@bufbuild/protobuf`.
-- [ ] Add generated TypeScript output to package exports or documented import paths.
+- [x] Add root `package.json`/`pnpm-workspace.yaml` for the TypeScript package workspace.
+- [x] Add `web/packages/replapi-types/package.json` as the selected package path.
+- [x] Add `tsconfig.json` for generated-code smoke tests.
+- [x] Add dependency on `@bufbuild/protobuf` and package-local TypeScript smoke-test tooling.
+- [x] Add generated TypeScript output to package exports and an `src/index.ts` barrel.
 
 ### E.2 Decode tests
 
-- [ ] Add sample `EvaluateResponse` JSON fixture emitted by Go protojson.
-- [ ] Add TypeScript test that decodes `EvaluateResponse` with `fromJson`.
-- [ ] Assert execution status, result, console events, and bindings decode correctly.
-- [ ] Add sample `SessionExport` JSON fixture with raw JSON fields.
-- [ ] Assert `google.protobuf.Value` fields preserve JSON shape.
-- [ ] Document `int64`/BigInt behavior and JSON.stringify caveat.
+- [x] Add sample `EvaluateResponse` JSON fixture emitted by Go protojson.
+- [x] Add TypeScript test that decodes `EvaluateResponse` with `fromJson`/generated schemas.
+- [x] Assert execution status, result, console events, and bindings decode correctly.
+- [x] Add sample `SessionExport` JSON fixture with raw JSON fields.
+- [x] Assert `google.protobuf.Value` fields preserve JSON shape.
+- [x] Document `int64`/BigInt behavior and JSON.stringify caveat.
 
 ### E.3 Tooling validation
 
-- [ ] Add npm/pnpm script for TypeScript smoke test if a package exists.
-- [ ] Run the TS smoke test locally.
-- [ ] Decide whether CI should run the TS smoke test immediately or in a later frontend ticket.
-- [ ] Update diary/changelog/doc relations.
-- [ ] Commit Phase E.
+- [x] Add pnpm scripts for TypeScript typecheck and smoke tests.
+- [x] Run the TS smoke test locally.
+- [x] Decide whether CI should run the TS smoke test immediately or remain package-local for now.
+- [x] Update diary/changelog/doc relations.
+- [x] Commit Phase E.
 
 ## Implementation Phase F — Documentation, help, and final validation
 
@@ -195,7 +196,7 @@
 - [ ] Run `GOWORK=off go test ./... -count=1` if feasible.
 - [ ] Run `make test` if feasible.
 - [ ] Run `make lint` if feasible.
-- [ ] Run TypeScript smoke tests if added.
+- [x] Run TypeScript smoke tests if added.
 - [x] Run `docmgr --root ttmp doctor --ticket GOJA-067 --stale-after 30`.
 
 ### F.3 Delivery

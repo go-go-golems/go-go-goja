@@ -594,3 +594,130 @@ The handler intentionally does not replace the legacy constructor:
 ```go
 handler, err := replhttp.NewProtoJSONHandler(app)
 ```
+
+## Step 7: Implement Phase E TypeScript Decode Package
+
+Phase E turned the generated TypeScript bindings into a small, runnable package rather than leaving them as unvalidated generated files. I modeled the package shape after the `rag-evaluation-system` workspace style: a root private JavaScript workspace, package-local `package.json` and `tsconfig.json`, strict TypeScript settings, and focused package scripts.
+
+The resulting `web/packages/replapi-types` package stays intentionally narrow. It exports generated protobuf bindings, keeps handwritten TypeScript to an index barrel plus smoke tests, and validates that real Go-emitted protojson fixtures decode correctly with `@bufbuild/protobuf`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Alright, update the design doc and the tasks, and then go ahead"
+
+**Follow-up user prompt (verbatim):** "don't forget the diary and committing"
+
+**Assistant interpretation:** Refine the Phase E design/tasks before implementation, then implement the TypeScript package and record/commit the work.
+
+**Inferred user intent:** The user wants progress to remain auditable and phase-tracked while adding a TypeScript consumer validation layer.
+
+**Commit (code):** N/A — Phase E pending commit at time of diary entry.
+
+### What I did
+
+- Inspected `~/code/wesen/go-go-golems/rag-evaluation-system` package conventions:
+  - root private package and `pnpm-workspace.yaml`,
+  - package-local `package.json`,
+  - strict `tsconfig.json`,
+  - package scripts for typechecking/build validation.
+- Updated the GOJA-067 design doc with the selected TypeScript package shape.
+- Refined Phase E tasks to include the root pnpm workspace, package exports, smoke-test tooling, and CI decision.
+- Added root JavaScript workspace files:
+  - `package.json`,
+  - `pnpm-workspace.yaml`.
+- Added `web/packages/replapi-types`:
+  - `package.json`,
+  - `tsconfig.json`,
+  - `README.md`,
+  - `src/index.ts`,
+  - `src/replapi_decode.test.ts`,
+  - `src/testdata/evaluate_response.golden.json`,
+  - `src/testdata/session_export.golden.json`.
+- Added `.gitignore` entries for root and nested `node_modules` directories.
+- Ran `pnpm install` to create `pnpm-lock.yaml`.
+
+### Why
+
+- Generated TypeScript is only useful if a consumer can actually import and decode real server payloads.
+- The smoke test catches drift between Go protojson output and generated TypeScript schemas before a future workbench depends on the package.
+
+### What worked
+
+- Package-level and root-level validation passed:
+
+```bash
+pnpm --dir web/packages/replapi-types typecheck
+pnpm --dir web/packages/replapi-types test
+pnpm replapi-types:typecheck
+pnpm replapi-types:test
+```
+
+- `EvaluateResponse` decoded with expected session, binding, execution status, result, console, and `bigint` duration fields.
+- `SessionExport` decoded with `google.protobuf.Value` fields and `toJson()` projected those values back to ordinary JSON shapes.
+
+### What didn't work
+
+- The first TypeScript typecheck failed because Node built-in module types were not visible to the package `tsconfig.json`.
+
+Exact errors included:
+
+```text
+src/replapi_decode.test.ts(1,44): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/replapi_decode.test.ts(13,60): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+```
+
+I fixed this by adding `@types/node` to dev dependencies and `"types": ["node"]` to `tsconfig.json`.
+
+- The next typecheck failed because the test fixture helper returned `unknown`, while `fromJson` expects `JsonValue`, and strict indexing treated array members as possibly unknown.
+
+Exact errors included:
+
+```text
+src/replapi_decode.test.ts(29,3): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'JsonValue'.
+src/replapi_decode.test.ts(62,30): error TS18046: 'evaluations' is of type 'unknown'.
+```
+
+I fixed this by returning `JsonValue` from the fixture reader and adding explicit object/array narrowing helpers.
+
+### What I learned
+
+- `@bufbuild/protobuf` v2 represents protobuf `int64` fields as JavaScript `bigint`; tests should assert `5000n`, `7n`, and `1n` rather than numbers.
+- `google.protobuf.Value` fields are easiest to verify by decoding the parent message and then using `toJson()` to compare ordinary JSON values.
+
+### What was tricky to build
+
+- The TypeScript package needed to be strict enough to catch schema misuse but small enough not to introduce a frontend build system. The root workspace scripts keep validation discoverable without committing to a full web app layout.
+- Fixtures needed to come from Go protojson output rather than handwritten JSON. I reused the existing `EvaluateResponse` golden fixture and generated a `SessionExport` fixture through `pbconv.SessionExportToProto` so the TypeScript test validates the actual Go transport encoding.
+
+### What warrants a second pair of eyes
+
+- Review whether the package name should remain private as `@go-go-golems/go-go-goja-replapi-types` or be renamed before publishing.
+- Review whether root JavaScript workspace files are acceptable for `go-go-goja`, or whether they should move under `web/` if the repo wants to avoid root Node metadata.
+- Review whether CI should run `pnpm replapi-types:typecheck` and `pnpm replapi-types:test` immediately.
+
+### What should be done in the future
+
+- Wire TypeScript smoke tests into CI once the repository has an accepted JavaScript/TypeScript validation policy.
+- Use the package from a future workbench client and replace fixture-only coverage with HTTP client decoding tests.
+
+### Code review instructions
+
+- Start with `web/packages/replapi-types/README.md` for intended usage and BigInt caveats.
+- Review `web/packages/replapi-types/src/replapi_decode.test.ts` to see what generated schemas guarantee today.
+- Validate with:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm replapi-types:typecheck
+pnpm replapi-types:test
+```
+
+### Technical details
+
+The generated bindings are exported through:
+
+```ts
+export * from "./generated/proto/goja/replapi/v1/replapi_pb.ts";
+```
+
+The package deliberately uses `allowImportingTsExtensions` and `noEmit` because this phase validates source consumption rather than producing a distributable JavaScript build.

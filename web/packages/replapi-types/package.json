@@ -1,0 +1,30 @@
+{
+	"name": "@go-go-golems/go-go-goja-replapi-types",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"license": "MIT",
+	"description": "Generated TypeScript protobuf bindings and decode smoke tests for go-go-goja replapi.",
+	"keywords": [
+		"go-go-goja",
+		"replapi",
+		"protobuf",
+		"protojson"
+	],
+	"exports": {
+		".": "./src/index.ts",
+		"./generated/proto/goja/replapi/v1/replapi_pb": "./src/generated/proto/goja/replapi/v1/replapi_pb.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "tsx src/replapi_decode.test.ts"
+	},
+	"dependencies": {
+		"@bufbuild/protobuf": "^2.12.1"
+	},
+	"devDependencies": {
+		"@types/node": "^24.10.1",
+		"tsx": "^4.21.0",
+		"typescript": "~6.0.2"
+	}
+}
