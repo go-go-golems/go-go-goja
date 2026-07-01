@@ -153,6 +153,10 @@ topics:
       description: Kubernetes (K3s) cluster packaging and runtime
     - slug: vault
       description: HashiCorp Vault and Vault Secrets Operator secret management
+    - slug: api-design
+      description: API contract and transport design
+    - slug: protobuf
+      description: Protocol Buffers schemas and protojson transport
 docTypes:
     - slug: index
       description: Index document for a ticket
