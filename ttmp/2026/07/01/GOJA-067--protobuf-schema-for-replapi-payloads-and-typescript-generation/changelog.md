@@ -44,3 +44,14 @@ Phase B: added replapi protobuf schema, Buf v2 configuration, generated Go bindi
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/proto/goja/replapi/v1/replapi.proto — Schema source
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/src/generated/proto/goja/replapi/v1/replapi_pb.ts — Generated TypeScript bindings
 
+
+## 2026-07-01
+
+Phase C: added replapi pbconv adapters for live session DTOs and repldb records, protojson helpers, raw JSON Value conversion, and focused tests; validated with GOWORK=off go test ./pkg/replapi/pbconv ./pkg/replapi/... -count=1.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replapi/pbconv/repldb.go — Persistence DTO conversion
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replapi/pbconv/session.go — Live DTO conversion
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replapi/pbconv/session_test.go — Focused tests
+

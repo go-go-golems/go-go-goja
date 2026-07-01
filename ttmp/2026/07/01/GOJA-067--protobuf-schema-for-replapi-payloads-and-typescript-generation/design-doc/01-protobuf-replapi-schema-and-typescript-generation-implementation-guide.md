@@ -23,6 +23,16 @@ RelatedFiles:
       Note: Application facade boundary for session and persistence behavior
     - Path: pkg/replapi/pb/proto/goja/replapi/v1/replapi.pb.go
       Note: Generated Go protobuf bindings
+    - Path: pkg/replapi/pbconv/codec.go
+      Note: Phase C protojson options and raw JSON helpers
+    - Path: pkg/replapi/pbconv/repldb.go
+      Note: Phase C persistence/export DTO adapters
+    - Path: pkg/replapi/pbconv/session.go
+      Note: Phase C live replsession DTO adapters
+    - Path: pkg/replapi/pbconv/session_test.go
+      Note: Phase C adapter and protojson tests
+    - Path: pkg/replapi/pbconv/views.go
+      Note: Phase C binding/static/runtime detail adapters
     - Path: pkg/repldb/types.go
       Note: Persistent session/export record shapes with raw JSON fields
     - Path: pkg/replhttp/handler.go
@@ -41,6 +51,7 @@ LastUpdated: 2026-07-01T08:57:25.128406471-07:00
 WhatFor: Use when implementing or reviewing protobuf schemas, generated Go/TypeScript code, and compatibility adapters for replapi/replhttp payloads.
 WhenToUse: Use before changing pkg/replsession DTOs, pkg/replhttp JSON routes, goja-repl serve, or a frontend that consumes REPL session/evaluation payloads.
 ---
+
 
 
 

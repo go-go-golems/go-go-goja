@@ -407,3 +407,101 @@ Generated files:
 pkg/replapi/pb/proto/goja/replapi/v1/replapi.pb.go
 web/packages/replapi-types/src/generated/proto/goja/replapi/v1/replapi_pb.ts
 ```
+
+## Step 5: Implement Phase C Protobuf Conversion Adapters
+
+Phase C added the adapter layer between internal REPL DTOs and the public protobuf transport messages. This keeps the existing `replsession` service model intact while giving `replhttp` a generated-message boundary for future protobuf JSON routes.
+
+The adapter package is intentionally mechanical. It converts live session summaries, evaluation responses, policy structs, static-analysis reports, rewrite/runtime reports, binding details, and durable `repldb` export records into `goja.replapi.v1` protobuf messages. It also centralizes protojson options and raw JSON conversion helpers.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue implementing the checklist after schema generation by adding the Go conversion boundary.
+
+**Inferred user intent:** The user wants implementation progress with explicit phase commits and validation.
+
+**Commit (code):** N/A — Phase C pending commit at time of diary entry.
+
+### What I did
+
+- Added `pkg/replapi/pbconv`.
+- Added `codec.go` with schema version, protojson marshal/unmarshal options, `EvaluateRequest` decode helper, timestamp helpers, and `json.RawMessage` ↔ `google.protobuf.Value` helpers.
+- Added `session.go` for live `replsession` conversions.
+- Added `views.go` for binding, runtime, static-analysis, AST/CST, range, member, and provenance conversions.
+- Added `repldb.go` for durable session/export/evaluation/binding-doc conversions.
+- Added tests for:
+  - `EvaluateRequest` conversion,
+  - `EvaluateResponse` conversion,
+  - empty-source evaluation response conversion,
+  - eval mode conversion,
+  - arbitrary raw JSON shape preservation,
+  - `SessionExport` conversion,
+  - representative protojson golden output.
+
+### Why
+
+- `replapi.App` should not be forced to return generated protobuf messages immediately.
+- A thin adapter boundary lets the future HTTP protobuf JSON handler wrap existing behavior safely.
+
+### What worked
+
+- Focused tests passed with:
+
+```bash
+GOWORK=off go test ./pkg/replapi/pbconv ./pkg/replapi/... -count=1
+```
+
+- `google.protobuf.Value` successfully round-tripped object, array, string, number, boolean, and null JSON shapes.
+
+### What didn't work
+
+- The first adapter test build failed because the generated Go field for proto field `descriptor` is named `Descriptor_`, not `Descriptor`, to avoid a generated-method/name conflict.
+
+Exact error:
+
+```text
+pkg/replapi/pbconv/views.go:54:115: unknown field Descriptor in struct literal of type replapiv1.PropertyView
+```
+
+I fixed the converter to set `Descriptor_`.
+
+- The first golden test compared protojson bytes exactly. `protojson` output differed only by insignificant whitespace, so I changed the test to parse both the golden file and actual output as JSON and compare canonical `encoding/json` output.
+
+### What I learned
+
+- Generated protobuf Go field names may receive suffixes when a proto field name conflicts with generated methods or Go identifiers. Adapter code must follow generated Go names, not assumed proto names.
+- JSON golden tests for protojson should compare JSON semantics unless whitespace is explicitly part of the contract.
+
+### What was tricky to build
+
+- The conversion layer has many small fields. The risk is omission rather than algorithmic complexity. The Phase A inventory was useful because it provided a checklist for every field group.
+- Raw JSON conversion must support all JSON value kinds. `google.protobuf.Struct` would not have been sufficient because arrays and scalars are valid persisted JSON values.
+
+### What warrants a second pair of eyes
+
+- Review all `uint32` casts from `int` fields. The current fields should be non-negative, but the adapter does not guard against accidental negative values yet.
+- Review whether `ValueToRawJSON` should preserve number formatting exactly or whether semantic JSON equivalence is enough.
+
+### What should be done in the future
+
+- Implement Phase D protobuf JSON HTTP routes using `pbconv` instead of exposing it only to tests.
+
+### Code review instructions
+
+- Start with `pkg/replapi/pbconv/codec.go`.
+- Then review `session.go`, `views.go`, and `repldb.go` against the Phase A inventory.
+- Validate with:
+
+```bash
+GOWORK=off go test ./pkg/replapi/pbconv ./pkg/replapi/... -count=1
+```
+
+### Technical details
+
+Golden fixture:
+
+```text
+pkg/replapi/pbconv/testdata/evaluate_response.golden.json
+```

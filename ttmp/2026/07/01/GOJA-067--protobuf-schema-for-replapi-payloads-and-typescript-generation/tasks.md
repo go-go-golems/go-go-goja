@@ -86,38 +86,38 @@
 
 ### C.1 Adapter package skeleton
 
-- [ ] Add `pkg/replapi/pbconv` package.
-- [ ] Add `doc.go` explaining internal DTO to public protobuf conversion boundary.
-- [ ] Add shared `protojson` marshal/unmarshal options with camelCase output and strict unknown-field input.
-- [ ] Add helper for `time.Time` <-> `timestamppb.Timestamp`.
-- [ ] Add helper for `json.RawMessage` <-> `structpb.Value`.
+- [x] Add `pkg/replapi/pbconv` package.
+- [x] Add `doc.go` explaining internal DTO to public protobuf conversion boundary.
+- [x] Add shared `protojson` marshal/unmarshal options with camelCase output and strict unknown-field input.
+- [x] Add helper for `time.Time` <-> `timestamppb.Timestamp`.
+- [x] Add helper for `json.RawMessage` <-> `structpb.Value`.
 
 ### C.2 Live DTO conversion
 
-- [ ] Convert `replsession.EvaluateRequest` from proto to internal request.
-- [ ] Convert `replsession.EvaluateResponse` to proto.
-- [ ] Convert `SessionSummary` and policy types.
-- [ ] Convert `CellReport`, `StaticReport`, `RewriteReport`, `ExecutionReport`, and `RuntimeReport`.
-- [ ] Convert binding/runtime detail views.
-- [ ] Convert static-analysis/AST/CST detail views.
+- [x] Convert `replsession.EvaluateRequest` from proto to internal request.
+- [x] Convert `replsession.EvaluateResponse` to proto.
+- [x] Convert `SessionSummary` and policy types.
+- [x] Convert `CellReport`, `StaticReport`, `RewriteReport`, `ExecutionReport`, and `RuntimeReport`.
+- [x] Convert binding/runtime detail views.
+- [x] Convert static-analysis/AST/CST detail views.
 
 ### C.3 Persistence conversion
 
-- [ ] Convert `repldb.SessionRecord`.
-- [ ] Convert `repldb.SessionExport`.
-- [ ] Convert `repldb.EvaluationRecord` and nested records.
-- [ ] Preserve arbitrary raw JSON through `google.protobuf.Value`.
+- [x] Convert `repldb.SessionRecord`.
+- [x] Convert `repldb.SessionExport`.
+- [x] Convert `repldb.EvaluationRecord` and nested records.
+- [x] Preserve arbitrary raw JSON through `google.protobuf.Value`.
 
 ### C.4 Adapter tests
 
-- [ ] Add unit tests for simple `EvaluateResponse` conversion.
-- [ ] Add unit tests for empty-source evaluation response conversion.
-- [ ] Add unit tests for policy enum/string conversion.
-- [ ] Add unit tests for raw JSON object/array/string/number/boolean/null conversion.
-- [ ] Add golden protojson output tests for a representative evaluate response.
-- [ ] Run focused package tests.
-- [ ] Update diary/changelog/doc relations.
-- [ ] Commit Phase C.
+- [x] Add unit tests for simple `EvaluateResponse` conversion.
+- [x] Add unit tests for empty-source evaluation response conversion.
+- [x] Add unit tests for policy enum/string conversion.
+- [x] Add unit tests for raw JSON object/array/string/number/boolean/null conversion.
+- [x] Add golden protojson output tests for a representative evaluate response.
+- [x] Run focused package tests.
+- [x] Update diary/changelog/doc relations.
+- [x] Commit Phase C.
 
 ## Implementation Phase D — Protobuf JSON HTTP routes
 
