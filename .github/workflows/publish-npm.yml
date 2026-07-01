@@ -32,7 +32,7 @@ jobs:
       contents: read
       id-token: write
     concurrency:
-      group: go-go-goja-replapi-types-npm-publish-production
+      group: replapi-types-npm-publish-production
       cancel-in-progress: false
     steps:
       - name: Checkout

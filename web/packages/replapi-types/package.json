@@ -1,5 +1,5 @@
 {
-	"name": "@go-go-golems/go-go-goja-replapi-types",
+	"name": "replapi-types",
 	"version": "0.1.0",
 	"private": false,
 	"type": "module",

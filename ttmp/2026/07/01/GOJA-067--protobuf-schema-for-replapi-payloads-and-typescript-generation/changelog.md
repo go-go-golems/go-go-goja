@@ -97,3 +97,14 @@ Phase E.5: aligned replapi-types with the trusted npm publishing playbook by add
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/package.json — Public npm metadata and artifact scripts
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/scripts/consumer-smoke.mjs — Consumer validation
 
+
+## 2026-07-01
+
+Renamed the npm package from the scoped go-go-goja-specific name to replapi-types, and revalidated build, pack, clean-consumer smoke, TypeScript tests, and docmgr doctor.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/.github/workflows/publish-npm.yml — Publish workflow now targets dist package name replapi-types
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/package.json — Package name changed to replapi-types
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/scripts/consumer-smoke.mjs — Consumer smoke imports updated to replapi-types
+

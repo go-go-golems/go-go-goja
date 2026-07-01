@@ -836,7 +836,7 @@ Publishing is handled by `.github/workflows/publish-npm.yml`. The workflow is ma
 Bootstrap remains a human/operator step for the first package publication because npm trusted publishers require the package to exist before `npm trust github` can configure the package-workflow relationship. The intended trusted publisher tuple is:
 
 ```text
-package:      @go-go-golems/go-go-goja-replapi-types
+package:      replapi-types
 repository:   go-go-golems/go-go-goja
 workflow:     publish-npm.yml
 environment:  npm-production
@@ -846,7 +846,7 @@ provider:     GitHub Actions
 Recommended bootstrap command after the package exists:
 
 ```bash
-npx -y npm@latest trust github @go-go-golems/go-go-goja-replapi-types \
+npx -y npm@latest trust github replapi-types \
   --repo go-go-golems/go-go-goja \
   --file publish-npm.yml \
   --env npm-production \

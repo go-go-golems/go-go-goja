@@ -691,7 +691,7 @@ I fixed this by returning `JsonValue` from the fixture reader and adding explici
 
 ### What warrants a second pair of eyes
 
-- Review whether the package name should remain private as `@go-go-golems/go-go-goja-replapi-types` or be renamed before publishing.
+- Review whether the package name should remain private as `replapi-types` or be renamed before publishing.
 - Review whether root JavaScript workspace files are acceptable for `go-go-goja`, or whether they should move under `web/` if the repo wants to avoid root Node metadata.
 - Review whether CI should run `pnpm replapi-types:typecheck` and `pnpm replapi-types:test` immediately.
 
@@ -791,7 +791,7 @@ The `npm pack --dry-run ./dist` tarball contained only the expected README, pack
 
 ### What warrants a second pair of eyes
 
-- Review the npm package name `@go-go-golems/go-go-goja-replapi-types` before first publication; renaming is much easier before the package exists on npm.
+- Review the npm package name `replapi-types` before first publication; renaming is much easier before the package exists on npm.
 - Review whether `go-go-golems/go-go-goja` should publish this package directly or whether it should live under a broader frontend/workbench package family later.
 - Review the GitHub environment name `npm-production` and trusted publisher tuple before configuring npm trust.
 
@@ -800,7 +800,7 @@ The `npm pack --dry-run ./dist` tarball contained only the expected README, pack
 - Bootstrap the package on npm, then configure trusted publishing:
 
 ```bash
-npx -y npm@latest trust github @go-go-golems/go-go-goja-replapi-types \
+npx -y npm@latest trust github replapi-types \
   --repo go-go-golems/go-go-goja \
   --file publish-npm.yml \
   --env npm-production \
@@ -833,3 +833,91 @@ web/packages/replapi-types/dist
 ```
 
 and intentionally does not set `NODE_AUTH_TOKEN`.
+
+## Step 9: Rename npm package to replapi-types
+
+The package was renamed before first publication, while renaming is still cheap and does not require npm deprecation or package-transfer work. The source directory remains `web/packages/replapi-types`, and the published package name is now the unscoped `replapi-types` package requested by the user.
+
+This change updates the package manifest, README examples, clean-consumer smoke test imports, trusted-publishing bootstrap documentation, and the publish workflow references. The generated artifact was rebuilt and packed to verify that npm would see `replapi-types@0.1.0` in the tarball.
+
+### Prompt Context
+
+**User prompt (verbatim):** "use package name replapi-types"
+
+**Assistant interpretation:** Rename the npm package from the previously selected scoped Go Go Golems name to the exact package name `replapi-types`.
+
+**Inferred user intent:** The user wants the public npm package identity to be short and stable before first publication/trusted-publisher setup.
+
+**Commit (code):** N/A — rename pending commit at time of diary entry.
+
+### What I did
+
+- Changed `web/packages/replapi-types/package.json` name to `replapi-types`.
+- Updated README import examples and npm trust bootstrap command.
+- Updated `scripts/consumer-smoke.mjs` to install and import `replapi-types`.
+- Updated `.github/workflows/publish-npm.yml` concurrency naming.
+- Updated GOJA-067 design text and prior diary notes so the package identity is consistent.
+- Regenerated the lockfile metadata with `pnpm install --lockfile-only`.
+
+### Why
+
+- npm package identity should be finalized before bootstrap publication and trusted-publisher configuration.
+- Changing the name after publication would require deprecation or migration work.
+
+### What worked
+
+Validation passed:
+
+```bash
+pnpm replapi-types:typecheck
+pnpm replapi-types:test
+pnpm replapi-types:build
+pnpm replapi-types:pack-smoke
+pnpm replapi-types:consumer-smoke
+docmgr --root ttmp doctor --ticket GOJA-067 --stale-after 30
+```
+
+`npm pack --dry-run ./dist` reported:
+
+```text
+name: replapi-types
+version: 0.1.0
+filename: replapi-types-0.1.0.tgz
+```
+
+### What didn't work
+
+- No failures occurred in this rename step.
+
+### What I learned
+
+- The dist manifest generation correctly inherits the source package name, so the package rename only needed one manifest change plus documentation/test import updates.
+
+### What was tricky to build
+
+- The important part was avoiding stale references in publishing instructions and consumer smoke tests. I searched for both the scoped package name and the old unscoped suffix to ensure no old package identity remained in the publish path.
+
+### What warrants a second pair of eyes
+
+- Confirm that `replapi-types` is available on npm and that an unscoped package is intended rather than a scoped `@go-go-golems/...` package.
+
+### What should be done in the future
+
+- Use `replapi-types` in the first bootstrap publish and in the npm trusted publisher setup.
+
+### Code review instructions
+
+- Review `web/packages/replapi-types/package.json`, `README.md`, and `scripts/consumer-smoke.mjs` for package-name consistency.
+- Validate with the package build/pack/consumer smoke commands above.
+
+### Technical details
+
+Trusted publisher bootstrap should now target:
+
+```bash
+npx -y npm@latest trust github replapi-types \
+  --repo go-go-golems/go-go-goja \
+  --file publish-npm.yml \
+  --env npm-production \
+  --allow-publish
+```

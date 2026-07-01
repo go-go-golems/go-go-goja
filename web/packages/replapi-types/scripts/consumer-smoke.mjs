@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const cwd = process.cwd();
-const smokeDir = await mkdtemp(join(tmpdir(), "go-go-goja-replapi-types-consumer-"));
+const smokeDir = await mkdtemp(join(tmpdir(), "replapi-types-consumer-"));
 const tarballOutput = execFileSync("npm", ["pack", "./dist", "--pack-destination", smokeDir], {
 	cwd,
 	encoding: "utf8",
@@ -32,7 +32,7 @@ await writeFile(
 			},
 			dependencies: {
 				"@bufbuild/protobuf": "^2.12.1",
-				"@go-go-golems/go-go-goja-replapi-types": `file:${tarball}`,
+				"replapi-types": `file:${tarball}`,
 			},
 			devDependencies: {
 				"@types/node": "^24.10.1",
@@ -72,8 +72,8 @@ await writeFile(
 	`
 import { strictEqual } from 'node:assert/strict';
 import { fromJson } from '@bufbuild/protobuf';
-import { EvaluateResponseSchema, SessionExportSchema } from '@go-go-golems/go-go-goja-replapi-types';
-import { EvaluateResponseSchema as DirectEvaluateResponseSchema } from '@go-go-golems/go-go-goja-replapi-types/generated/proto/goja/replapi/v1/replapi_pb';
+import { EvaluateResponseSchema, SessionExportSchema } from 'replapi-types';
+import { EvaluateResponseSchema as DirectEvaluateResponseSchema } from 'replapi-types/generated/proto/goja/replapi/v1/replapi_pb';
 
 const response = fromJson(EvaluateResponseSchema, {
   schemaVersion: 1,

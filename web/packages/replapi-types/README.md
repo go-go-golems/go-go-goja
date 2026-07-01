@@ -8,7 +8,7 @@ The generated files are produced by Buf from `proto/goja/replapi/v1/replapi.prot
 
 ```ts
 import { fromJson } from "@bufbuild/protobuf";
-import { EvaluateResponseSchema } from "@go-go-golems/go-go-goja-replapi-types";
+import { EvaluateResponseSchema } from "replapi-types";
 
 const body = await fetch(`/api/v1/sessions/${sessionId}/evaluate`, {
 	method: "POST",
@@ -35,7 +35,7 @@ The package is published from `dist/`, not from the source package root. The Git
 For the first publication of a new npm package, create the package once manually or through an authorized bootstrap path, then configure trusted publishing:
 
 ```bash
-npx -y npm@latest trust github @go-go-golems/go-go-goja-replapi-types \
+npx -y npm@latest trust github replapi-types \
   --repo go-go-golems/go-go-goja \
   --file publish-npm.yml \
   --env npm-production \
