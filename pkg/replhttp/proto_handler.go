@@ -12,17 +12,20 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// NewProtoJSONHandler returns a protobuf-JSON v1 REPL HTTP handler.
-// It intentionally uses /api/v1 routes so existing encoding/json routes remain
-// available through NewHandler during migration.
-func NewProtoJSONHandler(app *replapi.App) (http.Handler, error) {
+// NewHandler returns the protobuf-JSON persistent REPL HTTP handler.
+//
+// The REPL API now uses the generated goja.replapi.v1 protobuf messages
+// directly on /api routes. The previous hand-written encoding/json response
+// envelopes were removed before public adoption to keep the server transport
+// surface small and schema-first.
+func NewHandler(app *replapi.App) (http.Handler, error) {
 	if app == nil {
 		return nil, errors.New("replhttp: app is nil")
 	}
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /api/v1/sessions", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/sessions", func(w http.ResponseWriter, r *http.Request) {
 		sessions, err := app.ListSessions(r.Context())
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err)
@@ -36,7 +39,7 @@ func NewProtoJSONHandler(app *replapi.App) (http.Handler, error) {
 		writeProtoJSON(w, http.StatusOK, resp)
 	})
 
-	mux.HandleFunc("POST /api/v1/sessions", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/sessions", func(w http.ResponseWriter, r *http.Request) {
 		summary, err := app.CreateSession(r.Context())
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err)
@@ -45,7 +48,7 @@ func NewProtoJSONHandler(app *replapi.App) (http.Handler, error) {
 		writeProtoJSON(w, http.StatusCreated, &replapiv1.CreateSessionResponse{SchemaVersion: pbconv.SchemaVersion, Session: pbconv.SessionSummaryToProto(summary)})
 	})
 
-	mux.HandleFunc("GET /api/v1/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
 		summary, err := app.Snapshot(r.Context(), r.PathValue("id"))
 		if err != nil {
 			writeJSONError(w, statusForError(err), err)
@@ -54,7 +57,7 @@ func NewProtoJSONHandler(app *replapi.App) (http.Handler, error) {
 		writeProtoJSON(w, http.StatusOK, &replapiv1.GetSessionResponse{SchemaVersion: pbconv.SchemaVersion, Session: pbconv.SessionSummaryToProto(summary)})
 	})
 
-	mux.HandleFunc("DELETE /api/v1/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /api/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if err := app.DeleteSession(r.Context(), r.PathValue("id")); err != nil {
 			writeJSONError(w, statusForError(err), err)
 			return
@@ -62,7 +65,7 @@ func NewProtoJSONHandler(app *replapi.App) (http.Handler, error) {
 		writeProtoJSON(w, http.StatusOK, &replapiv1.DeleteSessionResponse{SchemaVersion: pbconv.SchemaVersion, Deleted: true})
 	})
 
-	mux.HandleFunc("POST /api/v1/sessions/{id}/evaluate", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/sessions/{id}/evaluate", func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			writeJSONErrorMessage(w, http.StatusBadRequest, "read request body")
@@ -82,7 +85,7 @@ func NewProtoJSONHandler(app *replapi.App) (http.Handler, error) {
 		writeProtoJSON(w, http.StatusOK, pbconv.EvaluateResponseToProto(resp))
 	})
 
-	mux.HandleFunc("POST /api/v1/sessions/{id}/restore", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/sessions/{id}/restore", func(w http.ResponseWriter, r *http.Request) {
 		summary, err := app.Restore(r.Context(), r.PathValue("id"))
 		if err != nil {
 			writeJSONError(w, statusForError(err), err)
@@ -91,7 +94,7 @@ func NewProtoJSONHandler(app *replapi.App) (http.Handler, error) {
 		writeProtoJSON(w, http.StatusOK, &replapiv1.RestoreSessionResponse{SchemaVersion: pbconv.SchemaVersion, Session: pbconv.SessionSummaryToProto(summary)})
 	})
 
-	mux.HandleFunc("GET /api/v1/sessions/{id}/history", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/sessions/{id}/history", func(w http.ResponseWriter, r *http.Request) {
 		history, err := app.History(r.Context(), r.PathValue("id"))
 		if err != nil {
 			writeJSONError(w, statusForError(err), err)
@@ -105,7 +108,7 @@ func NewProtoJSONHandler(app *replapi.App) (http.Handler, error) {
 		writeProtoJSON(w, http.StatusOK, &replapiv1.HistoryResponse{SchemaVersion: pbconv.SchemaVersion, History: converted})
 	})
 
-	mux.HandleFunc("GET /api/v1/sessions/{id}/bindings", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/sessions/{id}/bindings", func(w http.ResponseWriter, r *http.Request) {
 		bindings, err := app.Bindings(r.Context(), r.PathValue("id"))
 		if err != nil {
 			writeJSONError(w, statusForError(err), err)
@@ -114,7 +117,7 @@ func NewProtoJSONHandler(app *replapi.App) (http.Handler, error) {
 		writeProtoJSON(w, http.StatusOK, &replapiv1.BindingsResponse{SchemaVersion: pbconv.SchemaVersion, Bindings: pbconv.BindingViewsToProto(bindings)})
 	})
 
-	mux.HandleFunc("GET /api/v1/sessions/{id}/docs", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/sessions/{id}/docs", func(w http.ResponseWriter, r *http.Request) {
 		docs, err := app.Docs(r.Context(), r.PathValue("id"))
 		if err != nil {
 			writeJSONError(w, statusForError(err), err)
@@ -128,7 +131,7 @@ func NewProtoJSONHandler(app *replapi.App) (http.Handler, error) {
 		writeProtoJSON(w, http.StatusOK, &replapiv1.DocsResponse{SchemaVersion: pbconv.SchemaVersion, Docs: converted})
 	})
 
-	mux.HandleFunc("GET /api/v1/sessions/{id}/export", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/sessions/{id}/export", func(w http.ResponseWriter, r *http.Request) {
 		exported, err := app.Export(r.Context(), r.PathValue("id"))
 		if err != nil {
 			writeJSONError(w, statusForError(err), err)

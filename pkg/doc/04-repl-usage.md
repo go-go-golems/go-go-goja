@@ -367,3 +367,47 @@ js> console.log(JSON.stringify(data, null, 2))
   "count": 2
 }
 ```
+
+## Protobuf JSON REPL API
+
+The persistent REPL service also has an schema-first protobuf JSON transport for generated clients. The `replhttp.NewHandler(app)` now exposes generated protobuf JSON messages directly under `/api/...`. The pre-protobuf hand-written JSON envelopes were removed before public adoption.
+
+The schema-first API uses the protobuf schema in `proto/goja/replapi/v1/replapi.proto` and generated TypeScript bindings from the npm package `replapi-types`.
+
+### Routes
+
+| Method | Path | Request | Response schema |
+|---|---|---|---|
+| `GET` | `/api/sessions` | none | `ListSessionsResponse` |
+| `POST` | `/api/sessions` | none | `CreateSessionResponse` |
+| `GET` | `/api/sessions/{id}` | none | `GetSessionResponse` |
+| `DELETE` | `/api/sessions/{id}` | none | `DeleteSessionResponse` |
+| `POST` | `/api/sessions/{id}/evaluate` | `EvaluateRequest` | `EvaluateResponse` |
+| `POST` | `/api/sessions/{id}/restore` | none | `RestoreSessionResponse` |
+| `GET` | `/api/sessions/{id}/history` | none | `HistoryResponse` |
+| `GET` | `/api/sessions/{id}/bindings` | none | `BindingsResponse` |
+| `GET` | `/api/sessions/{id}/docs` | none | `DocsResponse` |
+| `GET` | `/api/sessions/{id}/export` | none | `ExportSessionResponse` |
+
+### TypeScript decoding
+
+```ts
+import { fromJson } from "@bufbuild/protobuf";
+import { EvaluateResponseSchema } from "replapi-types";
+
+const body = await fetch(`/api/sessions/${sessionID}/evaluate`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ schemaVersion: 1, source: "const x = 1; x" }),
+}).then((response) => response.json());
+
+const decoded = fromJson(EvaluateResponseSchema, body);
+console.log(decoded.cell?.execution?.status);
+```
+
+Important transport details:
+
+- Unknown protobuf JSON request fields are rejected by the evaluate route.
+- `int64` protobuf fields decode as JavaScript `bigint` values with `@bufbuild/protobuf` v2; use protobuf JSON helpers such as `toJson()` before serializing decoded messages again.
+- Persisted arbitrary JSON fields use `google.protobuf.Value`; `toJson()` projects them back to ordinary JSON values.
+- `ExecutionReport.resultJson` intentionally remains a string containing JSON in v1 to preserve the current `replsession` DTO semantics.

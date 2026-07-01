@@ -11,16 +11,16 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/replapi/pbconv"
 )
 
-func TestProtoJSONHandlerSessionLifecycle(t *testing.T) {
+func TestHandlerSessionLifecycle(t *testing.T) {
 	t.Parallel()
 
-	handler, err := NewProtoJSONHandler(newTestApp(t))
+	handler, err := NewHandler(newTestApp(t))
 	if err != nil {
 		t.Fatalf("new proto handler: %v", err)
 	}
 
 	createRes := httptest.NewRecorder()
-	handler.ServeHTTP(createRes, httptest.NewRequest(http.MethodPost, "/api/v1/sessions", nil))
+	handler.ServeHTTP(createRes, httptest.NewRequest(http.MethodPost, "/api/sessions", nil))
 	if createRes.Code != http.StatusCreated {
 		t.Fatalf("expected 201 create, got %d: %s", createRes.Code, createRes.Body.String())
 	}
@@ -35,7 +35,7 @@ func TestProtoJSONHandlerSessionLifecycle(t *testing.T) {
 
 	evalBody := bytes.NewBufferString(`{"schemaVersion":1,"source":"const x = 1; x"}`)
 	evalRes := httptest.NewRecorder()
-	handler.ServeHTTP(evalRes, httptest.NewRequest(http.MethodPost, "/api/v1/sessions/"+sessionID+"/evaluate", evalBody))
+	handler.ServeHTTP(evalRes, httptest.NewRequest(http.MethodPost, "/api/sessions/"+sessionID+"/evaluate", evalBody))
 	if evalRes.Code != http.StatusOK {
 		t.Fatalf("expected 200 evaluate, got %d: %s", evalRes.Code, evalRes.Body.String())
 	}
@@ -48,7 +48,7 @@ func TestProtoJSONHandlerSessionLifecycle(t *testing.T) {
 	}
 
 	historyRes := httptest.NewRecorder()
-	handler.ServeHTTP(historyRes, httptest.NewRequest(http.MethodGet, "/api/v1/sessions/"+sessionID+"/history", nil))
+	handler.ServeHTTP(historyRes, httptest.NewRequest(http.MethodGet, "/api/sessions/"+sessionID+"/history", nil))
 	if historyRes.Code != http.StatusOK {
 		t.Fatalf("expected 200 history, got %d: %s", historyRes.Code, historyRes.Body.String())
 	}
@@ -61,22 +61,22 @@ func TestProtoJSONHandlerSessionLifecycle(t *testing.T) {
 	}
 }
 
-func TestProtoJSONHandlerRejectsUnknownEvaluateFields(t *testing.T) {
+func TestHandlerRejectsUnknownEvaluateFields(t *testing.T) {
 	t.Parallel()
 
-	handler, err := NewProtoJSONHandler(newTestApp(t))
+	handler, err := NewHandler(newTestApp(t))
 	if err != nil {
 		t.Fatalf("new proto handler: %v", err)
 	}
 	createRes := httptest.NewRecorder()
-	handler.ServeHTTP(createRes, httptest.NewRequest(http.MethodPost, "/api/v1/sessions", nil))
+	handler.ServeHTTP(createRes, httptest.NewRequest(http.MethodPost, "/api/sessions", nil))
 	var createPayload replapiv1.CreateSessionResponse
 	if err := pbconv.UnmarshalOptions.Unmarshal(createRes.Body.Bytes(), &createPayload); err != nil {
 		t.Fatalf("decode create response: %v", err)
 	}
 
 	evalRes := httptest.NewRecorder()
-	handler.ServeHTTP(evalRes, httptest.NewRequest(http.MethodPost, "/api/v1/sessions/"+createPayload.GetSession().GetId()+"/evaluate", strings.NewReader(`{"source":"1","surprise":true}`)))
+	handler.ServeHTTP(evalRes, httptest.NewRequest(http.MethodPost, "/api/sessions/"+createPayload.GetSession().GetId()+"/evaluate", strings.NewReader(`{"source":"1","surprise":true}`)))
 	if evalRes.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for unknown field, got %d: %s", evalRes.Code, evalRes.Body.String())
 	}
@@ -85,15 +85,15 @@ func TestProtoJSONHandlerRejectsUnknownEvaluateFields(t *testing.T) {
 	}
 }
 
-func TestProtoJSONHandlerSessionNotFound(t *testing.T) {
+func TestHandlerSessionNotFound(t *testing.T) {
 	t.Parallel()
 
-	handler, err := NewProtoJSONHandler(newTestApp(t))
+	handler, err := NewHandler(newTestApp(t))
 	if err != nil {
 		t.Fatalf("new proto handler: %v", err)
 	}
 	res := httptest.NewRecorder()
-	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/api/v1/sessions/missing", nil))
+	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/api/sessions/missing", nil))
 	if res.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d: %s", res.Code, res.Body.String())
 	}

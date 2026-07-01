@@ -25,6 +25,8 @@ RelatedFiles:
       Note: Phase B Buf module/lint configuration
     - Path: package.json
       Note: Root pnpm scripts for replapi-types validation
+    - Path: pkg/doc/04-repl-usage.md
+      Note: Updated existing REPL help with protobuf JSON endpoint and TypeScript usage notes
     - Path: pkg/replapi/app.go
       Note: Application facade boundary for session and persistence behavior
     - Path: pkg/replapi/pb/proto/goja/replapi/v1/replapi.pb.go
@@ -42,11 +44,9 @@ RelatedFiles:
     - Path: pkg/repldb/types.go
       Note: Persistent session/export record shapes with raw JSON fields
     - Path: pkg/replhttp/handler.go
-      Note: |-
-        Current JSON HTTP route surface to migrate or version
-        Legacy handler preserved while v1 handler is added alongside it
+      Note: Shared REPL HTTP error and recovery helpers after legacy handler removal
     - Path: pkg/replhttp/proto_handler.go
-      Note: Phase D protobuf JSON /api/v1 handler
+      Note: Phase D protobuf JSON /api hard-cutover handler
     - Path: pkg/replhttp/proto_handler_test.go
       Note: Phase D protobuf JSON HTTP tests
     - Path: pkg/replsession/policy.go
@@ -57,6 +57,8 @@ RelatedFiles:
       Note: Workspace package discovery for web/packages/*
     - Path: proto/goja/replapi/v1/replapi.proto
       Note: Phase B public replapi protobuf schema
+    - Path: ttmp/2026/07/01/GOJA-067--protobuf-schema-for-replapi-payloads-and-typescript-generation/reference/02-current-replapi-json-shape-inventory.md
+      Note: Updated existing inventory with final schema and implementation links
     - Path: web/packages/replapi-types/README.md
       Note: Package usage and BigInt serialization notes
     - Path: web/packages/replapi-types/package.json
@@ -79,6 +81,7 @@ LastUpdated: 2026-07-01T08:57:25.128406471-07:00
 WhatFor: Use when implementing or reviewing protobuf schemas, generated Go/TypeScript code, and compatibility adapters for replapi/replhttp payloads.
 WhenToUse: Use before changing pkg/replsession DTOs, pkg/replhttp JSON routes, goja-repl serve, or a frontend that consumes REPL session/evaluation payloads.
 ---
+
 
 
 
@@ -329,7 +332,7 @@ Keep the existing routes initially. Only the response bodies become protobuf-gen
 | `GET /api/sessions/{id}/docs` | `DocsResponse` |
 | `GET /api/sessions/{id}/export` | `SessionExport` or `ExportSessionResponse` |
 
-A later version can add `/api/v1/...` routes if dual-running old and new JSON shapes becomes necessary.
+A later version can add `/api/...` routes if dual-running old and new JSON shapes becomes necessary.
 
 ## Proposed protobuf API sketch
 
@@ -650,13 +653,11 @@ func RawJSONToValue(raw json.RawMessage) (*structpb.Value, error) {
 
 The reverse function should use `protojson` only at the HTTP edge. Internal persistence can remain `encoding/json` until a later migration.
 
-## HTTP migration plan
+## HTTP cutover plan
 
-There are two viable migration paths.
+The final implementation uses a hard cutover: `replhttp.NewHandler` now encodes the existing `/api/...` route family as protobuf JSON response messages. The previous hand-written `encoding/json` response envelopes were removed before public adoption.
 
-### Option A: Replace response encoding in existing routes
-
-This keeps the route surface unchanged and changes each handler to wrap internal values in protobuf response messages before encoding:
+The handler keeps the deployment and routing model simple:
 
 ```go
 resp, err := app.Evaluate(r.Context(), id, req.Source)
@@ -664,20 +665,7 @@ if err != nil { ... }
 writeProtoJSON(w, http.StatusOK, pbconv.EvaluateResponseToProto(resp))
 ```
 
-This is simplest for users who do not care about dual-running old and new JSON. It has one risk: protobuf JSON omits empty fields differently than `encoding/json` in some cases, and timestamp/int64 rendering will change for affected fields.
-
-### Option B: Add `/api/v1` protobuf-JSON routes and keep legacy routes
-
-This adds new typed routes while keeping old JSON behavior:
-
-```text
-/api/sessions/...       legacy encoding/json DTOs
-/api/v1/sessions/...    protobuf JSON DTOs
-```
-
-This is safer for compatibility and better for incremental frontend adoption. It costs more code in the short term.
-
-Recommended decision: implement Option B first if any external UI already depends on current JSON. Implement Option A only if this API is still internal enough to change in place.
+The tradeoff is intentional: protobuf JSON differs from `encoding/json` for timestamps, `int64` fields, omitted zero values, and arbitrary `google.protobuf.Value` fields. Because there are no current external users, the repository can accept that wire-format change now and avoid carrying both legacy and protobuf route implementations.
 
 ## Decision records
 
@@ -764,20 +752,15 @@ Tests:
 - Unit tests for `repldb.EvaluationRecord` raw JSON conversion.
 - Golden JSON tests comparing protojson output to expected camelCase JSON.
 
-### Phase 4: Add protobuf JSON handler path
+### Phase 4: Replace the REPL HTTP handler with protobuf JSON
 
-Add either `/api/v1` routes or a new handler constructor:
+Replace the existing `replhttp.NewHandler` implementation with protobuf JSON encoding on the existing `/api/...` route family:
 
 ```go
-func NewProtoJSONHandler(app *replapi.App) (http.Handler, error)
+func NewHandler(app *replapi.App) (http.Handler, error)
 ```
 
-Keep `NewHandler` unchanged until compatibility is proven. `goja-repl serve` can expose both under one mux:
-
-```text
-/api/...     legacy
-/api/v1/...  protobuf JSON
-```
+Do not keep a parallel legacy handler. The API has no users yet, so the hard cutover is cheaper and easier to maintain than dual route trees.
 
 ### Phase 5: Add TypeScript consumer tests
 
@@ -812,10 +795,6 @@ Validate:
 
 Once a workbench exists, use generated TypeScript shapes for API calls. Keep frontend-specific view models separate from wire models. Use transformations only at component boundaries.
 
-### Phase 7: Decide whether to retire legacy JSON
-
-After one frontend consumes `/api/v1`, decide whether `pkg/replhttp.NewHandler` should remain legacy forever, internally call the proto handler, or be replaced by the protobuf handler in a major release.
-
 ## Phase E implementation status
 
 The TypeScript consumer package is implemented at `web/packages/replapi-types`. It uses a root `pnpm-workspace.yaml` and root `package.json` scripts for focused validation, with package-local `typecheck` and `test` scripts. The package exports generated protobuf bindings through `src/index.ts` and includes Go-emitted protojson fixtures for `EvaluateResponse` and `SessionExport`.
@@ -826,6 +805,15 @@ The Phase E smoke test decodes fixtures with `fromJson`, validates `bigint` beha
 pnpm replapi-types:typecheck
 pnpm replapi-types:test
 ```
+
+
+## Final implementation summary
+
+GOJA-067 is implemented as a hard-cutover transport layer. Internal REPL service DTOs remain in `pkg/replsession` and `pkg/repldb`; generated protobuf messages live at the transport boundary. `pkg/replapi/pbconv` converts internal DTOs to/from protobuf messages, and `pkg/replhttp.NewHandler` exposes `/api/...` protobuf JSON routes as the only REPL HTTP transport.
+
+The generated TypeScript package is `replapi-types`. It is validated by decoding Go-emitted protojson fixtures for `EvaluateResponse` and `SessionExport`, and it is prepared for npm publication through a compiled `dist/` artifact plus npm Trusted Publishing. The package has been bootstrapped on npm as `replapi-types@0.1.0`, and trusted publishing has been configured for `go-go-golems/go-go-goja` / `publish-npm.yml` / `npm-production`. The remaining publish proof is a post-merge workflow run with a bumped version, because the workflow file must exist on the default branch before GitHub allows manual dispatch.
+
+No separate protobuf reference document was added in Phase F; the existing REPL usage help, this design guide, and the JSON-shape inventory now carry the final implementation notes.
 
 ## npm publishing and trusted publishing implementation status
 
@@ -863,7 +851,7 @@ Only after a real tokenless GitHub Actions publish under `next` succeeds should 
 - Golden protojson tests for representative evaluation responses.
 - Round-trip tests for request messages, especially `EvaluateRequest`.
 - Strict unknown-field tests with `protojson.UnmarshalOptions{DiscardUnknown:false}`.
-- Handler tests that compare `/api/v1` output to generated protobuf JSON expectations.
+- Handler tests that compare `/api` output to generated protobuf JSON expectations.
 
 ### TypeScript tests
 
@@ -875,14 +863,7 @@ Only after a real tokenless GitHub Actions publish under `next` succeeds should 
 
 ### Compatibility tests
 
-If legacy routes remain, keep tests for both route families:
-
-```text
-/api/sessions/{id}/evaluate     legacy encoding/json
-/api/v1/sessions/{id}/evaluate  protobuf JSON
-```
-
-This makes intentional shape differences visible.
+No compatibility route family remains. The important coverage is that existing `/api/...` routes decode requests strictly where protobuf JSON is used and return generated protobuf response shapes.
 
 ## Risks and mitigations
 
@@ -896,7 +877,7 @@ Mitigation: implement top-level live session/evaluate messages first, then add p
 
 Timestamps, int64 values, zero values, and omitted fields may change.
 
-Mitigation: introduce `/api/v1` routes first and use golden tests. Keep legacy routes until consumers migrate.
+Mitigation: use golden tests and TypeScript decode tests for the new `/api/...` protobuf JSON contract. The hard cutover is acceptable because the API has no external consumers yet.
 
 ### Risk: Dynamic JSON fields lose fidelity
 
@@ -925,9 +906,9 @@ Mitigation: add an explicit mapping test and a checklist for any changes to `pkg
 5. Add Buf config and run generation.
 6. Add `pkg/replapi/pbconv` with output adapters.
 7. Add protojson golden tests.
-8. Add `/api/v1` handler routes.
+8. Replace the `/api/...` handler routes with protobuf JSON encoding.
 9. Add a minimal TypeScript decode test using generated code.
-10. Update `goja-repl serve` docs to explain legacy and protobuf JSON endpoints.
+10. Update `goja-repl serve` docs to explain protobuf JSON endpoints.
 
 ## References
 

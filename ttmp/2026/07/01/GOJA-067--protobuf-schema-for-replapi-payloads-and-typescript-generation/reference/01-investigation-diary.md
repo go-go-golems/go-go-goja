@@ -1069,3 +1069,171 @@ PR:
 ```text
 https://github.com/go-go-golems/go-go-goja/pull/91
 ```
+
+## Step 11: Hard-cut the REPL HTTP API to protobuf JSON
+
+The user clarified that there are no current API users, so we do not need to carry legacy JSON routes in parallel with protobuf JSON routes. I changed the implementation from an additive `/api/v1`-style migration to a hard cutover: `replhttp.NewHandler` now serves protobuf JSON responses directly on the existing `/api/...` route family.
+
+This removes the old hand-written response-envelope handler code and keeps only shared error/recovery helpers plus the protobuf JSON handler implementation. I also updated the existing docs instead of adding another reference document, per the user's instruction.
+
+### Prompt Context
+
+**User prompt (verbatim):** "You can remove the legacy code / handlers for a hard cutover, in order to cut down code size and complexity. We don't have any users right now so we can easily switch the API."
+
+**Assistant interpretation:** Replace the dual-handler migration design with a simpler schema-first API, removing legacy replhttp handler code and updating docs/tests accordingly.
+
+**Inferred user intent:** The user wants to reduce maintenance burden and avoid compatibility shims before the API has external consumers.
+
+**Commit (code):** N/A — hard-cutover changes pending commit at time of diary entry.
+
+### What I did
+
+- Replaced the legacy `pkg/replhttp/handler.go` implementation with shared error/recovery helpers only.
+- Changed `pkg/replhttp/proto_handler.go` so `NewHandler` serves protobuf JSON directly under `/api/...`.
+- Updated protobuf HTTP tests from `/api/v1/...` to `/api/...`.
+- Reduced old handler tests to shared test-app setup and removed legacy envelope assertions.
+- Updated existing docs:
+  - `pkg/doc/04-repl-usage.md`,
+  - GOJA-067 design guide,
+  - GOJA-067 JSON-shape inventory.
+- Fixed `EvalModeFromProto` to handle `EVAL_MODE_UNSPECIFIED` explicitly so `make lint` passes exhaustive switch checking.
+
+### Why
+
+- There are no current users, so a compatibility-preserving dual route tree only adds code and documentation complexity.
+- The protobuf schema should now be the only public REPL HTTP contract.
+
+### What worked
+
+Validation passed:
+
+```bash
+buf generate --path proto/goja/replapi/v1/replapi.proto
+git diff --exit-code -- proto/goja/replapi/v1/replapi.proto pkg/replapi/pb/proto/goja/replapi/v1/replapi.pb.go web/packages/replapi-types/src/generated/proto/goja/replapi/v1/replapi_pb.ts
+GOWORK=off go test ./pkg/replapi/... ./pkg/replhttp/... ./pkg/replsession/... -count=1
+GOWORK=off go test ./... -count=1
+GOWORK=off make test
+GOWORK=off make lint
+```
+
+### What didn't work
+
+- `GOWORK=off make lint` initially failed on an exhaustive switch warning:
+
+```text
+pkg/replapi/pbconv/session.go:60:2: missing cases in switch of type replapiv1.EvalMode: replapiv1.EvalMode_EVAL_MODE_UNSPECIFIED (exhaustive)
+```
+
+I fixed it by adding an explicit `EVAL_MODE_UNSPECIFIED` case in `EvalModeFromProto`.
+
+### What I learned
+
+- The hard cutover makes `NewHandler` the stable schema-first entry point and eliminates the naming ambiguity between legacy and proto handlers.
+- The docs needed to distinguish protobuf package version `goja.replapi.v1` from URL route versioning; the route versioning is now gone.
+
+### What was tricky to build
+
+- The old tests included useful fixture setup but asserted legacy envelope behavior. I kept the setup helper and moved route-shape assertions into protobuf decoding tests.
+- Some design sections still described the earlier migration plan. I updated those sections to record the hard-cutover decision rather than pretending the earlier plan still applies.
+
+### What warrants a second pair of eyes
+
+- Review whether any external examples or future workbench code assumed `/api/v1`; the current implementation intentionally uses `/api` only.
+- Review error payloads: they remain simple JSON `{ "error": "..." }`, not generated protobuf error messages.
+
+### What should be done in the future
+
+- After PR merge, bump `replapi-types` and run the trusted-publishing workflow to prove tokenless publication from GitHub Actions.
+
+### Code review instructions
+
+- Start with `pkg/replhttp/proto_handler.go` and confirm every route is mounted under `/api/...`.
+- Review `pkg/replhttp/handler.go` to confirm only shared helpers remain.
+- Validate with the commands listed above.
+
+### Technical details
+
+The serving entry point remains:
+
+```go
+handler, err := replhttp.NewHandler(app)
+```
+
+but the payload contract is now generated protobuf JSON.
+
+## Step 12: Final validation and reMarkable delivery
+
+After the hard cutover, I completed the remaining Phase F validation and uploaded the final GOJA-067 documentation bundle to reMarkable. The ticket now records the implemented protobuf schema, hard-cutover HTTP transport, TypeScript package, npm bootstrap, trusted publishing setup, and final validation results.
+
+This closes the implementation side of GOJA-067. The only remaining operational proof is post-merge: bump `replapi-types` and run the trusted-publishing GitHub Actions workflow from the default branch.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 11)
+
+**Assistant interpretation:** Finish the existing-doc update path and complete final validation/delivery without creating a new protobuf reference document.
+
+**Inferred user intent:** The user wants the protobuf ticket to be wrapped up cleanly after the hard-cutover simplification.
+
+**Commit (code):** N/A — final docs pending commit at time of diary entry.
+
+### What I did
+
+- Completed final validation commands.
+- Marked Phase F validation and delivery tasks complete.
+- Uploaded the final bundle:
+
+```text
+/ai/2026/07/01/GOJA-067/GOJA-067 Protobuf replapi Final Update.pdf
+```
+
+### Why
+
+- The ticket deliverable should match the implementation now in the branch and the npm package state.
+- The reMarkable bundle gives a portable review artifact for the complete ticket.
+
+### What worked
+
+- `remarquee upload bundle` succeeded:
+
+```text
+OK: uploaded GOJA-067 Protobuf replapi Final Update.pdf -> /ai/2026/07/01/GOJA-067
+```
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Running `GOWORK=off make test` and `GOWORK=off make lint` avoids the stale workspace Go-version mismatch that affects local hooks.
+
+### What was tricky to build
+
+- The final state crosses several systems: Go protobuf adapters, HTTP routing, TypeScript generation, npm packaging, GitHub Actions, npm trust, and docmgr delivery. The diary and tasks are important because the remaining post-merge publish proof is operational rather than code-local.
+
+### What warrants a second pair of eyes
+
+- Review PR #91 before merge, especially the hard-cutover HTTP route behavior and the new npm publish workflow.
+
+### What should be done in the future
+
+- Merge PR #91.
+- Bump `replapi-types` to `0.1.1` or another new version.
+- Run `publish-npm` from GitHub Actions under `next` to prove tokenless trusted publishing.
+- After that succeeds, consider disabling token publishing for `replapi-types`.
+
+### Code review instructions
+
+- Review the PR in this order:
+  1. `proto/goja/replapi/v1/replapi.proto`,
+  2. `pkg/replapi/pbconv/`,
+  3. `pkg/replhttp/proto_handler.go`,
+  4. `web/packages/replapi-types/`,
+  5. `.github/workflows/publish-npm.yml`,
+  6. docs under `ttmp/2026/07/01/GOJA-067...`.
+- Validate with the commands recorded in Step 11.
+
+### Technical details
+
+Final reMarkable bundle command used `remarquee upload bundle` with `--toc-depth 2` and `--non-interactive`.

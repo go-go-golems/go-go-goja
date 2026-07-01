@@ -199,24 +199,24 @@
 
 ### F.1 Documentation
 
-- [ ] Update `pkg/doc/04-repl-usage.md` with protobuf JSON endpoint notes.
-- [ ] Add a dedicated help/reference doc for `replapi` protobuf payloads if appropriate.
-- [ ] Update design guide with implementation status and any deviations.
-- [ ] Update field inventory with final schema links.
+- [x] Update `pkg/doc/04-repl-usage.md` with protobuf JSON endpoint notes.
+- [x] Decide not to add a new protobuf help/reference doc; update existing REPL usage, design, and inventory docs instead.
+- [x] Update design guide with implementation status and hard-cutover deviation.
+- [x] Update field inventory with final schema links.
 
 ### F.2 Validation
 
 - [x] Run `buf lint`.
-- [ ] Run `buf generate` and verify clean generated output.
-- [ ] Run `GOWORK=off go test ./pkg/replapi/... ./pkg/replhttp/... ./pkg/replsession/... -count=1`.
-- [ ] Run `GOWORK=off go test ./... -count=1` if feasible.
-- [ ] Run `make test` if feasible.
-- [ ] Run `make lint` if feasible.
+- [x] Run `buf generate` and verify clean generated output.
+- [x] Run `GOWORK=off go test ./pkg/replapi/... ./pkg/replhttp/... ./pkg/replsession/... -count=1`.
+- [x] Run `GOWORK=off go test ./... -count=1` if feasible.
+- [x] Run `GOWORK=off make test` if feasible.
+- [x] Run `GOWORK=off make lint` if feasible.
 - [x] Run TypeScript smoke tests if added.
 - [x] Run `docmgr --root ttmp doctor --ticket GOJA-067 --stale-after 30`.
 
 ### F.3 Delivery
 
-- [ ] Upload updated GOJA-067 bundle to reMarkable.
-- [ ] Commit final docs.
-- [ ] Push branch.
+- [x] Upload updated GOJA-067 bundle to reMarkable.
+- [x] Commit final docs.
+- [x] Push branch.

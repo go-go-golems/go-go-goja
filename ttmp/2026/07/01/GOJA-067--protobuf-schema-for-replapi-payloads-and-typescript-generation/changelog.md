@@ -118,3 +118,25 @@ Published replapi-types@0.1.0 to npm, configured npm Trusted Publishing for go-g
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/.github/workflows/publish-npm.yml — Trusted publishing workflow pending default-branch availability
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/package.json — Published package metadata for replapi-types@0.1.0
 
+
+## 2026-07-01
+
+Phase F hard cutover: removed the legacy hand-written replhttp JSON handler, made NewHandler serve protobuf JSON on /api routes, updated existing REPL/design/inventory docs instead of adding a new reference doc, and completed final Go/Buf/lint validation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/doc/04-repl-usage.md — Existing help updated with protobuf JSON route and TS usage notes
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replapi/pbconv/session.go — Exhaustive EvalMode conversion fixed for lint
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replhttp/handler.go — Legacy handler removed; shared error/recovery helpers remain
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/pkg/replhttp/proto_handler.go — NewHandler now serves protobuf JSON on /api routes
+
+
+## 2026-07-01
+
+Uploaded the final GOJA-067 bundle to reMarkable as GOJA-067 Protobuf replapi Final Update.pdf under /ai/2026/07/01/GOJA-067.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/ttmp/2026/07/01/GOJA-067--protobuf-schema-for-replapi-payloads-and-typescript-generation/design-doc/01-protobuf-replapi-schema-and-typescript-generation-implementation-guide.md — Included in final reMarkable bundle
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/ttmp/2026/07/01/GOJA-067--protobuf-schema-for-replapi-payloads-and-typescript-generation/reference/01-investigation-diary.md — Included in final reMarkable bundle
+

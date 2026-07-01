@@ -58,6 +58,8 @@ func EvalModeToProto(in replsession.EvalMode) replapiv1.EvalMode {
 
 func EvalModeFromProto(in replapiv1.EvalMode) replsession.EvalMode {
 	switch in {
+	case replapiv1.EvalMode_EVAL_MODE_UNSPECIFIED:
+		return ""
 	case replapiv1.EvalMode_EVAL_MODE_RAW:
 		return replsession.EvalModeRaw
 	case replapiv1.EvalMode_EVAL_MODE_INSTRUMENTED:

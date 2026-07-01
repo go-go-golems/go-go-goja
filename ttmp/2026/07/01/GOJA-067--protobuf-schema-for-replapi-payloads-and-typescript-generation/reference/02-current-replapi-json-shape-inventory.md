@@ -44,6 +44,29 @@ The current public HTTP API is implemented in `pkg/replhttp/handler.go`. It uses
 
 The proposed protobuf package is `goja.replapi.v1`, with generated Go under `pkg/replapi/pb` and generated TypeScript under a frontend-facing package path chosen in Phase B.
 
+
+## Final implementation links
+
+The Phase A inventory was implemented as a schema-first transport layer rather than a replacement for the internal REPL service model.
+
+- Schema: `proto/goja/replapi/v1/replapi.proto`
+- Generated Go: `pkg/replapi/pb/proto/goja/replapi/v1/replapi.pb.go`
+- Generated TypeScript: `web/packages/replapi-types/src/generated/proto/goja/replapi/v1/replapi_pb.ts`
+- Go conversion adapters: `pkg/replapi/pbconv/`
+- Opt-in protobuf JSON handler: `pkg/replhttp/proto_handler.go`
+- TypeScript package and smoke tests: `web/packages/replapi-types/`
+- npm package: `replapi-types`
+
+The legacy `encoding/json` handler has been removed. `replhttp.NewHandler` exposes protobuf JSON routes under `/api/...`.
+
+Notable final choices relative to the initial inventory:
+
+- `ExportSessionResponse` wraps `SessionExport` for HTTP response consistency.
+- `ExecutionReport.result_json` remains a string in v1, preserving existing `replsession.ExecutionReport.ResultJSON` behavior.
+- `json.RawMessage` persistence fields are represented with `google.protobuf.Value`, which supports object, array, string, number, boolean, and null JSON shapes.
+- Broad runtime/parser status fields remain strings; only `EvalMode` is modeled as a protobuf enum.
+- CI publishing for the TypeScript bindings uses a compiled `dist/` artifact and npm Trusted Publishing, not source-only package publication.
+
 ## Route inventory
 
 | Method | Path | Request body | Current response body | Source | Proposed protobuf response |
