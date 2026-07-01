@@ -108,3 +108,13 @@ Renamed the npm package from the scoped go-go-goja-specific name to replapi-type
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/package.json — Package name changed to replapi-types
 - /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/scripts/consumer-smoke.mjs — Consumer smoke imports updated to replapi-types
 
+
+## 2026-07-01
+
+Published replapi-types@0.1.0 to npm, configured npm Trusted Publishing for go-go-golems/go-go-goja publish-npm.yml in npm-production, created the GitHub environment, pushed the branch, and opened PR #91; workflow verification is pending merge because GitHub cannot dispatch a new workflow file before it exists on the default branch.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/.github/workflows/publish-npm.yml — Trusted publishing workflow pending default-branch availability
+- /home/manuel/workspaces/2026-06-30/benchmark-cpu-inference/go-go-goja/web/packages/replapi-types/package.json — Published package metadata for replapi-types@0.1.0
+
