@@ -207,3 +207,73 @@ Task file:
 ```text
 ttmp/2026/07/01/GOJA-067--protobuf-schema-for-replapi-payloads-and-typescript-generation/tasks.md
 ```
+
+## Step 3: Complete Phase A Current JSON Shape Inventory
+
+Phase A produced a field-by-field inventory of the current `replapi` HTTP JSON contract. This turns the current implementation into an explicit schema authoring checklist: every route, inline envelope, live DTO, persistence DTO, timestamp, integer field, dynamic JSON field, and enum/string choice is recorded before writing the `.proto` file.
+
+This phase deliberately stayed documentation-only. The goal was to prevent the next phase from inventing protobuf messages from memory or only from the design guide. The inventory is more mechanical: it is the checklist that should be open next to `replapi.proto` while authoring the schema.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Begin implementing the detailed plan one task/phase at a time after expanding the checklist.
+
+**Inferred user intent:** The user wants executable progress with enough documentation to resume safely.
+
+**Commit (code):** N/A — Phase A documentation inventory before commit.
+
+### What I did
+
+- Added `reference/02-current-replapi-json-shape-inventory.md`.
+- Inventoried all current `pkg/replhttp` routes and their response envelopes.
+- Mapped live `pkg/replsession` DTOs to proposed protobuf messages.
+- Mapped `pkg/replsession/policy.go` session policy structs and eval mode values.
+- Mapped `pkg/repldb` persistence/export records.
+- Recorded representation decisions for timestamps, integer widths, dynamic JSON, `ExecutionReport.resultJson`, and enum-vs-string fields.
+- Updated GOJA-067 tasks to mark Phase A inventory work complete.
+- Related the inventory doc to its source files and updated the changelog.
+
+### Why
+
+- A protobuf schema is only useful if it faithfully represents the current transport surface.
+- `replapi` has a broad DTO tree, so a pre-schema inventory reduces omission risk.
+
+### What worked
+
+- The current DTO boundary is concentrated enough to inventory cleanly: `types.go`, `policy.go`, `repldb/types.go`, and `handler.go` cover the public route payloads.
+- The inventory clarified that route envelopes should become named protobuf messages.
+
+### What didn't work
+
+- The task list expected `reference/02-current-replapi-json-shape.md`, but `docmgr doc add` generated the clearer filename `reference/02-current-replapi-json-shape-inventory.md`. I kept the generated name and marked the task complete by content rather than exact filename.
+
+### What I learned
+
+- `ExecutionReport.resultJson` and `repldb` raw JSON fields should not be treated the same in v1. The former is currently a string containing a result envelope; the latter are arbitrary persisted JSON values and should map to `google.protobuf.Value`.
+
+### What was tricky to build
+
+- The schema should not turn every string field into an enum immediately. Statuses, kinds, origins, changes, severities, and source kinds come from several parser/runtime subsystems and may evolve. The inventory records `EvalMode` as the only obvious first enum.
+
+### What warrants a second pair of eyes
+
+- Review the integer-width mapping before Phase B. Most current `int` fields are non-negative and fit `uint32`, but the implementation should verify no field can legitimately be negative.
+
+### What should be done in the future
+
+- Implement Phase B by adding `proto/goja/replapi/v1/replapi.proto`, Buf config, and generated Go/TypeScript outputs.
+
+### Code review instructions
+
+- Start with `reference/02-current-replapi-json-shape-inventory.md`.
+- Cross-check it against `pkg/replhttp/handler.go`, `pkg/replsession/types.go`, `pkg/replsession/policy.go`, and `pkg/repldb/types.go`.
+
+### Technical details
+
+Inventory doc:
+
+```text
+ttmp/2026/07/01/GOJA-067--protobuf-schema-for-replapi-payloads-and-typescript-generation/reference/02-current-replapi-json-shape-inventory.md
+```

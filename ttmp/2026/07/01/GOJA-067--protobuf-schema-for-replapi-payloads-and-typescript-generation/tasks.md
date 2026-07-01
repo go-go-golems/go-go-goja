@@ -17,34 +17,34 @@
 
 ### A.1 Route inventory
 
-- [ ] Create `reference/02-current-replapi-json-shape.md`.
-- [ ] List every `pkg/replhttp` route with method, path, handler function responsibility, request body, response body, and current Go source type.
-- [ ] Mark which responses are inline envelopes such as `{session: ...}` or `{history: ...}`.
-- [ ] Mark which responses expose `repldb` persistence types rather than live `replsession` types.
+- [x] Create `reference/02-current-replapi-json-shape.md`.
+- [x] List every `pkg/replhttp` route with method, path, handler function responsibility, request body, response body, and current Go source type.
+- [x] Mark which responses are inline envelopes such as `{session: ...}` or `{history: ...}`.
+- [x] Mark which responses expose `repldb` persistence types rather than live `replsession` types.
 
 ### A.2 DTO inventory
 
-- [ ] Map `replsession.SessionSummary` to a proposed protobuf message.
-- [ ] Map `replsession.SessionPolicy`, `EvalPolicy`, `ObservePolicy`, and `PersistPolicy` to proposed protobuf fields/enums.
-- [ ] Map `replsession.EvaluateRequest` and `EvaluateResponse`.
-- [ ] Map `replsession.CellReport` and subreports: `StaticReport`, `RewriteReport`, `ExecutionReport`, and `RuntimeReport`.
-- [ ] Map binding/runtime detail views: `BindingView`, `BindingStaticView`, `BindingRuntimeView`, `PropertyView`, descriptor/prototype/function mapping views.
-- [ ] Map static-analysis detail views: diagnostics, top-level bindings, references, identifier usages, scopes, AST rows, CST rows, ranges, and members.
-- [ ] Map `repldb.SessionRecord`, `SessionExport`, `EvaluationRecord`, `ConsoleEventRecord`, `BindingVersionRecord`, and `BindingDocRecord`.
+- [x] Map `replsession.SessionSummary` to a proposed protobuf message.
+- [x] Map `replsession.SessionPolicy`, `EvalPolicy`, `ObservePolicy`, and `PersistPolicy` to proposed protobuf fields/enums.
+- [x] Map `replsession.EvaluateRequest` and `EvaluateResponse`.
+- [x] Map `replsession.CellReport` and subreports: `StaticReport`, `RewriteReport`, `ExecutionReport`, and `RuntimeReport`.
+- [x] Map binding/runtime detail views: `BindingView`, `BindingStaticView`, `BindingRuntimeView`, `PropertyView`, descriptor/prototype/function mapping views.
+- [x] Map static-analysis detail views: diagnostics, top-level bindings, references, identifier usages, scopes, AST rows, CST rows, ranges, and members.
+- [x] Map `repldb.SessionRecord`, `SessionExport`, `EvaluationRecord`, `ConsoleEventRecord`, `BindingVersionRecord`, and `BindingDocRecord`.
 
 ### A.3 Representation decisions
 
-- [ ] Record timestamp mapping (`time.Time` -> `google.protobuf.Timestamp`).
-- [ ] Record integer-width mapping (`int` -> `uint32` or `int32`; `int64` -> `int64`).
-- [ ] Record dynamic JSON mapping (`json.RawMessage` -> `google.protobuf.Value`).
-- [ ] Record compatibility decision for `ExecutionReport.resultJson` as a string in v1.
-- [ ] Record enum-vs-string decisions for status, kind, severity, origin, change, source kind, and export kind.
+- [x] Record timestamp mapping (`time.Time` -> `google.protobuf.Timestamp`).
+- [x] Record integer-width mapping (`int` -> `uint32` or `int32`; `int64` -> `int64`).
+- [x] Record dynamic JSON mapping (`json.RawMessage` -> `google.protobuf.Value`).
+- [x] Record compatibility decision for `ExecutionReport.resultJson` as a string in v1.
+- [x] Record enum-vs-string decisions for status, kind, severity, origin, change, source kind, and export kind.
 
 ### A.4 Phase A validation and bookkeeping
 
-- [ ] Run `docmgr --root ttmp doctor --ticket GOJA-067 --stale-after 30`.
-- [ ] Update diary with Phase A implementation details.
-- [ ] Update changelog and doc relations.
+- [x] Run `docmgr --root ttmp doctor --ticket GOJA-067 --stale-after 30`.
+- [x] Update diary with Phase A implementation details.
+- [x] Update changelog and doc relations.
 - [ ] Commit Phase A.
 
 ## Implementation Phase B — Protobuf schema and Buf generation setup
