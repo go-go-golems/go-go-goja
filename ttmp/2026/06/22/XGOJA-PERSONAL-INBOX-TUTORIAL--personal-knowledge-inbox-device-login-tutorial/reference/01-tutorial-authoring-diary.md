@@ -1758,3 +1758,124 @@ Bob browser session   -> approve Bob device   -> token capture Bob item
 Alice /api/inbox includes Alice item and excludes Bob item
 Bob /api/inbox includes Bob item and excludes Alice item
 ```
+
+## Step 16: Reorient tinyidp work on the correct auth branch and revalidate smokes
+
+This step re-established the work in the correct `go-go-goja` auth branch after the earlier proof-of-concept and handoff documents had been created from the notebook workspace. No new code was necessary in this step because `task/api-auth-device-login` already contains the tinyidp integration commits for Step 06, Step 07, Step 08, example 19, example 21, seeded tinyidp users, and the Alice/Bob isolation assertions.
+
+The purpose here was to verify that the current branch is clean and that the personal-inbox tinyidp smokes still pass from the branch where future work should continue. This confirms that the correct next implementation work is not “port the proof again”; it is to decide which tinyidp smoke targets should become default CI behavior and whether to add Keycloak-style realm-path support in tinyidp.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue. keep a diary, commit at appropriate intervals"
+
+**Assistant interpretation:** Continue the tinyidp/go-go-goja auth integration in the correct branch, maintain the diary, validate what exists, and commit documentation when useful.
+
+**Inferred user intent:** The user wants disciplined continuation in the `go-go-goja` auth branch rather than more work in the earlier wrong workspace.
+
+**Commit (code):** N/A — validation-only step; no source code changed.
+
+### What I did
+
+- Confirmed the current branch is `task/api-auth-device-login` in `/home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja`.
+- Confirmed the branch already contains tinyidp integration commits through `476d47d docs: record device capture isolation smoke`.
+- Inspected the Step 06, Step 07, Step 08 Makefiles and tinyidp smoke helpers.
+- Re-ran the personal-inbox tinyidp smokes for Step 06, Step 07, and Step 08.
+- Confirmed the working tree was clean before adding this diary update.
+
+### Why
+
+- The earlier proof in the notebook workspace established feasibility, but the long-running implementation branch is `task/api-auth-device-login`.
+- Before making more changes, the branch needed a validation checkpoint so later work starts from known-green smokes.
+
+### What worked
+
+Step 06 tinyidp login smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak tinyidp-smoke
+```
+
+Relevant output:
+
+```text
+xgoja build ok: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/dist/personal-knowledge-inbox-browser-login-keycloak
+ok tinyidp login smoke; session email=alice@example.test
+ok tinyidp replacement smoke
+```
+
+Step 07 tinyidp Alice/Bob inbox isolation smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox tinyidp-smoke
+```
+
+Relevant output:
+
+```text
+xgoja build ok: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/dist/personal-knowledge-inbox-user-scoped-inbox
+ok tinyidp alice/bob inbox isolation
+ok tinyidp isolation smoke
+```
+
+Step 08 tinyidp device-token capture isolation smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/08-device-authorization tinyidp-smoke
+```
+
+Relevant output:
+
+```text
+xgoja build ok: /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/dist/personal-knowledge-inbox-device-authorization
+ok tinyidp device capture isolation
+ok tinyidp device authorization smoke
+```
+
+### What didn't work
+
+- No validation failures occurred in this step.
+
+### What I learned
+
+- The branch is ahead of the earlier handoff report: tinyidp is already wired into more than just Step 06.
+- The personal-inbox tutorial now has a three-step tinyidp progression: login works, browser-user isolation works, and device-token capture isolation works.
+- The next useful work is branch policy and cleanup, not reimplementation.
+
+### What was tricky to build
+
+- The tricky part was avoiding duplicate work. The current branch already contains the implementation that the earlier proof recommended. I handled this by inspecting the branch history, Makefiles, and diary before changing code.
+
+### What warrants a second pair of eyes
+
+- Whether `make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke` should be run in CI by default.
+- Whether `keycloak_smoke.py` should be renamed or split because it is now used by both Keycloak and tinyidp paths in example 19.
+- Whether the current `TINYIDP_ROOT ?= $(REPO_ROOT)/../2026-06-22--mock-oidc-idp` assumption is acceptable for all developer checkouts.
+
+### What should be done in the future
+
+- Run the full top-level `make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke` in one command before opening a PR.
+- Decide whether to push `task/api-auth-device-login` to origin/wesen if not already pushed.
+- Add tinyidp realm/base-path support if we want issuer URLs to remain Keycloak-shaped.
+
+### Code review instructions
+
+- Start with the Step 06/07/08 Makefiles under `examples/xgoja/23-personal-knowledge-inbox/`.
+- Review the shared tinyidp smoke helpers under `examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/`.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak tinyidp-smoke
+make -C examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox tinyidp-smoke
+make -C examples/xgoja/23-personal-knowledge-inbox/08-device-authorization tinyidp-smoke
+```
+
+### Technical details
+
+Current validated branch:
+
+```text
+/home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja
+git branch: task/api-auth-device-login
+HEAD: 476d47d docs: record device capture isolation smoke
+```

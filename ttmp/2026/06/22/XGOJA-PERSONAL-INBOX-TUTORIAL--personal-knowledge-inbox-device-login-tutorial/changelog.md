@@ -195,3 +195,15 @@ Strengthened Step 08 tinyidp smoke to assert Alice/Bob device-token capture isol
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_device_capture_isolation_smoke.py — Device capture isolation smoke helper
 
+
+## 2026-07-04
+
+Step 16: reoriented tinyidp work on task/api-auth-device-login and revalidated Step 06/07/08 tinyidp smokes; no code changes needed.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/Makefile — Step 06 tinyidp login smoke revalidated
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/07-user-scoped-inbox/Makefile — Step 07 Alice/Bob tinyidp isolation smoke revalidated
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/Makefile — Step 08 device-token capture isolation smoke revalidated
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/01-tutorial-authoring-diary.md — Step 16 validation diary
+
