@@ -31,3 +31,4 @@
 - [x] Use configurable seeded tinyidp users in personal-inbox smokes
 - [x] Assert Alice/Bob tinyidp isolation in Step 07
 - [x] Assert Step 08 device-token capture isolation
+- [x] Validate full personal-inbox tinyidp smoke matrix

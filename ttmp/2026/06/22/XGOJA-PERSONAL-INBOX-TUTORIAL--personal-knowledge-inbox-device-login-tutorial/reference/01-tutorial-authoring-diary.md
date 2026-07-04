@@ -74,21 +74,28 @@ RelatedFiles:
     - Path: examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/verbs/server.js
       Note: Programmatic capture route protected by agent auth
     - Path: examples/xgoja/23-personal-knowledge-inbox/Makefile
-      Note: Top-level smoke dispatcher for step directories
+      Note: |-
+        Top-level smoke dispatcher for step directories
+        Aggregate tinyidp-smoke target validated
     - Path: examples/xgoja/23-personal-knowledge-inbox/README.md
-      Note: Top-level step-index for the incremental tutorial workspace
+      Note: |-
+        Top-level step-index for the incremental tutorial workspace
+        Top-level tinyidp smoke matrix documentation
     - Path: examples/xgoja/23-personal-knowledge-inbox/tinyidp-users.yaml
       Note: Seeded Alice/Bob fixture for personal-inbox smokes
     - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/design/01-personal-knowledge-inbox-tutorial.md
       Note: Primary tutorial draft
     - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/02-implementation-logbook.md
       Note: Extended step-by-step construction log
+    - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/tasks.md
+      Note: Task 24 added and checked
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1878,4 +1885,101 @@ Current validated branch:
 /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja
 git branch: task/api-auth-device-login
 HEAD: 476d47d docs: record device capture isolation smoke
+```
+
+## Step 17: Validate and document the full personal-inbox tinyidp smoke matrix
+
+This step promoted the previous per-step validation into a single top-level tutorial validation. The personal-inbox `tinyidp-smoke` target now has a fresh green run that executes Step 06, Step 07, and Step 08 in sequence, which is the review-friendly command we should cite when evaluating the mock-IdP replacement path.
+
+I also tightened the top-level personal-inbox README so it no longer contains stale “future steps” language after Steps 02 through 08 have been implemented. The README now explains what each tinyidp smoke proves and how to override `TINYIDP_ROOT` when the tinyidp repository is not checked out as the default workspace sibling.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue from the revalidation checkpoint by running the aggregate tinyidp smoke and updating the tutorial docs/bookkeeping.
+
+**Inferred user intent:** The user wants ongoing forward progress with validation, documentation, and commits at reasonable checkpoints.
+
+**Commit (code):** N/A — documentation and validation step only.
+
+### What I did
+
+- Ran the top-level personal-inbox tinyidp smoke target.
+- Updated `examples/xgoja/23-personal-knowledge-inbox/README.md` to describe the Step 06/07/08 tinyidp smoke matrix.
+- Removed stale text saying future steps would add features that now already exist.
+- Added and checked the docmgr task “Validate full personal-inbox tinyidp smoke matrix”.
+
+### Why
+
+- Reviewers should have one command that proves the full tinyidp-backed personal-inbox tutorial path.
+- The top-level README should match the implemented tutorial instead of describing completed work as future work.
+- The tinyidp checkout-location assumption is important enough to document near the aggregate command.
+
+### What worked
+
+The aggregate smoke passed:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+```
+
+Relevant output:
+
+```text
+ok tinyidp login smoke; session email=alice@example.test
+ok tinyidp replacement smoke
+ok tinyidp alice/bob inbox isolation
+ok tinyidp isolation smoke
+ok tinyidp device capture isolation
+ok tinyidp device authorization smoke
+```
+
+Docmgr task bookkeeping worked:
+
+```bash
+docmgr task add --ticket XGOJA-PERSONAL-INBOX-TUTORIAL --text "Validate full personal-inbox tinyidp smoke matrix"
+docmgr task check --ticket XGOJA-PERSONAL-INBOX-TUTORIAL --id 24
+```
+
+### What didn't work
+
+- No validation failures occurred in this step.
+
+### What I learned
+
+- The aggregate `tinyidp-smoke` target is a better reviewer entry point than the three per-step commands once the individual steps have already been debugged.
+- The README needed one conceptual summary of the smoke matrix so readers understand why Step 06, Step 07, and Step 08 all keep their own tinyidp targets.
+
+### What was tricky to build
+
+- The main subtlety was wording the smoke policy accurately: tinyidp replaces Keycloak only for browser OIDC login, while Step 08 device authorization remains native xgoja host behavior. The README now states that split explicitly.
+
+### What warrants a second pair of eyes
+
+- Whether the aggregate `tinyidp-smoke` should be wired into repository CI despite requiring a sibling tinyidp checkout or an install step.
+- Whether the tutorial should include a shared script that discovers `tinyidp` instead of requiring `TINYIDP_ROOT` overrides.
+
+### What should be done in the future
+
+- Decide CI policy for the aggregate tinyidp smoke.
+- Consider adding tinyidp realm/base-path issuer support if Keycloak-shaped URLs are important for tutorial parity.
+
+### Code review instructions
+
+- Review `examples/xgoja/23-personal-knowledge-inbox/README.md`, especially the `tinyidp OIDC smoke` section.
+- Validate with:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox tinyidp-smoke
+```
+
+### Technical details
+
+The validated aggregate target delegates to:
+
+```text
+06-browser-login-keycloak/tinyidp-smoke
+07-user-scoped-inbox/tinyidp-smoke
+08-device-authorization/tinyidp-smoke
 ```

@@ -207,3 +207,14 @@ Step 16: reoriented tinyidp work on task/api-auth-device-login and revalidated S
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/Makefile — Step 08 device-token capture isolation smoke revalidated
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/01-tutorial-authoring-diary.md — Step 16 validation diary
 
+
+## 2026-07-04
+
+Step 17: validated aggregate personal-inbox tinyidp smoke matrix and documented the Step 06/07/08 tinyidp coverage.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/README.md — Documents tinyidp smoke matrix and TINYIDP_ROOT override
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/01-tutorial-authoring-diary.md — Step 17 validation diary
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/tasks.md — Task 24 completed
+
