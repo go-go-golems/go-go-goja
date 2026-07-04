@@ -44,7 +44,7 @@ This starts Keycloak, starts the generated app, verifies the OIDC login redirect
 make tinyidp-smoke
 ```
 
-This runs the same generated hostauth OIDC login path against `tinyidp`, a small local mock IdP, instead of Docker Compose Keycloak. It starts `tinyidp`, starts the generated app with a root issuer URL, drives `/auth/login` through the HTML login form as `alice`, and asserts that `/auth/session` returns `alice@example.test` plus a CSRF token.
+This runs the same generated hostauth OIDC login path against `tinyidp`, a small local mock IdP, instead of Docker Compose Keycloak. It starts `tinyidp`, starts the generated app, drives `/auth/login` through the HTML login form as `alice`, and asserts that `/auth/session` returns `alice@example.test` plus a CSRF token. By default the smoke uses a root issuer URL; with a path-prefix-capable tinyidp build, `TINYIDP_ISSUER` can be overridden to a Keycloak-shaped realm URL.
 
 By default the target expects `tinyidp` in the workspace sibling directory:
 
@@ -52,7 +52,7 @@ By default the target expects `tinyidp` in the workspace sibling directory:
 ../2026-06-22--mock-oidc-idp
 ```
 
-Override it with `TINYIDP_ROOT=/path/to/tinyidp make tinyidp-smoke`. The smoke intentionally uses a root issuer such as `http://127.0.0.1:19087`; Keycloak-style realm-path issuer compatibility is a separate tinyidp feature.
+Override it with `TINYIDP_ROOT=/path/to/tinyidp make tinyidp-smoke`. The smoke defaults to a root issuer such as `http://127.0.0.1:19087`; to exercise a Keycloak-shaped issuer with a compatible tinyidp build, pass an override such as `TINYIDP_ISSUER=http://127.0.0.1:19087/realms/personal-inbox`.
 
 ## Manual run
 

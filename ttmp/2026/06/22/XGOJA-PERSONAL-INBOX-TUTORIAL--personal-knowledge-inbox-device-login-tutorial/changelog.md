@@ -218,3 +218,13 @@ Step 17: validated aggregate personal-inbox tinyidp smoke matrix and documented 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/reference/01-tutorial-authoring-diary.md — Step 17 validation diary
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/tasks.md — Task 24 completed
 
+
+## 2026-07-04
+
+Step 18: documented tinyidp TINYIDP_ISSUER path-based issuer overrides after validating Step 06 against /realms/personal-inbox.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/README.md — Step 06 tinyidp realm-path override docs
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/README.md — Top-level tinyidp realm-path override docs
+

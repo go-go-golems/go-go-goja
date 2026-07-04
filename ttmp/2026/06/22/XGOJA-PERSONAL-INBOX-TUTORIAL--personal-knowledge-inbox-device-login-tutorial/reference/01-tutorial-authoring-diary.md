@@ -41,6 +41,8 @@ RelatedFiles:
       Note: Step 05 embedded asset source and fs runtime mount
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/Makefile
       Note: tinyidp-smoke process orchestration for first OIDC tutorial step
+    - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/README.md
+      Note: Step 06 realm-path tinyidp override note
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/keycloak/realm-personal-inbox.json
       Note: Alice and Bob Keycloak tutorial users
     - Path: examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/scripts/tinyidp_device_capture_isolation_smoke.py
@@ -81,6 +83,7 @@ RelatedFiles:
       Note: |-
         Top-level step-index for the incremental tutorial workspace
         Top-level tinyidp smoke matrix documentation
+        Documents TINYIDP_ISSUER realm-path override
     - Path: examples/xgoja/23-personal-knowledge-inbox/tinyidp-users.yaml
       Note: Seeded Alice/Bob fixture for personal-inbox smokes
     - Path: ttmp/2026/06/22/XGOJA-PERSONAL-INBOX-TUTORIAL--personal-knowledge-inbox-device-login-tutorial/design/01-personal-knowledge-inbox-tutorial.md
@@ -95,6 +98,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1982,4 +1986,84 @@ The validated aggregate target delegates to:
 06-browser-login-keycloak/tinyidp-smoke
 07-user-scoped-inbox/tinyidp-smoke
 08-device-authorization/tinyidp-smoke
+```
+
+## Step 18: Document tinyidp realm-path issuer overrides
+
+This step aligned the personal-inbox tutorial documentation with the tinyidp path-based issuer support added in the sibling mock-IdP repository. The tutorial smokes still default to root issuers because that is the fastest local path, but the README now explains that `TINYIDP_ISSUER` can be overridden to a Keycloak-shaped `/realms/<name>` URL when using a compatible tinyidp checkout.
+
+The actual Step 06 integration was already validated with `http://127.0.0.1:19187/realms/personal-inbox`, so this step only updates the tutorial-facing text and bookkeeping. It prevents the older root-issuer caveat from misleading future readers into thinking realm-path support is still missing.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 17)
+
+**Assistant interpretation:** Continue after implementing tinyidp path-based issuer routes by updating the xgoja tutorial docs to reflect the new override path.
+
+**Inferred user intent:** Keep the tutorial and mock IdP capabilities synchronized so the docs do not preserve stale caveats.
+
+**Commit (code):** N/A — documentation-only update in this repository; tinyidp code commit is 64a6165 in the sibling repo.
+
+### What I did
+
+- Updated the top-level personal-inbox README to state that the tinyidp smokes default to root issuers but accept `TINYIDP_ISSUER` overrides.
+- Updated the Step 06 README to describe path-based issuer overrides for Keycloak-shaped realm URLs.
+- Added and checked docmgr task 25, “Document tinyidp path-based issuer override”.
+
+### Why
+
+- The previous README text said Keycloak-style realm-path issuer compatibility was still separate future tinyidp work.
+- That was true before the tinyidp path-based route implementation, but became stale after validating Step 06 with `/realms/personal-inbox`.
+
+### What worked
+
+- Documentation edits were straightforward.
+- Prior validation for the documented override was:
+
+```bash
+make -C examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak tinyidp-smoke \
+  TINYIDP_ROOT=/home/manuel/workspaces/2026-06-12/goja-express-auth/2026-06-22--mock-oidc-idp \
+  TINYIDP_ADDR=127.0.0.1:19187 \
+  TINYIDP_APP_ADDR=127.0.0.1:19895 \
+  TINYIDP_ISSUER=http://127.0.0.1:19187/realms/personal-inbox
+```
+
+Relevant output:
+
+```text
+ok tinyidp login smoke; session email=alice@example.test
+ok tinyidp replacement smoke
+```
+
+### What didn't work
+
+- No failures occurred in this documentation step.
+
+### What I learned
+
+- The existing Makefiles already accept a command-line `TINYIDP_ISSUER` override; no Makefile change was needed for the realm-path smoke.
+
+### What was tricky to build
+
+- The docs need to distinguish default behavior from supported override behavior: default smokes use root issuers, but path-based issuers are now possible with the updated tinyidp sibling checkout.
+
+### What warrants a second pair of eyes
+
+- Whether to promote the realm-path issuer smoke into a named Makefile target, rather than documenting it as an override recipe.
+
+### What should be done in the future
+
+- Run Step 07 and Step 08 with realm-path issuers before claiming the whole personal-inbox tinyidp matrix is realm-path validated.
+
+### Code review instructions
+
+- Review the `tinyidp OIDC smoke` section in `examples/xgoja/23-personal-knowledge-inbox/README.md`.
+- Review the `Run tinyidp smoke` section in `examples/xgoja/23-personal-knowledge-inbox/06-browser-login-keycloak/README.md`.
+
+### Technical details
+
+The Makefiles define `TINYIDP_ISSUER := http://$(TINYIDP_ADDR)`, but GNU Make command-line variables override that assignment, so this works without editing the target:
+
+```bash
+make tinyidp-smoke TINYIDP_ISSUER=http://127.0.0.1:19087/realms/personal-inbox
 ```
