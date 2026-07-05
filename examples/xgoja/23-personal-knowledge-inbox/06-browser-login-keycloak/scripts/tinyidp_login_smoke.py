@@ -42,6 +42,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Smoke-test Step 06 against tinyidp")
     parser.add_argument("--base-url", required=True, help="Generated app base URL")
     parser.add_argument("--login", default="alice", help="tinyidp login name")
+    parser.add_argument("--password", default="alice-password", help="tinyidp fixture password for password-protected seeded users")
     parser.add_argument("--expected-email", default="alice@example.test")
     parser.add_argument("--approve-user-code", default="", help="Approve this device user_code after login")
     args = parser.parse_args()
@@ -63,6 +64,7 @@ def main() -> None:
 
     form = dict(form_parser.inputs)
     form["login"] = args.login
+    form["password"] = args.password
     request = urllib.request.Request(
         urllib.parse.urljoin(response.geturl(), form_parser.action),
         data=urllib.parse.urlencode(form).encode(),
