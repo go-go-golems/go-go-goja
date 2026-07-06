@@ -72,7 +72,7 @@ def request_json(opener: urllib.request.OpenerDirector, url: str, *, method: str
         return exc.code, parsed
 
 
-def login(base_url: str, username: str, expected_email: str, expected_user_id: str) -> BrowserSession:
+def login(base_url: str, username: str, password: str, expected_email: str, expected_user_id: str) -> BrowserSession:
     jar = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(
         urllib.request.HTTPCookieProcessor(jar),
@@ -89,6 +89,7 @@ def login(base_url: str, username: str, expected_email: str, expected_user_id: s
 
     form = dict(form_parser.inputs)
     form["login"] = username
+    form["password"] = password
     request = urllib.request.Request(
         urllib.parse.urljoin(response.geturl(), form_parser.action),
         data=urllib.parse.urlencode(form).encode(),
@@ -157,8 +158,8 @@ def main() -> None:
     args = parser.parse_args()
 
     base_url = args.base_url.rstrip("/")
-    alice = login(base_url, "alice", args.alice_email, args.alice_user_id)
-    bob = login(base_url, "bob", args.bob_email, args.bob_user_id)
+    alice = login(base_url, "alice", "alice-password", args.alice_email, args.alice_user_id)
+    bob = login(base_url, "bob", "bob-password", args.bob_email, args.bob_user_id)
 
     alice_title = "Alice tinyidp isolation item"
     bob_title = "Bob tinyidp isolation item"
