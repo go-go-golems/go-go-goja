@@ -241,5 +241,5 @@ func newOIDCDiscoveryServer(t *testing.T) *httptest.Server {
 }
 
 func fakeOIDCClaims(sub string, email string) oidcauth.OIDCClaims {
-	return oidcauth.OIDCClaims{Subject: sub, Email: email, EmailVerified: true, PreferredUsername: strings.TrimSuffix(email, "@example.test")}
+	return oidcauth.OIDCClaims{Issuer: "https://issuer.example.test", Subject: sub, Email: email, EmailVerified: true, PreferredUsername: strings.TrimSuffix(email, "@example.test")}
 }

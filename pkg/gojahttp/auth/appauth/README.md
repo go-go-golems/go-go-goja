@@ -42,7 +42,7 @@ For tests and tiny demos, use the in-memory store:
 
 ```go
 store := appauth.NewMemoryStore()
-store.AddUser(appauth.User{ID: "u1", OIDCSubject: "..."})
+store.AddUser(appauth.User{ID: "u1", OIDCIssuer: "https://issuer.example", OIDCSubject: "..."})
 store.AddMembership(appauth.Membership{UserID: "u1", TenantID: "o1", Role: "admin"})
 store.AddResource(appauth.Resource{Type: "project", ID: "p1", TenantID: "o1"})
 
@@ -62,7 +62,7 @@ For durable application auth state, use `appauth/sqlstore` behind the same inter
 store, err := sqlstore.New(sqlstore.Config{DB: db, Dialect: sqlstore.DialectPostgres})
 err = store.ApplySchema(ctx) // examples/tests; production can run the DDL through migrations
 
-user, err := store.UpsertFromOIDC(ctx, claims.Subject, claims.Email, claims.EmailVerified)
+user, err := store.UpsertFromOIDC(ctx, claims.Issuer, claims.Subject, claims.Email, claims.EmailVerified)
 err = store.AddMembership(ctx, appauth.Membership{UserID: user.ID, TenantID: "o1", Role: "admin"})
 ```
 

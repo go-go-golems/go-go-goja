@@ -38,6 +38,7 @@ type Config struct {
 // OIDCClaims is the normalized identity material extracted from the verified ID
 // token. Subject is the stable identity key; email is not treated as stable.
 type OIDCClaims struct {
+	Issuer            string
 	Subject           string
 	Email             string
 	EmailVerified     bool
@@ -269,7 +270,7 @@ func claimsFromIDToken(idToken *oidc.IDToken) (OIDCClaims, error) {
 	if err := idToken.Claims(&raw); err != nil {
 		return OIDCClaims{}, err
 	}
-	claims := OIDCClaims{Subject: idToken.Subject, Raw: raw}
+	claims := OIDCClaims{Issuer: idToken.Issuer, Subject: idToken.Subject, Raw: raw}
 	if email, _ := raw["email"].(string); email != "" {
 		claims.Email = email
 	}

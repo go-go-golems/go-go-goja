@@ -3,7 +3,8 @@ package sqlstore
 const SQLiteSchema = `
 CREATE TABLE IF NOT EXISTS auth_app_users (
     id TEXT PRIMARY KEY,
-    oidc_subject TEXT UNIQUE,
+    oidc_issuer TEXT,
+    oidc_subject TEXT,
     email TEXT NOT NULL DEFAULT '',
     display_name TEXT NOT NULL DEFAULT '',
     email_verified BOOLEAN NOT NULL DEFAULT 0,
@@ -35,7 +36,7 @@ CREATE TABLE IF NOT EXISTS auth_app_resources (
     PRIMARY KEY (type, id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_auth_app_users_oidc_subject ON auth_app_users(oidc_subject);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_app_users_oidc_identity ON auth_app_users(oidc_issuer, oidc_subject);
 CREATE INDEX IF NOT EXISTS idx_auth_app_users_disabled_at ON auth_app_users(disabled_at);
 CREATE INDEX IF NOT EXISTS idx_auth_app_memberships_user ON auth_app_memberships(user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_app_memberships_tenant ON auth_app_memberships(tenant_id);
@@ -47,7 +48,8 @@ CREATE INDEX IF NOT EXISTS idx_auth_app_resources_owner ON auth_app_resources(ow
 const PostgresSchema = `
 CREATE TABLE IF NOT EXISTS auth_app_users (
     id TEXT PRIMARY KEY,
-    oidc_subject TEXT UNIQUE,
+    oidc_issuer TEXT,
+    oidc_subject TEXT,
     email TEXT NOT NULL DEFAULT '',
     display_name TEXT NOT NULL DEFAULT '',
     email_verified BOOLEAN NOT NULL DEFAULT false,
@@ -79,7 +81,7 @@ CREATE TABLE IF NOT EXISTS auth_app_resources (
     PRIMARY KEY (type, id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_auth_app_users_oidc_subject ON auth_app_users(oidc_subject);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_app_users_oidc_identity ON auth_app_users(oidc_issuer, oidc_subject);
 CREATE INDEX IF NOT EXISTS idx_auth_app_users_disabled_at ON auth_app_users(disabled_at);
 CREATE INDEX IF NOT EXISTS idx_auth_app_memberships_user ON auth_app_memberships(user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_app_memberships_tenant ON auth_app_memberships(tenant_id);

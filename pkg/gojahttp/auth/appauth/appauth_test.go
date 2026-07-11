@@ -86,13 +86,13 @@ func TestUpsertFromOIDCRejectsDisabledExistingUser(t *testing.T) {
 	ctx := context.Background()
 	store := NewMemoryStore()
 	disabledAt := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
-	store.AddUser(User{ID: "u-disabled", OIDCSubject: "kc-disabled", Email: "old@example.test", DisabledAt: &disabledAt})
+	store.AddUser(User{ID: "u-disabled", OIDCIssuer: "https://issuer.example.test", OIDCSubject: "kc-disabled", Email: "old@example.test", DisabledAt: &disabledAt})
 
-	_, err := store.UpsertFromOIDC(ctx, "kc-disabled", "new@example.test", true)
+	_, err := store.UpsertFromOIDC(ctx, "https://issuer.example.test", "kc-disabled", "new@example.test", true)
 	if !errors.Is(err, gojahttp.ErrNotFound) {
 		t.Fatalf("expected disabled user upsert to be rejected, got %v", err)
 	}
-	_, err = store.ByOIDCSubject(ctx, "kc-disabled")
+	_, err = store.ByOIDCIdentity(ctx, "https://issuer.example.test", "kc-disabled")
 	if !errors.Is(err, gojahttp.ErrNotFound) {
 		t.Fatalf("disabled user should remain hidden, got %v", err)
 	}
@@ -101,14 +101,14 @@ func TestUpsertFromOIDCRejectsDisabledExistingUser(t *testing.T) {
 func TestUserAndMembershipStore(t *testing.T) {
 	ctx := context.Background()
 	store := seededStore()
-	user, err := store.ByOIDCSubject(ctx, "kc-u1")
+	user, err := store.ByOIDCIdentity(ctx, "https://issuer.example.test", "kc-u1")
 	if err != nil {
 		t.Fatalf("by sub: %v", err)
 	}
 	if user.ID != "u1" {
 		t.Fatalf("unexpected user: %#v", user)
 	}
-	created, err := store.UpsertFromOIDC(ctx, "kc-new", "new@example.test", true)
+	created, err := store.UpsertFromOIDC(ctx, "https://issuer.example.test", "kc-new", "new@example.test", true)
 	if err != nil {
 		t.Fatalf("upsert: %v", err)
 	}
@@ -128,6 +128,35 @@ func TestUserAndMembershipStore(t *testing.T) {
 	}
 }
 
+func TestOIDCIdentityScopesSubjectByIssuer(t *testing.T) {
+	store := NewMemoryStore()
+	first, err := store.UpsertFromOIDC(context.Background(), "https://issuer-a.example.test", "shared-subject", "a@example.test", true)
+	if err != nil {
+		t.Fatalf("first issuer: %v", err)
+	}
+	second, err := store.UpsertFromOIDC(context.Background(), "https://issuer-b.example.test", "shared-subject", "b@example.test", true)
+	if err != nil {
+		t.Fatalf("second issuer: %v", err)
+	}
+	if first.ID == second.ID {
+		t.Fatalf("issuer-scoped identities collided: %#v %#v", first, second)
+	}
+	if first.OIDCIssuer == second.OIDCIssuer {
+		t.Fatalf("issuers were not preserved: %#v %#v", first, second)
+	}
+	if _, err := store.ByOIDCIdentity(context.Background(), "https://issuer-a.example.test", "shared-subject"); err != nil {
+		t.Fatalf("lookup first identity: %v", err)
+	}
+}
+
+func TestOIDCUserIDRejectsIncompleteOrAmbiguousIdentity(t *testing.T) {
+	for _, identity := range [][2]string{{"", "subject"}, {"https://issuer.example.test", ""}, {"https://issuer.example.test", "bad\x00subject"}} {
+		if _, err := OIDCUserID(identity[0], identity[1]); err == nil {
+			t.Fatalf("OIDCUserID(%q, %q) succeeded", identity[0], identity[1])
+		}
+	}
+}
+
 func TestAuthorizerPropagatesBackendErrors(t *testing.T) {
 	decision, err := (Authorizer{Memberships: failingMembershipStore{}}).Authorize(context.Background(), gojahttp.AuthorizationRequest{Actor: &gojahttp.Actor{ID: "u1"}, Action: ActionProjectRead, Resource: &gojahttp.ResourceRef{Type: "project", TenantID: "o1"}})
 	if err == nil {
@@ -140,8 +169,8 @@ func TestAuthorizerPropagatesBackendErrors(t *testing.T) {
 
 func seededStore() *MemoryStore {
 	store := NewMemoryStore()
-	store.AddUser(User{ID: "u1", OIDCSubject: "kc-u1", Email: "u1@example.test", EmailVerified: true})
-	store.AddUser(User{ID: "u2", OIDCSubject: "kc-u2", Email: "u2@example.test"})
+	store.AddUser(User{ID: "u1", OIDCIssuer: "https://issuer.example.test", OIDCSubject: "kc-u1", Email: "u1@example.test", EmailVerified: true})
+	store.AddUser(User{ID: "u2", OIDCIssuer: "https://issuer.example.test", OIDCSubject: "kc-u2", Email: "u2@example.test"})
 	store.AddMembership(Membership{UserID: "u1", TenantID: "o1", Role: "admin"})
 	store.AddResource(Resource{Type: "project", ID: "p1", TenantID: "o1", Claims: map[string]any{"name": "Project One"}})
 	store.AddResource(Resource{Type: "project", ID: "p2", TenantID: "o2"})

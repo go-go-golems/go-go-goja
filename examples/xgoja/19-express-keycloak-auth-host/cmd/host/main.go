@@ -253,14 +253,14 @@ func run(ctx context.Context, cfg config) error {
 		AfterLogoutURL: cfg.AfterLogoutURL,
 		SessionManager: sessions,
 		UserNormalizer: oidcauth.UserNormalizerFunc(func(ctx context.Context, claims oidcauth.OIDCClaims) (oidcauth.UserSession, error) {
-			user, err := appStores.store.UpsertFromOIDC(ctx, claims.Subject, claims.Email, claims.EmailVerified)
+			user, err := appStores.store.UpsertFromOIDC(ctx, claims.Issuer, claims.Subject, claims.Email, claims.EmailVerified)
 			if err != nil {
 				return oidcauth.UserSession{}, err
 			}
 			if err := appStores.addMembership(ctx, appauth.Membership{UserID: user.ID, TenantID: "o1", Role: "admin"}); err != nil {
 				return oidcauth.UserSession{}, err
 			}
-			return oidcauth.UserSession{UserID: user.ID, Email: user.Email, EmailVerified: user.EmailVerified, TenantIDs: []string{"o1"}, Claims: map[string]any{"oidcSubject": claims.Subject, "preferredUsername": claims.PreferredUsername}}, nil
+			return oidcauth.UserSession{UserID: user.ID, Email: user.Email, EmailVerified: user.EmailVerified, TenantIDs: []string{"o1"}, Claims: map[string]any{"oidcIssuer": claims.Issuer, "oidcSubject": claims.Subject, "preferredUsername": claims.PreferredUsername}}, nil
 		}),
 	})
 	if err != nil {

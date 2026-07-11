@@ -6,7 +6,10 @@ package appauth
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +28,7 @@ const (
 // User is the minimal app-owned user model used by helpers.
 type User struct {
 	ID            string
+	OIDCIssuer    string
 	OIDCSubject   string
 	Email         string
 	DisplayName   string
@@ -61,8 +65,8 @@ type Resource struct {
 // UserStore loads app users.
 type UserStore interface {
 	ByID(ctx context.Context, id string) (*User, error)
-	ByOIDCSubject(ctx context.Context, sub string) (*User, error)
-	UpsertFromOIDC(ctx context.Context, sub, email string, emailVerified bool) (*User, error)
+	ByOIDCIdentity(ctx context.Context, issuer, subject string) (*User, error)
+	UpsertFromOIDC(ctx context.Context, issuer, subject, email string, emailVerified bool) (*User, error)
 }
 
 // MembershipStore answers tenant membership/role questions.
@@ -207,8 +211,8 @@ func (s *MemoryStore) AddUser(user User) {
 	defer s.mu.Unlock()
 	user = cloneUser(user)
 	s.users[user.ID] = user
-	if user.OIDCSubject != "" {
-		s.usersBySub[user.OIDCSubject] = user.ID
+	if user.OIDCIssuer != "" && user.OIDCSubject != "" {
+		s.usersBySub[oidcIdentityKey(user.OIDCIssuer, user.OIDCSubject)] = user.ID
 	}
 }
 
@@ -236,9 +240,9 @@ func (s *MemoryStore) ByID(_ context.Context, id string) (*User, error) {
 	return &user, nil
 }
 
-func (s *MemoryStore) ByOIDCSubject(ctx context.Context, sub string) (*User, error) {
+func (s *MemoryStore) ByOIDCIdentity(ctx context.Context, issuer, subject string) (*User, error) {
 	s.mu.Lock()
-	id, ok := s.usersBySub[sub]
+	id, ok := s.usersBySub[oidcIdentityKey(issuer, subject)]
 	s.mu.Unlock()
 	if !ok {
 		return nil, gojahttp.ErrNotFound
@@ -246,11 +250,16 @@ func (s *MemoryStore) ByOIDCSubject(ctx context.Context, sub string) (*User, err
 	return s.ByID(ctx, id)
 }
 
-func (s *MemoryStore) UpsertFromOIDC(_ context.Context, sub, email string, emailVerified bool) (*User, error) {
+func (s *MemoryStore) UpsertFromOIDC(_ context.Context, issuer, subject, email string, emailVerified bool) (*User, error) {
+	id, err := OIDCUserID(issuer, subject)
+	if err != nil {
+		return nil, err
+	}
+	identityKey := oidcIdentityKey(issuer, subject)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if id, ok := s.usersBySub[sub]; ok {
-		user := s.users[id]
+	if existingID, ok := s.usersBySub[identityKey]; ok {
+		user := s.users[existingID]
 		if user.DisabledAt != nil {
 			return nil, gojahttp.ErrNotFound
 		}
@@ -260,12 +269,29 @@ func (s *MemoryStore) UpsertFromOIDC(_ context.Context, sub, email string, email
 		user = cloneUser(user)
 		return &user, nil
 	}
-	id := "user:" + sub
-	user := User{ID: id, OIDCSubject: sub, Email: email, EmailVerified: emailVerified}
+	user := User{ID: id, OIDCIssuer: issuer, OIDCSubject: subject, Email: email, EmailVerified: emailVerified}
 	s.users[id] = user
-	s.usersBySub[sub] = id
+	s.usersBySub[identityKey] = id
 	return &user, nil
 }
+
+// OIDCUserID derives an opaque, stable application user ID from the complete
+// OIDC identity tuple. Subjects are scoped to an issuer and must never be used
+// as globally unique identifiers on their own.
+func OIDCUserID(issuer, subject string) (string, error) {
+	issuer = strings.TrimSpace(issuer)
+	subject = strings.TrimSpace(subject)
+	if issuer == "" || subject == "" {
+		return "", fmt.Errorf("appauth: OIDC issuer and subject are required")
+	}
+	if strings.ContainsRune(issuer, '\x00') || strings.ContainsRune(subject, '\x00') {
+		return "", fmt.Errorf("appauth: OIDC issuer and subject must not contain NUL")
+	}
+	sum := sha256.Sum256([]byte(oidcIdentityKey(issuer, subject)))
+	return "user:oidc:" + base64.RawURLEncoding.EncodeToString(sum[:]), nil
+}
+
+func oidcIdentityKey(issuer, subject string) string { return issuer + "\x00" + subject }
 
 func (s *MemoryStore) MembershipsForUser(_ context.Context, userID string) ([]Membership, error) {
 	s.mu.Lock()

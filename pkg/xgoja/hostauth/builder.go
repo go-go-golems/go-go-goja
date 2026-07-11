@@ -172,7 +172,7 @@ func writeJSON(w http.ResponseWriter, value any) {
 // hostauth.
 func DefaultOIDCUserNormalizer(stores *StoreBundle) oidcauth.UserNormalizer {
 	return oidcauth.UserNormalizerFunc(func(ctx context.Context, claims oidcauth.OIDCClaims) (oidcauth.UserSession, error) {
-		user, err := stores.AppAuth.Users.UpsertFromOIDC(ctx, claims.Subject, claims.Email, claims.EmailVerified)
+		user, err := stores.AppAuth.Users.UpsertFromOIDC(ctx, claims.Issuer, claims.Subject, claims.Email, claims.EmailVerified)
 		if err != nil {
 			return oidcauth.UserSession{}, err
 		}
@@ -200,6 +200,7 @@ func DefaultOIDCUserNormalizer(stores *StoreBundle) oidcauth.UserNormalizer {
 			EmailVerified: user.EmailVerified,
 			TenantIDs:     tenantIDs,
 			Claims: map[string]any{
+				"oidcIssuer":        claims.Issuer,
 				"oidcSubject":       claims.Subject,
 				"preferredUsername": claims.PreferredUsername,
 				"name":              claims.Name,

@@ -48,7 +48,7 @@ handlers, _ := oidcauth.New(ctx, oidcauth.Config{
     AfterLogoutURL: "/",
     SessionManager: sessions,
     UserNormalizer: oidcauth.UserNormalizerFunc(func(ctx context.Context, claims oidcauth.OIDCClaims) (oidcauth.UserSession, error) {
-        user, err := users.UpsertFromOIDC(ctx, claims.Subject, claims.Email, claims.EmailVerified)
+        user, err := users.UpsertFromOIDC(ctx, claims.Issuer, claims.Subject, claims.Email, claims.EmailVerified)
         if err != nil {
             return oidcauth.UserSession{}, err
         }
@@ -61,7 +61,7 @@ handlers, _ := oidcauth.New(ctx, oidcauth.Config{
             Email:         user.Email,
             EmailVerified: user.EmailVerified,
             TenantIDs:     memberships.TenantIDs(),
-            Claims:        map[string]any{"oidcSubject": claims.Subject},
+            Claims:        map[string]any{"oidcIssuer": claims.Issuer, "oidcSubject": claims.Subject},
         }, nil
     }),
 })

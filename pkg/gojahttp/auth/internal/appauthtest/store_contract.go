@@ -35,8 +35,8 @@ func RunStoreContract(t *testing.T, newHarness NewHarness) {
 		h := requireHarness(t, newHarness(t))
 		ctx := context.Background()
 		disabledAt := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
-		h.AddUser(appauth.User{ID: "u1", OIDCSubject: "kc-u1", Email: "old@example.test", EmailVerified: false})
-		h.AddUser(appauth.User{ID: "disabled", OIDCSubject: "kc-disabled", Email: "disabled@example.test", DisabledAt: &disabledAt})
+		h.AddUser(appauth.User{ID: "u1", OIDCIssuer: "https://issuer.example.test", OIDCSubject: "kc-u1", Email: "old@example.test", EmailVerified: false})
+		h.AddUser(appauth.User{ID: "disabled", OIDCIssuer: "https://issuer.example.test", OIDCSubject: "kc-disabled", Email: "disabled@example.test", DisabledAt: &disabledAt})
 
 		byID, err := h.Users.ByID(ctx, "u1")
 		if err != nil {
@@ -45,7 +45,7 @@ func RunStoreContract(t *testing.T, newHarness NewHarness) {
 		if byID.OIDCSubject != "kc-u1" {
 			t.Fatalf("unexpected user by id: %#v", byID)
 		}
-		bySub, err := h.Users.ByOIDCSubject(ctx, "kc-u1")
+		bySub, err := h.Users.ByOIDCIdentity(ctx, "https://issuer.example.test", "kc-u1")
 		if err != nil {
 			t.Fatalf("by sub: %v", err)
 		}
@@ -56,14 +56,14 @@ func RunStoreContract(t *testing.T, newHarness NewHarness) {
 			t.Fatalf("disabled user err=%v", err)
 		}
 
-		updated, err := h.Users.UpsertFromOIDC(ctx, "kc-u1", "new@example.test", true)
+		updated, err := h.Users.UpsertFromOIDC(ctx, "https://issuer.example.test", "kc-u1", "new@example.test", true)
 		if err != nil {
 			t.Fatalf("upsert existing: %v", err)
 		}
 		if updated.ID != "u1" || updated.Email != "new@example.test" || !updated.EmailVerified {
 			t.Fatalf("unexpected updated user: %#v", updated)
 		}
-		created, err := h.Users.UpsertFromOIDC(ctx, "kc-new", "created@example.test", true)
+		created, err := h.Users.UpsertFromOIDC(ctx, "https://issuer.example.test", "kc-new", "created@example.test", true)
 		if err != nil {
 			t.Fatalf("upsert new: %v", err)
 		}

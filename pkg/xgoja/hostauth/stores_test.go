@@ -121,7 +121,7 @@ func exerciseStores(t *testing.T, ctx context.Context, stores *StoreBundle) {
 		t.Fatalf("InsertAuditRecord: %v", err)
 	}
 
-	user, err := stores.AppAuth.Users.UpsertFromOIDC(ctx, "sub-1", "demo@example.test", true)
+	user, err := stores.AppAuth.Users.UpsertFromOIDC(ctx, "https://issuer.example.test", "sub-1", "demo@example.test", true)
 	if err != nil {
 		t.Fatalf("UpsertFromOIDC: %v", err)
 	}
