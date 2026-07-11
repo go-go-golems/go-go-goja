@@ -75,7 +75,7 @@ func (s *Store) ApplySchema(ctx context.Context) error {
 func (s *Store) AddUser(ctx context.Context, user appauth.User) error {
 	_, err := s.db.ExecContext(ctx, s.upsertUserQuery(),
 		user.ID,
-		nullString(user.KeycloakSub),
+		nullString(user.OIDCSubject),
 		user.Email,
 		user.DisplayName,
 		user.EmailVerified,
@@ -129,7 +129,7 @@ func (s *Store) ByID(ctx context.Context, id string) (*appauth.User, error) {
 	return user, nil
 }
 
-func (s *Store) ByKeycloakSub(ctx context.Context, sub string) (*appauth.User, error) {
+func (s *Store) ByOIDCSubject(ctx context.Context, sub string) (*appauth.User, error) {
 	user, err := scanUser(s.db.QueryRowContext(ctx, s.userBySubQuery(), sub))
 	if err != nil {
 		return nil, err
@@ -147,8 +147,8 @@ func (s *Store) UpsertFromOIDC(ctx context.Context, sub, email string, emailVeri
 	}
 	defer rollback(tx)
 
-	candidate := appauth.User{ID: "user:" + sub, KeycloakSub: sub, Email: email, EmailVerified: emailVerified}
-	if _, err := tx.ExecContext(ctx, s.upsertOIDCUserQuery(), candidate.ID, candidate.KeycloakSub, candidate.Email, candidate.DisplayName, candidate.EmailVerified, nullTime(candidate.DisabledAt)); err != nil {
+	candidate := appauth.User{ID: "user:" + sub, OIDCSubject: sub, Email: email, EmailVerified: emailVerified}
+	if _, err := tx.ExecContext(ctx, s.upsertOIDCUserQuery(), candidate.ID, candidate.OIDCSubject, candidate.Email, candidate.DisplayName, candidate.EmailVerified, nullTime(candidate.DisabledAt)); err != nil {
 		return nil, fmt.Errorf("upsert oidc user: %w", err)
 	}
 	user, err := scanUser(tx.QueryRowContext(ctx, s.userBySubQuery(), sub))
@@ -212,15 +212,15 @@ func (s *Store) exists(ctx context.Context, query string, args ...any) (bool, er
 
 func scanUser(row scanner) (*appauth.User, error) {
 	var user appauth.User
-	var keycloakSub sql.NullString
+	var oidcSubject sql.NullString
 	var disabledAt sql.NullTime
-	if err := row.Scan(&user.ID, &keycloakSub, &user.Email, &user.DisplayName, &user.EmailVerified, &disabledAt); err != nil {
+	if err := row.Scan(&user.ID, &oidcSubject, &user.Email, &user.DisplayName, &user.EmailVerified, &disabledAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, gojahttp.ErrNotFound
 		}
 		return nil, fmt.Errorf("scan appauth user: %w", err)
 	}
-	user.KeycloakSub = keycloakSub.String
+	user.OIDCSubject = oidcSubject.String
 	if disabledAt.Valid {
 		user.DisabledAt = &disabledAt.Time
 	}
@@ -258,20 +258,20 @@ func scanResource(row scanner) (*appauth.Resource, error) {
 }
 
 const (
-	userColumns       = `id, keycloak_sub, email, display_name, email_verified, disabled_at`
+	userColumns       = `id, oidc_subject, email, display_name, email_verified, disabled_at`
 	membershipColumns = `user_id, tenant_id, role, revoked_at`
 	resourceColumns   = `type, id, name, tenant_id, owner_id, claims_json`
 )
 
 const (
-	upsertUserSQLite       = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET keycloak_sub = excluded.keycloak_sub, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
-	upsertUserPostgres     = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(id) DO UPDATE SET keycloak_sub = excluded.keycloak_sub, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
-	upsertOIDCUserSQLite   = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(keycloak_sub) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
-	upsertOIDCUserPostgres = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(keycloak_sub) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
+	upsertUserSQLite       = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET oidc_subject = excluded.oidc_subject, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
+	upsertUserPostgres     = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(id) DO UPDATE SET oidc_subject = excluded.oidc_subject, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
+	upsertOIDCUserSQLite   = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(oidc_subject) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
+	upsertOIDCUserPostgres = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(oidc_subject) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
 	userByIDSQLite         = `SELECT ` + userColumns + ` FROM auth_app_users WHERE id = ?`
 	userByIDPostgres       = `SELECT ` + userColumns + ` FROM auth_app_users WHERE id = $1`
-	userBySubSQLite        = `SELECT ` + userColumns + ` FROM auth_app_users WHERE keycloak_sub = ?`
-	userBySubPostgres      = `SELECT ` + userColumns + ` FROM auth_app_users WHERE keycloak_sub = $1`
+	userBySubSQLite        = `SELECT ` + userColumns + ` FROM auth_app_users WHERE oidc_subject = ?`
+	userBySubPostgres      = `SELECT ` + userColumns + ` FROM auth_app_users WHERE oidc_subject = $1`
 )
 
 const (

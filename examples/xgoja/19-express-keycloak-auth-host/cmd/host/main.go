@@ -34,7 +34,7 @@ import (
 	auditSQLStore "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
 	capabilitySQLStore "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability/sqlstore"
-	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 	sessionSQLStore "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth/sqlstore"
 )
@@ -244,7 +244,7 @@ func run(ctx context.Context, cfg config) error {
 		return err
 	}
 	defer cleanupAudit()
-	keycloakHandlers, err := keycloakauth.New(ctx, keycloakauth.Config{
+	oidcHandlers, err := oidcauth.New(ctx, oidcauth.Config{
 		IssuerURL:      cfg.Issuer,
 		ClientID:       cfg.ClientID,
 		ClientSecret:   cfg.ClientSecret,
@@ -252,15 +252,15 @@ func run(ctx context.Context, cfg config) error {
 		AfterLoginURL:  cfg.AfterLoginURL,
 		AfterLogoutURL: cfg.AfterLogoutURL,
 		SessionManager: sessions,
-		UserNormalizer: keycloakauth.UserNormalizerFunc(func(ctx context.Context, claims keycloakauth.OIDCClaims) (keycloakauth.UserSession, error) {
+		UserNormalizer: oidcauth.UserNormalizerFunc(func(ctx context.Context, claims oidcauth.OIDCClaims) (oidcauth.UserSession, error) {
 			user, err := appStores.store.UpsertFromOIDC(ctx, claims.Subject, claims.Email, claims.EmailVerified)
 			if err != nil {
-				return keycloakauth.UserSession{}, err
+				return oidcauth.UserSession{}, err
 			}
 			if err := appStores.addMembership(ctx, appauth.Membership{UserID: user.ID, TenantID: "o1", Role: "admin"}); err != nil {
-				return keycloakauth.UserSession{}, err
+				return oidcauth.UserSession{}, err
 			}
-			return keycloakauth.UserSession{UserID: user.ID, Email: user.Email, EmailVerified: user.EmailVerified, TenantIDs: []string{"o1"}, Claims: map[string]any{"keycloakSub": claims.Subject, "preferredUsername": claims.PreferredUsername}}, nil
+			return oidcauth.UserSession{UserID: user.ID, Email: user.Email, EmailVerified: user.EmailVerified, TenantIDs: []string{"o1"}, Claims: map[string]any{"oidcSubject": claims.Subject, "preferredUsername": claims.PreferredUsername}}, nil
 		}),
 	})
 	if err != nil {
@@ -301,9 +301,9 @@ func run(ctx context.Context, cfg config) error {
 		return err
 	}
 	mux := http.NewServeMux()
-	mux.Handle("GET /auth/login", keycloakHandlers.LoginHandler())
-	mux.Handle("GET /auth/callback", keycloakHandlers.CallbackHandler())
-	mux.Handle("POST /auth/logout", keycloakHandlers.LogoutHandler())
+	mux.Handle("GET /auth/login", oidcHandlers.LoginHandler())
+	mux.Handle("GET /auth/callback", oidcHandlers.CallbackHandler())
+	mux.Handle("POST /auth/logout", oidcHandlers.LogoutHandler())
 	mux.Handle("GET /auth/session", sessionHandler(sessions))
 	mux.Handle("POST /orgs/o1/invites", issueInviteHandler(sessions, appStores.store, capabilityService))
 	mux.Handle("POST /org-invites/accept", acceptInviteHandler(capabilityService))

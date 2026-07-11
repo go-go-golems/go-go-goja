@@ -138,7 +138,7 @@ func (s *Store) insert(ctx context.Context, exec sqlExecer, session sessionauth.
 	_, err = exec.ExecContext(ctx, s.insertQuery(),
 		session.ID,
 		session.UserID,
-		nullString(session.KeycloakSub),
+		nullString(session.OIDCSubject),
 		nullString(session.Email),
 		session.EmailVerified,
 		string(tenantIDs),
@@ -160,7 +160,7 @@ func (s *Store) insert(ctx context.Context, exec sqlExecer, session sessionauth.
 func (s *Store) scan(ctx context.Context, queryer sqlQueryer, id string) (*sessionauth.Session, error) {
 	row := queryer.QueryRowContext(ctx, s.getQuery(), id)
 	var session sessionauth.Session
-	var keycloakSub sql.NullString
+	var oidcSubject sql.NullString
 	var email sql.NullString
 	var tenantIDsJSON string
 	var claimsJSON string
@@ -169,7 +169,7 @@ func (s *Store) scan(ctx context.Context, queryer sqlQueryer, id string) (*sessi
 	if err := row.Scan(
 		&session.ID,
 		&session.UserID,
-		&keycloakSub,
+		&oidcSubject,
 		&email,
 		&session.EmailVerified,
 		&tenantIDsJSON,
@@ -187,7 +187,7 @@ func (s *Store) scan(ctx context.Context, queryer sqlQueryer, id string) (*sessi
 		}
 		return nil, fmt.Errorf("get session: %w", err)
 	}
-	session.KeycloakSub = keycloakSub.String
+	session.OIDCSubject = oidcSubject.String
 	session.Email = email.String
 	if mfaAt.Valid {
 		session.MFAAt = &mfaAt.Time
@@ -204,7 +204,7 @@ func (s *Store) scan(ctx context.Context, queryer sqlQueryer, id string) (*sessi
 	return &session, nil
 }
 
-const sessionColumns = `id, user_id, keycloak_sub, email, email_verified, tenant_ids_json, csrf_token, mfa_at, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at, claims_json`
+const sessionColumns = `id, user_id, oidc_subject, email, email_verified, tenant_ids_json, csrf_token, mfa_at, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at, claims_json`
 
 const (
 	insertSQLite   = `INSERT INTO auth_sessions (` + sessionColumns + `) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`

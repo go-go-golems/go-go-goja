@@ -135,7 +135,7 @@ If route registration fails, the process should fail before it starts accepting 
 OIDC login/callback/logout handlers are regular Go HTTP handlers. They are mounted beside the planned-route host on the same `http.ServeMux`.
 
 ```go
-keycloakHandlers, err := keycloakauth.New(ctx, keycloakauth.Config{
+oidcHandlers, err := oidcauth.New(ctx, oidcauth.Config{
     IssuerURL:      cfg.Issuer,
     ClientID:       cfg.ClientID,
     ClientSecret:   cfg.ClientSecret,
@@ -150,9 +150,9 @@ if err != nil {
 }
 
 mux := http.NewServeMux()
-mux.Handle("GET /auth/login", keycloakHandlers.LoginHandler())
-mux.Handle("GET /auth/callback", keycloakHandlers.CallbackHandler())
-mux.Handle("POST /auth/logout", keycloakHandlers.LogoutHandler())
+mux.Handle("GET /auth/login", oidcHandlers.LoginHandler())
+mux.Handle("GET /auth/callback", oidcHandlers.CallbackHandler())
+mux.Handle("POST /auth/logout", oidcHandlers.LogoutHandler())
 mux.Handle("GET /auth/session", sessionHandler(sessions))
 mux.Handle("/", indexPage(host))
 ```

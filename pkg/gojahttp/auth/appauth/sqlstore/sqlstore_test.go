@@ -53,7 +53,7 @@ func TestUpsertFromOIDCIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second UpsertFromOIDC: %v", err)
 	}
-	if updated.ID != created.ID || updated.KeycloakSub != "kc-race" || updated.Email != "second@example.test" || updated.EmailVerified {
+	if updated.ID != created.ID || updated.OIDCSubject != "kc-race" || updated.Email != "second@example.test" || updated.EmailVerified {
 		t.Fatalf("unexpected updated user: %#v created=%#v", updated, created)
 	}
 }
@@ -61,7 +61,7 @@ func TestUpsertFromOIDCIsIdempotent(t *testing.T) {
 func TestUpsertFromOIDCUpdatesExistingSubID(t *testing.T) {
 	ctx := context.Background()
 	store := newSQLiteStore(t)
-	if err := store.AddUser(ctx, appauth.User{ID: "user:existing", KeycloakSub: "kc-existing", Email: "old@example.test", EmailVerified: false}); err != nil {
+	if err := store.AddUser(ctx, appauth.User{ID: "user:existing", OIDCSubject: "kc-existing", Email: "old@example.test", EmailVerified: false}); err != nil {
 		t.Fatalf("AddUser: %v", err)
 	}
 	updated, err := store.UpsertFromOIDC(ctx, "kc-existing", "new@example.test", true)

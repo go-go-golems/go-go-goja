@@ -1,7 +1,7 @@
-// Package keycloakauth provides an opinionated OIDC browser-login adapter
-// intended for Keycloak-backed gojahttp hosts. It keeps IdP tokens server-side
-// and creates an opaque application session for planned route authentication.
-package keycloakauth
+// Package oidcauth provides an opinionated OIDC browser-login adapter for
+// gojahttp hosts. It keeps identity-provider tokens server-side and creates an
+// opaque application session for planned route authentication.
+package oidcauth
 
 import (
 	"context"
@@ -30,6 +30,9 @@ type Config struct {
 	SessionManager   *sessionauth.Manager
 	UserNormalizer   UserNormalizer
 	TransactionStore TransactionStore
+	// HTTPClient is used for OIDC discovery, token exchange, and remote key
+	// retrieval. When nil, the standard context HTTP client is used.
+	HTTPClient *http.Client
 }
 
 // OIDCClaims is the normalized identity material extracted from the verified ID
@@ -89,31 +92,33 @@ type Handlers struct {
 	transactions   TransactionStore
 	afterLoginURL  string
 	afterLogoutURL string
+	httpClient     *http.Client
 }
 
 // New discovers the OIDC provider and returns login/callback/logout handlers.
 func New(ctx context.Context, cfg Config) (*Handlers, error) {
 	if cfg.IssuerURL == "" {
-		return nil, fmt.Errorf("keycloakauth: issuer URL is required")
+		return nil, fmt.Errorf("oidcauth: issuer URL is required")
 	}
 	if cfg.ClientID == "" {
-		return nil, fmt.Errorf("keycloakauth: client ID is required")
+		return nil, fmt.Errorf("oidcauth: client ID is required")
 	}
 	if cfg.RedirectURL == "" {
-		return nil, fmt.Errorf("keycloakauth: redirect URL is required")
+		return nil, fmt.Errorf("oidcauth: redirect URL is required")
 	}
 	if cfg.SessionManager == nil {
-		return nil, fmt.Errorf("keycloakauth: session manager is required")
+		return nil, fmt.Errorf("oidcauth: session manager is required")
 	}
 	if cfg.UserNormalizer == nil {
-		return nil, fmt.Errorf("keycloakauth: user normalizer is required")
+		return nil, fmt.Errorf("oidcauth: user normalizer is required")
 	}
 	if cfg.TransactionStore == nil {
 		cfg.TransactionStore = NewMemoryTransactionStore(10 * time.Minute)
 	}
-	provider, err := oidc.NewProvider(ctx, cfg.IssuerURL)
+	discoveryCtx := withHTTPClient(ctx, cfg.HTTPClient)
+	provider, err := oidc.NewProvider(discoveryCtx, cfg.IssuerURL)
 	if err != nil {
-		return nil, fmt.Errorf("keycloakauth: discover provider: %w", err)
+		return nil, fmt.Errorf("oidcauth: discover provider: %w", err)
 	}
 	scopes := ensureOpenIDScope(cfg.Scopes)
 	oauth2Config := oauth2.Config{
@@ -131,6 +136,7 @@ func New(ctx context.Context, cfg Config) (*Handlers, error) {
 		transactions:   cfg.TransactionStore,
 		afterLoginURL:  defaultIfEmpty(cfg.AfterLoginURL, "/"),
 		afterLogoutURL: defaultIfEmpty(cfg.AfterLogoutURL, "/"),
+		httpClient:     cfg.HTTPClient,
 	}, nil
 }
 
@@ -190,7 +196,8 @@ func (h *Handlers) handleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid oidc state", http.StatusUnauthorized)
 		return
 	}
-	token, err := h.oauth2Config.Exchange(r.Context(), code, oauth2.VerifierOption(tx.PKCEVerifier))
+	callbackCtx := withHTTPClient(r.Context(), h.httpClient)
+	token, err := h.oauth2Config.Exchange(callbackCtx, code, oauth2.VerifierOption(tx.PKCEVerifier))
 	if err != nil {
 		http.Error(w, "oidc token exchange failed", http.StatusUnauthorized)
 		return
@@ -200,7 +207,7 @@ func (h *Handlers) handleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "oidc response missing id_token", http.StatusUnauthorized)
 		return
 	}
-	idToken, err := h.verifier.Verify(r.Context(), rawIDToken)
+	idToken, err := h.verifier.Verify(callbackCtx, rawIDToken)
 	if err != nil {
 		http.Error(w, "oidc id_token verification failed", http.StatusUnauthorized)
 		return
@@ -234,6 +241,13 @@ func (h *Handlers) handleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	h.sessionManager.SetCookie(w, session.ID)
 	http.Redirect(w, r, tx.RedirectURL, http.StatusFound)
+}
+
+func withHTTPClient(ctx context.Context, client *http.Client) context.Context {
+	if client == nil {
+		return ctx
+	}
+	return oidc.ClientContext(ctx, client)
 }
 
 func (h *Handlers) handleLogout(w http.ResponseWriter, r *http.Request) {

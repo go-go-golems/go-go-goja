@@ -35,17 +35,17 @@ func RunStoreContract(t *testing.T, newHarness NewHarness) {
 		h := requireHarness(t, newHarness(t))
 		ctx := context.Background()
 		disabledAt := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
-		h.AddUser(appauth.User{ID: "u1", KeycloakSub: "kc-u1", Email: "old@example.test", EmailVerified: false})
-		h.AddUser(appauth.User{ID: "disabled", KeycloakSub: "kc-disabled", Email: "disabled@example.test", DisabledAt: &disabledAt})
+		h.AddUser(appauth.User{ID: "u1", OIDCSubject: "kc-u1", Email: "old@example.test", EmailVerified: false})
+		h.AddUser(appauth.User{ID: "disabled", OIDCSubject: "kc-disabled", Email: "disabled@example.test", DisabledAt: &disabledAt})
 
 		byID, err := h.Users.ByID(ctx, "u1")
 		if err != nil {
 			t.Fatalf("by id: %v", err)
 		}
-		if byID.KeycloakSub != "kc-u1" {
+		if byID.OIDCSubject != "kc-u1" {
 			t.Fatalf("unexpected user by id: %#v", byID)
 		}
-		bySub, err := h.Users.ByKeycloakSub(ctx, "kc-u1")
+		bySub, err := h.Users.ByOIDCSubject(ctx, "kc-u1")
 		if err != nil {
 			t.Fatalf("by sub: %v", err)
 		}
@@ -67,7 +67,7 @@ func RunStoreContract(t *testing.T, newHarness NewHarness) {
 		if err != nil {
 			t.Fatalf("upsert new: %v", err)
 		}
-		if created.ID == "" || created.KeycloakSub != "kc-new" || created.Email != "created@example.test" {
+		if created.ID == "" || created.OIDCSubject != "kc-new" || created.Email != "created@example.test" {
 			t.Fatalf("unexpected created user: %#v", created)
 		}
 	})

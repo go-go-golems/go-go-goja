@@ -1,4 +1,4 @@
-package keycloakauth
+package oidcauth
 
 import (
 	"context"
@@ -83,6 +83,121 @@ func TestLoginCallbackCreatesSession(t *testing.T) {
 	}
 	if actor.ID != "u1" || actor.Claims["sub"] != "keycloak-sub-1" {
 		t.Fatalf("unexpected actor: %#v", actor)
+	}
+}
+
+func TestInProcessIssuerClientCoversDiscoveryExchangeAndKeysWithoutDial(t *testing.T) {
+	ctx := context.Background()
+	provider := newInProcessFakeProvider(t, "https://identity.example.test/idp")
+	transport, err := NewInProcessIssuerTransport(provider.URL(), provider.Handler())
+	if err != nil {
+		t.Fatalf("transport: %v", err)
+	}
+	manager, err := sessionauth.New(sessionauth.Config{Store: sessionauth.NewMemoryStore(), AllowInsecureHTTP: true})
+	if err != nil {
+		t.Fatalf("session manager: %v", err)
+	}
+	var handlers *Handlers
+	app := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/auth/login":
+			handlers.LoginHandler().ServeHTTP(w, r)
+		case "/auth/callback":
+			handlers.CallbackHandler().ServeHTTP(w, r)
+		case "/after":
+			_, _ = w.Write([]byte("after login"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer app.Close()
+	handlers, err = New(ctx, Config{
+		IssuerURL:      provider.URL(),
+		ClientID:       "goja-app",
+		RedirectURL:    app.URL + "/auth/callback",
+		AfterLoginURL:  "/after",
+		SessionManager: manager,
+		UserNormalizer: passthroughNormalizer(),
+		HTTPClient:     &http.Client{Transport: transport},
+	})
+	if err != nil {
+		t.Fatalf("handlers: %v", err)
+	}
+
+	client := clientWithJar(t)
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if req.URL.Host == "identity.example.test" {
+			return http.ErrUseLastResponse
+		}
+		return nil
+	}
+
+	loginResponse, err := client.Get(app.URL + "/auth/login?return_to=/after")
+	if err != nil {
+		t.Fatalf("login redirect: %v", err)
+	}
+	defer func() { _ = loginResponse.Body.Close() }()
+	if loginResponse.StatusCode != http.StatusFound {
+		t.Fatalf("login status=%d", loginResponse.StatusCode)
+	}
+
+	authorizeRequest, err := http.NewRequest(http.MethodGet, loginResponse.Header.Get("Location"), nil)
+	if err != nil {
+		t.Fatalf("authorize request: %v", err)
+	}
+	authorizeResponse, err := transport.RoundTrip(authorizeRequest)
+	if err != nil {
+		t.Fatalf("authorize: %v", err)
+	}
+	_ = authorizeResponse.Body.Close()
+	callback := authorizeResponse.Header.Get("Location")
+	if callback == "" {
+		t.Fatal("authorize response did not contain callback")
+	}
+	callbackResponse, err := client.Get(callback)
+	if err != nil {
+		t.Fatalf("callback: %v", err)
+	}
+	defer func() { _ = callbackResponse.Body.Close() }()
+	if callbackResponse.StatusCode != http.StatusOK || callbackResponse.Request.URL.Path != "/after" {
+		t.Fatalf("callback status/path=%d %s", callbackResponse.StatusCode, callbackResponse.Request.URL.Path)
+	}
+}
+
+func TestInProcessIssuerTransportFailsClosed(t *testing.T) {
+	t.Parallel()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	transport, err := NewInProcessIssuerTransport("https://identity.example.test/idp", handler)
+	if err != nil {
+		t.Fatalf("transport: %v", err)
+	}
+	for _, rawURL := range []string{
+		"https://other.example.test/idp/keys",
+		"http://identity.example.test/idp/keys",
+		"https://identity.example.test/application",
+		"https://user@identity.example.test/idp/keys",
+		"/idp/keys",
+	} {
+		req, requestErr := http.NewRequest(http.MethodGet, rawURL, nil)
+		if requestErr != nil {
+			t.Fatalf("request %q: %v", rawURL, requestErr)
+		}
+		if _, roundTripErr := transport.RoundTrip(req); roundTripErr == nil {
+			t.Errorf("RoundTrip(%q) succeeded, want fail-closed error", rawURL)
+		}
+	}
+}
+
+func TestNewInProcessIssuerTransportRejectsMalformedIssuer(t *testing.T) {
+	t.Parallel()
+	handler := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
+	for _, issuer := range []string{"", "/idp", "ftp://identity.example.test/idp", "https://user@identity.example.test/idp", "https://identity.example.test/idp?q=1", "https://identity.example.test/idp#fragment"} {
+		if _, err := NewInProcessIssuerTransport(issuer, handler); err == nil {
+			t.Errorf("issuer %q accepted, want error", issuer)
+		}
+	}
+	if _, err := NewInProcessIssuerTransport("https://identity.example.test/idp", nil); err == nil {
+		t.Error("nil handler accepted, want error")
 	}
 }
 
@@ -252,6 +367,7 @@ func passthroughNormalizer() UserNormalizer {
 
 type fakeProvider struct {
 	server     *httptest.Server
+	issuer     string
 	key        *rsa.PrivateKey
 	mu         sync.Mutex
 	codes      map[string]string
@@ -262,22 +378,41 @@ type fakeProvider struct {
 
 func newFakeProvider(t *testing.T) *fakeProvider {
 	t.Helper()
+	provider := newInProcessFakeProvider(t, "")
+	provider.server = httptest.NewServer(provider.Handler())
+	provider.issuer = provider.server.URL
+	return provider
+}
+
+func newInProcessFakeProvider(t *testing.T, issuer string) *fakeProvider {
+	t.Helper()
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatal(err)
 	}
-	provider := &fakeProvider{key: key, codes: map[string]string{}, audience: "goja-app", expOffset: time.Hour}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/.well-known/openid-configuration", provider.discovery)
-	mux.HandleFunc("/keys", provider.keys)
-	mux.HandleFunc("/auth", provider.auth)
-	mux.HandleFunc("/token", provider.token)
-	provider.server = httptest.NewServer(mux)
-	return provider
+	return &fakeProvider{issuer: issuer, key: key, codes: map[string]string{}, audience: "goja-app", expOffset: time.Hour}
 }
 
-func (p *fakeProvider) URL() string { return p.server.URL }
-func (p *fakeProvider) Close()      { p.server.Close() }
+func (p *fakeProvider) Handler() http.Handler {
+	mux := http.NewServeMux()
+	issuer, err := url.Parse(p.URL())
+	if err != nil {
+		panic(err)
+	}
+	prefix := strings.TrimSuffix(issuer.Path, "/")
+	mux.HandleFunc(prefix+"/.well-known/openid-configuration", p.discovery)
+	mux.HandleFunc(prefix+"/keys", p.keys)
+	mux.HandleFunc(prefix+"/auth", p.auth)
+	mux.HandleFunc(prefix+"/token", p.token)
+	return mux
+}
+
+func (p *fakeProvider) URL() string { return p.issuer }
+func (p *fakeProvider) Close() {
+	if p.server != nil {
+		p.server.Close()
+	}
+}
 
 func (p *fakeProvider) discovery(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(tResponseWriter{w}, map[string]any{"issuer": p.URL(), "authorization_endpoint": p.URL() + "/auth", "token_endpoint": p.URL() + "/token", "jwks_uri": p.URL() + "/keys"})

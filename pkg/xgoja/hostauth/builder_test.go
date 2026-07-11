@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
-	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -183,7 +183,7 @@ func TestDefaultOIDCUserNormalizerUpsertsUserWithoutGrantingMemberships(t *testi
 	if len(session.TenantIDs) != 0 {
 		t.Fatalf("generic normalizer must not grant memberships, got %#v", session.TenantIDs)
 	}
-	if session.Claims["keycloakSub"] != "kc-sub-1" || session.Claims["preferredUsername"] != "demo" {
+	if session.Claims["oidcSubject"] != "kc-sub-1" || session.Claims["preferredUsername"] != "demo" {
 		t.Fatalf("claims = %#v", session.Claims)
 	}
 }
@@ -240,6 +240,6 @@ func newOIDCDiscoveryServer(t *testing.T) *httptest.Server {
 	return server
 }
 
-func fakeOIDCClaims(sub string, email string) keycloakauth.OIDCClaims {
-	return keycloakauth.OIDCClaims{Subject: sub, Email: email, EmailVerified: true, PreferredUsername: strings.TrimSuffix(email, "@example.test")}
+func fakeOIDCClaims(sub string, email string) oidcauth.OIDCClaims {
+	return oidcauth.OIDCClaims{Subject: sub, Email: email, EmailVerified: true, PreferredUsername: strings.TrimSuffix(email, "@example.test")}
 }

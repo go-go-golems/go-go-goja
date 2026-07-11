@@ -25,7 +25,7 @@ const (
 // User is the minimal app-owned user model used by helpers.
 type User struct {
 	ID            string
-	KeycloakSub   string
+	OIDCSubject   string
 	Email         string
 	DisplayName   string
 	EmailVerified bool
@@ -61,7 +61,7 @@ type Resource struct {
 // UserStore loads app users.
 type UserStore interface {
 	ByID(ctx context.Context, id string) (*User, error)
-	ByKeycloakSub(ctx context.Context, sub string) (*User, error)
+	ByOIDCSubject(ctx context.Context, sub string) (*User, error)
 	UpsertFromOIDC(ctx context.Context, sub, email string, emailVerified bool) (*User, error)
 }
 
@@ -207,8 +207,8 @@ func (s *MemoryStore) AddUser(user User) {
 	defer s.mu.Unlock()
 	user = cloneUser(user)
 	s.users[user.ID] = user
-	if user.KeycloakSub != "" {
-		s.usersBySub[user.KeycloakSub] = user.ID
+	if user.OIDCSubject != "" {
+		s.usersBySub[user.OIDCSubject] = user.ID
 	}
 }
 
@@ -236,7 +236,7 @@ func (s *MemoryStore) ByID(_ context.Context, id string) (*User, error) {
 	return &user, nil
 }
 
-func (s *MemoryStore) ByKeycloakSub(ctx context.Context, sub string) (*User, error) {
+func (s *MemoryStore) ByOIDCSubject(ctx context.Context, sub string) (*User, error) {
 	s.mu.Lock()
 	id, ok := s.usersBySub[sub]
 	s.mu.Unlock()
@@ -261,7 +261,7 @@ func (s *MemoryStore) UpsertFromOIDC(_ context.Context, sub, email string, email
 		return &user, nil
 	}
 	id := "user:" + sub
-	user := User{ID: id, KeycloakSub: sub, Email: email, EmailVerified: emailVerified}
+	user := User{ID: id, OIDCSubject: sub, Email: email, EmailVerified: emailVerified}
 	s.users[id] = user
 	s.usersBySub[sub] = id
 	return &user, nil

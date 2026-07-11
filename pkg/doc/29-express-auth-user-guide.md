@@ -243,12 +243,12 @@ The optional packages under `pkg/gojahttp/auth/...` provide reusable Go-side imp
 | --- | --- | --- |
 | `devauth` | Local/demo users, login/logout/session endpoints, in-memory resources, authorization, CSRF, and audit. | Demo-only; use it for examples and tests, not production auth. |
 | `sessionauth` | Opaque server-side app session cookies and CSRF token verification. | Replace `MemoryStore` with durable storage for multi-instance deployments. |
-| `keycloakauth` | Keycloak/OIDC Authorization Code + PKCE login, callback, and logout handlers. | Keep IdP tokens server-side; planned routes use the app session cookie. |
+| `oidcauth` | Provider-neutral OIDC Authorization Code + PKCE login, callback, and logout handlers. | Keep IdP tokens server-side; planned routes use the app session cookie. |
 | `appauth` | Small app-owned users, tenants, memberships, resources, and deny-by-default authorization helpers. | A starter shape; replace with domain services or a policy engine when needed. |
 | `audit` | Normalize route audit events into redacted records for logs or stores. | Persist records if they matter for compliance or incident review. |
 | `capability` | Hashed, expiring bearer-token flows such as org invites, email verification, password reset, or one-time downloads. | Store only hashes and make single-use redemption atomic. |
 
-For development, start with `devauth` or the `examples/xgoja/18-express-auth-host` smoke. For generated runtime-package hosts, `pkg/xgoja/hostauth` provides the lazy `ServiceFactoryKey` seam used by `examples/xgoja/21-generated-host-auth`: the Go host injects session/store configuration with `ConfigureServices`, and the HTTP `serve` provider builds `gojahttp.AuthOptions` at command execution time. For production-shaped browser login, combine `keycloakauth`, `sessionauth`, `appauth`, and `audit` as shown in `examples/xgoja/19-express-keycloak-auth-host`.
+For development, start with `devauth` or the `examples/xgoja/18-express-auth-host` smoke. For generated runtime-package hosts, `pkg/xgoja/hostauth` provides the lazy `ServiceFactoryKey` seam used by `examples/xgoja/21-generated-host-auth`: the Go host injects session/store configuration with `ConfigureServices`, and the HTTP `serve` provider builds `gojahttp.AuthOptions` at command execution time. For production-shaped browser login, combine `oidcauth`, `sessionauth`, `appauth`, and `audit` as shown in `examples/xgoja/19-express-keycloak-auth-host`.
 
 ## Error behavior
 

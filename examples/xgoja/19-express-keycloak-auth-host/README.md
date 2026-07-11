@@ -2,7 +2,7 @@
 
 This example is the production-oriented companion to `../18-express-auth-host`. It uses a Docker Compose Keycloak realm for login and the optional host-auth packages:
 
-- `keycloakauth` for OIDC Authorization Code + PKCE login/callback/logout,
+- `oidcauth` for provider-neutral OIDC Authorization Code + PKCE login/callback/logout,
 - `sessionauth` for opaque app session cookies and CSRF verification,
 - `appauth` for app-owned resource resolution and explicit authorization,
 - `appauth/sqlstore` for persistent app users, memberships, tenants, and resources,

@@ -11,7 +11,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
-	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -20,6 +20,10 @@ type BuilderOptions struct {
 	Config      Config
 	ActorLoader sessionauth.ActorLoader
 	Now         func() time.Time
+	// OIDCHTTPClient is used for OIDC discovery, token exchange, and JWKS
+	// retrieval. Custom hosts can route a same-process issuer through a
+	// fail-closed transport without starting the public listener early.
+	OIDCHTTPClient *http.Client
 }
 
 // Builder is the default hostauth ServiceFactory implementation.
@@ -84,7 +88,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	}
 	auditSink := audit.Sink{Store: stores.Audit}
 	authOptions := BuildAuthOptions(sessionManager, stores, auditSink)
-	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores)
+	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores, b.options.OIDCHTTPClient)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +110,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 
 // BuildNativeHandlers maps resolved auth config into Go-owned HTTP handlers
 // mounted by xgoja serve before the JavaScript app host fallback.
-func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager *sessionauth.Manager, stores *StoreBundle) ([]NativeHandler, error) {
+func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager *sessionauth.Manager, stores *StoreBundle, oidcHTTPClient *http.Client) ([]NativeHandler, error) {
 	if cfg.Mode != ModeOIDC {
 		return nil, nil
 	}
@@ -116,7 +120,7 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 	if stores == nil || stores.AppAuth.Users == nil {
 		return nil, configError("auth.stores.appauth", errors.New("app auth user store is required for auth.mode=oidc"))
 	}
-	handlers, err := keycloakauth.New(ctx, keycloakauth.Config{
+	handlers, err := oidcauth.New(ctx, oidcauth.Config{
 		IssuerURL:      cfg.OIDC.IssuerURL,
 		ClientID:       cfg.OIDC.ClientID,
 		ClientSecret:   cfg.OIDC.ClientSecret,
@@ -126,6 +130,7 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 		AfterLogoutURL: cfg.OIDC.AfterLogoutURL,
 		SessionManager: sessionManager,
 		UserNormalizer: DefaultOIDCUserNormalizer(stores),
+		HTTPClient:     oidcHTTPClient,
 	})
 	if err != nil {
 		return nil, err
@@ -165,17 +170,17 @@ func writeJSON(w http.ResponseWriter, value any) {
 // projects existing app memberships into the application session. It does not
 // grant roles or seed tenants; application seeding remains outside generic
 // hostauth.
-func DefaultOIDCUserNormalizer(stores *StoreBundle) keycloakauth.UserNormalizer {
-	return keycloakauth.UserNormalizerFunc(func(ctx context.Context, claims keycloakauth.OIDCClaims) (keycloakauth.UserSession, error) {
+func DefaultOIDCUserNormalizer(stores *StoreBundle) oidcauth.UserNormalizer {
+	return oidcauth.UserNormalizerFunc(func(ctx context.Context, claims oidcauth.OIDCClaims) (oidcauth.UserSession, error) {
 		user, err := stores.AppAuth.Users.UpsertFromOIDC(ctx, claims.Subject, claims.Email, claims.EmailVerified)
 		if err != nil {
-			return keycloakauth.UserSession{}, err
+			return oidcauth.UserSession{}, err
 		}
 		tenantIDs := []string(nil)
 		if stores.AppAuth.Memberships != nil {
 			memberships, err := stores.AppAuth.Memberships.MembershipsForUser(ctx, user.ID)
 			if err != nil {
-				return keycloakauth.UserSession{}, err
+				return oidcauth.UserSession{}, err
 			}
 			seen := map[string]struct{}{}
 			for _, membership := range memberships {
@@ -189,13 +194,13 @@ func DefaultOIDCUserNormalizer(stores *StoreBundle) keycloakauth.UserNormalizer 
 				tenantIDs = append(tenantIDs, membership.TenantID)
 			}
 		}
-		return keycloakauth.UserSession{
+		return oidcauth.UserSession{
 			UserID:        user.ID,
 			Email:         user.Email,
 			EmailVerified: user.EmailVerified,
 			TenantIDs:     tenantIDs,
 			Claims: map[string]any{
-				"keycloakSub":       claims.Subject,
+				"oidcSubject":       claims.Subject,
 				"preferredUsername": claims.PreferredUsername,
 				"name":              claims.Name,
 				"groups":            append([]string(nil), claims.Groups...),

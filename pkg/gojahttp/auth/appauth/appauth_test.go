@@ -86,13 +86,13 @@ func TestUpsertFromOIDCRejectsDisabledExistingUser(t *testing.T) {
 	ctx := context.Background()
 	store := NewMemoryStore()
 	disabledAt := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
-	store.AddUser(User{ID: "u-disabled", KeycloakSub: "kc-disabled", Email: "old@example.test", DisabledAt: &disabledAt})
+	store.AddUser(User{ID: "u-disabled", OIDCSubject: "kc-disabled", Email: "old@example.test", DisabledAt: &disabledAt})
 
 	_, err := store.UpsertFromOIDC(ctx, "kc-disabled", "new@example.test", true)
 	if !errors.Is(err, gojahttp.ErrNotFound) {
 		t.Fatalf("expected disabled user upsert to be rejected, got %v", err)
 	}
-	_, err = store.ByKeycloakSub(ctx, "kc-disabled")
+	_, err = store.ByOIDCSubject(ctx, "kc-disabled")
 	if !errors.Is(err, gojahttp.ErrNotFound) {
 		t.Fatalf("disabled user should remain hidden, got %v", err)
 	}
@@ -101,7 +101,7 @@ func TestUpsertFromOIDCRejectsDisabledExistingUser(t *testing.T) {
 func TestUserAndMembershipStore(t *testing.T) {
 	ctx := context.Background()
 	store := seededStore()
-	user, err := store.ByKeycloakSub(ctx, "kc-u1")
+	user, err := store.ByOIDCSubject(ctx, "kc-u1")
 	if err != nil {
 		t.Fatalf("by sub: %v", err)
 	}
@@ -140,8 +140,8 @@ func TestAuthorizerPropagatesBackendErrors(t *testing.T) {
 
 func seededStore() *MemoryStore {
 	store := NewMemoryStore()
-	store.AddUser(User{ID: "u1", KeycloakSub: "kc-u1", Email: "u1@example.test", EmailVerified: true})
-	store.AddUser(User{ID: "u2", KeycloakSub: "kc-u2", Email: "u2@example.test"})
+	store.AddUser(User{ID: "u1", OIDCSubject: "kc-u1", Email: "u1@example.test", EmailVerified: true})
+	store.AddUser(User{ID: "u2", OIDCSubject: "kc-u2", Email: "u2@example.test"})
 	store.AddMembership(Membership{UserID: "u1", TenantID: "o1", Role: "admin"})
 	store.AddResource(Resource{Type: "project", ID: "p1", TenantID: "o1", Claims: map[string]any{"name": "Project One"}})
 	store.AddResource(Resource{Type: "project", ID: "p2", TenantID: "o2"})

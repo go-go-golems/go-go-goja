@@ -42,7 +42,7 @@ For tests and tiny demos, use the in-memory store:
 
 ```go
 store := appauth.NewMemoryStore()
-store.AddUser(appauth.User{ID: "u1", KeycloakSub: "..."})
+store.AddUser(appauth.User{ID: "u1", OIDCSubject: "..."})
 store.AddMembership(appauth.Membership{UserID: "u1", TenantID: "o1", Role: "admin"})
 store.AddResource(appauth.Resource{Type: "project", ID: "p1", TenantID: "o1"})
 
