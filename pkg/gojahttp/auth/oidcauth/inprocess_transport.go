@@ -72,7 +72,16 @@ func (t *InProcessIssuerTransport) RoundTrip(req *http.Request) (*http.Response,
 	}
 
 	recorder := httptest.NewRecorder()
-	t.handler.ServeHTTP(recorder, req)
+	serverRequest := req.Clone(req.Context())
+	serverRequest.RequestURI = req.URL.RequestURI()
+	if serverRequest.RemoteAddr == "" {
+		// A RoundTripper receives a client-side request, while an http.Handler
+		// expects server-side connection metadata. Use an explicit loopback peer
+		// for this same-process, exact-origin transport so address resolvers and
+		// rate-limit keys retain their normal server contract.
+		serverRequest.RemoteAddr = "127.0.0.1:0"
+	}
+	t.handler.ServeHTTP(recorder, serverRequest)
 	response := recorder.Result()
 	response.Request = req
 	return response, nil

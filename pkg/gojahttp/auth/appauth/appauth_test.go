@@ -39,6 +39,7 @@ func TestAuthorizerAllowsExpectedActions(t *testing.T) {
 	user := &gojahttp.ResourceRef{Type: "user", ID: "u1"}
 	for _, req := range []gojahttp.AuthorizationRequest{
 		{Actor: actor, Action: ActionUserSelfRead},
+		{Actor: actor, Action: ActionUserSelfUpdate},
 		{Actor: actor, Action: ActionUserSelfUpdate, Resource: user},
 		{Actor: actor, Action: ActionProjectRead, Resource: project},
 		{Actor: actor, Action: ActionProjectUpdate, Resource: project},

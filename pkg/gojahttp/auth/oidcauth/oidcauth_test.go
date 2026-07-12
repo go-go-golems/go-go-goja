@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
+	"golang.org/x/oauth2"
 )
 
 func TestLoginCallbackCreatesSession(t *testing.T) {
@@ -164,6 +165,32 @@ func TestInProcessIssuerClientCoversDiscoveryExchangeAndKeysWithoutDial(t *testi
 	}
 }
 
+func TestPublicClientUsesTokenEndpointParametersWithoutProbe(t *testing.T) {
+	provider := newInProcessFakeProvider(t, "https://identity.example.test/idp")
+	transport, err := NewInProcessIssuerTransport(provider.URL(), provider.Handler())
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := sessionauth.New(sessionauth.Config{Store: sessionauth.NewMemoryStore(), AllowInsecureHTTP: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handlers, err := New(context.Background(), Config{
+		IssuerURL:      provider.URL(),
+		ClientID:       "public-app",
+		RedirectURL:    "http://127.0.0.1:8787/auth/callback",
+		SessionManager: manager,
+		UserNormalizer: passthroughNormalizer(),
+		HTTPClient:     &http.Client{Transport: transport},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if handlers.oauth2Config.Endpoint.AuthStyle != oauth2.AuthStyleInParams {
+		t.Fatalf("auth style = %v, want body parameters", handlers.oauth2Config.Endpoint.AuthStyle)
+	}
+}
+
 func TestInProcessIssuerTransportFailsClosed(t *testing.T) {
 	t.Parallel()
 	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
@@ -185,6 +212,33 @@ func TestInProcessIssuerTransportFailsClosed(t *testing.T) {
 		if _, roundTripErr := transport.RoundTrip(req); roundTripErr == nil {
 			t.Errorf("RoundTrip(%q) succeeded, want fail-closed error", rawURL)
 		}
+	}
+}
+
+func TestInProcessIssuerTransportProvidesServerRequestMetadata(t *testing.T) {
+	t.Parallel()
+	var remoteAddr string
+	var requestURI string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		remoteAddr = r.RemoteAddr
+		requestURI = r.RequestURI
+		w.WriteHeader(http.StatusNoContent)
+	})
+	transport, err := NewInProcessIssuerTransport("https://identity.example.test/idp", handler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := http.NewRequest(http.MethodPost, "https://identity.example.test/idp/token?trace=1", strings.NewReader("grant_type=authorization_code"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := transport.RoundTrip(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+	if remoteAddr != "127.0.0.1:0" || requestURI != "/idp/token?trace=1" {
+		t.Fatalf("server metadata remote=%q requestURI=%q", remoteAddr, requestURI)
 	}
 }
 

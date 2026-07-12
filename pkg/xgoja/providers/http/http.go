@@ -199,18 +199,20 @@ func externalHostService(hostServices providerapi.HostServices) (ExternalHostSer
 	if !ok || lookup == nil {
 		return ExternalHostService{}, nil
 	}
-	raw, ok := lookup.HostService(HostServiceKey)
-	if !ok {
+	values := lookup.HostServiceValues(HostServiceKey)
+	if len(values) == 0 {
 		return ExternalHostService{}, nil
 	}
-	service, ok := raw.(ExternalHostService)
-	if !ok {
-		return ExternalHostService{}, fmt.Errorf("http host service %q must be ExternalHostService, got %T", HostServiceKey, raw)
+	for _, raw := range values {
+		service, ok := raw.(ExternalHostService)
+		if !ok {
+			return ExternalHostService{}, fmt.Errorf("http host service %q must be ExternalHostService, got %T", HostServiceKey, raw)
+		}
+		if service.Host != nil {
+			return service, nil
+		}
 	}
-	if service.Host == nil {
-		return ExternalHostService{}, fmt.Errorf("http host service %q has nil Host", HostServiceKey)
-	}
-	return service, nil
+	return ExternalHostService{}, fmt.Errorf("http host service %q has nil Host", HostServiceKey)
 }
 
 func (c *capability) entry(vm *goja.Runtime) *runtimeEntry {

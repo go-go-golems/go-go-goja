@@ -122,10 +122,17 @@ func New(ctx context.Context, cfg Config) (*Handlers, error) {
 		return nil, fmt.Errorf("oidcauth: discover provider: %w", err)
 	}
 	scopes := ensureOpenIDScope(cfg.Scopes)
+	endpoint := provider.Endpoint()
+	// Public PKCE clients have no client secret and must send client_id in the
+	// token request body. Avoid oauth2's auth-style probing: a probe can consume
+	// a one-time authorization code at strict providers before the retry.
+	if cfg.ClientSecret == "" {
+		endpoint.AuthStyle = oauth2.AuthStyleInParams
+	}
 	oauth2Config := oauth2.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
-		Endpoint:     provider.Endpoint(),
+		Endpoint:     endpoint,
 		RedirectURL:  cfg.RedirectURL,
 		Scopes:       scopes,
 	}

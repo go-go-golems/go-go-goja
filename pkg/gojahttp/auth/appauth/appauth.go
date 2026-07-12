@@ -120,8 +120,14 @@ func (a Authorizer) Authorize(ctx context.Context, req gojahttp.AuthorizationReq
 	case ActionUserSelfRead:
 		return allow(), nil
 	case ActionUserSelfUpdate:
-		if req.Resource == nil || req.Resource.Type != "user" {
-			return deny("missing user resource"), nil
+		// A route with no caller-selected resource acts on the authenticated
+		// principal's implicit self. This is the safe form for actor-bound
+		// services whose physical resource ID is derived after authorization.
+		if req.Resource == nil {
+			return allow(), nil
+		}
+		if req.Resource.Type != "user" {
+			return deny("invalid user resource"), nil
 		}
 		if req.Resource.ID == req.Actor.ID {
 			return allow(), nil

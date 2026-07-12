@@ -219,6 +219,23 @@ func TestExternalHostServiceValidation(t *testing.T) {
 	}
 }
 
+func TestExternalHostServiceAcceptsComposedContributions(t *testing.T) {
+	first := gojahttp.NewHost(gojahttp.HostOptions{})
+	second := gojahttp.NewHost(gojahttp.HostOptions{})
+	service, err := externalHostService(app.HostServices{Services: map[string][]any{
+		HostServiceKey: {
+			ExternalHostService{Host: first, OwnsListen: false},
+			ExternalHostService{Host: second, OwnsListen: true},
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if service.Host != first || service.OwnsListen {
+		t.Fatalf("service = %#v, want first contributed host", service)
+	}
+}
+
 func TestExpressProviderRegistersIntoExternalHost(t *testing.T) {
 	jsHost := gojahttp.NewHost(gojahttp.HostOptions{Dev: true})
 	registry := providerapi.NewProviderRegistry()
