@@ -403,14 +403,80 @@ func TestCallbackRejectsNormalizerFailureAndLogoutClearsCookie(t *testing.T) {
 	if err != nil {
 		t.Fatalf("logout: %v", err)
 	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("logout without csrf status=%d", resp.StatusCode)
+	}
+	if _, err = manager.Authenticate(ctx, requestWithCookies(client.Jar.Cookies(mustURL(t, app.URL))), nil, gojahttp.SecuritySpec{}); err != nil {
+		t.Fatalf("csrf-rejected logout revoked session: %v", err)
+	}
+
+	getReq, err := http.NewRequest(http.MethodGet, app.URL+"/auth/logout", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	getResp, err := client.Do(getReq)
+	if err != nil {
+		t.Fatalf("GET logout: %v", err)
+	}
+	_ = getResp.Body.Close()
+	if getResp.StatusCode != http.StatusMethodNotAllowed {
+		t.Fatalf("GET logout status=%d", getResp.StatusCode)
+	}
+
+	req, err = http.NewRequest(http.MethodPost, app.URL+"/auth/logout", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set(sessionauth.CSRFHeaderName, session.CSRFToken)
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Fatalf("csrf-authenticated logout: %v", err)
+	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("logout status=%d", resp.StatusCode)
+		t.Fatalf("csrf-authenticated logout status=%d", resp.StatusCode)
 	}
 	_, err = manager.Authenticate(ctx, requestWithCookies(client.Jar.Cookies(mustURL(t, app.URL))), nil, gojahttp.SecuritySpec{})
 	if err == nil {
 		t.Fatalf("expected session revoked after logout")
 	}
+}
+
+func TestLogoutRevocationFailureDoesNotReportSuccessOrClearCookie(t *testing.T) {
+	ctx := context.Background()
+	baseStore := sessionauth.NewMemoryStore()
+	manager, err := sessionauth.New(sessionauth.Config{
+		Store:             revokeFailStore{Store: baseStore},
+		AllowInsecureHTTP: true,
+	})
+	if err != nil {
+		t.Fatalf("session manager: %v", err)
+	}
+	session, err := manager.NewSession(ctx, "u1")
+	if err != nil {
+		t.Fatalf("new session: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "http://app.example.test/auth/logout", nil)
+	req.AddCookie(&http.Cookie{Name: sessionauth.InsecureCookieName, Value: session.ID, Path: "/"})
+	req.Header.Set(sessionauth.CSRFHeaderName, session.CSRFToken)
+	recorder := httptest.NewRecorder()
+	(&Handlers{sessionManager: manager}).LogoutHandler().ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("revocation failure status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if strings.Contains(recorder.Header().Get("Set-Cookie"), "Max-Age=0") {
+		t.Fatalf("revocation failure cleared browser cookie: %s", recorder.Header().Get("Set-Cookie"))
+	}
+	if _, err := manager.Authenticate(ctx, req, nil, gojahttp.SecuritySpec{}); err != nil {
+		t.Fatalf("revocation failure changed stored session: %v", err)
+	}
+}
+
+type revokeFailStore struct{ sessionauth.Store }
+
+func (revokeFailStore) Revoke(context.Context, string) error {
+	return fmt.Errorf("injected revoke failure")
 }
 
 func passthroughNormalizer() UserNormalizer {

@@ -139,7 +139,6 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 		{Method: "GET", Path: "/auth/login", Handler: handlers.LoginHandler()},
 		{Method: "GET", Path: "/auth/callback", Handler: handlers.CallbackHandler()},
 		{Method: "POST", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
-		{Method: "GET", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
 		{Method: "GET", Path: "/auth/session", Handler: sessionInfoHandler(sessionManager)},
 	}, nil
 }

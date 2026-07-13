@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 	"golang.org/x/oauth2"
 )
@@ -259,16 +260,19 @@ func withHTTPClient(ctx context.Context, client *http.Client) context.Context {
 }
 
 func (h *Handlers) handleLogout(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost && r.Method != http.MethodGet {
+	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	_ = h.sessionManager.RevokeRequestSession(r.Context(), r)
-	h.sessionManager.ClearCookie(w)
-	if r.Method == http.MethodGet {
-		http.Redirect(w, r, h.afterLogoutURL, http.StatusFound)
+	if err := h.sessionManager.VerifyCSRF(r.Context(), gojahttp.CSRFRequest{HTTPRequest: r}); err != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	if err := h.sessionManager.RevokeRequestSession(r.Context(), r); err != nil {
+		http.Error(w, "revoke application session", http.StatusInternalServerError)
+		return
+	}
+	h.sessionManager.ClearCookie(w)
 	w.WriteHeader(http.StatusNoContent)
 }
 
