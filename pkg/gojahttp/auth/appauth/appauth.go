@@ -23,6 +23,10 @@ const (
 	ActionProjectUpdate  = "project.update"
 	ActionOrgInvite      = "org.member.invite"
 	ActionAuditRead      = "audit.read"
+	ActionBBSRead        = "bbs.read"
+	ActionBBSPostCreate  = "bbs.post.create"
+	ActionBBSReplyCreate = "bbs.reply.create"
+	ActionBBSPostDelete  = "bbs.post.delete"
 )
 
 // User is the minimal app-owned user model used by helpers.
@@ -119,6 +123,14 @@ func (a Authorizer) Authorize(ctx context.Context, req gojahttp.AuthorizationReq
 	switch req.Action {
 	case ActionUserSelfRead:
 		return allow(), nil
+	case ActionBBSRead, ActionBBSPostCreate, ActionBBSReplyCreate, ActionBBSPostDelete:
+		// The BBS route selects one shared object after authorization, and the
+		// object performs post-level ownership checks. Do not accept a
+		// caller-selected resource reference at this coarse route boundary.
+		if req.Resource == nil {
+			return allow(), nil
+		}
+		return deny("BBS actions require a host-selected shared resource"), nil
 	case ActionUserSelfUpdate:
 		// A route with no caller-selected resource acts on the authenticated
 		// principal's implicit self. This is the safe form for actor-bound
